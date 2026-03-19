@@ -1,0 +1,41 @@
+{
+  "name": "SchoolOS — بوابة ولي الأمر",
+  "short_name": "SchoolOS",
+  "description": "تابع أداء ابنك — درجات، حضور، سلوك",
+  "start_url": "/parents/",
+  "scope": "/parents/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F2347",
+  "theme_color": "#8A1538",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["education"],
+  "shortcuts": [
+    {
+      "name": "الدرجات",
+      "url": "/parents/",
+      "description": "عرض درجات الطالب"
+    },
+    {
+      "name": "الحضور",
+      "url": "/parents/",
+      "description": "سجل الحضور والغياب"
+    }
+  ]
+}

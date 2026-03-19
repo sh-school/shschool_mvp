@@ -1,0 +1,147 @@
+{% extends "base/base.html" %}
+{% block title %}درجات {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
+    <a href="{% url 'parent_dashboard' %}" class="hover:text-blue-600">البوابة</a> /
+    <span class="text-gray-800 font-medium">درجات {{ student.full_name }}</span>
+  </div>
+
+  <!-- Header -->
+  <div class="bg-gradient-to-l from-[#0F2347] to-[#1A4F8A] rounded-2xl px-6 py-5">
+    <h1 class="text-xl font-bold text-white">{{ student.full_name }}</h1>
+    <p class="text-blue-200 text-sm mt-1">
+      {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
+      العام الدراسي {{ year }}
+    </p>
+    <div class="flex gap-6 mt-4">
+      <div class="text-center">
+        <div class="text-2xl font-bold text-white">{{ total }}</div>
+        <div class="text-xs text-blue-200">مادة</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold text-green-300">{{ passed }}</div>
+        <div class="text-xs text-blue-200">ناجح</div>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold {% if failed %}text-red-300{% else %}text-blue-200{% endif %}">{{ failed }}</div>
+        <div class="text-xs text-blue-200">راسب</div>
+      </div>
+      {% if avg %}
+      <div class="text-center">
+        <div class="text-2xl font-bold text-yellow-200">{{ avg }}</div>
+        <div class="text-xs text-blue-200">متوسط</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- جدول الدرجات -->
+  {% if rows %}
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-right">المادة</th>
+            <th class="px-4 py-3 text-center">الفصل الأول <span class="text-gray-400 font-normal">/40</span></th>
+            <th class="px-4 py-3 text-center">الفصل الثاني <span class="text-gray-400 font-normal">/60</span></th>
+            <th class="px-4 py-3 text-center">المجموع <span class="text-gray-400 font-normal">/100</span></th>
+            <th class="px-4 py-3 text-center">التقدير</th>
+            <th class="px-4 py-3 text-center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for row in rows %}
+          <tr class="hover:bg-gray-50 {% if row.annual.status == 'fail' %}bg-red-50{% endif %}">
+            <td class="px-4 py-3 font-medium text-gray-900">{{ row.subject }}</td>
+
+            <!-- الفصل الأول -->
+            <td class="px-4 py-3 text-center">
+              {% if row.s1 and row.s1.total is not None %}
+                <span class="font-mono">{{ row.s1.total }}</span>
+              {% else %}
+                <span class="text-gray-300">—</span>
+              {% endif %}
+            </td>
+
+            <!-- الفصل الثاني -->
+            <td class="px-4 py-3 text-center">
+              {% if row.s2 and row.s2.total is not None %}
+                <span class="font-mono">{{ row.s2.total }}</span>
+              {% else %}
+                <span class="text-gray-300">—</span>
+              {% endif %}
+            </td>
+
+            <!-- المجموع السنوي -->
+            <td class="px-4 py-3 text-center">
+              {% if row.annual.annual_total is not None %}
+                <span class="font-bold font-mono text-lg
+                  {% if row.annual.annual_total >= 80 %}text-green-700
+                  {% elif row.annual.annual_total >= 65 %}text-blue-700
+                  {% elif row.annual.annual_total >= 50 %}text-amber-600
+                  {% else %}text-red-600{% endif %}">
+                  {{ row.annual.annual_total }}
+                </span>
+              {% else %}
+                <span class="text-gray-300 text-xs">لم تكتمل</span>
+              {% endif %}
+            </td>
+
+            <!-- التقدير -->
+            <td class="px-4 py-3 text-center">
+              {% if row.annual %}
+              <span class="font-bold text-sm
+                {% if row.annual.annual_total >= 80 %}text-green-700
+                {% elif row.annual.annual_total >= 50 %}text-blue-700
+                {% else %}text-red-600{% endif %}">
+                {{ row.annual.letter_grade }}
+              </span>
+              {% endif %}
+            </td>
+
+            <!-- الحالة -->
+            <td class="px-4 py-3 text-center">
+              {% if row.annual %}
+                {% if row.annual.status == "pass" %}
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">ناجح</span>
+                {% elif row.annual.status == "fail" %}
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">راسب</span>
+                {% else %}
+                  <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">جارٍ</span>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- تنبيه الرسوب -->
+  {% if failed %}
+  <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+    <span class="text-2xl">⚠️</span>
+    <div>
+      <p class="font-bold text-red-800">{{ student.full_name }} راسب في {{ failed }} مادة</p>
+      <p class="text-red-700 text-sm mt-1">
+        يُرجى التواصل مع المدرسة ومتابعة مستوى الطالب في المواد المشار إليها.
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="bg-white rounded-xl border p-12 text-center text-gray-400">
+    <p class="text-4xl mb-3">📊</p>
+    <p>لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

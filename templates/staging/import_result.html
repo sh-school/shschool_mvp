@@ -1,0 +1,102 @@
+{% extends "base/base.html" %}
+{% block title %}نتيجة الاستيراد{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center gap-2 text-sm text-gray-500">
+    <a href="{% url 'import_grades_select' %}" class="hover:text-blue-600">الاستيراد</a> /
+    <span class="text-gray-800 font-medium">نتيجة العملية</span>
+  </div>
+
+  <!-- بطاقة النتيجة -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+
+    {% if imported > 0 and not errors %}
+    <div class="bg-green-600 px-6 py-5">
+      <div class="text-white text-4xl mb-1">✓</div>
+      <h1 class="text-xl font-bold text-white">اكتمل الاستيراد بنجاح</h1>
+    </div>
+    {% elif imported > 0 %}
+    <div class="bg-amber-500 px-6 py-5">
+      <div class="text-white text-4xl mb-1">⚠</div>
+      <h1 class="text-xl font-bold text-white">اكتمل الاستيراد مع تحذيرات</h1>
+    </div>
+    {% else %}
+    <div class="bg-red-600 px-6 py-5">
+      <div class="text-white text-4xl mb-1">✕</div>
+      <h1 class="text-xl font-bold text-white">فشل الاستيراد</h1>
+    </div>
+    {% endif %}
+
+    <div class="px-6 py-5 space-y-4">
+
+      <!-- إحصائيات -->
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div class="bg-gray-50 rounded-lg p-4">
+          <div class="text-2xl font-bold text-gray-800">{{ log.total_rows }}</div>
+          <div class="text-xs text-gray-500 mt-1">إجمالي الصفوف</div>
+        </div>
+        <div class="bg-green-50 rounded-lg p-4">
+          <div class="text-2xl font-bold text-green-700">{{ imported }}</div>
+          <div class="text-xs text-gray-500 mt-1">تم استيرادها</div>
+        </div>
+        <div class="bg-red-50 rounded-lg p-4">
+          <div class="text-2xl font-bold text-red-700">{{ log.failed_rows }}</div>
+          <div class="text-xs text-gray-500 mt-1">سجلات بها خطأ</div>
+        </div>
+      </div>
+
+      <!-- معلومات التقييم -->
+      <div class="bg-blue-50 rounded-lg p-4 text-sm space-y-1">
+        <div class="flex justify-between">
+          <span class="text-gray-500">التقييم</span>
+          <span class="font-medium">{{ assessment.title }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">المادة</span>
+          <span class="font-medium">{{ assessment.package.setup.subject.name_ar }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">الفصل</span>
+          <span class="font-medium">{{ assessment.class_group }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">الملف</span>
+          <span class="font-medium text-gray-600">{{ log.file_name }}</span>
+        </div>
+      </div>
+
+      <!-- الأخطاء -->
+      {% if errors %}
+      <div>
+        <h2 class="font-bold text-red-700 mb-2 text-sm">الأخطاء ({{ errors|length }})</h2>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 max-h-60 overflow-y-auto space-y-1">
+          {% for err in errors %}
+          <div class="text-xs text-red-700 flex items-start gap-1.5">
+            <span class="text-red-400 mt-0.5">✕</span>
+            <span>{{ err }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- الإجراءات -->
+      <div class="flex gap-3 pt-2">
+        <a href="{% url 'grade_entry' assessment.id %}"
+           class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">
+          عرض كشف الدرجات
+        </a>
+        <a href="{% url 'import_grades_select' %}"
+           class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">
+          رجوع للاستيراد
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

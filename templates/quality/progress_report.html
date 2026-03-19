@@ -1,0 +1,77 @@
+{% extends "base/base.html" %}
+{% block title %}تقرير التقدم{% endblock %}
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <h1 class="text-2xl font-bold text-[#0F2347]">تقرير التقدم الكلي</h1>
+    <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline">← العودة</a>
+  </div>
+
+  <!-- تقدم المجالات -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-5 py-3">
+      <h2 class="text-white font-bold">التقدم حسب المجال</h2>
+    </div>
+    <div class="divide-y">
+      {% for ds in domain_stats %}
+      <div class="px-5 py-4">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <p class="font-bold text-gray-800">{{ ds.domain.name }}</p>
+            <p class="text-xs text-gray-500">{{ ds.completed }}/{{ ds.total }} إجراء مكتمل · {{ ds.in_progress }} قيد التنفيذ</p>
+          </div>
+          <span class="text-2xl font-bold {% if ds.pct == 100 %}text-green-600{% elif ds.pct > 50 %}text-blue-600{% else %}text-amber-600{% endif %}">
+            {{ ds.pct }}%
+          </span>
+        </div>
+        <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-3 rounded-full transition-all
+            {% if ds.pct == 100 %}bg-green-500{% elif ds.pct > 50 %}bg-blue-500{% else %}bg-amber-500{% endif %}"
+            style="width:{{ ds.pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- أكثر المنفذين إجراءات -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-5 py-3">
+      <h2 class="text-white font-bold">أكثر المنفذين إجراءات (أول 20)</h2>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b">
+        <tr>
+          <th class="px-4 py-3 text-right">المنفذ</th>
+          <th class="px-4 py-3 text-center">المكتملة</th>
+          <th class="px-4 py-3 text-center">الإجمالي</th>
+          <th class="px-4 py-3 text-center">%</th>
+          <th class="px-4 py-3">التقدم</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for ex in executor_stats %}
+        {% with pct=ex.completed|floatformat:0 %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium text-gray-800">{{ ex.executor_norm }}</td>
+          <td class="px-4 py-3 text-center text-green-600 font-bold">{{ ex.completed }}</td>
+          <td class="px-4 py-3 text-center text-gray-600">{{ ex.total }}</td>
+          <td class="px-4 py-3 text-center font-bold text-[#1A4F8A]">
+            {% if ex.total %}{{ ex.completed|floatformat:0 }}{% endif %}
+          </td>
+          <td class="px-4 py-3">
+            <div class="h-2 bg-gray-100 rounded-full w-full">
+              {% if ex.total %}
+              <div class="h-2 bg-blue-500 rounded-full"
+                   style="width:{% widthratio ex.completed ex.total 100 %}%"></div>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

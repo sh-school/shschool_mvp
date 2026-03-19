@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>شهادات — {{ class_group }}</title>
+<style>
+/* reports/pdf_base.css — ستايل مشترك لكل ملفات PDF */
+
+/* Google Fonts removed — use system fonts for WeasyPrint */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Tajawal', 'Arial', sans-serif;
+  direction: rtl;
+  color: #1a1a2e;
+  font-size: 11pt;
+  line-height: 1.5;
+}
+
+/* ── صفحة ── */
+@page {
+  size: A4;
+  margin: 1.5cm 1.8cm 1.5cm 1.8cm;
+}
+
+@page :first { margin-top: 1cm; }
+
+/* ── ألوان ── */
+:root {
+  --primary:   #0F2347;
+  --accent:    #1A4F8A;
+  --gold:      #B8860B;
+  --success:   #15803d;
+  --danger:    #dc2626;
+  --warn:      #d97706;
+  --gray-100:  #f3f4f6;
+  --gray-200:  #e5e7eb;
+  --gray-500:  #6b7280;
+}
+
+/* ── هيدر المدرسة ── */
+.school-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 10px;
+  border-bottom: 3px solid var(--primary);
+  margin-bottom: 18px;
+}
+
+.school-header .logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.school-header .logo-circle {
+  width: 52px;
+  height: 52px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.school-header .school-info h1 {
+  font-size: 16pt;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.school-header .school-info p {
+  font-size: 9pt;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+.school-header .doc-info {
+  text-align: left;
+  font-size: 9pt;
+  color: var(--gray-500);
+}
+
+.school-header .doc-info strong {
+  display: block;
+  font-size: 11pt;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* ── بيانات الطالب ── */
+.student-info-bar {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.student-info-bar .info-item label {
+  font-size: 8pt;
+  color: var(--gray-500);
+  display: block;
+}
+
+.student-info-bar .info-item span {
+  font-size: 10pt;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── جدول ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 14px;
+  font-size: 10pt;
+}
+
+table thead tr {
+  background: var(--primary);
+  color: white;
+}
+
+table thead th {
+  padding: 8px 10px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 9pt;
+}
+
+table thead th:first-child {
+  text-align: right;
+}
+
+table tbody tr:nth-child(even) {
+  background: var(--gray-100);
+}
+
+table tbody tr:hover {
+  background: #e0e7ff;
+}
+
+table tbody td {
+  padding: 7px 10px;
+  text-align: center;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+table tbody td:first-child {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* ── شارات الحالة ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 8.5pt;
+  font-weight: 700;
+}
+.badge-pass   { background: #dcfce7; color: #15803d; }
+.badge-fail   { background: #fee2e2; color: #dc2626; }
+.badge-inc    { background: #fef3c7; color: #d97706; }
+.badge-absent { background: #fee2e2; color: #dc2626; }
+.badge-late   { background: #fef3c7; color: #d97706; }
+
+/* ── درجة مميزة ── */
+.grade-display {
+  font-size: 13pt;
+  font-weight: 800;
+}
+.grade-a  { color: #15803d; }
+.grade-b  { color: #1d4ed8; }
+.grade-c  { color: #d97706; }
+.grade-f  { color: #dc2626; }
+
+/* ── خانة المجموع ── */
+.total-cell {
+  font-size: 12pt;
+  font-weight: 800;
+}
+
+/* ── إحصائيات سريعة ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat-box {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.stat-box .stat-num {
+  font-size: 18pt;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.stat-box .stat-lbl {
+  font-size: 8pt;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+/* ── تذييل ── */
+.pdf-footer {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  font-size: 8pt;
+  color: var(--gray-500);
+}
+
+/* ── فاصل صفحات ── */
+.page-break { page-break-after: always; }
+.no-break   { page-break-inside: avoid; }
+
+/* ── عنوان القسم ── */
+.section-title {
+  font-size: 12pt;
+  font-weight: 800;
+  color: var(--primary);
+  border-right: 4px solid var(--accent);
+  padding-right: 10px;
+  margin-bottom: 10px;
+}
+
+/* ── درجة راسب ── */
+tr.row-fail td { background: #fff5f5 !important; }
+tr.row-fail td:last-child { color: var(--danger); }
+
+
+@page { size: A4; margin: 1cm 1.5cm; }
+
+.certificate-frame {
+  border: 5px double #0F2347;
+  border-radius: 10px;
+  padding: 22px 28px;
+  page-break-after: always;
+  position: relative;
+  min-height: 260mm;
+}
+.certificate-frame:last-child { page-break-after: avoid; }
+
+.cert-top { text-align:center; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid #0F2347; }
+.cert-top .ministry { font-size:9pt; color:#6b7280; }
+.cert-top .school-name { font-size:16pt; font-weight:800; color:#0F2347; }
+.cert-top .doc-title { font-size:12pt; font-weight:700; color:#B8860B; margin-top:4px; }
+
+.cert-body { text-align:center; margin:16px 0; line-height:2; }
+.cert-body .intro { font-size:10pt; color:#374151; }
+.cert-body .student-name-cert {
+  font-size:18pt; font-weight:800; color:#0F2347; display:block; margin:6px 0;
+  text-decoration:underline; text-decoration-color:#B8860B; text-underline-offset:5px;
+}
+.cert-result {
+  text-align:center; margin:16px 0; padding:12px;
+  border-radius:8px; background:#f8fafc; border:1px solid #e2e8f0;
+}
+.cert-result .result-value { font-size:24pt; font-weight:800; display:block; }
+
+table { font-size:9pt; }
+table thead tr { background:#0F2347; }
+
+.signatures {
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:24px; padding-top:12px;
+}
+.sig-box { text-align:center; }
+.sig-line { border-top:1px solid #9ca3af; margin-bottom:4px; padding-top:3px; }
+.sig-box .sig-title { font-size:8.5pt; color:#6b7280; }
+
+.watermark {
+  position:fixed; top:50%; left:50%;
+  transform:translate(-50%,-50%) rotate(-30deg);
+  font-size:70pt; font-weight:800;
+  color:rgba(15,35,71,0.04); white-space:nowrap; z-index:-1;
+}
+</style>
+</head>
+<body>
+
+<div class="watermark">{{ school.name }}</div>
+
+{% for ctx in students_ctx %}
+<div class="certificate-frame">
+
+  <div class="cert-top">
+    <div class="ministry">وزارة التعليم والتعليم العالي — دولة قطر</div>
+    <div class="school-name">{{ ctx.school.name }}</div>
+    <div class="doc-title">✦ شهادة نتيجة سنوية ✦</div>
+  </div>
+
+  <div class="cert-body">
+    <div class="intro">تشهد إدارة المدرسة بأن الطالب / الطالبة</div>
+    <span class="student-name-cert">{{ ctx.student.full_name }}</span>
+    <div style="font-size:10pt;color:#374151">
+      الرقم الوطني: <strong>{{ ctx.student.national_id }}</strong>
+      {% if ctx.enrollment %} | الفصل: <strong>{{ ctx.enrollment.class_group }}</strong>{% endif %}
+      | العام: <strong>{{ ctx.year }}</strong>
+    </div>
+  </div>
+
+  <div class="cert-result">
+    <div style="font-size:10pt;color:#6b7280">المتوسط السنوي</div>
+    <span class="result-value" style="color:{{ ctx.status_color }}">
+      {% if ctx.avg %}{{ ctx.avg }}{% else %}—{% endif %}
+    </span>
+    <div style="margin-top:10px">
+      <span class="badge {% if ctx.final_status == 'ناجح' %}badge-pass{% elif ctx.final_status == 'راسب' %}badge-fail{% else %}badge-inc{% endif %}"
+            style="font-size:12pt;padding:5px 18px">{{ ctx.final_status }}</span>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:right">المادة</th>
+        <th>ف١ /40</th>
+        <th>ف٢ /60</th>
+        <th>المجموع /100</th>
+        <th>التقدير</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in ctx.rows %}
+      <tr class="{% if row.annual.status == 'fail' %}row-fail{% endif %}">
+        <td>{{ row.subject }}</td>
+        <td>{% if row.s1 and row.s1.total is not None %}{{ row.s1.total }}{% else %}—{% endif %}</td>
+        <td>{% if row.s2 and row.s2.total is not None %}{{ row.s2.total }}{% else %}—{% endif %}</td>
+        <td class="total-cell
+          {% if row.annual.annual_total %}
+            {% if row.annual.annual_total >= 80 %}grade-a
+            {% elif row.annual.annual_total >= 65 %}grade-b
+            {% elif row.annual.annual_total >= 50 %}grade-c
+            {% else %}grade-f{% endif %}
+          {% endif %}">
+          {% if row.annual.annual_total is not None %}{{ row.annual.annual_total }}{% else %}—{% endif %}
+        </td>
+        <td><strong>{{ row.annual.letter_grade|default:"—" }}</strong></td>
+        <td>
+          {% if row.annual.status == "pass" %}<span class="badge badge-pass">ناجح</span>
+          {% elif row.annual.status == "fail" %}<span class="badge badge-fail">راسب</span>
+          {% else %}<span class="badge badge-inc">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="signatures">
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-title">المعلم المشرف</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-title">ولي الأمر</div></div>
+    <div class="sig-box"><div class="sig-line"></div><div class="sig-title">مدير المدرسة</div></div>
+  </div>
+
+  <div class="pdf-footer" style="margin-top:14px">
+    <span>{{ ctx.school.name }}</span>
+    <span>{{ print_date }}</span>
+    <span>وثيقة رسمية</span>
+  </div>
+
+</div>
+{% endfor %}
+
+</body>
+</html>

@@ -1,0 +1,81 @@
+{% extends "base/base.html" %}
+{% block title %}غيابات المعلمين{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <h1 class="text-2xl font-bold text-[#0F2347]">غيابات المعلمين</h1>
+    <div class="flex gap-2">
+      <a href="{% url 'register_absence' %}"
+         class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition">
+        + تسجيل غياب
+      </a>
+      <a href="{% url 'substitute_report' %}"
+         class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">
+        تقرير البدلاء
+      </a>
+    </div>
+  </div>
+
+  <!-- Date Filter -->
+  <form method="get" class="flex gap-3 items-end">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">التاريخ</label>
+      <input type="date" name="date" value="{{ abs_date|date:'Y-m-d' }}"
+             class="border rounded-lg px-3 py-2 text-sm">
+    </div>
+    <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">عرض</button>
+  </form>
+
+  <!-- Absences -->
+  {% if absences %}
+  <div class="space-y-4">
+    {% for absence in absences %}
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b
+        {% if absence.status == 'covered' %}bg-green-50{% elif absence.status == 'uncovered' %}bg-red-50{% else %}bg-amber-50{% endif %}">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-[#1A4F8A] text-white flex items-center justify-center font-bold text-sm">
+            {{ absence.teacher.full_name|first }}
+          </div>
+          <div>
+            <p class="font-bold text-gray-800">{{ absence.teacher.full_name }}</p>
+            <p class="text-xs text-gray-500">{{ absence.get_reason_display }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium
+            {% if absence.status == 'covered' %}bg-green-100 text-green-700
+            {% elif absence.status == 'uncovered' %}bg-red-100 text-red-700
+            {% else %}bg-amber-100 text-amber-700{% endif %}">
+            {{ absence.get_status_display }}
+          </span>
+          <a href="{% url 'absence_detail' absence.id %}"
+             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#0F2347]">
+            تفاصيل وتعيين
+          </a>
+        </div>
+      </div>
+      {% if absence.assignments.all %}
+      <div class="px-5 py-3">
+        <p class="text-xs text-gray-500 mb-2">البدلاء المُعيَّنون:</p>
+        <div class="flex flex-wrap gap-2">
+          {% for a in absence.assignments.all %}
+          <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs border border-blue-200">
+            {{ a.substitute.full_name }} — ح{{ a.slot.period_number }}
+          </span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
+    <p class="text-4xl mb-3">✓</p>
+    <p class="font-medium">لا توجد غيابات مسجّلة في {{ abs_date }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

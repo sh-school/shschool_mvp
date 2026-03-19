@@ -1,0 +1,143 @@
+{% extends "base/base.html" %}
+{% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm text-gray-500">
+    <a href="{% url 'assessments_dashboard' %}" class="hover:text-blue-600">التقييمات</a>
+    <span>/</span>
+    <span class="text-gray-800 font-medium">{{ setup.subject.name_ar }} | {{ setup.class_group }}</span>
+  </div>
+
+  <!-- Header -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-white">{{ setup.subject.name_ar }}</h1>
+        <p class="text-blue-200 text-sm mt-1">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
+      </div>
+      <div class="flex gap-2">
+        <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
+           class="px-3 py-1.5 bg-white/20 text-white rounded text-sm hover:bg-white/30">كشف الدرجات</a>
+      </div>
+    </div>
+    <!-- فلتر الفصل -->
+    <div class="px-6 py-3 border-b flex items-center gap-4">
+      {% for val, label in SEMESTERS %}
+      <a href="?semester={{ val }}"
+         class="px-4 py-1.5 rounded-full text-sm font-medium transition
+           {% if semester == val %}bg-[#1A4F8A] text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+    <!-- ملخص الفصل -->
+    <div class="px-6 py-4 grid grid-cols-4 gap-4 text-center text-sm">
+      <div>
+        <p class="text-2xl font-bold text-[#1A4F8A]">{{ student_count }}</p>
+        <p class="text-xs text-gray-500">طالب</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-green-600">{{ summary.passed }}</p>
+        <p class="text-xs text-gray-500">ناجح</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-red-600">{{ summary.failed }}</p>
+        <p class="text-xs text-gray-500">راسب</p>
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-amber-600">{{ summary.avg|default:"—" }}</p>
+        <p class="text-xs text-gray-500">متوسط</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- الباقات الأربع -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    {% for pkg in packages %}
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <!-- عنوان الباقة -->
+      <div class="px-5 py-3 border-b flex items-center justify-between
+        {% if pkg.package_type == 'P1' %}bg-blue-50{% elif pkg.package_type == 'P2' %}bg-amber-50{% elif pkg.package_type == 'P3' %}bg-purple-50{% else %}bg-green-50{% endif %}">
+        <div>
+          <p class="font-bold
+            {% if pkg.package_type == 'P1' %}text-blue-800{% elif pkg.package_type == 'P2' %}text-amber-800{% elif pkg.package_type == 'P3' %}text-purple-800{% else %}text-green-800{% endif %}">
+            {{ pkg.get_package_type_display }}
+          </p>
+          <p class="text-xs text-gray-500">الوزن: {{ pkg.weight }}%</p>
+        </div>
+        <span class="text-sm font-bold
+          {% if pkg.package_type == 'P1' %}text-blue-700{% elif pkg.package_type == 'P2' %}text-amber-700{% elif pkg.package_type == 'P3' %}text-purple-700{% else %}text-green-700{% endif %}">
+          {{ pkg.assessments.count }} تقييم
+        </span>
+      </div>
+
+      <!-- قائمة التقييمات -->
+      <div class="divide-y">
+        {% for assessment in pkg.assessments.all %}
+        <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
+          <div>
+            <p class="text-sm font-medium text-gray-800">{{ assessment.title }}</p>
+            <p class="text-xs text-gray-500 mt-0.5">
+              {{ assessment.get_assessment_type_display }}
+              {% if assessment.date %}· {{ assessment.date }}{% endif %}
+              · {{ assessment.grades.count }}/{{ student_count }} مُدخَل
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded-full
+              {% if assessment.status == 'graded' %}bg-green-100 text-green-700
+              {% elif assessment.status == 'published' %}bg-blue-100 text-blue-700
+              {% elif assessment.status == 'closed' %}bg-gray-100 text-gray-600
+              {% else %}bg-amber-100 text-amber-700{% endif %}">
+              {{ assessment.get_status_display }}
+            </span>
+            <a href="{% url 'grade_entry' assessment.id %}"
+               class="text-xs px-2 py-1 bg-[#1A4F8A] text-white rounded hover:bg-[#0F2347]">
+              إدخال الدرجات
+            </a>
+          </div>
+        </div>
+        {% empty %}
+        <p class="px-5 py-3 text-xs text-gray-400">لا توجد تقييمات بعد</p>
+        {% endfor %}
+      </div>
+
+      <!-- إضافة تقييم -->
+      <div class="border-t px-5 py-3 bg-gray-50">
+        <button onclick="document.getElementById('form-{{ pkg.id }}').classList.toggle('hidden')"
+                class="text-xs text-blue-600 hover:underline">+ إضافة تقييم</button>
+        <form id="form-{{ pkg.id }}" method="post" action="{% url 'create_assessment' pkg.id %}"
+              class="hidden mt-3 space-y-2">
+          {% csrf_token %}
+          <div class="flex flex-wrap gap-2">
+            <input type="text" name="title" placeholder="عنوان التقييم *" required
+                   class="flex-1 min-w-[150px] border rounded px-2 py-1.5 text-sm">
+            <select name="assessment_type" class="border rounded px-2 py-1.5 text-sm">
+              <option value="exam">اختبار</option>
+              <option value="quiz">اختبار قصير</option>
+              <option value="homework">واجب</option>
+              <option value="project">مشروع</option>
+              <option value="classwork">عمل صفي</option>
+              <option value="oral">شفهي</option>
+              <option value="practical">عملي</option>
+            </select>
+            <input type="date" name="date" class="border rounded px-2 py-1.5 text-sm">
+            <input type="number" name="max_grade" value="100" min="1" max="100"
+                   placeholder="الدرجة القصوى" class="w-24 border rounded px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="px-4 py-1.5 bg-[#1A4F8A] text-white rounded text-sm hover:bg-[#0F2347]">حفظ</button>
+            <button type="button" onclick="document.getElementById('form-{{ pkg.id }}').classList.add('hidden')"
+                    class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm">إلغاء</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

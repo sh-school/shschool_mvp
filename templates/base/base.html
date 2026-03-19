@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% block extra_head %}{% endblock %}
+  <title>{% block title %}SchoolOS{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    .nav-active { background-color: rgba(255,255,255,0.15); border-radius: 0.375rem; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+{% if user.is_authenticated %}
+<!-- ── Navbar ── -->
+<nav class="bg-[#8A1538] text-white shadow-lg sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="flex items-center justify-between h-14">
+
+      <!-- Logo -->
+      <a href="/dashboard/" class="flex items-center gap-2 font-bold text-lg hover:text-red-200 transition shrink-0">
+        <span>🏫</span> SchoolOS
+      </a>
+
+      <!-- Nav Links -->
+      <div class="hidden md:flex items-center gap-0.5 text-xs overflow-x-auto flex-1 mx-4">
+        {% with role=request.user.get_role %}
+
+        {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
+        <!-- ── قائمة الإدارة ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/analytics/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📊 الإحصاءات</a>
+        <a href="/assessments/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
+        <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
+        <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول</a>
+        <a href="/teacher/absences/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الغيابات</a>
+        <a href="/quality/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الخطة</a>
+        <a href="/quality/committee/"            class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجودة</a>
+        <a href="/parents/admin/links/"          class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الأولياء</a>
+        <a href="/notifications/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الإشعارات</a>
+        <!-- ✅ الوحدات الأربع الجديدة -->
+        <span class="text-white/30 px-1">|</span>
+        <a href="/clinic/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
+        <a href="/transport/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 النقل</a>
+        <a href="/behavior/dashboard/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
+        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
+
+        {% elif role == "nurse" %}
+        <!-- ── قائمة الممرض ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/clinic/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
+        <a href="/clinic/visits/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">سجل الزيارات</a>
+        <a href="/clinic/record/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">تسجيل زيارة</a>
+        <a href="/clinic/statistics/"            class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
+
+        {% elif role == "bus_supervisor" %}
+        <!-- ── قائمة مشرف الباص ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/transport/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 لوحة النقل</a>
+        <a href="/transport/buses/"              class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الحافلات</a>
+        <a href="/transport/assignments/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إسناد الطلاب</a>
+        <a href="/transport/statistics/"         class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
+
+        {% elif role == "librarian" %}
+        <!-- ── قائمة أمين المكتبة ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 لوحة المكتبة</a>
+        <a href="/library/books/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الكتب</a>
+        <a href="/library/borrow/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إعارة جديدة</a>
+
+        {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
+        <!-- ── قائمة المعلم والمنسق والأخصائي ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/teacher/schedule/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">جدولي</a>
+        <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول الأسبوعي</a>
+        <a href="/assessments/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
+        <a href="/import/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">استيراد الدرجات</a>
+        <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
+        <a href="/quality/my-procedures/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إجراءاتي</a>
+        <a href="/behavior/dashboard/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
+
+        {% elif role == "student" %}
+        <!-- ── قائمة الطالب ── -->
+        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
+        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
+
+        {% elif role == "parent" %}
+        <!-- ── قائمة ولي الأمر ── -->
+        <a href="/parents/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 بوابتي</a>
+
+        {% endif %}
+        {% endwith %}
+      </div>
+
+      <!-- User Menu -->
+      <div class="flex items-center gap-3 shrink-0" x-data="{ open: false }">
+        <button @click="open = !open"
+                class="flex items-center gap-2 text-sm hover:text-red-200 transition">
+          <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+            {{ request.user.full_name|slice:":1" }}
+          </span>
+          <span class="hidden md:block">{{ request.user.full_name|truncatechars:14 }}</span>
+          <span class="text-xs opacity-60">▼</span>
+        </button>
+
+        <div x-show="open" @click.away="open=false" x-cloak
+             class="absolute left-4 top-14 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
+          <div class="px-4 py-2 border-b">
+            <p class="text-xs font-bold text-gray-900">{{ request.user.full_name }}</p>
+            <p class="text-xs text-gray-400">{{ request.user.national_id }}</p>
+            <p class="text-xs text-red-700 font-medium mt-0.5">{{ request.user.get_role }}</p>
+          </div>
+          {% if request.user.memberships.count > 1 %}
+          <a href="/auth/choose-role/" class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition">🔄 تبديل الدور</a>
+          {% endif %}
+          <a href="/admin/" class="block px-4 py-2 text-sm hover:bg-gray-50 transition">⚙️ الإدارة</a>
+          <a href="/auth/logout/" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">تسجيل الخروج</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+<!-- ── Messages ── -->
+{% if messages %}
+<div class="max-w-7xl mx-auto px-4 mt-3 space-y-2">
+  {% for msg in messages %}
+  <div class="px-4 py-3 rounded-lg text-sm font-medium
+    {% if msg.tags == 'success' %}bg-green-100 text-green-800 border border-green-200
+    {% elif msg.tags == 'error' %}bg-red-100 text-red-800 border border-red-200
+    {% elif msg.tags == 'warning' %}bg-amber-100 text-amber-800 border border-amber-200
+    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Content ── -->
+<main class="max-w-7xl mx-auto px-4 py-6">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ── Footer ── -->
+<footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
+  SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التعليم والتعليم العالي
+</footer>
+
+</body>
+</html>

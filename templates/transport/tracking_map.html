@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}تتبع الحافلة — {{ bus.bus_number }}{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">🗺 تتبع حافلة {{ bus.bus_number }}</h1>
+    <a href="{% url 'transport:bus_detail' bus.id %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  {% if has_karwa or has_gps %}
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {% if has_karwa %}
+      <div class="bg-blue-50 rounded-lg p-4">
+        <p class="font-medium text-blue-800">🪪 رقم كروة</p>
+        <p class="text-lg font-bold text-blue-900 mt-1">{{ bus.karwa_id }}</p>
+        <a href="https://www.karwa.com.qa" target="_blank"
+           class="mt-2 inline-block text-sm text-blue-600 hover:underline">→ فتح بوابة كروة</a>
+      </div>
+      {% endif %}
+      {% if has_gps %}
+      <div class="bg-green-50 rounded-lg p-4">
+        <p class="font-medium text-green-800">📍 تتبع GPS</p>
+        <a href="{{ bus.gps_link }}" target="_blank"
+           class="mt-2 inline-block bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+          🗺 فتح الخريطة
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    <div class="bg-gray-100 rounded-lg p-8 text-center text-gray-500">
+      <p class="text-4xl mb-2">🗺</p>
+      <p class="font-medium">التكامل الكامل مع كروة يتطلب API رسمي</p>
+      <p class="text-sm mt-1">استخدم الروابط أعلاه للوصول للتتبع المباشر</p>
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
+    <p class="text-4xl mb-2">🗺</p>
+    <p>لم يتم إعداد بيانات التتبع لهذه الحافلة</p>
+    <a href="{% url 'transport:bus_detail' bus.id %}" class="mt-3 inline-block text-sm text-blue-600 hover:underline">
+      أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

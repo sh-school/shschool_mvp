@@ -1,0 +1,130 @@
+{% extends "base/base.html" %}
+{% block title %}تعيين البدلاء — {{ absence.teacher.full_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-white">تعيين بدلاء</h1>
+        <p class="text-blue-200 text-sm mt-0.5">{{ absence.teacher.full_name }} — {{ absence.date }}</p>
+      </div>
+      <span class="px-3 py-1 rounded-full text-xs font-medium
+        {% if absence.status == 'covered' %}bg-green-400 text-green-900
+        {% elif absence.status == 'uncovered' %}bg-red-400 text-white
+        {% else %}bg-amber-400 text-amber-900{% endif %}">
+        {{ absence.get_status_display }}
+      </span>
+    </div>
+    <div class="px-6 py-4 grid grid-cols-3 gap-4 text-sm">
+      <div>
+        <span class="text-gray-500">السبب:</span>
+        <span class="font-medium mr-1">{{ absence.get_reason_display }}</span>
+      </div>
+      <div>
+        <span class="text-gray-500">عدد الحصص:</span>
+        <span class="font-medium mr-1">{{ slots_data|length }}</span>
+      </div>
+      <div>
+        <span class="text-gray-500">مُغطَّى:</span>
+        <span class="font-medium mr-1">{% for s in slots_data %}{% if s.assignment %}1{% endif %}{% endfor %}</span>
+      </div>
+    </div>
+    {% if absence.reason_notes %}
+    <div class="px-6 pb-4 text-sm text-gray-500">{{ absence.reason_notes }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Slots -->
+  <div class="grid gap-4">
+    {% for item in slots_data %}
+    <div id="slot-{{ item.slot.id }}" class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+        <div class="flex items-center gap-3">
+          <span class="w-9 h-9 rounded-lg bg-[#1A4F8A] text-white flex items-center justify-center font-bold text-sm">
+            {{ item.slot.period_number }}
+          </span>
+          <div>
+            <p class="font-semibold text-gray-800">{{ item.slot.subject|default:"—" }}</p>
+            <p class="text-xs text-gray-500">{{ item.slot.class_group }} | {{ item.slot.start_time|time:"H:i" }}–{{ item.slot.end_time|time:"H:i" }}</p>
+          </div>
+        </div>
+        {% if item.assignment %}
+        <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">✓ مُغطَّى</span>
+        {% else %}
+        <span class="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium">⚠ بحاجة بديل</span>
+        {% endif %}
+      </div>
+
+      <div class="px-5 py-4"
+           hx-target="#slot-{{ item.slot.id }}"
+           hx-swap="outerHTML">
+
+        {% if item.assignment %}
+        <!-- Already assigned -->
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm text-gray-500">البديل المُعيَّن:</p>
+            <p class="font-bold text-[#0F2347]">{{ item.assignment.substitute.full_name }}</p>
+            {% if item.assignment.notes %}
+            <p class="text-xs text-gray-400 mt-0.5">{{ item.assignment.notes }}</p>
+            {% endif %}
+          </div>
+          <span class="text-xs px-2 py-1 rounded
+            {% if item.assignment.status == 'confirmed' %}bg-green-50 text-green-700
+            {% elif item.assignment.status == 'declined' %}bg-red-50 text-red-700
+            {% else %}bg-blue-50 text-blue-700{% endif %}">
+            {{ item.assignment.get_status_display }}
+          </span>
+        </div>
+        {% else %}
+        <!-- Assign form -->
+        <form hx-post="{% url 'assign_substitute' absence.id item.slot.id %}"
+              hx-target="#slot-{{ item.slot.id }}"
+              hx-swap="outerHTML"
+              class="flex flex-wrap gap-3 items-end">
+          {% csrf_token %}
+          <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs text-gray-500 mb-1">اختر البديل ({{ item.available|length }} متاح)</label>
+            <select name="substitute" required
+                    class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400">
+              <option value="">— اختر المعلم —</option>
+              {% for t in item.available %}
+              <option value="{{ t.id }}">{{ t.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex-1 min-w-[150px]">
+            <label class="block text-xs text-gray-500 mb-1">ملاحظة (اختياري)</label>
+            <input type="text" name="notes" placeholder="ملاحظة..."
+                   class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <button type="submit"
+                  class="px-5 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">
+            تعيين
+          </button>
+        </form>
+        {% if not item.available %}
+        <p class="text-xs text-red-500 mt-2">⚠ لا يوجد معلمون متاحون في هذا الوقت</p>
+        {% endif %}
+        {% endif %}
+
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
+      <p>لا توجد حصص لهذا المعلم في هذا اليوم</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="flex gap-3">
+    <a href="{% url 'absence_list' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200">
+      ← العودة لقائمة الغيابات
+    </a>
+  </div>
+
+</div>
+{% endblock %}

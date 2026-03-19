@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}الحافلات المدرسية{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+    <h1 class="text-2xl font-bold text-gray-800">🚌 الحافلات المدرسية</h1>
+    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <form method="get" class="bg-white rounded-xl shadow-sm p-4 mb-4 flex gap-3">
+    <input type="text" name="search" value="{{ search }}" placeholder="رقم الحافلة أو اسم السائق..."
+           class="flex-1 border rounded-lg px-3 py-2 text-sm">
+    <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">🔍</button>
+  </form>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for bus in buses %}
+    <a href="{% url 'transport:bus_detail' bus.id %}"
+       class="bg-white rounded-xl shadow-sm p-5 border hover:shadow-md transition hover:border-red-200">
+      <div class="flex justify-between items-start mb-3">
+        <div>
+          <p class="font-bold text-gray-800 text-lg">🚌 {{ bus.bus_number }}</p>
+          <p class="text-sm text-gray-500 mt-0.5">{{ bus.driver_name }}</p>
+        </div>
+        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{{ bus.capacity }} مقعد</span>
+      </div>
+      <div class="text-xs text-gray-400 space-y-1">
+        <p>📞 {{ bus.driver_phone }}</p>
+        {% if bus.karwa_id %}<p>🪪 {{ bus.karwa_id }}</p>{% endif %}
+      </div>
+    </a>
+    {% empty %}
+    <div class="col-span-3 bg-white rounded-xl p-12 text-center text-gray-400">
+      <p class="text-4xl mb-2">🚌</p><p>لا توجد حافلات مسجلة</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

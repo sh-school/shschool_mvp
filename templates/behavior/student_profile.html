@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}الملف السلوكي — {{ student.full_name }}{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">⚖️ الملف السلوكي</h1>
+      <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
+    </div>
+    <div class="flex gap-2">
+      {% if can_report %}
+      <a href="{% url 'behavior:report_infraction' %}" class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800">➕ مخالفة جديدة</a>
+      {% endif %}
+      <a href="{% url 'behavior:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+    </div>
+  </div>
+  <!-- Score -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4
+      {% if status_color == 'green' %}border-green-500{% elif status_color == 'yellow' %}border-yellow-500{% else %}border-red-500{% endif %}">
+      <p class="text-xs text-gray-500">رصيد النقاط الحالي</p>
+      <p class="text-3xl font-bold {% if status_color == 'green' %}text-green-600{% elif status_color == 'yellow' %}text-yellow-600{% else %}text-red-600{% endif %}">
+        {{ net_score }}<span class="text-base font-normal text-gray-400">/100</span>
+      </p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-400">
+      <p class="text-xs text-gray-500">نقاط مخصومة</p>
+      <p class="text-3xl font-bold text-red-600">-{{ total_deducted }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-400">
+      <p class="text-xs text-gray-500">نقاط مستردة</p>
+      <p class="text-3xl font-bold text-green-600">+{{ total_restored }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-gray-400">
+      <p class="text-xs text-gray-500">إجمالي المخالفات</p>
+      <p class="text-3xl font-bold text-gray-700">{{ infractions.count }}</p>
+    </div>
+  </div>
+  <!-- Infractions -->
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b"><h2 class="font-bold text-gray-700">سجل المخالفات</h2></div>
+    {% if infractions %}
+    <div class="divide-y">
+      {% for inf in infractions %}
+      <div class="px-5 py-4 hover:bg-gray-50">
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs font-medium px-2 py-0.5 rounded-full
+                {% if inf.level == 1 %}bg-green-100 text-green-800
+                {% elif inf.level == 2 %}bg-yellow-100 text-yellow-800
+                {% elif inf.level == 3 %}bg-orange-100 text-orange-800
+                {% else %}bg-red-100 text-red-800{% endif %}">
+                الدرجة {{ inf.level }}
+              </span>
+              <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
+              {% if inf.is_resolved %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">محلولة</span>{% endif %}
+            </div>
+            <p class="text-sm text-gray-700">{{ inf.description }}</p>
+            {% if inf.action_taken %}<p class="text-xs text-gray-500 mt-1">الإجراء: {{ inf.action_taken }}</p>{% endif %}
+            {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">✓ استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
+            <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
+          </div>
+          {% if is_committee and not inf.is_resolved and not inf.recovery %}
+          <a href="{% url 'behavior:point_recovery' inf.id %}"
+             class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 mr-3 shrink-0">
+            استرداد نقاط
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="p-12 text-center text-gray-400"><p class="text-3xl mb-2">✅</p><p>لا توجد مخالفات مسجلة</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

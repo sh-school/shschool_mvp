@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.log
+db.sqlite3
+media/
+staticfiles/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.coverage
+htmlcov/
+
+# بيانات حقيقية — يُمنع رفعها
+data/
+*.csv

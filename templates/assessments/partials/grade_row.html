@@ -1,0 +1,59 @@
+<tr id="row-{{ student.id }}" class="hover:bg-gray-50 transition
+  {% if grade_obj %}{% if grade_obj.is_absent %}bg-red-50{% elif grade_obj.grade is not None %}bg-green-50/30{% endif %}{% endif %}">
+
+  <td class="px-4 py-2 text-gray-400 text-xs">{{ forloop.counter|default:"·" }}</td>
+  <td class="px-4 py-2 font-medium text-gray-800">{{ student.full_name }}</td>
+
+  <form hx-post="{% url 'save_single_grade' assessment.id %}"
+        hx-target="#row-{{ student.id }}"
+        hx-swap="outerHTML"
+        hx-include="this"
+        class="contents">
+    {% csrf_token %}
+    <input type="hidden" name="student_id" value="{{ student.id }}">
+
+    <td class="px-4 py-2 text-center">
+      <input type="number"
+             name="grade"
+             value="{% if grade_obj and not grade_obj.is_absent and grade_obj.grade is not None %}{{ grade_obj.grade }}{% endif %}"
+             min="0" max="{{ assessment.max_grade }}" step="0.5"
+             class="w-24 border rounded px-2 py-1 text-center text-sm focus:ring-2 focus:ring-blue-300
+               {% if grade_obj and grade_obj.is_absent %}opacity-30{% endif %}"
+             id="grade_inp_{{ student.id }}"
+             {% if grade_obj and grade_obj.is_absent %}disabled{% endif %}>
+    </td>
+
+    <td class="px-4 py-2 text-center">
+      <input type="checkbox" name="is_absent" value="1"
+             {% if grade_obj and grade_obj.is_absent %}checked{% endif %}
+             class="w-4 h-4 accent-red-600"
+             onchange="
+               const gr = document.getElementById('grade_inp_{{ student.id }}');
+               gr.disabled = this.checked;
+               gr.style.opacity = this.checked ? '0.3' : '1';
+             ">
+    </td>
+
+    <td class="px-4 py-2 text-center">
+      <input type="checkbox" name="is_excused" value="1"
+             {% if grade_obj and grade_obj.is_excused %}checked{% endif %}
+             class="w-4 h-4 accent-purple-600">
+    </td>
+
+    <td class="px-4 py-2">
+      <input type="text" name="notes"
+             value="{% if grade_obj %}{{ grade_obj.notes }}{% endif %}"
+             placeholder="ملاحظة..."
+             class="w-full border rounded px-2 py-1 text-xs">
+    </td>
+
+    <td class="px-4 py-2 text-center">
+      <button type="submit"
+              class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#0F2347] transition
+                     htmx-indicator-spin">
+        حفظ
+      </button>
+    </td>
+  </form>
+
+</tr>

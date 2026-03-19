@@ -1,0 +1,154 @@
+{% extends "base/base.html" %}
+{% block title %}ربط أولياء الأمور{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">ربط أولياء الأمور بالطلاب</h1>
+      <p class="text-gray-500 text-sm mt-1">إدارة ارتباطات ولي الأمر بأبنائه</p>
+    </div>
+    <a href="{% url 'parent_dashboard' %}" class="text-sm text-blue-600 hover:underline">عرض البوابة ←</a>
+  </div>
+
+  <!-- إضافة ربط جديد -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4">
+      <h2 class="text-white font-bold">إضافة ربط جديد</h2>
+    </div>
+    <form method="post" action="{% url 'add_parent_link' %}" class="p-6">
+      {% csrf_token %}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">ولي الأمر <span class="text-red-500">*</span></label>
+          <select name="parent_id" required
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+            <option value="">— اختر ولي أمر —</option>
+            {% for p in parents %}
+            <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id }})</option>
+            {% endfor %}
+          </select>
+          {% if not parents %}
+          <p class="text-xs text-amber-600 mt-1">
+            لا يوجد مستخدمون بدور "ولي أمر".
+            <a href="/admin/core/customuser/" class="underline">أضف من لوحة الإدارة</a>
+          </p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">الطالب <span class="text-red-500">*</span></label>
+          <select name="student_id" required
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+            <option value="">— اختر طالب —</option>
+            {% for s in students %}
+            <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-gray-700 mb-1">صلة القرابة</label>
+          <select name="relationship"
+                  class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+            {% for val, label in RELATIONSHIP %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+      </div>
+      <div class="mt-4">
+        <button type="submit"
+                class="px-5 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">
+          + إضافة الربط
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- بحث -->
+  <form method="get" class="flex gap-2">
+    <input type="text" name="q" value="{{ search }}"
+           placeholder="بحث باسم الطالب أو ولي الأمر أو الرقم الوطني..."
+           class="flex-1 border rounded-lg px-4 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+    <button type="submit"
+            class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 transition">
+      بحث
+    </button>
+    {% if search %}
+    <a href="{% url 'manage_parent_links' %}"
+       class="px-4 py-2 text-gray-500 text-sm rounded-lg hover:bg-gray-100 transition">
+      إلغاء
+    </a>
+    {% endif %}
+  </form>
+
+  <!-- جدول الربطات -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    {% if links %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-right">الطالب</th>
+            <th class="px-4 py-3 text-right">ولي الأمر</th>
+            <th class="px-4 py-3 text-center">صلة القرابة</th>
+            <th class="px-4 py-3 text-center">الدرجات</th>
+            <th class="px-4 py-3 text-center">الغياب</th>
+            <th class="px-4 py-3 text-center">حذف</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for lnk in links %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3">
+              <div class="font-medium text-gray-900">{{ lnk.student.full_name }}</div>
+              <div class="text-xs text-gray-400">{{ lnk.student.national_id }}</div>
+            </td>
+            <td class="px-4 py-3">
+              <div class="font-medium text-[#1A4F8A]">{{ lnk.parent.full_name }}</div>
+              <div class="text-xs text-gray-400">{{ lnk.parent.national_id }}</div>
+            </td>
+            <td class="px-4 py-3 text-center text-gray-600 text-xs">{{ lnk.get_relationship_display }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if lnk.can_view_grades %}
+                <span class="text-green-600 text-xs">✓</span>
+              {% else %}
+                <span class="text-gray-300 text-xs">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if lnk.can_view_attendance %}
+                <span class="text-green-600 text-xs">✓</span>
+              {% else %}
+                <span class="text-gray-300 text-xs">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <form method="post" action="{% url 'remove_parent_link' lnk.id %}"
+                    onsubmit="return confirm('حذف هذا الربط؟')">
+                {% csrf_token %}
+                <button type="submit"
+                        class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50 transition">
+                  حذف
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="py-16 text-center text-gray-400">
+      <p class="text-4xl mb-3">👨‍👧</p>
+      <p>{% if search %}لا توجد نتائج للبحث{% else %}لا توجد ارتباطات بعد{% endif %}</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

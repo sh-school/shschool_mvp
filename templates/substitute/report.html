@@ -1,0 +1,83 @@
+{% extends "base/base.html" %}
+{% block title %}تقرير الحصص البديلة{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <h1 class="text-2xl font-bold text-[#0F2347]">تقرير الحصص البديلة</h1>
+    <a href="{% url 'absence_list' %}" class="text-sm text-blue-600 hover:underline">← قائمة الغيابات</a>
+  </div>
+
+  <!-- Date Filter -->
+  <form method="get" class="bg-white rounded-xl border p-4 flex flex-wrap gap-4 items-end">
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">من</label>
+      <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="border rounded-lg px-3 py-2 text-sm">
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">إلى</label>
+      <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" class="border rounded-lg px-3 py-2 text-sm">
+    </div>
+    <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">تحديث</button>
+  </form>
+
+  <!-- Summary Cards -->
+  {% if summary %}
+  <div>
+    <h2 class="text-sm font-semibold text-gray-600 mb-3">ملخص: حصص لكل معلم بديل</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {% for name, count in summary %}
+      <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+        <p class="text-2xl font-bold text-[#1A4F8A]">{{ count }}</p>
+        <p class="text-xs text-gray-600 mt-1">{{ name }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Detail Table -->
+  {% if assignments %}
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-[#0F2347] text-white">
+        <tr>
+          <th class="px-4 py-3 text-right">التاريخ</th>
+          <th class="px-4 py-3 text-right">المعلم الأصلي</th>
+          <th class="px-4 py-3 text-right">المادة</th>
+          <th class="px-4 py-3 text-right">الفصل</th>
+          <th class="px-4 py-3 text-right">الحصة</th>
+          <th class="px-4 py-3 text-right">البديل</th>
+          <th class="px-4 py-3 text-right">الحالة</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for a in assignments %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3">{{ a.absence.date }}</td>
+          <td class="px-4 py-3 font-medium text-gray-700">{{ a.absence.teacher.full_name }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ a.slot.subject|default:"—" }}</td>
+          <td class="px-4 py-3 text-gray-600">{{ a.slot.class_group }}</td>
+          <td class="px-4 py-3 text-center">{{ a.slot.period_number }}</td>
+          <td class="px-4 py-3 font-semibold text-[#1A4F8A]">{{ a.substitute.full_name }}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded-full text-xs
+              {% if a.status == 'confirmed' %}bg-green-100 text-green-700
+              {% elif a.status == 'declined' %}bg-red-100 text-red-600
+              {% else %}bg-blue-100 text-blue-700{% endif %}">
+              {{ a.get_status_display }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
+    لا توجد حصص بديلة في هذه الفترة
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

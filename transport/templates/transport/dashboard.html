@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}لوحة تحكم النقل والمواصلات{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-maroon-50 to-maroon-100">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-maroon-700 to-maroon-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold">🚌 لوحة تحكم النقل والمواصلات</h1>
+            <p class="text-maroon-100 mt-2">إدارة الحافلات والطلاب وتتبع المسارات</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Card 1: Total Buses -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-maroon-600">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">إجمالي الحافلات</p>
+                        <p class="text-3xl font-bold text-maroon-700">{{ total_buses }}</p>
+                    </div>
+                    <div class="text-4xl text-maroon-200">🚌</div>
+                </div>
+            </div>
+
+            <!-- Card 2: Total Capacity -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الطاقة الإجمالية</p>
+                        <p class="text-3xl font-bold text-blue-600">{{ total_capacity }}</p>
+                    </div>
+                    <div class="text-4xl text-blue-200">👥</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Registered Students -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الطلاب المسجلين</p>
+                        <p class="text-3xl font-bold text-green-600">{{ total_students }}</p>
+                    </div>
+                    <div class="text-4xl text-green-200">📊</div>
+                </div>
+            </div>
+
+            <!-- Card 4: Quick Actions -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-orange-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الإجراءات السريعة</p>
+                        <a href="{% url 'transport:buses_list' %}" class="text-orange-600 hover:text-orange-800 font-semibold mt-2 inline-block">
+                            عرض الحافلات
+                        </a>
+                    </div>
+                    <div class="text-4xl text-orange-200">⚡</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buses Overview -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-bold text-maroon-700 mb-6">نظرة عامة على الحافلات</h2>
+            
+            {% if bus_data %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for item in bus_data %}
+                    <div class="border-2 border-maroon-200 rounded-lg p-4 hover:shadow-lg transition">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="font-bold text-lg text-maroon-700">{{ item.bus.bus_number }}</h3>
+                                <p class="text-sm text-gray-600">{{ item.bus.driver_name }}</p>
+                            </div>
+                            <a href="{% url 'transport:bus_detail' item.bus.id %}" class="text-maroon-600 hover:text-maroon-800">
+                                →
+                            </a>
+                        </div>
+                        
+                        <!-- Occupancy Bar -->
+                        <div class="mb-3">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-gray-600">الطاقة المستخدمة</span>
+                                <span class="font-semibold text-maroon-700">{{ item.students_count }}/{{ item.bus.capacity }}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-maroon-600 h-2 rounded-full" style="width: {{ item.occupancy_rate }}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ item.occupancy_rate|floatformat:0 }}% مستخدمة</p>
+                        </div>
+                        
+                        <!-- Quick Info -->
+                        <div class="text-sm text-gray-600 space-y-1 border-t pt-3">
+                            <p>📱 {{ item.bus.driver_phone }}</p>
+                            {% if item.bus.karwa_id %}
+                            <p>🔗 كروة: {{ item.bus.karwa_id }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">لا توجد حافلات مسجلة حتى الآن</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick Links -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <a href="{% url 'transport:student_assignments' %}" class="bg-blue-50 border-2 border-blue-200 rounded-lg p-6 hover:shadow-lg transition">
+                <h3 class="text-lg font-bold text-blue-700 mb-2">👥 إسناد الطلاب</h3>
+                <p class="text-sm text-gray-600">إدارة تسجيل الطلاب في الحافلات</p>
+            </a>
+            
+            <a href="{% url 'transport:statistics' %}" class="bg-green-50 border-2 border-green-200 rounded-lg p-6 hover:shadow-lg transition">
+                <h3 class="text-lg font-bold text-green-700 mb-2">📊 الإحصائيات</h3>
+                <p class="text-sm text-gray-600">تقارير الاستخدام والكفاءة</p>
+            </a>
+            
+            <a href="{% url 'transport:buses_list' %}" class="bg-maroon-50 border-2 border-maroon-200 rounded-lg p-6 hover:shadow-lg transition">
+                <h3 class="text-lg font-bold text-maroon-700 mb-2">🚌 إدارة الحافلات</h3>
+                <p class="text-sm text-gray-600">تحديث بيانات الحافلات والسائقين</p>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Maroon Color Scheme -->
+<style>
+    .bg-maroon-50 { background-color: #f9f5f5; }
+    .bg-maroon-100 { background-color: #f3ebeb; }
+    .bg-maroon-200 { background-color: #e8d7d7; }
+    .bg-maroon-600 { background-color: #8a1538; }
+    .bg-maroon-700 { background-color: #6b0f2a; }
+    .bg-maroon-900 { background-color: #4a0a1a; }
+    .text-maroon-200 { color: #e8d7d7; }
+    .text-maroon-600 { color: #8a1538; }
+    .text-maroon-700 { color: #6b0f2a; }
+    .text-maroon-100 { color: #f3ebeb; }
+    .border-maroon-200 { border-color: #e8d7d7; }
+    .border-maroon-600 { border-color: #8a1538; }
+</style>
+{% endblock %}

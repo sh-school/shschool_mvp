@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة تحكم المدير - التحليلات المتقدمة{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" dir="rtl">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 border-b-2 pb-4" style="border-color: #8A1538;">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <span class="text-maroon-800" style="color: #8A1538;">📊</span> لوحة تحكم المدير
+        </h1>
+        <div class="flex items-center space-x-4 space-x-reverse">
+            <span class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-bold">العام الأكاديمي: {{ year }}</span>
+            <span class="bg-maroon-100 text-maroon-800 px-4 py-2 rounded-lg font-bold" style="background-color: #F9F2F4; color: #8A1538;">{{ today|date:"D, d M Y" }}</span>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Students -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-maroon-600" style="border-color: #8A1538;">
+            <div class="text-sm font-medium text-gray-500 mb-1">إجمالي الطلاب</div>
+            <div class="text-2xl font-bold text-maroon-800" style="color: #8A1538;">{{ kpis.total_students }} طالب</div>
+        </div>
+
+        <!-- Attendance -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-green-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">نسبة الحضور اليوم</div>
+            <div class="text-2xl font-bold text-green-800">{{ kpis.att_pct_today }}%</div>
+        </div>
+
+        <!-- Clinic -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-red-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">زيارات العيادة اليوم</div>
+            <div class="text-2xl font-bold text-red-800">{{ kpis.clinic_today }} زيارة</div>
+        </div>
+
+        <!-- Behavior -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-yellow-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">مخالفات السلوك (الشهر)</div>
+            <div class="text-2xl font-bold text-yellow-800">{{ kpis.behavior_month }} مخالفة</div>
+        </div>
+    </div>
+
+    <!-- Second Row Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Transport -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-blue-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">الطلاب في الحافلات</div>
+            <div class="text-2xl font-bold text-blue-800">{{ kpis.bus_students }} طالب</div>
+        </div>
+
+        <!-- Library -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-indigo-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">إعارات المكتبة النشطة</div>
+            <div class="text-2xl font-bold text-indigo-800">{{ kpis.active_loans }} إعارة</div>
+        </div>
+
+        <!-- Operational Plan -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-teal-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">إنجاز الخطة التشغيلية</div>
+            <div class="text-2xl font-bold text-teal-800">{{ kpis.plan_pct }}%</div>
+        </div>
+
+        <!-- Teachers -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-gray-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">إجمالي المعلمين</div>
+            <div class="text-2xl font-bold text-gray-800">{{ kpis.total_teachers }} معلم</div>
+        </div>
+    </div>
+
+    <!-- Alert Section -->
+    {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 %}
+    <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl mb-8">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <span class="text-red-500 text-2xl">⚠️</span>
+            </div>
+            <div class="mr-4">
+                <h3 class="text-lg font-bold text-red-800 mb-2">تنبيهات الإدارة العاجلة</h3>
+                <ul class="list-disc list-inside text-red-700 space-y-1">
+                    {% if kpis.critical_issues > 0 %}
+                    <li>يوجد {{ kpis.critical_issues }} مخالفة سلوكية جسيمة لم يتم حلها بعد.</li>
+                    {% endif %}
+                    {% if kpis.chronic_cases > 0 %}
+                    <li>يوجد {{ kpis.chronic_cases }} طالب لديهم حالات صحية مزمنة تتطلب المتابعة.</li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation Quick Links -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <a href="{% url 'clinic:dashboard' %}" class="flex items-center p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100">
+            <span class="text-2xl ml-3">🏥</span>
+            <span class="font-bold text-gray-700">العيادة المدرسية</span>
+        </a>
+        <a href="{% url 'transport:dashboard' %}" class="flex items-center p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100">
+            <span class="text-2xl ml-3">🚌</span>
+            <span class="font-bold text-gray-700">النقل والمواصلات</span>
+        </a>
+        <a href="{% url 'behavior:dashboard' %}" class="flex items-center p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100">
+            <span class="text-2xl ml-3">⚖️</span>
+            <span class="font-bold text-gray-700">السلوك الطلابي</span>
+        </a>
+        <a href="{% url 'library:dashboard' %}" class="flex items-center p-4 bg-white rounded-xl shadow hover:shadow-lg transition border border-gray-100">
+            <span class="text-2xl ml-3">📚</span>
+            <span class="font-bold text-gray-700">المكتبة والمصادر</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

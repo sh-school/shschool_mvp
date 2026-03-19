@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+{% block title %}تسجيل حضور — {{ session.class_group }}{% endblock %}
+{% block content %}
+
+<div class="flex items-center gap-3 mb-5">
+  <a href="/teacher/schedule/" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
+  <span class="text-gray-300">/</span>
+  <h1 class="text-xl font-bold text-gray-900">
+    {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
+  </h1>
+  <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
+</div>
+
+<!-- Summary Widget (HTMX updates) -->
+<div id="summary-widget"
+     hx-get="/teacher/attendance/{{ session.id }}/summary/"
+     hx-trigger="every 10s"
+     class="grid grid-cols-4 gap-3 mb-5">
+  {% include "teacher/partials/summary_widget.html" %}
+</div>
+
+<!-- Bulk Actions -->
+<div class="flex flex-wrap items-center gap-2 mb-4">
+  <form method="post" action="/teacher/attendance/{{ session.id }}/mark-all/"
+        hx-post="/teacher/attendance/{{ session.id }}/mark-all/"
+        hx-target="#students-list"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <button type="submit"
+            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      <span>✓</span> الكل حاضر
+    </button>
+  </form>
+
+  <span class="text-sm text-gray-500">{{ students_data|length }} طالب</span>
+
+  {% if session.status != 'completed' %}
+  <form method="post" action="/teacher/attendance/{{ session.id }}/complete/"
+        class="mr-auto">
+    {% csrf_token %}
+    <button type="submit"
+            class="bg-[#0F2347] hover:bg-[#1A4F8A] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      إنهاء الحصة ✓
+    </button>
+  </form>
+  {% else %}
+  <span class="mr-auto text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">✓ الحصة منتهية</span>
+  {% endif %}
+</div>
+
+<!-- Students List -->
+<div id="students-list" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  <div class="divide-y divide-gray-100">
+    {% for item in students_data %}
+    {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  // Keyboard shortcut: focus search
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      document.getElementById('search-input')?.focus();
+    }
+  });
+</script>
+{% endblock %}

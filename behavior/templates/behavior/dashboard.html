@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة تحكم السلوك والتحفيز التربوي{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" dir="rtl">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 border-b-2 pb-4" style="border-color: #8A1538;">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <span class="text-maroon-800" style="color: #8A1538;">📊</span> لوحة تحكم السلوك والتحفيز التربوي
+        </h1>
+        <div class="flex space-x-4 space-x-reverse">
+            <a href="{% url 'behavior:report_infraction' %}" class="bg-maroon-700 text-white px-6 py-2 rounded-lg shadow hover:bg-maroon-800 transition duration-300" style="background-color: #8A1538;">
+                ➕ تسجيل مخالفة جديدة
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- Total Deducted Points -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-maroon-600" style="border-color: #8A1538;">
+            <div class="text-sm font-medium text-gray-500 mb-1">إجمالي النقاط المخصومة</div>
+            <div class="text-2xl font-bold text-maroon-800" style="color: #8A1538;">{{ total_deducted }} نقطة</div>
+        </div>
+
+        <!-- Stats by Level -->
+        {% for stat in stats %}
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 {% if stat.level == 1 %}border-green-500{% elif stat.level == 2 %}border-yellow-500{% elif stat.level == 3 %}border-orange-500{% else %}border-red-600{% endif %}">
+            <div class="text-sm font-medium text-gray-500 mb-1">مخالفات الدرجة {{ stat.level }}</div>
+            <div class="text-2xl font-bold text-gray-800">{{ stat.count }} مخالفة</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Recent Infractions Table -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 class="text-xl font-semibold text-gray-800">المخالفات الأخيرة</h2>
+            <button class="text-maroon-700 hover:underline font-medium" style="color: #8A1538;">عرض الكل</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-right">
+                <thead class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                    <tr>
+                        <th class="py-3 px-6">الطالب</th>
+                        <th class="py-3 px-6">الدرجة</th>
+                        <th class="py-3 px-6">التاريخ</th>
+                        <th class="py-3 px-6">النقاط</th>
+                        <th class="py-3 px-6">الحالة</th>
+                        <th class="py-3 px-6">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-600 text-sm">
+                    {% for infraction in recent_infractions %}
+                    <tr class="border-b border-gray-200 hover:bg-gray-50 transition duration-150">
+                        <td class="py-3 px-6">
+                            <div class="flex items-center">
+                                <span class="font-bold">{{ infraction.student.full_name }}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-6">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold 
+                                {% if infraction.level == 1 %}bg-green-100 text-green-800
+                                {% elif infraction.level == 2 %}bg-yellow-100 text-yellow-800
+                                {% elif infraction.level == 3 %}bg-orange-100 text-orange-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ infraction.get_level_display }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-6">{{ infraction.date }}</td>
+                        <td class="py-3 px-6 font-bold text-red-600">-{{ infraction.points_deducted }}</td>
+                        <td class="py-3 px-6">
+                            {% if infraction.is_resolved %}
+                            <span class="text-green-600 flex items-center">✅ معالج</span>
+                            {% else %}
+                            <span class="text-red-500 flex items-center">⏳ قيد المتابعة</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-6">
+                            <div class="flex space-x-2 space-x-reverse">
+                                <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="text-blue-600 hover:text-blue-900">🔍 ملف الطالب</a>
+                                <a href="{% url 'behavior:point_recovery' infraction.id %}" class="text-maroon-600 hover:text-maroon-900" style="color: #8A1538;">⭐ استعادة نقاط</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="py-10 text-center text-gray-500">لا توجد مخالفات مسجلة حالياً.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Behavior Policy Quick Guide -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-maroon-50 p-6 rounded-xl border border-maroon-200" style="background-color: #F9F2F4;">
+            <h3 class="text-xl font-bold text-maroon-900 mb-4" style="color: #8A1538;">💡 نظام التحفيز التربوي (استعادة النقاط)</h3>
+            <p class="text-gray-700 leading-relaxed mb-4">
+                وفقاً للائحة وزارة التربية والتعليم والتعليم العالي في قطر، يمكن للطالب استعادة النقاط المخصومة في حال أظهر التزاماً وانضباطاً ملموساً خلال فترة زمنية محددة.
+            </p>
+            <ul class="list-disc list-inside text-gray-600 space-y-2">
+                <li>المشاركة الفعالة في الأنشطة المدرسية.</li>
+                <li>تحسن ملحوظ في الحضور والالتزام بالزي.</li>
+                <li>توصية من المعلمين أو الأخصائي الاجتماعي.</li>
+            </ul>
+        </div>
+        
+        <div class="bg-gray-800 text-white p-6 rounded-xl shadow-lg">
+            <h3 class="text-xl font-bold mb-4 flex items-center">
+                <span class="mr-2">⚖️</span> تصنيفات المخالفات القطرية
+            </h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                    <span>الدرجة الأولى (بسيطة)</span>
+                    <span class="text-green-400">تأخر، زي، كتب</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                    <span>الدرجة الثانية (متوسطة)</span>
+                    <span class="text-yellow-400">غياب، هاتف، خروج</span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                    <span>الدرجة الثالثة (جسيمة)</span>
+                    <span class="text-orange-400">تنمر، غش، هروب</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span>الدرجة الرابعة (شديدة الخطورة)</span>
+                    <span class="text-red-400">اعتداء، جريمة جنائية</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

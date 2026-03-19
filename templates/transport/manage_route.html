@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}إدارة خط السير{% endblock %}
+{% block content %}
+<div dir="rtl" class="max-w-xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">🗺 {% if route %}تعديل{% else %}إضافة{% endif %} خط سير</h1>
+    <a href="{% url 'transport:bus_detail' bus.id %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <form method="post">
+      {% csrf_token %}
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">اسم المنطقة</label>
+          <input type="text" name="area_name" value="{{ route.area_name|default:'' }}" required
+                 class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="مثال: حي الشحانية">
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">الطلاب في هذا الخط</label>
+          <select name="students" multiple size="8"
+                  class="w-full border rounded-lg px-3 py-2 text-sm">
+            {% for st in available_students %}
+            <option value="{{ st.id }}"
+              {% if route and st in route.students.all %}selected{% endif %}>
+              {{ st.full_name }}
+            </option>
+            {% endfor %}
+          </select>
+          <p class="text-xs text-gray-400 mt-1">اضغط Ctrl للاختيار المتعدد</p>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button class="flex-1 bg-red-700 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-800">
+          💾 حفظ خط السير
+        </button>
+        <a href="{% url 'transport:bus_detail' bus.id %}" class="px-6 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

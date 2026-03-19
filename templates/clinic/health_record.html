@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">🏥 السجل الصحي</h1>
+      <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'clinic:record_visit_student' student.id %}"
+         class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800 transition">
+        ➕ تسجيل زيارة جديدة
+      </a>
+      <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- البيانات الصحية -->
+    <div class="lg:col-span-1 space-y-4">
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h2 class="font-bold text-gray-700 mb-4 border-b pb-2">📋 البيانات الصحية</h2>
+
+        <form method="post" action="">
+          {% csrf_token %}
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">فصيلة الدم</label>
+              <select name="blood_type" class="w-full text-sm border rounded-lg px-3 py-2">
+                <option value="">غير محدد</option>
+                {% for v,l in health_record.BLOOD_TYPES %}
+                <option value="{{ v }}" {% if health_record.blood_type == v %}selected{% endif %}>{{ l }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">الحساسية</label>
+              <textarea name="allergies" rows="2" class="w-full text-sm border rounded-lg px-3 py-2 resize-none"
+                        placeholder="لا يوجد">{{ health_record.allergies }}</textarea>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">الأمراض المزمنة</label>
+              <textarea name="chronic_diseases" rows="2" class="w-full text-sm border rounded-lg px-3 py-2 resize-none"
+                        placeholder="لا يوجد">{{ health_record.chronic_diseases }}</textarea>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">الأدوية المستمرة</label>
+              <textarea name="medications" rows="2" class="w-full text-sm border rounded-lg px-3 py-2 resize-none"
+                        placeholder="لا يوجد">{{ health_record.medications }}</textarea>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">اسم جهة الطوارئ</label>
+              <input type="text" name="emergency_contact_name" value="{{ health_record.emergency_contact_name }}"
+                     class="w-full text-sm border rounded-lg px-3 py-2" placeholder="اسم ولي الأمر">
+            </div>
+            <div>
+              <label class="text-xs text-gray-500 block mb-1">هاتف الطوارئ</label>
+              <input type="text" name="emergency_contact_phone" value="{{ health_record.emergency_contact_phone }}"
+                     class="w-full text-sm border rounded-lg px-3 py-2" placeholder="+974XXXXXXXX">
+            </div>
+          </div>
+          <button type="submit" class="mt-4 w-full bg-red-700 text-white py-2 rounded-lg text-sm hover:bg-red-800 transition">
+            💾 حفظ السجل الصحي
+          </button>
+        </form>
+
+        {% if health_record.updated_at %}
+        <p class="text-xs text-gray-400 mt-2 text-center">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- سجل الزيارات -->
+    <div class="lg:col-span-2">
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b flex justify-between items-center">
+          <h2 class="font-bold text-gray-700">📅 سجل الزيارات ({{ visits.count }} زيارة)</h2>
+        </div>
+
+        {% if visits %}
+        <div class="divide-y max-h-[600px] overflow-y-auto">
+          {% for visit in visits %}
+          <div class="px-5 py-4 hover:bg-gray-50">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-gray-800">{{ visit.visit_date|date:"d/m/Y — H:i" }}</span>
+                {% if visit.is_sent_home %}
+                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">أُرسل للمنزل</span>
+                {% endif %}
+                {% if visit.parent_notified %}
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ أُبلغ ولي الأمر</span>
+                {% endif %}
+              </div>
+              {% if visit.temperature %}
+              <span class="text-sm text-gray-500">🌡 {{ visit.temperature }}°</span>
+              {% endif %}
+            </div>
+            <p class="text-sm text-gray-600"><strong>السبب:</strong> {{ visit.reason }}</p>
+            {% if visit.symptoms %}
+            <p class="text-sm text-gray-500"><strong>الأعراض:</strong> {{ visit.symptoms }}</p>
+            {% endif %}
+            {% if visit.treatment %}
+            <p class="text-sm text-gray-500"><strong>الإجراء:</strong> {{ visit.treatment }}</p>
+            {% endif %}
+            <p class="text-xs text-gray-400 mt-1">الممرض: {{ visit.nurse.full_name|default:"—" }}</p>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-12 text-center text-gray-400">
+          <p class="text-3xl mb-2">📋</p>
+          <p>لا توجد زيارات مسجلة لهذا الطالب</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}تسجيل زيارة جديدة{% endblock %}
+{% block content %}
+<div dir="rtl" class="max-w-2xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">🏥 تسجيل زيارة جديدة</h1>
+    <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <form method="post" hx-post="{% url 'clinic:record_visit' %}" hx-target="#visit-result">
+      {% csrf_token %}
+      <div class="space-y-4">
+
+        <!-- الطالب -->
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">الطالب <span class="text-red-500">*</span></label>
+          <select name="student_id" required
+                  class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 focus:border-red-400">
+            <option value="">— اختر الطالب —</option>
+            {% for student in students %}
+            <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
+              {{ student.full_name }} ({{ student.national_id }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- السبب -->
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">سبب الزيارة <span class="text-red-500">*</span></label>
+          <input type="text" name="reason" required placeholder="مثال: صداع، غثيان، إصابة..."
+                 class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+        </div>
+
+        <!-- الأعراض -->
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">الأعراض التفصيلية</label>
+          <textarea name="symptoms" rows="2" placeholder="تفاصيل الأعراض..."
+                    class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300"></textarea>
+        </div>
+
+        <!-- درجة الحرارة والعلاج -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium text-gray-700 block mb-1">درجة الحرارة (°م)</label>
+            <input type="number" name="temperature" step="0.1" min="35" max="42" placeholder="37.0"
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+          </div>
+          <div>
+            <label class="text-sm font-medium text-gray-700 block mb-1">الإجراء المتخذ</label>
+            <input type="text" name="treatment" placeholder="مثال: مسكن ألم، راحة..."
+                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+          </div>
+        </div>
+
+        <!-- إرسال للمنزل -->
+        <div class="flex items-center gap-3 bg-orange-50 rounded-lg p-3">
+          <input type="checkbox" name="is_sent_home" id="sent_home"
+                 class="w-4 h-4 accent-red-600">
+          <label for="sent_home" class="text-sm text-gray-700 font-medium cursor-pointer">
+            ⚠️ تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)
+          </label>
+        </div>
+
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button type="submit"
+                class="flex-1 bg-red-700 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition">
+          💾 تسجيل الزيارة
+        </button>
+        <a href="{% url 'clinic:dashboard' %}"
+           class="px-6 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+          إلغاء
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div id="visit-result"></div>
+</div>
+{% endblock %}

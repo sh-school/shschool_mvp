@@ -1,0 +1,88 @@
+{% extends "base/base.html" %}
+{% block title %}جدول حصصي{% endblock %}
+{% block content %}
+
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-gray-900">جدول حصصي</h1>
+    <p class="text-gray-500 text-sm mt-1">{{ user.full_name }}</p>
+  </div>
+  <form method="get" class="flex items-center gap-2">
+    <input type="date" name="date" value="{{ selected_date }}"
+      class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    <button type="submit" class="bg-[#0F2347] text-white px-4 py-2 rounded-lg text-sm hover:bg-[#1A4F8A] transition">
+      عرض
+    </button>
+  </form>
+</div>
+
+{% if next_session %}
+<div class="bg-green-50 border-2 border-green-400 rounded-xl p-4 mb-5 flex items-center justify-between">
+  <div>
+    <div class="text-xs font-bold text-green-700 uppercase tracking-wide mb-1">الحصة القادمة</div>
+    <div class="text-lg font-bold text-gray-900">{{ next_session.subject.name_ar|default:"حصة" }}</div>
+    <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
+  </div>
+  <a href="/teacher/attendance/{{ next_session.id }}/"
+     class="bg-green-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-green-700 transition">
+    ابدأ الحضور ←
+  </a>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  {% if sessions %}
+  <table class="w-full">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الفصل</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
+        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for session in sessions %}
+      <tr class="hover:bg-gray-50 transition
+        {% if next_session and session.id == next_session.id %}bg-green-50{% endif %}">
+        <td class="px-4 py-3">
+          <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
+        </td>
+        <td class="px-4 py-3 text-sm text-gray-600">{{ session.class_group }}</td>
+        <td class="px-4 py-3 text-sm text-gray-600 font-mono">
+          {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+        </td>
+        <td class="px-4 py-3">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+            {% if session.status == 'completed' %}bg-gray-100 text-gray-700
+            {% elif session.status == 'in_progress' %}bg-blue-100 text-blue-700
+            {% elif session.status == 'cancelled' %}bg-red-100 text-red-700
+            {% else %}bg-yellow-100 text-yellow-700{% endif %}">
+            {{ session.get_status_display }}
+          </span>
+        </td>
+        <td class="px-4 py-3">
+          {% if session.status != 'completed' and session.status != 'cancelled' %}
+          <a href="/teacher/attendance/{{ session.id }}/"
+             class="text-sm bg-[#0F2347] text-white px-3 py-1.5 rounded-lg hover:bg-[#1A4F8A] transition">
+            تسجيل حضور
+          </a>
+          {% else %}
+          <a href="/teacher/attendance/{{ session.id }}/"
+             class="text-sm text-gray-500 hover:text-gray-700">عرض</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="py-16 text-center">
+    <div class="text-5xl mb-4">📅</div>
+    <p class="text-gray-500 font-medium">لا توجد حصص في هذا اليوم</p>
+    <p class="text-gray-400 text-sm mt-1">{{ selected_date }}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

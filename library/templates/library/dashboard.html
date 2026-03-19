@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة تحكم المكتبة ومصادر التعلم{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8" dir="rtl">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 border-b-2 pb-4" style="border-color: #8A1538;">
+        <h1 class="text-3xl font-bold text-gray-800">
+            <span class="text-maroon-800" style="color: #8A1538;">📚</span> المكتبة ومصادر التعلم
+        </h1>
+        <div class="flex space-x-4 space-x-reverse">
+            <a href="{% url 'library:book_list' %}" class="bg-gray-100 text-gray-700 px-6 py-2 rounded-lg shadow hover:bg-gray-200 transition duration-300">
+                🔍 بحث في الكتب
+            </a>
+            <a href="{% url 'library:borrow_book' %}" class="bg-maroon-700 text-white px-6 py-2 rounded-lg shadow hover:bg-maroon-800 transition duration-300" style="background-color: #8A1538;">
+                ➕ إعارة جديدة
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Total Books -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-maroon-600" style="border-color: #8A1538;">
+            <div class="text-sm font-medium text-gray-500 mb-1">إجمالي الكتب والمصادر</div>
+            <div class="text-2xl font-bold text-maroon-800" style="color: #8A1538;">{{ total_books }} كتاب</div>
+        </div>
+
+        <!-- Active Borrowings -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-blue-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">إعارات نشطة</div>
+            <div class="text-2xl font-bold text-blue-800">{{ active_borrowings }} إعارة</div>
+        </div>
+
+        <!-- Overdue -->
+        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-red-500">
+            <div class="text-sm font-medium text-gray-500 mb-1">كتب متأخرة</div>
+            <div class="text-2xl font-bold text-red-800">{{ overdue_borrowings }} كتاب</div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Recent Borrowings -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800">عمليات الإعارة الأخيرة</h2>
+                <button class="text-maroon-700 hover:underline font-medium" style="color: #8A1538;">عرض الكل</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-right">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
+                        <tr>
+                            <th class="py-3 px-6">المستعير</th>
+                            <th class="py-3 px-6">الكتاب</th>
+                            <th class="py-3 px-6">تاريخ الإرجاع</th>
+                            <th class="py-3 px-6">الإجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-600 text-sm">
+                        {% for borrowing in recent_borrowings %}
+                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition duration-150">
+                            <td class="py-3 px-6 font-bold">{{ borrowing.user.full_name }}</td>
+                            <td class="py-3 px-6">{{ borrowing.book.title }}</td>
+                            <td class="py-3 px-6 text-red-500">{{ borrowing.due_date }}</td>
+                            <td class="py-3 px-6">
+                                {% if borrowing.status == 'BORROWED' %}
+                                <a href="{% url 'library:return_book' borrowing.id %}" class="text-green-600 hover:underline">📥 إرجاع</a>
+                                {% else %}
+                                <span class="text-gray-400">تم الإرجاع</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="py-10 text-center text-gray-500">لا توجد إعارات مسجلة حالياً.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recent Books Added -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800">كتب أضيفت حديثاً</h2>
+                <button class="text-maroon-700 hover:underline font-medium" style="color: #8A1538;">عرض الفهرس</button>
+            </div>
+            <div class="p-6">
+                <div class="space-y-4">
+                    {% for book in recent_books %}
+                    <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-maroon-300 transition duration-150">
+                        <div class="bg-maroon-100 p-3 rounded-lg text-maroon-800 mr-4" style="background-color: #F9F2F4; color: #8A1538;">📖</div>
+                        <div class="flex-grow">
+                            <div class="font-bold text-gray-800">{{ book.title }}</div>
+                            <div class="text-sm text-gray-500">{{ book.author }} | {{ book.category }}</div>
+                        </div>
+                        <div class="text-sm font-semibold text-gray-600">الرف: {{ book.location }}</div>
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-gray-500">لا توجد كتب مضافة حديثاً.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="bg-maroon-900 text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-center" style="background-color: #8A1538;">
+        <div class="mb-4 md:mb-0 text-center md:text-right">
+            <h3 class="text-2xl font-bold mb-2">إدارة المكتبة ومصادر التعلم</h3>
+            <p class="text-maroon-100 opacity-80">تتبع الكتب، الإعارات، والأنشطة الثقافية لمدرسة الشحانية.</p>
+        </div>
+        <div class="flex space-x-4 space-x-reverse">
+            <button class="bg-white text-maroon-900 px-6 py-3 rounded-xl font-bold hover:bg-gray-100 transition duration-300" style="color: #8A1538;">
+                📑 تقرير الجرد السنوي
+            </button>
+            <button class="bg-maroon-700 text-white border border-maroon-500 px-6 py-3 rounded-xl font-bold hover:bg-maroon-600 transition duration-300">
+                🎨 أنشطة المكتبة
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

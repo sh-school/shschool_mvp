@@ -1,0 +1,71 @@
+{% extends "base/base.html" %}
+{% block title %}سجل الاستيراد{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">سجل عمليات الاستيراد</h1>
+      <p class="text-gray-500 text-sm mt-1">آخر 50 عملية استيراد</p>
+    </div>
+    <a href="{% url 'import_grades_select' %}"
+       class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A]">
+      + استيراد جديد
+    </a>
+  </div>
+
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    {% if logs %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-right">الملف</th>
+            <th class="px-4 py-3 text-right">رُفع بواسطة</th>
+            <th class="px-4 py-3 text-center">التاريخ</th>
+            <th class="px-4 py-3 text-center">الإجمالي</th>
+            <th class="px-4 py-3 text-center">مستورد</th>
+            <th class="px-4 py-3 text-center">أخطاء</th>
+            <th class="px-4 py-3 text-center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for log in logs %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate">{{ log.file_name }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ log.uploaded_by.full_name|default:"—" }}</td>
+            <td class="px-4 py-3 text-center text-gray-500 text-xs">{{ log.started_at|date:"d/m/Y H:i" }}</td>
+            <td class="px-4 py-3 text-center">{{ log.total_rows }}</td>
+            <td class="px-4 py-3 text-center text-green-700 font-medium">{{ log.imported_rows }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if log.failed_rows %}
+                <span class="text-red-600 font-medium">{{ log.failed_rows }}</span>
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if log.status == "completed" %}
+                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">مكتمل</span>
+              {% elif log.status == "failed" %}
+                <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">فشل</span>
+              {% else %}
+                <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">{{ log.get_status_display }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="px-6 py-16 text-center text-gray-400">
+      <p class="text-4xl mb-3">📂</p>
+      <p>لا توجد عمليات استيراد سابقة</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

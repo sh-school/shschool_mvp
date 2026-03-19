@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}إحصائيات النقل{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">📊 إحصائيات النقل المدرسي</h1>
+    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-blue-500">
+      <p class="text-xs text-gray-500">عدد الحافلات</p>
+      <p class="text-3xl font-bold text-blue-600">{{ total_buses }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-500">
+      <p class="text-xs text-gray-500">الطاقة الإجمالية</p>
+      <p class="text-3xl font-bold text-green-600">{{ total_capacity }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4" style="border-color:#8A1538">
+      <p class="text-xs text-gray-500">الطلاب المسجلون</p>
+      <p class="text-3xl font-bold" style="color:#8A1538">{{ students_count }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-orange-500">
+      <p class="text-xs text-gray-500">نسبة الإشغال</p>
+      <p class="text-3xl font-bold text-orange-600">{{ utilization_rate|floatformat:0 }}%</p>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b"><h2 class="font-bold text-gray-700">تفاصيل الحافلات</h2></div>
+    <table class="w-full text-sm text-right">
+      <thead class="bg-gray-50 text-gray-500 text-xs">
+        <tr><th class="px-4 py-3">رقم الحافلة</th><th class="px-4 py-3">السائق</th>
+            <th class="px-4 py-3">الطاقة</th><th class="px-4 py-3">كروة</th></tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for bus in buses %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">
+            <a href="{% url 'transport:bus_detail' bus.id %}" class="text-blue-600 hover:underline">{{ bus.bus_number }}</a>
+          </td>
+          <td class="px-4 py-3">{{ bus.driver_name }}</td>
+          <td class="px-4 py-3">{{ bus.capacity }} مقعد</td>
+          <td class="px-4 py-3 text-xs text-gray-400">{{ bus.karwa_id|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

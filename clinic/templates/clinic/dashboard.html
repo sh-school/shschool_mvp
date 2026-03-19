@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}لوحة تحكم العيادة المدرسية{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-maroon-50 to-maroon-100">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-maroon-700 to-maroon-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <h1 class="text-3xl font-bold">🏥 لوحة تحكم العيادة المدرسية</h1>
+            <p class="text-maroon-100 mt-2">إدارة الصحة والسجلات الطبية للطلاب</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Card 1: Visits Today -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-maroon-600">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الزيارات اليوم</p>
+                        <p class="text-3xl font-bold text-maroon-700">{{ visits_today }}</p>
+                    </div>
+                    <div class="text-4xl text-maroon-200">👥</div>
+                </div>
+            </div>
+
+            <!-- Card 2: Follow-up Cases -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-orange-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">حالات متابعة</p>
+                        <p class="text-3xl font-bold text-orange-600">{{ follow_up_visits.count }}</p>
+                    </div>
+                    <div class="text-4xl text-orange-200">⚠️</div>
+                </div>
+            </div>
+
+            <!-- Card 3: Quick Actions -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الإجراءات السريعة</p>
+                        <a href="{% url 'clinic:record_visit' %}" class="text-blue-600 hover:text-blue-800 font-semibold mt-2 inline-block">
+                            + تسجيل زيارة جديدة
+                        </a>
+                    </div>
+                    <div class="text-4xl text-blue-200">⚡</div>
+                </div>
+            </div>
+
+            <!-- Card 4: Health Statistics -->
+            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-green-500">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">الإحصائيات</p>
+                        <a href="{% url 'clinic:statistics' %}" class="text-green-600 hover:text-green-800 font-semibold mt-2 inline-block">
+                            عرض التقارير
+                        </a>
+                    </div>
+                    <div class="text-4xl text-green-200">📊</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Visits -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-bold text-maroon-700 mb-4">الزيارات الأخيرة</h2>
+            {% if recent_visits %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-maroon-50 border-b-2 border-maroon-200">
+                            <tr>
+                                <th class="px-4 py-3 text-right">الطالب</th>
+                                <th class="px-4 py-3 text-right">التاريخ والوقت</th>
+                                <th class="px-4 py-3 text-right">السبب</th>
+                                <th class="px-4 py-3 text-right">الحالة</th>
+                                <th class="px-4 py-3 text-right">الإجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for visit in recent_visits %}
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-4 py-3">{{ visit.student.full_name }}</td>
+                                <td class="px-4 py-3">{{ visit.visit_date|date:"d/m/Y H:i" }}</td>
+                                <td class="px-4 py-3">{{ visit.reason|truncatewords:5 }}</td>
+                                <td class="px-4 py-3">
+                                    {% if visit.is_sent_home %}
+                                        <span class="inline-block bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-semibold">
+                                            أُرسل للمنزل
+                                        </span>
+                                    {% else %}
+                                        <span class="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold">
+                                            متابعة عادية
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <a href="{% url 'clinic:health_record' visit.student.id %}" class="text-maroon-600 hover:text-maroon-800 font-semibold">
+                                        عرض الملف
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-center">
+                    <a href="{% url 'clinic:visits_list' %}" class="text-maroon-600 hover:text-maroon-800 font-semibold">
+                        عرض جميع الزيارات →
+                    </a>
+                </div>
+            {% else %}
+                <p class="text-gray-500 text-center py-8">لا توجد زيارات مسجلة حتى الآن</p>
+            {% endif %}
+        </div>
+
+        <!-- Follow-up Cases -->
+        {% if follow_up_visits %}
+        <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-orange-700 mb-4">⚠️ حالات بحاجة متابعة</h2>
+            <div class="space-y-3">
+                {% for visit in follow_up_visits %}
+                <div class="bg-white p-4 rounded-lg border-l-4 border-orange-500">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-semibold text-gray-800">{{ visit.student.full_name }}</p>
+                            <p class="text-sm text-gray-600">{{ visit.reason }}</p>
+                        </div>
+                        <a href="{% url 'clinic:health_record' visit.student.id %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
+                            متابعة
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Maroon Color Scheme -->
+<style>
+    .bg-maroon-50 { background-color: #f9f5f5; }
+    .bg-maroon-100 { background-color: #f3ebeb; }
+    .bg-maroon-200 { background-color: #e8d7d7; }
+    .bg-maroon-600 { background-color: #8a1538; }
+    .bg-maroon-700 { background-color: #6b0f2a; }
+    .bg-maroon-900 { background-color: #4a0a1a; }
+    .text-maroon-50 { color: #f9f5f5; }
+    .text-maroon-100 { color: #f3ebeb; }
+    .text-maroon-200 { color: #e8d7d7; }
+    .text-maroon-600 { color: #8a1538; }
+    .text-maroon-700 { color: #6b0f2a; }
+    .text-maroon-900 { color: #4a0a1a; }
+    .border-maroon-200 { border-color: #e8d7d7; }
+    .border-maroon-600 { border-color: #8a1538; }
+</style>
+{% endblock %}

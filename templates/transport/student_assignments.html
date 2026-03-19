@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}إسناد الطلاب للحافلات{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">👥 إسناد الطلاب للحافلات</h1>
+    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-bold text-red-700 mb-4">❌ طلاب غير مسندون ({{ unassigned_students.count }})</h2>
+      {% if unassigned_students %}
+      <div class="space-y-2 max-h-96 overflow-y-auto">
+        {% for st in unassigned_students %}
+        <div class="flex justify-between items-center py-2 border-b last:border-0 text-sm">
+          <span>{{ st.full_name }}</span>
+          <a href="{% url 'transport:buses_list' %}" class="text-xs text-blue-600 hover:underline">اختر حافلة</a>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-gray-400 text-center py-6">✅ جميع الطلاب مسندون</p>
+      {% endif %}
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-bold text-green-700 mb-4">✅ طلاب مسندون ({{ assigned_students.count }})</h2>
+      <div class="space-y-2 max-h-96 overflow-y-auto">
+        {% for st in assigned_students %}
+        <div class="py-2 border-b last:border-0 text-sm text-gray-700">{{ st.full_name }}</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

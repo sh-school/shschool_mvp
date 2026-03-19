@@ -1,0 +1,187 @@
+{% extends "base/base.html" %}
+{% block title %}بوابة ولي الأمر
+<!-- PWA Install Banner -->
+<div id="pwa-banner" class="hidden fixed bottom-4 left-4 right-4 bg-[#0F2347] text-white rounded-2xl p-4 shadow-2xl z-50 flex items-center gap-3 max-w-sm mx-auto">
+  <span class="text-3xl">📱</span>
+  <div class="flex-1">
+    <p class="font-bold text-sm">ثبّت التطبيق</p>
+    <p class="text-xs text-blue-200">وصول سريع بدون متصفح</p>
+  </div>
+  <button onclick="installPWA()" class="bg-[#8A1538] text-white px-4 py-2 rounded-xl text-xs font-bold">تثبيت</button>
+  <button onclick="document.getElementById('pwa-banner').classList.add('hidden')" class="text-white/50 text-lg">✕</button>
+</div>
+
+<script>
+// ── Service Worker Registration ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/parents/sw.js', { scope: '/parents/' })
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW error:', err));
+  });
+}
+
+// ── PWA Install Prompt ──
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show after 3 seconds if not standalone
+  if (!window.matchMedia('(display-mode: standalone)').matches) {
+    setTimeout(() => {
+      document.getElementById('pwa-banner').classList.remove('hidden');
+    }, 3000);
+  }
+});
+
+function installPWA() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById('pwa-banner').classList.add('hidden');
+  });
+}
+
+// ── Online/Offline Indicator ──
+function updateOnlineStatus() {
+  const indicator = document.getElementById('online-indicator');
+  if (!indicator) return;
+  if (navigator.onLine) {
+    indicator.className = 'w-2 h-2 rounded-full bg-green-400';
+    indicator.title = 'متصل';
+  } else {
+    indicator.className = 'w-2 h-2 rounded-full bg-red-400 animate-pulse';
+    indicator.title = 'غير متصل';
+  }
+}
+window.addEventListener('online',  updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+</script>
+{% endblock %}
+
+{% block extra_head %}
+<!-- PWA -->
+<link rel="manifest" href="{% url 'pwa_manifest' %}">
+<meta name="theme-color" content="#8A1538">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SchoolOS">
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div>
+    <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">أهلاً، {{ request.user.full_name }}</h1>
+    <p class="text-gray-500 text-sm mt-1">{{ school.name }} — العام الدراسي {{ year }}</p>
+    </div>
+    <a href="{% url 'parent_consent' %}"
+       class="flex items-center gap-2 text-xs px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 transition">
+      🔐 إعدادات الخصوصية
+    </a>
+  </div>
+  </div>
+
+  {% if not children %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center">
+    <p class="text-4xl mb-3">👨‍👧</p>
+    <p class="font-bold text-amber-800">لم يتم ربط حسابك بأي طالب بعد</p>
+    <p class="text-amber-700 text-sm mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك.</p>
+  </div>
+
+  {% else %}
+  {% for child in children %}
+  <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+
+    <!-- رأس بطاقة الطالب -->
+    <div class="bg-gradient-to-l from-[#0F2347] to-[#1A4F8A] px-6 py-5 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-bold">
+          {{ child.student.full_name|slice:":1" }}
+        </div>
+        <div>
+          <h2 class="text-white text-lg font-bold">{{ child.student.full_name }}</h2>
+          <p class="text-blue-200 text-sm">
+            {% if child.enrollment %}{{ child.enrollment.class_group }}{% endif %}
+            · {{ child.link.get_relationship_display }}
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-2">
+        {% if child.link.can_view_grades %}
+        <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}"
+           class="px-4 py-2 bg-white text-[#0F2347] text-sm font-medium rounded-lg hover:bg-blue-50 transition">
+          📊 الدرجات
+        </a>
+        {% endif %}
+        {% if child.link.can_view_attendance %}
+        <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}"
+           class="px-4 py-2 bg-white/20 text-white text-sm font-medium rounded-lg hover:bg-white/30 transition">
+          📅 الغياب
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="grid grid-cols-2 md:grid-cols-4 divide-x divide-x-reverse divide-gray-100">
+
+      <!-- المواد -->
+      <div class="p-5 text-center">
+        <div class="text-2xl font-bold text-[#0F2347]">{{ child.total_subj }}</div>
+        <div class="text-xs text-gray-500 mt-1">إجمالي المواد</div>
+      </div>
+
+      <!-- ناجح -->
+      <div class="p-5 text-center">
+        <div class="text-2xl font-bold text-green-700">{{ child.passed }}</div>
+        <div class="text-xs text-gray-500 mt-1">ناجح</div>
+      </div>
+
+      <!-- راسب — تنبيه لو > 0 -->
+      <div class="p-5 text-center {% if child.failed %}bg-red-50{% endif %}">
+        <div class="text-2xl font-bold {% if child.failed %}text-red-600{% else %}text-gray-400{% endif %}">
+          {{ child.failed }}
+        </div>
+        <div class="text-xs {% if child.failed %}text-red-500{% else %}text-gray-500{% endif %} mt-1">راسب</div>
+        {% if child.failed %}
+        <div class="text-xs text-red-400 mt-0.5">⚠ يحتاج متابعة</div>
+        {% endif %}
+      </div>
+
+      <!-- غياب آخر 30 يوم -->
+      <div class="p-5 text-center {% if child.absent_30 >= 5 %}bg-orange-50{% endif %}">
+        <div class="text-2xl font-bold {% if child.absent_30 >= 5 %}text-orange-600{% elif child.absent_30 > 0 %}text-amber-600{% else %}text-gray-400{% endif %}">
+          {{ child.absent_30 }}
+        </div>
+        <div class="text-xs text-gray-500 mt-1">غياب (30 يوم)</div>
+        {% if child.late_30 %}
+        <div class="text-xs text-gray-400 mt-0.5">{{ child.late_30 }} تأخر</div>
+        {% endif %}
+      </div>
+
+    </div>
+
+    <!-- تنبيهات مهمة -->
+    {% if child.failed or child.absent_30 >= 5 %}
+    <div class="px-6 py-3 bg-red-50 border-t border-red-100 flex items-center gap-2 text-sm text-red-700">
+      <span>⚠️</span>
+      <span>
+        {% if child.failed %}يوجد {{ child.failed }} مادة راسب فيها.{% endif %}
+        {% if child.absent_30 >= 5 %}غياب مرتفع ({{ child.absent_30 }} غياب في آخر 30 يوم).{% endif %}
+        يُرجى التواصل مع المدرسة.
+      </span>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+  {% endif %}
+
+</div>
+{% endblock %}

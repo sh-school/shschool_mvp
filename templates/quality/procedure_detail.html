@@ -1,0 +1,134 @@
+{% extends "base/base.html" %}
+{% block title %}تفاصيل الإجراء{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <!-- Breadcrumb -->
+  <div class="text-sm text-gray-500 flex gap-2">
+    <a href="{% url 'quality_dashboard' %}" class="hover:text-blue-600">الخطة</a> /
+    <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="hover:text-blue-600">{{ procedure.indicator.target.domain.name }}</a> /
+    <span class="text-gray-800">إجراء {{ procedure.number }}</span>
+  </div>
+
+  <!-- الإجراء -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4">
+      <p class="text-blue-200 text-xs font-mono">{{ procedure.number }}</p>
+      <p class="text-white font-bold mt-1 text-lg leading-relaxed">{{ procedure.text }}</p>
+    </div>
+    <div class="p-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div>
+        <p class="text-gray-500 text-xs mb-1">المنفذ</p>
+        <p class="font-semibold text-gray-800">{{ procedure.executor_norm }}</p>
+        {% if procedure.executor_user %}<p class="text-xs text-blue-600 mt-0.5">{{ procedure.executor_user.full_name }}</p>{% endif %}
+      </div>
+      <div>
+        <p class="text-gray-500 text-xs mb-1">الفترة الزمنية</p>
+        <p class="font-semibold text-gray-800">{{ procedure.date_range|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 text-xs mb-1">نوع الدليل</p>
+        <p class="font-semibold text-gray-800">{{ procedure.evidence_type|default:"—" }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 text-xs mb-1">المجال</p>
+        <p class="font-semibold text-gray-800">{{ procedure.indicator.target.domain.name }}</p>
+      </div>
+      <div>
+        <p class="text-gray-500 text-xs mb-1">المؤشر</p>
+        <p class="text-xs text-gray-600 font-mono">{{ procedure.indicator.number }}</p>
+      </div>
+      <div id="status-badge">
+        {% include "quality/partials/procedure_status_badge.html" %}
+      </div>
+    </div>
+
+    {% if procedure.evaluation %}
+    <div class="border-t px-6 py-4 bg-blue-50">
+      <p class="text-xs text-gray-500 mb-1">التقييم</p>
+      <p class="text-sm text-gray-800">{{ procedure.evaluation }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- تحديث الحالة (للمنفذ والمدير) -->
+  {% if can_edit %}
+  <div class="bg-white rounded-xl border shadow-sm p-6">
+    <h2 class="font-bold text-gray-800 mb-4">تحديث الحالة</h2>
+    <form hx-post="{% url 'update_proc_status' procedure.id %}"
+          hx-target="#status-badge" hx-swap="innerHTML"
+          class="flex flex-wrap gap-3 items-end">
+      {% csrf_token %}
+      <div class="flex-1 min-w-[150px]">
+        <label class="block text-xs text-gray-500 mb-1">الحالة</label>
+        <select name="status" class="w-full border rounded-lg px-3 py-2 text-sm">
+          {% for val, label in procedure.STATUS %}
+          <option value="{{ val }}" {% if procedure.status == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex-1 min-w-[200px]">
+        <label class="block text-xs text-gray-500 mb-1">التقييم</label>
+        <input type="text" name="evaluation" value="{{ procedure.evaluation }}"
+               placeholder="أدخل ملاحظات التقييم..."
+               class="w-full border rounded-lg px-3 py-2 text-sm">
+      </div>
+      <button type="submit" class="px-5 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">
+        حفظ
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <!-- الأدلة -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
+      <h2 class="font-bold text-gray-800">الأدلة المرفوعة ({{ evidences.count }})</h2>
+    </div>
+    {% if evidences %}
+    <div class="divide-y">
+      {% for ev in evidences %}
+      <div class="px-5 py-3 flex items-center justify-between">
+        <div>
+          <p class="font-medium text-gray-800 text-sm">{{ ev.title }}</p>
+          {% if ev.description %}<p class="text-xs text-gray-500 mt-0.5">{{ ev.description }}</p>{% endif %}
+          <p class="text-xs text-gray-400 mt-0.5">{{ ev.uploaded_by.full_name|default:"—" }} · {{ ev.created_at|date:"Y/m/d" }}</p>
+        </div>
+        {% if ev.file %}
+        <a href="{{ ev.file.url }}" target="_blank"
+           class="text-xs px-3 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100">تحميل</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="px-5 py-4 text-sm text-gray-400 text-center">لا توجد أدلة مرفوعة بعد</p>
+    {% endif %}
+
+    <!-- رفع دليل جديد -->
+    {% if can_edit %}
+    <div class="border-t px-5 py-4 bg-gray-50">
+      <h3 class="text-sm font-medium text-gray-700 mb-3">رفع دليل جديد</h3>
+      <form method="post" action="{% url 'upload_evidence' procedure.id %}" enctype="multipart/form-data"
+            class="flex flex-wrap gap-3 items-end">
+        {% csrf_token %}
+        <div class="flex-1 min-w-[150px]">
+          <label class="block text-xs text-gray-500 mb-1">العنوان *</label>
+          <input type="text" name="title" required class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div class="flex-1 min-w-[150px]">
+          <label class="block text-xs text-gray-500 mb-1">وصف</label>
+          <input type="text" name="description" class="w-full border rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">ملف</label>
+          <input type="file" name="file" class="text-sm">
+        </div>
+        <button type="submit" class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800 transition">رفع</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

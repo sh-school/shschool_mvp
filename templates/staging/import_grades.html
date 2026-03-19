@@ -1,0 +1,168 @@
+{% extends "base/base.html" %}
+{% block title %}استيراد الدرجات من Excel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">استيراد الدرجات</h1>
+      <p class="text-gray-500 text-sm mt-1">رفع ملف Excel لتعبئة الدرجات دفعةً واحدة</p>
+    </div>
+    <a href="{% url 'import_log_list' %}"
+       class="text-sm text-blue-600 hover:underline">سجل العمليات السابقة ←</a>
+  </div>
+
+  {% if not openpyxl_ok %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm">
+    ⚠️ مكتبة <code>openpyxl</code> غير مثبتة. شغّل:
+    <code class="bg-amber-100 px-2 py-0.5 rounded">pip install openpyxl</code>
+    لتفعيل هذه الميزة.
+  </div>
+  {% endif %}
+
+  <!-- الخطوات -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="text-blue-700 font-bold mb-1">① اختر التقييم</div>
+      <p class="text-sm text-blue-600">حدد المادة والفصل والاختبار المراد تعبئة درجاته.</p>
+    </div>
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="text-blue-700 font-bold mb-1">② حمّل القالب</div>
+      <p class="text-sm text-blue-600">حمّل ملف Excel المُعبَّأ بأسماء الطلاب مسبقاً.</p>
+    </div>
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="text-blue-700 font-bold mb-1">③ ارفع الملف المكتمل</div>
+      <p class="text-sm text-blue-600">بعد تعبئة الدرجات ارفع الملف وسيتم الاستيراد فوراً.</p>
+    </div>
+  </div>
+
+  <!-- التقييمات المتاحة -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4">
+      <h2 class="text-white font-bold">التقييمات المتاحة للاستيراد</h2>
+      <p class="text-blue-200 text-xs mt-1">العام الدراسي {{ year }}</p>
+    </div>
+
+    {% if assessments %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th class="px-4 py-3 text-right">المادة</th>
+            <th class="px-4 py-3 text-right">الفصل</th>
+            <th class="px-4 py-3 text-right">التقييم</th>
+            <th class="px-4 py-3 text-center">الدرجة القصوى</th>
+            <th class="px-4 py-3 text-center">الحالة</th>
+            <th class="px-4 py-3 text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for a in assessments %}
+          <tr class="hover:bg-gray-50" id="row-{{ a.id }}">
+            <td class="px-4 py-3 font-medium text-gray-900">{{ a.package.setup.subject.name_ar }}</td>
+            <td class="px-4 py-3 text-gray-600">{{ a.class_group }}</td>
+            <td class="px-4 py-3 text-gray-700">{{ a.title }}</td>
+            <td class="px-4 py-3 text-center font-mono text-gray-700">{{ a.max_grade }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if a.status == "graded" %}
+                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">مصحَّح</span>
+              {% else %}
+                <span class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">منشور</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-2 flex-wrap">
+                <!-- تحميل القالب -->
+                <a href="{% url 'download_grade_template' a.id %}"
+                   class="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 transition {% if not openpyxl_ok %}opacity-50 pointer-events-none{% endif %}">
+                  ⬇ قالب Excel
+                </a>
+
+                <!-- زر رفع -->
+                <button onclick="toggleUpload('{{ a.id }}')"
+                        class="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-[#0F2347] text-white hover:bg-[#1A4F8A] transition {% if not openpyxl_ok %}opacity-50 pointer-events-none{% endif %}">
+                  ⬆ رفع الدرجات
+                </button>
+              </div>
+
+              <!-- منطقة الرفع المخفية -->
+              <div id="upload-{{ a.id }}" class="hidden mt-3 pt-3 border-t">
+                <form method="post" enctype="multipart/form-data"
+                      action="{% url 'upload_grade_file' a.id %}">
+                  {% csrf_token %}
+                  <div class="flex items-center gap-2">
+                    <input type="file" name="grade_file" accept=".xlsx,.xls"
+                           class="text-xs border rounded px-2 py-1 flex-1"
+                           required>
+                    <button type="submit"
+                            class="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap">
+                      استيراد
+                    </button>
+                    <button type="button" onclick="toggleUpload('{{ a.id }}')"
+                            class="text-xs px-2 py-1.5 text-gray-500 hover:text-gray-700">✕</button>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">
+                    فقط ملفات .xlsx / .xls — استخدم القالب المحمَّل لضمان التوافق
+                  </p>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="px-6 py-12 text-center text-gray-400">
+      <p class="text-4xl mb-3">📊</p>
+      <p>لا توجد تقييمات منشورة حالياً</p>
+      <a href="{% url 'assessments_dashboard' %}" class="text-blue-600 text-sm hover:underline mt-2 inline-block">
+        الذهاب إلى التقييمات ←
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- آخر عمليات الاستيراد -->
+  {% if logs %}
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b flex items-center justify-between">
+      <h2 class="font-bold text-gray-900">آخر عمليات الاستيراد</h2>
+      <a href="{% url 'import_log_list' %}" class="text-xs text-blue-600 hover:underline">عرض الكل</a>
+    </div>
+    <div class="divide-y">
+      {% for log in logs|slice:":5" %}
+      <div class="px-6 py-3 flex items-center justify-between text-sm">
+        <div>
+          <span class="font-medium text-gray-800">{{ log.file_name }}</span>
+          <span class="text-gray-400 text-xs mr-2">{{ log.started_at|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-green-600 text-xs">✓ {{ log.imported_rows }}</span>
+          {% if log.failed_rows %}<span class="text-red-600 text-xs">✕ {{ log.failed_rows }}</span>{% endif %}
+          {% if log.status == "completed" %}
+            <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">مكتمل</span>
+          {% elif log.status == "failed" %}
+            <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">فشل</span>
+          {% else %}
+            <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">{{ log.get_status_display }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function toggleUpload(id) {
+  const el = document.getElementById('upload-' + id);
+  el.classList.toggle('hidden');
+}
+</script>
+{% endblock %}

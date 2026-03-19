@@ -1,0 +1,132 @@
+{% extends "base/base.html" %}
+{% load dict_filters %}
+{% block title %}كشف درجات — {{ student.full_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-[#0F2347]">كشف الدرجات السنوي</h1>
+      <p class="text-sm text-gray-500 mt-1">{{ student.full_name }} | {{ student.national_id }}</p>
+    </div>
+    <a href="?year={{ year }}" class="text-sm text-blue-600 hover:underline">{{ year }}</a>
+  </div>
+
+  <!-- ملخص سنوي -->
+  <div class="grid grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+      <p class="text-3xl font-bold text-[#1A4F8A]">{{ total_subjects }}</p>
+      <p class="text-xs text-gray-500 mt-1">مادة</p>
+    </div>
+    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+      <p class="text-3xl font-bold text-green-600">{{ passed }}</p>
+      <p class="text-xs text-gray-500 mt-1">ناجح</p>
+    </div>
+    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+      <p class="text-3xl font-bold text-red-600">{{ failed }}</p>
+      <p class="text-xs text-gray-500 mt-1">راسب</p>
+    </div>
+  </div>
+
+  <!-- جدول النتائج السنوية -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-x-auto">
+    <div class="bg-[#0F2347] px-5 py-3">
+      <h2 class="text-white font-bold">النتائج السنوية — {{ year }}</h2>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b">
+        <tr>
+          <th class="px-4 py-3 text-right">المادة</th>
+          <th class="px-3 py-3 text-center">
+            الفصل الأول
+            <span class="block text-xs text-gray-400 font-normal">من 40</span>
+          </th>
+          <th class="px-3 py-3 text-center">
+            الفصل الثاني
+            <span class="block text-xs text-gray-400 font-normal">من 60</span>
+          </th>
+          <th class="px-4 py-3 text-center font-bold">
+            المجموع السنوي
+            <span class="block text-xs text-gray-400 font-normal">من 100</span>
+          </th>
+          <th class="px-4 py-3 text-center">التقدير</th>
+          <th class="px-4 py-3 text-center">الحالة</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for result in results %}
+        <tr class="hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-medium text-gray-800">{{ result.subject.name_ar }}</td>
+
+          <!-- الفصل الأول من 40 -->
+          <td class="px-3 py-3 text-center">
+            {% if result.s1_total is not None %}
+            <span class="font-mono font-semibold
+              {% if result.s1_total >= 20 %}text-green-700{% else %}text-amber-600{% endif %}">
+              {{ result.s1_total }}
+            </span>
+            <span class="text-gray-400 text-xs">/40</span>
+            {% else %}
+            <span class="text-gray-300">—</span>
+            {% endif %}
+          </td>
+
+          <!-- الفصل الثاني من 60 -->
+          <td class="px-3 py-3 text-center">
+            {% if result.s2_total is not None %}
+            <span class="font-mono font-semibold
+              {% if result.s2_total >= 30 %}text-green-700{% else %}text-amber-600{% endif %}">
+              {{ result.s2_total }}
+            </span>
+            <span class="text-gray-400 text-xs">/60</span>
+            {% else %}
+            <span class="text-gray-300">—</span>
+            {% endif %}
+          </td>
+
+          <!-- المجموع السنوي من 100 -->
+          <td class="px-4 py-3 text-center">
+            {% if result.annual_total is not None %}
+            <span class="font-bold text-xl {{ result.grade_color_css }}">
+              {{ result.annual_total }}
+            </span>
+            {% else %}
+            <span class="text-gray-300">—</span>
+            {% endif %}
+          </td>
+
+          <!-- التقدير الحرفي -->
+          <td class="px-4 py-3 text-center font-bold text-xl text-[#0F2347]">
+            {{ result.letter_grade }}
+          </td>
+
+          <!-- الحالة -->
+          <td class="px-4 py-3 text-center">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium
+              {% if result.status == 'pass' %}bg-green-100 text-green-700
+              {% elif result.status == 'fail' %}bg-red-100 text-red-700
+              {% elif result.status == 'second_round' %}bg-purple-100 text-purple-700
+              {% else %}bg-amber-100 text-amber-700{% endif %}">
+              {{ result.get_status_display }}
+            </span>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-4 py-8 text-center text-gray-400">لا توجد نتائج بعد</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- توضيح المعادلة -->
+  <div class="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
+    <p class="font-bold mb-1">📐 معادلة احتساب المجموع السنوي</p>
+    <p>المجموع السنوي = درجة الفصل الأول (من 40) + درجة الفصل الثاني (من 60)</p>
+    <p class="mt-1">درجة النجاح: <strong>50 من 100</strong></p>
+  </div>
+
+</div>
+{% endblock %}

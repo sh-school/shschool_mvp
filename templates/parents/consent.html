@@ -1,0 +1,102 @@
+{% extends "base/base.html" %}
+{% block title %}إعدادات الموافقة على البيانات{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3">
+    <a href="{% url 'parent_dashboard' %}" class="text-gray-400 hover:text-gray-600 text-sm">← بوابتي</a>
+    <span class="text-gray-300">/</span>
+    <span class="text-gray-700 font-medium">إعدادات الموافقة</span>
+  </div>
+
+  <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-5">
+      <h1 class="text-xl font-bold text-white">🔐 الموافقة على معالجة البيانات</h1>
+      <p class="text-blue-200 text-sm mt-1">
+        بموجب قانون حماية البيانات الشخصية القطري (PDPPL)، يحق لك التحكم في أنواع البيانات التي تعالجها المدرسة.
+      </p>
+    </div>
+
+    <form method="post" class="p-6 space-y-6">
+      {% csrf_token %}
+
+      {% for link in links %}
+      <div class="border rounded-xl overflow-hidden">
+        <div class="bg-gray-50 px-4 py-3 border-b">
+          <p class="font-semibold text-gray-800">👤 {{ link.student.full_name }}</p>
+        </div>
+        <div class="divide-y">
+          {% for dt, label in data_types %}
+          <div class="flex items-center justify-between px-4 py-3">
+            <label class="text-sm text-gray-700 font-medium">{{ label }}</label>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="hidden" name="consent_{{ link.student_id }}_{{ dt }}" value="0">
+              <input type="checkbox"
+                     name="consent_{{ link.student_id }}_{{ dt }}"
+                     value="1"
+                     {% if consent_data|default:{}|default_if_none:{} %}
+                     {% with sid=link.student_id|stringformat:"s" %}
+                     {% if consent_data|default:{} %}
+                     {% endwith %}
+                     {% endif %}
+                     class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center py-8 text-gray-400">
+        <p class="text-4xl mb-2">👨‍👧</p>
+        <p>لا يوجد طلاب مرتبطون بحسابك</p>
+      </div>
+      {% endfor %}
+
+      {% if links %}
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        <p class="font-semibold mb-1">⚠️ تنبيه مهم</p>
+        <p>سحب الموافقة على نوع من البيانات قد يؤثر على قدرتك في متابعة أداء ابنك في ذلك المجال.</p>
+      </div>
+
+      <div class="flex gap-3 justify-end">
+        <a href="{% url 'parent_dashboard' %}"
+           class="px-5 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
+        <button type="submit"
+                class="px-6 py-2 bg-[#8A1538] text-white rounded-xl text-sm font-semibold hover:bg-[#6d1030] transition">
+          ✓ حفظ الإعدادات
+        </button>
+      </div>
+      {% endif %}
+
+    </form>
+  </div>
+
+  <!-- قانونية -->
+  <div class="text-xs text-gray-400 text-center leading-relaxed">
+    هذه الصفحة متوافقة مع قانون حماية البيانات الشخصية القطري رقم 13 لسنة 2016 (PDPPL)
+    وإرشادات NCSA 2021.
+  </div>
+
+</div>
+
+<script>
+// تفعيل حالة checkboxes من بيانات الموافقة
+const consentData = {{ consent_data|safe }};
+document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+  const name = cb.name; // مثال: consent_UUID_health
+  const parts = name.split('_');
+  if (parts.length < 3) return;
+  const dt  = parts[parts.length - 1];
+  // find student_id: everything between consent_ and _dt
+  const sid = parts.slice(1, parts.length - 1).join('_');
+  if (consentData[sid] && consentData[sid][dt] !== undefined) {
+    cb.checked = consentData[sid][dt];
+  } else {
+    cb.checked = true; // default: موافق
+  }
+});
+</script>
+{% endblock %}

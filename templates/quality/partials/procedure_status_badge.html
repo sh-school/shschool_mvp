@@ -1,0 +1,9 @@
+<div>
+  <p class="text-gray-500 text-xs mb-1">الحالة</p>
+  <span class="px-3 py-1 rounded-full text-xs font-medium
+    {% if procedure.status == 'Completed' %}bg-green-100 text-green-700
+    {% elif procedure.status == 'In Progress' %}bg-amber-100 text-amber-700
+    {% else %}bg-gray-100 text-gray-600{% endif %}">
+    {{ procedure.get_status_display }}
+  </span>
+</div>

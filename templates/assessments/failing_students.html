@@ -1,0 +1,58 @@
+{% extends "base/base.html" %}
+{% block title %}الطلاب الراسبون{% endblock %}
+{% block content %}
+<div class="space-y-5">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-[#0F2347]">الطلاب الراسبون</h1>
+      <p class="text-sm text-gray-500 mt-1">{{ total }} طالب في مادة أو أكثر</p>
+    </div>
+    <div class="flex gap-2">
+      {% for val, label in SEMESTERS %}
+      <a href="?semester={{ val }}&year={{ year }}"
+         class="px-3 py-1.5 rounded-full text-sm transition
+           {% if semester == val %}bg-red-700 text-white{% else %}bg-gray-100 text-gray-600{% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="space-y-3">
+    {% for item in by_student %}
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-3 bg-red-50 border-b">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
+            {{ item.student.full_name|first }}
+          </div>
+          <div>
+            <p class="font-bold text-gray-800">{{ item.student.full_name }}</p>
+            <p class="text-xs text-gray-500">{{ item.student.national_id }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+            {{ item.subjects|length }} مادة راسب
+          </span>
+          <a href="{% url 'student_report' item.student.id %}?semester={{ semester }}"
+             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#0F2347]">كشف الدرجات</a>
+        </div>
+      </div>
+      <div class="px-5 py-3 flex flex-wrap gap-2">
+        {% for result in item.subjects %}
+        <span class="px-3 py-1 bg-red-50 border border-red-200 rounded-full text-xs text-red-700">
+          {{ result.subject.name_ar }} — {{ result.total|default:"—" }}
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
+      <p class="text-3xl mb-3">🎉</p>
+      <p>لا يوجد طلاب راسبون في هذا الفصل</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

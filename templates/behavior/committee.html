@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}لجنة الضبط السلوكي{% endblock %}
+
+{% block content %}
+<div dir="rtl">
+
+  <!-- Header -->
+  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">⚖️ لجنة الضبط السلوكي</h1>
+      <p class="text-sm text-gray-500 mt-0.5">المخالفات من الدرجة الثالثة والرابعة — اتخاذ القرار الجماعي</p>
+    </div>
+    <a href="{% url 'behavior:dashboard' %}"
+       class="text-sm text-red-700 border border-red-200 bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition">
+      → لوحة السلوك
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-600">
+      <p class="text-xs text-gray-500">قضايا مفتوحة</p>
+      <p class="text-3xl font-bold text-red-600">{{ stats.open_count }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-500">
+      <p class="text-xs text-gray-500">محلولة</p>
+      <p class="text-3xl font-bold text-green-600">{{ stats.resolved_count }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-orange-500">
+      <p class="text-xs text-gray-500">درجة ثالثة (جسيمة)</p>
+      <p class="text-3xl font-bold text-orange-600">{{ stats.level3 }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-800">
+      <p class="text-xs text-gray-500">درجة رابعة (شديدة)</p>
+      <p class="text-3xl font-bold text-red-800">{{ stats.level4 }}</p>
+    </div>
+  </div>
+
+  <!-- Open Cases -->
+  {% if open_cases %}
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+    <div class="flex justify-between items-center px-6 py-4 border-b bg-red-50">
+      <h2 class="font-bold text-red-800">🔴 القضايا المفتوحة تحتاج قرار اللجنة</h2>
+      <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">{{ stats.open_count }}</span>
+    </div>
+    <div class="divide-y">
+      {% for inf in open_cases %}
+      <div class="px-6 py-4 hover:bg-gray-50 transition">
+        <div class="flex flex-wrap justify-between items-start gap-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-bold text-gray-800">{{ inf.student.full_name }}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-medium
+                {% if inf.level == 4 %}bg-red-100 text-red-800{% else %}bg-orange-100 text-orange-800{% endif %}">
+                الدرجة {{ inf.level }} — {{ inf.get_level_display }}
+              </span>
+              <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
+            </div>
+            <p class="text-sm text-gray-600 mb-1">{{ inf.description }}</p>
+            {% if inf.action_taken %}
+            <p class="text-xs text-gray-400">الإجراء الأولي: {{ inf.action_taken }}</p>
+            {% endif %}
+            <div class="flex gap-3 text-xs text-gray-400 mt-1">
+              <span>📅 {{ inf.date }}</span>
+              <span>👤 رصد بواسطة: {{ inf.reported_by.full_name|default:"—" }}</span>
+            </div>
+          </div>
+
+          <!-- قرار اللجنة -->
+          <form method="post" action="{% url 'behavior:committee_decision' inf.id %}"
+                class="bg-gray-50 rounded-lg p-4 border min-w-[280px]">
+            {% csrf_token %}
+            <p class="text-xs font-bold text-gray-700 mb-2">قرار اللجنة:</p>
+
+            <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة (اختياري)"
+                      class="w-full text-xs border border-gray-200 rounded p-2 mb-2 resize-none"></textarea>
+
+            <div class="flex items-center gap-2 mb-2">
+              <input type="number" name="points_restored" placeholder="نقاط للاسترداد"
+                     min="0" max="{{ inf.points_deducted }}"
+                     class="w-28 text-xs border border-gray-200 rounded px-2 py-1">
+              <input type="text" name="recovery_reason" placeholder="سبب الاسترداد"
+                     class="flex-1 text-xs border border-gray-200 rounded px-2 py-1">
+            </div>
+
+            <div class="flex gap-2">
+              <button name="decision" value="resolve"
+                      class="flex-1 bg-green-600 text-white text-xs rounded px-3 py-1.5 hover:bg-green-700 transition">
+                ✅ حل وإغلاق
+              </button>
+              <button name="decision" value="suspend"
+                      class="flex-1 bg-orange-500 text-white text-xs rounded px-3 py-1.5 hover:bg-orange-600 transition">
+                ⏸ إيقاف مؤقت
+              </button>
+              {% if inf.level == 3 %}
+              <button name="decision" value="escalate"
+                      class="flex-1 bg-red-700 text-white text-xs rounded px-3 py-1.5 hover:bg-red-800 transition">
+                ⬆ تصعيد
+              </button>
+              {% endif %}
+            </div>
+          </form>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-green-50 border border-green-200 rounded-xl p-8 text-center mb-6">
+    <p class="text-4xl mb-2">✅</p>
+    <p class="font-bold text-green-800">لا توجد قضايا مفتوحة</p>
+    <p class="text-sm text-green-600 mt-1">جميع المخالفات الجسيمة تمت معالجتها</p>
+  </div>
+  {% endif %}
+
+  <!-- Resolved Cases -->
+  {% if resolved_cases %}
+  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b bg-gray-50">
+      <h2 class="font-bold text-gray-700">📋 القضايا المحلولة (آخر 20)</h2>
+    </div>
+    <table class="w-full text-sm text-right">
+      <thead class="bg-gray-100 text-gray-500 text-xs">
+        <tr>
+          <th class="px-4 py-3">الطالب</th>
+          <th class="px-4 py-3">الدرجة</th>
+          <th class="px-4 py-3">التاريخ</th>
+          <th class="px-4 py-3">النقاط المخصومة</th>
+          <th class="px-4 py-3">المستردة</th>
+          <th class="px-4 py-3">أعتمدها</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y">
+        {% for inf in resolved_cases %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-medium">
+            <a href="{% url 'behavior:student_profile' inf.student.id %}" class="text-red-700 hover:underline">
+              {{ inf.student.full_name }}
+            </a>
+          </td>
+          <td class="px-4 py-3">
+            <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100">الدرجة {{ inf.level }}</span>
+          </td>
+          <td class="px-4 py-3 text-gray-500">{{ inf.date }}</td>
+          <td class="px-4 py-3 text-red-600 font-bold">-{{ inf.points_deducted }}</td>
+          <td class="px-4 py-3 text-green-600 font-bold">
+            {% if inf.recovery %}+{{ inf.recovery.points_restored }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-500 text-xs">
+            {% if inf.recovery %}{{ inf.recovery.approved_by.full_name|default:"—" }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

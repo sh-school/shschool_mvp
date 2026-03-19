@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}استعادة النقاط{% endblock %}
+{% block content %}
+<div dir="rtl" class="max-w-xl mx-auto">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">🟢 استعادة النقاط</h1>
+    <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <!-- Infraction summary -->
+  <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+    <p class="font-medium text-orange-800">المخالفة: {{ infraction.description }}</p>
+    <p class="text-sm text-orange-600 mt-1">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }} — خُصم {{ infraction.points_deducted }} نقطة</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-6">
+    <form method="post">
+      {% csrf_token %}
+      <div class="space-y-4">
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">سبب استعادة النقاط <span class="text-red-500">*</span></label>
+          <textarea name="reason" rows="3" required placeholder="مثال: التزم الطالب بسلوك إيجابي لمدة أسبوع..."
+                    class="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-green-300"></textarea>
+        </div>
+        <div>
+          <label class="text-sm font-medium text-gray-700 block mb-1">عدد النقاط المستردة</label>
+          <input type="number" name="points_restored" required min="1" max="{{ infraction.points_deducted }}"
+                 value="{{ infraction.points_deducted }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-300">
+          <p class="text-xs text-gray-400 mt-1">الحد الأقصى: {{ infraction.points_deducted }} نقطة</p>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button type="submit" class="flex-1 bg-green-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-green-700">
+          ✅ اعتماد استعادة النقاط
+        </button>
+        <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="px-6 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

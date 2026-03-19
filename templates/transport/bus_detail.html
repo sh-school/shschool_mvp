@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}تفاصيل الحافلة — {{ bus.bus_number }}{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">🚌 حافلة {{ bus.bus_number }}</h1>
+    <a href="{% url 'transport:buses_list' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Bus Info -->
+    <div class="lg:col-span-1">
+      <div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+        <h2 class="font-bold text-gray-700 mb-4 border-b pb-2">بيانات الحافلة</h2>
+        <form method="post" hx-post="" hx-target="#bus-info">
+          {% csrf_token %}
+          <div class="space-y-3">
+            <div><label class="text-xs text-gray-500">رقم الحافلة</label>
+              <input name="bus_number" value="{{ bus.bus_number }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"></div>
+            <div><label class="text-xs text-gray-500">اسم السائق</label>
+              <input name="driver_name" value="{{ bus.driver_name }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"></div>
+            <div><label class="text-xs text-gray-500">جوال السائق</label>
+              <input name="driver_phone" value="{{ bus.driver_phone }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"></div>
+            <div><label class="text-xs text-gray-500">الطاقة الاستيعابية</label>
+              <input name="capacity" type="number" value="{{ bus.capacity }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"></div>
+            <div><label class="text-xs text-gray-500">رقم كروة</label>
+              <input name="karwa_id" value="{{ bus.karwa_id }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="اختياري"></div>
+            <div><label class="text-xs text-gray-500">رابط GPS</label>
+              <input name="gps_link" value="{{ bus.gps_link }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="https://..."></div>
+          </div>
+          <button class="mt-4 w-full bg-red-700 text-white py-2 rounded-lg text-sm hover:bg-red-800">💾 حفظ</button>
+        </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="font-bold text-gray-700">إجمالي الطلاب</h2>
+          <span class="text-2xl font-bold" style="color:#8A1538">{{ students.count }}</span>
+        </div>
+        <div class="bg-gray-200 rounded-full h-2">
+          <div class="bg-red-600 h-2 rounded-full" style="width:{{ occupancy_rate }}%"></div>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
+        {% if bus.gps_link %}
+        <a href="{% url 'transport:tracking_map' bus.id %}"
+           class="mt-3 block text-center bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700">
+          🗺 تتبع الحافلة
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    <!-- Routes & Students -->
+    <div class="lg:col-span-2 space-y-4">
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-bold text-gray-700">خطوط السير</h2>
+          <a href="{% url 'transport:create_route' bus.id %}"
+             class="text-sm bg-red-700 text-white px-3 py-1.5 rounded-lg hover:bg-red-800">➕ خط جديد</a>
+        </div>
+        {% if routes %}
+        <div class="space-y-3">
+          {% for route in routes %}
+          <div class="border rounded-lg p-3 flex justify-between items-center">
+            <div>
+              <p class="font-medium text-sm">{{ route.area_name }}</p>
+              <p class="text-xs text-gray-400">{{ route.students.count }} طالب</p>
+            </div>
+            <a href="{% url 'transport:edit_route' bus.id route.id %}"
+               class="text-xs text-blue-600 hover:underline">تعديل</a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 text-center py-4">لا توجد خطوط سير</p>
+        {% endif %}
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-5">
+        <h2 class="font-bold text-gray-700 mb-4">الطلاب المسجلون</h2>
+        {% if students %}
+        <div class="space-y-2 max-h-64 overflow-y-auto">
+          {% for st in students %}
+          <div class="flex justify-between items-center text-sm py-1.5 border-b last:border-0">
+            <span>{{ st.full_name }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-gray-400 text-center py-4">لا يوجد طلاب مسجلون</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base/base.html" %}
+{% block title %}ربط مادة بفصل{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4">
+      <h1 class="text-xl font-bold text-white">ربط مادة بفصل ومعلم</h1>
+      <p class="text-blue-200 text-sm mt-1">سيُنشئ النظام الباقات الأربع تلقائياً بعد الحفظ</p>
+    </div>
+    <form method="post" class="p-6 space-y-4">
+      {% csrf_token %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">المادة *</label>
+        <select name="subject" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400">
+          <option value="">اختر المادة</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}">{{ s.name_ar }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">الفصل الدراسي *</label>
+        <select name="class_group" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400">
+          <option value="">اختر الفصل</option>
+          {% regroup classes by get_grade_display as grade_groups %}
+          {% for grade_group in grade_groups %}
+          <optgroup label="{{ grade_group.grouper }}">
+            {% for c in grade_group.list %}
+            <option value="{{ c.id }}">{{ c }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">المعلم المسؤول *</label>
+        <select name="teacher" required class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400">
+          <option value="">اختر المعلم</option>
+          {% for t in teachers %}
+          <option value="{{ t.id }}">{{ t.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit" class="px-6 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">
+          حفظ وإنشاء الباقات
+        </button>
+        <a href="{% url 'assessments_dashboard' %}" class="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

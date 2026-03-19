@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}قائمة الكتب{% endblock %}
+{% block content %}
+<div dir="rtl">
+  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+    <h1 class="text-2xl font-bold text-gray-800">📚 قائمة الكتب والمصادر</h1>
+    <div class="flex gap-2">
+      <a href="{% url 'library:borrow_book' %}" class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800">➕ إعارة جديدة</a>
+      <a href="{% url 'library:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+    </div>
+  </div>
+  <!-- Search -->
+  <form method="get" class="bg-white rounded-xl shadow-sm p-4 mb-4 flex gap-3">
+    <input type="text" name="q" value="{{ query }}" placeholder="بحث بالعنوان أو المؤلف أو ISBN..."
+           class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+    <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">🔍 بحث</button>
+    {% if query %}<a href="{% url 'library:book_list' %}" class="border px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50">مسح</a>{% endif %}
+  </form>
+  <!-- Books Grid -->
+  {% if books %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for book in books %}
+    <div class="bg-white rounded-xl shadow-sm p-4 border hover:shadow-md transition">
+      <div class="flex justify-between items-start mb-2">
+        <div class="flex-1">
+          <p class="font-medium text-gray-800 text-sm">{{ book.title }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ book.author }}</p>
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full mr-2
+          {% if book.book_type == 'PRINT' %}bg-blue-100 text-blue-700
+          {% elif book.book_type == 'DIGITAL' %}bg-purple-100 text-purple-700
+          {% else %}bg-gray-100 text-gray-700{% endif %}">
+          {{ book.get_book_type_display }}
+        </span>
+      </div>
+      <div class="flex items-center justify-between mt-3 pt-3 border-t">
+        <div class="text-xs text-gray-500">
+          {% if book.isbn %}<span>ISBN: {{ book.isbn }}</span>{% endif %}
+          <span class="mr-2">{{ book.category }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs {% if book.available_qty > 0 %}text-green-600{% else %}text-red-600{% endif %} font-medium">
+            {{ book.available_qty }}/{{ book.quantity }} متوفر
+          </span>
+          {% if book.available_qty > 0 %}
+          <a href="{% url 'library:borrow_book' %}?book={{ book.id }}"
+             class="text-xs bg-red-700 text-white px-2 py-1 rounded hover:bg-red-800">إعارة</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
+    <p class="text-4xl mb-2">📚</p>
+    <p>{% if query %}لا توجد نتائج للبحث عن "{{ query }}"{% else %}لا توجد كتب مسجلة{% endif %}</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
