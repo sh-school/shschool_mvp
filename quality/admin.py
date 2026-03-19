@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import (
     OperationalDomain, OperationalTarget, OperationalIndicator,
     OperationalProcedure, ProcedureEvidence, QualityCommitteeMember,
+    ExecutorMapping,
 )
 
 
@@ -67,7 +68,15 @@ class ProcedureAdmin(admin.ModelAdmin):
 
 @admin.register(QualityCommitteeMember)
 class QualityCommitteeMemberAdmin(admin.ModelAdmin):
-    list_display  = ("job_title", "user", "responsibility", "domain", "academic_year", "is_active")
-    list_filter   = ("school", "responsibility", "academic_year", "is_active")
+    list_display  = ("job_title", "user", "responsibility", "committee_type", "domain", "academic_year", "is_active")
+    list_filter   = ("school", "responsibility", "committee_type", "academic_year", "is_active")
     search_fields = ("job_title", "user__full_name")
+    raw_id_fields = ("user",)
+
+
+@admin.register(ExecutorMapping)
+class ExecutorMappingAdmin(admin.ModelAdmin):
+    list_display  = ("executor_norm", "user", "school", "academic_year")
+    list_filter   = ("school", "academic_year")
+    search_fields = ("executor_norm", "user__full_name")
     raw_id_fields = ("user",)

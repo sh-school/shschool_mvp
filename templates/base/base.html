@@ -39,11 +39,40 @@
         <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
         <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول</a>
         <a href="/teacher/absences/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الغيابات</a>
-        <a href="/quality/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الخطة</a>
-        <a href="/quality/committee/"            class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجودة</a>
+        <!-- قائمة الجودة مدمجة -->
+        <div class="relative" x-data="{ open: false }">
+          <button @click="open = !open" @click.away="open = false"
+                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap flex items-center gap-1">
+            🎯 الجودة <span class="text-[10px] opacity-70">▼</span>
+          </button>
+          <div x-show="open" x-cloak
+               class="absolute top-10 right-0 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
+            <a href="/quality/"
+               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
+              📋 الخطة التشغيلية
+            </a>
+            <a href="/quality/executor-committee/"
+               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
+              👥 لجنة المنفذين
+            </a>
+            <a href="/quality/committee/"
+               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
+              🔍 لجنة المراجعة
+            </a>
+            <a href="/quality/executor-mapping/"
+               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
+              🔗 ربط المنفذين
+            </a>
+            <div class="border-t my-1"></div>
+            <a href="/quality/report/"
+               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
+              📈 تقرير التقدم
+            </a>
+          </div>
+        </div>
         <a href="/parents/admin/links/"          class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الأولياء</a>
         <a href="/notifications/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الإشعارات</a>
-        <!-- ✅ الوحدات الأربع الجديدة -->
+        <!-- الوحدات الأربع -->
         <span class="text-white/30 px-1">|</span>
         <a href="/clinic/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
         <a href="/transport/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 النقل</a>

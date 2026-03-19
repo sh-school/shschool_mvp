@@ -34,8 +34,8 @@ def assessments_dashboard(request):
 
         # إحصائيات عامة
         total_results  = StudentSubjectResult.objects.filter(school=school, semester=semester).count()
-        passed         = StudentSubjectResult.objects.filter(school=school, semester=semester, status="pass").count()
-        failed         = StudentSubjectResult.objects.filter(school=school, semester=semester, status="fail").count()
+        passed         = AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="pass").count()
+        failed         = AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail").count()
         failing_list   = GradeService.get_failing_students(school, year)[:10]
 
     else:

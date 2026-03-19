@@ -1,0 +1,178 @@
+<svg width="1200" height="2200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .title { font: bold 32px 'Cairo', Arial, sans-serif; fill: #1a237e; }
+    .phase { font: bold 24px 'Cairo', Arial, sans-serif; fill: #1565c0; }
+    .box { fill: #e3f2fd; stroke: #1976d2; stroke-width: 2; rx: 12; }
+    .arrow { stroke: #1976d2; stroke-width: 3; marker-end: url(#arrowhead); }
+    .label { font: 20px 'Cairo', Arial, sans-serif; fill: #263238; }
+    .note { font: italic 18px 'Cairo', Arial, sans-serif; fill: #607d8b; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1976d2"/>
+    </marker>
+  </defs>
+
+  <!-- المرحلة الأولى -->
+  <text x="50" y="60" class="phase">المرحلة الأولى: إعداد وتخطيط الخطة التشغيلية</text>
+  <rect x="400" y="100" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="100" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      بدء العام الدراسي 2025-2026
+    </div>
+  </foreignObject>
+  <line x1="600" y1="160" x2="600" y2="200" class="arrow"/>
+  <rect x="400" y="200" width="400" height="80" class="box"/>
+  <foreignObject x="400" y="200" width="400" height="80">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 80px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تحديد المجالات التشغيلية<br/>7 مجالات: أكاديمي، معلم، طلابي، ثقافة، تقنية، قيادة، موارد
+    </div>
+  </foreignObject>
+  <line x1="600" y1="280" x2="600" y2="320" class="arrow"/>
+  <rect x="400" y="320" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="320" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      صياغة الأهداف لكل مجال<br/>33 هدفاً موزعاً
+    </div>
+  </foreignObject>
+  <line x1="600" y1="380" x2="600" y2="420" class="arrow"/>
+  <rect x="400" y="420" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="420" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تحديد المؤشرات لكل هدف<br/>رقم المؤشر + النص + الأدلة المطلوبة
+    </div>
+  </foreignObject>
+
+  <!-- المرحلة الثانية -->
+  <text x="50" y="540" class="phase">المرحلة الثانية: تشكيل اللجان وتوزيع المهام</text>
+  <line x1="600" y1="480" x2="600" y2="560" class="arrow"/>
+  <rect x="250" y="560" width="300" height="80" class="box"/>
+  <foreignObject x="250" y="560" width="300" height="80">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 80px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      لجنة منفذي الخطة التشغيلية<br/>تنفيذ الإجراءات + رفع الأدلة<br/>32 منفذاً
+    </div>
+  </foreignObject>
+  <rect x="650" y="560" width="300" height="80" class="box"/>
+  <foreignObject x="650" y="560" width="300" height="80">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 80px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      لجنة المراجعة الذاتية<br/>مراجعة + تقييم + متابعة الإنجاز<br/>10 أعضاء
+    </div>
+  </foreignObject>
+  <line x1="400" y1="640" x2="400" y2="700" class="arrow"/>
+  <line x1="800" y1="640" x2="800" y2="700" class="arrow"/>
+  <rect x="250" y="700" width="300" height="60" class="box"/>
+  <foreignObject x="250" y="700" width="300" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      ربط المنفذين بالمستخدمين<br/>ExecutorMapping
+    </div>
+  </foreignObject>
+  <rect x="650" y="700" width="300" height="60" class="box"/>
+  <foreignObject x="650" y="700" width="300" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      توزيع المجالات على الأعضاء<br/>كل عضو مسؤول عن مجال
+    </div>
+  </foreignObject>
+  <line x1="600" y1="760" x2="600" y2="820" class="arrow"/>
+
+  <!-- المرحلة الثالثة -->
+  <text x="50" y="860" class="phase">المرحلة الثالثة: تنفيذ الإجراءات ورفع الأدلة</text>
+  <rect x="400" y="820" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="820" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تسنيد الإجراءات للمنفذين<br/>كل منفذ يرى إجراءاته في لوحة التحكم
+    </div>
+  </foreignObject>
+  <line x1="600" y1="880" x2="600" y2="940" class="arrow"/>
+  <rect x="400" y="940" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="940" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تنفيذ الإجراء الميداني<br/>وفق التاريخ المحدد
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1000" x2="600" y2="1060" class="arrow"/>
+  <rect x="400" y="1060" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1060" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      رفع الأدلة والإثباتات<br/>ملفات + وصف + نوع الدليل
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1120" x2="600" y2="1180" class="arrow"/>
+  <rect x="400" y="1180" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1180" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تحديث حالة الإجراء
+    </div>
+  </foreignObject>
+  <!-- حالات الإجراء -->
+  <line x1="600" y1="1240" x2="400" y2="1300" class="arrow"/>
+  <line x1="600" y1="1240" x2="600" y2="1300" class="arrow"/>
+  <line x1="600" y1="1240" x2="800" y2="1300" class="arrow"/>
+  <rect x="300" y="1300" width="200" height="60" class="box"/>
+  <foreignObject x="300" y="1300" width="200" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      مكتمل
+    </div>
+  </foreignObject>
+  <rect x="500" y="1300" width="200" height="60" class="box"/>
+  <foreignObject x="500" y="1300" width="200" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      قيد التنفيذ
+    </div>
+  </foreignObject>
+  <rect x="700" y="1300" width="200" height="60" class="box"/>
+  <foreignObject x="700" y="1300" width="200" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      ملغى
+    </div>
+  </foreignObject>
+  <!-- إعادة الإجراء -->
+  <path d="M600,1360 Q650,1400 600,1440" fill="none" stroke="#1976d2" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="650" y="1420" class="note">↻ يعود للتنفيذ عند الحاجة</text>
+  <line x1="400" y1="1360" x2="400" y2="1500" class="arrow"/>
+  <line x1="800" y1="1360" x2="800" y2="1500" class="arrow"/>
+
+  <!-- المرحلة الرابعة -->
+  <text x="50" y="1540" class="phase">المرحلة الرابعة: المراجعة الذاتية والتقييم</text>
+  <rect x="400" y="1500" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1500" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      مراجعة دورية من لجنة المراجعة الذاتية<br/>كل عضو يراجع مجاله: التقدم + الأدلة
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1560" x2="600" y2="1620" class="arrow"/>
+  <rect x="400" y="1620" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1620" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تسجيل التقييم والملاحظات<br/>تقييم + ملاحظات + متابعة
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1680" x2="600" y2="1740" class="arrow"/>
+
+  <!-- المرحلة الخامسة -->
+  <text x="50" y="1780" class="phase">المرحلة الخامسة: إعداد التقارير واتخاذ القرار</text>
+  <rect x="400" y="1740" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1740" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      إعداد تقرير التقدم<br/>% الإنجاز لكل مجال + إجراءات متأخرة
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1800" x2="600" y2="1860" class="arrow"/>
+  <rect x="400" y="1860" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1860" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      تقديم التقرير لإدارة المدرسة<br/>قرارات التحسين للعام القادم
+    </div>
+  </foreignObject>
+  <line x1="600" y1="1920" x2="600" y2="1980" class="arrow"/>
+  <rect x="400" y="1980" width="400" height="60" class="box"/>
+  <foreignObject x="400" y="1980" width="400" height="60">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display: flex; align-items: center; justify-content: center; height: 60px; font: 20px 'Cairo', Arial, sans-serif; color: #263238; text-align: center; direction: rtl;">
+      نهاية دورة العام الدراسي
+    </div>
+  </foreignObject>
+
+  <!-- Legend -->
+  <rect x="50" y="2080" width="1100" height="80" fill="#fffde7" stroke="#fbc02d" stroke-width="2" rx="10"/>
+  <text x="600" y="2120" text-anchor="middle" class="note">الرموز: كل مستطيل = مرحلة أو خطوة رئيسية، الأسهم = تسلسل التنفيذ، ↻ = إعادة الإجراء عند الحاجة</text>
+</svg>
+

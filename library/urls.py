@@ -4,6 +4,7 @@ from . import views
 app_name = 'library'
 
 urlpatterns = [
+    path('', views.library_dashboard, name='dashboard'),
     path('dashboard/', views.library_dashboard, name='dashboard'),
     path('books/', views.book_list, name='book_list'),
     path('borrow/', views.borrow_book, name='borrow_book'),
