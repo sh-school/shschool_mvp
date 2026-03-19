@@ -5,7 +5,7 @@ quality/views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Prefetch
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 
@@ -32,19 +32,16 @@ def plan_dashboard(request):
     in_prog   = OperationalProcedure.objects.filter(school=school, academic_year=year, status="In Progress").count()
     pct       = round(completed / total * 100) if total else 0
 
-    # إجراءات المنفذ الحالي
     my_procedures = []
     if not request.user.is_admin():
         my_procedures = OperationalProcedure.objects.filter(
             school=school, executor_user=request.user, academic_year=year
         ).select_related("indicator__target__domain").order_by("status", "date_range")
 
-    # لجنة الجودة
     committee = QualityCommitteeMember.objects.filter(
         school=school, academic_year=year, is_active=True
     ).select_related("user", "domain").order_by("responsibility")
 
-    # عدد المنفذين غير المربوطين — تنبيه للمدير
     unmapped_count = 0
     if request.user.is_admin():
         all_executors = set(
@@ -80,17 +77,28 @@ def domain_detail(request, domain_id):
     status_filter   = request.GET.get("status", "")
     executor_filter = request.GET.get("executor", "")
 
-    targets = domain.targets.prefetch_related(
-        "indicators__procedures__executor_user"
-    ).order_by("number")
+    # ✅ إصلاح N+1 — prefetch كل شيء في 3 queries بدلاً من مئات
+    proc_filters = {}
+    if status_filter:
+        proc_filters['status'] = status_filter
+    if executor_filter:
+        proc_filters['executor_norm__icontains'] = executor_filter
 
-    if status_filter or executor_filter:
-        for target in targets:
-            for indicator in target.indicators.all():
-                indicator._filtered_procedures = indicator.procedures.filter(
-                    **({} if not status_filter   else {"status": status_filter}),
-                    **({} if not executor_filter else {"executor_norm__icontains": executor_filter}),
-                )
+    indicators_qs = OperationalIndicator.objects.prefetch_related(
+        Prefetch(
+            'procedures',
+            queryset=OperationalProcedure.objects.filter(
+                school=school, **proc_filters
+            ).select_related('executor_user'),
+            to_attr='_filtered_procedures'
+        )
+    )
+
+    targets = OperationalTarget.objects.filter(
+        domain=domain
+    ).prefetch_related(
+        Prefetch('indicators', queryset=indicators_qs)
+    ).order_by("number")
 
     executors = OperationalProcedure.objects.filter(
         indicator__target__domain=domain
@@ -201,7 +209,6 @@ def my_procedures(request):
     completed = qs.filter(status="Completed").count()
     pct       = round(completed / total * 100) if total else 0
 
-    # تنبيه: لو المستخدم مش مربوط بأي executor_norm
     mapping_exists = ExecutorMapping.objects.filter(
         school=school, user=request.user, academic_year=year
     ).exists()
@@ -218,12 +225,11 @@ def my_procedures(request):
 
 
 # ══════════════════════════════════════════════════════════════
-# لجنة تنفيذ الخطة التشغيلية — إدارة كاملة
+# لجنة تنفيذ الخطة التشغيلية
 # ══════════════════════════════════════════════════════════════
 
 @login_required
 def quality_committee(request):
-    """عرض لجنة التنفيذ + إضافة/تعديل الأعضاء"""
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -235,7 +241,6 @@ def quality_committee(request):
 
     domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
 
-    # قائمة الموظفين للـ dropdown
     from core.models import Membership
     staff_ids = Membership.objects.filter(
         school=school, is_active=True
@@ -255,7 +260,6 @@ def quality_committee(request):
 @login_required
 @require_POST
 def add_committee_member(request):
-    """إضافة عضو جديد للجنة"""
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -293,7 +297,6 @@ def add_committee_member(request):
 @login_required
 @require_POST
 def remove_committee_member(request, member_id):
-    """حذف عضو من اللجنة (soft delete)"""
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -311,18 +314,12 @@ def remove_committee_member(request, member_id):
 
 @login_required
 def executor_mapping(request):
-    """
-    صفحة ربط المسميات الوظيفية بالمستخدمين.
-    تعرض كل executor_norm الفريد في الإجراءات
-    وتسمح بربطه بموظف.
-    """
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
     year = request.GET.get("year", "2025-2026")
 
-    # كل المسميات الفريدة من الإجراءات
     all_executors = list(
         OperationalProcedure.objects.filter(school=school, academic_year=year)
         .values_list("executor_norm", flat=True)
@@ -330,7 +327,6 @@ def executor_mapping(request):
         .order_by("executor_norm")
     )
 
-    # الربط الحالي
     mappings = {
         m.executor_norm: m
         for m in ExecutorMapping.objects.filter(
@@ -338,7 +334,6 @@ def executor_mapping(request):
         ).select_related("user")
     }
 
-    # إحصاء الإجراءات لكل منفذ
     proc_counts = dict(
         OperationalProcedure.objects.filter(school=school, academic_year=year)
         .values("executor_norm")
@@ -346,7 +341,6 @@ def executor_mapping(request):
         .values_list("executor_norm", "n")
     )
 
-    # دمج البيانات
     executor_rows = []
     for ex in all_executors:
         mapping = mappings.get(ex)
@@ -358,7 +352,6 @@ def executor_mapping(request):
             "is_mapped":     bool(mapping and mapping.user),
         })
 
-    # موظفو المدرسة للـ dropdown
     from core.models import Membership, CustomUser
     staff_ids = Membership.objects.filter(
         school=school, is_active=True
@@ -381,7 +374,6 @@ def executor_mapping(request):
 @login_required
 @require_POST
 def save_executor_mapping(request):
-    """حفظ ربط منفذ بمستخدم + تحديث كل إجراءاته تلقائياً"""
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -404,7 +396,6 @@ def save_executor_mapping(request):
         defaults={"user": user},
     )
 
-    # ← الخطوة المفقودة في كل النسخ السابقة: تحديث executor_user فعلياً
     mapping.apply_mapping()
 
     if user:
@@ -421,7 +412,6 @@ def save_executor_mapping(request):
 @login_required
 @require_POST
 def apply_all_mappings(request):
-    """تطبيق كل الربطات الموجودة على الإجراءات دفعةً واحدة"""
     school = request.user.get_school()
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
