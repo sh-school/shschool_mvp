@@ -26,4 +26,4 @@ RUN mkdir -p /app/media/letters /app/media/imports /app/staticfiles /app/logs
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py seed && gunicorn shschool.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn shschool.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
