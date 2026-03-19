@@ -38,6 +38,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
+    "core.middleware.CurrentUserMiddleware",
 ]
 
 ROOT_URLCONF = "shschool.urls"

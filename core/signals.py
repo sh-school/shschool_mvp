@@ -10,14 +10,25 @@ from django.contrib.auth.signals import user_logged_in, user_logged_out
 def _log(model_name, action, instance, changes=None):
     try:
         from core.models import AuditLog
+        from core.middleware import get_current_user, get_current_request
+
+        user    = get_current_user()
+        request = get_current_request()
+        ip = ua = ''
+        if request:
+            ip = request.META.get('REMOTE_ADDR', '')
+            ua = request.META.get('HTTP_USER_AGENT', '')[:300]
+
         AuditLog.objects.create(
-            user=None,
+            user=user,
             action=action,
             model_name=model_name,
             object_id=str(instance.pk),
             object_repr=str(instance)[:300],
             changes=changes,
             school=getattr(instance, 'school', None),
+            ip_address=ip or None,
+            user_agent=ua,
         )
     except Exception:
         pass

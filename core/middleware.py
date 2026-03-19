@@ -73,3 +73,34 @@ class SchoolPermissionMiddleware:
                 break
 
         return self.get_response(request)
+        
+        # ── Middleware لحفظ المستخدم الحالي للـ AuditLog ──────────
+from contextvars import ContextVar
+
+_current_user: ContextVar = ContextVar('current_user', default=None)
+_current_request: ContextVar = ContextVar('current_request', default=None)
+
+
+def get_current_user():
+    return _current_user.get(None)
+
+
+def get_current_request():
+    return _current_request.get(None)
+
+
+class CurrentUserMiddleware:
+    """يُخزّن المستخدم الحالي في Context Variable للـ AuditLog"""
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        token_user    = _current_user.set(
+            request.user if request.user.is_authenticated else None
+        )
+        token_request = _current_request.set(request)
+        try:
+            return self.get_response(request)
+        finally:
+            _current_user.reset(token_user)
+            _current_request.reset(token_request)
