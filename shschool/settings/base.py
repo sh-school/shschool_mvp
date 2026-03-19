@@ -39,6 +39,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    "csp.middleware.CSPMiddleware",
 ]
 
 ROOT_URLCONF = "shschool.urls"
@@ -124,3 +125,14 @@ EMAIL_USE_TLS      = config("EMAIL_USE_TLS",       default=True, cast=bool)
 EMAIL_HOST_USER    = config("EMAIL_HOST_USER",     default="")
 EMAIL_HOST_PASSWORD= config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL",  default="noreply@schoolos.qa")
+
+# ── Content Security Policy ───────────────────────────────
+CSP_DEFAULT_SRC = ("'self'",)
+CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com",)
+CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
+CSP_FONT_SRC    = ("'self'", "https://fonts.gstatic.com",)
+CSP_IMG_SRC     = ("'self'", "data:", "blob:",)
+CSP_CONNECT_SRC = ("'self'",)
+CSP_FRAME_SRC   = ("'none'",)
+CSP_OBJECT_SRC  = ("'none'",)
+
