@@ -5,10 +5,8 @@ core/middleware.py
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 
-# المسارات المعفاة تماماً (بدون تسجيل دخول)
 EXEMPT = ["/auth/", "/admin/", "/static/", "/media/"]
 
-# المسارات المحمية بأدوار محددة
 PROTECTED_PATHS = {
     "/assessments/":  ["principal", "vice_academic", "vice_admin", "teacher", "coordinator", "admin"],
     "/quality/":      ["principal", "vice_admin", "vice_academic", "coordinator", "teacher", "specialist"],
@@ -29,11 +27,9 @@ class SchoolPermissionMiddleware:
     def __call__(self, request):
         path = request.path
 
-        # 1. المسارات المعفاة
         if any(path.startswith(p) for p in EXEMPT):
             return self.get_response(request)
 
-        # 2. التحقق من تسجيل الدخول — /api/ يرد JSON لا redirect
         if not request.user.is_authenticated:
             if path.startswith("/api/"):
                 return JsonResponse(
@@ -42,11 +38,9 @@ class SchoolPermissionMiddleware:
                 )
             return redirect("/auth/login/")
 
-        # 3. المستخدم الخارق يمر مباشرة
         if request.user.is_superuser:
             return self.get_response(request)
 
-        # 4. التحقق من عضوية نشطة
         if not request.user.memberships.filter(is_active=True).exists():
             if path.startswith("/api/"):
                 return JsonResponse(
@@ -57,7 +51,6 @@ class SchoolPermissionMiddleware:
                 "<h2 dir='rtl'>ليس لديك عضوية نشطة في أي مدرسة. تواصل مع مدير النظام.</h2>"
             )
 
-        # 5. التحقق من الصلاحيات لكل مسار محمي
         user_role = request.user.get_role()
         for protected_path, allowed_roles in PROTECTED_PATHS.items():
             if path.startswith(protected_path):
@@ -73,8 +66,9 @@ class SchoolPermissionMiddleware:
                 break
 
         return self.get_response(request)
-        
-        # ── Middleware لحفظ المستخدم الحالي للـ AuditLog ──────────
+
+
+# ── Middleware لحفظ المستخدم الحالي للـ AuditLog ──────────
 from contextvars import ContextVar
 
 _current_user: ContextVar = ContextVar('current_user', default=None)
@@ -104,3 +98,30 @@ class CurrentUserMiddleware:
         finally:
             _current_user.reset(token_user)
             _current_request.reset(token_request)
+
+
+# ── Middleware إجبار ولي الأمر على الموافقة ───────────────
+class ParentConsentMiddleware:
+    """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة"""
+
+    EXEMPT_PATHS = [
+        '/auth/',
+        '/parents/consent/',
+        '/static/',
+        '/media/',
+        '/admin/',
+    ]
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if (
+            request.user.is_authenticated
+            and request.user.get_role() == 'parent'
+            and request.user.consent_given_at is None
+            and not any(request.path.startswith(p) for p in self.EXEMPT_PATHS)
+        ):
+            return redirect('/parents/consent/')
+
+        return self.get_response(request)

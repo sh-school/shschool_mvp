@@ -40,6 +40,7 @@ MIDDLEWARE = [
     "core.middleware.SchoolPermissionMiddleware",
     "core.middleware.CurrentUserMiddleware",
     "csp.middleware.CSPMiddleware",
+        "core.middleware.ParentConsentMiddleware",
 ]
 
 ROOT_URLCONF = "shschool.urls"

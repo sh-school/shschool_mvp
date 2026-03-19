@@ -386,9 +386,12 @@ def consent_view(request):
                         obj.withdrawn_at = None
                     obj.save(update_fields=['is_given', 'withdrawn_at'])
 
-        from django.contrib import messages
+        if not request.user.consent_given_at:
+            request.user.consent_given_at = timezone.now()
+            request.user.save(update_fields=['consent_given_at'])
+
         messages.success(request, "تم حفظ إعدادات الموافقة بنجاح.")
-        return redirect('parent_consent')
+        return redirect('parent_dashboard')
 
     # بناء بيانات الموافقة الحالية
     consent_data = {}
