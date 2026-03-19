@@ -10,12 +10,22 @@ except ImportError:
 
 
 def _get_fernet():
-    """احصل على مثيل Fernet من FERNET_KEY في الإعدادات"""
+    """احصل على مثيل Fernet — يُنبّه إذا غاب المفتاح"""
     if not _FERNET_AVAILABLE:
         return None
     key = getattr(settings, 'FERNET_KEY', None)
     if not key:
-        return None
+        if getattr(settings, 'DEBUG', True):
+            import logging
+            logging.getLogger(__name__).warning(
+                "⚠️ FERNET_KEY غير مضبوط — البيانات الصحية بدون تشفير"
+            )
+            return None
+        else:
+            from django.core.exceptions import ImproperlyConfigured
+            raise ImproperlyConfigured(
+                "FERNET_KEY مطلوب في الإنتاج. أضفه إلى .env"
+            )
     try:
         return Fernet(key.encode() if isinstance(key, str) else key)
     except Exception:
