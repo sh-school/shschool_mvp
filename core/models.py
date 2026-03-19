@@ -10,7 +10,6 @@ except ImportError:
 
 
 def _get_fernet():
-    """احصل على مثيل Fernet — يُنبّه إذا غاب المفتاح"""
     if not _FERNET_AVAILABLE:
         return None
     key = getattr(settings, 'FERNET_KEY', None)
@@ -33,7 +32,6 @@ def _get_fernet():
 
 
 def encrypt_field(value):
-    """تشفير قيمة نصية — تُعيد نفس القيمة إذا لم يتوفر مفتاح"""
     if not value:
         return value
     f = _get_fernet()
@@ -43,7 +41,6 @@ def encrypt_field(value):
 
 
 def decrypt_field(value):
-    """فك تشفير قيمة — تُعيد نفس القيمة إذا لم تكن مشفرة"""
     if not value:
         return value
     f = _get_fernet()
@@ -52,7 +49,8 @@ def decrypt_field(value):
     try:
         return f.decrypt(value.encode()).decode()
     except Exception:
-        return value  # إذا لم تكن مشفرة أصلاً
+        return value
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils import timezone
 from .managers import CustomUserManager
@@ -85,9 +83,23 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     full_name   = models.CharField(max_length=200, verbose_name="الاسم الكامل", db_index=True)
     email       = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
     phone       = models.CharField(max_length=20, blank=True, verbose_name="الجوال")
-    is_staff    = models.BooleanField(default=False)
-    is_active   = models.BooleanField(default=True)
-    date_joined = models.DateTimeField(default=timezone.now)
+    is_staff              = models.BooleanField(default=False)
+    is_active             = models.BooleanField(default=True)
+    date_joined           = models.DateTimeField(default=timezone.now)
+    # ── أمان الحساب ─────────────────────────────────────────
+    must_change_password  = models.BooleanField(default=True,
+        verbose_name="يجب تغيير كلمة المرور")
+    totp_secret           = models.CharField(max_length=64, blank=True,
+        verbose_name="مفتاح 2FA")
+    totp_enabled          = models.BooleanField(default=False,
+        verbose_name="2FA مفعّل")
+    last_password_change  = models.DateTimeField(null=True, blank=True,
+        verbose_name="آخر تغيير لكلمة المرور")
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until          = models.DateTimeField(null=True, blank=True,
+        verbose_name="مقفل حتى")
+    consent_given_at      = models.DateTimeField(null=True, blank=True,
+        verbose_name="تاريخ إعطاء الموافقة")
 
     USERNAME_FIELD  = "national_id"
     REQUIRED_FIELDS = ["full_name"]
@@ -102,13 +114,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     @property
     def active_membership(self):
-        # تخزين العضوية النشطة في الـ session بعد أول استدعاء
         if not hasattr(self, '_active_membership'):
             self._active_membership = self.memberships.filter(is_active=True).select_related("school", "role").first()
         return self._active_membership
 
     def get_active_membership(self):
-        # هذه الدالة موجودة للتوافقية، يفضل استخدام خاصية active_membership
         return self.active_membership
 
     @property
@@ -117,7 +127,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return m.school if m else None
 
     def get_school(self):
-        # هذه الدالة موجودة للتوافقية، يفضل استخدام خاصية school
         return self.school
 
     @property
@@ -126,7 +135,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return m.role.name if m else None
 
     def get_role(self):
-        # هذه الدالة موجودة للتوافقية، يفضل استخدام خاصية role
         return self.role or ""
 
     def is_admin(self):
@@ -258,12 +266,7 @@ class StudentEnrollment(models.Model):
         return f"{self.student.full_name} → {self.class_group}"
 
 
-# ─────────────────────────────────────────────────────────────
-# ربط ولي الأمر بأبنائه ← جديد
-# ─────────────────────────────────────────────────────────────
-
 class ParentStudentLink(models.Model):
-    """ربط حساب ولي الأمر بالطالب مع تحديد الصلاحيات"""
     RELATIONSHIP = [
         ("father",   "الأب"),
         ("mother",   "الأم"),
@@ -277,11 +280,8 @@ class ParentStudentLink(models.Model):
     student      = models.ForeignKey(CustomUser,  on_delete=models.CASCADE, related_name="parent_links",    verbose_name="الطالب")
     relationship = models.CharField(max_length=20, choices=RELATIONSHIP, default="father", verbose_name="صلة القرابة")
     is_primary   = models.BooleanField(default=True,  verbose_name="ولي الأمر الأساسي")
-
-    # صلاحيات العرض
     can_view_grades     = models.BooleanField(default=True, verbose_name="يرى الدرجات")
     can_view_attendance = models.BooleanField(default=True, verbose_name="يرى الغياب")
-
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -299,12 +299,7 @@ class ParentStudentLink(models.Model):
         return f"{self.parent.full_name} ← {self.student.full_name} ({self.get_relationship_display()})"
 
 
-# ─────────────────────────────────────────────────────────────
-# 1. وحدة العيادة المدرسية (School Clinic) ← جديد
-# ─────────────────────────────────────────────────────────────
-
 class HealthRecord(models.Model):
-    """السجل الصحي للطالب — الحقول الحساسة مُشفَّرة بـ Fernet (PDPPL)"""
     BLOOD_TYPES = [
         ('A+', 'A+'), ('A-', 'A-'), ('B+', 'B+'), ('B-', 'B-'),
         ('AB+', 'AB+'), ('AB-', 'AB-'), ('O+', 'O+'), ('O-', 'O-'),
@@ -312,7 +307,6 @@ class HealthRecord(models.Model):
     id             = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student        = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="health_record")
     blood_type     = models.CharField(max_length=3, choices=BLOOD_TYPES, blank=True)
-    # ⚠️ هذه الحقول تُخزَّن مُشفَّرة في DB — استخدم get_*/set_* للوصول
     allergies      = models.TextField(blank=True, verbose_name="الحساسية")
     chronic_diseases = models.TextField(blank=True, verbose_name="الأمراض المزمنة")
     medications    = models.TextField(blank=True, verbose_name="الأدوية المستمرة")
@@ -327,7 +321,6 @@ class HealthRecord(models.Model):
     def __str__(self):
         return f"Health Record: {self.student.full_name}"
 
-    # ── وصول آمن للحقول المشفرة ───────────────────────────
     def get_allergies(self):
         return decrypt_field(self.allergies)
 
@@ -347,7 +340,6 @@ class HealthRecord(models.Model):
         self.medications = encrypt_field(value)
 
     def save_encrypted(self, allergies="", chronic_diseases="", medications="", **kwargs):
-        """احفظ بعد تشفير الحقول الحساسة"""
         self.set_allergies(allergies)
         self.set_chronic_diseases(chronic_diseases)
         self.set_medications(medications)
@@ -355,7 +347,6 @@ class HealthRecord(models.Model):
 
 
 class ClinicVisit(models.Model):
-    """زيارة للعيادة المدرسية"""
     id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school       = models.ForeignKey(School, on_delete=models.CASCADE)
     student      = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="clinic_visits")
@@ -377,12 +368,7 @@ class ClinicVisit(models.Model):
         return f"Visit: {self.student.full_name} - {self.visit_date.date()}"
 
 
-# ─────────────────────────────────────────────────────────────
-# 2. وحدة النقل والمواصلات (School Transport) ← جديد
-# ─────────────────────────────────────────────────────────────
-
 class SchoolBus(models.Model):
-    """بيانات الحافلة المدرسية"""
     id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school       = models.ForeignKey(School, on_delete=models.CASCADE, related_name="buses")
     bus_number   = models.CharField(max_length=20, verbose_name="رقم الحافلة")
@@ -402,7 +388,6 @@ class SchoolBus(models.Model):
 
 
 class BusRoute(models.Model):
-    """خط سير الحافلة والطلاب المشتركين"""
     id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     bus          = models.ForeignKey(SchoolBus, on_delete=models.CASCADE, related_name="routes")
     area_name    = models.CharField(max_length=200, verbose_name="المنطقة")
@@ -416,12 +401,7 @@ class BusRoute(models.Model):
         return f"{self.bus.bus_number} - {self.area_name}"
 
 
-# ─────────────────────────────────────────────────────────────
-# 3. وحدة السلوك الطلابي (Student Behavior) ← جديد
-# ─────────────────────────────────────────────────────────────
-
 class BehaviorInfraction(models.Model):
-    """مخالفة سلوكية حسب اللائحة القطرية"""
     LEVELS = [
         (1, 'الدرجة الأولى (بسيطة)'),
         (2, 'الدرجة الثانية (متوسطة)'),
@@ -450,7 +430,6 @@ class BehaviorInfraction(models.Model):
 
 
 class BehaviorPointRecovery(models.Model):
-    """فرصة لاستعادة النقاط المخصومة (التعزيز الإيجابي)"""
     id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     infraction   = models.OneToOneField(BehaviorInfraction, on_delete=models.CASCADE, related_name="recovery")
     reason       = models.TextField(verbose_name="سبب استعادة النقاط (سلوك إيجابي)")
@@ -466,12 +445,7 @@ class BehaviorPointRecovery(models.Model):
         return f"Recovery: {self.infraction.student.full_name} (+{self.points_restored})"
 
 
-# ─────────────────────────────────────────────────────────────
-# 4. وحدة المكتبة ومصادر التعلم (Library & Learning Resources) ← جديد
-# ─────────────────────────────────────────────────────────────
-
 class LibraryBook(models.Model):
-    """بيانات الكتب والمصادر في المكتبة المدرسية"""
     BOOK_TYPES = [
         ('PRINT', 'مطبوع'),
         ('DIGITAL', 'رقمي / PDF'),
@@ -498,7 +472,6 @@ class LibraryBook(models.Model):
 
 
 class BookBorrowing(models.Model):
-    """سجل إعارة الكتب للطلاب والموظفين"""
     STATUS = [
         ('BORROWED', 'قيد الإعارة'),
         ('RETURNED', 'تم الإرجاع'),
@@ -524,7 +497,6 @@ class BookBorrowing(models.Model):
 
 
 class LibraryActivity(models.Model):
-    """الأنشطة الثقافية والقرائية في المكتبة"""
     id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school       = models.ForeignKey(School, on_delete=models.CASCADE)
     title        = models.CharField(max_length=200, verbose_name="اسم النشاط")
@@ -541,12 +513,7 @@ class LibraryActivity(models.Model):
         return f"{self.title} - {self.date}"
 
 
-# ─────────────────────────────────────────────────────────────
-# AuditLog — سجل العمليات الحساسة (PDPPL / RoPA)
-# ─────────────────────────────────────────────────────────────
-
 class AuditLog(models.Model):
-    """سجل شامل لكل العمليات الحساسة — مطلوب بموجب PDPPL"""
     ACTION_CHOICES = [
         ('create',  'إنشاء'),
         ('update',  'تعديل'),
@@ -597,7 +564,6 @@ class AuditLog(models.Model):
     @classmethod
     def log(cls, *, user, action, model_name, object_id='', object_repr='',
             changes=None, school=None, request=None):
-        """اختصار لتسجيل حدث"""
         ip = ua = ''
         if request:
             ip = request.META.get('REMOTE_ADDR')
@@ -612,12 +578,7 @@ class AuditLog(models.Model):
         )
 
 
-# ─────────────────────────────────────────────────────────────
-# ConsentRecord — موافقة ولي الأمر على معالجة البيانات (PDPPL)
-# ─────────────────────────────────────────────────────────────
-
 class ConsentRecord(models.Model):
-    """تسجيل موافقة ولي الأمر لكل نوع من أنواع معالجة البيانات"""
     DATA_TYPES = [
         ('health',      'البيانات الصحية'),
         ('behavior',    'بيانات السلوك'),
