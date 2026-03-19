@@ -1,6 +1,7 @@
 import pyotp, qrcode, base64
 from io import BytesIO
 from datetime import timedelta
+from django_ratelimit.decorators import ratelimit
 
 from django.shortcuts   import render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -16,6 +17,7 @@ from core.models        import CustomUser
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
 
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")

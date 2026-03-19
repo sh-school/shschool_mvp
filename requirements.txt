@@ -62,3 +62,5 @@ weasyprint==62.3
 webencodings==0.5.1
 yarl==1.23.0
 zopfli==0.4.1
+django-ratelimit>=4.1.0
+django-ratelimit>=4.1.0
