@@ -1,0 +1,36 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_related_objects %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof django !== 'undefined' && django.jQuery) {
+    var $ = django.jQuery;
+    // تهيئة Select2 على حقل executor_norm
+    $('#id_executor_norm').select2({
+      language: 'ar',
+      placeholder: '— ابحث عن المسمى الوظيفي —',
+      allowClear: true,
+      width: '100%',
+      dir: 'rtl',
+    });
+    // تحديث الخيارات عند تغيير المدرسة أو السنة
+    function reloadNorms() {
+      var school = $('#id_school').val();
+      var year   = $('#id_academic_year').val() || '2025-2026';
+      if (!school) return;
+      $.getJSON('/admin/quality/executormapping/norms/', { school: school, year: year }, function(data) {
+        var $sel = $('#id_executor_norm');
+        var current = $sel.val();
+        $sel.empty().append('<option value="">— اختر المسمى الوظيفي —</option>');
+        $.each(data.norms, function(_, n) {
+          $sel.append('<option value="' + n + '"' + (n === current ? ' selected' : '') + '>' + n + '</option>');
+        });
+        $sel.trigger('change');
+      });
+    }
+    $('#id_school, #id_academic_year').on('change', reloadNorms);
+  }
+});
+</script>
+{% endblock %}
