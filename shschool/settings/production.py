@@ -1,7 +1,21 @@
 from .base import *
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = False
+
+# ── التحقق من المفاتيح الحرجة قبل تشغيل الإنتاج ──────────────
+if not SECRET_KEY or SECRET_KEY == "dev-secret-key-change-in-production":
+    raise ImproperlyConfigured(
+        "🔴 SECRET_KEY مطلوب في الإنتاج! أضفه إلى ملف .env:\n"
+        "python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+    )
+
+if not FERNET_KEY:
+    raise ImproperlyConfigured(
+        "🔴 FERNET_KEY مطلوب في الإنتاج لتشفير البيانات الصحية (PDPPL)!\n"
+        'python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+    )
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
@@ -18,6 +32,8 @@ SESSION_SAVE_EVERY_REQUEST        = True
 SECURE_CONTENT_TYPE_NOSNIFF       = True
 SECURE_BROWSER_XSS_FILTER        = True
 X_FRAME_OPTIONS                   = "DENY"
+SECURE_REFERRER_POLICY            = "strict-origin-when-cross-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ── Cache ─────────────────────────────────────────────────────
 REDIS_URL = config("REDIS_URL", default="")
@@ -81,3 +97,16 @@ LOGGING = {
         "celery":        {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
+
+# ── CSP أكثر صرامة في الإنتاج ────────────────────────────────
+# Tailwind مصرَّف محلياً — لا حاجة لـ CDN
+CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
+CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
+CSP_REPORT_ONLY = False
+
+# ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
+if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
+    raise ImproperlyConfigured(
+        "🔴 ALLOWED_HOSTS فارغ! أضف النطاقات المسموحة في .env:\n"
+        "ALLOWED_HOSTS=schoolos.qa,www.schoolos.qa"
+    )

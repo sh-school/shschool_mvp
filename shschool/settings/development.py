@@ -1,6 +1,11 @@
 from .base import *
 
 DEBUG = True
+
+# ── مفتاح آمن للتطوير فقط — لا يُستخدم في الإنتاج أبداً ──────
+if not SECRET_KEY:
+    SECRET_KEY = "django-insecure-dev-only-do-not-use-in-production-12345"
+
 SESSION_COOKIE_SECURE = False
 
 INSTALLED_APPS += []

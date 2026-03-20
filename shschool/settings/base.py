@@ -84,7 +84,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-SECRET_KEY    = config("SECRET_KEY", default="dev-secret-key-change-in-production")
+SECRET_KEY    = config("SECRET_KEY", default="")
 
 # ── تشفير البيانات الحساسة (PDPPL) ──────────────────────────
 # أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -107,6 +107,13 @@ LOGIN_URL          = "/auth/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL= "/auth/login/"
 
+# ── أمان الجلسات والكوكيز ─────────────────────────────────
+SESSION_COOKIE_HTTPONLY     = True
+SESSION_COOKIE_SAMESITE    = "Lax"
+CSRF_COOKIE_HTTPONLY        = True
+CSRF_COOKIE_SAMESITE        = "Lax"
+CSRF_FAILURE_VIEW           = "django.views.csrf.csrf_failure"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
@@ -128,9 +135,11 @@ EMAIL_HOST_PASSWORD= config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL",  default="noreply@schoolos.qa")
 
 # ── Content Security Policy ───────────────────────────────
+# ⚠️ unsafe-inline مطلوب مؤقتاً لـ HTMX inline handlers
+# TODO: الانتقال لـ nonce-based CSP بعد تنظيف Templates
 CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://cdn.tailwindcss.com", "https://unpkg.com",)
-CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", "https://cdn.tailwindcss.com",)
+CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com",)
+CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
 CSP_FONT_SRC    = ("'self'", "https://fonts.gstatic.com",)
 CSP_IMG_SRC     = ("'self'", "data:", "blob:",)
 CSP_CONNECT_SRC = ("'self'",)

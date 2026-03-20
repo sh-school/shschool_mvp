@@ -92,6 +92,7 @@ def login_view(request):
     return render(request, "auth/login.html")
 
 
+@ratelimit(key='ip', rate='5/m', method='POST', block=True)
 def verify_2fa(request):
     user_id = request.session.get("pending_2fa_user")
     if not user_id:
@@ -186,6 +187,7 @@ def disable_2fa(request):
 
 
 @login_required
+@ratelimit(key='user', rate='5/m', method='POST', block=True)
 def force_change_password(request):
     if not request.user.must_change_password:
         return redirect("dashboard")
