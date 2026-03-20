@@ -418,3 +418,154 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
         send_push_task.delay(str(uid), title, body, url, school_id)
 
     return {'queued': len(users)}
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ v6: Hub task — إرسال مركزي مع retry لكل القنوات
+# ════════════════════════════════════════════════════════════════════
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    name="notifications.hub_send",
+)
+def hub_send_notification_task(self, user_id, school_id, channels, title, body,
+                                event_type, context=None, sent_by_id=None):
+    """
+    مهمة مركزية — يستدعيها NotificationHub لإرسال الإشعارات الخارجية.
+    Retry: 3 محاولات مع exponential backoff (60s, 120s, 240s)
+    """
+    from core.models import CustomUser, School
+    from notifications.services import NotificationService
+
+    try:
+        user   = CustomUser.objects.get(id=user_id)
+        school = School.objects.get(id=school_id)
+        sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
+
+        results = []
+
+        # ── Email ──────────────────────────────────────────────
+        if "email" in channels and user.email:
+            ok, err = NotificationService.send_email(
+                school=school,
+                recipient_email=user.email,
+                subject=title,
+                body_text=body,
+                notif_type=_hub_to_notif_type(event_type),
+                sent_by=sender,
+            )
+            results.append(("email", ok, err))
+
+        # ── SMS ────────────────────────────────────────────────
+        if "sms" in channels and user.phone:
+            ok, err = NotificationService.send_sms(
+                school=school,
+                phone_number=user.phone,
+                message=f"{title}\n{body}",
+                notif_type=_hub_to_notif_type(event_type),
+                sent_by=sender,
+            )
+            results.append(("sms", ok, err))
+
+        # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
+        if "whatsapp" in channels and user.phone:
+            try:
+                _send_whatsapp(school, user.phone, title, body)
+                results.append(("whatsapp", True, None))
+            except Exception as e:
+                results.append(("whatsapp", False, str(e)))
+
+        # ── Push ───────────────────────────────────────────────
+        if "push" in channels:
+            try:
+                send_push_task.delay(
+                    str(user.id), title, body,
+                    context.get("related_url", "/") if context else "/",
+                    str(school.id),
+                )
+                results.append(("push", True, None))
+            except Exception as e:
+                results.append(("push", False, str(e)))
+
+        # ── تحقق من الفشل ─────────────────────────────────────
+        failures = [r for r in results if not r[1]]
+        if failures and all(not r[1] for r in results):
+            # كل القنوات فشلت → retry
+            error_msg = "; ".join(f"{ch}: {err}" for ch, _, err in failures)
+            raise Exception(f"All channels failed: {error_msg}")
+
+        logger.info(
+            f"hub_send: {user.full_name} | "
+            f"success={[r[0] for r in results if r[1]]} | "
+            f"failed={[r[0] for r in results if not r[1]]}"
+        )
+        return {"user": str(user_id), "results": [(r[0], r[1]) for r in results]}
+
+    except (CustomUser.DoesNotExist, School.DoesNotExist) as e:
+        logger.error(f"hub_send: object not found: {e}")
+        return {"error": str(e)}
+
+    except Exception as exc:
+        # Exponential backoff: 60s, 120s, 240s
+        countdown = 60 * (2 ** self.request.retries)
+        logger.warning(
+            f"hub_send retry {self.request.retries + 1}/3 "
+            f"for {user_id}: {exc} (next in {countdown}s)"
+        )
+        raise self.retry(exc=exc, countdown=countdown)
+
+
+def _hub_to_notif_type(event_type):
+    """تحويل event_type من Hub لنوع NotificationLog"""
+    mapping = {
+        "behavior_l1": "custom",
+        "behavior_l2": "custom",
+        "behavior_l3": "custom",
+        "behavior_l4": "custom",
+        "absence":     "absence_alert",
+        "grade":       "grade_report",
+        "fail":        "fail_alert",
+    }
+    return mapping.get(event_type, "custom")
+
+
+def _send_whatsapp(school, phone, title, body):
+    """
+    إرسال WhatsApp عبر Twilio WhatsApp Business API.
+    يحتاج: whatsapp_from_number في NotificationSettings
+    """
+    from notifications.models import NotificationSettings, NotificationLog
+
+    cfg = NotificationSettings.objects.filter(school=school).first()
+    if not cfg:
+        raise Exception("لا توجد إعدادات إشعارات للمدرسة")
+
+    whatsapp_from = getattr(cfg, 'whatsapp_from_number', '') or getattr(cfg, 'sms_from_number', '')
+    if not whatsapp_from:
+        raise Exception("رقم WhatsApp غير مضبوط")
+
+    try:
+        from twilio.rest import Client
+        client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
+        message = client.messages.create(
+            from_='whatsapp:' + whatsapp_from,
+            to='whatsapp:' + phone,
+            body=f"*{title}*\n{body}",
+        )
+
+        # تسجيل في NotificationLog
+        NotificationLog.objects.create(
+            school=school,
+            recipient=f"whatsapp:{phone}",
+            channel="sms",  # نستخدم sms كقناة لأن whatsapp غير موجود في choices حالياً
+            notif_type="custom",
+            subject=title,
+            body=body,
+            status="sent",
+        )
+        return message.sid
+
+    except ImportError:
+        raise Exception("مكتبة twilio غير مثبتة")
+

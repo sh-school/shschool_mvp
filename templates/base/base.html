@@ -143,6 +143,12 @@
     <!-- Spacer -->
     <div style="flex:1;"></div>
 
+    <!-- 🔔 v6: Notification Bell -->
+    <a href="/notifications/inbox/" class="nb" style="position:relative;flex-shrink:0;padding:6px 8px;" id="notif-bell">
+      🔔
+      <span id="notif-badge" style="position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;"></span>
+    </a>
+
     <!-- User -->
     <button class="nb" id="btn-user" onclick="sd('m-user',this)" style="gap:6px;flex-shrink:0;">
       <span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">
@@ -284,5 +290,29 @@ window.addEventListener('resize', function() {
 </div>
 
 {% endif %}{# end if user.is_authenticated — dropdowns #}
+
+{% if user.is_authenticated %}
+<script>
+(function(){
+  var badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  function updateBadge(){
+    fetch('/notifications/api/unread-count/')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.count > 0) {
+          badge.textContent = d.count > 99 ? '99+' : d.count;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      })
+      .catch(function(){});
+  }
+  updateBadge();
+  setInterval(updateBadge, 30000);
+})();
+</script>
+{% endif %}
 </body>
 </html>

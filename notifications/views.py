@@ -152,3 +152,123 @@ def save_settings(request):
 
     messages.success(request, "✓ تم حفظ إعدادات الإشعارات")
     return redirect("notifications_dashboard")
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ v6: إشعارات المنصة — الجرس + الصندوق + التفضيلات
+# ════════════════════════════════════════════════════════════════════
+
+from .models import InAppNotification, UserNotificationPreference
+
+
+@login_required
+def api_unread_count(request):
+    """API: عدد الإشعارات غير المقروءة (للجرس في Navbar)"""
+    count = InAppNotification.objects.unread_count(request.user)
+    return JsonResponse({"count": count})
+
+
+@login_required
+def api_recent_notifications(request):
+    """API: آخر 5 إشعارات (للقائمة المنسدلة في الجرس)"""
+    notifs = InAppNotification.objects.unread_for_user(request.user)[:5]
+    data = [
+        {
+            "id":         str(n.id),
+            "title":      n.title,
+            "body":       n.body[:100],
+            "event_type": n.event_type,
+            "priority":   n.priority,
+            "url":        n.related_url,
+            "created_at": n.created_at.strftime("%Y-%m-%d %H:%M"),
+        }
+        for n in notifs
+    ]
+    count = InAppNotification.objects.unread_count(request.user)
+    return JsonResponse({"notifications": data, "unread_count": count})
+
+
+@login_required
+def notification_inbox(request):
+    """صفحة صندوق الإشعارات"""
+    event_filter = request.GET.get("type", "")
+    qs = InAppNotification.objects.filter(user=request.user)
+    if event_filter:
+        qs = qs.filter(event_type=event_filter)
+
+    notifications = qs.order_by("-created_at")[:100]
+    unread_count  = InAppNotification.objects.unread_count(request.user)
+
+    return render(request, "notifications/inbox.html", {
+        "notifications": notifications,
+        "unread_count":  unread_count,
+        "event_filter":  event_filter,
+        "event_types":   InAppNotification.EVENT_TYPES,
+    })
+
+
+@login_required
+@require_POST
+def mark_notification_read(request, notif_id):
+    """تحديد إشعار واحد كمقروء"""
+    notif = get_object_or_404(InAppNotification, id=notif_id, user=request.user)
+    notif.mark_read()
+
+    if request.headers.get("HX-Request"):
+        # HTMX: نرجع العدد الجديد فقط
+        count = InAppNotification.objects.unread_count(request.user)
+        return HttpResponse(str(count))
+
+    return redirect(notif.related_url or "notification_inbox")
+
+
+@login_required
+@require_POST
+def mark_all_read(request):
+    """تحديد كل الإشعارات كمقروءة"""
+    InAppNotification.objects.mark_all_read(request.user)
+
+    if request.headers.get("HX-Request"):
+        return HttpResponse("0")
+
+    messages.success(request, "✓ تم تحديد كل الإشعارات كمقروءة")
+    return redirect("notification_inbox")
+
+
+@login_required
+def notification_preferences(request):
+    """صفحة تفضيلات الإشعارات للمستخدم"""
+    prefs, created = UserNotificationPreference.objects.get_or_create(
+        user=request.user
+    )
+
+    if request.method == "POST":
+        prefs.in_app_enabled   = "in_app_enabled"   in request.POST
+        prefs.push_enabled     = "push_enabled"     in request.POST
+        prefs.whatsapp_enabled = "whatsapp_enabled" in request.POST
+        prefs.email_enabled    = "email_enabled"    in request.POST
+        prefs.sms_enabled      = "sms_enabled"      in request.POST
+
+        # ساعات الهدوء
+        quiet_start = request.POST.get("quiet_hours_start", "")
+        quiet_end   = request.POST.get("quiet_hours_end", "")
+        if quiet_start:
+            from datetime import time as dt_time
+            h, m = map(int, quiet_start.split(":"))
+            prefs.quiet_hours_start = dt_time(h, m)
+        else:
+            prefs.quiet_hours_start = None
+        if quiet_end:
+            from datetime import time as dt_time
+            h, m = map(int, quiet_end.split(":"))
+            prefs.quiet_hours_end = dt_time(h, m)
+        else:
+            prefs.quiet_hours_end = None
+
+        prefs.save()
+        messages.success(request, "✓ تم حفظ تفضيلات الإشعارات")
+        return redirect("notification_preferences")
+
+    return render(request, "notifications/preferences.html", {
+        "prefs": prefs,
+    })

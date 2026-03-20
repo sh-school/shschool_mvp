@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}صندوق الإشعارات{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px;">
+
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+    <div>
+      <h1 style="font-size:22px;font-weight:700;margin:0;">صندوق الإشعارات</h1>
+      <p style="color:#666;font-size:14px;margin:4px 0 0;">
+        {% if unread_count %}{{ unread_count }} إشعار غير مقروء{% else %}لا توجد إشعارات جديدة{% endif %}
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;">
+      {% if unread_count %}
+      <form method="post" action="{% url 'mark_all_read' %}">
+        {% csrf_token %}
+        <button type="submit" style="background:#8A1538;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;">
+          تحديد الكل كمقروء
+        </button>
+      </form>
+      {% endif %}
+      <a href="{% url 'notification_preferences' %}" style="background:#f1f5f9;color:#334155;padding:8px 16px;border-radius:8px;font-size:13px;text-decoration:none;">
+        ⚙️ التفضيلات
+      </a>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+    <a href="{% url 'notification_inbox' %}"
+       style="padding:6px 14px;border-radius:20px;font-size:13px;text-decoration:none;
+              {% if not event_filter %}background:#8A1538;color:#fff;{% else %}background:#f1f5f9;color:#334155;{% endif %}">
+      الكل
+    </a>
+    {% for code, label in event_types %}
+    <a href="{% url 'notification_inbox' %}?type={{ code }}"
+       style="padding:6px 14px;border-radius:20px;font-size:13px;text-decoration:none;
+              {% if event_filter == code %}background:#8A1538;color:#fff;{% else %}background:#f1f5f9;color:#334155;{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Notification List -->
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    {% for notif in notifications %}
+    <div style="background:{% if notif.is_read %}#fff{% else %}#fef9f0{% endif %};
+                border:1px solid {% if notif.is_read %}#e2e8f0{% else %}#8A1538{% endif %};
+                border-radius:10px;padding:14px 18px;
+                {% if not notif.is_read %}border-right:4px solid #8A1538;{% endif %}
+                transition:all 0.2s;">
+
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div style="flex:1;">
+          <!-- Priority badge -->
+          {% if notif.priority == "urgent" %}
+            <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">عاجل</span>
+          {% elif notif.priority == "high" %}
+            <span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">مهم</span>
+          {% endif %}
+
+          <h3 style="font-size:15px;font-weight:{% if notif.is_read %}400{% else %}600{% endif %};margin:6px 0 4px;">
+            {% if notif.related_url %}
+              <a href="{{ notif.related_url }}" style="color:#1e293b;text-decoration:none;">{{ notif.title }}</a>
+            {% else %}
+              {{ notif.title }}
+            {% endif %}
+          </h3>
+
+          {% if notif.body %}
+          <p style="color:#64748b;font-size:13px;margin:0;">{{ notif.body|truncatechars:150 }}</p>
+          {% endif %}
+
+          <div style="display:flex;gap:12px;margin-top:8px;font-size:12px;color:#94a3b8;">
+            <span>{{ notif.get_event_type_display }}</span>
+            <span>{{ notif.created_at|timesince }} مضت</span>
+          </div>
+        </div>
+
+        {% if not notif.is_read %}
+        <form method="post" action="{% url 'mark_notification_read' notif.id %}">
+          {% csrf_token %}
+          <button type="submit" title="تحديد كمقروء"
+                  style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;">
+            ✓
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:60px 20px;color:#94a3b8;">
+      <div style="font-size:48px;margin-bottom:12px;">🔔</div>
+      <p style="font-size:16px;">لا توجد إشعارات</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

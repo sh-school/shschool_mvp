@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}تفضيلات الإشعارات{% endblock %}
+
+{% block content %}
+<div style="max-width:600px;margin:0 auto;padding:20px;">
+
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:8px;">تفضيلات الإشعارات</h1>
+  <p style="color:#666;font-size:14px;margin-bottom:24px;">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- القنوات -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#8A1538;">قنوات الإشعارات</h2>
+
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <span style="font-weight:500;">🔔 إشعارات المنصة</span>
+          <p style="color:#666;font-size:12px;margin:2px 0 0;">الجرس داخل التطبيق — مجاني ودائماً</p>
+        </div>
+        <input type="checkbox" name="in_app_enabled" {% if prefs.in_app_enabled %}checked{% endif %}
+               style="width:20px;height:20px;">
+      </label>
+
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <span style="font-weight:500;">📲 Push Notifications</span>
+          <p style="color:#666;font-size:12px;margin:2px 0 0;">إشعارات المتصفح حتى لو التطبيق مغلق</p>
+        </div>
+        <input type="checkbox" name="push_enabled" {% if prefs.push_enabled %}checked{% endif %}
+               style="width:20px;height:20px;">
+      </label>
+
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <span style="font-weight:500;">💬 WhatsApp</span>
+          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل WhatsApp على رقم الجوال المسجل</p>
+        </div>
+        <input type="checkbox" name="whatsapp_enabled" {% if prefs.whatsapp_enabled %}checked{% endif %}
+               style="width:20px;height:20px;">
+      </label>
+
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <span style="font-weight:500;">📧 البريد الإلكتروني</span>
+          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل تفصيلية على البريد</p>
+        </div>
+        <input type="checkbox" name="email_enabled" {% if prefs.email_enabled %}checked{% endif %}
+               style="width:20px;height:20px;">
+      </label>
+
+      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
+        <div>
+          <span style="font-weight:500;">📱 SMS</span>
+          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل نصية قصيرة — للحالات العاجلة</p>
+        </div>
+        <input type="checkbox" name="sms_enabled" {% if prefs.sms_enabled %}checked{% endif %}
+               style="width:20px;height:20px;">
+      </label>
+    </div>
+
+    <!-- ساعات الهدوء -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <h2 style="font-size:16px;font-weight:600;margin:0 0 8px;color:#8A1538;">ساعات الهدوء</h2>
+      <p style="color:#666;font-size:13px;margin-bottom:16px;">لا تُرسل إشعارات خارجية (SMS/WhatsApp/Email) في هذه الفترة</p>
+
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div>
+          <label style="font-size:13px;color:#666;">من</label>
+          <input type="time" name="quiet_hours_start"
+                 value="{% if prefs.quiet_hours_start %}{{ prefs.quiet_hours_start|time:'H:i' }}{% endif %}"
+                 style="padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+        </div>
+        <div>
+          <label style="font-size:13px;color:#666;">إلى</label>
+          <input type="time" name="quiet_hours_end"
+                 value="{% if prefs.quiet_hours_end %}{{ prefs.quiet_hours_end|time:'H:i' }}{% endif %}"
+                 style="padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+        </div>
+      </div>
+    </div>
+
+    <button type="submit"
+            style="background:#8A1538;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">
+      حفظ التفضيلات
+    </button>
+  </form>
+
+  <a href="{% url 'notification_inbox' %}" style="display:block;text-align:center;margin-top:16px;color:#8A1538;font-size:14px;">
+    ← العودة لصندوق الإشعارات
+  </a>
+</div>
+{% endblock %}

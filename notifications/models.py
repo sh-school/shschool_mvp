@@ -4,6 +4,7 @@ notifications/models.py
 """
 import uuid
 from django.db import models
+from django.utils import timezone
 from core.models import School, CustomUser
 
 
@@ -131,3 +132,166 @@ class PushSubscription(models.Model):
                 'auth':   self.auth,
             }
         }
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ v6: إشعارات المنصة الداخلية (In-App Notifications)
+# ════════════════════════════════════════════════════════════════════
+
+class InAppNotificationManager(models.Manager):
+    """Manager لاستعلامات الإشعارات الداخلية"""
+
+    def unread_for_user(self, user):
+        return self.filter(user=user, is_read=False).order_by('-created_at')
+
+    def unread_count(self, user):
+        return self.filter(user=user, is_read=False).count()
+
+    def mark_all_read(self, user):
+        return self.filter(user=user, is_read=False).update(
+            is_read=True, read_at=timezone.now()
+        )
+
+    def for_user(self, user, limit=50):
+        return self.filter(user=user).order_by('-created_at')[:limit]
+
+
+class InAppNotification(models.Model):
+    """
+    إشعار داخل المنصة — يظهر في الجرس (Navbar)
+    مجاني، فوري، لا يحتاج إعدادات من المستخدم
+    """
+    EVENT_TYPES = [
+        ("behavior",       "مخالفة سلوكية"),
+        ("absence",        "غياب متكرر"),
+        ("grade",          "درجات جديدة"),
+        ("fail",           "نتيجة رسوب"),
+        ("clinic",         "زيارة عيادة"),
+        ("sent_home",      "إرسال للمنزل"),
+        ("meeting",        "اجتماع أولياء أمور"),
+        ("plan_update",    "تحديث الخطة التشغيلية"),
+        ("plan_deadline",  "اقتراب موعد نهائي"),
+        ("plan_overdue",   "تأخر إجراء"),
+        ("review_cycle",   "دورة مراجعة ذاتية"),
+        ("general",        "إشعار عام"),
+    ]
+    PRIORITY = [
+        ("low",    "منخفض"),
+        ("medium", "متوسط"),
+        ("high",   "عالي"),
+        ("urgent", "عاجل"),
+    ]
+
+    id                = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    user              = models.ForeignKey(CustomUser, on_delete=models.CASCADE,
+                                          related_name='in_app_notifications')
+    school            = models.ForeignKey(School, on_delete=models.CASCADE,
+                                          related_name='in_app_notifications')
+    title             = models.CharField(max_length=300, verbose_name="العنوان")
+    body              = models.TextField(verbose_name="النص", blank=True)
+    event_type        = models.CharField(max_length=20, choices=EVENT_TYPES, default="general",
+                                          db_index=True)
+    priority          = models.CharField(max_length=10, choices=PRIORITY, default="medium")
+    # ربط بالكائن المصدر (اختياري)
+    related_object_id = models.CharField(max_length=100, blank=True,
+                                          verbose_name="معرّف الكائن المرتبط")
+    related_url       = models.CharField(max_length=500, blank=True,
+                                          verbose_name="رابط مباشر")
+    # حالة القراءة
+    is_read           = models.BooleanField(default=False, db_index=True)
+    read_at           = models.DateTimeField(null=True, blank=True)
+    created_at        = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    objects = InAppNotificationManager()
+
+    class Meta:
+        verbose_name        = "إشعار داخلي"
+        verbose_name_plural = "الإشعارات الداخلية"
+        ordering            = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+            models.Index(fields=['school', 'event_type']),
+        ]
+
+    def __str__(self):
+        status = "مقروء" if self.is_read else "جديد"
+        return f"{self.title} → {self.user.full_name} ({status})"
+
+    def mark_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ v6: تفضيلات الإشعارات لكل مستخدم
+# ════════════════════════════════════════════════════════════════════
+
+class UserNotificationPreference(models.Model):
+    """
+    تفضيلات قنوات الإشعارات — يتحكم المستخدم بأي قناة يريد
+    """
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE,
+                                 related_name='notification_preferences')
+
+    # تفعيل القنوات
+    in_app_enabled    = models.BooleanField(default=True,  verbose_name="إشعارات المنصة")
+    push_enabled      = models.BooleanField(default=True,  verbose_name="Push Notifications")
+    whatsapp_enabled  = models.BooleanField(default=False, verbose_name="WhatsApp")
+    email_enabled     = models.BooleanField(default=True,  verbose_name="البريد الإلكتروني")
+    sms_enabled       = models.BooleanField(default=False, verbose_name="SMS")
+
+    # تفضيلات حسب نوع الحدث (JSON: {"behavior": ["in_app","email"], "absence": ["in_app","whatsapp","email"]})
+    # فارغ = استخدام الإعدادات الافتراضية
+    event_channels    = models.JSONField(default=dict, blank=True,
+                                          verbose_name="قنوات حسب نوع الحدث")
+
+    # ساعات الهدوء — لا ترسل إشعارات خارجية في هذه الفترة
+    quiet_hours_start = models.TimeField(null=True, blank=True,
+                                          verbose_name="بداية ساعات الهدوء")
+    quiet_hours_end   = models.TimeField(null=True, blank=True,
+                                          verbose_name="نهاية ساعات الهدوء")
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name        = "تفضيلات إشعارات"
+        verbose_name_plural = "تفضيلات الإشعارات"
+
+    def __str__(self):
+        return f"تفضيلات — {self.user.full_name}"
+
+    def get_channels_for_event(self, event_type):
+        """
+        يُرجع قائمة القنوات المفعّلة لهذا النوع من الأحداث.
+        يتحقق أولاً من event_channels المخصص، ثم الإعدادات العامة.
+        """
+        # تفضيل مخصص لهذا الحدث
+        if event_type in self.event_channels:
+            return self.event_channels[event_type]
+
+        # الإعدادات العامة
+        channels = []
+        if self.in_app_enabled:
+            channels.append('in_app')
+        if self.push_enabled:
+            channels.append('push')
+        if self.whatsapp_enabled:
+            channels.append('whatsapp')
+        if self.email_enabled:
+            channels.append('email')
+        if self.sms_enabled:
+            channels.append('sms')
+        return channels
+
+    def is_quiet_hours(self):
+        """هل الوقت الحالي ضمن ساعات الهدوء؟"""
+        if not self.quiet_hours_start or not self.quiet_hours_end:
+            return False
+        from django.utils import timezone as tz
+        now = tz.localtime().time()
+        if self.quiet_hours_start <= self.quiet_hours_end:
+            return self.quiet_hours_start <= now <= self.quiet_hours_end
+        else:  # يعبر منتصف الليل
+            return now >= self.quiet_hours_start or now <= self.quiet_hours_end
