@@ -57,7 +57,13 @@
       <div class="flex-1">
         <p class="text-xs text-gray-400 font-mono mb-0.5">{{ proc.number }} · {{ proc.indicator.target.domain.name }}</p>
         <p class="text-sm font-medium text-gray-800">{{ proc.text|truncatechars:100 }}</p>
-        <p class="text-xs text-gray-500 mt-1">📅 {{ proc.date_range }}</p>
+        <p class="text-xs text-gray-500 mt-1">📅 {{ proc.date_range }}
+          {% if proc.deadline %}
+          · <span class="{% if proc.status != 'Completed' %}text-red-500 font-medium{% endif %}">
+            ⏰ {{ proc.deadline|date:"Y/m/d" }}
+          </span>
+          {% endif %}
+        </p>
       </div>
       <span class="mr-4 shrink-0 px-2 py-0.5 rounded-full text-xs
         {% if proc.status == 'Completed' %}bg-green-100 text-green-700

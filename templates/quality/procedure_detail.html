@@ -27,6 +27,24 @@
         <p class="font-semibold text-gray-800">{{ procedure.date_range|default:"—" }}</p>
       </div>
       <div>
+        <p class="text-gray-500 text-xs mb-1">الموعد النهائي</p>
+        {% if procedure.deadline %}
+          <p class="font-semibold {% if procedure.status != 'Completed' %}text-red-600{% else %}text-gray-800{% endif %}">
+            {{ procedure.deadline|date:"Y/m/d" }}
+          </p>
+        {% else %}
+          {% if can_edit %}
+          <form method="post" action="{% url 'update_proc_status' procedure.id %}" class="flex gap-1">
+            {% csrf_token %}
+            <input type="date" name="deadline" class="border rounded px-2 py-1 text-xs">
+            <button type="submit" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">حفظ</button>
+          </form>
+          {% else %}
+          <p class="text-gray-400 text-xs">غير محدد</p>
+          {% endif %}
+        {% endif %}
+      </div>
+      <div>
         <p class="text-gray-500 text-xs mb-1">نوع الدليل</p>
         <p class="font-semibold text-gray-800">{{ procedure.evidence_type|default:"—" }}</p>
       </div>

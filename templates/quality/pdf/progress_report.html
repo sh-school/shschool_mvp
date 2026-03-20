@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 1.5cm;
+    @top-center {
+      content: "الخطة التشغيلية — مدرسة الشحانية الإعدادية الثانوية للبنين";
+      font-size: 9pt; color: #666; font-family: Arial, sans-serif;
+    }
+    @bottom-center {
+      content: "صفحة " counter(page) " من " counter(pages);
+      font-size: 9pt; color: #666; font-family: Arial, sans-serif;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 11pt; color: #1a1a1a;
+    line-height: 1.5; margin: 0;
+  }
+  .header {
+    background: #8A1538;
+    color: #fff;
+    padding: 18px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  .header h1 { margin: 0 0 4px; font-size: 18pt; }
+  .header p  { margin: 0; font-size: 10pt; opacity: .85; }
+  .stats-row {
+    display: flex; gap: 12px; margin-bottom: 20px;
+  }
+  .stat-box {
+    flex: 1; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 12px;
+    text-align: center;
+  }
+  .stat-box .num  { font-size: 22pt; font-weight: bold; color: #1A4F8A; }
+  .stat-box .lbl  { font-size: 9pt; color: #666; margin-top: 2px; }
+  .stat-box.green .num { color: #16a34a; }
+  .stat-box.amber .num { color: #d97706; }
+  h2 {
+    font-size: 13pt; color: #0F2347;
+    border-bottom: 2px solid #8A1538;
+    padding-bottom: 4px; margin: 20px 0 10px;
+  }
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 10pt; margin-bottom: 20px;
+  }
+  thead tr { background: #0F2347; color: #fff; }
+  th, td { padding: 7px 10px; border: 1px solid #e2e8f0; }
+  th { font-weight: bold; text-align: right; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  .bar-bg {
+    background: #e5e7eb; border-radius: 4px; height: 10px; width: 100px;
+  }
+  .bar-fill { height: 10px; border-radius: 4px; }
+  .bar-green { background: #16a34a; }
+  .bar-amber { background: #d97706; }
+  .bar-red   { background: #dc2626; }
+  .footer-note {
+    font-size: 9pt; color: #888; margin-top: 30px;
+    border-top: 1px solid #e2e8f0; padding-top: 8px;
+  }
+  .pct-text { font-weight: bold; }
+  .pct-green { color: #16a34a; }
+  .pct-amber { color: #d97706; }
+  .pct-red   { color: #dc2626; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>تقرير تقدم الخطة التشغيلية</h1>
+  <p>{{ school.name }} — العام الدراسي {{ year }} — تاريخ الإصدار: {{ generated_at|date:"Y/m/d" }}</p>
+</div>
+
+<!-- إحصائيات كلية -->
+<div class="stats-row">
+  <div class="stat-box">
+    <div class="num">{{ total_all }}</div>
+    <div class="lbl">إجمالي الإجراءات</div>
+  </div>
+  <div class="stat-box green">
+    <div class="num">{{ completed_all }}</div>
+    <div class="lbl">مكتملة</div>
+  </div>
+  <div class="stat-box amber">
+    <div class="num">{{ total_all|add:"-"|add:completed_all }}</div>
+    <div class="lbl">قيد التنفيذ</div>
+  </div>
+  <div class="stat-box">
+    <div class="num {% if pct_all >= 70 %}pct-green{% elif pct_all >= 40 %}pct-amber{% else %}pct-red{% endif %}">{{ pct_all }}%</div>
+    <div class="lbl">نسبة الإنجاز</div>
+  </div>
+</div>
+
+<!-- جدول المجالات -->
+<h2>تقدم المجالات السبعة</h2>
+<table>
+  <thead>
+    <tr>
+      <th>المجال</th>
+      <th style="text-align:center">الإجراءات</th>
+      <th style="text-align:center">مكتمل</th>
+      <th style="text-align:center">جارٍ</th>
+      <th style="text-align:center">انتظار مراجعة</th>
+      <th style="text-align:center">النسبة</th>
+      <th style="text-align:center">شريط التقدم</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ds in domain_stats %}
+    <tr>
+      <td>{{ ds.domain.name }}</td>
+      <td style="text-align:center">{{ ds.total }}</td>
+      <td style="text-align:center; color:#16a34a; font-weight:bold">{{ ds.completed }}</td>
+      <td style="text-align:center; color:#d97706">{{ ds.in_progress }}</td>
+      <td style="text-align:center; color:#6366f1">{{ ds.pending_review }}</td>
+      <td style="text-align:center">
+        <span class="pct-text {% if ds.pct >= 70 %}pct-green{% elif ds.pct >= 40 %}pct-amber{% else %}pct-red{% endif %}">
+          {{ ds.pct }}%
+        </span>
+      </td>
+      <td style="text-align:center; vertical-align:middle">
+        <div class="bar-bg">
+          <div class="bar-fill {% if ds.pct >= 70 %}bar-green{% elif ds.pct >= 40 %}bar-amber{% else %}bar-red{% endif %}"
+               style="width:{{ ds.pct }}px"></div>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="footer-note">
+  * هذا التقرير تلقائي من نظام SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين
+</div>
+
+</body>
+</html>

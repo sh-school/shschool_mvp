@@ -1,0 +1,83 @@
+{% extends "base/base.html" %}
+{% block title %}لوحة العيادة{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-[#0F2347]">🏥 لوحة تحكم العيادة المدرسية</h1>
+      <p class="text-sm text-gray-500 mt-1">متابعة زيارات الطلاب والسجلات الصحية</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="{% url 'record_visit' %}" class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">+ تسجيل زيارة</a>
+      <a href="{% url 'visits_list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">كل الزيارات</a>
+    </div>
+  </div>
+
+  <!-- إحصائيات اليوم -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-[#0F2347]">{{ visits_today }}</p>
+      <p class="text-xs text-gray-500 mt-1">زيارات اليوم</p>
+    </div>
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-amber-600">{{ follow_up_visits|length }}</p>
+      <p class="text-xs text-gray-500 mt-1">طلاب أُرسلوا للمنزل اليوم</p>
+    </div>
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-blue-600">{{ recent_visits|length }}</p>
+      <p class="text-xs text-gray-500 mt-1">آخر الزيارات</p>
+    </div>
+  </div>
+
+  <!-- الزيارات تحتاج متابعة -->
+  {% if follow_up_visits %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+    <h2 class="font-bold text-amber-800 mb-3">⚠️ طلاب أُرسلوا للمنزل اليوم</h2>
+    <div class="space-y-2">
+      {% for visit in follow_up_visits %}
+      <div class="bg-white rounded-lg p-3 border border-amber-100 flex items-center justify-between">
+        <div>
+          <p class="font-medium text-gray-800">{{ visit.student.full_name }}</p>
+          <p class="text-xs text-gray-500">{{ visit.reason }}</p>
+        </div>
+        <span class="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">
+          {{ visit.parent_notified|yesno:"تم إشعار ولي الأمر,لم يُشعَر بعد" }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- الزيارات الأخيرة -->
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-[#0F2347] px-6 py-4">
+      <h2 class="text-white font-bold">آخر الزيارات</h2>
+    </div>
+    {% if recent_visits %}
+    <div class="divide-y divide-gray-100">
+      {% for visit in recent_visits %}
+      <div class="px-5 py-3 hover:bg-gray-50 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-gray-800">{{ visit.student.full_name }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}</p>
+        </div>
+        {% if visit.is_sent_home %}
+        <span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">أُرسل للمنزل</span>
+        {% else %}
+        <span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">عولج</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 text-center text-gray-400">
+      <p class="text-4xl mb-3">🏥</p>
+      <p>لا توجد زيارات مسجلة</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -169,12 +169,21 @@ def update_procedure_status(request, proc_id):
     if eval_text:
         procedure.evaluation = eval_text
 
+    # الموعد النهائي
+    deadline_str = request.POST.get("deadline", "").strip()
+    if deadline_str:
+        from datetime import date as _date
+        try:
+            procedure.deadline = _date.fromisoformat(deadline_str)
+        except ValueError:
+            pass
+
     # إذا انتقل لـ "Pending Review" سجّل الوقت
     if new_status == "Pending Review":
         procedure.reviewed_at = None
         procedure.reviewed_by = None
 
-    procedure.save(update_fields=["status", "evaluation", "reviewed_at", "reviewed_by", "updated_at"])
+    procedure.save(update_fields=["status", "evaluation", "deadline", "reviewed_at", "reviewed_by", "updated_at"])
 
     return render(request, "quality/partials/procedure_status_badge.html", {
         "procedure": procedure
@@ -708,3 +717,62 @@ def progress_report(request):
         "executor_stats": executor_stats,
         "year":           year,
     })
+
+
+# ── تقرير PDF للخطة التشغيلية ───────────────────────────────
+
+@login_required
+def progress_report_pdf(request):
+    """توليد تقرير PDF للخطة التشغيلية"""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح", status=403)
+
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+
+    domains = OperationalDomain.objects.filter(
+        school=school, academic_year=year
+    ).order_by("order")
+
+    domain_stats = []
+    for d in domains:
+        procs   = OperationalProcedure.objects.filter(indicator__target__domain=d)
+        total   = procs.count()
+        done    = procs.filter(status="Completed").count()
+        in_prog = procs.filter(status="In Progress").count()
+        pending = procs.filter(status="Pending Review").count()
+        pct     = round(done / total * 100) if total else 0
+        domain_stats.append({
+            "domain":         d,
+            "total":          total,
+            "completed":      done,
+            "in_progress":    in_prog,
+            "pending_review": pending,
+            "pct":            pct,
+        })
+
+    total_all     = OperationalProcedure.objects.filter(school=school, academic_year=year).count()
+    completed_all = OperationalProcedure.objects.filter(school=school, academic_year=year, status="Completed").count()
+    pct_all       = round(completed_all / total_all * 100) if total_all else 0
+
+    from django.template.loader import render_to_string
+    from django.utils import timezone as tz
+    html_content = render_to_string("quality/pdf/progress_report.html", {
+        "domain_stats":   domain_stats,
+        "year":           year,
+        "school":         school,
+        "total_all":      total_all,
+        "completed_all":  completed_all,
+        "pct_all":        pct_all,
+        "generated_at":   tz.now(),
+    }, request=request)
+
+    try:
+        from weasyprint import HTML, CSS
+        from django.http import HttpResponse as HR
+        pdf = HTML(string=html_content, base_url=request.build_absolute_uri("/")).write_pdf()
+        response = HR(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="operational_plan_{year}.pdf"'
+        return response
+    except ImportError:
+        return HttpResponse("weasyprint غير مُثبَّت — شغّل: pip install weasyprint", status=500)

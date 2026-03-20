@@ -1,0 +1,108 @@
+{% extends "base/base.html" %}
+{% block title %}لوحة السلوك{% endblock %}
+{% block content %}
+<div class="space-y-6">
+
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="text-2xl font-bold text-[#0F2347]">⚖️ لوحة تحكم السلوك المدرسي</h1>
+      <p class="text-sm text-gray-500 mt-1">متابعة المخالفات السلوكية وسجلات الطلاب</p>
+    </div>
+    <div class="flex gap-2">
+      {% if can_report %}
+      <a href="{% url 'behavior:report' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>
+      {% endif %}
+      {% if is_committee %}
+      <a href="{% url 'behavior:committee' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">لجنة الضبط</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- إحصائيات -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-red-600">{{ total_deducted }}</p>
+      <p class="text-xs text-gray-500 mt-1">نقاط مخصومة</p>
+    </div>
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-green-600">{{ total_restored }}</p>
+      <p class="text-xs text-gray-500 mt-1">نقاط مستردة</p>
+    </div>
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-amber-600">{{ net_deducted }}</p>
+      <p class="text-xs text-gray-500 mt-1">صافي الخصم</p>
+    </div>
+    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+      <p class="text-3xl font-bold text-[#0F2347]">{{ critical_unresolved|length }}</p>
+      <p class="text-xs text-gray-500 mt-1">مخالفات جسيمة معلّقة</p>
+    </div>
+  </div>
+
+  <!-- مخالفات جسيمة -->
+  {% if critical_unresolved %}
+  <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+    <h2 class="font-bold text-red-800 mb-3">🚨 مخالفات جسيمة تحتاج قرار لجنة</h2>
+    <div class="space-y-2">
+      {% for inf in critical_unresolved %}
+      <div class="bg-white rounded-lg p-3 border border-red-100 flex items-center justify-between">
+        <div>
+          <p class="font-medium text-gray-800">{{ inf.student.full_name }}</p>
+          <p class="text-xs text-gray-500">{{ inf.description|truncatechars:60 }}</p>
+        </div>
+        <span class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">درجة {{ inf.level }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- توزيع المخالفات -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- حسب الدرجة -->
+    <div class="bg-white rounded-xl border shadow-sm p-5">
+      <h3 class="font-bold text-gray-800 mb-4">توزيع المخالفات حسب الدرجة</h3>
+      {% for stat in stats %}
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-gray-600">درجة {{ stat.level }}</span>
+        <span class="text-sm font-bold
+          {% if stat.level == 1 %}text-blue-600
+          {% elif stat.level == 2 %}text-amber-600
+          {% elif stat.level == 3 %}text-orange-600
+          {% else %}text-red-600{% endif %}">
+          {{ stat.count }}
+        </span>
+      </div>
+      {% empty %}
+      <p class="text-gray-400 text-sm text-center py-4">لا توجد مخالفات</p>
+      {% endfor %}
+    </div>
+
+    <!-- آخر المخالفات -->
+    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+      <div class="px-5 py-3 border-b bg-gray-50">
+        <h3 class="font-bold text-gray-800">آخر المخالفات</h3>
+      </div>
+      {% if recent_infractions %}
+      <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+        {% for inf in recent_infractions %}
+        <div class="px-4 py-3 hover:bg-gray-50">
+          <div class="flex items-center justify-between">
+            <p class="text-sm font-medium text-gray-800">{{ inf.student.full_name }}</p>
+            <span class="text-xs
+              {% if inf.level == 1 %}text-blue-600 bg-blue-50
+              {% elif inf.level == 2 %}text-amber-600 bg-amber-50
+              {% else %}text-red-600 bg-red-50{% endif %}
+              px-2 py-0.5 rounded-full">درجة {{ inf.level }}</span>
+          </div>
+          <p class="text-xs text-gray-500 mt-0.5">{{ inf.date|date:"d/m/Y" }} — {{ inf.reported_by.full_name }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="py-8 text-center text-gray-400 text-sm">لا توجد مخالفات</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
