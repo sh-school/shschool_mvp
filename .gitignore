@@ -22,5 +22,5 @@ htmlcov/
 # بيانات حقيقية — يُمنع رفعها
 data/
 *.csv
-
+AAdocs/
 nginx/ssl/
