@@ -9,177 +9,198 @@
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
-    /* ═══ Mega Dropdown ═══════════════════════════════════════ */
-    .sd-trigger { position: relative; }
+    /* ══ Dropdown ══════════════════════════════════════════════ */
     .sd-menu {
       display: none;
       position: fixed;
-      top: 56px;
-      min-width: 210px;
-      background: #fff;
+      min-width: 200px;
+      background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.16);
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.14);
       z-index: 99999;
-      padding: 6px 0;
+      padding: 5px 0;
       color-scheme: light;
     }
     .sd-menu.open { display: block; }
     .sd-menu a {
-      display: flex; align-items: center; gap-10px;
-      padding: 10px 18px; font-size: 13px; color: #1e293b !important;
-      text-decoration: none; white-space: nowrap;
-      transition: background .12s;
-      gap: 10px;
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px; font-size: 13px;
+      color: #1e293b !important; text-decoration: none;
+      white-space: nowrap; transition: background .1s;
     }
     .sd-menu a:hover { background: #f1f5f9; }
-    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
-    .sd-menu .menu-header {
-      padding: 6px 18px 4px;
-      font-size: 10px; font-weight: 600;
-      color: #94a3b8 !important;
-      text-transform: uppercase; letter-spacing: .06em;
+    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 3px 0; }
+    .sd-label {
+      padding: 5px 16px 2px; font-size: 10px;
+      font-weight: 700; color: #94a3b8 !important;
+      letter-spacing: .07em; text-transform: uppercase;
     }
-    .sd-btn {
+    /* ══ Nav button & link ═════════════════════════════════════ */
+    .nb {
       display: flex; align-items: center; gap: 4px;
-      padding: 5px 10px; border-radius: 6px;
-      font-size: 12px; color: #fff; background: none; border: none;
-      cursor: pointer; white-space: nowrap;
-      transition: background .12s;
+      padding: 5px 9px; border-radius: 6px;
+      font-size: 12px; color: #fff;
+      background: none; border: none; cursor: pointer;
+      white-space: nowrap; transition: background .1s;
+      text-decoration: none;
     }
-    .sd-btn:hover, .sd-btn.active { background: rgba(255,255,255,0.18); }
-    .sd-chevron { font-size: 9px; opacity: .7; transition: transform .2s; }
-    .sd-btn.active .sd-chevron { transform: rotate(180deg); }
-    /* ═══ Nav link style ══════════════════════════════════════ */
-    .nav-a {
-      padding: 5px 10px; border-radius: 6px; font-size: 12px;
-      color: #fff; text-decoration: none; white-space: nowrap;
-      transition: background .12s;
-    }
-    .nav-a:hover { background: rgba(255,255,255,0.18); }
+    .nb:hover, .nb.on { background: rgba(255,255,255,0.18); }
+    .chv { font-size: 8px; opacity: .65; transition: transform .18s; }
+    .nb.on .chv { transform: rotate(180deg); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
 {% if user.is_authenticated %}
-<nav style="background:#8A1538; position:sticky; top:0; z-index:500; box-shadow:0 2px 8px rgba(0,0,0,0.18);">
-  <div style="max-width:1280px; margin:0 auto; padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; gap:8px;">
+<nav style="background:#8A1538;position:sticky;top:0;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+  <div style="max-width:1280px;margin:0 auto;padding:0 14px;display:flex;align-items:center;height:52px;gap:4px;">
 
     <!-- Logo -->
-    <a href="/dashboard/" style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;color:#fff;text-decoration:none;flex-shrink:0;">
+    <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:6px;flex-shrink:0;">
       🏫 SchoolOS
     </a>
 
-    <!-- Nav Links -->
-    <div style="display:flex;align-items:center;gap:2px;flex:1;margin:0 12px;overflow-x:auto;scrollbar-width:none;">
-      {% with role=request.user.get_role %}
+    <div style="width:1px;height:22px;background:rgba(255,255,255,0.2);margin:0 4px;flex-shrink:0;"></div>
 
-      {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/analytics/"           class="nav-a">📊 الإحصاءات</a>
-      <a href="/assessments/"         class="nav-a">التقييمات</a>
-      <a href="/reports/"             class="nav-a">التقارير</a>
-      <a href="/teacher/weekly-schedule/" class="nav-a">الجدول</a>
-      <a href="/teacher/absences/"    class="nav-a">الغيابات</a>
+    {% with role=request.user.get_role %}
+    {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
 
-      <!-- ── الجودة Dropdown ── -->
-      <div class="sd-trigger">
-        <button class="sd-btn" id="btn-quality" onclick="sdToggle('menu-quality',this)">
-          📋 الجودة <span class="sd-chevron">▼</span>
-        </button>
-        <div class="sd-menu" id="menu-quality">
-          <div class="menu-header">الخطة التشغيلية</div>
-          <a href="/quality/">📊 لوحة الخطة التشغيلية</a>
-          <a href="/quality/report/">📈 تقرير التقدم</a>
-          <a href="/quality/executor-mapping/">🔗 ربط المنفذين بالموظفين</a>
-          <hr>
-          <div class="menu-header">اللجان</div>
-          <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
-          <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
-          <hr>
-          <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
-        </div>
-      </div>
+    <!-- ── الرئيسية ── -->
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
 
-      <a href="/parents/admin/links/" class="nav-a">الأولياء</a>
-      <a href="/notifications/"       class="nav-a">الإشعارات</a>
-      <span style="color:rgba(255,255,255,0.25);padding:0 4px;">|</span>
-      <a href="/clinic/"              class="nav-a">🏥 العيادة</a>
-      <a href="/transport/"           class="nav-a">🚌 النقل</a>
-      <a href="/behavior/dashboard/"  class="nav-a">⚖️ السلوك</a>
-      <a href="/library/"             class="nav-a">📚 المكتبة</a>
+    <!-- ── الأكاديمية Dropdown ── -->
+    <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">
+      📚 الأكاديمية <span class="chv">▼</span>
+    </button>
 
-      {% elif role == "nurse" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/clinic/"              class="nav-a">🏥 العيادة</a>
-      <a href="/clinic/visits/"       class="nav-a">سجل الزيارات</a>
-      <a href="/clinic/record/"       class="nav-a">تسجيل زيارة</a>
-      <a href="/clinic/statistics/"   class="nav-a">إحصائيات</a>
+    <!-- ── الجودة Dropdown ── -->
+    <button class="nb" id="btn-quality" onclick="sd('m-quality',this)">
+      📋 الجودة <span class="chv">▼</span>
+    </button>
 
-      {% elif role == "bus_supervisor" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/transport/"           class="nav-a">🚌 لوحة النقل</a>
-      <a href="/transport/buses/"     class="nav-a">الحافلات</a>
-      <a href="/transport/assignments/" class="nav-a">إسناد الطلاب</a>
-      <a href="/transport/statistics/" class="nav-a">إحصائيات</a>
+    <!-- ── الإدارة Dropdown ── -->
+    <button class="nb" id="btn-admin" onclick="sd('m-admin',this)">
+      ⚙️ الإدارة <span class="chv">▼</span>
+    </button>
 
-      {% elif role == "librarian" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/library/"             class="nav-a">📚 لوحة المكتبة</a>
-      <a href="/library/books/"       class="nav-a">الكتب</a>
-      <a href="/library/borrow/"      class="nav-a">إعارة جديدة</a>
+    <!-- ── الخدمات Dropdown ── -->
+    <button class="nb" id="btn-services" onclick="sd('m-services',this)">
+      🏥 الخدمات <span class="chv">▼</span>
+    </button>
 
-      {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/teacher/schedule/"    class="nav-a">جدولي</a>
-      <a href="/teacher/weekly-schedule/" class="nav-a">الجدول الأسبوعي</a>
-      <a href="/assessments/"         class="nav-a">التقييمات</a>
-      <a href="/import/"              class="nav-a">استيراد الدرجات</a>
-      <a href="/reports/"             class="nav-a">التقارير</a>
-      <a href="/quality/my-procedures/" class="nav-a">إجراءاتي</a>
-      <a href="/behavior/dashboard/"  class="nav-a">⚖️ السلوك</a>
+    {% elif role == "nurse" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/clinic/" class="nb">🏥 العيادة</a>
+    <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
+    <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
+    <a href="/clinic/statistics/" class="nb">إحصائيات</a>
 
-      {% elif role == "student" %}
-      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
-      <a href="/library/"             class="nav-a">📚 المكتبة</a>
+    {% elif role == "bus_supervisor" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/transport/" class="nb">🚌 لوحة النقل</a>
+    <a href="/transport/buses/" class="nb">الحافلات</a>
+    <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
+    <a href="/transport/statistics/" class="nb">إحصائيات</a>
 
-      {% elif role == "parent" %}
-      <a href="/parents/"             class="nav-a">🏠 بوابتي</a>
+    {% elif role == "librarian" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/library/" class="nb">📚 لوحة المكتبة</a>
+    <a href="/library/books/" class="nb">الكتب</a>
+    <a href="/library/borrow/" class="nb">إعارة جديدة</a>
 
-      {% endif %}
-      {% endwith %}
-    </div>
+    {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/teacher/schedule/" class="nb">جدولي</a>
+    <a href="/teacher/weekly-schedule/" class="nb">الجدول الأسبوعي</a>
+    <a href="/assessments/" class="nb">التقييمات</a>
+    <a href="/import/" class="nb">استيراد الدرجات</a>
+    <a href="/reports/" class="nb">التقارير</a>
+    <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+    <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
 
-    <!-- User Dropdown -->
-    <div class="sd-trigger" style="flex-shrink:0;">
-      <button class="sd-btn" id="btn-user" onclick="sdToggle('menu-user',this)" style="gap:6px;">
-        <span style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
-          {{ request.user.full_name|slice:":1" }}
-        </span>
-        <span style="font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">
-          {{ request.user.full_name|truncatechars:14 }}
-        </span>
-        <span class="sd-chevron">▼</span>
-      </button>
-      <div class="sd-menu" id="menu-user" style="min-width:200px;">
-        <div style="padding:10px 18px 8px;border-bottom:1px solid #f1f5f9;">
-          <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;">{{ request.user.full_name }}</p>
-          <p style="font-size:11px;color:#64748b;margin:2px 0 0;">{{ request.user.national_id }}</p>
-          <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0;">{{ request.user.get_role }}</p>
-        </div>
-        {% if request.user.memberships.count > 1 %}
-        <a href="/auth/choose-role/" style="color:#2563eb !important;">🔄 تبديل الدور</a>
-        {% endif %}
-        <a href="/admin/">⚙️ الإدارة</a>
-        <a href="/auth/logout/" style="color:#dc2626 !important;">خروج</a>
-      </div>
-    </div>
+    {% elif role == "student" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/library/" class="nb">📚 المكتبة</a>
+
+    {% elif role == "parent" %}
+    <a href="/parents/" class="nb">🏠 بوابتي</a>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Spacer -->
+    <div style="flex:1;"></div>
+
+    <!-- User -->
+    <button class="nb" id="btn-user" onclick="sd('m-user',this)" style="gap:6px;flex-shrink:0;">
+      <span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">
+        {{ request.user.full_name|slice:":1" }}
+      </span>
+      <span style="font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;">{{ request.user.full_name|truncatechars:13 }}</span>
+      <span class="chv">▼</span>
+    </button>
 
   </div>
 </nav>
+
+<!-- ══ Dropdown Menus (outside nav — fixed position) ══════════ -->
+
+<div class="sd-menu" id="m-academic">
+  <div class="sd-label">الدراسة</div>
+  <a href="/assessments/">📝 التقييمات</a>
+  <a href="/reports/">📊 التقارير</a>
+  <a href="/analytics/">📈 الإحصاءات</a>
+  <hr>
+  <div class="sd-label">الجدول</div>
+  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/absences/">🚫 الغيابات</a>
+</div>
+
+<div class="sd-menu" id="m-quality">
+  <div class="sd-label">الخطة التشغيلية</div>
+  <a href="/quality/">📊 لوحة الخطة</a>
+  <a href="/quality/report/">📈 تقرير التقدم</a>
+  <a href="/quality/executor-mapping/">🔗 ربط المنفذين</a>
+  <hr>
+  <div class="sd-label">اللجان</div>
+  <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
+  <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
+  <hr>
+  <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
+</div>
+
+<div class="sd-menu" id="m-admin">
+  <div class="sd-label">المدرسة</div>
+  <a href="/parents/admin/links/">👨‍👩‍👧 الأولياء</a>
+  <a href="/notifications/">🔔 الإشعارات</a>
+  <hr>
+  <a href="/admin/">🛠️ لوحة الإدارة</a>
+</div>
+
+<div class="sd-menu" id="m-services">
+  <a href="/clinic/">🏥 العيادة</a>
+  <a href="/transport/">🚌 النقل</a>
+  <a href="/behavior/dashboard/">⚖️ السلوك</a>
+  <a href="/library/">📚 المكتبة</a>
+</div>
+
+<div class="sd-menu" id="m-user" style="min-width:190px;">
+  <div style="padding:9px 16px 7px;border-bottom:1px solid #f1f5f9;">
+    <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;">{{ request.user.full_name }}</p>
+    <p style="font-size:11px;color:#64748b;margin:2px 0 0;">{{ request.user.national_id }}</p>
+    <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0;">{{ request.user.get_role }}</p>
+  </div>
+  {% if request.user.memberships.count > 1 %}
+  <a href="/auth/choose-role/" style="color:#2563eb !important;">🔄 تبديل الدور</a>
+  {% endif %}
+  <a href="/admin/">⚙️ الإدارة</a>
+  <hr>
+  <a href="/auth/logout/" style="color:#dc2626 !important;">🚪 تسجيل الخروج</a>
+</div>
+
 {% endif %}
 
-<!-- ── Messages ── -->
+<!-- ══ Messages ═══════════════════════════════════════════════ -->
 {% if messages %}
 <div style="max-width:1280px;margin:12px auto 0;padding:0 16px;" class="space-y-2">
   {% for msg in messages %}
@@ -187,61 +208,45 @@
     {% if msg.tags == 'success' %}bg-green-100 text-green-800 border border-green-200
     {% elif msg.tags == 'error' %}bg-red-100 text-red-800 border border-red-200
     {% elif msg.tags == 'warning' %}bg-amber-100 text-amber-800 border border-amber-200
-    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
-    {{ msg }}
-  </div>
+    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">{{ msg }}</div>
   {% endfor %}
 </div>
 {% endif %}
 
-<main class="max-w-7xl mx-auto px-4 py-6">
-  {% block content %}{% endblock %}
-</main>
+<main class="max-w-7xl mx-auto px-4 py-6">{% block content %}{% endblock %}</main>
 
 <footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
   SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التعليم والتعليم العالي
 </footer>
 
 <script>
-// ═══ Smart Dropdown — position:fixed escapes overflow completely ═══
-function sdPosition(menu, btn) {
+function sdPos(m, btn) {
   var r = btn.getBoundingClientRect();
-  var mw = menu.offsetWidth || 210;
-  // RTL: align right edge of menu with right edge of button
+  m.style.top = (r.bottom + 4) + 'px';
+  var mw = m.offsetWidth || 200;
   var left = r.right - mw;
   if (left < 8) left = 8;
   if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
-  menu.style.left = left + 'px';
-  menu.style.top  = (r.bottom + 4) + 'px';
+  m.style.left = left + 'px';
 }
-
-function sdToggle(menuId, btn) {
-  var menu = document.getElementById(menuId);
-  var isOpen = menu.classList.contains('open');
-  // close all
-  document.querySelectorAll('.sd-menu.open').forEach(function(m){ m.classList.remove('open'); });
-  document.querySelectorAll('.sd-btn.active').forEach(function(b){ b.classList.remove('active'); });
-  if (!isOpen) {
-    menu.classList.add('open');
-    btn.classList.add('active');
-    sdPosition(menu, btn);
-  }
+function sd(id, btn) {
+  var m = document.getElementById(id);
+  var open = m.classList.contains('open');
+  document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
+  document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
+  if (!open) { m.classList.add('open'); btn.classList.add('on'); sdPos(m, btn); }
 }
-
-// Close on outside click
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.sd-menu') && !e.target.closest('.sd-btn')) {
-    document.querySelectorAll('.sd-menu.open').forEach(function(m){ m.classList.remove('open'); });
-    document.querySelectorAll('.sd-btn.active').forEach(function(b){ b.classList.remove('active'); });
+  if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
+    document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
+    document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
   }
 });
-
-// Reposition on resize/scroll
 window.addEventListener('resize', function() {
-  document.querySelectorAll('.sd-menu.open').forEach(function(menu) {
-    var btnId = 'btn-' + menu.id.replace('menu-','');
+  document.querySelectorAll('.sd-menu.open').forEach(function(m) {
+    var btnId = 'btn-' + m.id.replace('m-','');
     var btn = document.getElementById(btnId);
-    if (btn) sdPosition(menu, btn);
+    if (btn) sdPos(m, btn);
   });
 });
 </script>
