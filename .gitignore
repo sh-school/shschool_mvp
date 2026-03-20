@@ -24,3 +24,5 @@ data/
 *.csv
 AAdocs/
 nginx/ssl/
+node_modules/
+ZZZZ.zip
