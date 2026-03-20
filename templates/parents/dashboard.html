@@ -16,9 +16,58 @@
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/parents/sw.js', { scope: '/parents/' })
-      .then(reg => console.log('SW registered:', reg.scope))
+      .then(reg => {
+        console.log('SW registered:', reg.scope);
+        // ✅ v5: تفعيل Push Notifications تلقائياً
+        _initPushNotifications(reg);
+      })
       .catch(err => console.log('SW error:', err));
   });
+}
+
+// ── Push Notifications VAPID (v5) ──────────────────────────
+async function _initPushNotifications(swReg) {
+  if (!('PushManager' in window)) return;
+  try {
+    // جلب VAPID public key
+    const keyResp = await fetch('/parents/push/vapid-key/');
+    const { publicKey } = await keyResp.json();
+    if (!publicKey) return;
+
+    // تحقق من الاشتراك الحالي
+    let sub = await swReg.pushManager.getSubscription();
+    if (!sub) {
+      // طلب إذن الإشعارات
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') return;
+      // اشتراك جديد
+      sub = await swReg.pushManager.subscribe({
+        userVisibleOnly:      true,
+        applicationServerKey: _urlBase64ToUint8Array(publicKey),
+      });
+    }
+    // إرسال الاشتراك للـ backend
+    await fetch('/parents/push/subscribe/', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': _getCookie('csrftoken') },
+      body:    JSON.stringify(sub.toJSON()),
+    });
+    console.log('✅ Push subscription active');
+  } catch(e) {
+    console.log('Push init error:', e);
+  }
+}
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw     = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+function _getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : '';
 }
 
 // ── PWA Install Prompt ──
@@ -83,6 +132,17 @@ updateOnlineStatus();
     <a href="{% url 'parent_consent' %}"
        class="flex items-center gap-2 text-xs px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 transition">
       🔐 إعدادات الخصوصية
+    </a>
+    <!-- ✅ v5+: لائحة السلوك PDF + Word -->
+    <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
+       class="flex items-center gap-2 text-xs px-4 py-2 bg-[#8A1538] hover:bg-[#6B1029] rounded-xl text-white transition"
+       title="طباعة PDF">
+      🖨️ لائحة السلوك PDF
+    </a>
+    <a href="{% url 'behavior:policy_word' %}"
+       class="flex items-center gap-2 text-xs px-4 py-2 bg-white border border-[#8A1538] text-[#8A1538] hover:bg-red-50 rounded-xl transition"
+       title="تحميل Word للتعديل">
+      📝 لائحة السلوك Word
     </a>
   </div>
   </div>

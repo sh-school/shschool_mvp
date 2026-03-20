@@ -1,0 +1,101 @@
+{% extends "behavior/pdf/base_form.html" %}
+{% block content %}
+
+<div class="header">
+  <div class="school-name">🏫 مدرسة الشحانية الإعدادية الثانوية للبنين</div>
+  <div class="form-title">نموذج إنذار سلوكي</div>
+  <div class="date-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div>
+</div>
+
+<!-- بيانات الطالب -->
+<div class="section">
+  <div class="section-title">بيانات الطالب</div>
+  <div class="field-row">
+    <span class="field-label">اسم الطالب:</span>
+    <span class="field-value">{{ infraction.student.full_name }}</span>
+    <span class="field-label">الرقم الشخصي:</span>
+    <span class="field-value">{{ infraction.student.username }}</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">الصف / الفصل:</span>
+    <span class="field-value">{{ class_name|default:"_____________" }}</span>
+    <span class="field-label">الرقم المدرسي:</span>
+    <span class="field-value">{{ infraction.student.school_id|default:"_____________" }}</span>
+  </div>
+</div>
+
+<!-- نوع المخالفة -->
+<div class="section">
+  <div class="section-title">نوع المخالفة السلوكية</div>
+  {% if infraction.violation_category %}
+  <p>
+    <span class="badge badge-{{ infraction.violation_category.category }}">
+      {{ infraction.violation_category.code }}
+    </span>
+    &nbsp;{{ infraction.violation_category.name_ar }}
+    &nbsp;|&nbsp; الدرجة: {{ infraction.get_level_display }}
+  </p>
+  {% else %}
+  <div class="checkbox-row">
+    <div class="checkbox-item">
+      <span class="checkbox-box">{% if 'غياب' in infraction.description %}✓{% endif %}</span> غياب غير مبرر
+    </div>
+    <div class="checkbox-item">
+      <span class="checkbox-box">{% if 'تأخر' in infraction.description %}✓{% endif %}</span> تأخر
+    </div>
+    <div class="checkbox-item">
+      <span class="checkbox-box"></span> سلوك مسيء
+    </div>
+    <div class="checkbox-item">
+      <span class="checkbox-box"></span> مخالفة تعليمات الاختبارات
+    </div>
+    <div class="checkbox-item">
+      <span class="checkbox-box">✓</span> أخرى
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- تفاصيل الواقعة -->
+<div class="section">
+  <div class="section-title">تفاصيل الواقعة</div>
+  <p class="body-text">{{ infraction.description }}</p>
+</div>
+
+<!-- الإجراء المتخذ -->
+<div class="section">
+  <div class="section-title">الإجراء المتخذ وفق اللوائح</div>
+  <p class="body-text">
+    {{ infraction.action_taken|default:infraction.violation_category.default_action|default:"_______________________________" }}
+  </p>
+</div>
+
+<p class="body-text" style="margin:14px 0">
+  هذا إنذار سلوكي
+  <strong>
+    {% if infraction_count == 1 %}أول{% elif infraction_count == 2 %}ثانٍ{% else %}نهائي{% endif %}
+  </strong>
+  للطالب أعلاه. يُرجى الالتزام التام بلوائح السلوك والانضباط.
+</p>
+
+<!-- التوقيعات -->
+<div class="sig-section">
+  <div class="sig-grid">
+    <div class="sig-box"><div class="sig-line">توقيع رائد الفصل</div></div>
+    <div class="sig-box"><div class="sig-line">توقيع منسق السلوك</div></div>
+    <div class="sig-box"><div class="sig-line">توقيع وكيل شؤون الطلبة</div></div>
+  </div>
+  <div class="sig-grid" style="margin-top:24px">
+    <div class="sig-box"><div class="sig-line">توقيع الطالب</div></div>
+    <div class="sig-box"><div class="sig-line">توقيع ولي الأمر</div></div>
+    <div class="sig-box">
+      <div class="sig-line">تاريخ التسليم لولي الأمر<br>____/____/________</div>
+    </div>
+  </div>
+</div>
+
+<div class="notice">
+  ملاحظة: يعتمد هذا النموذج وفق لوائح السلوك والانضباط المدرسية المعتمدة.
+  أُنشئ بواسطة SchoolOS v5 | {{ generated_at|date:"Y/m/d H:i" }}
+</div>
+{% endblock %}

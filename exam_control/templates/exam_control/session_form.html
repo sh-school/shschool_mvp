@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}دورة اختبار جديدة{% endblock %}
+{% block content %}
+<div class="container mt-4" style="max-width:600px">
+  <h5 class="fw-bold mb-3" style="color:#8A1538">➕ دورة اختبار جديدة</h5>
+  <form method="post" class="card p-4 shadow-sm">{% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">اسم الدورة</label>
+      <input name="name" class="form-control" placeholder="مثال: نهاية الفصل الأول 2025-2026" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">النوع</label>
+      <select name="session_type" class="form-select">
+        {% for v,l in session_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">العام الدراسي</label>
+      <input name="academic_year" class="form-control" value="2025-2026">
+    </div>
+    <div class="row g-2 mb-3">
+      <div class="col">
+        <label class="form-label fw-semibold">تاريخ البداية</label>
+        <input name="start_date" type="date" class="form-control" required>
+      </div>
+      <div class="col">
+        <label class="form-label fw-semibold">تاريخ النهاية</label>
+        <input name="end_date" type="date" class="form-control" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100">إنشاء الدورة</button>
+  </form>
+</div>
+{% endblock %}

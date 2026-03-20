@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}أوراق الرصد{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <h5 class="fw-bold mb-3" style="color:#8A1538">📋 أوراق الرصد والتصحيح — {{ session.name }}</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover">
+      <thead class="table-dark">
+        <tr><th>المادة</th><th>التاريخ</th><th>الأوراق</th><th>الحالة</th><th>تحديث</th></tr>
+      </thead>
+      <tbody>
+        {% for sh in sheets %}
+        <tr>
+          <td>{{ sh.schedule.subject }} — {{ sh.schedule.grade_level }}</td>
+          <td>{{ sh.schedule.exam_date }}</td>
+          <td>{{ sh.papers_count }}</td>
+          <td><span class="badge bg-{% if sh.status == 'pending' %}warning text-dark{% elif sh.status == 'graded' %}info{% else %}success{% endif %}">{{ sh.get_status_display }}</span></td>
+          <td>
+            <form method="post" class="d-inline">{% csrf_token %}
+              <input type="hidden" name="sheet_id" value="{{ sh.pk }}">
+              <select name="status" class="form-select form-select-sm d-inline" style="width:auto">
+                {% for v,l in STATUS %}<option value="{{ v }}" {% if sh.status == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+              </select>
+              <button type="submit" class="btn btn-primary btn-sm">حفظ</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}<tr><td colspan="5" class="text-center text-muted">لا توجد أوراق</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn btn-outline-secondary btn-sm">← رجوع</a>
+</div>
+{% endblock %}

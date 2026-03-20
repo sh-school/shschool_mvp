@@ -1,0 +1,68 @@
+{% extends "behavior/pdf/base_form.html" %}
+{% block content %}
+
+<div class="header">
+  <div class="school-name">🏫 مدرسة الشحانية الإعدادية الثانوية للبنين</div>
+  <div class="form-title">نموذج تعهّد الطالب بالالتزام</div>
+  <div class="date-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div>
+</div>
+
+<!-- بيانات الطالب -->
+<div class="section">
+  <div class="section-title">بيانات الطالب</div>
+  <div class="field-row">
+    <span class="field-label">اسم الطالب:</span>
+    <span class="field-value">{{ infraction.student.full_name }}</span>
+    <span class="field-label">الرقم الشخصي:</span>
+    <span class="field-value">{{ infraction.student.username }}</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">الصف / الفصل:</span>
+    <span class="field-value">{{ class_name|default:"_____________" }}</span>
+    <span class="field-label">الرقم المدرسي:</span>
+    <span class="field-value">{{ infraction.student.school_id|default:"_____________" }}</span>
+  </div>
+</div>
+
+<!-- سبب التعهد -->
+<div class="section">
+  <div class="section-title">سبب التعهد</div>
+  <p class="body-text">
+    {% if infraction.violation_category %}
+    مخالفة [{{ infraction.violation_category.code }}] — {{ infraction.violation_category.name_ar }}<br>
+    {% endif %}
+    {{ infraction.description }}
+  </p>
+</div>
+
+<!-- نص التعهد -->
+<div class="section">
+  <div class="section-title">نص التعهد</div>
+  <p class="body-text">
+    أتعهد أنا الطالب المذكور أعلاه بالالتزام الكامل بلوائح السلوك والانضباط
+    المدرسي، والمحافظة على الممتلكات، واحترام الزملاء والعاملين، والالتزام
+    بجميع تعليمات الاختبارات. في حال مخالفة ذلك فأنا على علم بالإجراءات
+    المتخذة وفق اللوائح المعتمدة.
+  </p>
+</div>
+
+<!-- التوقيعات -->
+<div class="sig-section">
+  <div class="sig-grid">
+    <div class="sig-box"><div class="sig-line">توقيع الطالب</div></div>
+    <div class="sig-box"><div class="sig-line">توقيع ولي الأمر</div></div>
+    <div class="sig-box">
+      <div class="sig-line">اسم المرشد / منسق السلوك<br>{{ received_by }}</div>
+    </div>
+  </div>
+  <div class="sig-grid" style="margin-top:24px">
+    <div class="sig-box"><div class="sig-line">توقيع المدير / الوكيل</div></div>
+    <div class="sig-box"><div class="sig-line">التاريخ<br>{{ infraction.date|date:"Y/m/d" }}</div></div>
+    <div class="sig-box"></div>
+  </div>
+</div>
+
+<div class="notice">
+  أُنشئ بواسطة SchoolOS v5 | {{ generated_at|date:"Y/m/d H:i" }}
+</div>
+{% endblock %}

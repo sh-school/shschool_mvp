@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}تسجيل حادث اختبار{% endblock %}
+{% block content %}
+<div class="container mt-3" style="max-width:720px">
+  <h5 class="fw-bold mb-3">📝 محضر حادثة اختبارية — {{ session.name }}</h5>
+  <form method="post">{% csrf_token %}
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (أ): بيانات عامة</h6>
+      <div class="row g-2">
+        <div class="col-md-6">
+          <label class="form-label">القاعة</label>
+          <select name="room_id" class="form-select form-select-sm">
+            <option value="">— بدون قاعة محددة —</option>
+            {% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">نوع الحادث</label>
+          <select name="incident_type" class="form-select form-select-sm" required>
+            {% for v,l in incident_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">الطالب المعني (اختياري)</label>
+          <select name="student_id" class="form-select form-select-sm">
+            <option value="">— اختر —</option>
+            {% for e in students %}<option value="{{ e.student.pk }}">{{ e.student.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">الخطورة</label>
+          <select name="severity" class="form-select form-select-sm">
+            {% for v,l in severity_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (ب): وصف ما حدث</h6>
+      <textarea name="description" class="form-control" rows="3" placeholder="اكتب سرداً موضوعياً..." required></textarea>
+    </div>
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (ج): الإصابات والأضرار</h6>
+      <textarea name="injuries" class="form-control" rows="2" placeholder="اترك فارغاً إن لم تكن هناك إصابات"></textarea>
+    </div>
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (د): الإجراء الفوري المتخذ</h6>
+      <textarea name="action_taken" class="form-control" rows="2" placeholder="الجهة المُبلَّغة، الإجراء المتخذ..."></textarea>
+    </div>
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (هـ): المرفقات والشهود</h6>
+      <textarea name="attachments" class="form-control" rows="2" placeholder="أسماء الشهود، صور، تقارير..."></textarea>
+    </div>
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">القسم (و): التوصيات</h6>
+      <textarea name="recommendations" class="form-control" rows="2"></textarea>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-danger">حفظ المحضر وطباعة PDF</button>
+      <a href="{% url 'exam_control:incidents' session.pk %}" class="btn btn-outline-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

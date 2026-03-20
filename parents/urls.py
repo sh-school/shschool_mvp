@@ -20,4 +20,8 @@ urlpatterns = [
     path('offline/',        TemplateView.as_view(template_name='parents/pwa/offline.html'), name='pwa_offline'),
     # Consent
     path('consent/',        views.consent_view,  name='parent_consent'),
+    # ✅ v5: Push Notifications VAPID
+    path('push/subscribe/',   views.push_subscribe,   name='push_subscribe'),
+    path('push/unsubscribe/', views.push_unsubscribe, name='push_unsubscribe'),
+    path('push/vapid-key/',   views.push_vapid_key,   name='push_vapid_key'),
 ]

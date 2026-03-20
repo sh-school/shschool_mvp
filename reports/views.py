@@ -100,16 +100,10 @@ from core.models import CustomUser, StudentEnrollment, ClassGroup, School
 from operations.models import StudentAttendance
 
 
-def _render_pdf(html_string):
-    """تحويل HTML → PDF باستخدام WeasyPrint"""
-    try:
-        from weasyprint import HTML, CSS
-        from weasyprint.text.fonts import FontConfiguration
-        font_config = FontConfiguration()
-        pdf = HTML(string=html_string).write_pdf(font_config=font_config)
-        return pdf
-    except Exception as e:
-        raise RuntimeError(f"WeasyPrint error: {e}")
+def _render_pdf(html_string, filename="report.pdf"):
+    """تحويل HTML → PDF مع دعم الخطوط العربية — يعيد bytes"""
+    from core.pdf_utils import render_pdf_bytes
+    return render_pdf_bytes(html_string)
 
 
 def _get_student_report_data(student, school, year):

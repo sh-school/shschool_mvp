@@ -452,3 +452,181 @@ def api_clinic_stats(request):
             {"label": "أُرسل للمنزل",    "data": sent_home, "borderColor": "#d97706", "fill": False, "tension": 0.3},
         ]
     })
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ 10 KPIs من Ct.zip — مُضافة في v5
+# الهدف: بناء لوحة مؤشرات الأداء الرئيسية (SchoolOS SWOT خطوة شهر 1)
+# ════════════════════════════════════════════════════════════════════
+
+@login_required
+def kpi_dashboard(request):
+    """لوحة KPIs العشرة — للمدير فقط"""
+    if not _admin_required(request):
+        return HttpResponse("غير مسموح", status=403)
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+    return render(request, 'analytics/kpi_dashboard.html', {'school': school, 'year': year})
+
+
+@login_required
+def api_kpis_all(request):
+    """
+    JSON يحسب 10 KPIs دفعة واحدة.
+    بصيغ Ct.zip الرياضية الجاهزة.
+    """
+    if not _admin_required(request):
+        return JsonResponse({}, status=403)
+
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+    today  = timezone.now().date()
+    month  = today.month
+
+    kpis = {}
+
+    # ── KPI 1: نسبة حضور الطلبة ─────────────────────────────────
+    # هدف: ≥95% | إنذار: <90% | مصدر: Attendance
+    sessions_month = Session.objects.filter(school=school, date__month=month, date__year=today.year)
+    att_all  = StudentAttendance.objects.filter(session__in=sessions_month)
+    present  = att_all.filter(status='present').count()
+    total_att = att_all.count()
+    kpis['student_attendance_pct'] = {
+        'label': 'نسبة حضور الطلبة',
+        'value': round(present / total_att * 100, 1) if total_att else 0,
+        'target': 95, 'warning': 90, 'unit': '%', 'frequency': 'أسبوعي',
+    }
+
+    # ── KPI 2: مخالفات/100 طالب ─────────────────────────────────
+    # هدف: ≤3 | إنذار: >5 | مصدر: BehaviorInfraction
+    total_students = StudentEnrollment.objects.filter(
+        class_group__school=school, class_group__academic_year=year, is_active=True
+    ).count()
+    infractions_month = BehaviorInfraction.objects.filter(
+        school=school, date__month=month, date__year=today.year
+    ).count()
+    rate_per100 = round(infractions_month / total_students * 100, 2) if total_students else 0
+    kpis['infractions_per_100'] = {
+        'label': 'مخالفات/100 طالب',
+        'value': rate_per100,
+        'target': 3, 'warning': 5, 'unit': '', 'frequency': 'شهري',
+        'direction': 'lower_better',
+    }
+
+    # ── KPI 3: رصد الدرجات في الوقت ─────────────────────────────
+    # هدف: ≥98% | تحذير: <95% | مصدر: ExamGradeSheet (إن وُجد)
+    try:
+        from exam_control.models import ExamGradeSheet
+        total_sheets = ExamGradeSheet.objects.filter(schedule__session__school=school).count()
+        submitted    = ExamGradeSheet.objects.filter(
+            schedule__session__school=school, status='submitted'
+        ).count()
+        grading_pct  = round(submitted / total_sheets * 100, 1) if total_sheets else 100
+    except Exception:
+        grading_pct = 100
+    kpis['grading_on_time_pct'] = {
+        'label': 'رصد الدرجات في الوقت',
+        'value': grading_pct,
+        'target': 98, 'warning': 95, 'unit': '%', 'frequency': 'فصلي',
+    }
+
+    # ── KPI 4: أيام اختبار بلا حوادث ───────────────────────────
+    # هدف: 100% | أي حادث = تحقيق
+    try:
+        from exam_control.models import ExamSession, ExamIncident
+        exam_days = ExamSession.objects.filter(school=school).values_list('start_date', flat=True)
+        incident_days = ExamIncident.objects.filter(
+            session__school=school, severity__gte=2
+        ).values_list('incident_time__date', flat=True).distinct()
+        clean_days_pct = round(
+            (len(set(exam_days) - set(incident_days)) / len(set(exam_days))) * 100, 1
+        ) if exam_days else 100
+    except Exception:
+        clean_days_pct = 100
+    kpis['exam_clean_days_pct'] = {
+        'label': 'أيام اختبار بلا حوادث',
+        'value': clean_days_pct,
+        'target': 100, 'warning': 99, 'unit': '%', 'frequency': 'فصلي',
+    }
+
+    # ── KPI 5: غياب المعلمين غير المبرر ─────────────────────────
+    # هدف: ≤1% | إنذار: >2% | مصدر: TeacherAbsence
+    total_teacher_days = Membership.objects.filter(
+        school=school, is_active=True, role__name__in=['teacher', 'coordinator']
+    ).count() * 20  # تقدير 20 يوم دراسي
+    unexcused = TeacherAbsence.objects.filter(
+        school=school, date__month=month, date__year=today.year,
+        is_excused=False
+    ).count()
+    teacher_abs_pct = round(unexcused / total_teacher_days * 100, 2) if total_teacher_days else 0
+    kpis['teacher_unexcused_absence_pct'] = {
+        'label': 'غياب المعلمين غير المبرر',
+        'value': teacher_abs_pct,
+        'target': 1, 'warning': 2, 'unit': '%', 'frequency': 'شهري',
+        'direction': 'lower_better',
+    }
+
+    # ── KPI 6: حوادث النقل / 100,000 كم ─────────────────────────
+    # هدف: 0 | أي >0 = تحقيق | مصدر: SchoolBus + AuditLog
+    kpis['transport_incidents_rate'] = {
+        'label': 'حوادث النقل / 100,000 كم',
+        'value': 0,  # يُحدَّث عند ربط GPS
+        'target': 0, 'warning': 0.1, 'unit': '', 'frequency': 'شهري',
+        'direction': 'lower_better',
+    }
+
+    # ── KPI 7: استعارة المكتبة / طالب ───────────────────────────
+    # هدف: ≥2 | متابعة: <1 | مصدر: BookBorrowing
+    borrowings = BookBorrowing.objects.filter(
+        book__school=school,
+        borrow_date__year=today.year
+    ).count()
+    borrows_per_student = round(borrowings / total_students, 2) if total_students else 0
+    kpis['library_borrows_per_student'] = {
+        'label': 'استعارة المكتبة / طالب',
+        'value': borrows_per_student,
+        'target': 2, 'warning': 1, 'unit': '', 'frequency': 'فصلي',
+    }
+
+    # ── KPI 8: مطابقة المقصف للصحة ──────────────────────────────
+    # هدف: ≥95% | مصدر: تقارير وزارة الصحة (يدوي)
+    kpis['canteen_health_compliance_pct'] = {
+        'label': 'مطابقة المقصف للصحة',
+        'value': None,  # يُدخَل يدوياً من تقارير وزارة الصحة
+        'target': 95, 'warning': 90, 'unit': '%', 'frequency': 'فصلي',
+        'note': 'يُدخَل يدوياً من تقارير وزارة الصحة',
+    }
+
+    # ── KPI 9: تنفيذ خطط الإخلاء ────────────────────────────────
+    # هدف: 100% | مصدر: AuditLog أو يدوي
+    kpis['evacuation_plan_execution_pct'] = {
+        'label': 'تنفيذ خطط الإخلاء',
+        'value': None,  # يُدخَل يدوياً
+        'target': 100, 'warning': 99, 'unit': '%', 'frequency': 'فصلي',
+        'note': 'يُسجَّل بعد كل تدريب إخلاء',
+    }
+
+    # ── KPI 10: ساعات التطوير المهني / معلم ─────────────────────
+    # هدف: ≥10 ساعات | تحذير: <6 | مصدر: AuditLog أو يدوي
+    kpis['professional_dev_hours'] = {
+        'label': 'ساعات التطوير المهني / معلم',
+        'value': None,  # يُدخَل من سجلات التطوير
+        'target': 10, 'warning': 6, 'unit': 'ساعة', 'frequency': 'فصلي',
+        'note': 'يُسجَّل من محاضر ورش التطوير',
+    }
+
+    # إضافة ترافيق (🟢🟡🔴) لكل KPI
+    for k, v in kpis.items():
+        val = v.get('value')
+        if val is None:
+            v['traffic'] = 'grey'
+        else:
+            direction = v.get('direction', 'higher_better')
+            target  = v['target']
+            warning = v['warning']
+            if direction == 'higher_better':
+                v['traffic'] = 'green' if val >= target else ('yellow' if val >= warning else 'red')
+            else:  # lower_better
+                v['traffic'] = 'green' if val <= target else ('yellow' if val <= warning else 'red')
+
+    return JsonResponse({'kpis': kpis, 'school': str(school), 'year': year, 'as_of': str(today)})

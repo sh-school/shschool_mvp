@@ -6,7 +6,7 @@ const CACHE_ASSETS = [
   '/parents/',
   '/parents/offline/',
   '/static/css/custom.css',
-  'https://cdn.tailwindcss.com',
+  '/static/css/tailwind.min.css',
 ];
 
 /* ── Install: cache core assets ── */

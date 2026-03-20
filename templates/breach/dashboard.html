@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}إدارة خرق البيانات{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3" dir="rtl">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-0" style="color:#8A1538">🔒 تقارير خرق البيانات</h4>
+      <small class="text-muted">PDPPL م.11 — إشعار NCSA خلال 72 ساعة</small>
+    </div>
+    <a href="{% url 'breach:create' %}" class="btn btn-danger btn-sm">+ تسجيل خرق</a>
+  </div>
+
+  <!-- إحصائيات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 border-danger">
+        <div class="fs-2 fw-bold text-danger">{{ stats.overdue }}</div>
+        <div class="small text-muted">تجاوز المهلة ⛔</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 border-warning">
+        <div class="fs-2 fw-bold text-warning">{{ stats.active }}</div>
+        <div class="small text-muted">نشط ⚠️</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 border-success">
+        <div class="fs-2 fw-bold text-success">{{ stats.notified }}</div>
+        <div class="small text-muted">تم الإشعار ✅</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3">
+        <div class="fs-2 fw-bold text-secondary">{{ stats.resolved }}</div>
+        <div class="small text-muted">محلول</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول التقارير -->
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover">
+      <thead class="table-dark">
+        <tr>
+          <th>العنوان</th><th>الخطورة</th><th>البيانات</th>
+          <th>الاكتشاف</th><th>المهلة (NCSA)</th><th>الحالة</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in reports %}
+        <tr class="{% if b.is_overdue %}table-danger{% elif b.hours_remaining != None and b.hours_remaining <= 12 %}table-warning{% endif %}">
+          <td class="fw-semibold">{{ b.title }}</td>
+          <td>
+            <span class="badge bg-{% if b.severity == 'critical' %}dark{% elif b.severity == 'high' %}danger{% elif b.severity == 'medium' %}warning text-dark{% else %}secondary{% endif %}">
+              {{ b.get_severity_display }}
+            </span>
+          </td>
+          <td><small>{{ b.get_data_type_affected_display }}</small></td>
+          <td><small>{{ b.discovered_at|date:"m/d H:i" }}</small></td>
+          <td>
+            {% if b.hours_remaining != None %}
+              {% if b.is_overdue %}
+                <span class="text-danger fw-bold">⛔ تجاوز</span>
+              {% elif b.hours_remaining <= 12 %}
+                <span class="text-warning fw-bold">⚠️ {{ b.hours_remaining }}س</span>
+              {% else %}
+                <span class="text-success">✅ {{ b.hours_remaining }}س</span>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="badge bg-{% if b.status == 'discovered' %}danger{% elif b.status == 'assessing' %}warning text-dark{% elif b.status == 'notified' %}success{% else %}secondary{% endif %}">
+              {{ b.get_status_display }}
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'breach:detail' b.pk %}" class="btn btn-outline-primary btn-sm">تفاصيل</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">✅ لا توجد تقارير خرق مسجلة</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -26,6 +26,10 @@ INSTALLED_APPS = [
     "transport.apps.TransportConfig",
     "behavior.apps.BehaviorConfig",
     "library.apps.LibraryConfig",
+    # ✅ v5: وحدة كنترول الاختبارات
+    "exam_control.apps.ExamControlConfig",
+    # ✅ v5: خرق البيانات PDPPL
+    "breach.apps.BreachConfig",
 ]
 
 MIDDLEWARE = [
@@ -146,3 +150,15 @@ CSP_CONNECT_SRC = ("'self'",)
 CSP_FRAME_SRC   = ("'none'",)
 CSP_OBJECT_SRC  = ("'none'",)
 
+
+# ✅ v5: VAPID Push Notifications
+# غيّر هذه القيم بالمفاتيح المولَّدة في .env
+VAPID_PRIVATE_KEY    = os.environ.get('VAPID_PRIVATE_KEY', '').replace('\\n', '\n')
+VAPID_PUBLIC_KEY     = os.environ.get('VAPID_PUBLIC_KEY', '').replace('\\n', '\n')
+VAPID_PUBLIC_KEY_B64 = os.environ.get('VAPID_PUBLIC_KEY_B64', '')
+VAPID_CLAIMS_EMAIL   = os.environ.get('VAPID_CLAIMS_EMAIL', 'admin@shahaniya.edu.qa')
+
+# ✅ DPO — مسؤول حماية البيانات (PDPPL م.17)
+DPO_NAME  = os.environ.get('DPO_NAME',  'سفيان احمد محمد مسيف')
+DPO_EMAIL = os.environ.get('DPO_EMAIL', 's.mesyef0904@education.qa')
+DPO_PHONE = os.environ.get('DPO_PHONE', '55296286')

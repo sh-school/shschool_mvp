@@ -24,6 +24,11 @@ app.conf.beat_schedule = {
         "task":     "notifications.send_pending_absence_alerts_all_schools",
         "schedule": crontab(hour=7, minute=0),
     },
+    # ✅ v5: فحص مواعيد BreachReport كل ساعة (PDPPL 72h)
+    "check-breach-deadlines-hourly": {
+        "task":     "notifications.check_breach_deadlines",
+        "schedule": crontab(minute=0),   # كل ساعة عند الدقيقة صفر
+    },
 }
 
 app.conf.timezone = "Asia/Qatar"

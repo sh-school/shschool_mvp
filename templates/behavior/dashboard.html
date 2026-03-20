@@ -11,6 +11,9 @@
     <div class="flex gap-2">
       {% if is_committee %}
       <a href="{% url 'behavior:statistics' %}" class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition">📊 الإحصاءات</a>
+      <!-- ✅ v5+: لائحة السلوك PDF + Word -->
+      <a href="{% url 'behavior:policy_pdf' %}" target="_blank" class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#6B1029] transition" title="طباعة PDF">🖨️ لائحة PDF</a>
+      <a href="{% url 'behavior:policy_word' %}" class="px-4 py-2 bg-white border border-[#8A1538] text-[#8A1538] text-sm rounded-lg hover:bg-red-50 transition" title="تحميل Word">📝 لائحة Word</a>
       {% endif %}
       {% if can_report %}
       <a href="{% url 'behavior:report_infraction' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>

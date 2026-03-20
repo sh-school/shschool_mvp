@@ -414,3 +414,82 @@ def consent_view(request):
         'consent_data': consent_data,
         'school':       school,
     })
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ Push Subscription endpoints — v5 (VAPID)
+# ════════════════════════════════════════════════════════════════════
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+
+
+@login_required
+@csrf_exempt
+def push_subscribe(request):
+    """
+    POST: يستقبل اشتراك Push من المتصفح ويحفظه
+    يُستدعى من JavaScript في صفحة ولي الأمر
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+
+    try:
+        data     = json.loads(request.body)
+        endpoint = data.get('endpoint', '').strip()
+        p256dh   = data.get('keys', {}).get('p256dh', '').strip()
+        auth     = data.get('keys', {}).get('auth', '').strip()
+
+        if not all([endpoint, p256dh, auth]):
+            return JsonResponse({'error': 'بيانات ناقصة'}, status=400)
+
+        school = request.user.get_school() or (
+            request.user.get_parent_membership().school
+            if request.user.get_parent_membership() else None
+        )
+        if not school:
+            return JsonResponse({'error': 'مدرسة غير معروفة'}, status=400)
+
+        from notifications.models import PushSubscription
+        sub, created = PushSubscription.objects.update_or_create(
+            endpoint=endpoint,
+            defaults={
+                'user':       request.user,
+                'school':     school,
+                'p256dh':     p256dh,
+                'auth':       auth,
+                'user_agent': request.META.get('HTTP_USER_AGENT', '')[:300],
+                'is_active':  True,
+            }
+        )
+        return JsonResponse({'status': 'subscribed', 'new': created})
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+def push_unsubscribe(request):
+    """DELETE: إلغاء اشتراك Push"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST only'}, status=405)
+    try:
+        data     = json.loads(request.body)
+        endpoint = data.get('endpoint', '')
+        from notifications.models import PushSubscription
+        PushSubscription.objects.filter(
+            endpoint=endpoint, user=request.user
+        ).update(is_active=False)
+        return JsonResponse({'status': 'unsubscribed'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def push_vapid_key(request):
+    """GET: يُعيد VAPID Public Key للـ frontend"""
+    from django.conf import settings
+    key = getattr(settings, 'VAPID_PUBLIC_KEY_B64', '')
+    return JsonResponse({'publicKey': key})

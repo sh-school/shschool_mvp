@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}تسجيل خرق بيانات{% endblock %}
+{% block content %}
+<div class="container mt-3" style="max-width:760px" dir="rtl">
+  <h5 class="fw-bold mb-1" style="color:#8A1538">🔒 تسجيل خرق بيانات جديد</h5>
+  <p class="text-muted small mb-3">PDPPL م.11 — سيُحسَب deadline إشعار NCSA تلقائياً (72 ساعة)</p>
+
+  <form method="post">{% csrf_token %}
+    <div class="card p-3 mb-3">
+      <div class="mb-2">
+        <label class="form-label fw-semibold">عنوان الخرق <span class="text-danger">*</span></label>
+        <input name="title" class="form-control" required placeholder="مثال: تسريب بيانات طلاب من قاعدة البيانات">
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">الخطورة</label>
+          <select name="severity" class="form-select">
+            <option value="low">منخفضة</option>
+            <option value="medium" selected>متوسطة</option>
+            <option value="high">عالية</option>
+            <option value="critical">حرجة</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">نوع البيانات المتأثرة</label>
+          <select name="data_type_affected" class="form-select">
+            <option value="health">بيانات صحية</option>
+            <option value="academic">بيانات أكاديمية</option>
+            <option value="personal" selected>بيانات شخصية</option>
+            <option value="financial">بيانات مالية</option>
+            <option value="all">جميع البيانات</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">عدد الأشخاص المتأثرين</label>
+          <input name="affected_count" type="number" class="form-control" value="0" min="0">
+        </div>
+      </div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold">وقت الاكتشاف <span class="text-danger">*</span></label>
+        <input name="discovered_at" type="datetime-local" class="form-control" required value="{{ now }}">
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <div class="mb-2">
+        <label class="form-label fw-semibold">وصف الخرق التفصيلي <span class="text-danger">*</span></label>
+        <textarea name="description" class="form-control" rows="3" required
+          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟"></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold">الإجراء الفوري المتخذ</label>
+        <textarea name="immediate_action" class="form-control" rows="2"
+          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..."></textarea>
+      </div>
+      <div class="mb-2">
+        <label class="form-label fw-semibold">إجراءات الاحتواء</label>
+        <textarea name="containment_action" class="form-control" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="card p-3 mb-3">
+      <label class="form-label fw-semibold">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
+      <textarea name="notification_text" class="form-control" rows="4"
+        placeholder="وفق نموذج NCSA الرسمي...">{{ ncsa_template }}</textarea>
+    </div>
+
+    <div class="alert alert-warning">
+      ⏱ بعد الحفظ سيظهر countdown لـ 72 ساعة وستصل تنبيهات تلقائية للمسؤول
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-danger">تسجيل الخرق</button>
+      <a href="{% url 'breach:dashboard' %}" class="btn btn-outline-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

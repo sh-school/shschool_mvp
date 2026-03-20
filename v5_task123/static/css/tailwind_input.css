@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-adaam   { color: #8A1538; }
+  .bg-adaam     { background-color: #8A1538; }
+  .border-adaam { border-color: #8A1538; }
+}

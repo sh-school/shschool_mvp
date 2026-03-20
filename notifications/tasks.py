@@ -123,6 +123,23 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None):
         results = NotificationService.notify_absence(alert, sent_by=sent_by)
         sent    = sum(1 for r in results if r["ok"])
         logger.info(f"Absence notification for {alert.student}: {sent}/{len(results)} sent")
+
+        # ✅ v5: إرسال Push للوالدين المشتركين
+        try:
+            from core.models import ParentStudentLink
+            parents = ParentStudentLink.objects.filter(
+                student=alert.student, school=alert.school
+            ).values_list('parent_id', flat=True)
+            for pid in parents:
+                send_push_task.delay(
+                    str(pid),
+                    title=f"⚠️ غياب — {alert.student.full_name}",
+                    body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
+                    url="/parents/",
+                )
+        except Exception as pe:
+            logger.warning(f"Push notification failed: {pe}")
+
         return {"sent": sent, "total": len(results)}
 
     except Exception as exc:
@@ -214,3 +231,190 @@ def notify_behavior_task(self, infraction_id, reporter_id):
     except Exception as exc:
         logger.error(f"notify_behavior_task error: {exc}")
         raise self.retry(exc=exc)
+
+
+# ── إشعار خرق البيانات (PDPPL م.11 + NCSA 72h) ──────────────────────
+
+@shared_task(name="notifications.check_breach_deadlines")
+def check_breach_deadlines_task():
+    """
+    مهمة مُجدوَلة — تُشغَّل كل ساعة من Celery Beat
+    تتحقق من مواعيد BreachReport وترسل تنبيهات للمدير والـ DPO
+    """
+    from django.utils import timezone
+    from core.models import BreachReport, School
+
+    now        = timezone.now()
+    warnings   = 0
+    overdue    = 0
+
+    # تقارير لم يُشعَر عنها بعد
+    active = BreachReport.objects.filter(
+        status__in=['discovered', 'assessing']
+    ).select_related('school', 'reported_by', 'assigned_to')
+
+    for breach in active:
+        if not breach.ncsa_deadline:
+            continue
+
+        hours_left = breach.hours_remaining
+
+        # تحذير: أقل من 12 ساعة متبقية
+        if hours_left is not None and hours_left <= 12:
+            _send_breach_alert(breach, hours_left, overdue=False)
+            warnings += 1
+
+        # تجاوز المهلة
+        if breach.is_overdue:
+            _send_breach_alert(breach, 0, overdue=True)
+            overdue += 1
+
+    logger.warning(f"Breach check: {warnings} تحذير، {overdue} تجاوز مهلة")
+    return {'warnings': warnings, 'overdue': overdue}
+
+
+def _send_breach_alert(breach, hours_left, overdue=False):
+    """إرسال تنبيه بريد للمدير والـ DPO"""
+    from django.core.mail import send_mail
+    from django.conf import settings
+
+    subject = (
+        f"🚨 [عاجل] تجاوز مهلة إشعار NCSA — {breach.title}"
+        if overdue else
+        f"⚠️ تنبيه: {hours_left} ساعة لإشعار NCSA — {breach.title}"
+    )
+
+    body = f"""
+تقرير خرق البيانات: {breach.title}
+المدرسة: {breach.school.name}
+الخطورة: {breach.get_severity_display()}
+البيانات المتأثرة: {breach.get_data_type_affected_display()}
+عدد الأشخاص: {breach.affected_count}
+وقت الاكتشاف: {breach.discovered_at}
+موعد NCSA: {breach.ncsa_deadline}
+الحالة: {'⛔ تجاوز المهلة' if overdue else f'⚠️ {hours_left} ساعة متبقية'}
+
+الإجراء الفوري: {breach.immediate_action or '—'}
+
+رابط المراجعة: /breach/{breach.pk}/
+
+PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشاف.
+    """.strip()
+
+    # جمع المستلمين: المسؤول (DPO) + المُبلِّغ
+    recipients = []
+    # DPO الافتراضي من settings
+    dpo_email = getattr(settings, 'DPO_EMAIL', 's.mesyef0904@education.qa')
+    if dpo_email:
+        recipients.append(dpo_email)
+    if breach.assigned_to and breach.assigned_to.email:
+        recipients.append(breach.assigned_to.email)
+    if breach.reported_by and breach.reported_by.email:
+        recipients.append(breach.reported_by.email)
+
+    if recipients:
+        try:
+            send_mail(
+                subject=subject,
+                message=body,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 's.mesyef0904@education.qa'),
+                recipient_list=list(set(recipients)),
+                fail_silently=True,
+            )
+        except Exception as e:
+            logger.error(f"breach alert email failed: {e}")
+
+
+# ── Push Notification — VAPID (v5) ───────────────────────────────────
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=30,
+    name="notifications.send_push",
+)
+def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
+    """
+    إرسال Push Notification لولي الأمر عبر VAPID
+    يعمل حتى لو كان المتصفح مغلقاً (شرط قبوله الإذن)
+    """
+    try:
+        import json, base64
+        from django.conf import settings
+        from django.utils import timezone
+        from cryptography.hazmat.primitives.asymmetric.ec import (
+            SECP256R1, generate_private_key, EllipticCurvePrivateKey
+        )
+        from cryptography.hazmat.primitives.serialization import (
+            load_pem_private_key, Encoding, PublicFormat
+        )
+        from notifications.models import PushSubscription
+
+        subs = PushSubscription.objects.filter(
+            user_id=user_id, is_active=True
+        )
+        if not subs.exists():
+            return {'status': 'no_subscriptions', 'user': str(user_id)}
+
+        payload = json.dumps({
+            'title': title,
+            'body':  body,
+            'url':   url,
+            'icon':  '/static/icons/icon-192.png',
+            'badge': '/static/icons/badge-72.png',
+        })
+
+        # محاولة استخدام pywebpush إذا كان مثبتاً
+        try:
+            from pywebpush import webpush, WebPushException
+
+            vapid_private = getattr(settings, 'VAPID_PRIVATE_KEY', '').replace('\\n', '\n')
+            vapid_email   = getattr(settings, 'VAPID_CLAIMS_EMAIL', 'admin@shahaniya.edu.qa')
+
+            sent = failed = 0
+            for sub in subs:
+                try:
+                    webpush(
+                        subscription_info=sub.to_dict(),
+                        data=payload,
+                        vapid_private_key=vapid_private,
+                        vapid_claims={"sub": f"mailto:{vapid_email}"},
+                    )
+                    sub.last_used = timezone.now()
+                    sub.save(update_fields=['last_used'])
+                    sent += 1
+                except WebPushException as e:
+                    # 410 Gone = اشتراك منتهي → نحذفه
+                    if '410' in str(e) or '404' in str(e):
+                        sub.is_active = False
+                        sub.save(update_fields=['is_active'])
+                    failed += 1
+                    logger.warning(f"Push failed for {sub.endpoint[:40]}: {e}")
+
+            return {'sent': sent, 'failed': failed}
+
+        except ImportError:
+            # pywebpush غير مثبت — نسجّل فقط
+            logger.info(f"Push queued (pywebpush not installed): {title} → user {user_id}")
+            return {'status': 'queued_no_pywebpush', 'user': str(user_id)}
+
+    except Exception as exc:
+        logger.error(f"send_push_task error: {exc}")
+        raise self.retry(exc=exc)
+
+
+@shared_task(name="notifications.send_push_to_school")
+def send_push_to_school_task(school_id, title, body, url="/parents/"):
+    """إرسال Push لكل أولياء الأمور في مدرسة"""
+    from core.models import School
+    from notifications.models import PushSubscription
+
+    school = School.objects.get(id=school_id)
+    users  = PushSubscription.objects.filter(
+        school=school, is_active=True
+    ).values_list('user_id', flat=True).distinct()
+
+    for uid in users:
+        send_push_task.delay(str(uid), title, body, url, school_id)
+
+    return {'queued': len(users)}

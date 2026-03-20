@@ -621,3 +621,179 @@ def behavior_statistics(request):
             all_inf.filter(is_resolved=True).count() / total * 100
         ) if total else 0,
     })
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ PDF النماذج الثلاثة — مُضافة في v5 (ربط Ct.zip بـ WeasyPrint)
+# ════════════════════════════════════════════════════════════════════
+
+def _get_infraction_context(infraction, request):
+    """بيانات مشتركة لكل نماذج PDF"""
+    from django.utils import timezone
+    school   = infraction.school
+    student  = infraction.student
+
+    # الفصل الدراسي
+    try:
+        from core.models import StudentEnrollment
+        enrollment = StudentEnrollment.objects.filter(
+            student=student,
+            class_group__school=school,
+            is_active=True
+        ).select_related('class_group').first()
+        class_name = enrollment.class_group.name if enrollment else None
+    except Exception:
+        class_name = None
+
+    # ولي الأمر
+    try:
+        from core.models import ParentStudentLink
+        link   = ParentStudentLink.objects.filter(student=student).select_related('parent').first()
+        parent = link.parent if link else None
+    except Exception:
+        parent = None
+
+    # عدد مخالفات الطالب السابقة (لتحديد أول/ثانٍ/نهائي)
+    infraction_count = BehaviorInfraction.objects.filter(
+        student=student, school=school
+    ).count()
+
+    return {
+        'infraction':       infraction,
+        'school':           school,
+        'class_name':       class_name,
+        'infraction_count': infraction_count,
+        'academic_year':    '2025-2026',
+        'generated_at':     timezone.now(),
+        'received_by':      request.user.full_name,
+        # ولي الأمر
+        'parent_name':  parent.full_name  if parent else None,
+        'parent_id':    parent.username   if parent else None,
+        'parent_phone': getattr(parent, 'phone', None) if parent else None,
+        'parent_email': parent.email      if parent else None,
+    }
+
+
+def _render_behavior_pdf(template_name, context, filename):
+    """
+    تحويل HTML → PDF مع دعم الخطوط العربية
+    يستخدم core.pdf_utils.render_pdf المشتركة
+    """
+    from django.template.loader import render_to_string
+    from core.pdf_utils import render_pdf
+
+    html_str = render_to_string(template_name, context)
+    return render_pdf(html_str, filename)
+
+
+@login_required
+def infraction_warning_pdf(request, infraction_id):
+    """PDF: إنذار سلوكي للطالب"""
+    infraction = get_object_or_404(
+        BehaviorInfraction, id=infraction_id,
+        school=request.user.get_school()
+    )
+    ctx = _get_infraction_context(infraction, request)
+    return _render_behavior_pdf(
+        'behavior/pdf/student_warning.html',
+        ctx,
+        f"warning_{infraction.student.username}_{infraction.date}.pdf"
+    )
+
+
+@login_required
+def infraction_parent_pdf(request, infraction_id):
+    """PDF: تعهد ولي الأمر"""
+    infraction = get_object_or_404(
+        BehaviorInfraction, id=infraction_id,
+        school=request.user.get_school()
+    )
+    ctx = _get_infraction_context(infraction, request)
+    return _render_behavior_pdf(
+        'behavior/pdf/parent_undertaking.html',
+        ctx,
+        f"parent_undertaking_{infraction.student.username}.pdf"
+    )
+
+
+@login_required
+def infraction_student_pdf(request, infraction_id):
+    """PDF: تعهد الطالب"""
+    infraction = get_object_or_404(
+        BehaviorInfraction, id=infraction_id,
+        school=request.user.get_school()
+    )
+    ctx = _get_infraction_context(infraction, request)
+    return _render_behavior_pdf(
+        'behavior/pdf/student_undertaking.html',
+        ctx,
+        f"student_undertaking_{infraction.student.username}.pdf"
+    )
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ لائحة السلوك PDF — للموظفين + أولياء الأمور
+# ════════════════════════════════════════════════════════════════════
+
+@login_required
+def behavior_policy_pdf(request):
+    """
+    PDF لائحة السلوك والانضباط الكاملة
+    متاحة لـ: الموظفين (جميع الأدوار) + أولياء الأمور
+    """
+    from django.utils import timezone
+    from django.template.loader import render_to_string
+    from django.http import HttpResponse
+
+    return _render_behavior_pdf(
+        'behavior/pdf/policy_doc.html',
+        {
+            'generated_at':  timezone.now(),
+            'academic_year': '2025-2026',
+            'school':        request.user.get_school(),
+        },
+        'behavior_policy_2025-2026.pdf'
+    )
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ v5+: Word (.docx) النماذج — يعمل على Windows بدون إعدادات
+# ════════════════════════════════════════════════════════════════════
+
+@login_required
+def infraction_warning_word(request, infraction_id):
+    """Word: إنذار سلوكي"""
+    from core.docx_utils import generate_warning_docx
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id,
+                                   school=request.user.get_school())
+    return generate_warning_docx(_get_infraction_context(infraction, request))
+
+
+@login_required
+def infraction_parent_word(request, infraction_id):
+    """Word: تعهد ولي الأمر"""
+    from core.docx_utils import generate_parent_undertaking_docx
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id,
+                                   school=request.user.get_school())
+    return generate_parent_undertaking_docx(_get_infraction_context(infraction, request))
+
+
+@login_required
+def infraction_student_word(request, infraction_id):
+    """Word: تعهد الطالب"""
+    from core.docx_utils import generate_student_undertaking_docx
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id,
+                                   school=request.user.get_school())
+    return generate_student_undertaking_docx(_get_infraction_context(infraction, request))
+
+
+@login_required
+def behavior_policy_word(request):
+    """Word: لائحة السلوك الكاملة"""
+    from django.utils import timezone
+    from core.docx_utils import generate_policy_docx
+    return generate_policy_docx({
+        'generated_at':  timezone.now(),
+        'academic_year': '2025-2026',
+        'school':        request.user.get_school(),
+    })

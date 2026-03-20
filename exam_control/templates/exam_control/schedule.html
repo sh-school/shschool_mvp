@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}جدول الاختبارات{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <h5 class="fw-bold mb-3" style="color:#8A1538">📅 جدول الاختبارات — {{ session.name }}</h5>
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card p-3 shadow-sm">
+        <h6 class="fw-bold">إضافة اختبار</h6>
+        <form method="post">{% csrf_token %}
+          <div class="mb-2"><label class="form-label small">القاعة</label>
+            <select name="room_id" class="form-select form-select-sm" required>
+              {% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+            </select></div>
+          <div class="mb-2"><label class="form-label small">المادة</label>
+            <input name="subject" class="form-control form-control-sm" required></div>
+          <div class="mb-2"><label class="form-label small">الصف</label>
+            <input name="grade_level" class="form-control form-control-sm" required></div>
+          <div class="mb-2"><label class="form-label small">التاريخ</label>
+            <input name="exam_date" type="date" class="form-control form-control-sm" required></div>
+          <div class="row g-1 mb-2">
+            <div class="col"><label class="form-label small">بداية</label>
+              <input name="start_time" type="time" class="form-control form-control-sm" required></div>
+            <div class="col"><label class="form-label small">نهاية</label>
+              <input name="end_time" type="time" class="form-control form-control-sm" required></div>
+          </div>
+          <div class="mb-2"><label class="form-label small">عدد الطلاب</label>
+            <input name="students_count" type="number" class="form-control form-control-sm" value="0"></div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">إضافة</button>
+        </form>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-hover">
+          <thead class="table-dark">
+            <tr><th>التاريخ</th><th>المادة</th><th>الصف</th><th>القاعة</th><th>الوقت</th><th>طلاب</th></tr>
+          </thead>
+          <tbody>
+            {% for s in schedules %}
+            <tr><td>{{ s.exam_date }}</td><td>{{ s.subject }}</td><td>{{ s.grade_level }}</td>
+                <td>{{ s.room.name }}</td><td>{{ s.start_time }}–{{ s.end_time }}</td><td>{{ s.students_count }}</td></tr>
+            {% empty %}<tr><td colspan="6" class="text-center text-muted">لا يوجد جدول</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn btn-outline-secondary btn-sm">← رجوع</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

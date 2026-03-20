@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ session.name }}{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-bold" style="color:#8A1538">{{ session.name }}
+      <span class="badge bg-{% if session.status == 'active' %}success{% elif session.status == 'planned' %}warning text-dark{% else %}secondary{% endif %} fs-6">
+        {{ session.get_status_display }}
+      </span>
+    </h5>
+    <div class="d-flex gap-2">
+      <a href="{% url 'exam_control:session_report_pdf' session.pk %}" class="btn btn-outline-secondary btn-sm">📄 تقرير PDF</a>
+      <a href="{% url 'exam_control:dashboard' %}" class="btn btn-outline-primary btn-sm">← الكل</a>
+    </div>
+  </div>
+
+  <!-- إحصائيات سريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 shadow-sm">
+        <div class="fs-2 fw-bold" style="color:#8A1538">{{ rooms.count }}</div>
+        <div class="text-muted small">قاعة</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 shadow-sm">
+        <div class="fs-2 fw-bold text-primary">{{ supervisors.count }}</div>
+        <div class="text-muted small">مشرف</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 shadow-sm">
+        <div class="fs-2 fw-bold text-danger">{{ incidents }}</div>
+        <div class="text-muted small">حادث مفتوح</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3 shadow-sm">
+        <div class="fs-2 fw-bold text-warning">{{ pending_sheets }}</div>
+        <div class="text-muted small">رصد معلق</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- روابط الإجراءات -->
+  <div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+      <a href="{% url 'exam_control:supervisors' session.pk %}" class="btn btn-outline-dark w-100">👥 تشكيل الكنترول</a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'exam_control:schedule' session.pk %}" class="btn btn-outline-primary w-100">📅 الجدول</a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'exam_control:incident_add' session.pk %}" class="btn btn-outline-danger w-100">⚠️ تسجيل حادث</a>
+    </div>
+    <div class="col-6 col-md-3">
+      <a href="{% url 'exam_control:grade_sheets' session.pk %}" class="btn btn-outline-success w-100">📋 أوراق الرصد</a>
+    </div>
+  </div>
+
+  <!-- جدول الاختبارات -->
+  <h6 class="fw-bold mb-2">📅 جدول الاختبارات</h6>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered table-hover">
+      <thead class="table-dark">
+        <tr><th>التاريخ</th><th>المادة</th><th>الصف</th><th>القاعة</th><th>وقت البداية</th><th>طلاب</th></tr>
+      </thead>
+      <tbody>
+        {% for s in schedules %}
+        <tr>
+          <td>{{ s.exam_date }}</td><td>{{ s.subject }}</td><td>{{ s.grade_level }}</td>
+          <td>{{ s.room.name }}</td><td>{{ s.start_time }}</td><td>{{ s.students_count }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="text-center text-muted">لا يوجد جدول بعد</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

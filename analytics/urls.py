@@ -13,4 +13,7 @@ urlpatterns = [
     # ✅ جديد
     path("api/behavior-trend/",      views.api_behavior_trend,       name="api_behavior_trend"),
     path("api/clinic-stats/",        views.api_clinic_stats,         name="api_clinic_stats"),
+    # ✅ v5: لوحة KPIs العشرة (Ct.zip)
+    path("kpis/",                    views.kpi_dashboard,            name="kpi_dashboard"),
+    path("api/kpis/",                views.api_kpis_all,             name="api_kpis_all"),
 ]

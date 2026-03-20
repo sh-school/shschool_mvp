@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}تشكيل الكنترول{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <h5 class="fw-bold mb-3" style="color:#8A1538">👥 تشكيل الكنترول — {{ session.name }}</h5>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <div class="card p-3 shadow-sm">
+        <h6 class="fw-bold mb-3">إضافة مشرف</h6>
+        <form method="post">{% csrf_token %}
+          <div class="mb-2">
+            <label class="form-label small">الموظف</label>
+            <select name="staff_id" class="form-select form-select-sm" required>
+              <option value="">— اختر —</option>
+              {% for m in staff_list %}<option value="{{ m.user.pk }}">{{ m.user.full_name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">الدور</label>
+            <select name="role" class="form-select form-select-sm">
+              {% for v,l in roles %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">القاعة (اختياري)</label>
+            <select name="room_id" class="form-select form-select-sm">
+              <option value="">— بدون —</option>
+              {% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm w-100">إضافة</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="col-md-8">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+          <thead class="table-dark">
+            <tr><th>الاسم</th><th>الدور</th><th>القاعة</th></tr>
+          </thead>
+          <tbody>
+            {% for s in supervisors %}
+            <tr>
+              <td>{{ s.staff.full_name }}</td>
+              <td><span class="badge bg-secondary">{{ s.get_role_display }}</span></td>
+              <td>{{ s.room.name|default:"—" }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="3" class="text-center text-muted">لا يوجد مشرفون بعد</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn btn-outline-secondary btn-sm">← رجوع</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

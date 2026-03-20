@@ -434,3 +434,105 @@ class ConsentRecord(models.Model):
         from django.utils import timezone
         self.is_given     = False
         self.withdrawn_at = timezone.now()
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ BreachNotification — v5 (PDPPL م.11 + NCSA 72 ساعة)
+# ════════════════════════════════════════════════════════════════════
+
+class BreachReport(models.Model):
+    """
+    تقرير خرق البيانات — PDPPL م.11
+    يجب إشعار NCSA خلال 72 ساعة من اكتشاف الخرق
+    """
+    SEVERITY = [
+        ('low',      'منخفضة'),
+        ('medium',   'متوسطة'),
+        ('high',     'عالية'),
+        ('critical', 'حرجة'),
+    ]
+    STATUS = [
+        ('discovered',  'مكتشف'),
+        ('assessing',   'قيد التقييم'),
+        ('notified',    'تم الإشعار'),
+        ('resolved',    'محلول'),
+    ]
+    DATA_TYPES_AFFECTED = [
+        ('health',    'بيانات صحية'),
+        ('academic',  'بيانات أكاديمية'),
+        ('personal',  'بيانات شخصية'),
+        ('financial', 'بيانات مالية'),
+        ('all',       'جميع البيانات'),
+    ]
+
+    id                  = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school              = models.ForeignKey(School, on_delete=models.CASCADE,
+                                            related_name='breach_reports')
+    # بيانات الخرق
+    title               = models.CharField(max_length=300, verbose_name='عنوان الخرق')
+    description         = models.TextField(verbose_name='وصف الخرق التفصيلي')
+    severity            = models.CharField(max_length=10, choices=SEVERITY, default='medium')
+    data_type_affected  = models.CharField(max_length=15, choices=DATA_TYPES_AFFECTED,
+                                           default='personal', verbose_name='نوع البيانات المتأثرة')
+    affected_count      = models.PositiveIntegerField(default=0,
+                                                      verbose_name='عدد الأشخاص المتأثرين')
+    # التوقيتات
+    discovered_at       = models.DateTimeField(verbose_name='وقت الاكتشاف')
+    created_at          = models.DateTimeField(auto_now_add=True)
+    ncsa_deadline       = models.DateTimeField(null=True, blank=True,
+                                               verbose_name='موعد إشعار NCSA (72 ساعة)')
+    ncsa_notified_at    = models.DateTimeField(null=True, blank=True,
+                                               verbose_name='وقت إشعار NCSA الفعلي')
+    resolved_at         = models.DateTimeField(null=True, blank=True)
+    # الحالة والمسؤولية
+    status              = models.CharField(max_length=15, choices=STATUS, default='discovered')
+    reported_by         = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,
+                                            null=True, related_name='reported_breaches')
+    assigned_to         = models.ForeignKey(CustomUser, on_delete=models.SET_NULL,
+                                            null=True, blank=True,
+                                            related_name='assigned_breaches',
+                                            verbose_name='المسؤول (DPO)')
+    # الإجراءات
+    immediate_action    = models.TextField(blank=True, verbose_name='الإجراء الفوري المتخذ')
+    containment_action  = models.TextField(blank=True, verbose_name='إجراءات الاحتواء')
+    notification_text   = models.TextField(blank=True, verbose_name='نص الإشعار لـ NCSA')
+    # المرفقات
+    evidence_notes      = models.TextField(blank=True, verbose_name='الأدلة والملاحظات')
+
+    class Meta:
+        verbose_name        = 'تقرير خرق بيانات'
+        verbose_name_plural = 'تقارير خرق البيانات'
+        ordering            = ['-discovered_at']
+        indexes             = [
+            models.Index(fields=['school', 'status']),
+            models.Index(fields=['discovered_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.title} | {self.get_severity_display()} | {self.get_status_display()}"
+
+    def save(self, *args, **kwargs):
+        """احسب deadline تلقائياً: 72 ساعة من الاكتشاف"""
+        from datetime import timedelta
+        if self.discovered_at and not self.ncsa_deadline:
+            self.ncsa_deadline = self.discovered_at + timedelta(hours=72)
+        super().save(*args, **kwargs)
+
+    @property
+    def hours_remaining(self):
+        """الساعات المتبقية قبل انتهاء مهلة NCSA"""
+        from django.utils import timezone
+        if self.ncsa_deadline and self.status not in ('notified', 'resolved'):
+            delta = self.ncsa_deadline - timezone.now()
+            return max(0, int(delta.total_seconds() / 3600))
+        return None
+
+    @property
+    def is_overdue(self):
+        """هل تجاوزت المهلة؟"""
+        from django.utils import timezone
+        return (
+            self.ncsa_deadline and
+            timezone.now() > self.ncsa_deadline and
+            self.status not in ('notified', 'resolved')
+        )

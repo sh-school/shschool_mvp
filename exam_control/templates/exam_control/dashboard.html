@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}كنترول الاختبارات{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold text-primary">🏫 كنترول الاختبارات</h4>
+    <a href="{% url 'exam_control:session_create' %}" class="btn btn-primary btn-sm">+ دورة جديدة</a>
+  </div>
+  {% for s in sessions %}
+  <div class="card mb-3 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex justify-content-between">
+        <div>
+          <h6 class="fw-bold">{{ s.name }}</h6>
+          <small class="text-muted">{{ s.start_date }} ← {{ s.end_date }} | {{ s.academic_year }}</small>
+        </div>
+        <div class="text-end">
+          <span class="badge bg-{% if s.status == 'active' %}success{% elif s.status == 'planned' %}warning{% else %}secondary{% endif %}">
+            {{ s.get_status_display }}
+          </span>
+        </div>
+      </div>
+      <div class="row mt-2 text-center">
+        <div class="col"><span class="fw-bold text-danger">{{ s.incident_count }}</span><br><small>حوادث</small></div>
+        <div class="col"><span class="fw-bold text-warning">{{ s.pending_sheets }}</span><br><small>رصد معلق</small></div>
+      </div>
+      <div class="mt-2">
+        <a href="{% url 'exam_control:session_detail' s.pk %}" class="btn btn-outline-primary btn-sm">التفاصيل</a>
+        <a href="{% url 'exam_control:session_report_pdf' s.pk %}" class="btn btn-outline-secondary btn-sm">📄 PDF</a>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">لا توجد دورات اختبار بعد.</div>
+  {% endfor %}
+</div>
+{% endblock %}

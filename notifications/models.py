@@ -88,3 +88,46 @@ class NotificationSettings(models.Model):
 
     def __str__(self):
         return f"إعدادات إشعارات — {self.school.name}"
+
+
+# ════════════════════════════════════════════════════════════════════
+# ✅ PushSubscription — v5 (VAPID Push Notifications)
+# ════════════════════════════════════════════════════════════════════
+
+class PushSubscription(models.Model):
+    """
+    اشتراك Push للمتصفح — يُخزَّن عند تسجيل ولي الأمر
+    endpoint + keys تأتي من browser.pushManager.subscribe()
+    """
+    id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    user         = models.ForeignKey(CustomUser, on_delete=models.CASCADE,
+                                     related_name='push_subscriptions')
+    school       = models.ForeignKey(School, on_delete=models.CASCADE,
+                                     related_name='push_subscriptions')
+    # بيانات الاشتراك من المتصفح
+    endpoint     = models.TextField(unique=True, verbose_name='Push Endpoint')
+    p256dh       = models.TextField(verbose_name='p256dh key')
+    auth         = models.TextField(verbose_name='auth secret')
+    # معلومات الجهاز
+    user_agent   = models.CharField(max_length=300, blank=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+    last_used    = models.DateTimeField(null=True, blank=True)
+    is_active    = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name        = 'اشتراك Push'
+        verbose_name_plural = 'اشتراكات Push'
+        ordering            = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.full_name} — {self.endpoint[:60]}..."
+
+    def to_dict(self):
+        """تنسيق pywebpush"""
+        return {
+            'endpoint': self.endpoint,
+            'keys': {
+                'p256dh': self.p256dh,
+                'auth':   self.auth,
+            }
+        }
