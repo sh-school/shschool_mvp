@@ -14,11 +14,15 @@ from core.models import ParentStudentLink, CustomUser, StudentEnrollment, School
 
 
 def _require_parent(request):
-    """تحقق أن المستخدم ولي أمر — يُعيد school أو None"""
-    role = request.user.get_role()
-    if role != "parent" and not request.user.is_superuser:
+    """تحقق أن المستخدم ولي أمر — يُعيد school أو None
+    يدعم الموظف الذي هو أيضاً ولي أمر (has_role بدلاً من get_role)
+    """
+    if request.user.is_superuser:
+        return request.user.get_school()
+    parent_membership = request.user.get_parent_membership()
+    if not parent_membership:
         return None
-    return request.user.get_school()
+    return parent_membership.school
 
 
 # ── لوحة تحكم ولي الأمر ─────────────────────────────────────
@@ -29,7 +33,9 @@ def parent_dashboard(request):
     if not school and not request.user.is_superuser:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    school = request.user.get_school()
+    # استخدم مدرسة عضوية ولي الأمر تحديداً (يدعم الموظف الذي هو ولي أمر)
+    parent_membership = request.user.get_parent_membership()
+    school = parent_membership.school if parent_membership else request.user.get_school()
     year   = request.GET.get("year", "2025-2026")
 
     # أبناء ولي الأمر
@@ -348,8 +354,7 @@ def consent_view(request):
     """ولي الأمر يمنح / يسحب الموافقة على أنواع البيانات"""
     from core.models import ConsentRecord, ParentStudentLink
 
-    role = request.user.get_role()
-    if role != 'parent' and not request.user.is_superuser:
+    if not request.user.has_role('parent') and not request.user.is_superuser:
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("هذه الصفحة لأولياء الأمور فقط.")
 

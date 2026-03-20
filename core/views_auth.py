@@ -93,7 +93,9 @@ def verify_2fa(request):
 
     if request.method == "POST":
         code = request.POST.get("code", "").strip().replace(" ", "")
-        totp = pyotp.TOTP(user.totp_secret)
+        from core.models import decrypt_field as _dfd
+        _s = _dfd(user.totp_secret) or user.totp_secret
+        totp = pyotp.TOTP(_s)
         if totp.verify(code, valid_window=1):
             del request.session["pending_2fa_user"]
             login(request, user)
@@ -116,10 +118,14 @@ def setup_2fa(request):
         return redirect("dashboard")
 
     if not user.totp_secret:
-        user.totp_secret = pyotp.random_base32()
+        raw_secret = pyotp.random_base32()
+        from core.models import encrypt_field
+        user.totp_secret = encrypt_field(raw_secret) or raw_secret
         user.save(update_fields=["totp_secret"])
 
-    totp    = pyotp.TOTP(user.totp_secret)
+    from core.models import decrypt_field as _df
+    raw_secret = _df(user.totp_secret) or user.totp_secret
+    totp    = pyotp.TOTP(raw_secret)
     otp_uri = totp.provisioning_uri(name=user.national_id, issuer_name="SchoolOS")
 
     qr = qrcode.QRCode(box_size=6, border=2)
@@ -142,7 +148,7 @@ def setup_2fa(request):
 
     return render(request, "auth/setup_2fa.html", {
         "qr_b64":       qr_b64,
-        "secret":       user.totp_secret,
+        "secret":       (decrypt_field(user.totp_secret) or user.totp_secret) if user.totp_secret else "",
         "totp_enabled": user.totp_enabled,
     })
 
@@ -153,7 +159,9 @@ def disable_2fa(request):
         code = request.POST.get("code", "").strip()
         user = request.user
         if user.totp_secret:
-            totp = pyotp.TOTP(user.totp_secret)
+            from core.models import decrypt_field
+            _raw = decrypt_field(user.totp_secret) or user.totp_secret
+            totp = pyotp.TOTP(_raw)
             if totp.verify(code, valid_window=1):
                 user.totp_enabled = False
                 user.totp_secret  = ""
@@ -204,8 +212,9 @@ def force_change_password(request):
     return render(request, "auth/force_change_password.html")
 
 
-@login_required
 @require_POST
 def logout_view(request):
+    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول"""
     logout(request)
+    request.session.flush()
     return redirect("login")

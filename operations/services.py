@@ -52,28 +52,52 @@ class AttendanceService:
         session.status = "completed"
         session.save(update_fields=["status"])
 
-    @staticmethod
-    def check_absence_threshold(student, school, threshold=3):
-        from datetime import timedelta
-        today   = timezone.now().date()
-        week_ago = today - timedelta(days=7)
+    # ── إعداد السنة الدراسية (المادة 7 من قانون 25/2001 المعدّل) ─
+    SCHOOL_YEAR_DAYS = 190          # أيام الدراسة الرسمية سنوياً
+    ABSENCE_THRESHOLD_PCT = 0.10    # 10% = الحد القانوني للغياب
 
-        consecutive = StudentAttendance.objects.filter(
+    @staticmethod
+    def check_absence_threshold(student, school):
+        """
+        المادة 7 — قانون التعليم الإلزامي 25/2001:
+        العتبة القانونية: تجاوز 10% من أيام الدراسة (≈19 يوماً من 190).
+        تُخطر المدرسة ولي الأمر، وإذا عاود الغياب تُخطر الوزارة خلال أسبوع.
+        """
+        from datetime import date
+        school_year = "2025-2026"
+        year_start  = date(2025, 9, 1)
+        year_end    = date(2026, 6, 30)
+
+        # إجمالي الحصص المسجَّلة للطالب في هذه السنة
+        total_sessions = StudentAttendance.objects.filter(
+            student=student,
+            school=school,
+            session__date__gte=year_start,
+            session__date__lte=year_end,
+        ).count()
+
+        # إجمالي الغياب بدون عذر
+        unexcused_absent = StudentAttendance.objects.filter(
             student=student,
             school=school,
             status="absent",
-            session__date__gte=week_ago,
-            session__date__lte=today,
+            excuse_type="",
+            session__date__gte=year_start,
+            session__date__lte=year_end,
         ).count()
 
-        if consecutive >= threshold:
+        # حساب النسبة المئوية الفعلية
+        base = total_sessions if total_sessions > 0 else AttendanceService.SCHOOL_YEAR_DAYS
+        threshold_days = int(base * AttendanceService.ABSENCE_THRESHOLD_PCT)
+
+        if unexcused_absent >= threshold_days:
             AbsenceAlert.objects.get_or_create(
                 school=school,
                 student=student,
                 status="pending",
-                period_start=week_ago,
-                period_end=today,
-                defaults={"absence_count": consecutive}
+                period_start=year_start,
+                period_end=year_end,
+                defaults={"absence_count": unexcused_absent}
             )
 
     @staticmethod

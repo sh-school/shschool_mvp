@@ -5,11 +5,11 @@
 
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">📚 لوحة تحكم المكتبة المدرسية</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">📚 لوحة تحكم المكتبة المدرسية</h1>
       <p class="text-sm text-gray-500 mt-1">إدارة الكتب والإعارة</p>
     </div>
     <div class="flex gap-2">
-      <a href="{% url 'library:borrow_book' %}" class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">+ إعارة جديدة</a>
+      <a href="{% url 'library:borrow_book' %}" class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">+ إعارة جديدة</a>
       <a href="{% url 'library:book_list' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">قائمة الكتب</a>
     </div>
   </div>
@@ -17,7 +17,7 @@
   <!-- إحصائيات -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-[#0F2347]">{{ total_books }}</p>
+      <p class="text-3xl font-bold text-[#8A1538]">{{ total_books }}</p>
       <p class="text-xs text-gray-500 mt-1">إجمالي الكتب</p>
     </div>
     <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
@@ -35,7 +35,7 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <!-- آخر الكتب المضافة -->
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <div class="bg-[#0F2347] px-5 py-3">
+      <div class="bg-[#8A1538] px-5 py-3">
         <h2 class="text-white font-bold text-sm">آخر الكتب المضافة</h2>
       </div>
       {% if recent_books %}
@@ -57,7 +57,7 @@
 
     <!-- آخر الإعارات -->
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <div class="bg-[#0F2347] px-5 py-3">
+      <div class="bg-[#8A1538] px-5 py-3">
         <h2 class="text-white font-bold text-sm">آخر الإعارات</h2>
       </div>
       {% if recent_borrowings %}

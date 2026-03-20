@@ -16,6 +16,9 @@ PROTECTED_PATHS = {
     "/library/":      ["principal", "vice_admin", "librarian", "teacher", "coordinator", "specialist", "student"],
     "/behavior/":     ["principal", "vice_admin", "vice_academic", "teacher", "coordinator", "specialist"],
     "/staging/":      ["principal", "vice_academic", "vice_admin", "admin"],
+    "/quality/evaluations/": ["principal", "vice_admin", "vice_academic", "teacher",
+                               "coordinator", "specialist", "nurse", "librarian",
+                               "bus_supervisor", "admin"],
     "/reports/":      ["principal", "vice_academic", "vice_admin", "teacher", "coordinator"],
 }
 
@@ -118,7 +121,7 @@ class ParentConsentMiddleware:
     def __call__(self, request):
         if (
             request.user.is_authenticated
-            and request.user.get_role() == 'parent'
+            and request.user.has_role('parent')
             and request.user.consent_given_at is None
             and not any(request.path.startswith(p) for p in self.EXEMPT_PATHS)
         ):

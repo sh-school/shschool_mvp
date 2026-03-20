@@ -28,7 +28,7 @@ body {
 
 /* ── ألوان ── */
 :root {
-  --primary:   #0F2347;
+  --primary:   #8A1538;
   --accent:    #1A4F8A;
   --gold:      #B8860B;
   --success:   #15803d;
@@ -256,7 +256,7 @@ table tbody td { padding: 5px 4px; font-size: 8.5pt; }
 
 .rank-cell {
   font-weight: 800;
-  color: #0F2347;
+  color: #8A1538;
   width: 28px;
 }
 .avg-cell { font-weight: 800; font-size: 10pt; }
@@ -269,7 +269,7 @@ table tbody td { padding: 5px 4px; font-size: 8.5pt; }
     <div class="logo-circle">م</div>
     <div class="school-info">
       <h1>{{ school.name }}</h1>
-      <p>وزارة التعليم والتعليم العالي — دولة قطر</p>
+      <p>وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
     </div>
   </div>
   <div class="doc-info">
@@ -333,7 +333,7 @@ table tbody td { padding: 5px 4px; font-size: 8.5pt; }
       <td class="avg-cell {% if sd.avg %}{% if sd.avg >= 80 %}grade-a{% elif sd.avg >= 65 %}grade-b{% elif sd.avg >= 50 %}grade-c{% else %}grade-f{% endif %}{% endif %}">
         {{ sd.avg|default:"—" }}
       </td>
-      <td style="font-weight:800;color:#0F2347">{{ sd.rank }}</td>
+      <td style="font-weight:800;color:#8A1538">{{ sd.rank }}</td>
       <td>
         {% if sd.failed == 0 and sd.passed > 0 %}
           <span class="badge badge-pass">ناجح</span>

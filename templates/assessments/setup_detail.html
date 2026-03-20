@@ -13,7 +13,7 @@
 
   <!-- Header -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#0F2347] px-6 py-4 flex items-center justify-between">
+    <div class="bg-[#8A1538] px-6 py-4 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white">{{ setup.subject.name_ar }}</h1>
         <p class="text-blue-200 text-sm mt-1">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
@@ -95,7 +95,7 @@
               {{ assessment.get_status_display }}
             </span>
             <a href="{% url 'grade_entry' assessment.id %}"
-               class="text-xs px-2 py-1 bg-[#1A4F8A] text-white rounded hover:bg-[#0F2347]">
+               class="text-xs px-2 py-1 bg-[#1A4F8A] text-white rounded hover:bg-[#8A1538]">
               إدخال الدرجات
             </a>
           </div>
@@ -129,7 +129,7 @@
                    placeholder="الدرجة القصوى" class="w-24 border rounded px-2 py-1.5 text-sm">
           </div>
           <div class="flex gap-2">
-            <button type="submit" class="px-4 py-1.5 bg-[#1A4F8A] text-white rounded text-sm hover:bg-[#0F2347]">حفظ</button>
+            <button type="submit" class="px-4 py-1.5 bg-[#1A4F8A] text-white rounded text-sm hover:bg-[#8A1538]">حفظ</button>
             <button type="button" onclick="document.getElementById('form-{{ pkg.id }}').classList.add('hidden')"
                     class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm">إلغاء</button>
           </div>

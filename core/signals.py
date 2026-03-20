@@ -88,6 +88,19 @@ def audit_login(sender, request, user, **kwargs):
         pass
 
 
+@receiver(post_save, sender='core.ConsentRecord')
+def audit_consent_record(sender, instance, created, **kwargs):
+    """PDPPL م.9: كل منح أو سحب موافقة يُسجَّل كدليل قانوني"""
+    _log('ConsentRecord', 'create' if created else 'update', instance,
+         changes={'data_type': instance.data_type, 'is_given': instance.is_given})
+
+
+@receiver(post_save, sender='assessments.StudentAssessmentGrade')
+def audit_grade(sender, instance, created, **kwargs):
+    _log('StudentAssessmentGrade', 'create' if created else 'update', instance,
+         changes={'grade': str(getattr(instance, 'score', ''))})
+
+
 @receiver(user_logged_out)
 def audit_logout(sender, request, user, **kwargs):
     if not user:

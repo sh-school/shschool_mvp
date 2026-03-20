@@ -11,4 +11,8 @@ urlpatterns = [
     # ✅ لجنة الضبط السلوكي
     path("committee/",                               views.committee_dashboard,      name="committee"),
     path("committee/<uuid:infraction_id>/decision/", views.committee_decision,       name="committee_decision"),
+
+    # Phase 4 — تقارير سلوكية دورية
+    path("report/student/<uuid:student_id>/",  views.behavior_report,     name="behavior_report"),
+    path("statistics/",                        views.behavior_statistics,  name="statistics"),
 ]

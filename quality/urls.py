@@ -2,9 +2,14 @@
 quality/urls.py — الإصلاح #4: إضافة مسارات لجنة المنفذين
 """
 from django.urls import path
-from . import views
+from . import views, evaluation_views
 
 urlpatterns = [
+    # ── Phase 6: تقييم الموظفين ─────────────────────────────
+    path("evaluations/",                              evaluation_views.evaluation_dashboard,  name="evaluation_dashboard"),
+    path("evaluations/employee/<uuid:employee_id>/",  evaluation_views.create_evaluation,     name="create_evaluation"),
+    path("evaluations/acknowledge/<uuid:eval_id>/",   evaluation_views.acknowledge_evaluation,name="acknowledge_evaluation"),
+    path("evaluations/mine/",                         evaluation_views.my_evaluations,        name="my_evaluations"),
     # ── الخطة التشغيلية ──────────────────────────────────────
     path("",                                     views.plan_dashboard,          name="quality_dashboard"),
     path("domain/<uuid:domain_id>/",             views.domain_detail,           name="domain_detail"),

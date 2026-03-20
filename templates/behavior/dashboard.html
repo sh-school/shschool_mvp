@@ -5,10 +5,13 @@
 
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">⚖️ لوحة تحكم السلوك المدرسي</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">⚖️ لوحة تحكم السلوك المدرسي</h1>
       <p class="text-sm text-gray-500 mt-1">متابعة المخالفات السلوكية وسجلات الطلاب</p>
     </div>
     <div class="flex gap-2">
+      {% if is_committee %}
+      <a href="{% url 'behavior:statistics' %}" class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition">📊 الإحصاءات</a>
+      {% endif %}
       {% if can_report %}
       <a href="{% url 'behavior:report_infraction' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>
       {% endif %}
@@ -33,7 +36,7 @@
       <p class="text-xs text-gray-500 mt-1">صافي الخصم</p>
     </div>
     <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-[#0F2347]">{{ critical_unresolved|length }}</p>
+      <p class="text-3xl font-bold text-[#8A1538]">{{ critical_unresolved|length }}</p>
       <p class="text-xs text-gray-500 mt-1">مخالفات جسيمة معلّقة</p>
     </div>
   </div>

@@ -6,7 +6,7 @@
   {% block extra_head %}{% endblock %}
   <title>{% block title %}SchoolOS{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
     /* ══ Dropdown ══════════════════════════════════════════════ */
@@ -162,12 +162,12 @@
     {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">{{ msg }}</div>
   {% endfor %}
 </div>
-{% endif %}
+{% endif %}{# end if user.is_authenticated — nav only #}
 
 <main class="max-w-7xl mx-auto px-4 py-6">{% block content %}{% endblock %}</main>
 
 <footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
-  SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التعليم والتعليم العالي
+  SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التربية والتعليم والتعليم العالي
 </footer>
 
 <script>
@@ -235,6 +235,11 @@ window.addEventListener('resize', function() {
   <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
   <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
   <hr>
+  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" %}
+  <div class="sd-label">تقييم الأداء</div>
+  <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
+  <hr>
+  {% endif %}
   <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
 </div>
 
@@ -264,9 +269,14 @@ window.addEventListener('resize', function() {
   {% endif %}
   <a href="/admin/">⚙️ الإدارة</a>
   <hr>
-  <a href="/auth/logout/" style="color:#dc2626 !important;">🚪 تسجيل الخروج</a>
+  <form method="post" action="/auth/logout/" style="margin:0;padding:0">
+    {% csrf_token %}
+    <button type="submit" style="background:none;border:none;cursor:pointer;width:100%;text-align:right;padding:6px 12px;font-size:14px;color:#dc2626;display:block;">
+      🚪 تسجيل الخروج
+    </button>
+  </form>
 </div>
 
-{% endif %}
+{% endif %}{# end if user.is_authenticated — dropdowns #}
 </body>
 </html>

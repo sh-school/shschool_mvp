@@ -5,11 +5,11 @@
 
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">🚌 لوحة تحكم النقل المدرسي</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">🚌 لوحة تحكم النقل المدرسي</h1>
       <p class="text-sm text-gray-500 mt-1">إدارة الحافلات والمسارات</p>
     </div>
     <div class="flex gap-2">
-      <a href="{% url 'transport:buses_list' %}" class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">قائمة الحافلات</a>
+      <a href="{% url 'transport:buses_list' %}" class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">قائمة الحافلات</a>
       <a href="{% url 'transport:student_assignments' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">إسناد الطلاب</a>
     </div>
   </div>
@@ -17,7 +17,7 @@
   <!-- إحصائيات -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-[#0F2347]">{{ total_buses }}</p>
+      <p class="text-3xl font-bold text-[#8A1538]">{{ total_buses }}</p>
       <p class="text-xs text-gray-500 mt-1">إجمالي الحافلات</p>
     </div>
     <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
@@ -32,7 +32,7 @@
 
   <!-- الحافلات -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#0F2347] px-6 py-4">
+    <div class="bg-[#8A1538] px-6 py-4">
       <h2 class="text-white font-bold">الحافلات المدرسية</h2>
     </div>
     {% if bus_data %}

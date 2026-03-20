@@ -319,3 +319,193 @@ def committee_decision(request, infraction_id):
         return redirect("behavior:committee")
 
     return render(request, "behavior/committee_decision.html", {"infraction": infraction})
+
+
+
+# ── تقرير سلوكي دوري للطالب ──────────────────────────────────
+@login_required
+def behavior_report(request, student_id):
+    """
+    التقرير السلوكي الدوري — لائحة السلوك المدرسي MOEHE
+    يُرسَل لولي الأمر + يُحفظ كدليل QNSA
+    """
+    if not _can_report(request.user) and not request.user.is_superuser:
+        return HttpResponseForbidden("ليس لديك صلاحية.")
+
+    school  = request.user.get_school()
+    student = get_object_or_404(CustomUser, id=student_id)
+    year    = request.GET.get("year", "2025-2026")
+    period  = request.GET.get("period", "full")  # full | S1 | S2
+
+    from django.utils import timezone
+    from datetime import date
+
+    # نطاق الفترة
+    if period == "S1":
+        date_from, date_to = date(2025, 9, 1),  date(2026, 1, 31)
+        period_label = "الفصل الأول"
+    elif period == "S2":
+        date_from, date_to = date(2026, 2, 1),  date(2026, 6, 30)
+        period_label = "الفصل الثاني"
+    else:
+        date_from, date_to = date(2025, 9, 1),  date(2026, 6, 30)
+        period_label = "العام الدراسي كاملاً"
+
+    infractions = BehaviorInfraction.objects.filter(
+        student=student, school=school,
+        date__gte=date_from, date__lte=date_to,
+    ).select_related("reported_by", "recovery").order_by("date")
+
+    total_deducted = infractions.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
+    total_restored = BehaviorPointRecovery.objects.filter(
+        infraction__student=student,
+        infraction__date__gte=date_from,
+        infraction__date__lte=date_to,
+    ).aggregate(Sum("points_restored"))["points_restored__sum"] or 0
+
+    net_score = 100 - total_deducted + total_restored
+    net_score = max(0, min(100, net_score))
+
+    if net_score >= 90:   rating, rating_color = "ممتاز",      "green"
+    elif net_score >= 75: rating, rating_color = "جيد جداً",   "blue"
+    elif net_score >= 60: rating, rating_color = "جيد",        "amber"
+    else:                 rating, rating_color = "يحتاج تطوير","red"
+
+    by_level = {1: [], 2: [], 3: [], 4: []}
+    for inf in infractions:
+        by_level[inf.level].append(inf)
+
+    # ولي الأمر
+    from core.models import ParentStudentLink
+    parent_links = ParentStudentLink.objects.filter(
+        student=student, school=school
+    ).select_related("parent")
+
+    # إرسال للأولياء
+    sent_to = []
+    if request.method == "POST" and request.POST.get("action") == "send":
+        from notifications.services import NotificationService
+        for link in parent_links:
+            parent = link.parent
+            if parent.email:
+                body = (
+                    f"ولي أمر الطالب: {parent.full_name}\n\n"
+                    f"التقرير السلوكي للطالب: {student.full_name}\n"
+                    f"الفترة: {period_label} — {year}\n\n"
+                    f"نقاط السلوك: {net_score}/100 ({rating})\n"
+                    f"المخالفات المسجَّلة: {infractions.count()}\n"
+                    f"النقاط المخصومة: {total_deducted}\n"
+                    f"النقاط المستعادة: {total_restored}\n\n"
+                    f"للاطلاع على التفاصيل الكاملة يرجى زيارة البوابة الإلكترونية.\n\n"
+                    f"مدرسة الشحانية الإعدادية الثانوية للبنين"
+                )
+                try:
+                    NotificationService.send_email(
+                        school=school,
+                        recipient_email=parent.email,
+                        subject=f"التقرير السلوكي — {student.full_name} — {period_label}",
+                        body_text=body,
+                        student=student,
+                        notif_type="behavior",
+                        sent_by=request.user,
+                    )
+                    sent_to.append(parent.full_name)
+                except Exception:
+                    pass
+
+        if sent_to:
+            messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
+        else:
+            messages.warning(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
+        return redirect(request.path + f"?year={year}&period={period}")
+
+    period_choices = [
+        ("full", "العام كاملاً"),
+        ("S1",   "الفصل الأول"),
+        ("S2",   "الفصل الثاني"),
+    ]
+
+    return render(request, "behavior/behavior_report.html", {
+        "student":        student,
+        "infractions":    infractions,
+        "by_level":       by_level,
+        "total_deducted": total_deducted,
+        "total_restored": total_restored,
+        "net_score":      net_score,
+        "rating":         rating,
+        "rating_color":   rating_color,
+        "period":         period,
+        "period_label":   period_label,
+        "year":           year,
+        "parent_links":   parent_links,
+        "sent_to":        sent_to,
+        "date_from":      date_from,
+        "date_to":        date_to,
+        "period_choices": period_choices,
+    })
+
+
+# ── تقرير إحصائي للمدير ──────────────────────────────────────
+@login_required
+def behavior_statistics(request):
+    """
+    تقرير إحصائي شامل للمدير — QNSA المعيار 2
+    """
+    if not _is_committee(request.user):
+        return HttpResponseForbidden("للمدير ونائبيه فقط.")
+
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+    from datetime import date
+    date_from = date(2025, 9, 1)
+    date_to   = date(2026, 6, 30)
+
+    # إحصائيات عامة
+    all_inf = BehaviorInfraction.objects.filter(
+        school=school, date__gte=date_from, date__lte=date_to
+    )
+
+    by_level = {
+        lvl: all_inf.filter(level=lvl).count()
+        for lvl in [1, 2, 3, 4]
+    }
+    total = all_inf.count()
+
+    # أكثر الطلاب مخالفة
+    top_students = (
+        all_inf.values("student__full_name", "student__id")
+        .annotate(count=Count("id"), pts=Sum("points_deducted"))
+        .order_by("-count")[:10]
+    )
+
+    # توزيع شهري
+    from django.db.models.functions import TruncMonth
+    monthly = (
+        all_inf.annotate(month=TruncMonth("date"))
+        .values("month")
+        .annotate(count=Count("id"))
+        .order_by("month")
+    )
+
+    # الفصول الأكثر مخالفات
+    from core.models import StudentEnrollment
+    top_classes = (
+        all_inf.values(
+            "student__enrollments__class_group__grade",
+            "student__enrollments__class_group__section",
+        )
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+
+    return render(request, "behavior/statistics.html", {
+        "by_level":    by_level,
+        "total":       total,
+        "top_students": top_students,
+        "monthly":     monthly,
+        "top_classes": top_classes,
+        "year":        year,
+        "resolved_pct": round(
+            all_inf.filter(is_resolved=True).count() / total * 100
+        ) if total else 0,
+    })

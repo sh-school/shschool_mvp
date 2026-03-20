@@ -7,12 +7,12 @@
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">الخطة التشغيلية</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">الخطة التشغيلية</h1>
       <p class="text-sm text-gray-500 mt-1">{{ year }} — مدرسة الشحانية</p>
     </div>
     <div class="flex gap-2 flex-wrap">
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'quality_report' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">تقرير التقدم</a>
+      <a href="{% url 'quality_report' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">تقرير التقدم</a>
       <a href="{% url 'executor_mapping' %}" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition">
         ربط المنفذين
         {% if unmapped_count %}<span class="mr-1 bg-red-500 text-white text-xs rounded-full px-1.5">{{ unmapped_count }}</span>{% endif %}
@@ -20,7 +20,7 @@
       <a href="{% url 'executor_committee' %}" class="px-4 py-2 bg-purple-700 text-white rounded-lg text-sm hover:bg-purple-800 transition">لجنة التنفيذ</a>
       <a href="{% url 'quality_committee' %}" class="px-4 py-2 bg-indigo-700 text-white rounded-lg text-sm hover:bg-indigo-800 transition">لجنة الجودة</a>
       {% else %}
-      <a href="{% url 'my_procedures' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">إجراءاتي</a>
+      <a href="{% url 'my_procedures' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">إجراءاتي</a>
       {% endif %}
     </div>
   </div>
@@ -54,14 +54,14 @@
 
   <!-- المجالات -->
   <div>
-    <h2 class="text-lg font-bold text-[#0F2347] mb-3">المجالات</h2>
+    <h2 class="text-lg font-bold text-[#8A1538] mb-3">المجالات</h2>
     <div class="grid gap-4">
       {% for domain in domains %}
       <a href="{% url 'domain_detail' domain.id %}"
          class="bg-white rounded-xl border shadow-sm hover:shadow-md transition hover:-translate-y-0.5 overflow-hidden block">
         <div class="flex items-center justify-between p-5">
           <div class="flex-1">
-            <h3 class="font-bold text-[#0F2347] text-lg">{{ domain.name }}</h3>
+            <h3 class="font-bold text-[#8A1538] text-lg">{{ domain.name }}</h3>
             <p class="text-sm text-gray-500 mt-1">
               {{ domain.total_procedures }} إجراء ·
               {{ domain.targets.count }} هدف
@@ -91,7 +91,7 @@
   <!-- إجراءاتي (للمنفذ) -->
   {% if my_procedures %}
   <div>
-    <h2 class="text-lg font-bold text-[#0F2347] mb-3">إجراءاتي المعلّقة</h2>
+    <h2 class="text-lg font-bold text-[#8A1538] mb-3">إجراءاتي المعلّقة</h2>
     <div class="bg-white rounded-xl border shadow-sm divide-y">
       {% for proc in my_procedures|slice:":5" %}
       <a href="{% url 'procedure_detail' proc.id %}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition">
@@ -118,7 +118,7 @@
   <!-- لجنة الجودة مختصرة -->
   {% if review_committee and request.user.is_admin %}
   <div>
-    <h2 class="text-lg font-bold text-[#0F2347] mb-3">لجنة المراجعة الذاتية</h2>
+    <h2 class="text-lg font-bold text-[#8A1538] mb-3">لجنة المراجعة الذاتية</h2>
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-purple-800 text-white">

@@ -28,7 +28,7 @@ body {
 
 /* ── ألوان ── */
 :root {
-  --primary:   #0F2347;
+  --primary:   #8A1538;
   --accent:    #1A4F8A;
   --gold:      #B8860B;
   --success:   #15803d;
@@ -251,7 +251,7 @@ tr.row-fail td:last-child { color: var(--danger); }
 @page { size: A4; margin: 1cm 1.5cm; }
 
 .certificate-frame {
-  border: 5px double #0F2347;
+  border: 5px double #8A1538;
   border-radius: 10px;
   padding: 22px 28px;
   page-break-after: always;
@@ -260,15 +260,15 @@ tr.row-fail td:last-child { color: var(--danger); }
 }
 .certificate-frame:last-child { page-break-after: avoid; }
 
-.cert-top { text-align:center; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid #0F2347; }
+.cert-top { text-align:center; margin-bottom:16px; padding-bottom:12px; border-bottom:2px solid #8A1538; }
 .cert-top .ministry { font-size:9pt; color:#6b7280; }
-.cert-top .school-name { font-size:16pt; font-weight:800; color:#0F2347; }
+.cert-top .school-name { font-size:16pt; font-weight:800; color:#8A1538; }
 .cert-top .doc-title { font-size:12pt; font-weight:700; color:#B8860B; margin-top:4px; }
 
 .cert-body { text-align:center; margin:16px 0; line-height:2; }
 .cert-body .intro { font-size:10pt; color:#374151; }
 .cert-body .student-name-cert {
-  font-size:18pt; font-weight:800; color:#0F2347; display:block; margin:6px 0;
+  font-size:18pt; font-weight:800; color:#8A1538; display:block; margin:6px 0;
   text-decoration:underline; text-decoration-color:#B8860B; text-underline-offset:5px;
 }
 .cert-result {
@@ -278,7 +278,7 @@ tr.row-fail td:last-child { color: var(--danger); }
 .cert-result .result-value { font-size:24pt; font-weight:800; display:block; }
 
 table { font-size:9pt; }
-table thead tr { background:#0F2347; }
+table thead tr { background:#8A1538; }
 
 .signatures {
   display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:24px; padding-top:12px;
@@ -303,7 +303,7 @@ table thead tr { background:#0F2347; }
 <div class="certificate-frame">
 
   <div class="cert-top">
-    <div class="ministry">وزارة التعليم والتعليم العالي — دولة قطر</div>
+    <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ ctx.school.name }}</div>
     <div class="doc-title">✦ شهادة نتيجة سنوية ✦</div>
   </div>

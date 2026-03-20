@@ -4,14 +4,14 @@
 {% block content %}
 <div class="space-y-6">
   <div class="flex items-center justify-between flex-wrap gap-3">
-    <h1 class="text-2xl font-bold text-[#0F2347]">غيابات المعلمين</h1>
+    <h1 class="text-2xl font-bold text-[#8A1538]">غيابات المعلمين</h1>
     <div class="flex gap-2">
       <a href="{% url 'register_absence' %}"
          class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition">
         + تسجيل غياب
       </a>
       <a href="{% url 'substitute_report' %}"
-         class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#0F2347] transition">
+         class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">
         تقرير البدلاء
       </a>
     </div>
@@ -51,7 +51,7 @@
             {{ absence.get_status_display }}
           </span>
           <a href="{% url 'absence_detail' absence.id %}"
-             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#0F2347]">
+             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#8A1538]">
             تفاصيل وتعيين
           </a>
         </div>

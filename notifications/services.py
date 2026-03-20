@@ -308,3 +308,101 @@ class NotificationService:
                     total_failed += 1
 
         return total_sent, total_failed
+
+
+# ══════════════════════════════════════════════════════════════
+# خدمة إشعار اختراق البيانات — PDPPL م.27 (مهلة 72 ساعة)
+# ══════════════════════════════════════════════════════════════
+
+class BreachNotificationService:
+    """
+    قانون حماية البيانات الشخصية 13/2016 — المادة 27:
+    يجب إخطار المسؤول عن حماية البيانات خلال 72 ساعة من اكتشاف الاختراق.
+    يوفر هذا الكلاس workflow موحداً للإبلاغ والتوثيق.
+    """
+
+    BREACH_TYPES = [
+        ("unauthorized_access",  "وصول غير مصرح"),
+        ("data_leak",            "تسريب بيانات"),
+        ("ransomware",           "برنامج فدية"),
+        ("accidental_disclosure","إفصاح عرضي"),
+        ("other",                "أخرى"),
+    ]
+
+    @staticmethod
+    def report_breach(school, reported_by, breach_type, description,
+                      affected_count=0, affected_data_types=None):
+        """
+        توثيق حادثة اختراق وإرسال إشعار فوري للمسؤول.
+        يُعيد dict يحتوي على: breach_id, deadline_72h, logged.
+        """
+        from django.utils import timezone
+        from core.models import AuditLog
+        import uuid
+
+        breach_id   = str(uuid.uuid4())[:8].upper()
+        discovered  = timezone.now()
+        deadline    = discovered + timezone.timedelta(hours=72)
+
+        details = {
+            "breach_id":           breach_id,
+            "breach_type":         breach_type,
+            "description":         description,
+            "affected_count":      affected_count,
+            "affected_data_types": affected_data_types or [],
+            "discovered_at":       discovered.isoformat(),
+            "notification_deadline": deadline.isoformat(),
+            "reported_by":         str(reported_by),
+        }
+
+        # تسجيل في AuditLog كدليل قانوني
+        AuditLog.objects.create(
+            school=school,
+            user=reported_by,
+            action="other",
+            model_name="other",
+            object_id=breach_id,
+            object_repr=f"DATA BREACH — {breach_type}",
+            changes=details,
+        )
+
+        # إرسال إشعار بريد للمسؤولين في المدرسة
+        from core.models import Membership
+        admins = Membership.objects.filter(
+            school=school,
+            is_active=True,
+            role__name__in=["principal", "admin"],
+        ).select_related("user")
+
+        subject = "[تنبيه عاجل] حادثة بيانات #" + breach_id + " — " + school.name
+        NL = "\n"
+        body = (
+            "تم الإبلاغ عن حادثة بيانات شخصية بتاريخ " + discovered.strftime("%Y-%m-%d %H:%M") + "." + NL + NL
+            + "نوع الحادثة: " + breach_type + NL
+            + "الوصف: " + description + NL
+            + "عدد المتأثرين: " + str(affected_count) + NL
+            + "أنواع البيانات: " + ", ".join(affected_data_types or []) + NL + NL
+            + "⚠️ الموعد النهائي للإخطار القانوني (PDPPL م.27): "
+            + deadline.strftime("%Y-%m-%d %H:%M") + NL + NL
+            + "يجب إخطار المسؤول عن حماية البيانات خلال 72 ساعة من الاكتشاف."
+        )
+
+        for m in admins:
+            if m.user.email:
+                try:
+                    NotificationService.send_email(
+                        school=school,
+                        recipient_email=m.user.email,
+                        subject=subject,
+                        body_text=body,
+                        notif_type="custom",
+                        sent_by=reported_by,
+                    )
+                except Exception:
+                    pass
+
+        return {
+            "breach_id":  breach_id,
+            "deadline_72h": deadline,
+            "logged": True,
+        }

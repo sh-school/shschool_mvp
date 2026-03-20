@@ -11,7 +11,7 @@
   </div>
 
   <!-- Header -->
-  <div class="bg-gradient-to-l from-[#0F2347] to-[#1A4F8A] rounded-2xl px-6 py-5">
+  <div class="bg-gradient-to-l from-[#8A1538] to-[#1A4F8A] rounded-2xl px-6 py-5">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
         <h1 class="text-xl font-bold text-white">{{ student.full_name }}</h1>
@@ -25,7 +25,7 @@
         {% for d in period_choices %}
         <a href="?period={{ d }}"
            class="px-3 py-1.5 rounded-full text-sm transition
-             {% if period == d %}bg-white text-[#0F2347] font-bold{% else %}bg-white/20 text-white hover:bg-white/30{% endif %}">
+             {% if period == d %}bg-white text-[#8A1538] font-bold{% else %}bg-white/20 text-white hover:bg-white/30{% endif %}">
           {{ d }} يوم
         </a>
         {% endfor %}

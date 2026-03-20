@@ -1,0 +1,49 @@
+{% extends "base/base.html" %}
+{% block title %}تقييم — {{ employee.full_name }}{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto" dir="rtl">
+  <div class="bg-white border rounded-2xl overflow-hidden">
+    <div class="bg-[#8A1538] px-6 py-5">
+      <h1 class="text-xl font-bold text-white">تقييم أداء الموظف</h1>
+      <p class="text-red-200 text-sm mt-1">{{ employee.full_name }} · {{ period }} · {{ year }}</p>
+    </div>
+    <form method="post" class="p-6 space-y-5">
+      {% csrf_token %}
+      {% for field_name, label, max_val in axes %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          {{ label }} <span class="text-gray-400 font-normal">(من {{ max_val }})</span>
+        </label>
+        <input type="number" name="{{ field_name }}" min="0" max="{{ max_val }}"
+               value="{{ obj|attr:field_name|default:0 }}"
+               class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8A1538]">
+      </div>
+      {% endfor %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">نقاط القوة</label>
+        <textarea name="strengths" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm">{{ obj.strengths }}</textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">مجالات التطوير</label>
+        <textarea name="improvements" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm">{{ obj.improvements }}</textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">أهداف الفترة القادمة</label>
+        <textarea name="goals_next" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm">{{ obj.goals_next }}</textarea>
+      </div>
+
+      <div class="flex gap-3 justify-end pt-2">
+        <button type="submit" name="action" value="draft"
+                class="px-5 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-50">
+          حفظ مسودة
+        </button>
+        <button type="submit" name="action" value="submitted"
+                class="px-6 py-2 bg-[#8A1538] text-white rounded-xl text-sm font-semibold hover:bg-[#6d1030]">
+          تقديم التقييم
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

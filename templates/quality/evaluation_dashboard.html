@@ -1,0 +1,79 @@
+{% extends "base/base.html" %}
+{% block title %}تقييم الموظفين — Phase 6{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6" dir="rtl">
+
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-800">تقييم أداء الموظفين</h1>
+    <span class="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-medium">
+      القرار الأميري 9/2016 · QNSA المعيار 1
+    </span>
+  </div>
+
+  {% if avg_score %}
+  <div class="grid grid-cols-3 gap-4">
+    <div class="bg-white border rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-[#8A1538]">{{ avg_score }}</p>
+      <p class="text-sm text-gray-500 mt-1">متوسط الدرجات</p>
+    </div>
+    <div class="bg-white border rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-green-700">{{ rating_dist.excellent|default:0 }}</p>
+      <p class="text-sm text-gray-500 mt-1">تقدير ممتاز</p>
+    </div>
+    <div class="bg-white border rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-amber-600">{{ rating_dist.needs_dev|default:0 }}</p>
+      <p class="text-sm text-gray-500 mt-1">يحتاج تطوير</p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% for cs in cycle_stats %}
+  <div class="bg-white border rounded-xl p-4">
+    <div class="flex items-center justify-between mb-2">
+      <p class="font-semibold text-gray-700">{{ cs.cycle.get_period_display }}</p>
+      <span class="text-sm font-medium {% if cs.completion_rate == 100 %}text-green-700{% elif cs.completion_rate >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">
+        {{ cs.completion_rate }}% مكتمل
+      </span>
+    </div>
+    <div class="w-full bg-gray-100 rounded-full h-2">
+      <div class="h-2 rounded-full {% if cs.completion_rate == 100 %}bg-green-500{% elif cs.completion_rate >= 50 %}bg-amber-400{% else %}bg-red-400{% endif %}"
+           style="width:{{ cs.completion_rate }}%"></div>
+    </div>
+    <p class="text-xs text-gray-400 mt-1">الموعد النهائي: {{ cs.cycle.deadline }}</p>
+  </div>
+  {% endfor %}
+
+  <div class="bg-white border rounded-xl overflow-hidden">
+    <div class="bg-gray-50 px-4 py-3 border-b">
+      <p class="font-semibold text-gray-700">التقييمات الأخيرة</p>
+    </div>
+    <div class="divide-y">
+      {% for ev in recent_evals %}
+      <div class="flex items-center justify-between px-4 py-3">
+        <div>
+          <p class="font-medium text-gray-800 text-sm">{{ ev.employee.full_name }}</p>
+          <p class="text-xs text-gray-400">{{ ev.get_period_display }} · {{ ev.academic_year }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-lg font-bold {% if ev.rating == 'excellent' %}text-green-700{% elif ev.rating == 'needs_dev' %}text-red-600{% else %}text-amber-600{% endif %}">
+            {{ ev.total_score }}
+          </span>
+          <span class="text-xs px-2 py-1 rounded-full
+            {% if ev.status == 'acknowledged' %}bg-green-100 text-green-800
+            {% elif ev.status == 'approved' %}bg-blue-100 text-blue-800
+            {% elif ev.status == 'submitted' %}bg-amber-100 text-amber-800
+            {% else %}bg-gray-100 text-gray-600{% endif %}">
+            {{ ev.get_status_display }}
+          </span>
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center py-8 text-gray-400">
+        <p>لا توجد تقييمات بعد لهذا العام</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

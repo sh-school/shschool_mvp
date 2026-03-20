@@ -7,7 +7,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">{{ committee_label }}</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">{{ committee_label }}</h1>
       <p class="text-sm text-gray-500 mt-1">{{ year }} — إدارة أعضاء اللجنة ومسؤولياتهم</p>
     </div>
     <div class="flex gap-2">
@@ -27,7 +27,7 @@
 
   <!-- إضافة عضو -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#0F2347] px-6 py-4">
+    <div class="bg-[#8A1538] px-6 py-4">
       <h2 class="text-white font-bold">إضافة عضو جديد للجنة</h2>
     </div>
     <form method="post" action="{% url 'add_committee_member' %}" class="p-6">
@@ -88,7 +88,7 @@
 
       <div class="mt-4">
         <button type="submit"
-                class="px-5 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">
+                class="px-5 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">
           + إضافة للجنة
         </button>
       </div>
@@ -160,13 +160,13 @@
   <!-- المجالات والمسؤولون -->
   {% if domains %}
   <div>
-    <h2 class="text-lg font-bold text-[#0F2347] mb-3">تغطية المجالات</h2>
+    <h2 class="text-lg font-bold text-[#8A1538] mb-3">تغطية المجالات</h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       {% for domain in domains %}
       {% with responsible=domain.committee_members.first %}
       <div class="bg-white rounded-xl border p-4 shadow-sm">
         <div class="flex items-start justify-between gap-2">
-          <p class="font-bold text-[#0F2347] text-sm">{{ domain.name }}</p>
+          <p class="font-bold text-[#8A1538] text-sm">{{ domain.name }}</p>
           <span class="text-xs px-2 py-0.5 rounded-full {% if domain.completion_pct >= 80 %}bg-green-100 text-green-700{% elif domain.completion_pct >= 50 %}bg-amber-100 text-amber-700{% else %}bg-red-100 text-red-600{% endif %}">
             {{ domain.completion_pct }}%
           </span>

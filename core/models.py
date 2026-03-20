@@ -137,6 +137,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def get_role(self):
         return self.role or ""
 
+    def has_role(self, role_name):
+        """تحقق إذا كان المستخدم يملك دوراً معيناً (بغض النظر عن الدور الأساسي)"""
+        return self.memberships.filter(
+            is_active=True, role__name=role_name
+        ).exists()
+
+    def get_parent_membership(self):
+        """إرجاع عضوية ولي الأمر إن وجدت — يدعم الموظف الذي هو أيضاً ولي أمر"""
+        return self.memberships.filter(
+            is_active=True, role__name="parent"
+        ).select_related("school", "role").first()
+
     def is_admin(self):
         return self.is_superuser or self.get_role() in ("admin", "principal")
 
@@ -531,6 +543,8 @@ class AuditLog(models.Model):
         ('CustomUser',          'مستخدم'),
         ('ParentStudentLink',   'ربط ولي أمر'),
         ('BookBorrowing',       'إعارة كتاب'),
+        ('ConsentRecord',       'سجل موافقة'),
+        ('StudentAssessmentGrade', 'درجة تقييم'),
         ('other',               'أخرى'),
     ]
 
