@@ -13,11 +13,13 @@ from django.utils import timezone
 from core.models import (
     School, CustomUser, Role, Membership,
     ClassGroup, StudentEnrollment, ParentStudentLink,
-    HealthRecord, ClinicVisit,
-    SchoolBus, BusRoute,
-    BehaviorInfraction, BehaviorPointRecovery,
-    LibraryBook, BookBorrowing,
+    AuditLog, ConsentRecord,
 )
+# نماذج مُنقلة — لا تزال متاحة من core بفضل re-exports
+from clinic.models    import HealthRecord, ClinicVisit
+from behavior.models  import BehaviorInfraction, BehaviorPointRecovery
+from transport.models import SchoolBus, BusRoute
+from library.models   import LibraryBook, BookBorrowing
 
 
 # ══════════════════════════════════════════════

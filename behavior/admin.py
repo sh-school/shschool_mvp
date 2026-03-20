@@ -1,5 +1,5 @@
 from django.contrib import admin
-from core.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 
 @admin.register(BehaviorInfraction)
 class BehaviorInfractionAdmin(admin.ModelAdmin):

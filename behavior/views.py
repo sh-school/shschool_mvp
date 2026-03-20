@@ -37,6 +37,106 @@ def _is_committee(user):
            or user.is_superuser
 
 
+# ── [مهمة 18] إشعار تلقائي لولي الأمر عند تسجيل مخالفة ─────────
+def _notify_parents_behavior(infraction, school, reporter):
+    """
+    يُرسَل إشعار بريد إلكتروني + SMS لولي الأمر فور تسجيل المخالفة.
+    - الدرجة 1: بريد فقط (تنبيه خفيف)
+    - الدرجة 2+: بريد + SMS
+    - الدرجة 3-4: بريد + SMS + تنبيه إضافي بالإحالة للجنة
+    """
+    LEVEL_DISPLAY = {
+        1: "الدرجة الأولى (بسيطة)",
+        2: "الدرجة الثانية (متوسطة)",
+        3: "الدرجة الثالثة (جسيمة)",
+        4: "الدرجة الرابعة (شديدة الخطورة)",
+    }
+    LEVEL_DESC = {
+        1: "مخالفة بسيطة تستوجب التنبيه والتوجيه",
+        2: "مخالفة متوسطة تستوجب التدخل والمتابعة",
+        3: "مخالفة جسيمة أُحيلت للجنة الضبط السلوكي",
+        4: "مخالفة شديدة الخطورة تستوجب التدخل الفوري",
+    }
+
+    try:
+        from notifications.services import NotificationService
+        from core.models import ParentStudentLink
+        from django.template.loader import render_to_string
+
+        links = ParentStudentLink.objects.filter(
+            student=infraction.student, school=school
+        ).select_related("parent")
+
+        if not links.exists():
+            return  # لا يوجد أولياء أمور مرتبطون
+
+        ctx = {
+            "school_name":     school.name,
+            "student_name":    infraction.student.full_name,
+            "level":           infraction.level,
+            "level_display":   LEVEL_DISPLAY.get(infraction.level, ""),
+            "level_description": LEVEL_DESC.get(infraction.level, ""),
+            "infraction_date": infraction.date.strftime("%Y/%m/%d") if infraction.date else "",
+            "points_deducted": infraction.points_deducted,
+            "description":     infraction.description,
+            "action_taken":    infraction.action_taken,
+            "reported_by":     reporter.full_name,
+        }
+
+        for link in links:
+            parent = link.parent
+            ctx["parent_name"] = parent.full_name
+
+            subject = (
+                f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
+                f"({LEVEL_DISPLAY.get(infraction.level, '')})"
+            )
+
+            # ── بريد إلكتروني ─────────────────────────────────────────
+            if parent.email:
+                try:
+                    body_html = render_to_string(
+                        "notifications/email/behavior_html.html", ctx
+                    )
+                    body_text = render_to_string(
+                        "notifications/email/behavior_text.txt", ctx
+                    )
+                    NotificationService.send_email(
+                        school         = school,
+                        recipient_email= parent.email,
+                        subject        = subject,
+                        body_text      = body_text,
+                        body_html      = body_html,
+                        student        = infraction.student,
+                        notif_type     = "behavior",
+                        sent_by        = reporter,
+                    )
+                except Exception:
+                    pass  # لا نوقف التسجيل إذا فشل الإرسال
+
+            # ── SMS — للدرجة 2 فأكثر فقط ─────────────────────────────
+            if infraction.level >= 2 and parent.phone:
+                sms_body = (
+                    f"مدرسة الشحانية: تم تسجيل {LEVEL_DISPLAY.get(infraction.level, 'مخالفة')} "
+                    f"لابنكم {infraction.student.full_name}. "
+                    f"يُرجى التواصل مع المدرسة."
+                )
+                try:
+                    NotificationService.send_sms(
+                        school      = school,
+                        phone_number= parent.phone,
+                        message     = sms_body,
+                        student     = infraction.student,
+                        notif_type  = "behavior",
+                        sent_by     = reporter,
+                    )
+                except Exception:
+                    pass
+
+    except Exception:
+        pass  # الإشعار لا يوقف عملية التسجيل أبداً
+
+
 # ── لوحة التحكم ──────────────────────────────────────────────
 @login_required
 def behavior_dashboard(request):
@@ -121,6 +221,18 @@ def report_infraction(request):
                 request,
                 f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
             )
+
+            # ── [مهمة 15+18] إشعار غير متزامن عبر Celery ─────────────────
+            try:
+                from notifications.tasks import notify_behavior_task
+                notify_behavior_task.delay(
+                    infraction_id = str(infraction.id),
+                    reporter_id   = str(request.user.id),
+                )
+            except Exception:
+                # Fallback: مباشر إذا لم يكن Celery متاحاً
+                _notify_parents_behavior(infraction, school, request.user)
+
             # توجيه المخالفات الجسيمة تلقائياً للجنة
             if level >= 3:
                 messages.warning(

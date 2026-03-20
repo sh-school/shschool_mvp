@@ -1,5 +1,5 @@
 from django.contrib import admin
-from core.models import LibraryBook, BookBorrowing, LibraryActivity
+from library.models import LibraryBook, BookBorrowing, LibraryActivity
 
 @admin.register(LibraryBook)
 class LibraryBookAdmin(admin.ModelAdmin):

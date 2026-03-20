@@ -13,27 +13,26 @@ from datetime import datetime, timedelta
 def clinic_dashboard(request):
     """لوحة تحكم العيادة المدرسية"""
     school = request.user.school
-    
-    # إحصائيات اليوم
+
     today = timezone.now().date()
     visits_today = ClinicVisit.objects.filter(
         school=school,
         visit_date__date=today
     ).count()
-    
-    # الزيارات الأخيرة
-    recent_visits = ClinicVisit.objects.filter(school=school).select_related('student').order_by('-visit_date')[:10]
-    
-    # الطلاب بحاجة لمتابعة
+
+    recent_visits = ClinicVisit.objects.filter(
+        school=school
+    ).select_related('student').order_by('-visit_date')[:10]
+
     follow_up_visits = ClinicVisit.objects.filter(
         school=school,
         is_sent_home=True,
         visit_date__date=today
     ).select_related('student')
-    
+
     context = {
-        'visits_today': visits_today,
-        'recent_visits': recent_visits,
+        'visits_today':    visits_today,
+        'recent_visits':   recent_visits,
         'follow_up_visits': follow_up_visits,
     }
     return render(request, 'clinic/dashboard.html', context)
@@ -41,22 +40,47 @@ def clinic_dashboard(request):
 
 @login_required
 @nurse_required
+@require_http_methods(["GET", "POST"])
 def student_health_record(request, student_id):
-    """عرض السجل الصحي للطالب"""
-    school = request.user.school
+    """عرض وتعديل السجل الصحي للطالب — مع فك تشفير البيانات الحساسة"""
+    school  = request.user.school
     student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
-    
+
     try:
         health_record = student.health_record
     except HealthRecord.DoesNotExist:
         health_record = HealthRecord.objects.create(student=student)
-    
-    visits = ClinicVisit.objects.filter(student=student).order_by('-visit_date')
-    
+
+    # ── [مهمة 5] حفظ الحقول الحساسة مشفّرة ──────────────────────────
+    if request.method == "POST":
+        # استخدام save_encrypted() الموجودة في models.py
+        # تُشفّر الحقول الثلاثة بـ Fernet قبل الحفظ
+        health_record.blood_type = request.POST.get("blood_type", "")
+        health_record.emergency_contact_name  = request.POST.get("emergency_contact_name", "")
+        health_record.emergency_contact_phone = request.POST.get("emergency_contact_phone", "")
+        health_record.save_encrypted(
+            allergies        = request.POST.get("allergies", ""),
+            chronic_diseases = request.POST.get("chronic_diseases", ""),
+            medications      = request.POST.get("medications", ""),
+        )
+        from django.contrib import messages
+        messages.success(request, "✅ تم حفظ السجل الصحي بنجاح.")
+        return redirect("clinic:health_record", student_id=student_id)
+
+    visits = ClinicVisit.objects.filter(
+        student=student
+    ).order_by('-visit_date')
+
+    # ── [مهمة 5] فك التشفير عند العرض ───────────────────────────────
+    # نمرّر القيم المفكوكة للقالب بدلاً من الحقول الخام المشفّرة
     context = {
-        'student': student,
+        'student':       student,
         'health_record': health_record,
-        'visits': visits,
+        'visits':        visits,
+        # قيم مفكوكة التشفير للعرض في النموذج
+        'allergies':        health_record.get_allergies(),
+        'chronic_diseases': health_record.get_chronic_diseases(),
+        'medications':      health_record.get_medications(),
     }
     return render(request, 'clinic/health_record.html', context)
 
@@ -67,23 +91,23 @@ def student_health_record(request, student_id):
 def record_visit(request, student_id=None):
     """تسجيل زيارة جديدة للعيادة"""
     school = request.user.school
-    nurse = request.user
-    
+    nurse  = request.user
+
     if request.method == 'POST':
         student_id = request.POST.get('student_id')
         student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
-        
+
         visit = ClinicVisit.objects.create(
-            school=school,
-            student=student,
-            nurse=nurse,
-            reason=request.POST.get('reason'),
-            symptoms=request.POST.get('symptoms', ''),
-            temperature=request.POST.get('temperature') or None,
-            treatment=request.POST.get('treatment', ''),
-            is_sent_home=request.POST.get('is_sent_home') == 'on',
+            school      = school,
+            student     = student,
+            nurse       = nurse,
+            reason      = request.POST.get('reason'),
+            symptoms    = request.POST.get('symptoms', ''),
+            temperature = request.POST.get('temperature') or None,
+            treatment   = request.POST.get('treatment', ''),
+            is_sent_home= request.POST.get('is_sent_home') == 'on',
         )
-        
+
         # إرسال إشعار لولي الأمر عند إرسال الطالب للمنزل
         if visit.is_sent_home:
             try:
@@ -101,30 +125,33 @@ def record_visit(request, student_id=None):
                     )
                     if parent.email:
                         NotificationService.send_email(
-                            school=school, recipient_email=parent.email,
-                            subject=f"إشعار: {visit.student.full_name} في العيادة",
-                            body_text=msg, student=visit.student, notif_type="custom",
-                            sent_by=nurse,
+                            school         = school,
+                            recipient_email= parent.email,
+                            subject        = f"إشعار: {visit.student.full_name} في العيادة",
+                            body_text      = msg,
+                            student        = visit.student,
+                            notif_type     = "custom",
+                            sent_by        = nurse,
                         )
                 visit.parent_notified = True
                 visit.save()
             except Exception:
                 visit.parent_notified = False
                 visit.save()
-        
+
         if request.headers.get('HX-Request'):
             return render(request, 'clinic/visit_card.html', {'visit': visit})
-        
+
         return redirect('clinic:health_record', student_id=student_id)
-    
+
     students = CustomUser.objects.filter(
-        memberships__school=school,
-        memberships__role__name='student',
-        memberships__is_active=True
+        memberships__school    = school,
+        memberships__role__name= 'student',
+        memberships__is_active = True
     ).distinct()
-    
+
     context = {
-        'students': students,
+        'students':   students,
         'student_id': student_id,
     }
     return render(request, 'clinic/record_visit.html', context)
@@ -135,9 +162,10 @@ def record_visit(request, student_id=None):
 def visits_list(request):
     """قائمة الزيارات بالعيادة"""
     school = request.user.school
-    visits = ClinicVisit.objects.filter(school=school).select_related('student').order_by('-visit_date')
-    
-    # تصفية حسب التاريخ إذا لزم الأمر
+    visits = ClinicVisit.objects.filter(
+        school=school
+    ).select_related('student').order_by('-visit_date')
+
     date_filter = request.GET.get('date')
     if date_filter:
         try:
@@ -145,15 +173,14 @@ def visits_list(request):
             visits = visits.filter(visit_date__date=filter_date)
         except ValueError:
             pass
-    
-    # تصفية حسب الطالب
+
     student_filter = request.GET.get('student')
     if student_filter:
         visits = visits.filter(student__full_name__icontains=student_filter)
-    
+
     context = {
-        'visits': visits,
-        'date_filter': date_filter,
+        'visits':         visits,
+        'date_filter':    date_filter,
         'student_filter': student_filter,
     }
     return render(request, 'clinic/visits_list.html', context)
@@ -164,29 +191,26 @@ def visits_list(request):
 def health_statistics(request):
     """إحصائيات صحية للمدرسة"""
     school = request.user.school
-    
-    # الأمراض المزمنة الشائعة
-    health_records = HealthRecord.objects.filter(student__memberships__school=school).filter(
-        chronic_diseases__isnull=False
-    ).exclude(chronic_diseases='')
-    
-    # الحساسيات الشائعة
-    allergies = HealthRecord.objects.filter(student__memberships__school=school).filter(
-        allergies__isnull=False
-    ).exclude(allergies='')
-    
-    # إحصائيات الزيارات
+
+    health_records = HealthRecord.objects.filter(
+        student__memberships__school=school
+    ).filter(chronic_diseases__isnull=False).exclude(chronic_diseases='')
+
+    allergies = HealthRecord.objects.filter(
+        student__memberships__school=school
+    ).filter(allergies__isnull=False).exclude(allergies='')
+
     visits_count = ClinicVisit.objects.filter(school=school).count()
     visits_this_month = ClinicVisit.objects.filter(
-        school=school,
-        visit_date__month=timezone.now().month,
-        visit_date__year=timezone.now().year
+        school         = school,
+        visit_date__month= timezone.now().month,
+        visit_date__year = timezone.now().year
     ).count()
-    
+
     context = {
         'health_records_count': health_records.count(),
-        'allergies_count': allergies.count(),
-        'visits_count': visits_count,
-        'visits_this_month': visits_this_month,
+        'allergies_count':      allergies.count(),
+        'visits_count':         visits_count,
+        'visits_this_month':    visits_this_month,
     }
     return render(request, 'clinic/statistics.html', context)

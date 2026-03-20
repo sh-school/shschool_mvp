@@ -1,5 +1,13 @@
 version: "3.9"
+
+# ══════════════════════════════════════════════════════════════
+# SchoolOS — Compose الإنتاج
+# [مهمة 15] إضافة Redis + Celery Worker + Celery Beat
+# ══════════════════════════════════════════════════════════════
+
 services:
+
+  # ── قاعدة البيانات ──────────────────────────────────────────
   db:
     image: postgres:16-alpine
     restart: always
@@ -19,18 +27,37 @@ services:
     networks:
       - internal
 
+  # ── Redis (Broker + Cache) ───────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  # ── Django (Web) ─────────────────────────────────────────────
   web:
     build: .
     restart: always
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
       - ./logs:/app/logs
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     expose:
       - "8000"
@@ -49,6 +76,53 @@ services:
       - internal
       - external
 
+  # ── Celery Worker — معالجة الإشعارات غير المتزامنة ──────────
+  celery_worker:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.production
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A shschool worker
+        --loglevel=info
+        --concurrency=2
+        --logfile=/app/logs/celery_worker.log
+    networks:
+      - internal
+
+  # ── Celery Beat — المهام المُجدوَلة (تنبيهات الغياب اليومية) ─
+  celery_beat:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.production
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A shschool beat
+        --loglevel=info
+        --logfile=/app/logs/celery_beat.log
+    networks:
+      - internal
+
+  # ── Nginx ────────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     restart: always
@@ -68,6 +142,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   internal:

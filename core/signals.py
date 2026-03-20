@@ -39,25 +39,25 @@ def _log(model_name, action, instance, changes=None):
 
 
 # ── السجل الصحي ────────────────────────────────────────────────────────
-@receiver(post_save, sender='core.HealthRecord')
+@receiver(post_save, sender='clinic.HealthRecord')
 def audit_health_record(sender, instance, created, **kwargs):
     _log('HealthRecord', 'create' if created else 'update', instance)
 
 
 # ── السلوك ─────────────────────────────────────────────────────────────
-@receiver(post_save, sender='core.BehaviorInfraction')
+@receiver(post_save, sender='behavior.BehaviorInfraction')
 def audit_behavior(sender, instance, created, **kwargs):
     _log('BehaviorInfraction', 'create' if created else 'update', instance,
          changes={'level': instance.level, 'points': instance.points_deducted})
 
 
-@receiver(pre_delete, sender='core.BehaviorInfraction')
+@receiver(pre_delete, sender='behavior.BehaviorInfraction')
 def audit_behavior_delete(sender, instance, **kwargs):
     _log('BehaviorInfraction', 'delete', instance)
 
 
 # ── العيادة ────────────────────────────────────────────────────────────
-@receiver(post_save, sender='core.ClinicVisit')
+@receiver(post_save, sender='clinic.ClinicVisit')
 def audit_clinic_visit(sender, instance, created, **kwargs):
     _log('ClinicVisit', 'create' if created else 'update', instance,
          changes={'sent_home': instance.is_sent_home})
@@ -76,7 +76,7 @@ def audit_parent_link_delete(sender, instance, **kwargs):
 
 
 # ── المكتبة ────────────────────────────────────────────────────────────
-@receiver(post_save, sender='core.BookBorrowing')
+@receiver(post_save, sender='library.BookBorrowing')
 def audit_borrowing(sender, instance, created, **kwargs):
     _log('BookBorrowing', 'create' if created else 'update', instance,
          changes={'status': instance.status})

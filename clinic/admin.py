@@ -1,5 +1,5 @@
 from django.contrib import admin
-from core.models import HealthRecord, ClinicVisit
+from clinic.models import HealthRecord, ClinicVisit
 
 
 @admin.register(HealthRecord)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from core.models import SchoolBus, BusRoute
+from transport.models import SchoolBus, BusRoute
 
 
 @admin.register(SchoolBus)
