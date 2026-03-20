@@ -15,23 +15,29 @@
     .nav-dropdown {
       position: fixed;
       top: 56px;
-      background: #fff;
-      color: #1f2937;
+      background: #ffffff !important;
+      color: #111827 !important;
+      color-scheme: light;
       border-radius: 0.75rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-      border: 1px solid #e5e7eb;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      border: 1px solid #d1d5db !important;
       min-width: 220px;
       padding: 6px 0;
       z-index: 9999;
       display: none;
     }
     .nav-dropdown.open { display: block; }
+    .nav-dropdown p, .nav-dropdown span.drop-name { color: #111827 !important; }
+    .nav-dropdown span.drop-id { color: #6b7280 !important; }
+    .nav-dropdown span.drop-role { color: #b91c1c !important; }
+    .nav-dropdown a.drop-blue { color: #2563eb !important; }
+    .nav-dropdown a.drop-red  { color: #dc2626 !important; }
     .nav-dropdown a {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; font-size: 13px; color: #374151;
+      padding: 10px 16px; font-size: 13px;
       text-decoration: none; transition: background .15s;
     }
-    .nav-dropdown a:hover { background: #f3f4f6; }
+    .nav-dropdown a:hover { background: #f3f4f6 !important; }
     .nav-dropdown a + a { border-top: 1px solid #f3f4f6; }
     .nav-btn-active { background: rgba(255,255,255,0.18); border-radius: 0.375rem; }
   </style>
@@ -149,15 +155,15 @@
 <!-- ── Dropdown: المستخدم ── -->
 <div id="drop-user" class="nav-dropdown" role="menu" style="min-width:200px">
   <div style="padding:10px 16px 8px; border-bottom:1px solid #f3f4f6">
-    <p style="font-size:12px;font-weight:600;color:#111827;margin:0">{{ request.user.full_name }}</p>
-    <p style="font-size:11px;color:#9ca3af;margin:2px 0 0">{{ request.user.national_id }}</p>
-    <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0">{{ request.user.get_role }}</p>
+    <p style="font-size:12px;font-weight:600;margin:0"><span class="drop-name">{{ request.user.full_name }}</span></p>
+    <p style="font-size:11px;margin:2px 0 0"><span class="drop-id">{{ request.user.national_id }}</span></p>
+    <p style="font-size:11px;font-weight:500;margin:2px 0 0"><span class="drop-role">{{ request.user.get_role }}</span></p>
   </div>
   {% if request.user.memberships.count > 1 %}
-  <a href="/auth/choose-role/" style="color:#2563eb">🔄 تبديل الدور</a>
+  <a href="/auth/choose-role/" class="drop-blue">🔄 تبديل الدور</a>
   {% endif %}
   <a href="/admin/">⚙️ الإدارة</a>
-  <a href="/auth/logout/" style="color:#dc2626">تسجيل الخروج</a>
+  <a href="/auth/logout/" class="drop-red">تسجيل الخروج</a>
 </div>
 
 <script>

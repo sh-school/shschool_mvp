@@ -2,11 +2,38 @@
 
 {% block after_related_objects %}
 {{ block.super }}
+<style>
+/* إصلاح Select2 في الوضع الليلي — إجبار الألوان الفاتحة */
+.select2-container--default .select2-selection--single,
+.select2-container--default .select2-dropdown,
+.select2-container--default .select2-results__option {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+  color-scheme: light;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: #111827 !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+  color: #6b7280 !important;
+}
+.select2-container--default .select2-results__option--highlighted {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+.select2-container--default .select2-search__field {
+  background: #f9fafb !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+.select2-container--default .select2-selection--single {
+  border-color: #d1d5db !important;
+}
+</style>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof django !== 'undefined' && django.jQuery) {
     var $ = django.jQuery;
-    // تهيئة Select2 على حقل executor_norm
     $('#id_executor_norm').select2({
       language: 'ar',
       placeholder: '— ابحث عن المسمى الوظيفي —',
@@ -14,7 +41,6 @@ document.addEventListener('DOMContentLoaded', function () {
       width: '100%',
       dir: 'rtl',
     });
-    // تحديث الخيارات عند تغيير المدرسة أو السنة
     function reloadNorms() {
       var school = $('#id_school').val();
       var year   = $('#id_academic_year').val() || '2025-2026';
