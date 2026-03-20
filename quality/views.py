@@ -452,9 +452,10 @@ def executor_committee(request):
     )
     unmapped_norms = all_norms - mapped_norms
 
-    # جلب كل المستخدمين لنموذج الإضافة
-    from core.models import CustomUser as _CU
-    all_users = _CU.objects.filter(school=school).order_by("full_name")
+    # جلب كل المستخدمين لنموذج الإضافة (عبر Membership — CustomUser ليس له حقل school مباشر)
+    from core.models import CustomUser as _CU, Membership as _MB
+    _ids = _MB.objects.filter(school=school, is_active=True).values_list("user_id", flat=True)
+    all_users = _CU.objects.filter(id__in=_ids).order_by("full_name")
 
     return render(request, "quality/executor_committee.html", {
         "member_stats":    member_stats,
@@ -559,8 +560,9 @@ def executor_mapping(request):
         ).select_related("user")
     }
 
-    from core.models import CustomUser
-    all_users = CustomUser.objects.filter(school=school).order_by("full_name")
+    from core.models import CustomUser, Membership as _MB2
+    _ids2 = _MB2.objects.filter(school=school, is_active=True).values_list("user_id", flat=True)
+    all_users = CustomUser.objects.filter(id__in=_ids2).order_by("full_name")
 
     executor_data = []
     for row in all_executors:

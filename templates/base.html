@@ -42,7 +42,7 @@
         <a href="/quality/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📋 الخطة</a>
         <!-- قائمة منسدلة للجان الجودة -->
         <div class="relative" x-data="{ qopen: false }">
-          <button @click="qopen = !qopen" @click.away="qopen = false"
+          <button @click="qopen = !qopen" @click.outside="qopen = false"
                   class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap flex items-center gap-1">
             🏅 اللجان <span class="text-[10px] opacity-70">▼</span>
           </button>
@@ -127,7 +127,7 @@
           <span class="text-xs opacity-60">▼</span>
         </button>
 
-        <div x-show="open" @click.away="open=false" x-cloak
+        <div x-show="open" @click.outside="open=false" x-cloak
              class="absolute left-4 top-14 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
           <div class="px-4 py-2 border-b">
             <p class="text-xs font-bold text-gray-900">{{ request.user.full_name }}</p>
