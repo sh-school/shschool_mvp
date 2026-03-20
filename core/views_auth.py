@@ -16,6 +16,10 @@ from core.models        import CustomUser
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
+# ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
+# لا تغيّر هذه الرسالة ولا تجعلها تختلف بحسب وجود المستخدم من عدمه
+_AUTH_ERROR = "الرقم الوطني أو كلمة المرور غير صحيحة"
+
 
 @ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def login_view(request):
@@ -30,6 +34,7 @@ def login_view(request):
             messages.error(request, "يرجى إدخال الرقم الوطني وكلمة المرور")
             return render(request, "auth/login.html")
 
+        # ── التحقق من قفل الحساب (الرسالة هنا مقبولة لأن القفل يحدث بعد محاولات) ──
         try:
             u = CustomUser.objects.get(national_id=national_id)
             if u.locked_until and u.locked_until > timezone.now():
@@ -60,23 +65,29 @@ def login_view(request):
             return redirect(next_url)
 
         else:
+            # ── إصلاح User Enumeration ────────────────────────────────────────
+            # نزيد العداد بصمت إذا وُجد المستخدم، لكن نُظهر نفس الرسالة دائماً
+            # سواء وُجد الرقم الوطني أم لا — المهاجم لا يعرف الفرق
             try:
                 with transaction.atomic():
-                    CustomUser.objects.filter(
+                    updated = CustomUser.objects.filter(
                         national_id=national_id
-                    ).update(
+                    ).select_for_update().update(
                         failed_login_attempts=F('failed_login_attempts') + 1
                     )
-                    u = CustomUser.objects.get(national_id=national_id)
-                    if u.failed_login_attempts >= 5:
-                        u.locked_until = timezone.now() + timedelta(minutes=15)
-                        u.save(update_fields=["locked_until"])
-                        messages.error(request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة.")
-                    else:
-                        remaining = 5 - u.failed_login_attempts
-                        messages.error(request, f"بيانات غير صحيحة. {remaining} محاولة متبقية.")
-            except CustomUser.DoesNotExist:
-                messages.error(request, "الرقم الوطني أو كلمة المرور غير صحيحة")
+                    if updated:
+                        u = CustomUser.objects.get(national_id=national_id)
+                        if u.failed_login_attempts >= 5:
+                            u.locked_until = timezone.now() + timedelta(minutes=15)
+                            u.save(update_fields=["locked_until"])
+                            # رسالة القفل مقبولة — تظهر فقط بعد 5 محاولات
+                            messages.error(request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة.")
+                            return render(request, "auth/login.html")
+            except Exception:
+                pass
+
+            # رسالة موحّدة في كل الحالات الأخرى — لا تكشف وجود الحساب
+            messages.error(request, _AUTH_ERROR)
 
     return render(request, "auth/login.html")
 
@@ -146,6 +157,7 @@ def setup_2fa(request):
         else:
             messages.error(request, "رمز التحقق غير صحيح.")
 
+    from core.models import decrypt_field
     return render(request, "auth/setup_2fa.html", {
         "qr_b64":       qr_b64,
         "secret":       (decrypt_field(user.totp_secret) or user.totp_secret) if user.totp_secret else "",

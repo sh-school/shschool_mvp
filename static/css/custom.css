@@ -1,0 +1,391 @@
+/*
+ * SchoolOS — الهوية البصرية الرسمية
+ * مدرسة الشحانية الإعدادية الثانوية للبنين | دولة قطر
+ *
+ * الألوان الرسمية لدولة قطر (GBA — gba.gco.gov.qa):
+ *   Al Adaam  #8A1538  Pantone 1955C  ← اللون الرئيسي
+ *   Skyline   #0D4261  ← الأزرق الداكن
+ *   Palm      #129B82  ← الأخضر
+ *   Sea       #4194B3  ← الأزرق الفاتح
+ *   Sand      #A29475  ← الرملي (محظور على المدارس)
+ *
+ * ملاحظة: custom.css يُحمَّل بعد Tailwind — له الأولوية.
+ * ══════════════════════════════════════════════════════════════
+ */
+
+/* ── متغيرات الألوان الرسمية ────────────────────────────────── */
+:root {
+  --maroon:       #8A1538;   /* Al Adaam — اللون الرئيسي */
+  --maroon-dark:  #6b0f2a;   /* للـ hover */
+  --maroon-light: #b8294e;   /* للنصوص على خلفية فاتحة */
+  --maroon-bg:    #fdf2f5;   /* خلفية خفيفة */
+  --maroon-border:#e8b4c3;   /* حدود خفيفة */
+
+  --skyline:      #0D4261;   /* أزرق داكن */
+  --palm:         #129B82;   /* أخضر */
+  --sea:          #4194B3;   /* أزرق فاتح */
+
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
+
+  --border:         #e5e7eb;
+  --border-strong:  #d1d5db;
+  --surface:        #ffffff;
+  --surface-alt:    #f9fafb;
+
+  --radius:         10px;
+  --radius-lg:      14px;
+  --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:      0 4px 16px rgba(0,0,0,.10);
+}
+
+/* ── الخط العربي ───────────────────────────────────────────── */
+/* Tajawal: خط عربي احترافي من Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+
+body {
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+}
+
+/* ── شريط التنقل ────────────────────────────────────────────── */
+nav[style*="8A1538"] {
+  background: var(--maroon) !important;
+  border-bottom: 2px solid var(--maroon-dark) !important;
+}
+
+/* ── الأزرار الرئيسية ───────────────────────────────────────── */
+/* أي زر بخلفية maroon */
+button[style*="8A1538"],
+a[style*="8A1538"],
+input[type="submit"][style*="8A1538"] {
+  background: var(--maroon) !important;
+  transition: background .15s ease, box-shadow .15s ease !important;
+}
+
+button[style*="8A1538"]:hover,
+a[style*="8A1538"]:hover {
+  background: var(--maroon-dark) !important;
+  box-shadow: 0 2px 8px rgba(138,21,56,.30) !important;
+}
+
+/* ── حقول الإدخال — focus بلون الهوية ─────────────────────── */
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="date"]:focus,
+input[type="tel"]:focus,
+select:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--maroon) !important;
+  box-shadow: 0 0 0 3px rgba(138,21,56,.12) !important;
+}
+
+/* ── الروابط النشطة ─────────────────────────────────────────── */
+a:focus-visible {
+  outline: 2px solid var(--maroon);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── بطاقات KPI بلون الهوية ─────────────────────────────────── */
+.text-\[#8A1538\] {
+  color: var(--maroon) !important;
+}
+
+/* ── جداول البيانات ─────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+thead tr {
+  background: var(--maroon) !important;
+  color: #fff !important;
+}
+
+thead th {
+  color: #fff !important;
+  font-weight: 700;
+  padding: 10px 14px;
+  font-size: 13px;
+  letter-spacing: .03em;
+}
+
+tbody tr:hover {
+  background: var(--maroon-bg) !important;
+  transition: background .12s;
+}
+
+tbody tr:nth-child(even) {
+  background: var(--surface-alt);
+}
+
+tbody tr:nth-child(even):hover {
+  background: var(--maroon-bg) !important;
+}
+
+/* ── رأس الصفحة (h1, h2) ────────────────────────────────────── */
+h1.text-2xl,
+h1.text-3xl {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+/* ── شارات الحالة ────────────────────────────────────────────── */
+.badge-maroon {
+  background: var(--maroon-bg);
+  color: var(--maroon);
+  border: 1px solid var(--maroon-border);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── بطاقات ─────────────────────────────────────────────────── */
+.card-qatar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  transition: box-shadow .15s, border-color .15s;
+}
+
+.card-qatar:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--maroon-border);
+}
+
+/* ── خط عُلوي مميز بلون الهوية ──────────────────────────────── */
+.border-t-maroon {
+  border-top: 3px solid var(--maroon);
+}
+
+/* ── أقسام العنوان ──────────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--maroon-bg);
+}
+
+.section-header::before {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 22px;
+  background: var(--maroon);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── شريط التقدم بلون الهوية ─────────────────────────────────── */
+.progress-qatar {
+  height: 8px;
+  background: var(--maroon-bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-qatar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--maroon-dark), var(--maroon-light));
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+
+/* ── Django Admin — تعريب اللون الرئيسي ───────────────────── */
+#header {
+  background: var(--maroon) !important;
+}
+
+#header a:link,
+#header a:visited {
+  color: #ffe0e9 !important;
+}
+
+div#header h1 a {
+  color: #fff !important;
+}
+
+/* ── صفحة الدخول ────────────────────────────────────────────── */
+.login-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 36px 32px;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--maroon);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 4px 14px rgba(138,21,56,.35);
+}
+
+/* ── الفوتر ─────────────────────────────────────────────────── */
+footer {
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+}
+
+footer::before {
+  content: '🇶🇦  ';
+}
+
+/* ── الإشعارات / Messages ───────────────────────────────────── */
+.msg-success { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
+.msg-error   { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+.msg-warning { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+.msg-info    { background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af; }
+
+/* ── تمييز الصف المحدد في الجداول ──────────────────────────── */
+tr.selected,
+tr.active {
+  background: var(--maroon-bg) !important;
+  outline: 1px solid var(--maroon-border);
+}
+
+/* ── زر حذف / إجراء خطر ────────────────────────────────────── */
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.btn-danger:hover { background: #b91c1c; }
+
+/* ── زر أساسي بلون الهوية ───────────────────────────────────── */
+.btn-primary {
+  background: var(--maroon);
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s;
+  font-family: inherit;
+}
+
+.btn-primary:hover {
+  background: var(--maroon-dark);
+  box-shadow: 0 2px 10px rgba(138,21,56,.28);
+}
+
+.btn-primary:active {
+  background: var(--maroon-dark);
+  transform: translateY(1px);
+}
+
+/* ── زر ثانوي ───────────────────────────────────────────────── */
+.btn-secondary {
+  background: var(--maroon-bg);
+  color: var(--maroon);
+  border: 1px solid var(--maroon-border);
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+  font-family: inherit;
+}
+
+.btn-secondary:hover {
+  background: #fce8ee;
+}
+
+/* ── Pagination ─────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.pagination a,
+.pagination span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all .12s;
+}
+
+.pagination a:hover {
+  background: var(--maroon-bg);
+  border-color: var(--maroon-border);
+  color: var(--maroon);
+}
+
+.pagination .current,
+.pagination .active {
+  background: var(--maroon) !important;
+  border-color: var(--maroon) !important;
+  color: #fff !important;
+}
+
+.pagination .disabled {
+  opacity: .4;
+  pointer-events: none;
+}
+
+/* ── Scrollbar مخصص ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb {
+  background: var(--maroon-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--maroon-light); }
+
+/* ── Print — إخفاء Nav عند الطباعة ─────────────────────────── */
+@media print {
+  nav, footer, .no-print { display: none !important; }
+  body { background: #fff !important; }
+  .card-qatar { box-shadow: none; border: 1px solid #ddd; }
+}
+
+/* ── الجوال ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .login-card { padding: 24px 18px; }
+  thead { display: none; }
+  tbody tr { display: block; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; padding: 12px; }
+  tbody td { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+  tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-secondary); }
+}

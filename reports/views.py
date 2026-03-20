@@ -1,7 +1,12 @@
 """
 reports/views.py
-نظام تقارير PDF — كشف النتائج + الشهادة الفردية + تقرير الفصل
-يستخدم WeasyPrint (مثبتة في requirements.txt)
+نظام تقارير — PDF + Excel
+- PDF: WeasyPrint (الشهادات وكشف النتائج)
+- Excel: openpyxl (مثبتة في requirements.txt)
+[مهمة 17] إضافة Export Excel لـ 3 تقارير:
+  1. كشف نتائج الفصل   → class_results_excel
+  2. تقرير الغياب       → attendance_excel
+  3. مخالفات السلوك     → behavior_excel
 """
 from io import BytesIO
 from django.shortcuts import render, get_object_or_404
@@ -9,6 +14,83 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, Http404
 from django.template.loader import render_to_string
 from django.utils import timezone
+
+
+# ── مساعد Excel مشترك ──────────────────────────────────────────────────
+def _make_workbook(title):
+    """ينشئ Workbook جاهز مع ستايل الهوية القطرية"""
+    import openpyxl
+    from openpyxl.styles import (
+        Font, PatternFill, Alignment, Border, Side, GradientFill
+    )
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = title
+    ws.sheet_view.rightToLeft = True   # RTL عربي
+
+    MAROON = "8A1538"
+    WHITE  = "FFFFFF"
+    LIGHT  = "FDF2F5"
+
+    header_font   = Font(name="Arial", bold=True, color=WHITE, size=11)
+    header_fill   = PatternFill("solid", fgColor=MAROON)
+    header_align  = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border   = Border(
+        left=Side(style="thin", color="DDDDDD"),
+        right=Side(style="thin", color="DDDDDD"),
+        top=Side(style="thin", color="DDDDDD"),
+        bottom=Side(style="thin", color="DDDDDD"),
+    )
+    alt_fill      = PatternFill("solid", fgColor="FDF2F5")
+
+    styles = {
+        "header_font":  header_font,
+        "header_fill":  header_fill,
+        "header_align": header_align,
+        "thin_border":  thin_border,
+        "alt_fill":     alt_fill,
+        "maroon":       MAROON,
+        "white":        WHITE,
+    }
+    return wb, ws, styles
+
+
+def _apply_header_row(ws, styles, row_num, columns):
+    """يطبّق ستايل رأس الجدول على صف محدد"""
+    from openpyxl.styles import Font, PatternFill, Alignment
+    for col_idx, (header, width) in enumerate(columns, start=1):
+        cell = ws.cell(row=row_num, column=col_idx, value=header)
+        cell.font      = styles["header_font"]
+        cell.fill      = styles["header_fill"]
+        cell.alignment = styles["header_align"]
+        cell.border    = styles["thin_border"]
+        ws.column_dimensions[
+            ws.cell(row=row_num, column=col_idx).column_letter
+        ].width = width
+
+
+def _style_data_row(ws, styles, row_num, num_cols, is_alt=False):
+    """يطبّق ستايل صفوف البيانات"""
+    from openpyxl.styles import Alignment
+    for col_idx in range(1, num_cols + 1):
+        cell = ws.cell(row=row_num, column=col_idx)
+        cell.border    = styles["thin_border"]
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        if is_alt:
+            cell.fill = styles["alt_fill"]
+
+
+def _excel_response(wb, filename):
+    """يُعيد HttpResponse جاهز لتنزيل Excel"""
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
 
 from assessments.models import (
     AnnualSubjectResult, StudentSubjectResult,
@@ -368,3 +450,250 @@ def attendance_report_pdf(request, class_id):
     resp = HttpResponse(pdf, content_type="application/pdf")
     resp["Content-Disposition"] = f'inline; filename="{filename}"'
     return resp
+
+
+
+# ══════════════════════════════════════════════════════════════════════
+# [مهمة 17] — تقارير Excel
+# ══════════════════════════════════════════════════════════════════════
+
+# ── 1. كشف نتائج الفصل Excel ──────────────────────────────────────────
+
+@login_required
+def class_results_excel(request, class_id):
+    """Excel: كشف نتائج كامل لجميع طلاب فصل — مع كل المواد"""
+    if not request.user.is_admin() and not request.user.is_teacher():
+        return HttpResponse("غير مسموح", status=403)
+
+    school    = request.user.get_school()
+    class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
+    year      = request.GET.get("year", "2025-2026")
+
+    enrollments = StudentEnrollment.objects.filter(
+        class_group=class_grp, is_active=True
+    ).select_related("student").order_by("student__full_name")
+
+    # الحصول على المواد من أول طالب
+    first_student = enrollments.first()
+    subjects = []
+    if first_student:
+        subjects = list(
+            AnnualSubjectResult.objects.filter(
+                student=first_student.student, school=school, academic_year=year
+            ).select_related("setup__subject")
+            .order_by("setup__subject__name_ar")
+            .values_list("setup__subject__name_ar", flat=True)
+        )
+
+    wb, ws, styles = _make_workbook("كشف النتائج")
+
+    # ── صف العنوان ──────────────────────────────────────────────────
+    from openpyxl.styles import Font, PatternFill, Alignment
+    ws.merge_cells(f"A1:{chr(65 + 5 + len(subjects))}1")
+    title_cell = ws["A1"]
+    title_cell.value     = f"كشف نتائج — {class_grp} — {year} — {school.name}"
+    title_cell.font      = Font(name="Arial", bold=True, color=styles["white"], size=13)
+    title_cell.fill      = PatternFill("solid", fgColor=styles["maroon"])
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    # ── رأس الجدول ──────────────────────────────────────────────────
+    columns = (
+        [("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16)]
+        + [(subj[:20], 12) for subj in subjects]
+        + [("المتوسط", 10), ("الحالة", 10), ("الترتيب", 8)]
+    )
+    _apply_header_row(ws, styles, 2, columns)
+    ws.row_dimensions[2].height = 22
+    ws.freeze_panes = "A3"
+
+    # ── البيانات ─────────────────────────────────────────────────────
+    students_data = []
+    for enr in enrollments:
+        st     = enr.student
+        annual = AnnualSubjectResult.objects.filter(
+            student=st, school=school, academic_year=year
+        ).select_related("setup__subject").order_by("setup__subject__name_ar")
+
+        grade_map = {r.setup.subject.name_ar: r.annual_total for r in annual}
+        grades    = [float(g) for g in grade_map.values() if g is not None]
+        avg       = round(sum(grades) / len(grades), 2) if grades else 0
+        failed    = sum(1 for r in annual if r.status == "fail")
+        passed    = sum(1 for r in annual if r.status == "pass")
+        status    = "ناجح" if failed == 0 and passed > 0 else ("راسب" if failed > 0 else "—")
+        students_data.append((st, grade_map, avg, status))
+
+    # ترتيب حسب المتوسط
+    students_data.sort(key=lambda x: x[2], reverse=True)
+
+    for row_idx, (st, grade_map, avg, status) in enumerate(students_data, start=1):
+        row_num = row_idx + 2
+        is_alt  = row_idx % 2 == 0
+
+        ws.cell(row=row_num, column=1, value=row_idx)
+        ws.cell(row=row_num, column=2, value=st.full_name)
+        ws.cell(row=row_num, column=3, value=st.national_id)
+
+        for col_offset, subj in enumerate(subjects, start=4):
+            grade = grade_map.get(subj)
+            cell  = ws.cell(row=row_num, column=col_offset,
+                            value=float(grade) if grade else "—")
+            # تلوين الراسب
+            if grade and float(grade) < 50:
+                cell.font = Font(name="Arial", color="DC2626", bold=True)
+
+        ws.cell(row=row_num, column=4 + len(subjects), value=avg)
+        status_cell = ws.cell(row=row_num, column=5 + len(subjects), value=status)
+        if status == "ناجح":
+            status_cell.font = Font(name="Arial", color="15803D", bold=True)
+        elif status == "راسب":
+            status_cell.font = Font(name="Arial", color="DC2626", bold=True)
+        ws.cell(row=row_num, column=6 + len(subjects), value=row_idx)
+
+        _style_data_row(ws, styles, row_num, len(columns), is_alt)
+        ws.row_dimensions[row_num].height = 18
+
+    filename = f"نتائج_{class_grp.get_grade_display()}_{class_grp.section}_{year}.xlsx"
+    return _excel_response(wb, filename)
+
+
+# ── 2. تقرير الغياب Excel ─────────────────────────────────────────────
+
+@login_required
+def attendance_excel(request, class_id):
+    """Excel: تقرير حضور وغياب تفصيلي للفصل"""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح", status=403)
+
+    school    = request.user.get_school()
+    class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
+    year      = request.GET.get("year", "2025-2026")
+
+    enrollments = StudentEnrollment.objects.filter(
+        class_group=class_grp, is_active=True
+    ).select_related("student").order_by("student__full_name")
+
+    wb, ws, styles = _make_workbook("الغياب")
+
+    # العنوان
+    from openpyxl.styles import Font, PatternFill, Alignment
+    ws.merge_cells("A1:H1")
+    tc = ws["A1"]
+    tc.value     = f"تقرير الحضور والغياب — {class_grp} — {year} — {school.name}"
+    tc.font      = Font(name="Arial", bold=True, color=styles["white"], size=13)
+    tc.fill      = PatternFill("solid", fgColor=styles["maroon"])
+    tc.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    columns = [
+        ("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16),
+        ("إجمالي الحصص", 13), ("حاضر", 10), ("غائب", 10),
+        ("متأخر", 10), ("نسبة الحضور %", 14),
+    ]
+    _apply_header_row(ws, styles, 2, columns)
+    ws.row_dimensions[2].height = 22
+    ws.freeze_panes = "A3"
+
+    for row_idx, enr in enumerate(enrollments, start=1):
+        row_num = row_idx + 2
+        is_alt  = row_idx % 2 == 0
+        att     = StudentAttendance.objects.filter(
+            student=enr.student, session__school=school
+        )
+        total   = att.count()
+        present = att.filter(status="present").count()
+        absent  = att.filter(status="absent").count()
+        late    = att.filter(status="late").count()
+        pct     = round(present / total * 100, 1) if total else 0
+
+        ws.cell(row=row_num, column=1, value=row_idx)
+        ws.cell(row=row_num, column=2, value=enr.student.full_name)
+        ws.cell(row=row_num, column=3, value=enr.student.national_id)
+        ws.cell(row=row_num, column=4, value=total)
+        ws.cell(row=row_num, column=5, value=present)
+
+        absent_cell = ws.cell(row=row_num, column=6, value=absent)
+        if absent > 10:
+            absent_cell.font = Font(name="Arial", color="DC2626", bold=True)
+
+        ws.cell(row=row_num, column=7, value=late)
+
+        pct_cell = ws.cell(row=row_num, column=8, value=pct)
+        if pct < 80:
+            pct_cell.font = Font(name="Arial", color="DC2626", bold=True)
+        elif pct >= 95:
+            pct_cell.font = Font(name="Arial", color="15803D", bold=True)
+
+        _style_data_row(ws, styles, row_num, 8, is_alt)
+        ws.row_dimensions[row_num].height = 18
+
+    filename = f"غياب_{class_grp.get_grade_display()}_{class_grp.section}_{year}.xlsx"
+    return _excel_response(wb, filename)
+
+
+# ── 3. تقرير السلوك Excel ─────────────────────────────────────────────
+
+@login_required
+def behavior_excel(request):
+    """Excel: كشف مخالفات السلوك لكل الطلاب"""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح", status=403)
+
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+
+    from core.models import BehaviorInfraction
+    infractions = BehaviorInfraction.objects.filter(
+        school=school
+    ).select_related("student", "reported_by").order_by("-date")
+
+    wb, ws, styles = _make_workbook("السلوك")
+
+    from openpyxl.styles import Font, PatternFill, Alignment
+    ws.merge_cells("A1:H1")
+    tc = ws["A1"]
+    tc.value     = f"تقرير المخالفات السلوكية — {school.name} — {year}"
+    tc.font      = Font(name="Arial", bold=True, color=styles["white"], size=13)
+    tc.fill      = PatternFill("solid", fgColor=styles["maroon"])
+    tc.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    LEVEL_LABELS = {1: "درجة 1 — بسيطة", 2: "درجة 2 — متوسطة",
+                    3: "درجة 3 — جسيمة", 4: "درجة 4 — شديدة"}
+    LEVEL_COLORS = {1: "854D0E", 2: "C2410C", 3: "B91C1C", 4: "BE123C"}
+
+    columns = [
+        ("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16),
+        ("التاريخ", 13), ("الدرجة", 18), ("النقاط المخصومة", 15),
+        ("المُبلِّغ", 20), ("الوصف", 40),
+    ]
+    _apply_header_row(ws, styles, 2, columns)
+    ws.row_dimensions[2].height = 22
+    ws.freeze_panes = "A3"
+
+    for row_idx, inf in enumerate(infractions, start=1):
+        row_num = row_idx + 2
+        is_alt  = row_idx % 2 == 0
+
+        ws.cell(row=row_num, column=1, value=row_idx)
+        ws.cell(row=row_num, column=2, value=inf.student.full_name)
+        ws.cell(row=row_num, column=3, value=inf.student.national_id)
+        ws.cell(row=row_num, column=4,
+                value=inf.date.strftime("%Y/%m/%d") if inf.date else "")
+
+        level_cell = ws.cell(row=row_num, column=5,
+                             value=LEVEL_LABELS.get(inf.level, inf.level))
+        level_cell.font = Font(name="Arial",
+                               color=LEVEL_COLORS.get(inf.level, "000000"),
+                               bold=True)
+
+        ws.cell(row=row_num, column=6, value=inf.points_deducted)
+        ws.cell(row=row_num, column=7,
+                value=inf.reported_by.full_name if inf.reported_by else "—")
+        ws.cell(row=row_num, column=8, value=inf.description)
+
+        _style_data_row(ws, styles, row_num, 8, is_alt)
+        ws.row_dimensions[row_num].height = 20
+
+    filename = f"سلوك_{school.name}_{year}.xlsx"
+    return _excel_response(wb, filename)
