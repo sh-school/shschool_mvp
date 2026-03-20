@@ -564,22 +564,41 @@ def executor_mapping(request):
     _ids2 = _MB2.objects.filter(school=school, is_active=True).values_list("user_id", flat=True)
     all_users = CustomUser.objects.filter(id__in=_ids2).order_by("full_name")
 
-    executor_data = []
+    # بناء قائمة المنفذين مع كل المعلومات التي يحتاجها الـ template
+    executor_rows = []
     for row in all_executors:
         norm    = row["executor_norm"]
         mapping = existing_mappings.get(norm)
-        executor_data.append({
-            "executor_norm": norm,
-            "proc_count":    row["proc_count"],
-            "mapping":       mapping,
-            "mapped_user":   mapping.user if mapping else None,
+        mapped_user = mapping.user if mapping else None
+
+        # اقتراح تلقائي: بحث عن موظف يطابق المسمى الوظيفي
+        suggested_user = None
+        if not mapped_user and norm:
+            from django.db.models import Q
+            suggested_user = all_users.filter(
+                Q(full_name__icontains=norm.split()[0]) if norm.split() else Q()
+            ).first()
+
+        executor_rows.append({
+            "executor_norm":  norm,
+            "proc_count":     row["proc_count"],
+            "mapping":        mapping,
+            "mapped_user":    mapped_user,
+            "user":           mapped_user,          # alias للـ template
+            "is_mapped":      mapped_user is not None,
+            "suggested_user": suggested_user,
         })
 
-    unmapped_count = sum(1 for e in executor_data if not e["mapped_user"])
+    total         = len(executor_rows)
+    mapped_count  = sum(1 for e in executor_rows if e["is_mapped"])
+    unmapped_count = total - mapped_count
 
     return render(request, "quality/executor_mapping.html", {
-        "executor_data":   executor_data,
+        "executor_rows":   executor_rows,
+        "staff":           all_users,               # alias للـ template
         "all_users":       all_users,
+        "total":           total,
+        "mapped_count":    mapped_count,
         "unmapped_count":  unmapped_count,
         "year":            year,
     })

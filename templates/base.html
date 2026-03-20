@@ -7,219 +7,181 @@
   <title>{% block title %}SchoolOS{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
   <style>
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
-    .nav-active { background-color: rgba(255,255,255,0.15); border-radius: 0.375rem; }
-    /* ── Dropdown — position:fixed يهرب من overflow:hidden/auto ── */
-    .nav-dropdown {
+    /* ═══ Mega Dropdown ═══════════════════════════════════════ */
+    .sd-trigger { position: relative; }
+    .sd-menu {
+      display: none;
       position: fixed;
       top: 56px;
-      background: #ffffff !important;
-      color: #111827 !important;
-      color-scheme: light;
-      border-radius: 0.75rem;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-      border: 1px solid #d1d5db !important;
-      min-width: 220px;
+      min-width: 210px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.16);
+      z-index: 99999;
       padding: 6px 0;
-      z-index: 9999;
-      display: none;
+      color-scheme: light;
     }
-    .nav-dropdown.open { display: block; }
-    .nav-dropdown p, .nav-dropdown span.drop-name { color: #111827 !important; }
-    .nav-dropdown span.drop-id { color: #6b7280 !important; }
-    .nav-dropdown span.drop-role { color: #b91c1c !important; }
-    .nav-dropdown a.drop-blue { color: #2563eb !important; }
-    .nav-dropdown a.drop-red  { color: #dc2626 !important; }
-    .nav-dropdown a {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 16px; font-size: 13px;
-      text-decoration: none; transition: background .15s;
+    .sd-menu.open { display: block; }
+    .sd-menu a {
+      display: flex; align-items: center; gap-10px;
+      padding: 10px 18px; font-size: 13px; color: #1e293b !important;
+      text-decoration: none; white-space: nowrap;
+      transition: background .12s;
+      gap: 10px;
     }
-    .nav-dropdown a:hover { background: #f3f4f6 !important; }
-    .nav-dropdown a + a { border-top: 1px solid #f3f4f6; }
-    .nav-btn-active { background: rgba(255,255,255,0.18); border-radius: 0.375rem; }
+    .sd-menu a:hover { background: #f1f5f9; }
+    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
+    .sd-menu .menu-header {
+      padding: 6px 18px 4px;
+      font-size: 10px; font-weight: 600;
+      color: #94a3b8 !important;
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .sd-btn {
+      display: flex; align-items: center; gap: 4px;
+      padding: 5px 10px; border-radius: 6px;
+      font-size: 12px; color: #fff; background: none; border: none;
+      cursor: pointer; white-space: nowrap;
+      transition: background .12s;
+    }
+    .sd-btn:hover, .sd-btn.active { background: rgba(255,255,255,0.18); }
+    .sd-chevron { font-size: 9px; opacity: .7; transition: transform .2s; }
+    .sd-btn.active .sd-chevron { transform: rotate(180deg); }
+    /* ═══ Nav link style ══════════════════════════════════════ */
+    .nav-a {
+      padding: 5px 10px; border-radius: 6px; font-size: 12px;
+      color: #fff; text-decoration: none; white-space: nowrap;
+      transition: background .12s;
+    }
+    .nav-a:hover { background: rgba(255,255,255,0.18); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
 {% if user.is_authenticated %}
-<!-- ── Navbar ── -->
-<nav class="bg-[#8A1538] text-white shadow-lg sticky top-0 z-50" id="main-nav">
-  <div class="max-w-7xl mx-auto px-4">
-    <div class="flex items-center justify-between h-14">
+<nav style="background:#8A1538; position:sticky; top:0; z-index:500; box-shadow:0 2px 8px rgba(0,0,0,0.18);">
+  <div style="max-width:1280px; margin:0 auto; padding:0 16px; display:flex; align-items:center; justify-content:space-between; height:56px; gap:8px;">
 
-      <!-- Logo -->
-      <a href="/dashboard/" class="flex items-center gap-2 font-bold text-lg hover:text-red-200 transition shrink-0">
-        <span>🏫</span> SchoolOS
-      </a>
+    <!-- Logo -->
+    <a href="/dashboard/" style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;color:#fff;text-decoration:none;flex-shrink:0;">
+      🏫 SchoolOS
+    </a>
 
-      <!-- Nav Links -->
-      <div class="hidden md:flex items-center gap-0.5 text-xs overflow-x-auto flex-1 mx-4">
-        {% with role=request.user.get_role %}
+    <!-- Nav Links -->
+    <div style="display:flex;align-items:center;gap:2px;flex:1;margin:0 12px;overflow-x:auto;scrollbar-width:none;">
+      {% with role=request.user.get_role %}
 
-        {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
-        <!-- ── قائمة الإدارة ── -->
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/analytics/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📊 الإحصاءات</a>
-        <a href="/assessments/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
-        <a href="/reports/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
-        <a href="/teacher/weekly-schedule/" class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول</a>
-        <a href="/teacher/absences/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الغيابات</a>
-        <a href="/quality/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📋 الخطة</a>
+      {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/analytics/"           class="nav-a">📊 الإحصاءات</a>
+      <a href="/assessments/"         class="nav-a">التقييمات</a>
+      <a href="/reports/"             class="nav-a">التقارير</a>
+      <a href="/teacher/weekly-schedule/" class="nav-a">الجدول</a>
+      <a href="/teacher/absences/"    class="nav-a">الغيابات</a>
 
-        <!-- ── زر اللجان مع dropdown fixed ── -->
-        <button id="btn-committees"
-                onclick="toggleNavDrop('drop-committees', this)"
-                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap flex items-center gap-1 text-white text-xs">
-          🏅 اللجان <span class="opacity-60 text-[10px]">▼</span>
+      <!-- ── الجودة Dropdown ── -->
+      <div class="sd-trigger">
+        <button class="sd-btn" id="btn-quality" onclick="sdToggle('menu-quality',this)">
+          📋 الجودة <span class="sd-chevron">▼</span>
         </button>
-
-        <a href="/parents/admin/links/"     class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الأولياء</a>
-        <a href="/notifications/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الإشعارات</a>
-        <span class="text-white/30 px-1">|</span>
-        <a href="/clinic/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
-        <a href="/transport/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 النقل</a>
-        <a href="/behavior/dashboard/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
-        <a href="/library/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
-
-        {% elif role == "nurse" %}
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/clinic/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
-        <a href="/clinic/visits/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">سجل الزيارات</a>
-        <a href="/clinic/record/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">تسجيل زيارة</a>
-        <a href="/clinic/statistics/"       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
-
-        {% elif role == "bus_supervisor" %}
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/transport/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 لوحة النقل</a>
-        <a href="/transport/buses/"         class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الحافلات</a>
-        <a href="/transport/assignments/"   class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إسناد الطلاب</a>
-        <a href="/transport/statistics/"    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
-
-        {% elif role == "librarian" %}
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/library/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 لوحة المكتبة</a>
-        <a href="/library/books/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الكتب</a>
-        <a href="/library/borrow/"          class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إعارة جديدة</a>
-
-        {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/teacher/schedule/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">جدولي</a>
-        <a href="/teacher/weekly-schedule/" class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول الأسبوعي</a>
-        <a href="/assessments/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
-        <a href="/import/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">استيراد الدرجات</a>
-        <a href="/reports/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
-        <a href="/quality/my-procedures/"   class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إجراءاتي</a>
-        <a href="/behavior/dashboard/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
-
-        {% elif role == "student" %}
-        <a href="/dashboard/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/library/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
-
-        {% elif role == "parent" %}
-        <a href="/parents/"                 class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 بوابتي</a>
-
-        {% endif %}
-        {% endwith %}
+        <div class="sd-menu" id="menu-quality">
+          <div class="menu-header">الخطة التشغيلية</div>
+          <a href="/quality/">📊 لوحة الخطة التشغيلية</a>
+          <a href="/quality/report/">📈 تقرير التقدم</a>
+          <a href="/quality/executor-mapping/">🔗 ربط المنفذين بالموظفين</a>
+          <hr>
+          <div class="menu-header">اللجان</div>
+          <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
+          <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
+          <hr>
+          <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
+        </div>
       </div>
 
-      <!-- User Menu -->
-      <div class="flex items-center gap-3 shrink-0">
-        <button id="btn-user"
-                onclick="toggleNavDrop('drop-user', this)"
-                class="flex items-center gap-2 text-sm hover:text-red-200 transition text-white">
-          <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-            {{ request.user.full_name|slice:":1" }}
-          </span>
-          <span class="hidden md:block">{{ request.user.full_name|truncatechars:14 }}</span>
-          <span class="text-xs opacity-60">▼</span>
-        </button>
-      </div>
+      <a href="/parents/admin/links/" class="nav-a">الأولياء</a>
+      <a href="/notifications/"       class="nav-a">الإشعارات</a>
+      <span style="color:rgba(255,255,255,0.25);padding:0 4px;">|</span>
+      <a href="/clinic/"              class="nav-a">🏥 العيادة</a>
+      <a href="/transport/"           class="nav-a">🚌 النقل</a>
+      <a href="/behavior/dashboard/"  class="nav-a">⚖️ السلوك</a>
+      <a href="/library/"             class="nav-a">📚 المكتبة</a>
 
+      {% elif role == "nurse" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/clinic/"              class="nav-a">🏥 العيادة</a>
+      <a href="/clinic/visits/"       class="nav-a">سجل الزيارات</a>
+      <a href="/clinic/record/"       class="nav-a">تسجيل زيارة</a>
+      <a href="/clinic/statistics/"   class="nav-a">إحصائيات</a>
+
+      {% elif role == "bus_supervisor" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/transport/"           class="nav-a">🚌 لوحة النقل</a>
+      <a href="/transport/buses/"     class="nav-a">الحافلات</a>
+      <a href="/transport/assignments/" class="nav-a">إسناد الطلاب</a>
+      <a href="/transport/statistics/" class="nav-a">إحصائيات</a>
+
+      {% elif role == "librarian" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/library/"             class="nav-a">📚 لوحة المكتبة</a>
+      <a href="/library/books/"       class="nav-a">الكتب</a>
+      <a href="/library/borrow/"      class="nav-a">إعارة جديدة</a>
+
+      {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/teacher/schedule/"    class="nav-a">جدولي</a>
+      <a href="/teacher/weekly-schedule/" class="nav-a">الجدول الأسبوعي</a>
+      <a href="/assessments/"         class="nav-a">التقييمات</a>
+      <a href="/import/"              class="nav-a">استيراد الدرجات</a>
+      <a href="/reports/"             class="nav-a">التقارير</a>
+      <a href="/quality/my-procedures/" class="nav-a">إجراءاتي</a>
+      <a href="/behavior/dashboard/"  class="nav-a">⚖️ السلوك</a>
+
+      {% elif role == "student" %}
+      <a href="/dashboard/"           class="nav-a">🏠 الرئيسية</a>
+      <a href="/library/"             class="nav-a">📚 المكتبة</a>
+
+      {% elif role == "parent" %}
+      <a href="/parents/"             class="nav-a">🏠 بوابتي</a>
+
+      {% endif %}
+      {% endwith %}
     </div>
+
+    <!-- User Dropdown -->
+    <div class="sd-trigger" style="flex-shrink:0;">
+      <button class="sd-btn" id="btn-user" onclick="sdToggle('menu-user',this)" style="gap:6px;">
+        <span style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">
+          {{ request.user.full_name|slice:":1" }}
+        </span>
+        <span style="font-size:12px;max-width:110px;overflow:hidden;text-overflow:ellipsis;">
+          {{ request.user.full_name|truncatechars:14 }}
+        </span>
+        <span class="sd-chevron">▼</span>
+      </button>
+      <div class="sd-menu" id="menu-user" style="min-width:200px;">
+        <div style="padding:10px 18px 8px;border-bottom:1px solid #f1f5f9;">
+          <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;">{{ request.user.full_name }}</p>
+          <p style="font-size:11px;color:#64748b;margin:2px 0 0;">{{ request.user.national_id }}</p>
+          <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0;">{{ request.user.get_role }}</p>
+        </div>
+        {% if request.user.memberships.count > 1 %}
+        <a href="/auth/choose-role/" style="color:#2563eb !important;">🔄 تبديل الدور</a>
+        {% endif %}
+        <a href="/admin/">⚙️ الإدارة</a>
+        <a href="/auth/logout/" style="color:#dc2626 !important;">خروج</a>
+      </div>
+    </div>
+
   </div>
 </nav>
-
-<!-- ── Dropdown: اللجان (خارج الـ nav تماماً — position:fixed) ── -->
-<div id="drop-committees" class="nav-dropdown" role="menu">
-  <a href="/quality/committee/">
-    <span style="color:#7c3aed">🔍</span> لجنة المراجعة الذاتية
-  </a>
-  <a href="/quality/executor-committee/">
-    <span style="color:#2563eb">⚙️</span> لجنة تنفيذ الخطة
-  </a>
-</div>
-
-<!-- ── Dropdown: المستخدم ── -->
-<div id="drop-user" class="nav-dropdown" role="menu" style="min-width:200px">
-  <div style="padding:10px 16px 8px; border-bottom:1px solid #f3f4f6">
-    <p style="font-size:12px;font-weight:600;margin:0"><span class="drop-name">{{ request.user.full_name }}</span></p>
-    <p style="font-size:11px;margin:2px 0 0"><span class="drop-id">{{ request.user.national_id }}</span></p>
-    <p style="font-size:11px;font-weight:500;margin:2px 0 0"><span class="drop-role">{{ request.user.get_role }}</span></p>
-  </div>
-  {% if request.user.memberships.count > 1 %}
-  <a href="/auth/choose-role/" class="drop-blue">🔄 تبديل الدور</a>
-  {% endif %}
-  <a href="/admin/">⚙️ الإدارة</a>
-  <a href="/auth/logout/" class="drop-red">تسجيل الخروج</a>
-</div>
-
-<script>
-// ── إدارة كل الـ dropdowns بـ position:fixed ──────────────────
-function positionDrop(drop, btn) {
-  var r = btn.getBoundingClientRect();
-  // محاذاة يمين الـ dropdown مع يمين الزر (RTL)
-  var left = r.left + r.width - drop.offsetWidth;
-  if (left < 8) left = 8;
-  drop.style.left = left + 'px';
-  drop.style.top  = (r.bottom + 4) + 'px';
-}
-
-function toggleNavDrop(dropId, btn) {
-  var drop = document.getElementById(dropId);
-  var isOpen = drop.classList.contains('open');
-  // أغلق كل الـ dropdowns أولاً
-  document.querySelectorAll('.nav-dropdown.open').forEach(function(d) {
-    d.classList.remove('open');
-  });
-  document.querySelectorAll('.nav-btn-active').forEach(function(b) {
-    b.classList.remove('nav-btn-active');
-  });
-  if (!isOpen) {
-    drop.classList.add('open');
-    btn.classList.add('nav-btn-active');
-    positionDrop(drop, btn);
-  }
-}
-
-// إغلاق عند الضغط خارج الـ dropdown
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.nav-dropdown') && !e.target.closest('[onclick*="toggleNavDrop"]')) {
-    document.querySelectorAll('.nav-dropdown.open').forEach(function(d) {
-      d.classList.remove('open');
-    });
-    document.querySelectorAll('.nav-btn-active').forEach(function(b) {
-      b.classList.remove('nav-btn-active');
-    });
-  }
-});
-
-// إعادة حساب الموقع عند تغيير حجم النافذة
-window.addEventListener('resize', function() {
-  document.querySelectorAll('.nav-dropdown.open').forEach(function(drop) {
-    var btnId = 'btn-' + drop.id.replace('drop-', '');
-    var btn = document.getElementById(btnId);
-    if (btn) positionDrop(drop, btn);
-  });
-});
-</script>
 {% endif %}
 
 <!-- ── Messages ── -->
 {% if messages %}
-<div class="max-w-7xl mx-auto px-4 mt-3 space-y-2">
+<div style="max-width:1280px;margin:12px auto 0;padding:0 16px;" class="space-y-2">
   {% for msg in messages %}
   <div class="px-4 py-3 rounded-lg text-sm font-medium
     {% if msg.tags == 'success' %}bg-green-100 text-green-800 border border-green-200
@@ -232,15 +194,56 @@ window.addEventListener('resize', function() {
 </div>
 {% endif %}
 
-<!-- ── Content ── -->
 <main class="max-w-7xl mx-auto px-4 py-6">
   {% block content %}{% endblock %}
 </main>
 
-<!-- ── Footer ── -->
 <footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
   SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التعليم والتعليم العالي
 </footer>
 
+<script>
+// ═══ Smart Dropdown — position:fixed escapes overflow completely ═══
+function sdPosition(menu, btn) {
+  var r = btn.getBoundingClientRect();
+  var mw = menu.offsetWidth || 210;
+  // RTL: align right edge of menu with right edge of button
+  var left = r.right - mw;
+  if (left < 8) left = 8;
+  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  menu.style.left = left + 'px';
+  menu.style.top  = (r.bottom + 4) + 'px';
+}
+
+function sdToggle(menuId, btn) {
+  var menu = document.getElementById(menuId);
+  var isOpen = menu.classList.contains('open');
+  // close all
+  document.querySelectorAll('.sd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+  document.querySelectorAll('.sd-btn.active').forEach(function(b){ b.classList.remove('active'); });
+  if (!isOpen) {
+    menu.classList.add('open');
+    btn.classList.add('active');
+    sdPosition(menu, btn);
+  }
+}
+
+// Close on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.sd-menu') && !e.target.closest('.sd-btn')) {
+    document.querySelectorAll('.sd-menu.open').forEach(function(m){ m.classList.remove('open'); });
+    document.querySelectorAll('.sd-btn.active').forEach(function(b){ b.classList.remove('active'); });
+  }
+});
+
+// Reposition on resize/scroll
+window.addEventListener('resize', function() {
+  document.querySelectorAll('.sd-menu.open').forEach(function(menu) {
+    var btnId = 'btn-' + menu.id.replace('menu-','');
+    var btn = document.getElementById(btnId);
+    if (btn) sdPosition(menu, btn);
+  });
+});
+</script>
 </body>
 </html>
