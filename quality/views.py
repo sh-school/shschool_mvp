@@ -292,11 +292,22 @@ def quality_committee(request):
 
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
+    # المتغيرات المطلوبة للـ template
+    from core.models import CustomUser, Membership
+    staff_ids = Membership.objects.filter(
+        school=school, is_active=True
+    ).values_list("user_id", flat=True)
+    staff   = CustomUser.objects.filter(id__in=staff_ids).order_by("full_name")
+    domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
+
     return render(request, "quality/committee.html", {
-        "members":        members,
-        "year":           year,
-        "committee_type": QualityCommitteeMember.REVIEW,
+        "members":         members,
+        "year":            year,
+        "committee_type":  QualityCommitteeMember.REVIEW,
         "committee_label": "لجنة المراجعة الذاتية",
+        "staff":           staff,
+        "domains":         domains,
+        "RESP_CHOICES":    QualityCommitteeMember.RESPONSIBILITY,
     })
 
 
@@ -441,6 +452,10 @@ def executor_committee(request):
     )
     unmapped_norms = all_norms - mapped_norms
 
+    # جلب كل المستخدمين لنموذج الإضافة
+    from core.models import CustomUser as _CU
+    all_users = _CU.objects.filter(school=school).order_by("full_name")
+
     return render(request, "quality/executor_committee.html", {
         "member_stats":    member_stats,
         "year":            year,
@@ -450,6 +465,7 @@ def executor_committee(request):
         "unmapped_norms":  unmapped_norms,
         "committee_type":  QualityCommitteeMember.EXECUTOR,
         "committee_label": "لجنة منفذي الخطة التشغيلية",
+        "all_users":       all_users,
     })
 
 

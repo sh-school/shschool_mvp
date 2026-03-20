@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}لجنة تنفيذ الخطة التشغيلية{% endblock %}
+{% block title %}{{ committee_label }}{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
@@ -7,10 +7,14 @@
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#0F2347]">لجنة تنفيذ الخطة التشغيلية</h1>
+      <h1 class="text-2xl font-bold text-[#0F2347]">{{ committee_label }}</h1>
       <p class="text-sm text-gray-500 mt-1">{{ year }} — إدارة أعضاء اللجنة ومسؤولياتهم</p>
     </div>
     <div class="flex gap-2">
+      <a href="{% url 'executor_committee' %}?year={{ year }}"
+         class="px-4 py-2 border border-blue-300 text-blue-700 text-sm rounded-lg hover:bg-blue-50 transition">
+        ⚙️ لجنة التنفيذ
+      </a>
       <a href="{% url 'executor_mapping' %}"
          class="px-4 py-2 border border-amber-300 text-amber-700 text-sm rounded-lg hover:bg-amber-50 transition">
         ربط المنفذين بالموظفين
@@ -29,6 +33,7 @@
     <form method="post" action="{% url 'add_committee_member' %}" class="p-6">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="committee_type" value="review">
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 

@@ -39,8 +39,27 @@
         <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
         <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول</a>
         <a href="/teacher/absences/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الغيابات</a>
-        <a href="/quality/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الخطة</a>
-        <a href="/quality/committee/"            class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجودة</a>
+        <a href="/quality/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📋 الخطة</a>
+        <!-- قائمة منسدلة للجان الجودة -->
+        <div class="relative" x-data="{ qopen: false }">
+          <button @click="qopen = !qopen" @click.away="qopen = false"
+                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap flex items-center gap-1">
+            🏅 اللجان <span class="text-[10px] opacity-70">▼</span>
+          </button>
+          <div x-show="qopen" x-cloak
+               class="absolute top-10 right-0 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
+            <a href="/quality/committee/"
+               class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-purple-50 hover:text-purple-700 transition border-b">
+              <span class="text-purple-600">🔍</span>
+              <span>لجنة المراجعة الذاتية</span>
+            </a>
+            <a href="/quality/executor-committee/"
+               class="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-700 transition">
+              <span class="text-blue-600">⚙️</span>
+              <span>لجنة تنفيذ الخطة</span>
+            </a>
+          </div>
+        </div>
         <a href="/parents/admin/links/"          class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الأولياء</a>
         <a href="/notifications/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الإشعارات</a>
         <!-- ✅ الوحدات الأربع الجديدة -->

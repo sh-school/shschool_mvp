@@ -82,7 +82,7 @@
     </div>
 
     <div id="add-form" class="hidden p-6">
-      <form method="post" action="{% url 'add_committee_member' %}">
+      <form method="post" action="{% url 'add_executor_member' %}">
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
         <input type="hidden" name="committee_type" value="executor">
