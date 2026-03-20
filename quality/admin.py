@@ -97,9 +97,12 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
         year   = "2025-2026"
 
         if self.instance and self.instance.pk:
-            school = self.instance.school
-            year   = self.instance.academic_year
-        elif self.data.get("school"):
+            try:
+                school = self.instance.school
+                year   = self.instance.academic_year
+            except Exception:
+                school = None
+        if not school and self.data.get("school"):
             from core.models import School as _S
             try:
                 school = _S.objects.get(pk=self.data["school"])
