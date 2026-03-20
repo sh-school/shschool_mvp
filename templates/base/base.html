@@ -7,180 +7,266 @@
   <title>{% block title %}SchoolOS{% endblock %}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script defer src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js"></script>
   <style>
-    [x-cloak] { display: none !important; }
     body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
-    .nav-active { background-color: rgba(255,255,255,0.15); border-radius: 0.375rem; }
+    /* ══ Dropdown ══════════════════════════════════════════════ */
+    .sd-menu {
+      display: none;
+      position: fixed;
+      min-width: 200px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      z-index: 99999;
+      padding: 5px 0;
+      color-scheme: light;
+    }
+    .sd-menu.sd-measure {
+      display: block !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      top: 0; left: 0;
+    }
+    .sd-menu.open { display: block; }
+    .sd-menu a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 16px; font-size: 13px;
+      color: #1e293b !important; text-decoration: none;
+      white-space: nowrap; transition: background .1s;
+    }
+    .sd-menu a:hover { background: #f1f5f9; }
+    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 3px 0; }
+    .sd-label {
+      padding: 5px 16px 2px; font-size: 10px;
+      font-weight: 700; color: #94a3b8 !important;
+      letter-spacing: .07em; text-transform: uppercase;
+    }
+    /* ══ Nav button & link ═════════════════════════════════════ */
+    .nb {
+      display: flex; align-items: center; gap: 4px;
+      padding: 5px 9px; border-radius: 6px;
+      font-size: 12px; color: #fff;
+      background: none; border: none; cursor: pointer;
+      white-space: nowrap; transition: background .1s;
+      text-decoration: none;
+    }
+    .nb:hover, .nb.on { background: rgba(255,255,255,0.18); }
+    .chv { font-size: 8px; opacity: .65; transition: transform .18s; }
+    .nb.on .chv { transform: rotate(180deg); }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
 {% if user.is_authenticated %}
-<!-- ── Navbar ── -->
-<nav class="bg-[#8A1538] text-white shadow-lg sticky top-0 z-50">
-  <div class="max-w-7xl mx-auto px-4">
-    <div class="flex items-center justify-between h-14">
+<nav style="background:#8A1538;position:sticky;top:0;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+  <div style="max-width:1280px;margin:0 auto;padding:0 14px;display:flex;align-items:center;height:52px;gap:4px;">
 
-      <!-- Logo -->
-      <a href="/dashboard/" class="flex items-center gap-2 font-bold text-lg hover:text-red-200 transition shrink-0">
-        <span>🏫</span> SchoolOS
-      </a>
+    <!-- Logo -->
+    <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:6px;flex-shrink:0;">
+      🏫 SchoolOS
+    </a>
 
-      <!-- Nav Links -->
-      <div class="hidden md:flex items-center gap-0.5 text-xs overflow-x-auto flex-1 mx-4">
-        {% with role=request.user.get_role %}
+    <div style="width:1px;height:22px;background:rgba(255,255,255,0.2);margin:0 4px;flex-shrink:0;"></div>
 
-        {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
-        <!-- ── قائمة الإدارة ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/analytics/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📊 الإحصاءات</a>
-        <a href="/assessments/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
-        <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
-        <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول</a>
-        <a href="/teacher/absences/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الغيابات</a>
-        <!-- قائمة الجودة مدمجة -->
-        <div class="relative" x-data="{ open: false }">
-          <button @click="open = !open" @click.away="open = false"
-                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap flex items-center gap-1">
-            🎯 الجودة <span class="text-[10px] opacity-70">▼</span>
-          </button>
-          <div x-show="open" x-cloak
-               class="absolute top-10 right-0 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
-            <a href="/quality/"
-               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
-              📋 الخطة التشغيلية
-            </a>
-            <a href="/quality/executor-committee/"
-               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
-              👥 لجنة المنفذين
-            </a>
-            <a href="/quality/committee/"
-               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
-              🔍 لجنة المراجعة
-            </a>
-            <a href="/quality/executor-mapping/"
-               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
-              🔗 ربط المنفذين
-            </a>
-            <div class="border-t my-1"></div>
-            <a href="/quality/report/"
-               class="flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 transition">
-              📈 تقرير التقدم
-            </a>
-          </div>
-        </div>
-        <a href="/parents/admin/links/"          class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الأولياء</a>
-        <a href="/notifications/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الإشعارات</a>
-        <!-- الوحدات الأربع -->
-        <span class="text-white/30 px-1">|</span>
-        <a href="/clinic/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
-        <a href="/transport/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 النقل</a>
-        <a href="/behavior/dashboard/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
-        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
+    {% with role=request.user.get_role %}
+    {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
 
-        {% elif role == "nurse" %}
-        <!-- ── قائمة الممرض ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/clinic/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏥 العيادة</a>
-        <a href="/clinic/visits/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">سجل الزيارات</a>
-        <a href="/clinic/record/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">تسجيل زيارة</a>
-        <a href="/clinic/statistics/"            class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
+    <!-- ── الرئيسية ── -->
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
 
-        {% elif role == "bus_supervisor" %}
-        <!-- ── قائمة مشرف الباص ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/transport/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🚌 لوحة النقل</a>
-        <a href="/transport/buses/"              class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الحافلات</a>
-        <a href="/transport/assignments/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إسناد الطلاب</a>
-        <a href="/transport/statistics/"         class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إحصائيات</a>
+    <!-- ── الأكاديمية Dropdown ── -->
+    <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">
+      📚 الأكاديمية <span class="chv">▼</span>
+    </button>
 
-        {% elif role == "librarian" %}
-        <!-- ── قائمة أمين المكتبة ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 لوحة المكتبة</a>
-        <a href="/library/books/"                class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الكتب</a>
-        <a href="/library/borrow/"               class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إعارة جديدة</a>
+    <!-- ── الجودة Dropdown ── -->
+    <button class="nb" id="btn-quality" onclick="sd('m-quality',this)">
+      📋 الجودة <span class="chv">▼</span>
+    </button>
 
-        {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
-        <!-- ── قائمة المعلم والمنسق والأخصائي ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/teacher/schedule/"             class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">جدولي</a>
-        <a href="/teacher/weekly-schedule/"      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">الجدول الأسبوعي</a>
-        <a href="/assessments/"                  class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقييمات</a>
-        <a href="/import/"                       class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">استيراد الدرجات</a>
-        <a href="/reports/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">التقارير</a>
-        <a href="/quality/my-procedures/"        class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">إجراءاتي</a>
-        <a href="/behavior/dashboard/"           class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">⚖️ السلوك</a>
+    <!-- ── الإدارة Dropdown ── -->
+    <button class="nb" id="btn-admin" onclick="sd('m-admin',this)">
+      ⚙️ الإدارة <span class="chv">▼</span>
+    </button>
 
-        {% elif role == "student" %}
-        <!-- ── قائمة الطالب ── -->
-        <a href="/dashboard/"                    class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 الرئيسية</a>
-        <a href="/library/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">📚 المكتبة</a>
+    <!-- ── الخدمات Dropdown ── -->
+    <button class="nb" id="btn-services" onclick="sd('m-services',this)">
+      🏥 الخدمات <span class="chv">▼</span>
+    </button>
 
-        {% elif role == "parent" %}
-        <!-- ── قائمة ولي الأمر ── -->
-        <a href="/parents/"                      class="px-2.5 py-2 rounded hover:bg-white/15 transition whitespace-nowrap">🏠 بوابتي</a>
+    {% elif role == "nurse" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/clinic/" class="nb">🏥 العيادة</a>
+    <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
+    <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
+    <a href="/clinic/statistics/" class="nb">إحصائيات</a>
 
-        {% endif %}
-        {% endwith %}
-      </div>
+    {% elif role == "bus_supervisor" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/transport/" class="nb">🚌 لوحة النقل</a>
+    <a href="/transport/buses/" class="nb">الحافلات</a>
+    <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
+    <a href="/transport/statistics/" class="nb">إحصائيات</a>
 
-      <!-- User Menu -->
-      <div class="flex items-center gap-3 shrink-0" x-data="{ open: false }">
-        <button @click="open = !open"
-                class="flex items-center gap-2 text-sm hover:text-red-200 transition">
-          <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
-            {{ request.user.full_name|slice:":1" }}
-          </span>
-          <span class="hidden md:block">{{ request.user.full_name|truncatechars:14 }}</span>
-          <span class="text-xs opacity-60">▼</span>
-        </button>
+    {% elif role == "librarian" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/library/" class="nb">📚 لوحة المكتبة</a>
+    <a href="/library/books/" class="nb">الكتب</a>
+    <a href="/library/borrow/" class="nb">إعارة جديدة</a>
 
-        <div x-show="open" @click.away="open=false" x-cloak
-             class="absolute left-4 top-14 bg-white text-gray-800 rounded-xl shadow-xl border w-52 py-2 z-50">
-          <div class="px-4 py-2 border-b">
-            <p class="text-xs font-bold text-gray-900">{{ request.user.full_name }}</p>
-            <p class="text-xs text-gray-400">{{ request.user.national_id }}</p>
-            <p class="text-xs text-red-700 font-medium mt-0.5">{{ request.user.get_role }}</p>
-          </div>
-          {% if request.user.memberships.count > 1 %}
-          <a href="/auth/choose-role/" class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition">🔄 تبديل الدور</a>
-          {% endif %}
-          <a href="/admin/" class="block px-4 py-2 text-sm hover:bg-gray-50 transition">⚙️ الإدارة</a>
-          <a href="/auth/logout/" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">تسجيل الخروج</a>
-        </div>
-      </div>
+    {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/teacher/schedule/" class="nb">جدولي</a>
+    <a href="/teacher/weekly-schedule/" class="nb">الجدول الأسبوعي</a>
+    <a href="/assessments/" class="nb">التقييمات</a>
+    <a href="/import/" class="nb">استيراد الدرجات</a>
+    <a href="/reports/" class="nb">التقارير</a>
+    <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+    <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
 
-    </div>
+    {% elif role == "student" %}
+    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+    <a href="/library/" class="nb">📚 المكتبة</a>
+
+    {% elif role == "parent" %}
+    <a href="/parents/" class="nb">🏠 بوابتي</a>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Spacer -->
+    <div style="flex:1;"></div>
+
+    <!-- User -->
+    <button class="nb" id="btn-user" onclick="sd('m-user',this)" style="gap:6px;flex-shrink:0;">
+      <span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">
+        {{ request.user.full_name|slice:":1" }}
+      </span>
+      <span style="font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;">{{ request.user.full_name|truncatechars:13 }}</span>
+      <span class="chv">▼</span>
+    </button>
+
   </div>
 </nav>
-{% endif %}
 
-<!-- ── Messages ── -->
+
+
+<!-- ══ Messages ═══════════════════════════════════════════════ -->
 {% if messages %}
-<div class="max-w-7xl mx-auto px-4 mt-3 space-y-2">
+<div style="max-width:1280px;margin:12px auto 0;padding:0 16px;" class="space-y-2">
   {% for msg in messages %}
   <div class="px-4 py-3 rounded-lg text-sm font-medium
     {% if msg.tags == 'success' %}bg-green-100 text-green-800 border border-green-200
     {% elif msg.tags == 'error' %}bg-red-100 text-red-800 border border-red-200
     {% elif msg.tags == 'warning' %}bg-amber-100 text-amber-800 border border-amber-200
-    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">
-    {{ msg }}
-  </div>
+    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">{{ msg }}</div>
   {% endfor %}
 </div>
 {% endif %}
 
-<!-- ── Content ── -->
-<main class="max-w-7xl mx-auto px-4 py-6">
-  {% block content %}{% endblock %}
-</main>
+<main class="max-w-7xl mx-auto px-4 py-6">{% block content %}{% endblock %}</main>
 
-<!-- ── Footer ── -->
 <footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
   SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التعليم والتعليم العالي
 </footer>
 
+<script>
+function sdPos(m, btn) {
+  // temporarily render invisible to get real dimensions
+  m.classList.add('sd-measure');
+  var mw = m.offsetWidth;
+  var mh = m.offsetHeight;
+  m.classList.remove('sd-measure');
+  var r = btn.getBoundingClientRect();
+  var top = r.bottom + 4;
+  if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
+  if (top < 8) top = 8;
+  var left = r.right - mw;
+  if (left < 8) left = 8;
+  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  m.style.top  = top + 'px';
+  m.style.left = left + 'px';
+}
+function sd(id, btn) {
+  var m = document.getElementById(id);
+  var isOpen = m.classList.contains('open');
+  document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
+  document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
+  if (!isOpen) {
+    sdPos(m, btn);
+    m.classList.add('open');
+    btn.classList.add('on');
+  }
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
+    document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
+    document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
+  }
+});
+window.addEventListener('resize', function() {
+  document.querySelectorAll('.sd-menu.open').forEach(function(m) {
+    var btnId = 'btn-' + m.id.replace('m-','');
+    var btn = document.getElementById(btnId);
+    if (btn) sdPos(m, btn);
+  });
+});
+</script>
+<!-- ══ Dropdown Menus (outside nav — fixed position) ══════════ -->
+
+<div class="sd-menu" id="m-academic">
+  <div class="sd-label">الدراسة</div>
+  <a href="/assessments/">📝 التقييمات</a>
+  <a href="/reports/">📊 التقارير</a>
+  <a href="/analytics/">📈 الإحصاءات</a>
+  <hr>
+  <div class="sd-label">الجدول</div>
+  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/absences/">🚫 الغيابات</a>
+</div>
+
+<div class="sd-menu" id="m-quality">
+  <div class="sd-label">الخطة التشغيلية</div>
+  <a href="/quality/">📊 لوحة الخطة</a>
+  <a href="/quality/report/">📈 تقرير التقدم</a>
+  <a href="/quality/executor-mapping/">🔗 ربط المنفذين</a>
+  <hr>
+  <div class="sd-label">اللجان</div>
+  <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
+  <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
+  <hr>
+  <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
+</div>
+
+<div class="sd-menu" id="m-admin">
+  <div class="sd-label">المدرسة</div>
+  <a href="/parents/admin/links/">👨‍👩‍👧 الأولياء</a>
+  <a href="/notifications/">🔔 الإشعارات</a>
+  <hr>
+  <a href="/admin/">🛠️ لوحة الإدارة</a>
+</div>
+
+<div class="sd-menu" id="m-services">
+  <a href="/clinic/">🏥 العيادة</a>
+  <a href="/transport/">🚌 النقل</a>
+  <a href="/behavior/dashboard/">⚖️ السلوك</a>
+  <a href="/library/">📚 المكتبة</a>
+</div>
+
+<div class="sd-menu" id="m-user" style="min-width:190px;">
+  <div style="padding:9px 16px 7px;border-bottom:1px solid #f1f5f9;">
+    <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;">{{ request.user.full_name }}</p>
+    <p style="font-size:11px;color:#64748b;margin:2px 0 0;">{{ request.user.national_id }}</p>
+    <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0;">{{ request.user.get_role }}</p>
+  </div>
+  {% if request.user.memberships.count > 1 %}
+  <a href="/auth/choose-role/" style="color:#2563eb !important;">🔄 تبديل الدور</a>
+  {% endif %}
+  <a href="/admin/">⚙️ الإدارة</a>
+  <hr>
+  <a href="/auth/logout/" style="color:#dc2626 !important;">🚪 تسجيل الخروج</a>
+</div>
+
+{% endif %}
 </body>
 </html>
