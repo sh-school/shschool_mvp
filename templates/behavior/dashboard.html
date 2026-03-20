@@ -10,7 +10,7 @@
     </div>
     <div class="flex gap-2">
       {% if can_report %}
-      <a href="{% url 'behavior:report' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>
+      <a href="{% url 'behavior:report_infraction' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>
       {% endif %}
       {% if is_committee %}
       <a href="{% url 'behavior:committee' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">لجنة الضبط</a>

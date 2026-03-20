@@ -9,8 +9,8 @@
       <p class="text-sm text-gray-500 mt-1">إدارة الحافلات والمسارات</p>
     </div>
     <div class="flex gap-2">
-      <a href="{% url 'buses_list' %}" class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">قائمة الحافلات</a>
-      <a href="{% url 'student_assignments' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">إسناد الطلاب</a>
+      <a href="{% url 'transport:buses_list' %}" class="px-4 py-2 bg-[#0F2347] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">قائمة الحافلات</a>
+      <a href="{% url 'transport:student_assignments' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">إسناد الطلاب</a>
     </div>
   </div>
 
@@ -63,7 +63,7 @@
               </div>
             </td>
             <td class="px-4 py-3 text-center">
-              <a href="{% url 'bus_detail' item.bus.id %}" class="text-blue-600 hover:underline text-xs">التفاصيل</a>
+              <a href="{% url 'transport:bus_detail' item.bus.id %}" class="text-blue-600 hover:underline text-xs">التفاصيل</a>
             </td>
           </tr>
           {% endfor %}
