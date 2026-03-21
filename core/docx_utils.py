@@ -195,6 +195,35 @@ def _new_doc():
         sec.top_margin    = _cm(3.8)
         sec.bottom_margin = _cm(3.2)
 
+        # ✅ FIX: w:bidi في sectPr — يجعل تخطيط الصفحة RTL على مستوى القسم
+        sectPr = sec._sectPr
+        if sectPr.find(_qn("w:bidi")) is None:
+            bidi = _el("w:bidi")
+            sectPr.append(bidi)
+
+    # ✅ FIX: w:bidi في pPrDefault — الفقرات الافتراضية RTL
+    styles_el = doc.styles.element
+    docDefaults = styles_el.find(_qn("w:docDefaults"))
+    if docDefaults is not None:
+        pPrDefault = docDefaults.find(_qn("w:pPrDefault"))
+        if pPrDefault is None:
+            pPrDefault = _el("w:pPrDefault")
+            docDefaults.append(pPrDefault)
+        pPr_def = pPrDefault.find(_qn("w:pPr"))
+        if pPr_def is None:
+            pPr_def = _el("w:pPr")
+            pPrDefault.append(pPr_def)
+        if pPr_def.find(_qn("w:bidi")) is None:
+            bidi = _el("w:bidi")
+            pPr_def.insert(0, bidi)
+
+        # ✅ FIX: w:rtl في rPrDefault — الـ runs الافتراضية RTL
+        rPrDefault = docDefaults.find(_qn("w:rPrDefault"))
+        if rPrDefault is not None:
+            rPr_def = rPrDefault.find(_qn("w:rPr"))
+            if rPr_def is not None and rPr_def.find(_qn("w:rtl")) is None:
+                rPr_def.append(_el("w:rtl"))
+
     # هيدر + فوتر
     _attach_header_footer(doc)
     return doc
