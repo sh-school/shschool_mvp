@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Django Dev Server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["manage.py", "runserver", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "Tailwind CSS Watch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tailwindcss",
+        "-c", "tailwind.config.js",
+        "-i", "static/css/tailwind_input.css",
+        "-o", "static/css/tailwind.min.css",
+        "--watch"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "Celery Worker",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "celery", "-A", "shschool", "worker", "-l", "info"],
+      "port": 6379
+    },
+    {
+      "name": "Celery Beat",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "celery", "-A", "shschool", "beat", "-l", "info"],
+      "port": 6380
+    }
+  ]
+}

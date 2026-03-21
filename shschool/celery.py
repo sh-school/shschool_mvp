@@ -29,6 +29,11 @@ app.conf.beat_schedule = {
         "task":     "notifications.check_breach_deadlines",
         "schedule": crontab(minute=0),   # كل ساعة عند الدقيقة صفر
     },
+    # ✅ v6: تقرير KPIs الشهري — أول يوم من كل شهر الساعة 6:00 صباحاً
+    "send-monthly-kpi-report": {
+        "task":     "analytics.send_monthly_kpi_report",
+        "schedule": crontab(hour=6, minute=0, day_of_month=1),
+    },
 }
 
 app.conf.timezone = "Asia/Qatar"

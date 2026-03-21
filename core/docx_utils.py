@@ -1,13 +1,18 @@
 """
 core/docx_utils.py — وثائق Word احترافية بـ RTL عربي مضمون 100%
 كل فقرة وكل run يحمل w:bidi + w:rtl + w:cs مباشرةً
+
+v6: إضافة logging + error handling احترافي لكل نموذج
 """
 import io
+import logging
 from pathlib import Path
 from datetime import date
 
 from django.conf import settings
 from django.http import HttpResponse
+
+logger = logging.getLogger(__name__)
 
 MAROON   = "8A1538"
 MAROON_R = (138, 21, 56)
@@ -417,57 +422,68 @@ def _docx_resp(doc, fn):
 # ════════════════════════════════════════════════════════════════════
 
 def generate_warning_docx(ctx):
-    inf   = ctx["infraction"]
-    sname = getattr(ctx.get("school"), "name",
-                    "مدرسة الشحانية الإعدادية الثانوية للبنين")
-    doc = _new_doc()
+    try:
+        inf   = ctx["infraction"]
+        sname = getattr(ctx.get("school"), "name",
+                        "مدرسة الشحانية الإعدادية الثانوية للبنين")
+        doc = _new_doc()
 
-    _title_block(doc, "نموذج إنذار سلوكي", sname)
+        _title_block(doc, "نموذج إنذار سلوكي", sname)
 
-    _section_title(doc, "بيانات الطالب")
-    _info_grid(doc, [
-        ("اسم الطالب:",  inf.student.full_name,
-         "الرقم الشخصي:", str(inf.student.username or "")),
-        ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
-         "التاريخ:", str(inf.date)),
-    ])
+        _section_title(doc, "بيانات الطالب")
+        _info_grid(doc, [
+            ("اسم الطالب:",  inf.student.full_name,
+             "الرقم الشخصي:", str(inf.student.username or "")),
+            ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
+             "التاريخ:", str(inf.date)),
+        ])
 
-    _section_title(doc, "نوع المخالفة السلوكية")
-    cat_text = (
-        f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
-        f"  |  الدرجة: {inf.get_level_display()}"
-        if inf.violation_category
-        else (inf.description or "")[:120]
-    )
-    _content_box(doc, cat_text, bg="FFF0F3")
+        _section_title(doc, "نوع المخالفة السلوكية")
+        cat_text = (
+            f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
+            f"  |  الدرجة: {inf.get_level_display()}"
+            if inf.violation_category
+            else (inf.description or "")[:120]
+        )
+        _content_box(doc, cat_text, bg="FFF0F3")
 
-    _section_title(doc, "تفاصيل الواقعة")
-    _content_box(doc, inf.description or "___________")
+        _section_title(doc, "تفاصيل الواقعة")
+        _content_box(doc, inf.description or "___________")
 
-    _section_title(doc, "الإجراء المتخذ وفق اللوائح")
-    action = (getattr(inf, "action_taken", None) or
-              getattr(getattr(inf, "violation_category", None),
-                      "default_action", None) or "___________")
-    _content_box(doc, action)
+        _section_title(doc, "الإجراء المتخذ وفق اللوائح")
+        action = (getattr(inf, "action_taken", None) or
+                  getattr(getattr(inf, "violation_category", None),
+                          "default_action", None) or "___________")
+        _content_box(doc, action)
 
-    _sp(doc, 8)
-    count = ctx.get("infraction_count", 1)
-    order = "أول" if count == 1 else "ثانٍ" if count == 2 else "نهائي"
-    p = doc.add_paragraph()
-    _ppr_rtl(p, sb=0, sa=60)
-    p.paragraph_format.right_indent = _cm(0.3)
-    run = p.add_run(
-        f"هذا إنذار سلوكي {order} للطالب المذكور أعلاه. "
-        "يُرجى الالتزام التام بلوائح السلوك والانضباط المدرسية.")
-    _rpr_arabic(run, size_pt=11, bold=True)
+        _sp(doc, 8)
+        count = ctx.get("infraction_count", 1)
+        order = "أول" if count == 1 else "ثانٍ" if count == 2 else "نهائي"
+        p = doc.add_paragraph()
+        _ppr_rtl(p, sb=0, sa=60)
+        p.paragraph_format.right_indent = _cm(0.3)
+        run = p.add_run(
+            f"هذا إنذار سلوكي {order} للطالب المذكور أعلاه. "
+            "يُرجى الالتزام التام بلوائح السلوك والانضباط المدرسية.")
+        _rpr_arabic(run, size_pt=11, bold=True)
 
-    _sp(doc, 10)
-    _section_title(doc, "التوقيعات")
-    _sig_table(doc, ["رائد الفصل", "منسق السلوك", "وكيل شؤون الطلبة"])
-    _sig_table(doc, ["توقيع الطالب", "توقيع ولي الأمر", "تاريخ التسليم: ____/__/__"])
-    _notice(doc, f"SchoolOS v5  |  {ctx.get('generated_at', date.today())}")
+        _sp(doc, 10)
+        _section_title(doc, "التوقيعات")
+        _sig_table(doc, ["رائد الفصل", "منسق السلوك", "وكيل شؤون الطلبة"])
+        _sig_table(doc, ["توقيع الطالب", "توقيع ولي الأمر", "تاريخ التسليم: ____/__/__"])
+        _notice(doc, f"SchoolOS v6  |  {ctx.get('generated_at', date.today())}")
 
-    return _docx_resp(doc, f"warning_{inf.student.username}_{inf.date}.docx")
+        return _docx_resp(doc, f"warning_{inf.student.username}_{inf.date}.docx")
+
+    except ImportError as e:
+        logger.error("python-docx غير مثبت: %s", e)
+        return HttpResponse("مكتبة Word غير متاحة — pip install python-docx", status=500)
+    except KeyError as e:
+        logger.error("بيانات ناقصة في generate_warning_docx: %s", e)
+        return HttpResponse(f"بيانات ناقصة: {e}", status=400)
+    except Exception as e:
+        logger.exception("خطأ غير متوقع في generate_warning_docx: %s", e)
+        return HttpResponse("حدث خطأ أثناء إنشاء الوثيقة", status=500)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -475,45 +491,56 @@ def generate_warning_docx(ctx):
 # ════════════════════════════════════════════════════════════════════
 
 def generate_parent_undertaking_docx(ctx):
-    inf   = ctx["infraction"]
-    sname = getattr(ctx.get("school"), "name",
-                    "مدرسة الشحانية الإعدادية الثانوية للبنين")
-    doc = _new_doc()
+    try:
+        inf   = ctx["infraction"]
+        sname = getattr(ctx.get("school"), "name",
+                        "مدرسة الشحانية الإعدادية الثانوية للبنين")
+        doc = _new_doc()
 
-    _title_block(doc, "تعهد ولي الأمر", sname)
+        _title_block(doc, "تعهد ولي الأمر", sname)
 
-    _section_title(doc, "بيانات ولي الأمر")
-    _info_grid(doc, [
-        ("اسم ولي الأمر:", ctx.get("parent_name") or "___________",
-         "رقم الهوية:",    ctx.get("parent_id")   or "___________"),
-        ("رقم الهاتف:",   ctx.get("parent_phone") or "___________",
-         "البريد الإلكتروني:", ctx.get("parent_email") or "___________"),
-    ])
+        _section_title(doc, "بيانات ولي الأمر")
+        _info_grid(doc, [
+            ("اسم ولي الأمر:", ctx.get("parent_name") or "___________",
+             "رقم الهوية:",    ctx.get("parent_id")   or "___________"),
+            ("رقم الهاتف:",   ctx.get("parent_phone") or "___________",
+             "البريد الإلكتروني:", ctx.get("parent_email") or "___________"),
+        ])
 
-    _section_title(doc, "بيانات الطالب")
-    _info_grid(doc, [
-        ("اسم الطالب:",  inf.student.full_name,
-         "الرقم الشخصي:", str(inf.student.username or "")),
-        ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
-         "تاريخ المخالفة:", str(inf.date)),
-    ])
+        _section_title(doc, "بيانات الطالب")
+        _info_grid(doc, [
+            ("اسم الطالب:",  inf.student.full_name,
+             "الرقم الشخصي:", str(inf.student.username or "")),
+            ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
+             "تاريخ المخالفة:", str(inf.date)),
+        ])
 
-    _section_title(doc, "المخالفة المُبلَّغ عنها")
-    vtext = (f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
-             if inf.violation_category else (inf.description or "")[:100])
-    _content_box(doc, vtext, bg="FFF0F3")
+        _section_title(doc, "المخالفة المُبلَّغ عنها")
+        vtext = (f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
+                 if inf.violation_category else (inf.description or "")[:100])
+        _content_box(doc, vtext, bg="FFF0F3")
 
-    _section_title(doc, "نص التعهد")
-    _content_box(doc,
-        "أنا ولي أمر الطالب المذكور أعلاه، أُقرّ باطلاعي على المخالفة السلوكية الصادرة بحق ابني، "
-        "وأتعهد بمتابعته وتوجيهه نحو الالتزام بلوائح المدرسة وأنظمتها، وعدم تكرار هذا السلوك "
-        "مستقبلاً، والتعاون الكامل مع إدارة المدرسة في كل ما يخدم مصلحة ابني التعليمية والسلوكية.")
+        _section_title(doc, "نص التعهد")
+        _content_box(doc,
+            "أنا ولي أمر الطالب المذكور أعلاه، أُقرّ باطلاعي على المخالفة السلوكية الصادرة بحق ابني، "
+            "وأتعهد بمتابعته وتوجيهه نحو الالتزام بلوائح المدرسة وأنظمتها، وعدم تكرار هذا السلوك "
+            "مستقبلاً، والتعاون الكامل مع إدارة المدرسة في كل ما يخدم مصلحة ابني التعليمية والسلوكية.")
 
-    _sp(doc, 10)
-    _sig_table(doc, ["توقيع ولي الأمر", "وكيل شؤون الطلبة", "ختم المدرسة"])
-    _notice(doc, f"SchoolOS v5  |  {ctx.get('generated_at', date.today())}")
+        _sp(doc, 10)
+        _sig_table(doc, ["توقيع ولي الأمر", "وكيل شؤون الطلبة", "ختم المدرسة"])
+        _notice(doc, f"SchoolOS v6  |  {ctx.get('generated_at', date.today())}")
 
-    return _docx_resp(doc, f"parent_undertaking_{inf.student.username}.docx")
+        return _docx_resp(doc, f"parent_undertaking_{inf.student.username}.docx")
+
+    except ImportError as e:
+        logger.error("python-docx غير مثبت: %s", e)
+        return HttpResponse("مكتبة Word غير متاحة — pip install python-docx", status=500)
+    except KeyError as e:
+        logger.error("بيانات ناقصة في generate_parent_undertaking_docx: %s", e)
+        return HttpResponse(f"بيانات ناقصة: {e}", status=400)
+    except Exception as e:
+        logger.exception("خطأ غير متوقع في generate_parent_undertaking_docx: %s", e)
+        return HttpResponse("حدث خطأ أثناء إنشاء الوثيقة", status=500)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -521,38 +548,49 @@ def generate_parent_undertaking_docx(ctx):
 # ════════════════════════════════════════════════════════════════════
 
 def generate_student_undertaking_docx(ctx):
-    inf   = ctx["infraction"]
-    sname = getattr(ctx.get("school"), "name",
-                    "مدرسة الشحانية الإعدادية الثانوية للبنين")
-    doc = _new_doc()
+    try:
+        inf   = ctx["infraction"]
+        sname = getattr(ctx.get("school"), "name",
+                        "مدرسة الشحانية الإعدادية الثانوية للبنين")
+        doc = _new_doc()
 
-    _title_block(doc, "تعهد الطالب", sname)
+        _title_block(doc, "تعهد الطالب", sname)
 
-    _section_title(doc, "بيانات الطالب")
-    _info_grid(doc, [
-        ("اسم الطالب:",  inf.student.full_name,
-         "الرقم الشخصي:", str(inf.student.username or "")),
-        ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
-         "التاريخ:", str(inf.date)),
-    ])
+        _section_title(doc, "بيانات الطالب")
+        _info_grid(doc, [
+            ("اسم الطالب:",  inf.student.full_name,
+             "الرقم الشخصي:", str(inf.student.username or "")),
+            ("الصف / الفصل:", str(ctx.get("class_name") or "___________"),
+             "التاريخ:", str(inf.date)),
+        ])
 
-    _section_title(doc, "المخالفة المرتكبة")
-    vtext = (f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
-             if inf.violation_category else (inf.description or "")[:100])
-    _content_box(doc, vtext, bg="FFF0F3")
+        _section_title(doc, "المخالفة المرتكبة")
+        vtext = (f"[{inf.violation_category.code}]  {inf.violation_category.name_ar}"
+                 if inf.violation_category else (inf.description or "")[:100])
+        _content_box(doc, vtext, bg="FFF0F3")
 
-    _section_title(doc, "نص التعهد")
-    _content_box(doc,
-        "أنا الطالب المذكور أعلاه، أُقرّ باطلاعي على المخالفة السلوكية الصادرة بحقي، "
-        "وأتعهد بعدم تكرار هذا السلوك مستقبلاً، والالتزام التام بلوائح المدرسة وتعليماتها، "
-        "وأن أكون قدوة حسنة لزملائي في الالتزام والانضباط، مدركاً أن تكرار هذا السلوك "
-        "سيعرضني لعقوبات أشد وفق لائحة السلوك المعتمدة.")
+        _section_title(doc, "نص التعهد")
+        _content_box(doc,
+            "أنا الطالب المذكور أعلاه، أُقرّ باطلاعي على المخالفة السلوكية الصادرة بحقي، "
+            "وأتعهد بعدم تكرار هذا السلوك مستقبلاً، والالتزام التام بلوائح المدرسة وتعليماتها، "
+            "وأن أكون قدوة حسنة لزملائي في الالتزام والانضباط، مدركاً أن تكرار هذا السلوك "
+            "سيعرضني لعقوبات أشد وفق لائحة السلوك المعتمدة.")
 
-    _sp(doc, 10)
-    _sig_table(doc, ["توقيع الطالب", "توقيع ولي الأمر", "رائد الفصل"])
-    _notice(doc, f"SchoolOS v5  |  {ctx.get('generated_at', date.today())}")
+        _sp(doc, 10)
+        _sig_table(doc, ["توقيع الطالب", "توقيع ولي الأمر", "رائد الفصل"])
+        _notice(doc, f"SchoolOS v6  |  {ctx.get('generated_at', date.today())}")
 
-    return _docx_resp(doc, f"student_undertaking_{inf.student.username}.docx")
+        return _docx_resp(doc, f"student_undertaking_{inf.student.username}.docx")
+
+    except ImportError as e:
+        logger.error("python-docx غير مثبت: %s", e)
+        return HttpResponse("مكتبة Word غير متاحة — pip install python-docx", status=500)
+    except KeyError as e:
+        logger.error("بيانات ناقصة في generate_student_undertaking_docx: %s", e)
+        return HttpResponse(f"بيانات ناقصة: {e}", status=400)
+    except Exception as e:
+        logger.exception("خطأ غير متوقع في generate_student_undertaking_docx: %s", e)
+        return HttpResponse("حدث خطأ أثناء إنشاء الوثيقة", status=500)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -560,6 +598,17 @@ def generate_student_undertaking_docx(ctx):
 # ════════════════════════════════════════════════════════════════════
 
 def generate_policy_docx(ctx):
+    try:
+     return _generate_policy_docx_inner(ctx)
+    except ImportError as e:
+        logger.error("python-docx غير مثبت: %s", e)
+        return HttpResponse("مكتبة Word غير متاحة — pip install python-docx", status=500)
+    except Exception as e:
+        logger.exception("خطأ غير متوقع في generate_policy_docx: %s", e)
+        return HttpResponse("حدث خطأ أثناء إنشاء الوثيقة", status=500)
+
+
+def _generate_policy_docx_inner(ctx):
     doc = _new_doc()
     yr  = ctx.get("academic_year", "2025-2026")
 
@@ -650,6 +699,6 @@ def generate_policy_docx(ctx):
     _sp(doc, 14)
     _divider(doc, "double", "12")
     _sig_table(doc, ["مدير المدرسة", "وكيل شؤون الطلبة", "مسؤول الجودة"])
-    _notice(doc, f"SchoolOS v5  |  {ctx.get('generated_at', date.today())}  |  الإصدار 1.0")
+    _notice(doc, f"SchoolOS v6  |  {ctx.get('generated_at', date.today())}  |  الإصدار 1.0")
 
     return _docx_resp(doc, "behavior_policy_2025-2026.docx")

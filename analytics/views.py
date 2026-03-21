@@ -630,3 +630,38 @@ def api_kpis_all(request):
                 v['traffic'] = 'green' if val <= target else ('yellow' if val <= warning else 'red')
 
     return JsonResponse({'kpis': kpis, 'school': str(school), 'year': year, 'as_of': str(today)})
+
+
+# ── تقرير KPIs الشهري — PDF فوري ────────────────────────────────────
+
+@login_required
+def kpi_monthly_pdf(request):
+    """PDF: تقرير KPIs الشهري — يمكن للمدير توليده فوراً"""
+    if not _admin_required(request):
+        return HttpResponse("غير مسموح", status=403)
+
+    from core.pdf_utils import render_pdf
+    from django.template.loader import render_to_string
+    from analytics.services import KPIService
+    from quality.models import OperationalDomain
+
+    school = request.user.get_school()
+    year   = request.GET.get("year", "2025-2026")
+    preview = request.GET.get("preview") == "1"
+
+    data         = KPIService.compute(school, year)
+    plan_domains = OperationalDomain.objects.filter(
+        school=school, academic_year=year
+    ).order_by("order")
+    red_kpis = [
+        kpi for kpi in data["kpis"].values()
+        if kpi.get("traffic") == "red" and kpi.get("value") is not None
+    ]
+
+    ctx = {**data, "plan_domains": plan_domains, "red_kpis": red_kpis}
+
+    if preview:
+        return render(request, "analytics/kpi_monthly_report.html", ctx)
+
+    html = render_to_string("analytics/kpi_monthly_report.html", ctx, request=request)
+    return render_pdf(html, f"kpi_{school.code}_{data['month_label']}.pdf")

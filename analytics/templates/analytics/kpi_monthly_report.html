@@ -1,0 +1,236 @@
+{% extends "reports/base_report.html" %}
+{# تقرير KPIs الشهري — يرث من القالب الأساسي الذي يحمل هوية قطر والخطوط العربية #}
+
+{% block report_subtitle %}تقرير المؤشرات الكمية الشهري{% endblock %}
+
+{% block extra_styles %}
+/* ── ضوء المرور ─────────────────────────────── */
+.traffic-dot {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.dot-green  { background: #16a34a; }
+.dot-yellow { background: #d97706; }
+.dot-red    { background: #dc2626; }
+.dot-grey   { background: #9ca3af; }
+
+/* ── بطاقات الملخص ─────────────────────────── */
+.summary-grid {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0 20px;
+}
+.summary-card {
+  flex: 1;
+  border-radius: 8px;
+  padding: 12px 8px;
+  text-align: center;
+}
+.summary-card .count {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+.summary-card .label {
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: .85;
+}
+.card-green  { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.card-yellow { background: #fef9c3; color: #92400e; border: 1px solid #fde68a; }
+.card-red    { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.card-grey   { background: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+
+/* ── جدول KPIs ──────────────────────────────── */
+.kpi-table { font-size: 10.5px; }
+.kpi-table th { font-size: 10px; padding: 7px 5px; }
+.kpi-table td { padding: 7px 5px; }
+.kpi-table tr.row-green  td { background: #f0fdf4; }
+.kpi-table tr.row-yellow td { background: #fefce8; }
+.kpi-table tr.row-red    td { background: #fff1f2; }
+.kpi-table tr.row-grey   td { background: #f9fafb; }
+
+.kpi-value { font-size: 13px; font-weight: 700; }
+.note-text { font-size: 9px; color: #888; font-style: italic; }
+
+/* ── تقدم الخطة التشغيلية ───────────────────── */
+.domain-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+}
+.domain-name { flex: 0 0 160px; font-size: 10px; text-align: right; }
+.bar-bg {
+  flex: 1;
+  background: #e5e7eb;
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: #8A1538;
+}
+.bar-fill.pct-high   { background: #16a34a; }
+.bar-fill.pct-medium { background: #d97706; }
+.bar-fill.pct-low    { background: #dc2626; }
+.bar-pct { flex: 0 0 36px; font-size: 10px; font-weight: 700; text-align: left; }
+
+/* ── جدول التوقيع ────────────────────────────── */
+.sig-row {
+  display: flex;
+  gap: 20px;
+  margin-top: 36px;
+}
+.sig-box {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+}
+.sig-line {
+  border-top: 1px solid #555;
+  margin: 28px 10px 6px;
+}
+{% endblock %}
+
+{% block report_title_bar %}
+<div class="report-title">تقرير المؤشرات الكمية (KPIs) — {{ month_label }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<div class="report-meta">
+  <span>السنة الدراسية: <strong>{{ year }}</strong></span>
+  <span>تاريخ الإصدار: <strong>{{ generated_at }}</strong></span>
+  <span>المدرسة: <strong>{{ school.name }}</strong></span>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ── ملخص ضوء المرور ────────────────────────────────────────────── #}
+<div class="summary-grid">
+  <div class="summary-card card-green">
+    <div class="count">{{ summary.green }}</div>
+    <div class="label">مؤشرات خضراء ✓</div>
+  </div>
+  <div class="summary-card card-yellow">
+    <div class="count">{{ summary.yellow }}</div>
+    <div class="label">مؤشرات تحتاج متابعة</div>
+  </div>
+  <div class="summary-card card-red">
+    <div class="count">{{ summary.red }}</div>
+    <div class="label">مؤشرات تحت الهدف</div>
+  </div>
+  <div class="summary-card card-grey">
+    <div class="count">{{ summary.grey }}</div>
+    <div class="label">مؤشرات يدوية</div>
+  </div>
+</div>
+
+{# ── جدول المؤشرات ──────────────────────────────────────────────── #}
+<table class="kpi-table">
+  <thead>
+    <tr>
+      <th style="width:4%">#</th>
+      <th style="width:28%">المؤشر</th>
+      <th style="width:12%">القيمة</th>
+      <th style="width:10%">الهدف</th>
+      <th style="width:10%">الحد الأدنى</th>
+      <th style="width:10%">الوحدة</th>
+      <th style="width:10%">التكرار</th>
+      <th style="width:8%">الحالة</th>
+      <th style="width:8%">ملاحظة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for key, kpi in kpis.items %}
+    <tr class="row-{{ kpi.traffic }}">
+      <td>{{ forloop.counter }}</td>
+      <td style="text-align:right; font-weight:600">{{ kpi.label }}</td>
+      <td>
+        {% if kpi.value is not None %}
+          <span class="kpi-value">{{ kpi.value }}{{ kpi.unit }}</span>
+        {% else %}
+          <span style="color:#aaa">—</span>
+        {% endif %}
+      </td>
+      <td>{{ kpi.target }}{{ kpi.unit }}</td>
+      <td>{{ kpi.warning }}{{ kpi.unit }}</td>
+      <td>{{ kpi.unit|default:"—" }}</td>
+      <td>{{ kpi.frequency }}</td>
+      <td style="text-align:center">
+        <span class="traffic-dot dot-{{ kpi.traffic }}"></span>
+        {% if kpi.traffic == "green" %}ممتاز
+        {% elif kpi.traffic == "yellow" %}متابعة
+        {% elif kpi.traffic == "red" %}تدخل
+        {% else %}يدوي{% endif %}
+      </td>
+      <td class="note-text">{{ kpi.note|default:"" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# ── تقدم الخطة التشغيلية ────────────────────────────────────────── #}
+{% if plan_domains %}
+<div style="margin-top: 24px;">
+  <div class="report-title" style="font-size:12px; margin-bottom:12px">
+    تقدم الخطة التشغيلية حسب المجال
+  </div>
+  {% for domain in plan_domains %}
+  <div class="domain-bar-wrap">
+    <div class="domain-name">{{ domain.name }}</div>
+    <div class="bar-bg">
+      <div class="bar-fill
+        {% if domain.completion_pct >= 80 %}pct-high
+        {% elif domain.completion_pct >= 60 %}pct-medium
+        {% else %}pct-low{% endif %}"
+        style="width: {{ domain.completion_pct }}%"></div>
+    </div>
+    <div class="bar-pct">{{ domain.completion_pct }}%</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── التوصيات التلقائية ──────────────────────────────────────────── #}
+{% if red_kpis %}
+<div style="margin-top: 20px; padding: 12px; background: #fff1f2;
+            border-right: 4px solid #dc2626; border-radius: 4px;">
+  <div style="font-weight:700; color:#991b1b; margin-bottom:8px">
+    ⚠ مؤشرات تستوجب تدخلاً فورياً
+  </div>
+  {% for kpi in red_kpis %}
+  <div style="font-size:11px; margin-bottom:4px">
+    • {{ kpi.label }}: القيمة الحالية
+    <strong>{{ kpi.value }}{{ kpi.unit }}</strong>
+    — الهدف <strong>{{ kpi.target }}{{ kpi.unit }}</strong>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ── التوقيعات ───────────────────────────────────────────────────── #}
+<div class="sig-row">
+  <div class="sig-box">
+    <div class="sig-line"></div>
+    مدير المدرسة
+  </div>
+  <div class="sig-box">
+    <div class="sig-line"></div>
+    مسؤول الجودة
+  </div>
+  <div class="sig-box">
+    <div class="sig-line"></div>
+    وكيل شؤون التعليم
+  </div>
+</div>
+
+{% endblock %}
+
+{% block page_footer_left %}SchoolOS v6 — تقرير آلي{% endblock %}

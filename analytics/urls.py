@@ -16,4 +16,6 @@ urlpatterns = [
     # ✅ v5: لوحة KPIs العشرة (Ct.zip)
     path("kpis/",                    views.kpi_dashboard,            name="kpi_dashboard"),
     path("api/kpis/",                views.api_kpis_all,             name="api_kpis_all"),
+    # ✅ v6: تقرير KPIs الشهري PDF
+    path("kpis/report/pdf/",         views.kpi_monthly_pdf,          name="kpi_monthly_pdf"),
 ]
