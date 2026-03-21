@@ -10,7 +10,6 @@ v7: Professional headers/footers on every page
 import os
 import re
 import logging
-from datetime import date as _date
 from pathlib import Path
 
 from django.conf import settings

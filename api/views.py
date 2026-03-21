@@ -26,7 +26,6 @@ SchoolOS REST API v1 — ViewSets + APIViews
   /api/v1/clinic/visits/               — زيارات العيادة
 """
 import logging
-from datetime import date
 
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status

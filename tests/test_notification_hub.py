@@ -11,21 +11,20 @@ tests/test_notification_hub.py
   - Views: notification bell، mark read، inbox
 """
 import pytest
-from datetime import time, timedelta
+from datetime import time
 from unittest.mock import patch, MagicMock
 
 from django.utils import timezone
 
 from notifications.models import (
     InAppNotification, UserNotificationPreference,
-    NotificationLog, NotificationSettings, PushSubscription,
+    NotificationSettings, PushSubscription,
 )
 from notifications.hub import (
     NotificationHub, _map_event_type, _resolve_channels, DEFAULT_CHANNELS,
 )
-from core.models import ParentStudentLink
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
+    UserFactory, RoleFactory, MembershipFactory,
 )
 
 
