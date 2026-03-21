@@ -156,23 +156,40 @@ class QualityService:
         """بيانات لجنة المنفذين مع إحصائيات كل عضو"""
         members = QualityCommitteeMember.objects.executor_committee(school, year)
 
+        mapped_norms = set(
+            ExecutorMapping.objects.filter(school=school, academic_year=year, user__isnull=False)
+            .values_list("executor_norm", flat=True)
+        )
+
         member_stats = []
         for member in members:
-            procs = OperationalProcedure.objects.filter(
-                school=school, executor_user=member.user, academic_year=year
-            )
-            total = procs.count()
-            completed = procs.filter(status="Completed").count()
-            pct = round(completed / total * 100) if total else 0
+            if member.user:
+                procs = OperationalProcedure.objects.filter(
+                    school=school, executor_user=member.user, academic_year=year
+                )
+                total     = procs.count()
+                completed = procs.filter(status="Completed").count()
+                pending   = procs.filter(status="Pending Review").count()
+                in_prog   = procs.filter(status="In Progress").count()
+                pct       = round(completed / total * 100) if total else 0
+                member_stats.append({
+                    "member": member, "total": total, "completed": completed,
+                    "pending": pending, "in_prog": in_prog, "pct": pct,
+                })
+            else:
+                member_stats.append({
+                    "member": member, "total": 0, "completed": 0,
+                    "pending": 0, "in_prog": 0, "pct": 0, "unmapped": True,
+                })
 
-            member_stats.append({
-                "member":    member,
-                "total":     total,
-                "completed": completed,
-                "pct":       pct,
-            })
+        all_procs = OperationalProcedure.objects.filter(school=school, academic_year=year)
+        all_norms = set(all_procs.values_list("executor_norm", flat=True).distinct())
 
-        return member_stats
+        return {
+            "member_stats":   member_stats,
+            "unmapped_norms": all_norms - mapped_norms,
+            "overall":        QualityService.get_plan_stats(school, year),
+        }
 
     # ── تفاصيل إنجاز منفذ واحد ─────────────────────────────
     @staticmethod

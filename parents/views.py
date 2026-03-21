@@ -1,91 +1,41 @@
 """
-parents/views.py
-بوابة ولي الأمر — درجات + غياب + تقرير شامل
+parents/views.py — thin views (Phase 4)
+بوابة ولي الأمر — درجات + غياب
 """
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+import json
+
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.db.models import Count, Q
-from datetime import timedelta
+from django.views.decorators.csrf import csrf_exempt
 
-from core.models import ParentStudentLink, CustomUser, StudentEnrollment, School, Membership
+from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
+from operations.models import AbsenceAlert
+
+from .services import ParentService
 
 
-def _require_parent(request):
-    """تحقق أن المستخدم ولي أمر — يُعيد school أو None
-    يدعم الموظف الذي هو أيضاً ولي أمر (has_role بدلاً من get_role)
-    """
+def _get_parent_school(request):
+    """يُعيد school لولي الأمر أو None"""
     if request.user.is_superuser:
         return request.user.get_school()
-    parent_membership = request.user.get_parent_membership()
-    if not parent_membership:
-        return None
-    return parent_membership.school
+    m = request.user.get_parent_membership()
+    return m.school if m else None
 
 
 # ── لوحة تحكم ولي الأمر ─────────────────────────────────────
 
 @login_required
 def parent_dashboard(request):
-    school = _require_parent(request)
-    if not school and not request.user.is_superuser:
+    school = _get_parent_school(request)
+    if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    # استخدم مدرسة عضوية ولي الأمر تحديداً (يدعم الموظف الذي هو ولي أمر)
-    parent_membership = request.user.get_parent_membership()
-    school = parent_membership.school if parent_membership else request.user.get_school()
-    year   = request.GET.get("year", "2025-2026")
-
-    # أبناء ولي الأمر
-    links = ParentStudentLink.objects.filter(
-        parent=request.user, school=school
-    ).select_related("student").order_by("student__full_name")
-
-    children = []
-    for link in links:
-        student = link.student
-
-        # التسجيل الحالي
-        enrollment = StudentEnrollment.objects.filter(
-            student=student, is_active=True
-        ).select_related("class_group").first()
-
-        # ملخص الدرجات السنوية
-        from assessments.models import AnnualSubjectResult
-        annual = AnnualSubjectResult.objects.filter(
-            student=student, school=school, academic_year=year
-        )
-        total_subj  = annual.count()
-        passed      = annual.filter(status="pass").count()
-        failed      = annual.filter(status="fail").count()
-        incomplete  = annual.filter(status="incomplete").count()
-
-        # ملخص الغياب (آخر 30 يوم)
-        from operations.models import StudentAttendance
-        since = timezone.now().date() - timedelta(days=30)
-        att = StudentAttendance.objects.filter(
-            student=student,
-            session__school=school,
-            session__date__gte=since,
-        )
-        absent_count = att.filter(status="absent").count()
-        late_count   = att.filter(status="late").count()
-        total_att    = att.count()
-
-        children.append({
-            "link":         link,
-            "student":      student,
-            "enrollment":   enrollment,
-            "total_subj":   total_subj,
-            "passed":       passed,
-            "failed":       failed,
-            "incomplete":   incomplete,
-            "absent_30":    absent_count,
-            "late_30":      late_count,
-            "attendance_sessions": total_att,
-        })
+    year     = request.GET.get("year", "2025-2026")
+    children = ParentService.get_children_data(request.user, school, year)
 
     return render(request, "parents/dashboard.html", {
         "children": children,
@@ -98,74 +48,25 @@ def parent_dashboard(request):
 
 @login_required
 def student_grades(request, student_id):
-    school  = request.user.get_school()
+    school  = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
     year    = request.GET.get("year", "2025-2026")
 
-    # تحقق الصلاحية
-    link = ParentStudentLink.objects.filter(
-        parent=request.user, student=student, school=school
-    ).first()
+    link = ParentStudentLink.objects.filter(parent=request.user, student=student, school=school).first()
     if not link and not request.user.is_superuser:
         return HttpResponse("غير مسموح", status=403)
     if link and not link.can_view_grades:
         return HttpResponse("ليس لديك صلاحية عرض الدرجات", status=403)
 
-    from assessments.models import AnnualSubjectResult, StudentSubjectResult
-
-    # النتائج السنوية
-    annual_results = AnnualSubjectResult.objects.filter(
-        student=student, school=school, academic_year=year
-    ).select_related("setup__subject", "setup__class_group").order_by(
-        "setup__subject__name_ar"
-    )
-
-    # نتائج الفصلين منفصلة
-    s1_map = {
-        r.setup_id: r
-        for r in StudentSubjectResult.objects.filter(
-            student=student, school=school, semester="S1"
-        ).select_related("setup__subject")
-    }
-    s2_map = {
-        r.setup_id: r
-        for r in StudentSubjectResult.objects.filter(
-            student=student, school=school, semester="S2"
-        ).select_related("setup__subject")
-    }
-
-    rows = []
-    for ann in annual_results:
-        rows.append({
-            "subject":  ann.setup.subject.name_ar,
-            "s1":       s1_map.get(ann.setup_id),
-            "s2":       s2_map.get(ann.setup_id),
-            "annual":   ann,
-        })
-
-    # إحصائيات
-    total  = annual_results.count()
-    passed = annual_results.filter(status="pass").count()
-    failed = annual_results.filter(status="fail").count()
-    avg    = None
-    grades = [float(r.annual_total) for r in annual_results if r.annual_total]
-    if grades:
-        avg = round(sum(grades) / len(grades), 1)
-
-    enrollment = StudentEnrollment.objects.filter(
-        student=student, is_active=True
-    ).select_related("class_group").first()
+    data       = ParentService.get_student_grades(student, school, year)
+    enrollment = StudentEnrollment.objects.filter(student=student, is_active=True).select_related("class_group").first()
 
     return render(request, "parents/student_grades.html", {
         "student":    student,
         "link":       link,
-        "rows":       rows,
-        "total":      total,
-        "passed":     passed,
-        "failed":     failed,
-        "avg":        avg,
         "year":       year,
         "enrollment": enrollment,
+        **data,
     })
 
 
@@ -173,82 +74,35 @@ def student_grades(request, student_id):
 
 @login_required
 def student_attendance(request, student_id):
-    school  = request.user.get_school()
+    school  = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
     year    = request.GET.get("year", "2025-2026")
 
-    link = ParentStudentLink.objects.filter(
-        parent=request.user, student=student, school=school
-    ).first()
+    link = ParentStudentLink.objects.filter(parent=request.user, student=student, school=school).first()
     if not link and not request.user.is_superuser:
         return HttpResponse("غير مسموح", status=403)
     if link and not link.can_view_attendance:
         return HttpResponse("ليس لديك صلاحية عرض الغياب", status=403)
 
-    from operations.models import StudentAttendance
-
-    # فلتر التاريخ
     period = request.GET.get("period", "30")
     try:
         days = int(period)
     except ValueError:
         days = 30
-    since = timezone.now().date() - timedelta(days=days)
 
-    attendance = StudentAttendance.objects.filter(
-        student=student,
-        session__school=school,
-        session__date__gte=since,
-    ).select_related("session__subject", "session__class_group").order_by(
-        "-session__date", "session__start_time"
-    )
-
-    # تجميع يومي
-    by_date = {}
-    for att in attendance:
-        d = att.session.date
-        if d not in by_date:
-            by_date[d] = {"date": d, "records": [], "has_absent": False, "has_late": False}
-        by_date[d]["records"].append(att)
-        if att.status == "absent":
-            by_date[d]["has_absent"] = True
-        if att.status == "late":
-            by_date[d]["has_late"] = True
-
-    days_list = sorted(by_date.values(), key=lambda x: x["date"], reverse=True)
-
-    # إحصائيات الفترة
-    total   = attendance.count()
-    absent  = attendance.filter(status="absent").count()
-    late    = attendance.filter(status="late").count()
-    present = attendance.filter(status="present").count()
-    att_pct = round(present / total * 100) if total else 0
-
-    # تنبيهات الغياب المتكرر
-    from operations.models import AbsenceAlert
-    alerts = AbsenceAlert.objects.filter(
-        student=student, school=school
-    ).order_by("-created_at")[:5]
-
-    enrollment = StudentEnrollment.objects.filter(
-        student=student, is_active=True
-    ).select_related("class_group").first()
+    data       = ParentService.get_student_attendance(student, school, days)
+    enrollment = StudentEnrollment.objects.filter(student=student, is_active=True).select_related("class_group").first()
+    alerts     = AbsenceAlert.objects.filter(student=student, school=school).order_by("-created_at")[:5]
 
     return render(request, "parents/student_attendance.html", {
         "student":        student,
         "link":           link,
-        "days_list":      days_list,
-        "total":          total,
-        "present":        present,
-        "absent":         absent,
-        "late":           late,
-        "att_pct":        att_pct,
+        "enrollment":     enrollment,
         "alerts":         alerts,
         "period":         period,
-        "since":          since,
-        "enrollment":     enrollment,
         "year":           year,
         "period_choices": ["7", "14", "30", "60"],
+        **data,
     })
 
 
@@ -349,46 +203,35 @@ def remove_parent_link(request, link_id):
 
 # ── صفحة الموافقة على معالجة البيانات (PDPPL) ────────────────
 
+DATA_TYPES = [
+    ('health',     'البيانات الصحية'),
+    ('behavior',   'بيانات السلوك'),
+    ('grades',     'الدرجات والتقييمات'),
+    ('attendance', 'الحضور والغياب'),
+    ('transport',  'بيانات النقل'),
+]
+
+
 @login_required
 def consent_view(request):
     """ولي الأمر يمنح / يسحب الموافقة على أنواع البيانات"""
-    from core.models import ConsentRecord, ParentStudentLink
-
     if not request.user.has_role('parent') and not request.user.is_superuser:
-        from django.http import HttpResponseForbidden
-        return HttpResponseForbidden("هذه الصفحة لأولياء الأمور فقط.")
+        return HttpResponse("هذه الصفحة لأولياء الأمور فقط.", status=403)
 
-    school   = request.user.get_school()
-    links    = ParentStudentLink.objects.filter(
-        parent=request.user, school=school
-    ).select_related('student')
-
-    DATA_TYPES = [
-        ('health',     'البيانات الصحية'),
-        ('behavior',   'بيانات السلوك'),
-        ('grades',     'الدرجات والتقييمات'),
-        ('attendance', 'الحضور والغياب'),
-        ('transport',  'بيانات النقل'),
-    ]
+    school = request.user.get_school()
+    links  = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related('student')
 
     if request.method == 'POST':
-        from django.utils import timezone
         for link in links:
             for dt, _ in DATA_TYPES:
-                key     = f"consent_{link.student_id}_{dt}"
-                is_given = request.POST.get(key) == '1'
+                is_given = request.POST.get(f"consent_{link.student_id}_{dt}") == '1'
                 obj, created = ConsentRecord.objects.get_or_create(
-                    parent=request.user, student=link.student,
-                    school=school, data_type=dt,
-                    defaults={'is_given': is_given, 'method': 'digital',
-                              'recorded_by': request.user}
+                    parent=request.user, student=link.student, school=school, data_type=dt,
+                    defaults={'is_given': is_given, 'method': 'digital', 'recorded_by': request.user}
                 )
                 if not created and obj.is_given != is_given:
-                    obj.is_given = is_given
-                    if not is_given:
-                        obj.withdrawn_at = timezone.now()
-                    else:
-                        obj.withdrawn_at = None
+                    obj.is_given     = is_given
+                    obj.withdrawn_at = None if is_given else timezone.now()
                     obj.save(update_fields=['is_given', 'withdrawn_at'])
 
         if not request.user.consent_given_at:
@@ -398,15 +241,15 @@ def consent_view(request):
         messages.success(request, "تم حفظ إعدادات الموافقة بنجاح.")
         return redirect('parent_dashboard')
 
-    # بناء بيانات الموافقة الحالية
-    consent_data = {}
-    for link in links:
-        consent_data[str(link.student_id)] = {}
-        for dt, _ in DATA_TYPES:
-            rec = ConsentRecord.objects.filter(
+    consent_data = {
+        str(link.student_id): {
+            dt: (ConsentRecord.objects.filter(
                 parent=request.user, student=link.student, data_type=dt
-            ).first()
-            consent_data[str(link.student_id)][dt] = rec.is_given if rec else True
+            ).values_list('is_given', flat=True).first() or True)
+            for dt, _ in DATA_TYPES
+        }
+        for link in links
+    }
 
     return render(request, 'parents/consent.html', {
         'links':        links,
@@ -416,55 +259,37 @@ def consent_view(request):
     })
 
 
-# ════════════════════════════════════════════════════════════════════
-# ✅ Push Subscription endpoints — v5 (VAPID)
-# ════════════════════════════════════════════════════════════════════
+# ── Push Subscription endpoints (VAPID) ─────────────────────
 
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
+from django.conf import settings
+from notifications.models import PushSubscription
 
 
 @login_required
 @csrf_exempt
 def push_subscribe(request):
-    """
-    POST: يستقبل اشتراك Push من المتصفح ويحفظه
-    يُستدعى من JavaScript في صفحة ولي الأمر
-    """
     if request.method != 'POST':
         return JsonResponse({'error': 'POST only'}, status=405)
-
     try:
         data     = json.loads(request.body)
         endpoint = data.get('endpoint', '').strip()
         p256dh   = data.get('keys', {}).get('p256dh', '').strip()
         auth     = data.get('keys', {}).get('auth', '').strip()
-
         if not all([endpoint, p256dh, auth]):
             return JsonResponse({'error': 'بيانات ناقصة'}, status=400)
-
-        school = request.user.get_school() or (
-            request.user.get_parent_membership().school
-            if request.user.get_parent_membership() else None
-        )
+        school = _get_parent_school(request) or request.user.get_school()
         if not school:
             return JsonResponse({'error': 'مدرسة غير معروفة'}, status=400)
-
-        from notifications.models import PushSubscription
-        sub, created = PushSubscription.objects.update_or_create(
+        _, created = PushSubscription.objects.update_or_create(
             endpoint=endpoint,
             defaults={
-                'user':       request.user,
-                'school':     school,
-                'p256dh':     p256dh,
-                'auth':       auth,
+                'user': request.user, 'school': school,
+                'p256dh': p256dh, 'auth': auth,
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:300],
-                'is_active':  True,
+                'is_active': True,
             }
         )
         return JsonResponse({'status': 'subscribed', 'new': created})
-
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
@@ -472,16 +297,11 @@ def push_subscribe(request):
 @login_required
 @csrf_exempt
 def push_unsubscribe(request):
-    """DELETE: إلغاء اشتراك Push"""
     if request.method != 'POST':
         return JsonResponse({'error': 'POST only'}, status=405)
     try:
-        data     = json.loads(request.body)
-        endpoint = data.get('endpoint', '')
-        from notifications.models import PushSubscription
-        PushSubscription.objects.filter(
-            endpoint=endpoint, user=request.user
-        ).update(is_active=False)
+        endpoint = json.loads(request.body).get('endpoint', '')
+        PushSubscription.objects.filter(endpoint=endpoint, user=request.user).update(is_active=False)
         return JsonResponse({'status': 'unsubscribed'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -489,7 +309,4 @@ def push_unsubscribe(request):
 
 @login_required
 def push_vapid_key(request):
-    """GET: يُعيد VAPID Public Key للـ frontend"""
-    from django.conf import settings
-    key = getattr(settings, 'VAPID_PUBLIC_KEY_B64', '')
-    return JsonResponse({'publicKey': key})
+    return JsonResponse({'publicKey': getattr(settings, 'VAPID_PUBLIC_KEY_B64', '')})
