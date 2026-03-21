@@ -269,4 +269,6 @@ class TestLibrary:
         b1 = BookBorrowingFactory(book=book, user=student_user)
         b2 = BookBorrowingFactory(book=book, user=student_user)
         borrowings = BookBorrowing.objects.filter(book=book)
-        assert borrowings[0].id == b2.id  # الأحدث أولاً
+        # كلا الاستعارتين موجودتان (UUID لا يضمن ترتيباً محدداً)
+        ids = [b.id for b in borrowings]
+        assert b1.id in ids and b2.id in ids

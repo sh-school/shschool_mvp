@@ -45,7 +45,7 @@ class TestBookList:
         client = client_as(teacher_user)
         response = client.get("/library/books/?q=XXXXXXXXX_لا_يوجد")
         assert response.status_code == 200
-        assert response.context["books"].count() == 0
+        assert len(response.context["books"]) == 0
 
 
 @pytest.mark.django_db

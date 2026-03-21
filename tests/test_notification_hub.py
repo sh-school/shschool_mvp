@@ -453,7 +453,7 @@ class TestNotificationViews:
 
     def test_unread_count_api(self, client_as, teacher_user, school, in_app_notif):
         c = client_as(teacher_user)
-        resp = c.get("/notifications/unread-count/")
+        resp = c.get("/notifications/api/unread-count/")
         assert resp.status_code == 200
         import json
         data = json.loads(resp.content)

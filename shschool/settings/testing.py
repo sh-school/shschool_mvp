@@ -62,3 +62,6 @@ VAPID_CLAIMS_EMAIL   = "test@test.com"
 # ── FERNET — مفتاح وهمي للاختبار ──────────────────────────────
 # يجب أن يكون base64 url-safe 32 bytes
 FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0="
+
+# Rate Limiting disabled in tests
+RATELIMIT_ENABLE = False
