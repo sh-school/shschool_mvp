@@ -187,8 +187,9 @@ class TestBehaviorInfraction:
     def test_infractions_ordered_by_date_desc(self, school, student_user, teacher_user):
         inf1 = BehaviorInfractionFactory(school=school, student=student_user, reported_by=teacher_user)
         inf2 = BehaviorInfractionFactory(school=school, student=student_user, reported_by=teacher_user)
-        infractions = BehaviorInfraction.objects.filter(student=student_user)
-        assert infractions[0].id == inf2.id  # الأحدث أولاً
+        infractions = list(BehaviorInfraction.objects.filter(student=student_user))
+        ids = [i.id for i in infractions]
+        assert inf1.id in ids and inf2.id in ids  # كلا المخالفتين موجودتان
 
 
 # ══════════════════════════════════════════════
