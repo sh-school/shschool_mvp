@@ -35,16 +35,7 @@ jobs:
           --health-retries 5
 
     env:
-      DJANGO_SETTINGS_MODULE: shschool.settings.development
-      SECRET_KEY:   ci-secret-key-not-for-production
-      DB_NAME:      test_db
-      DB_USER:      test_user
-      DB_PASSWORD:  test_pass
-      DB_HOST:      localhost
-      DB_PORT:      5432
-      REDIS_URL:    redis://localhost:6379/0
-      FERNET_KEY:   ""
-      DEBUG:        "True"
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
 
     steps:
       - name: سحب الكود
