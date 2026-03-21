@@ -60,12 +60,12 @@ jobs:
       - name: تثبيت المتطلبات
         run: pip install -r requirements.txt
 
-      - name: التحقق من Migrations (لا migrations معلقة)
-        run: python manage.py migrate --check --noinput
-        continue-on-error: false
-
-      - name: تطبيق Migrations للاختبار
+      - name: تطبيق Migrations
         run: python manage.py migrate --noinput
+
+      - name: التحقق من عدم وجود model changes بدون migration
+        run: python manage.py makemigrations --check --noinput
+        continue-on-error: false
 
       - name: تشغيل الاختبارات
         run: |
