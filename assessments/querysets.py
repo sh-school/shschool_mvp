@@ -16,18 +16,18 @@ class SubjectResultQuerySet(QuerySet):
 
     def for_class(self, class_group) -> "SubjectResultQuerySet":
         return self.filter(
-            subject_setup__class_group=class_group
+            setup__class_group=class_group
         )
 
     def for_subject(self, subject) -> "SubjectResultQuerySet":
-        return self.filter(subject_setup__subject=subject)
+        return self.filter(setup__subject=subject)
 
     def semester(self, sem: str) -> "SubjectResultQuerySet":
         """sem = 'S1' أو 'S2'."""
         return self.filter(semester=sem)
 
     def year(self, academic_year: str) -> "SubjectResultQuerySet":
-        return self.filter(subject_setup__academic_year=academic_year)
+        return self.filter(setup__academic_year=academic_year)
 
     def failed(self) -> "SubjectResultQuerySet":
         """نتائج الرسوب — إجمالي أقل من 50%."""
@@ -39,10 +39,10 @@ class SubjectResultQuerySet(QuerySet):
     def with_details(self) -> "SubjectResultQuerySet":
         return self.select_related(
             "student",
-            "subject_setup",
-            "subject_setup__subject",
-            "subject_setup__class_group",
-            "subject_setup__teacher",
+            "setup",
+            "setup__subject",
+            "setup__class_group",
+            "setup__teacher",
         )
 
     def class_average(self, class_group, semester: str = "S1") -> float | None:
@@ -68,35 +68,43 @@ class AnnualResultQuerySet(QuerySet):
         return self.filter(student=student)
 
     def for_class(self, class_group) -> "AnnualResultQuerySet":
-        return self.filter(subject_setup__class_group=class_group)
+        return self.filter(setup__class_group=class_group)
 
     def year(self, academic_year: str) -> "AnnualResultQuerySet":
-        return self.filter(subject_setup__academic_year=academic_year)
+        return self.filter(setup__academic_year=academic_year)
 
     def failed(self) -> "AnnualResultQuerySet":
-        return self.filter(is_pass=False)
+        return self.filter(status="fail")
 
     def passed(self) -> "AnnualResultQuerySet":
-        return self.filter(is_pass=True)
+        return self.filter(status="pass")
 
     def by_grade(self, grade: str) -> "AnnualResultQuerySet":
-        """فلترة حسب التقدير: A+, A, B+, ..., F"""
-        return self.filter(letter_grade=grade)
+        """فلترة حسب التقدير: A+, A, B+, ..., F — يعتمد على annual_total"""
+        thresholds = {
+            "A+": (95, 101), "A": (90, 95), "B+": (85, 90), "B": (80, 85),
+            "C+": (75, 80),  "C": (70, 75), "D+": (65, 70), "D": (50, 65),
+            "F":  (0,  50),
+        }
+        if grade not in thresholds:
+            return self.none()
+        low, high = thresholds[grade]
+        return self.filter(annual_total__gte=low, annual_total__lt=high)
 
     def with_details(self) -> "AnnualResultQuerySet":
         return self.select_related(
             "student",
-            "subject_setup__subject",
-            "subject_setup__class_group",
+            "setup__subject",
+            "setup__class_group",
         )
 
     def class_ranking(self, class_group, academic_year: str):
-        """ترتيب الطلاب داخل الفصل حسب المتوسط السنوي."""
+        """ترتيب الطلاب داخل الفصل حسب المجموع السنوي."""
         return (
             self.for_class(class_group)
             .year(academic_year)
             .values("student__id", "student__full_name")
-            .annotate(annual_avg=Avg("final_score"))
+            .annotate(annual_avg=Avg("annual_total"))
             .order_by("-annual_avg")
         )
 
@@ -105,11 +113,11 @@ class AnnualResultQuerySet(QuerySet):
         return (
             self.for_class(class_group)
             .year(academic_year)
-            .values("subject_setup__subject__name")
+            .values("setup__subject__name_ar")
             .annotate(
-                fail_count=Count("id", filter=Q(is_pass=False)),
-                pass_count=Count("id", filter=Q(is_pass=True)),
-                avg_score=Avg("final_score"),
+                fail_count=Count("id", filter=Q(status="fail")),
+                pass_count=Count("id", filter=Q(status="pass")),
+                avg_score=Avg("annual_total"),
             )
             .order_by("-fail_count")
         )
@@ -137,5 +145,5 @@ class AssessmentGradeQuerySet(QuerySet):
         return self.select_related(
             "student",
             "assessment",
-            "assessment__subject_setup__subject",
+            "assessment__package__setup__subject",
         )

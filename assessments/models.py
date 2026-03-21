@@ -23,6 +23,11 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from core.models import School, CustomUser, ClassGroup, StudentEnrollment
 from operations.models import Subject
+from .querysets import (
+    SubjectResultQuerySet,
+    AnnualResultQuerySet,
+    AssessmentGradeQuerySet,
+)
 
 
 def _uuid():
@@ -238,6 +243,8 @@ class Assessment(models.Model):
 
 class StudentAssessmentGrade(models.Model):
     """درجة طالب في تقييم خام"""
+    objects     = AssessmentGradeQuerySet.as_manager()
+
     id          = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     assessment  = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
     student     = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="assessment_grades")
@@ -301,6 +308,8 @@ class StudentSubjectResult(models.Model):
 
     لا يوجد نجاح/رسوب هنا — النجاح يُحسب في AnnualSubjectResult.
     """
+    objects       = SubjectResultQuerySet.as_manager()
+
     id            = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student       = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="subject_results")
     setup         = models.ForeignKey(SubjectClassSetup, on_delete=models.CASCADE, related_name="student_results")
@@ -367,6 +376,8 @@ class AnnualSubjectResult(models.Model):
     annual_total = s1_total + s2_total
     النجاح: annual_total >= 50 من 100
     """
+    objects       = AnnualResultQuerySet.as_manager()
+
     STATUS = [
         ("pass",        "ناجح"),
         ("fail",        "راسب"),
