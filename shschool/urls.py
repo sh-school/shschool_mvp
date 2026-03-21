@@ -3,8 +3,10 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.shortcuts import redirect
+from core.views_health import health_check
 
 urlpatterns = [
+    path("health/",        health_check),
     path("",               lambda r: redirect("dashboard/")),
     path("admin/",         admin.site.urls),
     path("auth/",          include("core.urls.auth")),

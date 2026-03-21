@@ -1,0 +1,88 @@
+name: CI — اختبار تلقائي
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "fix/**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: اختبار وفحص الكود
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.development
+      SECRET_KEY:   ci-secret-key-not-for-production
+      DB_NAME:      test_db
+      DB_USER:      test_user
+      DB_PASSWORD:  test_pass
+      DB_HOST:      localhost
+      DB_PORT:      5432
+      REDIS_URL:    redis://localhost:6379/0
+      FERNET_KEY:   ""
+      DEBUG:        "True"
+
+    steps:
+      - name: سحب الكود
+        uses: actions/checkout@v4
+
+      - name: إعداد Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: التحقق من Migrations (لا migrations معلقة)
+        run: python manage.py migrate --check --noinput
+        continue-on-error: false
+
+      - name: تطبيق Migrations للاختبار
+        run: python manage.py migrate --noinput
+
+      - name: تشغيل الاختبارات
+        run: |
+          pytest tests/ -v --tb=short --no-header \
+            --junit-xml=test-results.xml \
+            -q
+        continue-on-error: false
+
+      - name: رفع نتائج الاختبارات
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results.xml
+
+      - name: فحص Health Check endpoint
+        run: |
+          python manage.py runserver 8000 &
+          sleep 5
+          curl -f http://localhost:8000/health/ | python -m json.tool
+          kill %1
