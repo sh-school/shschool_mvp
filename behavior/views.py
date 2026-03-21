@@ -5,7 +5,8 @@
 Views نحيفة — كل Business Logic في behavior/services.py
 """
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, FileResponse, Http404
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
@@ -266,7 +267,15 @@ def infraction_student_pdf(request, infraction_id):
 
 @login_required
 def behavior_policy_pdf(request):
-    return _render_behavior_pdf("behavior/pdf/policy_doc.html",
-        {"generated_at": timezone.now(), "academic_year": "2025-2026", "school": request.user.get_school()},
-        "behavior_policy_2025-2026.pdf")
+    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
+    import os
+    pdf_path = os.path.join(settings.BASE_DIR, "static", "docs", "behavior_policy_2025-2026.pdf")
+    if not os.path.exists(pdf_path):
+        raise Http404("ملف اللائحة غير موجود")
+    return FileResponse(
+        open(pdf_path, "rb"),
+        content_type="application/pdf",
+        as_attachment=False,
+        filename="behavior_policy_2025-2026.pdf",
+    )
 
