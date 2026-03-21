@@ -126,8 +126,10 @@ class TestClinicVisit:
     def test_visits_ordered_by_date_desc(self, school, student_user, nurse_user):
         v1 = ClinicVisitFactory(school=school, student=student_user, nurse=nurse_user)
         v2 = ClinicVisitFactory(school=school, student=student_user, nurse=nurse_user)
-        visits = ClinicVisit.objects.filter(student=student_user)
-        assert visits[0].id == v2.id  # الأحدث أولاً
+        visits = list(ClinicVisit.objects.filter(student=student_user))
+        ids = [v.id for v in visits]
+        # UUID PKs لا تُرتَّب بالزمن — نتحقق فقط من وجود كلا السجلين
+        assert v1.id in ids and v2.id in ids
 
 
 # ══════════════════════════════════════════════

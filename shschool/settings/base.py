@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     "exam_control.apps.ExamControlConfig",
     # ✅ v5: خرق البيانات PDPPL
     "breach.apps.BreachConfig",
+    # ✅ فلترة احترافية
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -176,6 +178,11 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "user": "120/minute",
     },
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
 }
 
 # ── OpenAPI (drf-spectacular) ─────────────────────────────────────────

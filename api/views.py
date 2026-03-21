@@ -27,9 +27,12 @@ SchoolOS REST API v1 — ViewSets + APIViews
 """
 import logging
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -45,6 +48,10 @@ from operations.models import Session, StudentAttendance
 from clinic.models import ClinicVisit
 from library.models import LibraryBook, BookBorrowing
 
+from .filters import (
+    AttendanceFilter, BorrowingFilter, BookFilter,
+    ClinicVisitFilter, InfractionFilter, SessionFilter,
+)
 from .permissions import IsSchoolAdmin, IsTeacherOrAdmin, IsParentOrAdmin
 from .serializers import (
     MeSerializer, UserBriefSerializer, ClassGroupSerializer,
@@ -95,9 +102,10 @@ def me_view(request):
 @extend_schema(
     summary="قائمة الطلاب",
     parameters=[
-        OpenApiParameter("year",  str, description="السنة الدراسية (مثال: 2025-2026)"),
-        OpenApiParameter("class", str, description="معرّف الفصل (UUID)"),
-        OpenApiParameter("q",     str, description="بحث بالاسم أو الرقم الوطني"),
+        OpenApiParameter("year",     str, description="السنة الدراسية (مثال: 2025-2026)"),
+        OpenApiParameter("class_id", str, description="معرّف الفصل (UUID)"),
+        OpenApiParameter("search",   str, description="بحث بالاسم أو الرقم الوطني"),
+        OpenApiParameter("ordering", str, description="ترتيب: first_name | -first_name | national_id"),
     ],
     tags=["students"],
 )
@@ -113,21 +121,33 @@ def student_list(request):
             class_group__academic_year=year,
             is_active=True,
         )
-        .select_related("student", "class_group")
-        .order_by("student__full_name")
+        .select_related("student", "student__profile", "class_group")
     )
 
-    class_id = request.query_params.get("class")
-    if class_id:
+    # ── الفلترة حسب الفصل ─────────────────────────────────────────────
+    if class_id := request.query_params.get("class_id"):
         enrollments = enrollments.filter(class_group_id=class_id)
 
-    q = request.query_params.get("q", "").strip()[:100]  # حد أقصى 100 حرف
+    # ── البحث الذكي ────────────────────────────────────────────────────
+    q = request.query_params.get("search", "").strip()[:100]
     if q:
         enrollments = enrollments.filter(
-            student__full_name__icontains=q
-        ) | enrollments.filter(
-            student__national_id__icontains=q
+            Q(student__full_name__icontains=q)
+            | Q(student__national_id__icontains=q)
         )
+
+    # ── الفرز الاحترافي ────────────────────────────────────────────────
+    ordering_map = {
+        "name":          "student__full_name",
+        "-name":         "-student__full_name",
+        "national_id":   "student__national_id",
+        "-national_id":  "-student__national_id",
+        "class":         "class_group__grade",
+        "-class":        "-class_group__grade",
+    }
+    ordering = request.query_params.get("ordering", "name")
+    db_ordering = ordering_map.get(ordering, "student__full_name")
+    enrollments = enrollments.order_by(db_ordering)
 
     return Response(StudentEnrollmentSerializer(enrollments, many=True).data)
 
@@ -144,21 +164,24 @@ def student_grades(request, student_id):
     year    = _year(request)
     student = get_object_or_404(CustomUser, id=student_id)
 
-    annual = AnnualSubjectResult.objects.filter(
-        student=student, school=school, academic_year=year
-    ).select_related("setup__subject").order_by("setup__subject__name_ar")
+    annual = (
+        AnnualSubjectResult.objects
+        .filter(student=student, school=school, academic_year=year)
+        .select_related("setup__subject")
+        .order_by("setup__subject__name_ar")
+    )
 
     grades  = [float(a.annual_total) for a in annual if a.annual_total]
     average = round(sum(grades) / len(grades), 2) if grades else None
 
     data = {
-        "student":       student,
-        "year":          year,
+        "student":        student,
+        "year":           year,
         "total_subjects": annual.count(),
-        "passed":        annual.filter(status="pass").count(),
-        "failed":        annual.filter(status="fail").count(),
-        "average":       average,
-        "subjects":      annual,
+        "passed":         annual.filter(status="pass").count(),
+        "failed":         annual.filter(status="fail").count(),
+        "average":        average,
+        "subjects":       annual,
     }
     return Response(StudentGradeSummarySerializer(data).data)
 
@@ -180,14 +203,17 @@ def student_attendance(request, student_id):
     student = get_object_or_404(CustomUser, id=student_id)
 
     try:
-        days = int(request.query_params.get("days", 30))
+        days = max(1, min(int(request.query_params.get("days", 30)), 365))
     except ValueError:
         days = 30
 
     since = timezone.now().date() - timedelta(days=days)
-    att   = StudentAttendance.objects.filter(
-        student=student, session__school=school, session__date__gte=since,
-    ).select_related("session__subject").order_by("-session__date")
+    att   = (
+        StudentAttendance.objects
+        .filter(student=student, session__school=school, session__date__gte=since)
+        .select_related("session__subject")
+        .order_by("-session__date")
+    )
 
     total   = att.count()
     absent  = att.filter(status="absent").count()
@@ -213,7 +239,10 @@ def student_attendance(request, student_id):
 
 @extend_schema(
     summary="قائمة الفصول الدراسية",
-    parameters=[OpenApiParameter("year", str, description="السنة الدراسية")],
+    parameters=[
+        OpenApiParameter("year",     str, description="السنة الدراسية"),
+        OpenApiParameter("ordering", str, description="grade | section | -grade"),
+    ],
     tags=["classes"],
 )
 @api_view(["GET"])
@@ -221,9 +250,22 @@ def student_attendance(request, student_id):
 def class_list(request):
     school = _school(request)
     year   = _year(request)
-    qs     = ClassGroup.objects.filter(
-        school=school, academic_year=year
-    ).prefetch_related("enrollments").order_by("grade", "section")
+
+    ordering_map = {
+        "grade":    ("grade", "section"),
+        "-grade":   ("-grade", "section"),
+        "section":  ("section",),
+        "-section": ("-section",),
+    }
+    ordering = request.query_params.get("ordering", "grade")
+    db_ordering = ordering_map.get(ordering, ("grade", "section"))
+
+    qs = (
+        ClassGroup.objects
+        .filter(school=school, academic_year=year)
+        .prefetch_related("enrollments")
+        .order_by(*db_ordering)
+    )
     return Response(ClassGroupSerializer(qs, many=True).data)
 
 
@@ -272,24 +314,33 @@ def class_results(request, class_id):
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Sessions & Attendance (operations) — موجودة + محسّنة
+#  Sessions — الحصص الدراسية (مع django-filter + OrderingFilter)
 # ══════════════════════════════════════════════════════════════════════
 
 class SessionListView(generics.ListAPIView):
     """
-    GET /api/v1/sessions/ — قائمة الحصص
-    ?date=YYYY-MM-DD  ?class=<id>  ?teacher=<id>
+    GET /api/v1/sessions/
+
+    الفلترة:
+      ?date=2026-03-21
+      ?date_from=2026-03-01&date_to=2026-03-31
+      ?class_id=<uuid>
+      ?teacher_id=<uuid>
+      ?subject_id=<uuid>
+      ?status=completed
+
+    الفرز:
+      ?ordering=date | -date | start_time | class_group__grade
     """
     serializer_class   = SessionSerializer
     permission_classes = [IsTeacherOrAdmin]
+    filter_backends    = [DjangoFilterBackend, OrderingFilter]
+    filterset_class    = SessionFilter
+    ordering_fields    = ["date", "start_time", "status", "class_group__grade"]
+    ordering           = ["-date", "start_time"]
 
     @extend_schema(
         summary="قائمة الحصص الدراسية",
-        parameters=[
-            OpenApiParameter("date",    str, description="تاريخ الحصة YYYY-MM-DD"),
-            OpenApiParameter("class",   str, description="معرّف الفصل"),
-            OpenApiParameter("teacher", str, description="معرّف المعلم"),
-        ],
         tags=["sessions"],
     )
     def get(self, *args, **kwargs):
@@ -297,35 +348,41 @@ class SessionListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        qs     = Session.objects.filter(
-            school=school
-        ).select_related("class_group", "subject").order_by("-date", "start_time")
+        return (
+            Session.objects
+            .filter(school=school)
+            .select_related("class_group", "subject", "teacher")
+            .order_by("-date", "start_time")
+        )
 
-        if d := self.request.query_params.get("date"):
-            qs = qs.filter(date=d)
-        if c := self.request.query_params.get("class"):
-            qs = qs.filter(class_group_id=c)
-        if t := self.request.query_params.get("teacher"):
-            qs = qs.filter(teacher_id=t)
 
-        return qs
-
+# ══════════════════════════════════════════════════════════════════════
+#  Attendance — سجل الحضور (مع django-filter + OrderingFilter)
+# ══════════════════════════════════════════════════════════════════════
 
 class AttendanceListView(generics.ListAPIView):
     """
-    GET /api/v1/attendance/ — سجل الحضور
-    ?session=<id>  ?student=<id>  ?date=YYYY-MM-DD
+    GET /api/v1/attendance/
+
+    الفلترة:
+      ?student_id=<uuid>
+      ?class_id=<uuid>
+      ?status=absent | present | late | excused
+      ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+      ?session_id=<uuid>
+
+    الفرز:
+      ?ordering=-session__date | student__first_name | status
     """
     serializer_class   = AttendanceSerializer
     permission_classes = [IsTeacherOrAdmin]
+    filter_backends    = [DjangoFilterBackend, OrderingFilter]
+    filterset_class    = AttendanceFilter
+    ordering_fields    = ["session__date", "student__full_name", "status"]
+    ordering           = ["-session__date"]
 
     @extend_schema(
         summary="سجل الحضور والغياب",
-        parameters=[
-            OpenApiParameter("session", str, description="معرّف الحصة"),
-            OpenApiParameter("student", str, description="معرّف الطالب"),
-            OpenApiParameter("date",    str, description="تاريخ YYYY-MM-DD"),
-        ],
         tags=["attendance"],
     )
     def get(self, *args, **kwargs):
@@ -333,47 +390,69 @@ class AttendanceListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        qs     = StudentAttendance.objects.filter(
-            session__school=school
-        ).select_related("student", "session__subject").order_by("-session__date")
-
-        if s := self.request.query_params.get("session"):
-            qs = qs.filter(session_id=s)
-        if st := self.request.query_params.get("student"):
-            qs = qs.filter(student_id=st)
-        if d := self.request.query_params.get("date"):
-            qs = qs.filter(session__date=d)
-
-        return qs
+        return (
+            StudentAttendance.objects
+            .filter(session__school=school)
+            .select_related("student", "session__subject", "session__class_group")
+            .order_by("-session__date")
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Behavior — المخالفات السلوكية
+#  Behavior — المخالفات السلوكية (مع django-filter + OrderingFilter)
 # ══════════════════════════════════════════════════════════════════════
 
+class BehaviorListView(generics.ListAPIView):
+    """
+    GET /api/v1/behavior/
+
+    الفلترة:
+      ?student_id=<uuid>
+      ?level=3
+      ?level_min=2&level_max=4
+      ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+      ?is_resolved=false
+      ?category=C
+      ?class_id=<uuid>
+
+    الفرز:
+      ?ordering=-date | level | -points_deducted | student__first_name
+    """
+    serializer_class   = BehaviorInfractionSerializer
+    permission_classes = [IsTeacherOrAdmin]
+    filter_backends    = [DjangoFilterBackend, OrderingFilter]
+    filterset_class    = InfractionFilter
+    ordering_fields    = ["date", "level", "points_deducted", "student__full_name"]
+    ordering           = ["-date"]
+
+    @extend_schema(
+        summary="قائمة المخالفات السلوكية",
+        tags=["behavior"],
+    )
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
+
+    def get_queryset(self):
+        school = _school(self.request)
+        return (
+            BehaviorInfraction.objects
+            .filter(school=school)
+            .with_student()
+            .order_by("-date")
+        )
+
+
+# للتوافق مع URLs القديمة
 @extend_schema(
-    summary="قائمة المخالفات السلوكية",
-    parameters=[
-        OpenApiParameter("level",   int, description="مستوى المخالفة 1-4"),
-        OpenApiParameter("student", str, description="معرّف الطالب"),
-        OpenApiParameter("year",    str, description="السنة الدراسية"),
-    ],
+    summary="قائمة المخالفات السلوكية (deprecated — استخدم GET /api/v1/behavior/)",
     tags=["behavior"],
+    deprecated=True,
 )
 @api_view(["GET"])
 @permission_classes([IsTeacherOrAdmin])
 def behavior_list(request):
-    school = _school(request)
-    qs     = BehaviorInfraction.objects.filter(
-        school=school
-    ).select_related("student", "reported_by").order_by("-date")
-
-    if level := request.query_params.get("level"):
-        qs = qs.filter(level=level)
-    if student := request.query_params.get("student"):
-        qs = qs.filter(student_id=student)
-
-    return Response(BehaviorInfractionSerializer(qs[:200], many=True).data)
+    view = BehaviorListView.as_view()
+    return view(request._request)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -383,8 +462,10 @@ def behavior_list(request):
 @extend_schema(
     summary="قائمة الإشعارات الداخلية",
     parameters=[
-        OpenApiParameter("unread", bool, description="true = غير مقروءة فقط"),
-        OpenApiParameter("limit",  int,  description="عدد الإشعارات (افتراضي: 50)"),
+        OpenApiParameter("unread",     bool, description="true = غير مقروءة فقط"),
+        OpenApiParameter("event_type", str,  description="نوع الحدث: behavior | absence | grade ..."),
+        OpenApiParameter("priority",   str,  description="الأولوية: low | medium | high | urgent"),
+        OpenApiParameter("limit",      int,  description="عدد الإشعارات (افتراضي: 50، أقصى: 200)"),
     ],
     tags=["notifications"],
 )
@@ -396,16 +477,24 @@ def notification_list(request):
     except ValueError:
         limit = 50
 
-    unread_only = request.query_params.get("unread", "").lower() == "true"
+    qs = InAppNotification.objects.filter(user=request.user).order_by("-created_at")
 
+    # ── فلترة ──────────────────────────────────────────────────────────
+    unread_only = request.query_params.get("unread", "").lower() == "true"
     if unread_only:
-        qs = InAppNotification.objects.unread_for_user(request.user)[:limit]
-    else:
-        qs = InAppNotification.objects.for_user(request.user, limit=limit)
+        qs = qs.filter(is_read=False)
+
+    if event_type := request.query_params.get("event_type"):
+        qs = qs.filter(event_type=event_type)
+
+    if priority := request.query_params.get("priority"):
+        qs = qs.filter(priority=priority)
+
+    unread_count = InAppNotification.objects.filter(user=request.user, is_read=False).count()
 
     return Response({
-        "unread_count": InAppNotification.objects.unread_count(request.user),
-        "results":      InAppNotificationSerializer(qs, many=True).data,
+        "unread_count": unread_count,
+        "results":      InAppNotificationSerializer(qs[:limit], many=True).data,
     })
 
 
@@ -428,7 +517,10 @@ def notification_mark_read(request, notif_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def notification_mark_all_read(request):
-    count = InAppNotification.objects.mark_all_read(request.user)
+    from django.utils import timezone
+    count = InAppNotification.objects.filter(
+        user=request.user, is_read=False
+    ).update(is_read=True, read_at=timezone.now())
     return Response({"marked": count})
 
 
@@ -493,14 +585,14 @@ def parent_children(request):
     for child in children:
         enr = child.get("enrollment")
         result.append({
-            "student":    UserBriefSerializer(child["student"]).data,
-            "class_name": str(enr.class_group) if enr else None,
-            "total_subj": child["total_subj"],
-            "passed":     child["passed"],
-            "failed":     child["failed"],
-            "incomplete": child["incomplete"],
-            "absent_30":  child["absent_30"],
-            "late_30":    child["late_30"],
+            "student":             UserBriefSerializer(child["student"]).data,
+            "class_name":          str(enr.class_group) if enr else None,
+            "total_subj":          child["total_subj"],
+            "passed":              child["passed"],
+            "failed":              child["failed"],
+            "incomplete":          child["incomplete"],
+            "absent_30":           child["absent_30"],
+            "late_30":             child["late_30"],
             "can_view_grades":     child["link"].can_view_grades,
             "can_view_attendance": child["link"].can_view_attendance,
         })
@@ -520,7 +612,6 @@ def parent_child_grades(request, student_id):
     school  = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
 
-    # التحقق من الصلاحية
     link = ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
     ).first()
@@ -531,7 +622,6 @@ def parent_child_grades(request, student_id):
 
     year = _year(request)
     data = ParentService.get_student_grades(student, school, year)
-
     annual = data["annual_results"]
     return Response({
         "student":  UserBriefSerializer(student).data,
@@ -567,7 +657,7 @@ def parent_child_attendance(request, student_id):
         return Response({"detail": "ليس لديك صلاحية عرض الغياب"}, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        days = int(request.query_params.get("days", 30))
+        days = max(1, min(int(request.query_params.get("days", 30)), 365))
     except ValueError:
         days = 30
 
@@ -585,20 +675,32 @@ def parent_child_attendance(request, student_id):
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Library — المكتبة
+#  Library — المكتبة (مع django-filter + SearchFilter + OrderingFilter)
 # ══════════════════════════════════════════════════════════════════════
 
 class LibraryBookListView(generics.ListAPIView):
-    """GET /api/v1/library/books/ — قائمة الكتب"""
+    """
+    GET /api/v1/library/books/
+
+    الفلترة:
+      ?search=تاريخ       ← بحث في العنوان والمؤلف
+      ?book_type=PRINT    ← PRINT | DIGITAL | PERIODICAL
+      ?available=true     ← الكتب المتاحة فقط
+      ?category=علوم      ← التصنيف
+
+    الفرز:
+      ?ordering=title | -title | author | available_qty | -available_qty
+    """
     serializer_class   = LibraryBookSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class    = BookFilter
+    search_fields      = ["title", "author", "isbn", "category"]
+    ordering_fields    = ["title", "author", "available_qty", "book_type"]
+    ordering           = ["title"]
 
     @extend_schema(
         summary="قائمة كتب المكتبة",
-        parameters=[
-            OpenApiParameter("q",    str, description="بحث في العنوان أو المؤلف"),
-            OpenApiParameter("type", str, description="PRINT / DIGITAL / PERIODICAL"),
-        ],
         tags=["library"],
     )
     def get(self, *args, **kwargs):
@@ -606,24 +708,30 @@ class LibraryBookListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        qs     = LibraryBook.objects.filter(school=school).order_by("title")
-        if q := self.request.query_params.get("q", "")[:100].strip():
-            qs = qs.filter(title__icontains=q) | qs.filter(author__icontains=q)
-        if t := self.request.query_params.get("type"):
-            qs = qs.filter(book_type=t.upper())
-        return qs
+        return LibraryBook.objects.filter(school=school)
 
 
 class BorrowingListView(generics.ListAPIView):
-    """GET /api/v1/library/borrowings/ — سجل الاستعارات"""
+    """
+    GET /api/v1/library/borrowings/
+
+    الفلترة:
+      ?status=BORROWED | RETURNED | OVERDUE | LOST
+      ?student_id=<uuid>
+      ?overdue=true
+
+    الفرز:
+      ?ordering=-borrow_date | due_date | status
+    """
     serializer_class   = BookBorrowingSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends    = [DjangoFilterBackend, OrderingFilter]
+    filterset_class    = BorrowingFilter
+    ordering_fields    = ["borrow_date", "due_date", "status"]
+    ordering           = ["-borrow_date"]
 
     @extend_schema(
         summary="سجل استعارات الكتب",
-        parameters=[
-            OpenApiParameter("status", str, description="BORROWED / RETURNED / OVERDUE"),
-        ],
         tags=["library"],
     )
     def get(self, *args, **kwargs):
@@ -631,29 +739,39 @@ class BorrowingListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        qs     = BookBorrowing.objects.filter(
-            book__school=school
-        ).select_related("book", "user").order_by("-borrow_date")
-        if s := self.request.query_params.get("status"):
-            qs = qs.filter(status=s.upper())
-        return qs
+        return (
+            BookBorrowing.objects
+            .filter(book__school=school)
+            .with_details()
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Clinic — زيارات العيادة (للممرض والمدير)
+#  Clinic — زيارات العيادة (مع django-filter + OrderingFilter)
 # ══════════════════════════════════════════════════════════════════════
 
 class ClinicVisitListView(generics.ListAPIView):
-    """GET /api/v1/clinic/visits/ — سجل زيارات العيادة"""
+    """
+    GET /api/v1/clinic/visits/
+
+    الفلترة:
+      ?student_id=<uuid>
+      ?sent_home=true
+      ?parent_notified=false
+      ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
+
+    الفرز:
+      ?ordering=-visit_date | student__first_name
+    """
     serializer_class   = ClinicVisitSerializer
     permission_classes = [IsSchoolAdmin]
+    filter_backends    = [DjangoFilterBackend, OrderingFilter]
+    filterset_class    = ClinicVisitFilter
+    ordering_fields    = ["visit_date", "student__full_name", "is_sent_home"]
+    ordering           = ["-visit_date"]
 
     @extend_schema(
         summary="سجل زيارات العيادة",
-        parameters=[
-            OpenApiParameter("student",   str,  description="معرّف الطالب"),
-            OpenApiParameter("sent_home", bool, description="true = مَن أُرسل للمنزل فقط"),
-        ],
         tags=["clinic"],
     )
     def get(self, *args, **kwargs):
@@ -661,11 +779,8 @@ class ClinicVisitListView(generics.ListAPIView):
 
     def get_queryset(self):
         school = _school(self.request)
-        qs     = ClinicVisit.objects.filter(
-            school=school
-        ).select_related("student", "nurse").order_by("-visit_date")
-        if s := self.request.query_params.get("student"):
-            qs = qs.filter(student_id=s)
-        if self.request.query_params.get("sent_home", "").lower() == "true":
-            qs = qs.filter(is_sent_home=True)
-        return qs
+        return (
+            ClinicVisit.objects
+            .filter(school=school)
+            .with_details()
+        )
