@@ -1,65 +1,82 @@
 {% extends "base/base.html" %}
-{% block title %}التقييمات والاختبارات{% endblock %}
+{% block title %}التقييمات — SchoolOS{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  {# ── Page Header ── #}
+  <div class="page-header">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">التقييمات والاختبارات</h1>
-      <p class="text-sm text-gray-500 mt-1">الباقات الأربع — {{ year }}</p>
+      <h1 class="page-title">📝 التقييمات والاختبارات</h1>
+      <p class="page-subtitle">الباقات الأربع — {{ year }}</p>
     </div>
-    <div class="flex gap-2 flex-wrap">
+    <div class="page-actions">
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'setup_subject' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">+ ربط مادة بفصل</a>
-      <a href="{% url 'failing_students' %}" class="px-4 py-2 bg-red-700 text-white rounded-lg text-sm hover:bg-red-800 transition">الطلاب الراسبون</a>
+      <a href="{% url 'failing_students' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;color:#dc2626;border-color:#fecaca;background:#fef2f2;">
+        ⚠ الطلاب الراسبون
+      </a>
+      <a href="{% url 'setup_subject' %}" class="btn-primary"
+         style="font-size:12.5px;text-decoration:none;">+ ربط مادة بفصل</a>
       {% endif %}
     </div>
   </div>
 
-  <!-- فلتر الفصل -->
-  <form method="get" class="flex gap-3 items-end">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">الفصل الدراسي</label>
-      <select name="semester" class="border rounded-lg px-3 py-2 text-sm" onchange="this.form.submit()">
+  {# ── Semester filter ── #}
+  <div class="filter-bar">
+    <label style="font-size:13px;font-weight:600;color:var(--text-primary);">الفصل الدراسي:</label>
+    <form method="get" style="display:flex;align-items:center;gap:8px;">
+      <select name="semester" onchange="this.form.submit()" style="padding:7px 12px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface-alt);">
         {% for val, label in SEMESTERS %}
         <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-    </div>
-  </form>
-
-  <!-- إحصائيات (للمدير) -->
-  {% if request.user.is_admin or request.user.is_superuser %}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-[#1A4F8A]">{{ total_results }}</p>
-      <p class="text-xs text-gray-500 mt-1">نتيجة مرصودة</p>
-    </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-green-600">{{ passed }}</p>
-      <p class="text-xs text-gray-500 mt-1">ناجح</p>
-    </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-red-600">{{ failed }}</p>
-      <p class="text-xs text-gray-500 mt-1">راسب</p>
-    </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-amber-600">{{ setups|length }}</p>
-      <p class="text-xs text-gray-500 mt-1">مادة × فصل</p>
-    </div>
+    </form>
   </div>
 
-  <!-- الطلاب الراسبون مؤخراً -->
+  {# ── Admin KPIs ── #}
+  {% if request.user.is_admin or request.user.is_superuser %}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:var(--skyline);">{{ total_results }}</div>
+      <div class="kpi-label">نتيجة مرصودة</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#166534;">{{ passed }}</div>
+      <div class="kpi-label">ناجح</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#dc2626;">{{ failed }}</div>
+      <div class="kpi-label">راسب</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:var(--maroon);">{{ setups|length }}</div>
+      <div class="kpi-label">مادة × فصل</div>
+    </div>
+
+  </div>
+
+  {# Failing students alert #}
   {% if failing_list %}
-  <div class="bg-red-50 rounded-xl border border-red-200 p-4">
-    <p class="font-bold text-red-800 mb-3">⚠ آخر الطلاب الراسبين</p>
-    <div class="flex flex-wrap gap-2">
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-lg);padding:16px 18px;">
+    <div class="card-header" style="border-color:#fecaca;margin-bottom:12px;">
+      <div class="card-header-icon" style="background:#fee2e2;color:#991b1b;">⚠</div>
+      <h3 class="card-header-title" style="color:#991b1b;">آخر الطلاب الراسبين</h3>
+      <a href="{% url 'failing_students' %}"
+         style="font-size:12px;color:var(--maroon);text-decoration:none;font-weight:600;margin-right:auto;">
+        عرض الكل →
+      </a>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px;">
       {% for r in failing_list %}
       <a href="{% url 'student_report' r.student.id %}?semester={{ semester }}"
-         class="px-3 py-1 bg-white border border-red-200 rounded-full text-xs text-red-700 hover:bg-red-100">
-        {{ r.student.full_name }} — {{ r.subject.name_ar }}
+         style="padding:5px 12px;background:#fff;border:1px solid #fecaca;border-radius:20px;
+                font-size:12px;color:#991b1b;text-decoration:none;transition:background .1s;">
+        {{ r.student.full_name }} — {{ r.setup.subject.name_ar }}
       </a>
       {% endfor %}
     </div>
@@ -67,44 +84,61 @@
   {% endif %}
   {% endif %}
 
-  <!-- قائمة الإعدادات (مادة × فصل) -->
+  {# ── Subjects grouped by class ── #}
   <div>
-    <h2 class="text-lg font-bold text-[#8A1538] mb-3">
-      {% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}
-    </h2>
+    <div class="section-header">
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">
+        {% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}
+      </h2>
+    </div>
 
     {% regroup setups by class_group as grouped %}
     {% for group in grouped %}
-    <div class="mb-6">
-      <h3 class="text-sm font-bold text-gray-600 mb-2 px-1">📚 {{ group.grouper }}</h3>
+    <div style="margin-bottom:22px;">
+      <p style="font-size:13px;font-weight:700;color:var(--text-secondary);margin:0 0 10px;padding-right:4px;">
+        📚 {{ group.grouper }}
+      </p>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {% for setup in group.list %}
         <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}"
-           class="bg-white rounded-xl border shadow-sm hover:shadow-md transition hover:-translate-y-0.5 p-4 block">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="font-bold text-[#8A1538]">{{ setup.subject.name_ar }}</p>
-              <p class="text-xs text-gray-500 mt-0.5">{{ setup.teacher.full_name }}</p>
+           class="card-qatar" style="text-decoration:none;display:block;padding:16px 18px;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+            <div style="min-width:0;">
+              <p style="font-weight:700;font-size:14px;color:var(--maroon);margin:0 0 4px;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                {{ setup.subject.name_ar }}
+              </p>
+              <p style="font-size:12px;color:var(--text-secondary);margin:0;">
+                {{ setup.teacher.full_name }}
+              </p>
             </div>
-            <span class="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+            <span class="status-badge status-info" style="flex-shrink:0;font-size:11px;">
               {{ setup.packages.count }} باقة
             </span>
           </div>
-          <div class="mt-3 flex gap-2">
-            <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester %}"
-               class="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
-               onclick="event.stopPropagation()">كشف الدرجات</a>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+            <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
+               class="status-badge status-gray"
+               style="font-size:11.5px;text-decoration:none;"
+               onclick="event.stopPropagation();">
+              كشف الدرجات
+            </a>
           </div>
         </a>
         {% endfor %}
       </div>
     </div>
+
     {% empty %}
-    <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
-      <p class="text-3xl mb-3">📚</p>
-      <p>لا توجد مواد مُعدَّة بعد</p>
+    <div class="empty-state card-qatar">
+      <span class="empty-icon">📚</span>
+      <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
+      <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'setup_subject' %}" class="mt-3 inline-block px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm">+ ابدأ بربط مادة بفصل</a>
+      <a href="{% url 'setup_subject' %}" class="btn-primary"
+         style="margin-top:14px;display:inline-block;text-decoration:none;font-size:13px;">
+        + ربط مادة بفصل
+      </a>
       {% endif %}
     </div>
     {% endfor %}

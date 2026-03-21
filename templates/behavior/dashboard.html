@@ -1,111 +1,161 @@
 {% extends "base/base.html" %}
-{% block title %}لوحة السلوك{% endblock %}
+{% block title %}السلوك المدرسي — SchoolOS{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  {# ── Page Header ── #}
+  <div class="page-header">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">⚖️ لوحة تحكم السلوك المدرسي</h1>
-      <p class="text-sm text-gray-500 mt-1">متابعة المخالفات السلوكية وسجلات الطلاب</p>
+      <h1 class="page-title">⚖️ السلوك المدرسي</h1>
+      <p class="page-subtitle">متابعة المخالفات السلوكية وسجلات الطلاب</p>
     </div>
-    <div class="flex gap-2">
+    <div class="page-actions">
       {% if is_committee %}
-      <a href="{% url 'behavior:statistics' %}" class="px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition">📊 الإحصاءات</a>
-      <a href="{% url 'behavior:policy_pdf' %}" target="_blank" class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#6B1029] transition" title="طباعة PDF">🖨️ لائحة السلوك PDF</a>
+      <a href="{% url 'behavior:statistics' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;">📊 الإحصاءات</a>
+      <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
+         class="btn-secondary" style="font-size:12.5px;text-decoration:none;">🖨️ لائحة السلوك</a>
       {% endif %}
       {% if can_report %}
-      <a href="{% url 'behavior:report_infraction' %}" class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition">+ تسجيل مخالفة</a>
+      <a href="{% url 'behavior:report_infraction' %}"
+         class="btn-primary" style="font-size:12.5px;text-decoration:none;">+ تسجيل مخالفة</a>
       {% endif %}
       {% if is_committee %}
-      <a href="{% url 'behavior:committee' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">لجنة الضبط</a>
+      <a href="{% url 'behavior:committee' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;">لجنة الضبط</a>
       {% endif %}
     </div>
   </div>
 
-  <!-- إحصائيات -->
+  {# ── KPIs ── #}
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-red-600">{{ total_deducted }}</p>
-      <p class="text-xs text-gray-500 mt-1">نقاط مخصومة</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#dc2626;">{{ total_deducted }}</div>
+      <div class="kpi-label">نقاط مخصومة</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-green-600">{{ total_restored }}</p>
-      <p class="text-xs text-gray-500 mt-1">نقاط مستردة</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#166534;">{{ total_restored }}</div>
+      <div class="kpi-label">نقاط مستردة</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-amber-600">{{ net_deducted }}</p>
-      <p class="text-xs text-gray-500 mt-1">صافي الخصم</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#d97706;">{{ net_deducted }}</div>
+      <div class="kpi-label">صافي الخصم</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-[#8A1538]">{{ critical_unresolved|length }}</p>
-      <p class="text-xs text-gray-500 mt-1">مخالفات جسيمة معلّقة</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:var(--maroon);">{{ critical_unresolved|length }}</div>
+      <div class="kpi-label">مخالفات جسيمة معلّقة</div>
+      {% if critical_unresolved %}
+      <div class="kpi-sub">
+        <a href="{% url 'behavior:committee' %}" style="color:var(--maroon);font-weight:600;font-size:11.5px;">
+          عرض القائمة ←
+        </a>
+      </div>
+      {% endif %}
     </div>
+
   </div>
 
-  <!-- مخالفات جسيمة -->
+  {# ── Critical pending infractions ── #}
   {% if critical_unresolved %}
-  <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-    <h2 class="font-bold text-red-800 mb-3">🚨 مخالفات جسيمة تحتاج قرار لجنة</h2>
-    <div class="space-y-2">
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-lg);padding:18px 20px;">
+    <div class="card-header" style="border-color:#fecaca;">
+      <div class="card-header-icon" style="background:#fee2e2;color:#991b1b;">🚨</div>
+      <h2 class="card-header-title" style="color:#991b1b;">مخالفات جسيمة تحتاج قرار لجنة</h2>
+      <span class="status-badge status-danger">{{ critical_unresolved|length }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
       {% for inf in critical_unresolved %}
-      <div class="bg-white rounded-lg p-3 border border-red-100 flex items-center justify-between">
-        <div>
-          <p class="font-medium text-gray-800">{{ inf.student.full_name }}</p>
-          <p class="text-xs text-gray-500">{{ inf.description|truncatechars:60 }}</p>
+      <div class="table-wrap" style="box-shadow:none;">
+        <div style="padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <p style="font-weight:600;font-size:13.5px;margin:0 0 3px;">{{ inf.student.full_name }}</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0;">{{ inf.description|truncatechars:70 }}</p>
+          </div>
+          <span class="status-badge status-danger" style="flex-shrink:0;">درجة {{ inf.level }}</span>
         </div>
-        <span class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full">درجة {{ inf.level }}</span>
       </div>
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- توزيع المخالفات -->
+  {# ── Two-column section ── #}
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <!-- حسب الدرجة -->
-    <div class="bg-white rounded-xl border shadow-sm p-5">
-      <h3 class="font-bold text-gray-800 mb-4">توزيع المخالفات حسب الدرجة</h3>
-      {% for stat in stats %}
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm text-gray-600">درجة {{ stat.level }}</span>
-        <span class="text-sm font-bold
-          {% if stat.level == 1 %}text-blue-600
-          {% elif stat.level == 2 %}text-amber-600
-          {% elif stat.level == 3 %}text-orange-600
-          {% else %}text-red-600{% endif %}">
-          {{ stat.count }}
-        </span>
-      </div>
-      {% empty %}
-      <p class="text-gray-400 text-sm text-center py-4">لا توجد مخالفات</p>
-      {% endfor %}
-    </div>
 
-    <!-- آخر المخالفات -->
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <div class="px-5 py-3 border-b bg-gray-50">
-        <h3 class="font-bold text-gray-800">آخر المخالفات</h3>
+    {# توزيع المخالفات #}
+    <div class="card-qatar">
+      <div class="card-header">
+        <div class="card-header-icon">📊</div>
+        <h3 class="card-header-title">توزيع المخالفات حسب الدرجة</h3>
       </div>
-      {% if recent_infractions %}
-      <div class="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-        {% for inf in recent_infractions %}
-        <div class="px-4 py-3 hover:bg-gray-50">
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-medium text-gray-800">{{ inf.student.full_name }}</p>
-            <span class="text-xs
-              {% if inf.level == 1 %}text-blue-600 bg-blue-50
-              {% elif inf.level == 2 %}text-amber-600 bg-amber-50
-              {% else %}text-red-600 bg-red-50{% endif %}
-              px-2 py-0.5 rounded-full">درجة {{ inf.level }}</span>
+      {% if stats %}
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        {% for stat in stats %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;
+                    border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="width:10px;height:10px;border-radius:50%;flex-shrink:0;
+              background:{% if stat.level == 1 %}#3b82f6{% elif stat.level == 2 %}#f59e0b{% elif stat.level == 3 %}#f97316{% else %}#ef4444{% endif %};">
+            </span>
+            <span style="font-size:13px;color:var(--text-primary);">درجة {{ stat.level }}</span>
           </div>
-          <p class="text-xs text-gray-500 mt-0.5">{{ inf.date|date:"d/m/Y" }} — {{ inf.reported_by.full_name }}</p>
+          <span style="font-size:14px;font-weight:700;
+            color:{% if stat.level == 1 %}#2563eb{% elif stat.level == 2 %}#d97706{% elif stat.level == 3 %}#ea580c{% else %}#dc2626{% endif %};">
+            {{ stat.count }}
+          </span>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      <div class="py-8 text-center text-gray-400 text-sm">لا توجد مخالفات</div>
+      <div class="empty-state" style="padding:24px;">
+        <p class="empty-sub">لا توجد مخالفات مسجّلة</p>
+      </div>
       {% endif %}
     </div>
+
+    {# آخر المخالفات #}
+    <div class="table-wrap">
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border);
+                  display:flex;align-items:center;gap:10px;background:var(--surface-alt);">
+        <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">⏰</div>
+        <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">آخر المخالفات</h3>
+      </div>
+      {% if recent_infractions %}
+      <div style="max-height:260px;overflow-y:auto;">
+        {% for inf in recent_infractions %}
+        <div style="padding:11px 18px;display:flex;align-items:center;justify-content:space-between;
+                    border-bottom:1px solid var(--border);transition:background .1s;">
+          <div style="min-width:0;">
+            <p style="font-size:13.5px;font-weight:600;margin:0 0 2px;
+                      color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {{ inf.student.full_name }}
+            </p>
+            <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
+              {{ inf.date|date:"d/m/Y" }} — {{ inf.reported_by.full_name }}
+            </p>
+          </div>
+          <span class="status-badge flex-shrink-0
+            {% if inf.level == 1 %}status-info
+            {% elif inf.level == 2 %}status-warning
+            {% else %}status-danger{% endif %}"
+            style="margin-right:8px;">
+            درجة {{ inf.level }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:32px;">
+        <p class="empty-sub">لا توجد مخالفات مسجّلة</p>
+      </div>
+      {% endif %}
+    </div>
+
   </div>
 
 </div>
