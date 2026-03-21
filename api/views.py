@@ -36,12 +36,12 @@ from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from core.models import (
-    CustomUser, ClassGroup, StudentEnrollment, ParentStudentLink, School,
+    CustomUser, ClassGroup, StudentEnrollment, ParentStudentLink,
 )
-from assessments.models import AnnualSubjectResult, StudentSubjectResult
+from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from notifications.models import InAppNotification, UserNotificationPreference
-from operations.models import Session, StudentAttendance, Subject
+from operations.models import Session, StudentAttendance
 from clinic.models import ClinicVisit
 from library.models import LibraryBook, BookBorrowing
 
