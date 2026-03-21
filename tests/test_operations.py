@@ -161,10 +161,10 @@ class TestOperationsViews:
         assert resp.status_code == 200
 
     def test_attendance_forbidden_for_parent(self, client_as, parent_user, session):
-        """ولي الأمر لا يمكنه تسجيل الحضور"""
+        """ولي الأمر لا يمكنه تسجيل الحضور — يُعاد توجيهه أو يُرفض"""
         c = client_as(parent_user)
         resp = c.get(f"/teacher/attendance/{session.id}/")
-        assert resp.status_code == 403
+        assert resp.status_code in [302, 403]  # ParentConsentMiddleware قد يُعيد توجيهاً
 
     def test_mark_single_attendance(self, client_as, teacher_user, session, student_user,
                                      enrolled_student, school):

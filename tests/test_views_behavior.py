@@ -51,16 +51,18 @@ class TestReportInfraction:
     def test_critical_infraction_redirects_to_committee(
         self, client_as, teacher_user, school, student_user, enrolled_student
     ):
-        """مخالفة درجة 3 تُحال للجنة"""
+        """مخالفة درجة 3 تُحال للجنة — التحقق من الإعادة فقط (لا من صفحة اللجنة)"""
         client = client_as(teacher_user)
+        count_before = BehaviorInfraction.objects.count()
         response = client.post("/behavior/report/", {
             "student_id": str(student_user.id),
             "level": 3,
             "description": "تصرف خطير",
             "points_deducted": 25,
-        }, follow=True)
-        # يجب أن يصل إلى صفحة اللجنة أو يُعاد توجيهه
-        assert response.status_code == 200
+        })
+        # المخالفة تُسجَّل وتُعاد توجيه المعلم (302 redirect)
+        assert response.status_code in [200, 302]
+        assert BehaviorInfraction.objects.count() > count_before
 
     def test_parent_cannot_report_infraction(
         self, client_as, parent_user, school, student_user

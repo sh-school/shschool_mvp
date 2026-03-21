@@ -48,11 +48,12 @@ class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = CustomUser
 
-    national_id = factory.Sequence(lambda n: f"2876{n:07d}")
-    full_name   = factory.Sequence(lambda n: f"موظف {n}")
-    email       = factory.Sequence(lambda n: f"user{n}@school.qa")
-    phone       = factory.Sequence(lambda n: f"+97466{n:06d}")
-    is_active   = True
+    national_id          = factory.Sequence(lambda n: f"2876{n:07d}")
+    full_name            = factory.Sequence(lambda n: f"موظف {n}")
+    email                = factory.Sequence(lambda n: f"user{n}@school.qa")
+    phone                = factory.Sequence(lambda n: f"+97466{n:06d}")
+    is_active            = True
+    must_change_password = False
 
     @factory.post_generation
     def password(obj, create, extracted, **kwargs):

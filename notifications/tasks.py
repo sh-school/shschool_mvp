@@ -222,9 +222,8 @@ def notify_behavior_task(self, infraction_id, reporter_id):
         ).get(id=infraction_id)
         reporter = CustomUser.objects.get(id=reporter_id)
 
-        # استدعاء الدالة المباشرة من behavior/views.py
-        from behavior.views import _notify_parents_behavior
-        _notify_parents_behavior(infraction, infraction.school, reporter)
+        from behavior.services import BehaviorService
+        BehaviorService.notify_parents(infraction, infraction.school, reporter)
 
         return {"status": "done", "infraction": str(infraction_id)}
 
