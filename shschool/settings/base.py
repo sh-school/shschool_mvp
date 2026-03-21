@@ -137,11 +137,15 @@ CSRF_FAILURE_VIEW           = "django.views.csrf.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+_AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
+try:
+    import rest_framework_simplejwt  # noqa
+    _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
+except ImportError:
+    pass
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
