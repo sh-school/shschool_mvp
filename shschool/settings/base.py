@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "storages",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -106,6 +107,21 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT      = BASE_DIR / "staticfiles"
 MEDIA_URL        = "/media/"
 MEDIA_ROOT       = config("MEDIA_ROOT", default=str(BASE_DIR / "media"))
+
+# ── S3 / Object Storage (اختياري — يُفعَّل في الإنتاج) ──────────────
+# pip install django-storages[boto3]
+# اضبط USE_S3=true في .env مع متغيرات AWS_* أو نقطة نهاية S3 متوافقة (MinIO, Wasabi, Cloudflare R2)
+USE_S3                  = config("USE_S3", default=False, cast=bool)
+AWS_ACCESS_KEY_ID       = config("AWS_ACCESS_KEY_ID",       default="")
+AWS_SECRET_ACCESS_KEY   = config("AWS_SECRET_ACCESS_KEY",   default="")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME      = config("AWS_S3_REGION_NAME",      default="me-south-1")
+AWS_S3_ENDPOINT_URL     = config("AWS_S3_ENDPOINT_URL",     default="")   # لـ MinIO / غير AWS
+AWS_S3_FILE_OVERWRITE   = False
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_DEFAULT_ACL         = "private"   # ملفات خاصة (PDPPL)
+AWS_QUERYSTRING_AUTH    = True        # روابط موقعة مؤقتة
+AWS_QUERYSTRING_EXPIRE  = 3600        # صالح ساعة
 
 LOGIN_URL          = "/auth/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
