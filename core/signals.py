@@ -1,14 +1,13 @@
 """
 core/signals.py
 تسجيل تلقائي لكل العمليات الحساسة — PDPPL / RoPA
-[مهمة 9] إضافة signals ناقصة:
-  - StudentSubjectResult (تحديث نتيجة الفصل)
-  - Membership (تغيير صلاحية مستخدم)
-  - CustomUser (تعديل بيانات المستخدم الحساسة)
 """
+import logging
 from django.db.models.signals import post_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.contrib.auth.signals import user_logged_in, user_logged_out
+
+logger = logging.getLogger(__name__)
 
 
 def _log(model_name, action, instance, changes=None):
@@ -41,8 +40,8 @@ def _log(model_name, action, instance, changes=None):
             ip_address  = ip or None,
             user_agent  = ua,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("AuditLog _log failed [%s/%s]: %s", model_name, action, e, exc_info=True)
 
 
 # ── السجل الصحي ────────────────────────────────────────────────────────
@@ -118,6 +117,13 @@ def audit_subject_result(sender, instance, created, **kwargs):
 
 # ── [مهمة 9] تغيير صلاحيات المستخدم (Membership) ──────────────────────
 @receiver(post_save, sender='core.Membership')
+def invalidate_user_membership_cache(sender, instance, **kwargs):
+    """يُبطل cache active_membership عند تغيير أي عضوية"""
+    if hasattr(instance, 'user') and hasattr(instance.user, 'invalidate_active_membership'):
+        instance.user.invalidate_active_membership()
+
+
+@receiver(post_save, sender='core.Membership')
 def audit_membership(sender, instance, created, **kwargs):
     """
     تسجيل إنشاء أو تعديل عضوية — مهم لمتطلبات PDPPL:
@@ -174,8 +180,8 @@ def audit_login(sender, request, user, **kwargs):
             ip_address  = request.META.get('REMOTE_ADDR'),
             user_agent  = request.META.get('HTTP_USER_AGENT', '')[:300],
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("AuditLog login failed for user %s: %s", getattr(user, 'pk', '?'), e, exc_info=True)
 
 
 @receiver(user_logged_out)
@@ -193,5 +199,5 @@ def audit_logout(sender, request, user, **kwargs):
             school      = user.get_school() if hasattr(user, 'get_school') else None,
             ip_address  = request.META.get('REMOTE_ADDR'),
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("AuditLog logout failed for user %s: %s", getattr(user, 'pk', '?'), e, exc_info=True)

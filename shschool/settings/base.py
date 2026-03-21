@@ -90,13 +90,31 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-SECRET_KEY    = config("SECRET_KEY", default="")
+DEBUG         = config("DEBUG", default=True, cast=bool)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,0.0.0.0").split(",")
+
+_secret_key = config("SECRET_KEY", default="")
+if not _secret_key:
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured(
+            "SECRET_KEY مطلوب في الإنتاج — أضفه إلى ملف .env"
+        )
+    # في التطوير فقط: مفتاح افتراضي آمن — لا يُستخدم في الإنتاج أبداً
+    import secrets
+    _secret_key = "dev-only-" + secrets.token_hex(32)
+SECRET_KEY = _secret_key
 
 # ── تشفير البيانات الحساسة (PDPPL) ──────────────────────────
 # أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FERNET_KEY    = config("FERNET_KEY", default="")
-DEBUG         = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,0.0.0.0").split(",")
+
+# ── CORS (للـ API — React Native / Mobile App) ────────────────
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://localhost:8000"
+).split(",")
+CORS_ALLOW_CREDENTIALS = True
 
 LANGUAGE_CODE = "ar"
 TIME_ZONE     = "Asia/Qatar"

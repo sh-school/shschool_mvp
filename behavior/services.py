@@ -11,11 +11,14 @@ Business logic لوحدة السلوك — مستخلص من views.py
   - إشعار أولياء الأمور
   - بيانات التقرير الدوري
 """
+import logging
 from datetime import date
 from decimal import Decimal
 from django.db.models import Sum, Count, Q
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 
 from core.models import (
     BehaviorInfraction, BehaviorPointRecovery,
@@ -258,10 +261,14 @@ class BehaviorService:
     @staticmethod
     def get_statistics(school, date_from=None, date_to=None):
         """إحصائيات شاملة لوحدة السلوك — تقرير المدير"""
-        if not date_from:
-            date_from = date(2025, 9, 1)
-        if not date_to:
-            date_to = date(2026, 6, 30)
+        if not date_from or not date_to:
+            today = timezone.now().date()
+            # العام الدراسي يبدأ في سبتمبر
+            start_year = today.year if today.month >= 9 else today.year - 1
+            if not date_from:
+                date_from = date(start_year, 9, 1)
+            if not date_to:
+                date_to = date(start_year + 1, 6, 30)
 
         all_inf = BehaviorInfraction.objects.filter(
             school=school, date__gte=date_from, date__lte=date_to
@@ -309,13 +316,20 @@ class BehaviorService:
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
     def get_report_period(period, year="2025-2026"):
-        """يحسب نطاق التاريخ والعنوان حسب الفترة"""
+        """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
+        try:
+            start_year, end_year = [int(y) for y in str(year).split("-")]
+        except (ValueError, AttributeError):
+            today = timezone.now().date()
+            start_year = today.year if today.month >= 9 else today.year - 1
+            end_year   = start_year + 1
+
         if period == "S1":
-            return date(2025, 9, 1), date(2026, 1, 31), "الفصل الأول"
+            return date(start_year, 9, 1), date(end_year, 1, 31), "الفصل الأول"
         elif period == "S2":
-            return date(2026, 2, 1), date(2026, 6, 30), "الفصل الثاني"
+            return date(end_year, 2, 1), date(end_year, 6, 30), "الفصل الثاني"
         else:
-            return date(2025, 9, 1), date(2026, 6, 30), "العام الدراسي كاملاً"
+            return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
 
     @staticmethod
     def get_student_report_data(student, school, period="full", year="2025-2026"):
@@ -365,7 +379,8 @@ class BehaviorService:
                 student=student, class_group__school=school, is_active=True
             ).select_related("class_group").first()
             class_name = enrollment.class_group.name if enrollment else None
-        except Exception:
+        except Exception as e:
+            logger.warning("get_infraction_context: enrollment query failed: %s", e)
             class_name = None
 
         try:
@@ -373,7 +388,8 @@ class BehaviorService:
                 student=student
             ).select_related("parent").first()
             parent = link.parent if link else None
-        except Exception:
+        except Exception as e:
+            logger.warning("get_infraction_context: parent query failed: %s", e)
             parent = None
 
         infraction_count = BehaviorInfraction.objects.filter(
@@ -438,8 +454,11 @@ class BehaviorService:
                             subject=subject, body_text=body_text, body_html=body_html,
                             student=infraction.student, notif_type="behavior", sent_by=reporter,
                         )
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.error(
+                            "notify_parents: email failed for %s [infraction=%s]: %s",
+                            parent.email, infraction.pk, e, exc_info=True
+                        )
 
                 if infraction.level >= 2 and parent.phone:
                     sms_body = (
@@ -451,7 +470,10 @@ class BehaviorService:
                             school=school, phone_number=parent.phone, message=sms_body,
                             student=infraction.student, notif_type="behavior", sent_by=reporter,
                         )
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+                    except Exception as e:
+                        logger.error(
+                            "notify_parents: SMS failed for %s [infraction=%s]: %s",
+                            parent.phone, infraction.pk, e, exc_info=True
+                        )
+        except Exception as e:
+            logger.error("notify_parents: unexpected error [infraction=%s]: %s", infraction.pk, e, exc_info=True)

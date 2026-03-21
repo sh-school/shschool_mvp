@@ -121,7 +121,7 @@ def student_list(request):
     if class_id:
         enrollments = enrollments.filter(class_group_id=class_id)
 
-    q = request.query_params.get("q", "").strip()
+    q = request.query_params.get("q", "").strip()[:100]  # حد أقصى 100 حرف
     if q:
         enrollments = enrollments.filter(
             student__full_name__icontains=q
@@ -607,7 +607,7 @@ class LibraryBookListView(generics.ListAPIView):
     def get_queryset(self):
         school = _school(self.request)
         qs     = LibraryBook.objects.filter(school=school).order_by("title")
-        if q := self.request.query_params.get("q"):
+        if q := self.request.query_params.get("q", "")[:100].strip():
             qs = qs.filter(title__icontains=q) | qs.filter(author__icontains=q)
         if t := self.request.query_params.get("type"):
             qs = qs.filter(book_type=t.upper())

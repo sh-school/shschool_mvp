@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.core.validators import RegexValidator
 import base64, os
 try:
     from cryptography.fernet import Fernet
@@ -27,7 +28,9 @@ def _get_fernet():
             )
     try:
         return Fernet(key.encode() if isinstance(key, str) else key)
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("FERNET_KEY غير صالح: %s", e)
         return None
 
 
@@ -77,12 +80,28 @@ class School(models.Model):
         return f"{self.name} ({self.code})"
 
 
+_national_id_validator = RegexValidator(
+    regex=r'^\d{5,20}$',
+    message='الرقم الوطني يجب أن يحتوي على أرقام فقط (5-20 رقم)',
+)
+_phone_validator = RegexValidator(
+    regex=r'^\+?[\d\s\-]{7,20}$',
+    message='رقم الجوال غير صحيح — استخدم صيغة دولية مثل +97455xxxxxx',
+)
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id          = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    national_id = models.CharField(max_length=20, unique=True, verbose_name="الرقم الوطني", db_index=True)
+    national_id = models.CharField(
+        max_length=20, unique=True, verbose_name="الرقم الوطني",
+        db_index=True, validators=[_national_id_validator],
+    )
     full_name   = models.CharField(max_length=200, verbose_name="الاسم الكامل", db_index=True)
     email       = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
-    phone       = models.CharField(max_length=20, blank=True, verbose_name="الجوال")
+    phone       = models.CharField(
+        max_length=20, blank=True, verbose_name="الجوال",
+        validators=[_phone_validator],
+    )
     is_staff              = models.BooleanField(default=False)
     is_active             = models.BooleanField(default=True)
     date_joined           = models.DateTimeField(default=timezone.now)
@@ -115,8 +134,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     @property
     def active_membership(self):
         if not hasattr(self, '_active_membership'):
-            self._active_membership = self.memberships.filter(is_active=True).select_related("school", "role").first()
+            self._active_membership = (
+                self.memberships
+                .filter(is_active=True)
+                .select_related("school", "role")
+                .first()
+            )
         return self._active_membership
+
+    def invalidate_active_membership(self):
+        """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
+        if hasattr(self, '_active_membership'):
+            del self._active_membership
 
     def get_active_membership(self):
         return self.active_membership

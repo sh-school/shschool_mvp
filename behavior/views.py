@@ -4,12 +4,20 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Views نحيفة — كل Business Logic في behavior/services.py
 """
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponseForbidden, FileResponse, Http404
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+_VALID_LEVELS = {1, 2, 3, 4}
+_MAX_POINTS   = 100
+_MAX_DESC_LEN = 2000
 
 from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
 from .services import (
@@ -46,21 +54,41 @@ def report_infraction(request):
     school = request.user.get_school()
 
     if request.method == "POST":
-        student_id = request.POST.get("student_id")
-        level = int(request.POST.get("level", 1))
+        student_id  = request.POST.get("student_id", "").strip()
         description = request.POST.get("description", "").strip()
-        points = int(request.POST.get("points_deducted", 0))
-        action = request.POST.get("action_taken", "").strip()
+        action      = request.POST.get("action_taken", "").strip()
 
-        if not student_id or not description:
-            messages.error(request, "يرجى تعبئة جميع الحقول الإلزامية.")
+        try:
+            level  = int(request.POST.get("level", 1))
+            points = int(request.POST.get("points_deducted", 0))
+        except (ValueError, TypeError):
+            messages.error(request, "قيم غير صحيحة — يرجى مراجعة الحقول.")
+            level, points = 1, 0
+
+        # ── Validation ──────────────────────────────────────────
+        errors = []
+        if not student_id:
+            errors.append("يرجى اختيار الطالب.")
+        if not description:
+            errors.append("يرجى كتابة وصف المخالفة.")
+        elif len(description) > _MAX_DESC_LEN:
+            errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
+        if level not in _VALID_LEVELS:
+            errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")
+        if not (0 <= points <= _MAX_POINTS):
+            errors.append(f"نقاط الخصم يجب أن تكون بين 0 و {_MAX_POINTS}.")
+
+        if errors:
+            for err in errors:
+                messages.error(request, err)
         else:
             student = get_object_or_404(CustomUser, id=student_id)
-            infraction = BehaviorInfraction.objects.create(
-                school=school, student=student, reported_by=request.user,
-                level=level, description=description,
-                action_taken=action, points_deducted=points,
-            )
+            with transaction.atomic():
+                infraction = BehaviorInfraction.objects.create(
+                    school=school, student=student, reported_by=request.user,
+                    level=level, description=description,
+                    action_taken=action, points_deducted=points,
+                )
             messages.success(
                 request,
                 f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
@@ -72,7 +100,8 @@ def report_infraction(request):
                     infraction_id=str(infraction.id),
                     reporter_id=str(request.user.id),
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
                 BehaviorService.notify_parents(infraction, school, request.user)
 
             if level >= 3:
@@ -128,12 +157,13 @@ def point_recovery_request(request, infraction_id):
         elif points <= 0 or points > infraction.points_deducted:
             messages.error(request, f"النقاط يجب أن تكون بين 1 و {infraction.points_deducted}.")
         else:
-            BehaviorPointRecovery.objects.create(
-                infraction=infraction, reason=reason,
-                points_restored=points, approved_by=request.user,
-            )
-            infraction.is_resolved = True
-            infraction.save()
+            with transaction.atomic():
+                BehaviorPointRecovery.objects.create(
+                    infraction=infraction, reason=reason,
+                    points_restored=points, approved_by=request.user,
+                )
+                infraction.is_resolved = True
+                infraction.save()
             messages.success(request, f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}")
             return redirect("behavior:student_profile", student_id=infraction.student.id)
 
@@ -205,8 +235,8 @@ def behavior_report(request, student_id):
                         body_text=body, student=student, notif_type="behavior", sent_by=request.user,
                     )
                     sent_to.append(parent.full_name)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error("behavior_report: email failed for %s: %s", parent.email, e)
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:

@@ -8,10 +8,13 @@ GET /health/ — فحص صحة المنصة
   - أدوات المراقبة الخارجية
 """
 import time
+import logging
 from django.http import JsonResponse
 from django.db import connection
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
+
+logger = logging.getLogger(__name__)
 
 
 @require_GET
@@ -28,6 +31,7 @@ def health_check(request):
         checks["db"] = "ok"
     except Exception as e:
         checks["db"] = f"error: {type(e).__name__}"
+        logger.error("health_check: DB فشل: %s", e, exc_info=True)
 
     # ── فحص Redis / Cache ───────────────────────────────────────
     try:
@@ -36,10 +40,14 @@ def health_check(request):
         checks["cache"] = "ok" if cache.get("_health") == "1" else "error: read failed"
     except Exception as e:
         checks["cache"] = f"error: {type(e).__name__}"
+        logger.error("health_check: Cache فشل: %s", e, exc_info=True)
 
     # ── الحالة الإجمالية ────────────────────────────────────────
     all_ok = all(v == "ok" for v in checks.values())
     status_code = 200 if all_ok else 503
+
+    if not all_ok:
+        logger.warning("health_check degraded: %s", checks)
 
     return JsonResponse({
         "status":   "ok" if all_ok else "degraded",

@@ -117,9 +117,9 @@ class BehaviorInfraction(models.Model):
     date            = models.DateField(auto_now_add=True)
     created_at      = models.DateTimeField(auto_now_add=True, null=True)
     level           = models.PositiveSmallIntegerField(choices=LEVELS, default=1)
-    description     = models.TextField(verbose_name="وصف المخالفة")
-    action_taken    = models.TextField(blank=True, verbose_name="الإجراء المتخذ")
-    points_deducted = models.PositiveIntegerField(default=0, verbose_name="النقاط المخصومة")
+    description     = models.TextField(verbose_name="وصف المخالفة", max_length=2000)
+    action_taken    = models.TextField(blank=True, verbose_name="الإجراء المتخذ", max_length=2000)
+    points_deducted = models.PositiveSmallIntegerField(default=0, verbose_name="النقاط المخصومة")
     is_resolved     = models.BooleanField(default=False)
 
     class Meta:
