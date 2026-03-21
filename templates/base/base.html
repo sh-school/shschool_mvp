@@ -3,29 +3,42 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#8A1538">
   {% block extra_head %}{% endblock %}
-  <title>{% block title %}مدرسة الشحانية الاعدادية الثانوية - بنين{% endblock %}</title>
+  <title>{% block title %}مدرسة الشحانية — SchoolOS{% endblock %}</title>
   {% load static %}
+
+  {# ── Favicon & PWA ── #}
+  <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+
+  {# ── Arabic Font: Tajawal ── #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-  {# ✅ v5: Tailwind مصرَّف محلياً — شغّل build_tailwind.sh لتوليد الملف #}
+
+  {# ── CSS ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/custom.css' %}">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js"></script>
+
+  {# ── HTMX ── #}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js" defer></script>
+
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif; }
+
     /* ══ Dropdown ══════════════════════════════════════════════ */
     .sd-menu {
       display: none;
       position: fixed;
-      min-width: 200px;
+      min-width: 210px;
       background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.13);
       z-index: 99999;
-      padding: 5px 0;
+      padding: 6px 0;
       color-scheme: light;
     }
     .sd-menu.sd-measure {
@@ -34,160 +47,275 @@
       pointer-events: none !important;
       top: 0; left: 0;
     }
-    .sd-menu.open { display: block; }
+    .sd-menu.open {
+      display: block;
+      animation: sdFadeIn .13s ease;
+    }
+    @keyframes sdFadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
     .sd-menu a {
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; gap: 9px;
       padding: 9px 16px; font-size: 13px;
       color: #1e293b !important; text-decoration: none;
-      white-space: nowrap; transition: background .1s;
+      white-space: nowrap; transition: background .1s, color .1s;
     }
-    .sd-menu a:hover { background: #f1f5f9; }
-    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 3px 0; }
+    .sd-menu a:hover { background: #fdf2f5; color: #8A1538 !important; }
+    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
     .sd-label {
-      padding: 5px 16px 2px; font-size: 10px;
+      padding: 6px 16px 3px; font-size: 10px;
       font-weight: 700; color: #94a3b8 !important;
-      letter-spacing: .07em; text-transform: uppercase;
+      letter-spacing: .08em; text-transform: uppercase;
     }
-    /* ══ Nav button & link ═════════════════════════════════════ */
+
+    /* ══ Nav button ════════════════════════════════════════════ */
     .nb {
-      display: flex; align-items: center; gap: 4px;
-      padding: 5px 9px; border-radius: 6px;
-      font-size: 12px; color: #fff;
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 10px; border-radius: 7px;
+      font-size: 12.5px; color: #fff;
       background: none; border: none; cursor: pointer;
-      white-space: nowrap; transition: background .1s;
-      text-decoration: none;
+      white-space: nowrap; transition: background .12s;
+      text-decoration: none; font-family: inherit; line-height: 1;
     }
-    .nb:hover, .nb.on { background: rgba(255,255,255,0.18); }
-    .chv { font-size: 8px; opacity: .65; transition: transform .18s; }
+    .nb:hover, .nb.on { background: rgba(255,255,255,0.16); }
+    .chv { font-size: 8px; opacity: .6; transition: transform .18s; }
     .nb.on .chv { transform: rotate(180deg); }
+
+    /* ══ Flash messages ════════════════════════════════════════ */
+    .msg-bar {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 11px 15px; border-radius: 10px;
+      font-size: 13.5px; font-weight: 500; line-height: 1.5;
+      transition: opacity .4s;
+    }
+    .msg-bar button.msg-x {
+      margin-right: auto; flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      opacity: .45; font-size: 15px; padding: 0 2px; line-height: 1;
+    }
+    .msg-bar button.msg-x:hover { opacity: 1; }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
 
 {% if user.is_authenticated %}
-<nav style="background:#8A1538;position:sticky;top:0;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-  <div style="max-width:1280px;margin:0 auto;padding:0 14px;display:flex;align-items:center;height:52px;gap:4px;">
+{% with role=request.user.get_role %}
 
-    <!-- Logo -->
-    <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:6px;flex-shrink:0;">
-      🏫 SchoolOS
+{# ═══════════════════════ NAVIGATION BAR ═══════════════════════════════ #}
+<nav style="background:#8A1538;position:sticky;top:0;z-index:500;border-bottom:2px solid #6b0f2a;box-shadow:0 2px 8px rgba(0,0,0,.18);">
+  <div style="max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;height:54px;gap:2px;">
+
+    {# ── Logo ── #}
+    <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:7px;flex-shrink:0;padding:4px 8px;">
+      <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
+           alt="SchoolOS" style="border-radius:5px;flex-shrink:0;">
+      <span>SchoolOS</span>
     </a>
 
-    <div style="width:1px;height:22px;background:rgba(255,255,255,0.2);margin:0 4px;flex-shrink:0;"></div>
+    <div style="width:1px;height:20px;background:rgba(255,255,255,0.2);margin:0 6px;flex-shrink:0;"></div>
 
-    {% with role=request.user.get_role %}
+    {# ── Role-based nav ── #}
     {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
-
-    <!-- ── الرئيسية ── -->
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-
-    <!-- ── الأكاديمية Dropdown ── -->
-    <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">
-      📚 الأكاديمية <span class="chv">▼</span>
-    </button>
-
-    <!-- ── الجودة Dropdown ── -->
-    <button class="nb" id="btn-quality" onclick="sd('m-quality',this)">
-      📋 الجودة <span class="chv">▼</span>
-    </button>
-
-    <!-- ── الإدارة Dropdown ── -->
-    <button class="nb" id="btn-admin" onclick="sd('m-admin',this)">
-      ⚙️ الإدارة <span class="chv">▼</span>
-    </button>
-
-    <!-- ── الخدمات Dropdown ── -->
-    <button class="nb" id="btn-services" onclick="sd('m-services',this)">
-      🏥 الخدمات <span class="chv">▼</span>
-    </button>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">📚 الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  onclick="sd('m-quality',this)">📋 الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    onclick="sd('m-admin',this)">⚙️ الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" onclick="sd('m-services',this)">🏥 الخدمات <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-    <a href="/clinic/" class="nb">🏥 العيادة</a>
-    <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
-    <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
-    <a href="/clinic/statistics/" class="nb">إحصائيات</a>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/clinic/" class="nb">🏥 العيادة</a>
+      <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
+      <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
+      <a href="/clinic/statistics/" class="nb">الإحصائيات</a>
 
     {% elif role == "bus_supervisor" %}
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-    <a href="/transport/" class="nb">🚌 لوحة النقل</a>
-    <a href="/transport/buses/" class="nb">الحافلات</a>
-    <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
-    <a href="/transport/statistics/" class="nb">إحصائيات</a>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/transport/" class="nb">🚌 النقل</a>
+      <a href="/transport/buses/" class="nb">الحافلات</a>
+      <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
+      <a href="/transport/statistics/" class="nb">الإحصائيات</a>
 
     {% elif role == "librarian" %}
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-    <a href="/library/" class="nb">📚 لوحة المكتبة</a>
-    <a href="/library/books/" class="nb">الكتب</a>
-    <a href="/library/borrow/" class="nb">إعارة جديدة</a>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/library/" class="nb">📚 المكتبة</a>
+      <a href="/library/books/" class="nb">الكتب</a>
+      <a href="/library/borrow/" class="nb">إعارة جديدة</a>
 
     {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-    <a href="/teacher/schedule/" class="nb">جدولي</a>
-    <a href="/teacher/weekly-schedule/" class="nb">الجدول الأسبوعي</a>
-    <a href="/assessments/" class="nb">التقييمات</a>
-    <a href="/import/" class="nb">استيراد الدرجات</a>
-    <a href="/reports/" class="nb">التقارير</a>
-    <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
-    <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/teacher/schedule/" class="nb">جدولي</a>
+      <a href="/teacher/weekly-schedule/" class="nb">الجدول الأسبوعي</a>
+      <a href="/assessments/" class="nb">التقييمات</a>
+      <a href="/reports/" class="nb">التقارير</a>
+      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
 
     {% elif role == "student" %}
-    <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-    <a href="/library/" class="nb">📚 المكتبة</a>
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/library/" class="nb">📚 المكتبة</a>
 
     {% elif role == "parent" %}
-    <a href="/parents/" class="nb">🏠 بوابتي</a>
-    {% endif %}
-    {% endwith %}
+      <a href="/parents/" class="nb">🏠 بوابتي</a>
+      <a href="/parents/attendance/" class="nb">📋 الحضور</a>
+      <a href="/parents/grades/" class="nb">📊 الدرجات</a>
 
-    <!-- Spacer -->
+    {% endif %}
+
     <div style="flex:1;"></div>
 
-    <!-- 🔔 v6: Notification Bell -->
-    <a href="/notifications/inbox/" class="nb" style="position:relative;flex-shrink:0;padding:6px 8px;" id="notif-bell">
-      🔔
-      <span id="notif-badge" style="position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px;"></span>
+    {# ── Notification Bell ── #}
+    <a href="/notifications/inbox/" class="nb"
+       style="position:relative;flex-shrink:0;padding:7px 9px;" title="الإشعارات" id="notif-bell">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+      <span id="notif-badge"
+            style="position:absolute;top:3px;right:3px;background:#ef4444;color:#fff;
+                   font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;
+                   display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1;"></span>
     </a>
 
-    <!-- User -->
-    <button class="nb" id="btn-user" onclick="sd('m-user',this)" style="gap:6px;flex-shrink:0;">
-      <span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">
+    {# ── User Menu ── #}
+    <button class="nb" id="btn-user" onclick="sd('m-user',this)"
+            style="gap:7px;flex-shrink:0;margin-right:2px;">
+      <span style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.22);
+                   display:flex;align-items:center;justify-content:center;
+                   font-size:12px;font-weight:700;flex-shrink:0;">
         {{ request.user.full_name|slice:":1" }}
       </span>
-      <span style="font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;">{{ request.user.full_name|truncatechars:13 }}</span>
+      <span style="font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        {{ request.user.full_name|truncatechars:12 }}
+      </span>
       <span class="chv">▼</span>
     </button>
 
   </div>
 </nav>
 
+{# ═════════════════ DROPDOWN MENUS (fixed-positioned) ════════════════════ #}
+{% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
+
+<div class="sd-menu" id="m-academic">
+  <div class="sd-label">الدراسة والتقييم</div>
+  <a href="/assessments/">📝 التقييمات والدرجات</a>
+  <a href="/reports/">📊 التقارير الأكاديمية</a>
+  <a href="/analytics/">📈 الإحصاءات والتحليل</a>
+  <hr>
+  <div class="sd-label">الجدول الدراسي</div>
+  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/absences/">🚫 غياب المعلمين والبدلاء</a>
+  <a href="/import/">📥 استيراد الدرجات</a>
+</div>
+
+<div class="sd-menu" id="m-quality">
+  <div class="sd-label">الخطة التشغيلية</div>
+  <a href="/quality/">📊 لوحة الخطة</a>
+  <a href="/quality/report/">📈 تقرير التقدم</a>
+  <a href="/quality/executor-mapping/">🔗 ربط المنفذين</a>
+  <hr>
+  <div class="sd-label">اللجان</div>
+  <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
+  <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
+  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" %}
+  <hr>
+  <div class="sd-label">تقييم الأداء</div>
+  <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
+  {% endif %}
+  <hr>
+  <a href="/quality/my-procedures/">📝 إجراءاتي</a>
+</div>
+
+<div class="sd-menu" id="m-admin">
+  <div class="sd-label">إدارة المدرسة</div>
+  <a href="/parents/admin/links/">👨‍👩‍👧 ربط أولياء الأمور</a>
+  <a href="/notifications/">🔔 مركز الإشعارات</a>
+  <hr>
+  <a href="/admin/">🛠️ لوحة الإدارة التقنية</a>
+</div>
+
+<div class="sd-menu" id="m-services">
+  <div class="sd-label">الخدمات الطلابية</div>
+  <a href="/clinic/">🏥 العيادة المدرسية</a>
+  <a href="/transport/">🚌 النقل المدرسي</a>
+  <a href="/behavior/dashboard/">⚖️ السلوك الطلابي</a>
+  <a href="/library/">📚 المكتبة</a>
+</div>
+
+{% endif %}{# end admin dropdowns #}
+
+<div class="sd-menu" id="m-user" style="min-width:200px;">
+  <div style="padding:10px 16px 9px;border-bottom:1px solid #f1f5f9;">
+    <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 2px;">{{ request.user.full_name }}</p>
+    <p style="font-size:11px;color:#64748b;margin:0 0 3px;">{{ request.user.national_id }}</p>
+    <p style="font-size:11px;color:#8A1538;font-weight:600;margin:0;">{{ request.user.get_role_display }}</p>
+  </div>
+  {% if request.user.memberships.count > 1 %}
+  <a href="/auth/choose-role/">🔄 تبديل الدور</a>
+  {% endif %}
+  <a href="/notifications/inbox/">🔔 الإشعارات</a>
+  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "admin" %}
+  <a href="/admin/">⚙️ لوحة الإدارة</a>
+  {% endif %}
+  <hr>
+  <form method="post" action="/auth/logout/" style="margin:0;">
+    {% csrf_token %}
+    <button type="submit"
+            style="display:flex;align-items:center;gap:8px;width:100%;text-align:right;padding:9px 16px;
+                   font-size:13px;color:#dc2626;background:none;border:none;cursor:pointer;font-family:inherit;">
+      🚪 تسجيل الخروج
+    </button>
+  </form>
+</div>
+
+{% endwith %}
+{% endif %}{# end user.is_authenticated #}
 
 
-<!-- ══ Messages ═══════════════════════════════════════════════ -->
+{# ═════════════════ FLASH MESSAGES ═══════════════════════════════════════ #}
 {% if messages %}
-<div style="max-width:1280px;margin:12px auto 0;padding:0 16px;" class="space-y-2">
+<div style="max-width:1280px;margin:14px auto 0;padding:0 16px;" class="space-y-2" id="msgs-wrap">
   {% for msg in messages %}
-  <div class="px-4 py-3 rounded-lg text-sm font-medium
-    {% if msg.tags == 'success' %}bg-green-100 text-green-800 border border-green-200
-    {% elif msg.tags == 'error' %}bg-red-100 text-red-800 border border-red-200
-    {% elif msg.tags == 'warning' %}bg-amber-100 text-amber-800 border border-amber-200
-    {% else %}bg-blue-100 text-blue-800 border border-blue-200{% endif %}">{{ msg }}</div>
+  <div class="msg-bar
+    {% if msg.tags == 'success' %}bg-green-50 border border-green-200 text-green-800
+    {% elif msg.tags == 'error'   %}bg-red-50   border border-red-200   text-red-800
+    {% elif msg.tags == 'warning' %}bg-amber-50 border border-amber-200 text-amber-800
+    {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+    <span style="flex-shrink:0;font-size:16px;">
+      {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+    </span>
+    <span style="flex:1;">{{ msg }}</span>
+    <button class="msg-x" type="button" onclick="this.closest('.msg-bar').remove()" title="إغلاق">✕</button>
+  </div>
   {% endfor %}
 </div>
-{% endif %}{# end if user.is_authenticated — nav only #}
+{% endif %}
 
-<main class="max-w-7xl mx-auto px-4 py-6">{% block content %}{% endblock %}</main>
 
-<footer class="text-center text-xs text-gray-400 py-4 mt-8 border-t">
-  SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التربية والتعليم والتعليم العالي
+{# ═════════════════ MAIN CONTENT ════════════════════════════════════════ #}
+<main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+  {% block content %}{% endblock %}
+</main>
+
+
+{# ═════════════════ FOOTER ══════════════════════════════════════════════ #}
+<footer style="border-top:1px solid #e5e7eb;padding:14px 16px;margin-top:auto;">
+  <p style="text-align:center;font-size:12px;color:#9ca3af;line-height:1.7;">
+    🇶🇦&ensp;SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين
+    &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
+  </p>
 </footer>
 
+
+{# ═════════════════ SCRIPTS ══════════════════════════════════════════════ #}
 <script>
+/* ── Dropdown positioning ──────────────────────────────────── */
 function sdPos(m, btn) {
-  // temporarily render invisible to get real dimensions
   m.classList.add('sd-measure');
-  var mw = m.offsetWidth;
-  var mh = m.offsetHeight;
+  var mw = m.offsetWidth, mh = m.offsetHeight;
   m.classList.remove('sd-measure');
   var r = btn.getBoundingClientRect();
   var top = r.bottom + 4;
@@ -201,41 +329,37 @@ function sdPos(m, btn) {
 }
 function sd(id, btn) {
   var m = document.getElementById(id);
+  if (!m) return;
   var isOpen = m.classList.contains('open');
-  document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
-  document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
-  if (!isOpen) {
-    sdPos(m, btn);
-    m.classList.add('open');
-    btn.classList.add('on');
-  }
+  document.querySelectorAll('.sd-menu.open').forEach(function(x){ x.classList.remove('open'); });
+  document.querySelectorAll('.nb.on').forEach(function(x){ x.classList.remove('on'); });
+  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); }
 }
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
-    document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
-    document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
+    document.querySelectorAll('.sd-menu.open').forEach(function(x){ x.classList.remove('open'); });
+    document.querySelectorAll('.nb.on').forEach(function(x){ x.classList.remove('on'); });
   }
 });
 window.addEventListener('resize', function() {
   document.querySelectorAll('.sd-menu.open').forEach(function(m) {
-    var btnId = 'btn-' + m.id.replace('m-','');
-    var btn = document.getElementById(btnId);
+    var btn = document.getElementById('btn-' + m.id.replace('m-',''));
     if (btn) sdPos(m, btn);
   });
 });
 
-// ══ 🔔 جرس الإشعارات ══════════════════════════════════
+{% if user.is_authenticated %}
+/* ── Notification bell polling (30 s) ────────────────────── */
 (function() {
   var badge = document.getElementById('notif-badge');
   if (!badge) return;
-
   function updateBadge() {
     fetch('/notifications/api/unread-count/', {
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
-    .then(function(r) { return r.ok ? r.json() : null; })
-    .then(function(data) {
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(data){
       if (!data) return;
       if (data.count > 0) {
         badge.textContent = data.count > 99 ? '99+' : data.count;
@@ -244,103 +368,22 @@ window.addEventListener('resize', function() {
         badge.style.display = 'none';
       }
     })
-    .catch(function() {});  // صمت عند الفشل
-  }
-
-  // تحديث فوري ثم كل 30 ثانية
-  updateBadge();
-  setInterval(updateBadge, 30000);
-})();
-</script>
-<!-- ══ Dropdown Menus (outside nav — fixed position) ══════════ -->
-
-<div class="sd-menu" id="m-academic">
-  <div class="sd-label">الدراسة</div>
-  <a href="/assessments/">📝 التقييمات</a>
-  <a href="/reports/">📊 التقارير</a>
-  <a href="/analytics/">📈 الإحصاءات</a>
-  <hr>
-  <div class="sd-label">الجدول</div>
-  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
-  <a href="/teacher/absences/">🚫 الغيابات</a>
-</div>
-
-<div class="sd-menu" id="m-quality">
-  <div class="sd-label">الخطة التشغيلية</div>
-  <a href="/quality/">📊 لوحة الخطة</a>
-  <a href="/quality/report/">📈 تقرير التقدم</a>
-  <a href="/quality/executor-mapping/">🔗 ربط المنفذين</a>
-  <hr>
-  <div class="sd-label">اللجان</div>
-  <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
-  <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
-  <hr>
-  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" %}
-  <div class="sd-label">تقييم الأداء</div>
-  <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
-  <hr>
-  {% endif %}
-  <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
-</div>
-
-<div class="sd-menu" id="m-admin">
-  <div class="sd-label">المدرسة</div>
-  <a href="/parents/admin/links/">👨‍👩‍👧 الأولياء</a>
-  <a href="/notifications/">🔔 الإشعارات</a>
-  <hr>
-  <a href="/admin/">🛠️ لوحة الإدارة</a>
-</div>
-
-<div class="sd-menu" id="m-services">
-  <a href="/clinic/">🏥 العيادة</a>
-  <a href="/transport/">🚌 النقل</a>
-  <a href="/behavior/dashboard/">⚖️ السلوك</a>
-  <a href="/library/">📚 المكتبة</a>
-</div>
-
-<div class="sd-menu" id="m-user" style="min-width:190px;">
-  <div style="padding:9px 16px 7px;border-bottom:1px solid #f1f5f9;">
-    <p style="font-size:13px;font-weight:600;color:#0f172a;margin:0;">{{ request.user.full_name }}</p>
-    <p style="font-size:11px;color:#64748b;margin:2px 0 0;">{{ request.user.national_id }}</p>
-    <p style="font-size:11px;color:#b91c1c;font-weight:500;margin:2px 0 0;">{{ request.user.get_role }}</p>
-  </div>
-  {% if request.user.memberships.count > 1 %}
-  <a href="/auth/choose-role/" style="color:#2563eb !important;">🔄 تبديل الدور</a>
-  {% endif %}
-  <a href="/admin/">⚙️ الإدارة</a>
-  <hr>
-  <form method="post" action="/auth/logout/" style="margin:0;padding:0">
-    {% csrf_token %}
-    <button type="submit" style="background:none;border:none;cursor:pointer;width:100%;text-align:right;padding:6px 12px;font-size:14px;color:#dc2626;display:block;">
-      🚪 تسجيل الخروج
-    </button>
-  </form>
-</div>
-
-{% endif %}{# end if user.is_authenticated — dropdowns #}
-
-{% if user.is_authenticated %}
-<script>
-(function(){
-  var badge = document.getElementById('notif-badge');
-  if (!badge) return;
-  function updateBadge(){
-    fetch('/notifications/api/unread-count/')
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if (d.count > 0) {
-          badge.textContent = d.count > 99 ? '99+' : d.count;
-          badge.style.display = 'flex';
-        } else {
-          badge.style.display = 'none';
-        }
-      })
-      .catch(function(){});
+    .catch(function(){});
   }
   updateBadge();
   setInterval(updateBadge, 30000);
 })();
-</script>
 {% endif %}
+
+/* ── Auto-dismiss flash messages after 7 s ──────────────── */
+setTimeout(function() {
+  document.querySelectorAll('.msg-bar').forEach(function(el) {
+    el.style.opacity = '0';
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 420);
+  });
+}, 7000);
+</script>
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>
