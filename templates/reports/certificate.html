@@ -1,31 +1,72 @@
 {% extends "reports/base_report.html" %}
 {% block report_subtitle %}شهادة نتيجة سنوية{% endblock %}
+
 {% block extra_styles %}
-.cert-frame{border:4px double #8A1538;border-radius:8px;padding:20px;margin:10px 0;text-align:center}
-.cert-avg{font-size:52px;font-weight:700;color:#8A1538;line-height:1}
-.cert-avg-lbl{font-size:11px;color:#666;margin-top:4px}
-.cert-status{display:inline-block;padding:8px 24px;border-radius:20px;font-size:18px;font-weight:700;margin:14px 0}
-.watermark{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-35deg);font-size:80px;color:rgba(138,21,56,0.05);font-weight:700;pointer-events:none;z-index:-1}
+.cert-frame {
+  border: 4px double #8A1538;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 10px 0;
+  text-align: center;
+}
+.cert-watermark {
+  text-align: center;
+  font-size: 52px;
+  font-weight: 700;
+  color: rgba(138,21,56,0.07);
+  letter-spacing: 8px;
+  margin: 0;
+  line-height: 1;
+}
+.cert-avg {
+  font-size: 52px;
+  font-weight: 700;
+  color: #8A1538;
+  line-height: 1;
+}
+.cert-avg-lbl {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+.cert-status {
+  display: inline-block;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  margin: 14px 0;
+}
 {% endblock %}
+
 {% block report_title_bar %}
 <div class="report-title">شهادة نتيجة سنوية — {{ year }}</div>
 {% endblock %}
+
 {% block report_meta %}
-<div class="report-meta">
-  <span>السنة الدراسية: <strong>{{ year }}</strong></span>
-  <span>تاريخ الإصدار: <strong>{{ print_date }}</strong></span>
-</div>
+<table class="report-meta-table">
+  <tr>
+    <td>السنة الدراسية: <strong>{{ year }}</strong></td>
+    <td>تاريخ الإصدار: <strong>{{ print_date }}</strong></td>
+  </tr>
+</table>
 {% endblock %}
+
 {% block content %}
-<div class="watermark">SchoolOS</div>
+{# علامة مائية نصية بدل position:fixed #}
+<div class="cert-watermark">SchoolOS</div>
 
 <div class="cert-frame">
-  <p style="font-size:13px;color:#555;margin-bottom:14px">تُشهد مدرسة الشحانية الإعدادية الثانوية للبنين بأن الطالب:</p>
+  <p style="font-size:13px;color:#555;margin-bottom:14px">
+    تُشهد مدرسة الشحانية الإعدادية الثانوية للبنين بأن الطالب:
+  </p>
 
-  <div style="font-size:24px;font-weight:700;color:#1a1a1a;margin:10px 0">{{ student.full_name }}</div>
+  <div style="font-size:24px;font-weight:700;color:#1a1a1a;margin:10px 0">
+    {{ student.full_name }}
+  </div>
   <div style="font-size:12px;color:#666;margin-bottom:16px">
     الرقم الوطني: {{ student.national_id|default:"—" }}
-    {% if enrollment %} | الفصل: {{ enrollment.class_group }}{% endif %}
+    {% if enrollment %} &nbsp;|&nbsp; الفصل: {{ enrollment.class_group }}{% endif %}
   </div>
 
   <div style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:16px;margin:14px 0">
@@ -33,7 +74,8 @@
     <div class="cert-avg-lbl">المعدل السنوي من 100</div>
   </div>
 
-  <div class="cert-status" style="background:{% if final_status == 'ناجح' %}#dcfce7{% elif final_status == 'راسب' %}#fee2e2{% else %}#fef3c7{% endif %};
+  <div class="cert-status" style="
+    background:{% if final_status == 'ناجح' %}#dcfce7{% elif final_status == 'راسب' %}#fee2e2{% else %}#fef3c7{% endif %};
     color:{{ status_color }}">
     {{ final_status }}
   </div>
@@ -75,9 +117,9 @@
       <td style="font-weight:700">{% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}</td>
       <td>
         {% if row.annual %}
-          {% if row.annual.status == "pass" %}<span class="status-pass">ناجح</span>
-          {% elif row.annual.status == "fail" %}<span class="status-fail">راسب</span>
-          {% else %}<span class="status-incomplete">غير مكتمل</span>{% endif %}
+          {% if row.annual.status == "pass" %}<span class="badge-pass">ناجح</span>
+          {% elif row.annual.status == "fail" %}<span class="badge-fail">راسب</span>
+          {% else %}<span class="badge-warn">غير مكتمل</span>{% endif %}
         {% else %}—{% endif %}
       </td>
     </tr>
@@ -85,10 +127,33 @@
   </tbody>
 </table>
 {% endblock %}
+
 {% block signatures %}
 <div class="signature-section">
-  <div class="signature-box"><div class="line"></div><div>المعلم المشرف</div></div>
-  <div class="signature-box"><div class="line"></div><div>ولي الأمر</div></div>
-  <div class="signature-box"><div class="line"></div><div>مدير المدرسة</div></div>
+  <table class="signature-table">
+    <tr>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">المعلم المشرف</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">ولي الأمر</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">مدير المدرسة</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 {% endblock %}
