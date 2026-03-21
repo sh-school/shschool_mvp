@@ -270,39 +270,3 @@ def behavior_policy_pdf(request):
         {"generated_at": timezone.now(), "academic_year": "2025-2026", "school": request.user.get_school()},
         "behavior_policy_2025-2026.pdf")
 
-
-# ════════════════════════════════════════════════════════════════
-# Word (.docx) النماذج
-# ════════════════════════════════════════════════════════════════
-
-@login_required
-def infraction_warning_word(request, infraction_id):
-    from core.docx_utils import generate_warning_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_warning_docx(ctx)
-
-@login_required
-def infraction_parent_word(request, infraction_id):
-    from core.docx_utils import generate_parent_undertaking_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_parent_undertaking_docx(ctx)
-
-@login_required
-def infraction_student_word(request, infraction_id):
-    from core.docx_utils import generate_student_undertaking_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_student_undertaking_docx(ctx)
-
-@login_required
-def behavior_policy_word(request):
-    from core.docx_utils import generate_policy_docx
-    return generate_policy_docx({
-        "generated_at": timezone.now(), "academic_year": "2025-2026",
-        "school": request.user.get_school(),
-    })

@@ -22,10 +22,4 @@ urlpatterns = [
     path("infraction/<uuid:infraction_id>/pdf/student/",  views.infraction_student_pdf, name="student_pdf"),
     # ✅ v5: لائحة السلوك PDF — للموظفين + أولياء الأمور
     path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
-
-    # ✅ v5+: Word (.docx) النماذج الثلاثة + اللائحة
-    path("infraction/<uuid:infraction_id>/word/warning/",  views.infraction_warning_word, name="warning_word"),
-    path("infraction/<uuid:infraction_id>/word/parent/",   views.infraction_parent_word,  name="parent_word"),
-    path("infraction/<uuid:infraction_id>/word/student/",  views.infraction_student_word, name="student_word"),
-    path("policy/word/", views.behavior_policy_word, name="policy_word"),
 ]
