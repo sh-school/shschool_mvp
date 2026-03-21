@@ -1,8 +1,11 @@
+import logging
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count, Q
 from operations.models import Session, StudentAttendance, AbsenceAlert, ScheduleSlot, TeacherAbsence, SubstituteAssignment
 from core.models import StudentEnrollment
+
+logger = logging.getLogger(__name__)
 
 
 class AttendanceService:
@@ -91,7 +94,7 @@ class AttendanceService:
         threshold_days = int(base * AttendanceService.ABSENCE_THRESHOLD_PCT)
 
         if unexcused_absent >= threshold_days:
-            AbsenceAlert.objects.get_or_create(
+            alert, created = AbsenceAlert.objects.get_or_create(
                 school=school,
                 student=student,
                 status="pending",
@@ -99,6 +102,28 @@ class AttendanceService:
                 period_end=year_end,
                 defaults={"absence_count": unexcused_absent}
             )
+            # إرسال إشعار للأولياء عند إنشاء التنبيه لأول مرة
+            if created:
+                try:
+                    from notifications.hub import NotificationHub
+                    NotificationHub.dispatch_to_parents(
+                        event_type="absence",
+                        school=school,
+                        student=student,
+                        title=f"⚠️ تنبيه غياب — {student.full_name}",
+                        body=(
+                            f"تجاوز ابنكم العتبة القانونية للغياب بدون عذر "
+                            f"({unexcused_absent} يوماً من أصل {threshold_days} مسموح).\n"
+                            f"يُرجى التواصل مع المدرسة."
+                        ),
+                        context={"student": student, "absence_count": unexcused_absent},
+                        related_url=f"/operations/attendance/student/{student.pk}/",
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "check_absence_threshold: Hub dispatch failed [student=%s]: %s",
+                        student.pk, exc
+                    )
 
     @staticmethod
     def get_session_summary(session):

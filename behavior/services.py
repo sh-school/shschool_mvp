@@ -409,71 +409,45 @@ class BehaviorService:
             "parent_email":     parent.email if parent else None,
         }
 
-    # ── إشعار أولياء الأمور ────────────────────────────────
+    # ── إشعار أولياء الأمور عبر NotificationHub ────────────
     @staticmethod
     def notify_parents(infraction, school, reporter):
-        """إشعار أولياء الأمور عبر البريد/SMS"""
+        """
+        إشعار أولياء الأمور عبر NotificationHub المركزي.
+        يُوزّع تلقائياً على: in_app + push + whatsapp + email + sms
+        حسب درجة المخالفة وتفضيلات كل ولي أمر.
+        """
         try:
-            from notifications.services import NotificationService
-            from django.template.loader import render_to_string
+            from notifications.hub import NotificationHub
 
-            links = ParentStudentLink.objects.filter(
-                student=infraction.student, school=school
-            ).select_related("parent")
-            if not links.exists():
-                return
+            event_type = f"behavior_l{infraction.level}"   # behavior_l1 … behavior_l4
+            title = (
+                f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
+                f"({LEVEL_DISPLAY.get(infraction.level, '')})"
+            )
+            body = (
+                f"{LEVEL_DESC.get(infraction.level, '')}\n"
+                f"التاريخ: {infraction.date.strftime('%Y/%m/%d') if infraction.date else ''} | "
+                f"النقاط المخصومة: {infraction.points_deducted}"
+            )
 
-            ctx = {
-                "school_name":       school.name,
-                "student_name":      infraction.student.full_name,
-                "level":             infraction.level,
-                "level_display":     LEVEL_DISPLAY.get(infraction.level, ""),
-                "level_description": LEVEL_DESC.get(infraction.level, ""),
-                "infraction_date":   infraction.date.strftime("%Y/%m/%d") if infraction.date else "",
-                "points_deducted":   infraction.points_deducted,
-                "description":       infraction.description,
-                "action_taken":      infraction.action_taken,
-                "reported_by":       reporter.full_name,
-            }
-
-            for link in links:
-                parent = link.parent
-                ctx["parent_name"] = parent.full_name
-
-                subject = (
-                    f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
-                    f"({LEVEL_DISPLAY.get(infraction.level, '')})"
-                )
-
-                if parent.email:
-                    try:
-                        body_html = render_to_string("notifications/email/behavior_html.html", ctx)
-                        body_text = render_to_string("notifications/email/behavior_text.txt", ctx)
-                        NotificationService.send_email(
-                            school=school, recipient_email=parent.email,
-                            subject=subject, body_text=body_text, body_html=body_html,
-                            student=infraction.student, notif_type="behavior", sent_by=reporter,
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "notify_parents: email failed for %s [infraction=%s]: %s",
-                            parent.email, infraction.pk, e, exc_info=True
-                        )
-
-                if infraction.level >= 2 and parent.phone:
-                    sms_body = (
-                        f"مدرسة الشحانية: تم تسجيل {LEVEL_DISPLAY.get(infraction.level, 'مخالفة')} "
-                        f"لابنكم {infraction.student.full_name}. يُرجى التواصل مع المدرسة."
-                    )
-                    try:
-                        NotificationService.send_sms(
-                            school=school, phone_number=parent.phone, message=sms_body,
-                            student=infraction.student, notif_type="behavior", sent_by=reporter,
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "notify_parents: SMS failed for %s [infraction=%s]: %s",
-                            parent.phone, infraction.pk, e, exc_info=True
-                        )
+            NotificationHub.dispatch_to_parents(
+                event_type=event_type,
+                school=school,
+                student=infraction.student,
+                title=title,
+                body=body,
+                context={
+                    "infraction":  infraction,
+                    "reporter":    reporter,
+                    "level":       infraction.level,
+                },
+                related_object_id=infraction.pk,
+                related_url=f"/behavior/student/{infraction.student.pk}/",
+                sent_by=reporter,
+            )
         except Exception as e:
-            logger.error("notify_parents: unexpected error [infraction=%s]: %s", infraction.pk, e, exc_info=True)
+            logger.error(
+                "notify_parents: Hub dispatch failed [infraction=%s]: %s",
+                infraction.pk, e, exc_info=True
+            )

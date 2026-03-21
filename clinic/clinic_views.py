@@ -108,36 +108,34 @@ def record_visit(request, student_id=None):
             is_sent_home= request.POST.get('is_sent_home') == 'on',
         )
 
-        # إرسال إشعار لولي الأمر عند إرسال الطالب للمنزل
+        # إرسال إشعار لولي الأمر عند إرسال الطالب للمنزل (عبر NotificationHub)
         if visit.is_sent_home:
             try:
-                from notifications.services import NotificationService
-                from core.models import ParentStudentLink
-                links = ParentStudentLink.objects.filter(
-                    student=visit.student, school=school
-                ).select_related('parent')
-                for link in links:
-                    parent = link.parent
-                    msg = (
-                        f"مدرسة الشحانية: تم إرسال ابنكم {visit.student.full_name} "
-                        f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
+                from notifications.hub import NotificationHub
+                NotificationHub.dispatch_to_parents(
+                    event_type="sent_home",
+                    school=school,
+                    student=visit.student,
+                    title=f"🏠 تم إرسال ابنكم إلى المنزل — {visit.student.full_name}",
+                    body=(
+                        f"أفادت الممرضة بأن ابنكم تم إرساله من العيادة المدرسية "
+                        f"بسبب: {visit.reason}.\n"
                         f"يُرجى التواصل مع المدرسة للاستفسار."
-                    )
-                    if parent.email:
-                        NotificationService.send_email(
-                            school         = school,
-                            recipient_email= parent.email,
-                            subject        = f"إشعار: {visit.student.full_name} في العيادة",
-                            body_text      = msg,
-                            student        = visit.student,
-                            notif_type     = "custom",
-                            sent_by        = nurse,
-                        )
+                    ),
+                    context={"visit": visit, "nurse": nurse},
+                    related_object_id=visit.pk,
+                    related_url=f"/clinic/",
+                    sent_by=nurse,
+                )
                 visit.parent_notified = True
-                visit.save()
-            except Exception:
+                visit.save(update_fields=["parent_notified"])
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).error(
+                    "record_visit: Hub dispatch failed [visit=%s]: %s", visit.pk, exc
+                )
                 visit.parent_notified = False
-                visit.save()
+                visit.save(update_fields=["parent_notified"])
 
         if request.headers.get('HX-Request'):
             return render(request, 'clinic/visit_card.html', {'visit': visit})
