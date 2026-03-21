@@ -1,60 +1,45 @@
 {% load static %}
 {# base_report.html — القالب الأساسي لكل تقارير PDF #}
-{# يشمل: Header المدرسة، شعار قطر، ترقيم الصفحات، تاريخ الطباعة #}
+{# متوافق مع WeasyPrint + xhtml2pdf (Windows fallback) #}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <style>
+  /* ─── الخطوط تُحقن تلقائياً من pdf_utils._inject_fonts() ──────── */
+  /* ─── صفحة A4 ────────────────────────────────────────────────────── */
   @page {
     size: A4;
     margin: 2cm 1.5cm 2.5cm 1.5cm;
-    @top-center {
-      content: "{% block page_header %}مدرسة الشحانية الإعدادية الثانوية للبنين{% endblock %}";
-      font-family: 'Tajawal', 'Amiri', sans-serif;
-      font-size: 9px;
-      color: #8A1538;
-    }
-    @bottom-center {
-      content: "صفحة " counter(page) " من " counter(pages);
-      font-family: 'Tajawal', 'Amiri', sans-serif;
-      font-size: 9px;
-      color: #666;
-    }
-    @bottom-left {
-      content: "{% block page_footer_left %}SchoolOS{% endblock %}";
-      font-size: 8px;
-      color: #999;
-    }
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'Amiri', 'Tajawal', 'Arial', sans-serif;
+    font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
     font-size: 12px;
     line-height: 1.6;
     color: #1a1a1a;
     direction: rtl;
   }
 
-  /* ── Header المدرسة ────────────────────────── */
+  /* ─── Header المدرسة ─────────────────────────────────────────────── */
   .report-header {
     text-align: center;
     border-bottom: 3px solid #8A1538;
     padding-bottom: 12px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
   }
   .report-header h1 {
     font-family: 'Tajawal', 'Amiri', sans-serif;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     color: #8A1538;
     margin: 0;
   }
   .report-header h2 {
     font-family: 'Tajawal', 'Amiri', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     color: #444;
     margin: 4px 0 0;
@@ -62,69 +47,70 @@
   .report-header .school-info {
     font-size: 10px;
     color: #666;
-    margin-top: 6px;
+    margin-top: 5px;
   }
 
-  /* ── عنوان التقرير ─────────────────────────── */
+  /* ─── عنوان التقرير ──────────────────────────────────────────────── */
   .report-title {
     background: #8A1538;
     color: #fff;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 4px;
     font-family: 'Tajawal', 'Amiri', sans-serif;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     text-align: center;
-    margin: 16px 0;
+    margin: 12px 0;
   }
 
-  /* ── معلومات التقرير ────────────────────────── */
+  /* ─── معلومات التقرير (table بدل flex) ──────────────────────────── */
   .report-meta {
-    display: flex;
-    justify-content: space-between;
+    width: 100%;
     font-size: 11px;
     color: #555;
-    margin-bottom: 16px;
-    padding: 8px 12px;
+    margin-bottom: 12px;
+    padding: 6px 10px;
     background: #fdf2f5;
     border-radius: 4px;
+    border: 1px solid #f0d0db;
   }
-  .report-meta span { display: inline-block; }
-
-  /* ── الجداول ────────────────────────────────── */
-  table {
+  .report-meta-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 12px 0;
+  }
+  .report-meta-table td {
+    padding: 2px 8px;
+    text-align: center;
+    border: none;
+    background: transparent;
     font-size: 11px;
+    color: #555;
   }
-  th {
-    background: #8A1538;
-    color: #fff;
-    padding: 8px 6px;
-    font-weight: 600;
-    text-align: center;
-    font-family: 'Tajawal', 'Amiri', sans-serif;
-  }
-  td {
-    padding: 6px;
-    border-bottom: 1px solid #e5e5e5;
-    text-align: center;
-  }
-  tr:nth-child(even) { background: #fdf8f9; }
-  tr:hover { background: #fef0f2; }
 
-  /* ── بطاقات الإحصائيات ──────────────────────── */
-  .stats-row {
-    display: flex;
-    gap: 12px;
-    margin: 16px 0;
+  /* ─── بطاقات الإحصائيات (table بدل flex) ────────────────────────── */
+  .stats-row-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 8px;
+    margin: 12px 0;
   }
-  .stat-card {
-    flex: 1;
+  .stats-row-table td {
     background: #f8f9fa;
     border: 1px solid #e5e5e5;
-    border-radius: 6px;
+    border-radius: 4px;
+    padding: 10px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  /* دعم قديم: .stats-row مع float */
+  .stats-row { width: 100%; overflow: hidden; margin: 12px 0; }
+  .stat-card {
+    float: right;
+    width: 22%;
+    margin-left: 2%;
+    background: #f8f9fa;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
     padding: 10px;
     text-align: center;
   }
@@ -139,38 +125,78 @@
     margin-top: 2px;
   }
 
-  /* ── ألوان الحالة ───────────────────────────── */
-  .status-pass { color: #16a34a; font-weight: 700; }
-  .status-fail { color: #dc2626; font-weight: 700; }
-  .status-incomplete { color: #d97706; }
-
-  /* ── التوقيع ────────────────────────────────── */
-  .signature-section {
-    margin-top: 40px;
-    display: flex;
-    justify-content: space-between;
+  /* ─── الجداول ────────────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
     font-size: 11px;
   }
-  .signature-box {
+  th {
+    background: #8A1538;
+    color: #fff;
+    padding: 7px 6px;
+    font-weight: 600;
     text-align: center;
-    width: 30%;
+    font-family: 'Tajawal', 'Amiri', sans-serif;
   }
+  td {
+    padding: 6px;
+    border-bottom: 1px solid #e5e5e5;
+    text-align: center;
+  }
+  tr:nth-child(even) td { background: #fdf8f9; }
+
+  /* ─── ألوان الحالة ───────────────────────────────────────────────── */
+  .status-pass       { color: #16a34a; font-weight: 700; }
+  .status-fail       { color: #dc2626; font-weight: 700; }
+  .status-incomplete { color: #d97706; }
+
+  /* ─── التوقيع (table بدل flex) ──────────────────────────────────── */
+  .signature-section {
+    margin-top: 36px;
+    width: 100%;
+  }
+  .signature-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .signature-table td {
+    text-align: center;
+    padding: 0 12px;
+    border: none;
+    background: transparent;
+    vertical-align: bottom;
+    font-size: 11px;
+    color: #333;
+  }
+  .signature-box { text-align: center; }
   .signature-box .line {
     border-top: 1px solid #333;
-    margin: 30px auto 6px;
+    margin: 28px auto 6px;
     width: 80%;
   }
 
-  /* ── طباعة ──────────────────────────────────── */
+  /* ─── فاصل الصفحات ───────────────────────────────────────────────── */
   .page-break { page-break-before: always; }
-  .no-break { page-break-inside: avoid; }
+  .no-break   { page-break-inside: avoid; }
+
+  /* ─── تذييل الصفحة (xhtml2pdf compatible) ───────────────────────── */
+  .pdf-footer {
+    text-align: center;
+    font-size: 9px;
+    color: #888;
+    margin-top: 24px;
+    border-top: 1px solid #e5e5e5;
+    padding-top: 6px;
+  }
 
   {% block extra_styles %}{% endblock %}
 </style>
 </head>
 <body>
 
-<!-- Header -->
+<!-- Header المدرسة -->
 <div class="report-header">
   <h1>{% block school_name %}مدرسة الشحانية الإعدادية الثانوية للبنين{% endblock %}</h1>
   <h2>{% block report_subtitle %}{% endblock %}</h2>
@@ -184,6 +210,10 @@
 {% block content %}{% endblock %}
 
 {% block signatures %}{% endblock %}
+
+<div class="pdf-footer">
+  SchoolOS v6 &nbsp;|&nbsp; {% block page_footer_left %}{% endblock %} &nbsp;|&nbsp; {% now "Y-m-d" %}
+</div>
 
 </body>
 </html>
