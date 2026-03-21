@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 INSTALLED_APPS = [
     "django.contrib.admin",
     "storages",
+    "drf_spectacular",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -139,10 +140,58 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS":       "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS":   "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE":                   50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "120/minute",
+    },
+}
+
+# ── OpenAPI (drf-spectacular) ─────────────────────────────────────────
+SPECTACULAR_SETTINGS = {
+    "TITLE":              "SchoolOS API",
+    "DESCRIPTION":        (
+        "واجهة برمجية لمنصة إدارة مدرسة الشحانية الإعدادية الثانوية للبنين\n\n"
+        "**المصادقة:** Session (المتصفح) أو JWT Bearer Token (التطبيق المحمول)\n\n"
+        "**الإصدار:** v1 | **الترخيص:** خاص بوزارة التربية والتعليم — دولة قطر"
+    ),
+    "VERSION":            "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/v1/",
+    "TAGS": [
+        {"name": "auth",          "description": "المصادقة وبيانات المستخدم"},
+        {"name": "students",      "description": "الطلاب — درجات وغياب"},
+        {"name": "classes",       "description": "الفصول الدراسية ونتائجها"},
+        {"name": "sessions",      "description": "الحصص الدراسية"},
+        {"name": "attendance",    "description": "سجل الحضور والغياب"},
+        {"name": "behavior",      "description": "المخالفات السلوكية"},
+        {"name": "notifications", "description": "الإشعارات الداخلية"},
+        {"name": "analytics",     "description": "مؤشرات الأداء والتحليلات"},
+        {"name": "parent",        "description": "بوابة ولي الأمر"},
+        {"name": "library",       "description": "المكتبة المدرسية"},
+        {"name": "clinic",        "description": "العيادة المدرسية"},
+    ],
+}
+
+# ── JWT (Simple JWT) ──────────────────────────────────────────────────
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":  timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":  True,
+    "AUTH_HEADER_TYPES":      ("Bearer",),
+    "USER_ID_FIELD":          "id",
+    "USER_ID_CLAIM":          "user_id",
 }
 
 # ── البريد الإلكتروني ──────────────────────────────

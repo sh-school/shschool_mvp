@@ -22,6 +22,7 @@ urlpatterns = [
     path("behavior/",      include("behavior.urls")),
     path("library/",       include("library.urls")),
     path("api/",           include("operations.api_urls")),
+    path("api/v1/",        include("api.urls", namespace="api_v1")),
     # ✅ v5: وحدة كنترول الاختبارات
     path("exam-control/",  include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
