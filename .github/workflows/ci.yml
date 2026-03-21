@@ -67,6 +67,13 @@ jobs:
         run: python manage.py makemigrations --check --noinput
         continue-on-error: false
 
+      - name: فحص Health Check endpoint
+        run: |
+          python manage.py runserver 8000 &
+          sleep 5
+          curl -f http://localhost:8000/health/ | python -m json.tool
+          kill %1
+
       - name: تشغيل الاختبارات
         run: |
           pytest tests/ -v --tb=short --no-header \
@@ -80,10 +87,3 @@ jobs:
         with:
           name: test-results
           path: test-results.xml
-
-      - name: فحص Health Check endpoint
-        run: |
-          python manage.py runserver 8000 &
-          sleep 5
-          curl -f http://localhost:8000/health/ | python -m json.tool
-          kill %1

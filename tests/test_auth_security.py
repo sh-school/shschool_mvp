@@ -134,7 +134,7 @@ class TestPasswordChange:
         teacher_user.save(update_fields=["must_change_password"])
 
         c = client_as(teacher_user)
-        resp = c.post("/auth/force_change_password/", {
+        c.post("/auth/force_change_password/", {
             "password1": "newSecure!pass99",
             "password2": "newSecure!pass99",
         }, follow=True)
@@ -164,6 +164,7 @@ class TestPasswordChange:
             "password1": "short",
             "password2": "short",
         })
+        assert resp.status_code == 200
         teacher_user.refresh_from_db()
         assert teacher_user.must_change_password is True
 

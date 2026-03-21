@@ -201,8 +201,8 @@ def _register_fonts_reportlab() -> list:
         if "Amiri" in registered and "Amiri-Bold" in registered:
             registerFontFamily("Amiri", normal="Amiri", bold="Amiri-Bold",
                                italic="Amiri", boldItalic="Amiri-Bold")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("registerFontFamily failed: %s", e)
     return registered
 
 
