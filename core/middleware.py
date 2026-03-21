@@ -5,7 +5,7 @@ core/middleware.py
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 
-EXEMPT = ["/auth/", "/admin/", "/static/", "/media/"]
+EXEMPT = ["/auth/", "/admin/", "/static/", "/media/", "/health/"]
 
 PROTECTED_PATHS = {
     "/assessments/":  ["principal", "vice_academic", "vice_admin", "teacher", "coordinator", "admin"],

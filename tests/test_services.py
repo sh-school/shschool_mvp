@@ -46,11 +46,9 @@ def assessment_package_s1(db, school, subject_setup):
     from assessments.models import AssessmentPackage
     return AssessmentPackage.objects.create(
         school=school, setup=subject_setup,
-        semester=1, package_type="ongoing",
-        name="أعمال الفصل الأول",
+        semester="S1", package_type="P1",
         weight=Decimal("50"),     # 50% من 40 = 20 درجة
         semester_max_grade=Decimal("40"),
-        max_grade=Decimal("20"),
     )
 
 
@@ -59,7 +57,7 @@ def assessment(db, school, assessment_package_s1):
     from assessments.models import Assessment
     return Assessment.objects.create(
         school=school, package=assessment_package_s1,
-        name="اختبار شهري 1",
+        title="اختبار شهري 1",
         max_grade=Decimal("20"),
         date=date.today(),
     )

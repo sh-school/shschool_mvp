@@ -113,16 +113,20 @@ class TestOperationsModels:
         assignment = SubstituteAssignment.objects.create(
             absence=absence, slot=schedule_slot,
             substitute=sub_teacher, assigned_by=teacher_user,
+            school=school,
         )
         assert assignment.substitute.full_name == "بديل"
 
     def test_absence_alert(self, school, student_user):
+        from datetime import date, timedelta
         alert = AbsenceAlert.objects.create(
             school=school, student=student_user,
-            absent_count=5,
-            total_sessions=20,
+            absence_count=5,
+            period_start=date.today() - timedelta(days=7),
+            period_end=date.today(),
+            status="pending",
         )
-        assert alert.absent_count == 5
+        assert alert.absence_count == 5
 
 
 # ══════════════════════════════════════════════════
@@ -133,40 +137,40 @@ class TestOperationsViews:
 
     def test_schedule_page_teacher(self, client_as, teacher_user):
         c = client_as(teacher_user)
-        resp = c.get("/operations/schedule/")
+        resp = c.get("/teacher/schedule/")
         assert resp.status_code == 200
 
     def test_attendance_page(self, client_as, teacher_user, session):
         c = client_as(teacher_user)
-        resp = c.get(f"/operations/attendance/{session.id}/")
+        resp = c.get(f"/teacher/attendance/{session.id}/")
         assert resp.status_code == 200
 
     def test_weekly_schedule_page(self, client_as, principal_user):
         c = client_as(principal_user)
-        resp = c.get("/operations/weekly-schedule/")
+        resp = c.get("/teacher/weekly-schedule/")
         assert resp.status_code == 200
 
     def test_daily_report(self, client_as, principal_user):
         c = client_as(principal_user)
-        resp = c.get("/operations/reports/daily/")
+        resp = c.get("/teacher/reports/daily/")
         assert resp.status_code == 200
 
     def test_absence_list(self, client_as, principal_user):
         c = client_as(principal_user)
-        resp = c.get("/operations/absences/")
+        resp = c.get("/teacher/absences/")
         assert resp.status_code == 200
 
     def test_attendance_forbidden_for_parent(self, client_as, parent_user, session):
-        """ولي الأمر لا يمكنه تسجيل الحضور"""
+        """ولي الأمر لا يمكنه تسجيل الحضور — يُعاد توجيهه أو يُرفض"""
         c = client_as(parent_user)
-        resp = c.get(f"/operations/attendance/{session.id}/")
-        assert resp.status_code == 403
+        resp = c.get(f"/teacher/attendance/{session.id}/")
+        assert resp.status_code in [302, 403]  # ParentConsentMiddleware قد يُعيد توجيهاً
 
     def test_mark_single_attendance(self, client_as, teacher_user, session, student_user,
                                      enrolled_student, school):
         c = client_as(teacher_user)
         resp = c.post(
-            f"/operations/attendance/{session.id}/mark-single/",
+            f"/teacher/attendance/{session.id}/mark-single/",
             {"student_id": str(student_user.id), "status": "present"},
         )
         # HTMX عادةً يرجع 200 أو redirect
@@ -174,7 +178,7 @@ class TestOperationsViews:
 
     def test_complete_session(self, client_as, teacher_user, session):
         c = client_as(teacher_user)
-        resp = c.post(f"/operations/attendance/{session.id}/complete/")
+        resp = c.post(f"/teacher/attendance/{session.id}/complete/")
         assert resp.status_code in [200, 302]
         session.refresh_from_db()
         assert session.status == "completed"

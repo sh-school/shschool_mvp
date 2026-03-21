@@ -6,6 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "storages",
+    "drf_spectacular",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -107,6 +109,21 @@ STATIC_ROOT      = BASE_DIR / "staticfiles"
 MEDIA_URL        = "/media/"
 MEDIA_ROOT       = config("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 
+# ── S3 / Object Storage (اختياري — يُفعَّل في الإنتاج) ──────────────
+# pip install django-storages[boto3]
+# اضبط USE_S3=true في .env مع متغيرات AWS_* أو نقطة نهاية S3 متوافقة (MinIO, Wasabi, Cloudflare R2)
+USE_S3                  = config("USE_S3", default=False, cast=bool)
+AWS_ACCESS_KEY_ID       = config("AWS_ACCESS_KEY_ID",       default="")
+AWS_SECRET_ACCESS_KEY   = config("AWS_SECRET_ACCESS_KEY",   default="")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
+AWS_S3_REGION_NAME      = config("AWS_S3_REGION_NAME",      default="me-south-1")
+AWS_S3_ENDPOINT_URL     = config("AWS_S3_ENDPOINT_URL",     default="")   # لـ MinIO / غير AWS
+AWS_S3_FILE_OVERWRITE   = False
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_DEFAULT_ACL         = "private"   # ملفات خاصة (PDPPL)
+AWS_QUERYSTRING_AUTH    = True        # روابط موقعة مؤقتة
+AWS_QUERYSTRING_EXPIRE  = 3600        # صالح ساعة
+
 LOGIN_URL          = "/auth/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL= "/auth/login/"
@@ -120,13 +137,65 @@ CSRF_FAILURE_VIEW           = "django.views.csrf.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+_AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
+try:
+    __import__("rest_framework_simplejwt")
+    _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
+except ImportError:
+    pass
+
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.SessionAuthentication",
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS":       "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS":   "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE":                   50,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "user": "120/minute",
+    },
+}
+
+# ── OpenAPI (drf-spectacular) ─────────────────────────────────────────
+SPECTACULAR_SETTINGS = {
+    "TITLE":              "SchoolOS API",
+    "DESCRIPTION":        (
+        "واجهة برمجية لمنصة إدارة مدرسة الشحانية الإعدادية الثانوية للبنين\n\n"
+        "**المصادقة:** Session (المتصفح) أو JWT Bearer Token (التطبيق المحمول)\n\n"
+        "**الإصدار:** v1 | **الترخيص:** خاص بوزارة التربية والتعليم — دولة قطر"
+    ),
+    "VERSION":            "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": r"/api/v1/",
+    "TAGS": [
+        {"name": "auth",          "description": "المصادقة وبيانات المستخدم"},
+        {"name": "students",      "description": "الطلاب — درجات وغياب"},
+        {"name": "classes",       "description": "الفصول الدراسية ونتائجها"},
+        {"name": "sessions",      "description": "الحصص الدراسية"},
+        {"name": "attendance",    "description": "سجل الحضور والغياب"},
+        {"name": "behavior",      "description": "المخالفات السلوكية"},
+        {"name": "notifications", "description": "الإشعارات الداخلية"},
+        {"name": "analytics",     "description": "مؤشرات الأداء والتحليلات"},
+        {"name": "parent",        "description": "بوابة ولي الأمر"},
+        {"name": "library",       "description": "المكتبة المدرسية"},
+        {"name": "clinic",        "description": "العيادة المدرسية"},
+    ],
+}
+
+# ── JWT (Simple JWT) ──────────────────────────────────────────────────
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME":  timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS":  True,
+    "AUTH_HEADER_TYPES":      ("Bearer",),
+    "USER_ID_FIELD":          "id",
+    "USER_ID_CLAIM":          "user_id",
 }
 
 # ── البريد الإلكتروني ──────────────────────────────

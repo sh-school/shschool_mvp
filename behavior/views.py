@@ -5,7 +5,8 @@
 Views نحيفة — كل Business Logic في behavior/services.py
 """
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, FileResponse, Http404
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
@@ -266,43 +267,15 @@ def infraction_student_pdf(request, infraction_id):
 
 @login_required
 def behavior_policy_pdf(request):
-    return _render_behavior_pdf("behavior/pdf/policy_doc.html",
-        {"generated_at": timezone.now(), "academic_year": "2025-2026", "school": request.user.get_school()},
-        "behavior_policy_2025-2026.pdf")
+    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
+    import os
+    pdf_path = os.path.join(settings.BASE_DIR, "static", "docs", "behavior_policy_2025-2026.pdf")
+    if not os.path.exists(pdf_path):
+        raise Http404("ملف اللائحة غير موجود")
+    return FileResponse(
+        open(pdf_path, "rb"),
+        content_type="application/pdf",
+        as_attachment=False,
+        filename="behavior_policy_2025-2026.pdf",
+    )
 
-
-# ════════════════════════════════════════════════════════════════
-# Word (.docx) النماذج
-# ════════════════════════════════════════════════════════════════
-
-@login_required
-def infraction_warning_word(request, infraction_id):
-    from core.docx_utils import generate_warning_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_warning_docx(ctx)
-
-@login_required
-def infraction_parent_word(request, infraction_id):
-    from core.docx_utils import generate_parent_undertaking_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_parent_undertaking_docx(ctx)
-
-@login_required
-def infraction_student_word(request, infraction_id):
-    from core.docx_utils import generate_student_undertaking_docx
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
-    ctx = BehaviorService.get_infraction_context(inf)
-    ctx["received_by"] = request.user.full_name
-    return generate_student_undertaking_docx(ctx)
-
-@login_required
-def behavior_policy_word(request):
-    from core.docx_utils import generate_policy_docx
-    return generate_policy_docx({
-        "generated_at": timezone.now(), "academic_year": "2025-2026",
-        "school": request.user.get_school(),
-    })

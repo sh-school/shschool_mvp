@@ -1,0 +1,76 @@
+name: CD — نشر تلقائي للإنتاج
+
+on:
+  push:
+    branches: [main]
+
+# منع تشغيل نشرين في نفس الوقت
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: نشر على الخادم
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: سحب الكود
+        uses: actions/checkout@v4
+
+      # ── انتظار نجاح CI أولاً ──────────────────────────────────
+      - name: انتظار نجاح اختبارات CI
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref:              ${{ github.sha }}
+          check-name:       "اختبار وفحص الكود"
+          repo-token:       ${{ secrets.GITHUB_TOKEN }}
+          wait-interval:    10
+          allowed-conclusions: success
+
+      # ── النشر عبر SSH ─────────────────────────────────────────
+      - name: نشر على الخادم
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key:      ${{ secrets.SERVER_SSH_KEY }}
+          port:     ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/schoolos
+
+            echo "▶ سحب آخر تحديث..."
+            git pull origin main
+
+            echo "▶ بناء الـ Image الجديد..."
+            docker compose -f docker-compose.prod.yml build web
+
+            echo "▶ تطبيق Migrations..."
+            docker compose -f docker-compose.prod.yml run --rm web \
+              python manage.py migrate --noinput
+
+            echo "▶ جمع الملفات الثابتة..."
+            docker compose -f docker-compose.prod.yml run --rm web \
+              python manage.py collectstatic --noinput
+
+            echo "▶ إعادة تشغيل Web بدون توقف (Graceful)..."
+            docker compose -f docker-compose.prod.yml up -d --no-deps web
+
+            echo "▶ الانتظار حتى يعمل الـ container..."
+            sleep 15
+
+            echo "▶ فحص صحة المنصة..."
+            curl -f http://localhost/health/ | python3 -m json.tool
+
+            echo "✅ النشر تم بنجاح!"
+
+      # ── إشعار بنجاح النشر أو فشله ────────────────────────────
+      - name: إشعار النجاح
+        if: success()
+        run: echo "✅ تم نشر الإصدار ${{ github.sha }} بنجاح"
+
+      - name: إشعار الفشل
+        if: failure()
+        run: echo "❌ فشل نشر الإصدار ${{ github.sha }} — راجع السجلات"

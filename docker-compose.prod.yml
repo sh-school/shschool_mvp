@@ -65,13 +65,14 @@ services:
       sh -c "
         python manage.py migrate --noinput &&
         python manage.py collectstatic --noinput &&
-        gunicorn shschool.wsgi:application
-          --bind 0.0.0.0:8000
-          --workers 3
-          --timeout 120
-          --access-logfile /app/logs/access.log
-          --error-logfile  /app/logs/error.log
+        gunicorn shschool.wsgi:application --config /app/gunicorn.conf.py
       "
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - internal
       - external

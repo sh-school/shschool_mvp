@@ -23,6 +23,13 @@ def _log(model_name, action, instance, changes=None):
             ip = request.META.get('REMOTE_ADDR', '')
             ua = request.META.get('HTTP_USER_AGENT', '')[:300]
 
+        # Use school_id to avoid triggering CustomUser.school computed property
+        # (which caches _active_membership=None before membership is created)
+        if hasattr(instance, 'school_id'):
+            school = instance.school
+        else:
+            school = None
+
         AuditLog.objects.create(
             user        = user,
             action      = action,
@@ -30,7 +37,7 @@ def _log(model_name, action, instance, changes=None):
             object_id   = str(instance.pk),
             object_repr = str(instance)[:300],
             changes     = changes,
-            school      = getattr(instance, 'school', None),
+            school      = school,
             ip_address  = ip or None,
             user_agent  = ua,
         )

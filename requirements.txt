@@ -1,4 +1,8 @@
 aiohappyeyeballs==2.6.1
+boto3>=1.35.0
+django-storages[boto3]>=1.14.0
+drf-spectacular>=0.27.0
+djangorestframework-simplejwt>=5.3.0
 aiohttp==3.13.3
 aiohttp-retry==2.9.1
 aiosignal==1.4.0
@@ -79,7 +83,6 @@ python-bidi==0.6.7
 python-crontab==3.3.0
 python-dateutil==2.9.0.post0
 python-decouple==3.8
-python-docx==1.1.2
 pytokens==0.4.1
 pytz==2026.1.post1
 pywebpush==2.3.0
@@ -102,7 +105,8 @@ uritools==6.0.1
 urllib3==2.6.3
 vine==5.1.0
 wcwidth==0.6.0
-weasyprint==68.0
+weasyprint==68.1
+playwright==1.58.0
 webencodings==0.5.1
 xhtml2pdf==0.2.17
 yarl==1.23.0

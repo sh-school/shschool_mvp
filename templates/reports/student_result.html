@@ -1,47 +1,62 @@
 {% extends "reports/base_report.html" %}
 {% block report_subtitle %}كشف نتيجة سنوية{% endblock %}
-{% block extra_styles %}
-.avg-circle{width:60px;height:60px;border-radius:50%;border:3px solid #8A1538;display:flex;align-items:center;justify-content:center;flex-direction:column;float:left;margin-right:14px}
-.avg-circle .num{font-size:18px;font-weight:700;color:#8A1538}
-.avg-circle .lbl{font-size:8px;color:#666}
-.pkg{font-size:9px;color:#888}
-{% endblock %}
-{% block report_title_bar %}<div class="report-title">كشف نتيجة سنوية — {{ student.full_name }}</div>{% endblock %}
-{% block report_meta %}
-<div class="report-meta">
-  <span>الطالب: <strong>{{ student.full_name }}</strong></span>
-  <span>الرقم الوطني: <strong>{{ student.national_id|default:"—" }}</strong></span>
-  {% if enrollment %}<span>الفصل: <strong>{{ enrollment.class_group }}</strong></span>{% endif %}
-  <span>السنة: <strong>{{ year }}</strong></span>
-  <span>تاريخ الطباعة: <strong>{{ print_date }}</strong></span>
-</div>
-{% endblock %}
-{% block content %}
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="value">{{ total }}</div><div class="label">المواد</div>
-  </div>
-  <div class="stat-card">
-    <div class="value" style="color:#16a34a">{{ passed }}</div><div class="label">ناجح</div>
-  </div>
-  <div class="stat-card">
-    <div class="value" style="color:#dc2626">{{ failed }}</div><div class="label">راسب</div>
-  </div>
-  <div class="stat-card">
-    <div class="value" style="color:#8A1538">{{ avg|default:"—" }}</div><div class="label">المتوسط / 100</div>
-  </div>
-  <div class="stat-card">
-    <div class="value" style="color:#d97706">{{ absent_total }}</div><div class="label">غياب</div>
-  </div>
-  <div class="stat-card">
-    <div class="value">{{ late_total }}</div><div class="label">تأخر</div>
-  </div>
-</div>
 
+{% block extra_styles %}
+.pkg { font-size: 9px; color: #888; }
+{% endblock %}
+
+{% block report_title_bar %}
+<div class="report-title">كشف نتيجة سنوية — {{ student.full_name }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta-table">
+  <tr>
+    <td>الطالب: <strong>{{ student.full_name }}</strong></td>
+    <td>الرقم الوطني: <strong>{{ student.national_id|default:"—" }}</strong></td>
+    {% if enrollment %}<td>الفصل: <strong>{{ enrollment.class_group }}</strong></td>{% endif %}
+    <td>السنة: <strong>{{ year }}</strong></td>
+    <td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+{# ── بطاقات الإحصائيات ── #}
+<table class="stats-row-table">
+  <tr>
+    <td>
+      <div class="value">{{ total }}</div>
+      <div class="label">المواد</div>
+    </td>
+    <td>
+      <div class="value" style="color:#16a34a">{{ passed }}</div>
+      <div class="label">ناجح</div>
+    </td>
+    <td>
+      <div class="value" style="color:#dc2626">{{ failed }}</div>
+      <div class="label">راسب</div>
+    </td>
+    <td>
+      <div class="value" style="color:#8A1538">{{ avg|default:"—" }}</div>
+      <div class="label">المتوسط / 100</div>
+    </td>
+    <td>
+      <div class="value" style="color:#d97706">{{ absent_total }}</div>
+      <div class="label">غياب</div>
+    </td>
+    <td>
+      <div class="value">{{ late_total }}</div>
+      <div class="label">تأخر</div>
+    </td>
+  </tr>
+</table>
+
+{# ── جدول الدرجات ── #}
 <table>
   <thead>
     <tr>
-      <th style="text-align:right;width:20%">المادة</th>
+      <th style="text-align:right;width:18%">المادة</th>
       <th colspan="2">الفصل الأول (من 40)</th>
       <th colspan="2">الفصل الثاني (من 60)</th>
       <th>المجموع / 100</th>
@@ -93,10 +108,10 @@
       </td>
       <td>
         {% if row.annual %}
-          {% if row.annual.status == "pass" %}<span class="status-pass">ناجح</span>
-          {% elif row.annual.status == "fail" %}<span class="status-fail">راسب</span>
-          {% elif row.annual.status == "second_round" %}<span class="status-incomplete">دور ثانٍ</span>
-          {% else %}<span class="status-incomplete">غير مكتمل</span>{% endif %}
+          {% if row.annual.status == "pass" %}<span class="badge-pass">ناجح</span>
+          {% elif row.annual.status == "fail" %}<span class="badge-fail">راسب</span>
+          {% elif row.annual.status == "second_round" %}<span class="badge-warn">دور ثانٍ</span>
+          {% else %}<span class="badge-warn">غير مكتمل</span>{% endif %}
         {% else %}—{% endif %}
       </td>
     </tr>
@@ -106,10 +121,33 @@
   </tbody>
 </table>
 {% endblock %}
+
 {% block signatures %}
 <div class="signature-section">
-  <div class="signature-box"><div class="line"></div><div>المعلم المشرف</div></div>
-  <div class="signature-box"><div class="line"></div><div>ولي الأمر</div></div>
-  <div class="signature-box"><div class="line"></div><div>مدير المدرسة</div></div>
+  <table class="signature-table">
+    <tr>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">المعلم المشرف</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">ولي الأمر</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">مدير المدرسة</div>
+          <div class="line"></div>
+          <div class="sig-name"></div>
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 {% endblock %}

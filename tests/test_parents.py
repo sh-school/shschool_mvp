@@ -103,8 +103,8 @@ class TestParentLinkAdmin:
 
         c = client_as(principal_user)
         resp = c.post("/parents/admin/links/add/", {
-            "parent": str(new_parent.id),
-            "student": str(new_student.id),
+            "parent_id": str(new_parent.id),
+            "student_id": str(new_student.id),
             "relationship": "father",
         })
         assert resp.status_code in [200, 302]
