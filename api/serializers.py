@@ -20,7 +20,7 @@ from core.models import (
 )
 from operations.models import Subject, Session, StudentAttendance
 from assessments.models import (
-    SubjectClassSetup, StudentSubjectResult, AnnualSubjectResult,
+    StudentSubjectResult, AnnualSubjectResult,
 )
 from behavior.models import BehaviorInfraction
 from notifications.models import InAppNotification, UserNotificationPreference

@@ -11,7 +11,6 @@ tests/test_breach.py
 import pytest
 from datetime import timedelta
 
-from django.urls import reverse
 from django.utils import timezone
 
 from core.models import BreachReport

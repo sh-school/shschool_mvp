@@ -139,7 +139,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 _AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
 try:
-    import rest_framework_simplejwt  # noqa
+    __import__("rest_framework_simplejwt")
     _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
 except ImportError:
     pass
