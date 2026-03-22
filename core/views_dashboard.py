@@ -14,12 +14,17 @@ def dashboard(request):
         from django.http import HttpResponseForbidden
         return HttpResponseForbidden("<h2 dir='rtl'>لم يتم تعيينك في أي مدرسة</h2>")
 
+    today = timezone.now().date()
+    ctx   = {"today": today, "school": school}
+
     # ولي الأمر → بوابته مباشرة
     if role == "parent":
         return redirect("parent_dashboard")
 
-    today = timezone.now().date()
-    ctx   = {"today": today, "school": school}
+    # الطالب → لوحته المختصرة
+    if role == "student":
+        ctx["view_type"] = "student"
+        return render(request, "dashboard/main.html", ctx)
 
     if user.is_superuser or role in ("principal", "vice_admin", "vice_academic", "admin"):
         from operations.models import Session, StudentAttendance, AbsenceAlert
@@ -71,7 +76,7 @@ def dashboard(request):
             "year":           year,
         })
 
-    else:
+    elif role in ("teacher", "coordinator", "specialist"):
         from operations.models import Session
         from assessments.models import SubjectClassSetup
 
@@ -98,5 +103,9 @@ def dashboard(request):
             "next_session": next_session,
             "my_setups":    my_setups,
         })
+
+    else:
+        # nurse / bus_supervisor / librarian → fallback عام
+        ctx["view_type"] = "other"
 
     return render(request, "dashboard/main.html", ctx)

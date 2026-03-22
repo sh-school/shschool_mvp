@@ -3,9 +3,7 @@
 
 {% block content %}
 
-{# ═══════════════════════════════════════
-   DIRECTOR / ADMIN DASHBOARD
-   ═══════════════════════════════════════ #}
+<!-- ═══ DIRECTOR / ADMIN DASHBOARD ═══ -->
 {% if view_type == "director" %}
 
 <div class="page-header">
@@ -159,9 +157,7 @@
 {% endif %}
 
 
-{# ═══════════════════════════════════════
-   TEACHER DASHBOARD
-   ═══════════════════════════════════════ #}
+<!-- ═══ TEACHER DASHBOARD ═══ -->
 {% elif view_type == "teacher" %}
 
 <div class="page-header">
@@ -264,9 +260,7 @@
 </div>
 
 
-{# ═══════════════════════════════════════
-   PARENT DASHBOARD
-   ═══════════════════════════════════════ #}
+<!-- ═══ PARENT DASHBOARD ═══ -->
 {% elif view_type == "parent" %}
 
 <div class="page-header">
@@ -301,9 +295,7 @@
 </div>
 
 
-{# ═══════════════════════════════════════
-   STUDENT DASHBOARD
-   ═══════════════════════════════════════ #}
+<!-- ═══ STUDENT DASHBOARD ═══ -->
 {% elif view_type == "student" %}
 
 <div class="page-header">
@@ -331,9 +323,101 @@
 </div>
 
 
-{# ═══════════════════════════════════════
-   DEFAULT (fallback)
-   ═══════════════════════════════════════ #}
+<!-- ═══ ROLE-SPECIFIC SHORTCUTS (nurse / bus_supervisor / librarian) ═══ -->
+{% elif view_type == "other" %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">مرحباً، {{ request.user.full_name }}</h1>
+    <p class="page-subtitle">{{ today }} — {{ school.name }}</p>
+  </div>
+</div>
+
+{% with r=request.user.get_role %}
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+
+  {% if r == "nurse" %}
+  <a href="/clinic/" class="action-card action-primary">
+    <div class="action-card-icon">🏥</div>
+    <div class="action-card-body">
+      <p class="action-title">لوحة العيادة</p>
+      <p class="action-desc">الزيارات وسجلات الطلاب الصحية</p>
+    </div>
+  </a>
+  <a href="/clinic/visit/new/" class="action-card">
+    <div class="action-card-icon">➕</div>
+    <div class="action-card-body">
+      <p class="action-title">تسجيل زيارة</p>
+      <p class="action-desc">إضافة زيارة عيادة جديدة</p>
+    </div>
+  </a>
+  <a href="/clinic/statistics/" class="action-card">
+    <div class="action-card-icon">📊</div>
+    <div class="action-card-body">
+      <p class="action-title">الإحصائيات</p>
+      <p class="action-desc">تقارير العيادة الصحية</p>
+    </div>
+  </a>
+
+  {% elif r == "bus_supervisor" %}
+  <a href="/transport/" class="action-card action-primary">
+    <div class="action-card-icon">🚌</div>
+    <div class="action-card-body">
+      <p class="action-title">لوحة النقل</p>
+      <p class="action-desc">الحافلات والمسارات اليومية</p>
+    </div>
+  </a>
+  <a href="/transport/buses/" class="action-card">
+    <div class="action-card-icon">🗺️</div>
+    <div class="action-card-body">
+      <p class="action-title">الحافلات</p>
+      <p class="action-desc">إدارة وتتبع الأسطول</p>
+    </div>
+  </a>
+  <a href="/transport/statistics/" class="action-card">
+    <div class="action-card-icon">📈</div>
+    <div class="action-card-body">
+      <p class="action-title">الإحصائيات</p>
+      <p class="action-desc">تقارير النقل المدرسي</p>
+    </div>
+  </a>
+
+  {% elif r == "librarian" %}
+  <a href="/library/" class="action-card action-primary">
+    <div class="action-card-icon">📚</div>
+    <div class="action-card-body">
+      <p class="action-title">لوحة المكتبة</p>
+      <p class="action-desc">الكتب والإعارة والإعادة</p>
+    </div>
+  </a>
+  <a href="/library/borrow/" class="action-card">
+    <div class="action-card-icon">📖</div>
+    <div class="action-card-body">
+      <p class="action-title">إعارة جديدة</p>
+      <p class="action-desc">تسجيل استعارة كتاب</p>
+    </div>
+  </a>
+  <a href="/library/books/" class="action-card">
+    <div class="action-card-icon">🔍</div>
+    <div class="action-card-body">
+      <p class="action-title">فهرس الكتب</p>
+      <p class="action-desc">البحث في مقتنيات المكتبة</p>
+    </div>
+  </a>
+
+  {% else %}
+  <div class="card-qatar text-center py-8 col-span-3 text-gray-400">
+    <span style="font-size:40px;">🏫</span>
+    <p class="mt-3 font-medium text-gray-600">مرحباً بك في SchoolOS</p>
+    <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endwith %}
+
+
+<!-- ═══ DEFAULT (fallback) ═══ -->
 {% else %}
 
 <div class="page-header">

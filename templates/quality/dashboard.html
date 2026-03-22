@@ -1,149 +1,209 @@
 {% extends "base/base.html" %}
-{% block title %}الخطة التشغيلية{% endblock %}
+{% block title %}الخطة التشغيلية — SchoolOS{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  {# ── Page Header ── #}
+  <div class="page-header">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">الخطة التشغيلية</h1>
-      <p class="text-sm text-gray-500 mt-1">{{ year }} — مدرسة الشحانية</p>
+      <h1 class="page-title">📋 الخطة التشغيلية</h1>
+      <p class="page-subtitle">{{ year }} — مدرسة الشحانية الإعدادية الثانوية للبنين</p>
     </div>
-    <div class="flex gap-2 flex-wrap">
+    <div class="page-actions">
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'quality_report' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">تقرير التقدم</a>
-      <a href="{% url 'executor_mapping' %}" class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition">
-        ربط المنفذين
-        {% if unmapped_count %}<span class="mr-1 bg-red-500 text-white text-xs rounded-full px-1.5">{{ unmapped_count }}</span>{% endif %}
+      <a href="{% url 'quality_report' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
+        📈 تقرير التقدم
       </a>
-      <a href="{% url 'executor_committee' %}" class="px-4 py-2 bg-purple-700 text-white rounded-lg text-sm hover:bg-purple-800 transition">لجنة التنفيذ</a>
-      <a href="{% url 'quality_committee' %}" class="px-4 py-2 bg-indigo-700 text-white rounded-lg text-sm hover:bg-indigo-800 transition">لجنة الجودة</a>
+      <a href="{% url 'executor_committee' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
+        ⚙️ لجنة التنفيذ
+      </a>
+      <a href="{% url 'quality_committee' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
+        🔍 لجنة الجودة
+      </a>
+      <a href="{% url 'executor_mapping' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+        🔗 ربط المنفذين
+        {% if unmapped_count %}
+        <span style="background:#fff;color:var(--maroon);font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">{{ unmapped_count }}</span>
+        {% endif %}
+      </a>
       {% else %}
-      <a href="{% url 'my_procedures' %}" class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition">إجراءاتي</a>
+      <a href="{% url 'my_procedures' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;">
+        📝 إجراءاتي
+      </a>
       {% endif %}
     </div>
   </div>
 
-  <!-- إحصائيات كلية -->
+  {# ── KPIs ── #}
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-[#1A4F8A]">{{ total }}</p>
-      <p class="text-xs text-gray-500 mt-1">إجمالي الإجراءات</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:var(--skyline);">{{ total }}</div>
+      <div class="kpi-label">إجمالي الإجراءات</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-green-600">{{ completed }}</p>
-      <p class="text-xs text-gray-500 mt-1">مكتمل</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#166534;">{{ completed }}</div>
+      <div class="kpi-label">مكتمل</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <p class="text-3xl font-bold text-amber-600">{{ in_progress }}</p>
-      <p class="text-xs text-gray-500 mt-1">قيد التنفيذ</p>
+
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:#d97706;">{{ in_progress }}</div>
+      <div class="kpi-label">قيد التنفيذ</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 text-center shadow-sm">
-      <div class="relative w-16 h-16 mx-auto mb-2">
-        <svg viewBox="0 0 36 36" class="w-16 h-16 -rotate-90">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#E5E7EB" stroke-width="3"/>
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1A4F8A" stroke-width="3"
-                  stroke-dasharray="{{ pct }} {{ 100|add:"-"|add:pct }}" stroke-linecap="round"/>
+
+    {# ── Circular progress ── #}
+    <div class="kpi-card" style="text-align:center;">
+      <div style="position:relative;width:64px;height:64px;margin:0 auto 6px;">
+        <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg);">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+          <circle cx="18" cy="18" r="15.9" fill="none"
+                  stroke="{% if pct == 100 %}#16a34a{% elif pct > 60 %}#8A1538{% else %}#d97706{% endif %}"
+                  stroke-width="3"
+                  stroke-dasharray="{{ pct }} {{ 100|add:"-"|add:pct }}"
+                  stroke-linecap="round"/>
         </svg>
-        <span class="absolute inset-0 flex items-center justify-center text-sm font-bold text-[#1A4F8A]">{{ pct }}%</span>
+        <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                     font-size:14px;font-weight:800;color:var(--text-primary);">
+          {{ pct }}%
+        </span>
       </div>
-      <p class="text-xs text-gray-500">نسبة الإنجاز</p>
+      <div class="kpi-label">نسبة الإنجاز</div>
+    </div>
+
+  </div>
+
+  {# ── Overall progress bar ── #}
+  <div class="card-qatar" style="padding:16px 20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-size:13px;font-weight:600;color:var(--text-primary);">التقدم الكلي للخطة التشغيلية</span>
+      <span style="font-size:14px;font-weight:800;color:{% if pct == 100 %}#166534{% elif pct > 60 %}var(--maroon){% else %}#d97706{% endif %};">
+        {{ pct }}%
+      </span>
+    </div>
+    <div class="progress-qatar">
+      <div class="progress-qatar-fill"
+           style="width:{{ pct }}%;
+           {% if pct == 100 %}background:linear-gradient(90deg,#15803d,#16a34a);
+           {% elif pct > 60 %}background:linear-gradient(90deg,var(--maroon-dark),var(--maroon-light));
+           {% else %}background:linear-gradient(90deg,#d97706,#f59e0b);{% endif %}">
+      </div>
     </div>
   </div>
 
-  <!-- المجالات -->
+  {# ── Domains ── #}
   <div>
-    <h2 class="text-lg font-bold text-[#8A1538] mb-3">المجالات</h2>
-    <div class="grid gap-4">
+    <div class="section-header">
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">المجالات</h2>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
       {% for domain in domains %}
-      <a href="{% url 'domain_detail' domain.id %}"
-         class="bg-white rounded-xl border shadow-sm hover:shadow-md transition hover:-translate-y-0.5 overflow-hidden block">
-        <div class="flex items-center justify-between p-5">
-          <div class="flex-1">
-            <h3 class="font-bold text-[#8A1538] text-lg">{{ domain.name }}</h3>
-            <p class="text-sm text-gray-500 mt-1">
-              {{ domain.total_procedures }} إجراء ·
-              {{ domain.targets.count }} هدف
+      <a href="{% url 'domain_detail' domain.id %}" class="card-qatar" style="text-decoration:none;padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;">
+          <div style="flex:1;min-width:0;">
+            <h3 style="font-weight:700;font-size:15px;color:var(--maroon);margin:0 0 4px;
+                       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {{ domain.name }}
+            </h3>
+            <p style="font-size:12.5px;color:var(--text-secondary);margin:0;">
+              {{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف
             </p>
           </div>
-          <div class="text-left mr-6">
-            <p class="text-2xl font-bold {% if domain.completion_pct == 100 %}text-green-600{% elif domain.completion_pct > 50 %}text-blue-600{% else %}text-amber-600{% endif %}">
+          <div style="text-align:center;margin-right:20px;flex-shrink:0;">
+            <p style="font-size:24px;font-weight:800;margin:0;
+              color:{% if domain.completion_pct == 100 %}#166534{% elif domain.completion_pct > 50 %}var(--maroon){% else %}#d97706{% endif %};">
               {{ domain.completion_pct }}%
             </p>
-            <p class="text-xs text-gray-400">{{ domain.completed_procedures }} / {{ domain.total_procedures }}</p>
+            <p style="font-size:11px;color:var(--text-muted);margin:0;">
+              {{ domain.completed_procedures }}/{{ domain.total_procedures }}
+            </p>
           </div>
         </div>
-        <!-- Progress Bar -->
-        <div class="h-1.5 bg-gray-100">
-          <div class="h-1.5 {% if domain.completion_pct == 100 %}bg-green-500{% elif domain.completion_pct > 50 %}bg-blue-500{% else %}bg-amber-500{% endif %} transition-all"
-               style="width: {{ domain.completion_pct }}%"></div>
+        <div style="height:4px;background:#f1f5f9;">
+          <div style="height:4px;transition:width .4s;
+            width:{{ domain.completion_pct }}%;
+            background:{% if domain.completion_pct == 100 %}#16a34a{% elif domain.completion_pct > 50 %}var(--maroon){% else %}#f59e0b{% endif %};">
+          </div>
         </div>
       </a>
       {% empty %}
-      <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
-        لا توجد بيانات — شغّل <code>python manage.py seed_quality</code>
+      <div class="empty-state card-qatar">
+        <span class="empty-icon">📋</span>
+        <p class="empty-title">لا توجد بيانات</p>
+        <p class="empty-sub">شغّل <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">python manage.py seed_quality</code></p>
       </div>
       {% endfor %}
     </div>
   </div>
 
-  <!-- إجراءاتي (للمنفذ) -->
+  {# ── My pending procedures ── #}
   {% if my_procedures %}
   <div>
-    <h2 class="text-lg font-bold text-[#8A1538] mb-3">إجراءاتي المعلّقة</h2>
-    <div class="bg-white rounded-xl border shadow-sm divide-y">
+    <div class="section-header">
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">إجراءاتي المعلّقة</h2>
+      {% if my_procedures.count > 5 %}
+      <a href="{% url 'my_procedures' %}"
+         style="font-size:12.5px;color:var(--maroon);text-decoration:none;font-weight:600;margin-right:auto;">
+        عرض الكل ({{ my_procedures.count }}) →
+      </a>
+      {% endif %}
+    </div>
+    <div class="table-wrap">
       {% for proc in my_procedures|slice:":5" %}
-      <a href="{% url 'procedure_detail' proc.id %}" class="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition">
-        <div>
-          <p class="text-sm font-medium text-gray-800">{{ proc.text|truncatechars:70 }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">{{ proc.indicator.target.domain.name }} · {{ proc.date_range }}</p>
+      <a href="{% url 'procedure_detail' proc.id %}"
+         style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+                border-bottom:1px solid var(--border);text-decoration:none;transition:background .1s;">
+        <div style="min-width:0;flex:1;">
+          <p style="font-size:13.5px;font-weight:500;color:var(--text-primary);margin:0 0 3px;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+            {{ proc.text|truncatechars:70 }}
+          </p>
+          <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
+            {{ proc.indicator.target.domain.name }} · {{ proc.date_range }}
+          </p>
         </div>
-        <span class="mr-4 px-2 py-0.5 rounded-full text-xs
-          {% if proc.status == 'Completed' %}bg-green-100 text-green-700
-          {% else %}bg-amber-100 text-amber-700{% endif %}">
+        <span class="status-badge {% if proc.status == 'Completed' %}status-success{% else %}status-warning{% endif %}"
+              style="flex-shrink:0;margin-right:12px;">
           {{ proc.get_status_display }}
         </span>
       </a>
       {% endfor %}
-      {% if my_procedures.count > 5 %}
-      <a href="{% url 'my_procedures' %}" class="block px-5 py-3 text-center text-sm text-blue-600 hover:underline">
-        عرض كل الإجراءات ({{ my_procedures.count }})
-      </a>
-      {% endif %}
     </div>
   </div>
   {% endif %}
 
-  <!-- لجنة الجودة مختصرة -->
+  {# ── Review committee (admin only) ── #}
   {% if review_committee and request.user.is_admin %}
   <div>
-    <h2 class="text-lg font-bold text-[#8A1538] mb-3">لجنة المراجعة الذاتية</h2>
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-purple-800 text-white">
+    <div class="section-header">
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">لجنة المراجعة الذاتية</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
           <tr>
-            <th class="px-4 py-3 text-right">المسمى الوظيفي</th>
-            <th class="px-4 py-3 text-right">المسؤولية</th>
-            <th class="px-4 py-3 text-right">المجال</th>
-            <th class="px-4 py-3 text-right">الموظف</th>
+            <th>المسمى الوظيفي</th>
+            <th>المسؤولية</th>
+            <th>المجال</th>
+            <th>الموظف</th>
           </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody>
           {% for m in review_committee %}
-          <tr class="hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium">{{ m.job_title }}</td>
-            <td class="px-4 py-3">
-              <span class="px-2 py-0.5 rounded-full text-xs
-                {% if m.responsibility == 'رئيس اللجنة' %}bg-red-100 text-red-700
-                {% elif m.responsibility == 'نائب رئيس اللجنة' %}bg-orange-100 text-orange-700
-                {% elif m.responsibility == 'مقرر' %}bg-blue-100 text-blue-700
-                {% else %}bg-gray-100 text-gray-700{% endif %}">
+          <tr>
+            <td style="font-weight:500;">{{ m.job_title }}</td>
+            <td>
+              <span class="status-badge
+                {% if m.responsibility == 'رئيس اللجنة' %}status-danger
+                {% elif m.responsibility == 'نائب رئيس اللجنة' %}status-warning
+                {% elif m.responsibility == 'مقرر' %}status-info
+                {% else %}status-gray{% endif %}">
                 {{ m.responsibility }}
               </span>
             </td>
-            <td class="px-4 py-3 text-gray-600">{{ m.domain.name|default:"—" }}</td>
-            <td class="px-4 py-3 text-[#1A4F8A] font-medium">{{ m.user.full_name|default:"—" }}</td>
+            <td style="color:var(--text-secondary);">{{ m.domain.name|default:"—" }}</td>
+            <td style="color:var(--maroon);font-weight:600;">{{ m.user.full_name|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
