@@ -2,38 +2,39 @@
 notifications/querysets.py — Custom QuerySets للإشعارات
 =========================================================
 """
+
 from __future__ import annotations
 
-from django.db.models import Count, Q, QuerySet
+from django.db.models import Count, QuerySet
 from django.utils import timezone
 
 
 class InAppNotificationQuerySet(QuerySet):
     """QuerySet لـ InAppNotification."""
 
-    def for_user(self, user) -> "InAppNotificationQuerySet":
+    def for_user(self, user) -> InAppNotificationQuerySet:
         return self.filter(user=user)
 
-    def for_school(self, school) -> "InAppNotificationQuerySet":
+    def for_school(self, school) -> InAppNotificationQuerySet:
         return self.filter(school=school)
 
-    def unread(self) -> "InAppNotificationQuerySet":
+    def unread(self) -> InAppNotificationQuerySet:
         return self.filter(is_read=False)
 
-    def read(self) -> "InAppNotificationQuerySet":
+    def read(self) -> InAppNotificationQuerySet:
         return self.filter(is_read=True)
 
-    def priority(self, level: str) -> "InAppNotificationQuerySet":
+    def priority(self, level: str) -> InAppNotificationQuerySet:
         """level: low | medium | high | urgent"""
         return self.filter(priority=level)
 
-    def urgent(self) -> "InAppNotificationQuerySet":
+    def urgent(self) -> InAppNotificationQuerySet:
         return self.filter(priority__in=["high", "urgent"])
 
-    def event_type(self, event: str) -> "InAppNotificationQuerySet":
+    def event_type(self, event: str) -> InAppNotificationQuerySet:
         return self.filter(event_type=event)
 
-    def recent(self, days: int = 7) -> "InAppNotificationQuerySet":
+    def recent(self, days: int = 7) -> InAppNotificationQuerySet:
         since = timezone.now() - timezone.timedelta(days=days)
         return self.filter(created_at__gte=since)
 
@@ -48,23 +49,23 @@ class InAppNotificationQuerySet(QuerySet):
 class NotificationLogQuerySet(QuerySet):
     """QuerySet لـ NotificationLog."""
 
-    def sent(self) -> "NotificationLogQuerySet":
+    def sent(self) -> NotificationLogQuerySet:
         return self.filter(status="sent")
 
-    def failed(self) -> "NotificationLogQuerySet":
+    def failed(self) -> NotificationLogQuerySet:
         return self.filter(status="failed")
 
-    def pending(self) -> "NotificationLogQuerySet":
+    def pending(self) -> NotificationLogQuerySet:
         return self.filter(status="pending")
 
-    def channel(self, ch: str) -> "NotificationLogQuerySet":
+    def channel(self, ch: str) -> NotificationLogQuerySet:
         """ch: email | sms | whatsapp | push"""
         return self.filter(channel=ch)
 
-    def for_student(self, student) -> "NotificationLogQuerySet":
+    def for_student(self, student) -> NotificationLogQuerySet:
         return self.filter(student=student)
 
-    def this_month(self) -> "NotificationLogQuerySet":
+    def this_month(self) -> NotificationLogQuerySet:
         today = timezone.now().date()
         return self.filter(sent_at__year=today.year, sent_at__month=today.month)
 

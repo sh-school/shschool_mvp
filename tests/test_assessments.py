@@ -7,25 +7,31 @@ tests/test_assessments.py
   - GradeService: حساب الدرجات حسب معادلة وزارة التعليم القطرية
   - Views: لوحة التحكم، إدخال الدرجات، التقارير
 """
-import pytest
+
 from decimal import Decimal
-from django.urls import reverse
+
+import pytest
 
 from assessments.models import (
-    SubjectClassSetup, AssessmentPackage, Assessment,
-    StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult,
+    AnnualSubjectResult,
+    Assessment,
+    AssessmentPackage,
+    StudentAssessmentGrade,
+    StudentSubjectResult,
+    SubjectClassSetup,
 )
 from assessments.services import GradeService
 from operations.models import Subject
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
 )
-
 
 # ══════════════════════════════════════════════════
 #  FACTORIES خاصة بالتقييمات
 # ══════════════════════════════════════════════════
+
 
 @pytest.fixture
 def subject(db, school):
@@ -47,9 +53,12 @@ def setup(db, school, subject, class_group, teacher_user):
 def s1_package(db, school, setup):
     """باقة الأعمال المستمرة — الفصل الأول (وزن 50% من 40)"""
     return AssessmentPackage.objects.create(
-        setup=setup, school=school,
-        package_type="P1", semester="S1",
-        weight=Decimal("50"), semester_max_grade=Decimal("40"),
+        setup=setup,
+        school=school,
+        package_type="P1",
+        semester="S1",
+        weight=Decimal("50"),
+        semester_max_grade=Decimal("40"),
     )
 
 
@@ -57,9 +66,12 @@ def s1_package(db, school, setup):
 def s1_exam_package(db, school, setup):
     """باقة اختبار نهاية الفصل الأول (وزن 50% من 40)"""
     return AssessmentPackage.objects.create(
-        setup=setup, school=school,
-        package_type="P4", semester="S1",
-        weight=Decimal("50"), semester_max_grade=Decimal("40"),
+        setup=setup,
+        school=school,
+        package_type="P4",
+        semester="S1",
+        weight=Decimal("50"),
+        semester_max_grade=Decimal("40"),
     )
 
 
@@ -67,9 +79,12 @@ def s1_exam_package(db, school, setup):
 def s2_package_p1(db, school, setup):
     """أعمال مستمرة — الفصل الثاني (وزن 17% من 60)"""
     return AssessmentPackage.objects.create(
-        setup=setup, school=school,
-        package_type="P1", semester="S2",
-        weight=Decimal("17"), semester_max_grade=Decimal("60"),
+        setup=setup,
+        school=school,
+        package_type="P1",
+        semester="S2",
+        weight=Decimal("17"),
+        semester_max_grade=Decimal("60"),
     )
 
 
@@ -77,9 +92,12 @@ def s2_package_p1(db, school, setup):
 def s2_package_p4(db, school, setup):
     """اختبار نهائي — الفصل الثاني (وزن 50% من 60)"""
     return AssessmentPackage.objects.create(
-        setup=setup, school=school,
-        package_type="P4", semester="S2",
-        weight=Decimal("50"), semester_max_grade=Decimal("60"),
+        setup=setup,
+        school=school,
+        package_type="P4",
+        semester="S2",
+        weight=Decimal("50"),
+        semester_max_grade=Decimal("60"),
     )
 
 
@@ -87,7 +105,8 @@ def s2_package_p4(db, school, setup):
 def assessment_in_p1(db, school, s1_package):
     """تقييم داخل الباقة الأولى"""
     return Assessment.objects.create(
-        package=s1_package, school=school,
+        package=s1_package,
+        school=school,
         title="اختبار قصير 1",
         max_grade=Decimal("20"),
         weight_in_package=Decimal("100"),
@@ -99,7 +118,8 @@ def assessment_in_p1(db, school, s1_package):
 def assessment_in_p4(db, school, s1_exam_package):
     """تقييم اختبار نهاية الفصل الأول"""
     return Assessment.objects.create(
-        package=s1_exam_package, school=school,
+        package=s1_exam_package,
+        school=school,
         title="اختبار نهاية الفصل الأول",
         max_grade=Decimal("40"),
         weight_in_package=Decimal("100"),
@@ -111,8 +131,8 @@ def assessment_in_p4(db, school, s1_exam_package):
 #  اختبارات النماذج
 # ══════════════════════════════════════════════════
 
-class TestAssessmentModels:
 
+class TestAssessmentModels:
     def test_subject_class_setup_creation(self, setup):
         assert setup.academic_year == "2025-2026"
         assert setup.is_active is True
@@ -133,9 +153,11 @@ class TestAssessmentModels:
     def test_unique_setup_constraint(self, setup, school, subject, class_group):
         """لا يمكن تكرار نفس المادة+الفصل+السنة"""
         from django.db import IntegrityError
+
         with pytest.raises(IntegrityError):
             SubjectClassSetup.objects.create(
-                school=school, subject=subject,
+                school=school,
+                subject=subject,
                 class_group=class_group,
                 teacher=setup.teacher,
                 academic_year="2025-2026",
@@ -146,8 +168,8 @@ class TestAssessmentModels:
 #  اختبارات GradeService — المحرك الأساسي
 # ══════════════════════════════════════════════════
 
-class TestGradeService:
 
+class TestGradeService:
     def test_save_grade_basic(self, assessment_in_p1, student_user, teacher_user):
         """حفظ درجة أساسية"""
         obj, created = GradeService.save_grade(
@@ -188,15 +210,20 @@ class TestGradeService:
 
     def test_save_grade_updates_existing(self, assessment_in_p1, student_user):
         """تحديث درجة موجودة — ليس إنشاء جديد"""
-        GradeService.save_grade(assessment=assessment_in_p1, student=student_user, grade=Decimal("10"))
-        obj, created = GradeService.save_grade(assessment=assessment_in_p1, student=student_user, grade=Decimal("18"))
+        GradeService.save_grade(
+            assessment=assessment_in_p1, student=student_user, grade=Decimal("10")
+        )
+        obj, created = GradeService.save_grade(
+            assessment=assessment_in_p1, student=student_user, grade=Decimal("18")
+        )
         assert created is False
         assert obj.grade == Decimal("18")
 
     def test_calc_package_score_full_marks(self, s1_package, assessment_in_p1, student_user):
         """طالب أخذ الدرجة الكاملة في الباقة"""
         GradeService.save_grade(
-            assessment=assessment_in_p1, student=student_user,
+            assessment=assessment_in_p1,
+            student=student_user,
             grade=assessment_in_p1.max_grade,
         )
         score = GradeService.calc_package_score(student_user, s1_package)
@@ -206,7 +233,8 @@ class TestGradeService:
     def test_calc_package_score_half_marks(self, s1_package, assessment_in_p1, student_user):
         """طالب أخذ نصف الدرجة"""
         GradeService.save_grade(
-            assessment=assessment_in_p1, student=student_user,
+            assessment=assessment_in_p1,
+            student=student_user,
             grade=Decimal("10"),  # 10 من 20 = 50%
         )
         score = GradeService.calc_package_score(student_user, s1_package)
@@ -216,7 +244,8 @@ class TestGradeService:
     def test_calc_package_score_zero(self, s1_package, assessment_in_p1, student_user):
         """طالب أخذ صفر"""
         GradeService.save_grade(
-            assessment=assessment_in_p1, student=student_user,
+            assessment=assessment_in_p1,
+            student=student_user,
             grade=Decimal("0"),
         )
         score = GradeService.calc_package_score(student_user, s1_package)
@@ -228,49 +257,80 @@ class TestGradeService:
         assert score is None
 
     def test_semester_result_s1(
-        self, setup, s1_package, s1_exam_package,
-        assessment_in_p1, assessment_in_p4, student_user,
+        self,
+        setup,
+        s1_package,
+        s1_exam_package,
+        assessment_in_p1,
+        assessment_in_p4,
+        student_user,
         enrolled_student,
     ):
         """حساب نتيجة الفصل الأول الكاملة"""
         # P1: 15/20 = 75% → 75% × 50% × 40 / 100 = 15
-        GradeService.save_grade(assessment=assessment_in_p1, student=student_user, grade=Decimal("15"))
+        GradeService.save_grade(
+            assessment=assessment_in_p1, student=student_user, grade=Decimal("15")
+        )
         # P4: 30/40 = 75% → 75% × 50% × 40 / 100 = 15
-        GradeService.save_grade(assessment=assessment_in_p4, student=student_user, grade=Decimal("30"))
+        GradeService.save_grade(
+            assessment=assessment_in_p4, student=student_user, grade=Decimal("30")
+        )
 
         result = StudentSubjectResult.objects.get(student=student_user, setup=setup, semester="S1")
         # المجموع = 15 + 15 = 30 من 40
         assert result.total == Decimal("30.00")
 
     def test_annual_result_pass(
-        self, setup, s1_package, s1_exam_package,
-        s2_package_p1, s2_package_p4,
-        student_user, school, enrolled_student,
+        self,
+        setup,
+        s1_package,
+        s1_exam_package,
+        s2_package_p1,
+        s2_package_p4,
+        student_user,
+        school,
+        enrolled_student,
     ):
         """النتيجة السنوية — طالب ناجح"""
         # الفصل الأول
         a1 = Assessment.objects.create(
-            package=s1_package, school=school, title="عمل 1",
-            max_grade=Decimal("20"), weight_in_package=Decimal("100"), status="published",
+            package=s1_package,
+            school=school,
+            title="عمل 1",
+            max_grade=Decimal("20"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         a4_s1 = Assessment.objects.create(
-            package=s1_exam_package, school=school, title="اختبار ف1",
-            max_grade=Decimal("40"), weight_in_package=Decimal("100"), status="published",
+            package=s1_exam_package,
+            school=school,
+            title="اختبار ف1",
+            max_grade=Decimal("40"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
-        GradeService.save_grade(assessment=a1, student=student_user, grade=Decimal("16"))      # 80%
-        GradeService.save_grade(assessment=a4_s1, student=student_user, grade=Decimal("32"))    # 80%
+        GradeService.save_grade(assessment=a1, student=student_user, grade=Decimal("16"))  # 80%
+        GradeService.save_grade(assessment=a4_s1, student=student_user, grade=Decimal("32"))  # 80%
 
         # الفصل الثاني
         a1_s2 = Assessment.objects.create(
-            package=s2_package_p1, school=school, title="عمل 2",
-            max_grade=Decimal("20"), weight_in_package=Decimal("100"), status="published",
+            package=s2_package_p1,
+            school=school,
+            title="عمل 2",
+            max_grade=Decimal("20"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         a4_s2 = Assessment.objects.create(
-            package=s2_package_p4, school=school, title="اختبار نهائي",
-            max_grade=Decimal("60"), weight_in_package=Decimal("100"), status="published",
+            package=s2_package_p4,
+            school=school,
+            title="اختبار نهائي",
+            max_grade=Decimal("60"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
-        GradeService.save_grade(assessment=a1_s2, student=student_user, grade=Decimal("16"))   # 80%
-        GradeService.save_grade(assessment=a4_s2, student=student_user, grade=Decimal("48"))   # 80%
+        GradeService.save_grade(assessment=a1_s2, student=student_user, grade=Decimal("16"))  # 80%
+        GradeService.save_grade(assessment=a4_s2, student=student_user, grade=Decimal("48"))  # 80%
 
         annual = AnnualSubjectResult.objects.get(student=student_user, setup=setup)
         # S1: 80%×50%×40/100 + 80%×50%×40/100 = 16 + 16 = 32
@@ -280,30 +340,52 @@ class TestGradeService:
         assert annual.status == "pass"
 
     def test_annual_result_fail(
-        self, setup, s1_package, s1_exam_package,
-        s2_package_p1, s2_package_p4,
-        student_user, school, enrolled_student,
+        self,
+        setup,
+        s1_package,
+        s1_exam_package,
+        s2_package_p1,
+        s2_package_p4,
+        student_user,
+        school,
+        enrolled_student,
     ):
         """النتيجة السنوية — طالب راسب"""
         a1 = Assessment.objects.create(
-            package=s1_package, school=school, title="عمل 1",
-            max_grade=Decimal("20"), weight_in_package=Decimal("100"), status="published",
+            package=s1_package,
+            school=school,
+            title="عمل 1",
+            max_grade=Decimal("20"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         a4_s1 = Assessment.objects.create(
-            package=s1_exam_package, school=school, title="اختبار ف1",
-            max_grade=Decimal("40"), weight_in_package=Decimal("100"), status="published",
+            package=s1_exam_package,
+            school=school,
+            title="اختبار ف1",
+            max_grade=Decimal("40"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         # 20% فقط
         GradeService.save_grade(assessment=a1, student=student_user, grade=Decimal("4"))
         GradeService.save_grade(assessment=a4_s1, student=student_user, grade=Decimal("8"))
 
         a1_s2 = Assessment.objects.create(
-            package=s2_package_p1, school=school, title="عمل 2",
-            max_grade=Decimal("20"), weight_in_package=Decimal("100"), status="published",
+            package=s2_package_p1,
+            school=school,
+            title="عمل 2",
+            max_grade=Decimal("20"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         a4_s2 = Assessment.objects.create(
-            package=s2_package_p4, school=school, title="اختبار نهائي",
-            max_grade=Decimal("60"), weight_in_package=Decimal("100"), status="published",
+            package=s2_package_p4,
+            school=school,
+            title="اختبار نهائي",
+            max_grade=Decimal("60"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
         GradeService.save_grade(assessment=a1_s2, student=student_user, grade=Decimal("4"))
         GradeService.save_grade(assessment=a4_s2, student=student_user, grade=Decimal("12"))
@@ -312,9 +394,13 @@ class TestGradeService:
         assert annual.annual_total < Decimal("50")
         assert annual.status == "fail"
 
-    def test_annual_result_incomplete(self, setup, s1_package, assessment_in_p1, student_user, enrolled_student):
+    def test_annual_result_incomplete(
+        self, setup, s1_package, assessment_in_p1, student_user, enrolled_student
+    ):
         """نتيجة غير مكتملة — فصل واحد فقط"""
-        GradeService.save_grade(assessment=assessment_in_p1, student=student_user, grade=Decimal("15"))
+        GradeService.save_grade(
+            assessment=assessment_in_p1, student=student_user, grade=Decimal("15")
+        )
         annual = AnnualSubjectResult.objects.get(student=student_user, setup=setup)
         assert annual.status == "incomplete"
 
@@ -324,7 +410,10 @@ class TestGradeService:
         grades = [Decimal("20"), Decimal("15"), Decimal("10"), Decimal("8"), Decimal("5")]
         for s, g in zip(students, grades):
             StudentAssessmentGrade.objects.create(
-                assessment=assessment_in_p1, student=s, school=school, grade=g,
+                assessment=assessment_in_p1,
+                student=s,
+                school=school,
+                grade=g,
             )
 
         stats = GradeService.get_assessment_stats(assessment_in_p1)
@@ -338,8 +427,8 @@ class TestGradeService:
 #  اختبارات Views
 # ══════════════════════════════════════════════════
 
-class TestAssessmentViews:
 
+class TestAssessmentViews:
     def test_dashboard_as_principal(self, client_as, principal_user):
         c = client_as(principal_user)
         resp = c.get("/assessments/")

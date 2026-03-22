@@ -9,34 +9,37 @@ Business logic لوحدة الجودة والخطة التشغيلية
   - إدارة المنفذين والمجالات
   - بيانات تقرير التقدم
 """
-from django.db.models import Count, Q, Prefetch
+
+from django.db.models import Count, Prefetch
 
 from .models import (
-    OperationalDomain, OperationalTarget, OperationalIndicator,
-    OperationalProcedure, ProcedureEvidence,
-    QualityCommitteeMember, ExecutorMapping,
+    ExecutorMapping,
+    OperationalDomain,
+    OperationalIndicator,
+    OperationalProcedure,
+    OperationalTarget,
+    QualityCommitteeMember,
 )
 
 
 class QualityService:
-
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
     def get_plan_stats(school, year="2025-2026"):
         """إحصائيات الخطة التشغيلية"""
         base = OperationalProcedure.objects.filter(school=school, academic_year=year)
-        total     = base.count()
+        total = base.count()
         completed = base.filter(status="Completed").count()
-        in_prog   = base.filter(status="In Progress").count()
-        pending   = base.filter(status="Pending Review").count()
-        pct       = round(completed / total * 100) if total else 0
+        in_prog = base.filter(status="In Progress").count()
+        pending = base.filter(status="Pending Review").count()
+        pct = round(completed / total * 100) if total else 0
 
         return {
-            "total":          total,
-            "completed":      completed,
-            "in_progress":    in_prog,
+            "total": total,
+            "completed": completed,
+            "in_progress": in_prog,
             "pending_review": pending,
-            "pct":            pct,
+            "pct": pct,
         }
 
     # ── عدد المنفذين غير المربوطين ──────────────────────────
@@ -45,7 +48,8 @@ class QualityService:
         """عدد المنفذين الذين ليس لهم مستخدم مربوط"""
         all_executors = set(
             OperationalProcedure.objects.filter(school=school, academic_year=year)
-            .values_list("executor_norm", flat=True).distinct()
+            .values_list("executor_norm", flat=True)
+            .distinct()
         )
         mapped = set(
             ExecutorMapping.objects.filter(
@@ -108,10 +112,10 @@ class QualityService:
         )
 
         return {
-            "targets":   targets,
-            "total":     total,
+            "targets": targets,
+            "total": total,
             "completed": completed,
-            "pct":       pct,
+            "pct": pct,
             "executors": executors,
         }
 
@@ -119,14 +123,15 @@ class QualityService:
     @staticmethod
     def get_progress_report_data(school, year="2025-2026"):
         """بيانات تقرير التقدم الشامل"""
-        domains = OperationalDomain.objects.filter(
-            school=school, academic_year=year
-        ).order_by("order")
+        domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
+            "order"
+        )
 
         domain_stats = []
         for domain in domains:
             procs = OperationalProcedure.objects.filter(
-                school=school, academic_year=year,
+                school=school,
+                academic_year=year,
                 indicator__target__domain=domain,
             )
             total = procs.count()
@@ -134,20 +139,22 @@ class QualityService:
             in_prog = procs.filter(status="In Progress").count()
             pct = round(completed / total * 100) if total else 0
 
-            domain_stats.append({
-                "domain":    domain,
-                "total":     total,
-                "completed": completed,
-                "in_prog":   in_prog,
-                "pct":       pct,
-            })
+            domain_stats.append(
+                {
+                    "domain": domain,
+                    "total": total,
+                    "completed": completed,
+                    "in_prog": in_prog,
+                    "pct": pct,
+                }
+            )
 
         overall = QualityService.get_plan_stats(school, year)
 
         return {
             "domain_stats": domain_stats,
-            "overall":      overall,
-            "year":         year,
+            "overall": overall,
+            "year": year,
         }
 
     # ── بيانات لجنة المنفذين ────────────────────────────────
@@ -157,8 +164,9 @@ class QualityService:
         members = QualityCommitteeMember.objects.executor_committee(school, year)
 
         mapped_norms = set(
-            ExecutorMapping.objects.filter(school=school, academic_year=year, user__isnull=False)
-            .values_list("executor_norm", flat=True)
+            ExecutorMapping.objects.filter(
+                school=school, academic_year=year, user__isnull=False
+            ).values_list("executor_norm", flat=True)
         )
 
         member_stats = []
@@ -167,28 +175,41 @@ class QualityService:
                 procs = OperationalProcedure.objects.filter(
                     school=school, executor_user=member.user, academic_year=year
                 )
-                total     = procs.count()
+                total = procs.count()
                 completed = procs.filter(status="Completed").count()
-                pending   = procs.filter(status="Pending Review").count()
-                in_prog   = procs.filter(status="In Progress").count()
-                pct       = round(completed / total * 100) if total else 0
-                member_stats.append({
-                    "member": member, "total": total, "completed": completed,
-                    "pending": pending, "in_prog": in_prog, "pct": pct,
-                })
+                pending = procs.filter(status="Pending Review").count()
+                in_prog = procs.filter(status="In Progress").count()
+                pct = round(completed / total * 100) if total else 0
+                member_stats.append(
+                    {
+                        "member": member,
+                        "total": total,
+                        "completed": completed,
+                        "pending": pending,
+                        "in_prog": in_prog,
+                        "pct": pct,
+                    }
+                )
             else:
-                member_stats.append({
-                    "member": member, "total": 0, "completed": 0,
-                    "pending": 0, "in_prog": 0, "pct": 0, "unmapped": True,
-                })
+                member_stats.append(
+                    {
+                        "member": member,
+                        "total": 0,
+                        "completed": 0,
+                        "pending": 0,
+                        "in_prog": 0,
+                        "pct": 0,
+                        "unmapped": True,
+                    }
+                )
 
         all_procs = OperationalProcedure.objects.filter(school=school, academic_year=year)
         all_norms = set(all_procs.values_list("executor_norm", flat=True).distinct())
 
         return {
-            "member_stats":   member_stats,
+            "member_stats": member_stats,
             "unmapped_norms": all_norms - mapped_norms,
-            "overall":        QualityService.get_plan_stats(school, year),
+            "overall": QualityService.get_plan_stats(school, year),
         }
 
     # ── تفاصيل إنجاز منفذ واحد ─────────────────────────────
@@ -221,9 +242,9 @@ class QualityService:
 
         return {
             "procedures": procs,
-            "total":      total,
-            "completed":  completed,
+            "total": total,
+            "completed": completed,
             "in_progress": in_prog,
-            "pct":        pct,
-            "by_domain":  by_domain,
+            "pct": pct,
+            "by_domain": by_domain,
         }

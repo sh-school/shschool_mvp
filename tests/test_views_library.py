@@ -2,14 +2,16 @@
 tests/test_views_library.py
 اختبارات views المكتبة
 """
+
 import pytest
-from core.models import LibraryBook, BookBorrowing
-from .conftest import LibraryBookFactory, BookBorrowingFactory
+
+from core.models import BookBorrowing, LibraryBook
+
+from .conftest import LibraryBookFactory
 
 
 @pytest.mark.django_db
 class TestLibraryDashboard:
-
     def test_dashboard_loads_for_librarian(self, client_as, librarian_user, school, library_book):
         client = client_as(librarian_user)
         response = client.get("/library/dashboard/")
@@ -26,7 +28,6 @@ class TestLibraryDashboard:
 
 @pytest.mark.django_db
 class TestBookList:
-
     def test_book_list_loads(self, client_as, teacher_user, school, library_book):
         """staff_required — المعلم يمكنه رؤية الكتب"""
         client = client_as(teacher_user)
@@ -50,7 +51,6 @@ class TestBookList:
 
 @pytest.mark.django_db
 class TestBorrowBook:
-
     def test_borrow_form_loads(self, client_as, librarian_user, school, library_book):
         client = client_as(librarian_user)
         response = client.get("/library/borrow/")
@@ -62,13 +62,17 @@ class TestBorrowBook:
         self, client_as, librarian_user, school, library_book, student_user
     ):
         from datetime import date, timedelta
+
         client = client_as(librarian_user)
         count_before = BookBorrowing.objects.count()
-        response = client.post("/library/borrow/", {
-            "book_id": str(library_book.id),
-            "user_id": str(student_user.id),
-            "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
-        })
+        response = client.post(
+            "/library/borrow/",
+            {
+                "book_id": str(library_book.id),
+                "user_id": str(student_user.id),
+                "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
+            },
+        )
         assert response.status_code in (200, 302)
         assert BookBorrowing.objects.count() > count_before
 
@@ -76,37 +80,40 @@ class TestBorrowBook:
         self, client_as, librarian_user, school, library_book, student_user
     ):
         from datetime import date, timedelta
+
         initial_qty = library_book.available_qty
         client = client_as(librarian_user)
-        client.post("/library/borrow/", {
-            "book_id": str(library_book.id),
-            "user_id": str(student_user.id),
-            "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
-        })
+        client.post(
+            "/library/borrow/",
+            {
+                "book_id": str(library_book.id),
+                "user_id": str(student_user.id),
+                "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
+            },
+        )
         refreshed = LibraryBook.objects.get(id=library_book.id)
         assert refreshed.available_qty == initial_qty - 1
 
-    def test_unavailable_book_not_borrowed(
-        self, client_as, librarian_user, school, student_user
-    ):
+    def test_unavailable_book_not_borrowed(self, client_as, librarian_user, school, student_user):
         unavailable = LibraryBookFactory(school=school, quantity=1, available_qty=0)
         from datetime import date, timedelta
+
         client = client_as(librarian_user)
         count_before = BookBorrowing.objects.count()
-        client.post("/library/borrow/", {
-            "book_id": str(unavailable.id),
-            "user_id": str(student_user.id),
-            "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
-        })
+        client.post(
+            "/library/borrow/",
+            {
+                "book_id": str(unavailable.id),
+                "user_id": str(student_user.id),
+                "due_date": (date.today() + timedelta(days=14)).strftime("%Y-%m-%d"),
+            },
+        )
         assert BookBorrowing.objects.count() == count_before
 
 
 @pytest.mark.django_db
 class TestReturnBook:
-
-    def test_return_changes_status(
-        self, client_as, librarian_user, school, book_borrowing
-    ):
+    def test_return_changes_status(self, client_as, librarian_user, school, book_borrowing):
         client = client_as(librarian_user)
         response = client.get(f"/library/return/{book_borrowing.id}/")
         assert response.status_code in (200, 302)

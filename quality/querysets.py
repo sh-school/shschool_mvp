@@ -2,9 +2,10 @@
 quality/querysets.py — Custom QuerySets للخطة التشغيلية والجودة
 ================================================================
 """
+
 from __future__ import annotations
 
-from django.db.models import Avg, Count, F, Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 
@@ -13,37 +14,37 @@ class ProcedureQuerySet(QuerySet):
 
     # ── الفلترة حسب الحالة ────────────────────────────────────────────────
 
-    def not_started(self) -> "ProcedureQuerySet":
+    def not_started(self) -> ProcedureQuerySet:
         return self.filter(status="not_started")
 
-    def in_progress(self) -> "ProcedureQuerySet":
+    def in_progress(self) -> ProcedureQuerySet:
         return self.filter(status="in_progress")
 
-    def pending_review(self) -> "ProcedureQuerySet":
+    def pending_review(self) -> ProcedureQuerySet:
         return self.filter(status="pending_review")
 
-    def completed(self) -> "ProcedureQuerySet":
+    def completed(self) -> ProcedureQuerySet:
         return self.filter(status="completed")
 
-    def cancelled(self) -> "ProcedureQuerySet":
+    def cancelled(self) -> ProcedureQuerySet:
         return self.filter(status="cancelled")
 
-    def active(self) -> "ProcedureQuerySet":
+    def active(self) -> ProcedureQuerySet:
         return self.exclude(status__in=["completed", "cancelled"])
 
     # ── الفلترة الزمنية ────────────────────────────────────────────────────
 
-    def overdue(self) -> "ProcedureQuerySet":
+    def overdue(self) -> ProcedureQuerySet:
         """تجاوزت الموعد ولم تكتمل."""
         return self.active().filter(deadline__lt=timezone.now().date())
 
-    def due_soon(self, days: int = 7) -> "ProcedureQuerySet":
+    def due_soon(self, days: int = 7) -> ProcedureQuerySet:
         """تنتهي خلال n أيام."""
         today = timezone.now().date()
         deadline = today + timezone.timedelta(days=days)
         return self.active().filter(deadline__gte=today, deadline__lte=deadline)
 
-    def due_this_month(self) -> "ProcedureQuerySet":
+    def due_this_month(self) -> ProcedureQuerySet:
         today = timezone.now().date()
         return self.active().filter(
             deadline__year=today.year,
@@ -52,15 +53,15 @@ class ProcedureQuerySet(QuerySet):
 
     # ── الفلترة حسب المنفذ ────────────────────────────────────────────────
 
-    def for_executor(self, user) -> "ProcedureQuerySet":
+    def for_executor(self, user) -> ProcedureQuerySet:
         return self.filter(executor_user=user)
 
-    def for_domain(self, domain) -> "ProcedureQuerySet":
+    def for_domain(self, domain) -> ProcedureQuerySet:
         return self.filter(indicator__target__domain=domain)
 
     # ── تحسين الـ queries ─────────────────────────────────────────────────
 
-    def with_details(self) -> "ProcedureQuerySet":
+    def with_details(self) -> ProcedureQuerySet:
         return self.select_related(
             "indicator",
             "indicator__target",
@@ -98,7 +99,7 @@ class ProcedureQuerySet(QuerySet):
 class DomainQuerySet(QuerySet):
     """QuerySet لـ OperationalDomain."""
 
-    def with_progress(self) -> "DomainQuerySet":
+    def with_progress(self) -> DomainQuerySet:
         """يضيف نسبة الإنجاز لكل مجال."""
         return self.annotate(
             total_procedures=Count("targets__indicators__procedures"),
@@ -108,7 +109,7 @@ class DomainQuerySet(QuerySet):
             ),
         )
 
-    def with_all(self) -> "DomainQuerySet":
+    def with_all(self) -> DomainQuerySet:
         return self.prefetch_related(
             "targets",
             "targets__indicators",

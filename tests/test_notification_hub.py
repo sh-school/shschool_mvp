@@ -10,41 +10,50 @@ tests/test_notification_hub.py
   - PushSubscription: إنشاء وتنسيق
   - Views: notification bell، mark read، inbox
 """
-import pytest
-from datetime import time
-from unittest.mock import patch, MagicMock
 
+from datetime import time
+from unittest.mock import MagicMock, patch
+
+import pytest
 from django.utils import timezone
 
-from notifications.models import (
-    InAppNotification, UserNotificationPreference,
-    NotificationSettings, PushSubscription,
-)
 from notifications.hub import (
-    NotificationHub, _map_event_type, _resolve_channels, DEFAULT_CHANNELS,
+    DEFAULT_CHANNELS,
+    NotificationHub,
+    _map_event_type,
+    _resolve_channels,
 )
-from tests.conftest import (
-    UserFactory, RoleFactory, MembershipFactory,
+from notifications.models import (
+    InAppNotification,
+    NotificationSettings,
+    PushSubscription,
+    UserNotificationPreference,
 )
-
 
 # ══════════════════════════════════════════════════════════════════════
 #  Fixtures
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def notif_settings(db, school):
     return NotificationSettings.objects.create(
-        school=school, email_enabled=True, sms_enabled=False, absence_threshold=3,
+        school=school,
+        email_enabled=True,
+        sms_enabled=False,
+        absence_threshold=3,
     )
 
 
 @pytest.fixture
 def in_app_notif(db, school, teacher_user):
     return InAppNotification.objects.create(
-        user=teacher_user, school=school,
-        title="إشعار تجريبي", body="نص الإشعار",
-        event_type="general", priority="medium",
+        user=teacher_user,
+        school=school,
+        title="إشعار تجريبي",
+        body="نص الإشعار",
+        event_type="general",
+        priority="medium",
     )
 
 
@@ -52,8 +61,11 @@ def in_app_notif(db, school, teacher_user):
 def user_prefs(db, teacher_user):
     return UserNotificationPreference.objects.create(
         user=teacher_user,
-        in_app_enabled=True, push_enabled=True,
-        whatsapp_enabled=False, email_enabled=True, sms_enabled=False,
+        in_app_enabled=True,
+        push_enabled=True,
+        whatsapp_enabled=False,
+        email_enabled=True,
+        sms_enabled=False,
     )
 
 
@@ -61,9 +73,9 @@ def user_prefs(db, teacher_user):
 #  InAppNotification — النموذج
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestInAppNotificationModel:
-
     def test_creation(self, in_app_notif):
         assert in_app_notif.title == "إشعار تجريبي"
         assert in_app_notif.is_read is False
@@ -103,17 +115,21 @@ class TestInAppNotificationModel:
 #  InAppNotificationManager
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestInAppNotificationManager:
-
     def test_unread_for_user(self, school, teacher_user):
         InAppNotification.objects.create(
-            user=teacher_user, school=school,
-            title="رسالة 1", event_type="general",
+            user=teacher_user,
+            school=school,
+            title="رسالة 1",
+            event_type="general",
         )
         InAppNotification.objects.create(
-            user=teacher_user, school=school,
-            title="رسالة 2", event_type="grade",
+            user=teacher_user,
+            school=school,
+            title="رسالة 2",
+            event_type="grade",
         )
         unread = InAppNotification.objects.unread_for_user(teacher_user)
         assert unread.count() == 2
@@ -121,8 +137,10 @@ class TestInAppNotificationManager:
     def test_unread_count(self, school, teacher_user):
         for i in range(3):
             InAppNotification.objects.create(
-                user=teacher_user, school=school,
-                title=f"إشعار {i}", event_type="general",
+                user=teacher_user,
+                school=school,
+                title=f"إشعار {i}",
+                event_type="general",
             )
         count = InAppNotification.objects.unread_count(teacher_user)
         assert count == 3
@@ -135,8 +153,10 @@ class TestInAppNotificationManager:
     def test_mark_all_read(self, school, teacher_user):
         for i in range(4):
             InAppNotification.objects.create(
-                user=teacher_user, school=school,
-                title=f"إشعار {i}", event_type="general",
+                user=teacher_user,
+                school=school,
+                title=f"إشعار {i}",
+                event_type="general",
             )
         InAppNotification.objects.mark_all_read(teacher_user)
         assert InAppNotification.objects.unread_count(teacher_user) == 0
@@ -144,8 +164,10 @@ class TestInAppNotificationManager:
     def test_for_user_limit(self, school, teacher_user):
         for i in range(60):
             InAppNotification.objects.create(
-                user=teacher_user, school=school,
-                title=f"إشعار {i}", event_type="general",
+                user=teacher_user,
+                school=school,
+                title=f"إشعار {i}",
+                event_type="general",
             )
         results = InAppNotification.objects.for_user(teacher_user, limit=50)
         assert len(list(results)) == 50
@@ -153,8 +175,10 @@ class TestInAppNotificationManager:
     def test_unread_only_for_current_user(self, school, teacher_user, student_user):
         """إشعارات مستخدم آخر لا تظهر"""
         InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار طالب", event_type="grade",
+            user=student_user,
+            school=school,
+            title="إشعار طالب",
+            event_type="grade",
         )
         count = InAppNotification.objects.unread_count(teacher_user)
         assert count == 0
@@ -164,9 +188,9 @@ class TestInAppNotificationManager:
 #  UserNotificationPreference
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestUserNotificationPreference:
-
     def test_defaults(self, user_prefs):
         assert user_prefs.in_app_enabled is True
         assert user_prefs.email_enabled is True
@@ -203,19 +227,21 @@ class TestUserNotificationPreference:
     def test_is_quiet_hours_within_range(self, user_prefs):
         """الوقت الحالي ضمن ساعات الهدوء"""
         now = timezone.localtime().time()
-        start = (timezone.datetime.combine(timezone.datetime.today(), now)
-                 - timezone.timedelta(hours=1)).time()
-        end   = (timezone.datetime.combine(timezone.datetime.today(), now)
-                 + timezone.timedelta(hours=1)).time()
+        start = (
+            timezone.datetime.combine(timezone.datetime.today(), now) - timezone.timedelta(hours=1)
+        ).time()
+        end = (
+            timezone.datetime.combine(timezone.datetime.today(), now) + timezone.timedelta(hours=1)
+        ).time()
         user_prefs.quiet_hours_start = start
-        user_prefs.quiet_hours_end   = end
+        user_prefs.quiet_hours_end = end
         user_prefs.save()
         assert user_prefs.is_quiet_hours() is True
 
     def test_is_quiet_hours_outside_range(self, user_prefs):
         """الوقت الحالي خارج ساعات الهدوء"""
         user_prefs.quiet_hours_start = time(2, 0)
-        user_prefs.quiet_hours_end   = time(4, 0)
+        user_prefs.quiet_hours_end = time(4, 0)
         user_prefs.save()
         # افتراض أننا لسنا بين 2-4 صباحاً أثناء الاختبار
         # نتحقق فقط من عدم رفع استثناء
@@ -224,6 +250,7 @@ class TestUserNotificationPreference:
 
     def test_one_preference_per_user(self, user_prefs, teacher_user):
         from django.db import IntegrityError
+
         with pytest.raises(IntegrityError):
             UserNotificationPreference.objects.create(user=teacher_user)
 
@@ -232,9 +259,9 @@ class TestUserNotificationPreference:
 #  NotificationHub — dispatch
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestNotificationHubDispatch:
-
     def test_dispatch_creates_in_app_notification(self, school, teacher_user):
         result = NotificationHub.dispatch(
             event_type="general",
@@ -244,9 +271,7 @@ class TestNotificationHubDispatch:
             body="نص الإشعار",
         )
         assert result["in_app"] == 1
-        assert InAppNotification.objects.filter(
-            user=teacher_user, title="اختبار Hub"
-        ).exists()
+        assert InAppNotification.objects.filter(user=teacher_user, title="اختبار Hub").exists()
 
     def test_dispatch_multiple_recipients(self, school, teacher_user, student_user):
         result = NotificationHub.dispatch(
@@ -259,8 +284,10 @@ class TestNotificationHubDispatch:
 
     def test_dispatch_empty_recipients(self, school):
         result = NotificationHub.dispatch(
-            event_type="general", school=school,
-            recipients=[], title="لا أحد",
+            event_type="general",
+            school=school,
+            recipients=[],
+            title="لا أحد",
         )
         assert result["in_app"] == 0
 
@@ -279,9 +306,7 @@ class TestNotificationHubDispatch:
             title="مكتوم",
         )
         assert result["in_app"] == 0
-        assert not InAppNotification.objects.filter(
-            user=teacher_user, title="مكتوم"
-        ).exists()
+        assert not InAppNotification.objects.filter(user=teacher_user, title="مكتوم").exists()
 
     def test_dispatch_sets_correct_priority(self, school, teacher_user):
         NotificationHub.dispatch(
@@ -337,26 +362,24 @@ class TestNotificationHubDispatch:
             title="غياب الطالب",
         )
         assert result["in_app"] >= 1
-        assert InAppNotification.objects.filter(
-            user=parent_user, title="غياب الطالب"
-        ).exists()
+        assert InAppNotification.objects.filter(user=parent_user, title="غياب الطالب").exists()
 
 
 # ══════════════════════════════════════════════════════════════════════
 #  دوال المساعدة الداخلية
 # ══════════════════════════════════════════════════════════════════════
 
-class TestHubHelpers:
 
+class TestHubHelpers:
     def test_map_event_type_behavior(self):
         assert _map_event_type("behavior_l1") == "behavior"
         assert _map_event_type("behavior_l4") == "behavior"
 
     def test_map_event_type_direct(self):
         assert _map_event_type("absence") == "absence"
-        assert _map_event_type("grade")   == "grade"
-        assert _map_event_type("fail")    == "fail"
-        assert _map_event_type("clinic")  == "clinic"
+        assert _map_event_type("grade") == "grade"
+        assert _map_event_type("fail") == "fail"
+        assert _map_event_type("clinic") == "clinic"
         assert _map_event_type("sent_home") == "sent_home"
 
     def test_map_event_type_unknown(self):
@@ -380,8 +403,16 @@ class TestHubHelpers:
     def test_default_channels_coverage(self):
         """كل أنواع الأحداث لها قنوات افتراضية"""
         events = [
-            "behavior_l1", "behavior_l4", "absence", "grade", "fail",
-            "clinic", "sent_home", "meeting", "plan_update", "general",
+            "behavior_l1",
+            "behavior_l4",
+            "absence",
+            "grade",
+            "fail",
+            "clinic",
+            "sent_home",
+            "meeting",
+            "plan_update",
+            "general",
         ]
         for event in events:
             assert event in DEFAULT_CHANNELS, f"{event} not in DEFAULT_CHANNELS"
@@ -392,12 +423,13 @@ class TestHubHelpers:
 #  PushSubscription
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestPushSubscription:
-
     def test_creation(self, school, parent_user):
         sub = PushSubscription.objects.create(
-            user=parent_user, school=school,
+            user=parent_user,
+            school=school,
             endpoint="https://push.example.com/endpoint/abc123",
             p256dh="BNcRdreALRFXTkOOUHK1EtK2wtc",
             auth="tBHItJI5svbpez7KI4CCXg==",
@@ -407,7 +439,8 @@ class TestPushSubscription:
 
     def test_to_dict_format(self, school, parent_user):
         sub = PushSubscription.objects.create(
-            user=parent_user, school=school,
+            user=parent_user,
+            school=school,
             endpoint="https://push.example.com/xyz",
             p256dh="key123",
             auth="auth456",
@@ -419,16 +452,21 @@ class TestPushSubscription:
 
     def test_unique_endpoint(self, school, parent_user, teacher_user):
         PushSubscription.objects.create(
-            user=parent_user, school=school,
+            user=parent_user,
+            school=school,
             endpoint="https://unique.endpoint.com",
-            p256dh="key", auth="auth",
+            p256dh="key",
+            auth="auth",
         )
         from django.db import IntegrityError
+
         with pytest.raises(IntegrityError):
             PushSubscription.objects.create(
-                user=teacher_user, school=school,
+                user=teacher_user,
+                school=school,
                 endpoint="https://unique.endpoint.com",
-                p256dh="key2", auth="auth2",
+                p256dh="key2",
+                auth="auth2",
             )
 
 
@@ -436,9 +474,9 @@ class TestPushSubscription:
 #  Notification Views
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestNotificationViews:
-
     def test_inbox_view(self, client_as, teacher_user):
         c = client_as(teacher_user)
         resp = c.get("/notifications/inbox/")
@@ -456,6 +494,7 @@ class TestNotificationViews:
         resp = c.get("/notifications/api/unread-count/")
         assert resp.status_code == 200
         import json
+
         data = json.loads(resp.content)
         assert "count" in data
         assert data["count"] >= 1
@@ -467,8 +506,11 @@ class TestNotificationViews:
 
     def test_preferences_view_post(self, client_as, teacher_user):
         c = client_as(teacher_user)
-        resp = c.post("/notifications/preferences/", {
-            "in_app_enabled": True,
-            "email_enabled": False,
-        })
+        resp = c.post(
+            "/notifications/preferences/",
+            {
+                "in_app_enabled": True,
+                "email_enabled": False,
+            },
+        )
         assert resp.status_code in [200, 302]

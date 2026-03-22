@@ -18,13 +18,14 @@ class Command(BaseCommand):
         # تجاوز input() عند --no-input
         if options.get("no_input"):
             import builtins
+
             builtins.input = lambda _="": ""
 
         scripts_dir = str(Path(__file__).resolve().parent.parent.parent.parent / "scripts")
         sys.path.insert(0, scripts_dir)
 
-        from seed_all import run_real_seed, run_quality
         from real_seed import run as run_real_seed
+        from seed_all import run_quality, run_real_seed
         from seed_quality import run as run_quality
 
         self.stdout.write("📥 الموظفون والطلاب...")

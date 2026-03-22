@@ -1,66 +1,71 @@
 from django.contrib import admin
+
 from .models import (
-    OperationalDomain, OperationalTarget, OperationalIndicator,
-    OperationalProcedure, ProcedureEvidence, QualityCommitteeMember,
     ExecutorMapping,
+    OperationalDomain,
+    OperationalIndicator,
+    OperationalProcedure,
+    OperationalTarget,
+    ProcedureEvidence,
+    QualityCommitteeMember,
 )
 
 
 class TargetInline(admin.TabularInline):
-    model  = OperationalTarget
-    extra  = 0
+    model = OperationalTarget
+    extra = 0
     fields = ("number", "text")
 
 
 @admin.register(OperationalDomain)
 class DomainAdmin(admin.ModelAdmin):
-    list_display  = ("name", "school", "academic_year", "total_procedures", "completion_pct")
-    list_filter   = ("school", "academic_year")
+    list_display = ("name", "school", "academic_year", "total_procedures", "completion_pct")
+    list_filter = ("school", "academic_year")
     search_fields = ("name",)
-    inlines       = [TargetInline]
+    inlines = [TargetInline]
 
 
 class IndicatorInline(admin.TabularInline):
-    model  = OperationalIndicator
-    extra  = 0
+    model = OperationalIndicator
+    extra = 0
     fields = ("number", "text")
 
 
 @admin.register(OperationalTarget)
 class TargetAdmin(admin.ModelAdmin):
-    list_display  = ("number", "text", "domain")
-    list_filter   = ("domain__school", "domain")
+    list_display = ("number", "text", "domain")
+    list_filter = ("domain__school", "domain")
     search_fields = ("number", "text")
-    inlines       = [IndicatorInline]
+    inlines = [IndicatorInline]
 
 
 class ProcedureInline(admin.TabularInline):
-    model  = OperationalProcedure
-    extra  = 0
+    model = OperationalProcedure
+    extra = 0
     fields = ("number", "executor_norm", "status", "date_range")
 
 
 @admin.register(OperationalIndicator)
 class IndicatorAdmin(admin.ModelAdmin):
-    list_display  = ("number", "text", "target")
-    list_filter   = ("target__domain__school",)
+    list_display = ("number", "text", "target")
+    list_filter = ("target__domain__school",)
     search_fields = ("number", "text")
-    inlines       = [ProcedureInline]
+    inlines = [ProcedureInline]
 
 
 class EvidenceInline(admin.TabularInline):
-    model  = ProcedureEvidence
-    extra  = 0
+    model = ProcedureEvidence
+    extra = 0
     fields = ("title", "description", "file", "uploaded_by")
 
 
 @admin.register(OperationalProcedure)
 class ProcedureAdmin(admin.ModelAdmin):
-    list_display  = ("number", "executor_norm", "status", "date_range", "evidence_type")
-    list_filter   = ("school", "status", "evidence_type", "academic_year")
+    list_display = ("number", "executor_norm", "status", "date_range", "evidence_type")
+    list_filter = ("school", "status", "evidence_type", "academic_year")
     search_fields = ("number", "text", "executor_norm")
     raw_id_fields = ("executor_user",)
-    inlines       = [EvidenceInline]
+    inlines = [EvidenceInline]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("indicator__target__domain")
@@ -68,9 +73,17 @@ class ProcedureAdmin(admin.ModelAdmin):
 
 @admin.register(QualityCommitteeMember)
 class QualityCommitteeMemberAdmin(admin.ModelAdmin):
-    list_display        = ("job_title", "user", "responsibility", "committee_type", "domain", "academic_year", "is_active")
-    list_filter         = ("school", "responsibility", "committee_type", "academic_year", "is_active")
-    search_fields       = ("job_title", "user__full_name")
+    list_display = (
+        "job_title",
+        "user",
+        "responsibility",
+        "committee_type",
+        "domain",
+        "academic_year",
+        "is_active",
+    )
+    list_filter = ("school", "responsibility", "committee_type", "academic_year", "is_active")
+    search_fields = ("job_title", "user__full_name")
     autocomplete_fields = ["user"]
 
 
@@ -87,23 +100,24 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
     """
 
     class Meta:
-        model  = ExecutorMapping
+        model = ExecutorMapping
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         school = None
-        year   = "2025-2026"
+        year = "2025-2026"
 
         if self.instance and self.instance.pk:
             try:
                 school = self.instance.school
-                year   = self.instance.academic_year
+                year = self.instance.academic_year
             except Exception:
                 school = None
         if not school and self.data.get("school"):
             from core.models import School as _S
+
             try:
                 school = _S.objects.get(pk=self.data["school"])
             except _S.DoesNotExist:
@@ -112,8 +126,7 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
 
         if school:
             norms = (
-                OperationalProcedure.objects
-                .filter(school=school, academic_year=year)
+                OperationalProcedure.objects.filter(school=school, academic_year=year)
                 .values_list("executor_norm", flat=True)
                 .distinct()
                 .order_by("executor_norm")
@@ -130,14 +143,14 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
 
 @admin.register(ExecutorMapping)
 class ExecutorMappingAdmin(admin.ModelAdmin):
-    form                = ExecutorMappingAdminForm
+    form = ExecutorMappingAdminForm
     autocomplete_fields = ["user"]
     change_form_template = "admin/quality/executormapping/change_form.html"
 
-    list_display   = ("executor_norm", "mapped_user", "procedures_count", "school", "academic_year")
-    list_filter    = ("school", "academic_year")
-    search_fields  = ("executor_norm", "user__full_name", "user__national_id")
-    ordering       = ("school", "academic_year", "executor_norm")
+    list_display = ("executor_norm", "mapped_user", "procedures_count", "school", "academic_year")
+    list_filter = ("school", "academic_year")
+    search_fields = ("executor_norm", "user__full_name", "user__national_id")
+    ordering = ("school", "academic_year", "executor_norm")
 
     @admin.display(description="عدد الإجراءات")
     def procedures_count(self, obj):
@@ -156,19 +169,20 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
     def get_urls(self):
         urls = super().get_urls()
         custom = [
-            _path("norms/", self.admin_site.admin_view(self.norms_ajax), name="executormapping_norms"),
+            _path(
+                "norms/", self.admin_site.admin_view(self.norms_ajax), name="executormapping_norms"
+            ),
         ]
         return custom + urls
 
     def norms_ajax(self, request):
         """AJAX: إرجاع قائمة executor_norm لمدرسة وسنة محددتين"""
         school_id = request.GET.get("school")
-        year      = request.GET.get("year", "2025-2026")
+        year = request.GET.get("year", "2025-2026")
         norms = []
         if school_id:
             norms = list(
-                OperationalProcedure.objects
-                .filter(school_id=school_id, academic_year=year)
+                OperationalProcedure.objects.filter(school_id=school_id, academic_year=year)
                 .values_list("executor_norm", flat=True)
                 .distinct()
                 .order_by("executor_norm")
@@ -177,7 +191,7 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
 
     class Media:
         css = {"all": ("https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css",)}
-        js  = (
+        js = (
             "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js",
             "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ar.js",
         )

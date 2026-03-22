@@ -7,6 +7,7 @@ Business logic لوحدة التقارير — بدون أي HTTP logic
   - ReportDataService  : تجميع بيانات التقارير
   - ExcelService       : إنشاء ملفات Excel باحترافية كاملة
 """
+
 import logging
 from io import BytesIO
 
@@ -14,10 +15,11 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 from assessments.models import (
-    AnnualSubjectResult, StudentSubjectResult,
+    AnnualSubjectResult,
+    StudentSubjectResult,
     SubjectClassSetup,
 )
-from core.models import CustomUser, StudentEnrollment, ClassGroup, School
+from core.models import StudentEnrollment
 from operations.models import StudentAttendance
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 # ReportDataService — تجميع البيانات
 # ══════════════════════════════════════════════════════════════════════
 
+
 class ReportDataService:
     """تجميع بيانات التقارير — بدون أي HTTP logic"""
 
@@ -34,20 +37,20 @@ class ReportDataService:
     def get_student_report(student, school, year="2025-2026"):
         """بيانات تقرير الطالب السنوي الكاملة"""
         annual = (
-            AnnualSubjectResult.objects.filter(
-                student=student, school=school, academic_year=year
-            )
+            AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
             .select_related("setup__subject")
             .order_by("setup__subject__name_ar")
         )
 
         s1_map = {
-            r.setup_id: r for r in StudentSubjectResult.objects.filter(
+            r.setup_id: r
+            for r in StudentSubjectResult.objects.filter(
                 student=student, school=school, semester="S1"
             )
         }
         s2_map = {
-            r.setup_id: r for r in StudentSubjectResult.objects.filter(
+            r.setup_id: r
+            for r in StudentSubjectResult.objects.filter(
                 student=student, school=school, semester="S2"
             )
         }
@@ -55,51 +58,49 @@ class ReportDataService:
         rows = [
             {
                 "subject": ann.setup.subject.name_ar,
-                "s1":      s1_map.get(ann.setup_id),
-                "s2":      s2_map.get(ann.setup_id),
-                "annual":  ann,
+                "s1": s1_map.get(ann.setup_id),
+                "s2": s2_map.get(ann.setup_id),
+                "annual": ann,
             }
             for ann in annual
         ]
 
-        total  = annual.count()
+        total = annual.count()
         passed = annual.filter(status="pass").count()
         failed = annual.filter(status="fail").count()
         grades = [float(r.annual_total) for r in annual if r.annual_total]
-        avg    = round(sum(grades) / len(grades), 2) if grades else None
+        avg = round(sum(grades) / len(grades), 2) if grades else None
 
-        enrollment = StudentEnrollment.objects.filter(
-            student=student, is_active=True
-        ).select_related("class_group").first()
-
-        att = StudentAttendance.objects.filter(
-            student=student, session__school=school
+        enrollment = (
+            StudentEnrollment.objects.filter(student=student, is_active=True)
+            .select_related("class_group")
+            .first()
         )
+
+        att = StudentAttendance.objects.filter(student=student, session__school=school)
         absent_total = att.filter(status="absent").count()
-        late_total   = att.filter(status="late").count()
+        late_total = att.filter(status="late").count()
 
         return {
-            "student":      student,
-            "school":       school,
-            "year":         year,
-            "enrollment":   enrollment,
-            "rows":         rows,
-            "total":        total,
-            "passed":       passed,
-            "failed":       failed,
-            "avg":          avg,
+            "student": student,
+            "school": school,
+            "year": year,
+            "enrollment": enrollment,
+            "rows": rows,
+            "total": total,
+            "passed": passed,
+            "failed": failed,
+            "avg": avg,
             "absent_total": absent_total,
-            "late_total":   late_total,
-            "print_date":   timezone.now().date(),
+            "late_total": late_total,
+            "print_date": timezone.now().date(),
         }
 
     @staticmethod
     def get_class_results(class_group, school, year="2025-2026"):
         """بيانات كشف نتائج الفصل الكامل مع ترتيب + ملخص"""
         enrollments = list(
-            StudentEnrollment.objects.filter(
-                class_group=class_group, is_active=True
-            )
+            StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
             .select_related("student")
             .order_by("student__full_name")
         )
@@ -107,7 +108,9 @@ class ReportDataService:
         setups = list(
             SubjectClassSetup.objects.filter(
                 class_group=class_group, school=school, academic_year=year
-            ).select_related("subject").order_by("subject__name_ar")
+            )
+            .select_related("subject")
+            .order_by("subject__name_ar")
         )
 
         subjects = [s.subject for s in setups]
@@ -140,10 +143,12 @@ class ReportDataService:
                         failed += 1
 
             avg = round(sum(grades) / len(grades), 2) if grades else None
-            row["avg"]    = avg
+            row["avg"] = avg
             row["passed"] = passed
             row["failed"] = failed
-            row["status"] = "ناجح" if failed == 0 and passed > 0 else ("راسب" if failed > 0 else "—")
+            row["status"] = (
+                "ناجح" if failed == 0 and passed > 0 else ("راسب" if failed > 0 else "—")
+            )
             student_rows.append(row)
 
         # ترتيب حسب المتوسط
@@ -156,24 +161,22 @@ class ReportDataService:
         total_failed = sum(1 for r in student_rows if r["failed"] > 0)
 
         return {
-            "class_group":    class_group,
-            "school":         school,
-            "year":           year,
-            "subjects":       subjects,
-            "student_rows":   student_rows,
+            "class_group": class_group,
+            "school": school,
+            "year": year,
+            "subjects": subjects,
+            "student_rows": student_rows,
             "total_students": len(student_rows),
-            "total_passed":   total_passed,
-            "total_failed":   total_failed,
-            "print_date":     timezone.now().date(),
+            "total_passed": total_passed,
+            "total_failed": total_failed,
+            "print_date": timezone.now().date(),
         }
 
     @staticmethod
     def get_attendance_report(class_group, school, year="2025-2026"):
         """بيانات تقرير الغياب لفصل"""
         enrollments = list(
-            StudentEnrollment.objects.filter(
-                class_group=class_group, is_active=True
-            )
+            StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
             .select_related("student")
             .order_by("student__full_name")
         )
@@ -187,6 +190,7 @@ class ReportDataService:
 
         # تجميع الإحصائيات لكل طالب في Python
         from collections import defaultdict
+
         att_counts = defaultdict(lambda: {"total": 0, "absent": 0, "late": 0, "excused": 0})
         for rec in all_att:
             sid = rec["student_id"]
@@ -197,29 +201,31 @@ class ReportDataService:
         student_rows = []
         for enr in enrollments:
             counts = att_counts[enr.student_id]
-            total   = counts["total"]
-            absent  = counts["absent"]
-            late    = counts["late"]
+            total = counts["total"]
+            absent = counts["absent"]
+            late = counts["late"]
             excused = counts["excused"]
             present = total - absent - late - excused
-            pct     = round(present / total * 100) if total else 0
+            pct = round(present / total * 100) if total else 0
 
-            student_rows.append({
-                "student":        enr.student,
-                "total_sessions": total,
-                "present":        present,
-                "absent":         absent,
-                "late":           late,
-                "excused":        excused,
-                "attendance_pct": pct,
-            })
+            student_rows.append(
+                {
+                    "student": enr.student,
+                    "total_sessions": total,
+                    "present": present,
+                    "absent": absent,
+                    "late": late,
+                    "excused": excused,
+                    "attendance_pct": pct,
+                }
+            )
 
         return {
-            "class_group":  class_group,
-            "school":       school,
-            "year":         year,
+            "class_group": class_group,
+            "school": school,
+            "year": year,
             "student_rows": student_rows,
-            "print_date":   timezone.now().date(),
+            "print_date": timezone.now().date(),
         }
 
     @staticmethod
@@ -234,16 +240,17 @@ class ReportDataService:
         )
 
         return {
-            "school":      school,
-            "year":        year,
+            "school": school,
+            "year": year,
             "infractions": infractions,
-            "print_date":  timezone.now().date(),
+            "print_date": timezone.now().date(),
         }
 
 
 # ══════════════════════════════════════════════════════════════════════
 # ExcelService — إنشاء Excel باحترافية كاملة
 # ══════════════════════════════════════════════════════════════════════
+
 
 class ExcelService:
     """
@@ -255,12 +262,12 @@ class ExcelService:
       - RTL عربي + صفوف متبادلة + تلوين شرطي
     """
 
-    MAROON  = "8A1538"
-    WHITE   = "FFFFFF"
-    ALT_BG  = "FDF2F5"
-    HEADER1 = "F5EEF1"   # وزارة
-    HEADER2 = "FAFAFA"   # مدرسة
-    HEADER3 = "FDF2F5"   # عنوان
+    MAROON = "8A1538"
+    WHITE = "FFFFFF"
+    ALT_BG = "FDF2F5"
+    HEADER1 = "F5EEF1"  # وزارة
+    HEADER2 = "FAFAFA"  # مدرسة
+    HEADER3 = "FDF2F5"  # عنوان
 
     # ── بنية تحتية ────────────────────────────────────────────────────
 
@@ -268,7 +275,7 @@ class ExcelService:
     def _make_workbook(cls, sheet_title: str):
         """Workbook جديد مع ستايل الهوية القطرية"""
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
         wb = openpyxl.Workbook()
         ws = wb.active
@@ -276,16 +283,14 @@ class ExcelService:
         ws.sheet_view.rightToLeft = True
 
         styles = {
-            "header_font":  Font(name="Arial", bold=True, color=cls.WHITE, size=11),
-            "header_fill":  PatternFill("solid", fgColor=cls.MAROON),
-            "header_align": Alignment(horizontal="center", vertical="center",
-                                      wrap_text=True),
-            "data_align":   Alignment(horizontal="center", vertical="center",
-                                      wrap_text=True),
-            "thin_border":  Border(
-                left=Side(style="thin",   color="DDDDDD"),
-                right=Side(style="thin",  color="DDDDDD"),
-                top=Side(style="thin",    color="DDDDDD"),
+            "header_font": Font(name="Arial", bold=True, color=cls.WHITE, size=11),
+            "header_fill": PatternFill("solid", fgColor=cls.MAROON),
+            "header_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
+            "data_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
+            "thin_border": Border(
+                left=Side(style="thin", color="DDDDDD"),
+                right=Side(style="thin", color="DDDDDD"),
+                top=Side(style="thin", color="DDDDDD"),
                 bottom=Side(style="thin", color="DDDDDD"),
             ),
             "alt_fill": PatternFill("solid", fgColor=cls.ALT_BG),
@@ -293,8 +298,9 @@ class ExcelService:
         return wb, ws, styles
 
     @classmethod
-    def _add_professional_header(cls, ws, school_name: str,
-                                 report_title: str, year: str, num_cols: int):
+    def _add_professional_header(
+        cls, ws, school_name: str, report_title: str, year: str, num_cols: int
+    ):
         """
         4 صفوف رأس احترافية:
           الصف 1 — وزارة التربية والتعليم العالي — دولة قطر  + تاريخ الطباعة
@@ -303,53 +309,55 @@ class ExcelService:
           الصف 4 — رأس الأعمدة (يملأه المستدعي عبر _add_header_row)
         """
         from pathlib import Path
+
         from django.conf import settings
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
         col_letter = ws.cell(row=1, column=num_cols).column_letter
-        today_str  = timezone.now().strftime("%Y/%m/%d")
+        today_str = timezone.now().strftime("%Y/%m/%d")
 
         bottom_border = Border(bottom=Side(style="medium", color=cls.MAROON))
 
         # ── صف 1: وزارة التربية + تاريخ الطباعة ─────────────────────
         ws.merge_cells(f"A1:{col_letter}1")
-        c           = ws["A1"]
-        c.value     = f"وزارة التربية والتعليم والتعليم العالي — دولة قطر          {today_str}"
-        c.font      = Font(name="Arial", size=9, color="555555")
-        c.fill      = PatternFill("solid", fgColor=cls.HEADER1)
+        c = ws["A1"]
+        c.value = f"وزارة التربية والتعليم والتعليم العالي — دولة قطر          {today_str}"
+        c.font = Font(name="Arial", size=9, color="555555")
+        c.fill = PatternFill("solid", fgColor=cls.HEADER1)
         c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border    = bottom_border
+        c.border = bottom_border
         ws.row_dimensions[1].height = 22
 
         # ── صف 2: اسم المدرسة ────────────────────────────────────────
         ws.merge_cells(f"A2:{col_letter}2")
-        c           = ws["A2"]
-        c.value     = school_name
-        c.font      = Font(name="Arial", bold=True, size=16, color=cls.MAROON)
-        c.fill      = PatternFill("solid", fgColor=cls.HEADER2)
+        c = ws["A2"]
+        c.value = school_name
+        c.font = Font(name="Arial", bold=True, size=16, color=cls.MAROON)
+        c.fill = PatternFill("solid", fgColor=cls.HEADER2)
         c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border    = bottom_border
+        c.border = bottom_border
         ws.row_dimensions[2].height = 38
 
         # ── صف 3: عنوان التقرير + السنة الدراسية ─────────────────────
         ws.merge_cells(f"A3:{col_letter}3")
-        c           = ws["A3"]
-        c.value     = f"{report_title}   |   السنة الدراسية: {year}"
-        c.font      = Font(name="Arial", bold=True, size=12, color=cls.MAROON)
-        c.fill      = PatternFill("solid", fgColor=cls.HEADER3)
+        c = ws["A3"]
+        c.value = f"{report_title}   |   السنة الدراسية: {year}"
+        c.font = Font(name="Arial", bold=True, size=12, color=cls.MAROON)
+        c.fill = PatternFill("solid", fgColor=cls.HEADER3)
         c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border    = bottom_border
+        c.border = bottom_border
         ws.row_dimensions[3].height = 26
 
         # ── شعار المدرسة ──────────────────────────────────────────────
         try:
             from openpyxl.drawing.image import Image as XLImage
+
             logo_path = Path(settings.BASE_DIR) / "static" / "icons" / "badge-72.png"
             if not logo_path.exists():
                 logo_path = Path(settings.BASE_DIR) / "static" / "icons" / "icon-192.png"
             if logo_path.exists():
-                img        = XLImage(str(logo_path))
-                img.width  = 54
+                img = XLImage(str(logo_path))
+                img.width = 54
                 img.height = 54
                 ws.add_image(img, "A1")
         except Exception as exc:
@@ -359,21 +367,20 @@ class ExcelService:
     def _add_header_row(cls, ws, styles, row_num: int, columns: list):
         """رأس الجدول: قائمة من (عنوان، عرض)"""
         for col_idx, (header, width) in enumerate(columns, start=1):
-            cell            = ws.cell(row=row_num, column=col_idx, value=header)
-            cell.font       = styles["header_font"]
-            cell.fill       = styles["header_fill"]
-            cell.alignment  = styles["header_align"]
-            cell.border     = styles["thin_border"]
+            cell = ws.cell(row=row_num, column=col_idx, value=header)
+            cell.font = styles["header_font"]
+            cell.fill = styles["header_fill"]
+            cell.alignment = styles["header_align"]
+            cell.border = styles["thin_border"]
             ws.column_dimensions[cell.column_letter].width = width
         ws.row_dimensions[row_num].height = 26
 
     @classmethod
-    def _style_data_row(cls, ws, styles, row_num: int, num_cols: int,
-                        is_alt: bool = False):
+    def _style_data_row(cls, ws, styles, row_num: int, num_cols: int, is_alt: bool = False):
         """تطبيق ستايل على صف بيانات"""
         for col_idx in range(1, num_cols + 1):
-            cell           = ws.cell(row=row_num, column=col_idx)
-            cell.border    = styles["thin_border"]
+            cell = ws.cell(row=row_num, column=col_idx)
+            cell.border = styles["thin_border"]
             cell.alignment = styles["data_align"]
             if is_alt:
                 cell.fill = styles["alt_fill"]
@@ -385,10 +392,10 @@ class ExcelService:
         حماية الورقة (قراءة فقط) مع السماح بالتصفية والفرز.
         كلمة السر للتحرير: 09041974
         """
-        ws.protection.sheet      = True
-        ws.protection.password   = "09041974"
-        ws.protection.autoFilter = False   # يسمح باستخدام الفلاتر
-        ws.protection.sort       = False   # يسمح بالفرز
+        ws.protection.sheet = True
+        ws.protection.password = "09041974"
+        ws.protection.autoFilter = False  # يسمح باستخدام الفلاتر
+        ws.protection.sort = False  # يسمح بالفرز
 
     @classmethod
     def to_response(cls, wb, filename: str) -> HttpResponse:
@@ -398,10 +405,7 @@ class ExcelService:
         buf.seek(0)
         resp = HttpResponse(
             buf.read(),
-            content_type=(
-                "application/vnd.openxmlformats-officedocument"
-                ".spreadsheetml.sheet"
-            ),
+            content_type=("application/vnd.openxmlformats-officedocument" ".spreadsheetml.sheet"),
         )
         resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp
@@ -409,8 +413,7 @@ class ExcelService:
     # ── التقارير ──────────────────────────────────────────────────────
 
     @classmethod
-    def class_results_excel(cls, class_group, school,
-                            year: str = "2025-2026") -> HttpResponse:
+    def class_results_excel(cls, class_group, school, year: str = "2025-2026") -> HttpResponse:
         """
         Excel كشف نتائج الفصل:
         - رأس 4 صفوف احترافي + شعار
@@ -421,16 +424,18 @@ class ExcelService:
         """
         from openpyxl.styles import Font
 
-        data     = ReportDataService.get_class_results(class_group, school, year)
+        data = ReportDataService.get_class_results(class_group, school, year)
         subjects = data["subjects"]
-        num_cols = 3 + len(subjects) + 3   # م + اسم + وطني + مواد + متوسط + حالة + ترتيب
+        num_cols = 3 + len(subjects) + 3  # م + اسم + وطني + مواد + متوسط + حالة + ترتيب
 
         wb, ws, styles = cls._make_workbook("كشف النتائج")
 
         cls._add_professional_header(
-            ws, school.name,
+            ws,
+            school.name,
             f"كشف نتائج الفصل — {class_group}",
-            year, num_cols,
+            year,
+            num_cols,
         )
 
         columns = (
@@ -446,28 +451,31 @@ class ExcelService:
         ws.auto_filter.ref = f"A4:{col_letter}4"
 
         for row in data["student_rows"]:
-            rank    = row["rank"]
-            row_num = rank + 4        # البيانات تبدأ من الصف 5
-            is_alt  = rank % 2 == 0
-            st      = row["student"]
+            rank = row["rank"]
+            row_num = rank + 4  # البيانات تبدأ من الصف 5
+            is_alt = rank % 2 == 0
+            st = row["student"]
 
             ws.cell(row=row_num, column=1, value=rank)
             ws.cell(row=row_num, column=2, value=st.full_name)
             ws.cell(row=row_num, column=3, value=st.national_id or "")
 
             for col_off, subj in enumerate(subjects, start=4):
-                ann   = row["grades"].get(subj.name_ar)
+                ann = row["grades"].get(subj.name_ar)
                 grade = float(ann.annual_total) if ann and ann.annual_total else None
-                cell  = ws.cell(row=row_num, column=col_off,
-                                value=grade if grade is not None else "—")
+                cell = ws.cell(
+                    row=row_num, column=col_off, value=grade if grade is not None else "—"
+                )
                 if grade is not None and grade < 50:
                     cell.font = Font(name="Arial", color="DC2626", bold=True)
 
-            ws.cell(row=row_num, column=4 + len(subjects),
-                    value=row["avg"] if row["avg"] is not None else "—")
+            ws.cell(
+                row=row_num,
+                column=4 + len(subjects),
+                value=row["avg"] if row["avg"] is not None else "—",
+            )
 
-            status_cell = ws.cell(row=row_num, column=5 + len(subjects),
-                                  value=row["status"])
+            status_cell = ws.cell(row=row_num, column=5 + len(subjects), value=row["status"])
             if row["status"] == "ناجح":
                 status_cell.font = Font(name="Arial", color="15803D", bold=True)
             elif row["status"] == "راسب":
@@ -478,15 +486,11 @@ class ExcelService:
 
         cls._apply_protection(ws, num_cols)
 
-        filename = (
-            f"نتائج_{class_group.get_grade_display()}"
-            f"_{class_group.section}_{year}.xlsx"
-        )
+        filename = f"نتائج_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod
-    def attendance_excel(cls, class_group, school,
-                         year: str = "2025-2026") -> HttpResponse:
+    def attendance_excel(cls, class_group, school, year: str = "2025-2026") -> HttpResponse:
         """
         Excel تقرير الغياب:
         - رأس 4 صفوف احترافي + شعار
@@ -496,21 +500,28 @@ class ExcelService:
         """
         from openpyxl.styles import Font
 
-        data     = ReportDataService.get_attendance_report(class_group, school, year)
+        data = ReportDataService.get_attendance_report(class_group, school, year)
         num_cols = 8
 
         wb, ws, styles = cls._make_workbook("الحضور والغياب")
 
         cls._add_professional_header(
-            ws, school.name,
+            ws,
+            school.name,
             f"تقرير الحضور والغياب — {class_group}",
-            year, num_cols,
+            year,
+            num_cols,
         )
 
         columns = [
-            ("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16),
-            ("إجمالي الحصص", 13), ("حاضر", 10), ("غائب", 10),
-            ("متأخر", 10), ("نسبة الحضور %", 14),
+            ("م", 5),
+            ("اسم الطالب", 28),
+            ("الرقم الوطني", 16),
+            ("إجمالي الحصص", 13),
+            ("حاضر", 10),
+            ("غائب", 10),
+            ("متأخر", 10),
+            ("نسبة الحضور %", 14),
         ]
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -518,9 +529,9 @@ class ExcelService:
         ws.auto_filter.ref = "A4:H4"
 
         for idx, row in enumerate(data["student_rows"], start=1):
-            row_num = idx + 4        # البيانات تبدأ من الصف 5
-            st      = row["student"]
-            pct     = row["attendance_pct"]
+            row_num = idx + 4  # البيانات تبدأ من الصف 5
+            st = row["student"]
+            pct = row["attendance_pct"]
 
             ws.cell(row=row_num, column=1, value=idx)
             ws.cell(row=row_num, column=2, value=st.full_name)
@@ -544,10 +555,7 @@ class ExcelService:
 
         cls._apply_protection(ws, num_cols)
 
-        filename = (
-            f"غياب_{class_group.get_grade_display()}"
-            f"_{class_group.section}_{year}.xlsx"
-        )
+        filename = f"غياب_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod
@@ -574,15 +582,22 @@ class ExcelService:
         wb, ws, styles = cls._make_workbook("مخالفات السلوك")
 
         cls._add_professional_header(
-            ws, school.name,
+            ws,
+            school.name,
             "تقرير المخالفات السلوكية",
-            year, num_cols,
+            year,
+            num_cols,
         )
 
         columns = [
-            ("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16),
-            ("التاريخ", 13), ("الدرجة", 18), ("النقاط المخصومة", 15),
-            ("المُبلِّغ", 20), ("الوصف", 40),
+            ("م", 5),
+            ("اسم الطالب", 28),
+            ("الرقم الوطني", 16),
+            ("التاريخ", 13),
+            ("الدرجة", 18),
+            ("النقاط المخصومة", 15),
+            ("المُبلِّغ", 20),
+            ("الوصف", 40),
         ]
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -590,16 +605,16 @@ class ExcelService:
         ws.auto_filter.ref = "A4:H4"
 
         for idx, inf in enumerate(data["infractions"], start=1):
-            row_num = idx + 4        # البيانات تبدأ من الصف 5
+            row_num = idx + 4  # البيانات تبدأ من الصف 5
 
             ws.cell(row=row_num, column=1, value=idx)
             ws.cell(row=row_num, column=2, value=inf.student.full_name)
             ws.cell(row=row_num, column=3, value=inf.student.national_id or "")
-            ws.cell(row=row_num, column=4,
-                    value=inf.date.strftime("%Y/%m/%d") if inf.date else "")
+            ws.cell(row=row_num, column=4, value=inf.date.strftime("%Y/%m/%d") if inf.date else "")
 
             level_cell = ws.cell(
-                row=row_num, column=5,
+                row=row_num,
+                column=5,
                 value=LEVEL_LABELS.get(inf.level, str(inf.level)),
             )
             level_cell.font = Font(
@@ -609,8 +624,9 @@ class ExcelService:
             )
 
             ws.cell(row=row_num, column=6, value=inf.points_deducted)
-            ws.cell(row=row_num, column=7,
-                    value=inf.reported_by.full_name if inf.reported_by else "—")
+            ws.cell(
+                row=row_num, column=7, value=inf.reported_by.full_name if inf.reported_by else "—"
+            )
             ws.cell(row=row_num, column=8, value=inf.description or "")
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)

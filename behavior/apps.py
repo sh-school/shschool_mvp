@@ -1,6 +1,7 @@
 from django.apps import AppConfig
 
+
 class BehaviorConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'behavior'
-    verbose_name = 'الانضباط السلوكي والتحفيز التربوي'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "behavior"
+    verbose_name = "الانضباط السلوكي والتحفيز التربوي"

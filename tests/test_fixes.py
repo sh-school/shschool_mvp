@@ -7,20 +7,23 @@ tests/test_fixes.py
 الإصلاح 3: Middleware — /api/ يتطلب مصادقة
 الإصلاح 4: generate_daily_sessions — logging واضح للإجازات
 """
-import pytest
+
 from datetime import date
 
-from core.models import School, ClassGroup
-from tests.conftest import SchoolFactory, ClassGroupFactory, UserFactory, RoleFactory, MembershipFactory
+import pytest
 
+from tests.conftest import (
+    ClassGroupFactory,
+    SchoolFactory,
+)
 
 # ══════════════════════════════════════════════
 #  إصلاح 1 — SchoolFactory بدون name_en
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestSchoolFactory:
-
     def test_school_factory_creates_without_error(self, db):
         """SchoolFactory لا تستخدم name_en — يجب أن تنجح"""
         school = SchoolFactory()
@@ -31,9 +34,7 @@ class TestSchoolFactory:
     def test_school_has_no_name_en_field(self, db):
         """تأكيد أن School model لا يحتوي حقل name_en"""
         school = SchoolFactory()
-        assert not hasattr(school, "name_en"), (
-            "name_en موجود في الموديل — يجب حذفه من Factory"
-        )
+        assert not hasattr(school, "name_en"), "name_en موجود في الموديل — يجب حذفه من Factory"
 
     def test_multiple_schools_unique_codes(self, db):
         """كل مدرسة لها كود فريد"""
@@ -46,9 +47,9 @@ class TestSchoolFactory:
 #  إصلاح 2 — ClassGroupFactory بـ grade + section
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestClassGroupFactory:
-
     def test_class_group_factory_creates_without_error(self, db, school):
         """ClassGroupFactory تستخدم grade و section الصحيحين"""
         cg = ClassGroupFactory(school=school)
@@ -68,16 +69,14 @@ class TestClassGroupFactory:
     def test_class_group_no_grade_level_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي grade_level"""
         cg = ClassGroupFactory(school=school)
-        assert not hasattr(cg, "grade_level"), (
-            "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
-        )
+        assert not hasattr(
+            cg, "grade_level"
+        ), "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
 
     def test_class_group_no_name_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي name كحقل مباشر"""
         cg = ClassGroupFactory(school=school)
-        assert not hasattr(cg, "name"), (
-            "name موجود في الموديل — Factory يجب أن تستخدم section"
-        )
+        assert not hasattr(cg, "name"), "name موجود في الموديل — Factory يجب أن تستخدم section"
 
     def test_unique_constraint_respected(self, db, school):
         """قيد التفرد: نفس الصف + شعبة + عام → خطأ"""
@@ -90,9 +89,9 @@ class TestClassGroupFactory:
 #  إصلاح 3 — Middleware: /api/ يتطلب مصادقة
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestMiddlewareAPIFix:
-
     def test_api_unauthenticated_returns_401_json(self, client):
         """/api/ بدون session يُعيد 401 JSON — لا redirect"""
         response = client.get("/api/schedule/today/")
@@ -105,20 +104,20 @@ class TestMiddlewareAPIFix:
     def test_api_unauthenticated_not_redirect(self, client):
         """/api/ لا يُعيد redirect (302) لصفحة Login"""
         response = client.get("/api/schedule/today/")
-        assert response.status_code != 302, (
-            "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
-        )
+        assert (
+            response.status_code != 302
+        ), "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
 
     def test_exempt_list_excludes_api(self):
         """التحقق المباشر أن /api/ غير موجود في EXEMPT"""
         from core.middleware import EXEMPT
-        assert "/api/" not in EXEMPT, (
-            "'/api/' لا يزال في قائمة EXEMPT — يجب حذفه فوراً"
-        )
+
+        assert "/api/" not in EXEMPT, "'/api/' لا يزال في قائمة EXEMPT — يجب حذفه فوراً"
 
     def test_exempt_list_still_has_required_paths(self):
         """المسارات المعفاة الصحيحة لا تزال موجودة"""
         from core.middleware import EXEMPT
+
         required = ["/auth/", "/admin/", "/static/", "/media/"]
         for path in required:
             assert path in EXEMPT, f"'{path}' محذوف من EXEMPT بشكل خاطئ"
@@ -128,21 +127,24 @@ class TestMiddlewareAPIFix:
         client = client_as(teacher_user)
         response = client.get("/api/schedule/today/")
         # 200 أو 404 (endpoint قد يكون غير موجود) — المهم ليس 401 ولا 302
-        assert response.status_code in (200, 404, 405), (
-            f"المتوقع 200/404/405، الفعلي: {response.status_code}"
-        )
+        assert response.status_code in (
+            200,
+            404,
+            405,
+        ), f"المتوقع 200/404/405، الفعلي: {response.status_code}"
 
 
 # ══════════════════════════════════════════════
 #  إصلاح 4 — Day Mapping: logging واضح
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestDayMappingFix:
-
     def test_friday_returns_zero_sessions(self, db, school):
         """الجمعة (إجازة) تُعيد 0 حصص بدون خطأ"""
         from operations.services import ScheduleService
+
         # الجمعة: Python weekday = 4
         friday = date(2026, 3, 20)  # جمعة
         assert friday.weekday() == 4, "التاريخ المختار ليس جمعة"
@@ -152,6 +154,7 @@ class TestDayMappingFix:
     def test_saturday_returns_zero_sessions(self, db, school):
         """السبت (إجازة) تُعيد 0 حصص"""
         from operations.services import ScheduleService
+
         saturday = date(2026, 3, 21)  # سبت
         assert saturday.weekday() == 5, "التاريخ المختار ليس سبتاً"
         result = ScheduleService.generate_daily_sessions(school, saturday)
@@ -160,6 +163,7 @@ class TestDayMappingFix:
     def test_sunday_is_working_day(self, db, school):
         """الأحد = يوم عمل (our_day=0) — يُعالَج بدون return 0"""
         from operations.services import ScheduleService
+
         # الأحد: Python weekday = 6
         sunday = date(2026, 3, 22)  # أحد
         assert sunday.weekday() == 6, "التاريخ المختار ليس أحداً"
@@ -176,7 +180,7 @@ class TestDayMappingFix:
             2: "الأربعاء",
             3: "الخميس",
             4: "الجمعة",  # إجازة
-            5: "السبت",   # إجازة
+            5: "السبت",  # إجازة
             6: "الأحد",
         }
         # أيام العمل (0-3, 6) يجب أن تُعطي قيمة 0-4

@@ -2,27 +2,32 @@
 staging/views.py
 استيراد الدرجات من Excel وتحميل قالب الإدخال
 """
+
 import io
-from django.shortcuts import render, get_object_or_404, redirect
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .models import ImportLog
-from assessments.models import Assessment, SubjectClassSetup, AssessmentPackage
+from assessments.models import Assessment
 from assessments.services import GradeService
-from core.models import CustomUser, StudentEnrollment, School
+from core.models import CustomUser, StudentEnrollment
+
+from .models import ImportLog
 
 try:
     import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
     OPENPYXL_OK = True
 except ImportError:
     OPENPYXL_OK = False
 
 
 # ── صفحة الاستيراد الرئيسية ────────────────────────────────
+
 
 @login_required
 def import_grades_select(request):
@@ -31,45 +36,58 @@ def import_grades_select(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year   = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", "2025-2026")
 
     if request.user.is_admin():
-        assessments = Assessment.objects.filter(
-            school=school,
-            package__setup__academic_year=year,
-            status__in=["published", "graded"],
-        ).select_related(
-            "package__setup__subject",
-            "package__setup__class_group",
-        ).order_by(
-            "package__setup__class_group__grade",
-            "package__setup__subject__name_ar",
+        assessments = (
+            Assessment.objects.filter(
+                school=school,
+                package__setup__academic_year=year,
+                status__in=["published", "graded"],
+            )
+            .select_related(
+                "package__setup__subject",
+                "package__setup__class_group",
+            )
+            .order_by(
+                "package__setup__class_group__grade",
+                "package__setup__subject__name_ar",
+            )
         )
     else:
-        assessments = Assessment.objects.filter(
-            school=school,
-            package__setup__teacher=request.user,
-            package__setup__academic_year=year,
-            status__in=["published", "graded"],
-        ).select_related(
-            "package__setup__subject",
-            "package__setup__class_group",
-        ).order_by(
-            "package__setup__class_group__grade",
-            "package__setup__subject__name_ar",
+        assessments = (
+            Assessment.objects.filter(
+                school=school,
+                package__setup__teacher=request.user,
+                package__setup__academic_year=year,
+                status__in=["published", "graded"],
+            )
+            .select_related(
+                "package__setup__subject",
+                "package__setup__class_group",
+            )
+            .order_by(
+                "package__setup__class_group__grade",
+                "package__setup__subject__name_ar",
+            )
         )
 
     logs = ImportLog.objects.filter(school=school).order_by("-started_at")[:20]
 
-    return render(request, "staging/import_grades.html", {
-        "assessments":   assessments,
-        "logs":          logs,
-        "year":          year,
-        "openpyxl_ok":   OPENPYXL_OK,
-    })
+    return render(
+        request,
+        "staging/import_grades.html",
+        {
+            "assessments": assessments,
+            "logs": logs,
+            "year": year,
+            "openpyxl_ok": OPENPYXL_OK,
+        },
+    )
 
 
 # ── تحميل قالب Excel ───────────────────────────────────────
+
 
 @login_required
 def download_grade_template(request, assessment_id):
@@ -77,15 +95,17 @@ def download_grade_template(request, assessment_id):
     if not OPENPYXL_OK:
         return HttpResponse("مكتبة openpyxl غير مثبتة.", status=500)
 
-    school     = request.user.get_school()
+    school = request.user.get_school()
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
 
-    enrollments = StudentEnrollment.objects.filter(
-        class_group=assessment.class_group, is_active=True
-    ).select_related("student").order_by("student__full_name")
+    enrollments = (
+        StudentEnrollment.objects.filter(class_group=assessment.class_group, is_active=True)
+        .select_related("student")
+        .order_by("student__full_name")
+    )
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -93,35 +113,35 @@ def download_grade_template(request, assessment_id):
     ws.sheet_view.rightToLeft = True
 
     # ── الستايل ──
-    header_fill  = PatternFill("solid", fgColor="0F2347")
-    header_font  = Font(bold=True, color="FFFFFF", size=11)
-    info_fill    = PatternFill("solid", fgColor="E8F0FE")
+    header_fill = PatternFill("solid", fgColor="0F2347")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    info_fill = PatternFill("solid", fgColor="E8F0FE")
     center_align = Alignment(horizontal="center", vertical="center")
-    right_align  = Alignment(horizontal="right",  vertical="center")
+    right_align = Alignment(horizontal="right", vertical="center")
 
     thin = Side(style="thin", color="CCCCCC")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     # ── معلومات التقييم (صف 1–4) ──
     info_rows = [
-        ("التقييم",       assessment.title),
-        ("المادة",        assessment.package.setup.subject.name_ar),
-        ("الفصل",         str(assessment.class_group)),
+        ("التقييم", assessment.title),
+        ("المادة", assessment.package.setup.subject.name_ar),
+        ("الفصل", str(assessment.class_group)),
         ("الدرجة القصوى", str(assessment.max_grade)),
     ]
     for i, (label, val) in enumerate(info_rows, start=1):
-        ws.cell(i, 1, label).font  = Font(bold=True, size=10)
-        ws.cell(i, 2, val).fill    = info_fill
-        ws.cell(i, 2).font         = Font(size=10)
+        ws.cell(i, 1, label).font = Font(bold=True, size=10)
+        ws.cell(i, 2, val).fill = info_fill
+        ws.cell(i, 2).font = Font(size=10)
 
     # ── رأس الجدول (صف 6) ──
     headers = ["الرقم الوطني", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
     for col, h in enumerate(headers, start=1):
         cell = ws.cell(6, col, h)
-        cell.fill      = header_fill
-        cell.font      = header_font
+        cell.fill = header_fill
+        cell.font = header_font
         cell.alignment = center_align
-        cell.border    = border
+        cell.border = border
 
     ws.column_dimensions["A"].width = 18
     ws.column_dimensions["B"].width = 32
@@ -133,16 +153,16 @@ def download_grade_template(request, assessment_id):
     for row_idx, enr in enumerate(enrollments, start=7):
         st = enr.student
         ws.cell(row_idx, 1, st.national_id).alignment = center_align
-        ws.cell(row_idx, 2, st.full_name).alignment   = right_align
-        ws.cell(row_idx, 3, "").alignment             = center_align    # الدرجة يملؤها المستخدم
-        ws.cell(row_idx, 4, 0).alignment              = center_align    # غائب
-        ws.cell(row_idx, 5, "").alignment             = right_align     # ملاحظة
+        ws.cell(row_idx, 2, st.full_name).alignment = right_align
+        ws.cell(row_idx, 3, "").alignment = center_align  # الدرجة يملؤها المستخدم
+        ws.cell(row_idx, 4, 0).alignment = center_align  # غائب
+        ws.cell(row_idx, 5, "").alignment = right_align  # ملاحظة
 
         for col in range(1, 6):
             ws.cell(row_idx, col).border = border
 
     # ── قفل العمودين A وB ──
-    ws.protection.sheet   = False   # يظل قابلاً للتعديل على C:E
+    ws.protection.sheet = False  # يظل قابلاً للتعديل على C:E
     ws.row_dimensions[6].height = 20
 
     buf = io.BytesIO()
@@ -160,6 +180,7 @@ def download_grade_template(request, assessment_id):
 
 # ── رفع وتحليل الملف ───────────────────────────────────────
 
+
 @login_required
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel"""
@@ -170,7 +191,7 @@ def upload_grade_file(request, assessment_id):
         messages.error(request, "مكتبة openpyxl غير مثبتة — شغّل: pip install openpyxl")
         return redirect("import_grades_select")
 
-    school     = request.user.get_school()
+    school = request.user.get_school()
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
@@ -183,13 +204,13 @@ def upload_grade_file(request, assessment_id):
 
     # ── سجل الاستيراد ──
     log = ImportLog.objects.create(
-        school      = school,
-        uploaded_by = request.user,
-        file_name   = uploaded.name,
-        status      = "validating",
+        school=school,
+        uploaded_by=request.user,
+        file_name=uploaded.name,
+        status="validating",
     )
 
-    errors   = []
+    errors = []
     imported = 0
 
     try:
@@ -212,9 +233,9 @@ def upload_grade_file(request, assessment_id):
         total_rows = 0
         for row in ws.iter_rows(min_row=data_start, values_only=True):
             national_id = str(row[0]).strip() if row[0] else ""
-            grade_raw   = row[2] if len(row) > 2 else None
-            is_absent   = bool(int(row[3])) if len(row) > 3 and row[3] is not None else False
-            notes       = str(row[4]).strip() if len(row) > 4 and row[4] else ""
+            grade_raw = row[2] if len(row) > 2 else None
+            is_absent = bool(int(row[3])) if len(row) > 3 and row[3] is not None else False
+            notes = str(row[4]).strip() if len(row) > 4 and row[4] else ""
 
             if not national_id:
                 continue
@@ -225,7 +246,9 @@ def upload_grade_file(request, assessment_id):
             try:
                 student = CustomUser.objects.get(national_id=national_id)
             except CustomUser.DoesNotExist:
-                errors.append(f"صف {total_rows + data_start - 1}: الرقم الوطني [{national_id}] غير موجود")
+                errors.append(
+                    f"صف {total_rows + data_start - 1}: الرقم الوطني [{national_id}] غير موجود"
+                )
                 continue
 
             # التحقق من أن الطالب مسجل في الفصل
@@ -235,7 +258,9 @@ def upload_grade_file(request, assessment_id):
                 is_active=True,
             ).exists()
             if not enrolled:
-                errors.append(f"صف {total_rows + data_start - 1}: [{student.full_name}] غير مسجل في الفصل")
+                errors.append(
+                    f"صف {total_rows + data_start - 1}: [{student.full_name}] غير مسجل في الفصل"
+                )
                 continue
 
             # تحليل الدرجة
@@ -258,12 +283,12 @@ def upload_grade_file(request, assessment_id):
 
             # حفظ الدرجة
             GradeService.save_grade(
-                assessment = assessment,
-                student    = student,
-                grade      = grade,
-                is_absent  = is_absent,
-                notes      = notes,
-                entered_by = request.user,
+                assessment=assessment,
+                student=student,
+                grade=grade,
+                is_absent=is_absent,
+                notes=notes,
+                entered_by=request.user,
             )
             imported += 1
 
@@ -272,30 +297,35 @@ def upload_grade_file(request, assessment_id):
             assessment.status = "graded"
             assessment.save(update_fields=["status"])
 
-        log.status        = "completed" if not errors else "completed"
-        log.total_rows    = total_rows
+        log.status = "completed" if not errors else "completed"
+        log.total_rows = total_rows
         log.imported_rows = imported
-        log.failed_rows   = len(errors)
-        log.error_log     = errors
-        log.completed_at  = timezone.now()
+        log.failed_rows = len(errors)
+        log.error_log = errors
+        log.completed_at = timezone.now()
         log.save()
 
     except Exception as exc:
-        log.status   = "failed"
+        log.status = "failed"
         log.error_log = [str(exc)]
         log.save()
         messages.error(request, f"فشل تحليل الملف: {exc}")
         return redirect("import_grades_select")
 
-    return render(request, "staging/import_result.html", {
-        "log":        log,
-        "assessment": assessment,
-        "errors":     errors,
-        "imported":   imported,
-    })
+    return render(
+        request,
+        "staging/import_result.html",
+        {
+            "log": log,
+            "assessment": assessment,
+            "errors": errors,
+            "imported": imported,
+        },
+    )
 
 
 # ── سجل الاستيراد ──────────────────────────────────────────
+
 
 @login_required
 def import_log_list(request):
@@ -304,6 +334,10 @@ def import_log_list(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    logs   = ImportLog.objects.filter(school=school).select_related("uploaded_by").order_by("-started_at")[:50]
+    logs = (
+        ImportLog.objects.filter(school=school)
+        .select_related("uploaded_by")
+        .order_by("-started_at")[:50]
+    )
 
     return render(request, "staging/import_log.html", {"logs": logs})

@@ -2,7 +2,9 @@
 shschool/celery.py
 إعداد Celery لـ SchoolOS — معالجة المهام غير المتزامنة
 """
+
 import os
+
 from celery import Celery
 from celery.schedules import crontab
 
@@ -21,17 +23,17 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     # إرسال تنبيهات الغياب كل صباح الساعة 7:00
     "send-absence-alerts-daily": {
-        "task":     "notifications.send_pending_absence_alerts_all_schools",
+        "task": "notifications.send_pending_absence_alerts_all_schools",
         "schedule": crontab(hour=7, minute=0),
     },
     # ✅ v5: فحص مواعيد BreachReport كل ساعة (PDPPL 72h)
     "check-breach-deadlines-hourly": {
-        "task":     "notifications.check_breach_deadlines",
-        "schedule": crontab(minute=0),   # كل ساعة عند الدقيقة صفر
+        "task": "notifications.check_breach_deadlines",
+        "schedule": crontab(minute=0),  # كل ساعة عند الدقيقة صفر
     },
     # ✅ v6: تقرير KPIs الشهري — أول يوم من كل شهر الساعة 6:00 صباحاً
     "send-monthly-kpi-report": {
-        "task":     "analytics.send_monthly_kpi_report",
+        "task": "analytics.send_monthly_kpi_report",
         "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
 }

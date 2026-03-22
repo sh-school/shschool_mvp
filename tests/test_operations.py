@@ -6,17 +6,24 @@ tests/test_operations.py
   - نماذج Session, StudentAttendance, ScheduleSlot, TeacherAbsence
   - Views: الجدول الأسبوعي، تسجيل الحضور، البديل
 """
-import pytest
+
 from datetime import date, time, timedelta
-from django.utils import timezone
+
+import pytest
 
 from operations.models import (
-    Subject, Session, StudentAttendance, ScheduleSlot,
-    TeacherAbsence, SubstituteAssignment, AbsenceAlert,
+    AbsenceAlert,
+    ScheduleSlot,
+    Session,
+    StudentAttendance,
+    Subject,
+    SubstituteAssignment,
+    TeacherAbsence,
 )
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
 )
 
 
@@ -57,8 +64,8 @@ def schedule_slot(db, school, class_group, teacher_user, subject):
 #  اختبارات النماذج
 # ══════════════════════════════════════════════════
 
-class TestOperationsModels:
 
+class TestOperationsModels:
     def test_subject_creation(self, subject):
         assert subject.name_ar == "العلوم"
         assert str(subject) == "العلوم"
@@ -70,10 +77,13 @@ class TestOperationsModels:
     def test_session_unique_teacher_time(self, session, school, class_group, teacher_user, subject):
         """لا يمكن للمعلم أن يكون في حصتين بنفس الوقت"""
         from django.db import IntegrityError
+
         with pytest.raises(IntegrityError):
             Session.objects.create(
-                school=school, class_group=class_group,
-                teacher=teacher_user, subject=subject,
+                school=school,
+                class_group=class_group,
+                teacher=teacher_user,
+                subject=subject,
                 date=date.today(),
                 start_time=time(8, 0),
                 end_time=time(8, 45),
@@ -81,8 +91,10 @@ class TestOperationsModels:
 
     def test_student_attendance_mark(self, session, student_user, school):
         att = StudentAttendance.objects.create(
-            session=session, student=student_user,
-            school=school, status="absent",
+            session=session,
+            student=student_user,
+            school=school,
+            status="absent",
         )
         assert att.status == "absent"
         assert str(att)  # لا يرمي خطأ
@@ -93,7 +105,8 @@ class TestOperationsModels:
 
     def test_teacher_absence(self, school, teacher_user):
         absence = TeacherAbsence.objects.create(
-            school=school, teacher=teacher_user,
+            school=school,
+            teacher=teacher_user,
             date=date.today(),
             reason="مرض",
             reported_by=teacher_user,
@@ -102,8 +115,10 @@ class TestOperationsModels:
 
     def test_substitute_assignment(self, school, teacher_user, schedule_slot):
         absence = TeacherAbsence.objects.create(
-            school=school, teacher=teacher_user,
-            date=date.today(), reason="مرض",
+            school=school,
+            teacher=teacher_user,
+            date=date.today(),
+            reason="مرض",
             reported_by=teacher_user,
         )
         sub_teacher = UserFactory(full_name="بديل")
@@ -111,16 +126,20 @@ class TestOperationsModels:
         MembershipFactory(user=sub_teacher, school=school, role=role)
 
         assignment = SubstituteAssignment.objects.create(
-            absence=absence, slot=schedule_slot,
-            substitute=sub_teacher, assigned_by=teacher_user,
+            absence=absence,
+            slot=schedule_slot,
+            substitute=sub_teacher,
+            assigned_by=teacher_user,
             school=school,
         )
         assert assignment.substitute.full_name == "بديل"
 
     def test_absence_alert(self, school, student_user):
-        from datetime import date, timedelta
+        from datetime import date
+
         alert = AbsenceAlert.objects.create(
-            school=school, student=student_user,
+            school=school,
+            student=student_user,
             absence_count=5,
             period_start=date.today() - timedelta(days=7),
             period_end=date.today(),
@@ -133,8 +152,8 @@ class TestOperationsModels:
 #  اختبارات Views
 # ══════════════════════════════════════════════════
 
-class TestOperationsViews:
 
+class TestOperationsViews:
     def test_schedule_page_teacher(self, client_as, teacher_user):
         c = client_as(teacher_user)
         resp = c.get("/teacher/schedule/")
@@ -166,8 +185,9 @@ class TestOperationsViews:
         resp = c.get(f"/teacher/attendance/{session.id}/")
         assert resp.status_code in [302, 403]  # ParentConsentMiddleware قد يُعيد توجيهاً
 
-    def test_mark_single_attendance(self, client_as, teacher_user, session, student_user,
-                                     enrolled_student, school):
+    def test_mark_single_attendance(
+        self, client_as, teacher_user, session, student_user, enrolled_student, school
+    ):
         c = client_as(teacher_user)
         resp = c.post(
             f"/teacher/attendance/{session.id}/mark-single/",

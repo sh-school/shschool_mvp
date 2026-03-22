@@ -3,14 +3,16 @@ tests/test_views_behavior.py
 اختبارات views السلوك الطلابي ولجنة الضبط
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
+
 import pytest
+
 from core.models import BehaviorInfraction, BehaviorPointRecovery
+
 from .conftest import BehaviorInfractionFactory
 
 
 @pytest.mark.django_db
 class TestBehaviorDashboard:
-
     def test_dashboard_loads_for_teacher(self, client_as, teacher_user, school):
         client = client_as(teacher_user)
         response = client.get("/behavior/dashboard/")
@@ -26,7 +28,6 @@ class TestBehaviorDashboard:
 
 @pytest.mark.django_db
 class TestReportInfraction:
-
     def test_get_report_form(self, client_as, teacher_user, school):
         client = client_as(teacher_user)
         response = client.get("/behavior/report/")
@@ -38,13 +39,16 @@ class TestReportInfraction:
     ):
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()
-        response = client.post("/behavior/report/", {
-            "student_id": str(student_user.id),
-            "level": 1,
-            "description": "تأخر عن الحصة",
-            "points_deducted": 5,
-            "action_taken": "تحذير شفوي",
-        })
+        response = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 1,
+                "description": "تأخر عن الحصة",
+                "points_deducted": 5,
+                "action_taken": "تحذير شفوي",
+            },
+        )
         assert response.status_code in (200, 302)
         assert BehaviorInfraction.objects.count() > count_before
 
@@ -54,31 +58,34 @@ class TestReportInfraction:
         """مخالفة درجة 3 تُحال للجنة — التحقق من الإعادة فقط (لا من صفحة اللجنة)"""
         client = client_as(teacher_user)
         count_before = BehaviorInfraction.objects.count()
-        response = client.post("/behavior/report/", {
-            "student_id": str(student_user.id),
-            "level": 3,
-            "description": "تصرف خطير",
-            "points_deducted": 25,
-        })
+        response = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 3,
+                "description": "تصرف خطير",
+                "points_deducted": 25,
+            },
+        )
         # المخالفة تُسجَّل وتُعاد توجيه المعلم (302 redirect)
         assert response.status_code in [200, 302]
         assert BehaviorInfraction.objects.count() > count_before
 
-    def test_parent_cannot_report_infraction(
-        self, client_as, parent_user, school, student_user
-    ):
+    def test_parent_cannot_report_infraction(self, client_as, parent_user, school, student_user):
         client = client_as(parent_user)
-        response = client.post("/behavior/report/", {
-            "student_id": str(student_user.id),
-            "level": 1,
-            "description": "test",
-        })
+        response = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 1,
+                "description": "test",
+            },
+        )
         assert response.status_code in (302, 403)  # يُعاد توجيهه أو محجوب
 
 
 @pytest.mark.django_db
 class TestStudentBehaviorProfile:
-
     def test_profile_loads(self, client_as, teacher_user, student_user, behavior_infraction):
         client = client_as(teacher_user)
         response = client.get(f"/behavior/student/{student_user.id}/")
@@ -86,15 +93,19 @@ class TestStudentBehaviorProfile:
         assert "infractions" in response.context
         assert "net_score" in response.context
 
-    def test_net_score_calculation(self, client_as, principal_user, school, student_user, teacher_user):
+    def test_net_score_calculation(
+        self, client_as, principal_user, school, student_user, teacher_user
+    ):
         """100 - 15 (مخصوم) + 10 (مسترد) = 95"""
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=2, points_deducted=15
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=2,
+            points_deducted=15,
         )
         BehaviorPointRecovery.objects.create(
-            infraction=inf, reason="سلوك إيجابي",
-            points_restored=10, approved_by=principal_user
+            infraction=inf, reason="سلوك إيجابي", points_restored=10, approved_by=principal_user
         )
         client = client_as(teacher_user)
         response = client.get(f"/behavior/student/{student_user.id}/")
@@ -109,7 +120,6 @@ class TestStudentBehaviorProfile:
 
 @pytest.mark.django_db
 class TestPointRecovery:
-
     def test_get_recovery_form(self, client_as, principal_user, behavior_infraction):
         client = client_as(principal_user)
         response = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
@@ -117,22 +127,20 @@ class TestPointRecovery:
         assert "infraction" in response.context
 
     def test_post_creates_recovery(
-        self, client_as, principal_user, school,
-        student_user, teacher_user, behavior_infraction
+        self, client_as, principal_user, school, student_user, teacher_user, behavior_infraction
     ):
         client = client_as(principal_user)
-        response = client.post(f"/behavior/recovery/{behavior_infraction.id}/", {
-            "reason": "التزام بالنظام المدرسي",
-            "points_restored": 3,
-        })
+        response = client.post(
+            f"/behavior/recovery/{behavior_infraction.id}/",
+            {
+                "reason": "التزام بالنظام المدرسي",
+                "points_restored": 3,
+            },
+        )
         assert response.status_code in (200, 302)
-        assert BehaviorPointRecovery.objects.filter(
-            infraction=behavior_infraction
-        ).exists()
+        assert BehaviorPointRecovery.objects.filter(infraction=behavior_infraction).exists()
 
-    def test_teacher_cannot_approve_recovery(
-        self, client_as, teacher_user, behavior_infraction
-    ):
+    def test_teacher_cannot_approve_recovery(self, client_as, teacher_user, behavior_infraction):
         client = client_as(teacher_user)
         response = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
         assert response.status_code in (302, 403)
@@ -140,10 +148,7 @@ class TestPointRecovery:
 
 @pytest.mark.django_db
 class TestCommitteeDashboard:
-
-    def test_committee_dashboard_loads_for_principal(
-        self, client_as, principal_user, school
-    ):
+    def test_committee_dashboard_loads_for_principal(self, client_as, principal_user, school):
         client = client_as(principal_user)
         response = client.get("/behavior/committee/")
         assert response.status_code == 200
@@ -154,21 +159,26 @@ class TestCommitteeDashboard:
         self, client_as, principal_user, school, student_user, teacher_user
     ):
         BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=3, is_resolved=False
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=3,
+            is_resolved=False,
         )
         client = client_as(principal_user)
         response = client.get("/behavior/committee/")
         assert response.context["stats"]["open_count"] >= 1
 
     def test_resolve_infraction_via_committee(
-        self, client_as, principal_user, school,
-        student_user, teacher_user
+        self, client_as, principal_user, school, student_user, teacher_user
     ):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=3,
-            points_deducted=25, is_resolved=False
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=3,
+            points_deducted=25,
+            is_resolved=False,
         )
         client = client_as(principal_user)
         response = client.post(
@@ -178,7 +188,7 @@ class TestCommitteeDashboard:
                 "action_taken": "تم حل المشكلة مع الطالب",
                 "points_restored": 10,
                 "recovery_reason": "التزام بالقرارات",
-            }
+            },
         )
         assert response.status_code in (200, 302)
         refreshed = BehaviorInfraction.objects.get(id=inf.id)

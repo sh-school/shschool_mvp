@@ -1,5 +1,6 @@
-from django import template
 from decimal import Decimal
+
+from django import template
 
 register = template.Library()
 
@@ -40,9 +41,12 @@ def pct(value, total):
 def grade_color_class(value):
     try:
         t = float(value)
-        if t >= 80: return "text-green-700"
-        if t >= 60: return "text-blue-700"
-        if t >= 50: return "text-amber-600"
+        if t >= 80:
+            return "text-green-700"
+        if t >= 60:
+            return "text-blue-700"
+        if t >= 50:
+            return "text-amber-600"
         return "text-red-600"
     except Exception:
         return "text-gray-400"

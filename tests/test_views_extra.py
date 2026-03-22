@@ -2,36 +2,34 @@
 tests/test_views_extra.py
 Combined tests for clinic/views.py, library/views.py, staging/views.py
 """
+
 import io
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import CustomUser, School, Membership, ClassGroup, StudentEnrollment
-from clinic.models import HealthRecord, ClinicVisit
-from library.models import LibraryBook, BookBorrowing
-from staging.models import ImportLog
 from assessments.models import Assessment, AssessmentPackage, SubjectClassSetup
+from clinic.models import ClinicVisit, HealthRecord
+from library.models import BookBorrowing
 from operations.models import Subject
-
+from staging.models import ImportLog
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
-    HealthRecordFactory, ClinicVisitFactory,
-    LibraryBookFactory, BookBorrowingFactory,
+    LibraryBookFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
 )
-
 
 # ══════════════════════════════════════════════════════════════
 #  CLINIC VIEWS
 # ══════════════════════════════════════════════════════════════
 
-class TestClinicDashboard:
 
+class TestClinicDashboard:
     @pytest.mark.django_db
     def test_nurse_can_access_dashboard(self, client_as, nurse_user):
         c = client_as(nurse_user)
@@ -63,7 +61,6 @@ class TestClinicDashboard:
 
 
 class TestStudentHealthRecord:
-
     @pytest.mark.django_db
     def test_get_health_record(self, client_as, nurse_user, student_user, health_record):
         c = client_as(nurse_user)
@@ -106,6 +103,7 @@ class TestStudentHealthRecord:
     @pytest.mark.django_db
     def test_nonexistent_student_404(self, client_as, nurse_user):
         import uuid
+
         c = client_as(nurse_user)
         url = reverse("clinic:health_record", args=[uuid.uuid4()])
         resp = c.get(url)
@@ -113,7 +111,6 @@ class TestStudentHealthRecord:
 
 
 class TestRecordVisit:
-
     @pytest.mark.django_db
     def test_get_record_visit_form(self, client_as, nurse_user):
         c = client_as(nurse_user)
@@ -185,7 +182,6 @@ class TestRecordVisit:
 
 
 class TestVisitsList:
-
     @pytest.mark.django_db
     def test_get_visits_list(self, client_as, nurse_user, clinic_visit):
         c = client_as(nurse_user)
@@ -219,7 +215,6 @@ class TestVisitsList:
 
 
 class TestHealthStatistics:
-
     @pytest.mark.django_db
     def test_nurse_can_view_statistics(self, client_as, nurse_user):
         c = client_as(nurse_user)
@@ -233,9 +228,7 @@ class TestHealthStatistics:
         assert resp.status_code == 403
 
     @pytest.mark.django_db
-    def test_statistics_with_data(
-        self, client_as, nurse_user, health_record, clinic_visit
-    ):
+    def test_statistics_with_data(self, client_as, nurse_user, health_record, clinic_visit):
         c = client_as(nurse_user)
         resp = c.get(reverse("clinic:statistics"))
         assert resp.status_code == 200
@@ -245,8 +238,8 @@ class TestHealthStatistics:
 #  LIBRARY VIEWS
 # ══════════════════════════════════════════════════════════════
 
-class TestLibraryDashboard:
 
+class TestLibraryDashboard:
     @pytest.mark.django_db
     def test_staff_can_access(self, client_as, teacher_user):
         c = client_as(teacher_user)
@@ -278,7 +271,6 @@ class TestLibraryDashboard:
 
 
 class TestBookList:
-
     @pytest.mark.django_db
     def test_book_list_view(self, client_as, teacher_user, library_book):
         c = client_as(teacher_user)
@@ -308,7 +300,6 @@ class TestBookList:
 
 
 class TestBorrowBook:
-
     @pytest.mark.django_db
     def test_get_borrow_form(self, client_as, librarian_user):
         c = client_as(librarian_user)
@@ -330,7 +321,9 @@ class TestBorrowBook:
         assert library_book.available_qty == 2  # was 3, now 2
 
     @pytest.mark.django_db
-    def test_post_borrow_book_unavailable(self, client_as, librarian_user, library_book, student_user):
+    def test_post_borrow_book_unavailable(
+        self, client_as, librarian_user, library_book, student_user
+    ):
         library_book.available_qty = 0
         library_book.save()
         c = client_as(librarian_user)
@@ -352,7 +345,6 @@ class TestBorrowBook:
 
 
 class TestReturnBook:
-
     @pytest.mark.django_db
     def test_return_book_success(self, client_as, librarian_user, book_borrowing):
         c = client_as(librarian_user)
@@ -388,6 +380,7 @@ class TestReturnBook:
 # ══════════════════════════════════════════════════════════════
 #  STAGING VIEWS
 # ══════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def subject(db, school):
@@ -429,7 +422,6 @@ def assessment(db, school, assessment_package):
 
 
 class TestImportGradesSelect:
-
     @pytest.mark.django_db
     def test_admin_can_access(self, client_as, principal_user):
         c = client_as(principal_user)
@@ -463,9 +455,10 @@ class TestImportGradesSelect:
 
 
 class TestDownloadGradeTemplate:
-
     @pytest.mark.django_db
-    def test_admin_downloads_template(self, client_as, principal_user, assessment, enrolled_student):
+    def test_admin_downloads_template(
+        self, client_as, principal_user, assessment, enrolled_student
+    ):
         c = client_as(principal_user)
         url = reverse("download_grade_template", args=[assessment.pk])
         resp = c.get(url)
@@ -500,7 +493,6 @@ class TestDownloadGradeTemplate:
 
 
 class TestUploadGradeFile:
-
     @pytest.mark.django_db
     def test_get_redirects(self, client_as, principal_user, assessment):
         c = client_as(principal_user)
@@ -661,7 +653,6 @@ class TestUploadGradeFile:
 
 
 class TestImportLogList:
-
     @pytest.mark.django_db
     def test_admin_can_view_logs(self, client_as, principal_user, school):
         ImportLog.objects.create(school=school, file_name="test.xlsx", status="completed")

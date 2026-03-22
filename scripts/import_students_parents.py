@@ -12,22 +12,24 @@
 الاستخدام:
   python manage.py shell < scripts/import_students_parents.py
 """
-import csv, os, sys
+
+import csv
+import os
+
 from django.db import transaction
-from django.utils.crypto import get_random_string
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "new_students_full.csv")
 
 RELATION_MAP = {
-    "أب":    "father",
-    "ام":    "mother",
-    "أم":    "mother",
-    "والد":  "father",
+    "أب": "father",
+    "ام": "mother",
+    "أم": "mother",
+    "والد": "father",
     "والدة": "mother",
-    "وصي":   "guardian",
-    "وصية":  "guardian",
-    "أخ":    "other",
-    "أخت":   "other",
+    "وصي": "guardian",
+    "وصية": "guardian",
+    "أخ": "other",
+    "أخت": "other",
 }
 
 GRADE_MAP = {
@@ -39,8 +41,17 @@ GRADE_MAP = {
     "12": "الصف الثاني عشر",
 }
 
+
 def run():
-    from core.models import CustomUser, School, Membership, Role, ParentStudentLink, ClassGroup, StudentEnrollment
+    from core.models import (
+        ClassGroup,
+        CustomUser,
+        Membership,
+        ParentStudentLink,
+        Role,
+        School,
+        StudentEnrollment,
+    )
 
     # ── إعداد ──────────────────────────────────────────────────
     school = School.objects.first()
@@ -57,7 +68,7 @@ def run():
         return
 
     student_role = roles["student"]
-    parent_role  = roles["parent"]
+    parent_role = roles["parent"]
 
     # ── قراءة الملف ────────────────────────────────────────────
     if not os.path.exists(CSV_PATH):
@@ -73,30 +84,29 @@ def run():
     stats = {
         "students_created": 0,
         "students_updated": 0,
-        "parents_created":  0,
-        "parents_existed":  0,
-        "links_created":    0,
-        "links_existed":    0,
-        "errors":           [],
+        "parents_created": 0,
+        "parents_existed": 0,
+        "links_created": 0,
+        "links_existed": 0,
+        "errors": [],
     }
 
     with transaction.atomic():
-
         for i, row in enumerate(rows, 1):
-
-            student_nid  = row.get("national_no", "").strip()
+            student_nid = row.get("national_no", "").strip()
             student_name = row.get("studant_name", "").strip()
             student_name_en = row.get("studant_englisf_name", "").strip()
-            dob          = row.get("date_of_birth", "").strip()
-            grade        = row.get("grade", "").strip()
-            section      = row.get("section", "").strip()
-            parent_nid   = row.get("parent_national_no", "").strip()
-            parent_name  = row.get("name_parent", "").strip()
-            relation_ar  = row.get("relation_parent", "").strip()
+            dob = row.get("date_of_birth", "").strip()
+            grade = row.get("grade", "").strip()
+            section = row.get("section", "").strip()
+            parent_nid = row.get("parent_national_no", "").strip()
+            parent_name = row.get("name_parent", "").strip()
+            relation_ar = row.get("relation_parent", "").strip()
             parent_phones = row.get("parent_phone_no", "").strip()
-            parent_phone  = parent_phones.split(",")[0].strip() if parent_phones else ""
-            parent_email  = row.get("parent_email", "").strip()
-            if parent_email == "-": parent_email = ""
+            parent_phone = parent_phones.split(",")[0].strip() if parent_phones else ""
+            parent_email = row.get("parent_email", "").strip()
+            if parent_email == "-":
+                parent_email = ""
 
             if not student_nid:
                 stats["errors"].append(f"سطر {i}: رقم وطني فارغ")
@@ -108,7 +118,7 @@ def run():
                 defaults={
                     "full_name": student_name,
                     "is_active": True,
-                }
+                },
             )
 
             if s_created:
@@ -128,24 +138,18 @@ def run():
 
             # ربط الطالب بالمدرسة
             Membership.objects.get_or_create(
-                user=student, school=school, role=student_role,
-                defaults={"is_active": True}
+                user=student, school=school, role=student_role, defaults={"is_active": True}
             )
 
             # ربط الطالب بالفصل لو وجد
             if grade and section:
                 try:
                     class_group = ClassGroup.objects.filter(
-                        school=school,
-                        grade__icontains=grade,
-                        section=section,
-                        is_active=True
+                        school=school, grade__icontains=grade, section=section, is_active=True
                     ).first()
                     if class_group:
                         StudentEnrollment.objects.get_or_create(
-                            student=student,
-                            class_group=class_group,
-                            defaults={"is_active": True}
+                            student=student, class_group=class_group, defaults={"is_active": True}
                         )
                 except Exception:
                     pass
@@ -159,10 +163,10 @@ def run():
                 national_id=parent_nid,
                 defaults={
                     "full_name": parent_name,
-                    "email":     parent_email,
-                    "phone":     parent_phone,
+                    "email": parent_email,
+                    "phone": parent_phone,
                     "is_active": True,
-                }
+                },
             )
 
             if p_created:
@@ -175,19 +179,21 @@ def run():
                 # تحديث البيانات الناقصة فقط (لا تستبدل بيانات موجودة)
                 changed = False
                 if not parent.full_name and parent_name:
-                    parent.full_name = parent_name; changed = True
+                    parent.full_name = parent_name
+                    changed = True
                 if not parent.phone and parent_phone:
-                    parent.phone = parent_phone; changed = True
+                    parent.phone = parent_phone
+                    changed = True
                 if not parent.email and parent_email:
-                    parent.email = parent_email; changed = True
+                    parent.email = parent_email
+                    changed = True
                 if changed:
                     parent.save()
 
             # إضافة دور parent للمدرسة (حتى لو كان موظفاً)
             # get_or_create يضمن عدم التكرار
             Membership.objects.get_or_create(
-                user=parent, school=school, role=parent_role,
-                defaults={"is_active": True}
+                user=parent, school=school, role=parent_role, defaults={"is_active": True}
             )
 
             # ══ 3. رابط ولي الأمر ← الطالب ═══════════════════
@@ -197,11 +203,11 @@ def run():
                 student=student,
                 school=school,
                 defaults={
-                    "relationship":         rel,
-                    "is_primary":           True,
-                    "can_view_grades":      True,
-                    "can_view_attendance":  True,
-                }
+                    "relationship": rel,
+                    "is_primary": True,
+                    "can_view_grades": True,
+                    "can_view_attendance": True,
+                },
             )
 
             if l_created:
@@ -213,9 +219,9 @@ def run():
                 print(f"  ⏳ معالجة {i}/{len(rows)} سجل...")
 
     # ══ التقرير النهائي ═══════════════════════════════════════
-    print("\n" + "━"*55)
+    print("\n" + "━" * 55)
     print("📊  نتيجة الاستيراد الشاملة")
-    print("━"*55)
+    print("━" * 55)
     print(f"👨‍🎓 طلاب جدد أُنشئوا:          {stats['students_created']:>4}")
     print(f"👨‍🎓 طلاب موجودون (تم تحديثهم): {stats['students_updated']:>4}")
     print(f"👨‍👩‍👧 أولياء أمر جدد:            {stats['parents_created']:>4}")
@@ -225,15 +231,16 @@ def run():
     print(f"⚠️  أخطاء:                      {len(stats['errors']):>4}")
 
     if stats["errors"]:
-        print(f"\nأول 15 خطأ:")
+        print("\nأول 15 خطأ:")
         for e in stats["errors"][:15]:
             print(f"  • {e}")
         if len(stats["errors"]) > 15:
             print(f"  ... و {len(stats['errors'])-15} خطأ آخر")
 
-    print("━"*55)
+    print("━" * 55)
     print("✅ اكتمل الاستيراد بنجاح\n")
     print("ملاحظة: كلمة المرور الافتراضية = الرقم الوطني للمستخدم")
     print("        يُنصح بإخبار أولياء الأمور بتغييرها أول دخول\n")
+
 
 run()

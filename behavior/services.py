@@ -11,20 +11,22 @@ Business logic لوحدة السلوك — مستخلص من views.py
   - إشعار أولياء الأمور
   - بيانات التقرير الدوري
 """
+
 import logging
 from datetime import date
-from decimal import Decimal
-from django.db.models import Sum, Count, Q
+
+from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 from core.models import (
-    BehaviorInfraction, BehaviorPointRecovery,
-    CustomUser, ParentStudentLink, StudentEnrollment,
+    BehaviorInfraction,
+    BehaviorPointRecovery,
+    ParentStudentLink,
+    StudentEnrollment,
 )
-
 
 # ── نقاط مقترحة لكل درجة مخالفة ────────────────────────────
 POINTS_BY_LEVEL = {1: 5, 2: 15, 3: 25, 4: 40}
@@ -45,8 +47,8 @@ LEVEL_DESC = {
 
 PERIOD_CHOICES = [
     ("full", "العام كاملاً"),
-    ("S1",   "الفصل الأول"),
-    ("S2",   "الفصل الثاني"),
+    ("S1", "الفصل الأول"),
+    ("S2", "الفصل الثاني"),
 ]
 
 
@@ -54,8 +56,13 @@ class BehaviorPermissions:
     """صلاحيات وحدة السلوك"""
 
     REPORTER_ROLES = {
-        "principal", "vice_admin", "vice_academic",
-        "coordinator", "teacher", "specialist", "admin",
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "coordinator",
+        "teacher",
+        "specialist",
+        "admin",
     }
     COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "specialist"}
 
@@ -65,14 +72,10 @@ class BehaviorPermissions:
 
     @staticmethod
     def is_committee(user):
-        return (
-            user.get_role() in BehaviorPermissions.COMMITTEE_ROLES
-            or user.is_superuser
-        )
+        return user.get_role() in BehaviorPermissions.COMMITTEE_ROLES or user.is_superuser
 
 
 class BehaviorService:
-
     # ── حساب النقاط السلوكية للطالب ─────────────────────────
     @staticmethod
     def get_student_score(student, school=None, date_from=None, date_to=None):
@@ -88,9 +91,7 @@ class BehaviorService:
         if date_to:
             qs = qs.filter(date__lte=date_to)
 
-        total_deducted = qs.aggregate(
-            Sum("points_deducted")
-        )["points_deducted__sum"] or 0
+        total_deducted = qs.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
 
         recovery_qs = BehaviorPointRecovery.objects.filter(infraction__student=student)
         if school:
@@ -100,9 +101,7 @@ class BehaviorService:
         if date_to:
             recovery_qs = recovery_qs.filter(infraction__date__lte=date_to)
 
-        total_restored = recovery_qs.aggregate(
-            Sum("points_restored")
-        )["points_restored__sum"] or 0
+        total_restored = recovery_qs.aggregate(Sum("points_restored"))["points_restored__sum"] or 0
 
         net_score = max(0, min(100, 100 - total_deducted + total_restored))
 
@@ -118,9 +117,9 @@ class BehaviorService:
         return {
             "total_deducted": total_deducted,
             "total_restored": total_restored,
-            "net_score":      net_score,
-            "rating":         rating,
-            "rating_color":   rating_color,
+            "net_score": net_score,
+            "rating": rating,
+            "rating_color": rating_color,
         }
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
@@ -131,29 +130,27 @@ class BehaviorService:
 
         stats = base.values("level").annotate(count=Count("id"))
 
-        total_deducted = base.aggregate(
-            Sum("points_deducted")
-        )["points_deducted__sum"] or 0
+        total_deducted = base.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
 
-        total_restored = BehaviorPointRecovery.objects.filter(
-            infraction__school=school
-        ).aggregate(Sum("points_restored"))["points_restored__sum"] or 0
-
-        recent = (
-            base.select_related("student", "reported_by")
-            .order_by("-date")[:15]
+        total_restored = (
+            BehaviorPointRecovery.objects.filter(infraction__school=school).aggregate(
+                Sum("points_restored")
+            )["points_restored__sum"]
+            or 0
         )
 
-        critical_unresolved = base.filter(
-            level__in=[3, 4], is_resolved=False
-        ).select_related("student")
+        recent = base.select_related("student", "reported_by").order_by("-date")[:15]
+
+        critical_unresolved = base.filter(level__in=[3, 4], is_resolved=False).select_related(
+            "student"
+        )
 
         return {
-            "stats":               stats,
-            "total_deducted":      total_deducted,
-            "total_restored":      total_restored,
-            "net_deducted":        total_deducted - total_restored,
-            "recent_infractions":  recent,
+            "stats": stats,
+            "total_deducted": total_deducted,
+            "total_restored": total_restored,
+            "net_deducted": total_deducted - total_restored,
+            "recent_infractions": recent,
             "critical_unresolved": critical_unresolved,
         }
 
@@ -169,7 +166,8 @@ class BehaviorService:
 
         score = BehaviorService.get_student_score(student)
         status_color = (
-            "green" if score["net_score"] >= 80
+            "green"
+            if score["net_score"] >= 80
             else ("yellow" if score["net_score"] >= 60 else "red")
         )
 
@@ -178,9 +176,9 @@ class BehaviorService:
             by_level[inf.level] = by_level.get(inf.level, 0) + 1
 
         return {
-            "infractions":    infractions,
-            "by_level":       by_level,
-            "status_color":   status_color,
+            "infractions": infractions,
+            "by_level": by_level,
+            "status_color": status_color,
             **score,
         }
 
@@ -189,23 +187,19 @@ class BehaviorService:
     def get_committee_data(school):
         """بيانات لوحة لجنة الضبط السلوكي"""
         open_cases = (
-            BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=False
-            )
+            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
             .select_related("student", "reported_by")
             .order_by("-date")
         )
 
         resolved_cases = (
-            BehaviorInfraction.objects.filter(
-                school=school, level__in=[3, 4], is_resolved=True
-            )
+            BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
             .select_related("student", "reported_by", "recovery", "recovery__approved_by")
             .order_by("-date")[:20]
         )
 
         stats = {
-            "open_count":     open_cases.count(),
+            "open_count": open_cases.count(),
             "resolved_count": BehaviorInfraction.objects.filter(
                 school=school, level__in=[3, 4], is_resolved=True
             ).count(),
@@ -214,15 +208,16 @@ class BehaviorService:
         }
 
         return {
-            "open_cases":     open_cases,
+            "open_cases": open_cases,
             "resolved_cases": resolved_cases,
-            "stats":          stats,
+            "stats": stats,
         }
 
     # ── تنفيذ قرار اللجنة ──────────────────────────────────
     @staticmethod
-    def apply_committee_decision(infraction, decision, action="",
-                                  restore_pts=0, reason="", approved_by=None):
+    def apply_committee_decision(
+        infraction, decision, action="", restore_pts=0, reason="", approved_by=None
+    ):
         """
         تطبيق قرار اللجنة على المخالفة.
         Returns: (success_message, message_level)
@@ -299,17 +294,14 @@ class BehaviorService:
             .order_by("-count")[:5]
         )
 
-        resolved_pct = (
-            round(all_inf.filter(is_resolved=True).count() / total * 100)
-            if total else 0
-        )
+        resolved_pct = round(all_inf.filter(is_resolved=True).count() / total * 100) if total else 0
 
         return {
-            "by_level":     by_level,
-            "total":        total,
+            "by_level": by_level,
+            "total": total,
             "top_students": top_students,
-            "monthly":      monthly,
-            "top_classes":  top_classes,
+            "monthly": monthly,
+            "top_classes": top_classes,
             "resolved_pct": resolved_pct,
         }
 
@@ -318,11 +310,11 @@ class BehaviorService:
     def get_report_period(period, year="2025-2026"):
         """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
         try:
-            start_year, end_year = [int(y) for y in str(year).split("-")]
+            start_year, end_year = (int(y) for y in str(year).split("-"))
         except (ValueError, AttributeError):
             today = timezone.now().date()
             start_year = today.year if today.month >= 9 else today.year - 1
-            end_year   = start_year + 1
+            end_year = start_year + 1
 
         if period == "S1":
             return date(start_year, 9, 1), date(end_year, 1, 31), "الفصل الأول"
@@ -338,16 +330,16 @@ class BehaviorService:
 
         infractions = (
             BehaviorInfraction.objects.filter(
-                student=student, school=school,
-                date__gte=date_from, date__lte=date_to,
+                student=student,
+                school=school,
+                date__gte=date_from,
+                date__lte=date_to,
             )
             .select_related("reported_by", "recovery")
             .order_by("date")
         )
 
-        score = BehaviorService.get_student_score(
-            student, school, date_from, date_to
-        )
+        score = BehaviorService.get_student_score(student, school, date_from, date_to)
 
         by_level = {1: [], 2: [], 3: [], 4: []}
         for inf in infractions:
@@ -358,11 +350,11 @@ class BehaviorService:
         ).select_related("parent")
 
         return {
-            "infractions":  infractions,
-            "by_level":     by_level,
+            "infractions": infractions,
+            "by_level": by_level,
             "period_label": period_label,
-            "date_from":    date_from,
-            "date_to":      date_to,
+            "date_from": date_from,
+            "date_to": date_to,
             "parent_links": parent_links,
             **score,
         }
@@ -375,38 +367,40 @@ class BehaviorService:
         student = infraction.student
 
         try:
-            enrollment = StudentEnrollment.objects.filter(
-                student=student, class_group__school=school, is_active=True
-            ).select_related("class_group").first()
+            enrollment = (
+                StudentEnrollment.objects.filter(
+                    student=student, class_group__school=school, is_active=True
+                )
+                .select_related("class_group")
+                .first()
+            )
             class_name = enrollment.class_group.name if enrollment else None
         except Exception as e:
             logger.warning("get_infraction_context: enrollment query failed: %s", e)
             class_name = None
 
         try:
-            link = ParentStudentLink.objects.filter(
-                student=student
-            ).select_related("parent").first()
+            link = (
+                ParentStudentLink.objects.filter(student=student).select_related("parent").first()
+            )
             parent = link.parent if link else None
         except Exception as e:
             logger.warning("get_infraction_context: parent query failed: %s", e)
             parent = None
 
-        infraction_count = BehaviorInfraction.objects.filter(
-            student=student, school=school
-        ).count()
+        infraction_count = BehaviorInfraction.objects.filter(student=student, school=school).count()
 
         return {
-            "infraction":       infraction,
-            "school":           school,
-            "class_name":       class_name,
+            "infraction": infraction,
+            "school": school,
+            "class_name": class_name,
             "infraction_count": infraction_count,
-            "academic_year":    "2025-2026",
-            "generated_at":     timezone.now(),
-            "parent_name":      parent.full_name if parent else None,
-            "parent_id":        parent.username if parent else None,
-            "parent_phone":     getattr(parent, "phone", None) if parent else None,
-            "parent_email":     parent.email if parent else None,
+            "academic_year": "2025-2026",
+            "generated_at": timezone.now(),
+            "parent_name": parent.full_name if parent else None,
+            "parent_id": parent.username if parent else None,
+            "parent_phone": getattr(parent, "phone", None) if parent else None,
+            "parent_email": parent.email if parent else None,
         }
 
     # ── إشعار أولياء الأمور عبر NotificationHub ────────────
@@ -420,7 +414,7 @@ class BehaviorService:
         try:
             from notifications.hub import NotificationHub
 
-            event_type = f"behavior_l{infraction.level}"   # behavior_l1 … behavior_l4
+            event_type = f"behavior_l{infraction.level}"  # behavior_l1 … behavior_l4
             title = (
                 f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
                 f"({LEVEL_DISPLAY.get(infraction.level, '')})"
@@ -438,9 +432,9 @@ class BehaviorService:
                 title=title,
                 body=body,
                 context={
-                    "infraction":  infraction,
-                    "reporter":    reporter,
-                    "level":       infraction.level,
+                    "infraction": infraction,
+                    "reporter": reporter,
+                    "level": infraction.level,
                 },
                 related_object_id=infraction.pk,
                 related_url=f"/behavior/student/{infraction.student.pk}/",
@@ -449,5 +443,7 @@ class BehaviorService:
         except Exception as e:
             logger.error(
                 "notify_parents: Hub dispatch failed [infraction=%s]: %s",
-                infraction.pk, e, exc_info=True
+                infraction.pk,
+                e,
+                exc_info=True,
             )

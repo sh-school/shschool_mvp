@@ -2,6 +2,7 @@
 core/managers.py — Custom Managers للنماذج الأساسية
 =====================================================
 """
+
 from django.contrib.auth.base_user import BaseUserManager
 from django.utils.translation import gettext_lazy as _
 
@@ -15,6 +16,7 @@ class CustomUserManager(BaseUserManager):
 
     def get_queryset(self):
         from .querysets import UserQuerySet
+
         return UserQuerySet(self.model, using=self._db)
 
     # ── البحث الذكي (مباشرة على المانجر) ─────────────────────────────────

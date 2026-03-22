@@ -139,17 +139,9 @@ jobs:
       - name: فحص إعدادات Django
         run: python manage.py check --fail-level WARNING
 
-      - name: "★ الاختبارات + Coverage Gate ≥80%"
-        run: |
-          pytest tests/ -v --tb=short \
-            --cov=. \
-            --cov-report=term-missing \
-            --cov-report=xml:coverage.xml \
-            --cov-report=html:htmlcov \
-            --cov-fail-under=80 \
-            --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
-            --junit-xml=test-results.xml \
-            -q
+      - name: "★ الاختبارات + Coverage Gate 80%"
+        run: pytest tests/ -v --junit-xml=test-results.xml
+        # الإعدادات في pyproject.toml: cov + fail-under=80 + omit
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v4

@@ -5,6 +5,7 @@ api/filters.py — FilterSets الاحترافية للـ API
 كل FilterSet يُعلن الحقول المسموح بفلترتها صراحةً
 (أمان: لا يتمكن المستخدم من الفلترة على حقول غير مصرَّح بها).
 """
+
 from __future__ import annotations
 
 import django_filters as filters
@@ -17,8 +18,8 @@ from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification
 from operations.models import Session, StudentAttendance
 
-
 # ─────────────────────────── Students ──────────────────────────────────────
+
 
 class StudentFilter(FilterSet):
     """
@@ -28,15 +29,12 @@ class StudentFilter(FilterSet):
     - الفصل الدراسي: ?year=2025-2026
     - الجنس: ?gender=M
     """
+
     search = filters.CharFilter(method="filter_search", label="بحث بالاسم أو الرقم الوطني")
     class_id = filters.UUIDFilter(
-        field_name="studentenrollment__class_group__id",
-        label="الفصل الدراسي"
+        field_name="studentenrollment__class_group__id", label="الفصل الدراسي"
     )
-    year = filters.CharFilter(
-        field_name="studentenrollment__academic_year",
-        label="السنة الدراسية"
-    )
+    year = filters.CharFilter(field_name="studentenrollment__academic_year", label="السنة الدراسية")
     gender = filters.CharFilter(field_name="profile__gender", label="الجنس")
     is_active = filters.BooleanFilter(field_name="is_active", label="نشط")
 
@@ -44,10 +42,7 @@ class StudentFilter(FilterSet):
         if not value:
             return queryset
         q = value.strip()[:100]
-        return queryset.filter(
-            Q(full_name__icontains=q)
-            | Q(national_id__icontains=q)
-        )
+        return queryset.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
 
     class Meta:
         # لا يوجد model مباشر — يُطبَّق على CustomUser queryset
@@ -55,6 +50,7 @@ class StudentFilter(FilterSet):
 
 
 # ─────────────────────────── Sessions ──────────────────────────────────────
+
 
 class SessionFilter(FilterSet):
     """
@@ -66,6 +62,7 @@ class SessionFilter(FilterSet):
     - ?subject_id=uuid
     - ?status=completed
     """
+
     date = filters.DateFilter(field_name="date", label="التاريخ")
     date_from = filters.DateFilter(field_name="date", lookup_expr="gte", label="من تاريخ")
     date_to = filters.DateFilter(field_name="date", lookup_expr="lte", label="إلى تاريخ")
@@ -79,7 +76,7 @@ class SessionFilter(FilterSet):
             ("completed", "مكتمل"),
             ("cancelled", "ملغي"),
         ],
-        label="الحالة"
+        label="الحالة",
     )
 
     class Meta:
@@ -89,6 +86,7 @@ class SessionFilter(FilterSet):
 
 # ─────────────────────────── Attendance ────────────────────────────────────
 
+
 class AttendanceFilter(FilterSet):
     """
     فلتر الحضور:
@@ -97,6 +95,7 @@ class AttendanceFilter(FilterSet):
     - ?status=absent
     - ?date_from=...&date_to=...
     """
+
     student_id = filters.UUIDFilter(field_name="student__id", label="الطالب")
     class_id = filters.UUIDFilter(field_name="session__class_group__id", label="الفصل")
     status = filters.ChoiceFilter(
@@ -106,7 +105,7 @@ class AttendanceFilter(FilterSet):
             ("late", "متأخر"),
             ("excused", "غياب بعذر"),
         ],
-        label="الحالة"
+        label="الحالة",
     )
     date_from = filters.DateFilter(field_name="session__date", lookup_expr="gte", label="من تاريخ")
     date_to = filters.DateFilter(field_name="session__date", lookup_expr="lte", label="إلى تاريخ")
@@ -119,6 +118,7 @@ class AttendanceFilter(FilterSet):
 
 # ─────────────────────────── Behavior ──────────────────────────────────────
 
+
 class InfractionFilter(FilterSet):
     """
     فلتر المخالفات السلوكية:
@@ -128,6 +128,7 @@ class InfractionFilter(FilterSet):
     - ?is_resolved=false
     - ?category=C
     """
+
     student_id = filters.UUIDFilter(field_name="student__id", label="الطالب")
     level = filters.NumberFilter(field_name="level", label="درجة المخالفة")
     level_min = filters.NumberFilter(field_name="level", lookup_expr="gte", label="الدرجة من")
@@ -136,23 +137,29 @@ class InfractionFilter(FilterSet):
     date_to = filters.DateFilter(field_name="date", lookup_expr="lte", label="إلى تاريخ")
     is_resolved = filters.BooleanFilter(field_name="is_resolved", label="محلولة")
     category = filters.CharFilter(
-        field_name="violation_category__category",
-        label="فئة المخالفة (A/B/C/D)"
+        field_name="violation_category__category", label="فئة المخالفة (A/B/C/D)"
     )
     class_id = filters.UUIDFilter(
-        field_name="student__studentenrollment__class_group__id",
-        label="الفصل"
+        field_name="student__studentenrollment__class_group__id", label="الفصل"
     )
 
     class Meta:
         model = BehaviorInfraction
         fields = [
-            "student_id", "level", "level_min", "level_max",
-            "date_from", "date_to", "is_resolved", "category", "class_id"
+            "student_id",
+            "level",
+            "level_min",
+            "level_max",
+            "date_from",
+            "date_to",
+            "is_resolved",
+            "category",
+            "class_id",
         ]
 
 
 # ─────────────────────────── Clinic ────────────────────────────────────────
+
 
 class ClinicVisitFilter(FilterSet):
     """
@@ -162,6 +169,7 @@ class ClinicVisitFilter(FilterSet):
     - ?parent_notified=false
     - ?date_from=...&date_to=...
     """
+
     student_id = filters.UUIDFilter(field_name="student__id", label="الطالب")
     sent_home = filters.BooleanFilter(field_name="is_sent_home", label="أُرسل للمنزل")
     parent_notified = filters.BooleanFilter(field_name="parent_notified", label="أُبلغ ولي الأمر")
@@ -175,6 +183,7 @@ class ClinicVisitFilter(FilterSet):
 
 # ─────────────────────────── Library ───────────────────────────────────────
 
+
 class BookFilter(FilterSet):
     """
     فلتر كتب المكتبة:
@@ -183,10 +192,11 @@ class BookFilter(FilterSet):
     - ?available=true
     - ?category=علوم
     """
+
     search = filters.CharFilter(method="filter_search", label="بحث بالعنوان أو المؤلف")
     book_type = filters.ChoiceFilter(
         choices=[("PRINT", "مطبوع"), ("DIGITAL", "رقمي"), ("PERIODICAL", "دورية")],
-        label="نوع الكتاب"
+        label="نوع الكتاب",
     )
     available = filters.BooleanFilter(method="filter_available", label="متاح للاستعارة")
     category = filters.CharFilter(field_name="category", lookup_expr="icontains", label="التصنيف")
@@ -218,6 +228,7 @@ class BorrowingFilter(FilterSet):
     - ?student_id=uuid
     - ?overdue=true
     """
+
     status = filters.ChoiceFilter(
         choices=[
             ("BORROWED", "قيد الإعارة"),
@@ -225,18 +236,16 @@ class BorrowingFilter(FilterSet):
             ("OVERDUE", "متأخر"),
             ("LOST", "مفقود"),
         ],
-        label="الحالة"
+        label="الحالة",
     )
     student_id = filters.UUIDFilter(field_name="user__id", label="الطالب")
     overdue = filters.BooleanFilter(method="filter_overdue", label="متأخر الإعادة")
 
     def filter_overdue(self, queryset, name, value):
         from django.utils import timezone
+
         if value is True:
-            return queryset.filter(
-                status="BORROWED",
-                due_date__lt=timezone.now().date()
-            )
+            return queryset.filter(status="BORROWED", due_date__lt=timezone.now().date())
         return queryset
 
     class Meta:
@@ -246,6 +255,7 @@ class BorrowingFilter(FilterSet):
 
 # ─────────────────────────── Notifications ─────────────────────────────────
 
+
 class NotificationFilter(FilterSet):
     """
     فلتر الإشعارات:
@@ -253,6 +263,7 @@ class NotificationFilter(FilterSet):
     - ?event_type=behavior
     - ?priority=urgent
     """
+
     unread = filters.BooleanFilter(method="filter_unread", label="غير مقروء")
     event_type = filters.ChoiceFilter(
         choices=[
@@ -268,7 +279,7 @@ class NotificationFilter(FilterSet):
             ("plan_overdue", "إجراء متأخر"),
             ("general", "عام"),
         ],
-        label="نوع الحدث"
+        label="نوع الحدث",
     )
     priority = filters.ChoiceFilter(
         choices=[
@@ -277,7 +288,7 @@ class NotificationFilter(FilterSet):
             ("high", "عالٍ"),
             ("urgent", "عاجل"),
         ],
-        label="الأولوية"
+        label="الأولوية",
     )
 
     def filter_unread(self, queryset, name, value):

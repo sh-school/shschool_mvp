@@ -2,9 +2,13 @@
 setup_fonts.py — تجهيز خطوط عربية لـ WeasyPrint / xhtml2pdf
 شغّل مرة واحدة:  python setup_fonts.py
 """
-import os, sys, shutil, urllib.request
 
-BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
+import os
+import shutil
+import sys
+import urllib.request
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(BASE_DIR, "static", "fonts")
 os.makedirs(FONTS_DIR, exist_ok=True)
 
@@ -31,6 +35,7 @@ CDN_URLS = {
     ],
 }
 
+
 def try_windows_copy():
     """انسخ من خطوط Windows إذا كانت موجودة"""
     copied = 0
@@ -48,12 +53,13 @@ def try_windows_copy():
                 break
     return copied
 
+
 def try_download():
     """حاول التحميل من CDN"""
     opener = urllib.request.build_opener()
-    opener.addheaders = [('User-Agent', 'Mozilla/5.0')]
+    opener.addheaders = [("User-Agent", "Mozilla/5.0")]
     urllib.request.install_opener(opener)
-    
+
     downloaded = 0
     for dest_name, urls in CDN_URLS.items():
         dest = os.path.join(FONTS_DIR, dest_name)
@@ -74,6 +80,7 @@ def try_download():
                 pass
     return downloaded
 
+
 print("=" * 55)
 print("  تجهيز خطوط عربية لـ SchoolOS PDF")
 print("=" * 55)
@@ -89,14 +96,19 @@ if win_count < 2:
 else:
     dl_count = 0
 
-total = len([f for f in ["Amiri-Regular.ttf","Amiri-Bold.ttf"]
-             if os.path.exists(os.path.join(FONTS_DIR, f))])
+total = len(
+    [
+        f
+        for f in ["Amiri-Regular.ttf", "Amiri-Bold.ttf"]
+        if os.path.exists(os.path.join(FONTS_DIR, f))
+    ]
+)
 
 print(f"\n{'='*55}")
 if total >= 1:
     print(f"✅ جاهز! {total}/2 خط في: static/fonts/")
-    print(f"\nشغّل الآن:")
-    print(f"   python manage.py collectstatic --noinput")
+    print("\nشغّل الآن:")
+    print("   python manage.py collectstatic --noinput")
 else:
     print("⚠️  لم يُوجد خط تلقائياً.")
     print("\nالحل اليدوي السريع:")
@@ -108,9 +120,9 @@ else:
     print("   - Amiri-Bold.ttf")
     print("\nبديل مؤقت (خط Windows مباشر):")
     print("   python setup_fonts.py --use-tahoma")
-    
+
     # إذا استُدعي مع --use-tahoma
-    if '--use-tahoma' in sys.argv:
+    if "--use-tahoma" in sys.argv:
         print("\nجاري استخدام Tahoma (خط Windows مدمج)...")
         for dest_name, sources in WINDOWS_FONTS.items():
             dest = os.path.join(FONTS_DIR, dest_name)

@@ -4,31 +4,41 @@ tests/test_models.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 يختبر: العلاقات، الدوال المساعدة، الخصائص المحسوبة
 """
-import pytest
+
 from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+
 from core.models import (
-    CustomUser, Membership, BehaviorInfraction,
-    BehaviorPointRecovery, LibraryBook, BookBorrowing,
-    HealthRecord, ClinicVisit, SchoolBus, BusRoute,
-)
-from .conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
-    HealthRecordFactory, ClinicVisitFactory,
-    SchoolBusFactory, BehaviorInfractionFactory,
-    LibraryBookFactory, BookBorrowingFactory,
+    BehaviorInfraction,
+    BehaviorPointRecovery,
+    BookBorrowing,
+    BusRoute,
+    ClinicVisit,
+    LibraryBook,
+    SchoolBus,
 )
 
+from .conftest import (
+    BehaviorInfractionFactory,
+    BookBorrowingFactory,
+    ClinicVisitFactory,
+    HealthRecordFactory,
+    LibraryBookFactory,
+    MembershipFactory,
+    RoleFactory,
+    SchoolBusFactory,
+    UserFactory,
+)
 
 # ══════════════════════════════════════════════
 #  CustomUser — الدوال المساعدة
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestCustomUser:
-
     def test_get_role_returns_correct_role(self, school, teacher_user):
         assert teacher_user.get_role() == "teacher"
 
@@ -61,7 +71,7 @@ class TestCustomUser:
     def test_dual_role_user(self, db, school):
         """موظف-ولي أمر: يملك دورين"""
         teacher_role = RoleFactory(school=school, name="teacher")
-        parent_role  = RoleFactory(school=school, name="parent")
+        parent_role = RoleFactory(school=school, name="parent")
         user = UserFactory()
         MembershipFactory(user=user, school=school, role=teacher_role)
         MembershipFactory(user=user, school=school, role=parent_role)
@@ -73,9 +83,9 @@ class TestCustomUser:
 #  HealthRecord
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestHealthRecord:
-
     def test_create_health_record(self, db, student_user):
         record = HealthRecordFactory(student=student_user, blood_type="A+")
         assert record.blood_type == "A+"
@@ -92,9 +102,7 @@ class TestHealthRecord:
 
     def test_chronic_diseases_stored(self, db, student_user):
         record = HealthRecordFactory(
-            student=student_user,
-            chronic_diseases="ربو",
-            medications="بخاخ الربو"
+            student=student_user, chronic_diseases="ربو", medications="بخاخ الربو"
         )
         assert "ربو" in record.chronic_diseases
 
@@ -103,13 +111,16 @@ class TestHealthRecord:
 #  ClinicVisit
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestClinicVisit:
-
     def test_create_visit(self, school, student_user, nurse_user):
         visit = ClinicVisitFactory(
-            school=school, student=student_user, nurse=nurse_user,
-            reason="صداع شديد", temperature=Decimal("38.5")
+            school=school,
+            student=student_user,
+            nurse=nurse_user,
+            reason="صداع شديد",
+            temperature=Decimal("38.5"),
         )
         assert visit.reason == "صداع شديد"
         assert visit.temperature == Decimal("38.5")
@@ -117,8 +128,11 @@ class TestClinicVisit:
 
     def test_sent_home_flag(self, school, student_user, nurse_user):
         visit = ClinicVisitFactory(
-            school=school, student=student_user, nurse=nurse_user,
-            is_sent_home=True, parent_notified=True
+            school=school,
+            student=student_user,
+            nurse=nurse_user,
+            is_sent_home=True,
+            parent_notified=True,
         )
         assert visit.is_sent_home is True
         assert visit.parent_notified is True
@@ -136,13 +150,16 @@ class TestClinicVisit:
 #  BehaviorInfraction
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBehaviorInfraction:
-
     def test_create_infraction_level1(self, school, student_user, teacher_user):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=1, points_deducted=5
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=1,
+            points_deducted=5,
         )
         assert inf.level == 1
         assert inf.points_deducted == 5
@@ -150,15 +167,21 @@ class TestBehaviorInfraction:
 
     def test_create_critical_infraction(self, school, student_user, teacher_user):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=4, points_deducted=40
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=4,
+            points_deducted=40,
         )
         assert inf.level == 4
 
     def test_point_recovery(self, school, student_user, teacher_user, principal_user):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=2, points_deducted=15
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=2,
+            points_deducted=15,
         )
         recovery = BehaviorPointRecovery.objects.create(
             infraction=inf,
@@ -171,8 +194,7 @@ class TestBehaviorInfraction:
 
     def test_resolve_infraction(self, school, student_user, teacher_user):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user
+            school=school, student=student_user, reported_by=teacher_user
         )
         inf.is_resolved = True
         inf.save()
@@ -181,14 +203,17 @@ class TestBehaviorInfraction:
 
     def test_str_representation(self, school, student_user, teacher_user):
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=1
+            school=school, student=student_user, reported_by=teacher_user, level=1
         )
         assert student_user.full_name in str(inf)
 
     def test_infractions_ordered_by_date_desc(self, school, student_user, teacher_user):
-        inf1 = BehaviorInfractionFactory(school=school, student=student_user, reported_by=teacher_user)
-        inf2 = BehaviorInfractionFactory(school=school, student=student_user, reported_by=teacher_user)
+        inf1 = BehaviorInfractionFactory(
+            school=school, student=student_user, reported_by=teacher_user
+        )
+        inf2 = BehaviorInfractionFactory(
+            school=school, student=student_user, reported_by=teacher_user
+        )
         infractions = list(BehaviorInfraction.objects.filter(student=student_user))
         ids = [i.id for i in infractions]
         assert inf1.id in ids and inf2.id in ids  # كلا المخالفتين موجودتان
@@ -198,16 +223,16 @@ class TestBehaviorInfraction:
 #  SchoolBus + BusRoute
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestSchoolBus:
-
     def test_create_bus(self, school, bus_supervisor_user):
         bus = SchoolBusFactory(school=school, supervisor=bus_supervisor_user)
         assert bus.capacity == 30
         assert bus.school == school
 
     def test_bus_route_with_students(self, school, bus_supervisor_user, student_user):
-        bus   = SchoolBusFactory(school=school, supervisor=bus_supervisor_user)
+        bus = SchoolBusFactory(school=school, supervisor=bus_supervisor_user)
         route = BusRoute.objects.create(bus=bus, area_name="حي الشحانية")
         route.students.add(student_user)
         assert route.students.count() == 1
@@ -226,13 +251,12 @@ class TestSchoolBus:
 #  LibraryBook + BookBorrowing
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestLibrary:
-
     def test_create_book(self, school):
         book = LibraryBookFactory(
-            school=school, title="الفيزياء للجميع",
-            quantity=5, available_qty=5
+            school=school, title="الفيزياء للجميع", quantity=5, available_qty=5
         )
         assert book.available_qty == 5
 
@@ -257,9 +281,10 @@ class TestLibrary:
     def test_overdue_status(self, school, student_user):
         book = LibraryBookFactory(school=school)
         borrowing = BookBorrowingFactory(
-            book=book, user=student_user,
+            book=book,
+            user=student_user,
             due_date=date.today() - timedelta(days=5),
-            status="OVERDUE"
+            status="OVERDUE",
         )
         assert borrowing.status == "OVERDUE"
 
@@ -281,6 +306,7 @@ class TestLibrary:
 #  AuditLog — Immutability (PDPPL م.19)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAuditLogImmutability:
     """AuditLog يجب أن يكون غير قابل للتعديل أو الحذف — PDPLL م.19"""
@@ -289,46 +315,57 @@ class TestAuditLogImmutability:
 
     def _make_log(self, teacher_user, school):
         from core.models import AuditLog
+
         AuditLog.log(
-            user=teacher_user, action="view",
-            model_name="CustomUser", object_id=str(teacher_user.pk),
+            user=teacher_user,
+            action="view",
+            model_name="CustomUser",
+            object_id=str(teacher_user.pk),
             school=school,
         )
         return AuditLog.objects.filter(user=teacher_user, action="view").latest("timestamp")
 
     def test_auditlog_can_be_created(self, teacher_user, school):
         from core.models import AuditLog
+
         before = AuditLog.objects.count()
         AuditLog.log(
-            user=teacher_user, action="view",
-            model_name="CustomUser", object_id="x", school=school,
+            user=teacher_user,
+            action="view",
+            model_name="CustomUser",
+            object_id="x",
+            school=school,
         )
         assert AuditLog.objects.count() == before + 1
 
     def test_auditlog_instance_delete_raises(self, teacher_user, school):
-        from core.models import AuditLog
         from django.core.exceptions import PermissionDenied
+
         log = self._make_log(teacher_user, school)
         with pytest.raises(PermissionDenied):
             log.delete()
 
     def test_auditlog_queryset_delete_raises(self, teacher_user, school):
-        from core.models import AuditLog
         from django.core.exceptions import PermissionDenied
+
+        from core.models import AuditLog
+
         self._make_log(teacher_user, school)
         with pytest.raises(PermissionDenied):
             AuditLog.objects.filter(user=teacher_user).delete()
 
     def test_auditlog_queryset_update_raises(self, teacher_user, school):
-        from core.models import AuditLog
         from django.core.exceptions import PermissionDenied
+
+        from core.models import AuditLog
+
         self._make_log(teacher_user, school)
         with pytest.raises(PermissionDenied):
             AuditLog.objects.filter(user=teacher_user).update(action="delete")
 
     def test_auditlog_save_existing_raises(self, teacher_user, school):
-        from core.models import AuditLog
         from django.core.exceptions import PermissionDenied
+
         log = self._make_log(teacher_user, school)
         log.action = "delete"
         with pytest.raises(PermissionDenied):

@@ -3,5 +3,5 @@ from django.apps import AppConfig
 
 class QualityConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name               = "quality"
-    verbose_name       = "الجودة والخطة التشغيلية"
+    name = "quality"
+    verbose_name = "الجودة والخطة التشغيلية"

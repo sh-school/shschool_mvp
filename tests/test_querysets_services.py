@@ -7,43 +7,65 @@ tests/test_querysets_services.py
   - quality/services.py    : QualityService
   - quality/employee_evaluation.py : EmployeeEvaluation, EvaluationCycle
 """
-import pytest
+
 from datetime import date, time, timedelta
-from decimal import Decimal
+
+import pytest
 from django.utils import timezone
 
-from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory,
-    MembershipFactory, ClassGroupFactory,
-)
-from operations.models import (
-    Subject, Session, StudentAttendance, AbsenceAlert,
-)
-from operations.querysets import (
-    SessionQuerySet, AttendanceQuerySet, AbsenceAlertQuerySet,
-)
-from quality.models import (
-    OperationalDomain, OperationalTarget, OperationalIndicator,
-    OperationalProcedure, ProcedureEvidence,
-    QualityCommitteeMember, ExecutorMapping,
-    EmployeeEvaluation, EvaluationCycle,
-)
-from quality.querysets import ProcedureQuerySet, DomainQuerySet
 from notifications.models import InAppNotification, NotificationLog
 from notifications.querysets import (
-    InAppNotificationQuerySet, NotificationLogQuerySet,
+    InAppNotificationQuerySet,
+    NotificationLogQuerySet,
 )
+from operations.models import (
+    AbsenceAlert,
+    Session,
+    StudentAttendance,
+    Subject,
+)
+from operations.querysets import (
+    AbsenceAlertQuerySet,
+    AttendanceQuerySet,
+    SessionQuerySet,
+)
+from quality.models import (
+    EmployeeEvaluation,
+    EvaluationCycle,
+    ExecutorMapping,
+    OperationalDomain,
+    OperationalIndicator,
+    OperationalProcedure,
+    OperationalTarget,
+    QualityCommitteeMember,
+)
+from quality.querysets import DomainQuerySet, ProcedureQuerySet
 from quality.services import QualityService
-
+from tests.conftest import (
+    ClassGroupFactory,
+    SchoolFactory,
+    UserFactory,
+)
 
 # ══════════════════════════════════════════════════════════════
 # Helpers
 # ══════════════════════════════════════════════════════════════
 
-def _make_session(school, teacher, class_group, subject=None,
-                  session_date=None, status="scheduled", start="08:00", end="08:45"):
+
+def _make_session(
+    school,
+    teacher,
+    class_group,
+    subject=None,
+    session_date=None,
+    status="scheduled",
+    start="08:00",
+    end="08:45",
+):
     return Session.objects.create(
-        school=school, teacher=teacher, class_group=class_group,
+        school=school,
+        teacher=teacher,
+        class_group=class_group,
         subject=subject,
         date=session_date or timezone.now().date(),
         start_time=time.fromisoformat(start),
@@ -54,16 +76,20 @@ def _make_session(school, teacher, class_group, subject=None,
 
 def _make_attendance(session, student, school, status="present", excuse_type=""):
     return StudentAttendance.objects.create(
-        session=session, student=student, school=school,
-        status=status, excuse_type=excuse_type,
+        session=session,
+        student=student,
+        school=school,
+        status=status,
+        excuse_type=excuse_type,
     )
 
 
 _proc_seq = 0
 
 
-def _make_procedure(school, indicator, user=None, status="In Progress",
-                    executor_norm="معلم", deadline=None):
+def _make_procedure(
+    school, indicator, user=None, status="In Progress", executor_norm="معلم", deadline=None
+):
     global _proc_seq
     _proc_seq += 1
     return OperationalProcedure.objects.create(
@@ -81,13 +107,19 @@ def _make_procedure(school, indicator, user=None, status="In Progress",
 def _make_quality_hierarchy(school, domain_name="مجال 1"):
     """Creates Domain -> Target -> Indicator and returns all three."""
     domain = OperationalDomain.objects.create(
-        school=school, name=domain_name, order=1,
+        school=school,
+        name=domain_name,
+        order=1,
     )
     target = OperationalTarget.objects.create(
-        domain=domain, number="T-1", text="هدف 1",
+        domain=domain,
+        number="T-1",
+        text="هدف 1",
     )
     indicator = OperationalIndicator.objects.create(
-        target=target, number="I-1", text="مؤشر 1",
+        target=target,
+        number="I-1",
+        text="مؤشر 1",
     )
     return domain, target, indicator
 
@@ -96,16 +128,18 @@ def _make_quality_hierarchy(school, domain_name="مجال 1"):
 #  1. SessionQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestSessionQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user):
         self.school = school
         self.teacher = teacher_user
         self.cg = ClassGroupFactory(school=school)
         self.subject = Subject.objects.create(
-            school=school, name_ar="رياضيات", code="MATH",
+            school=school,
+            name_ar="رياضيات",
+            code="MATH",
         )
         self.qs = SessionQuerySet(model=Session, using="default").filter(
             school=school,
@@ -113,13 +147,20 @@ class TestSessionQuerySet:
 
     def test_today(self):
         today_session = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=timezone.now().date(), status="scheduled",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=timezone.now().date(),
+            status="scheduled",
         )
         _make_session(
-            self.school, self.teacher, self.cg,
+            self.school,
+            self.teacher,
+            self.cg,
             session_date=timezone.now().date() - timedelta(days=5),
-            status="completed", start="09:00", end="09:45",
+            status="completed",
+            start="09:00",
+            end="09:45",
         )
         result = self.qs.today()
         assert today_session in result
@@ -129,13 +170,20 @@ class TestSessionQuerySet:
         today = timezone.now().date()
         start_of_week = today - timedelta(days=today.weekday())
         session_in_week = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=start_of_week, status="scheduled",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=start_of_week,
+            status="scheduled",
         )
         session_outside = _make_session(
-            self.school, self.teacher, self.cg,
+            self.school,
+            self.teacher,
+            self.cg,
             session_date=start_of_week - timedelta(days=7),
-            status="completed", start="10:00", end="10:45",
+            status="completed",
+            start="10:00",
+            end="10:45",
         )
         result = self.qs.this_week()
         assert session_in_week in result
@@ -145,12 +193,18 @@ class TestSessionQuerySet:
         d1 = date(2025, 9, 1)
         d2 = date(2025, 9, 30)
         s1 = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 9, 15), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 9, 15),
+            start="08:00",
         )
         s2 = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 10, 5), start="09:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 10, 5),
+            start="09:00",
         )
         result = self.qs.date_range(d1, d2)
         assert s1 in result
@@ -159,13 +213,19 @@ class TestSessionQuerySet:
     def test_for_teacher(self):
         other_teacher = UserFactory(full_name="معلم آخر")
         s1 = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 11, 1), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 11, 1),
+            start="08:00",
         )
         cg2 = ClassGroupFactory(school=self.school)
         s2 = _make_session(
-            self.school, other_teacher, cg2,
-            session_date=date(2025, 11, 1), start="08:00",
+            self.school,
+            other_teacher,
+            cg2,
+            session_date=date(2025, 11, 1),
+            start="08:00",
         )
         result = self.qs.for_teacher(self.teacher)
         assert s1 in result
@@ -174,13 +234,19 @@ class TestSessionQuerySet:
     def test_for_class(self):
         cg2 = ClassGroupFactory(school=self.school)
         s1 = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 11, 2), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 11, 2),
+            start="08:00",
         )
         other_teacher = UserFactory(full_name="م2")
         s2 = _make_session(
-            self.school, other_teacher, cg2,
-            session_date=date(2025, 11, 2), start="08:00",
+            self.school,
+            other_teacher,
+            cg2,
+            session_date=date(2025, 11, 2),
+            start="08:00",
         )
         result = self.qs.for_class(self.cg)
         assert s1 in result
@@ -188,30 +254,50 @@ class TestSessionQuerySet:
 
     def test_for_subject(self):
         s1 = _make_session(
-            self.school, self.teacher, self.cg, subject=self.subject,
-            session_date=date(2025, 11, 3), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            subject=self.subject,
+            session_date=date(2025, 11, 3),
+            start="08:00",
         )
         assert s1 in self.qs.for_subject(self.subject)
 
     def test_status_filters(self):
         s_sched = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 11, 4), status="scheduled", start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 11, 4),
+            status="scheduled",
+            start="08:00",
         )
         t2 = UserFactory(full_name="م3")
         s_comp = _make_session(
-            self.school, t2, self.cg,
-            session_date=date(2025, 11, 4), status="completed", start="09:00",
+            self.school,
+            t2,
+            self.cg,
+            session_date=date(2025, 11, 4),
+            status="completed",
+            start="09:00",
         )
         t3 = UserFactory(full_name="م4")
         s_cancel = _make_session(
-            self.school, t3, self.cg,
-            session_date=date(2025, 11, 4), status="cancelled", start="10:00",
+            self.school,
+            t3,
+            self.cg,
+            session_date=date(2025, 11, 4),
+            status="cancelled",
+            start="10:00",
         )
         t4 = UserFactory(full_name="م5")
         s_ip = _make_session(
-            self.school, t4, self.cg,
-            session_date=date(2025, 11, 4), status="in_progress", start="11:00",
+            self.school,
+            t4,
+            self.cg,
+            session_date=date(2025, 11, 4),
+            status="in_progress",
+            start="11:00",
         )
 
         assert s_sched in self.qs.scheduled()
@@ -221,8 +307,12 @@ class TestSessionQuerySet:
 
     def test_with_details(self):
         _make_session(
-            self.school, self.teacher, self.cg, subject=self.subject,
-            session_date=date(2025, 11, 5), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            subject=self.subject,
+            session_date=date(2025, 11, 5),
+            start="08:00",
         )
         # Should not raise; just test that select_related/prefetch works
         result = self.qs.with_details()
@@ -230,8 +320,11 @@ class TestSessionQuerySet:
 
     def test_attendance_summary(self):
         session = _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=date(2025, 11, 6), start="08:00",
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=date(2025, 11, 6),
+            start="08:00",
         )
         s1 = UserFactory(full_name="طالب أ")
         s2 = UserFactory(full_name="طالب ب")
@@ -250,9 +343,9 @@ class TestSessionQuerySet:
 #  2. AttendanceQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAttendanceQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user, student_user):
         self.school = school
@@ -260,13 +353,17 @@ class TestAttendanceQuerySet:
         self.student = student_user
         self.cg = ClassGroupFactory(school=school)
         self.qs = AttendanceQuerySet(
-            model=StudentAttendance, using="default",
+            model=StudentAttendance,
+            using="default",
         ).filter(school=school)
 
     def _session(self, dt, start="08:00"):
         return _make_session(
-            self.school, self.teacher, self.cg,
-            session_date=dt, start=start,
+            self.school,
+            self.teacher,
+            self.cg,
+            session_date=dt,
+            start=start,
         )
 
     def test_for_student(self):
@@ -314,8 +411,11 @@ class TestAttendanceQuerySet:
     def test_unexcused(self):
         session = self._session(date(2025, 12, 5))
         att = _make_attendance(
-            session, self.student, self.school,
-            status="absent", excuse_type="",
+            session,
+            self.student,
+            self.school,
+            status="absent",
+            excuse_type="",
         )
         result = self.qs.unexcused()
         assert att in result
@@ -323,8 +423,11 @@ class TestAttendanceQuerySet:
     def test_unexcused_excludes_excused_absent(self):
         session = self._session(date(2025, 12, 6))
         att = _make_attendance(
-            session, self.student, self.school,
-            status="absent", excuse_type="medical",
+            session,
+            self.student,
+            self.school,
+            status="absent",
+            excuse_type="medical",
         )
         result = self.qs.unexcused()
         assert att not in result
@@ -385,15 +488,16 @@ class TestAttendanceQuerySet:
 #  3. AbsenceAlertQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAbsenceAlertQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, student_user):
         self.school = school
         self.student = student_user
         self.qs = AbsenceAlertQuerySet(
-            model=AbsenceAlert, using="default",
+            model=AbsenceAlert,
+            using="default",
         ).filter(school=school)
 
     def _alert(self, status="pending"):
@@ -423,7 +527,8 @@ class TestAbsenceAlertQuerySet:
         alert = self._alert()
         other = UserFactory(full_name="طالب ب")
         alert2 = AbsenceAlert.objects.create(
-            school=self.school, student=other,
+            school=self.school,
+            student=other,
             absence_count=3,
             period_start=date(2025, 12, 1),
             period_end=date(2025, 12, 10),
@@ -437,18 +542,20 @@ class TestAbsenceAlertQuerySet:
 #  4. ProcedureQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestProcedureQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user):
         self.school = school
         self.user = teacher_user
         self.domain, self.target, self.indicator = _make_quality_hierarchy(
-            school, "مجال اختبار الإجراءات",
+            school,
+            "مجال اختبار الإجراءات",
         )
         self.qs = ProcedureQuerySet(
-            model=OperationalProcedure, using="default",
+            model=OperationalProcedure,
+            using="default",
         ).filter(school=school)
 
     def test_status_filters(self):
@@ -477,10 +584,16 @@ class TestProcedureQuerySet:
         yesterday = timezone.now().date() - timedelta(days=1)
         tomorrow = timezone.now().date() + timedelta(days=1)
         p_overdue = _make_procedure(
-            self.school, self.indicator, status="In Progress", deadline=yesterday,
+            self.school,
+            self.indicator,
+            status="In Progress",
+            deadline=yesterday,
         )
         p_future = _make_procedure(
-            self.school, self.indicator, status="In Progress", deadline=tomorrow,
+            self.school,
+            self.indicator,
+            status="In Progress",
+            deadline=tomorrow,
         )
         result = self.qs.overdue()
         assert p_overdue in result
@@ -491,10 +604,16 @@ class TestProcedureQuerySet:
         in_3_days = today + timedelta(days=3)
         in_20_days = today + timedelta(days=20)
         p_soon = _make_procedure(
-            self.school, self.indicator, status="Not Started", deadline=in_3_days,
+            self.school,
+            self.indicator,
+            status="Not Started",
+            deadline=in_3_days,
         )
         p_far = _make_procedure(
-            self.school, self.indicator, status="Not Started", deadline=in_20_days,
+            self.school,
+            self.indicator,
+            status="Not Started",
+            deadline=in_20_days,
         )
         result = self.qs.due_soon(days=7)
         assert p_soon in result
@@ -504,7 +623,9 @@ class TestProcedureQuerySet:
         today = timezone.now().date()
         this_month = today.replace(day=15)
         p = _make_procedure(
-            self.school, self.indicator, status="In Progress",
+            self.school,
+            self.indicator,
+            status="In Progress",
             deadline=this_month,
         )
         result = self.qs.due_this_month()
@@ -512,7 +633,9 @@ class TestProcedureQuerySet:
 
     def test_for_executor(self):
         p = _make_procedure(
-            self.school, self.indicator, user=self.user,
+            self.school,
+            self.indicator,
+            user=self.user,
         )
         result = self.qs.for_executor(self.user)
         assert p in result
@@ -538,7 +661,8 @@ class TestProcedureQuerySet:
     def test_completion_rate_empty(self):
         # No procedures yet for a fresh qs
         fresh_qs = ProcedureQuerySet(
-            model=OperationalProcedure, using="default",
+            model=OperationalProcedure,
+            using="default",
         ).filter(school__code="NONEXISTENT")
         assert fresh_qs.completion_rate() == 0.0
 
@@ -552,10 +676,16 @@ class TestProcedureQuerySet:
 
     def test_executor_ranking(self):
         _make_procedure(
-            self.school, self.indicator, user=self.user, status="Completed",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="Completed",
         )
         _make_procedure(
-            self.school, self.indicator, user=self.user, status="In Progress",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="In Progress",
         )
         result = list(self.qs.executor_ranking())
         assert len(result) >= 1
@@ -569,19 +699,21 @@ class TestProcedureQuerySet:
 #  5. DomainQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestDomainQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school):
         self.school = school
         self.qs = DomainQuerySet(
-            model=OperationalDomain, using="default",
+            model=OperationalDomain,
+            using="default",
         ).filter(school=school)
 
     def test_with_progress(self):
         domain, target, indicator = _make_quality_hierarchy(
-            self.school, "مجال التقدم",
+            self.school,
+            "مجال التقدم",
         )
         _make_procedure(self.school, indicator, status="Completed")
         _make_procedure(self.school, indicator, status="In Progress")
@@ -593,7 +725,8 @@ class TestDomainQuerySet:
 
     def test_with_all(self):
         domain, target, indicator = _make_quality_hierarchy(
-            self.school, "مجال الكل",
+            self.school,
+            "مجال الكل",
         )
         _make_procedure(self.school, indicator)
         result = self.qs.with_all()
@@ -601,7 +734,9 @@ class TestDomainQuerySet:
 
     def test_with_progress_empty(self):
         domain = OperationalDomain.objects.create(
-            school=self.school, name="مجال فارغ", order=99,
+            school=self.school,
+            name="مجال فارغ",
+            order=99,
         )
         result = self.qs.with_progress()
         d = result.get(pk=domain.pk)
@@ -613,19 +748,21 @@ class TestDomainQuerySet:
 #  6. InAppNotificationQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestInAppNotificationQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user):
         self.school = school
         self.user = teacher_user
         self.qs = InAppNotificationQuerySet(
-            model=InAppNotification, using="default",
+            model=InAppNotification,
+            using="default",
         )
 
-    def _notif(self, user=None, is_read=False, priority="medium",
-               event_type="general", created_at=None):
+    def _notif(
+        self, user=None, is_read=False, priority="medium", event_type="general", created_at=None
+    ):
         n = InAppNotification.objects.create(
             user=user or self.user,
             school=self.school,
@@ -708,15 +845,16 @@ class TestInAppNotificationQuerySet:
 #  7. NotificationLogQuerySet
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestNotificationLogQuerySet:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, student_user):
         self.school = school
         self.student = student_user
         self.qs = NotificationLogQuerySet(
-            model=NotificationLog, using="default",
+            model=NotificationLog,
+            using="default",
         ).filter(school=school)
 
     def _log(self, status="sent", channel="email", student=None, error_msg=""):
@@ -777,15 +915,16 @@ class TestNotificationLogQuerySet:
 #  8. QualityService
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestQualityService:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user):
         self.school = school
         self.user = teacher_user
         self.domain, self.target, self.indicator = _make_quality_hierarchy(
-            school, "مجال الخدمات",
+            school,
+            "مجال الخدمات",
         )
 
     def test_get_plan_stats(self):
@@ -808,16 +947,21 @@ class TestQualityService:
 
     def test_get_unmapped_count(self):
         _make_procedure(
-            self.school, self.indicator,
-            executor_norm="مشرف", user=None,
+            self.school,
+            self.indicator,
+            executor_norm="مشرف",
+            user=None,
         )
         _make_procedure(
-            self.school, self.indicator,
-            executor_norm="معلم", user=self.user,
+            self.school,
+            self.indicator,
+            executor_norm="معلم",
+            user=self.user,
         )
         # Map the "معلم" executor
         ExecutorMapping.objects.create(
-            school=self.school, executor_norm="معلم",
+            school=self.school,
+            executor_norm="معلم",
             user=self.user,
         )
         count = QualityService.get_unmapped_count(self.school)
@@ -826,10 +970,16 @@ class TestQualityService:
 
     def test_get_my_procedures(self):
         p1 = _make_procedure(
-            self.school, self.indicator, user=self.user, status="In Progress",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="In Progress",
         )
         p2 = _make_procedure(
-            self.school, self.indicator, user=None, status="Completed",
+            self.school,
+            self.indicator,
+            user=None,
+            status="Completed",
         )
         result = QualityService.get_my_procedures(self.user, self.school)
         assert p1 in result
@@ -837,11 +987,15 @@ class TestQualityService:
 
     def test_get_domain_procedures(self):
         _make_procedure(
-            self.school, self.indicator, status="Completed",
+            self.school,
+            self.indicator,
+            status="Completed",
             executor_norm="معلم رياضيات",
         )
         _make_procedure(
-            self.school, self.indicator, status="In Progress",
+            self.school,
+            self.indicator,
+            status="In Progress",
             executor_norm="معلم عربي",
         )
         result = QualityService.get_domain_procedures(self.school, self.domain)
@@ -852,15 +1006,20 @@ class TestQualityService:
 
     def test_get_domain_procedures_with_filters(self):
         _make_procedure(
-            self.school, self.indicator, status="Completed",
+            self.school,
+            self.indicator,
+            status="Completed",
             executor_norm="معلم رياضيات",
         )
         _make_procedure(
-            self.school, self.indicator, status="In Progress",
+            self.school,
+            self.indicator,
+            status="In Progress",
             executor_norm="معلم عربي",
         )
         result = QualityService.get_domain_procedures(
-            self.school, self.domain,
+            self.school,
+            self.domain,
             status_filter="Completed",
             executor_filter="رياضيات",
         )
@@ -888,7 +1047,10 @@ class TestQualityService:
             is_active=True,
         )
         _make_procedure(
-            self.school, self.indicator, user=self.user, status="Completed",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="Completed",
         )
         data = QualityService.get_executor_committee_data(self.school)
         assert "member_stats" in data
@@ -920,10 +1082,16 @@ class TestQualityService:
             committee_type="executor",
         )
         _make_procedure(
-            self.school, self.indicator, user=self.user, status="Completed",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="Completed",
         )
         _make_procedure(
-            self.school, self.indicator, user=self.user, status="In Progress",
+            self.school,
+            self.indicator,
+            user=self.user,
+            status="In Progress",
         )
         detail = QualityService.get_executor_detail(member, self.school)
         assert detail["total"] == 2
@@ -937,9 +1105,9 @@ class TestQualityService:
 #  9. EmployeeEvaluation & EvaluationCycle
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestEmployeeEvaluation:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, teacher_user, principal_user):
         self.school = school
@@ -1032,7 +1200,6 @@ class TestEmployeeEvaluation:
 
 @pytest.mark.django_db
 class TestEvaluationCycle:
-
     @pytest.fixture(autouse=True)
     def setup(self, school, principal_user, teacher_user):
         self.school = school

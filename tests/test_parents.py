@@ -10,13 +10,15 @@ tests/test_parents.py
   - صفحة الموافقة (PDPPL)
   - التحقق من العزل — ولي الأمر يرى أبناءه فقط
 """
+
 import pytest
 from django.utils import timezone
 
-from core.models import ParentStudentLink, ConsentRecord
+from core.models import ParentStudentLink
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
 )
 
 
@@ -29,7 +31,6 @@ def parent_with_consent(parent_user):
 
 
 class TestParentViews:
-
     def test_parent_dashboard(self, client_as, parent_with_consent):
         c = client_as(parent_with_consent)
         resp = c.get("/parents/")
@@ -82,7 +83,6 @@ class TestParentViews:
 
 
 class TestParentLinkAdmin:
-
     def test_manage_links_as_principal(self, client_as, principal_user):
         c = client_as(principal_user)
         resp = c.get("/parents/admin/links/")
@@ -102,12 +102,13 @@ class TestParentLinkAdmin:
         MembershipFactory(user=new_student, school=school, role=student_role)
 
         c = client_as(principal_user)
-        resp = c.post("/parents/admin/links/add/", {
-            "parent_id": str(new_parent.id),
-            "student_id": str(new_student.id),
-            "relationship": "father",
-        })
+        resp = c.post(
+            "/parents/admin/links/add/",
+            {
+                "parent_id": str(new_parent.id),
+                "student_id": str(new_student.id),
+                "relationship": "father",
+            },
+        )
         assert resp.status_code in [200, 302]
-        assert ParentStudentLink.objects.filter(
-            parent=new_parent, student=new_student
-        ).exists()
+        assert ParentStudentLink.objects.filter(parent=new_parent, student=new_student).exists()

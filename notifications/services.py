@@ -2,34 +2,43 @@
 notifications/services.py
 محرك الإشعارات — بريد إلكتروني + SMS
 """
+
 import django.core.mail
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from django.conf import settings
 from django.utils import timezone
 
-from .models import NotificationLog, NotificationSettings
 from core.models import ParentStudentLink
+
+from .models import NotificationLog, NotificationSettings
 
 
 class NotificationService:
-
     # ── إرسال بريد إلكتروني ──────────────────────────────────
 
     @staticmethod
-    def send_email(school, recipient_email, subject, body_text, body_html=None,
-                   student=None, notif_type="custom", sent_by=None):
+    def send_email(
+        school,
+        recipient_email,
+        subject,
+        body_text,
+        body_html=None,
+        student=None,
+        notif_type="custom",
+        sent_by=None,
+    ):
         """إرسال بريد إلكتروني وتسجيله"""
         log = NotificationLog.objects.create(
-            school     = school,
-            student    = student,
-            recipient  = recipient_email,
-            channel    = "email",
-            notif_type = notif_type,
-            subject    = subject,
-            body       = body_text,
-            status     = "pending",
-            sent_by    = sent_by,
+            school=school,
+            student=student,
+            recipient=recipient_email,
+            channel="email",
+            notif_type=notif_type,
+            subject=subject,
+            body=body_text,
+            status="pending",
+            sent_by=sent_by,
         )
 
         try:
@@ -39,10 +48,10 @@ class NotificationService:
 
             if body_html:
                 msg = EmailMultiAlternatives(
-                    subject   = subject,
-                    body      = body_text,
-                    from_email= f"{from_name} <{from_email}>",
-                    to        = [recipient_email],
+                    subject=subject,
+                    body=body_text,
+                    from_email=f"{from_name} <{from_email}>",
+                    to=[recipient_email],
                 )
                 msg.attach_alternative(body_html, "text/html")
                 if cfg and cfg.reply_to:
@@ -50,19 +59,19 @@ class NotificationService:
                 msg.send()
             else:
                 django.core.mail.send_mail(
-                    subject      = subject,
-                    message      = body_text,
-                    from_email   = f"{from_name} <{from_email}>",
+                    subject=subject,
+                    message=body_text,
+                    from_email=f"{from_name} <{from_email}>",
                     recipient_list=[recipient_email],
-                    fail_silently= False,
+                    fail_silently=False,
                 )
 
-            log.status  = "sent"
+            log.status = "sent"
             log.save(update_fields=["status"])
             return True, None
 
         except Exception as e:
-            log.status    = "failed"
+            log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])
             return False, str(e)
@@ -73,21 +82,21 @@ class NotificationService:
     def send_sms(school, phone_number, message, student=None, notif_type="custom", sent_by=None):
         """إرسال SMS عبر Twilio"""
         log = NotificationLog.objects.create(
-            school     = school,
-            student    = student,
-            recipient  = phone_number,
-            channel    = "sms",
-            notif_type = notif_type,
-            subject    = "",
-            body       = message,
-            status     = "pending",
-            sent_by    = sent_by,
+            school=school,
+            student=student,
+            recipient=phone_number,
+            channel="sms",
+            notif_type=notif_type,
+            subject="",
+            body=message,
+            status="pending",
+            sent_by=sent_by,
         )
 
         try:
             cfg = NotificationSettings.objects.filter(school=school).first()
             if not cfg or not cfg.sms_enabled:
-                log.status    = "failed"
+                log.status = "failed"
                 log.error_msg = "SMS معطّل في الإعدادات"
                 log.save(update_fields=["status", "error_msg"])
                 return False, "SMS معطّل"
@@ -95,11 +104,12 @@ class NotificationService:
             if cfg.sms_provider == "twilio":
                 try:
                     from twilio.rest import Client
+
                     client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
                     client.messages.create(
-                        body = message,
-                        from_= cfg.sms_from_number,
-                        to   = phone_number,
+                        body=message,
+                        from_=cfg.sms_from_number,
+                        to=phone_number,
                     )
                 except ImportError:
                     raise RuntimeError("مكتبة twilio غير مثبتة — شغّل: pip install twilio")
@@ -109,7 +119,7 @@ class NotificationService:
             return True, None
 
         except Exception as e:
-            log.status    = "failed"
+            log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])
             return False, str(e)
@@ -120,7 +130,7 @@ class NotificationService:
     def notify_absence(absence_alert, sent_by=None):
         """إشعار ولي الأمر بغياب ابنه المتكرر"""
         student = absence_alert.student
-        school  = absence_alert.school
+        school = absence_alert.school
 
         cfg = NotificationSettings.objects.filter(school=school).first()
         if cfg and not cfg.absence_email_enabled and not cfg.sms_enabled:
@@ -136,35 +146,37 @@ class NotificationService:
         for link in links:
             parent = link.parent
             ctx = {
-                "student_name":   student.full_name,
-                "parent_name":    parent.full_name,
-                "absence_count":  absence_alert.absence_count,
-                "period_start":   absence_alert.period_start,
-                "period_end":     absence_alert.period_end,
-                "school_name":    school.name,
-                "relationship":   link.get_relationship_display(),
+                "student_name": student.full_name,
+                "parent_name": parent.full_name,
+                "absence_count": absence_alert.absence_count,
+                "period_start": absence_alert.period_start,
+                "period_end": absence_alert.period_end,
+                "school_name": school.name,
+                "relationship": link.get_relationship_display(),
             }
 
             # البريد الإلكتروني
             if parent.email and (not cfg or cfg.absence_email_enabled):
-                subject = (cfg.absence_email_subject if cfg else
-                           "تنبيه: غياب متكرر للطالب {student_name}"
-                           ).format(**ctx)
+                subject = (
+                    cfg.absence_email_subject if cfg else "تنبيه: غياب متكرر للطالب {student_name}"
+                ).format(**ctx)
 
                 body_text = render_to_string("notifications/email/absence_text.txt", ctx)
                 body_html = render_to_string("notifications/email/absence_html.html", ctx)
 
                 ok, err = NotificationService.send_email(
-                    school       = school,
-                    recipient_email = parent.email,
-                    subject      = subject,
-                    body_text    = body_text,
-                    body_html    = body_html,
-                    student      = student,
-                    notif_type   = "absence_alert",
-                    sent_by      = sent_by,
+                    school=school,
+                    recipient_email=parent.email,
+                    subject=subject,
+                    body_text=body_text,
+                    body_html=body_html,
+                    student=student,
+                    notif_type="absence_alert",
+                    sent_by=sent_by,
                 )
-                results.append({"channel": "email", "recipient": parent.email, "ok": ok, "error": err})
+                results.append(
+                    {"channel": "email", "recipient": parent.email, "ok": ok, "error": err}
+                )
 
             # SMS
             if parent.phone and cfg and cfg.sms_enabled:
@@ -175,14 +187,16 @@ class NotificationService:
                     f"يُرجى التواصل مع الإدارة."
                 )
                 ok, err = NotificationService.send_sms(
-                    school       = school,
-                    phone_number = parent.phone,
-                    message      = sms_body,
-                    student      = student,
-                    notif_type   = "absence_alert",
-                    sent_by      = sent_by,
+                    school=school,
+                    phone_number=parent.phone,
+                    message=sms_body,
+                    student=student,
+                    notif_type="absence_alert",
+                    sent_by=sent_by,
                 )
-                results.append({"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err})
+                results.append(
+                    {"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err}
+                )
 
         # تحديث حالة التنبيه
         if results and any(r["ok"] for r in results):
@@ -209,34 +223,36 @@ class NotificationService:
         for link in links:
             parent = link.parent
             ctx = {
-                "student_name":    student.full_name,
-                "parent_name":     parent.full_name,
+                "student_name": student.full_name,
+                "parent_name": parent.full_name,
                 "failed_subjects": failed_subjects,
-                "fail_count":      len(failed_subjects),
-                "year":            year,
-                "school_name":     school.name,
-                "relationship":    link.get_relationship_display(),
+                "fail_count": len(failed_subjects),
+                "year": year,
+                "school_name": school.name,
+                "relationship": link.get_relationship_display(),
             }
 
             if parent.email and (not cfg or cfg.fail_email_enabled):
-                subject = (cfg.fail_email_subject if cfg else
-                           "إشعار: نتيجة الطالب {student_name}"
-                           ).format(**ctx)
+                subject = (
+                    cfg.fail_email_subject if cfg else "إشعار: نتيجة الطالب {student_name}"
+                ).format(**ctx)
 
                 body_text = render_to_string("notifications/email/fail_text.txt", ctx)
                 body_html = render_to_string("notifications/email/fail_html.html", ctx)
 
                 ok, err = NotificationService.send_email(
-                    school          = school,
-                    recipient_email = parent.email,
-                    subject         = subject,
-                    body_text       = body_text,
-                    body_html       = body_html,
-                    student         = student,
-                    notif_type      = "fail_alert",
-                    sent_by         = sent_by,
+                    school=school,
+                    recipient_email=parent.email,
+                    subject=subject,
+                    body_text=body_text,
+                    body_html=body_html,
+                    student=student,
+                    notif_type="fail_alert",
+                    sent_by=sent_by,
                 )
-                results.append({"channel": "email", "recipient": parent.email, "ok": ok, "error": err})
+                results.append(
+                    {"channel": "email", "recipient": parent.email, "ok": ok, "error": err}
+                )
 
             if parent.phone and cfg and cfg.sms_enabled:
                 subjects_str = "، ".join(failed_subjects[:3])
@@ -246,14 +262,16 @@ class NotificationService:
                     f"يُرجى التواصل مع الإدارة."
                 )
                 ok, err = NotificationService.send_sms(
-                    school       = school,
-                    phone_number = parent.phone,
-                    message      = sms_body,
-                    student      = student,
-                    notif_type   = "fail_alert",
-                    sent_by      = sent_by,
+                    school=school,
+                    phone_number=parent.phone,
+                    message=sms_body,
+                    student=student,
+                    notif_type="fail_alert",
+                    sent_by=sent_by,
                 )
-                results.append({"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err})
+                results.append(
+                    {"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err}
+                )
 
         return results
 
@@ -263,6 +281,7 @@ class NotificationService:
     def send_pending_absence_alerts(school, sent_by=None):
         """إرسال كل تنبيهات الغياب المعلقة دفعةً واحدة"""
         from operations.models import AbsenceAlert
+
         alerts = AbsenceAlert.objects.filter(school=school, status="pending")
         total_sent = 0
         total_failed = 0
@@ -279,6 +298,7 @@ class NotificationService:
     def send_fail_alerts_for_year(school, year="2025-2026", sent_by=None):
         """إرسال إشعارات الرسوب لكل الطلاب الراسبين"""
         from assessments.models import AnnualSubjectResult
+
         # الطلاب الراسبون في مادة أو أكثر
         fail_results = AnnualSubjectResult.objects.filter(
             school=school, academic_year=year, status="fail"
@@ -295,11 +315,11 @@ class NotificationService:
         total_sent = total_failed = 0
         for data in by_student.values():
             results = NotificationService.notify_fail(
-                student          = data["student"],
-                school           = school,
-                failed_subjects  = data["subjects"],
-                year             = year,
-                sent_by          = sent_by,
+                student=data["student"],
+                school=school,
+                failed_subjects=data["subjects"],
+                year=year,
+                sent_by=sent_by,
             )
             for r in results:
                 if r["ok"]:
@@ -314,6 +334,7 @@ class NotificationService:
 # خدمة إشعار اختراق البيانات — PDPPL م.27 (مهلة 72 ساعة)
 # ══════════════════════════════════════════════════════════════
 
+
 class BreachNotificationService:
     """
     قانون حماية البيانات الشخصية 13/2016 — المادة 27:
@@ -322,37 +343,38 @@ class BreachNotificationService:
     """
 
     BREACH_TYPES = [
-        ("unauthorized_access",  "وصول غير مصرح"),
-        ("data_leak",            "تسريب بيانات"),
-        ("ransomware",           "برنامج فدية"),
-        ("accidental_disclosure","إفصاح عرضي"),
-        ("other",                "أخرى"),
+        ("unauthorized_access", "وصول غير مصرح"),
+        ("data_leak", "تسريب بيانات"),
+        ("ransomware", "برنامج فدية"),
+        ("accidental_disclosure", "إفصاح عرضي"),
+        ("other", "أخرى"),
     ]
 
     @staticmethod
-    def report_breach(school, reported_by, breach_type, description,
-                      affected_count=0, affected_data_types=None):
+    def report_breach(
+        school, reported_by, breach_type, description, affected_count=0, affected_data_types=None
+    ):
         """
         توثيق حادثة اختراق وإرسال إشعار فوري للمسؤول.
         يُعيد dict يحتوي على: breach_id, deadline_72h, logged.
         """
-        from django.utils import timezone
-        from core.models import AuditLog
         import uuid
 
-        breach_id   = str(uuid.uuid4())[:8].upper()
-        discovered  = timezone.now()
-        deadline    = discovered + timezone.timedelta(hours=72)
+        from core.models import AuditLog
+
+        breach_id = str(uuid.uuid4())[:8].upper()
+        discovered = timezone.now()
+        deadline = discovered + timezone.timedelta(hours=72)
 
         details = {
-            "breach_id":           breach_id,
-            "breach_type":         breach_type,
-            "description":         description,
-            "affected_count":      affected_count,
+            "breach_id": breach_id,
+            "breach_type": breach_type,
+            "description": description,
+            "affected_count": affected_count,
             "affected_data_types": affected_data_types or [],
-            "discovered_at":       discovered.isoformat(),
+            "discovered_at": discovered.isoformat(),
             "notification_deadline": deadline.isoformat(),
-            "reported_by":         str(reported_by),
+            "reported_by": str(reported_by),
         }
 
         # تسجيل في AuditLog كدليل قانوني
@@ -368,6 +390,7 @@ class BreachNotificationService:
 
         # إرسال إشعار بريد للمسؤولين في المدرسة
         from core.models import Membership
+
         admins = Membership.objects.filter(
             school=school,
             is_active=True,
@@ -377,13 +400,28 @@ class BreachNotificationService:
         subject = "[تنبيه عاجل] حادثة بيانات #" + breach_id + " — " + school.name
         NL = "\n"
         body = (
-            "تم الإبلاغ عن حادثة بيانات شخصية بتاريخ " + discovered.strftime("%Y-%m-%d %H:%M") + "." + NL + NL
-            + "نوع الحادثة: " + breach_type + NL
-            + "الوصف: " + description + NL
-            + "عدد المتأثرين: " + str(affected_count) + NL
-            + "أنواع البيانات: " + ", ".join(affected_data_types or []) + NL + NL
+            "تم الإبلاغ عن حادثة بيانات شخصية بتاريخ "
+            + discovered.strftime("%Y-%m-%d %H:%M")
+            + "."
+            + NL
+            + NL
+            + "نوع الحادثة: "
+            + breach_type
+            + NL
+            + "الوصف: "
+            + description
+            + NL
+            + "عدد المتأثرين: "
+            + str(affected_count)
+            + NL
+            + "أنواع البيانات: "
+            + ", ".join(affected_data_types or [])
+            + NL
+            + NL
             + "⚠️ الموعد النهائي للإخطار القانوني (PDPPL م.27): "
-            + deadline.strftime("%Y-%m-%d %H:%M") + NL + NL
+            + deadline.strftime("%Y-%m-%d %H:%M")
+            + NL
+            + NL
             + "يجب إخطار المسؤول عن حماية البيانات خلال 72 ساعة من الاكتشاف."
         )
 
@@ -402,7 +440,7 @@ class BreachNotificationService:
                     pass
 
         return {
-            "breach_id":  breach_id,
+            "breach_id": breach_id,
             "deadline_72h": deadline,
             "logged": True,
         }

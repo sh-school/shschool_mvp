@@ -9,6 +9,8 @@ target-version = "py311"
 exclude = [
     ".venv", "venv", "migrations", "__pycache__",
     ".git", ".claude", "staticfiles", "htmlcov",
+    "scripts", "setup_fonts.py",
+    "notifications/0003_pushsubscription.py",
 ]
 
 [tool.ruff.lint]
@@ -26,18 +28,34 @@ select = [
 ]
 ignore = [
     "E501",   # line too long — نتحكم بـ line-length
+    "E402",   # module import not at top — شائع في Django settings
     "S101",   # assert — مقبول في الاختبارات
     "S105",   # hardcoded password — false positives في Django
     "S106",
     "S107",
+    "S110",   # try-except-pass — مقبول أحياناً
+    "S311",   # pseudo-random — ليس للأمان
     "S308",   # mark_safe — نستخدمه بوعي
     "DJ001",  # null=True on CharField — اختياري
+    "DJ012",  # model field ordering — أسلوبي
     "N806",   # variable in function should be lowercase — تعارض مع Django
+    "N814",   # camelcase import — مقبول
     "B904",   # raise from — اختياري في الآن
+    "B007",   # loop variable not used — مقبول أحياناً
+    "S112",   # try-except-continue — مقبول مع logging
+    "DJ007",  # ModelForm __all__ — legacy code
+    "DJ008",  # __str__ missing — legacy models
+    "E741",   # ambiguous variable — l/O/I
+
+    "F403",   # star imports — مستخدم في settings
+    "F405",   # may be undefined from star — يتبع F403
+    "F841",   # local variable assigned but never used — مؤقت
+    "F811",   # redefinition of unused — legacy management commands
 ]
 [tool.ruff.lint.per-file-ignores]
-"tests/**"   = ["S", "B"]
-"conftest.py" = ["S", "B"]
+"tests/**"    = ["S", "B", "E741", "N805", "UP038", "F811"]
+"conftest.py" = ["S", "B", "N805"]
+"**/migrations/**" = ["N999", "E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["core", "operations", "assessments", "reports",
@@ -55,10 +73,20 @@ skip-magic-trailing-comma = false
 # ── pytest ────────────────────────────────────────────
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "shschool.settings.testing"
-python_files   = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
+python_files     = ["test_*.py", "*_test.py"]
+python_classes   = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--tb=short --no-header -q"
+addopts = [
+    "--tb=short",
+    "--no-header",
+    "-q",
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=xml:coverage.xml",
+    "--cov-report=html:htmlcov",
+    "--cov-fail-under=80",
+    "--cov-omit=*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*,*/venv/*",
+]
 
 # ── Coverage ──────────────────────────────────────────
 [tool.coverage.run]

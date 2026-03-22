@@ -22,9 +22,13 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
 
 CSP_SCRIPT_SRC = (
-    "'self'", "'unsafe-inline'", "'unsafe-eval'",
-    "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com",
-    "https://cdn.tailwindcss.com", "https://unpkg.com",
+    "'self'",
+    "'unsafe-inline'",
+    "'unsafe-eval'",
+    "https://cdn.jsdelivr.net",
+    "https://cdnjs.cloudflare.com",
+    "https://cdn.tailwindcss.com",
+    "https://unpkg.com",
 )
 
 # ── Celery — وضع التطوير ─────────────────────────────────────
@@ -34,12 +38,12 @@ REDIS_URL = config("REDIS_URL", default="")
 
 if REDIS_URL:
     # Redis متوفر — استخدمه
-    CELERY_BROKER_URL    = REDIS_URL
+    CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
     CELERY_TASK_ALWAYS_EAGER = False
 else:
     # لا Redis — شغّل المهام synchronously (مناسب للتطوير فقط)
-    CELERY_TASK_ALWAYS_EAGER         = True
-    CELERY_TASK_EAGER_PROPAGATES     = True
-    CELERY_BROKER_URL                = "memory://"
-    CELERY_RESULT_BACKEND            = "cache+memory://"
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"

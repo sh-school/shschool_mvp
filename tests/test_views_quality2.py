@@ -2,6 +2,7 @@
 tests/test_views_quality2.py
 اختبارات شاملة لـ quality/views.py — لرفع التغطية من 41% إلى ~85%
 """
+
 import pytest
 from django.urls import reverse
 from django.utils import timezone
@@ -9,7 +10,6 @@ from django.utils import timezone
 from core.models import CustomUser, Membership, Role
 from quality.models import (
     EmployeeEvaluation,
-    EvaluationCycle,
     ExecutorMapping,
     OperationalDomain,
     OperationalIndicator,
@@ -19,10 +19,10 @@ from quality.models import (
     QualityCommitteeMember,
 )
 
-
 # ══════════════════════════════════════════════
 #  HELPER FACTORIES
 # ══════════════════════════════════════════════
+
 
 def make_admin(school):
     """ينشئ مستخدماً بدور principal (admin)"""
@@ -51,16 +51,15 @@ def make_teacher(school, suffix="01"):
 
 
 def make_domain(school, name="المجال التجريبي", year="2025-2026"):
-    return OperationalDomain.objects.create(
-        school=school, name=name, academic_year=year, order=1
-    )
+    return OperationalDomain.objects.create(school=school, name=name, academic_year=year, order=1)
 
 
 _proc_counter = 0
 
 
-def make_procedure(school, domain, executor_user=None, status="In Progress",
-                   executor_norm="معلم الرياضيات"):
+def make_procedure(
+    school, domain, executor_user=None, status="In Progress", executor_norm="معلم الرياضيات"
+):
     global _proc_counter
     _proc_counter += 1
     n = _proc_counter
@@ -82,8 +81,9 @@ def make_procedure(school, domain, executor_user=None, status="In Progress",
     )
 
 
-def make_committee_member(school, user, committee_type=QualityCommitteeMember.REVIEW,
-                          can_review=True, year="2025-2026"):
+def make_committee_member(
+    school, user, committee_type=QualityCommitteeMember.REVIEW, can_review=True, year="2025-2026"
+):
     return QualityCommitteeMember.objects.create(
         school=school,
         user=user,
@@ -99,6 +99,7 @@ def make_committee_member(school, user, committee_type=QualityCommitteeMember.RE
 # ══════════════════════════════════════════════
 #  plan_dashboard  (lines 36–54)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestPlanDashboard:
@@ -146,6 +147,7 @@ class TestPlanDashboard:
 #  domain_detail  (lines 59–75)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestDomainDetail:
     def test_returns_200(self, client, school):
@@ -178,6 +180,7 @@ class TestDomainDetail:
 
     def test_404_wrong_school(self, client, school):
         from tests.conftest import SchoolFactory
+
         admin = make_admin(school)
         other_school = SchoolFactory()
         other_domain = make_domain(other_school, name="مجال آخر")
@@ -189,6 +192,7 @@ class TestDomainDetail:
 # ══════════════════════════════════════════════
 #  procedure_detail  (lines 80–98)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestProcedureDetail:
@@ -244,6 +248,7 @@ class TestProcedureDetail:
 # ══════════════════════════════════════════════
 #  update_procedure_status  (lines 101–130)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestUpdateProcedureStatus:
@@ -359,6 +364,7 @@ class TestUpdateProcedureStatus:
 #  approve_procedure  (lines 133–165)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestApproveProcedure:
     def test_admin_can_approve(self, client, school):
@@ -439,6 +445,7 @@ class TestApproveProcedure:
 #  upload_evidence  (lines 168–190)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestUploadEvidence:
     def test_admin_can_upload(self, client, school):
@@ -500,14 +507,16 @@ class TestUploadEvidence:
 #  my_procedures  (lines 195–217)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestMyProcedures:
     def test_shows_my_procedures(self, client, school):
         teacher = make_teacher(school, "13")
         domain = make_domain(school)
         make_procedure(school, domain, executor_user=teacher, status="In Progress")
-        make_procedure(school, domain, executor_user=teacher, status="Completed",
-                       executor_norm="معلم آخر")
+        make_procedure(
+            school, domain, executor_user=teacher, status="Completed", executor_norm="معلم آخر"
+        )
         client.force_login(teacher)
         resp = client.get(reverse("my_procedures"))
         assert resp.status_code == 200
@@ -518,10 +527,12 @@ class TestMyProcedures:
     def test_status_filter(self, client, school):
         teacher = make_teacher(school, "14")
         domain = make_domain(school)
-        make_procedure(school, domain, executor_user=teacher, status="Completed",
-                       executor_norm="معلم1")
-        make_procedure(school, domain, executor_user=teacher, status="In Progress",
-                       executor_norm="معلم2")
+        make_procedure(
+            school, domain, executor_user=teacher, status="Completed", executor_norm="معلم1"
+        )
+        make_procedure(
+            school, domain, executor_user=teacher, status="In Progress", executor_norm="معلم2"
+        )
         client.force_login(teacher)
         resp = client.get(reverse("my_procedures") + "?status=Completed")
         assert resp.status_code == 200
@@ -547,6 +558,7 @@ class TestMyProcedures:
 #  quality_committee  (views_committee)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestQualityCommittee:
     def test_returns_200(self, client, school):
@@ -564,19 +576,23 @@ class TestQualityCommittee:
 #  add_committee_member  (views_committee)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAddCommitteeMember:
     def test_admin_can_add_with_user(self, client, school):
         admin = make_admin(school)
         teacher = make_teacher(school, "17")
         client.force_login(admin)
-        resp = client.post(reverse("add_committee_member"), {
-            "year": "2025-2026",
-            "user_id": str(teacher.pk),
-            "job_title": "معلم",
-            "responsibility": "عضو",
-            "committee_type": QualityCommitteeMember.REVIEW,
-        })
+        resp = client.post(
+            reverse("add_committee_member"),
+            {
+                "year": "2025-2026",
+                "user_id": str(teacher.pk),
+                "job_title": "معلم",
+                "responsibility": "عضو",
+                "committee_type": QualityCommitteeMember.REVIEW,
+            },
+        )
         assert resp.status_code == 302
         assert QualityCommitteeMember.objects.filter(
             school=school, user=teacher, committee_type=QualityCommitteeMember.REVIEW
@@ -585,13 +601,16 @@ class TestAddCommitteeMember:
     def test_admin_can_add_with_job_title_only(self, client, school):
         admin = make_admin(school)
         client.force_login(admin)
-        resp = client.post(reverse("add_committee_member"), {
-            "year": "2025-2026",
-            "user_id": "",
-            "job_title": "مستشار خارجي",
-            "responsibility": "عضو",
-            "committee_type": QualityCommitteeMember.REVIEW,
-        })
+        resp = client.post(
+            reverse("add_committee_member"),
+            {
+                "year": "2025-2026",
+                "user_id": "",
+                "job_title": "مستشار خارجي",
+                "responsibility": "عضو",
+                "committee_type": QualityCommitteeMember.REVIEW,
+            },
+        )
         assert resp.status_code == 302
         assert QualityCommitteeMember.objects.filter(
             school=school, job_title="مستشار خارجي"
@@ -600,24 +619,30 @@ class TestAddCommitteeMember:
     def test_non_admin_gets_403(self, client, school):
         teacher = make_teacher(school, "18")
         client.force_login(teacher)
-        resp = client.post(reverse("add_committee_member"), {
-            "year": "2025-2026",
-            "job_title": "معلم",
-            "responsibility": "عضو",
-            "committee_type": QualityCommitteeMember.REVIEW,
-        })
+        resp = client.post(
+            reverse("add_committee_member"),
+            {
+                "year": "2025-2026",
+                "job_title": "معلم",
+                "responsibility": "عضو",
+                "committee_type": QualityCommitteeMember.REVIEW,
+            },
+        )
         assert resp.status_code == 403
 
     def test_no_user_no_title_shows_error(self, client, school):
         admin = make_admin(school)
         client.force_login(admin)
-        resp = client.post(reverse("add_committee_member"), {
-            "year": "2025-2026",
-            "user_id": "",
-            "job_title": "",
-            "responsibility": "عضو",
-            "committee_type": QualityCommitteeMember.REVIEW,
-        })
+        resp = client.post(
+            reverse("add_committee_member"),
+            {
+                "year": "2025-2026",
+                "user_id": "",
+                "job_title": "",
+                "responsibility": "عضو",
+                "committee_type": QualityCommitteeMember.REVIEW,
+            },
+        )
         assert resp.status_code == 302
 
     def test_requires_post(self, client, school):
@@ -631,6 +656,7 @@ class TestAddCommitteeMember:
 #  remove_committee_member  (views_committee)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestRemoveCommitteeMember:
     def test_admin_can_remove(self, client, school):
@@ -638,9 +664,7 @@ class TestRemoveCommitteeMember:
         teacher = make_teacher(school, "19")
         member = make_committee_member(school, teacher, QualityCommitteeMember.REVIEW)
         client.force_login(admin)
-        resp = client.post(
-            reverse("remove_committee_member", kwargs={"member_id": member.pk})
-        )
+        resp = client.post(reverse("remove_committee_member", kwargs={"member_id": member.pk}))
         assert resp.status_code == 302
         assert not QualityCommitteeMember.objects.filter(pk=member.pk).exists()
 
@@ -649,9 +673,7 @@ class TestRemoveCommitteeMember:
         teacher2 = make_teacher(school, "21")
         member = make_committee_member(school, teacher2, QualityCommitteeMember.REVIEW)
         client.force_login(teacher)
-        resp = client.post(
-            reverse("remove_committee_member", kwargs={"member_id": member.pk})
-        )
+        resp = client.post(reverse("remove_committee_member", kwargs={"member_id": member.pk}))
         assert resp.status_code == 403
 
     def test_requires_post(self, client, school):
@@ -659,15 +681,14 @@ class TestRemoveCommitteeMember:
         teacher = make_teacher(school, "22")
         member = make_committee_member(school, teacher)
         client.force_login(admin)
-        resp = client.get(
-            reverse("remove_committee_member", kwargs={"member_id": member.pk})
-        )
+        resp = client.get(reverse("remove_committee_member", kwargs={"member_id": member.pk}))
         assert resp.status_code == 405
 
 
 # ══════════════════════════════════════════════
 #  executor_committee  (views_committee)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestExecutorCommittee:
@@ -688,43 +709,33 @@ class TestExecutorCommittee:
 #  executor_member_detail  (views_committee)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestExecutorMemberDetail:
     def test_admin_views_member(self, client, school):
         admin = make_admin(school)
         teacher = make_teacher(school, "24")
-        member = make_committee_member(
-            school, teacher, QualityCommitteeMember.EXECUTOR
-        )
+        member = make_committee_member(school, teacher, QualityCommitteeMember.EXECUTOR)
         client.force_login(admin)
-        resp = client.get(
-            reverse("executor_member_detail", kwargs={"member_id": member.pk})
-        )
+        resp = client.get(reverse("executor_member_detail", kwargs={"member_id": member.pk}))
         assert resp.status_code == 200
         assert resp.context["member"] == member
 
     def test_non_admin_gets_403(self, client, school):
         teacher = make_teacher(school, "25")
         teacher2 = make_teacher(school, "26")
-        member = make_committee_member(
-            school, teacher2, QualityCommitteeMember.EXECUTOR
-        )
+        member = make_committee_member(school, teacher2, QualityCommitteeMember.EXECUTOR)
         client.force_login(teacher)
-        resp = client.get(
-            reverse("executor_member_detail", kwargs={"member_id": member.pk})
-        )
+        resp = client.get(reverse("executor_member_detail", kwargs={"member_id": member.pk}))
         assert resp.status_code == 403
 
     def test_status_filter(self, client, school):
         admin = make_admin(school)
         teacher = make_teacher(school, "27")
-        member = make_committee_member(
-            school, teacher, QualityCommitteeMember.EXECUTOR
-        )
+        member = make_committee_member(school, teacher, QualityCommitteeMember.EXECUTOR)
         client.force_login(admin)
         resp = client.get(
-            reverse("executor_member_detail", kwargs={"member_id": member.pk})
-            + "?status=Completed"
+            reverse("executor_member_detail", kwargs={"member_id": member.pk}) + "?status=Completed"
         )
         assert resp.status_code == 200
 
@@ -732,9 +743,7 @@ class TestExecutorMemberDetail:
         admin = make_admin(school)
         teacher = make_teacher(school, "28")
         domain = make_domain(school)
-        member = make_committee_member(
-            school, teacher, QualityCommitteeMember.EXECUTOR
-        )
+        member = make_committee_member(school, teacher, QualityCommitteeMember.EXECUTOR)
         client.force_login(admin)
         resp = client.get(
             reverse("executor_member_detail", kwargs={"member_id": member.pk})
@@ -746,17 +755,15 @@ class TestExecutorMemberDetail:
         admin = make_admin(school)
         teacher = make_teacher(school, "29")
         domain = make_domain(school)
-        make_procedure(school, domain, executor_user=teacher, status="Completed",
-                       executor_norm="معلم29")
-        make_procedure(school, domain, executor_user=teacher, status="In Progress",
-                       executor_norm="معلم29b")
-        member = make_committee_member(
-            school, teacher, QualityCommitteeMember.EXECUTOR
+        make_procedure(
+            school, domain, executor_user=teacher, status="Completed", executor_norm="معلم29"
         )
+        make_procedure(
+            school, domain, executor_user=teacher, status="In Progress", executor_norm="معلم29b"
+        )
+        member = make_committee_member(school, teacher, QualityCommitteeMember.EXECUTOR)
         client.force_login(admin)
-        resp = client.get(
-            reverse("executor_member_detail", kwargs={"member_id": member.pk})
-        )
+        resp = client.get(reverse("executor_member_detail", kwargs={"member_id": member.pk}))
         assert resp.status_code == 200
         assert resp.context["total"] == 2
         assert resp.context["completed"] == 1
@@ -765,6 +772,7 @@ class TestExecutorMemberDetail:
 # ══════════════════════════════════════════════
 #  executor_mapping  (views_executor)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestExecutorMapping:
@@ -802,6 +810,7 @@ class TestExecutorMapping:
 #  save_executor_mapping  (views_executor)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestSaveExecutorMapping:
     def test_admin_can_save_mapping(self, client, school):
@@ -810,32 +819,39 @@ class TestSaveExecutorMapping:
         domain = make_domain(school)
         make_procedure(school, domain, executor_norm="معلم31")
         client.force_login(admin)
-        resp = client.post(reverse("save_executor_mapping"), {
-            "executor_norm": "معلم31",
-            "user_id": str(teacher.pk),
-            "year": "2025-2026",
-        })
+        resp = client.post(
+            reverse("save_executor_mapping"),
+            {
+                "executor_norm": "معلم31",
+                "user_id": str(teacher.pk),
+                "year": "2025-2026",
+            },
+        )
         assert resp.status_code == 302
-        assert ExecutorMapping.objects.filter(
-            school=school, executor_norm="معلم31"
-        ).exists()
+        assert ExecutorMapping.objects.filter(school=school, executor_norm="معلم31").exists()
 
     def test_non_admin_gets_403(self, client, school):
         teacher = make_teacher(school, "32")
         client.force_login(teacher)
-        resp = client.post(reverse("save_executor_mapping"), {
-            "executor_norm": "معلم",
-            "user_id": str(teacher.pk),
-        })
+        resp = client.post(
+            reverse("save_executor_mapping"),
+            {
+                "executor_norm": "معلم",
+                "user_id": str(teacher.pk),
+            },
+        )
         assert resp.status_code == 403
 
     def test_empty_norm_redirects_with_error(self, client, school):
         admin = make_admin(school)
         client.force_login(admin)
-        resp = client.post(reverse("save_executor_mapping"), {
-            "executor_norm": "",
-            "user_id": "",
-        })
+        resp = client.post(
+            reverse("save_executor_mapping"),
+            {
+                "executor_norm": "",
+                "user_id": "",
+            },
+        )
         assert resp.status_code == 302
 
     def test_unmap_user(self, client, school):
@@ -845,11 +861,14 @@ class TestSaveExecutorMapping:
             school=school, executor_norm="معلم33", user=teacher, academic_year="2025-2026"
         )
         client.force_login(admin)
-        resp = client.post(reverse("save_executor_mapping"), {
-            "executor_norm": "معلم33",
-            "user_id": "",
-            "year": "2025-2026",
-        })
+        resp = client.post(
+            reverse("save_executor_mapping"),
+            {
+                "executor_norm": "معلم33",
+                "user_id": "",
+                "year": "2025-2026",
+            },
+        )
         assert resp.status_code == 302
         mapping = ExecutorMapping.objects.get(school=school, executor_norm="معلم33")
         assert mapping.user is None
@@ -865,6 +884,7 @@ class TestSaveExecutorMapping:
 #  apply_all_mappings  (views_executor)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestApplyAllMappings:
     def test_admin_can_apply(self, client, school):
@@ -878,9 +898,7 @@ class TestApplyAllMappings:
         client.force_login(admin)
         resp = client.post(reverse("apply_all_mappings"), {"year": "2025-2026"})
         assert resp.status_code == 302
-        proc = OperationalProcedure.objects.filter(
-            school=school, executor_norm="معلم34"
-        ).first()
+        proc = OperationalProcedure.objects.filter(school=school, executor_norm="معلم34").first()
         assert proc.executor_user == teacher
 
     def test_non_admin_gets_403(self, client, school):
@@ -899,6 +917,7 @@ class TestApplyAllMappings:
 # ══════════════════════════════════════════════
 #  progress_report  (views_reports)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestProgressReport:
@@ -936,6 +955,7 @@ class TestProgressReport:
 # ══════════════════════════════════════════════
 #  evaluation_dashboard  (evaluation_views)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestEvaluationDashboard:
@@ -989,38 +1009,36 @@ class TestEvaluationDashboard:
 #  create_evaluation  (evaluation_views)
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestCreateEvaluation:
-    @pytest.mark.xfail(reason="evaluation_form.html uses widget_tweaks which is not installed in test env")
+    @pytest.mark.xfail(
+        reason="evaluation_form.html uses widget_tweaks which is not installed in test env"
+    )
     def test_admin_get_form(self, client, school):
         admin = make_admin(school)
         teacher = make_teacher(school, "39")
         client.force_login(admin)
-        resp = client.get(
-            reverse("create_evaluation", kwargs={"employee_id": teacher.pk})
-        )
+        resp = client.get(reverse("create_evaluation", kwargs={"employee_id": teacher.pk}))
         assert resp.status_code == 200
 
     def test_non_admin_gets_403(self, client, school):
         teacher = make_teacher(school, "40")
         teacher2 = make_teacher(school, "41")
         client.force_login(teacher)
-        resp = client.get(
-            reverse("create_evaluation", kwargs={"employee_id": teacher2.pk})
-        )
+        resp = client.get(reverse("create_evaluation", kwargs={"employee_id": teacher2.pk}))
         assert resp.status_code == 403
 
     def test_employee_not_in_school_gets_403(self, client, school):
-        from tests.conftest import SchoolFactory, UserFactory, MembershipFactory, RoleFactory
+        from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
+
         admin = make_admin(school)
         other_school = SchoolFactory()
         role = RoleFactory(school=other_school, name="teacher")
         outsider = UserFactory(full_name="موظف خارجي")
         MembershipFactory(user=outsider, school=other_school, role=role)
         client.force_login(admin)
-        resp = client.get(
-            reverse("create_evaluation", kwargs={"employee_id": outsider.pk})
-        )
+        resp = client.get(reverse("create_evaluation", kwargs={"employee_id": outsider.pk}))
         assert resp.status_code == 403
 
     def test_post_saves_evaluation(self, client, school):
@@ -1039,7 +1057,7 @@ class TestCreateEvaluation:
                 "improvements": "لا شيء",
                 "goals_next": "التطوير",
                 "action": "submitted",
-            }
+            },
         )
         assert resp.status_code == 302
         assert EmployeeEvaluation.objects.filter(
@@ -1059,7 +1077,7 @@ class TestCreateEvaluation:
                 "axis_teamwork": 15,
                 "axis_development": 15,
                 "action": "draft",
-            }
+            },
         )
         assert EmployeeEvaluation.objects.filter(
             school=school, employee=teacher, status="draft"
@@ -1069,6 +1087,7 @@ class TestCreateEvaluation:
 # ══════════════════════════════════════════════
 #  acknowledge_evaluation  (evaluation_views)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestAcknowledgeEvaluation:
@@ -1115,15 +1134,14 @@ class TestAcknowledgeEvaluation:
         teacher = make_teacher(school, "46")
         ev = self._make_eval(school, teacher, admin, status="approved")
         client.force_login(teacher)
-        resp = client.get(
-            reverse("acknowledge_evaluation", kwargs={"eval_id": ev.pk})
-        )
+        resp = client.get(reverse("acknowledge_evaluation", kwargs={"eval_id": ev.pk}))
         assert resp.status_code == 302
 
 
 # ══════════════════════════════════════════════
 #  my_evaluations  (evaluation_views)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestMyEvaluations:
@@ -1161,6 +1179,7 @@ class TestMyEvaluations:
 # ══════════════════════════════════════════════
 #  progress_report_pdf  (views_reports)
 # ══════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestProgressReportPdf:

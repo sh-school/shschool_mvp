@@ -8,30 +8,31 @@ tests/test_breach.py
   - Views: dashboard، create، detail، update_status
   - صلاحيات: مدير فقط
 """
-import pytest
+
 from datetime import timedelta
 
+import pytest
 from django.utils import timezone
 
 from core.models import BreachReport
-from tests.conftest import SchoolFactory, UserFactory, RoleFactory, MembershipFactory
-
+from tests.conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
 
 # ── Fixtures ──────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def breach(db, school, principal_user):
     return BreachReport.objects.create(
-        school             = school,
-        title              = "تسرب بيانات الطلاب",
-        description        = "وُجد ملف CSV مكشوف على خادم FTP",
-        severity           = "high",
-        data_type_affected = "academic",
-        affected_count     = 120,
-        discovered_at      = timezone.now(),
-        immediate_action   = "إغلاق المنفذ الخارجي فوراً",
-        containment_action = "مراجعة سجلات الوصول",
-        reported_by        = principal_user,
+        school=school,
+        title="تسرب بيانات الطلاب",
+        description="وُجد ملف CSV مكشوف على خادم FTP",
+        severity="high",
+        data_type_affected="academic",
+        affected_count=120,
+        discovered_at=timezone.now(),
+        immediate_action="إغلاق المنفذ الخارجي فوراً",
+        containment_action="مراجعة سجلات الوصول",
+        reported_by=principal_user,
     )
 
 
@@ -39,15 +40,15 @@ def breach(db, school, principal_user):
 def overdue_breach(db, school, principal_user):
     """خرق اكتشف منذ أكثر من 72 ساعة ولم يُرسل إشعار NCSA"""
     return BreachReport.objects.create(
-        school             = school,
-        title              = "خرق قديم",
-        description        = "خرق لم يُبلَّغ عنه",
-        severity           = "medium",
-        data_type_affected = "personal",
-        affected_count     = 10,
-        discovered_at      = timezone.now() - timedelta(hours=80),
-        immediate_action   = "لم يتخذ إجراء",
-        reported_by        = principal_user,
+        school=school,
+        title="خرق قديم",
+        description="خرق لم يُبلَّغ عنه",
+        severity="medium",
+        data_type_affected="personal",
+        affected_count=10,
+        discovered_at=timezone.now() - timedelta(hours=80),
+        immediate_action="لم يتخذ إجراء",
+        reported_by=principal_user,
     )
 
 
@@ -55,9 +56,9 @@ def overdue_breach(db, school, principal_user):
 #  اختبارات النموذج
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBreachReportModel:
-
     def test_breach_creation(self, breach):
         assert breach.title == "تسرب بيانات الطلاب"
         assert breach.status == "discovered"
@@ -109,9 +110,9 @@ class TestBreachReportModel:
 #  اختبارات دورة الحياة (Status Lifecycle)
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBreachStatusLifecycle:
-
     def test_transition_to_assessing(self, breach):
         breach.status = "assessing"
         breach.save()
@@ -143,9 +144,9 @@ class TestBreachStatusLifecycle:
 #  اختبارات Views
 # ══════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBreachViews:
-
     # ── Dashboard ──────────────────────────────────────────────
 
     def test_dashboard_accessible_to_principal(self, client_as, principal_user):
@@ -174,17 +175,20 @@ class TestBreachViews:
     def test_create_post_valid(self, client_as, principal_user):
         c = client_as(principal_user)
         now_str = timezone.now().strftime("%Y-%m-%dT%H:%M")
-        resp = c.post("/breach/create/", {
-            "title":              "خرق جديد",
-            "description":        "وصف الخرق",
-            "severity":           "medium",
-            "data_type_affected": "personal",
-            "affected_count":     5,
-            "discovered_at":      now_str,
-            "immediate_action":   "إجراء فوري",
-            "containment_action": "خطة احتواء",
-            "notification_text":  "نص الإشعار",
-        })
+        resp = c.post(
+            "/breach/create/",
+            {
+                "title": "خرق جديد",
+                "description": "وصف الخرق",
+                "severity": "medium",
+                "data_type_affected": "personal",
+                "affected_count": 5,
+                "discovered_at": now_str,
+                "immediate_action": "إجراء فوري",
+                "containment_action": "خطة احتواء",
+                "notification_text": "نص الإشعار",
+            },
+        )
         assert resp.status_code in [302, 200]
         assert BreachReport.objects.filter(title="خرق جديد").exists()
 
@@ -208,10 +212,11 @@ class TestBreachViews:
     def test_detail_wrong_school_returns_404(self, db, breach):
         """خرق مدرسة أخرى لا يُعرض"""
         other_school = SchoolFactory()
-        other_role   = RoleFactory(school=other_school, name="principal")
-        other_user   = UserFactory(full_name="مدير آخر")
+        other_role = RoleFactory(school=other_school, name="principal")
+        other_user = UserFactory(full_name="مدير آخر")
         MembershipFactory(user=other_user, school=other_school, role=other_role)
         from django.test import Client
+
         c = Client()
         c.force_login(other_user)
         resp = c.get(f"/breach/{breach.pk}/")

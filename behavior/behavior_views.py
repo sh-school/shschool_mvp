@@ -9,32 +9,35 @@
   - استعادة النقاط (التعزيز الإيجابي)
   - لجنة الضبط السلوكي (جديد — للمخالفات من الدرجة 3-4)
 """
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponseForbidden
-from django.contrib.auth.decorators import login_required
+
 from django.contrib import messages
-from django.http import JsonResponse
-from django.db.models import Sum, Count, Q
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum
+from django.http import HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from core.models import (
-    BehaviorInfraction, BehaviorPointRecovery,
-    CustomUser, School, Membership
-)
+from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
 
 
 def _can_report(user):
     """معلم / منسق / أخصائي / إدارة يمكنهم تسجيل مخالفة"""
     role = user.get_role()
-    return role in ["principal", "vice_admin", "vice_academic",
-                    "coordinator", "teacher", "specialist", "admin"]
+    return role in [
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "coordinator",
+        "teacher",
+        "specialist",
+        "admin",
+    ]
 
 
 def _is_committee(user):
     """أعضاء لجنة الضبط السلوكي: المدير + النواب + الأخصائي"""
     role = user.get_role()
-    return role in ["principal", "vice_admin", "vice_academic", "specialist"] \
-           or user.is_superuser
+    return role in ["principal", "vice_admin", "vice_academic", "specialist"] or user.is_superuser
 
 
 # ── [مهمة 18] إشعار تلقائي لولي الأمر عند تسجيل مخالفة ─────────
@@ -59,9 +62,10 @@ def _notify_parents_behavior(infraction, school, reporter):
     }
 
     try:
-        from notifications.services import NotificationService
-        from core.models import ParentStudentLink
         from django.template.loader import render_to_string
+
+        from core.models import ParentStudentLink
+        from notifications.services import NotificationService
 
         links = ParentStudentLink.objects.filter(
             student=infraction.student, school=school
@@ -71,16 +75,16 @@ def _notify_parents_behavior(infraction, school, reporter):
             return  # لا يوجد أولياء أمور مرتبطون
 
         ctx = {
-            "school_name":     school.name,
-            "student_name":    infraction.student.full_name,
-            "level":           infraction.level,
-            "level_display":   LEVEL_DISPLAY.get(infraction.level, ""),
+            "school_name": school.name,
+            "student_name": infraction.student.full_name,
+            "level": infraction.level,
+            "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
             "level_description": LEVEL_DESC.get(infraction.level, ""),
             "infraction_date": infraction.date.strftime("%Y/%m/%d") if infraction.date else "",
             "points_deducted": infraction.points_deducted,
-            "description":     infraction.description,
-            "action_taken":    infraction.action_taken,
-            "reported_by":     reporter.full_name,
+            "description": infraction.description,
+            "action_taken": infraction.action_taken,
+            "reported_by": reporter.full_name,
         }
 
         for link in links:
@@ -95,21 +99,17 @@ def _notify_parents_behavior(infraction, school, reporter):
             # ── بريد إلكتروني ─────────────────────────────────────────
             if parent.email:
                 try:
-                    body_html = render_to_string(
-                        "notifications/email/behavior_html.html", ctx
-                    )
-                    body_text = render_to_string(
-                        "notifications/email/behavior_text.txt", ctx
-                    )
+                    body_html = render_to_string("notifications/email/behavior_html.html", ctx)
+                    body_text = render_to_string("notifications/email/behavior_text.txt", ctx)
                     NotificationService.send_email(
-                        school         = school,
-                        recipient_email= parent.email,
-                        subject        = subject,
-                        body_text      = body_text,
-                        body_html      = body_html,
-                        student        = infraction.student,
-                        notif_type     = "behavior",
-                        sent_by        = reporter,
+                        school=school,
+                        recipient_email=parent.email,
+                        subject=subject,
+                        body_text=body_text,
+                        body_html=body_html,
+                        student=infraction.student,
+                        notif_type="behavior",
+                        sent_by=reporter,
                     )
                 except Exception:
                     pass  # لا نوقف التسجيل إذا فشل الإرسال
@@ -123,12 +123,12 @@ def _notify_parents_behavior(infraction, school, reporter):
                 )
                 try:
                     NotificationService.send_sms(
-                        school      = school,
-                        phone_number= parent.phone,
-                        message     = sms_body,
-                        student     = infraction.student,
-                        notif_type  = "behavior",
-                        sent_by     = reporter,
+                        school=school,
+                        phone_number=parent.phone,
+                        message=sms_body,
+                        student=infraction.student,
+                        notif_type="behavior",
+                        sent_by=reporter,
                     )
                 except Exception:
                     pass
@@ -151,21 +151,26 @@ def behavior_dashboard(request):
 
     today = timezone.now().date()
 
-    stats = BehaviorInfraction.objects.filter(school=school).values("level").annotate(
-        count=Count("id")
+    stats = (
+        BehaviorInfraction.objects.filter(school=school).values("level").annotate(count=Count("id"))
     )
 
-    total_deducted = BehaviorInfraction.objects.filter(school=school).aggregate(
-        Sum("points_deducted")
-    )["points_deducted__sum"] or 0
+    total_deducted = (
+        BehaviorInfraction.objects.filter(school=school).aggregate(Sum("points_deducted"))[
+            "points_deducted__sum"
+        ]
+        or 0
+    )
 
-    total_restored = BehaviorPointRecovery.objects.filter(
-        infraction__school=school
-    ).aggregate(Sum("points_restored"))["points_restored__sum"] or 0
+    total_restored = (
+        BehaviorPointRecovery.objects.filter(infraction__school=school).aggregate(
+            Sum("points_restored")
+        )["points_restored__sum"]
+        or 0
+    )
 
     recent_infractions = (
-        BehaviorInfraction.objects
-        .filter(school=school)
+        BehaviorInfraction.objects.filter(school=school)
         .select_related("student", "reported_by")
         .order_by("-date")[:15]
     )
@@ -176,14 +181,14 @@ def behavior_dashboard(request):
     ).select_related("student")
 
     context = {
-        "stats":               stats,
-        "total_deducted":      total_deducted,
-        "total_restored":      total_restored,
-        "net_deducted":        total_deducted - total_restored,
-        "recent_infractions":  recent_infractions,
+        "stats": stats,
+        "total_deducted": total_deducted,
+        "total_restored": total_restored,
+        "net_deducted": total_deducted - total_restored,
+        "recent_infractions": recent_infractions,
         "critical_unresolved": critical_unresolved,
-        "can_report":          _can_report(request.user),
-        "is_committee":        _is_committee(request.user),
+        "can_report": _can_report(request.user),
+        "is_committee": _is_committee(request.user),
     }
     return render(request, "behavior/dashboard.html", context)
 
@@ -198,11 +203,11 @@ def report_infraction(request):
     school = request.user.get_school()
 
     if request.method == "POST":
-        student_id  = request.POST.get("student_id")
-        level       = int(request.POST.get("level", 1))
+        student_id = request.POST.get("student_id")
+        level = int(request.POST.get("level", 1))
         description = request.POST.get("description", "").strip()
-        points      = int(request.POST.get("points_deducted", 0))
-        action      = request.POST.get("action_taken", "").strip()
+        points = int(request.POST.get("points_deducted", 0))
+        action = request.POST.get("action_taken", "").strip()
 
         if not student_id or not description:
             messages.error(request, "يرجى تعبئة جميع الحقول الإلزامية.")
@@ -218,8 +223,7 @@ def report_infraction(request):
                 points_deducted=points,
             )
             messages.success(
-                request,
-                f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
+                request, f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
             )
 
             # ── [مهمة 18] إشعار تلقائي لولي الأمر ───────────────────────
@@ -229,16 +233,14 @@ def report_infraction(request):
             # توجيه المخالفات الجسيمة تلقائياً للجنة
             if level >= 3:
                 messages.warning(
-                    request,
-                    f"⚠️ تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
+                    request, f"⚠️ تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                 )
                 return redirect("behavior:committee")
             return redirect("behavior:student_profile", student_id=student.id)
 
     # قائمة الطلاب
     students = (
-        CustomUser.objects
-        .filter(
+        CustomUser.objects.filter(
             memberships__school=school,
             memberships__role__name="student",
             memberships__is_active=True,
@@ -249,44 +251,57 @@ def report_infraction(request):
 
     POINTS_BY_LEVEL = {1: 5, 2: 15, 3: 25, 4: 40}
 
-    return render(request, "behavior/report_form.html", {
-        "students":        students,
-        "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
-        "levels":          BehaviorInfraction.LEVELS,
-    })
+    return render(
+        request,
+        "behavior/report_form.html",
+        {
+            "students": students,
+            "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
+            "levels": BehaviorInfraction.LEVELS,
+        },
+    )
 
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
 def student_behavior_profile(request, student_id):
-    student     = get_object_or_404(CustomUser, id=student_id)
-    infractions = BehaviorInfraction.objects.filter(student=student).select_related(
-        "reported_by", "recovery"
-    ).order_by("-date")
+    student = get_object_or_404(CustomUser, id=student_id)
+    infractions = (
+        BehaviorInfraction.objects.filter(student=student)
+        .select_related("reported_by", "recovery")
+        .order_by("-date")
+    )
 
     total_deducted = infractions.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
-    total_restored = BehaviorPointRecovery.objects.filter(
-        infraction__student=student
-    ).aggregate(Sum("points_restored"))["points_restored__sum"] or 0
+    total_restored = (
+        BehaviorPointRecovery.objects.filter(infraction__student=student).aggregate(
+            Sum("points_restored")
+        )["points_restored__sum"]
+        or 0
+    )
 
-    net_score     = 100 - total_deducted + total_restored  # من 100 درجة
-    status_color  = "green" if net_score >= 80 else ("yellow" if net_score >= 60 else "red")
+    net_score = 100 - total_deducted + total_restored  # من 100 درجة
+    status_color = "green" if net_score >= 80 else ("yellow" if net_score >= 60 else "red")
 
     by_level = {1: 0, 2: 0, 3: 0, 4: 0}
     for inf in infractions:
         by_level[inf.level] = by_level.get(inf.level, 0) + 1
 
-    return render(request, "behavior/student_profile.html", {
-        "student":        student,
-        "infractions":    infractions,
-        "total_deducted": total_deducted,
-        "total_restored": total_restored,
-        "net_score":      net_score,
-        "status_color":   status_color,
-        "by_level":       by_level,
-        "can_report":     _can_report(request.user),
-        "is_committee":   _is_committee(request.user),
-    })
+    return render(
+        request,
+        "behavior/student_profile.html",
+        {
+            "student": student,
+            "infractions": infractions,
+            "total_deducted": total_deducted,
+            "total_restored": total_restored,
+            "net_score": net_score,
+            "status_color": status_color,
+            "by_level": by_level,
+            "can_report": _can_report(request.user),
+            "is_committee": _is_committee(request.user),
+        },
+    )
 
 
 # ── استعادة النقاط (التعزيز الإيجابي) ────────────────────────
@@ -303,8 +318,8 @@ def point_recovery_request(request, infraction_id):
         return redirect("behavior:student_profile", student_id=infraction.student.id)
 
     if request.method == "POST":
-        reason  = request.POST.get("reason", "").strip()
-        points  = int(request.POST.get("points_restored", 0))
+        reason = request.POST.get("reason", "").strip()
+        points = int(request.POST.get("points_restored", 0))
 
         if not reason:
             messages.error(request, "يرجى تحديد سبب استعادة النقاط.")
@@ -320,8 +335,7 @@ def point_recovery_request(request, infraction_id):
             infraction.is_resolved = True
             infraction.save()
             messages.success(
-                request,
-                f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}"
+                request, f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}"
             )
             return redirect("behavior:student_profile", student_id=infraction.student.id)
 
@@ -342,35 +356,37 @@ def committee_dashboard(request):
 
     # المخالفات الجسيمة غير المحلولة
     open_cases = (
-        BehaviorInfraction.objects
-        .filter(school=school, level__in=[3, 4], is_resolved=False)
+        BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
         .select_related("student", "reported_by")
         .order_by("-date")
     )
 
     # المخالفات الجسيمة المحلولة
     resolved_cases = (
-        BehaviorInfraction.objects
-        .filter(school=school, level__in=[3, 4], is_resolved=True)
+        BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
         .select_related("student", "reported_by", "recovery", "recovery__approved_by")
         .order_by("-date")[:20]
     )
 
     # إحصائيات
     stats = {
-        "open_count":     open_cases.count(),
+        "open_count": open_cases.count(),
         "resolved_count": BehaviorInfraction.objects.filter(
             school=school, level__in=[3, 4], is_resolved=True
         ).count(),
-        "level3":         open_cases.filter(level=3).count(),
-        "level4":         open_cases.filter(level=4).count(),
+        "level3": open_cases.filter(level=3).count(),
+        "level4": open_cases.filter(level=4).count(),
     }
 
-    return render(request, "behavior/committee.html", {
-        "open_cases":     open_cases,
-        "resolved_cases": resolved_cases,
-        "stats":          stats,
-    })
+    return render(
+        request,
+        "behavior/committee.html",
+        {
+            "open_cases": open_cases,
+            "resolved_cases": resolved_cases,
+            "stats": stats,
+        },
+    )
 
 
 # ── اتخاذ قرار اللجنة ────────────────────────────────────────
@@ -384,10 +400,10 @@ def committee_decision(request, infraction_id):
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level__in=[3, 4])
 
     if request.method == "POST":
-        decision    = request.POST.get("decision")
-        action      = request.POST.get("action_taken", "").strip()
+        decision = request.POST.get("decision")
+        action = request.POST.get("action_taken", "").strip()
         restore_pts = int(request.POST.get("points_restored", 0))
-        reason      = request.POST.get("recovery_reason", "").strip()
+        reason = request.POST.get("recovery_reason", "").strip()
 
         # تسجيل الإجراء المتخذ
         if action:
@@ -411,7 +427,7 @@ def committee_decision(request, infraction_id):
             if infraction.level < 4:
                 infraction.level = 4
                 infraction.save()
-            messages.warning(request, f"⬆️ تم تصعيد المخالفة إلى الدرجة الرابعة")
+            messages.warning(request, "⬆️ تم تصعيد المخالفة إلى الدرجة الرابعة")
 
         elif decision == "suspend":
             # إيقاف مؤقت
@@ -426,7 +442,6 @@ def committee_decision(request, infraction_id):
     return render(request, "behavior/committee_decision.html", {"infraction": infraction})
 
 
-
 # ── تقرير سلوكي دوري للطالب ──────────────────────────────────
 @login_required
 def behavior_report(request, student_id):
@@ -437,44 +452,56 @@ def behavior_report(request, student_id):
     if not _can_report(request.user) and not request.user.is_superuser:
         return HttpResponseForbidden("ليس لديك صلاحية.")
 
-    school  = request.user.get_school()
+    school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year    = request.GET.get("year", "2025-2026")
-    period  = request.GET.get("period", "full")  # full | S1 | S2
+    year = request.GET.get("year", "2025-2026")
+    period = request.GET.get("period", "full")  # full | S1 | S2
 
-    from django.utils import timezone
     from datetime import date
 
     # نطاق الفترة
     if period == "S1":
-        date_from, date_to = date(2025, 9, 1),  date(2026, 1, 31)
+        date_from, date_to = date(2025, 9, 1), date(2026, 1, 31)
         period_label = "الفصل الأول"
     elif period == "S2":
-        date_from, date_to = date(2026, 2, 1),  date(2026, 6, 30)
+        date_from, date_to = date(2026, 2, 1), date(2026, 6, 30)
         period_label = "الفصل الثاني"
     else:
-        date_from, date_to = date(2025, 9, 1),  date(2026, 6, 30)
+        date_from, date_to = date(2025, 9, 1), date(2026, 6, 30)
         period_label = "العام الدراسي كاملاً"
 
-    infractions = BehaviorInfraction.objects.filter(
-        student=student, school=school,
-        date__gte=date_from, date__lte=date_to,
-    ).select_related("reported_by", "recovery").order_by("date")
+    infractions = (
+        BehaviorInfraction.objects.filter(
+            student=student,
+            school=school,
+            date__gte=date_from,
+            date__lte=date_to,
+        )
+        .select_related("reported_by", "recovery")
+        .order_by("date")
+    )
 
     total_deducted = infractions.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
-    total_restored = BehaviorPointRecovery.objects.filter(
-        infraction__student=student,
-        infraction__date__gte=date_from,
-        infraction__date__lte=date_to,
-    ).aggregate(Sum("points_restored"))["points_restored__sum"] or 0
+    total_restored = (
+        BehaviorPointRecovery.objects.filter(
+            infraction__student=student,
+            infraction__date__gte=date_from,
+            infraction__date__lte=date_to,
+        ).aggregate(Sum("points_restored"))["points_restored__sum"]
+        or 0
+    )
 
     net_score = 100 - total_deducted + total_restored
     net_score = max(0, min(100, net_score))
 
-    if net_score >= 90:   rating, rating_color = "ممتاز",      "green"
-    elif net_score >= 75: rating, rating_color = "جيد جداً",   "blue"
-    elif net_score >= 60: rating, rating_color = "جيد",        "amber"
-    else:                 rating, rating_color = "يحتاج تطوير","red"
+    if net_score >= 90:
+        rating, rating_color = "ممتاز", "green"
+    elif net_score >= 75:
+        rating, rating_color = "جيد جداً", "blue"
+    elif net_score >= 60:
+        rating, rating_color = "جيد", "amber"
+    else:
+        rating, rating_color = "يحتاج تطوير", "red"
 
     by_level = {1: [], 2: [], 3: [], 4: []}
     for inf in infractions:
@@ -482,14 +509,16 @@ def behavior_report(request, student_id):
 
     # ولي الأمر
     from core.models import ParentStudentLink
-    parent_links = ParentStudentLink.objects.filter(
-        student=student, school=school
-    ).select_related("parent")
+
+    parent_links = ParentStudentLink.objects.filter(student=student, school=school).select_related(
+        "parent"
+    )
 
     # إرسال للأولياء
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
         from notifications.services import NotificationService
+
         for link in parent_links:
             parent = link.parent
             if parent.email:
@@ -526,28 +555,32 @@ def behavior_report(request, student_id):
 
     period_choices = [
         ("full", "العام كاملاً"),
-        ("S1",   "الفصل الأول"),
-        ("S2",   "الفصل الثاني"),
+        ("S1", "الفصل الأول"),
+        ("S2", "الفصل الثاني"),
     ]
 
-    return render(request, "behavior/behavior_report.html", {
-        "student":        student,
-        "infractions":    infractions,
-        "by_level":       by_level,
-        "total_deducted": total_deducted,
-        "total_restored": total_restored,
-        "net_score":      net_score,
-        "rating":         rating,
-        "rating_color":   rating_color,
-        "period":         period,
-        "period_label":   period_label,
-        "year":           year,
-        "parent_links":   parent_links,
-        "sent_to":        sent_to,
-        "date_from":      date_from,
-        "date_to":        date_to,
-        "period_choices": period_choices,
-    })
+    return render(
+        request,
+        "behavior/behavior_report.html",
+        {
+            "student": student,
+            "infractions": infractions,
+            "by_level": by_level,
+            "total_deducted": total_deducted,
+            "total_restored": total_restored,
+            "net_score": net_score,
+            "rating": rating,
+            "rating_color": rating_color,
+            "period": period,
+            "period_label": period_label,
+            "year": year,
+            "parent_links": parent_links,
+            "sent_to": sent_to,
+            "date_from": date_from,
+            "date_to": date_to,
+            "period_choices": period_choices,
+        },
+    )
 
 
 # ── تقرير إحصائي للمدير ──────────────────────────────────────
@@ -560,20 +593,18 @@ def behavior_statistics(request):
         return HttpResponseForbidden("للمدير ونائبيه فقط.")
 
     school = request.user.get_school()
-    year   = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", "2025-2026")
     from datetime import date
+
     date_from = date(2025, 9, 1)
-    date_to   = date(2026, 6, 30)
+    date_to = date(2026, 6, 30)
 
     # إحصائيات عامة
     all_inf = BehaviorInfraction.objects.filter(
         school=school, date__gte=date_from, date__lte=date_to
     )
 
-    by_level = {
-        lvl: all_inf.filter(level=lvl).count()
-        for lvl in [1, 2, 3, 4]
-    }
+    by_level = {lvl: all_inf.filter(level=lvl).count() for lvl in [1, 2, 3, 4]}
     total = all_inf.count()
 
     # أكثر الطلاب مخالفة
@@ -585,6 +616,7 @@ def behavior_statistics(request):
 
     # توزيع شهري
     from django.db.models.functions import TruncMonth
+
     monthly = (
         all_inf.annotate(month=TruncMonth("date"))
         .values("month")
@@ -593,7 +625,6 @@ def behavior_statistics(request):
     )
 
     # الفصول الأكثر مخالفات
-    from core.models import StudentEnrollment
     top_classes = (
         all_inf.values(
             "student__enrollments__class_group__grade",
@@ -603,14 +634,18 @@ def behavior_statistics(request):
         .order_by("-count")[:5]
     )
 
-    return render(request, "behavior/statistics.html", {
-        "by_level":    by_level,
-        "total":       total,
-        "top_students": top_students,
-        "monthly":     monthly,
-        "top_classes": top_classes,
-        "year":        year,
-        "resolved_pct": round(
-            all_inf.filter(is_resolved=True).count() / total * 100
-        ) if total else 0,
-    })
+    return render(
+        request,
+        "behavior/statistics.html",
+        {
+            "by_level": by_level,
+            "total": total,
+            "top_students": top_students,
+            "monthly": monthly,
+            "top_classes": top_classes,
+            "year": year,
+            "resolved_pct": round(all_inf.filter(is_resolved=True).count() / total * 100)
+            if total
+            else 0,
+        },
+    )

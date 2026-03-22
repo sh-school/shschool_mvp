@@ -4,11 +4,13 @@ tests/test_apis.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 يختبر: كل API يُعيد JSON صحيح بالبنية المطلوبة
 """
-import pytest
+
 import json
 
+import pytest
 
 # ── مساعد ────────────────────────────────────────────────────
+
 
 def get_json(client, url):
     response = client.get(url)
@@ -30,9 +32,9 @@ def assert_chart_structure(data):
 #  Attendance Trend API
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAttendanceTrendAPI:
-
     def test_returns_chart_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/attendance-trend/")
@@ -53,9 +55,9 @@ class TestAttendanceTrendAPI:
 #  Grades Distribution API
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestGradesDistributionAPI:
-
     def test_returns_chart_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/grades-distribution/")
@@ -78,9 +80,9 @@ class TestGradesDistributionAPI:
 #  Plan Progress API
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestPlanProgressAPI:
-
     def test_returns_chart_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/plan-progress/")
@@ -98,9 +100,9 @@ class TestPlanProgressAPI:
 #  Behavior Trend API
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBehaviorTrendAPI:
-
     def test_returns_chart_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/behavior-trend/")
@@ -129,9 +131,9 @@ class TestBehaviorTrendAPI:
 #  Clinic Stats API
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestClinicStatsAPI:
-
     def test_returns_chart_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/clinic-stats/")
@@ -149,9 +151,9 @@ class TestClinicStatsAPI:
 #  Class Comparison + Subject Comparison
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestComparisonAPIs:
-
     def test_class_comparison_structure(self, client_as, principal_user, school):
         client = client_as(principal_user)
         data = get_json(client, "/analytics/api/class-comparison/")

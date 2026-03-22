@@ -3,24 +3,28 @@
 الاستخدام: python manage.py shell < scripts/link_parents_students.py
         أو: python manage.py runscript link_parents_students  (مع django-extensions)
 """
-import csv, sys, os
+
+import csv
+import os
+
 from django.db import transaction
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "new_students_full.csv")
 
 # خريطة صلة القرابة عربي → choices
 RELATION_MAP = {
-    "أب":    "father",
-    "ام":    "mother",
-    "أم":    "mother",
-    "والد":  "father",
+    "أب": "father",
+    "ام": "mother",
+    "أم": "mother",
+    "والد": "father",
     "والدة": "mother",
-    "وصي":   "guardian",
-    "وصية":  "guardian",
+    "وصي": "guardian",
+    "وصية": "guardian",
 }
 
+
 def run():
-    from core.models import CustomUser, School, Membership, Role, ParentStudentLink
+    from core.models import CustomUser, Membership, ParentStudentLink, Role, School
 
     school = School.objects.first()
     if not school:
@@ -35,13 +39,13 @@ def run():
         return
 
     stats = {
-        "students_found":  0,
+        "students_found": 0,
         "students_missing": 0,
         "parents_created": 0,
-        "parents_found":   0,
-        "links_created":   0,
-        "links_existed":   0,
-        "errors":          [],
+        "parents_found": 0,
+        "links_created": 0,
+        "links_existed": 0,
+        "errors": [],
     }
 
     with open(CSV_PATH, encoding="utf-8-sig") as f:
@@ -51,10 +55,10 @@ def run():
 
     with transaction.atomic():
         for i, row in enumerate(rows, 1):
-            student_id   = row.get("national_no", "").strip()
-            parent_id    = row.get("parent_national_no", "").strip()
-            parent_name  = row.get("name_parent", "").strip()
-            relation_ar  = row.get("relation_parent", "").strip()
+            student_id = row.get("national_no", "").strip()
+            parent_id = row.get("parent_national_no", "").strip()
+            parent_name = row.get("name_parent", "").strip()
+            relation_ar = row.get("relation_parent", "").strip()
             parent_phone = row.get("parent_phone_no", "").strip().split(",")[0].strip()
             parent_email = row.get("parent_email", "").strip()
 
@@ -68,7 +72,9 @@ def run():
                 stats["students_found"] += 1
             except CustomUser.DoesNotExist:
                 stats["students_missing"] += 1
-                stats["errors"].append(f"❌ طالب غير موجود: {student_id} — {row.get('studant_name','')}")
+                stats["errors"].append(
+                    f"❌ طالب غير موجود: {student_id} — {row.get('studant_name','')}"
+                )
                 continue
 
             # 2. ابحث عن ولي الأمر أو أنشئه
@@ -76,10 +82,10 @@ def run():
                 national_id=parent_id,
                 defaults={
                     "full_name": parent_name,
-                    "email":     parent_email if parent_email != "-" else "",
-                    "phone":     parent_phone,
+                    "email": parent_email if parent_email != "-" else "",
+                    "phone": parent_phone,
                     "is_active": True,
-                }
+                },
             )
 
             if created:
@@ -104,20 +110,21 @@ def run():
 
             # 3. تأكد أن ولي الأمر عضو في المدرسة
             Membership.objects.get_or_create(
-                user=parent, school=school, role=parent_role,
-                defaults={"is_active": True}
+                user=parent, school=school, role=parent_role, defaults={"is_active": True}
             )
 
             # 4. أنشئ الرابط
             rel = RELATION_MAP.get(relation_ar, "father")
             link, link_created = ParentStudentLink.objects.get_or_create(
-                parent=parent, student=student, school=school,
+                parent=parent,
+                student=student,
+                school=school,
                 defaults={
                     "relationship": rel,
-                    "is_primary":   True,
-                    "can_view_grades":     True,
+                    "is_primary": True,
+                    "can_view_grades": True,
                     "can_view_attendance": True,
-                }
+                },
             )
 
             if link_created:
@@ -129,7 +136,7 @@ def run():
                 print(f"  ✓ معالجة {i}/{len(rows)}...")
 
     # التقرير النهائي
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("📊 نتيجة الاستيراد:")
     print(f"  ✅ طلاب تم إيجادهم:       {stats['students_found']}")
     print(f"  ❌ طلاب غير موجودين:      {stats['students_missing']}")
@@ -143,6 +150,7 @@ def run():
             print(f"    {e}")
     if len(stats["errors"]) > 10:
         print(f"    ... و {len(stats['errors'])-10} خطأ آخر")
-    print("="*50)
+    print("=" * 50)
+
 
 run()

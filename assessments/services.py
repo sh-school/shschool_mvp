@@ -7,25 +7,35 @@ assessments/services.py
 المجموع السنوي = S1 + S2 (من 100)
 النجاح = 50 فأكثر
 """
-from decimal import Decimal, ROUND_HALF_UP
+
+from decimal import ROUND_HALF_UP, Decimal
+
 from django.db import transaction
-from django.db.models import Avg, Count, Q
+
+from core.models import StudentEnrollment
 
 from .models import (
-    SubjectClassSetup, AssessmentPackage, Assessment,
-    StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult,
+    AnnualSubjectResult,
+    AssessmentPackage,
+    StudentAssessmentGrade,
+    StudentSubjectResult,
 )
-from core.models import StudentEnrollment, CustomUser, School
 
 
 class GradeService:
-
     # ── حفظ درجة طالب ──────────────────────────────────────
 
     @staticmethod
     @transaction.atomic
-    def save_grade(assessment, student, grade=None, is_absent=False,
-                   is_excused=False, notes="", entered_by=None):
+    def save_grade(
+        assessment,
+        student,
+        grade=None,
+        is_absent=False,
+        is_excused=False,
+        notes="",
+        entered_by=None,
+    ):
         """
         حفظ درجة طالب، ثم:
         1. إعادة حساب نتيجة الفصل
@@ -39,16 +49,16 @@ class GradeService:
             assessment=assessment,
             student=student,
             defaults={
-                "school":     assessment.school,
-                "grade":      grade,
-                "is_absent":  is_absent,
+                "school": assessment.school,
+                "grade": grade,
+                "is_absent": is_absent,
                 "is_excused": is_excused,
-                "notes":      notes,
+                "notes": notes,
                 "entered_by": entered_by,
-            }
+            },
         )
 
-        setup    = assessment.package.setup
+        setup = assessment.package.setup
         semester = assessment.package.semester
 
         # 1. نتيجة الفصل
@@ -87,7 +97,7 @@ class GradeService:
 
         # حساب أداء الطالب % في هذه الباقة
         weighted_pct = Decimal("0")
-        has_grade    = False
+        has_grade = False
 
         for asmnt in assessments:
             try:
@@ -109,10 +119,7 @@ class GradeService:
 
         # تحويل إلى الدرجة الفعلية من مجموع الفصل
         # = أداء% × وزن_الباقة% × درجة_الفصل_القصوى / 100 / 100
-        actual_score = (weighted_pct
-                        * package.weight
-                        * package.semester_max_grade
-                        / Decimal("10000"))
+        actual_score = weighted_pct * package.weight * package.semester_max_grade / Decimal("10000")
         return actual_score.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     # ── نتيجة الفصل ────────────────────────────────────────
@@ -124,35 +131,35 @@ class GradeService:
         يحسب ويخزن مجموع درجات الطالب في مادة للفصل المحدد.
         الناتج: total ∈ [0, semester_max] (40 أو 60)
         """
-        packages = AssessmentPackage.objects.filter(
-            setup=setup, semester=semester, is_active=True
-        )
+        packages = AssessmentPackage.objects.filter(setup=setup, semester=semester, is_active=True)
 
-        scores       = {}
-        total        = Decimal("0")
+        scores = {}
+        total = Decimal("0")
         semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
-        has_score    = False
+        has_score = False
 
         for pkg in packages:
             score = GradeService.calc_package_score(student, pkg)
             scores[pkg.package_type] = score
             if score is not None:
-                total    += score
+                total += score
                 has_score = True
                 # semester_max من أول باقة لها بيانات
                 semester_max = pkg.semester_max_grade
 
         result, _ = StudentSubjectResult.objects.update_or_create(
-            student=student, setup=setup, semester=semester,
+            student=student,
+            setup=setup,
+            semester=semester,
             defaults={
-                "school":       setup.school,
-                "p1_score":     scores.get("P1"),
-                "p2_score":     scores.get("P2"),
-                "p3_score":     scores.get("P3"),
-                "p4_score":     scores.get("P4"),
-                "total":        total if has_score else None,
+                "school": setup.school,
+                "p1_score": scores.get("P1"),
+                "p2_score": scores.get("P2"),
+                "p3_score": scores.get("P3"),
+                "p4_score": scores.get("P4"),
+                "total": total if has_score else None,
                 "semester_max": semester_max,
-            }
+            },
         )
         return result
 
@@ -188,7 +195,7 @@ class GradeService:
         # نحسب السنوي فقط لو عندنا نتيجة واحدة على الأقل
         if s1_total is None and s2_total is None:
             annual_total = None
-            status       = "incomplete"
+            status = "incomplete"
         else:
             annual_total = (s1_total or Decimal("0")) + (s2_total or Decimal("0"))
             annual_total = annual_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -201,14 +208,16 @@ class GradeService:
                 status = "fail"
 
         annual, _ = AnnualSubjectResult.objects.update_or_create(
-            student=student, setup=setup, academic_year=year,
+            student=student,
+            setup=setup,
+            academic_year=year,
             defaults={
-                "school":       setup.school,
-                "s1_total":     s1_total,
-                "s2_total":     s2_total,
+                "school": setup.school,
+                "s1_total": s1_total,
+                "s2_total": s2_total,
                 "annual_total": annual_total,
-                "status":       status,
-            }
+                "status": status,
+            },
         )
         return annual
 
@@ -229,29 +238,38 @@ class GradeService:
     @staticmethod
     def get_assessment_stats(assessment):
         """إحصائيات تقييم: متوسط، أعلى، أدنى، نسبة النجاح"""
-        grades  = StudentAssessmentGrade.objects.filter(
+        grades = StudentAssessmentGrade.objects.filter(
             assessment=assessment, is_absent=False, grade__isnull=False
         )
-        total   = StudentAssessmentGrade.objects.filter(assessment=assessment).count()
-        absent  = StudentAssessmentGrade.objects.filter(assessment=assessment, is_absent=True).count()
+        total = StudentAssessmentGrade.objects.filter(assessment=assessment).count()
+        absent = StudentAssessmentGrade.objects.filter(
+            assessment=assessment, is_absent=True
+        ).count()
         entered = grades.count()
 
         if not entered:
-            return {"total": total, "entered": entered, "absent": absent,
-                    "avg": None, "max": None, "min": None, "pass_pct": None}
+            return {
+                "total": total,
+                "entered": entered,
+                "absent": absent,
+                "avg": None,
+                "max": None,
+                "min": None,
+                "pass_pct": None,
+            }
 
-        vals     = [float(g.grade) for g in grades]
-        avg      = round(sum(vals) / len(vals), 2)
-        pass_th  = float(assessment.max_grade) * 0.5
+        vals = [float(g.grade) for g in grades]
+        avg = round(sum(vals) / len(vals), 2)
+        pass_th = float(assessment.max_grade) * 0.5
         pass_pct = round(sum(1 for v in vals if v >= pass_th) / len(vals) * 100)
 
         return {
-            "total":    total,
-            "entered":  entered,
-            "absent":   absent,
-            "avg":      avg,
-            "max":      max(vals),
-            "min":      min(vals),
+            "total": total,
+            "entered": entered,
+            "absent": absent,
+            "avg": avg,
+            "max": max(vals),
+            "min": min(vals),
             "pass_pct": pass_pct,
         }
 
@@ -259,56 +277,56 @@ class GradeService:
     def get_class_results_summary(setup, year="2025-2026"):
         """ملخص النتائج السنوية للفصل في مادة"""
         results = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year)
-        total   = results.count()
-        passed  = results.filter(status="pass").count()
-        failed  = results.filter(status="fail").count()
-        incomp  = results.filter(status="incomplete").count()
+        total = results.count()
+        passed = results.filter(status="pass").count()
+        failed = results.filter(status="fail").count()
+        incomp = results.filter(status="incomplete").count()
 
-        grades  = [float(r.annual_total) for r in results if r.annual_total is not None]
-        avg     = round(sum(grades) / len(grades), 2) if grades else None
+        grades = [float(r.annual_total) for r in results if r.annual_total is not None]
+        avg = round(sum(grades) / len(grades), 2) if grades else None
 
         return {
-            "total":    total,
-            "passed":   passed,
-            "failed":   failed,
+            "total": total,
+            "passed": passed,
+            "failed": failed,
             "incomplete": incomp,
             "pass_pct": round(passed / total * 100) if total else 0,
-            "avg":      avg,
+            "avg": avg,
         }
 
     @staticmethod
     def get_student_annual_report(student, school, year="2025-2026"):
         """كشف الدرجات السنوية الكامل للطالب"""
-        return AnnualSubjectResult.objects.filter(
-            student=student, school=school, academic_year=year
-        ).select_related(
-            "setup__subject", "setup__class_group"
-        ).order_by("setup__subject__name_ar")
+        return (
+            AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
+            .select_related("setup__subject", "setup__class_group")
+            .order_by("setup__subject__name_ar")
+        )
 
     @staticmethod
     def get_failing_students(school, year="2025-2026"):
         """الطلاب الراسبون سنوياً"""
-        return AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="fail"
-        ).select_related(
-            "student", "setup__subject", "setup__class_group"
-        ).order_by("setup__class_group__grade", "student__full_name")
+        return (
+            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            .select_related("student", "setup__subject", "setup__class_group")
+            .order_by("setup__class_group__grade", "student__full_name")
+        )
 
     @staticmethod
     def get_semester_summary_for_class(setup, semester):
         """ملخص درجات الفصل في مادة (لعرض الجدول)"""
         results = StudentSubjectResult.objects.filter(setup=setup, semester=semester)
-        total   = results.count()
-        grades  = [float(r.total) for r in results if r.total is not None]
-        avg     = round(sum(grades) / len(grades), 2) if grades else None
-        s_max   = float(AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40")))
+        total = results.count()
+        grades = [float(r.total) for r in results if r.total is not None]
+        avg = round(sum(grades) / len(grades), 2) if grades else None
+        s_max = float(AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40")))
         pass_th = s_max * 0.5
-        passed  = sum(1 for g in grades if g >= pass_th)
+        passed = sum(1 for g in grades if g >= pass_th)
 
         return {
-            "total":    total,
-            "avg":      avg,
-            "passed":   passed,
+            "total": total,
+            "avg": avg,
+            "passed": passed,
             "pass_pct": round(passed / len(grades) * 100) if grades else 0,
             "semester_max": s_max,
         }

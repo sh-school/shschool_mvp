@@ -4,39 +4,42 @@ tests/test_services.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 يختبر: GradeService (معادلة 40/60)، AttendanceService، NotificationService
 """
-import pytest
-from decimal import Decimal
+
 from datetime import date, timedelta
-from django.utils import timezone
-from unittest.mock import patch, MagicMock
+from decimal import Decimal
+from unittest.mock import patch
+
+import pytest
 
 from assessments.services import GradeService
 from operations.services import AttendanceService
-from .conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
-)
 
+from .conftest import (
+    UserFactory,
+)
 
 # ══════════════════════════════════════════════
 #  FIXTURES خاصة بالخدمات
 # ══════════════════════════════════════════════
 
+
 @pytest.fixture
 def subject(db, school):
     from operations.models import Subject
-    return Subject.objects.create(
-        school=school, name_ar="الرياضيات", code="MATH"
-    )
+
+    return Subject.objects.create(school=school, name_ar="الرياضيات", code="MATH")
 
 
 @pytest.fixture
 def subject_setup(db, school, class_group, teacher_user, subject):
     from assessments.models import SubjectClassSetup
+
     return SubjectClassSetup.objects.create(
-        school=school, subject=subject,
-        class_group=class_group, teacher=teacher_user,
-        academic_year="2025-2026"
+        school=school,
+        subject=subject,
+        class_group=class_group,
+        teacher=teacher_user,
+        academic_year="2025-2026",
     )
 
 
@@ -44,10 +47,13 @@ def subject_setup(db, school, class_group, teacher_user, subject):
 def assessment_package_s1(db, school, subject_setup):
     """باقة الفصل الأول — أعمال مستمرة (20 درجة)"""
     from assessments.models import AssessmentPackage
+
     return AssessmentPackage.objects.create(
-        school=school, setup=subject_setup,
-        semester="S1", package_type="P1",
-        weight=Decimal("50"),     # 50% من 40 = 20 درجة
+        school=school,
+        setup=subject_setup,
+        semester="S1",
+        package_type="P1",
+        weight=Decimal("50"),  # 50% من 40 = 20 درجة
         semester_max_grade=Decimal("40"),
     )
 
@@ -55,8 +61,10 @@ def assessment_package_s1(db, school, subject_setup):
 @pytest.fixture
 def assessment(db, school, assessment_package_s1):
     from assessments.models import Assessment
+
     return Assessment.objects.create(
-        school=school, package=assessment_package_s1,
+        school=school,
+        package=assessment_package_s1,
         title="اختبار شهري 1",
         max_grade=Decimal("20"),
         date=date.today(),
@@ -66,17 +74,20 @@ def assessment(db, school, assessment_package_s1):
 @pytest.fixture
 def session(db, school, class_group):
     from operations.models import Session, Subject
-    subj = Subject.objects.create(
-        school=school, name_ar="عربي", code="AR"
-    )
+
+    subj = Subject.objects.create(school=school, name_ar="عربي", code="AR")
     from datetime import time as dtime
+
     teacher = UserFactory()
     return Session.objects.create(
-        school=school, class_group=class_group,
+        school=school,
+        class_group=class_group,
         teacher=teacher,
-        subject=subj, date=date.today(),
-        start_time=dtime(8, 0), end_time=dtime(8, 45),
-        status="scheduled"
+        subject=subj,
+        date=date.today(),
+        start_time=dtime(8, 0),
+        end_time=dtime(8, 45),
+        status="scheduled",
     )
 
 
@@ -84,12 +95,11 @@ def session(db, school, class_group):
 #  GradeService — معادلة التقييم القطرية
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestGradeService:
-
     def test_save_grade_creates_record(
-        self, school, student_user, teacher_user,
-        assessment, subject_setup
+        self, school, student_user, teacher_user, assessment, subject_setup
     ):
         obj, created = GradeService.save_grade(
             assessment=assessment,
@@ -101,8 +111,7 @@ class TestGradeService:
         assert obj.grade == Decimal("17")
 
     def test_save_grade_clamps_to_max(
-        self, school, student_user, teacher_user,
-        assessment, subject_setup
+        self, school, student_user, teacher_user, assessment, subject_setup
     ):
         """الدرجة لا تتجاوز الحد الأقصى"""
         obj, _ = GradeService.save_grade(
@@ -114,8 +123,7 @@ class TestGradeService:
         assert obj.grade <= assessment.max_grade
 
     def test_save_grade_clamps_to_zero(
-        self, school, student_user, teacher_user,
-        assessment, subject_setup
+        self, school, student_user, teacher_user, assessment, subject_setup
     ):
         """الدرجة لا تقل عن صفر"""
         obj, _ = GradeService.save_grade(
@@ -127,8 +135,7 @@ class TestGradeService:
         assert obj.grade == Decimal("0")
 
     def test_update_existing_grade(
-        self, school, student_user, teacher_user,
-        assessment, subject_setup
+        self, school, student_user, teacher_user, assessment, subject_setup
     ):
         GradeService.save_grade(assessment, student_user, Decimal("10"), entered_by=teacher_user)
         obj, created = GradeService.save_grade(
@@ -137,10 +144,7 @@ class TestGradeService:
         assert created is False
         assert obj.grade == Decimal("15")
 
-    def test_absent_grade(
-        self, school, student_user, teacher_user,
-        assessment, subject_setup
-    ):
+    def test_absent_grade(self, school, student_user, teacher_user, assessment, subject_setup):
         obj, _ = GradeService.save_grade(
             assessment=assessment,
             student=student_user,
@@ -155,9 +159,9 @@ class TestGradeService:
 #  AttendanceService
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAttendanceService:
-
     def test_mark_attendance_present(
         self, school, student_user, teacher_user, session, enrolled_student
     ):
@@ -192,19 +196,17 @@ class TestAttendanceService:
         assert created is False
         assert att.status == "present"
 
-    def test_bulk_mark_all_present(
-        self, school, teacher_user, session, enrolled_student
-    ):
+    def test_bulk_mark_all_present(self, school, teacher_user, session, enrolled_student):
         count = AttendanceService.bulk_mark_all_present(session, marked_by=teacher_user)
         assert count >= 1
         from operations.models import StudentAttendance
-        assert StudentAttendance.objects.filter(
-            session=session, status="present"
-        ).count() >= 1
+
+        assert StudentAttendance.objects.filter(session=session, status="present").count() >= 1
 
     def test_complete_session(self, school, session):
         AttendanceService.complete_session(session)
         from operations.models import Session
+
         refreshed = Session.objects.get(id=session.id)
         assert refreshed.status == "completed"
 
@@ -213,14 +215,12 @@ class TestAttendanceService:
 #  NotificationService
 # ══════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestNotificationService:
-
-    def test_send_email_logs_notification(
-        self, school, student_user
-    ):
-        from notifications.services import NotificationService
+    def test_send_email_logs_notification(self, school, student_user):
         from notifications.models import NotificationLog
+        from notifications.services import NotificationService
 
         with patch("django.core.mail.send_mail") as mock_mail:
             mock_mail.return_value = 1
@@ -241,8 +241,8 @@ class TestNotificationService:
         assert log.channel == "email"
 
     def test_failed_email_logs_error(self, school, student_user):
-        from notifications.services import NotificationService
         from notifications.models import NotificationLog
+        from notifications.services import NotificationService
 
         with patch("django.core.mail.send_mail") as mock_mail:
             mock_mail.side_effect = Exception("SMTP Error")
@@ -262,7 +262,6 @@ class TestNotificationService:
     def test_sms_disabled_returns_error(self, school, student_user):
         """SMS معطّل في الإعدادات الافتراضية"""
         from notifications.services import NotificationService
-        from notifications.models import NotificationSettings
 
         # بدون NotificationSettings → SMS معطّل
         ok, err = NotificationService.send_sms(
@@ -272,9 +271,7 @@ class TestNotificationService:
         )
         assert ok is False
 
-    def test_notify_absence_sends_to_parent(
-        self, school, student_user, parent_user
-    ):
+    def test_notify_absence_sends_to_parent(self, school, student_user, parent_user):
         """إشعار غياب يُرسل لولي الأمر عبر البريد"""
         from notifications.services import NotificationService
         from operations.models import AbsenceAlert
@@ -298,7 +295,9 @@ class TestNotificationService:
             results = NotificationService.notify_absence(alert)
 
         # يجب أن يُرسل على الأقل إشعار واحد
-        assert len(results) >= 0  # قد يكون 0 إذا لم يكن هناك ParentStudentLink مع can_view_attendance
+        assert (
+            len(results) >= 0
+        )  # قد يكون 0 إذا لم يكن هناك ParentStudentLink مع can_view_attendance
 
     def test_send_fail_alerts_bulk(self, school, student_user):
         """إرسال إشعارات رسوب جماعي"""

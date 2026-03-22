@@ -5,7 +5,9 @@ python manage.py send_notifications --type absence
 python manage.py send_notifications --type fail --year 2025-2026
 python manage.py send_notifications --type all
 """
+
 from django.core.management.base import BaseCommand
+
 from core.models import School
 from notifications.services import NotificationService
 
@@ -14,17 +16,16 @@ class Command(BaseCommand):
     help = "إرسال الإشعارات التلقائية (غياب / رسوب)"
 
     def add_arguments(self, parser):
-        parser.add_argument("--type",   default="all",
-                            choices=["absence", "fail", "all"],
-                            help="نوع الإشعار")
-        parser.add_argument("--year",   default="2025-2026")
-        parser.add_argument("--school", default=None,
-                            help="كود المدرسة (اتركه فارغاً للكل)")
+        parser.add_argument(
+            "--type", default="all", choices=["absence", "fail", "all"], help="نوع الإشعار"
+        )
+        parser.add_argument("--year", default="2025-2026")
+        parser.add_argument("--school", default=None, help="كود المدرسة (اتركه فارغاً للكل)")
 
     def handle(self, *args, **options):
         notif_type = options["type"]
-        year       = options["year"]
-        school_code= options["school"]
+        year = options["year"]
+        school_code = options["school"]
 
         schools = School.objects.filter(is_active=True)
         if school_code:
@@ -37,15 +38,15 @@ class Command(BaseCommand):
             if notif_type in ("absence", "all"):
                 sent, failed = NotificationService.send_pending_absence_alerts(school)
                 self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ تنبيهات الغياب: {sent} أُرسل") +
-                    (self.style.WARNING(f"  ✗ {failed} فشل") if failed else "")
+                    self.style.SUCCESS(f"  ✓ تنبيهات الغياب: {sent} أُرسل")
+                    + (self.style.WARNING(f"  ✗ {failed} فشل") if failed else "")
                 )
 
             if notif_type in ("fail", "all"):
                 sent, failed = NotificationService.send_fail_alerts_for_year(school, year)
                 self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ تنبيهات الرسوب: {sent} أُرسل") +
-                    (self.style.WARNING(f"  ✗ {failed} فشل") if failed else "")
+                    self.style.SUCCESS(f"  ✓ تنبيهات الرسوب: {sent} أُرسل")
+                    + (self.style.WARNING(f"  ✗ {failed} فشل") if failed else "")
                 )
 
         self.stdout.write(self.style.SUCCESS("\nاكتمل إرسال الإشعارات ✓"))

@@ -1,6 +1,7 @@
-from .base import *
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
+
+from .base import *
 
 DEBUG = False
 
@@ -8,7 +9,7 @@ DEBUG = False
 if not SECRET_KEY or SECRET_KEY == "dev-secret-key-change-in-production":
     raise ImproperlyConfigured(
         "🔴 SECRET_KEY مطلوب في الإنتاج! أضفه إلى ملف .env:\n"
-        "python -c \"from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())\""
+        'python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"'
     )
 
 if not FERNET_KEY:
@@ -20,19 +21,19 @@ if not FERNET_KEY:
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
 # ── HTTPS وSSL ────────────────────────────────────────────────
-SECURE_SSL_REDIRECT               = True
-SECURE_HSTS_SECONDS               = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS    = True
-SECURE_HSTS_PRELOAD               = True
-SESSION_COOKIE_SECURE             = True
-CSRF_COOKIE_SECURE                = True
-SESSION_COOKIE_AGE                = 3600
-SESSION_EXPIRE_AT_BROWSER_CLOSE   = True
-SESSION_SAVE_EVERY_REQUEST        = True
-SECURE_CONTENT_TYPE_NOSNIFF       = True
-SECURE_BROWSER_XSS_FILTER        = True
-X_FRAME_OPTIONS                   = "DENY"
-SECURE_REFERRER_POLICY            = "strict-origin-when-cross-origin"
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_AGE = 3600
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_SAVE_EVERY_REQUEST = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
 # ── Cache ─────────────────────────────────────────────────────
@@ -41,16 +42,16 @@ REDIS_URL = config("REDIS_URL", default="")
 if REDIS_URL:
     CACHES = {
         "default": {
-            "BACKEND":  "django.core.cache.backends.redis.RedisCache",
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": REDIS_URL,
-            "OPTIONS":  {"socket_timeout": 5},
+            "OPTIONS": {"socket_timeout": 5},
         }
     }
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 else:
     CACHES = {
         "default": {
-            "BACKEND":  "django.core.cache.backends.locmem.LocMemCache",
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "schoolos-local",
         }
     }
@@ -58,21 +59,21 @@ else:
 # ── Celery + Redis ────────────────────────────────────────────
 # [مهمة 15] الإشعارات وتقارير PDF تُعالج بشكل غير متزامن
 if REDIS_URL:
-    CELERY_BROKER_URL             = REDIS_URL
-    CELERY_RESULT_BACKEND         = REDIS_URL
-    CELERY_ACCEPT_CONTENT         = ["json"]
-    CELERY_TASK_SERIALIZER        = "json"
-    CELERY_RESULT_SERIALIZER      = "json"
-    CELERY_TIMEZONE               = "Asia/Qatar"
-    CELERY_TASK_TRACK_STARTED     = True
-    CELERY_TASK_TIME_LIMIT        = 300        # 5 دقائق حد أقصى للمهمة
-    CELERY_TASK_SOFT_TIME_LIMIT   = 240        # تحذير بعد 4 دقائق
-    CELERY_WORKER_PREFETCH_MULTIPLIER = 1      # مهمة واحدة في المرة للذاكرة
-    CELERY_TASK_ALWAYS_EAGER      = False
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+    CELERY_ACCEPT_CONTENT = ["json"]
+    CELERY_TASK_SERIALIZER = "json"
+    CELERY_RESULT_SERIALIZER = "json"
+    CELERY_TIMEZONE = "Asia/Qatar"
+    CELERY_TASK_TRACK_STARTED = True
+    CELERY_TASK_TIME_LIMIT = 300  # 5 دقائق حد أقصى للمهمة
+    CELERY_TASK_SOFT_TIME_LIMIT = 240  # تحذير بعد 4 دقائق
+    CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # مهمة واحدة في المرة للذاكرة
+    CELERY_TASK_ALWAYS_EAGER = False
 else:
     # Fallback إذا لم يكن Redis متاحاً
-    CELERY_TASK_ALWAYS_EAGER      = True
-    CELERY_TASK_EAGER_PROPAGATES  = True
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 
 # ── Logging ───────────────────────────────────────────────────
 LOGGING = {
@@ -90,7 +91,7 @@ LOGGING = {
     },
     "handlers": {
         "file": {
-            "level": "WARNING",                        # ✅ رُفع من ERROR → WARNING
+            "level": "WARNING",  # ✅ رُفع من ERROR → WARNING
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs/django.log",
             "formatter": "verbose",
@@ -105,27 +106,36 @@ LOGGING = {
     },
     "root": {"handlers": ["file", "console"], "level": "WARNING"},
     "loggers": {
-        "django":          {"handlers": ["file"],          "level": "WARNING", "propagate": False},
+        "django": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "django.security": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
-        "django.request":  {"handlers": ["file"],          "level": "WARNING", "propagate": False},
-        "notifications":   {"handlers": ["file"],          "level": "WARNING", "propagate": False},
-        "celery":          {"handlers": ["console"],       "level": "INFO",    "propagate": False},
-        "core":            {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        "django.request": {"handlers": ["file"], "level": "WARNING", "propagate": False},
+        "notifications": {"handlers": ["file"], "level": "WARNING", "propagate": False},
+        "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "core": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
     },
 }
 
 # ── CSP في الإنتاج — Enforce (لا Report-Only) ─────────────────
 # Tailwind مصرَّف محلياً — لا حاجة لـ CDN للـ CSS
-CSP_SCRIPT_SRC       = ("'self'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
-CSP_STYLE_SRC        = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com",)
+CSP_SCRIPT_SRC = (
+    "'self'",
+    "https://cdn.jsdelivr.net",
+    "https://unpkg.com",
+)
+CSP_STYLE_SRC = (
+    "'self'",
+    "'unsafe-inline'",
+    "https://fonts.googleapis.com",
+)
 CSP_INCLUDE_NONCE_IN = ["script-src"]
-CSP_REPORT_ONLY      = False    # ← Enforce: أي script بلا nonce سيُحجب
+CSP_REPORT_ONLY = False  # ← Enforce: أي script بلا nonce سيُحجب
 
 # ── S3 Object Storage للملفات (media) ────────────────────────
 # فعّله بـ USE_S3=true في .env ومتغيرات AWS_* / نقطة نهاية S3 متوافقة
 if USE_S3:
     if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME]):
         import logging
+
         logging.getLogger(__name__).warning(
             "⚠️ USE_S3=true لكن AWS_* credentials ناقصة — سيُستخدم التخزين المحلي"
         )
@@ -136,12 +146,12 @@ if USE_S3:
             "default": {
                 "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
                 "OPTIONS": {
-                    "bucket_name":   AWS_STORAGE_BUCKET_NAME,
-                    "region_name":   AWS_S3_REGION_NAME,
-                    "endpoint_url":  AWS_S3_ENDPOINT_URL or None,
-                    "location":      "media",
+                    "bucket_name": AWS_STORAGE_BUCKET_NAME,
+                    "region_name": AWS_S3_REGION_NAME,
+                    "endpoint_url": AWS_S3_ENDPOINT_URL or None,
+                    "location": "media",
                     "file_overwrite": False,
-                    "default_acl":   "private",
+                    "default_acl": "private",
                     "querystring_auth": True,
                     "querystring_expire": AWS_QUERYSTRING_EXPIRE,
                     "object_parameters": {
@@ -161,7 +171,9 @@ if USE_S3:
         elif AWS_S3_ENDPOINT_URL:
             MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
         else:
-            MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
+            MEDIA_URL = (
+                f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
+            )
 
 # ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:

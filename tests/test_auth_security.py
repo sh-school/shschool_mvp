@@ -11,53 +11,70 @@ tests/test_auth_security.py
   - حماية CSRF
   - AuditLog لتسجيل الدخول والخروج
 """
-import pytest
-from datetime import timedelta
-from django.utils import timezone
-from django.test import override_settings
 
-from core.models import CustomUser, AuditLog
+from datetime import timedelta
+
+import pytest
+from django.utils import timezone
+
+from core.models import AuditLog
 from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
 )
 
 
 class TestLogin:
-
     def test_login_success(self, client, teacher_user):
-        resp = client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "testpass123",
-        })
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "testpass123",
+            },
+        )
         assert resp.status_code == 302
         assert "/dashboard/" in resp.url
 
     def test_login_wrong_password(self, client, teacher_user):
-        resp = client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "wrongpassword",
-        })
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "wrongpassword",
+            },
+        )
         assert resp.status_code == 200  # يبقى في صفحة الدخول
 
     def test_login_nonexistent_user(self, client, db):
-        resp = client.post("/auth/login/", {
-            "national_id": "99999999999",
-            "password": "anypassword",
-        })
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": "99999999999",
+                "password": "anypassword",
+            },
+        )
         assert resp.status_code == 200
 
     def test_login_same_error_message(self, client, teacher_user, db):
         """نفس رسالة الخطأ سواء وُجد المستخدم أم لا — حماية User Enumeration"""
         # مستخدم موجود + كلمة مرور خاطئة
-        resp1 = client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "wrong",
-        })
+        resp1 = client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "wrong",
+            },
+        )
         # مستخدم غير موجود
-        resp2 = client.post("/auth/login/", {
-            "national_id": "00000000000",
-            "password": "wrong",
-        })
+        resp2 = client.post(
+            "/auth/login/",
+            {
+                "national_id": "00000000000",
+                "password": "wrong",
+            },
+        )
         # كلا الردين يحتويان نفس الرسالة
         content1 = resp1.content.decode()
         content2 = resp2.content.decode()
@@ -66,10 +83,13 @@ class TestLogin:
         assert "غير موجود" not in content2
 
     def test_login_empty_fields(self, client, db):
-        resp = client.post("/auth/login/", {
-            "national_id": "",
-            "password": "",
-        })
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": "",
+                "password": "",
+            },
+        )
         assert resp.status_code == 200
 
     def test_login_already_authenticated_redirects(self, client_as, teacher_user):
@@ -80,13 +100,15 @@ class TestLogin:
 
 
 class TestAccountLocking:
-
     def test_account_locks_after_5_failures(self, client, teacher_user):
         for i in range(5):
-            client.post("/auth/login/", {
-                "national_id": teacher_user.national_id,
-                "password": "wrong",
-            })
+            client.post(
+                "/auth/login/",
+                {
+                    "national_id": teacher_user.national_id,
+                    "password": "wrong",
+                },
+            )
         teacher_user.refresh_from_db()
         assert teacher_user.locked_until is not None
         assert teacher_user.locked_until > timezone.now()
@@ -95,10 +117,13 @@ class TestAccountLocking:
         teacher_user.locked_until = timezone.now() + timedelta(minutes=15)
         teacher_user.save(update_fields=["locked_until"])
 
-        resp = client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "testpass123",
-        })
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "testpass123",
+            },
+        )
         # يبقى في صفحة الدخول
         assert resp.status_code == 200
         assert "مقفل" in resp.content.decode()
@@ -107,25 +132,31 @@ class TestAccountLocking:
         teacher_user.failed_login_attempts = 3
         teacher_user.save(update_fields=["failed_login_attempts"])
 
-        client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "testpass123",
-        })
+        client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "testpass123",
+            },
+        )
         teacher_user.refresh_from_db()
         assert teacher_user.failed_login_attempts == 0
         assert teacher_user.locked_until is None
 
 
 class TestPasswordChange:
-
     def test_force_change_password_redirect(self, client, teacher_user):
         teacher_user.must_change_password = True
         teacher_user.save(update_fields=["must_change_password"])
 
-        resp = client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "testpass123",
-        }, follow=False)
+        resp = client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "testpass123",
+            },
+            follow=False,
+        )
         assert resp.status_code == 302
         assert "change" in resp.url.lower() or "password" in resp.url.lower()
 
@@ -134,10 +165,14 @@ class TestPasswordChange:
         teacher_user.save(update_fields=["must_change_password"])
 
         c = client_as(teacher_user)
-        c.post("/auth/force_change_password/", {
-            "password1": "newSecure!pass99",
-            "password2": "newSecure!pass99",
-        }, follow=True)
+        c.post(
+            "/auth/force_change_password/",
+            {
+                "password1": "newSecure!pass99",
+                "password2": "newSecure!pass99",
+            },
+            follow=True,
+        )
         teacher_user.refresh_from_db()
         assert teacher_user.must_change_password is False
         assert teacher_user.last_password_change is not None
@@ -147,10 +182,13 @@ class TestPasswordChange:
         teacher_user.save(update_fields=["must_change_password"])
 
         c = client_as(teacher_user)
-        resp = c.post("/auth/force_change_password/", {
-            "password1": "password1",
-            "password2": "different2",
-        })
+        resp = c.post(
+            "/auth/force_change_password/",
+            {
+                "password1": "password1",
+                "password2": "different2",
+            },
+        )
         assert resp.status_code == 200
         teacher_user.refresh_from_db()
         assert teacher_user.must_change_password is True  # لم يتغير
@@ -160,17 +198,19 @@ class TestPasswordChange:
         teacher_user.save(update_fields=["must_change_password"])
 
         c = client_as(teacher_user)
-        resp = c.post("/auth/force_change_password/", {
-            "password1": "short",
-            "password2": "short",
-        })
+        resp = c.post(
+            "/auth/force_change_password/",
+            {
+                "password1": "short",
+                "password2": "short",
+            },
+        )
         assert resp.status_code == 200
         teacher_user.refresh_from_db()
         assert teacher_user.must_change_password is True
 
 
 class TestLogout:
-
     def test_logout_clears_session(self, client_as, teacher_user):
         c = client_as(teacher_user)
         resp = c.post("/auth/logout/")
@@ -189,13 +229,15 @@ class TestLogout:
 
 
 class TestAuditLog:
-
     def test_login_creates_audit_log(self, client, teacher_user, school):
         before = AuditLog.objects.filter(user=teacher_user, action="login").count()
-        client.post("/auth/login/", {
-            "national_id": teacher_user.national_id,
-            "password": "testpass123",
-        })
+        client.post(
+            "/auth/login/",
+            {
+                "national_id": teacher_user.national_id,
+                "password": "testpass123",
+            },
+        )
         assert AuditLog.objects.filter(user=teacher_user, action="login").count() > before
 
     def test_logout_creates_audit_log(self, client_as, teacher_user, school):
@@ -209,20 +251,27 @@ class TestRBACPermissions:
     """اختبار أن كل دور يصل فقط للمسارات المسموحة"""
 
     ROLE_PATHS = {
-        "teacher":        ["/assessments/", "/behavior/", "/reports/"],
-        "nurse":          ["/clinic/"],
+        "teacher": ["/assessments/", "/behavior/", "/reports/"],
+        "nurse": ["/clinic/"],
         "bus_supervisor": ["/transport/"],
-        "librarian":      ["/library/"],
-        "principal":      ["/assessments/", "/analytics/", "/clinic/",
-                          "/transport/", "/library/", "/behavior/",
-                          "/reports/", "/notifications/"],
+        "librarian": ["/library/"],
+        "principal": [
+            "/assessments/",
+            "/analytics/",
+            "/clinic/",
+            "/transport/",
+            "/library/",
+            "/behavior/",
+            "/reports/",
+            "/notifications/",
+        ],
     }
 
     ROLE_FORBIDDEN = {
-        "teacher":        ["/analytics/", "/clinic/", "/transport/"],
-        "nurse":          ["/assessments/", "/analytics/", "/transport/"],
+        "teacher": ["/analytics/", "/clinic/", "/transport/"],
+        "nurse": ["/assessments/", "/analytics/", "/transport/"],
         "bus_supervisor": ["/assessments/", "/analytics/", "/clinic/"],
-        "librarian":      ["/assessments/", "/analytics/", "/clinic/", "/transport/"],
+        "librarian": ["/assessments/", "/analytics/", "/clinic/", "/transport/"],
     }
 
     @pytest.mark.parametrize("role_name,paths", ROLE_FORBIDDEN.items())
@@ -236,8 +285,9 @@ class TestRBACPermissions:
         client.force_login(user)
         for path in paths:
             resp = client.get(path)
-            assert resp.status_code == 403, \
-                f"{role_name} should NOT access {path}, got {resp.status_code}"
+            assert (
+                resp.status_code == 403
+            ), f"{role_name} should NOT access {path}, got {resp.status_code}"
 
     def test_unauthenticated_redirects_to_login(self, client, db):
         resp = client.get("/dashboard/")

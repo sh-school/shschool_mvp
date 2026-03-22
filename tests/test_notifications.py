@@ -10,29 +10,35 @@ tests/test_notifications.py
   - تكامل operations → Hub (check_absence_threshold)
   - DEFAULT_CHANNELS / DEFAULT_PRIORITY
 """
-import pytest
+
 from datetime import time as dt_time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from notifications.models import InAppNotification, UserNotificationPreference
+import pytest
+
 from notifications.hub import (
-    NotificationHub, DEFAULT_CHANNELS, DEFAULT_PRIORITY,
-    _map_event_type, _resolve_channels,
+    DEFAULT_CHANNELS,
+    DEFAULT_PRIORITY,
+    NotificationHub,
+    _map_event_type,
+    _resolve_channels,
 )
-from .conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    BehaviorInfractionFactory,
-)
-from core.models import ParentStudentLink
+from notifications.models import InAppNotification, UserNotificationPreference
 
+from .conftest import (
+    BehaviorInfractionFactory,
+    MembershipFactory,
+    RoleFactory,
+    UserFactory,
+)
 
 # ══════════════════════════════════════════════════════════
 #  1. InAppNotification — النموذج والـ Manager
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestInAppNotification:
-
     def test_create_notification(self, school, student_user):
         notif = InAppNotification.objects.create(
             user=student_user,
@@ -48,8 +54,10 @@ class TestInAppNotification:
 
     def test_mark_read(self, school, student_user):
         notif = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار", event_type="general",
+            user=student_user,
+            school=school,
+            title="إشعار",
+            event_type="general",
         )
         notif.mark_read()
         notif.refresh_from_db()
@@ -59,8 +67,10 @@ class TestInAppNotification:
     def test_mark_read_idempotent(self, school, student_user):
         """استدعاء mark_read مرتين لا يسبب خطأ"""
         notif = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار", event_type="general",
+            user=student_user,
+            school=school,
+            title="إشعار",
+            event_type="general",
         )
         notif.mark_read()
         notif.mark_read()
@@ -68,35 +78,47 @@ class TestInAppNotification:
 
     def test_unread_count(self, school, student_user):
         InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار 1", event_type="general",
+            user=student_user,
+            school=school,
+            title="إشعار 1",
+            event_type="general",
         )
         InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار 2", event_type="absence",
+            user=student_user,
+            school=school,
+            title="إشعار 2",
+            event_type="absence",
         )
         assert InAppNotification.objects.unread_count(student_user) == 2
 
     def test_unread_count_after_read(self, school, student_user):
         n1 = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار 1", event_type="general",
+            user=student_user,
+            school=school,
+            title="إشعار 1",
+            event_type="general",
         )
         InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="إشعار 2", event_type="general",
+            user=student_user,
+            school=school,
+            title="إشعار 2",
+            event_type="general",
         )
         n1.mark_read()
         assert InAppNotification.objects.unread_count(student_user) == 1
 
     def test_unread_for_user_returns_unread_only(self, school, student_user):
         n1 = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="مقروء", event_type="general",
+            user=student_user,
+            school=school,
+            title="مقروء",
+            event_type="general",
         )
         n2 = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="غير مقروء", event_type="general",
+            user=student_user,
+            school=school,
+            title="غير مقروء",
+            event_type="general",
         )
         n1.mark_read()
         unread = list(InAppNotification.objects.unread_for_user(student_user))
@@ -106,16 +128,20 @@ class TestInAppNotification:
     def test_mark_all_read(self, school, student_user):
         for i in range(3):
             InAppNotification.objects.create(
-                user=student_user, school=school,
-                title=f"إشعار {i}", event_type="general",
+                user=student_user,
+                school=school,
+                title=f"إشعار {i}",
+                event_type="general",
             )
         InAppNotification.objects.mark_all_read(student_user)
         assert InAppNotification.objects.unread_count(student_user) == 0
 
     def test_str_representation(self, school, student_user):
         notif = InAppNotification.objects.create(
-            user=student_user, school=school,
-            title="اختبار", event_type="general",
+            user=student_user,
+            school=school,
+            title="اختبار",
+            event_type="general",
         )
         s = str(notif)
         assert "اختبار" in s
@@ -126,7 +152,10 @@ class TestInAppNotification:
         u1 = UserFactory()
         u2 = UserFactory()
         InAppNotification.objects.create(
-            user=u1, school=school, title="إشعار", event_type="general",
+            user=u1,
+            school=school,
+            title="إشعار",
+            event_type="general",
         )
         assert InAppNotification.objects.unread_count(u2) == 0
 
@@ -135,9 +164,9 @@ class TestInAppNotification:
 #  2. UserNotificationPreference
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestUserNotificationPreference:
-
     def _make_prefs(self, user, **kwargs):
         return UserNotificationPreference.objects.create(user=user, **kwargs)
 
@@ -157,10 +186,7 @@ class TestUserNotificationPreference:
     def test_custom_event_channels(self, db):
         """تفضيل مخصص لحدث محدد"""
         user = UserFactory()
-        prefs = self._make_prefs(
-            user,
-            event_channels={"behavior": ["in_app", "whatsapp"]}
-        )
+        prefs = self._make_prefs(user, event_channels={"behavior": ["in_app", "whatsapp"]})
         channels = prefs.get_channels_for_event("behavior")
         assert channels == ["in_app", "whatsapp"]
 
@@ -182,21 +208,23 @@ class TestUserNotificationPreference:
 
     def test_quiet_hours_within_range(self, db):
         from django.utils import timezone
+
         user = UserFactory()
         now_time = timezone.localtime().time()
         h = now_time.hour
         start = dt_time((h - 1) % 24, 0)
-        end   = dt_time((h + 1) % 24, 0)
+        end = dt_time((h + 1) % 24, 0)
         prefs = self._make_prefs(user, quiet_hours_start=start, quiet_hours_end=end)
         assert prefs.is_quiet_hours() is True
 
     def test_is_quiet_hours_returns_bool(self, db):
         from django.utils import timezone
+
         user = UserFactory()
         now_time = timezone.localtime().time()
         h = now_time.hour
         start = dt_time((h + 3) % 24, 0)
-        end   = dt_time((h + 4) % 24, 0)
+        end = dt_time((h + 4) % 24, 0)
         prefs = self._make_prefs(user, quiet_hours_start=start, quiet_hours_end=end)
         assert isinstance(prefs.is_quiet_hours(), bool)
 
@@ -205,9 +233,9 @@ class TestUserNotificationPreference:
 #  3. NotificationHub — dispatch / dispatch_to_parents
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestNotificationHub:
-
     @patch("notifications.hub._queue_external")
     def test_dispatch_creates_inapp(self, mock_queue, school, student_user):
         """dispatch يُنشئ InAppNotification فوراً (synchronous)"""
@@ -218,9 +246,7 @@ class TestNotificationHub:
             title="إشعار تجريبي",
             body="نص",
         )
-        assert InAppNotification.objects.filter(
-            user=student_user, title="إشعار تجريبي"
-        ).exists()
+        assert InAppNotification.objects.filter(user=student_user, title="إشعار تجريبي").exists()
         assert result["in_app"] == 1
 
     @patch("notifications.hub._queue_external")
@@ -304,9 +330,7 @@ class TestNotificationHub:
             title="تنبيه غياب",
             body="تجاوز الحد المسموح",
         )
-        assert InAppNotification.objects.filter(
-            user=parent_user, event_type="absence"
-        ).exists()
+        assert InAppNotification.objects.filter(user=parent_user, event_type="absence").exists()
         assert result["in_app"] == 1
 
     @patch("notifications.hub._queue_external")
@@ -353,9 +377,7 @@ class TestNotificationHub:
     def test_dispatch_user_prefs_disable_inapp(self, mock_queue, db, school):
         """إذا أوقف المستخدم in_app → لا يُنشأ InAppNotification"""
         user = UserFactory()
-        UserNotificationPreference.objects.create(
-            user=user, in_app_enabled=False
-        )
+        UserNotificationPreference.objects.create(user=user, in_app_enabled=False)
         result = NotificationHub.dispatch(
             event_type="general",
             school=school,
@@ -388,11 +410,11 @@ class TestNotificationHub:
 #  4. DEFAULT_CHANNELS / DEFAULT_PRIORITY (بدون DB)
 # ══════════════════════════════════════════════════════════
 
-class TestDefaultChannelsAndPriority:
 
+class TestDefaultChannelsAndPriority:
     def test_behavior_l1_channels(self):
         assert "in_app" in DEFAULT_CHANNELS["behavior_l1"]
-        assert "email"  in DEFAULT_CHANNELS["behavior_l1"]
+        assert "email" in DEFAULT_CHANNELS["behavior_l1"]
 
     def test_behavior_l4_all_channels(self):
         ch = DEFAULT_CHANNELS["behavior_l4"]
@@ -435,9 +457,7 @@ class TestDefaultChannelsAndPriority:
     @pytest.mark.django_db
     def test_resolve_channels_with_prefs(self):
         user = UserFactory()
-        prefs = UserNotificationPreference.objects.create(
-            user=user, email_enabled=False
-        )
+        prefs = UserNotificationPreference.objects.create(user=user, email_enabled=False)
         defaults = ["in_app", "email"]
         result = _resolve_channels(prefs, "general", defaults)
         assert "email" not in result
@@ -448,9 +468,9 @@ class TestDefaultChannelsAndPriority:
 #  5. تكامل Behavior → Hub
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestBehaviorHubIntegration:
-
     @patch("notifications.hub._queue_external")
     def test_notify_parents_creates_inapp(
         self, mock_queue, school, student_user, teacher_user, parent_user
@@ -459,8 +479,11 @@ class TestBehaviorHubIntegration:
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=2, points_deducted=15,
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=2,
+            points_deducted=15,
         )
         BehaviorService.notify_parents(inf, school, teacher_user)
 
@@ -477,14 +500,15 @@ class TestBehaviorHubIntegration:
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=4, points_deducted=40,
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=4,
+            points_deducted=40,
         )
         BehaviorService.notify_parents(inf, school, teacher_user)
 
-        notif = InAppNotification.objects.filter(
-            user=parent_user, event_type="behavior"
-        ).first()
+        notif = InAppNotification.objects.filter(user=parent_user, event_type="behavior").first()
         assert notif is not None
         assert notif.priority == "urgent"
 
@@ -496,14 +520,15 @@ class TestBehaviorHubIntegration:
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=1, points_deducted=5,
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=1,
+            points_deducted=5,
         )
         BehaviorService.notify_parents(inf, school, teacher_user)
 
-        notif = InAppNotification.objects.filter(
-            user=parent_user, event_type="behavior"
-        ).first()
+        notif = InAppNotification.objects.filter(user=parent_user, event_type="behavior").first()
         assert notif is not None
         assert notif.priority == "low"
 
@@ -515,8 +540,10 @@ class TestBehaviorHubIntegration:
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=1,
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=1,
         )
         BehaviorService.notify_parents(inf, school, teacher_user)
         # لا استثناء = نجاح، لا إشعار لأنه لا يوجد ولي أمر
@@ -530,8 +557,10 @@ class TestBehaviorHubIntegration:
         from behavior.services import BehaviorService
 
         inf = BehaviorInfractionFactory(
-            school=school, student=student_user,
-            reported_by=teacher_user, level=2,
+            school=school,
+            student=student_user,
+            reported_by=teacher_user,
+            level=2,
         )
         BehaviorService.notify_parents(inf, school, teacher_user)
 
@@ -543,9 +572,9 @@ class TestBehaviorHubIntegration:
 #  6. تكامل Operations (غياب) → Hub
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestAbsenceHubIntegration:
-
     @patch("notifications.hub._queue_external")
     def test_absence_alert_creates_inapp_for_parent(
         self, mock_queue, school, student_user, parent_user
@@ -570,9 +599,7 @@ class TestAbsenceHubIntegration:
         ).exists()
 
     @patch("notifications.hub._queue_external")
-    def test_absence_alert_sent_once_only(
-        self, mock_queue, school, student_user, parent_user
-    ):
+    def test_absence_alert_sent_once_only(self, mock_queue, school, student_user, parent_user):
         """AbsenceAlert موجود مسبقاً → لا إشعار ثانٍ"""
         from operations.services import AttendanceService
 
@@ -585,15 +612,11 @@ class TestAbsenceHubIntegration:
             AttendanceService.check_absence_threshold(student_user, school)
             AttendanceService.check_absence_threshold(student_user, school)
 
-        count = InAppNotification.objects.filter(
-            user=parent_user, event_type="absence"
-        ).count()
+        count = InAppNotification.objects.filter(user=parent_user, event_type="absence").count()
         assert count == 1, "إشعار الغياب يجب أن يُرسَل مرة واحدة فقط"
 
     @patch("notifications.hub._queue_external")
-    def test_absence_alert_no_parent_no_error(
-        self, mock_queue, school, student_user
-    ):
+    def test_absence_alert_no_parent_no_error(self, mock_queue, school, student_user):
         """طالب بدون ولي أمر → لا خطأ عند تجاوز عتبة الغياب"""
         from operations.services import AttendanceService
 

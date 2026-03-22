@@ -7,16 +7,13 @@ tests/test_analytics_reports.py
   - Reports: PDF/Excel generation لا يرمي أخطاء
   - التحقق من الصلاحيات — فقط الإدارة
 """
-import pytest
-import json
-from datetime import date
 
-from operations.models import Subject, Session, StudentAttendance
-from assessments.models import SubjectClassSetup, AssessmentPackage
-from tests.conftest import (
-    SchoolFactory, UserFactory, RoleFactory, MembershipFactory,
-    ClassGroupFactory, StudentEnrollmentFactory,
-)
+import json
+
+import pytest
+
+from assessments.models import SubjectClassSetup
+from operations.models import Subject
 
 
 @pytest.fixture
@@ -27,8 +24,11 @@ def subject(db, school):
 @pytest.fixture
 def setup_with_data(db, school, subject, class_group, teacher_user):
     return SubjectClassSetup.objects.create(
-        school=school, subject=subject, class_group=class_group,
-        teacher=teacher_user, academic_year="2025-2026",
+        school=school,
+        subject=subject,
+        class_group=class_group,
+        teacher=teacher_user,
+        academic_year="2025-2026",
     )
 
 
@@ -36,8 +36,8 @@ def setup_with_data(db, school, subject, class_group, teacher_user):
 #  Analytics Views
 # ══════════════════════════════════════════════════
 
-class TestAnalyticsViews:
 
+class TestAnalyticsViews:
     def test_dashboard_as_principal(self, client_as, principal_user):
         c = client_as(principal_user)
         resp = c.get("/analytics/")
@@ -113,8 +113,8 @@ class TestAnalyticsViews:
 #  Reports Views
 # ══════════════════════════════════════════════════
 
-class TestReportsViews:
 
+class TestReportsViews:
     def test_reports_index(self, client_as, principal_user):
         c = client_as(principal_user)
         resp = c.get("/reports/")

@@ -7,10 +7,12 @@ GET /health/ — فحص صحة المنصة
   - GitHub Actions (smoke test بعد النشر)
   - أدوات المراقبة الخارجية
 """
-import time
+
 import logging
-from django.http import JsonResponse
+import time
+
 from django.db import connection
+from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -36,6 +38,7 @@ def health_check(request):
     # ── فحص Redis / Cache ───────────────────────────────────────
     try:
         from django.core.cache import cache
+
         cache.set("_health", "1", timeout=5)
         checks["cache"] = "ok" if cache.get("_health") == "1" else "error: read failed"
     except Exception as e:
@@ -49,9 +52,12 @@ def health_check(request):
     if not all_ok:
         logger.warning("health_check degraded: %s", checks)
 
-    return JsonResponse({
-        "status":   "ok" if all_ok else "degraded",
-        "version":  "v1.0",
-        "checks":   checks,
-        "latency_ms": round((time.monotonic() - start) * 1000, 1),
-    }, status=status_code)
+    return JsonResponse(
+        {
+            "status": "ok" if all_ok else "degraded",
+            "version": "v1.0",
+            "checks": checks,
+            "latency_ms": round((time.monotonic() - start) * 1000, 1),
+        },
+        status=status_code,
+    )

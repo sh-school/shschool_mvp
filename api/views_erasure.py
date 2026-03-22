@@ -8,21 +8,21 @@ Endpoints:
   POST   /api/v1/erasure/requests/<id>/approve/ الموافقة والتنفيذ
   POST   /api/v1/erasure/requests/<id>/reject/  الرفض
 """
+
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-
 from api.permissions import IsSchoolAdmin
 from core.erasure_service import ErasureService
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
 
-
 # ── Serializers ───────────────────────────────────────────────
+
 
 class ErasureRequestCreateSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
@@ -36,9 +36,17 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ErasureRequest
         fields = [
-            'id', 'status', 'reason', 'review_note',
-            'student_name', 'requested_by_name', 'anonymized_id',
-            'created_at', 'reviewed_at', 'completed_at', 'summary',
+            "id",
+            "status",
+            "reason",
+            "review_note",
+            "student_name",
+            "requested_by_name",
+            "anonymized_id",
+            "created_at",
+            "reviewed_at",
+            "completed_at",
+            "summary",
         ]
 
     def get_student_name(self, obj):
@@ -49,6 +57,7 @@ class ErasureRequestSerializer(serializers.ModelSerializer):
 
 
 # ── Views ─────────────────────────────────────────────────────
+
 
 @extend_schema(summary="تقديم طلب محو بيانات طالب", tags=["PDPPL"])
 @api_view(["POST"])
@@ -61,15 +70,13 @@ def create_erasure_request(request):
     ser = ErasureRequestCreateSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
 
-    student = get_object_or_404(CustomUser, id=ser.validated_data['student_id'])
+    student = get_object_or_404(CustomUser, id=ser.validated_data["student_id"])
     school = request.user.get_school()
     is_admin = request.user.is_admin() or request.user.is_superuser
 
     # Authorization: parent can only request for their own children
     if not is_admin:
-        is_parent = ParentStudentLink.objects.filter(
-            parent=request.user, student=student
-        ).exists()
+        is_parent = ParentStudentLink.objects.filter(parent=request.user, student=student).exists()
         if not is_parent:
             return Response(
                 {"detail": "يمكنك فقط طلب محو بيانات أبنائك."},
@@ -78,7 +85,7 @@ def create_erasure_request(request):
 
     # Check for existing pending request
     existing = ErasureRequest.objects.filter(
-        student=student, status__in=['pending', 'approved', 'processing']
+        student=student, status__in=["pending", "approved", "processing"]
     ).first()
     if existing:
         return Response(
@@ -90,7 +97,7 @@ def create_erasure_request(request):
         school=school,
         student=student,
         requested_by=request.user,
-        reason=ser.validated_data['reason'],
+        reason=ser.validated_data["reason"],
     )
 
     return Response(
@@ -131,29 +138,31 @@ def approve_erasure(request, request_id):
     """المدير يوافق على الطلب ويُنفَّذ فوراً."""
     obj = get_object_or_404(ErasureRequest, id=request_id)
 
-    if obj.status != 'pending':
+    if obj.status != "pending":
         return Response(
             {"detail": f"لا يمكن الموافقة — الحالة الحالية: {obj.get_status_display()}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    obj.status = 'approved'
+    obj.status = "approved"
     obj.reviewed_by = request.user
     obj.reviewed_at = timezone.now()
-    obj.review_note = request.data.get('note', '')
+    obj.review_note = request.data.get("note", "")
     obj.save()
 
     # Execute immediately
-    obj.status = 'processing'
+    obj.status = "processing"
     obj.save()
 
     summary = ErasureService.execute(obj)
 
-    return Response({
-        "detail": "تم تنفيذ المحو بنجاح.",
-        "anonymized_id": obj.anonymized_id,
-        "summary": summary,
-    })
+    return Response(
+        {
+            "detail": "تم تنفيذ المحو بنجاح.",
+            "anonymized_id": obj.anonymized_id,
+            "summary": summary,
+        }
+    )
 
 
 @extend_schema(summary="رفض طلب محو", tags=["PDPPL"])
@@ -163,20 +172,20 @@ def reject_erasure(request, request_id):
     """المدير يرفض الطلب مع ذكر السبب."""
     obj = get_object_or_404(ErasureRequest, id=request_id)
 
-    if obj.status != 'pending':
+    if obj.status != "pending":
         return Response(
             {"detail": f"لا يمكن الرفض — الحالة الحالية: {obj.get_status_display()}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    note = request.data.get('note', '').strip()
+    note = request.data.get("note", "").strip()
     if not note:
         return Response(
             {"detail": "سبب الرفض مطلوب."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    obj.status = 'rejected'
+    obj.status = "rejected"
     obj.reviewed_by = request.user
     obj.reviewed_at = timezone.now()
     obj.review_note = note

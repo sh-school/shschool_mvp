@@ -2,9 +2,10 @@
 behavior/querysets.py — Custom QuerySets للسلوك الطلابي
 =========================================================
 """
+
 from __future__ import annotations
 
-from django.db.models import Count, Q, QuerySet, Sum
+from django.db.models import Count, QuerySet, Sum
 from django.utils import timezone
 
 
@@ -13,29 +14,29 @@ class InfractionQuerySet(QuerySet):
 
     # ── الفلترة حسب الخطورة ────────────────────────────────────────────────
 
-    def level(self, lvl: int) -> "InfractionQuerySet":
+    def level(self, lvl: int) -> InfractionQuerySet:
         return self.filter(level=lvl)
 
-    def serious(self) -> "InfractionQuerySet":
+    def serious(self) -> InfractionQuerySet:
         """مخالفات الدرجة 3 و 4 — خطيرة."""
         return self.filter(level__gte=3)
 
-    def minor(self) -> "InfractionQuerySet":
+    def minor(self) -> InfractionQuerySet:
         """مخالفات الدرجة 1 و 2."""
         return self.filter(level__lte=2)
 
     # ── الفلترة الزمنية ────────────────────────────────────────────────────
 
-    def this_week(self) -> "InfractionQuerySet":
+    def this_week(self) -> InfractionQuerySet:
         today = timezone.now().date()
         start = today - timezone.timedelta(days=today.weekday())
         return self.filter(date__gte=start)
 
-    def this_month(self) -> "InfractionQuerySet":
+    def this_month(self) -> InfractionQuerySet:
         today = timezone.now().date()
         return self.filter(date__year=today.year, date__month=today.month)
 
-    def this_term(self, term_start=None) -> "InfractionQuerySet":
+    def this_term(self, term_start=None) -> InfractionQuerySet:
         if not term_start:
             today = timezone.now().date()
             # الفصل الأول: سبتمبر — يناير | الفصل الثاني: فبراير — يونيو
@@ -45,20 +46,20 @@ class InfractionQuerySet(QuerySet):
                 term_start = today.replace(month=2, day=1)
         return self.filter(date__gte=term_start)
 
-    def date_range(self, start, end) -> "InfractionQuerySet":
+    def date_range(self, start, end) -> InfractionQuerySet:
         return self.filter(date__gte=start, date__lte=end)
 
     # ── الفلترة حسب الطالب / الفصل ────────────────────────────────────────
 
-    def for_student(self, student) -> "InfractionQuerySet":
+    def for_student(self, student) -> InfractionQuerySet:
         return self.filter(student=student)
 
-    def for_class(self, class_group) -> "InfractionQuerySet":
+    def for_class(self, class_group) -> InfractionQuerySet:
         return self.filter(student__studentenrollment__class_group=class_group).distinct()
 
     # ── الطلاب في خطر الفصل ────────────────────────────────────────────────
 
-    def at_risk(self, threshold: int = 80) -> "InfractionQuerySet":
+    def at_risk(self, threshold: int = 80) -> InfractionQuerySet:
         """
         الطلاب الذين تجاوزوا حد النقاط المخصومة — خطر الفصل.
         يُرجع queryset مُجمَّع على مستوى الطالب.
@@ -72,13 +73,13 @@ class InfractionQuerySet(QuerySet):
 
     # ── تحسين الـ queries ─────────────────────────────────────────────────
 
-    def with_student(self) -> "InfractionQuerySet":
+    def with_student(self) -> InfractionQuerySet:
         return self.select_related("student", "reported_by", "violation_category")
 
-    def with_recovery(self) -> "InfractionQuerySet":
+    def with_recovery(self) -> InfractionQuerySet:
         return self.prefetch_related("recovery")
 
-    def unresolved(self) -> "InfractionQuerySet":
+    def unresolved(self) -> InfractionQuerySet:
         """مخالفات لم تُغلق بعد (لا استرداد نقاط)."""
         return self.filter(recovery__isnull=True)
 
@@ -98,15 +99,15 @@ class InfractionQuerySet(QuerySet):
 class RecoveryQuerySet(QuerySet):
     """QuerySet لـ BehaviorPointRecovery."""
 
-    def approved(self) -> "RecoveryQuerySet":
+    def approved(self) -> RecoveryQuerySet:
         return self.filter(approved=True)
 
-    def pending(self) -> "RecoveryQuerySet":
+    def pending(self) -> RecoveryQuerySet:
         return self.filter(approved=False)
 
-    def for_student(self, student) -> "RecoveryQuerySet":
+    def for_student(self, student) -> RecoveryQuerySet:
         return self.filter(infraction__student=student)
 
-    def this_month(self) -> "RecoveryQuerySet":
+    def this_month(self) -> RecoveryQuerySet:
         today = timezone.now().date()
         return self.filter(date__year=today.year, date__month=today.month)

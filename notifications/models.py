@@ -2,10 +2,13 @@
 notifications/models.py
 نظام الإشعارات — بريد إلكتروني + SMS
 """
+
 import uuid
+
 from django.db import models
 from django.utils import timezone
-from core.models import School, CustomUser
+
+from core.models import CustomUser, School
 
 
 def _uuid():
@@ -14,42 +17,54 @@ def _uuid():
 
 class NotificationLog(models.Model):
     """سجل كل إشعار أُرسل"""
+
     CHANNEL = [
         ("email", "بريد إلكتروني"),
-        ("sms",   "SMS"),
+        ("sms", "SMS"),
     ]
     TYPE = [
-        ("absence_alert",  "تنبيه غياب"),
-        ("fail_alert",     "تنبيه رسوب"),
-        ("grade_report",   "تقرير درجات"),
-        ("custom",         "رسالة مخصصة"),
+        ("absence_alert", "تنبيه غياب"),
+        ("fail_alert", "تنبيه رسوب"),
+        ("grade_report", "تقرير درجات"),
+        ("custom", "رسالة مخصصة"),
     ]
     STATUS = [
-        ("sent",    "أُرسل"),
-        ("failed",  "فشل"),
+        ("sent", "أُرسل"),
+        ("failed", "فشل"),
         ("pending", "معلّق"),
     ]
 
-    id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school       = models.ForeignKey(School,     on_delete=models.CASCADE, related_name="notification_logs")
-    student      = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name="notification_logs", verbose_name="الطالب")
-    recipient    = models.CharField(max_length=200, verbose_name="المستلم (email/رقم)")
-    channel      = models.CharField(max_length=10, choices=CHANNEL, default="email")
-    notif_type   = models.CharField(max_length=20, choices=TYPE, default="custom")
-    subject      = models.CharField(max_length=300, blank=True, verbose_name="الموضوع")
-    body         = models.TextField(verbose_name="نص الرسالة")
-    status       = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
-    error_msg    = models.TextField(blank=True)
-    sent_at      = models.DateTimeField(auto_now_add=True, db_index=True)
-    sent_by      = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-                                     related_name="sent_notifications")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="notification_logs")
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notification_logs",
+        verbose_name="الطالب",
+    )
+    recipient = models.CharField(max_length=200, verbose_name="المستلم (email/رقم)")
+    channel = models.CharField(max_length=10, choices=CHANNEL, default="email")
+    notif_type = models.CharField(max_length=20, choices=TYPE, default="custom")
+    subject = models.CharField(max_length=300, blank=True, verbose_name="الموضوع")
+    body = models.TextField(verbose_name="نص الرسالة")
+    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
+    error_msg = models.TextField(blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    sent_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sent_notifications",
+    )
 
     class Meta:
-        verbose_name        = "إشعار مُرسل"
+        verbose_name = "إشعار مُرسل"
         verbose_name_plural = "سجل الإشعارات"
-        ordering            = ["-sent_at"]
-        indexes             = [models.Index(fields=["school", "notif_type", "status"])]
+        ordering = ["-sent_at"]
+        indexes = [models.Index(fields=["school", "notif_type", "status"])]
 
     def __str__(self):
         return f"{self.get_notif_type_display()} → {self.recipient} ({self.get_status_display()})"
@@ -57,34 +72,38 @@ class NotificationLog(models.Model):
 
 class NotificationSettings(models.Model):
     """إعدادات الإشعارات لكل مدرسة"""
+
     school = models.OneToOneField(School, on_delete=models.CASCADE, related_name="notif_settings")
 
     # البريد الإلكتروني
-    email_enabled           = models.BooleanField(default=True)
-    absence_threshold       = models.IntegerField(default=3, verbose_name="حد الغياب (حصص)")
-    absence_email_enabled   = models.BooleanField(default=True)
-    fail_email_enabled      = models.BooleanField(default=True)
-    from_name               = models.CharField(max_length=100, default="إدارة المدرسة")
-    reply_to                = models.EmailField(blank=True)
+    email_enabled = models.BooleanField(default=True)
+    absence_threshold = models.IntegerField(default=3, verbose_name="حد الغياب (حصص)")
+    absence_email_enabled = models.BooleanField(default=True)
+    fail_email_enabled = models.BooleanField(default=True)
+    from_name = models.CharField(max_length=100, default="إدارة المدرسة")
+    reply_to = models.EmailField(blank=True)
 
     # SMS (Twilio أو أي مزود)
-    sms_enabled             = models.BooleanField(default=False)
-    sms_provider            = models.CharField(max_length=20, default="twilio",
-                                               choices=[("twilio","Twilio"),("local","محلي")])
-    sms_from_number         = models.CharField(max_length=20, blank=True)
-    twilio_account_sid      = models.CharField(max_length=100, blank=True)
-    twilio_auth_token       = models.CharField(max_length=100, blank=True)
+    sms_enabled = models.BooleanField(default=False)
+    sms_provider = models.CharField(
+        max_length=20, default="twilio", choices=[("twilio", "Twilio"), ("local", "محلي")]
+    )
+    sms_from_number = models.CharField(max_length=20, blank=True)
+    twilio_account_sid = models.CharField(max_length=100, blank=True)
+    twilio_auth_token = models.CharField(max_length=100, blank=True)
 
     # نصوص الرسائل (قابلة للتخصيص)
-    absence_email_subject   = models.CharField(max_length=200,
-        default="تنبيه: غياب متكرر للطالب {student_name}")
-    fail_email_subject      = models.CharField(max_length=200,
-        default="إشعار: نتيجة الطالب {student_name}")
+    absence_email_subject = models.CharField(
+        max_length=200, default="تنبيه: غياب متكرر للطالب {student_name}"
+    )
+    fail_email_subject = models.CharField(
+        max_length=200, default="إشعار: نتيجة الطالب {student_name}"
+    )
 
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name        = "إعدادات الإشعارات"
+        verbose_name = "إعدادات الإشعارات"
         verbose_name_plural = "إعدادات الإشعارات"
 
     def __str__(self):
@@ -95,30 +114,32 @@ class NotificationSettings(models.Model):
 # ✅ PushSubscription — v5 (VAPID Push Notifications)
 # ════════════════════════════════════════════════════════════════════
 
+
 class PushSubscription(models.Model):
     """
     اشتراك Push للمتصفح — يُخزَّن عند تسجيل ولي الأمر
     endpoint + keys تأتي من browser.pushManager.subscribe()
     """
-    id           = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    user         = models.ForeignKey(CustomUser, on_delete=models.CASCADE,
-                                     related_name='push_subscriptions')
-    school       = models.ForeignKey(School, on_delete=models.CASCADE,
-                                     related_name='push_subscriptions')
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="push_subscriptions")
     # بيانات الاشتراك من المتصفح
-    endpoint     = models.TextField(unique=True, verbose_name='Push Endpoint')
-    p256dh       = models.TextField(verbose_name='p256dh key')
-    auth         = models.TextField(verbose_name='auth secret')
+    endpoint = models.TextField(unique=True, verbose_name="Push Endpoint")
+    p256dh = models.TextField(verbose_name="p256dh key")
+    auth = models.TextField(verbose_name="auth secret")
     # معلومات الجهاز
-    user_agent   = models.CharField(max_length=300, blank=True)
-    created_at   = models.DateTimeField(auto_now_add=True)
-    last_used    = models.DateTimeField(null=True, blank=True)
-    is_active    = models.BooleanField(default=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name        = 'اشتراك Push'
-        verbose_name_plural = 'اشتراكات Push'
-        ordering            = ['-created_at']
+        verbose_name = "اشتراك Push"
+        verbose_name_plural = "اشتراكات Push"
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.user.full_name} — {self.endpoint[:60]}..."
@@ -126,11 +147,11 @@ class PushSubscription(models.Model):
     def to_dict(self):
         """تنسيق pywebpush"""
         return {
-            'endpoint': self.endpoint,
-            'keys': {
-                'p256dh': self.p256dh,
-                'auth':   self.auth,
-            }
+            "endpoint": self.endpoint,
+            "keys": {
+                "p256dh": self.p256dh,
+                "auth": self.auth,
+            },
         }
 
 
@@ -138,22 +159,21 @@ class PushSubscription(models.Model):
 # ✅ v6: إشعارات المنصة الداخلية (In-App Notifications)
 # ════════════════════════════════════════════════════════════════════
 
+
 class InAppNotificationManager(models.Manager):
     """Manager لاستعلامات الإشعارات الداخلية"""
 
     def unread_for_user(self, user):
-        return self.filter(user=user, is_read=False).order_by('-created_at')
+        return self.filter(user=user, is_read=False).order_by("-created_at")
 
     def unread_count(self, user):
         return self.filter(user=user, is_read=False).count()
 
     def mark_all_read(self, user):
-        return self.filter(user=user, is_read=False).update(
-            is_read=True, read_at=timezone.now()
-        )
+        return self.filter(user=user, is_read=False).update(is_read=True, read_at=timezone.now())
 
     def for_user(self, user, limit=50):
-        return self.filter(user=user).order_by('-created_at')[:limit]
+        return self.filter(user=user).order_by("-created_at")[:limit]
 
 
 class InAppNotification(models.Model):
@@ -161,56 +181,60 @@ class InAppNotification(models.Model):
     إشعار داخل المنصة — يظهر في الجرس (Navbar)
     مجاني، فوري، لا يحتاج إعدادات من المستخدم
     """
+
     EVENT_TYPES = [
-        ("behavior",       "مخالفة سلوكية"),
-        ("absence",        "غياب متكرر"),
-        ("grade",          "درجات جديدة"),
-        ("fail",           "نتيجة رسوب"),
-        ("clinic",         "زيارة عيادة"),
-        ("sent_home",      "إرسال للمنزل"),
-        ("meeting",        "اجتماع أولياء أمور"),
-        ("plan_update",    "تحديث الخطة التشغيلية"),
-        ("plan_deadline",  "اقتراب موعد نهائي"),
-        ("plan_overdue",   "تأخر إجراء"),
-        ("review_cycle",   "دورة مراجعة ذاتية"),
-        ("general",        "إشعار عام"),
+        ("behavior", "مخالفة سلوكية"),
+        ("absence", "غياب متكرر"),
+        ("grade", "درجات جديدة"),
+        ("fail", "نتيجة رسوب"),
+        ("clinic", "زيارة عيادة"),
+        ("sent_home", "إرسال للمنزل"),
+        ("meeting", "اجتماع أولياء أمور"),
+        ("plan_update", "تحديث الخطة التشغيلية"),
+        ("plan_deadline", "اقتراب موعد نهائي"),
+        ("plan_overdue", "تأخر إجراء"),
+        ("review_cycle", "دورة مراجعة ذاتية"),
+        ("general", "إشعار عام"),
     ]
     PRIORITY = [
-        ("low",    "منخفض"),
+        ("low", "منخفض"),
         ("medium", "متوسط"),
-        ("high",   "عالي"),
+        ("high", "عالي"),
         ("urgent", "عاجل"),
     ]
 
-    id                = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    user              = models.ForeignKey(CustomUser, on_delete=models.CASCADE,
-                                          related_name='in_app_notifications')
-    school            = models.ForeignKey(School, on_delete=models.CASCADE,
-                                          related_name='in_app_notifications')
-    title             = models.CharField(max_length=300, verbose_name="العنوان")
-    body              = models.TextField(verbose_name="النص", blank=True)
-    event_type        = models.CharField(max_length=20, choices=EVENT_TYPES, default="general",
-                                          db_index=True)
-    priority          = models.CharField(max_length=10, choices=PRIORITY, default="medium")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="in_app_notifications"
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="in_app_notifications"
+    )
+    title = models.CharField(max_length=300, verbose_name="العنوان")
+    body = models.TextField(verbose_name="النص", blank=True)
+    event_type = models.CharField(
+        max_length=20, choices=EVENT_TYPES, default="general", db_index=True
+    )
+    priority = models.CharField(max_length=10, choices=PRIORITY, default="medium")
     # ربط بالكائن المصدر (اختياري)
-    related_object_id = models.CharField(max_length=100, blank=True,
-                                          verbose_name="معرّف الكائن المرتبط")
-    related_url       = models.CharField(max_length=500, blank=True,
-                                          verbose_name="رابط مباشر")
+    related_object_id = models.CharField(
+        max_length=100, blank=True, verbose_name="معرّف الكائن المرتبط"
+    )
+    related_url = models.CharField(max_length=500, blank=True, verbose_name="رابط مباشر")
     # حالة القراءة
-    is_read           = models.BooleanField(default=False, db_index=True)
-    read_at           = models.DateTimeField(null=True, blank=True)
-    created_at        = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = InAppNotificationManager()
 
     class Meta:
-        verbose_name        = "إشعار داخلي"
+        verbose_name = "إشعار داخلي"
         verbose_name_plural = "الإشعارات الداخلية"
-        ordering            = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['user', 'is_read', '-created_at']),
-            models.Index(fields=['school', 'event_type']),
+            models.Index(fields=["user", "is_read", "-created_at"]),
+            models.Index(fields=["school", "event_type"]),
         ]
 
     def __str__(self):
@@ -221,42 +245,42 @@ class InAppNotification(models.Model):
         if not self.is_read:
             self.is_read = True
             self.read_at = timezone.now()
-            self.save(update_fields=['is_read', 'read_at'])
+            self.save(update_fields=["is_read", "read_at"])
 
 
 # ════════════════════════════════════════════════════════════════════
 # ✅ v6: تفضيلات الإشعارات لكل مستخدم
 # ════════════════════════════════════════════════════════════════════
 
+
 class UserNotificationPreference(models.Model):
     """
     تفضيلات قنوات الإشعارات — يتحكم المستخدم بأي قناة يريد
     """
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE,
-                                 related_name='notification_preferences')
+
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="notification_preferences"
+    )
 
     # تفعيل القنوات
-    in_app_enabled    = models.BooleanField(default=True,  verbose_name="إشعارات المنصة")
-    push_enabled      = models.BooleanField(default=True,  verbose_name="Push Notifications")
-    whatsapp_enabled  = models.BooleanField(default=False, verbose_name="WhatsApp")
-    email_enabled     = models.BooleanField(default=True,  verbose_name="البريد الإلكتروني")
-    sms_enabled       = models.BooleanField(default=False, verbose_name="SMS")
+    in_app_enabled = models.BooleanField(default=True, verbose_name="إشعارات المنصة")
+    push_enabled = models.BooleanField(default=True, verbose_name="Push Notifications")
+    whatsapp_enabled = models.BooleanField(default=False, verbose_name="WhatsApp")
+    email_enabled = models.BooleanField(default=True, verbose_name="البريد الإلكتروني")
+    sms_enabled = models.BooleanField(default=False, verbose_name="SMS")
 
     # تفضيلات حسب نوع الحدث (JSON: {"behavior": ["in_app","email"], "absence": ["in_app","whatsapp","email"]})
     # فارغ = استخدام الإعدادات الافتراضية
-    event_channels    = models.JSONField(default=dict, blank=True,
-                                          verbose_name="قنوات حسب نوع الحدث")
+    event_channels = models.JSONField(default=dict, blank=True, verbose_name="قنوات حسب نوع الحدث")
 
     # ساعات الهدوء — لا ترسل إشعارات خارجية في هذه الفترة
-    quiet_hours_start = models.TimeField(null=True, blank=True,
-                                          verbose_name="بداية ساعات الهدوء")
-    quiet_hours_end   = models.TimeField(null=True, blank=True,
-                                          verbose_name="نهاية ساعات الهدوء")
+    quiet_hours_start = models.TimeField(null=True, blank=True, verbose_name="بداية ساعات الهدوء")
+    quiet_hours_end = models.TimeField(null=True, blank=True, verbose_name="نهاية ساعات الهدوء")
 
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name        = "تفضيلات إشعارات"
+        verbose_name = "تفضيلات إشعارات"
         verbose_name_plural = "تفضيلات الإشعارات"
 
     def __str__(self):
@@ -274,15 +298,15 @@ class UserNotificationPreference(models.Model):
         # الإعدادات العامة
         channels = []
         if self.in_app_enabled:
-            channels.append('in_app')
+            channels.append("in_app")
         if self.push_enabled:
-            channels.append('push')
+            channels.append("push")
         if self.whatsapp_enabled:
-            channels.append('whatsapp')
+            channels.append("whatsapp")
         if self.email_enabled:
-            channels.append('email')
+            channels.append("email")
         if self.sms_enabled:
-            channels.append('sms')
+            channels.append("sms")
         return channels
 
     def is_quiet_hours(self):
@@ -290,6 +314,7 @@ class UserNotificationPreference(models.Model):
         if not self.quiet_hours_start or not self.quiet_hours_end:
             return False
         from django.utils import timezone as tz
+
         now = tz.localtime().time()
         if self.quiet_hours_start <= self.quiet_hours_end:
             return self.quiet_hours_start <= now <= self.quiet_hours_end

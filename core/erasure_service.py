@@ -5,13 +5,19 @@ Anonymizes student PII across all models while preserving:
 - AuditLog entries (immutable per م.19, user FK set to NULL)
 - Statistical aggregates (counts stay, identifiers removed)
 """
+
 import logging
+
 from django.db import transaction
 from django.utils import timezone
 
 from core.models import (
-    AuditLog, ConsentRecord, ErasureRequest,
-    ParentStudentLink, StudentEnrollment, Profile,
+    AuditLog,
+    ConsentRecord,
+    ErasureRequest,
+    ParentStudentLink,
+    Profile,
+    StudentEnrollment,
 )
 
 logger = logging.getLogger("core")
@@ -26,23 +32,25 @@ def _lazy_student_fk_models():
     if _STUDENT_FK_MODELS:
         return _STUDENT_FK_MODELS
 
-    from clinic.models import HealthRecord, ClinicVisit
-    from assessments.models import StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult
+    from assessments.models import AnnualSubjectResult, StudentAssessmentGrade, StudentSubjectResult
     from behavior.models import BehaviorInfraction
-    from operations.models import StudentAttendance, AbsenceAlert
+    from clinic.models import ClinicVisit, HealthRecord
     from library.models import BookBorrowing
+    from operations.models import AbsenceAlert, StudentAttendance
 
-    _STUDENT_FK_MODELS.extend([
-        (HealthRecord, 'student', True),          # OneToOne
-        (ClinicVisit, 'student', False),
-        (StudentAssessmentGrade, 'student', False),
-        (StudentSubjectResult, 'student', False),
-        (AnnualSubjectResult, 'student', False),
-        (BehaviorInfraction, 'student', False),
-        (StudentAttendance, 'student', False),
-        (AbsenceAlert, 'student', False),
-        (BookBorrowing, 'user', False),
-    ])
+    _STUDENT_FK_MODELS.extend(
+        [
+            (HealthRecord, "student", True),  # OneToOne
+            (ClinicVisit, "student", False),
+            (StudentAssessmentGrade, "student", False),
+            (StudentSubjectResult, "student", False),
+            (AnnualSubjectResult, "student", False),
+            (BehaviorInfraction, "student", False),
+            (StudentAttendance, "student", False),
+            (AbsenceAlert, "student", False),
+            (BookBorrowing, "user", False),
+        ]
+    )
     return _STUDENT_FK_MODELS
 
 
@@ -72,6 +80,7 @@ class ErasureService:
         # 2. Remove M2M links
         from library.models import LibraryActivity
         from transport.models import BusRoute
+
         activity_count = LibraryActivity.objects.filter(participants=student).count()
         if activity_count:
             for activity in LibraryActivity.objects.filter(participants=student):
@@ -107,7 +116,7 @@ class ErasureService:
             summary["models"]["StudentEnrollment"] = enroll_count
 
         # 7. Delete profile
-        if hasattr(student, 'profile'):
+        if hasattr(student, "profile"):
             try:
                 student.profile.delete()
                 summary["models"]["Profile"] = 1
@@ -133,7 +142,7 @@ class ErasureService:
             summary["models"]["AuditLog_preserved"] = audit_count
 
         # 10. Update the erasure request
-        erasure_request.status = 'completed'
+        erasure_request.status = "completed"
         erasure_request.completed_at = timezone.now()
         erasure_request.anonymized_id = anon_id
         erasure_request.summary = summary
@@ -142,15 +151,16 @@ class ErasureService:
         # 11. Log the erasure itself
         AuditLog.log(
             user=erasure_request.reviewed_by,
-            action='delete',
-            model_name='CustomUser',
+            action="delete",
+            model_name="CustomUser",
             object_id=str(student.pk),
             object_repr=f"ERASURE {anon_id} — PDPPL م.18",
             changes=summary,
             school=erasure_request.school,
         )
 
-        logger.info("PDPPL Erasure completed: %s — %d models affected",
-                     anon_id, len(summary["models"]))
+        logger.info(
+            "PDPPL Erasure completed: %s — %d models affected", anon_id, len(summary["models"])
+        )
 
         return summary

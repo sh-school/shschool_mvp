@@ -1,18 +1,20 @@
-import pyotp, qrcode, base64
-from io import BytesIO
+import base64
 from datetime import timedelta
-from django_ratelimit.decorators import ratelimit
+from io import BytesIO
 
-from django.shortcuts   import render, redirect
+import pyotp
+import qrcode
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib     import messages
-from django.utils       import timezone
-from django.http        import JsonResponse
+from django.db import transaction
+from django.db.models import F
+from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.db.models   import F
-from django.db          import transaction
-from core.models        import CustomUser
+from django_ratelimit.decorators import ratelimit
+
+from core.models import CustomUser
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
@@ -21,14 +23,14 @@ ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 _AUTH_ERROR = "الرقم الوطني أو كلمة المرور غير صحيحة"
 
 
-@ratelimit(key='ip', rate='10/m', method='POST', block=True)
+@ratelimit(key="ip", rate="10/m", method="POST", block=True)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
 
     if request.method == "POST":
         national_id = request.POST.get("national_id", "").strip()
-        password    = request.POST.get("password", "").strip()
+        password = request.POST.get("password", "").strip()
 
         if not national_id or not password:
             messages.error(request, "يرجى إدخال الرقم الوطني وكلمة المرور")
@@ -70,10 +72,10 @@ def login_view(request):
             # سواء وُجد الرقم الوطني أم لا — المهاجم لا يعرف الفرق
             try:
                 with transaction.atomic():
-                    updated = CustomUser.objects.filter(
-                        national_id=national_id
-                    ).select_for_update().update(
-                        failed_login_attempts=F('failed_login_attempts') + 1
+                    updated = (
+                        CustomUser.objects.filter(national_id=national_id)
+                        .select_for_update()
+                        .update(failed_login_attempts=F("failed_login_attempts") + 1)
                     )
                     if updated:
                         u = CustomUser.objects.get(national_id=national_id)
@@ -81,7 +83,9 @@ def login_view(request):
                             u.locked_until = timezone.now() + timedelta(minutes=15)
                             u.save(update_fields=["locked_until"])
                             # رسالة القفل مقبولة — تظهر فقط بعد 5 محاولات
-                            messages.error(request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة.")
+                            messages.error(
+                                request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة."
+                            )
                             return render(request, "auth/login.html")
             except Exception:
                 pass
@@ -92,7 +96,7 @@ def login_view(request):
     return render(request, "auth/login.html")
 
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=True)
+@ratelimit(key="ip", rate="5/m", method="POST", block=True)
 def verify_2fa(request):
     user_id = request.session.get("pending_2fa_user")
     if not user_id:
@@ -106,6 +110,7 @@ def verify_2fa(request):
     if request.method == "POST":
         code = request.POST.get("code", "").strip().replace(" ", "")
         from core.models import decrypt_field as _dfd
+
         _s = _dfd(user.totp_secret) or user.totp_secret
         totp = pyotp.TOTP(_s)
         if totp.verify(code, valid_window=1):
@@ -132,19 +137,21 @@ def setup_2fa(request):
     if not user.totp_secret:
         raw_secret = pyotp.random_base32()
         from core.models import encrypt_field
+
         user.totp_secret = encrypt_field(raw_secret) or raw_secret
         user.save(update_fields=["totp_secret"])
 
     from core.models import decrypt_field as _df
+
     raw_secret = _df(user.totp_secret) or user.totp_secret
-    totp    = pyotp.TOTP(raw_secret)
+    totp = pyotp.TOTP(raw_secret)
     otp_uri = totp.provisioning_uri(name=user.national_id, issuer_name="SchoolOS")
 
     qr = qrcode.QRCode(box_size=6, border=2)
     qr.add_data(otp_uri)
     qr.make(fit=True)
-    img    = qr.make_image(fill_color="black", back_color="white")
-    buf    = BytesIO()
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = BytesIO()
     img.save(buf, format="PNG")
     qr_b64 = base64.b64encode(buf.getvalue()).decode()
 
@@ -159,11 +166,18 @@ def setup_2fa(request):
             messages.error(request, "رمز التحقق غير صحيح.")
 
     from core.models import decrypt_field
-    return render(request, "auth/setup_2fa.html", {
-        "qr_b64":       qr_b64,
-        "secret":       (decrypt_field(user.totp_secret) or user.totp_secret) if user.totp_secret else "",
-        "totp_enabled": user.totp_enabled,
-    })
+
+    return render(
+        request,
+        "auth/setup_2fa.html",
+        {
+            "qr_b64": qr_b64,
+            "secret": (decrypt_field(user.totp_secret) or user.totp_secret)
+            if user.totp_secret
+            else "",
+            "totp_enabled": user.totp_enabled,
+        },
+    )
 
 
 @login_required
@@ -173,11 +187,12 @@ def disable_2fa(request):
         user = request.user
         if user.totp_secret:
             from core.models import decrypt_field
+
             _raw = decrypt_field(user.totp_secret) or user.totp_secret
             totp = pyotp.TOTP(_raw)
             if totp.verify(code, valid_window=1):
                 user.totp_enabled = False
-                user.totp_secret  = ""
+                user.totp_secret = ""
                 user.save(update_fields=["totp_enabled", "totp_secret"])
                 messages.success(request, "تم إيقاف المصادقة الثنائية.")
                 return redirect("dashboard")
@@ -187,7 +202,7 @@ def disable_2fa(request):
 
 
 @login_required
-@ratelimit(key='user', rate='5/m', method='POST', block=True)
+@ratelimit(key="user", rate="5/m", method="POST", block=True)
 def force_change_password(request):
     if not request.user.must_change_password:
         return redirect("dashboard")
@@ -214,6 +229,7 @@ def force_change_password(request):
             user.last_password_change = timezone.now()
             user.save(update_fields=["password", "must_change_password", "last_password_change"])
             from django.contrib.auth import update_session_auth_hash
+
             update_session_auth_hash(request, user)
             messages.success(request, "✅ تم تغيير كلمة المرور بنجاح!")
 

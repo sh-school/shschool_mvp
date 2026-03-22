@@ -7,9 +7,10 @@ v7: Professional headers/footers on every page
     Playwright  → header_template + footer_template (Chromium native)
     xhtml2pdf   → body header only (fallback, page 1)
 """
+
+import logging
 import os
 import re
-import logging
 from pathlib import Path
 
 from django.conf import settings
@@ -30,37 +31,36 @@ def _fonts_dir() -> Path:
 
 # ── استخراج معلومات التقرير من HTML المُولَّد ──────────────────────────
 
+
 def _extract_pdf_meta(html_str: str) -> dict:
     """
     يستخرج اسم المدرسة وعنوان التقرير والسنة من HTML المُولَّد
     (بعد تفسير Django templates)
     """
-    def _clean(s: str) -> str:
-        return re.sub(r'<[^>]+>', '', s or '').strip()
 
-    school_m = re.search(
-        r'class="report-header".*?<h1[^>]*>(.*?)</h1>', html_str, re.DOTALL
-    )
-    title_m = re.search(
-        r'class="report-title"[^>]*>(.*?)</div>', html_str, re.DOTALL
-    )
-    year_m = re.search(r'(\d{4}-\d{4})', html_str)
+    def _clean(s: str) -> str:
+        return re.sub(r"<[^>]+>", "", s or "").strip()
+
+    school_m = re.search(r'class="report-header".*?<h1[^>]*>(.*?)</h1>', html_str, re.DOTALL)
+    title_m = re.search(r'class="report-title"[^>]*>(.*?)</div>', html_str, re.DOTALL)
+    year_m = re.search(r"(\d{4}-\d{4})", html_str)
 
     return {
-        'school': _clean(school_m.group(1)) if school_m else 'SchoolOS',
-        'title':  _clean(title_m.group(1)) if title_m else '',
-        'year':   year_m.group(1) if year_m else '',
+        "school": _clean(school_m.group(1)) if school_m else "SchoolOS",
+        "title": _clean(title_m.group(1)) if title_m else "",
+        "year": year_m.group(1) if year_m else "",
     }
 
 
 # ── WeasyPrint @font-face ────────────────────────────────────────────────
 
+
 def _font_face_css_weasyprint() -> str:
     fd = _fonts_dir()
     parts = []
     for family, weight, filename in [
-        ("Amiri",   "400", "Amiri-Regular.ttf"),
-        ("Amiri",   "700", "Amiri-Bold.ttf"),
+        ("Amiri", "400", "Amiri-Regular.ttf"),
+        ("Amiri", "700", "Amiri-Bold.ttf"),
         ("Tajawal", "400", "Tajawal-Regular.ttf"),
         ("Tajawal", "500", "Tajawal-Medium.ttf"),
         ("Tajawal", "700", "Tajawal-Bold.ttf"),
@@ -86,6 +86,7 @@ def _inject_fonts(html_str: str) -> str:
 
 
 # ── WeasyPrint: حقن CSS الهيدر/الفوتر على كل صفحة ───────────────────────
+
 
 def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
     """
@@ -157,17 +158,16 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
     }}
 }}
 """
-    html_str = html_str.replace('</style>', f'{css}\n</style>', 1)
+    html_str = html_str.replace("</style>", f"{css}\n</style>", 1)
 
     # حقن running div في بداية body
-    running_div = (
-        f'<div class="wp-page-header">{school}{title_part}</div>\n'
-    )
-    html_str = re.sub(r'(<body[^>]*>)', r'\1\n' + running_div, html_str, count=1)
+    running_div = f'<div class="wp-page-header">{school}{title_part}</div>\n'
+    html_str = re.sub(r"(<body[^>]*>)", r"\1\n" + running_div, html_str, count=1)
     return html_str
 
 
 # ── xhtml2pdf: تسجيل الخطوط مع ReportLab ───────────────────────────────
+
 
 def _register_fonts_reportlab() -> list:
     try:
@@ -179,11 +179,11 @@ def _register_fonts_reportlab() -> list:
     fd = _fonts_dir()
     registered = []
     for name, path in [
-        ("Tajawal",        fd / "Tajawal-Regular.ttf"),
-        ("Tajawal-Bold",   fd / "Tajawal-Bold.ttf"),
+        ("Tajawal", fd / "Tajawal-Regular.ttf"),
+        ("Tajawal-Bold", fd / "Tajawal-Bold.ttf"),
         ("Tajawal-Medium", fd / "Tajawal-Medium.ttf"),
-        ("Amiri",          fd / "Amiri-Regular.ttf"),
-        ("Amiri-Bold",     fd / "Amiri-Bold.ttf"),
+        ("Amiri", fd / "Amiri-Regular.ttf"),
+        ("Amiri-Bold", fd / "Amiri-Bold.ttf"),
     ]:
         if path.exists():
             try:
@@ -195,22 +195,30 @@ def _register_fonts_reportlab() -> list:
 
     try:
         from reportlab.pdfbase.pdfmetrics import registerFontFamily
+
         if "Tajawal" in registered and "Tajawal-Bold" in registered:
-            registerFontFamily("Tajawal", normal="Tajawal", bold="Tajawal-Bold",
-                               italic="Tajawal", boldItalic="Tajawal-Bold")
+            registerFontFamily(
+                "Tajawal",
+                normal="Tajawal",
+                bold="Tajawal-Bold",
+                italic="Tajawal",
+                boldItalic="Tajawal-Bold",
+            )
         if "Amiri" in registered and "Amiri-Bold" in registered:
-            registerFontFamily("Amiri", normal="Amiri", bold="Amiri-Bold",
-                               italic="Amiri", boldItalic="Amiri-Bold")
+            registerFontFamily(
+                "Amiri", normal="Amiri", bold="Amiri-Bold", italic="Amiri", boldItalic="Amiri-Bold"
+            )
     except Exception as e:
         logger.debug("registerFontFamily failed: %s", e)
     return registered
 
 
 def _strip_font_face(html_str: str) -> str:
-    return re.sub(r'@font-face\s*\{[^}]+\}', '', html_str)
+    return re.sub(r"@font-face\s*\{[^}]+\}", "", html_str)
 
 
 # ── Playwright: قوالب الهيدر والفوتر ────────────────────────────────────
+
 
 def _playwright_header_template(school: str, title: str) -> str:
     """هيدر احترافي — يعمل على كل صفحة في Playwright"""
@@ -291,14 +299,15 @@ def _playwright_footer_template(today: str) -> str:
 
 # ── المولّد الرئيسي ──────────────────────────────────────────────────────
 
+
 def _generate_pdf_bytes(html_str: str) -> bytes:
     """
     HTML → PDF bytes
     الأولوية: WeasyPrint → Playwright (Chromium) → xhtml2pdf
     """
     # استخراج معلومات الهيدر من HTML
-    meta   = _extract_pdf_meta(html_str)
-    today  = timezone.now().strftime("%Y/%m/%d")
+    meta = _extract_pdf_meta(html_str)
+    today = timezone.now().strftime("%Y/%m/%d")
 
     # ── WeasyPrint ─────────────────────────────────────────────────────
     try:
@@ -306,13 +315,11 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         from weasyprint.text.fonts import FontConfiguration
 
         wp_html = _inject_fonts(html_str)
-        wp_html = _inject_wp_page_header_css(wp_html, meta['school'], meta['title'])
+        wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"])
 
         font_config = FontConfiguration()
-        base_url    = Path(settings.BASE_DIR).as_uri() + "/"
-        pdf_bytes   = HTML(string=wp_html, base_url=base_url).write_pdf(
-            font_config=font_config
-        )
+        base_url = Path(settings.BASE_DIR).as_uri() + "/"
+        pdf_bytes = HTML(string=wp_html, base_url=base_url).write_pdf(font_config=font_config)
         logger.info("PDF ← WeasyPrint (مع هيدر/فوتر @page)")
         return pdf_bytes
     except ImportError:
@@ -325,21 +332,21 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         from playwright.sync_api import sync_playwright
 
         chr_html = _inject_fonts(html_str)
-        header   = _playwright_header_template(meta['school'], meta['title'])
-        footer   = _playwright_footer_template(today)
+        header = _playwright_header_template(meta["school"], meta["title"])
+        footer = _playwright_footer_template(today)
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
-            page    = browser.new_page()
+            page = browser.new_page()
             page.set_content(chr_html, wait_until="networkidle")
 
             pdf_bytes = page.pdf(
                 format="A4",
                 margin={
-                    "top":    "2.8cm",   # مساحة للهيدر
-                    "bottom": "2.2cm",   # مساحة للفوتر
-                    "left":   "1.5cm",
-                    "right":  "1.5cm",
+                    "top": "2.8cm",  # مساحة للهيدر
+                    "bottom": "2.2cm",  # مساحة للفوتر
+                    "left": "1.5cm",
+                    "right": "1.5cm",
                 },
                 display_header_footer=True,
                 header_template=header,
@@ -357,11 +364,12 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
 
     # ── xhtml2pdf (fallback — هيدر الصفحة الأولى فقط) ─────────────────
     try:
-        from xhtml2pdf import pisa
         from io import BytesIO
 
+        from xhtml2pdf import pisa
+
         _register_fonts_reportlab()
-        xhtml_html  = _strip_font_face(html_str)
+        xhtml_html = _strip_font_face(html_str)
         static_root = str(Path(settings.BASE_DIR) / "static")
 
         def _link_callback(uri, rel):

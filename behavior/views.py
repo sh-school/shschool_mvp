@@ -4,25 +4,29 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Views نحيفة — كل Business Logic في behavior/services.py
 """
+
 import logging
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import HttpResponseForbidden, FileResponse, Http404
+
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.utils import timezone
+from django.http import FileResponse, Http404, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render
 
 logger = logging.getLogger(__name__)
 
 _VALID_LEVELS = {1, 2, 3, 4}
-_MAX_POINTS   = 100
+_MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
 
 from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
+
 from .services import (
-    BehaviorService, BehaviorPermissions,
-    POINTS_BY_LEVEL, PERIOD_CHOICES,
+    PERIOD_CHOICES,
+    POINTS_BY_LEVEL,
+    BehaviorPermissions,
+    BehaviorService,
 )
 
 
@@ -54,12 +58,12 @@ def report_infraction(request):
     school = request.user.get_school()
 
     if request.method == "POST":
-        student_id  = request.POST.get("student_id", "").strip()
+        student_id = request.POST.get("student_id", "").strip()
         description = request.POST.get("description", "").strip()
-        action      = request.POST.get("action_taken", "").strip()
+        action = request.POST.get("action_taken", "").strip()
 
         try:
-            level  = int(request.POST.get("level", 1))
+            level = int(request.POST.get("level", 1))
             points = int(request.POST.get("points_deducted", 0))
         except (ValueError, TypeError):
             messages.error(request, "قيم غير صحيحة — يرجى مراجعة الحقول.")
@@ -85,17 +89,21 @@ def report_infraction(request):
             student = get_object_or_404(CustomUser, id=student_id)
             with transaction.atomic():
                 infraction = BehaviorInfraction.objects.create(
-                    school=school, student=student, reported_by=request.user,
-                    level=level, description=description,
-                    action_taken=action, points_deducted=points,
+                    school=school,
+                    student=student,
+                    reported_by=request.user,
+                    level=level,
+                    description=description,
+                    action_taken=action,
+                    points_deducted=points,
                 )
             messages.success(
-                request,
-                f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
+                request, f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
             )
             # إشعار غير متزامن عبر Celery
             try:
                 from notifications.tasks import notify_behavior_task
+
                 notify_behavior_task.delay(
                     infraction_id=str(infraction.id),
                     reporter_id=str(request.user.id),
@@ -106,8 +114,7 @@ def report_infraction(request):
 
             if level >= 3:
                 messages.warning(
-                    request,
-                    f"⚠️ تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
+                    request, f"⚠️ تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                 )
                 return redirect("behavior:committee")
             return redirect("behavior:student_profile", student_id=student.id)
@@ -117,13 +124,19 @@ def report_infraction(request):
             memberships__school=school,
             memberships__role__name="student",
             memberships__is_active=True,
-        ).order_by("full_name").distinct()
+        )
+        .order_by("full_name")
+        .distinct()
     )
-    return render(request, "behavior/report_form.html", {
-        "students": students,
-        "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
-        "levels": BehaviorInfraction.LEVELS,
-    })
+    return render(
+        request,
+        "behavior/report_form.html",
+        {
+            "students": students,
+            "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
+            "levels": BehaviorInfraction.LEVELS,
+        },
+    )
 
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
@@ -159,12 +172,16 @@ def point_recovery_request(request, infraction_id):
         else:
             with transaction.atomic():
                 BehaviorPointRecovery.objects.create(
-                    infraction=infraction, reason=reason,
-                    points_restored=points, approved_by=request.user,
+                    infraction=infraction,
+                    reason=reason,
+                    points_restored=points,
+                    approved_by=request.user,
                 )
                 infraction.is_resolved = True
                 infraction.save()
-            messages.success(request, f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}")
+            messages.success(
+                request, f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}"
+            )
             return redirect("behavior:student_profile", student_id=infraction.student.id)
 
     return render(request, "behavior/recovery_form.html", {"infraction": infraction})
@@ -217,6 +234,7 @@ def behavior_report(request, student_id):
     sent_to = []
     if request.method == "POST" and request.POST.get("action") == "send":
         from notifications.services import NotificationService
+
         for link in report["parent_links"]:
             parent = link.parent
             if parent.email:
@@ -230,9 +248,13 @@ def behavior_report(request, student_id):
                 )
                 try:
                     NotificationService.send_email(
-                        school=school, recipient_email=parent.email,
+                        school=school,
+                        recipient_email=parent.email,
                         subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
-                        body_text=body, student=student, notif_type="behavior", sent_by=request.user,
+                        body_text=body,
+                        student=student,
+                        notif_type="behavior",
+                        sent_by=request.user,
                     )
                     sent_to.append(parent.full_name)
                 except Exception as e:
@@ -243,10 +265,18 @@ def behavior_report(request, student_id):
             messages.warning(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
         return redirect(request.path + f"?year={year}&period={period}")
 
-    return render(request, "behavior/behavior_report.html", {
-        "student": student, "year": year, "period": period,
-        "sent_to": sent_to, "period_choices": PERIOD_CHOICES, **report,
-    })
+    return render(
+        request,
+        "behavior/behavior_report.html",
+        {
+            "student": student,
+            "year": year,
+            "period": period,
+            "sent_to": sent_to,
+            "period_choices": PERIOD_CHOICES,
+            **report,
+        },
+    )
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
@@ -265,9 +295,12 @@ def behavior_statistics(request):
 # PDF النماذج
 # ════════════════════════════════════════════════════════════════
 
+
 def _render_behavior_pdf(template_name, context, filename):
     from django.template.loader import render_to_string
+
     from core.pdf_utils import render_pdf
+
     return render_pdf(render_to_string(template_name, context), filename)
 
 
@@ -276,29 +309,40 @@ def infraction_warning_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
-    return _render_behavior_pdf("behavior/pdf/student_warning.html", ctx,
-                                f"warning_{inf.student.username}_{inf.date}.pdf")
+    return _render_behavior_pdf(
+        "behavior/pdf/student_warning.html", ctx, f"warning_{inf.student.username}_{inf.date}.pdf"
+    )
+
 
 @login_required
 def infraction_parent_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
-    return _render_behavior_pdf("behavior/pdf/parent_undertaking.html", ctx,
-                                f"parent_undertaking_{inf.student.username}.pdf")
+    return _render_behavior_pdf(
+        "behavior/pdf/parent_undertaking.html",
+        ctx,
+        f"parent_undertaking_{inf.student.username}.pdf",
+    )
+
 
 @login_required
 def infraction_student_pdf(request, infraction_id):
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
-    return _render_behavior_pdf("behavior/pdf/student_undertaking.html", ctx,
-                                f"student_undertaking_{inf.student.username}.pdf")
+    return _render_behavior_pdf(
+        "behavior/pdf/student_undertaking.html",
+        ctx,
+        f"student_undertaking_{inf.student.username}.pdf",
+    )
+
 
 @login_required
 def behavior_policy_pdf(request):
     """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
     import os
+
     pdf_path = os.path.join(settings.BASE_DIR, "static", "docs", "behavior_policy_2025-2026.pdf")
     if not os.path.exists(pdf_path):
         raise Http404("ملف اللائحة غير موجود")
@@ -308,4 +352,3 @@ def behavior_policy_pdf(request):
         as_attachment=False,
         filename="behavior_policy_2025-2026.pdf",
     )
-

@@ -6,7 +6,9 @@ Celery tasks لوحدة التحليلات
 المهام:
   - send_monthly_kpi_report: إرسال تقرير KPIs شهري PDF للمدير
 """
+
 import logging
+
 from celery import shared_task
 
 logger = logging.getLogger(__name__)
@@ -16,7 +18,7 @@ logger = logging.getLogger(__name__)
     name="analytics.send_monthly_kpi_report",
     bind=True,
     max_retries=3,
-    default_retry_delay=300,   # 5 دقائق بين المحاولات
+    default_retry_delay=300,  # 5 دقائق بين المحاولات
 )
 def send_monthly_kpi_report(self, school_id=None):
     """
@@ -24,13 +26,14 @@ def send_monthly_kpi_report(self, school_id=None):
     إذا لم يُحدَّد school_id يُرسَل لكل المدارس.
     """
     try:
-        from core.models import School
-        from analytics.services import KPIService
-        from quality.models import OperationalDomain
-        from core.pdf_utils import render_pdf_bytes
-        from django.template.loader import render_to_string
-        from django.core.mail import EmailMessage
         from django.conf import settings
+        from django.core.mail import EmailMessage
+        from django.template.loader import render_to_string
+
+        from analytics.services import KPIService
+        from core.models import School
+        from core.pdf_utils import render_pdf_bytes
+        from quality.models import OperationalDomain
 
         schools = (
             [School.objects.get(id=school_id)]
@@ -51,42 +54,36 @@ def send_monthly_kpi_report(self, school_id=None):
 
             # ── المؤشرات الحمراء للتوصيات ─────────────────────────────
             red_kpis = [
-                kpi for kpi in data["kpis"].values()
+                kpi
+                for kpi in data["kpis"].values()
                 if kpi.get("traffic") == "red" and kpi.get("value") is not None
             ]
 
             ctx = {
                 **data,
                 "plan_domains": plan_domains,
-                "red_kpis":     red_kpis,
+                "red_kpis": red_kpis,
             }
 
             # ── توليد PDF ─────────────────────────────────────────────
-            html = render_to_string(
-                "analytics/kpi_monthly_report.html", ctx
-            )
+            html = render_to_string("analytics/kpi_monthly_report.html", ctx)
             pdf_bytes = render_pdf_bytes(html)
 
             # ── إيجاد مدير المدرسة ────────────────────────────────────
             from core.models import Membership
+
             director = (
-                Membership.objects.filter(
-                    school=school, is_active=True, role__name="director"
-                )
+                Membership.objects.filter(school=school, is_active=True, role__name="director")
                 .select_related("user")
                 .first()
             )
 
             if not director or not director.user.email:
-                logger.warning(
-                    "لا يوجد مدير بريد إلكتروني للمدرسة %s — تخطي", school.name
-                )
+                logger.warning("لا يوجد مدير بريد إلكتروني للمدرسة %s — تخطي", school.name)
                 continue
 
             # ── إرسال البريد ──────────────────────────────────────────
-            subject = (
-                f"[SchoolOS] تقرير KPIs الشهري — {data['month_label']} — {school.name}"
-            )
+            subject = f"[SchoolOS] تقرير KPIs الشهري — {data['month_label']} — {school.name}"
             body = (
                 f"السلام عليكم،\n\n"
                 f"مرفق تقرير المؤشرات الكمية الشهري لمدرسة {school.name}.\n\n"
@@ -110,7 +107,8 @@ def send_monthly_kpi_report(self, school_id=None):
             email.send(fail_silently=False)
             logger.info(
                 "✅ تقرير KPIs أُرسل إلى %s للمدرسة %s",
-                director.user.email, school.name,
+                director.user.email,
+                school.name,
             )
 
     except Exception as exc:

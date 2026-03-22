@@ -1,9 +1,17 @@
 import logging
+
 from django.db import transaction
-from django.utils import timezone
-from django.db.models import Count, Q
-from operations.models import Session, StudentAttendance, AbsenceAlert, ScheduleSlot, TeacherAbsence, SubstituteAssignment
+from django.db.models import Count
+
 from core.models import StudentEnrollment
+from operations.models import (
+    AbsenceAlert,
+    ScheduleSlot,
+    Session,
+    StudentAttendance,
+    SubstituteAssignment,
+    TeacherAbsence,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +24,12 @@ class AttendanceService:
             session=session,
             student=student,
             defaults={
-                "school":       session.school,
-                "status":       status,
-                "excuse_type":  excuse_type,
+                "school": session.school,
+                "status": status,
+                "excuse_type": excuse_type,
                 "excuse_notes": excuse_notes,
-                "marked_by":    marked_by,
-            }
+                "marked_by": marked_by,
+            },
         )
         # Check absence threshold
         if status == "absent":
@@ -37,13 +45,15 @@ class AttendanceService:
 
         records = []
         for enrollment in students:
-            records.append(StudentAttendance(
-                session=session,
-                student=enrollment.student,
-                school=session.school,
-                status="present",
-                marked_by=marked_by,
-            ))
+            records.append(
+                StudentAttendance(
+                    session=session,
+                    student=enrollment.student,
+                    school=session.school,
+                    status="present",
+                    marked_by=marked_by,
+                )
+            )
         StudentAttendance.objects.bulk_create(records, ignore_conflicts=True)
         session.status = "in_progress"
         session.save(update_fields=["status"])
@@ -56,8 +66,8 @@ class AttendanceService:
         session.save(update_fields=["status"])
 
     # ── إعداد السنة الدراسية (المادة 7 من قانون 25/2001 المعدّل) ─
-    SCHOOL_YEAR_DAYS = 190          # أيام الدراسة الرسمية سنوياً
-    ABSENCE_THRESHOLD_PCT = 0.10    # 10% = الحد القانوني للغياب
+    SCHOOL_YEAR_DAYS = 190  # أيام الدراسة الرسمية سنوياً
+    ABSENCE_THRESHOLD_PCT = 0.10  # 10% = الحد القانوني للغياب
 
     @staticmethod
     def check_absence_threshold(student, school):
@@ -67,9 +77,10 @@ class AttendanceService:
         تُخطر المدرسة ولي الأمر، وإذا عاود الغياب تُخطر الوزارة خلال أسبوع.
         """
         from datetime import date
+
         school_year = "2025-2026"
-        year_start  = date(2025, 9, 1)
-        year_end    = date(2026, 6, 30)
+        year_start = date(2025, 9, 1)
+        year_end = date(2026, 6, 30)
 
         # إجمالي الحصص المسجَّلة للطالب في هذه السنة
         total_sessions = StudentAttendance.objects.filter(
@@ -100,12 +111,13 @@ class AttendanceService:
                 status="pending",
                 period_start=year_start,
                 period_end=year_end,
-                defaults={"absence_count": unexcused_absent}
+                defaults={"absence_count": unexcused_absent},
             )
             # إرسال إشعار للأولياء عند إنشاء التنبيه لأول مرة
             if created:
                 try:
                     from notifications.hub import NotificationHub
+
                     NotificationHub.dispatch_to_parents(
                         event_type="absence",
                         school=school,
@@ -122,28 +134,35 @@ class AttendanceService:
                 except Exception as exc:
                     logger.warning(
                         "check_absence_threshold: Hub dispatch failed [student=%s]: %s",
-                        student.pk, exc
+                        student.pk,
+                        exc,
                     )
 
     @staticmethod
     def get_session_summary(session):
         att = StudentAttendance.objects.filter(session=session)
-        total   = att.count()
+        total = att.count()
         present = att.filter(status="present").count()
-        absent  = att.filter(status="absent").count()
-        late    = att.filter(status="late").count()
+        absent = att.filter(status="absent").count()
+        late = att.filter(status="late").count()
         excused = att.filter(status="excused").count()
-        pct     = round(present / total * 100) if total else 0
-        return {"total": total, "present": present, "absent": absent,
-                "late": late, "excused": excused, "percentage": pct}
+        pct = round(present / total * 100) if total else 0
+        return {
+            "total": total,
+            "present": present,
+            "absent": absent,
+            "late": late,
+            "excused": excused,
+            "percentage": pct,
+        }
 
 
 # ─────────────────────────────────────────────
 # المرحلة 2 — الجداول الذكية + نظام البديل
 # ─────────────────────────────────────────────
 
-class ScheduleService:
 
+class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
@@ -158,7 +177,7 @@ class ScheduleService:
             qs = qs.filter(class_group=class_group)
 
         # بناء matrix: {يوم: {رقم_حصة: slot}}
-        grid = {d: {} for d in range(5)}   # 0=أحد … 4=خميس
+        grid = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
         for slot in qs:
             grid[slot.day_of_week][slot.period_number] = slot
         return grid
@@ -177,16 +196,19 @@ class ScheduleService:
         )
         for dup in teacher_dups:
             slots = ScheduleSlot.objects.filter(
-                school=school, teacher_id=dup["teacher"],
+                school=school,
+                teacher_id=dup["teacher"],
                 day_of_week=dup["day_of_week"],
                 period_number=dup["period_number"],
-                is_active=True
+                is_active=True,
             ).select_related("teacher", "class_group")
-            conflicts.append({
-                "type": "teacher",
-                "message": f"تعارض معلم: {slots[0].teacher.full_name} — {slots[0].day_name} ح{dup['period_number']}",
-                "slots": list(slots),
-            })
+            conflicts.append(
+                {
+                    "type": "teacher",
+                    "message": f"تعارض معلم: {slots[0].teacher.full_name} — {slots[0].day_name} ح{dup['period_number']}",
+                    "slots": list(slots),
+                }
+            )
 
         # تعارض الفصل: نفس الفصل في نفس اليوم والحصة
         class_dups = (
@@ -197,16 +219,19 @@ class ScheduleService:
         )
         for dup in class_dups:
             slots = ScheduleSlot.objects.filter(
-                school=school, class_group_id=dup["class_group"],
+                school=school,
+                class_group_id=dup["class_group"],
                 day_of_week=dup["day_of_week"],
                 period_number=dup["period_number"],
-                is_active=True
+                is_active=True,
             ).select_related("teacher", "class_group")
-            conflicts.append({
-                "type": "class",
-                "message": f"تعارض فصل: {slots[0].class_group} — {slots[0].day_name} ح{dup['period_number']}",
-                "slots": list(slots),
-            })
+            conflicts.append(
+                {
+                    "type": "class",
+                    "message": f"تعارض فصل: {slots[0].class_group} — {slots[0].day_name} ح{dup['period_number']}",
+                    "slots": list(slots),
+                }
+            )
 
         return conflicts
 
@@ -214,7 +239,7 @@ class ScheduleService:
     @transaction.atomic
     def generate_daily_sessions(school, date, academic_year="2025-2026"):
         """توليد Session يومية من ScheduleSlot للتاريخ المحدد"""
-        day_of_week = date.weekday()   # Python: 0=Mon … لكننا نريد 0=Sun
+        day_of_week = date.weekday()  # Python: 0=Mon … لكننا نريد 0=Sun
         # تحويل: Sun=6 في Python → 0 عندنا
         mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
         our_day = mapping.get(day_of_week, -1)
@@ -222,8 +247,7 @@ class ScheduleService:
             return 0  # جمعة أو سبت
 
         slots = ScheduleSlot.objects.filter(
-            school=school, day_of_week=our_day,
-            academic_year=academic_year, is_active=True
+            school=school, day_of_week=our_day, academic_year=academic_year, is_active=True
         ).select_related("teacher", "class_group", "subject")
 
         created = 0
@@ -235,10 +259,10 @@ class ScheduleService:
                 date=date,
                 start_time=slot.start_time,
                 defaults={
-                    "subject":    slot.subject,
-                    "end_time":   slot.end_time,
-                    "status":     "scheduled",
-                }
+                    "subject": slot.subject,
+                    "end_time": slot.end_time,
+                    "status": "scheduled",
+                },
             )
             if was_created:
                 created += 1
@@ -246,7 +270,6 @@ class ScheduleService:
 
 
 class SubstituteService:
-
     @staticmethod
     def get_available_teachers(school, date, day_of_week, period_number, exclude_teacher=None):
         """
@@ -256,10 +279,10 @@ class SubstituteService:
         - لم يُسجَّل غيابهم في نفس اليوم
         """
         from core.models import Membership
+
         # جميع معلمي المدرسة
         teacher_ids = Membership.objects.filter(
-            school=school, is_active=True,
-            role__name__in=("teacher", "coordinator")
+            school=school, is_active=True, role__name__in=("teacher", "coordinator")
         ).values_list("user_id", flat=True)
 
         if exclude_teacher:
@@ -267,18 +290,18 @@ class SubstituteService:
 
         # من لديهم حصة في نفس الوقت
         busy_ids = ScheduleSlot.objects.filter(
-            school=school, day_of_week=day_of_week,
-            period_number=period_number, is_active=True
+            school=school, day_of_week=day_of_week, period_number=period_number, is_active=True
         ).values_list("teacher_id", flat=True)
 
         # من هم غائبون في نفس اليوم
-        absent_ids = TeacherAbsence.objects.filter(
-            school=school, date=date
-        ).values_list("teacher_id", flat=True)
+        absent_ids = TeacherAbsence.objects.filter(school=school, date=date).values_list(
+            "teacher_id", flat=True
+        )
 
         available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids)
 
         from core.models import CustomUser
+
         return CustomUser.objects.filter(id__in=available_ids).order_by("full_name")
 
     @staticmethod
@@ -286,13 +309,15 @@ class SubstituteService:
     def register_absence(school, teacher, date, reason, reason_notes="", reported_by=None):
         """تسجيل غياب معلم + إنشاء تعيينات البديل تلقائياً"""
         absence, created = TeacherAbsence.objects.get_or_create(
-            school=school, teacher=teacher, date=date,
+            school=school,
+            teacher=teacher,
+            date=date,
             defaults={
-                "reason":       reason,
+                "reason": reason,
                 "reason_notes": reason_notes,
-                "reported_by":  reported_by,
-                "status":       "pending",
-            }
+                "reported_by": reported_by,
+                "status": "pending",
+            },
         )
         return absence
 
@@ -301,21 +326,22 @@ class SubstituteService:
     def assign_substitute(absence, slot, substitute, assigned_by=None, notes=""):
         """تعيين بديل لحصة محددة"""
         assignment, created = SubstituteAssignment.objects.update_or_create(
-            absence=absence, slot=slot,
+            absence=absence,
+            slot=slot,
             defaults={
-                "substitute":  substitute,
-                "school":      absence.school,
+                "substitute": substitute,
+                "school": absence.school,
                 "assigned_by": assigned_by,
-                "notes":       notes,
-                "status":      "assigned",
-            }
+                "notes": notes,
+                "status": "assigned",
+            },
         )
         # تحديث حالة الغياب
         total_slots = ScheduleSlot.objects.filter(
             school=absence.school,
             teacher=absence.teacher,
             day_of_week=SubstituteService._date_to_day(absence.date),
-            is_active=True
+            is_active=True,
         ).count()
         covered = SubstituteAssignment.objects.filter(
             absence=absence, status__in=("assigned", "confirmed")
@@ -335,9 +361,10 @@ class SubstituteService:
     @staticmethod
     def get_substitute_report(school, date_from, date_to):
         """تقرير الحصص البديلة في فترة"""
-        return SubstituteAssignment.objects.filter(
-            school=school,
-            absence__date__range=(date_from, date_to)
-        ).select_related(
-            "substitute", "absence__teacher", "slot__class_group", "slot__subject"
-        ).order_by("absence__date", "slot__period_number")
+        return (
+            SubstituteAssignment.objects.filter(
+                school=school, absence__date__range=(date_from, date_to)
+            )
+            .select_related("substitute", "absence__teacher", "slot__class_group", "slot__subject")
+            .order_by("absence__date", "slot__period_number")
+        )

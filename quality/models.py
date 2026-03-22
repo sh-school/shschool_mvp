@@ -10,11 +10,14 @@ quality/models.py
 - إضافة CommitteeManager للاستعلامات المتقدمة
 - إزالة advanced_search من النموذج ونقلها للـ Manager
 """
+
 import uuid
+
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from core.models import School, CustomUser, Membership
+
+from core.models import CustomUser, Membership, School
 
 
 def _uuid():
@@ -25,18 +28,20 @@ def _uuid():
 # 1. الهيكل الهرمي للخطة التشغيلية
 # ─────────────────────────────────────────────────────────────
 
+
 class OperationalDomain(models.Model):
     """المجال: التحصيل الأكاديمي / القيادة والإدارة / ..."""
-    id            = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school        = models.ForeignKey(School, on_delete=models.CASCADE, related_name="op_domains")
-    name          = models.CharField(max_length=200, verbose_name="اسم المجال")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="op_domains")
+    name = models.CharField(max_length=200, verbose_name="اسم المجال")
     academic_year = models.CharField(max_length=9, default="2025-2026")
-    order         = models.IntegerField(default=0)
+    order = models.IntegerField(default=0)
 
     class Meta:
-        verbose_name        = "مجال"
+        verbose_name = "مجال"
         verbose_name_plural = "المجالات"
-        ordering            = ["order", "name"]
+        ordering = ["order", "name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "name", "academic_year"],
@@ -64,15 +69,15 @@ class OperationalDomain(models.Model):
 
 
 class OperationalTarget(models.Model):
-    id     = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     domain = models.ForeignKey(OperationalDomain, on_delete=models.CASCADE, related_name="targets")
     number = models.CharField(max_length=20, verbose_name="رقم الهدف")
-    text   = models.TextField(verbose_name="نص الهدف")
+    text = models.TextField(verbose_name="نص الهدف")
 
     class Meta:
-        verbose_name        = "هدف"
+        verbose_name = "هدف"
         verbose_name_plural = "الأهداف"
-        ordering            = ["number"]
+        ordering = ["number"]
         constraints = [
             models.UniqueConstraint(fields=["domain", "number"], name="unique_target_in_domain")
         ]
@@ -82,15 +87,17 @@ class OperationalTarget(models.Model):
 
 
 class OperationalIndicator(models.Model):
-    id     = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    target = models.ForeignKey(OperationalTarget, on_delete=models.CASCADE, related_name="indicators")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    target = models.ForeignKey(
+        OperationalTarget, on_delete=models.CASCADE, related_name="indicators"
+    )
     number = models.CharField(max_length=30, verbose_name="رقم المؤشر")
-    text   = models.TextField(verbose_name="نص المؤشر")
+    text = models.TextField(verbose_name="نص المؤشر")
 
     class Meta:
-        verbose_name        = "مؤشر"
+        verbose_name = "مؤشر"
         verbose_name_plural = "المؤشرات"
-        ordering            = ["number"]
+        ordering = ["number"]
 
     def __str__(self):
         return f"[{self.number}] {self.text[:60]}"
@@ -98,59 +105,69 @@ class OperationalIndicator(models.Model):
 
 class OperationalProcedure(models.Model):
     STATUS = [
-        ("Not Started",    "لم يبدأ"),
-        ("In Progress",    "قيد التنفيذ"),
+        ("Not Started", "لم يبدأ"),
+        ("In Progress", "قيد التنفيذ"),
         ("Pending Review", "بانتظار المراجعة"),
-        ("Completed",      "مكتمل"),
-        ("Cancelled",      "ملغى"),
+        ("Completed", "مكتمل"),
+        ("Cancelled", "ملغى"),
     ]
     EVIDENCE_TYPE = [
-        ("وصفي",      "وصفي"),
-        ("كمي",       "كمي"),
+        ("وصفي", "وصفي"),
+        ("كمي", "كمي"),
         ("كمي/وصفي", "كمي/وصفي"),
-        ("",          "—"),
+        ("", "—"),
     ]
 
-    id        = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    indicator = models.ForeignKey(OperationalIndicator, on_delete=models.CASCADE, related_name="procedures")
-    school    = models.ForeignKey(School, on_delete=models.CASCADE, related_name="procedures")
-    number    = models.CharField(max_length=30, verbose_name="رقم الإجراء", db_index=True)
-    text      = models.TextField(verbose_name="نص الإجراء")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    indicator = models.ForeignKey(
+        OperationalIndicator, on_delete=models.CASCADE, related_name="procedures"
+    )
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="procedures")
+    number = models.CharField(max_length=30, verbose_name="رقم الإجراء", db_index=True)
+    text = models.TextField(verbose_name="نص الإجراء")
 
     # المنفذ — نص موحَّد + مستخدم مربوط
     executor_norm = models.CharField(max_length=100, verbose_name="المنفذ (نص)", db_index=True)
     executor_user = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="assigned_procedures", verbose_name="المنفذ (مستخدم)",
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_procedures",
+        verbose_name="المنفذ (مستخدم)",
     )
 
-    date_range               = models.CharField(max_length=50, verbose_name="الفترة الزمنية", blank=True)
-    deadline                 = models.DateField(null=True, blank=True, verbose_name="الموعد النهائي")
-    status                   = models.CharField(max_length=20, choices=STATUS, default="In Progress", db_index=True)
-    evaluation               = models.TextField(blank=True, verbose_name="التقييم")
-    evaluation_notes         = models.TextField(blank=True, verbose_name="ملاحظات التقييم")
-    follow_up                = models.TextField(blank=True, verbose_name="المتابعة")
-    comments                 = models.TextField(blank=True, verbose_name="تعليقات")
-    evidence_type            = models.CharField(max_length=20, choices=EVIDENCE_TYPE, blank=True)
+    date_range = models.CharField(max_length=50, verbose_name="الفترة الزمنية", blank=True)
+    deadline = models.DateField(null=True, blank=True, verbose_name="الموعد النهائي")
+    status = models.CharField(max_length=20, choices=STATUS, default="In Progress", db_index=True)
+    evaluation = models.TextField(blank=True, verbose_name="التقييم")
+    evaluation_notes = models.TextField(blank=True, verbose_name="ملاحظات التقييم")
+    follow_up = models.TextField(blank=True, verbose_name="المتابعة")
+    comments = models.TextField(blank=True, verbose_name="تعليقات")
+    evidence_type = models.CharField(max_length=20, choices=EVIDENCE_TYPE, blank=True)
     evidence_source_employee = models.TextField(blank=True, verbose_name="موظف مصدر الدليل")
-    evidence_source_file     = models.TextField(blank=True, verbose_name="ملف مصدر الدليل")
+    evidence_source_file = models.TextField(blank=True, verbose_name="ملف مصدر الدليل")
 
     # حقول المراجعة (Approval Workflow)
-    reviewed_by  = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="reviewed_procedures", verbose_name="المراجع",
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_procedures",
+        verbose_name="المراجع",
     )
-    reviewed_at  = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
-    review_note  = models.TextField(blank=True, verbose_name="ملاحظة المراجعة")
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
+    review_note = models.TextField(blank=True, verbose_name="ملاحظة المراجعة")
 
     academic_year = models.CharField(max_length=9, default="2025-2026")
-    created_at    = models.DateTimeField(auto_now_add=True)
-    updated_at    = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name        = "إجراء"
+        verbose_name = "إجراء"
         verbose_name_plural = "الإجراءات"
-        ordering            = ["number"]
+        ordering = ["number"]
         indexes = [
             models.Index(fields=["school", "status"]),
             models.Index(fields=["executor_norm"]),
@@ -163,18 +180,22 @@ class OperationalProcedure(models.Model):
 
 
 class ProcedureEvidence(models.Model):
-    id          = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    procedure   = models.ForeignKey(OperationalProcedure, on_delete=models.CASCADE, related_name="evidences")
-    uploaded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, related_name="uploaded_evidences")
-    title       = models.CharField(max_length=200, verbose_name="عنوان الدليل")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    procedure = models.ForeignKey(
+        OperationalProcedure, on_delete=models.CASCADE, related_name="evidences"
+    )
+    uploaded_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="uploaded_evidences"
+    )
+    title = models.CharField(max_length=200, verbose_name="عنوان الدليل")
     description = models.TextField(blank=True)
-    file        = models.FileField(upload_to="evidence/%Y/%m/", null=True, blank=True)
-    created_at  = models.DateTimeField(auto_now_add=True)
+    file = models.FileField(upload_to="evidence/%Y/%m/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name        = "دليل"
+        verbose_name = "دليل"
         verbose_name_plural = "الأدلة"
-        ordering            = ["-created_at"]
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.title} — {self.procedure.number}"
@@ -184,27 +205,33 @@ class ProcedureEvidence(models.Model):
 # 2. ربط المنفذين بالمستخدمين
 # ─────────────────────────────────────────────────────────────
 
+
 class ExecutorMapping(models.Model):
     """
     ربط المسمى الوظيفي (executor_norm) بمستخدم حقيقي.
     بعد الربط، تُحدَّث executor_user في كل الإجراءات المرتبطة
     بهذا المسمى تلقائياً عبر apply_mapping().
     """
-    id            = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school        = models.ForeignKey(School, on_delete=models.CASCADE, related_name="executor_mappings")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="executor_mappings")
     executor_norm = models.CharField(max_length=100, verbose_name="المسمى الوظيفي", db_index=True)
-    user          = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="executor_mappings", verbose_name="الموظف",
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="executor_mappings",
+        verbose_name="الموظف",
     )
     academic_year = models.CharField(max_length=9, default="2025-2026")
-    created_at    = models.DateTimeField(auto_now_add=True)
-    updated_at    = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name        = "ربط منفذ"
+        verbose_name = "ربط منفذ"
         verbose_name_plural = "ربط المنفذين"
-        ordering            = ["executor_norm"]
+        ordering = ["executor_norm"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "executor_norm", "academic_year"],
@@ -232,6 +259,7 @@ class ExecutorMapping(models.Model):
 # 3. اللجنة الموحّدة (تنفيذية + مراجعة ذاتية) — الإصلاح #2
 # ─────────────────────────────────────────────────────────────
 
+
 class CommitteeManager(models.Manager):
     """Manager يُوفّر استعلامات جاهزة على لجان الجودة"""
 
@@ -253,15 +281,11 @@ class CommitteeManager(models.Manager):
             is_active=True,
         ).select_related("user", "domain")
 
-    def search(self, school, year, name=None, role=None, domain=None,
-               committee_type=None):
+    def search(self, school, year, name=None, role=None, domain=None, committee_type=None):
         """بحث متقدم عبر أعضاء اللجان"""
         qs = self.filter(school=school, academic_year=year, is_active=True)
         if name:
-            qs = qs.filter(
-                Q(user__full_name__icontains=name) |
-                Q(job_title__icontains=name)
-            )
+            qs = qs.filter(Q(user__full_name__icontains=name) | Q(job_title__icontains=name))
         if role:
             qs = qs.filter(responsibility=role)
         if domain:
@@ -284,50 +308,62 @@ class QualityCommitteeMember(models.Model):
 
     # ── ثوابت نوع اللجنة ──
     EXECUTOR = "executor"
-    REVIEW   = "review"
+    REVIEW = "review"
 
     COMMITTEE_TYPE = [
         (EXECUTOR, "لجنة منفذي الخطة التشغيلية"),
-        (REVIEW,   "لجنة المراجعة الذاتية"),
+        (REVIEW, "لجنة المراجعة الذاتية"),
     ]
 
     RESPONSIBILITY = [
-        ("رئيس اللجنة",      "رئيس اللجنة"),
+        ("رئيس اللجنة", "رئيس اللجنة"),
         ("نائب رئيس اللجنة", "نائب رئيس اللجنة"),
-        ("مقرر",             "مقرر"),
-        ("عضو",              "عضو"),
+        ("مقرر", "مقرر"),
+        ("عضو", "عضو"),
     ]
 
-    id             = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school         = models.ForeignKey(School, on_delete=models.CASCADE, related_name="quality_members")
-    user           = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="quality_memberships",
-        null=True, blank=True,
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="quality_members")
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="quality_memberships",
+        null=True,
+        blank=True,
     )
-    job_title      = models.CharField(max_length=100, verbose_name="المسمى الوظيفي")
-    responsibility = models.CharField(max_length=30, choices=RESPONSIBILITY, verbose_name="المسؤولية")
+    job_title = models.CharField(max_length=100, verbose_name="المسمى الوظيفي")
+    responsibility = models.CharField(
+        max_length=30, choices=RESPONSIBILITY, verbose_name="المسؤولية"
+    )
     committee_type = models.CharField(
-        max_length=10, choices=COMMITTEE_TYPE, default=REVIEW,
-        verbose_name="نوع اللجنة", db_index=True,
+        max_length=10,
+        choices=COMMITTEE_TYPE,
+        default=REVIEW,
+        verbose_name="نوع اللجنة",
+        db_index=True,
     )
-    domain         = models.ForeignKey(
-        OperationalDomain, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="committee_members", verbose_name="المجال المسؤول عنه",
+    domain = models.ForeignKey(
+        OperationalDomain,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="committee_members",
+        verbose_name="المجال المسؤول عنه",
     )
-    academic_year  = models.CharField(max_length=9, default="2025-2026")
-    is_active      = models.BooleanField(default=True)
+    academic_year = models.CharField(max_length=9, default="2025-2026")
+    is_active = models.BooleanField(default=True)
 
     # صلاحيات على مستوى الفرد (كانت على مستوى اللجنة كلها سابقاً)
-    can_execute = models.BooleanField(default=True,  verbose_name="صلاحية تنفيذ إجراء")
-    can_review  = models.BooleanField(default=True,  verbose_name="صلاحية مراجعة إجراء")
-    can_report  = models.BooleanField(default=True,  verbose_name="صلاحية رفع تقرير")
+    can_execute = models.BooleanField(default=True, verbose_name="صلاحية تنفيذ إجراء")
+    can_review = models.BooleanField(default=True, verbose_name="صلاحية مراجعة إجراء")
+    can_report = models.BooleanField(default=True, verbose_name="صلاحية رفع تقرير")
 
     objects = CommitteeManager()
 
     class Meta:
-        verbose_name        = "عضو لجنة جودة"
+        verbose_name = "عضو لجنة جودة"
         verbose_name_plural = "أعضاء لجنة الجودة"
-        ordering            = ["committee_type", "responsibility", "job_title"]
+        ordering = ["committee_type", "responsibility", "job_title"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "academic_year", "user", "committee_type"],
@@ -344,8 +380,8 @@ class QualityCommitteeMember(models.Model):
         """تحقق من صلاحية فردية"""
         return {
             "execute": self.can_execute,
-            "review":  self.can_review,
-            "report":  self.can_report,
+            "review": self.can_review,
+            "report": self.can_report,
         }.get(perm, False)
 
     @property
@@ -358,49 +394,65 @@ class QualityCommitteeMember(models.Model):
 # القرار الأميري 9/2016 م.11 + قانون تنظيم المدارس 9/2017
 # ─────────────────────────────────────────────────────────────
 
+
 class EmployeeEvaluation(models.Model):
     PERIODS = [
         ("S1", "نهاية الفصل الأول"),
         ("S2", "نهاية العام الدراسي"),
     ]
     RATINGS = [
-        ("excellent",  "ممتاز (90–100)"),
-        ("very_good",  "جيد جداً (75–89)"),
-        ("good",       "جيد (60–74)"),
-        ("needs_dev",  "يحتاج تطوير (أقل من 60)"),
+        ("excellent", "ممتاز (90–100)"),
+        ("very_good", "جيد جداً (75–89)"),
+        ("good", "جيد (60–74)"),
+        ("needs_dev", "يحتاج تطوير (أقل من 60)"),
     ]
     STATUS = [
-        ("draft",        "مسودة"),
-        ("submitted",    "مُقدَّم"),
-        ("approved",     "مُعتمد"),
+        ("draft", "مسودة"),
+        ("submitted", "مُقدَّم"),
+        ("approved", "مُعتمد"),
         ("acknowledged", "مُستلم من الموظف"),
     ]
 
-    id            = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school        = models.ForeignKey(School,     on_delete=models.CASCADE, related_name="evaluations")
-    employee      = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="evaluations",      verbose_name="الموظف")
-    evaluator     = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="evaluations_given", verbose_name="المقيِّم")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="evaluations")
+    employee = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="evaluations", verbose_name="الموظف"
+    )
+    evaluator = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="evaluations_given",
+        verbose_name="المقيِّم",
+    )
     academic_year = models.CharField(max_length=9, default="2025-2026")
-    period        = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
-    status        = models.CharField(max_length=15, choices=STATUS, default="draft")
-    axis_professional = models.PositiveSmallIntegerField(default=0, verbose_name="الكفاءة المهنية (25)")
-    axis_commitment   = models.PositiveSmallIntegerField(default=0, verbose_name="الالتزام والمسؤولية (25)")
-    axis_teamwork     = models.PositiveSmallIntegerField(default=0, verbose_name="العمل الجماعي والتواصل (25)")
-    axis_development  = models.PositiveSmallIntegerField(default=0, verbose_name="التطوير المهني والمبادرة (25)")
-    total_score   = models.PositiveSmallIntegerField(default=0, verbose_name="المجموع الكلي")
-    rating        = models.CharField(max_length=15, choices=RATINGS, blank=True)
-    strengths     = models.TextField(blank=True, verbose_name="نقاط القوة")
-    improvements  = models.TextField(blank=True, verbose_name="مجالات التطوير")
-    goals_next    = models.TextField(blank=True, verbose_name="أهداف الفترة القادمة")
+    period = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
+    status = models.CharField(max_length=15, choices=STATUS, default="draft")
+    axis_professional = models.PositiveSmallIntegerField(
+        default=0, verbose_name="الكفاءة المهنية (25)"
+    )
+    axis_commitment = models.PositiveSmallIntegerField(
+        default=0, verbose_name="الالتزام والمسؤولية (25)"
+    )
+    axis_teamwork = models.PositiveSmallIntegerField(
+        default=0, verbose_name="العمل الجماعي والتواصل (25)"
+    )
+    axis_development = models.PositiveSmallIntegerField(
+        default=0, verbose_name="التطوير المهني والمبادرة (25)"
+    )
+    total_score = models.PositiveSmallIntegerField(default=0, verbose_name="المجموع الكلي")
+    rating = models.CharField(max_length=15, choices=RATINGS, blank=True)
+    strengths = models.TextField(blank=True, verbose_name="نقاط القوة")
+    improvements = models.TextField(blank=True, verbose_name="مجالات التطوير")
+    goals_next = models.TextField(blank=True, verbose_name="أهداف الفترة القادمة")
     employee_comment = models.TextField(blank=True, verbose_name="تعليق الموظف")
-    acknowledged_at  = models.DateTimeField(null=True, blank=True)
-    created_at    = models.DateTimeField(auto_now_add=True)
-    updated_at    = models.DateTimeField(auto_now=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name        = "تقييم موظف"
+        verbose_name = "تقييم موظف"
         verbose_name_plural = "تقييمات الموظفين"
-        ordering            = ["-created_at"]
+        ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "employee", "academic_year", "period"],
@@ -412,35 +464,43 @@ class EmployeeEvaluation(models.Model):
         return f"{self.employee.full_name} | {self.get_period_display()} | {self.academic_year}"
 
     def calculate_total(self):
-        self.total_score = (self.axis_professional + self.axis_commitment +
-                            self.axis_teamwork + self.axis_development)
-        if   self.total_score >= 90: self.rating = "excellent"
-        elif self.total_score >= 75: self.rating = "very_good"
-        elif self.total_score >= 60: self.rating = "good"
-        else:                        self.rating = "needs_dev"
+        self.total_score = (
+            self.axis_professional
+            + self.axis_commitment
+            + self.axis_teamwork
+            + self.axis_development
+        )
+        if self.total_score >= 90:
+            self.rating = "excellent"
+        elif self.total_score >= 75:
+            self.rating = "very_good"
+        elif self.total_score >= 60:
+            self.rating = "good"
+        else:
+            self.rating = "needs_dev"
 
     def save(self, *args, **kwargs):
         self.calculate_total()
         super().save(*args, **kwargs)
 
     def acknowledge(self):
-        self.status          = "acknowledged"
+        self.status = "acknowledged"
         self.acknowledged_at = timezone.now()
         self.save(update_fields=["status", "acknowledged_at"])
 
 
 class EvaluationCycle(models.Model):
-    id            = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school        = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_cycles")
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_cycles")
     academic_year = models.CharField(max_length=9, default="2025-2026")
-    period        = models.CharField(max_length=2, choices=EmployeeEvaluation.PERIODS)
-    deadline      = models.DateField(verbose_name="الموعد النهائي للتقييم")
-    is_closed     = models.BooleanField(default=False)
-    created_by    = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
-    created_at    = models.DateTimeField(auto_now_add=True)
+    period = models.CharField(max_length=2, choices=EmployeeEvaluation.PERIODS)
+    deadline = models.DateField(verbose_name="الموعد النهائي للتقييم")
+    is_closed = models.BooleanField(default=False)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name        = "دورة تقييم"
+        verbose_name = "دورة تقييم"
         verbose_name_plural = "دورات التقييم"
         constraints = [
             models.UniqueConstraint(
@@ -455,12 +515,24 @@ class EvaluationCycle(models.Model):
     @property
     def completion_rate(self):
         total_staff = Membership.objects.filter(
-            school=self.school, is_active=True,
-            role__name__in=["teacher","coordinator","specialist","nurse",
-                            "librarian","bus_supervisor","admin","vice_admin","vice_academic"],
+            school=self.school,
+            is_active=True,
+            role__name__in=[
+                "teacher",
+                "coordinator",
+                "specialist",
+                "nurse",
+                "librarian",
+                "bus_supervisor",
+                "admin",
+                "vice_admin",
+                "vice_academic",
+            ],
         ).count()
         evaluated = EmployeeEvaluation.objects.filter(
-            school=self.school, academic_year=self.academic_year,
-            period=self.period, status__in=["submitted","approved","acknowledged"],
+            school=self.school,
+            academic_year=self.academic_year,
+            period=self.period,
+            status__in=["submitted", "approved", "acknowledged"],
         ).count()
         return round(evaluated / total_staff * 100) if total_staff else 0

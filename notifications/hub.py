@@ -19,14 +19,12 @@ NotificationHub — الموجّه المركزي لكل الإشعارات
 
 يتحقق من تفضيلات كل مستلم → يوزّع على القنوات → Celery async → retry
 """
+
 import logging
-from django.utils import timezone
 
 from .models import (
     InAppNotification,
     UserNotificationPreference,
-    NotificationLog,
-    NotificationSettings,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,40 +33,40 @@ logger = logging.getLogger(__name__)
 # ── مصفوفة القنوات الافتراضية حسب الحدث والأولوية ────────────
 DEFAULT_CHANNELS = {
     # event_type: [channels]
-    "behavior_l1":     ["in_app", "push", "email"],
-    "behavior_l2":     ["in_app", "push", "whatsapp", "email"],
-    "behavior_l3":     ["in_app", "push", "whatsapp", "email", "sms"],
-    "behavior_l4":     ["in_app", "push", "whatsapp", "email", "sms"],
-    "absence":         ["in_app", "push", "whatsapp", "email"],
-    "grade":           ["in_app", "push", "email"],
-    "fail":            ["in_app", "push", "whatsapp", "email", "sms"],
-    "clinic":          ["in_app", "push", "whatsapp"],
-    "sent_home":       ["in_app", "push", "whatsapp", "email", "sms"],
-    "meeting":         ["in_app", "push", "whatsapp", "email"],
-    "plan_update":     ["in_app", "email"],
-    "plan_deadline":   ["in_app", "email"],
-    "plan_overdue":    ["in_app", "email"],
-    "review_cycle":    ["in_app", "email"],
-    "general":         ["in_app", "push", "email"],
+    "behavior_l1": ["in_app", "push", "email"],
+    "behavior_l2": ["in_app", "push", "whatsapp", "email"],
+    "behavior_l3": ["in_app", "push", "whatsapp", "email", "sms"],
+    "behavior_l4": ["in_app", "push", "whatsapp", "email", "sms"],
+    "absence": ["in_app", "push", "whatsapp", "email"],
+    "grade": ["in_app", "push", "email"],
+    "fail": ["in_app", "push", "whatsapp", "email", "sms"],
+    "clinic": ["in_app", "push", "whatsapp"],
+    "sent_home": ["in_app", "push", "whatsapp", "email", "sms"],
+    "meeting": ["in_app", "push", "whatsapp", "email"],
+    "plan_update": ["in_app", "email"],
+    "plan_deadline": ["in_app", "email"],
+    "plan_overdue": ["in_app", "email"],
+    "review_cycle": ["in_app", "email"],
+    "general": ["in_app", "push", "email"],
 }
 
 # ── أولوية افتراضية حسب الحدث ────────────────────────────────
 DEFAULT_PRIORITY = {
-    "behavior_l1":   "low",
-    "behavior_l2":   "medium",
-    "behavior_l3":   "high",
-    "behavior_l4":   "urgent",
-    "absence":       "medium",
-    "grade":         "low",
-    "fail":          "high",
-    "clinic":        "medium",
-    "sent_home":     "urgent",
-    "meeting":       "low",
-    "plan_update":   "low",
+    "behavior_l1": "low",
+    "behavior_l2": "medium",
+    "behavior_l3": "high",
+    "behavior_l4": "urgent",
+    "absence": "medium",
+    "grade": "low",
+    "fail": "high",
+    "clinic": "medium",
+    "sent_home": "urgent",
+    "meeting": "low",
+    "plan_update": "low",
     "plan_deadline": "medium",
-    "plan_overdue":  "high",
-    "review_cycle":  "low",
-    "general":       "low",
+    "plan_overdue": "high",
+    "review_cycle": "low",
+    "general": "low",
 }
 
 
@@ -82,9 +80,18 @@ class NotificationHub:
     """
 
     @staticmethod
-    def dispatch(event_type, school, recipients, title, body="",
-                 context=None, priority=None, related_url="",
-                 related_object_id="", sent_by=None):
+    def dispatch(
+        event_type,
+        school,
+        recipients,
+        title,
+        body="",
+        context=None,
+        priority=None,
+        related_url="",
+        related_object_id="",
+        sent_by=None,
+    ):
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
 
@@ -174,30 +181,41 @@ class NotificationHub:
     def dispatch_to_role(event_type, school, role_name, title, body="", **kwargs):
         """إرسال لكل مستخدمي دور معين في المدرسة"""
         from core.models import Membership
+
         members = Membership.objects.filter(
             school=school, role__name=role_name, is_active=True
         ).select_related("user")
         recipients = [m.user for m in members]
         return NotificationHub.dispatch(
-            event_type=event_type, school=school,
-            recipients=recipients, title=title, body=body, **kwargs
+            event_type=event_type,
+            school=school,
+            recipients=recipients,
+            title=title,
+            body=body,
+            **kwargs,
         )
 
     @staticmethod
     def dispatch_to_parents(event_type, school, student, title, body="", **kwargs):
         """إرسال لأولياء أمور طالب محدد"""
         from core.models import ParentStudentLink
-        links = ParentStudentLink.objects.filter(
-            student=student, school=school
-        ).select_related("parent")
+
+        links = ParentStudentLink.objects.filter(student=student, school=school).select_related(
+            "parent"
+        )
         recipients = [link.parent for link in links]
         return NotificationHub.dispatch(
-            event_type=event_type, school=school,
-            recipients=recipients, title=title, body=body, **kwargs
+            event_type=event_type,
+            school=school,
+            recipients=recipients,
+            title=title,
+            body=body,
+            **kwargs,
         )
 
 
 # ── دوال مساعدة داخلية ──────────────────────────────────────
+
 
 def _get_prefs(user):
     """يجلب تفضيلات المستخدم أو يُنشئ افتراضية"""
@@ -224,17 +242,17 @@ def _map_event_type(hub_event):
         "behavior_l2": "behavior",
         "behavior_l3": "behavior",
         "behavior_l4": "behavior",
-        "absence":     "absence",
-        "grade":       "grade",
-        "fail":        "fail",
-        "clinic":      "clinic",
-        "sent_home":   "sent_home",
-        "meeting":     "meeting",
-        "plan_update":   "plan_update",
+        "absence": "absence",
+        "grade": "grade",
+        "fail": "fail",
+        "clinic": "clinic",
+        "sent_home": "sent_home",
+        "meeting": "meeting",
+        "plan_update": "plan_update",
         "plan_deadline": "plan_deadline",
-        "plan_overdue":  "plan_overdue",
-        "review_cycle":  "review_cycle",
-        "general":     "general",
+        "plan_overdue": "plan_overdue",
+        "review_cycle": "review_cycle",
+        "general": "general",
     }
     return mapping.get(hub_event, "general")
 
@@ -243,6 +261,7 @@ def _queue_external(user, school, channels, title, body, event_type, context, se
     """يُرسل المهام للقنوات الخارجية عبر Celery"""
     try:
         from .tasks import hub_send_notification_task
+
         hub_send_notification_task.delay(
             user_id=str(user.id),
             school_id=str(school.id),
@@ -265,9 +284,9 @@ def _serialize_context(context):
         return {}
     safe = {}
     for key, val in context.items():
-        if hasattr(val, 'id'):
+        if hasattr(val, "id"):
             safe[key] = str(val.id)
-        elif hasattr(val, 'pk'):
+        elif hasattr(val, "pk"):
             safe[key] = str(val.pk)
         else:
             safe[key] = str(val)
@@ -281,8 +300,10 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
     if "email" in channels and user.email:
         try:
             NotificationService.send_email(
-                school=school, recipient_email=user.email,
-                subject=title, body_text=body,
+                school=school,
+                recipient_email=user.email,
+                subject=title,
+                body_text=body,
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
             )
@@ -292,7 +313,8 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
     if "sms" in channels and user.phone:
         try:
             NotificationService.send_sms(
-                school=school, phone_number=user.phone,
+                school=school,
+                phone_number=user.phone,
                 message=f"{title}\n{body}",
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
