@@ -1,14 +1,85 @@
-name: CI — اختبار تلقائي
+name: CI — جودة الكود + الاختبارات
 
 on:
   push:
-    branches: [main, develop, "feature/**", "fix/**"]
+    branches: [main, develop, "feature/**", "fix/**", "claude/**"]
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # ══════════════════════════════════════════════════════
+  #  1. جودة الكود — ruff (يستبدل flake8 + black + isort)
+  # ══════════════════════════════════════════════════════
+  lint:
+    name: Ruff — جودة الكود
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت ruff
+        run: pip install ruff==0.4.4
+
+      - name: فحص الكود
+        run: ruff check . --output-format=github
+
+      - name: فحص التنسيق
+        run: ruff format --check .
+
+  # ══════════════════════════════════════════════════════
+  #  2. فحص أمني — bandit (SAST)
+  # ══════════════════════════════════════════════════════
+  security:
+    name: Bandit — فحص أمني
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت bandit
+        run: pip install bandit[toml]==1.7.8
+
+      - name: فحص الثغرات الأمنية
+        run: |
+          bandit -r . \
+            -x .venv,migrations,tests,manage.py \
+            --severity-level high \
+            --confidence-level high
+        # يفشل فقط على High severity + High confidence
+
+      - name: تقرير bandit كامل (للمراجعة)
+        if: always()
+        run: |
+          bandit -r . \
+            -x .venv,migrations,tests,manage.py \
+            --severity-level medium \
+            --confidence-level medium \
+            -f json -o bandit-report.json || true
+
+      - name: رفع تقرير Bandit
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  # ══════════════════════════════════════════════════════
+  #  3. الاختبارات + Coverage Gate ≥80%
+  # ══════════════════════════════════════════════════════
   test:
-    name: اختبار وفحص الكود
+    name: pytest — اختبارات + تغطية ≥80%
     runs-on: ubuntu-latest
 
     services:
@@ -38,16 +109,14 @@ jobs:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
 
     steps:
-      - name: سحب الكود
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: إعداد Python 3.11
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
 
-      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint deps)
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
@@ -55,7 +124,8 @@ jobs:
             libpango1.0-dev \
             libgdk-pixbuf2.0-dev \
             libffi-dev \
-            shared-mime-info
+            shared-mime-info \
+            pkg-config
 
       - name: تثبيت المتطلبات
         run: pip install -r requirements.txt
@@ -63,27 +133,96 @@ jobs:
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
-      - name: التحقق من عدم وجود model changes بدون migration
+      - name: التحقق من عدم وجود migrations غير مطبّقة
         run: python manage.py makemigrations --check --noinput
-        continue-on-error: false
 
-      - name: فحص Health Check endpoint
-        run: |
-          python manage.py runserver 8000 &
-          sleep 5
-          curl -f http://localhost:8000/health/ | python -m json.tool
-          kill %1
+      - name: فحص إعدادات Django
+        run: python manage.py check --fail-level WARNING
 
-      - name: تشغيل الاختبارات
+      - name: "★ الاختبارات + Coverage Gate ≥80%"
         run: |
-          pytest tests/ -v --tb=short --no-header \
+          pytest tests/ -v --tb=short \
+            --cov=. \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-report=html:htmlcov \
+            --cov-fail-under=80 \
+            --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
             --junit-xml=test-results.xml \
             -q
-        continue-on-error: false
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
-          path: test-results.xml
+          path: |
+            test-results.xml
+            coverage.xml
+            htmlcov/
+
+      - name: ملخص Coverage في GitHub Summary
+        if: always()
+        run: |
+          echo "## نتائج التغطية" >> $GITHUB_STEP_SUMMARY
+          echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+          import xml.etree.ElementTree as ET, sys
+          try:
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              rate = float(root.attrib.get('line-rate', 0)) * 100
+              status = 'ناجح' if rate >= 80 else 'فاشل'
+              print(f'| التغطية | {rate:.1f}% |')
+              print(f'| الحالة | {status} |')
+          except Exception as e:
+              print('| التغطية | غير متاح |')
+          " >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  4. فحص الأنواع — mypy (تحذير فقط)
+  # ══════════════════════════════════════════════════════
+  typecheck:
+    name: mypy — فحص الأنواع
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت mypy + stubs
+        run: |
+          pip install mypy==1.10.0 django-stubs==5.0.2 \
+            djangorestframework-stubs==3.15.0
+
+      - name: فحص الأنواع
+        run: |
+          mypy . \
+            --ignore-missing-imports \
+            --exclude "migrations|\.venv|manage\.py|conftest" \
+            --django-settings-module=shschool.settings.testing \
+            || echo "mypy وجد مشاكل — راجع التقرير (تحذير فقط)"
+
+  # ══════════════════════════════════════════════════════
+  #  ملخص نهائي — يظهر في كل PR
+  # ══════════════════════════════════════════════════════
+  summary:
+    name: ملخص CI
+    runs-on: ubuntu-latest
+    needs: [lint, security, test]
+    if: always()
+    steps:
+      - name: نتيجة CI
+        run: |
+          echo "## نتيجة CI" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | النتيجة |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruff — جودة الكود | ${{ needs.lint.result == 'success' && 'ناجح' || 'فاشل' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bandit — أمان | ${{ needs.security.result == 'success' && 'ناجح' || 'فاشل' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + Coverage | ${{ needs.test.result == 'success' && 'ناجح' || 'فاشل' }} |" >> $GITHUB_STEP_SUMMARY

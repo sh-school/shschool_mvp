@@ -1,0 +1,207 @@
+name: Quality — فحص أسبوعي شامل
+
+on:
+  schedule:
+    - cron: "0 6 * * 0"  # كل أحد الساعة 6 صباحاً UTC
+  workflow_dispatch:      # يدوي عند الحاجة
+
+jobs:
+  # ══════════════════════════════════════════════════════
+  #  CVEs في المكتبات — pip-audit
+  # ══════════════════════════════════════════════════════
+  pip-audit:
+    name: pip-audit — فحص CVEs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت pip-audit
+        run: pip install pip-audit==2.7.3
+
+      - name: فحص CVEs في المكتبات
+        run: |
+          pip-audit -r requirements.txt \
+            --format json \
+            --output pip-audit-report.json || true
+          pip-audit -r requirements.txt \
+            --vulnerability-service pypi \
+            --desc
+
+      - name: رفع تقرير pip-audit
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+
+  # ══════════════════════════════════════════════════════
+  #  تعقيد الكود — radon
+  # ══════════════════════════════════════════════════════
+  radon:
+    name: radon — تعقيد الكود
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: تثبيت radon
+        run: pip install radon==6.0.1
+
+      - name: تقرير التعقيد الحلقي (CC)
+        run: |
+          echo "## تقرير تعقيد الكود (Cyclomatic Complexity)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### الدوال ذات التعقيد العالي (C+)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          radon cc . \
+            --exclude "migrations,*.venv,manage.py" \
+            --min C \
+            --show-complexity \
+            --average 2>> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: تقرير Maintainability Index
+        run: |
+          echo "### Maintainability Index (ملفات F)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          radon mi . \
+            --exclude "migrations,.venv" \
+            --min F 2>> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: فشل إذا وجد تعقيد F (أسوأ درجة)
+        run: |
+          result=$(radon cc . \
+            --exclude "migrations,.venv,manage.py" \
+            --min F \
+            --show-complexity 2>/dev/null)
+          if [ -n "$result" ]; then
+            echo "خطأ: وجدت دوال بتعقيد F (أعلى من 50)"
+            echo "$result"
+            exit 1
+          fi
+          echo "ممتاز: لا توجد دوال بتعقيد F"
+
+  # ══════════════════════════════════════════════════════
+  #  الكود الميت — vulture
+  # ══════════════════════════════════════════════════════
+  vulture:
+    name: vulture — كشف الكود الميت
+    runs-on: ubuntu-latest
+    continue-on-error: true  # تقرير فقط
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: تثبيت vulture
+        run: pip install vulture==2.11
+
+      - name: كشف الكود الميت
+        run: |
+          echo "## تقرير الكود الميت (vulture)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          vulture . \
+            --exclude .venv,migrations \
+            --min-confidence 80 \
+            2>> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  تغطية الاختبارات الأسبوعية
+  # ══════════════════════════════════════════════════════
+  coverage-report:
+    name: تقرير التغطية الأسبوعي
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: تشغيل الاختبارات مع تقرير HTML شامل
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=html:htmlcov \
+            --cov-report=term-missing \
+            --cov-report=json:coverage.json \
+            --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
+            -q
+
+      - name: رفع تقرير HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-coverage-html
+          path: htmlcov/
+          retention-days: 30
+
+      - name: ملخص أسبوعي
+        run: |
+          echo "## التقرير الأسبوعي الشامل" >> $GITHUB_STEP_SUMMARY
+          echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+          import json
+          try:
+              with open('coverage.json') as f:
+                  data = json.load(f)
+              total = data['totals']
+              print(f'| الأسطر المغطاة | {total[\"covered_lines\"]} / {total[\"num_statements\"]} |')
+              print(f'| نسبة التغطية | {total[\"percent_covered\"]:.1f}% |')
+              print(f'| الفروع المغطاة | {total.get(\"covered_branches\", \"N/A\")} |')
+          except Exception as e:
+              print(f'| خطأ | {e} |')
+          " >> $GITHUB_STEP_SUMMARY

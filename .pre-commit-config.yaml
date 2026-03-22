@@ -1,0 +1,49 @@
+# .pre-commit-config.yaml
+# التثبيت: pip install pre-commit && pre-commit install
+# التشغيل اليدوي: pre-commit run --all-files
+
+repos:
+  # ── Ruff — جودة الكود + تنسيق (يستبدل flake8+black+isort) ──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        name: ruff — فحص الكود
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        name: ruff-format — تنسيق الكود
+
+  # ── فحوصات عامة سريعة ────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        name: إزالة المسافات الزائدة
+      - id: end-of-file-fixer
+        name: إصلاح نهاية الملف
+      - id: check-yaml
+        name: فحص صحة YAML
+      - id: check-json
+        name: فحص صحة JSON
+      - id: check-merge-conflict
+        name: كشف علامات merge conflict
+      - id: check-added-large-files
+        name: منع رفع ملفات كبيرة
+        args: [--maxkb=500]
+      - id: debug-statements
+        name: كشف print/breakpoint/pdb
+
+  # ── حماية من رفع أسرار (Secrets) ────────────────────────
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: كشف الأسرار المرفوعة
+        args: [--baseline, .secrets.baseline]
+        exclude: |
+          (?x)^(
+            .*\.example|
+            .*\.md|
+            tests/.*|
+            AAdocs/.*
+          )$

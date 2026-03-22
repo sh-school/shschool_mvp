@@ -1,8 +1,100 @@
-[tool.black]
-line-length = 100
-target-version = ["py311"]
-skip-string-normalization = true
+# ──────────────────────────────────────────────────────
+#  pyproject.toml — SchoolOS Qatar
+# ──────────────────────────────────────────────────────
 
-[tool.isort]
-profile = "black"
-line_length = 100
+# ── Ruff — يستبدل black + isort + flake8 ─────────────
+[tool.ruff]
+line-length    = 100
+target-version = "py311"
+exclude = [
+    ".venv", "venv", "migrations", "__pycache__",
+    ".git", ".claude", "staticfiles", "htmlcov",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "S",   # flake8-bandit (أمان خفيف)
+    "DJ",  # flake8-django
+    "N",   # pep8-naming
+]
+ignore = [
+    "E501",   # line too long — نتحكم بـ line-length
+    "S101",   # assert — مقبول في الاختبارات
+    "S105",   # hardcoded password — false positives في Django
+    "S106",
+    "S107",
+    "S308",   # mark_safe — نستخدمه بوعي
+    "DJ001",  # null=True on CharField — اختياري
+    "N806",   # variable in function should be lowercase — تعارض مع Django
+    "B904",   # raise from — اختياري في الآن
+]
+per-file-ignores = { "tests/**" = ["S", "B"], "conftest.py" = ["S", "B"] }
+
+[tool.ruff.lint.isort]
+known-first-party  = ["core", "operations", "assessments", "reports",
+                       "notifications", "quality", "behavior", "clinic",
+                       "transport", "library", "parents", "staging",
+                       "api", "shschool"]
+known-django       = ["django", "rest_framework", "drf_spectacular"]
+section-order      = ["future", "standard-library", "django",
+                       "third-party", "first-party", "local-folder"]
+
+[tool.ruff.format]
+quote-style              = "double"
+indent-style             = "space"
+skip-magic-trailing-comma = false
+
+# ── pytest ────────────────────────────────────────────
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "shschool.settings.testing"
+python_files   = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--tb=short --no-header -q"
+
+# ── Coverage ──────────────────────────────────────────
+[tool.coverage.run]
+source = ["."]
+omit   = [
+    "*/migrations/*",
+    "*/tests/*",
+    "manage.py",
+    "*/settings/*",
+    "*/.venv/*",
+    "*/venv/*",
+    "conftest.py",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered  = false
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "pass",
+]
+
+# ── Bandit ────────────────────────────────────────────
+[tool.bandit]
+exclude_dirs = [".venv", "migrations", "tests", "manage.py"]
+skips        = ["B101", "B601"]  # assert + shell=True في مواضع مقبولة
+
+# ── mypy ─────────────────────────────────────────────
+[tool.mypy]
+python_version         = "3.11"
+ignore_missing_imports = true
+exclude                = ["migrations", ".venv", "manage.py"]
+plugins                = ["mypy_django_plugin.main"]
+
+[tool.django-stubs]
+django_settings_module = "shschool.settings.testing"

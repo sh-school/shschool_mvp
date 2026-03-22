@@ -81,7 +81,6 @@ class TestClassGroupFactory:
 
     def test_unique_constraint_respected(self, db, school):
         """قيد التفرد: نفس الصف + شعبة + عام → خطأ"""
-        from django.db import IntegrityError
         ClassGroupFactory(school=school, grade="G8", section="أ", academic_year="2025-2026")
         with pytest.raises(Exception):
             ClassGroupFactory(school=school, grade="G8", section="أ", academic_year="2025-2026")
