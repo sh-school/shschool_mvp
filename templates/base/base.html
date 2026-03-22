@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="{% static 'css/custom.css' %}">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+    body { font-family: 'Tajawal', Tahoma, Arial, sans-serif; }
     /* ══ Dropdown ══════════════════════════════════════════════ */
     .sd-menu {
       display: none;
@@ -70,7 +70,7 @@
 
     <!-- Logo -->
     <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:6px;flex-shrink:0;">
-      🏫 SchoolOS
+      <img src="{% static 'icons/favicon.png' %}" width="22" height="22" alt="SchoolOS" style="border-radius:4px;"> SchoolOS
     </a>
 
     <div style="width:1px;height:22px;background:rgba(255,255,255,0.2);margin:0 4px;flex-shrink:0;"></div>
@@ -82,22 +82,22 @@
     <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
 
     <!-- ── الأكاديمية Dropdown ── -->
-    <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">
+    <button class="nb" id="btn-academic" data-sd-target="m-academic">
       📚 الأكاديمية <span class="chv">▼</span>
     </button>
 
     <!-- ── الجودة Dropdown ── -->
-    <button class="nb" id="btn-quality" onclick="sd('m-quality',this)">
+    <button class="nb" id="btn-quality" data-sd-target="m-quality">
       📋 الجودة <span class="chv">▼</span>
     </button>
 
     <!-- ── الإدارة Dropdown ── -->
-    <button class="nb" id="btn-admin" onclick="sd('m-admin',this)">
+    <button class="nb" id="btn-admin" data-sd-target="m-admin">
       ⚙️ الإدارة <span class="chv">▼</span>
     </button>
 
     <!-- ── الخدمات Dropdown ── -->
-    <button class="nb" id="btn-services" onclick="sd('m-services',this)">
+    <button class="nb" id="btn-services" data-sd-target="m-services">
       🏥 الخدمات <span class="chv">▼</span>
     </button>
 
@@ -150,7 +150,7 @@
     </a>
 
     <!-- User -->
-    <button class="nb" id="btn-user" onclick="sd('m-user',this)" style="gap:6px;flex-shrink:0;">
+    <button class="nb" id="btn-user" data-sd-target="m-user" style="gap:6px;flex-shrink:0;">
       <span style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.22);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">
         {{ request.user.full_name|slice:":1" }}
       </span>
@@ -182,12 +182,10 @@
   SchoolOS — مدرسة الشحانية الإعدادية الثانوية للبنين | وزارة التربية والتعليم والتعليم العالي
 </footer>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 function sdPos(m, btn) {
-  // temporarily render invisible to get real dimensions
   m.classList.add('sd-measure');
-  var mw = m.offsetWidth;
-  var mh = m.offsetHeight;
+  var mw = m.offsetWidth, mh = m.offsetHeight;
   m.classList.remove('sd-measure');
   var r = btn.getBoundingClientRect();
   var top = r.bottom + 4;
@@ -204,14 +202,19 @@ function sd(id, btn) {
   var isOpen = m.classList.contains('open');
   document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
   document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
-  if (!isOpen) {
-    sdPos(m, btn);
-    m.classList.add('open');
-    btn.classList.add('on');
-  }
+  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); }
 }
+// ✅ CSP-safe: بدون onclick — نستخدم data-sd-target مع addEventListener
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-sd-target]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      sd(btn.dataset.sdTarget, btn);
+    });
+  });
+});
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
+  if (!e.target.closest('.sd-menu') && !e.target.closest('[data-sd-target]')) {
     document.querySelectorAll('.sd-menu.open').forEach(function(x){x.classList.remove('open');});
     document.querySelectorAll('.nb.on').forEach(function(x){x.classList.remove('on');});
   }
@@ -247,11 +250,13 @@ window.addEventListener('resize', function() {
   <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
   <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
   <hr>
-  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" %}
+  {% with r=request.user.get_role %}
+  {% if request.user.is_superuser or r == "principal" or r == "vice_admin" or r == "vice_academic" %}
   <div class="sd-label">تقييم الأداء</div>
   <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
   <hr>
   {% endif %}
+  {% endwith %}
   <a href="/quality/my-procedures/" style="color:#2563eb !important;">📝 إجراءاتي</a>
 </div>
 
@@ -292,7 +297,7 @@ window.addEventListener('resize', function() {
 {% endif %}{# end if user.is_authenticated — dropdowns #}
 
 {% if user.is_authenticated %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   var badge = document.getElementById('notif-badge');
   if (!badge) return;
@@ -314,5 +319,6 @@ window.addEventListener('resize', function() {
 })();
 </script>
 {% endif %}
+{% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -6,7 +6,7 @@ tests/test_views_clinic.py
 """
 import pytest
 from django.urls import reverse
-from core.models import ClinicVisit, HealthRecord
+from clinic.models import ClinicVisit, HealthRecord
 
 
 @pytest.mark.django_db

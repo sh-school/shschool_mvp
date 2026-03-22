@@ -98,11 +98,13 @@ LOGGING = {
     },
 }
 
-# ── CSP أكثر صرامة في الإنتاج ────────────────────────────────
-# Tailwind مصرَّف محلياً — لا حاجة لـ CDN
-CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
-CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
-CSP_REPORT_ONLY = False
+# ── CSP الإنتاج — nonce-based بدون unsafe-inline ─────────────
+# ✅ Tailwind مصرَّف محلياً — لا CDN لـ Tailwind
+# ✅ unsafe-inline محذوف — nonces تُولَّد لكل طلب تلقائياً
+CSP_SCRIPT_SRC       = ("'self'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
+CSP_STYLE_SRC        = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com",)
+CSP_INCLUDE_NONCE_IN = ("SCRIPT_SRC",)
+CSP_REPORT_ONLY      = False
 
 # ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:

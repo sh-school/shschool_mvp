@@ -138,17 +138,20 @@ EMAIL_HOST_USER    = config("EMAIL_HOST_USER",     default="")
 EMAIL_HOST_PASSWORD= config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL",  default="noreply@schoolos.qa")
 
-# ── Content Security Policy ───────────────────────────────
-# ⚠️ unsafe-inline مطلوب مؤقتاً لـ HTMX inline handlers
-# TODO: الانتقال لـ nonce-based CSP بعد تنظيف Templates
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com",)
-CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
-CSP_FONT_SRC    = ("'self'", "https://fonts.gstatic.com",)
-CSP_IMG_SRC     = ("'self'", "data:", "blob:",)
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_SRC   = ("'none'",)
-CSP_OBJECT_SRC  = ("'none'",)
+# ── Content Security Policy (Nonce-Based) ─────────────────
+# ✅ v5.1: تم إزالة unsafe-inline واستبداله بنظام nonces
+# كل <script nonce="{{ csp_nonce }}"> مُصرَّح له تلقائياً
+# لا inline event handlers (onclick) — يُستخدم addEventListener بدلاً
+CSP_DEFAULT_SRC      = ("'self'",)
+CSP_SCRIPT_SRC       = ("'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com",)
+CSP_STYLE_SRC        = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
+CSP_FONT_SRC         = ("'self'", "https://fonts.gstatic.com",)
+CSP_IMG_SRC          = ("'self'", "data:", "blob:",)
+CSP_CONNECT_SRC      = ("'self'",)
+CSP_FRAME_SRC        = ("'none'",)
+CSP_OBJECT_SRC       = ("'none'",)
+# nonces يُضافون تلقائياً لكل script tag في Templates
+CSP_INCLUDE_NONCE_IN = ("SCRIPT_SRC",)
 
 
 # ✅ v5: VAPID Push Notifications

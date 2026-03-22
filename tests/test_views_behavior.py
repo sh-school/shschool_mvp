@@ -4,7 +4,7 @@ tests/test_views_behavior.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 import pytest
-from core.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 from .conftest import BehaviorInfractionFactory
 
 
