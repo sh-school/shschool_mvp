@@ -6,7 +6,6 @@ Combined tests for clinic/views.py, library/views.py, staging/views.py
 import io
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import MagicMock, patch
 
 import pytest
 from django.urls import reverse
