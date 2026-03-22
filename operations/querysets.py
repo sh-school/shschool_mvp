@@ -87,9 +87,7 @@ class AttendanceQuerySet(QuerySet):
 
     def unexcused(self) -> AttendanceQuerySet:
         """غياب بدون عذر."""
-        return self.filter(status="absent").filter(
-            Q(excuse_type__isnull=True) | Q(excuse_type="")
-        )
+        return self.filter(status="absent").filter(Q(excuse_type__isnull=True) | Q(excuse_type=""))
 
     def date_range(self, start, end) -> AttendanceQuerySet:
         return self.filter(session__date__gte=start, session__date__lte=end)

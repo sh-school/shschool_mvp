@@ -983,14 +983,13 @@ class TestExamControlViewsCoverage:
     # ── incident_pdf ─────────────────────────────────────────
 
     def test_incident_pdf(self, client_as, principal_user, exam_incident):
+        from django.http import HttpResponse
+
         c = client_as(principal_user)
         with patch("core.pdf_utils.render_pdf") as mock_pdf:
-            mock_pdf.return_value = MagicMock(
-                status_code=200,
-                content=b"PDF",
-                __getitem__=lambda s, k: "application/pdf" if k == "Content-Type" else "",
-            )
+            mock_pdf.return_value = HttpResponse(b"PDF", content_type="application/pdf")
             resp = c.get(f"/exam-control/incident/{exam_incident.pk}/pdf/")
+        assert resp.status_code == 200
         mock_pdf.assert_called_once()
 
     # ── grade_sheets ─────────────────────────────────────────
@@ -1052,13 +1051,13 @@ class TestExamControlViewsCoverage:
         exam_incident,
         exam_grade_sheet,
     ):
+        from django.http import HttpResponse
+
         c = client_as(principal_user)
         with patch("core.pdf_utils.render_pdf") as mock_pdf:
-            mock_pdf.return_value = MagicMock(
-                status_code=200,
-                content=b"PDF",
-            )
+            mock_pdf.return_value = HttpResponse(b"PDF", content_type="application/pdf")
             resp = c.get(f"/exam-control/session/{exam_session.pk}/report-pdf/")
+        assert resp.status_code == 200
         mock_pdf.assert_called_once()
 
 

@@ -356,7 +356,8 @@ class ClinicVisitSerializer(serializers.ModelSerializer):
             "nurse_name",
             "visit_date",
             "reason",
-            "diagnosis",
+            "symptoms",
+            "treatment",
             "is_sent_home",
             "parent_notified",
         ]

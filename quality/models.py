@@ -56,6 +56,10 @@ class OperationalDomain(models.Model):
     def total_procedures(self):
         return OperationalProcedure.objects.filter(indicator__target__domain=self).count()
 
+    @total_procedures.setter
+    def total_procedures(self, value):
+        pass  # يسمح لـ Django ORM بضبط القيمة المُحسَّبة (annotate)
+
     @property
     def completed_procedures(self):
         return OperationalProcedure.objects.filter(

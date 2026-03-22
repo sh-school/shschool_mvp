@@ -81,6 +81,10 @@ class Session(models.Model):
     def present_count(self):
         return self.attendances.filter(status="present").count()
 
+    @present_count.setter
+    def present_count(self, value):
+        pass  # يسمح لـ Django ORM بضبط القيمة المُحسَّبة (annotate)
+
 
 class StudentAttendance(models.Model):
     STATUS = [

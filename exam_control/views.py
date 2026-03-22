@@ -23,9 +23,7 @@ def _can_access(user):
     return user.is_authenticated and (
         user.is_admin()
         or user.is_superuser
-        or hasattr(user, "role")
-        and user.role
-        and user.role.name in ("exam_head", "warden", "principal")
+        or user.get_role() in ("exam_head", "warden", "principal")
     )
 
 

@@ -72,7 +72,7 @@ class NotificationLogQuerySet(QuerySet):
     def failure_summary(self):
         return (
             self.failed()
-            .values("channel", "error_message")
+            .values("channel", "error_msg")
             .annotate(count=Count("id"))
             .order_by("-count")
         )

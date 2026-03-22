@@ -310,7 +310,9 @@ def infraction_warning_pdf(request, infraction_id):
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
-        "behavior/pdf/student_warning.html", ctx, f"warning_{inf.student.national_id}_{inf.date}.pdf"
+        "behavior/pdf/student_warning.html",
+        ctx,
+        f"warning_{inf.student.national_id}_{inf.date}.pdf",
     )
 
 
