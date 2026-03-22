@@ -66,6 +66,10 @@ class OperationalDomain(models.Model):
             indicator__target__domain=self, status="Completed"
         ).count()
 
+    @completed_procedures.setter
+    def completed_procedures(self, value):
+        pass  # يسمح لـ Django ORM بضبط القيمة المُحسَّبة (annotate)
+
     @property
     def completion_pct(self):
         total = self.total_procedures
