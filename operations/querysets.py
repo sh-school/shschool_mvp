@@ -87,7 +87,9 @@ class AttendanceQuerySet(QuerySet):
 
     def unexcused(self) -> AttendanceQuerySet:
         """غياب بدون عذر."""
-        return self.filter(status="absent", excuse_type__isnull=True)
+        return self.filter(status="absent").filter(
+            Q(excuse_type__isnull=True) | Q(excuse_type="")
+        )
 
     def date_range(self, start, end) -> AttendanceQuerySet:
         return self.filter(session__date__gte=start, session__date__lte=end)
@@ -102,7 +104,7 @@ class AttendanceQuerySet(QuerySet):
             "session",
             "session__subject",
             "session__class_group",
-            "recorded_by",
+            "marked_by",
         )
 
     def absence_streak(self, student, min_days: int = 3) -> AttendanceQuerySet:
@@ -126,13 +128,13 @@ class AttendanceQuerySet(QuerySet):
 
 class AbsenceAlertQuerySet(QuerySet):
     def pending(self) -> AbsenceAlertQuerySet:
-        return self.filter(notified=False)
+        return self.filter(status="pending")
 
     def notified(self) -> AbsenceAlertQuerySet:
-        return self.filter(notified=True)
+        return self.filter(status="notified")
 
     def for_student(self, student) -> AbsenceAlertQuerySet:
         return self.filter(student=student)
 
     def with_details(self) -> AbsenceAlertQuerySet:
-        return self.select_related("student", "student__profile")
+        return self.select_related("student")

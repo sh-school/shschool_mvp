@@ -138,7 +138,7 @@ def student_list(request):
         class_group__school=school,
         class_group__academic_year=year,
         is_active=True,
-    ).select_related("student", "student__profile", "class_group")
+    ).select_related("student", "class_group")
 
     # ── الفلترة حسب الفصل ─────────────────────────────────────────────
     if class_id := request.query_params.get("class_id"):

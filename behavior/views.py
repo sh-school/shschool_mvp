@@ -310,7 +310,7 @@ def infraction_warning_pdf(request, infraction_id):
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
-        "behavior/pdf/student_warning.html", ctx, f"warning_{inf.student.username}_{inf.date}.pdf"
+        "behavior/pdf/student_warning.html", ctx, f"warning_{inf.student.national_id}_{inf.date}.pdf"
     )
 
 
@@ -322,7 +322,7 @@ def infraction_parent_pdf(request, infraction_id):
     return _render_behavior_pdf(
         "behavior/pdf/parent_undertaking.html",
         ctx,
-        f"parent_undertaking_{inf.student.username}.pdf",
+        f"parent_undertaking_{inf.student.national_id}.pdf",
     )
 
 
@@ -334,7 +334,7 @@ def infraction_student_pdf(request, infraction_id):
     return _render_behavior_pdf(
         "behavior/pdf/student_undertaking.html",
         ctx,
-        f"student_undertaking_{inf.student.username}.pdf",
+        f"student_undertaking_{inf.student.national_id}.pdf",
     )
 
 

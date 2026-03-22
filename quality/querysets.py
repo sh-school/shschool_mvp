@@ -15,22 +15,22 @@ class ProcedureQuerySet(QuerySet):
     # ── الفلترة حسب الحالة ────────────────────────────────────────────────
 
     def not_started(self) -> ProcedureQuerySet:
-        return self.filter(status="not_started")
+        return self.filter(status="Not Started")
 
     def in_progress(self) -> ProcedureQuerySet:
-        return self.filter(status="in_progress")
+        return self.filter(status="In Progress")
 
     def pending_review(self) -> ProcedureQuerySet:
-        return self.filter(status="pending_review")
+        return self.filter(status="Pending Review")
 
     def completed(self) -> ProcedureQuerySet:
-        return self.filter(status="completed")
+        return self.filter(status="Completed")
 
     def cancelled(self) -> ProcedureQuerySet:
-        return self.filter(status="cancelled")
+        return self.filter(status="Cancelled")
 
     def active(self) -> ProcedureQuerySet:
-        return self.exclude(status__in=["completed", "cancelled"])
+        return self.exclude(status__in=["Completed", "Cancelled"])
 
     # ── الفلترة الزمنية ────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ class ProcedureQuerySet(QuerySet):
             "indicator__target",
             "indicator__target__domain",
             "executor_user",
-        ).prefetch_related("evidence")
+        ).prefetch_related("evidences")
 
     # ── الإحصاء ───────────────────────────────────────────────────────────
 
@@ -90,7 +90,7 @@ class ProcedureQuerySet(QuerySet):
             )
             .annotate(
                 total=Count("id"),
-                done=Count("id", filter=Q(status="completed")),
+                done=Count("id", filter=Q(status="Completed")),
             )
             .order_by("-done")
         )
@@ -105,7 +105,7 @@ class DomainQuerySet(QuerySet):
             total_procedures=Count("targets__indicators__procedures"),
             completed_procedures=Count(
                 "targets__indicators__procedures",
-                filter=Q(targets__indicators__procedures__status="completed"),
+                filter=Q(targets__indicators__procedures__status="Completed"),
             ),
         )
 

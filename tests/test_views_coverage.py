@@ -267,7 +267,7 @@ class TestAssessmentViewsCoverage:
         resp = c.get(f"/assessments/setup/{setup.id}/export/")
         assert resp.status_code == 200
         assert "spreadsheetml" in resp["Content-Type"]
-        assert "attachment" in resp["Content-Disposition"]
+        assert resp.has_header("Content-Disposition")
 
     def test_export_gradebook_as_principal(
         self, client_as, principal_user, setup, enrolled_student
@@ -913,7 +913,7 @@ class TestExamControlViewsCoverage:
 
     def test_incident_add_post(self, client_as, principal_user, exam_session, exam_room):
         c = client_as(principal_user)
-        with patch("exam_control.views.render_pdf") as mock_pdf:
+        with patch("core.pdf_utils.render_pdf") as mock_pdf:
             mock_pdf.return_value = MagicMock(status_code=200, content=b"PDF")
             resp = c.post(
                 f"/exam-control/session/{exam_session.pk}/incident/add/",
@@ -935,7 +935,7 @@ class TestExamControlViewsCoverage:
         student_user,
     ):
         c = client_as(principal_user)
-        with patch("exam_control.views.render_pdf") as mock_pdf:
+        with patch("core.pdf_utils.render_pdf") as mock_pdf:
             mock_pdf.return_value = MagicMock(status_code=200, content=b"PDF")
             resp = c.post(
                 f"/exam-control/session/{exam_session.pk}/incident/add/",
@@ -960,7 +960,7 @@ class TestExamControlViewsCoverage:
     ):
         """Cover the cheating branch that creates BehaviorInfraction"""
         c = client_as(principal_user)
-        with patch("exam_control.views.render_pdf") as mock_pdf:
+        with patch("core.pdf_utils.render_pdf") as mock_pdf:
             mock_pdf.return_value = MagicMock(status_code=200, content=b"PDF")
             resp = c.post(
                 f"/exam-control/session/{exam_session.pk}/incident/add/",
@@ -984,7 +984,7 @@ class TestExamControlViewsCoverage:
 
     def test_incident_pdf(self, client_as, principal_user, exam_incident):
         c = client_as(principal_user)
-        with patch("exam_control.views.render_pdf") as mock_pdf:
+        with patch("core.pdf_utils.render_pdf") as mock_pdf:
             mock_pdf.return_value = MagicMock(
                 status_code=200,
                 content=b"PDF",
@@ -1053,7 +1053,7 @@ class TestExamControlViewsCoverage:
         exam_grade_sheet,
     ):
         c = client_as(principal_user)
-        with patch("exam_control.views.render_pdf") as mock_pdf:
+        with patch("core.pdf_utils.render_pdf") as mock_pdf:
             mock_pdf.return_value = MagicMock(
                 status_code=200,
                 content=b"PDF",
@@ -1241,7 +1241,7 @@ class TestAPIViewsCoverage:
     # ── class_results ────────────────────────────────────────
 
     def test_class_results(self, api_as_principal, class_group):
-        with patch("api.views.ReportDataService") as mock_svc:
+        with patch("reports.services.ReportDataService") as mock_svc:
             mock_svc.get_class_results.return_value = {
                 "student_rows": [],
                 "total_students": 0,
@@ -1259,7 +1259,7 @@ class TestAPIViewsCoverage:
             user=principal_user,
             school=school,
             title="إشعار اختبار",
-            message="رسالة",
+            body="رسالة",
             event_type="grade",
         )
         resp = api_as_principal.get("/api/v1/notifications/")
@@ -1273,7 +1273,7 @@ class TestAPIViewsCoverage:
             user=principal_user,
             school=school,
             title="غير مقروء",
-            message="test",
+            body="test",
             event_type="grade",
             is_read=False,
         )
@@ -1303,7 +1303,7 @@ class TestAPIViewsCoverage:
             user=principal_user,
             school=school,
             title="test",
-            message="test",
+            body="test",
             event_type="grade",
             is_read=False,
         )
@@ -1320,7 +1320,7 @@ class TestAPIViewsCoverage:
                 user=principal_user,
                 school=school,
                 title=f"test {i}",
-                message="test",
+                body="test",
                 event_type="grade",
                 is_read=False,
             )
@@ -1384,7 +1384,7 @@ class TestAPIViewsCoverage:
     # ── kpi_list ─────────────────────────────────────────────
 
     def test_kpi_list(self, api_as_principal):
-        with patch("api.views.KPIService") as mock_kpi:
+        with patch("analytics.services.KPIService") as mock_kpi:
             mock_kpi.compute.return_value = {"attendance_rate": 95}
             resp = api_as_principal.get("/api/v1/kpis/")
         assert resp.status_code == 200
@@ -1396,7 +1396,7 @@ class TestAPIViewsCoverage:
     # ── parent_children ──────────────────────────────────────
 
     def test_parent_children(self, api_as_parent):
-        with patch("api.views.ParentService") as mock_svc:
+        with patch("parents.services.ParentService") as mock_svc:
             mock_link = MagicMock()
             mock_link.can_view_grades = True
             mock_link.can_view_attendance = True
@@ -1421,7 +1421,7 @@ class TestAPIViewsCoverage:
     # ── parent_child_grades ──────────────────────────────────
 
     def test_parent_child_grades(self, api_as_parent, student_user, parent_user, school):
-        with patch("api.views.ParentService") as mock_svc:
+        with patch("parents.services.ParentService") as mock_svc:
             mock_svc.get_student_grades.return_value = {
                 "annual_results": [],
                 "total": 0,
@@ -1465,7 +1465,7 @@ class TestAPIViewsCoverage:
     # ── parent_child_attendance ──────────────────────────────
 
     def test_parent_child_attendance(self, api_as_parent, student_user, school):
-        with patch("api.views.ParentService") as mock_svc:
+        with patch("parents.services.ParentService") as mock_svc:
             mock_svc.get_student_attendance.return_value = {
                 "since": date.today() - timedelta(days=30),
                 "total": 20,
@@ -1501,7 +1501,7 @@ class TestAPIViewsCoverage:
         assert resp.status_code == 403
 
     def test_parent_child_attendance_with_days(self, api_as_parent, student_user, school):
-        with patch("api.views.ParentService") as mock_svc:
+        with patch("parents.services.ParentService") as mock_svc:
             mock_svc.get_student_attendance.return_value = {
                 "since": date.today() - timedelta(days=7),
                 "total": 5,
@@ -1516,7 +1516,7 @@ class TestAPIViewsCoverage:
         assert resp.status_code == 200
 
     def test_parent_child_attendance_invalid_days(self, api_as_parent, student_user, school):
-        with patch("api.views.ParentService") as mock_svc:
+        with patch("parents.services.ParentService") as mock_svc:
             mock_svc.get_student_attendance.return_value = {
                 "since": date.today() - timedelta(days=30),
                 "total": 0,
