@@ -59,10 +59,23 @@ test:
 lint:
 	flake8 . --max-line-length=100 --exclude=migrations,venv,.venv
 
-# Testing with coverage
+# Testing with coverage (Coverage Gate: 70%)
 test-cov:
-	pytest tests/ -v --cov=. --cov-report=html --cov-report=term-missing \
-	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*"
+	pytest tests/ -v \
+	  --cov=. \
+	  --cov-report=html \
+	  --cov-report=term-missing \
+	  --cov-fail-under=70 \
+	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/wsgi*,*/asgi*"
+
+# تقرير HTML فقط (بدون gate — للمراجعة)
+test-cov-report:
+	pytest tests/ -v \
+	  --cov=. \
+	  --cov-report=html:htmlcov \
+	  --cov-report=term-missing \
+	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/wsgi*,*/asgi*"
+	@echo "✅ التقرير جاهز: htmlcov/index.html"
 
 # Run specific test file
 test-models:

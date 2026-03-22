@@ -1,0 +1,88 @@
+name: SchoolOS CI — Tests + Coverage Gate
+
+on:
+  push:
+    branches: [ main, develop, "claude/**" ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DJANGO_SETTINGS_MODULE: shschool.settings.development
+  SECRET_KEY: ci-test-secret-key-not-for-production
+  FERNET_KEY: Xg4zX7vX2lP9kR3nQ8mW6hJ5tY1dA0bC4eF2iK7oL8s=
+  DB_NAME: shschool_test
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_HOST: localhost
+  DB_PORT: "5432"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  test:
+    name: Django Tests + Coverage Gate 70%
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: shschool_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        run: python manage.py migrate --no-input
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/wsgi*,*/asgi*" \
+            -x
+
+      - name: Upload coverage report
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  lint:
+    name: Code Quality (flake8)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install flake8
+      - name: Lint
+        run: |
+          flake8 . \
+            --max-line-length=100 \
+            --exclude=migrations,venv,.venv,staticfiles \
+            --ignore=E501,W503
