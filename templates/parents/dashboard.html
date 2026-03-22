@@ -175,7 +175,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 /* ── Online/Offline Indicator ── */
 function updateOnlineStatus() {
   var el = document.getElementById('online-indicator');

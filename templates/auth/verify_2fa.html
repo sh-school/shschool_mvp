@@ -1,0 +1,68 @@
+{% extends "base/base.html" %}
+{% block title %}التحقق بخطوتين{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+  <div class="max-w-md w-full">
+
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-[#8A1538] rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">التحقق بخطوتين</h1>
+      <p class="text-gray-500 mt-1 text-sm">
+        افتح تطبيق المصادقة وأدخل رمز التحقق
+      </p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+
+      {% if messages %}
+        {% for msg in messages %}
+        <div class="mb-4 px-4 py-3 rounded-lg text-sm
+          {% if msg.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+          {% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+          {{ msg }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="post" autocomplete="off">
+        {% csrf_token %}
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">رمز التحقق (6 أرقام)</label>
+          <input type="text"
+                 name="code"
+                 maxlength="6"
+                 inputmode="numeric"
+                 pattern="[0-9]{6}"
+                 autofocus
+                 placeholder="• • • • • •"
+                 class="w-full text-center text-2xl font-mono tracking-widest px-4 py-3
+                        border border-gray-300 rounded-xl focus:outline-none
+                        focus:ring-2 focus:ring-[#8A1538] focus:border-transparent">
+          <p class="text-xs text-gray-400 mt-2 text-center">الرمز يتجدد كل 30 ثانية</p>
+        </div>
+
+        <button type="submit"
+                class="w-full bg-[#8A1538] hover:bg-[#6b0f2a] text-white font-semibold
+                       py-3 rounded-xl transition duration-200">
+          تحقق ودخول
+        </button>
+      </form>
+
+      <div class="mt-6 text-center">
+        <a href="{% url 'login' %}" class="text-sm text-gray-400 hover:text-gray-600">
+          ← العودة لتسجيل الدخول
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

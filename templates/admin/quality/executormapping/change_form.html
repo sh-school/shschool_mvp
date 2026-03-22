@@ -30,7 +30,7 @@
   border-color: #d1d5db !important;
 }
 </style>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof django !== 'undefined' && django.jQuery) {
     var $ = django.jQuery;

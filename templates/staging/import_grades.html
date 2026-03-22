@@ -159,7 +159,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 function toggleUpload(id) {
   const el = document.getElementById('upload-' + id);
   el.classList.toggle('hidden');

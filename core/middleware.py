@@ -113,6 +113,7 @@ class ParentConsentMiddleware:
         '/static/',
         '/media/',
         '/admin/',
+        '/api/',
     ]
 
     def __init__(self, get_response):

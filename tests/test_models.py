@@ -275,3 +275,61 @@ class TestLibrary:
         # كلا الاستعارتين موجودتان (UUID لا يضمن ترتيباً محدداً)
         ids = [b.id for b in borrowings]
         assert b1.id in ids and b2.id in ids
+
+
+# ══════════════════════════════════════════════
+#  AuditLog — Immutability (PDPPL م.19)
+# ══════════════════════════════════════════════
+
+@pytest.mark.django_db
+class TestAuditLogImmutability:
+    """AuditLog يجب أن يكون غير قابل للتعديل أو الحذف — PDPLL م.19"""
+
+    from django.core.exceptions import PermissionDenied as _PD
+
+    def _make_log(self, teacher_user, school):
+        from core.models import AuditLog
+        AuditLog.log(
+            user=teacher_user, action="view",
+            model_name="CustomUser", object_id=str(teacher_user.pk),
+            school=school,
+        )
+        return AuditLog.objects.filter(user=teacher_user, action="view").latest("timestamp")
+
+    def test_auditlog_can_be_created(self, teacher_user, school):
+        from core.models import AuditLog
+        before = AuditLog.objects.count()
+        AuditLog.log(
+            user=teacher_user, action="view",
+            model_name="CustomUser", object_id="x", school=school,
+        )
+        assert AuditLog.objects.count() == before + 1
+
+    def test_auditlog_instance_delete_raises(self, teacher_user, school):
+        from core.models import AuditLog
+        from django.core.exceptions import PermissionDenied
+        log = self._make_log(teacher_user, school)
+        with pytest.raises(PermissionDenied):
+            log.delete()
+
+    def test_auditlog_queryset_delete_raises(self, teacher_user, school):
+        from core.models import AuditLog
+        from django.core.exceptions import PermissionDenied
+        self._make_log(teacher_user, school)
+        with pytest.raises(PermissionDenied):
+            AuditLog.objects.filter(user=teacher_user).delete()
+
+    def test_auditlog_queryset_update_raises(self, teacher_user, school):
+        from core.models import AuditLog
+        from django.core.exceptions import PermissionDenied
+        self._make_log(teacher_user, school)
+        with pytest.raises(PermissionDenied):
+            AuditLog.objects.filter(user=teacher_user).update(action="delete")
+
+    def test_auditlog_save_existing_raises(self, teacher_user, school):
+        from core.models import AuditLog
+        from django.core.exceptions import PermissionDenied
+        log = self._make_log(teacher_user, school)
+        log.action = "delete"
+        with pytest.raises(PermissionDenied):
+            log.save()

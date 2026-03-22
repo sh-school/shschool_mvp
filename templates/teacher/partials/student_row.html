@@ -73,4 +73,4 @@
     </button>
   </div>
 </div>
-{% if summary %}<script>document.getElementById('summary-widget')?.dispatchEvent(new Event('refresh'));</script>{% endif %}
+{% if summary %}<script nonce="{{ request.csp_nonce }}">document.getElementById('summary-widget')?.dispatchEvent(new Event('refresh'));</script>{% endif %}

@@ -1,0 +1,124 @@
+import uuid
+from django.db import models
+from django.core.validators import RegexValidator
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.utils import timezone
+from ..managers import CustomUserManager
+from .school import School, _uuid
+
+
+_national_id_validator = RegexValidator(
+    regex=r'^\d{5,20}$',
+    message='الرقم الوطني يجب أن يحتوي على أرقام فقط (5-20 رقم)',
+)
+_phone_validator = RegexValidator(
+    regex=r'^\+?[\d\s\-]{7,20}$',
+    message='رقم الجوال غير صحيح — استخدم صيغة دولية مثل +97455xxxxxx',
+)
+
+
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+    id          = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    national_id = models.CharField(
+        max_length=20, unique=True, verbose_name="الرقم الوطني",
+        db_index=True, validators=[_national_id_validator],
+    )
+    full_name   = models.CharField(max_length=200, verbose_name="الاسم الكامل", db_index=True)
+    email       = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
+    phone       = models.CharField(
+        max_length=20, blank=True, verbose_name="الجوال",
+        validators=[_phone_validator],
+    )
+    is_staff              = models.BooleanField(default=False)
+    is_active             = models.BooleanField(default=True)
+    date_joined           = models.DateTimeField(default=timezone.now)
+    must_change_password  = models.BooleanField(default=True,
+        verbose_name="يجب تغيير كلمة المرور")
+    totp_secret           = models.CharField(max_length=255, blank=True,
+        verbose_name="مفتاح 2FA")
+    totp_enabled          = models.BooleanField(default=False,
+        verbose_name="2FA مفعّل")
+    last_password_change  = models.DateTimeField(null=True, blank=True,
+        verbose_name="آخر تغيير لكلمة المرور")
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    locked_until          = models.DateTimeField(null=True, blank=True,
+        verbose_name="مقفل حتى")
+    consent_given_at      = models.DateTimeField(null=True, blank=True,
+        verbose_name="تاريخ إعطاء الموافقة")
+
+    USERNAME_FIELD  = "national_id"
+    REQUIRED_FIELDS = ["full_name"]
+    objects         = CustomUserManager()
+
+    class Meta:
+        verbose_name        = "مستخدم"
+        verbose_name_plural = "المستخدمون"
+
+    def __str__(self):
+        return f"{self.full_name} ({self.national_id})"
+
+    @property
+    def active_membership(self):
+        cached = self.__dict__.get('_active_membership')
+        if cached is not None:
+            return cached
+        result = self.memberships.filter(
+            is_active=True
+        ).select_related("school", "role").first()
+        if result is not None:
+            self.__dict__['_active_membership'] = result
+        return result
+
+    def invalidate_active_membership(self):
+        """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
+        self.__dict__.pop('_active_membership', None)
+
+    def get_active_membership(self):
+        return self.active_membership
+
+    @property
+    def school(self):
+        m = self.active_membership
+        return m.school if m else None
+
+    def get_school(self):
+        return self.school
+
+    @property
+    def role(self):
+        m = self.active_membership
+        return m.role.name if m else None
+
+    def get_role(self):
+        return self.role or ""
+
+    def has_role(self, role_name):
+        return self.memberships.filter(
+            is_active=True, role__name=role_name
+        ).exists()
+
+    def get_parent_membership(self):
+        return self.memberships.filter(
+            is_active=True, role__name="parent"
+        ).select_related("school", "role").first()
+
+    def is_admin(self):
+        return self.is_superuser or self.get_role() in ("admin", "principal")
+
+    def is_teacher(self):
+        return self.get_role() in ("teacher", "coordinator")
+
+
+class Profile(models.Model):
+    GENDER = [("M", "ذكر"), ("F", "أنثى")]
+    user       = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="profile")
+    gender     = models.CharField(max_length=1, choices=GENDER, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    notes      = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "ملف شخصي"
+
+    def __str__(self):
+        return f"Profile: {self.user.full_name}"

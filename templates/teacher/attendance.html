@@ -59,7 +59,7 @@
 
 {% endblock %}
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
   // Keyboard shortcut: focus search
   document.addEventListener('keydown', e => {
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {

@@ -173,10 +173,13 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS":   "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE":                   50,
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",   # مجهول: 30 طلب/دقيقة
+        "rest_framework.throttling.UserRateThrottle",   # مسجّل: 120 طلب/دقيقة
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "user": "120/minute",
+        "anon":  "30/minute",
+        "user":  "120/minute",
+        "login": "5/minute",    # Scope للـ login view — brute-force protection
     },
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -232,17 +235,20 @@ EMAIL_HOST_USER    = config("EMAIL_HOST_USER",     default="")
 EMAIL_HOST_PASSWORD= config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL",  default="noreply@schoolos.qa")
 
-# ── Content Security Policy ───────────────────────────────
-# ⚠️ unsafe-inline مطلوب مؤقتاً لـ HTMX inline handlers
-# TODO: الانتقال لـ nonce-based CSP بعد تنظيف Templates
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com",)
-CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
-CSP_FONT_SRC    = ("'self'", "https://fonts.gstatic.com",)
-CSP_IMG_SRC     = ("'self'", "data:", "blob:",)
-CSP_CONNECT_SRC = ("'self'",)
-CSP_FRAME_SRC   = ("'none'",)
-CSP_OBJECT_SRC  = ("'none'",)
+# ── Content Security Policy (nonce-based) ─────────────────
+# ✅ v6: unsafe-inline أُزيل من script-src — نستخدم nonce لكل <script>
+# style-src تحتفظ بـ unsafe-inline بسبب style="" attributes في القوالب
+# CSP_REPORT_ONLY = True في التطوير — Enforce في الإنتاج (production.py)
+CSP_DEFAULT_SRC      = ("'self'",)
+CSP_SCRIPT_SRC       = ("'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com", "https://unpkg.com",)
+CSP_STYLE_SRC        = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
+CSP_FONT_SRC         = ("'self'", "https://fonts.gstatic.com",)
+CSP_IMG_SRC          = ("'self'", "data:", "blob:",)
+CSP_CONNECT_SRC      = ("'self'",)
+CSP_FRAME_SRC        = ("'none'",)
+CSP_OBJECT_SRC       = ("'none'",)
+CSP_INCLUDE_NONCE_IN = ["script-src"]   # يُضيف nonce تلقائياً لكل <script nonce="...">
+CSP_REPORT_ONLY      = True             # Report-Only: يسجّل الانتهاكات دون حجبها
 
 
 # ✅ v5: VAPID Push Notifications

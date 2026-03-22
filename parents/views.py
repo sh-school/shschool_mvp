@@ -241,11 +241,15 @@ def consent_view(request):
         messages.success(request, "تم حفظ إعدادات الموافقة بنجاح.")
         return redirect('parent_dashboard')
 
+    # Batch load all consent records (avoid N+1)
+    student_ids = [link.student_id for link in links]
+    all_consents = ConsentRecord.objects.filter(
+        parent=request.user, student_id__in=student_ids
+    ).values_list('student_id', 'data_type', 'is_given')
+    consent_map = {(str(sid), dt): given for sid, dt, given in all_consents}
     consent_data = {
         str(link.student_id): {
-            dt: (ConsentRecord.objects.filter(
-                parent=request.user, student=link.student, data_type=dt
-            ).values_list('is_given', flat=True).first() or True)
+            dt: consent_map.get((str(link.student_id), dt), True)
             for dt, _ in DATA_TYPES
         }
         for link in links

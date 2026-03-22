@@ -1,0 +1,99 @@
+{% extends "base/base.html" %}
+{% block title %}إعداد المصادقة الثنائية{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto py-10 px-4">
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">إعداد المصادقة الثنائية (2FA)</h1>
+    <p class="text-gray-500 text-sm mt-1">
+      حماية إضافية لحسابك — مطلوبة للحسابات الإدارية
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if msg.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+      {% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if totp_enabled %}
+  <!-- 2FA مفعّل بالفعل -->
+  <div class="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 flex items-start gap-4">
+    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <div>
+      <p class="font-semibold text-green-800">المصادقة الثنائية مفعّلة</p>
+      <p class="text-green-600 text-sm mt-1">حسابك محمي. يمكنك إيقافها إذا لزم.</p>
+    </div>
+  </div>
+  <a href="{% url 'disable_2fa' %}"
+     class="inline-block bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition">
+    إيقاف المصادقة الثنائية
+  </a>
+
+  {% else %}
+  <!-- خطوات الإعداد -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+
+    <h2 class="font-semibold text-gray-800 mb-4">الخطوة 1 — امسح رمز QR</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      افتح <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>
+      واضغط "إضافة حساب" ثم امسح الرمز أدناه.
+    </p>
+
+    <div class="flex justify-center mb-5">
+      <div class="p-3 bg-white border-2 border-gray-200 rounded-xl inline-block">
+        <img src="data:image/png;base64,{{ qr_b64 }}"
+             alt="QR Code للمصادقة الثنائية"
+             class="w-44 h-44">
+      </div>
+    </div>
+
+    <!-- المفتاح اليدوي -->
+    <details class="mb-6">
+      <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+        لا يمكنك مسح الرمز؟ أدخله يدوياً
+      </summary>
+      <div class="mt-3 bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between gap-2">
+        <code class="text-sm font-mono text-gray-700 tracking-wider select-all">{{ secret }}</code>
+        <button onclick="navigator.clipboard.writeText('{{ secret }}')"
+                class="text-xs text-[#8A1538] hover:underline flex-shrink-0">نسخ</button>
+      </div>
+    </details>
+
+    <h2 class="font-semibold text-gray-800 mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-4">
+        <input type="text"
+               name="code"
+               maxlength="6"
+               inputmode="numeric"
+               pattern="[0-9]{6}"
+               autofocus
+               placeholder="أدخل الرمز المكوّن من 6 أرقام"
+               class="w-full text-center text-xl font-mono tracking-widest px-4 py-3
+                      border border-gray-300 rounded-xl focus:outline-none
+                      focus:ring-2 focus:ring-[#8A1538] focus:border-transparent">
+      </div>
+      <button type="submit"
+              class="w-full bg-[#8A1538] hover:bg-[#6b0f2a] text-white font-semibold
+                     py-3 rounded-xl transition duration-200">
+        تفعيل المصادقة الثنائية
+      </button>
+    </form>
+  </div>
+
+  {% endif %}
+
+  <a href="{% url 'dashboard' %}" class="text-sm text-gray-400 hover:text-gray-600">← العودة للوحة التحكم</a>
+</div>
+{% endblock %}

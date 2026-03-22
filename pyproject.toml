@@ -35,16 +35,17 @@ ignore = [
     "N806",   # variable in function should be lowercase — تعارض مع Django
     "B904",   # raise from — اختياري في الآن
 ]
-per-file-ignores = { "tests/**" = ["S", "B"], "conftest.py" = ["S", "B"] }
+[tool.ruff.lint.per-file-ignores]
+"tests/**"   = ["S", "B"]
+"conftest.py" = ["S", "B"]
 
 [tool.ruff.lint.isort]
-known-first-party  = ["core", "operations", "assessments", "reports",
-                       "notifications", "quality", "behavior", "clinic",
-                       "transport", "library", "parents", "staging",
-                       "api", "shschool"]
-known-django       = ["django", "rest_framework", "drf_spectacular"]
-section-order      = ["future", "standard-library", "django",
-                       "third-party", "first-party", "local-folder"]
+known-first-party = ["core", "operations", "assessments", "reports",
+                     "notifications", "quality", "behavior", "clinic",
+                     "transport", "library", "parents", "staging",
+                     "api", "shschool"]
+known-third-party = ["django", "rest_framework", "drf_spectacular",
+                     "celery", "redis", "PIL", "weasyprint"]
 
 [tool.ruff.format]
 quote-style              = "double"

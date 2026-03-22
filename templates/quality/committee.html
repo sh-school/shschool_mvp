@@ -198,7 +198,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 function fillJobTitle(select) {
   const name = select.options[select.selectedIndex]?.dataset.name || "";
   const input = document.getElementById("job_title_input");

@@ -77,7 +77,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 // تفعيل حالة checkboxes من بيانات الموافقة
 const consentData = {{ consent_data|safe }};
 document.querySelectorAll('input[type=checkbox]').forEach(cb => {

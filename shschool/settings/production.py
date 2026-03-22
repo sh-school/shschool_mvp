@@ -79,30 +79,47 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "verbose": {"format": "{levelname} {asctime} {module} {message}", "style": "{"},
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "security": {
+            "format": "SECURITY {levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
     },
     "handlers": {
         "file": {
-            "level": "ERROR",
+            "level": "WARNING",                        # ✅ رُفع من ERROR → WARNING
             "class": "logging.FileHandler",
             "filename": BASE_DIR / "logs/django.log",
             "formatter": "verbose",
+        },
+        "security_file": {
+            "level": "WARNING",
+            "class": "logging.FileHandler",
+            "filename": BASE_DIR / "logs/security.log",  # ملف أمان مستقل
+            "formatter": "security",
         },
         "console": {"class": "logging.StreamHandler"},
     },
     "root": {"handlers": ["file", "console"], "level": "WARNING"},
     "loggers": {
-        "django":        {"handlers": ["file"], "level": "ERROR",   "propagate": False},
-        "notifications": {"handlers": ["file"], "level": "WARNING", "propagate": False},
-        "celery":        {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "django":          {"handlers": ["file"],          "level": "WARNING", "propagate": False},
+        "django.security": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        "django.request":  {"handlers": ["file"],          "level": "WARNING", "propagate": False},
+        "notifications":   {"handlers": ["file"],          "level": "WARNING", "propagate": False},
+        "celery":          {"handlers": ["console"],       "level": "INFO",    "propagate": False},
+        "core":            {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
     },
 }
 
-# ── CSP أكثر صرامة في الإنتاج ────────────────────────────────
-# Tailwind مصرَّف محلياً — لا حاجة لـ CDN
-CSP_SCRIPT_SRC  = ("'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
-CSP_STYLE_SRC   = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net",)
-CSP_REPORT_ONLY = False
+# ── CSP في الإنتاج — Enforce (لا Report-Only) ─────────────────
+# Tailwind مصرَّف محلياً — لا حاجة لـ CDN للـ CSS
+CSP_SCRIPT_SRC       = ("'self'", "https://cdn.jsdelivr.net", "https://unpkg.com",)
+CSP_STYLE_SRC        = ("'self'", "'unsafe-inline'", "https://fonts.googleapis.com",)
+CSP_INCLUDE_NONCE_IN = ["script-src"]
+CSP_REPORT_ONLY      = False    # ← Enforce: أي script بلا nonce سيُحجب
 
 # ── S3 Object Storage للملفات (media) ────────────────────────
 # فعّله بـ USE_S3=true في .env ومتغيرات AWS_* / نقطة نهاية S3 متوافقة

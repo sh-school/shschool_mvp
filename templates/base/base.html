@@ -24,7 +24,7 @@
   {# ── HTMX ── #}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js" defer></script>
 
-  <style>
+  <style nonce="{{ request.csp_nonce }}">
     *, *::before, *::after { box-sizing: border-box; }
     body { font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif; }
 
@@ -260,6 +260,11 @@
   {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "admin" %}
   <a href="/admin/">⚙️ لوحة الإدارة</a>
   {% endif %}
+  {% if role in "principal,vice_admin,vice_academic,admin" or request.user.is_superuser %}
+  <a href="{% url 'setup_2fa' %}" style="color:{% if request.user.totp_enabled %}#16a34a{% else %}#dc2626{% endif %}">
+    🔐 المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
+  </a>
+  {% endif %}
   <hr>
   <form method="post" action="/auth/logout/" style="margin:0;">
     {% csrf_token %}
@@ -311,7 +316,7 @@
 
 
 {# ═════════════════ SCRIPTS ══════════════════════════════════════════════ #}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 /* ── Dropdown positioning ──────────────────────────────────── */
 function sdPos(m, btn) {
   m.classList.add('sd-measure');

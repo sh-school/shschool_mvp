@@ -16,6 +16,7 @@ from drf_spectacular.views import (
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import views
+from . import views_erasure
 
 app_name = "api_v1"
 
@@ -69,4 +70,11 @@ urlpatterns = [
 
     # ── Clinic ────────────────────────────────────────────────────
     path("clinic/visits/", views.ClinicVisitListView.as_view(), name="clinic-visits"),
+
+    # ── PDPPL Right to Erasure (م.18) ─────────────────────────────
+    path("erasure/request/",                          views_erasure.create_erasure_request,  name="erasure-create"),
+    path("erasure/requests/",                         views_erasure.list_erasure_requests,   name="erasure-list"),
+    path("erasure/requests/<uuid:request_id>/",       views_erasure.erasure_request_detail,  name="erasure-detail"),
+    path("erasure/requests/<uuid:request_id>/approve/", views_erasure.approve_erasure,       name="erasure-approve"),
+    path("erasure/requests/<uuid:request_id>/reject/",  views_erasure.reject_erasure,        name="erasure-reject"),
 ]

@@ -1,0 +1,69 @@
+{% extends "base/base.html" %}
+{% block title %}إيقاف المصادقة الثنائية{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto py-10 px-4">
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">إيقاف المصادقة الثنائية</h1>
+    <p class="text-gray-500 text-sm mt-1">
+      يتطلب تأكيد رمز التحقق الحالي قبل الإيقاف
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg text-sm
+      {% if msg.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+      {% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <!-- تحذير -->
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex gap-3">
+    <svg class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor"
+         stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    </svg>
+    <p class="text-sm text-amber-700">
+      إيقاف المصادقة الثنائية يُقلّل من أمان حسابك.
+      تأكد من هذا القرار خاصةً إذا كان حسابك إدارياً.
+    </p>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-5">
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          رمز التحقق الحالي من التطبيق
+        </label>
+        <input type="text"
+               name="code"
+               maxlength="6"
+               inputmode="numeric"
+               pattern="[0-9]{6}"
+               autofocus
+               placeholder="• • • • • •"
+               class="w-full text-center text-2xl font-mono tracking-widest px-4 py-3
+                      border border-gray-300 rounded-xl focus:outline-none
+                      focus:ring-2 focus:ring-red-400 focus:border-transparent">
+      </div>
+      <button type="submit"
+              class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold
+                     py-3 rounded-xl transition duration-200">
+        تأكيد إيقاف المصادقة الثنائية
+      </button>
+    </form>
+  </div>
+
+  <div class="mt-4 text-center">
+    <a href="{% url 'setup_2fa' %}" class="text-sm text-gray-400 hover:text-gray-600">
+      ← العودة لإعدادات الأمان
+    </a>
+  </div>
+</div>
+{% endblock %}

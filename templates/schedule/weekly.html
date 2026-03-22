@@ -129,7 +129,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 // Custom template filter simulation via JS (for get_item)
 // Since Django templates don't have get_item by default, we need to handle via view context
 </script>

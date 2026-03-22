@@ -191,18 +191,18 @@ class TestLogout:
 class TestAuditLog:
 
     def test_login_creates_audit_log(self, client, teacher_user, school):
-        AuditLog.objects.all().delete()
+        before = AuditLog.objects.filter(user=teacher_user, action="login").count()
         client.post("/auth/login/", {
             "national_id": teacher_user.national_id,
             "password": "testpass123",
         })
-        assert AuditLog.objects.filter(user=teacher_user, action="login").exists()
+        assert AuditLog.objects.filter(user=teacher_user, action="login").count() > before
 
     def test_logout_creates_audit_log(self, client_as, teacher_user, school):
         c = client_as(teacher_user)
-        AuditLog.objects.all().delete()
+        before = AuditLog.objects.filter(user=teacher_user, action="logout").count()
         c.post("/auth/logout/")
-        assert AuditLog.objects.filter(user=teacher_user, action="logout").exists()
+        assert AuditLog.objects.filter(user=teacher_user, action="logout").count() > before
 
 
 class TestRBACPermissions:

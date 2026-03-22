@@ -165,7 +165,7 @@
 
 </div><!-- end space-y-6 -->
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 async function searchStudent() {
   const q = document.getElementById('student-search-input').value.trim();
   if (!q) return;

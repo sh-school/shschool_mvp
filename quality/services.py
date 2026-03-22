@@ -89,7 +89,7 @@ class QualityService:
         targets = (
             OperationalTarget.objects.filter(domain=domain)
             .prefetch_related(Prefetch("indicators", queryset=indicators))
-            .order_by("order")
+            .order_by("number")
         )
 
         # إحصائيات المجال
@@ -211,7 +211,7 @@ class QualityService:
         # تجميع حسب المجال
         by_domain = {}
         for proc in procs:
-            domain_name = proc.indicator.target.domain.name_ar
+            domain_name = proc.indicator.target.domain.name
             if domain_name not in by_domain:
                 by_domain[domain_name] = {"procs": [], "completed": 0, "total": 0}
             by_domain[domain_name]["procs"].append(proc)

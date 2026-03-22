@@ -28,7 +28,7 @@
     </p>
     <button onclick="window.location.reload()">إعادة المحاولة</button>
   </div>
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     window.addEventListener('online', () => window.location.reload());
   </script>
 </body>

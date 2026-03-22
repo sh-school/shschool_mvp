@@ -67,7 +67,7 @@
     </form>
   </div>
 </div>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 const points = {"1": 5, "2": 15, "3": 25, "4": 40};
 document.querySelectorAll('input[name="level"]').forEach(r => {
   r.addEventListener('change', () => {

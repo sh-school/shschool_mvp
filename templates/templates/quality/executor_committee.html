@@ -213,7 +213,7 @@
 
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 function toggleForm() {
   const form = document.getElementById('add-form');
   const icon = document.getElementById('form-toggle-icon');

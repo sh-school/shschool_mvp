@@ -365,6 +365,152 @@ def class_gradebook(request, setup_id):
 
 
 @login_required
+def export_gradebook(request, setup_id):
+    """تصدير كشف الدرجات إلى Excel"""
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    school = request.user.get_school()
+    setup  = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
+
+    if not request.user.is_admin() and setup.teacher != request.user:
+        return HttpResponse("غير مسموح", status=403)
+
+    semester = request.GET.get("semester", "S1")
+
+    enrollments = StudentEnrollment.objects.filter(
+        class_group=setup.class_group, is_active=True
+    ).select_related("student").order_by("student__full_name")
+
+    packages = AssessmentPackage.objects.filter(
+        setup=setup, semester=semester, is_active=True
+    ).prefetch_related("assessments").order_by("package_type")
+
+    # ── بناء الـ Workbook ──────────────────────────────────
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "كشف الدرجات"
+    ws.sheet_view.rightToLeft = True
+
+    # ألوان
+    HEADER_FILL  = PatternFill("solid", fgColor="8A1538")
+    HEADER_FONT  = Font(bold=True, color="FFFFFF", size=11)
+    ALT_FILL     = PatternFill("solid", fgColor="FFF0F3")
+    BORDER_SIDE  = Side(style="thin", color="CCCCCC")
+    THIN_BORDER  = Border(left=BORDER_SIDE, right=BORDER_SIDE,
+                          top=BORDER_SIDE, bottom=BORDER_SIDE)
+    CENTER       = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    RIGHT_ALIGN  = Alignment(horizontal="right", vertical="center")
+
+    pkg_labels = {
+        "P1": "الباقة 1", "P2": "الباقة 2",
+        "P3": "الباقة 3", "P4": "الباقة 4",
+    }
+    sem_labels = {"S1": "الفصل الأول (40)", "S2": "الفصل الثاني (60)"}
+
+    # ── السطر 1: عنوان ─────────────────────────────────────
+    title = (
+        f"كشف درجات | {setup.subject.name_ar} | "
+        f"{setup.class_group} | {sem_labels.get(semester, semester)} | "
+        f"{setup.academic_year}"
+    )
+    ws.merge_cells("A1:H1")
+    ws["A1"] = title
+    ws["A1"].font      = Font(bold=True, size=13, color="8A1538")
+    ws["A1"].alignment = CENTER
+    ws.row_dimensions[1].height = 28
+
+    # ── السطر 2: رؤوس الأعمدة ──────────────────────────────
+    pkg_list = list(packages)
+    headers  = ["م", "اسم الطالب", "الرقم الوطني"] + \
+               [pkg_labels.get(p.package_type, p.package_type) for p in pkg_list] + \
+               ["مجموع الفصل", "الحالة"]
+
+    for col_idx, header in enumerate(headers, start=1):
+        cell              = ws.cell(row=2, column=col_idx, value=header)
+        cell.fill         = HEADER_FILL
+        cell.font         = HEADER_FONT
+        cell.alignment    = CENTER
+        cell.border       = THIN_BORDER
+
+    ws.row_dimensions[2].height = 22
+
+    # ── البيانات ────────────────────────────────────────────
+    for row_idx, enr in enumerate(enrollments, start=1):
+        student    = enr.student
+        excel_row  = row_idx + 2
+        fill       = ALT_FILL if row_idx % 2 == 0 else None
+
+        pkg_scores = {
+            p.package_type: GradeService.calc_package_score(student, p)
+            for p in pkg_list
+        }
+
+        try:
+            sem_result = StudentSubjectResult.objects.get(
+                student=student, setup=setup, semester=semester
+            )
+            total  = float(sem_result.total) if sem_result.total is not None else ""
+            status = "ناجح ✓" if (sem_result.total or 0) >= (sem_result.semester_max * Decimal("0.5")) else "راسب ✗"
+        except StudentSubjectResult.DoesNotExist:
+            total, status = "", "—"
+
+        row_data = (
+            [row_idx, student.full_name, student.national_id] +
+            [float(pkg_scores.get(p.package_type) or 0) for p in pkg_list] +
+            [total, status]
+        )
+
+        for col_idx, value in enumerate(row_data, start=1):
+            cell           = ws.cell(row=excel_row, column=col_idx, value=value)
+            cell.border    = THIN_BORDER
+            cell.alignment = CENTER if col_idx != 2 else RIGHT_ALIGN
+            if fill:
+                cell.fill = fill
+
+    # ── عرض الأعمدة ────────────────────────────────────────
+    col_widths = [5, 30, 18] + [12] * len(pkg_list) + [14, 10]
+    for i, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    # ── تجميد الصفوف الأولى ────────────────────────────────
+    ws.freeze_panes = "A3"
+
+    # ── إرسال الملف ────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = (
+        f"gradebook_{setup.subject.name_ar}_{setup.class_group}_{semester}.xlsx"
+        .replace(" ", "_").replace("/", "-")
+    )
+    resp = HttpResponse(
+        buf.read(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@login_required
+@require_POST
+def recalculate_class(request, setup_id):
+    """إعادة حساب درجات كل طلاب الفصل — Admin أو المعلم المسؤول فقط"""
+    school = request.user.get_school()
+    setup  = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
+
+    if not request.user.is_admin() and setup.teacher != request.user:
+        return HttpResponse("غير مسموح", status=403)
+
+    GradeService.recalculate_full_class(setup)
+    messages.success(request, f"تم إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar} بنجاح.")
+    return redirect("class_gradebook", setup_id=setup_id)
+
+
+@login_required
 def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
     school  = request.user.get_school()
