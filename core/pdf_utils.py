@@ -11,6 +11,7 @@ v7: Professional headers/footers on every page
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 
 from django.conf import settings
@@ -18,6 +19,10 @@ from django.http import HttpResponse
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+# ── Cache للـ backend الناجح — نتجنّب إعادة المحاولة في كل طلب ────────────
+_WORKING_BACKEND: str | None = None   # "weasyprint" | "playwright" | "xhtml2pdf"
+_FAILED_BACKENDS: set = set()
 
 _FONTS_DIR = None
 
@@ -304,63 +309,96 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
     """
     HTML → PDF bytes
     الأولوية: WeasyPrint → Playwright (Chromium) → xhtml2pdf
+    يتذكّر الـ backend الناجح ويتخطّى الفاشلة في الطلبات اللاحقة.
     """
-    # استخراج معلومات الهيدر من HTML
+    global _WORKING_BACKEND, _FAILED_BACKENDS
+
     meta = _extract_pdf_meta(html_str)
     today = timezone.now().strftime("%Y/%m/%d")
 
     # ── WeasyPrint ─────────────────────────────────────────────────────
-    try:
-        from weasyprint import HTML
-        from weasyprint.text.fonts import FontConfiguration
+    if "weasyprint" not in _FAILED_BACKENDS:
+        try:
+            from weasyprint import HTML
+            from weasyprint.text.fonts import FontConfiguration
 
-        wp_html = _inject_fonts(html_str)
-        wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"])
+            wp_html = _inject_fonts(html_str)
+            wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"])
 
-        font_config = FontConfiguration()
-        base_url = Path(settings.BASE_DIR).as_uri() + "/"
-        pdf_bytes = HTML(string=wp_html, base_url=base_url).write_pdf(font_config=font_config)
-        logger.info("PDF ← WeasyPrint (مع هيدر/فوتر @page)")
-        return pdf_bytes
-    except ImportError:
-        logger.info("WeasyPrint غير مثبت")
-    except OSError as e:
-        logger.warning("WeasyPrint OSError: %s", e)
+            font_config = FontConfiguration()
+            base_url = Path(settings.BASE_DIR).as_uri() + "/"
+            pdf_bytes = HTML(string=wp_html, base_url=base_url).write_pdf(font_config=font_config)
+            _WORKING_BACKEND = "weasyprint"
+            logger.info("PDF ← WeasyPrint (مع هيدر/فوتر @page)")
+            return pdf_bytes
+        except ImportError:
+            logger.debug("WeasyPrint غير مثبت")
+            _FAILED_BACKENDS.add("weasyprint")
+        except OSError as e:
+            logger.debug("WeasyPrint غير متاح: %s", e)
+            _FAILED_BACKENDS.add("weasyprint")
 
     # ── Playwright / Chromium ──────────────────────────────────────────
-    try:
-        from playwright.sync_api import sync_playwright
+    # يعمل في thread منفصل لتجنّب تعارضه مع asyncio event loop (Daphne/Windows)
+    if "playwright" not in _FAILED_BACKENDS:
+        try:
+            import threading
+            from playwright.sync_api import sync_playwright
 
-        chr_html = _inject_fonts(html_str)
-        header = _playwright_header_template(meta["school"], meta["title"])
-        footer = _playwright_footer_template(today)
+            chr_html = _inject_fonts(html_str)
+            header = _playwright_header_template(meta["school"], meta["title"])
+            footer = _playwright_footer_template(today)
 
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            page = browser.new_page()
-            page.set_content(chr_html, wait_until="networkidle")
+            _pdf_result: dict = {}
 
-            pdf_bytes = page.pdf(
-                format="A4",
-                margin={
-                    "top": "2.8cm",  # مساحة للهيدر
-                    "bottom": "2.2cm",  # مساحة للفوتر
-                    "left": "1.5cm",
-                    "right": "1.5cm",
-                },
-                display_header_footer=True,
-                header_template=header,
-                footer_template=footer,
-                print_background=True,
-            )
-            browser.close()
+            def _run_in_thread():
+                import asyncio
+                # thread جديد = event loop جديد — لا تعارض مع Daphne
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    with sync_playwright() as pw:
+                        browser = pw.chromium.launch()
+                        page = browser.new_page()
+                        page.set_content(chr_html, wait_until="networkidle")
+                        _pdf_result["bytes"] = page.pdf(
+                            format="A4",
+                            margin={
+                                "top": "2.8cm",
+                                "bottom": "2.2cm",
+                                "left": "1.5cm",
+                                "right": "1.5cm",
+                            },
+                            display_header_footer=True,
+                            header_template=header,
+                            footer_template=footer,
+                            print_background=True,
+                        )
+                        browser.close()
+                except Exception as exc:
+                    _pdf_result["error"] = exc
+                finally:
+                    loop.close()
 
-        logger.info("PDF ← Playwright/Chromium (مع هيدر/فوتر كل صفحة)")
-        return pdf_bytes
-    except ImportError:
-        logger.info("Playwright غير مثبت — تجربة xhtml2pdf")
-    except Exception as e:
-        logger.warning("Playwright error: %s — تجربة xhtml2pdf", e)
+            t = threading.Thread(target=_run_in_thread, daemon=True)
+            t.start()
+            t.join(timeout=60)
+
+            if "error" in _pdf_result:
+                raise _pdf_result["error"]
+            if "bytes" not in _pdf_result:
+                raise RuntimeError("Playwright: انتهت المهلة")
+
+            _WORKING_BACKEND = "playwright"
+            logger.info("PDF ← Playwright/Chromium (مع هيدر/فوتر كل صفحة)")
+            return _pdf_result["bytes"]
+
+        except ImportError:
+            logger.debug("Playwright غير مثبت")
+            _FAILED_BACKENDS.add("playwright")
+        except Exception as e:
+            logger.debug("Playwright غير متاح: %s", e)
+            _FAILED_BACKENDS.add("playwright")
 
     # ── xhtml2pdf (fallback — هيدر الصفحة الأولى فقط) ─────────────────
     try:
@@ -388,6 +426,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         )
         if status.err:
             raise RuntimeError(f"xhtml2pdf error: {status.err}")
+        _WORKING_BACKEND = "xhtml2pdf"
         logger.info("PDF ← xhtml2pdf (هيدر الصفحة الأولى فقط)")
         return buffer.getvalue()
 
