@@ -11,7 +11,8 @@
       "Bash(while read:*)",
       "Bash(do taskkill:*)",
       "Bash(done)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(DJANGO_SETTINGS_MODULE=shschool.settings.development .venv/Scripts/python.exe manage.py migrate)"
     ]
   },
   "enabledPlugins": {

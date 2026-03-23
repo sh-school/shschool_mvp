@@ -38,13 +38,13 @@
       </form>
 
       {# Quick filters #}
-      <a href="{% url 'execution_list' %}?status=Pending+Review" class="quality-btn-quick quality-btn-quick--maroon">
+      <a href="{% url 'execution_list' %}?status=Pending+Review" class="quick-btn quick-btn-maroon">
         بانتظار المراجعة
       </a>
-      <a href="{% url 'execution_list' %}?status=Completed" class="quality-btn-quick quality-btn-quick--green">
+      <a href="{% url 'execution_list' %}?status=Completed" class="quick-btn quick-btn-green">
         مكتملة
       </a>
-      <a href="{% url 'execution_list' %}" class="quality-btn-quick quality-btn-quick--gray">
+      <a href="{% url 'execution_list' %}" class="quick-btn quick-btn-gray">
         مسح
       </a>
     </div>
@@ -152,12 +152,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="quality-pagination-btn">السابق</a>
+         class="page-link">السابق</a>
     {% endif %}
-    <span class="quality-pagination-current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="quality-pagination-btn">التالي</a>
+         class="page-link">التالي</a>
     {% endif %}
   </div>
   {% endif %}
@@ -206,12 +206,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="quality-pagination-btn">السابق</a>
+         class="page-link">السابق</a>
     {% endif %}
-    <span class="quality-pagination-current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="quality-pagination-btn">التالي</a>
+         class="page-link">التالي</a>
     {% endif %}
   </div>
   {% endif %}
