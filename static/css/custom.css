@@ -2064,7 +2064,232 @@ button:focus-visible,
 .q-progress-fill.amber  { background: #d97706; }
 .q-progress-fill.red    { background: #dc2626; }
 
-/* ── 12. Responsive ──────────────────────────────────────────── */
+/* ── 12. Committee Pages ─────────────────────────────────────── */
+
+/* Progress bar (overall) */
+.q-progress-bar {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.2);
+  border-radius: var(--q-radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.q-progress-bar .progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.q-progress-bar .progress-label span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #4b5563;
+}
+.q-progress-bar .progress-label .pct {
+  font-size: 0.9rem;
+}
+.q-progress-bar .progress-track {
+  height: 10px;
+  background: #f3f4f6;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.q-progress-bar .progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+.q-progress-bar .progress-fill.green  { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.q-progress-bar .progress-fill.amber  { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.q-progress-bar .progress-fill.red    { background: linear-gradient(90deg, #dc2626, #ef4444); }
+
+.q-progress-bar .progress-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 0.75rem;
+  text-align: center;
+}
+.q-progress-bar .stat-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+.q-progress-bar .stat-value.green  { color: #16a34a; }
+.q-progress-bar .stat-value.amber  { color: #d97706; }
+.q-progress-bar .stat-value.muted  { color: #6b7280; }
+.q-progress-bar .stat-label {
+  font-size: 0.68rem;
+  color: #9ca3af;
+  font-weight: 700;
+}
+
+/* Alert banner */
+.q-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-radius: var(--q-radius);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+}
+.q-alert-warn {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+}
+.q-alert-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+.q-alert-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+.q-alert-tag {
+  display: inline-block;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Add-member collapsible form */
+.q-add-form {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.2);
+  border-radius: var(--q-radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.q-add-form-header {
+  background: var(--q-maroon);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: background var(--q-transition);
+  border-bottom: 3px solid var(--q-gold);
+}
+.q-add-form-header:hover {
+  background: var(--q-maroon-dark);
+}
+.q-add-form-header .toggle-icon {
+  font-size: 1rem;
+  transition: transform 0.3s;
+}
+.q-add-form-body {
+  padding: 1.25rem;
+}
+.q-add-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem 1rem;
+}
+.q-add-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.q-add-form-field label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #374151;
+}
+.q-add-form-field select,
+.q-add-form-field input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  border: 1px solid rgba(141,27,61,0.25);
+  border-radius: 6px;
+  background: white;
+  transition: all var(--q-transition);
+}
+.q-add-form-field select:focus,
+.q-add-form-field input:focus {
+  border-color: var(--q-maroon);
+  box-shadow: 0 0 0 3px rgba(141,27,61,0.1);
+  outline: none;
+}
+.q-add-form-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Domain coverage cards */
+.q-domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.q-domain-card {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.15);
+  border-radius: var(--q-radius);
+  padding: 1rem 1.25rem;
+  transition: all var(--q-transition);
+}
+.q-domain-card:hover {
+  border-color: var(--q-maroon);
+  box-shadow: 0 2px 8px rgba(141,27,61,0.12);
+}
+.q-domain-card .domain-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.q-domain-card .domain-name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--q-maroon);
+}
+.q-domain-card .domain-responsible {
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin-top: 0.35rem;
+}
+.q-domain-card .domain-bar {
+  height: 5px;
+  background: #f3f4f6;
+  border-radius: 99px;
+  margin-top: 0.6rem;
+  overflow: hidden;
+}
+.q-domain-card .domain-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s;
+}
+
+/* Section heading */
+.q-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--q-maroon);
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(141,27,61,0.1);
+}
+.q-section-title i {
+  font-size: 0.9rem;
+}
+
+/* ── 13. Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .quality-page { width: 100%; padding: 0.5rem; }
   .quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
@@ -2072,4 +2297,7 @@ button:focus-visible,
   .q-modal-form-grid { grid-template-columns: 1fr; }
   .q-modal-info .info-grid { grid-template-columns: 1fr; }
   .q-modal { max-width: 95vw; }
+  .q-add-form-grid { grid-template-columns: 1fr 1fr; }
+  .q-progress-bar .progress-stats { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .q-domain-grid { grid-template-columns: 1fr; }
 }
