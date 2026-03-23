@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}لوحة النقل{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/transport/" parent_label="النقل المدرسي" current="لوحة النقل" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -40,11 +45,11 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">رقم الحافلة</th>
-            <th class="px-4 py-3 text-right">السائق</th>
-            <th class="px-4 py-3 text-center">الطلاب</th>
-            <th class="px-4 py-3 text-center">نسبة الإشغال</th>
-            <th class="px-4 py-3 text-center">إجراءات</th>
+            <th scope="col" class="px-4 py-3 text-right">رقم الحافلة</th>
+            <th scope="col" class="px-4 py-3 text-right">السائق</th>
+            <th scope="col" class="px-4 py-3 text-center">الطلاب</th>
+            <th scope="col" class="px-4 py-3 text-center">نسبة الإشغال</th>
+            <th scope="col" class="px-4 py-3 text-center">إجراءات</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">

@@ -7,7 +7,7 @@
     <a href="{% url 'behavior:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
   <div class="bg-white rounded-xl shadow-sm p-6">
-    <form method="post">
+    <form method="post" data-validate>
       {% csrf_token %}
       <div class="space-y-4">
         <div>
@@ -59,7 +59,7 @@
         </div>
       </div>
       <div class="flex gap-3 mt-6">
-        <button type="submit" class="flex-1 bg-red-700 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-red-800 transition">
+        <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium transition">
           تسجيل المخالفة
         </button>
         <a href="{% url 'behavior:dashboard' %}" class="px-6 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>

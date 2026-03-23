@@ -9,7 +9,7 @@
     </div>
     <div class="flex gap-2">
       {% if can_report %}
-      <a href="{% url 'behavior:report_infraction' %}" class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800">➕ مخالفة جديدة</a>
+      <a href="{% url 'behavior:report_infraction' %}" class="btn-danger text-white px-4 py-2 rounded-lg text-sm">➕ مخالفة جديدة</a>
       {% endif %}
       <a href="{% url 'behavior:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
     </div>
@@ -63,14 +63,14 @@
           </div>
           {% if is_committee and not inf.is_resolved and not inf.recovery %}
           <a href="{% url 'behavior:point_recovery' inf.id %}"
-             class="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 mr-3 shrink-0">
+             class="btn-success text-xs text-white px-3 py-1.5 rounded-lg mr-3 shrink-0">
             استرداد نقاط
           </a>
           {% endif %}
           <!-- أزرار PDF -->
           <div class="flex flex-col gap-1 shrink-0 mr-2">
             <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank"
-               class="text-xs bg-red-700 text-white px-2 py-1 rounded hover:bg-red-800" title="طباعة PDF">
+               class="btn-danger text-xs text-white px-2 py-1 rounded" title="طباعة PDF">
               🖨️ إنذار PDF
             </a>
             <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank"
@@ -78,7 +78,7 @@
               🖨️ تعهد ولي PDF
             </a>
             <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank"
-               class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700" title="طباعة PDF">
+               class="btn-primary text-xs text-white px-2 py-1 rounded" title="طباعة PDF">
               🖨️ تعهد طالب PDF
             </a>
           </div>

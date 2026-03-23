@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}ربط مادة بفصل{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="ربط مادة بفصل" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-xl mx-auto">
   <div class="bg-white rounded-2xl border shadow-sm overflow-hidden">

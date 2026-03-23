@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}تشكيل الكنترول{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="تشكيل الكنترول" %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-3">
   <h5 class="fw-bold mb-3" style="color:#8A1538">👥 تشكيل الكنترول — {{ session.name }}</h5>
@@ -38,7 +43,7 @@
       <div class="table-responsive">
         <table class="table table-sm table-bordered">
           <thead class="table-dark">
-            <tr><th>الاسم</th><th>الدور</th><th>القاعة</th></tr>
+            <tr><th scope="col">الاسم</th><th scope="col">الدور</th><th scope="col">القاعة</th></tr>
           </thead>
           <tbody>
             {% for s in supervisors %}

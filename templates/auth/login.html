@@ -118,7 +118,7 @@
     {% endif %}
 
     {# ── Login Form ── #}
-    <form method="post" action="/auth/login/" class="space-y-4" autocomplete="on">
+    <form method="post" action="/auth/login/" class="space-y-4" autocomplete="on" data-validate>
       {% csrf_token %}
 
       <div>
@@ -135,6 +135,8 @@
           placeholder="أدخل رقمك الوطني"
           dir="ltr"
           inputmode="numeric"
+          pattern="\d{5,20}"
+          title="الرقم الوطني يجب أن يحتوي على أرقام فقط (5-20 رقم)"
         >
       </div>
 

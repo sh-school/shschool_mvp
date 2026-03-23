@@ -1,14 +1,47 @@
 {% extends "base/base.html" %}
 {% block title %}تقرير التقدم{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تقرير التقدم" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
   <div class="flex items-center justify-between flex-wrap gap-3">
     <h1 class="text-2xl font-bold text-[#8A1538]">تقرير التقدم الكلي</h1>
     <a href="{% url 'quality_report_pdf' %}?year={{ year }}"
-       class="px-4 py-2 bg-red-700 text-white text-sm rounded-lg hover:bg-red-800 transition flex items-center gap-2">
+       class="btn-danger px-4 py-2 text-white text-sm rounded-lg transition flex items-center gap-2">
       📄 تصدير PDF
     </a>
     <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline">← العودة</a>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold text-gray-800">{{ total_all }}</div>
+      <div class="text-xs text-gray-500 mt-1">إجمالي الإجراءات</div>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold text-green-600">{{ completed_all }}</div>
+      <div class="text-xs text-gray-500 mt-1">مكتمل</div>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold text-amber-600">{{ in_progress_all }}</div>
+      <div class="text-xs text-gray-500 mt-1">قيد التنفيذ</div>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold text-blue-600">{{ pending_review_all }}</div>
+      <div class="text-xs text-gray-500 mt-1">بانتظار المراجعة</div>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold text-red-600">{{ overdue_count }}</div>
+      <div class="text-xs text-gray-500 mt-1">متأخرة</div>
+    </div>
+    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
+      <div class="text-3xl font-bold {% if pct_all >= 70 %}text-green-600{% elif pct_all >= 40 %}text-amber-600{% else %}text-red-600{% endif %}">{{ pct_all }}%</div>
+      <div class="text-xs text-gray-500 mt-1">نسبة الإنجاز</div>
+    </div>
   </div>
 
   <!-- تقدم المجالات -->
@@ -46,11 +79,11 @@
     <table class="w-full text-sm">
       <thead class="bg-gray-50 border-b">
         <tr>
-          <th class="px-4 py-3 text-right">المنفذ</th>
-          <th class="px-4 py-3 text-center">المكتملة</th>
-          <th class="px-4 py-3 text-center">الإجمالي</th>
-          <th class="px-4 py-3 text-center">%</th>
-          <th class="px-4 py-3">التقدم</th>
+          <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
+          <th scope="col" class="px-4 py-3 text-center">المكتملة</th>
+          <th scope="col" class="px-4 py-3 text-center">الإجمالي</th>
+          <th scope="col" class="px-4 py-3 text-center">%</th>
+          <th scope="col" class="px-4 py-3">التقدم</th>
         </tr>
       </thead>
       <tbody class="divide-y">
@@ -77,5 +110,81 @@
       </tbody>
     </table>
   </div>
+
+  <!-- الإجراءات المتأخرة -->
+  {% if overdue_procedures %}
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-red-700 px-5 py-3">
+      <h2 class="text-white font-bold">الإجراءات المتأخرة ({{ overdue_count }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-right">رقم</th>
+            <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
+            <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
+            <th scope="col" class="px-4 py-3 text-right">المجال</th>
+            <th scope="col" class="px-4 py-3 text-center">الموعد</th>
+            <th scope="col" class="px-4 py-3 text-center">أيام التأخير</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {% for item in overdue_procedures %}
+          <tr class="hover:bg-red-50">
+            <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ item.procedure.number }}</td>
+            <td class="px-4 py-3 text-gray-800">{{ item.procedure.text|truncatewords:10 }}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
+            <td class="px-4 py-3 text-center text-xs text-red-600">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
+            <td class="px-4 py-3 text-center">
+              <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 font-bold">
+                {{ item.days_overdue }} يوم
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- طلبات الدليل المعلقة -->
+  {% if evidence_requests %}
+  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="bg-amber-600 px-5 py-3">
+      <h2 class="text-white font-bold">طلبات الدليل المعلقة ({{ evidence_requests|length }})</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-right">رقم</th>
+            <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
+            <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
+            <th scope="col" class="px-4 py-3 text-right">المجال</th>
+            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {% for proc in evidence_requests %}
+          <tr class="hover:bg-amber-50">
+            <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ proc.number }}</td>
+            <td class="px-4 py-3 text-gray-800">{{ proc.text|truncatewords:10 }}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ proc.indicator.target.domain.name|default:"—" }}</td>
+            <td class="px-4 py-3 text-center">
+              <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
+                {{ proc.get_status_display }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="تفاصيل الإعداد" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 

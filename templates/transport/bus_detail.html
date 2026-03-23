@@ -27,7 +27,7 @@
             <div><label class="text-xs text-gray-500">رابط GPS</label>
               <input name="gps_link" value="{{ bus.gps_link }}" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="https://..."></div>
           </div>
-          <button class="mt-4 w-full bg-red-700 text-white py-2 rounded-lg text-sm hover:bg-red-800">💾 حفظ</button>
+          <button class="btn-danger mt-4 w-full text-white py-2 rounded-lg text-sm">💾 حفظ</button>
         </form>
       </div>
       <div class="bg-white rounded-xl shadow-sm p-5">
@@ -41,7 +41,7 @@
         <p class="text-xs text-gray-400 mt-1">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
         {% if bus.gps_link %}
         <a href="{% url 'transport:tracking_map' bus.id %}"
-           class="mt-3 block text-center bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700">
+           class="btn-primary mt-3 block text-center text-white py-2 rounded-lg text-sm">
           🗺 تتبع الحافلة
         </a>
         {% endif %}
@@ -53,7 +53,7 @@
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700">خطوط السير</h2>
           <a href="{% url 'transport:create_route' bus.id %}"
-             class="text-sm bg-red-700 text-white px-3 py-1.5 rounded-lg hover:bg-red-800">➕ خط جديد</a>
+             class="btn-danger text-sm text-white px-3 py-1.5 rounded-lg">➕ خط جديد</a>
         </div>
         {% if routes %}
         <div class="space-y-3">

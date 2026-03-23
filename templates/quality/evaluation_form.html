@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}تقييم — {{ employee.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" parent2_url="/quality/evaluations/" parent2_label="تقييم الأداء" current="نموذج التقييم" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto" dir="rtl">
   <div class="bg-white border rounded-2xl overflow-hidden">

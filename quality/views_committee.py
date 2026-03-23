@@ -27,11 +27,35 @@ def quality_committee(request):
         "user_id", flat=True
     )
 
+    members = QualityCommitteeMember.objects.review_committee(school, year)
+
+    # Build review stats for each member
+    member_review_stats = []
+    for member in members:
+        reviewed_count = 0
+        pending_in_domain = 0
+        if member.user:
+            reviewed_count = OperationalProcedure.objects.filter(
+                school=school, academic_year=year, reviewed_by=member.user
+            ).count()
+        if member.domain:
+            pending_in_domain = OperationalProcedure.objects.filter(
+                school=school, academic_year=year,
+                status='Pending Review',
+                indicator__target__domain=member.domain
+            ).count()
+        member_review_stats.append({
+            "member": member,
+            "reviewed_count": reviewed_count,
+            "pending_in_domain": pending_in_domain,
+        })
+
     return render(
         request,
         "quality/committee.html",
         {
-            "members": QualityCommitteeMember.objects.review_committee(school, year),
+            "members": members,
+            "member_review_stats": member_review_stats,
             "year": year,
             "committee_type": QualityCommitteeMember.REVIEW,
             "committee_label": "لجنة المراجعة الذاتية",
@@ -134,6 +158,9 @@ def executor_committee(request):
             "committee_type": QualityCommitteeMember.EXECUTOR,
             "committee_label": "لجنة منفذي الخطة التشغيلية",
             "all_users": CustomUser.objects.filter(id__in=staff_ids).order_by("full_name"),
+            "domains": OperationalDomain.objects.filter(
+                school=school, academic_year=year
+            ).order_by("order"),
         },
     )
 

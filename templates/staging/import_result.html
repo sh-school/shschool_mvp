@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}{% if is_dry_run %}معاينة الاستيراد{% else %}نتيجة الاستيراد{% endif %}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staging/" parent_label="الاستيراد" current="نتيجة الاستيراد" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto space-y-6">
 
@@ -132,11 +136,11 @@
           <table class="w-full text-xs border-collapse">
             <thead>
               <tr class="bg-green-50 text-green-800">
-                <th class="px-3 py-2 text-right border border-green-200">الرقم الوطني</th>
-                <th class="px-3 py-2 text-right border border-green-200">الاسم</th>
-                <th class="px-3 py-2 text-center border border-green-200">الدرجة</th>
-                <th class="px-3 py-2 text-center border border-green-200">غائب</th>
-                <th class="px-3 py-2 text-right border border-green-200">ملاحظة</th>
+                <th scope="col" class="px-3 py-2 text-right border border-green-200">الرقم الوطني</th>
+                <th scope="col" class="px-3 py-2 text-right border border-green-200">الاسم</th>
+                <th scope="col" class="px-3 py-2 text-center border border-green-200">الدرجة</th>
+                <th scope="col" class="px-3 py-2 text-center border border-green-200">غائب</th>
+                <th scope="col" class="px-3 py-2 text-right border border-green-200">ملاحظة</th>
               </tr>
             </thead>
             <tbody>

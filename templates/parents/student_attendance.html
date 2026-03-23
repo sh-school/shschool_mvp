@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}غياب {{ student.full_name }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/parents/" parent_label="بوابة ولي الأمر" current="حضور الطالب" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 

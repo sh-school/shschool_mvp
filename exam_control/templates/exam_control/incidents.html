@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}حوادث الاختبار{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="حوادث الاختبار" %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
@@ -9,7 +14,7 @@
   <div class="table-responsive">
     <table class="table table-sm table-bordered table-hover">
       <thead class="table-dark">
-        <tr><th>النوع</th><th>الطالب</th><th>القاعة</th><th>الخطورة</th><th>الحالة</th><th>التوقيت</th><th></th></tr>
+        <tr><th scope="col">النوع</th><th scope="col">الطالب</th><th scope="col">القاعة</th><th scope="col">الخطورة</th><th scope="col">الحالة</th><th scope="col">التوقيت</th><th scope="col"></th></tr>
       </thead>
       <tbody>
         {% for i in incidents %}

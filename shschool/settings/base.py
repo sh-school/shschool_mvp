@@ -101,7 +101,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": config("DB_NAME", default="shschool_db"),
         "USER": config("DB_USER", default="shschool_user"),
-        "PASSWORD": config("DB_PASSWORD", default="shschool_pass"),
+        "PASSWORD": config("DB_PASSWORD", default=""),
         "HOST": config("DB_HOST", default="localhost"),
         "PORT": config("DB_PORT", default="5432"),
     }

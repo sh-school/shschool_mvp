@@ -2,6 +2,10 @@
 {% load static %}
 {% block title %}الإشعارات — مدرسة الشحانية{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/notifications/" parent_label="الإشعارات" current="صندوق الوارد" %}
+{% endblock %}
+
 {% block content %}
 {% csrf_token %}
 <div style="max-width:820px;margin:0 auto;" dir="rtl">

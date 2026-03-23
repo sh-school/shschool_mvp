@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}إجراءاتي{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="إجراءاتي" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
   <div class="flex items-center justify-between flex-wrap gap-3">

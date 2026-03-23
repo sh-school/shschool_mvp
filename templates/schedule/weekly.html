@@ -82,9 +82,9 @@
     <table class="w-full text-sm border-collapse table-sticky">
       <thead>
         <tr class="bg-[#8A1538] text-white">
-          <th class="p-3 text-center w-16 border-b border-white/20">الحصة</th>
+          <th scope="col" class="p-3 text-center w-16 border-b border-white/20">الحصة</th>
           {% for day_num, day_name in days %}
-          <th class="p-3 text-center border-b border-white/20 min-w-[150px]">{{ day_name }}</th>
+          <th scope="col" class="p-3 text-center border-b border-white/20 min-w-[150px]">{{ day_name }}</th>
           {% endfor %}
         </tr>
       </thead>
