@@ -4,7 +4,10 @@ parents/services.py
 Business logic لبوابة ولي الأمر
 """
 
+from __future__ import annotations
+
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.utils import timezone
@@ -13,10 +16,17 @@ from assessments.models import AnnualSubjectResult, StudentSubjectResult
 from core.models import ParentStudentLink, StudentEnrollment
 from operations.models import StudentAttendance
 
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
+
 
 class ParentService:
     @staticmethod
-    def get_children_data(user, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_children_data(
+        user: CustomUser,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> list:
         """
         يعيد قائمة بأبناء ولي الأمر مع إحصائيات كل طالب.
         كل عنصر: {link, student, enrollment, total_subj, passed,
@@ -28,7 +38,7 @@ class ParentService:
             .order_by("student__full_name")
         )
         since = timezone.now().date() - timedelta(days=30)
-        children = []
+        children: list = []
 
         for link in links:
             student = link.student
@@ -65,7 +75,11 @@ class ParentService:
         return children
 
     @staticmethod
-    def get_student_grades(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_student_grades(
+        student: CustomUser,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """ملخص الدرجات لطالب"""
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
@@ -109,7 +123,9 @@ class ParentService:
         }
 
     @staticmethod
-    def get_student_attendance(student, school, days=30):
+    def get_student_attendance(
+        student: CustomUser, school: School, days: int = 30
+    ) -> dict:
         """ملخص الغياب لطالب خلال فترة"""
         since = timezone.now().date() - timedelta(days=days)
 
@@ -123,7 +139,7 @@ class ParentService:
             .order_by("-session__date", "session__start_time")
         )
 
-        by_date = {}
+        by_date: dict = {}
         for att in attendance:
             d = att.session.date
             if d not in by_date:

@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import logging
+from datetime import date
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 
 from core.models import StudentEnrollment
 from operations.models import (
@@ -16,11 +20,21 @@ from operations.models import (
 
 logger = logging.getLogger(__name__)
 
+if TYPE_CHECKING:
+    from core.models import ClassGroup, CustomUser, School
+
 
 class AttendanceService:
     @staticmethod
     @transaction.atomic
-    def mark_attendance(session, student, status, excuse_type="", excuse_notes="", marked_by=None):
+    def mark_attendance(
+        session: Session,
+        student: CustomUser,
+        status: str,
+        excuse_type: str = "",
+        excuse_notes: str = "",
+        marked_by: CustomUser | None = None,
+    ) -> tuple:
         att, created = StudentAttendance.objects.update_or_create(
             session=session,
             student=student,
@@ -39,7 +53,9 @@ class AttendanceService:
 
     @staticmethod
     @transaction.atomic
-    def bulk_mark_all_present(session, marked_by=None):
+    def bulk_mark_all_present(
+        session: Session, marked_by: CustomUser | None = None
+    ) -> int:
         students = StudentEnrollment.objects.filter(
             class_group=session.class_group, is_active=True
         ).select_related("student")
@@ -62,7 +78,7 @@ class AttendanceService:
 
     @staticmethod
     @transaction.atomic
-    def complete_session(session):
+    def complete_session(session: Session) -> None:
         session.status = "completed"
         session.save(update_fields=["status"])
 
@@ -71,14 +87,12 @@ class AttendanceService:
     ABSENCE_THRESHOLD_PCT = 0.10  # 10% = الحد القانوني للغياب
 
     @staticmethod
-    def check_absence_threshold(student, school):
+    def check_absence_threshold(student: CustomUser, school: School) -> None:
         """
         المادة 7 — قانون التعليم الإلزامي 25/2001:
         العتبة القانونية: تجاوز 10% من أيام الدراسة (≈19 يوماً من 190).
         تُخطر المدرسة ولي الأمر، وإذا عاود الغياب تُخطر الوزارة خلال أسبوع.
         """
-        from datetime import date
-
         school_year = settings.CURRENT_ACADEMIC_YEAR
         year_start = date(2025, 9, 1)
         year_end = date(2026, 6, 30)
@@ -140,7 +154,7 @@ class AttendanceService:
                     )
 
     @staticmethod
-    def get_session_summary(session):
+    def get_session_summary(session: Session) -> dict:
         att = StudentAttendance.objects.filter(session=session)
         total = att.count()
         present = att.filter(status="present").count()
@@ -167,7 +181,12 @@ class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
-    def get_weekly_schedule(school, teacher=None, class_group=None, academic_year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_weekly_schedule(
+        school: School,
+        teacher: CustomUser | None = None,
+        class_group: ClassGroup | None = None,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة"""
         qs = ScheduleSlot.objects.filter(
             school=school, academic_year=academic_year, is_active=True
@@ -178,15 +197,17 @@ class ScheduleService:
             qs = qs.filter(class_group=class_group)
 
         # بناء matrix: {يوم: {رقم_حصة: slot}}
-        grid = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
+        grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
         for slot in qs:
             grid[slot.day_of_week][slot.period_number] = slot
         return grid
 
     @staticmethod
-    def detect_conflicts(school, academic_year=settings.CURRENT_ACADEMIC_YEAR):
+    def detect_conflicts(
+        school: School, academic_year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> list:
         """كشف التعارضات في الجدول"""
-        conflicts = []
+        conflicts: list = []
 
         # تعارض المعلم: نفس المعلم في نفس اليوم والحصة
         teacher_dups = (
@@ -238,7 +259,11 @@ class ScheduleService:
 
     @staticmethod
     @transaction.atomic
-    def generate_daily_sessions(school, date, academic_year=settings.CURRENT_ACADEMIC_YEAR):
+    def generate_daily_sessions(
+        school: School,
+        date: date,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> int:
         """توليد Session يومية من ScheduleSlot للتاريخ المحدد"""
         day_of_week = date.weekday()  # Python: 0=Mon … لكننا نريد 0=Sun
         # تحويل: Sun=6 في Python → 0 عندنا
@@ -272,7 +297,13 @@ class ScheduleService:
 
 class SubstituteService:
     @staticmethod
-    def get_available_teachers(school, date, day_of_week, period_number, exclude_teacher=None):
+    def get_available_teachers(
+        school: School,
+        date: date,
+        day_of_week: int,
+        period_number: int,
+        exclude_teacher: CustomUser | None = None,
+    ) -> QuerySet:
         """
         إيجاد معلمين متاحين للبدل:
         - لديهم membership نشطة في المدرسة
@@ -307,7 +338,14 @@ class SubstituteService:
 
     @staticmethod
     @transaction.atomic
-    def register_absence(school, teacher, date, reason, reason_notes="", reported_by=None):
+    def register_absence(
+        school: School,
+        teacher: CustomUser,
+        date: date,
+        reason: str,
+        reason_notes: str = "",
+        reported_by: CustomUser | None = None,
+    ) -> TeacherAbsence:
         """تسجيل غياب معلم + إنشاء تعيينات البديل تلقائياً"""
         absence, created = TeacherAbsence.objects.get_or_create(
             school=school,
@@ -324,7 +362,13 @@ class SubstituteService:
 
     @staticmethod
     @transaction.atomic
-    def assign_substitute(absence, slot, substitute, assigned_by=None, notes=""):
+    def assign_substitute(
+        absence: TeacherAbsence,
+        slot: ScheduleSlot,
+        substitute: CustomUser,
+        assigned_by: CustomUser | None = None,
+        notes: str = "",
+    ) -> SubstituteAssignment:
         """تعيين بديل لحصة محددة"""
         assignment, created = SubstituteAssignment.objects.update_or_create(
             absence=absence,
@@ -355,12 +399,14 @@ class SubstituteService:
         return assignment
 
     @staticmethod
-    def _date_to_day(date):
+    def _date_to_day(date: date) -> int:
         mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
         return mapping.get(date.weekday(), -1)
 
     @staticmethod
-    def get_substitute_report(school, date_from, date_to):
+    def get_substitute_report(
+        school: School, date_from: date, date_to: date
+    ) -> QuerySet:
         """تقرير الحصص البديلة في فترة"""
         return (
             SubstituteAssignment.objects.filter(

@@ -3,7 +3,10 @@ notifications/services.py
 محرك الإشعارات — بريد إلكتروني + SMS
 """
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import django.core.mail
 
@@ -17,21 +20,25 @@ from core.models import ParentStudentLink
 
 from .models import NotificationLog, NotificationSettings
 
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
+    from operations.models import AbsenceAlert
+
 
 class NotificationService:
     # ── إرسال بريد إلكتروني ──────────────────────────────────
 
     @staticmethod
     def send_email(
-        school,
-        recipient_email,
-        subject,
-        body_text,
-        body_html=None,
-        student=None,
-        notif_type="custom",
-        sent_by=None,
-    ):
+        school: School,
+        recipient_email: str,
+        subject: str,
+        body_text: str,
+        body_html: str | None = None,
+        student: CustomUser | None = None,
+        notif_type: str = "custom",
+        sent_by: CustomUser | None = None,
+    ) -> tuple:
         """إرسال بريد إلكتروني وتسجيله"""
         log = NotificationLog.objects.create(
             school=school,
@@ -84,7 +91,14 @@ class NotificationService:
     # ── إرسال SMS ────────────────────────────────────────────
 
     @staticmethod
-    def send_sms(school, phone_number, message, student=None, notif_type="custom", sent_by=None):
+    def send_sms(
+        school: School,
+        phone_number: str,
+        message: str,
+        student: CustomUser | None = None,
+        notif_type: str = "custom",
+        sent_by: CustomUser | None = None,
+    ) -> tuple:
         """إرسال SMS عبر Twilio"""
         log = NotificationLog.objects.create(
             school=school,
@@ -133,7 +147,9 @@ class NotificationService:
     # ── إشعار غياب الطالب لولي الأمر ─────────────────────────
 
     @staticmethod
-    def notify_absence(absence_alert, sent_by=None):
+    def notify_absence(
+        absence_alert: AbsenceAlert, sent_by: CustomUser | None = None
+    ) -> list:
         """إشعار ولي الأمر بغياب ابنه المتكرر"""
         student = absence_alert.student
         school = absence_alert.school
@@ -147,7 +163,7 @@ class NotificationService:
             student=student, school=school, can_view_attendance=True
         ).select_related("parent")
 
-        results = []
+        results: list = []
 
         for link in links:
             parent = link.parent
@@ -214,7 +230,13 @@ class NotificationService:
     # ── إشعار رسوب الطالب لولي الأمر ─────────────────────────
 
     @staticmethod
-    def notify_fail(student, school, failed_subjects, year=settings.CURRENT_ACADEMIC_YEAR, sent_by=None):
+    def notify_fail(
+        student: CustomUser,
+        school: School,
+        failed_subjects: list,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        sent_by: CustomUser | None = None,
+    ) -> list:
         """إشعار ولي الأمر بنتيجة الرسوب"""
         cfg = NotificationSettings.objects.filter(school=school).first()
         if cfg and not cfg.fail_email_enabled and not cfg.sms_enabled:
@@ -224,7 +246,7 @@ class NotificationService:
             student=student, school=school, can_view_grades=True
         ).select_related("parent")
 
-        results = []
+        results: list = []
 
         for link in links:
             parent = link.parent
@@ -284,7 +306,9 @@ class NotificationService:
     # ── إرسال جماعي لكل التنبيهات المعلقة ────────────────────
 
     @staticmethod
-    def send_pending_absence_alerts(school, sent_by=None):
+    def send_pending_absence_alerts(
+        school: School, sent_by: CustomUser | None = None
+    ) -> tuple:
         """إرسال كل تنبيهات الغياب المعلقة دفعةً واحدة"""
         from operations.models import AbsenceAlert
 
@@ -301,7 +325,11 @@ class NotificationService:
         return total_sent, total_failed
 
     @staticmethod
-    def send_fail_alerts_for_year(school, year=settings.CURRENT_ACADEMIC_YEAR, sent_by=None):
+    def send_fail_alerts_for_year(
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        sent_by: CustomUser | None = None,
+    ) -> tuple:
         """إرسال إشعارات الرسوب لكل الطلاب الراسبين"""
         from assessments.models import AnnualSubjectResult
 
@@ -311,7 +339,7 @@ class NotificationService:
         ).select_related("student", "setup__subject")
 
         # تجميع المواد الراسب فيها لكل طالب
-        by_student = {}
+        by_student: dict = {}
         for r in fail_results:
             sid = r.student_id
             if sid not in by_student:
@@ -358,8 +386,13 @@ class BreachNotificationService:
 
     @staticmethod
     def report_breach(
-        school, reported_by, breach_type, description, affected_count=0, affected_data_types=None
-    ):
+        school: School,
+        reported_by: CustomUser,
+        breach_type: str,
+        description: str,
+        affected_count: int = 0,
+        affected_data_types: list | None = None,
+    ) -> dict:
         """
         توثيق حادثة اختراق وإرسال إشعار فوري للمسؤول.
         يُعيد dict يحتوي على: breach_id, deadline_72h, logged.
