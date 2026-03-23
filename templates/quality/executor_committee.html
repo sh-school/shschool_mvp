@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}لجنة منفذي الخطة التشغيلية{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="لجنة المنفذين" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -140,13 +144,13 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 text-gray-600 text-xs">
           <tr>
-            <th class="px-4 py-3 text-right font-medium">العضو</th>
-            <th class="px-4 py-3 text-right font-medium">المسؤولية</th>
-            <th class="px-4 py-3 text-center font-medium">الكلي</th>
-            <th class="px-4 py-3 text-center font-medium">مكتمل</th>
-            <th class="px-4 py-3 text-center font-medium">جارٍ</th>
-            <th class="px-4 py-3 text-center font-medium w-40">التقدم</th>
-            <th class="px-4 py-3 text-center font-medium">إجراءات</th>
+            <th scope="col" class="px-4 py-3 text-right font-medium">العضو</th>
+            <th scope="col" class="px-4 py-3 text-right font-medium">المسؤولية</th>
+            <th scope="col" class="px-4 py-3 text-center font-medium">الكلي</th>
+            <th scope="col" class="px-4 py-3 text-center font-medium">مكتمل</th>
+            <th scope="col" class="px-4 py-3 text-center font-medium">جارٍ</th>
+            <th scope="col" class="px-4 py-3 text-center font-medium w-40">التقدم</th>
+            <th scope="col" class="px-4 py-3 text-center font-medium">إجراءات</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">

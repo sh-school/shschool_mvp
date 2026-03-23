@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}تسجيل حادث اختبار{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="تسجيل حادث" %}
+{% endblock %}
+
 {% block content %}
 <div class="container mt-3" style="max-width:720px">
   <h5 class="fw-bold mb-3">📝 محضر حادثة اختبارية — {{ session.name }}</h5>

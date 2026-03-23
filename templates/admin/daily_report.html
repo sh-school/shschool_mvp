@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}تقرير الغياب اليومي{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="لوحة التحكم" current="تقرير الغياب اليومي" %}
+{% endblock %}
+
 {% block content %}
 
 <div class="flex items-center justify-between mb-6">
@@ -63,12 +68,12 @@
   <table class="w-full">
     <thead class="bg-gray-50">
       <tr>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">اسم الطالب</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الرقم الوطني</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الفصل</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الحالة</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">العذر</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500">وقت التسجيل</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">اسم الطالب</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الرقم الوطني</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الفصل</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الحالة</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">العذر</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">وقت التسجيل</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">

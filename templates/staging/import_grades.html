@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}استيراد الدرجات من Excel{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staging/" parent_label="الاستيراد" current="استيراد الدرجات" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -50,12 +54,12 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">المادة</th>
-            <th class="px-4 py-3 text-right">الفصل</th>
-            <th class="px-4 py-3 text-right">التقييم</th>
-            <th class="px-4 py-3 text-center">الدرجة القصوى</th>
-            <th class="px-4 py-3 text-center">الحالة</th>
-            <th class="px-4 py-3 text-center">إجراءات</th>
+            <th scope="col" class="px-4 py-3 text-right">المادة</th>
+            <th scope="col" class="px-4 py-3 text-right">الفصل</th>
+            <th scope="col" class="px-4 py-3 text-right">التقييم</th>
+            <th scope="col" class="px-4 py-3 text-center">الدرجة القصوى</th>
+            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
+            <th scope="col" class="px-4 py-3 text-center">إجراءات</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -104,7 +108,7 @@
                     </button>
                     <button type="submit"
                             onclick="document.getElementById('dry-run-{{ a.id }}').value='0'"
-                            class="text-xs px-3 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700 transition whitespace-nowrap">
+                            class="btn-primary text-xs px-3 py-1.5 rounded text-white transition whitespace-nowrap">
                       ⬆ استيراد
                     </button>
                     <button type="button" onclick="toggleUpload('{{ a.id }}')"

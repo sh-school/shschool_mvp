@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>403 — غير مصرح</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Tajawal', Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(145deg, #fdf2f5 0%, #f9fafb 50%, #f0f4ff 100%);
+      color: #111827;
+    }
+    .error-card {
+      text-align: center;
+      background: #fff;
+      border-radius: 20px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
+      border-top: 4px solid #d97706;
+    }
+    .error-code {
+      font-size: 80px;
+      font-weight: 800;
+      color: #d97706;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .error-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 12px;
+    }
+    .error-desc {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .error-btn {
+      display: inline-block;
+      background: #8A1538;
+      color: #fff;
+      padding: 12px 32px;
+      border-radius: 12px;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      transition: background 150ms ease, box-shadow 150ms ease;
+    }
+    .error-btn:hover {
+      background: #6b0f2a;
+      box-shadow: 0 4px 16px rgba(138,21,56,.25);
+    }
+    .error-footer {
+      margin-top: 32px;
+      font-size: 11px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-card">
+    <div class="error-code">403</div>
+    <h1 class="error-title">غير مصرح بالوصول</h1>
+    <p class="error-desc">ليس لديك صلاحية للوصول إلى هذه الصفحة.<br>تواصل مع مدير النظام إذا كنت تعتقد أن هذا خطأ.</p>
+    <a href="/dashboard/" class="error-btn">العودة للرئيسية</a>
+    <div class="error-footer">مدرسة الشحانية الإعدادية الثانوية للبنين — وزارة التربية والتعليم والتعليم العالي</div>
+  </div>
+</body>
+</html>

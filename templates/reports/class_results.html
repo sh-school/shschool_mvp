@@ -56,11 +56,11 @@
 <table>
   <thead>
     <tr>
-      <th style="width:5%">ترتيب</th>
-      <th style="width:22%;text-align:right">اسم الطالب</th>
-      {% for subj in subjects %}<th style="font-size:9px">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
-      <th>المتوسط</th>
-      <th>الحالة</th>
+      <th scope="col" style="width:5%">ترتيب</th>
+      <th scope="col" style="width:22%;text-align:right">اسم الطالب</th>
+      {% for subj in subjects %}<th scope="col" style="font-size:9px">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
+      <th scope="col">المتوسط</th>
+      <th scope="col">الحالة</th>
     </tr>
   </thead>
   <tbody>

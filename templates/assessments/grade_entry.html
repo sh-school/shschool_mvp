@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}إدخال درجات — {{ assessment.title }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="إدخال الدرجات" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-5">
 
@@ -35,13 +39,13 @@
       <table class="w-full text-sm min-w-[560px]" id="grades-table">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">#</th>
-            <th class="px-4 py-3 text-right">اسم الطالب</th>
-            <th class="px-4 py-3 text-center w-32">الدرجة / {{ assessment.max_grade }}</th>
-            <th class="px-4 py-3 text-center w-24">غائب</th>
-            <th class="px-4 py-3 text-center w-24">معذور</th>
-            <th class="px-4 py-3 text-right w-36">ملاحظة</th>
-            <th class="px-4 py-3 text-center w-20">حفظ</th>
+            <th scope="col" class="px-4 py-3 text-right">#</th>
+            <th scope="col" class="px-4 py-3 text-right">اسم الطالب</th>
+            <th scope="col" class="px-4 py-3 text-center w-32">الدرجة / {{ assessment.max_grade }}</th>
+            <th scope="col" class="px-4 py-3 text-center w-24">غائب</th>
+            <th scope="col" class="px-4 py-3 text-center w-24">معذور</th>
+            <th scope="col" class="px-4 py-3 text-right w-36">ملاحظة</th>
+            <th scope="col" class="px-4 py-3 text-center w-20">حفظ</th>
           </tr>
         </thead>
         <tbody class="divide-y" id="grades-body">
@@ -70,7 +74,7 @@
         {% endwith %}
         {% endfor %}
         <button type="submit"
-                class="px-6 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800 transition font-medium">
+                class="btn-success px-6 py-2 text-white rounded-lg text-sm transition font-medium">
           ✓ حفظ الكل وإغلاق
         </button>
       </form>

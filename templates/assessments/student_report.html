@@ -2,6 +2,10 @@
 {% load dict_filters %}
 {% block title %}كشف درجات — {{ student.full_name }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="كشف درجات الطالب" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-5">
 
@@ -37,21 +41,21 @@
     <table class="w-full text-sm">
       <thead class="bg-gray-50 border-b">
         <tr>
-          <th class="px-4 py-3 text-right">المادة</th>
-          <th class="px-3 py-3 text-center">
+          <th scope="col" class="px-4 py-3 text-right">المادة</th>
+          <th scope="col" class="px-3 py-3 text-center">
             الفصل الأول
             <span class="block text-xs text-gray-400 font-normal">من 40</span>
           </th>
-          <th class="px-3 py-3 text-center">
+          <th scope="col" class="px-3 py-3 text-center">
             الفصل الثاني
             <span class="block text-xs text-gray-400 font-normal">من 60</span>
           </th>
-          <th class="px-4 py-3 text-center font-bold">
+          <th scope="col" class="px-4 py-3 text-center font-bold">
             المجموع السنوي
             <span class="block text-xs text-gray-400 font-normal">من 100</span>
           </th>
-          <th class="px-4 py-3 text-center">التقدير</th>
-          <th class="px-4 py-3 text-center">الحالة</th>
+          <th scope="col" class="px-4 py-3 text-center">التقدير</th>
+          <th scope="col" class="px-4 py-3 text-center">الحالة</th>
         </tr>
       </thead>
       <tbody class="divide-y">

@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}الإشعارات{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/notifications/" parent_label="الإشعارات" current="لوحة الإشعارات" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -71,7 +75,7 @@
           <input type="hidden" name="year" value="{{ year }}">
           <button type="submit"
                   {% if not failing_students %}disabled{% endif %}
-                  class="w-full py-2.5 bg-red-700 text-white text-sm font-medium rounded-lg hover:bg-red-800 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  class="btn-danger w-full py-2.5 text-white text-sm font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
             إرسال إشعارات {{ failing_students }} طالب
           </button>
         </form>
@@ -200,13 +204,13 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">التاريخ</th>
-            <th class="px-4 py-3 text-right">الطالب</th>
-            <th class="px-4 py-3 text-right">المستلم</th>
-            <th class="px-4 py-3 text-center">القناة</th>
-            <th class="px-4 py-3 text-center">النوع</th>
-            <th class="px-4 py-3 text-center">الحالة</th>
-            <th class="px-4 py-3 text-center">إعادة</th>
+            <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
+            <th scope="col" class="px-4 py-3 text-right">الطالب</th>
+            <th scope="col" class="px-4 py-3 text-right">المستلم</th>
+            <th scope="col" class="px-4 py-3 text-center">القناة</th>
+            <th scope="col" class="px-4 py-3 text-center">النوع</th>
+            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
+            <th scope="col" class="px-4 py-3 text-center">إعادة</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">

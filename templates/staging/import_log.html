@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}سجل الاستيراد{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staging/" parent_label="الاستيراد" current="سجل الاستيراد" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-5">
 
@@ -21,13 +25,13 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">الملف</th>
-            <th class="px-4 py-3 text-right">رُفع بواسطة</th>
-            <th class="px-4 py-3 text-center">التاريخ</th>
-            <th class="px-4 py-3 text-center">الإجمالي</th>
-            <th class="px-4 py-3 text-center">مستورد</th>
-            <th class="px-4 py-3 text-center">أخطاء</th>
-            <th class="px-4 py-3 text-center">الحالة</th>
+            <th scope="col" class="px-4 py-3 text-right">الملف</th>
+            <th scope="col" class="px-4 py-3 text-right">رُفع بواسطة</th>
+            <th scope="col" class="px-4 py-3 text-center">التاريخ</th>
+            <th scope="col" class="px-4 py-3 text-center">الإجمالي</th>
+            <th scope="col" class="px-4 py-3 text-center">مستورد</th>
+            <th scope="col" class="px-4 py-3 text-center">أخطاء</th>
+            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">

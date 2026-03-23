@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}كنترول الاختبارات{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="لوحة الكنترول" %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-3">
   <div class="d-flex justify-content-between align-items-center mb-3">

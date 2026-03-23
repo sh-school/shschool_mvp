@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}تسجيل حضور (شبكة) — {{ session.class_group }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/" parent_label="الأكاديمية" current="تسجيل الحضور (شبكة)" %}
+{% endblock %}
+
 {% block content %}
 {% csrf_token %}
 
@@ -41,7 +45,7 @@
         hx-swap="outerHTML">
     {% csrf_token %}
     <button type="submit"
-            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            class="btn-success flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
       ✓ الكل حاضر
     </button>
   </form>

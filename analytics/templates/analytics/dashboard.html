@@ -2,6 +2,10 @@
 
 {% block title %}لوحة تحكم المدير - التحليلات المتقدمة{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/analytics/" parent_label="الإحصائيات" current="لوحة التحليلات" %}
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8" dir="rtl">
     <!-- Header -->

@@ -106,7 +106,7 @@
               👁 معاينة
             </a>
             <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
-               class="text-xs px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-800 transition">
+               class="btn-danger text-xs px-3 py-1.5 rounded-lg text-white transition">
               ⬇ PDF
             </a>
             <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}"
@@ -137,7 +137,7 @@
                  class="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-green-400"
                  autocomplete="off">
           <button type="button" onclick="searchStudent()"
-                  class="px-4 py-2 bg-green-700 text-white text-sm rounded-lg hover:bg-green-800 transition">
+                  class="btn-success px-4 py-2 text-white text-sm rounded-lg transition">
             بحث
           </button>
         </form>
@@ -195,7 +195,7 @@ async function searchStudent() {
           <a href="/reports/student/${s.id}/result/?year={{ year }}&preview=1" target="_blank"
              class="text-xs px-2 py-1 border rounded text-gray-600 hover:bg-gray-100">معاينة</a>
           <a href="/reports/student/${s.id}/result/?year={{ year }}"
-             class="text-xs px-2 py-1 bg-green-700 text-white rounded hover:bg-green-800">تقرير</a>
+             class="btn-success text-xs px-2 py-1 text-white rounded">تقرير</a>
           <a href="/reports/student/${s.id}/certificate/?year={{ year }}"
              class="text-xs px-2 py-1 bg-amber-700 text-white rounded hover:bg-amber-800">شهادة</a>
         </div>

@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}جدول حصصي{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/" parent_label="الأكاديمية" current="جدول حصصي" %}
+{% endblock %}
+
 {% block content %}
 
 <div class="flex items-center justify-between mb-6">
@@ -24,7 +29,7 @@
     <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
   </div>
   <a href="/teacher/attendance/{{ next_session.id }}/"
-     class="bg-green-600 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-green-700 transition">
+     class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
     ابدأ الحضور ←
   </a>
 </div>
@@ -37,11 +42,11 @@
   <table class="w-full min-w-[480px]">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الفصل</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
-        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الفصل</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
+        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">

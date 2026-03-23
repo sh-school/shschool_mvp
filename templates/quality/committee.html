@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}{{ committee_label }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="اللجنة" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -106,11 +110,11 @@
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
           <tr>
-            <th class="px-4 py-3 text-right">المسمى الوظيفي</th>
-            <th class="px-4 py-3 text-right">الاسم</th>
-            <th class="px-4 py-3 text-center">المسؤولية</th>
-            <th class="px-4 py-3 text-right">المجال</th>
-            <th class="px-4 py-3 text-center">حذف</th>
+            <th scope="col" class="px-4 py-3 text-right">المسمى الوظيفي</th>
+            <th scope="col" class="px-4 py-3 text-right">الاسم</th>
+            <th scope="col" class="px-4 py-3 text-center">المسؤولية</th>
+            <th scope="col" class="px-4 py-3 text-right">المجال</th>
+            <th scope="col" class="px-4 py-3 text-center">حذف</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">

@@ -9,7 +9,7 @@
     </div>
     <div class="flex gap-2">
       <a href="{% url 'clinic:record_visit_student' student.id %}"
-         class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800 transition">
+         class="btn-danger text-white px-4 py-2 rounded-lg text-sm transition">
         ➕ تسجيل زيارة جديدة
       </a>
       <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
@@ -61,7 +61,7 @@
                      class="w-full text-sm border rounded-lg px-3 py-2" placeholder="+974XXXXXXXX">
             </div>
           </div>
-          <button type="submit" class="mt-4 w-full bg-red-700 text-white py-2 rounded-lg text-sm hover:bg-red-800 transition">
+          <button type="submit" class="btn-danger mt-4 w-full text-white py-2 rounded-lg text-sm transition">
             💾 حفظ السجل الصحي
           </button>
         </form>

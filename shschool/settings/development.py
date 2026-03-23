@@ -18,6 +18,12 @@ CACHES = {
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# ── تطوير: استخدام StaticFilesStorage العادي بدل Manifest ─────
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 # ── تطوير: تعطيل CSP لتجنب تعارضه مع Tailwind CDN ──────────
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
 

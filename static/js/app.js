@@ -68,7 +68,11 @@
     })
     .then(function (r) { return r.json(); })
     .then(function (d) { renderResults(d.results || []); })
-    .catch(function () {});
+    .catch(function () {
+      if (typeof window.showToast === 'function') {
+        window.showToast('خطأ في البحث — تحقق من الاتصال', 'danger');
+      }
+    });
   }
 
   function highlightItem(idx) {
@@ -147,9 +151,62 @@
     }
   });
 
+  /* ── HTMX Global Error Handler ────────────────────────────── */
+  document.addEventListener('htmx:responseError', function (e) {
+    var status = e.detail.xhr ? e.detail.xhr.status : 0;
+    var msg = 'حدث خطأ غير متوقع';
+    if (status === 403) msg = 'ليس لديك صلاحية لهذا الإجراء';
+    else if (status === 404) msg = 'الصفحة المطلوبة غير موجودة';
+    else if (status >= 500) msg = 'خطأ في الخادم — حاول مرة أخرى';
+    else if (status === 0) msg = 'خطأ في الاتصال — تحقق من الشبكة';
+    showToast(msg, 'danger');
+  });
+
+  /* ── Client-side Form Validation ────────────────────────── */
+  function showFieldError(input, msg) {
+    clearFieldError(input);
+    input.classList.add('field-error');
+    var el = document.createElement('div');
+    el.className = 'field-error-msg';
+    el.textContent = msg;
+    input.parentNode.appendChild(el);
+  }
+
+  function clearFieldError(input) {
+    input.classList.remove('field-error');
+    var err = input.parentNode.querySelector('.field-error-msg');
+    if (err) err.remove();
+  }
+
+  function initFormValidation() {
+    document.querySelectorAll('form[data-validate]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var valid = true;
+        form.querySelectorAll('[required], [pattern]').forEach(function (input) {
+          clearFieldError(input);
+          if (!input.validity.valid) {
+            var msg = input.title || input.validationMessage || 'هذا الحقل مطلوب';
+            showFieldError(input, msg);
+            valid = false;
+          }
+        });
+        if (!valid) {
+          e.preventDefault();
+          var firstErr = form.querySelector('.field-error');
+          if (firstErr) firstErr.focus();
+        }
+      });
+
+      form.querySelectorAll('[required], [pattern]').forEach(function (input) {
+        input.addEventListener('input', function () { clearFieldError(input); });
+      });
+    });
+  }
+
   /* ── Init ──────────────────────────────────────────────────── */
   function initAll() {
     initAllSwipes();
+    initFormValidation();
     // ربط حقل البحث
     var input = document.getElementById('cmd-input');
     if (input && !input._bound) {
@@ -163,6 +220,9 @@
   }
 
   document.addEventListener('DOMContentLoaded', initAll);
-  document.addEventListener('htmx:afterSwap', initAllSwipes);
+  document.addEventListener('htmx:afterSwap', function () {
+    initAllSwipes();
+    initFormValidation();
+  });
 
 })();

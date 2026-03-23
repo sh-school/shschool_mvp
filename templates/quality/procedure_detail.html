@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}تفاصيل الإجراء{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تفاصيل الإجراء" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-6">
 
@@ -37,7 +42,7 @@
           <form method="post" action="{% url 'update_proc_status' procedure.id %}" class="flex gap-1">
             {% csrf_token %}
             <input type="date" name="deadline" class="border rounded px-2 py-1 text-xs">
-            <button type="submit" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">حفظ</button>
+            <button type="submit" class="btn-primary text-xs text-white px-2 py-1 rounded">حفظ</button>
           </form>
           {% else %}
           <p class="text-gray-400 text-xs">غير محدد</p>
@@ -142,7 +147,7 @@
           <label class="block text-xs text-gray-500 mb-1">ملف</label>
           <input type="file" name="file" class="text-sm">
         </div>
-        <button type="submit" class="px-4 py-2 bg-green-700 text-white rounded-lg text-sm hover:bg-green-800 transition">رفع</button>
+        <button type="submit" class="btn-success px-4 py-2 text-white rounded-lg text-sm transition">رفع</button>
       </form>
     </div>
     {% endif %}

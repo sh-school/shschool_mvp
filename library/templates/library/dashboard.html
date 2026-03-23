@@ -2,6 +2,10 @@
 
 {% block title %}لوحة تحكم المكتبة ومصادر التعلم{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/library/" parent_label="المكتبة" current="لوحة تحكم المكتبة" %}
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 py-8" dir="rtl">
     <!-- Header -->
@@ -52,10 +56,10 @@
                 <table class="w-full text-right">
                     <thead class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal">
                         <tr>
-                            <th class="py-3 px-6">المستعير</th>
-                            <th class="py-3 px-6">الكتاب</th>
-                            <th class="py-3 px-6">تاريخ الإرجاع</th>
-                            <th class="py-3 px-6">الإجراء</th>
+                            <th scope="col" class="py-3 px-6">المستعير</th>
+                            <th scope="col" class="py-3 px-6">الكتاب</th>
+                            <th scope="col" class="py-3 px-6">تاريخ الإرجاع</th>
+                            <th scope="col" class="py-3 px-6">الإجراء</th>
                         </tr>
                     </thead>
                     <tbody class="text-gray-600 text-sm">

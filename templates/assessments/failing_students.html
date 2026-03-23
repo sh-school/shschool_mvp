@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}الطلاب الراسبون{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="الطلاب الراسبون" %}
+{% endblock %}
+
 {% block content %}
 <div class="space-y-5">
   <div class="flex items-center justify-between flex-wrap gap-3">

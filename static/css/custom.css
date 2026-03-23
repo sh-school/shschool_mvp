@@ -247,10 +247,6 @@ footer {
   font-size: 12px;
 }
 
-footer::before {
-  content: '🇶🇦  ';
-}
-
 /* ── الإشعارات / Messages ───────────────────────────────────── */
 .msg-success { background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; }
 .msg-error   { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }

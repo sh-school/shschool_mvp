@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block title %}دورة اختبار جديدة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="دورة اختبار جديدة" %}
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" style="max-width:600px">
   <h5 class="fw-bold mb-3" style="color:#8A1538">➕ دورة اختبار جديدة</h5>
