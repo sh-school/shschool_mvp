@@ -1,6 +1,14 @@
 {% extends "base/base.html" %}
 {% block title %}التقارير والشهادات{% endblock %}
 
+{% block breadcrumbs %}
+<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
+  <a href="/dashboard/">الرئيسية</a>
+  <span class="bc-sep">◂</span>
+  <span class="bc-current">التقارير والشهادات</span>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -28,8 +36,8 @@
           <div class="flex gap-2">
             <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1"
                target="_blank"
-               class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
-              معاينة
+               class="btn-preview">
+              👁 معاينة
             </a>
             <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
                class="text-xs px-3 py-1.5 rounded-lg bg-[#8A1538] text-white hover:bg-[#1A4F8A] transition">
@@ -63,8 +71,8 @@
           <div class="flex gap-2">
             <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1"
                target="_blank"
-               class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
-              معاينة
+               class="btn-preview">
+              👁 معاينة
             </a>
             <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
                class="text-xs px-3 py-1.5 rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition">
@@ -94,8 +102,8 @@
           <div class="flex gap-2">
             <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1"
                target="_blank"
-               class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
-              معاينة
+               class="btn-preview">
+              👁 معاينة
             </a>
             <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
                class="text-xs px-3 py-1.5 rounded-lg bg-red-700 text-white hover:bg-red-800 transition">

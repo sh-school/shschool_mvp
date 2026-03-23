@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -44,6 +46,16 @@ def dashboard(request):
         total_att = present + absent + late
         att_pct = round(present / total_att * 100) if total_att else 0
 
+        # بيانات الأمس للمقارنة (delta)
+        yesterday = today - datetime.timedelta(days=1)
+        att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday)
+        present_y = att_y.filter(status="present").count()
+        absent_y = att_y.filter(status="absent").count()
+        total_y = present_y + absent_y + att_y.filter(status="late").count()
+        att_pct_y = round(present_y / total_y * 100) if total_y else None
+        att_delta = att_pct - att_pct_y if att_pct_y is not None else None
+        absent_delta = absent - absent_y if total_y else None
+
         alerts = (
             AbsenceAlert.objects.filter(school=school, status="pending")
             .select_related("student")
@@ -76,6 +88,8 @@ def dashboard(request):
                 "absent": absent,
                 "late": late,
                 "attendance_pct": att_pct,
+                "att_delta": att_delta,
+                "absent_delta": absent_delta,
                 "total_students": total_att,
                 "alerts": alerts,
                 "total_annual": total_annual,

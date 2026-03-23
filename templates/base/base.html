@@ -322,10 +322,29 @@
 {% endif %}
 
 
+{# ═════════════════ BREADCRUMBS ═════════════════════════════════════════ #}
+{% block breadcrumbs %}{% endblock %}
+
 {# ═════════════════ MAIN CONTENT ════════════════════════════════════════ #}
 <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
   {% block content %}{% endblock %}
 </main>
+
+{# ═════════════════ COMMAND PALETTE (Ctrl+K) ═══════════════════════════ #}
+{% if user.is_authenticated %}
+<div id="cmd-palette" class="cmd-overlay" style="display:none;" onclick="if(event.target===this)closePalette()">
+  <div class="cmd-box">
+    <div class="cmd-input-wrap">
+      <span class="cmd-icon">🔍</span>
+      <input id="cmd-input" class="cmd-input" type="text"
+             placeholder="ابحث عن طالب، معلم، صفحة..."
+             autocomplete="off" dir="rtl">
+      <span class="cmd-kbd">Esc</span>
+    </div>
+    <div id="cmd-results" class="cmd-results"></div>
+  </div>
+</div>
+{% endif %}
 
 
 {# ═════════════════ FOOTER ══════════════════════════════════════════════ #}
