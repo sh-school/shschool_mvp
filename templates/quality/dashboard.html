@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
-{% block title %}الخطة التشغيلية — مدرسة الشحانية{% endblock %}
+{% load static %}
+{% block title %}الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="الخطة التشغيلية" %}
@@ -12,29 +13,17 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">📋 الخطة التشغيلية</h1>
-      <p class="page-subtitle">{{ year }} — مدرسة الشحانية الإعدادية الثانوية للبنين</p>
+      <p class="page-subtitle">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
     </div>
     <div class="page-actions">
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'quality_report' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        📈 تقرير التقدم
-      </a>
-      <a href="{% url 'executor_committee' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        ⚙️ لجنة التنفيذ
-      </a>
-      <a href="{% url 'quality_committee' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        🔍 لجنة الجودة
-      </a>
-      <a href="{% url 'execution_list' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        📌 تنفيذ الخطة
-      </a>
-      <a href="{% url 'review_list' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        📝 لجنة المراجعة الذاتية
-      </a>
+      <a href="{% url 'quality_report' %}" class="btn-secondary btn-sm">📈 تقرير التقدم</a>
+      <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">⚙️ لجنة التنفيذ</a>
+      <a href="{% url 'quality_committee' %}" class="btn-secondary btn-sm">🔍 لجنة الجودة</a>
+      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">📌 تنفيذ الخطة</a>
+      <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">📝 لجنة المراجعة الذاتية</a>
       {% else %}
-      <a href="{% url 'my_procedures' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;">
-        📝 إجراءاتي
-      </a>
+      <a href="{% url 'my_procedures' %}" class="btn-primary btn-sm">📝 إجراءاتي</a>
       {% endif %}
     </div>
   </div>
@@ -43,93 +32,61 @@
   <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:var(--skyline);">{{ total }}</div>
+      <div class="kpi-value kpi-value--primary">{{ total }}</div>
       <div class="kpi-label">إجمالي الإجراءات</div>
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:#166534;">{{ completed }}</div>
+      <div class="kpi-value kpi-value--success">{{ completed }}</div>
       <div class="kpi-label">مكتمل</div>
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:#d97706;">{{ in_progress }}</div>
+      <div class="kpi-value kpi-value--warning">{{ in_progress }}</div>
       <div class="kpi-label">قيد التنفيذ</div>
     </div>
 
-    {# ── Circular progress — animated ── #}
-    <div class="kpi-card" style="text-align:center;">
-      <div style="position:relative;width:72px;height:72px;margin:0 auto 6px;">
-        <svg viewBox="0 0 36 36" style="width:72px;height:72px;transform:rotate(-90deg);">
+    {# ── Circular progress — animated via quality.js ── #}
+    <div class="kpi-card kpi-card--ring" data-pct="{{ pct }}">
+      <div class="kpi-ring-wrap">
+        <svg viewBox="0 0 36 36" class="kpi-ring-svg" aria-hidden="true">
           <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-          {# الحلقة المتحركة — stroke-dasharray يُحدَّث بـ JS عند التحميل #}
           <circle id="quality-ring" cx="18" cy="18" r="15.9" fill="none"
                   stroke="{% if pct == 100 %}#16a34a{% elif pct > 60 %}#8A1538{% else %}#d97706{% endif %}"
-                  stroke-width="3"
-                  stroke-dasharray="0 100"
-                  stroke-linecap="round"
-                  class="progress-ring-circle"/>
+                  stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round"/>
         </svg>
-        <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                     font-size:14px;font-weight:800;color:var(--text-primary);"
-              id="quality-pct-label">0%</span>
+        <span class="kpi-ring-label" id="quality-pct-label" aria-label="نسبة الإنجاز {{ pct }}%">0%</span>
       </div>
       <div class="kpi-label">نسبة الإنجاز</div>
     </div>
 
-    <div class="kpi-card" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
-      <div class="kpi-value" style="color:#1d4ed8;">{{ pending_review }}</div>
+    <div class="kpi-card kpi-card--blue">
+      <div class="kpi-value kpi-value--blue">{{ pending_review }}</div>
       <div class="kpi-label">بانتظار المراجعة</div>
     </div>
 
-    <div class="kpi-card" style="background:linear-gradient(135deg,#fef2f2,#fecaca);">
-      <div class="kpi-value" style="color:#dc2626;">{{ overdue_count }}</div>
+    <div class="kpi-card kpi-card--red">
+      <div class="kpi-value kpi-value--danger">{{ overdue_count }}</div>
       <div class="kpi-label">متأخر</div>
     </div>
 
-    <div class="kpi-card" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
-      <div class="kpi-value" style="color:#ea580c;">{{ evidence_requested }}</div>
+    <div class="kpi-card kpi-card--orange">
+      <div class="kpi-value kpi-value--orange">{{ evidence_requested }}</div>
       <div class="kpi-label">طلبات الدليل</div>
     </div>
 
   </div>
-  {# ── تهيئة الحلقة المتحركة ── #}
-  <script nonce="{{ request.csp_nonce }}">
-  (function() {
-    var target = {{ pct }};
-    var ring = document.getElementById('quality-ring');
-    var label = document.getElementById('quality-pct-label');
-    if (!ring || !label) return;
-    var start = performance.now();
-    var duration = 900;
-    function animate(ts) {
-      var elapsed = ts - start;
-      var progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
-      var eased = 1 - Math.pow(1 - progress, 3);
-      var current = Math.round(target * eased);
-      ring.setAttribute('stroke-dasharray', current + ' ' + (100 - current));
-      label.textContent = current + '%';
-      if (progress < 1) requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-  })();
-  </script>
-
   {# ── Overall progress bar ── #}
-  <div class="card-qatar" style="padding:16px 20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-size:13px;font-weight:600;color:var(--text-primary);">التقدم الكلي للخطة التشغيلية</span>
-      <span style="font-size:14px;font-weight:800;color:{% if pct == 100 %}#166534{% elif pct > 60 %}var(--maroon){% else %}#d97706{% endif %};">
+  <div class="card-qatar plan-progress-wrap">
+    <div class="plan-progress-header">
+      <span class="plan-progress-label">التقدم الكلي للخطة التشغيلية</span>
+      <span class="plan-progress-pct {% if pct == 100 %}plan-progress-pct--success{% elif pct > 60 %}plan-progress-pct--primary{% else %}plan-progress-pct--warning{% endif %}">
         {{ pct }}%
       </span>
     </div>
     <div class="progress-qatar">
-      <div class="progress-qatar-fill"
-           style="width:{{ pct }}%;
-           {% if pct == 100 %}background:linear-gradient(90deg,#15803d,#16a34a);
-           {% elif pct > 60 %}background:linear-gradient(90deg,var(--maroon-dark),var(--maroon-light));
-           {% else %}background:linear-gradient(90deg,#d97706,#f59e0b);{% endif %}">
+      <div class="progress-qatar-fill {% if pct == 100 %}progress-qatar-fill--success{% elif pct > 60 %}progress-qatar-fill--primary{% else %}progress-qatar-fill--warning{% endif %}"
+           style="width:{{ pct }}%;">
       </div>
     </div>
   </div>
@@ -137,35 +94,26 @@
   {# ── Domains ── #}
   <div>
     <div class="section-header">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">المجالات</h2>
+      <h2 class="section-heading">المجالات</h2>
     </div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
+    <div class="domain-cards-list">
       {% for domain in domains %}
-      <a href="{% url 'domain_detail' domain.id %}" class="card-qatar" style="text-decoration:none;padding:0;overflow:hidden;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;">
-          <div style="flex:1;min-width:0;">
-            <h3 style="font-weight:700;font-size:15px;color:var(--maroon);margin:0 0 4px;
-                       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              {{ domain.name }}
-            </h3>
-            <p style="font-size:12.5px;color:var(--text-secondary);margin:0;">
-              {{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف
-            </p>
+      <a href="{% url 'domain_detail' domain.id %}" class="card-qatar domain-card-link">
+        <div class="domain-card-inner">
+          <div class="domain-card-info">
+            <h3 class="domain-card-name">{{ domain.name }}</h3>
+            <p class="domain-card-meta">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف</p>
           </div>
-          <div style="text-align:center;margin-right:20px;flex-shrink:0;">
-            <p style="font-size:24px;font-weight:800;margin:0;
-              color:{% if domain.completion_pct == 100 %}#166534{% elif domain.completion_pct > 50 %}var(--maroon){% else %}#d97706{% endif %};">
+          <div class="domain-card-stats">
+            <p class="domain-card-pct {% if domain.completion_pct == 100 %}domain-card-pct--success{% elif domain.completion_pct > 50 %}domain-card-pct--primary{% else %}domain-card-pct--warning{% endif %}">
               {{ domain.completion_pct }}%
             </p>
-            <p style="font-size:11px;color:var(--text-muted);margin:0;">
-              {{ domain.completed_procedures }}/{{ domain.total_procedures }}
-            </p>
+            <p class="domain-card-sub">{{ domain.completed_procedures }}/{{ domain.total_procedures }}</p>
           </div>
         </div>
-        <div style="height:4px;background:#f1f5f9;">
-          <div style="height:4px;transition:width .4s;
-            width:{{ domain.completion_pct }}%;
-            background:{% if domain.completion_pct == 100 %}#16a34a{% elif domain.completion_pct > 50 %}var(--maroon){% else %}#f59e0b{% endif %};">
+        <div class="domain-card-bar">
+          <div class="domain-card-bar-fill {% if domain.completion_pct == 100 %}domain-card-bar-fill--success{% elif domain.completion_pct > 50 %}domain-card-bar-fill--primary{% else %}domain-card-bar-fill--warning{% endif %}"
+               style="width:{{ domain.completion_pct }}%;">
           </div>
         </div>
       </a>
@@ -173,7 +121,7 @@
       <div class="empty-state card-qatar">
         <span class="empty-icon">📋</span>
         <p class="empty-title">لا توجد بيانات</p>
-        <p class="empty-sub">شغّل <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">python manage.py seed_quality</code></p>
+        <p class="empty-sub">شغّل <code>python manage.py seed_quality</code></p>
       </div>
       {% endfor %}
     </div>
@@ -183,51 +131,38 @@
   {% if my_procedures %}
   <div>
     <div class="section-header">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">إجراءاتي</h2>
+      <h2 class="section-heading">إجراءاتي</h2>
       {% if my_procedures.count > 5 %}
-      <a href="{% url 'my_procedures' %}"
-         style="font-size:12.5px;color:var(--maroon);text-decoration:none;font-weight:600;margin-right:auto;">
+      <a href="{% url 'my_procedures' %}" class="section-link">
         عرض الكل ({{ my_procedures.count }}) →
       </a>
       {% endif %}
     </div>
 
     {# Filter tabs #}
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
-      <button onclick="filterProcs('all')" id="tab-all"
-              class="btn-primary" style="font-size:12px;padding:4px 12px;">الكل</button>
-      <button onclick="filterProcs('InProgress')" id="tab-in-progress"
-              class="btn-secondary" style="font-size:12px;padding:4px 12px;">قيد التنفيذ</button>
-      <button onclick="filterProcs('NotStarted')" id="tab-not-started"
-              class="btn-secondary" style="font-size:12px;padding:4px 12px;">لم يبدأ</button>
-      <button onclick="filterProcs('Completed')" id="tab-completed"
-              class="btn-secondary" style="font-size:12px;padding:4px 12px;">مكتمل</button>
+    <div class="filter-tabs">
+      <button onclick="filterProcs('all')" id="tab-all" class="btn-primary btn-sm">الكل</button>
+      <button onclick="filterProcs('InProgress')" id="tab-in-progress" class="btn-secondary btn-sm">قيد التنفيذ</button>
+      <button onclick="filterProcs('NotStarted')" id="tab-not-started" class="btn-secondary btn-sm">لم يبدأ</button>
+      <button onclick="filterProcs('Completed')" id="tab-completed" class="btn-secondary btn-sm">مكتمل</button>
     </div>
 
     <div class="table-wrap" id="procedures-list">
       {% for proc in my_procedures|slice:":10" %}
       <a href="{% url 'procedure_detail' proc.id %}"
          data-status="{{ proc.status }}"
-         style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
-                border-bottom:1px solid var(--border);text-decoration:none;transition:background .1s;">
-        <div style="min-width:0;flex:1;">
-          <p style="font-size:13.5px;font-weight:500;color:var(--text-primary);margin:0 0 3px;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-            {{ proc.text|truncatechars:70 }}
-          </p>
-          <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
+         class="proc-list-row">
+        <div class="proc-list-info">
+          <p class="proc-list-title">{{ proc.text|truncatechars:70 }}</p>
+          <p class="proc-list-meta">
             {{ proc.indicator.target.domain.name }} · {{ proc.date_range }}
             {# بادج موعد متأخر #}
             {% if proc.is_overdue %}
-            <span style="display:inline-block;margin-right:6px;padding:1px 7px;
-                         background:#fef2f2;color:#dc2626;border-radius:10px;font-size:10.5px;font-weight:700;">
-              ⏰ متأخر
-            </span>
+            <span class="proc-badge-overdue">⏰ متأخر</span>
             {% endif %}
           </p>
         </div>
-        <span class="status-badge {% if proc.status == 'Completed' %}status-success{% elif proc.status == 'InProgress' %}status-warning{% else %}status-gray{% endif %}"
-              style="flex-shrink:0;margin-right:12px;">
+        <span class="status-badge status-badge--inline {% if proc.status == 'Completed' %}status-success{% elif proc.status == 'InProgress' %}status-warning{% else %}status-gray{% endif %}">
           {{ proc.get_status_display }}
         </span>
       </a>
@@ -240,7 +175,7 @@
   {% if review_committee and request.user.is_admin %}
   <div>
     <div class="section-header">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">لجنة المراجعة الذاتية</h2>
+      <h2 class="section-heading">لجنة المراجعة الذاتية</h2>
     </div>
     <div class="table-wrap">
       <table>
@@ -255,7 +190,7 @@
         <tbody>
           {% for m in review_committee %}
           <tr>
-            <td style="font-weight:500;">{{ m.job_title }}</td>
+            <td class="td-bold">{{ m.job_title }}</td>
             <td>
               <span class="status-badge
                 {% if m.responsibility == 'رئيس اللجنة' %}status-danger
@@ -265,8 +200,8 @@
                 {{ m.responsibility }}
               </span>
             </td>
-            <td style="color:var(--text-secondary);">{{ m.domain.name|default:"—" }}</td>
-            <td style="color:var(--maroon);font-weight:600;">{{ m.user.full_name|default:"—" }}</td>
+            <td class="td-secondary">{{ m.domain.name|default:"—" }}</td>
+            <td class="td-maroon">{{ m.user.full_name|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -278,37 +213,12 @@
 </div>
 {% endblock %}
 
-{% block extra_scripts %}
+{% block extra_js %}
+<script src="{% static 'js/quality.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
-(function () {
-  'use strict';
-  // فلترة الإجراءات محلياً (بدون request)
-  window.filterProcs = function (status) {
-    var list = document.getElementById('procedures-list');
-    if (!list) return;
-
-    var rows = list.querySelectorAll('a[data-status]');
-    rows.forEach(function (row) {
-      var rowStatus = row.dataset.status;
-      row.style.display = (status === 'all' || rowStatus === status) ? '' : 'none';
-    });
-
-    // تحديث أزرار الفلاتر
-    var tabs = { all: 'tab-all', InProgress: 'tab-in-progress', NotStarted: 'tab-not-started', Completed: 'tab-completed' };
-    Object.keys(tabs).forEach(function (key) {
-      var btn = document.getElementById(tabs[key]);
-      if (!btn) return;
-      if (key === status) {
-        btn.className = 'btn-primary';
-        btn.style.fontSize = '12px';
-        btn.style.padding = '4px 12px';
-      } else {
-        btn.className = 'btn-secondary';
-        btn.style.fontSize = '12px';
-        btn.style.padding = '4px 12px';
-      }
-    });
-  };
-})();
+document.addEventListener('DOMContentLoaded', function() {
+  var card = document.querySelector('[data-pct]');
+  if (card) window.initQualityRing(parseInt(card.dataset.pct, 10));
+});
 </script>
 {% endblock %}

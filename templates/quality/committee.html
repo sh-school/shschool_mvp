@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}لجنة المراجعة الذاتية — مدرسة الشحانية{% endblock %}
+{% block title %}لجنة المراجعة الذاتية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with items="الرئيسية:/,ضمان الجودة:quality_dashboard,لجنة المراجعة الذاتية:" %}
@@ -11,24 +11,15 @@
 <div class="quality-page" dir="rtl">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="quality-header">
-    <div class="quality-header-title">
-      <h1>
-        <i class="fa-solid fa-clipboard-check"></i>
-        {{ committee_label }}
-      </h1>
-      <span class="quality-header-count">{{ year }} — {{ members|length }} عضو</span>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title"><i class="fa-solid fa-clipboard-check"></i> {{ committee_label }}</h1>
+      <p class="page-subtitle">{{ year }} — {{ members|length }} عضو</p>
     </div>
-    <div class="quality-header-actions">
-      <a href="{% url 'executor_committee' %}?year={{ year }}" class="quick-btn quick-btn-gray">
-        لجنة المنفذين
-      </a>
-      <a href="{% url 'review_list' %}" class="quick-btn quick-btn-gray">
-        المراجعة الذاتية
-      </a>
-      <a href="{% url 'execution_list' %}" class="quick-btn quick-btn-gray">
-        الخطة التشغيلية
-      </a>
+    <div class="page-actions">
+      <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المنفذين</a>
+      <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
+      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
     </div>
   </div>
 
@@ -55,7 +46,7 @@
             </select>
           </div>
           <div class="q-add-form-field">
-            <label>المسمى الوظيفي <span style="color:#dc2626">*</span></label>
+            <label>المسمى الوظيفي <span class="required-star">*</span></label>
             <input type="text" name="job_title" id="job_title_input" required placeholder="مثال: منسق الرياضيات">
           </div>
           <div class="q-add-form-field">
@@ -111,9 +102,9 @@
           <tr>
             <td><strong>{{ ms.member.job_title }}</strong></td>
             <td>
-              <span style="color:var(--q-maroon);font-weight:700">{{ ms.member.user.full_name|default:"—" }}</span>
+              <span class="member-name">{{ ms.member.user.full_name|default:"—" }}</span>
               {% if ms.member.user %}
-                <br><span style="font-size:0.68rem;color:#9ca3af">{{ ms.member.user.national_id }}</span>
+                <br><span class="member-nid">{{ ms.member.user.national_id }}</span>
               {% endif %}
             </td>
             <td class="cell-center">
@@ -121,26 +112,26 @@
                 {{ ms.member.responsibility }}
               </span>
             </td>
-            <td style="font-size:0.75rem;color:#6b7280">{{ ms.member.domain.name|default:"—" }}</td>
+            <td class="cell-domain">{{ ms.member.domain.name|default:"—" }}</td>
             <td class="cell-center">
               {% if ms.reviewed_count %}
                 <span class="q-badge q-badge-success">{{ ms.reviewed_count }}</span>
               {% else %}
-                <span style="color:#d1d5db;font-size:0.75rem">0</span>
+                <span class="cell-zero">0</span>
               {% endif %}
             </td>
             <td class="cell-center">
               {% if ms.pending_in_domain %}
                 <span class="q-badge q-badge-warning">{{ ms.pending_in_domain }}</span>
               {% else %}
-                <span style="color:#d1d5db;font-size:0.75rem">0</span>
+                <span class="cell-zero">0</span>
               {% endif %}
             </td>
             <td class="cell-center">
               <form method="post" action="{% url 'remove_committee_member' ms.member.id %}"
                     onsubmit="return confirm('حذف {{ ms.member.job_title }}؟')">
                 {% csrf_token %}
-                <button type="submit" class="q-btn q-btn-outline" style="color:#dc2626;border-color:rgba(220,38,38,0.3)">
+                <button type="submit" class="q-btn q-btn-outline q-btn-delete">
                   <i class="fa-solid fa-trash-can"></i> حذف
                 </button>
               </form>
@@ -180,11 +171,12 @@
           {% if responsible %}
             <strong>{{ responsible.user.full_name|default:responsible.job_title }}</strong>
           {% else %}
-            <span style="color:#dc2626">غير محدد</span>
+            <span class="text-danger">غير محدد</span>
           {% endif %}
         </div>
         <div class="domain-bar">
-          <div class="domain-bar-fill" style="width:{{ domain.completion_pct }}%;background:{% if domain.completion_pct >= 80 %}#16a34a{% elif domain.completion_pct >= 50 %}#d97706{% else %}#dc2626{% endif %}"></div>
+          <div class="domain-bar-fill {% if domain.completion_pct >= 80 %}green{% elif domain.completion_pct >= 50 %}amber{% else %}red{% endif %}"
+               style="width:{{ domain.completion_pct }}%"></div>
         </div>
       </div>
       {% endwith %}
@@ -195,18 +187,8 @@
 
 </div>
 
-<script nonce="{{ request.csp_nonce }}">
-function toggleForm() {
-  const form = document.getElementById('add-form');
-  const icon = document.getElementById('form-toggle-icon');
-  const show = form.style.display === 'none';
-  form.style.display = show ? 'block' : 'none';
-  icon.textContent = show ? '－' : '＋';
-}
-function fillJobTitle(select) {
-  const name = select.options[select.selectedIndex]?.dataset.name || "";
-  const input = document.getElementById("job_title_input");
-  if (name && !input.value) input.value = name;
-}
-</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/quality.js' %}" defer></script>
 {% endblock %}

@@ -78,11 +78,197 @@ body {
   font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
 }
 
-/* ── شريط التنقل ────────────────────────────────────────────── */
-nav[style*="8A1538"] {
-  background: var(--maroon) !important;
-  border-bottom: 2px solid var(--maroon-dark) !important;
+/* ══════════════════════════════════════════════════════════
+   شريط التنقل الرئيسي — Navigation Bar
+   ══════════════════════════════════════════════════════════ */
+.site-nav {
+  background: var(--maroon);
+  position: sticky;
+  top: 0;
+  z-index: 500;
+  border-bottom: 2px solid var(--maroon-dark);
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
+.nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  height: 54px;
+  gap: 2px;
+}
+/* زر Nav الأساسي — مشترك بين الروابط والأزرار */
+.nb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: #fff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s;
+  text-decoration: none;
+  font-family: inherit;
+  line-height: 1;
+}
+.nb:hover, .nb.on { background: rgba(255,255,255,0.16); }
+.chv { font-size: 8px; opacity: .6; transition: transform .18s; }
+.nb.on .chv { transform: rotate(180deg); }
+
+/* الشعار */
+.nav-logo      { font-weight: 700; font-size: 14px; gap: 7px; flex-shrink: 0; padding: 4px 8px; }
+.nav-logo-img  { flex-shrink: 0; filter: brightness(0) invert(1); }
+.nav-logo-text { white-space: nowrap; }
+
+/* الفاصل العمودي */
+.nav-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(255,255,255,0.2);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+/* زر الهامبرغر (الجوال) */
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.4rem;
+  padding: 6px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* مساحة مرنة لدفع عناصر اليمين */
+.nav-spacer { flex: 1; }
+
+/* جرس الإشعارات */
+.nav-bell {
+  position: relative;
+  flex-shrink: 0;
+  padding: 7px 9px;
+}
+.nav-bell-icon { display: block; }
+.notif-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* زر المستخدم */
+.nav-user-btn    { gap: 7px; flex-shrink: 0; margin-right: 2px; }
+.nav-user-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.nav-user-name {
+  font-size: 12px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ══ Dropdown ════════════════════════════════════════════ */
+.sd-menu {
+  display: none;
+  position: fixed;
+  min-width: 210px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.13);
+  z-index: 99999;
+  padding: 6px 0;
+  color-scheme: light;
+}
+.sd-menu.sd-measure {
+  display: block !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  top: 0; left: 0;
+}
+.sd-menu.open {
+  display: block;
+  animation: sdFadeIn .13s ease;
+}
+@keyframes sdFadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sd-menu a {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 16px; font-size: 13px;
+  color: #1e293b !important; text-decoration: none;
+  white-space: nowrap; transition: background .1s, color .1s;
+}
+.sd-menu a:hover { background: #fdf2f5; color: var(--maroon) !important; }
+.sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
+.sd-label {
+  padding: 6px 16px 3px;
+  font-size: 10px; font-weight: 700; color: #94a3b8 !important;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+/* رأس قائمة المستخدم */
+.sd-user-header    { padding: 10px 16px 9px; border-bottom: 1px solid #f1f5f9; }
+.sd-user-fullname  { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 2px; }
+.sd-user-nid       { font-size: 11px; color: #64748b; margin: 0 0 3px; }
+.sd-user-role      { font-size: 11px; color: var(--maroon); font-weight: 600; margin: 0; }
+/* زر تسجيل الخروج */
+.sd-logout-form { margin: 0; }
+.sd-logout-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; text-align: right;
+  padding: 9px 16px; font-size: 13px;
+  color: #dc2626; background: none;
+  border: none; cursor: pointer; font-family: inherit;
+}
+.sd-2fa-enabled  { color: #16a34a; }
+.sd-2fa-disabled { color: #dc2626; }
+/* قائمة المستخدم — min-width */
+#m-user { min-width: 200px; }
+
+/* ══ Flash messages ══════════════════════════════════════ */
+.msg-bar {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 15px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 500; line-height: 1.5;
+  transition: opacity .4s;
+}
+.msg-bar button.msg-x {
+  margin-right: auto; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  opacity: .45; font-size: 15px; padding: 0 2px; line-height: 1;
+}
+.msg-bar button.msg-x:hover { opacity: 1; }
+.msg-icon { flex-shrink: 0; font-size: 16px; }
+.msg-text { flex: 1; }
+.msgs-wrap { max-width: 1280px; margin: 14px auto 0; padding: 0 16px; }
 
 /* ── الأزرار الرئيسية ───────────────────────────────────────── */
 /* أي زر بخلفية maroon */
@@ -245,30 +431,82 @@ div#header h1 a {
   color: #fff !important;
 }
 
-/* ── صفحة الدخول ────────────────────────────────────────────── */
-.login-card {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  padding: 36px 32px;
-}
-
-.login-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--maroon);
-  color: #fff;
-  font-size: 26px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  box-shadow: 0 4px 14px rgba(138,21,56,.35);
-}
 
 /* ── الفوتر ─────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid #e5e7eb;
+  padding: 14px 16px;
+  margin-top: auto;
+}
+.site-footer-text {
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ── PWA Install Banner ──────────────────────────────────── */
+.pwa-banner {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 12px;
+  left: 12px;
+  z-index: 3500;
+  background: var(--maroon);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(138,21,56,.4);
+}
+.pwa-banner.visible { display: flex; }
+.pwa-icon     { font-size: 1.5rem; flex-shrink: 0; }
+.pwa-text     { flex: 1; min-width: 0; }
+.pwa-title    { display: block; font-size: 13px; font-weight: 700; }
+.pwa-subtitle { opacity: .8; font-size: 11.5px; }
+.pwa-install-btn {
+  background: #fff;
+  color: var(--maroon);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 36px;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.pwa-dismiss-btn {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 4px;
+  min-width: 32px;
+  min-height: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── Emergency Banner ────────────────────────────────────── */
+.emergency-banner {
+  position: fixed;
+  top: 0; right: 0; left: 0;
+  z-index: 9999;
+  background: var(--maroon);
+  color: #fff;
+  padding: 14px 20px;
+  font-weight: 700;
+  text-align: center;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+
 footer {
   color: var(--text-muted);
   border-top: 1px solid var(--border);
@@ -1360,6 +1598,25 @@ button:focus-visible,
 .quality-header .quick-btn-green  { background: #16a34a; }
 .quality-header .quick-btn-gray   { background: #9ca3af; color: #374151; }
 
+/* Per-page selector — مستقل عن quality-header */
+.quality-per-page {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.quality-per-page label { white-space: nowrap; }
+.quality-per-page select {
+  font-size: 0.75rem;
+  padding: 0.28rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
 /* Per-page selector */
 .quality-header .per-page-select {
   font-size: 0.75rem;
@@ -1506,12 +1763,12 @@ button:focus-visible,
   padding: 0.6rem 0.65rem;
   border-bottom: 1px solid var(--q-silver);
   border-left: 1px solid var(--q-silver-light);
-  vertical-align: top;
+  vertical-align: middle;
   font-size: 12.5px;
   line-height: 1.65;
   font-family: var(--q-font-data);
   font-weight: 400;
-  color: var(--q-maroon);
+  color: #374151;
 }
 .plans-table tbody td:last-child { border-left: none; }
 .plans-table tbody tr:last-child td { border-bottom: none; }
@@ -1527,17 +1784,15 @@ button:focus-visible,
   box-shadow: inset 0 0 0 1px rgba(141,27,61,0.08);
 }
 
-/* Wide text cells — 3 lines max */
+/* Wide text cells — wraps freely, no clamp on td */
 .plans-table .cell-wide-text {
   white-space: normal;
   word-break: break-word;
-  overflow: hidden;
-  line-height: 1.7;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  line-height: 1.65;
   font-family: var(--q-font-data);
-  color: var(--q-maroon);
+  color: #374151;
+  min-width: 160px;
+  max-width: 260px;
 }
 
 /* Numeric/center cells */
@@ -1550,13 +1805,20 @@ button:focus-visible,
 .plans-table .cell-action {
   text-align: center;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
-/* Row status backgrounds */
-.plans-table .row-pending   { background: rgba(251,191,36,0.06) !important; }
-.plans-table .row-completed { background: rgba(34,197,94,0.06) !important; }
-.plans-table .row-returned  { background: rgba(239,68,68,0.06) !important; }
-.plans-table .row-cancelled { opacity: 0.5; }
+/* Empty/null values in table */
+.plans-table .cell-empty {
+  color: #d1d5db;
+  font-size: 0.8rem;
+}
+
+/* Row status — مؤشر جانبي خفيف بدون خلفية مشتتة */
+.plans-table .row-pending   { box-shadow: inset -3px 0 0 rgba(251,191,36,0.7); }
+.plans-table .row-completed { box-shadow: inset -3px 0 0 rgba(34,197,94,0.6); }
+.plans-table .row-returned  { box-shadow: inset -3px 0 0 rgba(239,68,68,0.6); }
+.plans-table .row-cancelled { opacity: 0.55; }
 
 /* Table wrapper */
 .quality-table-wrap {
@@ -1590,41 +1852,43 @@ button:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 1rem 0;
+  gap: 0.5rem;
+  margin: 1.1rem 0;
 }
-.quality-pagination-inner {
-  display: flex;
+
+.quality-pagination .page-link {
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  background: white;
-  padding: 0.5rem;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
   border-radius: 6px;
-  border: 1px solid rgba(141,27,61,0.2);
-}
-.quality-pagination a {
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--q-font-ui);
   color: var(--q-maroon);
-  border: 1px solid rgba(141,27,61,0.25);
-  font-size: 0.75rem;
-  font-weight: 700;
+  background: white;
+  border: 1.5px solid rgba(141,27,61,0.3);
   text-decoration: none;
-  transition: all var(--q-transition);
+  transition: all 0.15s ease;
+  line-height: 1;
 }
-.quality-pagination a:hover {
-  background: rgba(141,27,61,0.1);
+
+.quality-pagination .page-link:hover {
+  background: rgba(141,27,61,0.08);
+  border-color: var(--q-maroon);
+  box-shadow: 0 1px 4px rgba(141,27,61,0.15);
 }
+
 .quality-pagination .page-info {
-  padding: 0 0.75rem;
-  font-size: 0.75rem;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: var(--q-maroon);
-  border-left: 1px solid rgba(141,27,61,0.2);
-  border-right: 1px solid rgba(141,27,61,0.2);
+  font-family: var(--q-font-ui);
+  color: #374151;
+  background: #f9fafb;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 6px;
+  line-height: 1;
 }
 
 /* ── 7. Status Badges ─────────────────────────────────────────── */
@@ -1699,22 +1963,31 @@ button:focus-visible,
   border-color: var(--q-maroon);
 }
 
-/* Evidence file link */
+/* موقع الدليل النصي */
+.q-evidence-source {
+  display: inline;
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin-left: 4px;
+}
+
+/* Evidence file link — chip متسق مع نظام الـ badges */
 .q-evidence-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.68rem;
-  font-weight: 700;
+  gap: 0.2rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 600;
   border-radius: 4px;
   text-decoration: none;
-  background: linear-gradient(135deg, var(--q-maroon) 0%, var(--q-maroon-dark) 100%);
-  color: white;
-  transition: all var(--q-transition);
+  background: rgba(141, 27, 61, 0.1);
+  color: var(--q-maroon);
+  border: 1px solid rgba(141, 27, 61, 0.25);
+  transition: background var(--q-transition);
 }
 .q-evidence-link:hover {
-  box-shadow: 0 2px 6px rgba(107,20,46,0.3);
+  background: rgba(141, 27, 61, 0.18);
 }
 
 /* ── 9. Modal System ──────────────────────────────────────────── */
@@ -2272,6 +2545,9 @@ button:focus-visible,
   border-radius: 99px;
   transition: width 0.4s;
 }
+.q-domain-card .domain-bar-fill.green { background: #16a34a; }
+.q-domain-card .domain-bar-fill.amber { background: #d97706; }
+.q-domain-card .domain-bar-fill.red   { background: #dc2626; }
 
 /* Section heading */
 .q-section-title {
@@ -2289,7 +2565,273 @@ button:focus-visible,
   font-size: 0.9rem;
 }
 
-/* ── 13. Responsive ──────────────────────────────────────────── */
+/* ── 13. Dashboard utility classes ──────────────────────────── */
+
+/* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
+.btn-sm { font-size: 12.5px !important; }
+a.btn-primary, a.btn-secondary { text-decoration: none; }
+
+/* KPI card color variants */
+.kpi-card--blue   { background: linear-gradient(135deg,#eff6ff,#dbeafe); }
+.kpi-card--red    { background: linear-gradient(135deg,#fef2f2,#fecaca); }
+.kpi-card--orange { background: linear-gradient(135deg,#fff7ed,#fed7aa); }
+
+/* KPI value color variants */
+.kpi-value--primary { color: var(--skyline); }
+.kpi-value--success { color: #166534; }
+.kpi-value--warning { color: #d97706; }
+.kpi-value--blue    { color: #1d4ed8; }
+.kpi-value--danger  { color: #dc2626; }
+.kpi-value--orange  { color: #ea580c; }
+
+/* شريط التقدم للوحة الرئيسية */
+.plan-progress-wrap { padding: 16px 20px; }
+.plan-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.plan-progress-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.plan-progress-pct   { font-size: 14px; font-weight: 800; }
+.plan-progress-pct--success { color: #166534; }
+.plan-progress-pct--primary { color: var(--maroon); }
+.plan-progress-pct--warning { color: #d97706; }
+
+/* شريط تقدم ملوّن — الخلفية ديناميكية، الهيكل ثابت */
+.progress-qatar-fill--success { background: linear-gradient(90deg,#15803d,#16a34a); }
+.progress-qatar-fill--primary { background: linear-gradient(90deg,var(--maroon-dark),var(--maroon-light)); }
+.progress-qatar-fill--warning { background: linear-gradient(90deg,#d97706,#f59e0b); }
+
+/* عنوان القسم */
+.section-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.section-link {
+  font-size: 12.5px;
+  color: var(--maroon);
+  text-decoration: none;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+/* بطاقة المجال */
+.domain-card-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.domain-card-info  { flex: 1; min-width: 0; }
+.domain-card-name  {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--maroon);
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.domain-card-meta  { font-size: 12.5px; color: var(--text-secondary); margin: 0; }
+.domain-card-stats { text-align: center; margin-right: 20px; flex-shrink: 0; }
+.domain-card-pct   { font-size: 24px; font-weight: 800; margin: 0; }
+.domain-card-sub   { font-size: 11px; color: var(--text-muted); margin: 0; }
+.domain-card-bar   { height: 4px; background: #f1f5f9; }
+.domain-card-bar-fill { height: 4px; transition: width .4s; }
+.domain-card-pct--success { color: #166534; }
+.domain-card-pct--primary { color: var(--maroon); }
+.domain-card-pct--warning { color: #d97706; }
+.domain-card-bar-fill--success { background: #16a34a; }
+.domain-card-bar-fill--primary { background: var(--maroon); }
+.domain-card-bar-fill--warning { background: #f59e0b; }
+
+/* صف قائمة الإجراءات */
+.proc-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: background .1s;
+}
+.proc-list-row:hover { background: var(--surface-hover, #f9fafb); }
+.proc-list-info   { min-width: 0; flex: 1; }
+.proc-list-title  {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.proc-list-meta   { font-size: 11.5px; color: var(--text-muted); margin: 0; }
+.proc-badge-overdue {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  background: #fef2f2;
+  color: #dc2626;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+/* حلقة التقدم الدائرية */
+.kpi-ring-wrap  {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 6px;
+}
+.kpi-ring-svg   { width: 72px; height: 72px; transform: rotate(-90deg); }
+.kpi-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.kpi-card--ring { text-align: center; }
+
+/* خلية الجدول */
+.td-bold      { font-weight: 500; }
+.td-secondary { color: var(--text-secondary); }
+.td-maroon    { color: var(--maroon); font-weight: 600; }
+
+/* domain cards column layout */
+.domain-cards-list { display: flex; flex-direction: column; gap: 10px; }
+.domain-card-link  { text-decoration: none; padding: 0; overflow: hidden; }
+
+/* filter tabs bar */
+.filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* status badge inline */
+.status-badge--inline { flex-shrink: 0; margin-right: 12px; }
+
+/* ── 14. Committee & table helpers ──────────────────────────── */
+
+/* خلايا الجدول */
+.cell-domain        { font-size: 0.75rem; color: #6b7280; }
+.cell-count         { font-weight: 700; }
+.cell-count-success { font-weight: 700; color: #16a34a; }
+.cell-count-amber   { color: #d97706; }
+.cell-progress      { min-width: 120px; }
+.cell-zero          { color: #d1d5db; font-size: 0.75rem; }
+
+/* معلومات العضو في الجدول */
+.member-name { color: #111827; font-weight: 600; }
+.member-nid  { font-size: 0.68rem; color: #9ca3af; }
+.member-job  { font-size: 0.7rem; color: #9ca3af; }
+
+/* صف غير مربوط */
+.row-unmapped { opacity: 0.6; }
+
+/* شريط تقدم مصغّر داخل الجدول */
+.mini-progress-wrap  { display: flex; align-items: center; gap: 0.5rem; }
+.mini-progress-track { flex: 1; height: 6px; background: #f3f4f6; border-radius: 99px; overflow: hidden; }
+.mini-progress-fill  { height: 100%; border-radius: 99px; }
+.mini-progress-fill.green { background: #16a34a; }
+.mini-progress-fill.amber { background: #d97706; }
+.mini-progress-fill.red   { background: #dc2626; }
+.mini-progress-pct   { font-size: 0.72rem; font-weight: 700; min-width: 2rem; text-align: left; }
+
+/* زر الحذف */
+.q-btn-delete { color: #dc2626; border-color: rgba(220,38,38,0.3); }
+
+/* نجمة الحقل المطلوب */
+.required-star { color: #dc2626; }
+
+/* نص خطر */
+.text-danger { color: #dc2626; }
+
+/* نموذج داخل السطر */
+.form-inline { display: inline; }
+
+/* لون نسبة التقدم في شريط التقدم */
+.q-progress-bar .progress-label .pct.green { color: #16a34a; }
+.q-progress-bar .progress-label .pct.amber { color: #d97706; }
+.q-progress-bar .progress-label .pct.red   { color: #dc2626; }
+
+/* ── 15. Login Page ──────────────────────────────────────────── */
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(145deg, #fdf2f5 0%, #f9fafb 50%, #f0f4ff 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+}
+.login-page::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(circle at 20% 20%, rgba(138,21,56,.05) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(13,66,97,.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+.login-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
+  padding: 0 0 32px;
+  width: 100%; max-width: 420px;
+  position: relative; z-index: 1;
+  border: 1px solid rgba(255,255,255,.8);
+  overflow: hidden;
+}
+.login-card-header {
+  background: linear-gradient(160deg, #8A1538 0%, #6b0f2a 100%);
+  padding: 32px 36px 28px;
+  text-align: center;
+}
+.login-card-body {
+  padding: 28px 36px 0;
+}
+.login-logo {
+  width: 72px; height: 72px;
+  margin: 0 auto 16px;
+}
+.login-logo img {
+  width: 100%; height: 100%;
+  object-fit: contain; display: block;
+  filter: brightness(0) invert(1);
+}
+.login-input {
+  width: 100%; padding: 13px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color .15s, box-shadow .15s;
+  background: #fafafa;
+}
+.login-input:focus {
+  border-color: #8A1538;
+  box-shadow: 0 0 0 3px rgba(138,21,56,.10);
+  background: #fff;
+}
+.login-input::placeholder { color: #9ca3af; }
+.login-btn {
+  width: 100%; background: #8A1538;
+  color: #fff; font-weight: 700; font-size: 15px;
+  padding: 13px 16px; border-radius: 12px;
+  border: none; cursor: pointer; font-family: inherit;
+  transition: background .15s, box-shadow .15s, transform .1s;
+  letter-spacing: .02em;
+}
+.login-btn:hover  { background: #6b0f2a; box-shadow: 0 4px 16px rgba(138,21,56,.32); }
+.login-btn:active { transform: translateY(1px); }
+.badge-role {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  background: #fdf2f5; color: #8A1538; border: 1px solid #e8b4c3;
+}
+
+/* ── 16. Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .quality-page { width: 100%; padding: 0.5rem; }
   .quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
@@ -2300,4 +2842,6 @@ button:focus-visible,
   .q-add-form-grid { grid-template-columns: 1fr 1fr; }
   .q-progress-bar .progress-stats { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
   .q-domain-grid { grid-template-columns: 1fr; }
+  .login-card-header { padding: 24px 20px 22px; }
+  .login-card-body   { padding: 22px 20px 0; }
 }

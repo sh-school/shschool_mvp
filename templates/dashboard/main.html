@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}لوحة التحكم — مدرسة الشحانية{% endblock %}
+{% block title %}لوحة التحكم — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block content %}
 
@@ -428,7 +428,7 @@
   {% else %}
   <div class="card-qatar text-center py-8 col-span-3 text-gray-400">
     <span style="font-size:40px;">🏫</span>
-    <p class="mt-3 font-medium text-gray-600">مرحباً بك في مدرسة الشحانية</p>
+    <p class="mt-3 font-medium text-gray-600">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية" }}</p>
     <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
   </div>
   {% endif %}
@@ -449,7 +449,7 @@
 
 <div class="card-qatar text-center py-8 text-gray-400">
   <span style="font-size:40px;">🏫</span>
-  <p class="mt-3 font-medium text-gray-600">مرحباً بك في مدرسة الشحانية</p>
+  <p class="mt-3 font-medium text-gray-600">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
   <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
 </div>
 

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}السلوك المدرسي — مدرسة الشحانية{% endblock %}
+{% block title %}السلوك المدرسي — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 <nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">

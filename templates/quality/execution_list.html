@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}تنفيذ الخطة التشغيلية — مدرسة الشحانية{% endblock %}
+{% block title %}تنفيذ الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with items="الرئيسية:/,ضمان الجودة:quality_dashboard,تنفيذ الخطة التشغيلية:" %}
@@ -11,17 +11,12 @@
 <div class="quality-page" dir="rtl">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="quality-header">
-    <div class="quality-header-title">
-      <h1>
-        <i class="fa-solid fa-clipboard-list"></i>
-        تنفيذ الخطة التشغيلية
-      </h1>
-      <span class="quality-header-count">المهام: {{ page_obj.paginator.count }}</span>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title"><i class="fa-solid fa-clipboard-list"></i> تنفيذ الخطة التشغيلية</h1>
+      <p class="page-subtitle">المهام: {{ page_obj.paginator.count }}</p>
     </div>
-
-    <div class="quality-header-actions">
-      {# Per-page selector #}
+    <div class="page-actions">
       <form method="GET" class="quality-per-page">
         {% for key, val in request.GET.items %}
           {% if key != 'per_page' and key != 'page' %}
@@ -36,17 +31,9 @@
           <option value="all" {% if current_per_page == "all" %}selected{% endif %}>الكل</option>
         </select>
       </form>
-
-      {# Quick filters #}
-      <a href="{% url 'execution_list' %}?status=Pending+Review" class="quick-btn quick-btn-maroon">
-        بانتظار المراجعة
-      </a>
-      <a href="{% url 'execution_list' %}?status=Completed" class="quick-btn quick-btn-green">
-        مكتملة
-      </a>
-      <a href="{% url 'execution_list' %}" class="quick-btn quick-btn-gray">
-        مسح
-      </a>
+      <a href="{% url 'execution_list' %}?status=Pending+Review" class="btn-secondary btn-sm">بانتظار المراجعة</a>
+      <a href="{% url 'execution_list' %}?status=Completed" class="btn-secondary btn-sm">مكتملة</a>
+      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">مسح</a>
     </div>
   </div>
 
@@ -152,12 +139,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="page-link">السابق</a>
+         class="page-link"><i class="fa-solid fa-chevron-right"></i> السابق</a>
     {% endif %}
     <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="page-link">التالي</a>
+         class="page-link">التالي <i class="fa-solid fa-chevron-left"></i></a>
     {% endif %}
   </div>
   {% endif %}
@@ -206,12 +193,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="page-link">السابق</a>
+         class="page-link"><i class="fa-solid fa-chevron-right"></i> السابق</a>
     {% endif %}
     <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="page-link">التالي</a>
+         class="page-link">التالي <i class="fa-solid fa-chevron-left"></i></a>
     {% endif %}
   </div>
   {% endif %}

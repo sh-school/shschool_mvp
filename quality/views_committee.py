@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.models import CustomUser, Membership
@@ -17,11 +18,23 @@ from .models import (
 )
 from .services import QualityService
 
+_DEFAULT_YEAR = "2025-2026"
+
+
+def _committee_redirect(committee_type, year):
+    """Clean Code: لا URLs مشفرة — استخدام reverse()"""
+    url_name = (
+        "executor_committee"
+        if committee_type == QualityCommitteeMember.EXECUTOR
+        else "quality_committee"
+    )
+    return f"{reverse(url_name)}?year={year}"
+
 
 @login_required
 def quality_committee(request):
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
 
     staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
         "user_id", flat=True
@@ -29,7 +42,6 @@ def quality_committee(request):
 
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
-    # Build review stats for each member
     member_review_stats = []
     for member in members:
         reviewed_count = 0
@@ -68,12 +80,6 @@ def quality_committee(request):
     )
 
 
-def _committee_redirect(committee_type, year):
-    if committee_type == QualityCommitteeMember.EXECUTOR:
-        return f"/quality/executor-committee/?year={year}"
-    return f"/quality/committee/?year={year}"
-
-
 @login_required
 @require_POST
 def add_committee_member(request):
@@ -81,7 +87,7 @@ def add_committee_member(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", "2025-2026")
+    year = request.POST.get("year", _DEFAULT_YEAR)
     user_id = request.POST.get("user_id", "").strip()
     job_title = request.POST.get("job_title", "").strip()
     responsibility = request.POST.get("responsibility", "عضو")
@@ -138,7 +144,7 @@ def executor_committee(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
 
     data = QualityService.get_executor_committee_data(school, year)
     staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
@@ -178,7 +184,7 @@ def executor_member_detail(request, member_id):
         committee_type=QualityCommitteeMember.EXECUTOR,
     )
 
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
     status_filter = request.GET.get("status", "")
     domain_filter = request.GET.get("domain", "")
 
@@ -190,11 +196,7 @@ def executor_member_detail(request, member_id):
     if domain_filter:
         qs = qs.filter(indicator__target__domain__id=domain_filter)
 
-    total = qs.count()
-    completed = qs.filter(status="Completed").count()
-    pending = qs.filter(status="Pending Review").count()
-    in_prog = qs.filter(status="In Progress").count()
-    pct = round(completed / total * 100) if total else 0
+    stats = QualityService._calc_stats(qs)
 
     return render(
         request,
@@ -202,15 +204,11 @@ def executor_member_detail(request, member_id):
         {
             "member": member,
             "procedures": qs,
-            "total": total,
-            "completed": completed,
-            "pending": pending,
-            "in_prog": in_prog,
-            "pct": pct,
             "year": year,
             "status_filter": status_filter,
             "domain_filter": domain_filter,
             "domains": OperationalDomain.objects.filter(school=school, academic_year=year),
             "STATUS_CHOICES": OperationalProcedure.STATUS,
+            **stats,
         },
     )

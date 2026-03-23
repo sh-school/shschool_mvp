@@ -25,6 +25,20 @@ def _uuid():
     return uuid.uuid4()
 
 
+# ── ثوابت وحدة الجودة ── Clean Code: G25 لا أرقام سحرية ──────
+_DEFAULT_YEAR = "2025-2026"
+
+# عتبات تقييم الأداء (القرار الأميري 9/2016)
+_SCORE_EXCELLENT = 90
+_SCORE_VERY_GOOD = 75
+_SCORE_GOOD = 60
+
+# الأدوار القابلة للتقييم
+_EVALUABLE_ROLES = frozenset([
+    "teacher", "coordinator", "specialist", "nurse",
+    "librarian", "bus_supervisor", "admin", "vice_admin", "vice_academic",
+])
+
 # ─────────────────────────────────────────────────────────────
 # 1. الهيكل الهرمي للخطة التشغيلية
 # ─────────────────────────────────────────────────────────────
@@ -405,7 +419,7 @@ class ExecutorMapping(models.Model):
 class CommitteeManager(models.Manager):
     """Manager يُوفّر استعلامات جاهزة على لجان الجودة"""
 
-    def executor_committee(self, school, year="2025-2026"):
+    def executor_committee(self, school, year=_DEFAULT_YEAR):
         """أعضاء لجنة منفذي الخطة التشغيلية"""
         return self.filter(
             school=school,
@@ -414,7 +428,7 @@ class CommitteeManager(models.Manager):
             is_active=True,
         ).select_related("user", "domain")
 
-    def review_committee(self, school, year="2025-2026"):
+    def review_committee(self, school, year=_DEFAULT_YEAR):
         """أعضاء لجنة المراجعة الذاتية"""
         return self.filter(
             school=school,
@@ -612,11 +626,11 @@ class EmployeeEvaluation(models.Model):
             + self.axis_teamwork
             + self.axis_development
         )
-        if self.total_score >= 90:
+        if self.total_score >= _SCORE_EXCELLENT:
             self.rating = "excellent"
-        elif self.total_score >= 75:
+        elif self.total_score >= _SCORE_VERY_GOOD:
             self.rating = "very_good"
-        elif self.total_score >= 60:
+        elif self.total_score >= _SCORE_GOOD:
             self.rating = "good"
         else:
             self.rating = "needs_dev"
@@ -659,17 +673,7 @@ class EvaluationCycle(models.Model):
         total_staff = Membership.objects.filter(
             school=self.school,
             is_active=True,
-            role__name__in=[
-                "teacher",
-                "coordinator",
-                "specialist",
-                "nurse",
-                "librarian",
-                "bus_supervisor",
-                "admin",
-                "vice_admin",
-                "vice_academic",
-            ],
+            role__name__in=_EVALUABLE_ROLES,
         ).count()
         evaluated = EmployeeEvaluation.objects.filter(
             school=self.school,

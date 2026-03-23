@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}لجنة منفذي الخطة التشغيلية — مدرسة الشحانية{% endblock %}
+{% block title %}لجنة منفذي الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with items="الرئيسية:/,ضمان الجودة:quality_dashboard,لجنة المنفذين:" %}
@@ -11,21 +11,14 @@
 <div class="quality-page" dir="rtl">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="quality-header">
-    <div class="quality-header-title">
-      <h1>
-        <i class="fa-solid fa-users-gear"></i>
-        لجنة منفذي الخطة التشغيلية
-      </h1>
-      <span class="quality-header-count">{{ year }} — {{ total_all }} إجراء</span>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title"><i class="fa-solid fa-users-gear"></i> لجنة منفذي الخطة التشغيلية</h1>
+      <p class="page-subtitle">{{ year }} — {{ total_all }} إجراء</p>
     </div>
-    <div class="quality-header-actions">
-      <a href="{% url 'quality_committee' %}?year={{ year }}" class="quick-btn quick-btn-gray">
-        لجنة المراجعة الذاتية
-      </a>
-      <a href="{% url 'execution_list' %}" class="quick-btn quick-btn-gray">
-        الخطة التشغيلية
-      </a>
+    <div class="page-actions">
+      <a href="{% url 'quality_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المراجعة الذاتية</a>
+      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
     </div>
   </div>
 
@@ -33,7 +26,7 @@
   <div class="q-progress-bar">
     <div class="progress-label">
       <span>التقدم الكلي للخطة</span>
-      <span class="pct {% if pct_all >= 70 %}green{% elif pct_all >= 40 %}amber{% else %}red{% endif %}" style="color: {% if pct_all >= 70 %}#16a34a{% elif pct_all >= 40 %}#d97706{% else %}#dc2626{% endif %}">
+      <span class="pct {% if pct_all >= 70 %}green{% elif pct_all >= 40 %}amber{% else %}red{% endif %}">
         {{ pct_all }}%
       </span>
     </div>
@@ -95,7 +88,7 @@
             </select>
           </div>
           <div class="q-add-form-field">
-            <label>المسمى الوظيفي <span style="color:#dc2626">*</span></label>
+            <label>المسمى الوظيفي <span class="required-star">*</span></label>
             <input type="text" name="job_title" required placeholder="مثال: منسق الرياضيات">
           </div>
           <div class="q-add-form-field">
@@ -150,13 +143,13 @@
         </thead>
         <tbody>
           {% for stat in member_stats %}
-          <tr {% if stat.unmapped %}style="opacity:0.6"{% endif %}>
+          <tr {% if stat.unmapped %}class="row-unmapped"{% endif %}>
             <td>
               <strong>{{ stat.member.display_name }}</strong>
               {% if stat.unmapped %}
                 <br><span class="q-badge q-badge-warning">غير مربوط بمستخدم</span>
               {% else %}
-                <br><span style="font-size:0.7rem;color:#9ca3af">{{ stat.member.job_title }}</span>
+                <br><span class="member-job">{{ stat.member.job_title }}</span>
               {% endif %}
             </td>
             <td class="cell-center">
@@ -164,16 +157,17 @@
                 {{ stat.member.responsibility }}
               </span>
             </td>
-            <td style="font-size:0.75rem;color:#6b7280">{{ stat.member.domain.name|default:"—" }}</td>
-            <td class="cell-center" style="font-weight:700">{{ stat.total }}</td>
-            <td class="cell-center" style="font-weight:700;color:#16a34a">{{ stat.completed }}</td>
-            <td class="cell-center" style="color:#d97706">{{ stat.in_prog }}</td>
-            <td style="min-width:120px">
-              <div style="display:flex;align-items:center;gap:0.5rem">
-                <div style="flex:1;height:6px;background:#f3f4f6;border-radius:99px;overflow:hidden">
-                  <div style="height:100%;border-radius:99px;width:{{ stat.pct }}%;background:{% if stat.pct >= 70 %}#16a34a{% elif stat.pct >= 40 %}#d97706{% else %}#dc2626{% endif %}"></div>
+            <td class="cell-domain">{{ stat.member.domain.name|default:"—" }}</td>
+            <td class="cell-center cell-count">{{ stat.total }}</td>
+            <td class="cell-center cell-count-success">{{ stat.completed }}</td>
+            <td class="cell-center cell-count-amber">{{ stat.in_prog }}</td>
+            <td class="cell-progress">
+              <div class="mini-progress-wrap">
+                <div class="mini-progress-track">
+                  <div class="mini-progress-fill {% if stat.pct >= 70 %}green{% elif stat.pct >= 40 %}amber{% else %}red{% endif %}"
+                       style="width:{{ stat.pct }}%"></div>
                 </div>
-                <span style="font-size:0.72rem;font-weight:700;min-width:2rem;text-align:left">{{ stat.pct }}%</span>
+                <span class="mini-progress-pct">{{ stat.pct }}%</span>
               </div>
             </td>
             <td class="cell-center">
@@ -183,10 +177,10 @@
               </a>
               {% endif %}
               {% if request.user.is_admin %}
-              <form method="post" action="{% url 'remove_executor_member' stat.member.id %}" style="display:inline"
+              <form class="form-inline" method="post" action="{% url 'remove_executor_member' stat.member.id %}"
                     onsubmit="return confirm('هل تريد إزالة هذا العضو من اللجنة؟')">
                 {% csrf_token %}
-                <button type="submit" class="q-btn q-btn-outline" style="color:#dc2626;border-color:rgba(220,38,38,0.3)">حذف</button>
+                <button type="submit" class="q-btn q-btn-outline q-btn-delete">حذف</button>
               </form>
               {% endif %}
             </td>
@@ -205,14 +199,8 @@
   </div>
 
 </div>
+{% endblock %}
 
-<script nonce="{{ request.csp_nonce }}">
-function toggleForm() {
-  const form = document.getElementById('add-form');
-  const icon = document.getElementById('form-toggle-icon');
-  const show = form.style.display === 'none';
-  form.style.display = show ? 'block' : 'none';
-  icon.textContent = show ? '－' : '＋';
-}
-</script>
+{% block extra_js %}
+<script src="{% static 'js/quality.js' %}" defer></script>
 {% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
-{% block title %}الإشعارات — مدرسة الشحانية{% endblock %}
+{% block title %}الإشعارات — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/notifications/" parent_label="الإشعارات" current="صندوق الوارد" %}

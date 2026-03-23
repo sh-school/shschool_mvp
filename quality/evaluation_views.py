@@ -14,6 +14,8 @@ from core.models import AuditLog, CustomUser, Membership
 
 from .models import EmployeeEvaluation, EvaluationCycle
 
+_DEFAULT_YEAR = "2025-2026"
+
 
 def _require_evaluator(request):
     """فقط المدير والنائبان يقيّمون"""
@@ -27,33 +29,21 @@ def evaluation_dashboard(request):
         return HttpResponse("غير مسموح — للمدير ونائبيه فقط", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
 
     cycles = EvaluationCycle.objects.filter(school=school, academic_year=year)
+    cycle_stats = [{"cycle": c, "completion_rate": c.completion_rate} for c in cycles]
 
-    # إحصائيات كل دورة
-    cycle_stats = []
-    for cycle in cycles:
-        cycle_stats.append(
-            {
-                "cycle": cycle,
-                "completion_rate": cycle.completion_rate,
-            }
-        )
-
-    # تقييمات الفترة الحالية
     recent_evals = (
         EmployeeEvaluation.objects.filter(school=school, academic_year=year)
         .select_related("employee", "evaluator")
         .order_by("-created_at")[:20]
     )
 
-    # متوسط الدرجات
     avg = EmployeeEvaluation.objects.filter(
         school=school, academic_year=year, status__in=["submitted", "approved", "acknowledged"]
     ).aggregate(avg=Avg("total_score"))["avg"]
 
-    # توزيع التقديرات
     rating_dist = (
         EmployeeEvaluation.objects.filter(school=school, academic_year=year)
         .values("rating")
@@ -74,6 +64,30 @@ def evaluation_dashboard(request):
     )
 
 
+def _save_evaluation(request, obj):
+    """معالجة POST لحفظ التقييم — Clean Code: SRP"""
+    obj.axis_professional = int(request.POST.get("axis_professional", 0))
+    obj.axis_commitment = int(request.POST.get("axis_commitment", 0))
+    obj.axis_teamwork = int(request.POST.get("axis_teamwork", 0))
+    obj.axis_development = int(request.POST.get("axis_development", 0))
+    obj.strengths = request.POST.get("strengths", "")
+    obj.improvements = request.POST.get("improvements", "")
+    obj.goals_next = request.POST.get("goals_next", "")
+    obj.status = request.POST.get("action", "draft")
+    obj.evaluator = request.user
+    obj.save()
+
+    AuditLog.log(
+        user=request.user,
+        action="update",
+        model_name="other",
+        object_id=obj.pk,
+        object_repr=str(obj),
+        request=request,
+        changes={"total_score": obj.total_score, "rating": obj.rating},
+    )
+
+
 @login_required
 def create_evaluation(request, employee_id):
     """إنشاء أو تعديل تقييم موظف"""
@@ -82,10 +96,9 @@ def create_evaluation(request, employee_id):
 
     school = request.user.get_school()
     employee = get_object_or_404(CustomUser, id=employee_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
     period = request.GET.get("period", "S1")
 
-    # التحقق من أن الموظف في نفس المدرسة
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
         return HttpResponse("الموظف ليس في مدرستك", status=403)
 
@@ -98,27 +111,7 @@ def create_evaluation(request, employee_id):
     )
 
     if request.method == "POST":
-        obj.axis_professional = int(request.POST.get("axis_professional", 0))
-        obj.axis_commitment = int(request.POST.get("axis_commitment", 0))
-        obj.axis_teamwork = int(request.POST.get("axis_teamwork", 0))
-        obj.axis_development = int(request.POST.get("axis_development", 0))
-        obj.strengths = request.POST.get("strengths", "")
-        obj.improvements = request.POST.get("improvements", "")
-        obj.goals_next = request.POST.get("goals_next", "")
-        obj.status = request.POST.get("action", "draft")
-        obj.evaluator = request.user
-        obj.save()
-
-        AuditLog.log(
-            user=request.user,
-            action="update",
-            model_name="other",
-            object_id=obj.pk,
-            object_repr=str(obj),
-            request=request,
-            changes={"total_score": obj.total_score, "rating": obj.rating},
-        )
-
+        _save_evaluation(request, obj)
         if obj.status == "submitted":
             messages.success(request, f"تم تقديم تقييم {employee.full_name} بنجاح.")
         else:
@@ -128,12 +121,7 @@ def create_evaluation(request, employee_id):
     return render(
         request,
         "quality/evaluation_form.html",
-        {
-            "obj": obj,
-            "employee": employee,
-            "year": year,
-            "period": period,
-        },
+        {"obj": obj, "employee": employee, "year": year, "period": period},
     )
 
 
@@ -161,8 +149,5 @@ def my_evaluations(request):
     return render(
         request,
         "quality/my_evaluations.html",
-        {
-            "evals": evals,
-            "school": school,
-        },
+        {"evals": evals, "school": school},
     )

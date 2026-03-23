@@ -34,10 +34,10 @@
   <td class="cell-wide-text">{{ task.text }}</td>
 
   {# 7 — الشهر #}
-  <td class="cell-center">{{ task.date_range|default:"-" }}</td>
+  <td class="cell-center">{{ task.date_range|default:"—" }}</td>
 
   {# 8 — المنفذ #}
-  <td>{{ task.executor_norm|default:"-" }}</td>
+  <td>{{ task.executor_norm|default:"—" }}</td>
 
   {# 9 — رقم المؤشر #}
   <td class="cell-center">{{ task.indicator.number }}</td>
@@ -65,7 +65,7 @@
   {# 12 — موقع الدليل + evidence links #}
   <td>
     {% if task.evidence_source_file %}
-      <span class="info-value">{{ task.evidence_source_file }}</span>
+      <span class="q-evidence-source">{{ task.evidence_source_file }}</span>
     {% endif %}
 
     {% for ev in task.evidences.all %}
@@ -79,12 +79,12 @@
     {% endfor %}
 
     {% if not task.evidence_source_file and not task.evidences.all %}
-      <span class="q-badge q-badge-neutral">-</span>
+      <span class="cell-empty">—</span>
     {% endif %}
   </td>
 
   {# 13 — ملاحظات التنفيذ #}
-  <td class="cell-wide-text">{{ task.comments|default:"-" }}</td>
+  <td class="cell-wide-text">{{ task.comments|default:"—" }}</td>
 
   {# 14 — طلب الدليل #}
   <td class="cell-action">
@@ -101,7 +101,7 @@
         </button>
       </form>
     {% else %}
-      <span class="q-badge q-badge-neutral">-</span>
+      <span class="cell-empty">—</span>
     {% endif %}
   </td>
 

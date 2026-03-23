@@ -9,7 +9,7 @@
   <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
     <div>
       <h1 class="text-2xl font-bold text-gray-800">📊 لوحة تحكم المدير</h1>
-      <p class="text-sm text-gray-500 mt-0.5">نظرة شاملة على أداء مدرسة الشحانية الإعدادية</p>
+      <p class="text-sm text-gray-500 mt-0.5">نظرة شاملة على أداء {{ current_school.name|default:"مدرسة الشحانية الإعدادية" }}</p>
     </div>
     <div class="flex items-center gap-3">
       <form method="get" class="flex gap-2">

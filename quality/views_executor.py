@@ -7,11 +7,14 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core.models import CustomUser, Membership
 
 from .models import ExecutorMapping, OperationalProcedure
+
+_DEFAULT_YEAR = "2025-2026"
 
 
 @login_required
@@ -20,7 +23,7 @@ def executor_mapping(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", _DEFAULT_YEAR)
 
     all_executors = (
         OperationalProcedure.objects.filter(school=school, academic_year=year)
@@ -87,7 +90,7 @@ def save_executor_mapping(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", "2025-2026")
+    year = request.POST.get("year", _DEFAULT_YEAR)
     executor_norm = request.POST.get("executor_norm", "").strip()
     user_id = request.POST.get("user_id", "").strip()
 
@@ -114,7 +117,7 @@ def save_executor_mapping(request):
     else:
         messages.warning(request, f"تم إلغاء ربط [{executor_norm}]")
 
-    return redirect(f"/quality/executor-mapping/?year={year}")
+    return redirect(f"{reverse('executor_mapping')}?year={year}")
 
 
 @login_required
@@ -124,7 +127,7 @@ def apply_all_mappings(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", "2025-2026")
+    year = request.POST.get("year", _DEFAULT_YEAR)
     mappings = ExecutorMapping.objects.filter(school=school, academic_year=year, user__isnull=False)
     total = 0
     for m in mappings:
@@ -134,4 +137,4 @@ def apply_all_mappings(request):
         m.apply_mapping()
 
     messages.success(request, f"✅ تم تطبيق {mappings.count()} ربط على {total} إجراء")
-    return redirect(f"/quality/executor-mapping/?year={year}")
+    return redirect(f"{reverse('executor_mapping')}?year={year}")

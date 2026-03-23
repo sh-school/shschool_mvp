@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8A1538">
   {% block extra_head %}{% endblock %}
-  <title>{% block title %}مدرسة الشحانية الإعدادية الثانوية للبنين{% endblock %}</title>
+  <title>{% block title %}{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</title>
   {% load static %}
 
   {# ── Favicon & PWA ── #}
@@ -18,123 +18,49 @@
   <meta name="apple-mobile-web-app-title" content="الشحانية">
   {% endif %}
 
-  {# ── Arabic Font: Tajawal ── #}
+  {# ── الخط العربي: Tajawal ── #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 
-  {# ── CSS ── #}
-  <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+  {# ── CSS — مصدر واحد ── #}
+  <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=15">
+  {% block extra_css %}{% endblock %}
 
   {# ── HTMX ── #}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js" defer></script>
-
-  <style nonce="{{ request.csp_nonce }}">
-    *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif; }
-
-    /* ══ Dropdown ══════════════════════════════════════════════ */
-    .sd-menu {
-      display: none;
-      position: fixed;
-      min-width: 210px;
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.13);
-      z-index: 99999;
-      padding: 6px 0;
-      color-scheme: light;
-    }
-    .sd-menu.sd-measure {
-      display: block !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
-      top: 0; left: 0;
-    }
-    .sd-menu.open {
-      display: block;
-      animation: sdFadeIn .13s ease;
-    }
-    @keyframes sdFadeIn {
-      from { opacity: 0; transform: translateY(-5px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .sd-menu a {
-      display: flex; align-items: center; gap: 9px;
-      padding: 9px 16px; font-size: 13px;
-      color: #1e293b !important; text-decoration: none;
-      white-space: nowrap; transition: background .1s, color .1s;
-    }
-    .sd-menu a:hover { background: #fdf2f5; color: #8A1538 !important; }
-    .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
-    .sd-label {
-      padding: 6px 16px 3px; font-size: 10px;
-      font-weight: 700; color: #94a3b8 !important;
-      letter-spacing: .08em; text-transform: uppercase;
-    }
-
-    /* ══ Nav button ════════════════════════════════════════════ */
-    .nb {
-      display: flex; align-items: center; gap: 5px;
-      padding: 6px 10px; border-radius: 7px;
-      font-size: 12.5px; color: #fff;
-      background: none; border: none; cursor: pointer;
-      white-space: nowrap; transition: background .12s;
-      text-decoration: none; font-family: inherit; line-height: 1;
-    }
-    .nb:hover, .nb.on { background: rgba(255,255,255,0.16); }
-    .chv { font-size: 8px; opacity: .6; transition: transform .18s; }
-    .nb.on .chv { transform: rotate(180deg); }
-
-    /* ══ Flash messages ════════════════════════════════════════ */
-    .msg-bar {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 11px 15px; border-radius: 10px;
-      font-size: 13.5px; font-weight: 500; line-height: 1.5;
-      transition: opacity .4s;
-    }
-    .msg-bar button.msg-x {
-      margin-right: auto; flex-shrink: 0;
-      background: none; border: none; cursor: pointer;
-      opacity: .45; font-size: 15px; padding: 0 2px; line-height: 1;
-    }
-    .msg-bar button.msg-x:hover { opacity: 1; }
-  </style>
 </head>
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
-{# ✅ v5.1: Skip Navigation — WCAG 2.1 AA #}
+{# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
 
-{# ✅ v5.1: Toast Container #}
+{# ✅ Toast Container #}
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 
-{# ═══════════════════════ NAVIGATION BAR ═══════════════════════════════ #}
-<nav style="background:#8A1538;position:sticky;top:0;z-index:500;border-bottom:2px solid #6b0f2a;box-shadow:0 2px 8px rgba(0,0,0,.18);">
-  <div style="max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;height:54px;gap:2px;">
+{# ═══════════════════════ NAVIGATION BAR ════════════════════════════════ #}
+<nav class="site-nav" role="navigation" aria-label="التنقل الرئيسي">
+  <div class="nav-inner">
 
     {# ── Logo ── #}
-    <a href="/dashboard/" class="nb" style="font-weight:700;font-size:14px;gap:7px;flex-shrink:0;padding:4px 8px;">
+    <a href="/dashboard/" class="nb nav-logo">
       <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
-           alt="مدرسة الشحانية" style="flex-shrink:0;filter:brightness(0) invert(1);">
-      <span class="hidden sm:inline" style="white-space:nowrap;">مدرسة الشحانية الإعدادية</span>
-      <span class="sm:hidden" style="white-space:nowrap;">الشحانية</span>
+           alt="مدرسة الشحانية" class="nav-logo-img">
+      <span class="hidden sm:inline nav-logo-text">{{ current_school.name|default:"مدرسة الشحانية الإعدادية" }}</span>
+      <span class="sm:hidden nav-logo-text">{{ current_school.city|default:"الشحانية" }}</span>
     </a>
 
-    <div style="width:1px;height:20px;background:rgba(255,255,255,0.2);margin:0 6px;flex-shrink:0;"></div>
+    <div class="nav-divider" aria-hidden="true"></div>
 
-    {# ── Hamburger (mobile only) ── #}
-    <button id="mob-menu-btn" aria-label="القائمة" aria-expanded="false"
-            onclick="toggleMobMenu()"
-            style="display:none;background:none;border:none;color:#fff;
-                   font-size:1.4rem;padding:6px 8px;min-width:44px;min-height:44px;
-                   cursor:pointer;line-height:1;flex-shrink:0;">☰</button>
+    {# ── Hamburger (mobile) ── #}
+    <button id="mob-menu-btn" class="nav-hamburger"
+            aria-label="القائمة" aria-expanded="false"
+            onclick="toggleMobMenu()">☰</button>
 
     {# ── Role-based nav ── #}
     <div class="nb-bar">
@@ -184,41 +110,31 @@
       <a href="/parents/grades/" class="nb">📊 الدرجات</a>
 
     {% endif %}
-    </div>{# end nb-bar #}
+    </div>
 
-    <div style="flex:1;"></div>
+    <div class="nav-spacer"></div>
 
     {# ── Notification Bell ── #}
-    <a href="/notifications/inbox/" class="nb"
-       style="position:relative;flex-shrink:0;padding:7px 9px;" title="الإشعارات" id="notif-bell">
-      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:block;">
+    <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
+           viewBox="0 0 24 24" class="nav-bell-icon" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round"
           d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
       </svg>
-      <span id="notif-badge"
-            style="position:absolute;top:3px;right:3px;background:#ef4444;color:#fff;
-                   font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;
-                   display:none;align-items:center;justify-content:center;padding:0 3px;line-height:1;"></span>
+      <span id="notif-badge" class="notif-badge" aria-label="عدد الإشعارات غير المقروءة"></span>
     </a>
 
     {# ── User Menu ── #}
-    <button class="nb" id="btn-user" onclick="sd('m-user',this)"
-            style="gap:7px;flex-shrink:0;margin-right:2px;">
-      <span style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.22);
-                   display:flex;align-items:center;justify-content:center;
-                   font-size:12px;font-weight:700;flex-shrink:0;">
-        {{ request.user.full_name|slice:":1" }}
-      </span>
-      <span style="font-size:12px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        {{ request.user.full_name|truncatechars:12 }}
-      </span>
+    <button class="nb nav-user-btn" id="btn-user" onclick="sd('m-user',this)">
+      <span class="nav-user-avatar" aria-hidden="true">{{ request.user.full_name|slice:":1" }}</span>
+      <span class="nav-user-name">{{ request.user.full_name|truncatechars:12 }}</span>
       <span class="chv">▼</span>
     </button>
 
   </div>
 </nav>
 
-{# ═════════════════ DROPDOWN MENUS (fixed-positioned) ════════════════════ #}
+{# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
 {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
 
 <div class="sd-menu" id="m-academic">
@@ -268,13 +184,13 @@
   <a href="/library/">📚 المكتبة</a>
 </div>
 
-{% endif %}{# end admin dropdowns #}
+{% endif %}
 
-<div class="sd-menu" id="m-user" style="min-width:200px;">
-  <div style="padding:10px 16px 9px;border-bottom:1px solid #f1f5f9;">
-    <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 2px;">{{ request.user.full_name }}</p>
-    <p style="font-size:11px;color:#64748b;margin:0 0 3px;">{{ request.user.national_id }}</p>
-    <p style="font-size:11px;color:#8A1538;font-weight:600;margin:0;">{{ request.user.get_role_display }}</p>
+<div class="sd-menu" id="m-user">
+  <div class="sd-user-header">
+    <p class="sd-user-fullname">{{ request.user.full_name }}</p>
+    <p class="sd-user-nid">{{ request.user.national_id }}</p>
+    <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.memberships.count > 1 %}
   <a href="/auth/choose-role/">🔄 تبديل الدور</a>
@@ -284,38 +200,34 @@
   <a href="/admin/">⚙️ لوحة الإدارة</a>
   {% endif %}
   {% if role in "principal,vice_admin,vice_academic,admin" or request.user.is_superuser %}
-  <a href="{% url 'setup_2fa' %}" style="color:{% if request.user.totp_enabled %}#16a34a{% else %}#dc2626{% endif %}">
+  <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
     🔐 المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
   </a>
   {% endif %}
   <hr>
-  <form method="post" action="/auth/logout/" style="margin:0;">
+  <form method="post" action="/auth/logout/" class="sd-logout-form">
     {% csrf_token %}
-    <button type="submit"
-            style="display:flex;align-items:center;gap:8px;width:100%;text-align:right;padding:9px 16px;
-                   font-size:13px;color:#dc2626;background:none;border:none;cursor:pointer;font-family:inherit;">
-      🚪 تسجيل الخروج
-    </button>
+    <button type="submit" class="sd-logout-btn">🚪 تسجيل الخروج</button>
   </form>
 </div>
 
 {% endwith %}
-{% endif %}{# end user.is_authenticated #}
+{% endif %}
 
 
-{# ═════════════════ FLASH MESSAGES ═══════════════════════════════════════ #}
+{# ════════════════ FLASH MESSAGES ═══════════════════════════════════════ #}
 {% if messages %}
-<div style="max-width:1280px;margin:14px auto 0;padding:0 16px;" class="space-y-2" id="msgs-wrap">
+<div class="msgs-wrap space-y-2" id="msgs-wrap">
   {% for msg in messages %}
   <div class="msg-bar
     {% if msg.tags == 'success' %}bg-green-50 border border-green-200 text-green-800
     {% elif msg.tags == 'error'   %}bg-red-50   border border-red-200   text-red-800
     {% elif msg.tags == 'warning' %}bg-amber-50 border border-amber-200 text-amber-800
     {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
-    <span style="flex-shrink:0;font-size:16px;">
+    <span class="msg-icon">
       {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
     </span>
-    <span style="flex:1;">{{ msg }}</span>
+    <span class="msg-text">{{ msg }}</span>
     <button class="msg-x" type="button" onclick="this.closest('.msg-bar').remove()" title="إغلاق">✕</button>
   </div>
   {% endfor %}
@@ -323,15 +235,15 @@
 {% endif %}
 
 
-{# ═════════════════ BREADCRUMBS ═════════════════════════════════════════ #}
+{# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
 {% block breadcrumbs %}{% endblock %}
 
-{# ═════════════════ MAIN CONTENT ════════════════════════════════════════ #}
-<main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
+{# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
+<main id="main-content" class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full">
   {% block content %}{% endblock %}
 </main>
 
-{# ═════════════════ COMMAND PALETTE (Ctrl+K) ═══════════════════════════ #}
+{# ════════════════ COMMAND PALETTE (Ctrl+K) ═════════════════════════════ #}
 {% if user.is_authenticated %}
 <div id="cmd-palette" class="cmd-overlay" style="display:none;" onclick="if(event.target===this)closePalette()">
   <div class="cmd-box">
@@ -348,285 +260,41 @@
 {% endif %}
 
 
-{# ═════════════════ FOOTER ══════════════════════════════════════════════ #}
-<footer style="border-top:1px solid #e5e7eb;padding:14px 16px;margin-top:auto;">
-  <p style="text-align:center;font-size:12px;color:#9ca3af;line-height:1.7;">
-    مدرسة الشحانية الإعدادية الثانوية للبنين
+{# ════════════════ FOOTER ════════════════════════════════════════════════ #}
+<footer class="site-footer">
+  <p class="site-footer-text">
+    {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
     &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
   </p>
 </footer>
 
 
-{# ═════════════════ SCRIPTS ══════════════════════════════════════════════ #}
+{# ════════════════ SCRIPTS ═══════════════════════════════════════════════ #}
+{# APP_CONFIG: متغيرات Django المطلوبة في base.js ─ inline مقصود (CSP nonce) #}
 <script nonce="{{ request.csp_nonce }}">
-/* ── Dropdown positioning ──────────────────────────────────── */
-function sdPos(m, btn) {
-  m.classList.add('sd-measure');
-  var mw = m.offsetWidth, mh = m.offsetHeight;
-  m.classList.remove('sd-measure');
-  var r = btn.getBoundingClientRect();
-  var top = r.bottom + 4;
-  if (top + mh > window.innerHeight - 8) top = r.top - mh - 4;
-  if (top < 8) top = 8;
-  var left = r.right - mw;
-  if (left < 8) left = 8;
-  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
-  m.style.top  = top + 'px';
-  m.style.left = left + 'px';
-}
-function sd(id, btn) {
-  var m = document.getElementById(id);
-  if (!m) return;
-  var isOpen = m.classList.contains('open');
-  document.querySelectorAll('.sd-menu.open').forEach(function(x){ x.classList.remove('open'); });
-  document.querySelectorAll('.nb.on').forEach(function(x){ x.classList.remove('on'); });
-  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); }
-}
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
-    document.querySelectorAll('.sd-menu.open').forEach(function(x){ x.classList.remove('open'); });
-    document.querySelectorAll('.nb.on').forEach(function(x){ x.classList.remove('on'); });
-  }
-});
-window.addEventListener('resize', function() {
-  document.querySelectorAll('.sd-menu.open').forEach(function(m) {
-    var btn = document.getElementById('btn-' + m.id.replace('m-',''));
-    if (btn) sdPos(m, btn);
-  });
-});
-
-{% if user.is_authenticated %}
-/* ── Notification bell — WebSocket + fallback polling ───── */
-(function() {
-  var badge = document.getElementById('notif-badge');
-  if (!badge) return;
-
-  function setBadge(count) {
-    count = parseInt(count, 10) || 0;
-    badge.textContent = count > 99 ? '99+' : count;
-    badge.style.display = count > 0 ? 'flex' : 'none';
-  }
-
-  function startPolling() {
-    function poll() {
-      fetch('/notifications/api/unread-count/', {
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function(r){ return r.ok ? r.json() : null; })
-      .then(function(d){ if (d) setBadge(d.count); })
-      .catch(function(){});
-    }
-    poll();
-    return setInterval(poll, 30000);
-  }
-
-  /* ── WebSocket ─────────────────────────────────── */
-  var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws;
-  var pollTimer = null;
-
-  function connectWS() {
-    try {
-      ws = new WebSocket(wsProto + '://' + location.host + '/ws/notifications/');
-    } catch(e) {
-      pollTimer = startPolling();
-      return;
-    }
-
-    ws.onmessage = function(e) {
-      var d;
-      try { d = JSON.parse(e.data); } catch(_) { return; }
-
-      if (d.type === 'unread_count' || d.type === 'new_notification') {
-        setBadge(d.count);
-      }
-      if (d.type === 'new_notification' && typeof window.showToast === 'function') {
-        var toastType = (d.priority === 'urgent' || d.priority === 'high') ? 'danger' : 'info';
-        window.showToast(d.title, toastType);
-      }
-      if (d.type === 'emergency') {
-        showEmergencyBanner(d.message);
-      }
-    };
-
-    ws.onclose = function() {
-      /* fallback: إذا انقطع WebSocket نرجع للـ polling */
-      if (!pollTimer) { pollTimer = startPolling(); }
-    };
-
-    ws.onerror = function() {
-      if (!pollTimer) { pollTimer = startPolling(); }
-    };
-  }
-
-  connectWS();
-
-  /* ── البث الطارئ ────────────────────────────────── */
-  function showEmergencyBanner(msg) {
-    var banner = document.getElementById('emergency-banner');
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'emergency-banner';
-      banner.style.cssText = [
-        'position:fixed','top:0','right:0','left:0','z-index:9999',
-        'background:#8A1538','color:#fff','padding:14px 20px',
-        'font-weight:700','text-align:center','font-size:1rem',
-        'box-shadow:0 2px 8px rgba(0,0,0,.3)'
-      ].join(';');
-      document.body.prepend(banner);
-    }
-    banner.textContent = '🚨 ' + msg;
-    banner.style.display = 'block';
-  }
-})();
-{% endif %}
-
-/* ── Hamburger mobile menu ───────────────────────────────── */
-window.toggleMobMenu = function() {
-  var bar = document.querySelector('.nb-bar');
-  var btn = document.getElementById('mob-menu-btn');
-  if (!bar || !btn) return;
-  var isOpen = bar.classList.toggle('open');
-  btn.setAttribute('aria-expanded', String(isOpen));
-  btn.textContent = isOpen ? '✕' : '☰';
-};
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.nb-bar') && !e.target.closest('#mob-menu-btn')) {
-    var bar = document.querySelector('.nb-bar');
-    var btn = document.getElementById('mob-menu-btn');
-    if (bar) bar.classList.remove('open');
-    if (btn) { btn.textContent = '☰'; btn.setAttribute('aria-expanded','false'); }
-  }
-});
-
-/* ── PWA Install Banner ──────────────────────────────────── */
-var _pwaPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault(); _pwaPrompt = e;
-  if (!localStorage.getItem('pwaDismissed')) {
-    setTimeout(function() {
-      var b = document.getElementById('pwa-banner');
-      if (b) b.style.display = 'flex';
-    }, 5000);
-  }
-});
-window.installPWA = function() {
-  if (_pwaPrompt) { _pwaPrompt.prompt(); _pwaPrompt = null; }
-  var b = document.getElementById('pwa-banner');
-  if (b) b.style.display = 'none';
-};
-window.dismissBanner = function() {
-  var b = document.getElementById('pwa-banner');
-  if (b) b.style.display = 'none';
-  localStorage.setItem('pwaDismissed', '1');
-};
-
-/* ── Global Service Worker (لا يتعارض مع /parents/sw.js) ── */
-if ('serviceWorker' in navigator && !location.pathname.startsWith('/parents/')) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js', {scope: '/'}).catch(function(){});
-  });
-}
-
-/* ── Auto-dismiss flash messages after 7 s ──────────────── */
-setTimeout(function() {
-  document.querySelectorAll('.msg-bar').forEach(function(el) {
-    el.style.opacity = '0';
-    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 420);
-  });
-}, 7000);
-
-/* ✅ v5.1: Toast System ─────────────────────────────────── */
-window.showToast = function(msg, type, duration) {
-  type = type || 'success';
-  duration = duration || 4000;
-  var icons = { success: '✓', danger: '✗', info: 'ℹ', warning: '⚠' };
-  var container = document.getElementById('toast-container');
-  if (!container) return;
-  var toast = document.createElement('div');
-  toast.className = 'toast toast-' + type;
-  toast.setAttribute('role', 'alert');
-  toast.innerHTML =
-    '<span class="toast-icon">' + (icons[type] || '•') + '</span>' +
-    '<span style="flex:1">' + msg + '</span>' +
-    '<button class="toast-close" aria-label="إغلاق">×</button>';
-  toast.querySelector('.toast-close').onclick = function() { removeToast(toast); };
-  container.appendChild(toast);
-  setTimeout(function() { removeToast(toast); }, duration);
-};
-function removeToast(el) {
-  el.classList.add('toast-leaving');
-  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
-}
-
-/* ✅ v5.1: HTMX → showToast via HX-Trigger header ─────── */
-document.body.addEventListener('showToast', function(e) {
-  if (e.detail) window.showToast(e.detail.msg, e.detail.type);
-});
-
-/* ✅ v5.1: Modal Manager ────────────────────────────────── */
-window.modalManager = {
-  _stack: [],
-  open: function(id) {
-    var overlay = document.getElementById('modal-' + id);
-    if (!overlay) return;
-    this._stack.push({ id: id, trigger: document.activeElement });
-    overlay.style.display = 'flex';
-    overlay.removeAttribute('hidden');
-    var focusable = overlay.querySelector(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (focusable) setTimeout(function() { focusable.focus(); }, 50);
-  },
-  close: function(id) {
-    var overlay = document.getElementById('modal-' + id);
-    if (!overlay) return;
-    overlay.style.display = 'none';
-    overlay.setAttribute('hidden', '');
-    var prev = this._stack.pop();
-    if (prev && prev.trigger) prev.trigger.focus();
-  },
-  closeTop: function() {
-    if (this._stack.length) this.close(this._stack[this._stack.length - 1].id);
-  }
-};
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') window.modalManager.closeTop();
-});
-document.addEventListener('click', function(e) {
-  var t = e.target;
-  if (t.dataset.modalOpen) window.modalManager.open(t.dataset.modalOpen);
-  if (t.dataset.modalClose) window.modalManager.close(t.dataset.modalClose);
-});
+window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
+<script src="{% static 'js/base.js' %}" defer></script>
+<script src="{% static 'js/app.js' %}" defer></script>
 
 {% block extra_js %}{% endblock %}
 
+
 {# ── PWA Install Banner ── #}
 {% if user.is_authenticated %}
-<div id="pwa-banner"
-     style="display:none;position:fixed;bottom:80px;right:12px;left:12px;
-            z-index:3500;background:#8A1538;color:#fff;border-radius:14px;
-            padding:12px 16px;align-items:center;gap:12px;
-            box-shadow:0 4px 20px rgba(138,21,56,.4);">
-  <span style="font-size:1.5rem;flex-shrink:0;">📲</span>
-  <div style="flex:1;min-width:0;">
-    <strong style="display:block;font-size:13px;">أضف المنصة لشاشتك الرئيسية</strong>
-    <span style="opacity:.8;font-size:11.5px;">وصول سريع بدون فتح المتصفح</span>
+<div id="pwa-banner" class="pwa-banner">
+  <span class="pwa-icon" aria-hidden="true">📲</span>
+  <div class="pwa-text">
+    <strong class="pwa-title">أضف المنصة لشاشتك الرئيسية</strong>
+    <span class="pwa-subtitle">وصول سريع بدون فتح المتصفح</span>
   </div>
-  <button onclick="installPWA()"
-          style="background:#fff;color:#8A1538;border:none;
-                 border-radius:8px;padding:6px 14px;font-size:13px;
-                 font-weight:700;cursor:pointer;min-height:36px;flex-shrink:0;">تثبيت</button>
-  <button onclick="dismissBanner()"
-          style="background:none;border:none;color:#fff;
-                 font-size:1.3rem;cursor:pointer;padding:4px;
-                 min-width:32px;min-height:32px;line-height:1;flex-shrink:0;">✕</button>
+  <button onclick="installPWA()" class="pwa-install-btn">تثبيت</button>
+  <button onclick="dismissBanner()" class="pwa-dismiss-btn" aria-label="إغلاق">✕</button>
 </div>
 {% endif %}
 
-{# ✅ v5.1: Mobile Bottom Navigation (role-aware) #}
+
+{# ✅ Mobile Bottom Navigation ── #}
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">
@@ -656,6 +324,5 @@ document.addEventListener('click', function(e) {
 </nav>
 {% endwith %}
 {% endif %}
-
 </body>
 </html>

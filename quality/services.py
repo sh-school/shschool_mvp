@@ -23,24 +23,32 @@ from .models import (
 
 
 class QualityService:
+    # ── مساعد داخلي ─────────────────────────────────────────
+    @staticmethod
+    def _calc_stats(qs):
+        """حساب إحصائيات الإنجاز من queryset الإجراءات — Clean Code: DRY"""
+        total = qs.count()
+        completed = qs.filter(status="Completed").count()
+        in_prog = qs.filter(status="In Progress").count()
+        pending = qs.filter(status="Pending Review").count()
+        pct = round(completed / total * 100) if total else 0
+        return {
+            "total": total,
+            "completed": completed,
+            "in_progress": in_prog,
+            "pending": pending,
+            "pct": pct,
+        }
+
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
     def get_plan_stats(school, year="2025-2026"):
         """إحصائيات الخطة التشغيلية"""
         base = OperationalProcedure.objects.filter(school=school, academic_year=year)
-        total = base.count()
-        completed = base.filter(status="Completed").count()
-        in_prog = base.filter(status="In Progress").count()
-        pending = base.filter(status="Pending Review").count()
-        pct = round(completed / total * 100) if total else 0
-
-        return {
-            "total": total,
-            "completed": completed,
-            "in_progress": in_prog,
-            "pending_review": pending,
-            "pct": pct,
-        }
+        stats = QualityService._calc_stats(base)
+        # alias للتوافق مع القوالب القديمة
+        stats["pending_review"] = stats.pop("pending")
+        return stats
 
     # ── عدد المنفذين غير المربوطين ──────────────────────────
     @staticmethod
@@ -96,15 +104,11 @@ class QualityService:
             .order_by("number")
         )
 
-        # إحصائيات المجال
         domain_procs = OperationalProcedure.objects.filter(
             school=school, indicator__target__domain=domain
         )
-        total = domain_procs.count()
-        completed = domain_procs.filter(status="Completed").count()
-        pct = round(completed / total * 100) if total else 0
+        stats = QualityService._calc_stats(domain_procs)
 
-        # المنفذون الفريدون
         executors = (
             domain_procs.values("executor_norm")
             .annotate(count=Count("id"))
@@ -113,10 +117,8 @@ class QualityService:
 
         return {
             "targets": targets,
-            "total": total,
-            "completed": completed,
-            "pct": pct,
             "executors": executors,
+            **stats,
         }
 
     # ── تقرير التقدم ────────────────────────────────────────
@@ -134,26 +136,12 @@ class QualityService:
                 academic_year=year,
                 indicator__target__domain=domain,
             )
-            total = procs.count()
-            completed = procs.filter(status="Completed").count()
-            in_prog = procs.filter(status="In Progress").count()
-            pct = round(completed / total * 100) if total else 0
-
-            domain_stats.append(
-                {
-                    "domain": domain,
-                    "total": total,
-                    "completed": completed,
-                    "in_prog": in_prog,
-                    "pct": pct,
-                }
-            )
-
-        overall = QualityService.get_plan_stats(school, year)
+            stats = QualityService._calc_stats(procs)
+            domain_stats.append({"domain": domain, **stats})
 
         return {
             "domain_stats": domain_stats,
-            "overall": overall,
+            "overall": QualityService.get_plan_stats(school, year),
             "year": year,
         }
 
@@ -175,33 +163,18 @@ class QualityService:
                 procs = OperationalProcedure.objects.filter(
                     school=school, executor_user=member.user, academic_year=year
                 )
-                total = procs.count()
-                completed = procs.filter(status="Completed").count()
-                pending = procs.filter(status="Pending Review").count()
-                in_prog = procs.filter(status="In Progress").count()
-                pct = round(completed / total * 100) if total else 0
-                member_stats.append(
-                    {
-                        "member": member,
-                        "total": total,
-                        "completed": completed,
-                        "pending": pending,
-                        "in_prog": in_prog,
-                        "pct": pct,
-                    }
-                )
+                stats = QualityService._calc_stats(procs)
+                member_stats.append({"member": member, **stats})
             else:
-                member_stats.append(
-                    {
-                        "member": member,
-                        "total": 0,
-                        "completed": 0,
-                        "pending": 0,
-                        "in_prog": 0,
-                        "pct": 0,
-                        "unmapped": True,
-                    }
-                )
+                member_stats.append({
+                    "member": member,
+                    "total": 0,
+                    "completed": 0,
+                    "pending": 0,
+                    "in_progress": 0,
+                    "pct": 0,
+                    "unmapped": True,
+                })
 
         all_procs = OperationalProcedure.objects.filter(school=school, academic_year=year)
         all_norms = set(all_procs.values_list("executor_norm", flat=True).distinct())
@@ -224,12 +197,8 @@ class QualityService:
             .order_by("status", "indicator__target__domain__order")
         )
 
-        total = procs.count()
-        completed = procs.filter(status="Completed").count()
-        in_prog = procs.filter(status="In Progress").count()
-        pct = round(completed / total * 100) if total else 0
+        stats = QualityService._calc_stats(procs)
 
-        # تجميع حسب المجال
         by_domain = {}
         for proc in procs:
             domain_name = proc.indicator.target.domain.name
@@ -242,9 +211,6 @@ class QualityService:
 
         return {
             "procedures": procs,
-            "total": total,
-            "completed": completed,
-            "in_progress": in_prog,
-            "pct": pct,
             "by_domain": by_domain,
+            **stats,
         }

@@ -71,6 +71,10 @@ urlpatterns = [
         views.remove_committee_member,
         name="remove_executor_member",
     ),
+    # ── ربط المنفذين ─────────────────────────────────────────
+    path("executor-mapping/", views.executor_mapping, name="executor_mapping"),
+    path("executor-mapping/save/", views.save_executor_mapping, name="save_executor_mapping"),
+    path("executor-mapping/apply-all/", views.apply_all_mappings, name="apply_all_mappings"),
     # ── تقرير PDF ───────────────────────────────────────────────
     path("report/pdf/", views.progress_report_pdf, name="quality_report_pdf"),
 ]

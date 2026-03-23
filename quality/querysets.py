@@ -5,6 +5,8 @@ quality/querysets.py — Custom QuerySets للخطة التشغيلية والج
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
@@ -41,7 +43,7 @@ class ProcedureQuerySet(QuerySet):
     def due_soon(self, days: int = 7) -> ProcedureQuerySet:
         """تنتهي خلال n أيام."""
         today = timezone.now().date()
-        deadline = today + timezone.timedelta(days=days)
+        deadline = today + timedelta(days=days)
         return self.active().filter(deadline__gte=today, deadline__lte=deadline)
 
     def due_this_month(self) -> ProcedureQuerySet:
