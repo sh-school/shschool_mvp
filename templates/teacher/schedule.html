@@ -30,9 +30,11 @@
 </div>
 {% endif %}
 
+<p class="scroll-x-hint mb-2">← مرّر يميناً لرؤية الجدول كاملاً</p>
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
   {% if sessions %}
-  <table class="w-full">
+  <div class="tbl-wrap-mobile">
+  <table class="w-full min-w-[480px]">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
         <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
@@ -77,6 +79,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>{# end tbl-wrap-mobile #}
   {% else %}
   <div class="py-16 text-center">
     <div class="text-5xl mb-4">📅</div>

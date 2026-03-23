@@ -1,0 +1,49 @@
+{% autoescape off %}{
+  "name": "SchoolOS",
+  "short_name": "SchoolOS",
+  "description": "منصة إدارة المدارس القطرية",
+  "start_url": "{% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}/teacher/schedule/{% elif role == 'parent' %}/parents/{% elif role == 'nurse' %}/clinic/{% elif role == 'librarian' %}/library/{% elif role == 'student' %}/dashboard/{% else %}/dashboard/{% endif %}",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#8A1538",
+  "theme_color": "#8A1538",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["education"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}
+    {"name": "جدولي", "url": "/teacher/schedule/", "description": "جدول اليوم"},
+    {"name": "تسجيل حضور", "url": "/teacher/attendance/", "description": "تسجيل الحضور"},
+    {"name": "الإشعارات", "url": "/notifications/inbox/", "description": "صندوق الإشعارات"}
+    {% elif role == 'parent' %}
+    {"name": "أبنائي", "url": "/parents/", "description": "بوابة ولي الأمر"},
+    {"name": "الغياب", "url": "/parents/attendance/", "description": "سجل الغياب"},
+    {"name": "الدرجات", "url": "/parents/grades/", "description": "النتائج والدرجات"}
+    {% elif role == 'nurse' %}
+    {"name": "العيادة", "url": "/clinic/", "description": "لوحة العيادة"},
+    {"name": "تسجيل زيارة", "url": "/clinic/record/", "description": "تسجيل زيارة جديدة"}
+    {% elif role == 'librarian' %}
+    {"name": "المكتبة", "url": "/library/", "description": "لوحة المكتبة"},
+    {"name": "إعارة جديدة", "url": "/library/borrow/", "description": "إعارة كتاب"}
+    {% else %}
+    {"name": "لوحة التحكم", "url": "/dashboard/", "description": "الصفحة الرئيسية"},
+    {"name": "الإشعارات", "url": "/notifications/inbox/", "description": "الإشعارات"},
+    {"name": "التحليلات", "url": "/analytics/", "description": "KPIs والإحصاءات"}
+    {% endif %}
+  ]
+}{% endautoescape %}

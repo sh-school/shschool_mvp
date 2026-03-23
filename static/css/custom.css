@@ -1013,3 +1013,84 @@ button:focus-visible,
   .card-qatar, .kpi-card, .table-wrap { box-shadow: none; border: 1px solid #ccc; }
   main { max-width: 100% !important; padding: 0 !important; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   Mobile Navigation — Hamburger Menu (v5.2)
+   ══════════════════════════════════════════════════════════ */
+
+/* على الديسكتوب: nb-bar شريط أفقي عادي */
+.nb-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+@media (max-width: 640px) {
+  /* إظهار زر الهامبرغر */
+  #mob-menu-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* القائمة الجانبية المنسدلة */
+  .nb-bar {
+    display: none;
+    position: fixed;
+    top: 54px;
+    right: 0;
+    left: 0;
+    z-index: 4500;
+    background: #fff;
+    flex-direction: column;
+    box-shadow: 0 6px 24px rgba(0,0,0,.18);
+    border-bottom: 3px solid #8A1538;
+    max-height: calc(100vh - 54px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nb-bar.open { display: flex; }
+
+  /* كل زر في القائمة */
+  .nb-bar .nb {
+    width: 100%;
+    text-align: right;
+    padding: 13px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    min-height: 48px;
+    color: #1e293b !important;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 0;
+    white-space: normal;
+    justify-content: flex-start;
+  }
+  .nb-bar .nb:hover,
+  .nb-bar .nb:active {
+    background: #fdf2f5;
+    color: #8A1538 !important;
+  }
+  /* إخفاء السهم على الجوال */
+  .nb-bar .chv { display: none; }
+}
+
+/* ══ Horizontal scroll helpers ══════════════════════════════ */
+.scroll-x-hint {
+  display: none;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 6px;
+}
+@media (max-width: 640px) {
+  .scroll-x-hint { display: block; }
+}
+
+.tbl-wrap-mobile {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ══ iOS Safe Area ══════════════════════════════════════════ */
+.safe-pb { padding-bottom: env(safe-area-inset-bottom, 16px); }
