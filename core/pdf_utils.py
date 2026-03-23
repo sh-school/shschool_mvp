@@ -172,9 +172,21 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
 
 
 # ── xhtml2pdf: تسجيل الخطوط مع ReportLab ───────────────────────────────
-
+#
+# ⚠️  الاستراتيجية:
+#   1. نسجّل Amiri (يدعم Arabic Presentation Forms B كاملاً)
+#      بنمط تسمية xhtml2pdf: fontname_BD (lowercase)
+#   2. نسجّل Amiri في fontList عبر monkey-patch لـ pisaContext
+#   3. نحذف أي @font-face (تسبب مشكلة temp files على Windows)
+#   4. نغيّر font-family في CSS إلى Amiri
+#   5. نعالج النصوص العربية بـ arabic-reshaper + python-bidi
+#
+#   Tajawal لا يحتوي على بعض presentation forms (U+FE8D, U+FEA9, U+FEAD)
+#   لذلك نستخدم Amiri كخط PDF الأساسي.
+# ────────────────────────────────────────────────────────────────────────
 
 _FONTS_REGISTERED = False
+_XHTML2PDF_PATCHED = False
 
 
 def _register_fonts_reportlab() -> list:
@@ -194,6 +206,8 @@ def _register_fonts_reportlab() -> list:
 
     fd = _fonts_dir()
     registered = []
+
+    # ── تسجيل ReportLab الأساسي (للـ WeasyPrint/Playwright) ──
     for name, path in [
         ("Tajawal", fd / "Tajawal-Regular.ttf"),
         ("Tajawal-Bold", fd / "Tajawal-Bold.ttf"),
@@ -227,35 +241,195 @@ def _register_fonts_reportlab() -> list:
     except Exception as e:
         logger.debug("registerFontFamily failed: %s", e)
 
-    # ── addMapping: يربط CSS font-family → ReportLab font name ──
-    # هذا هو المفتاح — xhtml2pdf يبحث هنا عند رؤية font-family في CSS
+    # ── تسجيل بنمط xhtml2pdf: fontname_BD (lowercase) ──
+    # xhtml2pdf يسمّي الخطوط هكذا داخلياً عند @font-face
+    # نحاكي نفس الآلية لتجنّب مشكلة temp files على Windows
     try:
         from reportlab.lib.fonts import addMapping
 
-        if "Tajawal" in registered:
-            addMapping("Tajawal", 0, 0, "Tajawal")          # normal
-        if "Tajawal-Bold" in registered:
-            addMapping("Tajawal", 1, 0, "Tajawal-Bold")     # bold
-            addMapping("Tajawal", 1, 1, "Tajawal-Bold")     # bold-italic
-        if "Tajawal" in registered:
-            addMapping("Tajawal", 0, 1, "Tajawal")          # italic (=normal)
-        if "Amiri" in registered:
-            addMapping("Amiri", 0, 0, "Amiri")
-        if "Amiri-Bold" in registered:
-            addMapping("Amiri", 1, 0, "Amiri-Bold")
-            addMapping("Amiri", 1, 1, "Amiri-Bold")
-        if "Amiri" in registered:
-            addMapping("Amiri", 0, 1, "Amiri")
+        # الملفات الفعلية: Amiri-Regular.ttf, Amiri-Bold.ttf
+        for font_name, bold, italic, ttf_file in [
+            ("amiri", 0, 0, "Amiri-Regular.ttf"),
+            ("amiri", 1, 0, "Amiri-Bold.ttf"),
+            ("amiri", 0, 1, "Amiri-Regular.ttf"),
+            ("amiri", 1, 1, "Amiri-Bold.ttf"),
+            ("tajawal", 0, 0, "Amiri-Regular.ttf"),   # Tajawal CSS → Amiri (أكمل دعماً)
+            ("tajawal", 1, 0, "Amiri-Bold.ttf"),
+            ("tajawal", 0, 1, "Amiri-Regular.ttf"),
+            ("tajawal", 1, 1, "Amiri-Bold.ttf"),
+        ]:
+            full_name = f"{font_name}_{bold}{italic}"
+            ttf_path = fd / ttf_file
+            if ttf_path.exists():
+                if full_name not in pdfmetrics.getRegisteredFontNames():
+                    pdfmetrics.registerFont(TTFont(full_name, str(ttf_path)))
+                addMapping(font_name, bold, italic, full_name)
     except Exception as e:
-        logger.debug("addMapping failed: %s", e)
+        logger.debug("xhtml2pdf font mapping failed: %s", e)
 
     _FONTS_REGISTERED = True
     return registered
 
 
+def _patch_xhtml2pdf_context():
+    """
+    monkey-patch لـ pisaContext.__init__ — يسجّل Amiri في fontList
+    حتى يعرف xhtml2pdf أن font-family:'Amiri' خط صالح.
+    بدون هذا، xhtml2pdf يتجاهل CSS font-family ويستخدم Helvetica.
+    """
+    global _XHTML2PDF_PATCHED
+    if _XHTML2PDF_PATCHED:
+        return
+
+    try:
+        from xhtml2pdf.context import pisaContext
+
+        _orig_init = pisaContext.__init__
+
+        def _patched_init(self, *args, **kwargs):
+            _orig_init(self, *args, **kwargs)
+            # تسجيل Amiri في fontList (بأسماء CSS المحتملة)
+            self.registerFont("amiri", ["amiri", "amiri_00", "amiri_10"])
+            # Tajawal CSS → Amiri أيضاً (لأن القوالب تستخدم Tajawal)
+            self.registerFont("tajawal", ["tajawal", "tajawal_00", "tajawal_10"])
+
+        pisaContext.__init__ = _patched_init
+        _XHTML2PDF_PATCHED = True
+    except ImportError:
+        pass
+
+
 def _strip_font_face(html_str: str) -> str:
-    """حذف @font-face — xhtml2pdf لا يحتاجها (يعتمد على ReportLab المسجّل)"""
+    """حذف @font-face — xhtml2pdf لا يحتاجها (تسبب مشكلة temp files على Windows)"""
     return re.sub(r"@font-face\s*\{[^}]+\}", "", html_str)
+
+
+# ── Arabic text reshaping for xhtml2pdf ──────────────────────────────────
+
+_ARABIC_RE = re.compile(r"[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF]+")
+
+
+def _has_arabic(text: str) -> bool:
+    return bool(_ARABIC_RE.search(text))
+
+
+def _reshape_arabic_text(text: str) -> str:
+    """
+    يعالج النص العربي: reshaping (توصيل الحروف) + BiDi (ترتيب العرض).
+    بدون هذه المعالجة، ReportLab يعرض كل حرف منفصلاً (مربعات □□□).
+    """
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+    except ImportError:
+        logger.warning("arabic-reshaper / python-bidi غير مثبتين — PDF العربي لن يعمل")
+        return text
+
+    if not _has_arabic(text):
+        return text
+
+    reshaped = arabic_reshaper.reshape(text)
+    return get_display(reshaped)
+
+
+def _reverse_table_columns(html_str: str) -> str:
+    """
+    يعكس ترتيب أعمدة الجداول (th/td داخل كل tr) لمحاكاة RTL.
+    xhtml2pdf لا يدعم direction:rtl للجداول — الأعمدة دائماً LTR.
+    هذا الحل يعكس ترتيب HTML ليظهر بشكل RTL في PDF.
+    """
+    def _reverse_cells(match):
+        tr_content = match.group(1)
+        # استخرج كل الخلايا (th أو td) مع محتوياتها
+        cells = re.findall(
+            r"(<t[hd][^>]*>.*?</t[hd]>)",
+            tr_content,
+            re.DOTALL | re.IGNORECASE,
+        )
+        if not cells:
+            return match.group(0)
+        # اعكس ترتيب الخلايا
+        reversed_cells = "\n".join(reversed(cells))
+        return f"<tr>{reversed_cells}</tr>"
+
+    return re.sub(
+        r"<tr[^>]*>(.*?)</tr>",
+        _reverse_cells,
+        html_str,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+
+def _reshape_html_for_xhtml2pdf(html_str: str) -> str:
+    """
+    يمر على HTML ويعالج كل النصوص العربية بـ arabic-reshaper + python-bidi.
+    يحافظ على التاغات والـ CSS كما هي — يعالج فقط النصوص المرئية.
+    أيضاً يعكس ترتيب أعمدة الجداول لمحاكاة RTL.
+    """
+    try:
+        import arabic_reshaper  # noqa: F401
+        from bidi.algorithm import get_display  # noqa: F401
+    except ImportError:
+        logger.warning("arabic-reshaper / python-bidi غير مثبتين")
+        return html_str
+
+    # ── عكس أعمدة الجداول (RTL) ──
+    html_str = _reverse_table_columns(html_str)
+
+    from html.parser import HTMLParser
+
+    # تاغات لا نعالج محتواها
+    _SKIP_TAGS = {"style", "script", "code", "pre"}
+
+    class ArabicReshapeParser(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=False)
+            self.result = []
+            self._skip_depth = 0
+
+        def handle_starttag(self, tag, attrs):
+            attr_str = ""
+            for k, v in attrs:
+                if v is None:
+                    attr_str += f" {k}"
+                else:
+                    attr_str += f' {k}="{v}"'
+            self.result.append(f"<{tag}{attr_str}>")
+            if tag.lower() in _SKIP_TAGS:
+                self._skip_depth += 1
+
+        def handle_endtag(self, tag):
+            if tag.lower() in _SKIP_TAGS:
+                self._skip_depth = max(0, self._skip_depth - 1)
+            self.result.append(f"</{tag}>")
+
+        def handle_data(self, data):
+            if self._skip_depth > 0 or not _has_arabic(data):
+                self.result.append(data)
+                return
+            self.result.append(_reshape_arabic_text(data))
+
+        def handle_entityref(self, name):
+            self.result.append(f"&{name};")
+
+        def handle_charref(self, name):
+            self.result.append(f"&#{name};")
+
+        def handle_comment(self, data):
+            self.result.append(f"<!--{data}-->")
+
+        def handle_decl(self, decl):
+            self.result.append(f"<!{decl}>")
+
+        def handle_pi(self, data):
+            self.result.append(f"<?{data}>")
+
+        def unknown_decl(self, data):
+            self.result.append(f"<![{data}]>")
+
+    parser = ArabicReshapeParser()
+    parser.feed(html_str)
+    return "".join(parser.result)
 
 
 # ── Playwright: قوالب الهيدر والفوتر ────────────────────────────────────
@@ -447,8 +621,11 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         from xhtml2pdf import pisa
 
         _register_fonts_reportlab()
-        # حذف @font-face (xhtml2pdf لا يحتاجها — يعتمد على addMapping + registerFont)
+        _patch_xhtml2pdf_context()
+        # حذف @font-face (تسبب مشكلة temp files على Windows)
         xhtml_html = _strip_font_face(html_str)
+        # ── معالجة النص العربي: reshaping + BiDi ──
+        xhtml_html = _reshape_html_for_xhtml2pdf(xhtml_html)
         static_root = str(Path(settings.BASE_DIR) / "static")
 
         def _link_callback(uri, rel):

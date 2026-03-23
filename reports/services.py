@@ -404,38 +404,40 @@ class ExcelService:
         - هوامش ضيقة مناسبة
         - تكرار صفوف الرأس في كل صفحة
         - ملاءمة العرض في صفحة واحدة
-        - منطقة الطباعة
         """
-        from openpyxl.worksheet.page import PageMargins, PrintPageSetup
+        from openpyxl.worksheet.properties import PageSetupProperties
 
-        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        # A4 = 9, portrait
+        ws.page_setup.paperSize = 9
         ws.page_setup.orientation = "portrait"
         ws.page_setup.fitToWidth = 1
-        ws.page_setup.fitToHeight = 0  # 0 = عدد صفحات غير محدود عمودياً
-        ws.sheet_properties.pageSetUpPr.fitToPage = True
+        ws.page_setup.fitToHeight = 0
+        ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
 
-        # هوامش ضيقة (بالبوصة) مناسبة للطباعة
-        ws.page_margins = PageMargins(
-            left=0.4, right=0.4,
-            top=0.5, bottom=0.5,
-            header=0.2, footer=0.2,
-        )
+        # هوامش ضيقة (بالبوصة)
+        ws.page_margins.left = 0.4
+        ws.page_margins.right = 0.4
+        ws.page_margins.top = 0.5
+        ws.page_margins.bottom = 0.5
+        ws.page_margins.header = 0.2
+        ws.page_margins.footer = 0.2
 
         # تكرار أول 4 صفوف (الرأس) في كل صفحة مطبوعة
         ws.print_title_rows = "1:4"
 
         # منطقة الطباعة
-        col_letter = ws.cell(row=1, column=num_cols).column_letter
+        from openpyxl.utils import get_column_letter
+        col_letter = get_column_letter(num_cols)
         last_row = num_data_rows + 4
         ws.print_area = f"A1:{col_letter}{last_row}"
 
-        # هيدر وفوتر الطباعة
-        ws.oddHeader.center.text = "مدرسة الشحانية الإعدادية الثانوية للبنين"
-        ws.oddHeader.center.size = 9
-        ws.oddFooter.center.text = "صفحة &P من &N"
-        ws.oddFooter.center.size = 8
+        # هيدر وفوتر الطباعة (Excel format codes)
+        ws.oddHeader.center.text = (
+            '&"Arial,Bold"&9'
+            "\u0645\u062f\u0631\u0633\u0629 \u0627\u0644\u0634\u062d\u0627\u0646\u064a\u0629"
+        )
+        ws.oddFooter.center.text = "&P / &N"
         ws.oddFooter.right.text = "&D"
-        ws.oddFooter.right.size = 8
 
     @classmethod
     def to_response(cls, wb, filename: str) -> HttpResponse:
