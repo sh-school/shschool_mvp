@@ -1,7 +1,7 @@
 {% autoescape off %}{
-  "name": "SchoolOS",
-  "short_name": "SchoolOS",
-  "description": "منصة إدارة المدارس القطرية",
+  "name": "مدرسة الشحانية الإعدادية",
+  "short_name": "الشحانية",
+  "description": "منصة إدارة مدرسة الشحانية الإعدادية الثانوية للبنين",
   "start_url": "{% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}/teacher/schedule/{% elif role == 'parent' %}/parents/{% elif role == 'nurse' %}/clinic/{% elif role == 'librarian' %}/library/{% elif role == 'student' %}/dashboard/{% else %}/dashboard/{% endif %}",
   "scope": "/",
   "display": "standalone",
