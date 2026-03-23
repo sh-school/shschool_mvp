@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 api/views.py
 ━━━━━━━━━━━
@@ -26,6 +25,8 @@ SchoolOS REST API v1 — ViewSets + APIViews
   /api/v1/library/borrowings/          — الاستعارات
   /api/v1/clinic/visits/               — زيارات العيادة
 """
+
+from django.conf import settings
 
 import logging
 

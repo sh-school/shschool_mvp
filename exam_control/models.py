@@ -1,8 +1,9 @@
-from django.conf import settings
 """
 exam_control/models.py  ·  SchoolOS v5
 وحدة كنترول الاختبارات — مبنية على دليل SOP من Ct.zip (10 محاور)
 """
+
+from django.conf import settings
 
 import uuid
 

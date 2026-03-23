@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 assessments/models.py
 المرحلة 3 — نظام التقييمات والاختبارات
@@ -17,6 +16,8 @@ assessments/models.py
 المجموع السنوي = درجات الفصل الأول + درجات الفصل الثاني = 100
 درجة النجاح السنوية = 50 من 100
 """
+
+from django.conf import settings
 
 import uuid
 from decimal import Decimal

@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 behavior/services.py
 ━━━━━━━━━━━━━━━━━━━━
@@ -12,6 +11,8 @@ Business logic لوحدة السلوك — مستخلص من views.py
   - إشعار أولياء الأمور
   - بيانات التقرير الدوري
 """
+
+from django.conf import settings
 
 import logging
 from datetime import date

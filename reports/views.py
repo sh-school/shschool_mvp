@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 reports/views.py — HTTP layer فقط (thin views)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -6,6 +5,8 @@ reports/views.py — HTTP layer فقط (thin views)
 كل منطق Excel     → ExcelService
 PDF               → core.pdf_utils.render_pdf
 """
+
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse

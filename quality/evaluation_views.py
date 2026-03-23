@@ -1,9 +1,10 @@
-from django.conf import settings
 """
 quality/evaluation_views.py
 Phase 6 — واجهات تقييم الموظفين
 القرار الأميري 9/2016 + قانون تنظيم المدارس 9/2017
 """
+
+from django.conf import settings
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required

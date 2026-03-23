@@ -1,9 +1,10 @@
-from django.conf import settings
 """
 parents/services.py
 ━━━━━━━━━━━━━━━━━━
 Business logic لبوابة ولي الأمر
 """
+
+from django.conf import settings
 
 from datetime import timedelta
 

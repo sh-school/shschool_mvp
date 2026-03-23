@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 quality/services.py
 ━━━━━━━━━━━━━━━━━━━
@@ -10,6 +9,8 @@ Business logic لوحدة الجودة والخطة التشغيلية
   - إدارة المنفذين والمجالات
   - بيانات تقرير التقدم
 """
+
+from django.conf import settings
 
 from django.db.models import Count, Prefetch
 

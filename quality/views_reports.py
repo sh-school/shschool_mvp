@@ -1,7 +1,8 @@
-from django.conf import settings
 """
 quality/views_reports.py — تقرير التقدم + PDF
 """
+
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q

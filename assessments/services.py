@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 assessments/services.py
 محرك حساب الدرجات — معادلة وزارة التعليم القطرية الصحيحة
@@ -8,6 +7,8 @@ assessments/services.py
 المجموع السنوي = S1 + S2 (من 100)
 النجاح = 50 فأكثر
 """
+
+from django.conf import settings
 
 from decimal import ROUND_HALF_UP, Decimal
 

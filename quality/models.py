@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 quality/models.py
 الخطة التشغيلية + لجنة موحّدة (تنفيذية + مراجعة ذاتية) + ربط المنفذين
@@ -11,6 +10,8 @@ quality/models.py
 - إضافة CommitteeManager للاستعلامات المتقدمة
 - إزالة advanced_search من النموذج ونقلها للـ Manager
 """
+
+from django.conf import settings
 
 import uuid
 from datetime import timedelta

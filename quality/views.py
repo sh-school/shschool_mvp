@@ -1,8 +1,9 @@
-from django.conf import settings
 """
 quality/views.py — Core views: لوحة التحكم + المجال + الإجراء
 المنطق الثانوي في: views_committee / views_executor / views_reports
 """
+
+from django.conf import settings
 
 from datetime import date as _date
 

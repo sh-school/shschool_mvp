@@ -1,8 +1,9 @@
-from django.conf import settings
 """
 exam_control/views.py  ·  SchoolOS v5
 لوحة رئيس الكنترول — تشكيل + إدارة + محاضر + PDF
 """
+
+from django.conf import settings
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q

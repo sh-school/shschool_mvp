@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 quality/employee_evaluation.py
 Phase 6 — تقييم أداء الموظفين
@@ -8,6 +7,8 @@ Phase 6 — تقييم أداء الموظفين
 نظام التقييم: 4 مستويات (ممتاز، جيد جداً، جيد، يحتاج تطوير)
 الدورية: مرتين سنوياً (نهاية الفصل الأول + نهاية العام)
 """
+
+from django.conf import settings
 
 import uuid
 

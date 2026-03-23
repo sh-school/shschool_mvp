@@ -1,4 +1,3 @@
-from django.conf import settings
 """
 analytics/services.py
 ━━━━━━━━━━━━━━━━━━━━
@@ -11,6 +10,8 @@ Business logic لوحدة التحليلات
   - إحصائيات السلوك والعيادة
   - KPIs العشرة
 """
+
+from django.conf import settings
 
 from datetime import timedelta
 

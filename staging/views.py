@@ -1,8 +1,9 @@
-from django.conf import settings
 """
 staging/views.py
 استيراد الدرجات من Excel وتحميل قالب الإدخال
 """
+
+from django.conf import settings
 
 import io
 

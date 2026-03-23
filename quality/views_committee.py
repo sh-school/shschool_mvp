@@ -1,8 +1,8 @@
-from django.conf import settings
 """
 quality/views_committee.py — لجنة المراجعة الذاتية + لجنة المنفذين
 """
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -43,24 +43,29 @@ def quality_committee(request):
 
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
+    # ── Bulk counts بدلاً من N+1 ────────────────────────────
+    from django.db.models import Count, Q as _Q
+
+    # عدد المراجعات لكل مستخدم
+    reviewed_map = dict(
+        OperationalProcedure.objects.filter(
+            school=school, academic_year=year, reviewed_by__isnull=False
+        ).values_list("reviewed_by").annotate(c=Count("id")).values_list("reviewed_by", "c")
+    )
+    # عدد الإجراءات المعلقة لكل مجال
+    pending_map = dict(
+        OperationalProcedure.objects.filter(
+            school=school, academic_year=year, status="Pending Review"
+        ).values("indicator__target__domain").annotate(c=Count("id"))
+        .values_list("indicator__target__domain", "c")
+    )
+
     member_review_stats = []
     for member in members:
-        reviewed_count = 0
-        pending_in_domain = 0
-        if member.user:
-            reviewed_count = OperationalProcedure.objects.filter(
-                school=school, academic_year=year, reviewed_by=member.user
-            ).count()
-        if member.domain:
-            pending_in_domain = OperationalProcedure.objects.filter(
-                school=school, academic_year=year,
-                status='Pending Review',
-                indicator__target__domain=member.domain
-            ).count()
         member_review_stats.append({
             "member": member,
-            "reviewed_count": reviewed_count,
-            "pending_in_domain": pending_in_domain,
+            "reviewed_count": reviewed_map.get(member.user_id, 0) if member.user_id else 0,
+            "pending_in_domain": pending_map.get(member.domain_id, 0) if member.domain_id else 0,
         })
 
     return render(
