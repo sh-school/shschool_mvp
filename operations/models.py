@@ -1,3 +1,4 @@
+from django.conf import settings
 import uuid
 
 from django.db import models
@@ -158,7 +159,7 @@ class ScheduleSlot(models.Model):
     period_number = models.IntegerField(verbose_name="رقم الحصة")  # 1..8
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
-    academic_year = models.CharField(max_length=9, default="2025-2026")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

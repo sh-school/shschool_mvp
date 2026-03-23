@@ -1,3 +1,4 @@
+from django.conf import settings
 from decimal import Decimal
 
 from django.contrib import messages
@@ -26,7 +27,7 @@ from .services import GradeService
 def assessments_dashboard(request):
     school = request.user.get_school()
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     if request.user.is_admin():
         # المدير: كل الفصول
@@ -574,7 +575,7 @@ def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     if not request.user.is_admin() and not request.user.is_teacher() and request.user != student:
         return HttpResponse("غير مسموح", status=403)
@@ -607,7 +608,7 @@ def failing_students(request):
 
     school = request.user.get_school()
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     failing = GradeService.get_failing_students(school, year)
 
@@ -647,7 +648,7 @@ def setup_subject(request):
         subject_id = request.POST.get("subject")
         class_id = request.POST.get("class_group")
         teacher_id = request.POST.get("teacher")
-        year = request.POST.get("academic_year", "2025-2026")
+        year = request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR)
 
         subject = get_object_or_404(Subject, id=subject_id, school=school)
         class_group = get_object_or_404(ClassGroup, id=class_id, school=school)

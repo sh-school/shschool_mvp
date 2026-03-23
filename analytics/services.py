@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 analytics/services.py
 ━━━━━━━━━━━━━━━━━━━━
@@ -57,7 +58,7 @@ class AnalyticsService:
 
     # ── توزيع الدرجات ───────────────────────────────────────
     @staticmethod
-    def grades_distribution(school, year="2025-2026"):
+    def grades_distribution(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """توزيع الطلاب على نطاقات الدرجات"""
         results = AnnualSubjectResult.objects.filter(
             school=school,
@@ -77,7 +78,7 @@ class AnalyticsService:
 
     # ── مقارنة الفصول ───────────────────────────────────────
     @staticmethod
-    def class_comparison(school, year="2025-2026"):
+    def class_comparison(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """مقارنة نسب النجاح بين الفصول"""
         classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
 
@@ -113,7 +114,7 @@ class AnalyticsService:
 
     # ── مقارنة المواد ───────────────────────────────────────
     @staticmethod
-    def subject_comparison(school, year="2025-2026"):
+    def subject_comparison(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """مقارنة متوسط الدرجات بين المواد"""
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
@@ -144,7 +145,7 @@ class AnalyticsService:
 
     # ── الراسبون حسب الفصل ──────────────────────────────────
     @staticmethod
-    def failing_by_class(school, year="2025-2026"):
+    def failing_by_class(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """عدد الراسبين في كل فصل"""
         classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
 
@@ -218,7 +219,7 @@ class AnalyticsService:
 
     # ── تقدم الخطة التشغيلية ────────────────────────────────
     @staticmethod
-    def plan_progress(school, year="2025-2026"):
+    def plan_progress(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """تقدم الخطة التشغيلية حسب المجال"""
         from quality.services import QualityService
 
@@ -237,7 +238,7 @@ class KPIService:
     """
 
     @staticmethod
-    def compute(school, year: str = "2025-2026") -> dict:
+    def compute(school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """
         يعيد dict يحتوي على:
           - kpis        : قاموس المؤشرات العشرة مع traffic light

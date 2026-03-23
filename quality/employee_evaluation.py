@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/employee_evaluation.py
 Phase 6 — تقييم أداء الموظفين
@@ -54,7 +55,7 @@ class EmployeeEvaluation(models.Model):
         related_name="evaluations_given",
         verbose_name="المقيِّم",
     )
-    academic_year = models.CharField(max_length=9, default="2025-2026")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     period = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
     status = models.CharField(max_length=15, choices=STATUS, default="draft")
 
@@ -135,7 +136,7 @@ class EvaluationCycle(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_cycles")
-    academic_year = models.CharField(max_length=9, default="2025-2026")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     period = models.CharField(max_length=2, choices=EmployeeEvaluation.PERIODS)
     deadline = models.DateField(verbose_name="الموعد النهائي للتقييم")
     is_closed = models.BooleanField(default=False)

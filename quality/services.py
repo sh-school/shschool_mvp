@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/services.py
 ━━━━━━━━━━━━━━━━━━━
@@ -42,7 +43,7 @@ class QualityService:
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
-    def get_plan_stats(school, year="2025-2026"):
+    def get_plan_stats(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """إحصائيات الخطة التشغيلية"""
         base = OperationalProcedure.objects.filter(school=school, academic_year=year)
         stats = QualityService._calc_stats(base)
@@ -52,7 +53,7 @@ class QualityService:
 
     # ── عدد المنفذين غير المربوطين ──────────────────────────
     @staticmethod
-    def get_unmapped_count(school, year="2025-2026"):
+    def get_unmapped_count(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """عدد المنفذين الذين ليس لهم مستخدم مربوط"""
         all_executors = set(
             OperationalProcedure.objects.filter(school=school, academic_year=year)
@@ -68,7 +69,7 @@ class QualityService:
 
     # ── إجراءاتي (للموظف غير الإداري) ──────────────────────
     @staticmethod
-    def get_my_procedures(user, school, year="2025-2026"):
+    def get_my_procedures(user, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """الإجراءات المسندة للمستخدم الحالي"""
         return (
             OperationalProcedure.objects.filter(
@@ -123,7 +124,7 @@ class QualityService:
 
     # ── تقرير التقدم ────────────────────────────────────────
     @staticmethod
-    def get_progress_report_data(school, year="2025-2026"):
+    def get_progress_report_data(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات تقرير التقدم الشامل"""
         domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
             "order"
@@ -147,7 +148,7 @@ class QualityService:
 
     # ── بيانات لجنة المنفذين ────────────────────────────────
     @staticmethod
-    def get_executor_committee_data(school, year="2025-2026"):
+    def get_executor_committee_data(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات لجنة المنفذين مع إحصائيات كل عضو"""
         members = QualityCommitteeMember.objects.executor_committee(school, year)
 
@@ -187,7 +188,7 @@ class QualityService:
 
     # ── تفاصيل إنجاز منفذ واحد ─────────────────────────────
     @staticmethod
-    def get_executor_detail(member, school, year="2025-2026"):
+    def get_executor_detail(member, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات الإنجاز التفصيلية لمنفذ واحد"""
         procs = (
             OperationalProcedure.objects.filter(

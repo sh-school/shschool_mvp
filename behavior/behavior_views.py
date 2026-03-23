@@ -1,3 +1,4 @@
+from django.conf import settings
 # behavior/views.py — النسخة الكاملة مع لجنة الضبط السلوكي
 """
 وحدة السلوك الطلابي — SchoolOS V2
@@ -454,7 +455,7 @@ def behavior_report(request, student_id):
 
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     period = request.GET.get("period", "full")  # full | S1 | S2
 
     from datetime import date
@@ -593,7 +594,7 @@ def behavior_statistics(request):
         return HttpResponseForbidden("للمدير ونائبيه فقط.")
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     from datetime import date
 
     date_from = date(2025, 9, 1)

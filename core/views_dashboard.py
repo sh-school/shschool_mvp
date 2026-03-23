@@ -1,3 +1,4 @@
+from django.conf import settings
 import datetime
 
 from django.contrib.auth.decorators import login_required
@@ -32,7 +33,7 @@ def dashboard(request):
         from assessments.models import AnnualSubjectResult, SubjectClassSetup
         from operations.models import AbsenceAlert, Session, StudentAttendance
 
-        year = "2025-2026"
+        year = settings.CURRENT_ACADEMIC_YEAR
 
         sessions_today = Session.objects.filter(school=school, date=today)
         total_sessions = sessions_today.count()
@@ -105,7 +106,7 @@ def dashboard(request):
         from assessments.models import SubjectClassSetup
         from operations.models import Session
 
-        year = "2025-2026"
+        year = settings.CURRENT_ACADEMIC_YEAR
         sessions = (
             Session.objects.filter(school=school, teacher=user, date=today)
             .select_related("class_group", "subject")

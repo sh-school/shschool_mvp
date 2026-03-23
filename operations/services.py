@@ -1,3 +1,4 @@
+from django.conf import settings
 import logging
 
 from django.db import transaction
@@ -78,7 +79,7 @@ class AttendanceService:
         """
         from datetime import date
 
-        school_year = "2025-2026"
+        school_year = settings.CURRENT_ACADEMIC_YEAR
         year_start = date(2025, 9, 1)
         year_end = date(2026, 6, 30)
 
@@ -166,7 +167,7 @@ class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
-    def get_weekly_schedule(school, teacher=None, class_group=None, academic_year="2025-2026"):
+    def get_weekly_schedule(school, teacher=None, class_group=None, academic_year=settings.CURRENT_ACADEMIC_YEAR):
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة"""
         qs = ScheduleSlot.objects.filter(
             school=school, academic_year=academic_year, is_active=True
@@ -183,7 +184,7 @@ class ScheduleService:
         return grid
 
     @staticmethod
-    def detect_conflicts(school, academic_year="2025-2026"):
+    def detect_conflicts(school, academic_year=settings.CURRENT_ACADEMIC_YEAR):
         """كشف التعارضات في الجدول"""
         conflicts = []
 
@@ -237,7 +238,7 @@ class ScheduleService:
 
     @staticmethod
     @transaction.atomic
-    def generate_daily_sessions(school, date, academic_year="2025-2026"):
+    def generate_daily_sessions(school, date, academic_year=settings.CURRENT_ACADEMIC_YEAR):
         """توليد Session يومية من ScheduleSlot للتاريخ المحدد"""
         day_of_week = date.weekday()  # Python: 0=Mon … لكننا نريد 0=Sun
         # تحويل: Sun=6 في Python → 0 عندنا

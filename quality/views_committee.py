@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/views_committee.py — لجنة المراجعة الذاتية + لجنة المنفذين
 """
@@ -18,7 +19,7 @@ from .models import (
 )
 from .services import QualityService
 
-_DEFAULT_YEAR = "2025-2026"
+_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
 def _committee_redirect(committee_type, year):

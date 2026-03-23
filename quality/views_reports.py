@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/views_reports.py — تقرير التقدم + PDF
 """
@@ -14,7 +15,7 @@ from core.pdf_utils import render_pdf
 from .models import OperationalProcedure
 from .services import QualityService
 
-_DEFAULT_YEAR = "2025-2026"
+_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
 @login_required

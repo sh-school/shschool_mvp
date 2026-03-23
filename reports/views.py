@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 reports/views.py — HTTP layer فقط (thin views)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -45,7 +46,7 @@ def _set_final_status(ctx: dict) -> None:
 @login_required
 def reports_index(request):
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     if request.user.is_admin():
         classes = ClassGroup.objects.filter(
@@ -78,7 +79,7 @@ def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
     ctx = ReportDataService.get_class_results(class_grp, school, year)
@@ -100,7 +101,7 @@ def class_certificates_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
     enrollments = (
@@ -140,7 +141,7 @@ def attendance_report_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
     ctx = ReportDataService.get_attendance_report(class_grp, school, year)
@@ -164,7 +165,7 @@ def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
     if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
@@ -184,7 +185,7 @@ def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
     if not (request.user.is_admin() or request.user.is_teacher()):
@@ -214,7 +215,7 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    return ExcelService.class_results_excel(class_grp, school, request.GET.get("year", "2025-2026"))
+    return ExcelService.class_results_excel(class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))
 
 
 @login_required
@@ -225,7 +226,7 @@ def attendance_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    return ExcelService.attendance_excel(class_grp, school, request.GET.get("year", "2025-2026"))
+    return ExcelService.attendance_excel(class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))
 
 
 @login_required
@@ -235,4 +236,4 @@ def behavior_excel(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    return ExcelService.behavior_excel(school, request.GET.get("year", "2025-2026"))
+    return ExcelService.behavior_excel(school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))

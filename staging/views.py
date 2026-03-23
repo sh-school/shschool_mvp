@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 staging/views.py
 استيراد الدرجات من Excel وتحميل قالب الإدخال
@@ -36,7 +37,7 @@ def import_grades_select(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     if request.user.is_admin():
         assessments = (

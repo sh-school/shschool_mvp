@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 api/views.py
 ━━━━━━━━━━━
@@ -91,7 +92,7 @@ def _school(request):
     return request.user.get_school()
 
 
-def _year(request, default="2025-2026"):
+def _year(request, default=settings.CURRENT_ACADEMIC_YEAR):
     return request.query_params.get("year", default)
 
 

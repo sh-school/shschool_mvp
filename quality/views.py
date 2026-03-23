@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/views.py — Core views: لوحة التحكم + المجال + الإجراء
 المنطق الثانوي في: views_committee / views_executor / views_reports
@@ -39,7 +40,7 @@ from .views_executor import (  # noqa: F401
 from .views_reports import progress_report, progress_report_pdf  # noqa: F401
 
 # ── ثوابت ────────────────────────────────────────────────────
-_DEFAULT_YEAR = "2025-2026"
+_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 # Allowed sort fields mapping (GET param → ORM field)
 _SORT_FIELDS = {

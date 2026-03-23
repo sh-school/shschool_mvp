@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 assessments/models.py
 المرحلة 3 — نظام التقييمات والاختبارات
@@ -57,7 +58,7 @@ class SubjectClassSetup(models.Model):
         related_name="subject_setups",
         verbose_name="المعلم المسؤول",
     )
-    academic_year = models.CharField(max_length=9, default="2025-2026")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -442,7 +443,7 @@ class AnnualSubjectResult(models.Model):
         SubjectClassSetup, on_delete=models.CASCADE, related_name="annual_results"
     )
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="annual_results")
-    academic_year = models.CharField(max_length=9, default="2025-2026")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
 
     # مجاميع الفصلين (من نتائجهما المحسوبة)
     s1_total = models.DecimalField(

@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 exam_control/models.py  ·  SchoolOS v5
 وحدة كنترول الاختبارات — مبنية على دليل SOP من Ct.zip (10 محاور)
@@ -24,7 +25,7 @@ class ExamSession(models.Model):
     )
     name = models.CharField(max_length=200, verbose_name="اسم دورة الاختبار")
     session_type = models.CharField(max_length=10, choices=SESSION_TYPES, default="final")
-    academic_year = models.CharField(max_length=20, default="2025-2026")
+    academic_year = models.CharField(max_length=20, default=settings.CURRENT_ACADEMIC_YEAR)
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=15, choices=STATUS, default="planned")

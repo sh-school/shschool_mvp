@@ -19,11 +19,14 @@ management command: overdue_report
     python manage.py overdue_report --year 2025-2026
 """
 
+from django.conf import settings
 import csv
 from collections import defaultdict
 from datetime import date
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from django.db.models import Count
 
 from quality.models import OperationalProcedure
@@ -42,7 +45,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--year",
             type=str,
-            default="2025-2026",
+            default=settings.CURRENT_ACADEMIC_YEAR,
             help="السنة الدراسية (افتراضي: 2025-2026)",
         )
         parser.add_argument(

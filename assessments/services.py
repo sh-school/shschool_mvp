@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 assessments/services.py
 محرك حساب الدرجات — معادلة وزارة التعليم القطرية الصحيحة
@@ -274,7 +275,7 @@ class GradeService:
         }
 
     @staticmethod
-    def get_class_results_summary(setup, year="2025-2026"):
+    def get_class_results_summary(setup, year=settings.CURRENT_ACADEMIC_YEAR):
         """ملخص النتائج السنوية للفصل في مادة"""
         results = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year)
         total = results.count()
@@ -295,7 +296,7 @@ class GradeService:
         }
 
     @staticmethod
-    def get_student_annual_report(student, school, year="2025-2026"):
+    def get_student_annual_report(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """كشف الدرجات السنوية الكامل للطالب"""
         return (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
@@ -304,7 +305,7 @@ class GradeService:
         )
 
     @staticmethod
-    def get_failing_students(school, year="2025-2026"):
+    def get_failing_students(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """الطلاب الراسبون سنوياً"""
         return (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")

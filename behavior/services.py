@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 behavior/services.py
 ━━━━━━━━━━━━━━━━━━━━
@@ -307,7 +308,7 @@ class BehaviorService:
 
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
-    def get_report_period(period, year="2025-2026"):
+    def get_report_period(period, year=settings.CURRENT_ACADEMIC_YEAR):
         """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
         try:
             start_year, end_year = (int(y) for y in str(year).split("-"))
@@ -324,7 +325,7 @@ class BehaviorService:
             return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
 
     @staticmethod
-    def get_student_report_data(student, school, period="full", year="2025-2026"):
+    def get_student_report_data(student, school, period="full", year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات التقرير السلوكي الدوري الكامل"""
         date_from, date_to, period_label = BehaviorService.get_report_period(period, year)
 
@@ -395,7 +396,7 @@ class BehaviorService:
             "school": school,
             "class_name": class_name,
             "infraction_count": infraction_count,
-            "academic_year": "2025-2026",
+            "academic_year": settings.CURRENT_ACADEMIC_YEAR,
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
             "parent_id": parent.username if parent else None,

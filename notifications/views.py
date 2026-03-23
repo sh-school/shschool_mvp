@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 notifications/views.py
 لوحة إدارة الإشعارات للمدير
@@ -21,7 +22,7 @@ def notifications_dashboard(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     # آخر الإشعارات
     logs = (
@@ -96,7 +97,7 @@ def send_fail_alerts(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", "2025-2026")
+    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
     sent, failed = NotificationService.send_fail_alerts_for_year(
         school=school, year=year, sent_by=request.user
     )

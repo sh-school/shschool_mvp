@@ -1,3 +1,4 @@
+from django.conf import settings
 # analytics/views.py — thin views (Phase 4)
 """
 لوحة الإحصاءات المتقدمة — SchoolOS V2
@@ -43,7 +44,7 @@ def analytics_dashboard(request):
         return HttpResponse("غير مسموح — للمدير فقط", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     today = timezone.now().date()
 
     # ── KPIs الأساسية ─────────────────────────────────────────
@@ -193,7 +194,7 @@ def api_grades_distribution(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     grades = StudentSubjectResult.objects.filter(
         setup__school=school, setup__academic_year=year
@@ -241,7 +242,7 @@ def api_class_comparison(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     classes = (
         StudentSubjectResult.objects.filter(setup__school=school, setup__academic_year=year)
@@ -279,7 +280,7 @@ def api_subject_comparison(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     subjects = (
         StudentSubjectResult.objects.filter(setup__school=school, setup__academic_year=year)
@@ -329,7 +330,7 @@ def api_plan_progress(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
 
@@ -437,7 +438,7 @@ def api_failing_by_class(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     qs = (
         StudentSubjectResult.objects.filter(
@@ -520,7 +521,7 @@ def kpi_dashboard(request):
     if not _admin_required(request):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     return render(request, "analytics/kpi_dashboard.html", {"school": school, "year": year})
 
 
@@ -531,7 +532,7 @@ def api_kpis_all(request):
         return JsonResponse({}, status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     data = KPIService.compute(school, year)
 
     # Serialize school to string for JSON
@@ -556,7 +557,7 @@ def kpi_monthly_pdf(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
     data = KPIService.compute(school, year)
 

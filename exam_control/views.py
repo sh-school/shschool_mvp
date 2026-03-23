@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 exam_control/views.py  ·  SchoolOS v5
 لوحة رئيس الكنترول — تشكيل + إدارة + محاضر + PDF
@@ -55,7 +56,7 @@ def session_create(request):
             school=school,
             name=request.POST["name"],
             session_type=request.POST.get("session_type", "final"),
-            academic_year=request.POST.get("academic_year", "2025-2026"),
+            academic_year=request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
             start_date=request.POST["start_date"],
             end_date=request.POST["end_date"],
             created_by=request.user,

@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/evaluation_views.py
 Phase 6 — واجهات تقييم الموظفين
@@ -14,7 +15,7 @@ from core.models import AuditLog, CustomUser, Membership
 
 from .models import EmployeeEvaluation, EvaluationCycle
 
-_DEFAULT_YEAR = "2025-2026"
+_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
 def _require_evaluator(request):

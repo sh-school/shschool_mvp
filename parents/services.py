@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 parents/services.py
 ━━━━━━━━━━━━━━━━━━
@@ -15,7 +16,7 @@ from operations.models import StudentAttendance
 
 class ParentService:
     @staticmethod
-    def get_children_data(user, school, year="2025-2026"):
+    def get_children_data(user, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """
         يعيد قائمة بأبناء ولي الأمر مع إحصائيات كل طالب.
         كل عنصر: {link, student, enrollment, total_subj, passed,
@@ -64,7 +65,7 @@ class ParentService:
         return children
 
     @staticmethod
-    def get_student_grades(student, school, year="2025-2026"):
+    def get_student_grades(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """ملخص الدرجات لطالب"""
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)

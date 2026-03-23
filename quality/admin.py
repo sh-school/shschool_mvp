@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 
 from .models import (
@@ -107,7 +108,7 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         school = None
-        year = "2025-2026"
+        year = settings.CURRENT_ACADEMIC_YEAR
 
         if self.instance and self.instance.pk:
             try:
@@ -178,7 +179,7 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
     def norms_ajax(self, request):
         """AJAX: إرجاع قائمة executor_norm لمدرسة وسنة محددتين"""
         school_id = request.GET.get("school")
-        year = request.GET.get("year", "2025-2026")
+        year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
         norms = []
         if school_id:
             norms = list(

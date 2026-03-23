@@ -208,7 +208,7 @@ class NotificationService:
     # ── إشعار رسوب الطالب لولي الأمر ─────────────────────────
 
     @staticmethod
-    def notify_fail(student, school, failed_subjects, year="2025-2026", sent_by=None):
+    def notify_fail(student, school, failed_subjects, year=settings.CURRENT_ACADEMIC_YEAR, sent_by=None):
         """إشعار ولي الأمر بنتيجة الرسوب"""
         cfg = NotificationSettings.objects.filter(school=school).first()
         if cfg and not cfg.fail_email_enabled and not cfg.sms_enabled:
@@ -295,7 +295,7 @@ class NotificationService:
         return total_sent, total_failed
 
     @staticmethod
-    def send_fail_alerts_for_year(school, year="2025-2026", sent_by=None):
+    def send_fail_alerts_for_year(school, year=settings.CURRENT_ACADEMIC_YEAR, sent_by=None):
         """إرسال إشعارات الرسوب لكل الطلاب الراسبين"""
         from assessments.models import AnnualSubjectResult
 

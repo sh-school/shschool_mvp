@@ -3,6 +3,7 @@ parents/views.py — thin views (Phase 4)
 بوابة ولي الأمر — درجات + غياب
 """
 
+from django.conf import settings
 import json
 
 from django.contrib import messages
@@ -36,7 +37,7 @@ def parent_dashboard(request):
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     children = ParentService.get_children_data(request.user, school, year)
 
     return render(
@@ -57,7 +58,7 @@ def parent_dashboard(request):
 def student_grades(request, student_id):
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     link = ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
@@ -94,7 +95,7 @@ def student_grades(request, student_id):
 def student_attendance(request, student_id):
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     link = ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
@@ -146,7 +147,7 @@ def manage_parent_links(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     search = request.GET.get("q", "").strip()
 
     # أولياء الأمور الحاليون

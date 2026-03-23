@@ -8,6 +8,7 @@ Business logic لوحدة التقارير — بدون أي HTTP logic
   - ExcelService       : إنشاء ملفات Excel باحترافية كاملة
 """
 
+from django.conf import settings
 import logging
 from io import BytesIO
 
@@ -34,7 +35,7 @@ class ReportDataService:
     """تجميع بيانات التقارير — بدون أي HTTP logic"""
 
     @staticmethod
-    def get_student_report(student, school, year="2025-2026"):
+    def get_student_report(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات تقرير الطالب السنوي الكاملة"""
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
@@ -97,7 +98,7 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_class_results(class_group, school, year="2025-2026"):
+    def get_class_results(class_group, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات كشف نتائج الفصل الكامل مع ترتيب + ملخص"""
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
@@ -173,7 +174,7 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_attendance_report(class_group, school, year="2025-2026"):
+    def get_attendance_report(class_group, school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات تقرير الغياب لفصل"""
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
@@ -229,7 +230,7 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_behavior_report(school, year="2025-2026"):
+    def get_behavior_report(school, year=settings.CURRENT_ACADEMIC_YEAR):
         """بيانات تقرير السلوك العام"""
         from behavior.models import BehaviorInfraction
 
@@ -455,7 +456,7 @@ class ExcelService:
     # ── التقارير ──────────────────────────────────────────────────────
 
     @classmethod
-    def class_results_excel(cls, class_group, school, year: str = "2025-2026") -> HttpResponse:
+    def class_results_excel(cls, class_group, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
         """
         Excel كشف نتائج الفصل:
         - رأس 4 صفوف احترافي + شعار
@@ -533,7 +534,7 @@ class ExcelService:
         return cls.to_response(wb, filename)
 
     @classmethod
-    def attendance_excel(cls, class_group, school, year: str = "2025-2026") -> HttpResponse:
+    def attendance_excel(cls, class_group, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
         """
         Excel تقرير الغياب:
         - رأس 4 صفوف احترافي + شعار
@@ -603,7 +604,7 @@ class ExcelService:
         return cls.to_response(wb, filename)
 
     @classmethod
-    def behavior_excel(cls, school, year: str = "2025-2026") -> HttpResponse:
+    def behavior_excel(cls, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
         """
         Excel تقرير السلوك:
         - رأس 4 صفوف احترافي + شعار

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -262,7 +263,7 @@ def weekly_schedule(request):
 
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     target_teacher = None
     if teacher_id:
@@ -332,7 +333,7 @@ def schedule_slot_create(request):
                 period_number=int(request.POST["period_number"]),
                 start_time=request.POST["start_time"],
                 end_time=request.POST["end_time"],
-                academic_year=request.POST.get("academic_year", "2025-2026"),
+                academic_year=request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
             )
             messages.success(request, f"تمت إضافة الحصة: {slot}")
         except Exception as e:

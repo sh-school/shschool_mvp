@@ -1,3 +1,4 @@
+from django.conf import settings
 """
 quality/views_executor.py — ربط المنفذين بالإجراءات
 """
@@ -14,7 +15,7 @@ from core.models import CustomUser, Membership
 
 from .models import ExecutorMapping, OperationalProcedure
 
-_DEFAULT_YEAR = "2025-2026"
+_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
 @login_required

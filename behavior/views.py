@@ -327,7 +327,7 @@ def behavior_report(request, student_id):
 
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     period = request.GET.get("period", "full")
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
@@ -386,7 +386,7 @@ def behavior_statistics(request):
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("للمدير ونائبيه فقط.")
     school = request.user.get_school()
-    year = request.GET.get("year", "2025-2026")
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     stats = BehaviorService.get_statistics(school)
     stats["year"] = year
     return render(request, "behavior/statistics.html", stats)
