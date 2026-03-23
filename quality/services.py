@@ -11,7 +11,6 @@ Business logic لوحدة الجودة والخطة التشغيلية
 """
 
 from django.conf import settings
-
 from django.db.models import Count, Prefetch
 
 from .models import (

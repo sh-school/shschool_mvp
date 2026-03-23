@@ -5,11 +5,7 @@ tests/test_components.py
 يختبر أن كل مكون يُعرض بدون أخطاء ويحتوي على العناصر الأساسية.
 """
 
-import pytest
-from django.template import Context, Template
 from django.template.loader import render_to_string
-from django.test import RequestFactory
-
 
 # ──────────────────────────────────────────────
 #  helper: تحميل component عبر include

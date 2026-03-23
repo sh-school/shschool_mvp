@@ -11,11 +11,10 @@ quality/models.py
 - إزالة advanced_search من النموذج ونقلها للـ Manager
 """
 
-from django.conf import settings
-
 import uuid
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone

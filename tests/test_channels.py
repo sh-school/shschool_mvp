@@ -8,7 +8,6 @@ tests/test_channels.py
   - AttendanceConsumer: اتصال، رفض UUID خاطئ، attendance.update
 """
 
-import json
 import uuid
 
 import pytest

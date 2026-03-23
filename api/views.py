@@ -26,10 +26,9 @@ SchoolOS REST API v1 — ViewSets + APIViews
   /api/v1/clinic/visits/               — زيارات العيادة
 """
 
-from django.conf import settings
-
 import logging
 
+from django.conf import settings
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend

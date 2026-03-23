@@ -5,7 +5,7 @@ from django.shortcuts import redirect
 from django.urls import include, path
 
 from core.views_health import health_check
-from core.views_pwa import global_sw, global_manifest, offline_global
+from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
 
 urlpatterns = [

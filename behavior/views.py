@@ -148,7 +148,7 @@ def quick_log(request):
     GET  → نموذج HTML (partial) لعرضه داخل modal
     POST → إنشاء المخالفة + HX-Trigger showToast + HX-Redirect للملف السلوكي
     """
-    from core.htmx_utils import htmx_toast, htmx_redirect
+    from core.htmx_utils import htmx_redirect, htmx_toast
 
     if not BehaviorPermissions.can_report(request.user):
         from django.http import HttpResponse

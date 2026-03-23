@@ -1,5 +1,9 @@
+import logging
+
 from django.conf import settings
 from django.contrib import admin
+
+logger = logging.getLogger(__name__)
 
 from .models import (
     ExecutorMapping,
@@ -115,6 +119,7 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
                 school = self.instance.school
                 year = self.instance.academic_year
             except Exception:
+                logger.exception("فشل قراءة المدرسة والسنة الدراسية من النموذج في لوحة الإدارة")
                 school = None
         if not school and self.data.get("school"):
             from core.models import School as _S

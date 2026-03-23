@@ -8,10 +8,9 @@ assessments/services.py
 النجاح = 50 فأكثر
 """
 
-from django.conf import settings
-
 from decimal import ROUND_HALF_UP, Decimal
 
+from django.conf import settings
 from django.db import transaction
 
 from core.models import StudentEnrollment

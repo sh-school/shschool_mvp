@@ -17,13 +17,12 @@ core/htmx_utils.py — SchoolOS v5.1
 """
 
 import json
-from typing import Union
 
 from django.http import HttpResponse
 
 
 def htmx_toast(
-    response_or_html: Union[HttpResponse, str],
+    response_or_html: HttpResponse | str,
     msg: str,
     msg_type: str = "success",
 ) -> HttpResponse:

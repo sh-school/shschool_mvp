@@ -3,9 +3,12 @@ notifications/views.py
 لوحة إدارة الإشعارات للمدير
 """
 
-from django.conf import settings
+import logging
 
+from django.conf import settings
 from django.contrib import messages
+
+logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -345,6 +348,5 @@ def emergency_broadcast(request):
         )
         return JsonResponse({"status": "ok", "recipients": f"school_{school.pk}"})
     except Exception as exc:
-        import logging
-        logging.getLogger(__name__).error(f"Emergency broadcast failed: {exc}")
+        logger.exception("Emergency broadcast failed: %s", exc)
         return JsonResponse({"error": "فشل الإرسال"}, status=500)

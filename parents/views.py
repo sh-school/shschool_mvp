@@ -3,8 +3,12 @@ parents/views.py — thin views (Phase 4)
 بوابة ولي الأمر — درجات + غياب
 """
 
-from django.conf import settings
 import json
+import logging
+
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -346,6 +350,7 @@ def push_subscribe(request):
         )
         return JsonResponse({"status": "subscribed", "new": created})
     except Exception as e:
+        logger.exception("فشل تسجيل اشتراك Push لولي الأمر")
         return JsonResponse({"error": str(e)}, status=500)
 
 
@@ -361,6 +366,7 @@ def push_unsubscribe(request):
         )
         return JsonResponse({"status": "unsubscribed"})
     except Exception as e:
+        logger.exception("فشل إلغاء اشتراك Push لولي الأمر")
         return JsonResponse({"error": str(e)}, status=500)
 
 

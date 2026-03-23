@@ -1,5 +1,9 @@
+import logging
+
 from django.conf import settings
 from django.contrib import messages
+
+logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -337,6 +341,7 @@ def schedule_slot_create(request):
             )
             messages.success(request, f"تمت إضافة الحصة: {slot}")
         except Exception as e:
+            logger.exception("فشل إضافة حصة في الجدول الأسبوعي")
             messages.error(request, f"خطأ: {e}")
         return redirect("weekly_schedule")
 

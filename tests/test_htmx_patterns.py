@@ -22,10 +22,8 @@ from .conftest import (
     LibraryBookFactory,
     MembershipFactory,
     RoleFactory,
-    SchoolFactory,
     UserFactory,
 )
-
 
 # ──────────────────────────────────────────────
 #  helpers

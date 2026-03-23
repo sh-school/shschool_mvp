@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 
 try:
@@ -6,6 +8,8 @@ try:
     _FERNET_AVAILABLE = True
 except ImportError:
     _FERNET_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 def _get_fernet():
@@ -51,4 +55,5 @@ def decrypt_field(value):
     try:
         return f.decrypt(value.encode()).decode()
     except Exception:
+        logger.exception("فشل فك تشفير الحقل — إعادة القيمة الأصلية")
         return value

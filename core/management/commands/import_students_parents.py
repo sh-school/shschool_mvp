@@ -1,7 +1,10 @@
 import csv
+import logging
 import os
 
 from django.core.management.base import BaseCommand
+
+logger = logging.getLogger(__name__)
 from django.db import transaction
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "../../../scripts/new_students_full.csv")
@@ -135,6 +138,7 @@ class Command(BaseCommand):
                                 defaults={"is_active": True},
                             )
                     except Exception:
+                        logger.exception("فشل ربط الطالب بالفصل الدراسي")
                         pass
 
                 if not parent_nid:

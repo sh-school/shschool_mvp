@@ -17,11 +17,10 @@ assessments/models.py
 درجة النجاح السنوية = 50 من 100
 """
 
-from django.conf import settings
-
 import uuid
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 

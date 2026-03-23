@@ -19,14 +19,12 @@ management command: overdue_report
     python manage.py overdue_report --year 2025-2026
 """
 
-from django.conf import settings
 import csv
 from collections import defaultdict
 from datetime import date
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.conf import settings
 from django.db.models import Count
 
 from quality.models import OperationalProcedure

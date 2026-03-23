@@ -1,5 +1,10 @@
+import logging
+
 from django.conf import settings
+
 # behavior/views.py — النسخة الكاملة مع لجنة الضبط السلوكي
+
+logger = logging.getLogger(__name__)
 """
 وحدة السلوك الطلابي — SchoolOS V2
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -113,6 +118,7 @@ def _notify_parents_behavior(infraction, school, reporter):
                         sent_by=reporter,
                     )
                 except Exception:
+                    logger.exception("فشل إرسال بريد الإشعار لولي الأمر عند تسجيل المخالفة")
                     pass  # لا نوقف التسجيل إذا فشل الإرسال
 
             # ── SMS — للدرجة 2 فأكثر فقط ─────────────────────────────
@@ -132,9 +138,11 @@ def _notify_parents_behavior(infraction, school, reporter):
                         sent_by=reporter,
                     )
                 except Exception:
+                    logger.exception("فشل إرسال SMS لولي الأمر عند تسجيل المخالفة")
                     pass
 
     except Exception:
+        logger.exception("فشل إرسال إشعار المخالفة لولي الأمر")
         pass  # الإشعار لا يوقف عملية التسجيل أبداً
 
 
@@ -546,6 +554,7 @@ def behavior_report(request, student_id):
                     )
                     sent_to.append(parent.full_name)
                 except Exception:
+                    logger.exception("فشل إرسال التقرير السلوكي لولي الأمر")
                     pass
 
         if sent_to:

@@ -4,7 +4,6 @@ exam_control/views.py  ·  SchoolOS v5
 """
 
 from django.conf import settings
-
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden

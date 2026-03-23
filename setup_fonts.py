@@ -3,10 +3,13 @@ setup_fonts.py — تجهيز خطوط عربية لـ WeasyPrint / xhtml2pdf
 شغّل مرة واحدة:  python setup_fonts.py
 """
 
+import logging
 import os
 import shutil
 import sys
 import urllib.request
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FONTS_DIR = os.path.join(BASE_DIR, "static", "fonts")
@@ -77,6 +80,7 @@ def try_download():
                 else:
                     os.remove(dest)
             except Exception:
+                logger.exception("فشل تحميل الخط %s من %s", dest_name, url)
                 pass
     return downloaded
 

@@ -3,19 +3,18 @@ tests/test_quality_new_views.py
 اختبارات الـ Views الجديدة لمنظومة الجودة (execution_list, review_list, modals, toggle_evidence)
 """
 
-import pytest
 from datetime import date, timedelta
 
-from django.urls import reverse
-from django.utils import timezone
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 from core.models import CustomUser, Membership, Role
 from quality.models import (
     OperationalDomain,
-    OperationalTarget,
     OperationalIndicator,
     OperationalProcedure,
+    OperationalTarget,
     ProcedureEvidence,
     ProcedureStatusLog,
     QualityCommitteeMember,

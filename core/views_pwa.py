@@ -1,5 +1,6 @@
 from django.shortcuts import render
 
+
 def global_sw(request):
     return render(request, 'pwa/sw_global.js', content_type='application/javascript; charset=utf-8')
 

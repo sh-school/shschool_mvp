@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
+
+logger = logging.getLogger(__name__)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -134,6 +137,7 @@ def record_visit(request, student_id=None):
                 visit.parent_notified = True
                 visit.save()
             except Exception:
+                logger.exception("فشل إرسال إشعار العيادة لولي الأمر [visit=%s]", visit.pk)
                 visit.parent_notified = False
                 visit.save()
 

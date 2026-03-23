@@ -1,6 +1,6 @@
-from django.conf import settings
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 

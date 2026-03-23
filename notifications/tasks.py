@@ -14,10 +14,10 @@ notifications/tasks.py
     )
 """
 
-from django.conf import settings
 import logging
 
 from celery import shared_task
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 

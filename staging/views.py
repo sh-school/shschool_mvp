@@ -3,10 +3,12 @@ staging/views.py
 استيراد الدرجات من Excel وتحميل قالب الإدخال
 """
 
+import io
+import logging
+
 from django.conf import settings
 
-import io
-
+logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse

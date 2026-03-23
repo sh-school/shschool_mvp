@@ -11,9 +11,12 @@ Business logic لوحدة التحليلات
   - KPIs العشرة
 """
 
+import logging
+from datetime import timedelta
+
 from django.conf import settings
 
-from datetime import timedelta
+logger = logging.getLogger(__name__)
 
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncMonth
@@ -300,6 +303,7 @@ class KPIService:
             ).count()
             grading_pct = round(submitted / total_sheets * 100, 1) if total_sheets else 100
         except Exception:
+            logger.exception("فشل حساب نسبة رصد الدرجات في الوقت")
             grading_pct = 100
         kpis["grading_on_time_pct"] = {
             "label": "رصد الدرجات في الوقت",
@@ -329,6 +333,7 @@ class KPIService:
                 else 100
             )
         except Exception:
+            logger.exception("فشل حساب نسبة أيام الاختبار بلا حوادث")
             clean_pct = 100
         kpis["exam_clean_days_pct"] = {
             "label": "أيام اختبار بلا حوادث",

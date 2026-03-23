@@ -1,7 +1,7 @@
 """Global search endpoint for the Command Palette (Ctrl+K)."""
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Value, CharField
+from django.db.models import Q
 from django.http import JsonResponse
 
 

@@ -5,7 +5,6 @@ Phase 6 — واجهات تقييم الموظفين
 """
 
 from django.conf import settings
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count

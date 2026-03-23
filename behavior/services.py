@@ -12,11 +12,10 @@ Business logic لوحدة السلوك — مستخلص من views.py
   - بيانات التقرير الدوري
 """
 
-from django.conf import settings
-
 import logging
 from datetime import date
 
+from django.conf import settings
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone

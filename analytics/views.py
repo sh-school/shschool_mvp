@@ -1,4 +1,5 @@
 from django.conf import settings
+
 # analytics/views.py — thin views (Phase 4)
 """
 لوحة الإحصاءات المتقدمة — SchoolOS V2

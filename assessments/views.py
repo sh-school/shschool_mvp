@@ -1,7 +1,10 @@
-from django.conf import settings
+import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
+
+logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -257,6 +260,7 @@ def save_single_grade(request, assessment_id):
             try:
                 grade = Decimal(raw)
             except Exception:
+                logger.exception("فشل تحويل الدرجة إلى Decimal: %r", raw)
                 return HttpResponse("درجة غير صالحة", status=400)
 
     grade_obj, _ = GradeService.save_grade(
@@ -311,6 +315,7 @@ def save_all_grades(request, assessment_id):
                 try:
                     grade = Decimal(raw)
                 except Exception:
+                    logger.exception("فشل تحويل درجة الطالب %s إلى Decimal: %r", sid, raw)
                     continue
 
         GradeService.save_grade(

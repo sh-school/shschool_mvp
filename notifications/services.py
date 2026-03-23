@@ -3,7 +3,11 @@ notifications/services.py
 محرك الإشعارات — بريد إلكتروني + SMS
 """
 
+import logging
+
 import django.core.mail
+
+logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -437,7 +441,7 @@ class BreachNotificationService:
                         sent_by=reported_by,
                     )
                 except Exception:
-                    pass
+                    logger.exception("فشل إرسال إشعار خرق البيانات عبر البريد الإلكتروني")
 
         return {
             "breach_id": breach_id,

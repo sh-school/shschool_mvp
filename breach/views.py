@@ -3,7 +3,11 @@ breach/views.py — SchoolOS v5
 إدارة خرق البيانات (PDPPL م.11 + NCSA 72h)
 """
 
+import logging
+
 from django.contrib.auth.decorators import login_required
+
+logger = logging.getLogger(__name__)
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -60,6 +64,7 @@ def create(request):
         try:
             discovered_at = timezone.make_aware(datetime.strptime(discovered_str, "%Y-%m-%dT%H:%M"))
         except Exception:
+            logger.exception("فشل تحليل تاريخ اكتشاف الخرق: %r", discovered_str)
             discovered_at = timezone.now()
 
         breach = BreachReport.objects.create(

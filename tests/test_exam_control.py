@@ -14,10 +14,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from exam_control.models import ExamRoom, ExamSession
+from exam_control.models import ExamSession
 
 from .conftest import MembershipFactory, RoleFactory, SchoolFactory, UserFactory
-
 
 # ── Factories ──────────────────────────────────────────────────────────
 

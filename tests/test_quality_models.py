@@ -9,14 +9,13 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from core.models import CustomUser, Membership, Role, School
+from core.models import CustomUser, Membership, Role
 from quality.models import (
     ExecutorMapping,
     OperationalDomain,
     OperationalIndicator,
     OperationalProcedure,
     OperationalTarget,
-    ProcedureEvidence,
     ProcedureStatusLog,
     QualityCommitteeMember,
 )

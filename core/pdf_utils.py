@@ -11,7 +11,6 @@ v7: Professional headers/footers on every page
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 
 from django.conf import settings
@@ -553,6 +552,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
     if "playwright" not in _FAILED_BACKENDS:
         try:
             import threading
+
             from playwright.sync_api import sync_playwright
 
             chr_html = _inject_fonts(html_str)

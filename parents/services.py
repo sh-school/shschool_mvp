@@ -4,10 +4,9 @@ parents/services.py
 Business logic لبوابة ولي الأمر
 """
 
-from django.conf import settings
-
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult

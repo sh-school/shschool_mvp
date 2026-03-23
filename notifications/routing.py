@@ -5,8 +5,9 @@ WebSocket URL patterns لـ SchoolOS v5.1
 
 from django.urls import path
 
-from . import consumers
 from operations import consumers as ops_consumers
+
+from . import consumers
 
 websocket_urlpatterns = [
     # إشعارات فورية لكل مستخدم

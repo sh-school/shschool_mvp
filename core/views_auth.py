@@ -1,6 +1,9 @@
 import base64
+import logging
 from datetime import timedelta
 from io import BytesIO
+
+logger = logging.getLogger(__name__)
 
 import pyotp
 import qrcode
@@ -88,6 +91,7 @@ def login_view(request):
                             )
                             return render(request, "auth/login.html")
             except Exception:
+                logger.exception("فشل تحديث عداد محاولات تسجيل الدخول الفاشلة")
                 pass
 
             # رسالة موحّدة في كل الحالات الأخرى — لا تكشف وجود الحساب
