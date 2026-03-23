@@ -5,6 +5,7 @@ core/middleware.py
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from django.urls import reverse
 
 EXEMPT = [
     "/auth/",
@@ -89,7 +90,7 @@ class SchoolPermissionMiddleware:
                 return JsonResponse(
                     {"error": "مطلوب تسجيل الدخول", "code": "not_authenticated"}, status=401
                 )
-            return redirect("/auth/login/")
+            return redirect(reverse("login"))
 
         if request.user.is_superuser:
             return self.get_response(request)
@@ -173,6 +174,6 @@ class ParentConsentMiddleware:
             and request.user.consent_given_at is None
             and not any(request.path.startswith(p) for p in self.EXEMPT_PATHS)
         ):
-            return redirect("/parents/consent/")
+            return redirect(reverse("parent_consent"))
 
         return self.get_response(request)
