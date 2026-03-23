@@ -3,7 +3,11 @@ python manage.py generate_vapid_keys
 يولّد VAPID keys جديدة ويطبعها للإضافة في .env
 """
 
+import logging
+
 from django.core.management.base import BaseCommand
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -55,4 +59,5 @@ class Command(BaseCommand):
             self.stdout.write("VAPID_CLAIMS_EMAIL=admin@shahaniya.edu.qa\n")
 
         except Exception as e:
+            logger.exception("فشل توليد VAPID keys")
             self.stderr.write(self.style.ERROR(f"خطأ: {e}"))

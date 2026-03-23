@@ -10,8 +10,15 @@ Business logic لوحدة الجودة والخطة التشغيلية
   - بيانات تقرير التقدم
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from django.conf import settings
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, QuerySet
+
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
 
 from .models import (
     ExecutorMapping,
@@ -26,7 +33,7 @@ from .models import (
 class QualityService:
     # ── مساعد داخلي ─────────────────────────────────────────
     @staticmethod
-    def _calc_stats(qs):
+    def _calc_stats(qs: QuerySet) -> dict:
         """حساب إحصائيات الإنجاز من queryset الإجراءات — Clean Code: DRY"""
         total = qs.count()
         completed = qs.filter(status="Completed").count()
@@ -43,7 +50,7 @@ class QualityService:
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
-    def get_plan_stats(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_plan_stats(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """إحصائيات الخطة التشغيلية"""
         base = OperationalProcedure.objects.filter(school=school, academic_year=year)
         stats = QualityService._calc_stats(base)
@@ -53,7 +60,7 @@ class QualityService:
 
     # ── عدد المنفذين غير المربوطين ──────────────────────────
     @staticmethod
-    def get_unmapped_count(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_unmapped_count(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> int:
         """عدد المنفذين الذين ليس لهم مستخدم مربوط"""
         all_executors = set(
             OperationalProcedure.objects.filter(school=school, academic_year=year)
@@ -69,7 +76,11 @@ class QualityService:
 
     # ── إجراءاتي (للموظف غير الإداري) ──────────────────────
     @staticmethod
-    def get_my_procedures(user, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_my_procedures(
+        user: CustomUser,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> QuerySet:
         """الإجراءات المسندة للمستخدم الحالي"""
         return (
             OperationalProcedure.objects.filter(
@@ -81,9 +92,14 @@ class QualityService:
 
     # ── بيانات المجال التفصيلية مع فلترة ───────────────────
     @staticmethod
-    def get_domain_procedures(school, domain, status_filter="", executor_filter=""):
+    def get_domain_procedures(
+        school: School,
+        domain: OperationalDomain,
+        status_filter: str = "",
+        executor_filter: str = "",
+    ) -> dict:
         """إجراءات المجال مع إمكانية الفلترة"""
-        proc_filters = {}
+        proc_filters: dict = {}
         if status_filter:
             proc_filters["status"] = status_filter
         if executor_filter:
@@ -124,13 +140,15 @@ class QualityService:
 
     # ── تقرير التقدم ────────────────────────────────────────
     @staticmethod
-    def get_progress_report_data(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_progress_report_data(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """بيانات تقرير التقدم الشامل"""
         domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
             "order"
         )
 
-        domain_stats = []
+        domain_stats: list = []
         for domain in domains:
             procs = OperationalProcedure.objects.filter(
                 school=school,
@@ -148,7 +166,9 @@ class QualityService:
 
     # ── بيانات لجنة المنفذين ────────────────────────────────
     @staticmethod
-    def get_executor_committee_data(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_executor_committee_data(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """بيانات لجنة المنفذين مع إحصائيات كل عضو"""
         members = QualityCommitteeMember.objects.executor_committee(school, year)
 
@@ -158,7 +178,7 @@ class QualityService:
             ).values_list("executor_norm", flat=True)
         )
 
-        member_stats = []
+        member_stats: list = []
         for member in members:
             if member.user:
                 procs = OperationalProcedure.objects.filter(
@@ -188,7 +208,11 @@ class QualityService:
 
     # ── تفاصيل إنجاز منفذ واحد ─────────────────────────────
     @staticmethod
-    def get_executor_detail(member, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_executor_detail(
+        member: QualityCommitteeMember,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """بيانات الإنجاز التفصيلية لمنفذ واحد"""
         procs = (
             OperationalProcedure.objects.filter(
@@ -200,7 +224,7 @@ class QualityService:
 
         stats = QualityService._calc_stats(procs)
 
-        by_domain = {}
+        by_domain: dict = {}
         for proc in procs:
             domain_name = proc.indicator.target.domain.name
             if domain_name not in by_domain:

@@ -28,6 +28,7 @@ from .services import GradeService
 
 @login_required
 def assessments_dashboard(request):
+    """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
     school = request.user.get_school()
     semester = request.GET.get("semester", "S1")
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -187,6 +188,7 @@ def create_assessment(request, package_id):
         )
         messages.success(request, f"تم إنشاء التقييم: {assessment.title}")
     except Exception as e:
+        logger.exception("فشل إنشاء التقييم")
         messages.error(request, f"خطأ: {e}")
 
     return redirect("setup_detail", setup_id=package.setup.id)

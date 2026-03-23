@@ -11,8 +11,11 @@ Business logic لوحدة التحليلات
   - KPIs العشرة
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 
@@ -29,11 +32,14 @@ from assessments.models import (
 from core.models import ClassGroup, StudentEnrollment
 from operations.models import Session, StudentAttendance
 
+if TYPE_CHECKING:
+    from core.models import School
+
 
 class AnalyticsService:
     # ── اتجاه الحضور اليومي ─────────────────────────────────
     @staticmethod
-    def attendance_trend(school, days=30):
+    def attendance_trend(school: School, days: int = 30) -> list:
         """بيانات اتجاه الحضور خلال فترة محددة"""
         since = timezone.now().date() - timedelta(days=days)
 
@@ -47,7 +53,7 @@ class AnalyticsService:
             .order_by("session__date")
         )
 
-        results = []
+        results: list = []
         for row in qs:
             pct = round(row["present"] / row["total"] * 100) if row["total"] else 0
             results.append(
@@ -62,7 +68,9 @@ class AnalyticsService:
 
     # ── توزيع الدرجات ───────────────────────────────────────
     @staticmethod
-    def grades_distribution(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def grades_distribution(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """توزيع الطلاب على نطاقات الدرجات"""
         results = AnnualSubjectResult.objects.filter(
             school=school,
@@ -82,11 +90,13 @@ class AnalyticsService:
 
     # ── مقارنة الفصول ───────────────────────────────────────
     @staticmethod
-    def class_comparison(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def class_comparison(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> list:
         """مقارنة نسب النجاح بين الفصول"""
         classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
 
-        data = []
+        data: list = []
         for cls in classes:
             students = StudentEnrollment.objects.filter(
                 class_group=cls, is_active=True
@@ -118,7 +128,9 @@ class AnalyticsService:
 
     # ── مقارنة المواد ───────────────────────────────────────
     @staticmethod
-    def subject_comparison(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def subject_comparison(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> list:
         """مقارنة متوسط الدرجات بين المواد"""
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
@@ -134,7 +146,7 @@ class AnalyticsService:
             )
         )
 
-        data = []
+        data: list = []
         for row in setups:
             data.append(
                 {
@@ -149,11 +161,13 @@ class AnalyticsService:
 
     # ── الراسبون حسب الفصل ──────────────────────────────────
     @staticmethod
-    def failing_by_class(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def failing_by_class(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> list:
         """عدد الراسبين في كل فصل"""
         classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
 
-        data = []
+        data: list = []
         for cls in classes:
             students = StudentEnrollment.objects.filter(
                 class_group=cls, is_active=True
@@ -182,7 +196,7 @@ class AnalyticsService:
 
     # ── اتجاه السلوك ───────────────────────────────────────
     @staticmethod
-    def behavior_trend(school, months=6):
+    def behavior_trend(school: School, months: int = 6) -> list:
         """اتجاه المخالفات السلوكية شهرياً"""
         from behavior.models import BehaviorInfraction
 
@@ -204,7 +218,7 @@ class AnalyticsService:
 
     # ── إحصائيات العيادة ────────────────────────────────────
     @staticmethod
-    def clinic_stats(school, months=6):
+    def clinic_stats(school: School, months: int = 6) -> list:
         """إحصائيات زيارات العيادة"""
         from clinic.models import ClinicVisit
 
@@ -223,7 +237,9 @@ class AnalyticsService:
 
     # ── تقدم الخطة التشغيلية ────────────────────────────────
     @staticmethod
-    def plan_progress(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def plan_progress(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """تقدم الخطة التشغيلية حسب المجال"""
         from quality.services import QualityService
 
@@ -242,7 +258,7 @@ class KPIService:
     """
 
     @staticmethod
-    def compute(school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def compute(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """
         يعيد dict يحتوي على:
           - kpis        : قاموس المؤشرات العشرة مع traffic light
@@ -257,7 +273,7 @@ class KPIService:
 
         today = timezone.now().date()
         month = today.month
-        kpis = {}
+        kpis: dict = {}
 
         # ── 1: نسبة حضور الطلبة ──────────────────────────────────────
         sessions_m = Session.objects.filter(school=school, date__month=month, date__year=today.year)
@@ -441,7 +457,7 @@ class KPIService:
                 else:
                     kpi["traffic"] = "green" if val <= t else ("yellow" if val <= w else "red")
 
-        summary = {"green": 0, "yellow": 0, "red": 0, "grey": 0}
+        summary: dict = {"green": 0, "yellow": 0, "red": 0, "grey": 0}
         for kpi in kpis.values():
             summary[kpi["traffic"]] += 1
 

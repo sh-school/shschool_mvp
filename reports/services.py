@@ -8,8 +8,11 @@ Business logic لوحدة التقارير — بدون أي HTTP logic
   - ExcelService       : إنشاء ملفات Excel باحترافية كاملة
 """
 
+from __future__ import annotations
+
 import logging
 from io import BytesIO
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -23,6 +26,9 @@ from assessments.models import (
 from core.models import StudentEnrollment
 from operations.models import StudentAttendance
 
+if TYPE_CHECKING:
+    from core.models import ClassGroup, CustomUser, School
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +41,11 @@ class ReportDataService:
     """تجميع بيانات التقارير — بدون أي HTTP logic"""
 
     @staticmethod
-    def get_student_report(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_student_report(
+        student: CustomUser,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """بيانات تقرير الطالب السنوي الكاملة"""
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
@@ -98,7 +108,11 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_class_results(class_group, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_class_results(
+        class_group: ClassGroup,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """بيانات كشف نتائج الفصل الكامل مع ترتيب + ملخص"""
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
@@ -127,10 +141,10 @@ class ReportDataService:
         # lookup: (student_id, setup_id) → AnnualSubjectResult
         annual_map = {(a.student_id, a.setup_id): a for a in all_annuals}
 
-        student_rows = []
+        student_rows: list = []
         for enr in enrollments:
-            row = {"student": enr.student, "grades": {}}
-            grades = []
+            row: dict = {"student": enr.student, "grades": {}}
+            grades: list = []
             passed = failed = 0
             for setup in setups:
                 annual = annual_map.get((enr.student_id, setup.id))
@@ -174,7 +188,11 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_attendance_report(class_group, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_attendance_report(
+        class_group: ClassGroup,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """بيانات تقرير الغياب لفصل"""
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
@@ -199,7 +217,7 @@ class ReportDataService:
             if rec["status"] in ("absent", "late", "excused"):
                 att_counts[sid][rec["status"]] += 1
 
-        student_rows = []
+        student_rows: list = []
         for enr in enrollments:
             counts = att_counts[enr.student_id]
             total = counts["total"]
@@ -230,7 +248,9 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_behavior_report(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_behavior_report(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """بيانات تقرير السلوك العام"""
         from behavior.models import BehaviorInfraction
 
@@ -273,7 +293,7 @@ class ExcelService:
     # ── بنية تحتية ────────────────────────────────────────────────────
 
     @classmethod
-    def _make_workbook(cls, sheet_title: str):
+    def _make_workbook(cls, sheet_title: str) -> tuple:
         """Workbook جديد مع ستايل الهوية القطرية"""
         import openpyxl
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -300,8 +320,8 @@ class ExcelService:
 
     @classmethod
     def _add_professional_header(
-        cls, ws, school_name: str, report_title: str, year: str, num_cols: int
-    ):
+        cls, ws: object, school_name: str, report_title: str, year: str, num_cols: int
+    ) -> None:
         """
         4 صفوف رأس احترافية:
           الصف 1 — وزارة التربية والتعليم العالي — دولة قطر  + تاريخ الطباعة
@@ -365,7 +385,7 @@ class ExcelService:
             logger.debug("Excel logo: %s", exc)
 
     @classmethod
-    def _add_header_row(cls, ws, styles, row_num: int, columns: list):
+    def _add_header_row(cls, ws: object, styles: dict, row_num: int, columns: list) -> None:
         """رأس الجدول: قائمة من (عنوان، عرض)"""
         for col_idx, (header, width) in enumerate(columns, start=1):
             cell = ws.cell(row=row_num, column=col_idx, value=header)
@@ -377,7 +397,9 @@ class ExcelService:
         ws.row_dimensions[row_num].height = 26
 
     @classmethod
-    def _style_data_row(cls, ws, styles, row_num: int, num_cols: int, is_alt: bool = False):
+    def _style_data_row(
+        cls, ws: object, styles: dict, row_num: int, num_cols: int, is_alt: bool = False
+    ) -> None:
         """تطبيق ستايل على صف بيانات"""
         for col_idx in range(1, num_cols + 1):
             cell = ws.cell(row=row_num, column=col_idx)
@@ -388,7 +410,7 @@ class ExcelService:
         ws.row_dimensions[row_num].height = 20
 
     @classmethod
-    def _apply_protection(cls, ws, num_cols: int):
+    def _apply_protection(cls, ws: object, num_cols: int) -> None:
         """
         حماية الورقة (قراءة فقط) مع السماح بالتصفية والفرز.
         كلمة السر للتحرير: 09041974
@@ -399,7 +421,7 @@ class ExcelService:
         ws.protection.sort = False  # يسمح بالفرز
 
     @classmethod
-    def _setup_print_a4_portrait(cls, ws, num_cols: int, num_data_rows: int):
+    def _setup_print_a4_portrait(cls, ws: object, num_cols: int, num_data_rows: int) -> None:
         """
         إعداد الطباعة على ورق A4 عمودي (Portrait):
         - هوامش ضيقة مناسبة
@@ -441,7 +463,7 @@ class ExcelService:
         ws.oddFooter.right.text = "&D"
 
     @classmethod
-    def to_response(cls, wb, filename: str) -> HttpResponse:
+    def to_response(cls, wb: object, filename: str) -> HttpResponse:
         """تحويل Workbook إلى HttpResponse جاهز للتنزيل"""
         buf = BytesIO()
         wb.save(buf)
@@ -456,7 +478,12 @@ class ExcelService:
     # ── التقارير ──────────────────────────────────────────────────────
 
     @classmethod
-    def class_results_excel(cls, class_group, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
+    def class_results_excel(
+        cls,
+        class_group: ClassGroup,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> HttpResponse:
         """
         Excel كشف نتائج الفصل:
         - رأس 4 صفوف احترافي + شعار
@@ -534,7 +561,12 @@ class ExcelService:
         return cls.to_response(wb, filename)
 
     @classmethod
-    def attendance_excel(cls, class_group, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
+    def attendance_excel(
+        cls,
+        class_group: ClassGroup,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> HttpResponse:
         """
         Excel تقرير الغياب:
         - رأس 4 صفوف احترافي + شعار
@@ -604,7 +636,9 @@ class ExcelService:
         return cls.to_response(wb, filename)
 
     @classmethod
-    def behavior_excel(cls, school, year: str = settings.CURRENT_ACADEMIC_YEAR) -> HttpResponse:
+    def behavior_excel(
+        cls, school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> HttpResponse:
         """
         Excel تقرير السلوك:
         - رأس 4 صفوف احترافي + شعار

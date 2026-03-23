@@ -75,6 +75,7 @@ class NotificationService:
             return True, None
 
         except Exception as e:
+            logger.exception("فشل إرسال البريد الإلكتروني إلى %s", log.recipient)
             log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])
@@ -123,6 +124,7 @@ class NotificationService:
             return True, None
 
         except Exception as e:
+            logger.exception("فشل إرسال SMS إلى %s", log.recipient)
             log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])

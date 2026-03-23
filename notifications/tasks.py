@@ -497,6 +497,7 @@ def hub_send_notification_task(
                 _send_whatsapp(school, user.phone, title, body)
                 results.append(("whatsapp", True, None))
             except Exception as e:
+                logger.exception("فشل إرسال WhatsApp إلى %s", user.phone)
                 results.append(("whatsapp", False, str(e)))
 
         # ── Push ───────────────────────────────────────────────
@@ -511,6 +512,7 @@ def hub_send_notification_task(
                 )
                 results.append(("push", True, None))
             except Exception as e:
+                logger.exception("فشل جدولة مهمة Push للمستخدم %s", user_id)
                 results.append(("push", False, str(e)))
 
         # ── تحقق من الفشل ─────────────────────────────────────

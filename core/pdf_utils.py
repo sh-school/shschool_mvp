@@ -590,6 +590,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
                         )
                         browser.close()
                 except Exception as exc:
+                    logger.exception("فشل توليد PDF عبر Playwright")
                     _pdf_result["error"] = exc
                 finally:
                     loop.close()

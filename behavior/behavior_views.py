@@ -149,6 +149,7 @@ def _notify_parents_behavior(infraction, school, reporter):
 # ── لوحة التحكم ──────────────────────────────────────────────
 @login_required
 def behavior_dashboard(request):
+    """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة."""
     role = request.user.get_role()
     if role in ("parent", "student"):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
@@ -205,6 +206,7 @@ def behavior_dashboard(request):
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
 def report_infraction(request):
+    """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر وتحويل الجسيمة للجنة."""
     if not _can_report(request.user):
         messages.error(request, "ليس لديك صلاحية تسجيل المخالفات.")
         return redirect("behavior:dashboard")
@@ -274,6 +276,7 @@ def report_infraction(request):
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
 def student_behavior_profile(request, student_id):
+    """الملف السلوكي للطالب — مخالفاته ونقاطه المخصومة والمستعادة."""
     student = get_object_or_404(CustomUser, id=student_id)
     infractions = (
         BehaviorInfraction.objects.filter(student=student)
@@ -316,6 +319,7 @@ def student_behavior_profile(request, student_id):
 # ── استعادة النقاط (التعزيز الإيجابي) ────────────────────────
 @login_required
 def point_recovery_request(request, infraction_id):
+    """طلب استعادة نقاط مخصومة من مخالفة — للجنة الضبط السلوكي فقط."""
     if not _is_committee(request.user):
         messages.error(request, "استعادة النقاط مقتصرة على أعضاء لجنة الضبط السلوكي.")
         return redirect("behavior:dashboard")

@@ -317,7 +317,7 @@
 <div class="report-header">
   <img src="/static/icons/favicon.png" style="width:40px;height:40px;display:block;margin:0 auto 6px;border-radius:8px;" alt="">
   <h1 style="font-family:'Tajawal','Amiri',sans-serif;font-size:15px;font-weight:700;color:#8A1538;margin:0 0 3px;">
-    {% block school_name %}مدرسة الشحانية الإعدادية الثانوية للبنين{% endblock %}
+    {% block school_name %}{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
   </h1>
   <h2 style="font-family:'Tajawal','Amiri',sans-serif;font-size:11px;font-weight:500;color:#444;margin:0 0 2px;">
     {% block report_subtitle %}{% endblock %}
@@ -337,7 +337,7 @@
 
 <!-- فوتر الوثيقة -->
 <div class="pdf-doc-footer">
-  {% now "Y/m/d" %} &nbsp;|&nbsp; مدرسة الشحانية الإعدادية الثانوية للبنين
+  {% now "Y/m/d" %} &nbsp;|&nbsp; {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
 </div>
 
 </body>

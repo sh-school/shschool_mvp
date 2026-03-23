@@ -8,6 +8,7 @@ from django.utils import timezone
 
 @login_required
 def dashboard(request):
+    """لوحة التحكم الرئيسية — تعرض إحصائيات مختلفة حسب دور المستخدم."""
     user = request.user
     school = user.get_school()
     role = user.get_role()

@@ -327,6 +327,7 @@ def upload_grade_file(request, assessment_id):
             log.save()
 
     except Exception as exc:
+        logger.exception("فشل استيراد الدرجات من Excel")
         if not dry_run and log:
             log.status = "failed"
             log.error_log = [str(exc)]

@@ -8,19 +8,28 @@ assessments/services.py
 النجاح = 50 فأكثر
 """
 
+from __future__ import annotations
+
 from decimal import ROUND_HALF_UP, Decimal
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import QuerySet
 
 from core.models import StudentEnrollment
 
 from .models import (
     AnnualSubjectResult,
+    Assessment,
     AssessmentPackage,
     StudentAssessmentGrade,
     StudentSubjectResult,
+    SubjectClassSetup,
 )
+
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
 
 
 class GradeService:
@@ -29,14 +38,14 @@ class GradeService:
     @staticmethod
     @transaction.atomic
     def save_grade(
-        assessment,
-        student,
-        grade=None,
-        is_absent=False,
-        is_excused=False,
-        notes="",
-        entered_by=None,
-    ):
+        assessment: Assessment,
+        student: CustomUser,
+        grade: Decimal | None = None,
+        is_absent: bool = False,
+        is_excused: bool = False,
+        notes: str = "",
+        entered_by: CustomUser | None = None,
+    ) -> tuple:
         """
         حفظ درجة طالب، ثم:
         1. إعادة حساب نتيجة الفصل
@@ -72,7 +81,9 @@ class GradeService:
     # ── حساب درجة الباقة الواحدة ───────────────────────────
 
     @staticmethod
-    def calc_package_score(student, package):
+    def calc_package_score(
+        student: CustomUser, package: AssessmentPackage
+    ) -> Decimal | None:
         """
         يحسب درجة الطالب الفعلية في الباقة من مجموع الفصل.
 
@@ -127,14 +138,18 @@ class GradeService:
 
     @staticmethod
     @transaction.atomic
-    def recalculate_semester_result(student, setup, semester):
+    def recalculate_semester_result(
+        student: CustomUser,
+        setup: SubjectClassSetup,
+        semester: str,
+    ) -> StudentSubjectResult:
         """
         يحسب ويخزن مجموع درجات الطالب في مادة للفصل المحدد.
         الناتج: total ∈ [0, semester_max] (40 أو 60)
         """
         packages = AssessmentPackage.objects.filter(setup=setup, semester=semester, is_active=True)
 
-        scores = {}
+        scores: dict = {}
         total = Decimal("0")
         semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
         has_score = False
@@ -168,7 +183,9 @@ class GradeService:
 
     @staticmethod
     @transaction.atomic
-    def recalculate_annual_result(student, setup):
+    def recalculate_annual_result(
+        student: CustomUser, setup: SubjectClassSetup
+    ) -> AnnualSubjectResult:
         """
         يجمع نتائج الفصلين ويحسب المجموع السنوي من 100.
 
@@ -223,7 +240,7 @@ class GradeService:
         return annual
 
     @staticmethod
-    def recalculate_full_class(setup):
+    def recalculate_full_class(setup: SubjectClassSetup) -> None:
         """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي"""
         enrollments = StudentEnrollment.objects.filter(
             class_group=setup.class_group, is_active=True
@@ -237,7 +254,7 @@ class GradeService:
     # ── إحصائيات ───────────────────────────────────────────
 
     @staticmethod
-    def get_assessment_stats(assessment):
+    def get_assessment_stats(assessment: Assessment) -> dict:
         """إحصائيات تقييم: متوسط، أعلى، أدنى، نسبة النجاح"""
         grades = StudentAssessmentGrade.objects.filter(
             assessment=assessment, is_absent=False, grade__isnull=False
@@ -275,7 +292,9 @@ class GradeService:
         }
 
     @staticmethod
-    def get_class_results_summary(setup, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_class_results_summary(
+        setup: SubjectClassSetup, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> dict:
         """ملخص النتائج السنوية للفصل في مادة"""
         results = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year)
         total = results.count()
@@ -296,7 +315,11 @@ class GradeService:
         }
 
     @staticmethod
-    def get_student_annual_report(student, school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_student_annual_report(
+        student: CustomUser,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> QuerySet:
         """كشف الدرجات السنوية الكامل للطالب"""
         return (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
@@ -305,7 +328,9 @@ class GradeService:
         )
 
     @staticmethod
-    def get_failing_students(school, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_failing_students(
+        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> QuerySet:
         """الطلاب الراسبون سنوياً"""
         return (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
@@ -314,7 +339,9 @@ class GradeService:
         )
 
     @staticmethod
-    def get_semester_summary_for_class(setup, semester):
+    def get_semester_summary_for_class(
+        setup: SubjectClassSetup, semester: str
+    ) -> dict:
         """ملخص درجات الفصل في مادة (لعرض الجدول)"""
         results = StudentSubjectResult.objects.filter(setup=setup, semester=semester)
         total = results.count()

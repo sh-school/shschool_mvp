@@ -33,6 +33,7 @@ from .services import (
 # ── لوحة التحكم ──────────────────────────────────────────────
 @login_required
 def behavior_dashboard(request):
+    """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
     if role in ("parent", "student"):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
@@ -51,6 +52,7 @@ def behavior_dashboard(request):
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
 def report_infraction(request):
+    """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر تلقائياً."""
     if not BehaviorPermissions.can_report(request.user):
         messages.error(request, "ليس لديك صلاحية تسجيل المخالفات.")
         return redirect("behavior:dashboard")
@@ -243,6 +245,7 @@ def _quick_log_context(school, preselected_student_id=""):
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
 def student_behavior_profile(request, student_id):
+    """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     student = get_object_or_404(CustomUser, id=student_id)
     context = BehaviorService.get_student_profile(student)
     context["student"] = student
@@ -254,6 +257,7 @@ def student_behavior_profile(request, student_id):
 # ── استعادة النقاط ────────────────────────────────────────────
 @login_required
 def point_recovery_request(request, infraction_id):
+    """طلب استعادة نقاط مخصومة — للجنة الضبط السلوكي فقط."""
     if not BehaviorPermissions.is_committee(request.user):
         messages.error(request, "استعادة النقاط مقتصرة على أعضاء لجنة الضبط السلوكي.")
         return redirect("behavior:dashboard")
@@ -291,6 +295,7 @@ def point_recovery_request(request, infraction_id):
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
 def committee_dashboard(request):
+    """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
     school = request.user.get_school()
@@ -300,6 +305,7 @@ def committee_dashboard(request):
 
 @login_required
 def committee_decision(request, infraction_id):
+    """تسجيل قرار لجنة الضبط السلوكي في مخالفة جسيمة."""
     if not BehaviorPermissions.is_committee(request.user):
         messages.error(request, "غير مسموح.")
         return redirect("behavior:committee")
@@ -322,6 +328,7 @@ def committee_decision(request, infraction_id):
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
 @login_required
 def behavior_report(request, student_id):
+    """التقرير السلوكي الدوري للطالب — مع إمكانية الإرسال لولي الأمر."""
     if not BehaviorPermissions.can_report(request.user) and not request.user.is_superuser:
         return HttpResponseForbidden("ليس لديك صلاحية.")
 
@@ -383,6 +390,7 @@ def behavior_report(request, student_id):
 # ── تقرير إحصائي ─────────────────────────────────────────────
 @login_required
 def behavior_statistics(request):
+    """التقرير الإحصائي السلوكي للمدرسة — للمدير ولجنة الضبط فقط."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("للمدير ونائبيه فقط.")
     school = request.user.get_school()
@@ -407,6 +415,7 @@ def _render_behavior_pdf(template_name, context, filename):
 
 @login_required
 def infraction_warning_pdf(request, infraction_id):
+    """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
@@ -419,6 +428,7 @@ def infraction_warning_pdf(request, infraction_id):
 
 @login_required
 def infraction_parent_pdf(request, infraction_id):
+    """PDF: تعهد ولي الأمر المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
@@ -431,6 +441,7 @@ def infraction_parent_pdf(request, infraction_id):
 
 @login_required
 def infraction_student_pdf(request, infraction_id):
+    """PDF: تعهد الطالب المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name

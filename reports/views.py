@@ -23,6 +23,7 @@ from .services import ExcelService, ReportDataService
 
 
 def _has_parent_access(request, student, school) -> bool:
+    """يتحقق من أن المستخدم الحالي هو ولي أمر مرتبط بالطالب في هذه المدرسة."""
     from core.models import ParentStudentLink
 
     return ParentStudentLink.objects.filter(
@@ -45,6 +46,7 @@ def _set_final_status(ctx: dict) -> None:
 
 @login_required
 def reports_index(request):
+    """فهرس التقارير — يعرض الفصول المتاحة للطباعة حسب الصلاحية."""
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 

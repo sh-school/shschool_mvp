@@ -12,8 +12,11 @@ Business logic لوحدة السلوك — مستخلص من views.py
   - بيانات التقرير الدوري
 """
 
+from __future__ import annotations
+
 import logging
 from datetime import date
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db.models import Count, Sum
@@ -28,6 +31,9 @@ from core.models import (
     ParentStudentLink,
     StudentEnrollment,
 )
+
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
 
 # ── نقاط مقترحة لكل درجة مخالفة ────────────────────────────
 POINTS_BY_LEVEL = {1: 5, 2: 15, 3: 25, 4: 40}
@@ -68,18 +74,23 @@ class BehaviorPermissions:
     COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "specialist"}
 
     @staticmethod
-    def can_report(user):
+    def can_report(user: CustomUser) -> bool:
         return user.get_role() in BehaviorPermissions.REPORTER_ROLES
 
     @staticmethod
-    def is_committee(user):
+    def is_committee(user: CustomUser) -> bool:
         return user.get_role() in BehaviorPermissions.COMMITTEE_ROLES or user.is_superuser
 
 
 class BehaviorService:
     # ── حساب النقاط السلوكية للطالب ─────────────────────────
     @staticmethod
-    def get_student_score(student, school=None, date_from=None, date_to=None):
+    def get_student_score(
+        student: CustomUser,
+        school: School | None = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> dict:
         """
         يحسب النقاط السلوكية للطالب (من 100).
         Returns: dict with total_deducted, total_restored, net_score, rating, rating_color
@@ -125,7 +136,7 @@ class BehaviorService:
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
-    def get_dashboard_stats(school):
+    def get_dashboard_stats(school: School) -> dict:
         """إحصائيات لوحة التحكم الرئيسية"""
         base = BehaviorInfraction.objects.filter(school=school)
 
@@ -157,7 +168,7 @@ class BehaviorService:
 
     # ── الملف السلوكي للطالب ────────────────────────────────
     @staticmethod
-    def get_student_profile(student):
+    def get_student_profile(student: CustomUser) -> dict:
         """بيانات الملف السلوكي الكامل"""
         infractions = (
             BehaviorInfraction.objects.filter(student=student)
@@ -172,7 +183,7 @@ class BehaviorService:
             else ("yellow" if score["net_score"] >= 60 else "red")
         )
 
-        by_level = {1: 0, 2: 0, 3: 0, 4: 0}
+        by_level: dict = {1: 0, 2: 0, 3: 0, 4: 0}
         for inf in infractions:
             by_level[inf.level] = by_level.get(inf.level, 0) + 1
 
@@ -185,7 +196,7 @@ class BehaviorService:
 
     # ── إحصائيات اللجنة ────────────────────────────────────
     @staticmethod
-    def get_committee_data(school):
+    def get_committee_data(school: School) -> dict:
         """بيانات لوحة لجنة الضبط السلوكي"""
         open_cases = (
             BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
@@ -217,8 +228,13 @@ class BehaviorService:
     # ── تنفيذ قرار اللجنة ──────────────────────────────────
     @staticmethod
     def apply_committee_decision(
-        infraction, decision, action="", restore_pts=0, reason="", approved_by=None
-    ):
+        infraction: BehaviorInfraction,
+        decision: str,
+        action: str = "",
+        restore_pts: int = 0,
+        reason: str = "",
+        approved_by: CustomUser | None = None,
+    ) -> tuple:
         """
         تطبيق قرار اللجنة على المخالفة.
         Returns: (success_message, message_level)
@@ -255,7 +271,11 @@ class BehaviorService:
 
     # ── إحصائيات شاملة (تقرير المدير) ──────────────────────
     @staticmethod
-    def get_statistics(school, date_from=None, date_to=None):
+    def get_statistics(
+        school: School,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> dict:
         """إحصائيات شاملة لوحدة السلوك — تقرير المدير"""
         if not date_from or not date_to:
             today = timezone.now().date()
@@ -308,7 +328,9 @@ class BehaviorService:
 
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
-    def get_report_period(period, year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_report_period(
+        period: str, year: str = settings.CURRENT_ACADEMIC_YEAR
+    ) -> tuple:
         """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
         try:
             start_year, end_year = (int(y) for y in str(year).split("-"))
@@ -325,7 +347,12 @@ class BehaviorService:
             return date(start_year, 9, 1), date(end_year, 6, 30), "العام الدراسي كاملاً"
 
     @staticmethod
-    def get_student_report_data(student, school, period="full", year=settings.CURRENT_ACADEMIC_YEAR):
+    def get_student_report_data(
+        student: CustomUser,
+        school: School,
+        period: str = "full",
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> dict:
         """بيانات التقرير السلوكي الدوري الكامل"""
         date_from, date_to, period_label = BehaviorService.get_report_period(period, year)
 
@@ -342,7 +369,7 @@ class BehaviorService:
 
         score = BehaviorService.get_student_score(student, school, date_from, date_to)
 
-        by_level = {1: [], 2: [], 3: [], 4: []}
+        by_level: dict = {1: [], 2: [], 3: [], 4: []}
         for inf in infractions:
             by_level[inf.level].append(inf)
 
@@ -362,7 +389,7 @@ class BehaviorService:
 
     # ── بيانات PDF المخالفة ─────────────────────────────────
     @staticmethod
-    def get_infraction_context(infraction):
+    def get_infraction_context(infraction: BehaviorInfraction) -> dict:
         """بيانات مشتركة لنماذج PDF/Word"""
         school = infraction.school
         student = infraction.student
@@ -406,7 +433,11 @@ class BehaviorService:
 
     # ── إشعار أولياء الأمور عبر NotificationHub ────────────
     @staticmethod
-    def notify_parents(infraction, school, reporter):
+    def notify_parents(
+        infraction: BehaviorInfraction,
+        school: School,
+        reporter: CustomUser,
+    ) -> None:
         """
         إشعار أولياء الأمور عبر NotificationHub المركزي.
         يُوزّع تلقائياً على: in_app + push + whatsapp + email + sms

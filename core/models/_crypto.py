@@ -31,9 +31,7 @@ def _get_fernet():
     try:
         return Fernet(key.encode() if isinstance(key, str) else key)
     except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).error("FERNET_KEY غير صالح: %s", e)
+        logger.error("FERNET_KEY غير صالح: %s", e)
         return None
 
 

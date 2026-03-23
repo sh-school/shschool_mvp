@@ -37,6 +37,7 @@ def _get_parent_school(request):
 
 @login_required
 def parent_dashboard(request):
+    """لوحة تحكم ولي الأمر — بيانات أبنائه من درجات وغياب."""
     school = _get_parent_school(request)
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
@@ -60,6 +61,7 @@ def parent_dashboard(request):
 
 @login_required
 def student_grades(request, student_id):
+    """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -97,6 +99,7 @@ def student_grades(request, student_id):
 
 @login_required
 def student_attendance(request, student_id):
+    """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -199,6 +202,7 @@ def manage_parent_links(request):
 
 @login_required
 def add_parent_link(request):
+    """إضافة ربط جديد بين ولي أمر وطالب — للمدير فقط."""
     if request.method != "POST" or not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
@@ -230,6 +234,7 @@ def add_parent_link(request):
 
 @login_required
 def remove_parent_link(request, link_id):
+    """حذف ربط ولي الأمر بالطالب — للمدير فقط."""
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
@@ -325,6 +330,7 @@ from notifications.models import PushSubscription
 @login_required
 @csrf_exempt
 def push_subscribe(request):
+    """تسجيل اشتراك Push Notification للمستخدم على متصفحه."""
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
     try:
@@ -357,6 +363,7 @@ def push_subscribe(request):
 @login_required
 @csrf_exempt
 def push_unsubscribe(request):
+    """إلغاء اشتراك Push Notification للمستخدم من متصفحه."""
     if request.method != "POST":
         return JsonResponse({"error": "POST only"}, status=405)
     try:
@@ -372,4 +379,5 @@ def push_unsubscribe(request):
 
 @login_required
 def push_vapid_key(request):
+    """يُعيد المفتاح العام VAPID لتفعيل Push Notifications في المتصفح."""
     return JsonResponse({"publicKey": getattr(settings, "VAPID_PUBLIC_KEY_B64", "")})
