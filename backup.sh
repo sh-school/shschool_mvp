@@ -1,5 +1,5 @@
 #!/bin/bash
-# backup.sh — SchoolOS v5
+# backup.sh — SchoolOS v5.1
 # يُشغَّل داخل container backup الساعة 2:00 ص يومياً
 # المتغيرات تُقرأ من .env عبر docker-compose
 
@@ -25,9 +25,26 @@ else
     exit 1
 fi
 
-# ── حذف النسخ القديمة ────────────────────────────
+# ── رفع إلى S3 (اختياري — يعمل فقط إذا ضُبط AWS_BACKUP_BUCKET) ──
+if [ -n "$AWS_BACKUP_BUCKET" ]; then
+    S3_KEY="db-backups/$(basename $DB_FILE)"
+    aws s3 cp "$DB_FILE" "s3://$AWS_BACKUP_BUCKET/$S3_KEY" \
+        --region "${AWS_S3_REGION_NAME:-me-south-1}" \
+        --storage-class STANDARD_IA \
+        --quiet
+    if [ $? -eq 0 ]; then
+        echo "[$DATE] ☁  S3 رُفع: s3://$AWS_BACKUP_BUCKET/$S3_KEY"
+    else
+        echo "[$DATE] ⚠  S3 فشل الرفع — النسخة المحلية محفوظة"
+        # لا نوقف الـ script — النسخة المحلية كافية
+    fi
+else
+    echo "[$DATE] ℹ  AWS_BACKUP_BUCKET غير مضبوط — تخطي رفع S3"
+fi
+
+# ── حذف النسخ القديمة (محلياً فقط) ─────────────
 DELETED=$(find "$BACKUP_DIR" -name "db_*.sql.gz" -mtime +${KEEP_DAYS} -delete -print | wc -l)
-echo "[$DATE] 🗑  حُذف $DELETED نسخة قديمة"
+echo "[$DATE] 🗑  حُذف $DELETED نسخة قديمة (محلي)"
 
 TOTAL=$(ls "$BACKUP_DIR" | wc -l)
-echo "[$DATE] ═══ انتهى — $TOTAL ملف محفوظ ==="
+echo "[$DATE] ═══ انتهى — $TOTAL ملف محفوظ محلياً ==="

@@ -3,15 +3,16 @@
 {% block title %}الإشعارات — SchoolOS{% endblock %}
 
 {% block content %}
-<div style="max-width:820px;margin:0 auto;">
+{% csrf_token %}
+<div style="max-width:820px;margin:0 auto;" dir="rtl">
 
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
       <h1 class="page-title">🔔 الإشعارات</h1>
-      <p class="page-subtitle">
+      <p class="page-subtitle" id="inbox-subtitle">
         {% if unread_count %}
-          <span style="color:var(--maroon);font-weight:700;">{{ unread_count }}</span> إشعار غير مقروء
+          <span id="inbox-unread-text" style="color:var(--maroon);font-weight:700;">{{ unread_count }}</span> إشعار غير مقروء
         {% else %}
           جميع الإشعارات مقروءة
         {% endif %}
@@ -19,102 +20,62 @@
     </div>
     <div class="page-actions">
       {% if unread_count %}
-      <form method="post" action="{% url 'mark_all_read' %}">
-        {% csrf_token %}
-        <button type="submit" class="btn-secondary" style="font-size:12.5px;">
-          ✓ تحديد الكل كمقروء
-        </button>
-      </form>
+      <button
+        hx-post="{% url 'mark_all_read' %}"
+        hx-target="#notif-list"
+        hx-swap="innerHTML"
+        hx-include="[name=csrfmiddlewaretoken]"
+        class="btn-secondary" style="font-size:12.5px;">
+        ✓✓ تحديد الكل كمقروء
+      </button>
       {% endif %}
-      <a href="{% url 'notification_preferences' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
-        ⚙️ التفضيلات
-      </a>
+      <a href="{% url 'notification_preferences' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;">⚙️ التفضيلات</a>
     </div>
   </div>
 
-  {# ── Filter chips ── #}
+  {# ── Filter chips — HTMX ── #}
   <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;">
     <a href="{% url 'notification_inbox' %}"
        class="status-badge {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"
-       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">
-      الكل
-    </a>
+       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">الكل</a>
     {% for code, label in event_types %}
     <a href="{% url 'notification_inbox' %}?type={{ code }}"
        class="status-badge {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"
-       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">
-      {{ label }}
-    </a>
+       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">{{ label }}</a>
     {% endfor %}
   </div>
 
-  {# ── Notification list ── #}
-  <div style="display:flex;flex-direction:column;gap:6px;">
-    {% for notif in notifications %}
-    <div style="background:{% if notif.is_read %}#fff{% else %}var(--maroon-bg){% endif %};
-                border:1px solid {% if notif.is_read %}var(--border){% else %}var(--maroon-border){% endif %};
-                border-radius:12px;padding:14px 18px;
-                border-right-width:{% if not notif.is_read %}4px{% else %}1px{% endif %};
-                border-right-color:{% if not notif.is_read %}var(--maroon){% else %}var(--border){% endif %};
-                transition:box-shadow .14s;">
-
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-        <div style="flex:1;min-width:0;">
-
-          {# Priority badge #}
-          <div style="margin-bottom:5px;">
-            {% if notif.priority == "urgent" %}
-              <span class="status-badge status-danger" style="font-size:11px;">🚨 عاجل</span>
-            {% elif notif.priority == "high" %}
-              <span class="status-badge status-warning" style="font-size:11px;">⚠️ مهم</span>
-            {% elif not notif.is_read %}
-              <span class="status-badge status-maroon" style="font-size:11px;">جديد</span>
-            {% endif %}
-          </div>
-
-          {# Title #}
-          <h3 style="font-size:14.5px;font-weight:{% if notif.is_read %}500{% else %}700{% endif %};
-                     margin:0 0 5px;color:var(--text-primary);line-height:1.4;">
-            {% if notif.related_url %}
-              <a href="{{ notif.related_url }}"
-                 style="color:var(--text-primary);text-decoration:none;">{{ notif.title }}</a>
-            {% else %}
-              {{ notif.title }}
-            {% endif %}
-          </h3>
-
-          {# Body #}
-          {% if notif.body %}
-          <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;line-height:1.5;">
-            {{ notif.body|truncatechars:160 }}
-          </p>
-          {% endif %}
-
-          {# Meta #}
-          <div style="display:flex;gap:14px;font-size:11.5px;color:var(--text-muted);">
-            <span>{{ notif.get_event_type_display }}</span>
-            <span>{{ notif.created_at|timesince }} مضت</span>
-          </div>
-
-        </div>
-
-        {# Mark read button #}
-        {% if not notif.is_read %}
-        <form method="post" action="{% url 'mark_notification_read' notif.id %}" style="flex-shrink:0;">
-          {% csrf_token %}
-          <button type="submit" title="تحديد كمقروء"
-                  style="background:var(--maroon-bg);border:1px solid var(--maroon-border);
-                         color:var(--maroon);border-radius:8px;cursor:pointer;
-                         font-size:13px;padding:5px 10px;font-family:inherit;
-                         transition:background .12s;">
-            ✓
-          </button>
-        </form>
-        {% endif %}
-
+  {# ── قسم الإشعارات العاجلة (منفصل في الأعلى) ── #}
+  {% with urgent_list=notifications|dictsort:"priority" %}
+  {% for notif in notifications %}{% if notif.priority == "urgent" and not notif.is_read %}
+    {% if forloop.first %}
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:13px;font-weight:700;color:#dc2626;">🚨 إشعارات عاجلة</span>
+        <div style="flex:1;height:1px;background:#fecaca;"></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;" id="urgent-section">
+    {% endif %}
+        {% include "notifications/partials/notif_item.html" with notif=notif %}
+    {% if forloop.last %}
       </div>
     </div>
+    {% endif %}
+  {% endif %}{% endfor %}
+  {% endwith %}
 
+  {# ── Keyboard shortcut hint ── #}
+  <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;text-align:left;">
+    💡 اختصارات: <kbd>j</kbd>/<kbd>k</kbd> للتنقل &nbsp;·&nbsp;
+    <kbd>m</kbd> للتحديد كمقروء &nbsp;·&nbsp;
+    <kbd>Enter</kbd> لفتح الرابط
+  </p>
+
+  {# ── قائمة الإشعارات ── #}
+  <div id="notif-list" style="display:flex;flex-direction:column;gap:6px;">
+    {% for notif in notifications %}
+    {% include "notifications/partials/notif_item.html" with notif=notif %}
     {% empty %}
     <div class="empty-state">
       <span class="empty-icon">🔔</span>
@@ -125,4 +86,94 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+  /**
+   * لوحة مفاتيح صندوق الإشعارات
+   * j = التالي | k = السابق | m = تحديد كمقروء | Enter = فتح الرابط
+   */
+
+  var activeIdx = -1;
+
+  function getItems() {
+    return Array.from(document.querySelectorAll('#notif-list .notif-item'));
+  }
+
+  function setActive(idx) {
+    var items = getItems();
+    items.forEach(function (el) { el.style.outline = ''; });
+    if (idx >= 0 && idx < items.length) {
+      activeIdx = idx;
+      items[idx].style.outline = '2px solid var(--maroon)';
+      items[idx].style.outlineOffset = '2px';
+      items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      items[idx].focus();
+    }
+  }
+
+  document.addEventListener('keydown', function (e) {
+    // لا تتدخل إذا كان التركيز في حقل إدخال
+    if (e.target.matches('input, textarea, select, [contenteditable]')) return;
+
+    switch (e.key) {
+      case 'j':
+        e.preventDefault();
+        setActive(activeIdx + 1);
+        break;
+      case 'k':
+        e.preventDefault();
+        setActive(Math.max(0, activeIdx - 1));
+        break;
+      case 'm': {
+        var items = getItems();
+        if (activeIdx >= 0 && items[activeIdx]) {
+          var btn = items[activeIdx].querySelector('button[hx-post]');
+          if (btn) btn.click();
+        }
+        break;
+      }
+      case 'Enter': {
+        var items2 = getItems();
+        if (activeIdx >= 0 && items2[activeIdx]) {
+          var url = items2[activeIdx].dataset.url;
+          if (url) window.location.href = url;
+        }
+        break;
+      }
+    }
+  });
+
+  // تحديث الـ badge العلوي عند updateBadge trigger
+  document.body.addEventListener('updateBadge', function (e) {
+    var count = e.detail?.count ?? 0;
+    var badge = document.getElementById('notif-badge');
+    if (badge) {
+      badge.textContent = count > 99 ? '99+' : (count || '');
+      badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+    var unreadText = document.getElementById('inbox-unread-text');
+    if (unreadText) {
+      if (count > 0) {
+        unreadText.textContent = count;
+      } else {
+        var subtitle = document.getElementById('inbox-subtitle');
+        if (subtitle) subtitle.textContent = 'جميع الإشعارات مقروءة';
+      }
+    }
+  });
+
+  // Hover to set active
+  document.getElementById('notif-list')?.addEventListener('mouseover', function (e) {
+    var item = e.target.closest('.notif-item');
+    if (item) {
+      var items = getItems();
+      setActive(items.indexOf(item));
+    }
+  });
+})();
+</script>
 {% endblock %}

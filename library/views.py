@@ -64,15 +64,17 @@ def book_list(request):
     page = request.GET.get("page", 1)
     page_obj = paginator.get_page(page)
 
-    return render(
-        request,
-        "library/book_list.html",
-        {
-            "books": page_obj,  # القالب يستخدم books — نفس الاسم
-            "page_obj": page_obj,
-            "query": query,
-        },
-    )
+    context = {
+        "books": page_obj,
+        "page_obj": page_obj,
+        "query": query,
+    }
+
+    # HTMX: أعد الجزء فقط (بحث حي + ترقيم)
+    if getattr(request, "htmx", None) or request.headers.get("HX-Request"):
+        return render(request, "library/partials/book_rows.html", context)
+
+    return render(request, "library/book_list.html", context)
 
 
 @login_required

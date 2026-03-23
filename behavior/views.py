@@ -139,6 +139,107 @@ def report_infraction(request):
     )
 
 
+# ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
+@login_required
+def quick_log(request):
+    """
+    تسجيل مخالفة سريعة عبر HTMX Modal.
+
+    GET  → نموذج HTML (partial) لعرضه داخل modal
+    POST → إنشاء المخالفة + HX-Trigger showToast + HX-Redirect للملف السلوكي
+    """
+    from core.htmx_utils import htmx_toast, htmx_redirect
+
+    if not BehaviorPermissions.can_report(request.user):
+        from django.http import HttpResponse
+        return HttpResponse("ليس لديك صلاحية", status=403)
+
+    school = request.user.get_school()
+
+    if request.method == "POST":
+        student_id   = request.POST.get("student_id", "").strip()
+        description  = request.POST.get("description", "").strip()
+        action       = request.POST.get("action_taken", "").strip()
+
+        try:
+            level  = int(request.POST.get("level", 1))
+            points = int(request.POST.get("points_deducted", POINTS_BY_LEVEL.get(level, 5)))
+        except (ValueError, TypeError):
+            level, points = 1, 5
+
+        # Validation
+        errors = []
+        if not student_id:
+            errors.append("يرجى اختيار الطالب.")
+        if not description:
+            errors.append("يرجى كتابة وصف المخالفة.")
+        elif len(description) > _MAX_DESC_LEN:
+            errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
+        if level not in _VALID_LEVELS:
+            errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")
+
+        if errors:
+            return htmx_toast(
+                render(request, "behavior/partials/quick_log_form.html", _quick_log_context(school, student_id)),
+                msg=" | ".join(errors),
+                msg_type="danger",
+            )
+
+        student = get_object_or_404(CustomUser, id=student_id)
+        with transaction.atomic():
+            infraction = BehaviorInfraction.objects.create(
+                school=school,
+                student=student,
+                reported_by=request.user,
+                level=level,
+                description=description,
+                action_taken=action,
+                points_deducted=points,
+            )
+
+        # إشعار غير متزامن
+        try:
+            from notifications.tasks import notify_behavior_task
+            notify_behavior_task.delay(
+                infraction_id=str(infraction.id),
+                reporter_id=str(request.user.id),
+            )
+        except Exception as exc:
+            logger.warning("Celery unavailable for quick_log notify: %s", exc)
+            BehaviorService.notify_parents(infraction, school, request.user)
+
+        redirect_url = f"/behavior/student/{student.id}/"
+        msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
+        if level >= 3:
+            redirect_url = "/behavior/committee/"
+            msg += " — تم إحالتها للجنة الضبط"
+        return htmx_redirect(redirect_url, msg=msg, msg_type="success")
+
+    # GET — نموذج فارغ
+    student_id_hint = request.GET.get("student_id", "")
+    return render(request, "behavior/partials/quick_log_form.html",
+                  _quick_log_context(school, student_id_hint))
+
+
+def _quick_log_context(school, preselected_student_id=""):
+    """Context مشترك لنموذج التسجيل السريع."""
+    students = (
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__role__name="student",
+            memberships__is_active=True,
+        )
+        .order_by("full_name")
+        .distinct()
+    )
+    return {
+        "students": students,
+        "levels": BehaviorInfraction.LEVELS,
+        "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
+        "preselected_student_id": str(preselected_student_id),
+    }
+
+
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
 def student_behavior_profile(request, student_id):

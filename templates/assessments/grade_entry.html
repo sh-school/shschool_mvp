@@ -30,8 +30,9 @@
     </div>
 
     <!-- جدول الدرجات -->
+    <p class="scroll-x-hint px-4 pt-3">← مرّر يميناً لرؤية كل الأعمدة</p>
     <div class="overflow-x-auto">
-      <table class="w-full text-sm" id="grades-table">
+      <table class="w-full text-sm min-w-[560px]" id="grades-table">
         <thead class="bg-gray-50 border-b">
           <tr>
             <th class="px-4 py-3 text-right">#</th>
@@ -77,4 +78,74 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+  /**
+   * التنقل بلوحة المفاتيح في جدول الدرجات
+   * ArrowDown / Tab  → حقل الدرجة التالي
+   * ArrowUp          → حقل الدرجة السابق
+   * Enter            → حفظ الصف الحالي + التالي
+   * Shift+Tab        → حقل الدرجة السابق
+   */
+
+  function getGradeInputs() {
+    return Array.from(
+      document.querySelectorAll('#grades-table input[name="grade"]:not([disabled])')
+    );
+  }
+
+  document.getElementById('grades-table')?.addEventListener('keydown', function (e) {
+    var inp = e.target;
+    if (!inp.matches('input[name="grade"]')) return;
+
+    var inputs = getGradeInputs();
+    var idx = inputs.indexOf(inp);
+
+    if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+      e.preventDefault();
+      inputs[idx + 1]?.focus();
+    } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+      e.preventDefault();
+      inputs[idx - 1]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      // حفظ الصف الحالي عبر HTMX
+      var row = inp.closest('tr');
+      var form = row?.querySelector('form[hx-post]');
+      if (form) {
+        htmx.trigger(form, 'submit');
+      }
+      // الانتقال للتالي بعد swap (مهلة صغيرة)
+      var nextIdx = idx + 1;
+      setTimeout(function () {
+        getGradeInputs()[nextIdx]?.focus();
+      }, 300);
+    }
+  });
+
+  // إضافة data-idx لكل input لتسهيل التتبع البصري
+  document.addEventListener('htmx:afterSwap', function () {
+    getGradeInputs().forEach(function (inp, i) {
+      inp.dataset.idx = i;
+    });
+  });
+  getGradeInputs().forEach(function (inp, i) {
+    inp.dataset.idx = i;
+  });
+
+  // عنوان التلميح
+  var header = document.querySelector('#grades-table thead');
+  if (header) {
+    var hint = document.createElement('p');
+    hint.className = 'text-xs text-gray-400 px-4 py-1 bg-gray-50 border-b';
+    hint.dir = 'rtl';
+    hint.textContent = '💡 نصيحة: Enter = حفظ + التالي | ↑↓ أو Tab للتنقل';
+    header.insertAdjacentElement('afterend', hint);
+  }
+})();
+</script>
 {% endblock %}

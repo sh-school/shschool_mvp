@@ -84,15 +84,19 @@ def attendance_view(request, session_id):
         )
 
     summary = AttendanceService.get_session_summary(session)
+    view_mode = request.GET.get("view", "list")  # list | grid
+
+    template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
     return render(
         request,
-        "teacher/attendance.html",
+        template,
         {
             "session": session,
             "students_data": students_data,
             "summary": summary,
             "existing_count": len(existing),
+            "view_mode": view_mode,
         },
     )
 
@@ -127,9 +131,16 @@ def mark_single(request, session_id):
 
     summary = AttendanceService.get_session_summary(session)
 
+    # Grid mode: أعد خلية الشبكة بدلاً من الصف
+    view_mode = request.POST.get("view", "list")
+    partial_template = (
+        "teacher/partials/grid_cell.html" if view_mode == "grid"
+        else "teacher/partials/student_row.html"
+    )
+
     return render(
         request,
-        "teacher/partials/student_row.html",
+        partial_template,
         {
             "student": student,
             "attendance": att,

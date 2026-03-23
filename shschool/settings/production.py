@@ -5,6 +5,29 @@ from .base import *
 
 DEBUG = False
 
+# ══════════════════════════════════════════════════════════════
+# ✅ v5.1: Sentry — مراقبة الأخطاء (PDPPL: send_default_pii=False)
+# ══════════════════════════════════════════════════════════════
+SENTRY_DSN = config("SENTRY_DSN", default="")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.redis import RedisIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            RedisIntegration(),
+        ],
+        traces_sample_rate=0.1,      # 10% من الطلبات للـ performance tracing
+        send_default_pii=False,      # ← PDPPL: لا بيانات شخصية للطلاب
+        environment="production",
+        release=config("APP_VERSION", default="v5.1"),
+    )
+
 # ── التحقق من المفاتيح الحرجة قبل تشغيل الإنتاج ──────────────
 if not SECRET_KEY or SECRET_KEY == "dev-secret-key-change-in-production":
     raise ImproperlyConfigured(
@@ -91,15 +114,23 @@ LOGGING = {
     },
     "handlers": {
         "file": {
-            "level": "WARNING",  # ✅ رُفع من ERROR → WARNING
-            "class": "logging.FileHandler",
+            "level": "WARNING",
+            # ✅ v5.1: RotatingFileHandler بدلاً من FileHandler
+            # يدير حجم الملف تلقائياً: 10MB × 5 نسخ = 50MB حد أقصى
+            "class": "logging.handlers.RotatingFileHandler",
             "filename": BASE_DIR / "logs/django.log",
+            "maxBytes": 10 * 1024 * 1024,  # 10 MB
+            "backupCount": 5,
+            "encoding": "utf-8",
             "formatter": "verbose",
         },
         "security_file": {
             "level": "WARNING",
-            "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs/security.log",  # ملف أمان مستقل
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "logs/security.log",
+            "maxBytes": 5 * 1024 * 1024,   # 5 MB
+            "backupCount": 10,              # نحتفظ بـ 10 نسخ للأمان
+            "encoding": "utf-8",
             "formatter": "security",
         },
         "console": {"class": "logging.StreamHandler"},
@@ -109,9 +140,13 @@ LOGGING = {
         "django": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "django.security": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
         "django.request": {"handlers": ["file"], "level": "WARNING", "propagate": False},
-        "notifications": {"handlers": ["file"], "level": "WARNING", "propagate": False},
+        "notifications": {"handlers": ["file"], "level": "INFO", "propagate": False},
+        "notifications.hub": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "core": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        # ✅ v5.1: Channels & WebSocket logging
+        "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},
+        "daphne": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }
 

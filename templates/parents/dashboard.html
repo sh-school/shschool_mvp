@@ -112,24 +112,22 @@
       </div>
     </div>
 
-    {# ── Stats strip ── #}
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);
-                border-top:1px solid var(--border);">
+    {# ── Stats strip — 2 عمود على الجوال، 4 على الشاشات الأكبر ── #}
+    <div class="grid grid-cols-2 sm:grid-cols-4"
+         style="border-top:1px solid var(--border);">
 
-      <div style="padding:16px;text-align:center;border-left:1px solid var(--border);">
+      <div class="p-4 text-center" style="border-left:1px solid var(--border);">
         <div style="font-size:26px;font-weight:800;color:var(--maroon);">{{ child.total_subj }}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">إجمالي المواد</div>
       </div>
 
-      <div style="padding:16px;text-align:center;border-left:1px solid var(--border);">
+      <div class="p-4 text-center" style="border-left:1px solid var(--border);">
         <div style="font-size:26px;font-weight:800;color:#166534;">{{ child.passed }}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">ناجح</div>
       </div>
 
-      <div style="padding:16px;text-align:center;border-left:1px solid var(--border);
-                  {% if child.failed %}background:#fef2f2;{% endif %}">
-        <div style="font-size:26px;font-weight:800;
-                    color:{% if child.failed %}#dc2626{% else %}#9ca3af{% endif %};">
+      <div class="p-4 text-center" style="border-left:1px solid var(--border);{% if child.failed %}background:#fef2f2;{% endif %}">
+        <div style="font-size:26px;font-weight:800;color:{% if child.failed %}#dc2626{% else %}#9ca3af{% endif %};">
           {{ child.failed }}
         </div>
         <div style="font-size:11px;color:{% if child.failed %}#dc2626{% else %}var(--text-muted){% endif %};margin-top:3px;">
@@ -140,8 +138,7 @@
         {% endif %}
       </div>
 
-      <div style="padding:16px;text-align:center;
-                  {% if child.absent_30 >= 5 %}background:#fff7ed;{% endif %}">
+      <div class="p-4 text-center" style="{% if child.absent_30 >= 5 %}background:#fff7ed;{% endif %}">
         <div style="font-size:26px;font-weight:800;
                     color:{% if child.absent_30 >= 5 %}#d97706{% elif child.absent_30 > 0 %}#f59e0b{% else %}#9ca3af{% endif %};">
           {{ child.absent_30 }}

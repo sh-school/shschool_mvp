@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.urls import include, path
 
 from core.views_health import health_check
+from core.views_pwa import global_sw, global_manifest, offline_global
 
 urlpatterns = [
     path("health/", health_check),
@@ -30,6 +31,11 @@ urlpatterns = [
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
+    # ✅ v5.1: Prometheus metrics — /metrics/ (محمي بـ firewall/VPN في الإنتاج)
+    path("", include("django_prometheus.urls")),
+    path('sw.js', global_sw, name='global_sw'),
+    path('manifest.json', global_manifest, name='global_manifest'),
+    path('offline/', offline_global, name='offline_global'),
 ]
 
 if settings.DEBUG:

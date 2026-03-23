@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#8A1538">
+  <title>غير متصل — SchoolOS</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif;
+      background: #8A1538;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .card {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 40px 32px;
+      max-width: 360px;
+      width: 100%;
+    }
+    .icon { font-size: 4rem; margin-bottom: 20px; }
+    h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 10px; }
+    p { font-size: 14px; opacity: 0.85; line-height: 1.7; margin-bottom: 28px; }
+    .btn {
+      display: inline-block;
+      background: #fff;
+      color: #8A1538;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 12px 32px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .logo {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      font-size: 13px;
+      opacity: .6;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">🏫 SchoolOS</div>
+  <div class="card">
+    <div class="icon">📡</div>
+    <h1>أنت غير متصل بالإنترنت</h1>
+    <p>يبدو أن الاتصال بالشبكة انقطع.<br>تحقق من الاتصال ثم أعد المحاولة.</p>
+    <button class="btn" onclick="window.location.reload()">🔄 إعادة المحاولة</button>
+  </div>
+  <script>
+    /* إعادة التحميل تلقائياً عند استعادة الاتصال */
+    window.addEventListener('online', function () {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+{#
+  خلية شبكة الحضور — SchoolOS v5.1
+  يُعاد بـ HTMX من mark_single عند view=grid
+  id: student-grid-{{ student.id }}
+#}
+<div
+  id="student-grid-{{ student.id }}"
+  class="grid-cell bg-white rounded-xl border-2 p-3 flex flex-col gap-2 transition-all
+    {% if status == 'present' %}border-green-400 bg-green-50
+    {% elif status == 'absent' %}border-red-400 bg-red-50
+    {% elif status == 'late' %}border-yellow-400 bg-yellow-50
+    {% elif status == 'excused' %}border-purple-400 bg-purple-50
+    {% else %}border-gray-200{% endif %}"
+  data-student-id="{{ student.id }}"
+  tabindex="0"
+  role="group"
+  aria-label="{{ student.full_name }}"
+>
+  {# اسم الطالب #}
+  <div class="text-center">
+    <p class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ student.full_name }}</p>
+    <p class="text-xs text-gray-400 font-mono mt-0.5">{{ student.national_id }}</p>
+  </div>
+
+  {# حالة الحضور الحالية #}
+  <div class="text-center">
+    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold
+      {% if status == 'present' %}bg-green-200 text-green-800
+      {% elif status == 'absent' %}bg-red-200 text-red-800
+      {% elif status == 'late' %}bg-yellow-200 text-yellow-800
+      {% elif status == 'excused' %}bg-purple-200 text-purple-800
+      {% else %}bg-gray-200 text-gray-600{% endif %}">
+      {% if status == 'present' %}✓ حاضر
+      {% elif status == 'absent' %}✗ غائب
+      {% elif status == 'late' %}⏱ متأخر
+      {% elif status == 'excused' %}📄 معذور
+      {% else %}— غير محدد{% endif %}
+    </span>
+  </div>
+
+  {# أزرار الحالة (44×44px minimum) #}
+  <div class="grid grid-cols-2 gap-1 mt-1">
+    <button
+      hx-post="{% url 'mark_single' session.id %}"
+      hx-vals='{"student_id": "{{ student.id }}", "status": "present", "view": "grid"}'
+      hx-target="#student-grid-{{ student.id }}"
+      hx-swap="outerHTML"
+      hx-include="[name=csrfmiddlewaretoken]"
+      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
+        {% if status == 'present' %}bg-green-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700{% endif %}"
+      title="P — حاضر"
+    >✓<br><span class="text-[10px]">حاضر</span></button>
+
+    <button
+      hx-post="{% url 'mark_single' session.id %}"
+      hx-vals='{"student_id": "{{ student.id }}", "status": "absent", "view": "grid"}'
+      hx-target="#student-grid-{{ student.id }}"
+      hx-swap="outerHTML"
+      hx-include="[name=csrfmiddlewaretoken]"
+      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
+        {% if status == 'absent' %}bg-red-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700{% endif %}"
+      title="A — غائب"
+    >✗<br><span class="text-[10px]">غائب</span></button>
+
+    <button
+      hx-post="{% url 'mark_single' session.id %}"
+      hx-vals='{"student_id": "{{ student.id }}", "status": "late", "view": "grid"}'
+      hx-target="#student-grid-{{ student.id }}"
+      hx-swap="outerHTML"
+      hx-include="[name=csrfmiddlewaretoken]"
+      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
+        {% if status == 'late' %}bg-yellow-500 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}"
+      title="L — متأخر"
+    >⏱<br><span class="text-[10px]">متأخر</span></button>
+
+    <button
+      hx-post="{% url 'mark_single' session.id %}"
+      hx-vals='{"student_id": "{{ student.id }}", "status": "excused", "view": "grid"}'
+      hx-target="#student-grid-{{ student.id }}"
+      hx-swap="outerHTML"
+      hx-include="[name=csrfmiddlewaretoken]"
+      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
+        {% if status == 'excused' %}bg-purple-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700{% endif %}"
+      title="E — معذور"
+    >📄<br><span class="text-[10px]">معذور</span></button>
+  </div>
+</div>
+{% if summary %}<script nonce="{{ request.csp_nonce }}">document.getElementById('summary-widget')?.dispatchEvent(new Event('refresh'));</script>{% endif %}

@@ -1,0 +1,53 @@
+{#
+  مكوّن تأكيد الإجراءات التدميرية — SchoolOS v5.1
+  ══════════════════════════════════════════════════
+  الاستخدام:
+    {% include "components/confirm_dialog.html" with
+       confirm_id="delete-student-123"
+       title="حذف الطالب"
+       message="هل أنت متأكد من حذف هذا الطالب؟ لا يمكن التراجع عن هذا الإجراء."
+       action_url="/students/123/delete/"
+       action_label="حذف"
+    %}
+
+  زر التشغيل:
+    <button data-modal-open="delete-student-123">🗑 حذف</button>
+#}
+<div
+  id="modal-{{ confirm_id }}"
+  class="modal-overlay"
+  style="display:none"
+  hidden
+  role="alertdialog"
+  aria-modal="true"
+  aria-labelledby="confirm-title-{{ confirm_id }}"
+  aria-describedby="confirm-msg-{{ confirm_id }}"
+>
+  <div class="modal-box modal-sm" role="document">
+
+    <div class="modal-header">
+      <span id="confirm-title-{{ confirm_id }}" style="color:#dc2626">
+        ⚠ {{ title|default:"تأكيد الإجراء" }}
+      </span>
+      <button class="modal-close-btn" data-modal-close="{{ confirm_id }}" aria-label="إغلاق">×</button>
+    </div>
+
+    <div class="modal-body">
+      <p id="confirm-msg-{{ confirm_id }}" style="color:var(--text-secondary);line-height:1.7">
+        {{ message|default:"هل أنت متأكد من تنفيذ هذا الإجراء؟" }}
+      </p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" data-modal-close="{{ confirm_id }}">إلغاء</button>
+      <form method="post" action="{{ action_url }}" style="display:inline">
+        {% csrf_token %}
+        {% if extra_fields %}{{ extra_fields|safe }}{% endif %}
+        <button type="submit" class="btn-danger">
+          {{ action_label|default:"تأكيد" }}
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>

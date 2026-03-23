@@ -9,13 +9,19 @@
     {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
   </h1>
   <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
+
+  {# تبديل العرض #}
+  <div class="mr-auto flex items-center gap-2">
+    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">☰ قائمة</span>
+    <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">⊞ شبكة</a>
+  </div>
 </div>
 
 <!-- Summary Widget (HTMX updates) -->
 <div id="summary-widget"
      hx-get="/teacher/attendance/{{ session.id }}/summary/"
      hx-trigger="every 10s"
-     class="grid grid-cols-4 gap-3 mb-5">
+     class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
 

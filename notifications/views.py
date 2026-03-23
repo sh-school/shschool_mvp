@@ -231,13 +231,17 @@ def notification_inbox(request):
 @require_POST
 def mark_notification_read(request, notif_id):
     """تحديد إشعار واحد كمقروء"""
+    import json
+
     notif = get_object_or_404(InAppNotification, id=notif_id, user=request.user)
     notif.mark_read()
 
     if request.headers.get("HX-Request"):
-        # HTMX: نرجع العدد الجديد فقط
+        # HTMX: أعد العنصر المحدَّث (is_read=True) + أطلق حدث تحديث الـ badge
         count = InAppNotification.objects.unread_count(request.user)
-        return HttpResponse(str(count))
+        response = render(request, "notifications/partials/notif_item.html", {"notif": notif})
+        response["HX-Trigger"] = json.dumps({"updateBadge": {"count": count}})
+        return response
 
     return redirect(notif.related_url or "notification_inbox")
 
@@ -296,3 +300,49 @@ def notification_preferences(request):
             "prefs": prefs,
         },
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# ✅ v5.1: البث الطارئ عبر WebSocket (مدير / مدير مدرسة فقط)
+# ══════════════════════════════════════════════════════════════
+
+@login_required
+@require_POST
+def emergency_broadcast(request):
+    """
+    يبث رسالة طارئة لجميع مستخدمي المدرسة المتصلين عبر WebSocket.
+    مقيَّد للمدير والمدير المساعد فقط.
+    """
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    from core.permissions import is_admin_or_principal
+
+    if not is_admin_or_principal(request.user):
+        return JsonResponse({"error": "غير مصرح"}, status=403)
+
+    message = request.POST.get("message", "").strip()
+    if not message:
+        return JsonResponse({"error": "الرسالة فارغة"}, status=400)
+
+    school = request.user.school
+    if not school:
+        return JsonResponse({"error": "لا مدرسة مرتبطة بالمستخدم"}, status=400)
+
+    layer = get_channel_layer()
+    if not layer:
+        return JsonResponse({"error": "WebSocket غير مُعدَّل"}, status=503)
+
+    try:
+        async_to_sync(layer.group_send)(
+            f"school_{school.pk}",
+            {
+                "type": "emergency.broadcast",
+                "message": message,
+            },
+        )
+        return JsonResponse({"status": "ok", "recipients": f"school_{school.pk}"})
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error(f"Emergency broadcast failed: {exc}")
+        return JsonResponse({"error": "فشل الإرسال"}, status=500)

@@ -1,0 +1,144 @@
+{% extends "base/base.html" %}
+{% block title %}تسجيل حضور (شبكة) — {{ session.class_group }}{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+{# ── شريط العنوان ── #}
+<div class="flex flex-wrap items-center gap-3 mb-5">
+  <a href="{% url 'teacher_schedule' %}" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
+  <span class="text-gray-300">/</span>
+  <h1 class="text-xl font-bold text-gray-900">
+    {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
+  </h1>
+  <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
+
+  {# تبديل العرض #}
+  <div class="mr-auto flex items-center gap-2">
+    <a href="?view=list"
+       class="btn-secondary text-xs px-3 py-1.5">
+      ☰ قائمة
+    </a>
+    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">
+      ⊞ شبكة
+    </span>
+  </div>
+</div>
+
+{# ── ملخص الحضور (تحديث كل 10 ثوانٍ) ── #}
+<div id="summary-widget"
+     hx-get="{% url 'session_summary' session.id %}"
+     hx-trigger="every 10s, refresh"
+     class="grid grid-cols-4 gap-3 mb-5">
+  {% include "teacher/partials/summary_widget.html" %}
+</div>
+
+{# ── أزرار الإجراءات العامة ── #}
+<div class="flex flex-wrap items-center gap-2 mb-4">
+  <form method="post" action="{% url 'mark_all_present' session.id %}"
+        hx-post="{% url 'mark_all_present' session.id %}"
+        hx-target="#grid-container"
+        hx-swap="outerHTML">
+    {% csrf_token %}
+    <button type="submit"
+            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      ✓ الكل حاضر
+    </button>
+  </form>
+
+  <span class="text-sm text-gray-500">{{ students_data|length }} طالب</span>
+
+  {% if session.status != 'completed' %}
+  <form method="post" action="{% url 'complete_session' session.id %}"
+        class="mr-auto">
+    {% csrf_token %}
+    <button type="submit"
+            class="bg-maroon hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      إنهاء الحصة ✓
+    </button>
+  </form>
+  {% else %}
+  <span class="mr-auto text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">✓ الحصة منتهية</span>
+  {% endif %}
+</div>
+
+{# ── شبكة الطلاب ── #}
+<div id="grid-container"
+     class="grid gap-3"
+     style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
+  {% for item in students_data %}
+  {% include "teacher/partials/grid_cell.html" with
+     student=item.student
+     attendance=item.attendance
+     status=item.status
+     session=session
+     only
+  %}
+  {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+
+  /**
+   * لوحة المفاتيح في شبكة الحضور
+   * P = حاضر | A = غائب | L = متأخر | E = معذور
+   * Tab / الأسهم = التنقل بين الخلايا
+   */
+  var grid = document.getElementById('grid-container');
+  if (!grid) return;
+
+  function getCells() {
+    return Array.from(grid.querySelectorAll('.grid-cell'));
+  }
+
+  function focusCell(idx) {
+    var cells = getCells();
+    if (idx >= 0 && idx < cells.length) {
+      cells[idx].focus();
+    }
+  }
+
+  function clickStatus(cell, status) {
+    var btn = cell.querySelector('button[hx-vals*=\'"status": "' + status + '"\']');
+    if (btn) btn.click();
+  }
+
+  grid.addEventListener('keydown', function (e) {
+    var cell = e.target.closest('.grid-cell');
+    if (!cell) return;
+
+    var cells = getCells();
+    var idx = cells.indexOf(cell);
+    var cols = Math.floor(grid.offsetWidth / 156) || 1;  // تقريبي
+
+    switch (e.key) {
+      case 'p': case 'P': e.preventDefault(); clickStatus(cell, 'present');  break;
+      case 'a': case 'A': e.preventDefault(); clickStatus(cell, 'absent');   break;
+      case 'l': case 'L': e.preventDefault(); clickStatus(cell, 'late');     break;
+      case 'e': case 'E': e.preventDefault(); clickStatus(cell, 'excused');  break;
+      case 'ArrowRight': e.preventDefault(); focusCell(idx - 1); break;
+      case 'ArrowLeft':  e.preventDefault(); focusCell(idx + 1); break;
+      case 'ArrowUp':    e.preventDefault(); focusCell(idx - cols); break;
+      case 'ArrowDown':  e.preventDefault(); focusCell(idx + cols); break;
+      case 'Tab':
+        e.preventDefault();
+        focusCell(e.shiftKey ? idx - 1 : idx + 1);
+        break;
+    }
+  });
+
+  // بعد swap، انقل التركيز للخلية المحدَّثة
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    var swapped = e.detail.target;
+    if (swapped && swapped.classList.contains('grid-cell')) {
+      swapped.focus();
+    }
+  });
+})();
+</script>
+{% endblock %}

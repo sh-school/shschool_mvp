@@ -11,6 +11,12 @@
   {# ── Favicon & PWA ── #}
   <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+  {% if user.is_authenticated %}
+  <link rel="manifest" href="{% url 'global_manifest' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SchoolOS">
+  {% endif %}
 
   {# ── Arabic Font: Tajawal ── #}
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +106,12 @@
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
+{# ✅ v5.1: Skip Navigation — WCAG 2.1 AA #}
+<a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
+
+{# ✅ v5.1: Toast Container #}
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 
@@ -116,7 +128,15 @@
 
     <div style="width:1px;height:20px;background:rgba(255,255,255,0.2);margin:0 6px;flex-shrink:0;"></div>
 
+    {# ── Hamburger (mobile only) ── #}
+    <button id="mob-menu-btn" aria-label="القائمة" aria-expanded="false"
+            onclick="toggleMobMenu()"
+            style="display:none;background:none;border:none;color:#fff;
+                   font-size:1.4rem;padding:6px 8px;min-width:44px;min-height:44px;
+                   cursor:pointer;line-height:1;flex-shrink:0;">☰</button>
+
     {# ── Role-based nav ── #}
+    <div class="nb-bar">
     {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
       <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">📚 الأكاديمية <span class="chv">▼</span></button>
@@ -163,6 +183,7 @@
       <a href="/parents/grades/" class="nb">📊 الدرجات</a>
 
     {% endif %}
+    </div>{# end nb-bar #}
 
     <div style="flex:1;"></div>
 
@@ -354,31 +375,138 @@ window.addEventListener('resize', function() {
 });
 
 {% if user.is_authenticated %}
-/* ── Notification bell polling (30 s) ────────────────────── */
+/* ── Notification bell — WebSocket + fallback polling ───── */
 (function() {
   var badge = document.getElementById('notif-badge');
   if (!badge) return;
-  function updateBadge() {
-    fetch('/notifications/api/unread-count/', {
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(data){
-      if (!data) return;
-      if (data.count > 0) {
-        badge.textContent = data.count > 99 ? '99+' : data.count;
-        badge.style.display = 'flex';
-      } else {
-        badge.style.display = 'none';
-      }
-    })
-    .catch(function(){});
+
+  function setBadge(count) {
+    count = parseInt(count, 10) || 0;
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
   }
-  updateBadge();
-  setInterval(updateBadge, 30000);
+
+  function startPolling() {
+    function poll() {
+      fetch('/notifications/api/unread-count/', {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) setBadge(d.count); })
+      .catch(function(){});
+    }
+    poll();
+    return setInterval(poll, 30000);
+  }
+
+  /* ── WebSocket ─────────────────────────────────── */
+  var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws;
+  var pollTimer = null;
+
+  function connectWS() {
+    try {
+      ws = new WebSocket(wsProto + '://' + location.host + '/ws/notifications/');
+    } catch(e) {
+      pollTimer = startPolling();
+      return;
+    }
+
+    ws.onmessage = function(e) {
+      var d;
+      try { d = JSON.parse(e.data); } catch(_) { return; }
+
+      if (d.type === 'unread_count' || d.type === 'new_notification') {
+        setBadge(d.count);
+      }
+      if (d.type === 'new_notification' && typeof window.showToast === 'function') {
+        var toastType = (d.priority === 'urgent' || d.priority === 'high') ? 'danger' : 'info';
+        window.showToast(d.title, toastType);
+      }
+      if (d.type === 'emergency') {
+        showEmergencyBanner(d.message);
+      }
+    };
+
+    ws.onclose = function() {
+      /* fallback: إذا انقطع WebSocket نرجع للـ polling */
+      if (!pollTimer) { pollTimer = startPolling(); }
+    };
+
+    ws.onerror = function() {
+      if (!pollTimer) { pollTimer = startPolling(); }
+    };
+  }
+
+  connectWS();
+
+  /* ── البث الطارئ ────────────────────────────────── */
+  function showEmergencyBanner(msg) {
+    var banner = document.getElementById('emergency-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'emergency-banner';
+      banner.style.cssText = [
+        'position:fixed','top:0','right:0','left:0','z-index:9999',
+        'background:#8A1538','color:#fff','padding:14px 20px',
+        'font-weight:700','text-align:center','font-size:1rem',
+        'box-shadow:0 2px 8px rgba(0,0,0,.3)'
+      ].join(';');
+      document.body.prepend(banner);
+    }
+    banner.textContent = '🚨 ' + msg;
+    banner.style.display = 'block';
+  }
 })();
 {% endif %}
+
+/* ── Hamburger mobile menu ───────────────────────────────── */
+window.toggleMobMenu = function() {
+  var bar = document.querySelector('.nb-bar');
+  var btn = document.getElementById('mob-menu-btn');
+  if (!bar || !btn) return;
+  var isOpen = bar.classList.toggle('open');
+  btn.setAttribute('aria-expanded', String(isOpen));
+  btn.textContent = isOpen ? '✕' : '☰';
+};
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.nb-bar') && !e.target.closest('#mob-menu-btn')) {
+    var bar = document.querySelector('.nb-bar');
+    var btn = document.getElementById('mob-menu-btn');
+    if (bar) bar.classList.remove('open');
+    if (btn) { btn.textContent = '☰'; btn.setAttribute('aria-expanded','false'); }
+  }
+});
+
+/* ── PWA Install Banner ──────────────────────────────────── */
+var _pwaPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault(); _pwaPrompt = e;
+  if (!localStorage.getItem('pwaDismissed')) {
+    setTimeout(function() {
+      var b = document.getElementById('pwa-banner');
+      if (b) b.style.display = 'flex';
+    }, 5000);
+  }
+});
+window.installPWA = function() {
+  if (_pwaPrompt) { _pwaPrompt.prompt(); _pwaPrompt = null; }
+  var b = document.getElementById('pwa-banner');
+  if (b) b.style.display = 'none';
+};
+window.dismissBanner = function() {
+  var b = document.getElementById('pwa-banner');
+  if (b) b.style.display = 'none';
+  localStorage.setItem('pwaDismissed', '1');
+};
+
+/* ── Global Service Worker (لا يتعارض مع /parents/sw.js) ── */
+if ('serviceWorker' in navigator && !location.pathname.startsWith('/parents/')) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js', {scope: '/'}).catch(function(){});
+  });
+}
 
 /* ── Auto-dismiss flash messages after 7 s ──────────────── */
 setTimeout(function() {
@@ -387,8 +515,126 @@ setTimeout(function() {
     setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 420);
   });
 }, 7000);
+
+/* ✅ v5.1: Toast System ─────────────────────────────────── */
+window.showToast = function(msg, type, duration) {
+  type = type || 'success';
+  duration = duration || 4000;
+  var icons = { success: '✓', danger: '✗', info: 'ℹ', warning: '⚠' };
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML =
+    '<span class="toast-icon">' + (icons[type] || '•') + '</span>' +
+    '<span style="flex:1">' + msg + '</span>' +
+    '<button class="toast-close" aria-label="إغلاق">×</button>';
+  toast.querySelector('.toast-close').onclick = function() { removeToast(toast); };
+  container.appendChild(toast);
+  setTimeout(function() { removeToast(toast); }, duration);
+};
+function removeToast(el) {
+  el.classList.add('toast-leaving');
+  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+}
+
+/* ✅ v5.1: HTMX → showToast via HX-Trigger header ─────── */
+document.body.addEventListener('showToast', function(e) {
+  if (e.detail) window.showToast(e.detail.msg, e.detail.type);
+});
+
+/* ✅ v5.1: Modal Manager ────────────────────────────────── */
+window.modalManager = {
+  _stack: [],
+  open: function(id) {
+    var overlay = document.getElementById('modal-' + id);
+    if (!overlay) return;
+    this._stack.push({ id: id, trigger: document.activeElement });
+    overlay.style.display = 'flex';
+    overlay.removeAttribute('hidden');
+    var focusable = overlay.querySelector(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable) setTimeout(function() { focusable.focus(); }, 50);
+  },
+  close: function(id) {
+    var overlay = document.getElementById('modal-' + id);
+    if (!overlay) return;
+    overlay.style.display = 'none';
+    overlay.setAttribute('hidden', '');
+    var prev = this._stack.pop();
+    if (prev && prev.trigger) prev.trigger.focus();
+  },
+  closeTop: function() {
+    if (this._stack.length) this.close(this._stack[this._stack.length - 1].id);
+  }
+};
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') window.modalManager.closeTop();
+});
+document.addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.dataset.modalOpen) window.modalManager.open(t.dataset.modalOpen);
+  if (t.dataset.modalClose) window.modalManager.close(t.dataset.modalClose);
+});
 </script>
 
 {% block extra_js %}{% endblock %}
+
+{# ── PWA Install Banner ── #}
+{% if user.is_authenticated %}
+<div id="pwa-banner"
+     style="display:none;position:fixed;bottom:80px;right:12px;left:12px;
+            z-index:3500;background:#8A1538;color:#fff;border-radius:14px;
+            padding:12px 16px;align-items:center;gap:12px;
+            box-shadow:0 4px 20px rgba(138,21,56,.4);">
+  <span style="font-size:1.5rem;flex-shrink:0;">📲</span>
+  <div style="flex:1;min-width:0;">
+    <strong style="display:block;font-size:13px;">أضف SchoolOS لشاشتك الرئيسية</strong>
+    <span style="opacity:.8;font-size:11.5px;">وصول سريع بدون فتح المتصفح</span>
+  </div>
+  <button onclick="installPWA()"
+          style="background:#fff;color:#8A1538;border:none;
+                 border-radius:8px;padding:6px 14px;font-size:13px;
+                 font-weight:700;cursor:pointer;min-height:36px;flex-shrink:0;">تثبيت</button>
+  <button onclick="dismissBanner()"
+          style="background:none;border:none;color:#fff;
+                 font-size:1.3rem;cursor:pointer;padding:4px;
+                 min-width:32px;min-height:32px;line-height:1;flex-shrink:0;">✕</button>
+</div>
+{% endif %}
+
+{# ✅ v5.1: Mobile Bottom Navigation (role-aware) #}
+{% if user.is_authenticated %}
+{% with role=request.user.get_role %}
+<nav class="mobile-bottom-nav" aria-label="التنقل السريع">
+  <div class="mobile-bottom-nav-inner">
+    <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
+      <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
+    </a>
+    {% if role in 'teacher,admin,principal,vice_principal' %}
+    <a href="/teacher/attendance/" class="mobile-nav-item {% if 'attendance' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📋</span><span>الحضور</span>
+    </a>
+    {% endif %}
+    {% if role == 'parent' %}
+    <a href="/parents/" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">👨‍👩‍👧</span><span>أبنائي</span>
+    </a>
+    {% endif %}
+    <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">🔔</span><span>الإشعارات</span>
+    </a>
+    {% if role in 'admin,principal' %}
+    <a href="/analytics/kpis/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📊</span><span>التحليلات</span>
+    </a>
+    {% endif %}
+  </div>
+</nav>
+{% endwith %}
+{% endif %}
+
 </body>
 </html>

@@ -31,11 +31,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
-    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -49,7 +49,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - ./media:/app/media
       - ./staticfiles:/app/staticfiles
@@ -65,7 +65,7 @@ services:
       sh -c "
         python manage.py migrate --noinput &&
         python manage.py collectstatic --noinput &&
-        gunicorn shschool.wsgi:application --config /app/gunicorn.conf.py
+        daphne -b 0.0.0.0 -p 8000 shschool.asgi:application
       "
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ || exit 1"]
@@ -84,7 +84,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - ./media:/app/media
       - ./logs:/app/logs
@@ -108,7 +108,7 @@ services:
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
     volumes:
       - ./logs:/app/logs
     depends_on:

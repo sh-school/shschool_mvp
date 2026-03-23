@@ -179,6 +179,11 @@ def visits_list(request):
         "date_filter": date_filter,
         "student_filter": student_filter,
     }
+
+    # HTMX: أعد الجزء فقط (بحث حي + ترشيح)
+    if getattr(request, "htmx", None) or request.headers.get("HX-Request"):
+        return render(request, "clinic/partials/visit_rows.html", context)
+
     return render(request, "clinic/visits_list.html", context)
 
 
