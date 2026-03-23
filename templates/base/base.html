@@ -613,9 +613,9 @@ document.addEventListener('click', function(e) {
     <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
       <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
     </a>
-    {% if role in 'teacher,admin,principal,vice_principal' %}
-    <a href="/teacher/attendance/" class="mobile-nav-item {% if 'attendance' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📋</span><span>الحضور</span>
+    {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}
+    <a href="/teacher/schedule/" class="mobile-nav-item {% if 'schedule' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📋</span><span>جدولي</span>
     </a>
     {% endif %}
     {% if role == 'parent' %}
@@ -626,8 +626,8 @@ document.addEventListener('click', function(e) {
     <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">🔔</span><span>الإشعارات</span>
     </a>
-    {% if role in 'admin,principal' %}
-    <a href="/analytics/kpis/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
+    {% if role == 'principal' or role == 'vice_academic' or role == 'vice_admin' or role == 'admin' or request.user.is_superuser %}
+    <a href="/analytics/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">📊</span><span>التحليلات</span>
     </a>
     {% endif %}
