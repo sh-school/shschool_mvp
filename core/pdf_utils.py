@@ -174,7 +174,18 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
 # ── xhtml2pdf: تسجيل الخطوط مع ReportLab ───────────────────────────────
 
 
+_FONTS_REGISTERED = False
+
+
 def _register_fonts_reportlab() -> list:
+    """
+    تسجيل الخطوط مع ReportLab + addMapping لربط أسماء CSS.
+    xhtml2pdf يبحث في addMapping أولاً قبل @font-face.
+    """
+    global _FONTS_REGISTERED
+    if _FONTS_REGISTERED:
+        return ["Tajawal", "Amiri"]
+
     try:
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
@@ -215,44 +226,36 @@ def _register_fonts_reportlab() -> list:
             )
     except Exception as e:
         logger.debug("registerFontFamily failed: %s", e)
+
+    # ── addMapping: يربط CSS font-family → ReportLab font name ──
+    # هذا هو المفتاح — xhtml2pdf يبحث هنا عند رؤية font-family في CSS
+    try:
+        from reportlab.lib.fonts import addMapping
+
+        if "Tajawal" in registered:
+            addMapping("Tajawal", 0, 0, "Tajawal")          # normal
+        if "Tajawal-Bold" in registered:
+            addMapping("Tajawal", 1, 0, "Tajawal-Bold")     # bold
+            addMapping("Tajawal", 1, 1, "Tajawal-Bold")     # bold-italic
+        if "Tajawal" in registered:
+            addMapping("Tajawal", 0, 1, "Tajawal")          # italic (=normal)
+        if "Amiri" in registered:
+            addMapping("Amiri", 0, 0, "Amiri")
+        if "Amiri-Bold" in registered:
+            addMapping("Amiri", 1, 0, "Amiri-Bold")
+            addMapping("Amiri", 1, 1, "Amiri-Bold")
+        if "Amiri" in registered:
+            addMapping("Amiri", 0, 1, "Amiri")
+    except Exception as e:
+        logger.debug("addMapping failed: %s", e)
+
+    _FONTS_REGISTERED = True
     return registered
 
 
 def _strip_font_face(html_str: str) -> str:
+    """حذف @font-face — xhtml2pdf لا يحتاجها (يعتمد على ReportLab المسجّل)"""
     return re.sub(r"@font-face\s*\{[^}]+\}", "", html_str)
-
-
-def _font_face_css_xhtml2pdf() -> str:
-    """
-    @font-face خاص بـ xhtml2pdf — يستخدم مسارات /static/ يحلّها link_callback
-    """
-    fd = _fonts_dir()
-    parts = []
-    for family, weight, style, filename in [
-        ("Tajawal", "normal", "normal", "Tajawal-Regular.ttf"),
-        ("Tajawal", "bold", "normal", "Tajawal-Bold.ttf"),
-        ("Amiri", "normal", "normal", "Amiri-Regular.ttf"),
-        ("Amiri", "bold", "normal", "Amiri-Bold.ttf"),
-    ]:
-        p = fd / filename
-        if p.exists():
-            parts.append(
-                f"@font-face {{ font-family: '{family}'; "
-                f"font-weight: {weight}; font-style: {style}; "
-                f"src: url('/static/fonts/{filename}'); }}"
-            )
-    return "\n".join(parts)
-
-
-def _inject_fonts_xhtml2pdf(html_str: str) -> str:
-    """حقن @font-face في HTML خاص بـ xhtml2pdf"""
-    html_str = _strip_font_face(html_str)
-    font_css = _font_face_css_xhtml2pdf()
-    if not font_css:
-        return html_str
-    if "</style>" in html_str:
-        return html_str.replace("</style>", f"\n{font_css}\n</style>", 1)
-    return f"<style>\n{font_css}\n</style>\n{html_str}"
 
 
 # ── Playwright: قوالب الهيدر والفوتر ────────────────────────────────────
@@ -444,7 +447,8 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         from xhtml2pdf import pisa
 
         _register_fonts_reportlab()
-        xhtml_html = _inject_fonts_xhtml2pdf(html_str)
+        # حذف @font-face (xhtml2pdf لا يحتاجها — يعتمد على addMapping + registerFont)
+        xhtml_html = _strip_font_face(html_str)
         static_root = str(Path(settings.BASE_DIR) / "static")
 
         def _link_callback(uri, rel):
