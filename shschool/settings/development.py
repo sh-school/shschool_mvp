@@ -47,3 +47,21 @@ else:
     CELERY_TASK_EAGER_PROPAGATES = True
     CELERY_BROKER_URL = "memory://"
     CELERY_RESULT_BACKEND = "cache+memory://"
+
+# ── Django Channels — وضع التطوير ────────────────────────────
+# إذا لم يكن Redis مشغّلاً، استخدم InMemoryChannelLayer بدلاً من Redis
+# WebSocket يعمل بشكل كامل داخل نفس العملية (كافٍ للتطوير)
+def _redis_running() -> bool:
+    import socket
+    try:
+        with socket.create_connection(("127.0.0.1", 6379), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+if not REDIS_URL and not _redis_running():
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }

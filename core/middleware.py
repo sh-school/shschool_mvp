@@ -6,7 +6,19 @@ core/middleware.py
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 
-EXEMPT = ["/auth/", "/admin/", "/static/", "/media/", "/health/"]
+EXEMPT = [
+    "/auth/",
+    "/admin/",
+    "/static/",
+    "/media/",
+    "/health/",
+    # ✅ PWA — يجب أن تكون عامة بدون تسجيل دخول
+    "/manifest.json",
+    "/sw.js",
+    "/offline/",
+    # ✅ Prometheus metrics
+    "/metrics",
+]
 
 PROTECTED_PATHS = {
     "/assessments/": [
