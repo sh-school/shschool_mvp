@@ -398,6 +398,46 @@ class ExcelService:
         ws.protection.sort = False  # يسمح بالفرز
 
     @classmethod
+    def _setup_print_a4_portrait(cls, ws, num_cols: int, num_data_rows: int):
+        """
+        إعداد الطباعة على ورق A4 عمودي (Portrait):
+        - هوامش ضيقة مناسبة
+        - تكرار صفوف الرأس في كل صفحة
+        - ملاءمة العرض في صفحة واحدة
+        - منطقة الطباعة
+        """
+        from openpyxl.worksheet.page import PageMargins, PrintPageSetup
+
+        ws.page_setup.paperSize = ws.PAPERSIZE_A4
+        ws.page_setup.orientation = "portrait"
+        ws.page_setup.fitToWidth = 1
+        ws.page_setup.fitToHeight = 0  # 0 = عدد صفحات غير محدود عمودياً
+        ws.sheet_properties.pageSetUpPr.fitToPage = True
+
+        # هوامش ضيقة (بالبوصة) مناسبة للطباعة
+        ws.page_margins = PageMargins(
+            left=0.4, right=0.4,
+            top=0.5, bottom=0.5,
+            header=0.2, footer=0.2,
+        )
+
+        # تكرار أول 4 صفوف (الرأس) في كل صفحة مطبوعة
+        ws.print_title_rows = "1:4"
+
+        # منطقة الطباعة
+        col_letter = ws.cell(row=1, column=num_cols).column_letter
+        last_row = num_data_rows + 4
+        ws.print_area = f"A1:{col_letter}{last_row}"
+
+        # هيدر وفوتر الطباعة
+        ws.oddHeader.center.text = "مدرسة الشحانية الإعدادية الثانوية للبنين"
+        ws.oddHeader.center.size = 9
+        ws.oddFooter.center.text = "صفحة &P من &N"
+        ws.oddFooter.center.size = 8
+        ws.oddFooter.right.text = "&D"
+        ws.oddFooter.right.size = 8
+
+    @classmethod
     def to_response(cls, wb, filename: str) -> HttpResponse:
         """تحويل Workbook إلى HttpResponse جاهز للتنزيل"""
         buf = BytesIO()
@@ -485,6 +525,7 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, is_alt)
 
         cls._apply_protection(ws, num_cols)
+        cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"نتائج_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
@@ -554,6 +595,7 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
         cls._apply_protection(ws, num_cols)
+        cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"غياب_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
@@ -632,5 +674,6 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
         cls._apply_protection(ws, num_cols)
+        cls._setup_print_a4_portrait(ws, num_cols, len(data["infractions"]))
 
         return cls.to_response(wb, f"سلوك_{school.name}_{year}.xlsx")

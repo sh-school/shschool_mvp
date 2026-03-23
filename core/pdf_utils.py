@@ -222,6 +222,39 @@ def _strip_font_face(html_str: str) -> str:
     return re.sub(r"@font-face\s*\{[^}]+\}", "", html_str)
 
 
+def _font_face_css_xhtml2pdf() -> str:
+    """
+    @font-face خاص بـ xhtml2pdf — يستخدم مسارات /static/ يحلّها link_callback
+    """
+    fd = _fonts_dir()
+    parts = []
+    for family, weight, style, filename in [
+        ("Tajawal", "normal", "normal", "Tajawal-Regular.ttf"),
+        ("Tajawal", "bold", "normal", "Tajawal-Bold.ttf"),
+        ("Amiri", "normal", "normal", "Amiri-Regular.ttf"),
+        ("Amiri", "bold", "normal", "Amiri-Bold.ttf"),
+    ]:
+        p = fd / filename
+        if p.exists():
+            parts.append(
+                f"@font-face {{ font-family: '{family}'; "
+                f"font-weight: {weight}; font-style: {style}; "
+                f"src: url('/static/fonts/{filename}'); }}"
+            )
+    return "\n".join(parts)
+
+
+def _inject_fonts_xhtml2pdf(html_str: str) -> str:
+    """حقن @font-face في HTML خاص بـ xhtml2pdf"""
+    html_str = _strip_font_face(html_str)
+    font_css = _font_face_css_xhtml2pdf()
+    if not font_css:
+        return html_str
+    if "</style>" in html_str:
+        return html_str.replace("</style>", f"\n{font_css}\n</style>", 1)
+    return f"<style>\n{font_css}\n</style>\n{html_str}"
+
+
 # ── Playwright: قوالب الهيدر والفوتر ────────────────────────────────────
 
 
@@ -411,7 +444,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         from xhtml2pdf import pisa
 
         _register_fonts_reportlab()
-        xhtml_html = _strip_font_face(html_str)
+        xhtml_html = _inject_fonts_xhtml2pdf(html_str)
         static_root = str(Path(settings.BASE_DIR) / "static")
 
         def _link_callback(uri, rel):
