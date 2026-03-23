@@ -2,6 +2,16 @@
 {% load dict_filters %}
 {% block title %}الجدول الأسبوعي{% endblock %}
 
+{% block breadcrumbs %}
+<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
+  <a href="/dashboard/">الرئيسية</a>
+  <span class="bc-sep">◂</span>
+  <a href="/teacher/schedule/">الأكاديمية</a>
+  <span class="bc-sep">◂</span>
+  <span class="bc-current">الجدول الأسبوعي</span>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
 
@@ -69,7 +79,7 @@
 
   <!-- Schedule Grid -->
   <div class="bg-white rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
-    <table class="w-full text-sm border-collapse">
+    <table class="w-full text-sm border-collapse table-sticky">
       <thead>
         <tr class="bg-[#8A1538] text-white">
           <th class="p-3 text-center w-16 border-b border-white/20">الحصة</th>

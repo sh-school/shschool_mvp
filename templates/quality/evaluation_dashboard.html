@@ -1,5 +1,16 @@
 {% extends "base/base.html" %}
-{% block title %}تقييم أداء الموظفين — SchoolOS{% endblock %}
+{% block title %}تقييم أداء الموظفين — مدرسة الشحانية{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
+  <a href="/dashboard/">الرئيسية</a>
+  <span class="bc-sep">◂</span>
+  <a href="/quality/">الجودة</a>
+  <span class="bc-sep">◂</span>
+  <span class="bc-current">تقييم أداء الموظفين</span>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-5xl mx-auto space-y-6" dir="rtl">
 

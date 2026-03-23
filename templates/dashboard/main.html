@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}لوحة التحكم — SchoolOS{% endblock %}
+{% block title %}لوحة التحكم — مدرسة الشحانية{% endblock %}
 
 {% block content %}
 
@@ -30,6 +30,12 @@
   <div class="kpi-card" style="--kpi-color:#166534;">
     <div class="kpi-value" style="color:#166534;">{{ attendance_pct }}<span style="font-size:18px;">%</span></div>
     <div class="kpi-label">نسبة الحضور</div>
+    {% if att_delta is not None %}
+    <span class="kpi-delta {% if att_delta > 0 %}up{% elif att_delta < 0 %}down{% else %}flat{% endif %}">
+      {% if att_delta > 0 %}↑{% elif att_delta < 0 %}↓{% else %}={% endif %}
+      {{ att_delta }}% عن أمس
+    </span>
+    {% endif %}
     <div class="progress-qatar mt-3">
       <div class="progress-qatar-fill" style="width:{{ attendance_pct }}%;background:linear-gradient(90deg,#15803d,#16a34a);"></div>
     </div>
@@ -43,6 +49,12 @@
   <div class="kpi-card">
     <div class="kpi-value" style="color:#dc2626;">{{ absent }}</div>
     <div class="kpi-label">طلاب غائبون</div>
+    {% if absent_delta is not None %}
+    <span class="kpi-delta {% if absent_delta > 0 %}down{% elif absent_delta < 0 %}up{% else %}flat{% endif %}">
+      {% if absent_delta > 0 %}↑{% elif absent_delta < 0 %}↓{% else %}={% endif %}
+      {{ absent_delta }} عن أمس
+    </span>
+    {% endif %}
   </div>
 
   <div class="kpi-card">
