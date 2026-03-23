@@ -53,26 +53,49 @@
       <div class="kpi-label">قيد التنفيذ</div>
     </div>
 
-    {# ── Circular progress ── #}
+    {# ── Circular progress — animated ── #}
     <div class="kpi-card" style="text-align:center;">
-      <div style="position:relative;width:64px;height:64px;margin:0 auto 6px;">
-        <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg);">
+      <div style="position:relative;width:72px;height:72px;margin:0 auto 6px;">
+        <svg viewBox="0 0 36 36" style="width:72px;height:72px;transform:rotate(-90deg);">
           <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" stroke-width="3"/>
-          <circle cx="18" cy="18" r="15.9" fill="none"
+          {# الحلقة المتحركة — stroke-dasharray يُحدَّث بـ JS عند التحميل #}
+          <circle id="quality-ring" cx="18" cy="18" r="15.9" fill="none"
                   stroke="{% if pct == 100 %}#16a34a{% elif pct > 60 %}#8A1538{% else %}#d97706{% endif %}"
                   stroke-width="3"
-                  stroke-dasharray="{{ pct }} {{ 100|add:"-"|add:pct }}"
-                  stroke-linecap="round"/>
+                  stroke-dasharray="0 100"
+                  stroke-linecap="round"
+                  class="progress-ring-circle"/>
         </svg>
         <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-                     font-size:14px;font-weight:800;color:var(--text-primary);">
-          {{ pct }}%
-        </span>
+                     font-size:14px;font-weight:800;color:var(--text-primary);"
+              id="quality-pct-label">0%</span>
       </div>
       <div class="kpi-label">نسبة الإنجاز</div>
     </div>
 
   </div>
+  {# ── تهيئة الحلقة المتحركة ── #}
+  <script nonce="{{ request.csp_nonce }}">
+  (function() {
+    var target = {{ pct }};
+    var ring = document.getElementById('quality-ring');
+    var label = document.getElementById('quality-pct-label');
+    if (!ring || !label) return;
+    var start = performance.now();
+    var duration = 900;
+    function animate(ts) {
+      var elapsed = ts - start;
+      var progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      var eased = 1 - Math.pow(1 - progress, 3);
+      var current = Math.round(target * eased);
+      ring.setAttribute('stroke-dasharray', current + ' ' + (100 - current));
+      label.textContent = current + '%';
+      if (progress < 1) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  })();
+  </script>
 
   {# ── Overall progress bar ── #}
   <div class="card-qatar" style="padding:16px 20px;">
@@ -137,11 +160,11 @@
     </div>
   </div>
 
-  {# ── My pending procedures ── #}
+  {# ── My procedures — with status filter tabs ── #}
   {% if my_procedures %}
   <div>
     <div class="section-header">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">إجراءاتي المعلّقة</h2>
+      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">إجراءاتي</h2>
       {% if my_procedures.count > 5 %}
       <a href="{% url 'my_procedures' %}"
          style="font-size:12.5px;color:var(--maroon);text-decoration:none;font-weight:600;margin-right:auto;">
@@ -149,9 +172,23 @@
       </a>
       {% endif %}
     </div>
-    <div class="table-wrap">
-      {% for proc in my_procedures|slice:":5" %}
+
+    {# Filter tabs #}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+      <button onclick="filterProcs('all')" id="tab-all"
+              class="btn-primary" style="font-size:12px;padding:4px 12px;">الكل</button>
+      <button onclick="filterProcs('InProgress')" id="tab-in-progress"
+              class="btn-secondary" style="font-size:12px;padding:4px 12px;">قيد التنفيذ</button>
+      <button onclick="filterProcs('NotStarted')" id="tab-not-started"
+              class="btn-secondary" style="font-size:12px;padding:4px 12px;">لم يبدأ</button>
+      <button onclick="filterProcs('Completed')" id="tab-completed"
+              class="btn-secondary" style="font-size:12px;padding:4px 12px;">مكتمل</button>
+    </div>
+
+    <div class="table-wrap" id="procedures-list">
+      {% for proc in my_procedures|slice:":10" %}
       <a href="{% url 'procedure_detail' proc.id %}"
+         data-status="{{ proc.status }}"
          style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
                 border-bottom:1px solid var(--border);text-decoration:none;transition:background .1s;">
         <div style="min-width:0;flex:1;">
@@ -161,9 +198,16 @@
           </p>
           <p style="font-size:11.5px;color:var(--text-muted);margin:0;">
             {{ proc.indicator.target.domain.name }} · {{ proc.date_range }}
+            {# بادج موعد متأخر #}
+            {% if proc.is_overdue %}
+            <span style="display:inline-block;margin-right:6px;padding:1px 7px;
+                         background:#fef2f2;color:#dc2626;border-radius:10px;font-size:10.5px;font-weight:700;">
+              ⏰ متأخر
+            </span>
+            {% endif %}
           </p>
         </div>
-        <span class="status-badge {% if proc.status == 'Completed' %}status-success{% else %}status-warning{% endif %}"
+        <span class="status-badge {% if proc.status == 'Completed' %}status-success{% elif proc.status == 'InProgress' %}status-warning{% else %}status-gray{% endif %}"
               style="flex-shrink:0;margin-right:12px;">
           {{ proc.get_status_display }}
         </span>
@@ -213,4 +257,39 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+  // فلترة الإجراءات محلياً (بدون request)
+  window.filterProcs = function (status) {
+    var list = document.getElementById('procedures-list');
+    if (!list) return;
+
+    var rows = list.querySelectorAll('a[data-status]');
+    rows.forEach(function (row) {
+      var rowStatus = row.dataset.status;
+      row.style.display = (status === 'all' || rowStatus === status) ? '' : 'none';
+    });
+
+    // تحديث أزرار الفلاتر
+    var tabs = { all: 'tab-all', InProgress: 'tab-in-progress', NotStarted: 'tab-not-started', Completed: 'tab-completed' };
+    Object.keys(tabs).forEach(function (key) {
+      var btn = document.getElementById(tabs[key]);
+      if (!btn) return;
+      if (key === status) {
+        btn.className = 'btn-primary';
+        btn.style.fontSize = '12px';
+        btn.style.padding = '4px 12px';
+      } else {
+        btn.className = 'btn-secondary';
+        btn.style.fontSize = '12px';
+        btn.style.padding = '4px 12px';
+      }
+    });
+  };
+})();
+</script>
 {% endblock %}

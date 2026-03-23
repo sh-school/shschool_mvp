@@ -2,60 +2,94 @@
 {% block title %}سجل الزيارات{% endblock %}
 {% block content %}
 <div dir="rtl">
+
+  {# ── Header ── #}
   <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
     <h1 class="text-2xl font-bold text-gray-800">📋 سجل زيارات العيادة</h1>
     <div class="flex gap-2">
-      <a href="{% url 'clinic:record_visit' %}" class="bg-red-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-800">➕ زيارة جديدة</a>
-      <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-sm">➕ زيارة جديدة</a>
+      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary text-sm">← رجوع</a>
     </div>
   </div>
-  <!-- Filters -->
-  <form method="get" class="bg-white rounded-xl shadow-sm p-4 mb-4 flex flex-wrap gap-3">
-    <input type="date" name="date" value="{{ date_filter }}" class="border rounded-lg px-3 py-2 text-sm">
-    <input type="text" name="student" value="{{ student_filter }}" placeholder="اسم الطالب"
-           class="border rounded-lg px-3 py-2 text-sm flex-1 min-w-[200px]">
-    <button class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">🔍 بحث</button>
-    {% if date_filter or student_filter %}
-    <a href="{% url 'clinic:visits_list' %}" class="border px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-50">مسح</a>
-    {% endif %}
-  </form>
-  <!-- Table -->
-  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-    {% if visits %}
-    <table class="w-full text-sm text-right">
-      <thead class="bg-gray-50 text-gray-500 text-xs border-b">
-        <tr>
-          <th class="px-4 py-3">الطالب</th>
-          <th class="px-4 py-3">التاريخ والوقت</th>
-          <th class="px-4 py-3">السبب</th>
-          <th class="px-4 py-3">الحرارة</th>
-          <th class="px-4 py-3">الإجراء</th>
-          <th class="px-4 py-3">ملاحظات</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y">
-        {% for v in visits %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-3">
-            <a href="{% url 'clinic:health_record' v.student.id %}" class="font-medium text-red-700 hover:underline">
-              {{ v.student.full_name }}
-            </a>
-          </td>
-          <td class="px-4 py-3 text-gray-500">{{ v.visit_date|date:"d/m/Y H:i" }}</td>
-          <td class="px-4 py-3">{{ v.reason }}</td>
-          <td class="px-4 py-3 text-center">{% if v.temperature %}{{ v.temperature }}°{% else %}—{% endif %}</td>
-          <td class="px-4 py-3 text-gray-500">{{ v.treatment|default:"—" }}</td>
-          <td class="px-4 py-3">
-            {% if v.is_sent_home %}<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">منزل</span>{% endif %}
-            {% if v.parent_notified %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">أُبلغ</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div class="p-12 text-center text-gray-400"><p class="text-3xl mb-2">📋</p><p>لا توجد زيارات</p></div>
-    {% endif %}
+
+  {# ── فلاتر HTMX (تاريخ + بحث نصي) ── #}
+  <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
+    <div class="flex flex-wrap gap-3 items-end">
+
+      {# فلتر التاريخ #}
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 font-medium">التاريخ</label>
+        <input
+          type="date"
+          name="date"
+          id="date-filter"
+          value="{{ date_filter }}"
+          class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300"
+          hx-get="{{ request.path }}"
+          hx-trigger="change"
+          hx-target="#visits-container"
+          hx-swap="innerHTML"
+          hx-include="[name='student']"
+          hx-indicator="#visits-skeleton"
+          hx-push-url="false"
+        >
+      </div>
+
+      {# بحث بالاسم #}
+      <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
+        <label class="text-xs text-gray-500 font-medium">اسم الطالب</label>
+        <div class="relative">
+          <input
+            type="text"
+            name="student"
+            id="student-filter"
+            value="{{ student_filter }}"
+            placeholder="ابحث باسم الطالب..."
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 pl-8"
+            hx-get="{{ request.path }}"
+            hx-trigger="input changed delay:400ms, search"
+            hx-target="#visits-container"
+            hx-swap="innerHTML"
+            hx-include="[name='date']"
+            hx-indicator="#visits-skeleton"
+            hx-push-url="false"
+          >
+          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+          <span class="htmx-indicator absolute left-8 top-1/2 -translate-y-1/2">
+            <svg class="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+
+      {# مسح الفلاتر #}
+      {% if date_filter or student_filter %}
+      <a
+        href="{% url 'clinic:visits_list' %}"
+        class="btn-secondary text-sm self-end"
+        hx-get="{{ request.path }}"
+        hx-target="#visits-container"
+        hx-swap="innerHTML"
+        hx-push-url="true"
+        hx-on:click="document.getElementById('date-filter').value=''; document.getElementById('student-filter').value='';"
+      >✕ مسح</a>
+      {% endif %}
+
+    </div>
   </div>
+
+  {# ── Skeleton Loading ── #}
+  <div id="visits-skeleton" class="htmx-indicator">
+    {% include "components/skeleton.html" with type="table" count=8 %}
+  </div>
+
+  {# ── نتائج الزيارات (يُحدَّث بـ HTMX) ── #}
+  <div id="visits-container"
+       hx-indicator="#visits-skeleton">
+    {% include "clinic/partials/visit_rows.html" %}
+  </div>
+
 </div>
 {% endblock %}

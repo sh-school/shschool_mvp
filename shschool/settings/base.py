@@ -6,6 +6,10 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 INSTALLED_APPS = [
+    # ✅ v5.1: daphne يجب أن يكون أول app لتفعيل ASGI بشكل صحيح
+    "daphne",
+    "channels",
+    "django_prometheus",
     "django.contrib.admin",
     "storages",
     "drf_spectacular",
@@ -38,6 +42,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # ✅ v5.1: Prometheus يجب أن يكون أول وآخر middleware
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -50,6 +56,8 @@ MIDDLEWARE = [
     "core.middleware.CurrentUserMiddleware",
     "csp.middleware.CSPMiddleware",
     "core.middleware.ParentConsentMiddleware",
+    # ✅ v5.1: Prometheus آخر middleware لقياس وقت الاستجابة كاملاً
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "shschool.urls"
@@ -72,6 +80,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "shschool.wsgi.application"
+ASGI_APPLICATION = "shschool.asgi.application"
+
+# ── Django Channels — Channel Layer (Redis) ────────────────────────────
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
+            "capacity": 1500,   # حد الرسائل لكل channel
+            "expiry": 30,       # TTL الرسالة بالثواني
+        },
+    }
+}
 
 AUTH_USER_MODEL = "core.CustomUser"
 
@@ -262,7 +283,7 @@ CSP_IMG_SRC = (
     "data:",
     "blob:",
 )
-CSP_CONNECT_SRC = ("'self'",)
+CSP_CONNECT_SRC = ("'self'", "wss:", "ws:")  # wss: مطلوب للـ WebSocket
 CSP_FRAME_SRC = ("'none'",)
 CSP_OBJECT_SRC = ("'none'",)
 CSP_INCLUDE_NONCE_IN = ["script-src"]  # يُضيف nonce تلقائياً لكل <script nonce="...">

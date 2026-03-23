@@ -6,6 +6,7 @@ app_name = "behavior"
 
 urlpatterns = [
     path("dashboard/", views.behavior_dashboard, name="dashboard"),
+    path("quick-log/", views.quick_log, name="quick_log"),
     path("report/", views.report_infraction, name="report_infraction"),
     path("student/<uuid:student_id>/", views.student_behavior_profile, name="student_profile"),
     path("recovery/<uuid:infraction_id>/", views.point_recovery_request, name="point_recovery"),

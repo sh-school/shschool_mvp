@@ -1,0 +1,158 @@
+{#
+  مكوّن رفع الملفات (Drag & Drop) — SchoolOS v5.1
+  ═══════════════════════════════════════════════════
+  الاستخدام:
+    {% include "components/file_upload.html" with
+       field_name="attachment"
+       accept=".pdf,.doc,.docx"
+       max_size_mb=10
+       label="رفع مستند"
+    %}
+
+  المتغيرات:
+    field_name  — اسم حقل الـ form (افتراضي: file)
+    accept      — امتدادات مقبولة
+    max_size_mb — الحد الأقصى بالميغابايت (افتراضي: 10)
+    label       — عنوان المنطقة
+    multiple    — True لتعدد الملفات
+#}
+<div
+  class="dropzone-wrap"
+  id="dropzone-{{ field_name|default:'file' }}"
+  style="
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color var(--transition-base), background var(--transition-base);
+    background: var(--surface-alt);
+  "
+>
+  <input
+    type="file"
+    name="{{ field_name|default:'file' }}"
+    id="file-input-{{ field_name|default:'file' }}"
+    accept="{{ accept|default:'' }}"
+    {% if multiple %}multiple{% endif %}
+    style="display:none"
+    aria-label="{{ label|default:'رفع ملف' }}"
+  >
+
+  <div class="dropzone-content">
+    <div style="font-size:2.5rem;margin-bottom:12px">📁</div>
+    <div style="font-weight:700;color:var(--text-primary);margin-bottom:6px">
+      {{ label|default:"اسحب الملف هنا أو" }}
+    </div>
+    <button
+      type="button"
+      class="btn-secondary"
+      style="font-size:.85rem"
+      onclick="document.getElementById('file-input-{{ field_name|default:'file' }}').click()"
+    >اختر ملفًا</button>
+    <div style="color:var(--text-muted);font-size:.8rem;margin-top:10px">
+      {% if accept %}الصيغ المقبولة: {{ accept }}{% endif %}
+      {% if max_size_mb %} — الحد الأقصى: {{ max_size_mb }} MB{% endif %}
+    </div>
+  </div>
+
+  {# ── معاينة الملف بعد الاختيار ── #}
+  <div class="dropzone-preview" style="display:none;margin-top:16px;text-align:right">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff;border-radius:8px;border:1px solid var(--border)">
+      <span class="preview-icon" style="font-size:1.5rem">📄</span>
+      <div style="flex:1;min-width:0">
+        <div class="preview-name" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <div class="preview-size" style="font-size:.8rem;color:var(--text-muted)"></div>
+      </div>
+      <button type="button" class="dropzone-clear btn-secondary" style="padding:4px 10px;font-size:.8rem">✕ إزالة</button>
+    </div>
+    <div class="preview-image-wrap" style="margin-top:10px;display:none">
+      <img class="preview-image" src="" alt="معاينة" style="max-width:100%;max-height:200px;border-radius:8px;object-fit:contain">
+    </div>
+  </div>
+
+</div>
+
+<script nonce="{{ request.csp_nonce }}">
+(function() {
+  var dropzoneId = 'dropzone-{{ field_name|default:"file" }}';
+  var inputId    = 'file-input-{{ field_name|default:"file" }}';
+  var maxMB      = {{ max_size_mb|default:10 }};
+  var zone  = document.getElementById(dropzoneId);
+  var input = document.getElementById(inputId);
+  if (!zone || !input) return;
+
+  var preview = zone.querySelector('.dropzone-preview');
+  var pName   = zone.querySelector('.preview-name');
+  var pSize   = zone.querySelector('.preview-size');
+  var pImg    = zone.querySelector('.preview-image');
+  var pImgW   = zone.querySelector('.preview-image-wrap');
+  var clearBtn = zone.querySelector('.dropzone-clear');
+
+  function formatSize(bytes) {
+    return bytes < 1024*1024
+      ? (bytes/1024).toFixed(1) + ' KB'
+      : (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  function showFile(file) {
+    if (file.size > maxMB * 1024 * 1024) {
+      alert('حجم الملف يتجاوز ' + maxMB + ' MB');
+      input.value = '';
+      return;
+    }
+    pName.textContent = file.name;
+    pSize.textContent = formatSize(file.size);
+    preview.style.display = 'block';
+    zone.querySelector('.dropzone-content').style.display = 'none';
+    if (file.type.startsWith('image/')) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        pImg.src = e.target.result;
+        pImgW.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      pImgW.style.display = 'none';
+    }
+  }
+
+  input.addEventListener('change', function() {
+    if (input.files[0]) showFile(input.files[0]);
+  });
+
+  clearBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    input.value = '';
+    preview.style.display = 'none';
+    zone.querySelector('.dropzone-content').style.display = 'block';
+    pImg.src = '';
+  });
+
+  zone.addEventListener('click', function() {
+    if (preview.style.display === 'none') input.click();
+  });
+
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--maroon)';
+    zone.style.background  = 'var(--maroon-bg)';
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.style.borderColor = '';
+    zone.style.background  = '';
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.style.borderColor = '';
+    zone.style.background  = '';
+    var files = e.dataTransfer.files;
+    if (files[0]) {
+      var dt = new DataTransfer();
+      dt.items.add(files[0]);
+      input.files = dt.files;
+      showFile(files[0]);
+    }
+  });
+})();
+</script>

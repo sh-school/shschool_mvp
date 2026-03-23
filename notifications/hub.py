@@ -129,7 +129,7 @@ class NotificationHub:
                 user_channels = _resolve_channels(prefs, event_type, default_channels)
 
                 if "in_app" in user_channels:
-                    InAppNotification.objects.create(
+                    notif = InAppNotification.objects.create(
                         user=user,
                         school=school,
                         title=title,
@@ -140,6 +140,9 @@ class NotificationHub:
                         related_url=related_url,
                     )
                     results["in_app"] += 1
+
+                    # ── WebSocket push (fail-safe — لا يكسر الإشعار) ──
+                    _push_websocket(user, notif)
 
                 # ── 2. القنوات الخارجية (async عبر Celery) ──────────
                 external_channels = [ch for ch in user_channels if ch != "in_app"]
@@ -321,3 +324,35 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
             )
         except Exception as e:
             logger.error(f"Sync SMS failed: {e}")
+
+
+def _push_websocket(user, notif):
+    """
+    إرسال الإشعار فوراً عبر WebSocket بعد حفظه في DB.
+    fail-safe: أي خطأ يُسجَّل ولا يكسر سير hub.dispatch()
+    """
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        layer = get_channel_layer()
+        if not layer:
+            return  # Channels غير مُعدَّل (بيئة تطوير بلا Redis)
+
+        unread = InAppNotification.objects.filter(user=user, is_read=False).count()
+
+        async_to_sync(layer.group_send)(
+            f"user_{user.pk}",
+            {
+                "type": "notification.new",
+                "title": notif.title,
+                "body": notif.body,
+                "priority": notif.priority,
+                "count": unread,
+                "id": str(notif.pk),
+                "url": notif.related_url or "",
+            },
+        )
+    except Exception as exc:
+        # لا نُوقف hub.dispatch() أبداً بسبب WebSocket
+        logger.warning(f"WS push failed (non-critical): {exc}")

@@ -30,6 +30,8 @@ urlpatterns = [
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
+    # ✅ v5.1: Prometheus metrics — /metrics/ (محمي بـ firewall/VPN في الإنتاج)
+    path("", include("django_prometheus.urls")),
 ]
 
 if settings.DEBUG:

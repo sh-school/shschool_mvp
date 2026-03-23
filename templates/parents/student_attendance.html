@@ -20,11 +20,11 @@
           آخر {{ period }} يوم (منذ {{ since }})
         </p>
       </div>
-      <!-- فلتر الفترة -->
-      <div class="flex gap-2">
+      <!-- فلتر الفترة — يلتف على الجوال -->
+      <div class="flex flex-wrap gap-2">
         {% for d in period_choices %}
         <a href="?period={{ d }}"
-           class="px-3 py-1.5 rounded-full text-sm transition
+           class="px-3 py-1.5 rounded-full text-sm transition min-h-[36px] flex items-center
              {% if period == d %}bg-white text-[#8A1538] font-bold{% else %}bg-white/20 text-white hover:bg-white/30{% endif %}">
           {{ d }} يوم
         </a>
@@ -32,8 +32,8 @@
       </div>
     </div>
 
-    <!-- KPIs -->
-    <div class="grid grid-cols-4 gap-4 mt-5">
+    <!-- KPIs — 2 عمود على الجوال، 4 على الشاشات الأكبر -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
       <div class="bg-white/10 rounded-xl p-3 text-center">
         <div class="text-2xl font-bold text-white">{{ total }}</div>
         <div class="text-xs text-blue-200 mt-0.5">إجمالي الحصص</div>

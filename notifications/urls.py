@@ -17,4 +17,6 @@ urlpatterns = [
     # ── v6: APIs للجرس (HTMX / JSON) ────────────────────────
     path("api/unread-count/", views.api_unread_count, name="api_unread_count"),
     path("api/recent/", views.api_recent_notifications, name="api_recent_notifications"),
+    # ── v5.1: بث طارئ عبر WebSocket ─────────────────────────
+    path("emergency-broadcast/", views.emergency_broadcast, name="emergency_broadcast"),
 ]

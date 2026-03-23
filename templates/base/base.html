@@ -100,6 +100,12 @@
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
+{# ✅ v5.1: Skip Navigation — WCAG 2.1 AA #}
+<a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
+
+{# ✅ v5.1: Toast Container #}
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 
@@ -354,29 +360,89 @@ window.addEventListener('resize', function() {
 });
 
 {% if user.is_authenticated %}
-/* ── Notification bell polling (30 s) ────────────────────── */
+/* ── Notification bell — WebSocket + fallback polling ───── */
 (function() {
   var badge = document.getElementById('notif-badge');
   if (!badge) return;
-  function updateBadge() {
-    fetch('/notifications/api/unread-count/', {
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(data){
-      if (!data) return;
-      if (data.count > 0) {
-        badge.textContent = data.count > 99 ? '99+' : data.count;
-        badge.style.display = 'flex';
-      } else {
-        badge.style.display = 'none';
-      }
-    })
-    .catch(function(){});
+
+  function setBadge(count) {
+    count = parseInt(count, 10) || 0;
+    badge.textContent = count > 99 ? '99+' : count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
   }
-  updateBadge();
-  setInterval(updateBadge, 30000);
+
+  function startPolling() {
+    function poll() {
+      fetch('/notifications/api/unread-count/', {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ if (d) setBadge(d.count); })
+      .catch(function(){});
+    }
+    poll();
+    return setInterval(poll, 30000);
+  }
+
+  /* ── WebSocket ─────────────────────────────────── */
+  var wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var ws;
+  var pollTimer = null;
+
+  function connectWS() {
+    try {
+      ws = new WebSocket(wsProto + '://' + location.host + '/ws/notifications/');
+    } catch(e) {
+      pollTimer = startPolling();
+      return;
+    }
+
+    ws.onmessage = function(e) {
+      var d;
+      try { d = JSON.parse(e.data); } catch(_) { return; }
+
+      if (d.type === 'unread_count' || d.type === 'new_notification') {
+        setBadge(d.count);
+      }
+      if (d.type === 'new_notification' && typeof window.showToast === 'function') {
+        var toastType = (d.priority === 'urgent' || d.priority === 'high') ? 'danger' : 'info';
+        window.showToast(d.title, toastType);
+      }
+      if (d.type === 'emergency') {
+        showEmergencyBanner(d.message);
+      }
+    };
+
+    ws.onclose = function() {
+      /* fallback: إذا انقطع WebSocket نرجع للـ polling */
+      if (!pollTimer) { pollTimer = startPolling(); }
+    };
+
+    ws.onerror = function() {
+      if (!pollTimer) { pollTimer = startPolling(); }
+    };
+  }
+
+  connectWS();
+
+  /* ── البث الطارئ ────────────────────────────────── */
+  function showEmergencyBanner(msg) {
+    var banner = document.getElementById('emergency-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'emergency-banner';
+      banner.style.cssText = [
+        'position:fixed','top:0','right:0','left:0','z-index:9999',
+        'background:#8A1538','color:#fff','padding:14px 20px',
+        'font-weight:700','text-align:center','font-size:1rem',
+        'box-shadow:0 2px 8px rgba(0,0,0,.3)'
+      ].join(';');
+      document.body.prepend(banner);
+    }
+    banner.textContent = '🚨 ' + msg;
+    banner.style.display = 'block';
+  }
 })();
 {% endif %}
 
@@ -387,8 +453,103 @@ setTimeout(function() {
     setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 420);
   });
 }, 7000);
+
+/* ✅ v5.1: Toast System ─────────────────────────────────── */
+window.showToast = function(msg, type, duration) {
+  type = type || 'success';
+  duration = duration || 4000;
+  var icons = { success: '✓', danger: '✗', info: 'ℹ', warning: '⚠' };
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML =
+    '<span class="toast-icon">' + (icons[type] || '•') + '</span>' +
+    '<span style="flex:1">' + msg + '</span>' +
+    '<button class="toast-close" aria-label="إغلاق">×</button>';
+  toast.querySelector('.toast-close').onclick = function() { removeToast(toast); };
+  container.appendChild(toast);
+  setTimeout(function() { removeToast(toast); }, duration);
+};
+function removeToast(el) {
+  el.classList.add('toast-leaving');
+  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
+}
+
+/* ✅ v5.1: HTMX → showToast via HX-Trigger header ─────── */
+document.body.addEventListener('showToast', function(e) {
+  if (e.detail) window.showToast(e.detail.msg, e.detail.type);
+});
+
+/* ✅ v5.1: Modal Manager ────────────────────────────────── */
+window.modalManager = {
+  _stack: [],
+  open: function(id) {
+    var overlay = document.getElementById('modal-' + id);
+    if (!overlay) return;
+    this._stack.push({ id: id, trigger: document.activeElement });
+    overlay.style.display = 'flex';
+    overlay.removeAttribute('hidden');
+    var focusable = overlay.querySelector(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable) setTimeout(function() { focusable.focus(); }, 50);
+  },
+  close: function(id) {
+    var overlay = document.getElementById('modal-' + id);
+    if (!overlay) return;
+    overlay.style.display = 'none';
+    overlay.setAttribute('hidden', '');
+    var prev = this._stack.pop();
+    if (prev && prev.trigger) prev.trigger.focus();
+  },
+  closeTop: function() {
+    if (this._stack.length) this.close(this._stack[this._stack.length - 1].id);
+  }
+};
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') window.modalManager.closeTop();
+});
+document.addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.dataset.modalOpen) window.modalManager.open(t.dataset.modalOpen);
+  if (t.dataset.modalClose) window.modalManager.close(t.dataset.modalClose);
+});
 </script>
 
 {% block extra_js %}{% endblock %}
+
+{# ✅ v5.1: Mobile Bottom Navigation (role-aware) #}
+{% if user.is_authenticated %}
+{% with role=request.user.get_role %}
+<nav class="mobile-bottom-nav" aria-label="التنقل السريع">
+  <div class="mobile-bottom-nav-inner">
+    <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
+      <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
+    </a>
+    {% if role in 'teacher,admin,principal,vice_principal' %}
+    <a href="/teacher/attendance/" class="mobile-nav-item {% if 'attendance' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📋</span><span>الحضور</span>
+    </a>
+    {% endif %}
+    {% if role == 'parent' %}
+    <a href="/parents/" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">👨‍👩‍👧</span><span>أبنائي</span>
+    </a>
+    {% endif %}
+    <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">🔔</span><span>الإشعارات</span>
+    </a>
+    {% if role in 'admin,principal' %}
+    <a href="/analytics/kpis/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📊</span><span>التحليلات</span>
+    </a>
+    {% endif %}
+  </div>
+</nav>
+{% endwith %}
+{% endif %}
+
 </body>
 </html>
