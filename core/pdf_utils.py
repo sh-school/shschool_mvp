@@ -353,7 +353,11 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
 
             def _run_in_thread():
                 import asyncio
-                # thread جديد = event loop جديد — لا تعارض مع Daphne
+                import sys
+                # Windows: ProactorEventLoop لا يدعم subprocess داخل thread
+                # → نستخدم SelectorEventLoop صراحةً
+                if sys.platform == "win32":
+                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
@@ -434,6 +438,9 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         raise RuntimeError(
             "لا توجد مكتبة PDF — شغّل: pip install weasyprint أو pip install xhtml2pdf"
         )
+    except Exception as e:
+        logger.error("xhtml2pdf فشل: %s", e)
+        raise RuntimeError(f"فشل توليد PDF: {e}")
 
 
 def render_pdf(html_str: str, filename: str) -> HttpResponse:
