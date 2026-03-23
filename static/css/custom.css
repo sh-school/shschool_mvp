@@ -1395,19 +1395,16 @@ button:focus-visible,
   padding: 1.25rem;
 }
 .quality-filters-grid {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 1rem;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem 1rem;
   padding-bottom: 0.75rem;
-  min-width: 0;
 }
 .quality-filter-field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
 }
 .quality-filter-field label {
   font-size: 0.8rem;
@@ -2070,8 +2067,8 @@ button:focus-visible,
 /* ── 12. Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   .quality-page { width: 100%; padding: 0.5rem; }
-  .quality-filters-grid { flex-direction: column; }
-  .quality-filter-field { min-width: 100%; }
+  .quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
+  .quality-filter-field { min-width: 0; }
   .q-modal-form-grid { grid-template-columns: 1fr; }
   .q-modal-info .info-grid { grid-template-columns: 1fr; }
   .q-modal { max-width: 95vw; }
