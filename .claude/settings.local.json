@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(py --version)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:8000/auth/login/)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(DJANGO_SETTINGS_MODULE=shschool.settings.development D:/shschool_mvp/.venv/Scripts/python.exe -c \":*)",
+      "Bash(netstat -ano)",
+      "Bash(while read:*)",
+      "Bash(do taskkill:*)",
+      "Bash(done)",
+      "Bash(xxd)"
+    ]
+  },
+  "enabledPlugins": {
+    "ai-firstify@claude-plugins-official": true
+  }
+}

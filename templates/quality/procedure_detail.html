@@ -64,12 +64,36 @@
       <div id="status-badge">
         {% include "quality/partials/procedure_status_badge.html" %}
       </div>
+      {% if procedure.follow_up %}
+      <div>
+        <p class="text-gray-500 text-xs mb-1">المتابعة</p>
+        <p class="font-semibold text-gray-800">{{ procedure.follow_up }}</p>
+      </div>
+      {% endif %}
+      {% if procedure.evidence_source_file %}
+      <div>
+        <p class="text-gray-500 text-xs mb-1">ملف مصدر الدليل</p>
+        <p class="font-semibold text-gray-800">{{ procedure.evidence_source_file }}</p>
+      </div>
+      {% endif %}
     </div>
 
     {% if procedure.evaluation %}
     <div class="border-t px-6 py-4 bg-blue-50">
       <p class="text-xs text-gray-500 mb-1">التقييم</p>
       <p class="text-sm text-gray-800">{{ procedure.evaluation }}</p>
+    </div>
+    {% endif %}
+    {% if procedure.evaluation_notes %}
+    <div class="border-t px-6 py-4 bg-blue-50">
+      <p class="text-xs text-gray-500 mb-1">ملاحظات التقييم</p>
+      <p class="text-sm text-gray-800">{{ procedure.evaluation_notes }}</p>
+    </div>
+    {% endif %}
+    {% if procedure.comments %}
+    <div class="border-t px-6 py-4 bg-yellow-50">
+      <p class="text-xs text-gray-500 mb-1">تعليقات</p>
+      <p class="text-sm text-gray-800">{{ procedure.comments }}</p>
     </div>
     {% endif %}
   </div>
@@ -100,6 +124,58 @@
         حفظ
       </button>
     </form>
+  </div>
+  {% endif %}
+
+  <!-- سجل التغييرات (Timeline) -->
+  {% if status_logs %}
+  <div class="bg-white rounded-xl border shadow-sm p-6">
+    <h3 class="text-lg font-bold text-[var(--maroon)] mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        سجل التغييرات
+    </h3>
+    <div class="relative pr-8">
+        <!-- Vertical line -->
+        <div class="absolute right-3 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+        {% for log in status_logs %}
+        <div class="relative mb-6 last:mb-0">
+            <!-- Dot -->
+            <div class="absolute -right-[1.65rem] top-1 w-4 h-4 rounded-full border-2 border-white shadow
+                {% if log.new_status == 'Completed' %}bg-green-500
+                {% elif log.new_status == 'Pending Review' %}bg-blue-500
+                {% elif log.new_status == 'In Progress' %}bg-amber-500
+                {% elif log.new_status == 'Cancelled' %}bg-gray-400
+                {% else %}bg-gray-300{% endif %}">
+            </div>
+
+            <!-- Content -->
+            <div class="bg-gray-50 rounded-lg p-3 mr-2">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded text-xs font-bold
+                            {% if log.new_status == 'Completed' %}bg-green-100 text-green-700
+                            {% elif log.new_status == 'Pending Review' %}bg-blue-100 text-blue-700
+                            {% elif log.new_status == 'In Progress' %}bg-amber-100 text-amber-700
+                            {% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {{ log.new_status }}
+                        </span>
+                        <span class="text-gray-400 text-xs">&larr;</span>
+                        <span class="text-gray-400 text-xs">{{ log.old_status }}</span>
+                    </div>
+                    <span class="text-xs text-gray-400">{{ log.created_at|timesince }} مضت</span>
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                    <i class="fa-solid fa-user"></i>
+                    <span>{{ log.changed_by.full_name|default:"النظام" }}</span>
+                </div>
+                {% if log.note %}
+                <p class="text-xs text-gray-600 mt-1 bg-white rounded p-2 border border-gray-100">{{ log.note }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
   </div>
   {% endif %}
 

@@ -1,0 +1,167 @@
+{# Modal: تقييم الأداء والمراجعة الذاتية — يُحمَّل عبر HTMX في #modal-container #}
+
+<div class="q-modal-overlay" onclick="if(event.target===this){closeModal();this.remove()}">
+  <div class="q-modal">
+
+    {# ═══ Header ═══ #}
+    <div class="q-modal-header">
+      <div class="header-content">
+        <div class="header-icon"><i class="fa-solid fa-gavel"></i></div>
+        <div>
+          <h3>تقييم الأداء والمراجعة الذاتية</h3>
+          <p class="sub">رقم الإجراء: {{ task.number }}</p>
+        </div>
+      </div>
+      <button class="close-btn" onclick="closeModal();this.closest('.q-modal-overlay').remove()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    {# ═══ Body ═══ #}
+    <div class="q-modal-body">
+
+      {# Section 1: بيانات الإجراء والمؤشر (read-only) #}
+      <div class="q-modal-info">
+        <div class="section-title"><i class="fa-solid fa-circle-info"></i> بيانات الإجراء والمؤشر</div>
+        <div class="info-grid">
+          <div>
+            <div class="info-label">الإجراء</div>
+            <div class="info-value">{{ task.text }}</div>
+          </div>
+          <div>
+            <div class="info-label">المؤشر</div>
+            <div class="info-value">{{ task.indicator.text }}</div>
+          </div>
+          <div>
+            <div class="info-label">زمن التنفيذ</div>
+            <div class="info-value">{{ task.date_range|default:"غير محدد" }}</div>
+          </div>
+          <div>
+            <div class="info-label">المنفذ</div>
+            <div class="info-value">{{ task.executor_norm }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# Section 2: بيانات التنفيذ والأدلة (read-only) #}
+      <div class="q-modal-info">
+        <div class="section-title"><i class="fa-solid fa-clipboard-check"></i> بيانات التنفيذ والأدلة</div>
+        <div class="info-grid">
+          {# حالة المتابعة #}
+          <div>
+            <div class="info-label">حالة المتابعة</div>
+            <div>
+              {% if task.follow_up == 'تم الإنجاز' %}
+                <span class="q-badge q-badge-success">{{ task.follow_up }}</span>
+              {% elif task.follow_up == 'قيد الإنجاز' %}
+                <span class="q-badge q-badge-warning">{{ task.follow_up }}</span>
+              {% elif task.follow_up == 'لم يتم الإنجاز' %}
+                <span class="q-badge q-badge-danger">{{ task.follow_up }}</span>
+              {% elif task.follow_up == 'مؤجل' %}
+                <span class="q-badge q-badge-neutral">{{ task.follow_up }}</span>
+              {% else %}
+                <span class="q-badge q-badge-neutral">لم يحدد</span>
+              {% endif %}
+            </div>
+          </div>
+
+          {# الأدلة المرفوعة #}
+          <div>
+            <div class="info-label">الأدلة المرفوعة</div>
+            {% if task.evidences.exists %}
+            <div class="flex flex-wrap gap-2">
+              {% for ev in task.evidences.all %}
+              <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
+                <i class="fa-solid fa-download"></i> {{ ev.title|truncatechars:25 }}
+              </a>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="info-value">لا توجد أدلة مرفوعة</div>
+            {% endif %}
+          </div>
+
+          {# ملاحظات المنفذ #}
+          <div class="full-width">
+            <div class="info-label">ملاحظات المنفذ</div>
+            <div class="info-value">{{ task.comments|default:"لا توجد ملاحظات" }}</div>
+          </div>
+        </div>
+      </div>
+
+      {# Section 3: قرار اللجنة (form) #}
+      <form action="{% url 'review_evaluate_modal' task.id %}" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.META.HTTP_REFERER }}">
+
+        <div class="q-modal-decision">
+          <div class="section-title"><i class="fa-solid fa-stamp"></i> قرار اللجنة</div>
+
+          {# طلب أدلة إضافية (checkbox + toggling textarea) #}
+          <div class="q-evidence-request">
+            <label>
+              <input type="hidden" name="evidence_request_status" value="not_requested">
+              <input type="checkbox" id="req-evidence-cb"
+                     {% if task.evidence_request_status == 'requested' %}checked{% endif %}
+                     onchange="
+                       document.getElementById('evidence-note-section').classList.toggle('hidden', !this.checked);
+                       this.previousElementSibling.value = this.checked ? 'requested' : 'not_requested';
+                     ">
+              <i class="fa-solid fa-file-circle-exclamation"></i>
+              طلب أدلة إضافية من المنفذ
+            </label>
+            <div id="evidence-note-section" class="{% if task.evidence_request_status != 'requested' %}hidden{% endif %}">
+              <div class="q-modal-field" style="margin-top:0.75rem">
+                <textarea name="evidence_request_note" rows="2"
+                          placeholder="اكتب ما هو المطلوب من المنفذ...">{{ task.evidence_request_note }}</textarea>
+              </div>
+            </div>
+          </div>
+
+          {# Grid: التقييم النوعي + القرار النهائي #}
+          <div class="q-modal-form-grid cols-2" style="margin-top:0.75rem">
+            <div class="q-modal-field">
+              <label>التقييم النوعي</label>
+              <select name="quality_rating">
+                {% for val, label in quality_rating_choices %}
+                <option value="{{ val }}" {% if task.quality_rating == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="q-modal-field">
+              <label>القرار النهائي</label>
+              <select name="status">
+                {% for val, label in status_choices %}
+                <option value="{{ val }}" {% if task.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          {# ملاحظات اللجنة #}
+          <div class="q-modal-field full-width" style="margin-top:0.75rem">
+            <label>ملاحظات اللجنة</label>
+            <textarea name="review_note" rows="3"
+                      placeholder="ملاحظات أو توصيات اللجنة...">{{ task.review_note }}</textarea>
+          </div>
+        </div>
+
+        {# ═══ Footer ═══ #}
+        <div class="q-modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeModal();this.closest('.q-modal-overlay').remove()">إلغاء</button>
+          <button type="submit" class="btn-save">
+            <i class="fa-solid fa-check-double"></i> حفظ واعتماد
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function closeModal() {
+  document.getElementById('modal-container').innerHTML = '';
+}
+</script>

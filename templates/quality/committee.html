@@ -19,9 +19,9 @@
          class="px-4 py-2 border border-blue-300 text-blue-700 text-sm rounded-lg hover:bg-blue-50 transition">
         ⚙️ لجنة التنفيذ
       </a>
-      <a href="{% url 'executor_mapping' %}"
+      <a href="{% url 'review_list' %}"
          class="px-4 py-2 border border-amber-300 text-amber-700 text-sm rounded-lg hover:bg-amber-50 transition">
-        ربط المنفذين بالموظفين
+        📋 المراجعة الذاتية
       </a>
       <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline self-center mr-2">
         ← الخطة التشغيلية
@@ -114,32 +114,52 @@
             <th scope="col" class="px-4 py-3 text-right">الاسم</th>
             <th scope="col" class="px-4 py-3 text-center">المسؤولية</th>
             <th scope="col" class="px-4 py-3 text-right">المجال</th>
+            <th scope="col" class="px-4 py-3 text-center">تم مراجعتها</th>
+            <th scope="col" class="px-4 py-3 text-center">بانتظار المراجعة</th>
             <th scope="col" class="px-4 py-3 text-center">حذف</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          {% for m in members %}
+          {% for ms in member_review_stats %}
           <tr class="hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium text-gray-800">{{ m.job_title }}</td>
+            <td class="px-4 py-3 font-medium text-gray-800">{{ ms.member.job_title }}</td>
             <td class="px-4 py-3 text-[#1A4F8A] font-semibold">
-              {{ m.user.full_name|default:"—" }}
-              {% if m.user %}
-              <span class="text-gray-400 text-xs font-normal mr-1">({{ m.user.national_id }})</span>
+              {{ ms.member.user.full_name|default:"—" }}
+              {% if ms.member.user %}
+              <span class="text-gray-400 text-xs font-normal mr-1">({{ ms.member.user.national_id }})</span>
               {% endif %}
             </td>
             <td class="px-4 py-3 text-center">
               <span class="px-2 py-0.5 rounded-full text-xs
-                {% if m.responsibility == 'رئيس اللجنة' %}bg-red-100 text-red-700
-                {% elif m.responsibility == 'نائب رئيس اللجنة' %}bg-orange-100 text-orange-700
-                {% elif m.responsibility == 'مقرر' %}bg-blue-100 text-blue-700
+                {% if ms.member.responsibility == 'رئيس اللجنة' %}bg-red-100 text-red-700
+                {% elif ms.member.responsibility == 'نائب رئيس اللجنة' %}bg-orange-100 text-orange-700
+                {% elif ms.member.responsibility == 'مقرر' %}bg-blue-100 text-blue-700
                 {% else %}bg-gray-100 text-gray-700{% endif %}">
-                {{ m.responsibility }}
+                {{ ms.member.responsibility }}
               </span>
             </td>
-            <td class="px-4 py-3 text-gray-600 text-xs">{{ m.domain.name|default:"—" }}</td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ ms.member.domain.name|default:"—" }}</td>
             <td class="px-4 py-3 text-center">
-              <form method="post" action="{% url 'remove_committee_member' m.id %}"
-                    onsubmit="return confirm('حذف {{ m.job_title }}؟')">
+              {% if ms.reviewed_count %}
+              <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">
+                {{ ms.reviewed_count }}
+              </span>
+              {% else %}
+              <span class="text-gray-300 text-xs">0</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if ms.pending_in_domain %}
+              <span class="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 font-medium">
+                {{ ms.pending_in_domain }}
+              </span>
+              {% else %}
+              <span class="text-gray-300 text-xs">0</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <form method="post" action="{% url 'remove_committee_member' ms.member.id %}"
+                    onsubmit="return confirm('حذف {{ ms.member.job_title }}؟')">
                 {% csrf_token %}
                 <button type="submit"
                         class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded hover:bg-red-50 transition">

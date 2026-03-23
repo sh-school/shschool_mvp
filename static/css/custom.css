@@ -21,6 +21,9 @@
   --maroon-bg:    #fdf2f5;   /* خلفية خفيفة */
   --maroon-border:#e8b4c3;   /* حدود خفيفة */
 
+  --gold:         #D4A843;   /* ذهبي — للتمييز في الحدود والأيقونات */
+  --gold-light:   #F5DEB3;   /* ذهبي فاتح */
+
   --skyline:      #0D4261;   /* أزرق داكن */
   --palm:         #129B82;   /* أخضر */
   --sea:          #4194B3;   /* أزرق فاتح */
@@ -38,11 +41,38 @@
   --radius-lg:      14px;
   --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
   --shadow-md:      0 4px 16px rgba(0,0,0,.10);
+
+  /* Quality module tokens */
+  --q-maroon: #8d1b3d;
+  --q-maroon-dark: #6b142e;
+  --q-maroon-light: #a0233f;
+  --q-gold: #D4A843;
+  --q-gold-light: #F5DEB3;
+  --q-silver: #C0C0C0;
+  --q-silver-light: rgba(192,192,192,0.3);
+  --q-font-data: 'Amiri', serif;
+  --q-font-ui: inherit;
+  --q-radius: 8px;
+  --q-transition: 0.2s ease;
 }
 
+/* ── Maroon utility classes (Tailwind arbitrary values لا تعمل مع المصغّر) ── */
+.bg-maroon { background-color: var(--maroon) !important; }
+.bg-maroon-dark { background-color: var(--maroon-dark) !important; }
+.bg-maroon\/10 { background-color: rgba(138,21,56,0.1) !important; }
+.text-maroon { color: var(--maroon) !important; }
+.border-maroon { border-color: var(--maroon) !important; }
+.border-maroon\/20 { border-color: rgba(138,21,56,0.2) !important; }
+.border-maroon\/30 { border-color: rgba(138,21,56,0.3) !important; }
+.hover\:bg-maroon:hover { background-color: var(--maroon) !important; }
+.hover\:bg-maroon-dark:hover { background-color: var(--maroon-dark) !important; }
+.focus\:ring-maroon:focus { --tw-ring-color: var(--maroon); }
+.focus\:border-maroon:focus { border-color: var(--maroon) !important; }
+
+/* (variables merged into :root above) */
+
 /* ── الخط العربي ───────────────────────────────────────────── */
-/* Tajawal: خط عربي احترافي من Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap');
+/* Tajawal: preloaded in base.html — @import removed (breaks CSS when after rules) */
 
 body {
   font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
@@ -1257,4 +1287,792 @@ button:focus-visible,
 .btn-preview:hover {
   background: #eef6fa;
   color: var(--skyline);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUALITY MODULE — Central Design System
+   Tables · Filters · Modals · Badges · Status · Animations
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. CSS Variables — defined in :root at top of file ────── */
+
+/* ── 2. Page Layout ─────────────────────────────────────────── */
+.quality-page {
+  width: 98%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem 0;
+}
+
+/* ── 3. Page Header Card ─────────────────────────────────────── */
+.quality-header {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.15);
+  border-right: 4px solid var(--q-maroon);
+  border-radius: var(--q-radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.quality-header h1 {
+  color: var(--q-maroon);
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  margin: 0;
+}
+.quality-header .header-accent {
+  width: 3px;
+  height: 2rem;
+  background: var(--q-maroon);
+  border-radius: 2px;
+}
+.quality-header .count-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--q-maroon);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(141,27,61,0.2);
+  background: rgba(141,27,61,0.05);
+  border-radius: 4px;
+}
+
+/* Quick filter buttons */
+.quality-header .quick-filters {
+  display: flex;
+  gap: 0.25rem;
+}
+.quality-header .quick-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+  transition: opacity var(--q-transition);
+}
+.quality-header .quick-btn:hover { opacity: 0.85; }
+.quality-header .quick-btn-maroon { background: var(--q-maroon); }
+.quality-header .quick-btn-green  { background: #16a34a; }
+.quality-header .quick-btn-gray   { background: #9ca3af; color: #374151; }
+
+/* Per-page selector */
+.quality-header .per-page-select {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(141,27,61,0.3);
+  border-radius: 4px;
+  background: white;
+  color: var(--q-maroon);
+  font-weight: 600;
+}
+
+/* ── 4. Filter Card ──────────────────────────────────────────── */
+.quality-filters {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.2);
+  border-radius: var(--q-radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.quality-filters-header {
+  background: var(--q-maroon);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+.quality-filters-header i { font-size: 1rem; }
+
+.quality-filters-body {
+  padding: 1.25rem;
+}
+.quality-filters-grid {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.75rem;
+  min-width: 0;
+}
+.quality-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 140px;
+}
+.quality-filter-field label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--q-maroon);
+  margin: 0;
+}
+.quality-filter-field select,
+.quality-filter-field input {
+  font-size: 0.8rem;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid rgba(141,27,61,0.25);
+  border-radius: 6px;
+  background: white;
+  color: var(--q-maroon);
+  transition: border-color var(--q-transition), box-shadow var(--q-transition);
+  width: 100%;
+}
+.quality-filter-field select:focus,
+.quality-filter-field input:focus {
+  border-color: var(--q-maroon);
+  box-shadow: 0 0 0 3px rgba(141,27,61,0.15);
+  outline: none;
+}
+.quality-filters-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 2px solid rgba(141,27,61,0.08);
+}
+.quality-btn-search {
+  padding: 0.6rem 2.5rem;
+  background: var(--q-maroon);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all var(--q-transition);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.quality-btn-search:hover {
+  background: var(--q-maroon-dark);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+.quality-btn-clear {
+  padding: 0.6rem 2.5rem;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  transition: all var(--q-transition);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.quality-btn-clear:hover { background: #d1d5db; }
+
+/* ── 5. Plans Table ──────────────────────────────────────────── */
+.plans-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 2px solid var(--q-silver);
+  border-radius: var(--q-radius);
+  overflow: hidden;
+}
+
+/* Table Header */
+.plans-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.75rem 0.6rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.72rem;
+  font-family: var(--q-font-ui);
+  color: white;
+  background: var(--q-maroon);
+  border-left: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.1);
+  white-space: nowrap;
+}
+.plans-table thead th:last-child { border-left: none; }
+
+/* Table Body */
+.plans-table tbody td {
+  padding: 0.6rem 0.65rem;
+  border-bottom: 1px solid var(--q-silver);
+  border-left: 1px solid var(--q-silver-light);
+  vertical-align: top;
+  font-size: 12.5px;
+  line-height: 1.65;
+  font-family: var(--q-font-data);
+  font-weight: 400;
+  color: var(--q-maroon);
+}
+.plans-table tbody td:last-child { border-left: none; }
+.plans-table tbody tr:last-child td { border-bottom: none; }
+
+/* Zebra striping */
+.plans-table tbody tr:nth-child(even) {
+  background: rgba(192,192,192,0.04);
+}
+
+/* Hover */
+.plans-table tbody tr:hover {
+  background: rgba(141,27,61,0.04);
+  box-shadow: inset 0 0 0 1px rgba(141,27,61,0.08);
+}
+
+/* Wide text cells — 3 lines max */
+.plans-table .cell-wide-text {
+  white-space: normal;
+  word-break: break-word;
+  overflow: hidden;
+  line-height: 1.7;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-family: var(--q-font-data);
+  color: var(--q-maroon);
+}
+
+/* Numeric/center cells */
+.plans-table .cell-center {
+  text-align: center;
+  font-weight: 700;
+}
+
+/* Action cell */
+.plans-table .cell-action {
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Row status backgrounds */
+.plans-table .row-pending   { background: rgba(251,191,36,0.06) !important; }
+.plans-table .row-completed { background: rgba(34,197,94,0.06) !important; }
+.plans-table .row-returned  { background: rgba(239,68,68,0.06) !important; }
+.plans-table .row-cancelled { opacity: 0.5; }
+
+/* Table wrapper */
+.quality-table-wrap {
+  background: white;
+  border: 1px solid rgba(141,27,61,0.2);
+  border-radius: var(--q-radius);
+  overflow: hidden;
+}
+.quality-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Empty state */
+.quality-empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #9ca3af;
+}
+.quality-empty i {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+  display: block;
+  opacity: 0.3;
+}
+.quality-empty p { font-size: 0.85rem; font-weight: 700; }
+.quality-empty .sub { font-size: 0.75rem; color: #d1d5db; margin-top: 0.25rem; }
+
+/* ── 6. Pagination ────────────────────────────────────────────── */
+.quality-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1rem 0;
+}
+.quality-pagination-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: white;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(141,27,61,0.2);
+}
+.quality-pagination a {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: var(--q-maroon);
+  border: 1px solid rgba(141,27,61,0.25);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all var(--q-transition);
+}
+.quality-pagination a:hover {
+  background: rgba(141,27,61,0.1);
+}
+.quality-pagination .page-info {
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--q-maroon);
+  border-left: 1px solid rgba(141,27,61,0.2);
+  border-right: 1px solid rgba(141,27,61,0.2);
+}
+
+/* ── 7. Status Badges ─────────────────────────────────────────── */
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: var(--q-font-ui);
+  white-space: nowrap;
+}
+.q-badge-success  { background: rgba(22,163,74,0.15);  color: #16a34a; }
+.q-badge-warning  { background: rgba(202,138,4,0.15);  color: #ca8a04; }
+.q-badge-danger   { background: rgba(220,38,38,0.15);  color: #dc2626; }
+.q-badge-info     { background: rgba(2,132,199,0.15);  color: #0284c7; }
+.q-badge-neutral  { background: rgba(107,114,128,0.12); color: #6b7280; }
+.q-badge-maroon   { background: rgba(141,27,61,0.12);  color: var(--q-maroon); }
+
+/* Evidence "required" pulse */
+.q-badge-danger.pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.3); }
+  50%      { box-shadow: 0 0 0 4px rgba(220,38,38,0); }
+}
+
+/* ── 8. Action Buttons (table cells) ──────────────────────────── */
+.q-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: all var(--q-transition);
+}
+.q-btn-maroon {
+  background: linear-gradient(135deg, var(--q-maroon) 0%, var(--q-maroon-dark) 100%);
+  color: white;
+  box-shadow: 0 1px 3px rgba(107,20,46,0.3);
+}
+.q-btn-maroon:hover {
+  box-shadow: 0 3px 8px rgba(107,20,46,0.35);
+  transform: translateY(-1px);
+}
+.q-btn-gold {
+  background: linear-gradient(135deg, var(--q-gold) 0%, #c9952e 100%);
+  color: var(--q-maroon);
+  box-shadow: 0 1px 3px rgba(212,168,67,0.3);
+}
+.q-btn-gold:hover {
+  box-shadow: 0 3px 8px rgba(212,168,67,0.35);
+  transform: translateY(-1px);
+}
+.q-btn-outline {
+  background: transparent;
+  color: var(--q-maroon);
+  border: 1.5px solid rgba(141,27,61,0.3);
+}
+.q-btn-outline:hover {
+  background: rgba(141,27,61,0.06);
+  border-color: var(--q-maroon);
+}
+
+/* Evidence file link */
+.q-evidence-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 4px;
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--q-maroon) 0%, var(--q-maroon-dark) 100%);
+  color: white;
+  transition: all var(--q-transition);
+}
+.q-evidence-link:hover {
+  box-shadow: 0 2px 6px rgba(107,20,46,0.3);
+}
+
+/* ── 9. Modal System ──────────────────────────────────────────── */
+.q-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease-out both;
+}
+.q-modal {
+  background: white;
+  width: 100%;
+  max-width: 48rem;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+  animation: scaleIn 0.25s ease-out both;
+}
+
+/* Modal header */
+.q-modal-header {
+  background: var(--q-maroon);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--q-gold);
+}
+.q-modal-header .header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.q-modal-header .header-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--q-gold);
+  font-size: 1.1rem;
+}
+.q-modal-header h3 {
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+.q-modal-header .sub {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.q-modal-header .close-btn {
+  color: white;
+  font-size: 1.2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 6px;
+  transition: all var(--q-transition);
+}
+.q-modal-header .close-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--q-gold);
+}
+
+/* Modal body */
+.q-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Modal info card (read-only section) */
+.q-modal-info {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+}
+.q-modal-info .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--q-maroon);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.q-modal-info .info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+.q-modal-info .info-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9ca3af;
+  margin-bottom: 0.2rem;
+}
+.q-modal-info .info-value {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1f2937;
+}
+
+/* Modal form section */
+.q-modal-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.q-modal-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+.q-modal-form-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.q-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.q-modal-field.full-width {
+  grid-column: 1 / -1;
+}
+.q-modal-field label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--q-maroon);
+  margin: 0;
+}
+.q-modal-field select,
+.q-modal-field input,
+.q-modal-field textarea {
+  font-size: 0.82rem;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid rgba(141,27,61,0.2);
+  border-radius: 6px;
+  background: white;
+  transition: all var(--q-transition);
+}
+.q-modal-field select:focus,
+.q-modal-field input:focus,
+.q-modal-field textarea:focus {
+  border-color: var(--q-maroon);
+  box-shadow: 0 0 0 3px rgba(141,27,61,0.1);
+  outline: none;
+}
+
+/* Committee decision card (maroon bg) */
+.q-modal-decision {
+  background: var(--q-maroon);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+.q-modal-decision .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.q-modal-decision label {
+  color: rgba(255,255,255,0.9);
+}
+.q-modal-decision select,
+.q-modal-decision textarea {
+  background: rgba(255,255,255,0.92);
+  color: var(--q-maroon);
+  border-color: transparent;
+}
+.q-modal-decision select:focus,
+.q-modal-decision textarea:focus {
+  border-color: var(--q-gold);
+  box-shadow: 0 0 0 3px rgba(212,168,67,0.3);
+}
+
+/* Evidence request checkbox */
+.q-evidence-request {
+  background: rgba(255,255,255,0.1);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.q-evidence-request label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  color: white;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.q-evidence-request input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--q-gold);
+}
+
+/* File upload area */
+.q-upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all var(--q-transition);
+  cursor: pointer;
+}
+.q-upload-area:hover {
+  border-color: var(--q-gold);
+  background: rgba(212,168,67,0.03);
+}
+.q-upload-area .upload-icon {
+  width: 3rem;
+  height: 3rem;
+  background: #f3f4f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem;
+  color: #9ca3af;
+  font-size: 1.2rem;
+  transition: all var(--q-transition);
+}
+.q-upload-area:hover .upload-icon {
+  background: rgba(212,168,67,0.1);
+  color: var(--q-gold);
+}
+
+/* Modal footer */
+.q-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+.q-modal-footer .btn-cancel {
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #6b7280;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--q-transition);
+}
+.q-modal-footer .btn-cancel:hover { background: #f3f4f6; }
+.q-modal-footer .btn-save {
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  background: linear-gradient(135deg, var(--q-maroon) 0%, var(--q-maroon-dark) 100%);
+  color: white;
+  border: 2px solid var(--q-gold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all var(--q-transition);
+  box-shadow: 0 2px 6px rgba(107,20,46,0.25);
+}
+.q-modal-footer .btn-save:hover {
+  box-shadow: 0 4px 12px rgba(107,20,46,0.35);
+  transform: translateY(-1px);
+}
+
+/* View-only overlay */
+.q-view-only {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.q-view-only-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(202,138,4,0.1);
+  border: 1px solid rgba(202,138,4,0.3);
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* ── 10. Animations ──────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-fadeIn  { animation: fadeIn 0.2s ease-out both; }
+.animate-scaleIn { animation: scaleIn 0.25s ease-out both; }
+
+/* ── 11. Progress Bar ─────────────────────────────────────────── */
+.q-progress-bar {
+  width: 100%;
+  height: 0.5rem;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+.q-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+.q-progress-fill.green  { background: #16a34a; }
+.q-progress-fill.maroon { background: var(--q-maroon); }
+.q-progress-fill.amber  { background: #d97706; }
+.q-progress-fill.red    { background: #dc2626; }
+
+/* ── 12. Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .quality-page { width: 100%; padding: 0.5rem; }
+  .quality-filters-grid { flex-direction: column; }
+  .quality-filter-field { min-width: 100%; }
+  .q-modal-form-grid { grid-template-columns: 1fr; }
+  .q-modal-info .info-grid { grid-template-columns: 1fr; }
+  .q-modal { max-width: 95vw; }
 }

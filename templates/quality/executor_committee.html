@@ -19,10 +19,6 @@
          class="px-4 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition">
         لجنة المراجعة الذاتية
       </a>
-      <a href="{% url 'executor_mapping' %}?year={{ year }}"
-         class="px-4 py-2 border border-amber-300 text-amber-700 text-sm rounded-lg hover:bg-amber-50 transition">
-        ربط المنفذين
-      </a>
       <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline self-center mr-2">
         ← الخطة التشغيلية
       </a>
@@ -69,10 +65,6 @@
       <p class="text-amber-700 text-xs mt-1">
         {% for norm in unmapped_norms %}<span class="inline-block bg-amber-100 rounded px-2 py-0.5 ml-1 mb-1">{{ norm }}</span>{% endfor %}
       </p>
-      <a href="{% url 'executor_mapping' %}?year={{ year }}"
-         class="mt-2 inline-block text-xs text-amber-700 underline">
-        اذهب إلى صفحة ربط المنفذين ←
-      </a>
     </div>
   </div>
   {% endif %}
@@ -91,7 +83,7 @@
         <input type="hidden" name="year" value="{{ year }}">
         <input type="hidden" name="committee_type" value="executor">
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <!-- الموظف -->
           <div>
             <label class="block text-xs font-medium text-gray-700 mb-1">الموظف (اختياري)</label>
@@ -121,6 +113,17 @@
               <option value="رئيس اللجنة">رئيس اللجنة</option>
             </select>
           </div>
+          <!-- المجال المسؤول -->
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">المجال المسؤول (اختياري)</label>
+            <select name="domain_id"
+                    class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+              <option value="">— بدون مجال محدد —</option>
+              {% for d in domains %}
+                <option value="{{ d.id }}">{{ d.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
 
         <div class="mt-4 flex justify-end">
@@ -146,6 +149,7 @@
           <tr>
             <th scope="col" class="px-4 py-3 text-right font-medium">العضو</th>
             <th scope="col" class="px-4 py-3 text-right font-medium">المسؤولية</th>
+            <th scope="col" class="px-4 py-3 text-right font-medium">المجال المسؤول</th>
             <th scope="col" class="px-4 py-3 text-center font-medium">الكلي</th>
             <th scope="col" class="px-4 py-3 text-center font-medium">مكتمل</th>
             <th scope="col" class="px-4 py-3 text-center font-medium">جارٍ</th>
@@ -169,6 +173,7 @@
                 {{ stat.member.responsibility }}
               </span>
             </td>
+            <td class="px-4 py-3 text-gray-600 text-xs">{{ stat.member.domain.name|default:"—" }}</td>
             <td class="px-4 py-3 text-center font-medium">{{ stat.total }}</td>
             <td class="px-4 py-3 text-center text-green-600 font-medium">{{ stat.completed }}</td>
             <td class="px-4 py-3 text-center text-amber-600">{{ stat.in_prog }}</td>

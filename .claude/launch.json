@@ -3,9 +3,12 @@
   "configurations": [
     {
       "name": "Django Dev Server",
-      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeExecutable": "D:/shschool_mvp/.venv/Scripts/python.exe",
       "runtimeArgs": ["manage.py", "runserver", "8000"],
-      "port": 8000
+      "port": 8000,
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "shschool.settings.development"
+      }
     },
     {
       "name": "Tailwind CSS Watch",

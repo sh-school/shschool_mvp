@@ -25,11 +25,11 @@
       <a href="{% url 'quality_committee' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
         🔍 لجنة الجودة
       </a>
-      <a href="{% url 'executor_mapping' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
-        🔗 ربط المنفذين
-        {% if unmapped_count %}
-        <span style="background:#fff;color:var(--maroon);font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;">{{ unmapped_count }}</span>
-        {% endif %}
+      <a href="{% url 'execution_list' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
+        📌 تنفيذ الخطة
+      </a>
+      <a href="{% url 'review_list' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">
+        📝 لجنة المراجعة الذاتية
       </a>
       {% else %}
       <a href="{% url 'my_procedures' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;">
@@ -40,7 +40,7 @@
   </div>
 
   {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
 
     <div class="kpi-card">
       <div class="kpi-value" style="color:var(--skyline);">{{ total }}</div>
@@ -75,6 +75,21 @@
               id="quality-pct-label">0%</span>
       </div>
       <div class="kpi-label">نسبة الإنجاز</div>
+    </div>
+
+    <div class="kpi-card" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
+      <div class="kpi-value" style="color:#1d4ed8;">{{ pending_review }}</div>
+      <div class="kpi-label">بانتظار المراجعة</div>
+    </div>
+
+    <div class="kpi-card" style="background:linear-gradient(135deg,#fef2f2,#fecaca);">
+      <div class="kpi-value" style="color:#dc2626;">{{ overdue_count }}</div>
+      <div class="kpi-label">متأخر</div>
+    </div>
+
+    <div class="kpi-card" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
+      <div class="kpi-value" style="color:#ea580c;">{{ evidence_requested }}</div>
+      <div class="kpi-label">طلبات الدليل</div>
     </div>
 
   </div>

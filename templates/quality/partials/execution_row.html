@@ -1,0 +1,98 @@
+{# Single row for execution_list table — expects `task` (OperationalProcedure) #}
+<tr class="{% if task.status == 'Pending Review' %}row-pending{% elif task.status == 'Completed' %}row-completed{% elif task.status == 'Cancelled' %}row-cancelled{% endif %}">
+
+  {# 1 — تحديث #}
+  <td class="cell-action">
+    {% if task.status != 'Completed' %}
+      <button hx-get="{% url 'task_update_modal' task.id %}"
+              hx-target="#modal-container"
+              hx-swap="innerHTML"
+              class="q-btn q-btn-maroon">تحديث</button>
+    {% else %}
+      <span class="q-badge-green">مكتمل</span>
+    {% endif %}
+  </td>
+
+  {# 2 — المجال #}
+  <td>{{ task.indicator.target.domain.name }}</td>
+
+  {# 3 — رقم الهدف #}
+  <td class="cell-center">{{ task.indicator.target.number }}</td>
+
+  {# 4 — الهدف #}
+  <td class="cell-wide-text">{{ task.indicator.target.text }}</td>
+
+  {# 5 — رقم الإجراء #}
+  <td class="cell-center">{{ task.number }}</td>
+
+  {# 6 — الإجراء #}
+  <td class="cell-wide-text">{{ task.text }}</td>
+
+  {# 7 — الشهر #}
+  <td class="cell-center">{{ task.date_range }}</td>
+
+  {# 8 — المنفذ #}
+  <td>{{ task.executor_norm }}</td>
+
+  {# 9 — رقم المؤشر #}
+  <td class="cell-center">{{ task.indicator.number }}</td>
+
+  {# 10 — المؤشر #}
+  <td class="cell-wide-text">{{ task.indicator.text }}</td>
+
+  {# 11 — الدليل #}
+  <td>
+    {% if task.evidence_source_file %}
+      <span class="q-evidence-source">{{ task.evidence_source_file }}</span>
+    {% endif %}
+
+    {% for ev in task.evidences.all %}
+      {% if ev.file %}
+        <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
+          {{ ev.title|default:"دليل" }}
+        </a>
+      {% else %}
+        <span class="q-evidence-nofile">{{ ev.title|default:"دليل" }}</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if task.evidence_request_status == 'requested' and task.status != 'Completed' %}
+      <span class="q-badge-red q-badge-pulse">مطلوب</span>
+    {% endif %}
+  </td>
+
+  {# 12 — ملاحظات التنفيذ #}
+  <td class="cell-wide-text">{{ task.comments|default:"-" }}</td>
+
+  {# 13 — التقييم #}
+  <td class="cell-center">
+    {% if task.evaluation == 'متحقق' %}
+      <span class="q-badge-green">متحقق</span>
+    {% elif task.evaluation == 'جزئي' %}
+      <span class="q-badge-amber">جزئي</span>
+    {% elif task.evaluation == 'غير متحقق' %}
+      <span class="q-badge-red">غير متحقق</span>
+    {% elif task.evaluation %}
+      <span class="q-badge-gray">{{ task.evaluation }}</span>
+    {% else %}
+      <span class="q-badge-gray">-</span>
+    {% endif %}
+  </td>
+
+  {# 14 — ملاحظات التقييم #}
+  <td class="cell-wide-text">{{ task.evaluation_notes|default:"-" }}</td>
+
+  {# 15 — المتابعة #}
+  <td class="cell-center">
+    {% if task.follow_up == 'تم الإنجاز' %}
+      <span class="q-badge-green">تم الإنجاز</span>
+    {% elif task.follow_up == 'مؤجل' %}
+      <span class="q-badge-gray">مؤجل</span>
+    {% elif task.follow_up %}
+      <span class="q-badge-amber">{{ task.follow_up }}</span>
+    {% else %}
+      <span class="q-badge-amber">لم يتم الإنجاز</span>
+    {% endif %}
+  </td>
+
+</tr>

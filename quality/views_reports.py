@@ -31,6 +31,29 @@ def progress_report(request):
         .order_by("-total")[:20]
     )
 
+    base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
+    overall = data.get("overall", {})
+    total_all = overall.get("total", base_qs.count())
+    completed_all = overall.get("completed", base_qs.filter(status="Completed").count())
+    in_progress_all = base_qs.filter(status="In Progress").count()
+    pending_review_all = base_qs.filter(status="Pending Review").count()
+    pct_all = round(completed_all / total_all * 100) if total_all else 0
+
+    today = timezone.now().date()
+    overdue_qs = base_qs.overdue().with_details()
+    overdue_count = overdue_qs.count()
+    overdue_procedures = []
+    for proc in overdue_qs[:30]:
+        days_overdue = (today - proc.deadline).days if proc.deadline else 0
+        overdue_procedures.append({
+            "procedure": proc,
+            "days_overdue": days_overdue,
+        })
+
+    evidence_requests = base_qs.filter(
+        evidence_request_status="requested"
+    ).with_details()[:10]
+
     return render(
         request,
         "quality/progress_report.html",
@@ -38,6 +61,14 @@ def progress_report(request):
             "domain_stats": data["domain_stats"],
             "executor_stats": executor_stats,
             "year": year,
+            "total_all": total_all,
+            "completed_all": completed_all,
+            "in_progress_all": in_progress_all,
+            "pending_review_all": pending_review_all,
+            "pct_all": pct_all,
+            "overdue_procedures": overdue_procedures,
+            "overdue_count": overdue_count,
+            "evidence_requests": evidence_requests,
         },
     )
 

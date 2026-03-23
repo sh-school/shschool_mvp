@@ -1,0 +1,224 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}تنفيذ الخطة التشغيلية — مدرسة الشحانية{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with items="الرئيسية:/,ضمان الجودة:quality_dashboard,تنفيذ الخطة التشغيلية:" %}
+{% endblock %}
+
+{% block content %}
+<div class="quality-page" dir="rtl">
+
+  {# ══ Header ══════════════════════════════════════════════ #}
+  <div class="quality-header">
+    <div class="quality-header-title">
+      <h1>
+        <i class="fa-solid fa-clipboard-list"></i>
+        تنفيذ الخطة التشغيلية
+      </h1>
+      <span class="quality-header-count">المهام: {{ page_obj.paginator.count }}</span>
+    </div>
+
+    <div class="quality-header-actions">
+      {# Per-page selector #}
+      <form method="GET" class="quality-per-page">
+        {% for key, val in request.GET.items %}
+          {% if key != 'per_page' and key != 'page' %}
+            <input type="hidden" name="{{ key }}" value="{{ val }}">
+          {% endif %}
+        {% endfor %}
+        <label>عرض:</label>
+        <select name="per_page" onchange="this.form.submit()">
+          <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25</option>
+          <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50</option>
+          <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100</option>
+          <option value="all" {% if current_per_page == "all" %}selected{% endif %}>الكل</option>
+        </select>
+      </form>
+
+      {# Quick filters #}
+      <a href="{% url 'execution_list' %}?status=Pending+Review" class="quality-btn-quick quality-btn-quick--maroon">
+        بانتظار المراجعة
+      </a>
+      <a href="{% url 'execution_list' %}?status=Completed" class="quality-btn-quick quality-btn-quick--green">
+        مكتملة
+      </a>
+      <a href="{% url 'execution_list' %}" class="quality-btn-quick quality-btn-quick--gray">
+        مسح
+      </a>
+    </div>
+  </div>
+
+  {# ══ Filters ═════════════════════════════════════════════ #}
+  <div class="quality-filters">
+    <div class="quality-filters-header">
+      <i class="fa-solid fa-filter"></i> أدوات التصفية
+    </div>
+    <form method="GET" id="filters-form" class="quality-filters-body">
+      <input type="hidden" name="sort" value="{{ current_sort }}">
+      <input type="hidden" name="dir" value="{{ current_dir }}">
+
+      <div class="quality-filters-grid">
+        {# 1 — المجال #}
+        <div class="quality-filter-field">
+          <label>المجال</label>
+          <select name="field">
+            <option value="">الكل</option>
+            {% for f in fields %}
+              <option value="{{ f.id }}" {% if request.GET.field == f.id|stringformat:"s" %}selected{% endif %}>{{ f.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# 2 — رقم الهدف #}
+        <div class="quality-filter-field">
+          <label>رقم الهدف</label>
+          <input type="text" name="target_no" value="{{ request.GET.target_no }}" placeholder="مثال: 1">
+        </div>
+
+        {# 3 — رقم الإجراء #}
+        <div class="quality-filter-field">
+          <label>رقم الإجراء</label>
+          <input type="text" name="proced_no" value="{{ request.GET.proced_no }}" placeholder="مثال: 3">
+        </div>
+
+        {# 4 — المؤشر #}
+        <div class="quality-filter-field">
+          <label>المؤشر</label>
+          <input type="text" name="indicator_no" value="{{ request.GET.indicator_no }}" placeholder="بحث...">
+        </div>
+
+        {# 5 — المنفذ #}
+        <div class="quality-filter-field">
+          <label>المنفذ</label>
+          <input type="text" name="executor" value="{{ request.GET.executor }}" placeholder="بحث...">
+        </div>
+
+        {# 6 — الشهر #}
+        <div class="quality-filter-field">
+          <label>الشهر</label>
+          <select name="timing">
+            <option value="">الكل</option>
+            {% for t in timings %}
+              <option value="{{ t }}" {% if request.GET.timing == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# 7 — التنفيذ #}
+        <div class="quality-filter-field">
+          <label>التنفيذ</label>
+          <select name="status">
+            <option value="">الكل</option>
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# 8 — المتابعة #}
+        <div class="quality-filter-field">
+          <label>المتابعة</label>
+          <select name="follow_up">
+            <option value="">الكل</option>
+            {% for val in follow_up_choices %}
+              <option value="{{ val }}" {% if request.GET.follow_up == val %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# 9 — الدليل #}
+        <div class="quality-filter-field">
+          <label>الدليل</label>
+          <select name="evidence_req">
+            <option value="">الكل</option>
+            <option value="1" {% if request.GET.evidence_req == "1" %}selected{% endif %}>مطلوب</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="quality-filters-actions">
+        <button type="submit" class="quality-btn-search">
+          <i class="fa-solid fa-magnifying-glass"></i> بحث
+        </button>
+        <a href="{% url 'execution_list' %}" class="quality-btn-clear">مسح</a>
+      </div>
+    </form>
+  </div>
+
+  {# ══ Pagination (Top) ════════════════════════════════════ #}
+  {% if page_obj.has_other_pages %}
+  <div class="quality-pagination">
+    {% if page_obj.has_previous %}
+      <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+         class="quality-pagination-btn">السابق</a>
+    {% endif %}
+    <span class="quality-pagination-current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+         class="quality-pagination-btn">التالي</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ══ Table ═══════════════════════════════════════════════ #}
+  <div class="quality-table-wrap">
+    <div class="quality-table-scroll">
+      <table class="plans-table">
+        <thead>
+          <tr>
+            <th>تحديث</th>
+            <th>المجال</th>
+            <th>رقم الهدف</th>
+            <th>الهدف</th>
+            <th>رقم الإجراء</th>
+            <th>الإجراء</th>
+            <th>الشهر</th>
+            <th>المنفذ</th>
+            <th>رقم المؤشر</th>
+            <th>المؤشر</th>
+            <th>الدليل</th>
+            <th>ملاحظات التنفيذ</th>
+            <th>التقييم</th>
+            <th>ملاحظات التقييم</th>
+            <th>المتابعة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in page_obj %}
+            {% include "quality/partials/execution_row.html" with task=task %}
+          {% empty %}
+            <tr>
+              <td colspan="15" class="quality-empty">
+                <i class="fa-solid fa-inbox"></i>
+                <p>لا توجد مهام مطابقة للتصفية</p>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ══ Pagination (Bottom) ═════════════════════════════════ #}
+  {% if page_obj.has_other_pages %}
+  <div class="quality-pagination">
+    {% if page_obj.has_previous %}
+      <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
+         class="quality-pagination-btn">السابق</a>
+    {% endif %}
+    <span class="quality-pagination-current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
+         class="quality-pagination-btn">التالي</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+
+{# ══ HTMX Modal Container ══════════════════════════════ #}
+<div id="modal-container"></div>
+
+{% endblock %}

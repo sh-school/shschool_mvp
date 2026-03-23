@@ -30,6 +30,25 @@ urlpatterns = [
     path("procedure/<uuid:proc_id>/approve/", views.approve_procedure, name="approve_procedure"),
     path("procedure/<uuid:proc_id>/evidence/", views.upload_evidence, name="upload_evidence"),
     path("my-procedures/", views.my_procedures, name="my_procedures"),
+    # ── قوائم التنفيذ والمراجعة ───────────────────────────────
+    path("execution/", views.execution_list, name="execution_list"),
+    path("review/", views.review_list, name="review_list"),
+    # ── Modals (HTMX partials) ────────────────────────────────
+    path(
+        "procedure/<uuid:proc_id>/update-modal/",
+        views.task_update_modal,
+        name="task_update_modal",
+    ),
+    path(
+        "procedure/<uuid:proc_id>/review-modal/",
+        views.review_evaluate_modal,
+        name="review_evaluate_modal",
+    ),
+    path(
+        "procedure/<uuid:proc_id>/toggle-evidence/",
+        views.toggle_evidence_request,
+        name="toggle_evidence_request",
+    ),
     path("report/", views.progress_report, name="quality_report"),
     # ── لجنة المراجعة الذاتية ─────────────────────────────────
     path("committee/", views.quality_committee, name="quality_committee"),
@@ -52,10 +71,6 @@ urlpatterns = [
         views.remove_committee_member,
         name="remove_executor_member",
     ),
-    # ── ربط المنفذين ──────────────────────────────────────────
-    path("executor-mapping/", views.executor_mapping, name="executor_mapping"),
-    path("executor-mapping/save/", views.save_executor_mapping, name="save_executor_mapping"),
-    path("executor-mapping/apply-all/", views.apply_all_mappings, name="apply_all_mappings"),
     # ── تقرير PDF ───────────────────────────────────────────────
     path("report/pdf/", views.progress_report_pdf, name="quality_report_pdf"),
 ]

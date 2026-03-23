@@ -1,0 +1,123 @@
+{# Single row for review_list table — expects `task` (OperationalProcedure) + `is_reviewer` #}
+<tr class="{% if task.status == 'Completed' and task.reviewed_by %}row-completed{% elif task.status == 'Pending Review' %}row-pending{% elif task.status == 'Cancelled' %}row-cancelled{% endif %}">
+
+  {# 1 — قرار اللجنة #}
+  <td class="cell-action">
+    {% if task.committee_decision_display == 'معتمد' %}
+      <span class="q-badge q-badge-success"><i class="fa-solid fa-circle-check"></i> معتمد</span>
+    {% elif is_reviewer and task.committee_decision_display != 'ملغى' %}
+      <button type="button"
+              hx-get="{% url 'review_evaluate_modal' task.id %}"
+              hx-target="#modal-container"
+              hx-swap="innerHTML"
+              class="q-btn q-btn-maroon">
+        <i class="fa-solid fa-gavel"></i> القرار
+      </button>
+    {% else %}
+      <span class="q-badge q-badge-neutral">{{ task.committee_decision_display }}</span>
+    {% endif %}
+  </td>
+
+  {# 2 — المجال #}
+  <td>{{ task.indicator.target.domain.name }}</td>
+
+  {# 3 — رقم الهدف #}
+  <td class="cell-center">{{ task.indicator.target.number }}</td>
+
+  {# 4 — الهدف #}
+  <td class="cell-wide-text">{{ task.indicator.target.text }}</td>
+
+  {# 5 — رقم الإجراء #}
+  <td class="cell-center">{{ task.number }}</td>
+
+  {# 6 — الإجراء #}
+  <td class="cell-wide-text">{{ task.text }}</td>
+
+  {# 7 — الشهر #}
+  <td class="cell-center">{{ task.date_range|default:"-" }}</td>
+
+  {# 8 — المنفذ #}
+  <td>{{ task.executor_norm|default:"-" }}</td>
+
+  {# 9 — رقم المؤشر #}
+  <td class="cell-center">{{ task.indicator.number }}</td>
+
+  {# 10 — المؤشر #}
+  <td class="cell-wide-text">{{ task.indicator.text }}</td>
+
+  {# 11 — التنفيذ (status) #}
+  <td class="cell-center">
+    {% if task.status == 'Completed' %}
+      <span class="q-badge q-badge-success">مكتمل</span>
+    {% elif task.status == 'In Progress' %}
+      <span class="q-badge q-badge-warning">قيد التنفيذ</span>
+    {% elif task.status == 'Pending Review' %}
+      <span class="q-badge q-badge-info">بانتظار المراجعة</span>
+    {% elif task.status == 'Not Started' %}
+      <span class="q-badge q-badge-neutral">لم يبدأ</span>
+    {% elif task.status == 'Cancelled' %}
+      <span class="q-badge q-badge-neutral">ملغى</span>
+    {% else %}
+      <span class="q-badge q-badge-neutral">{{ task.status|default:"-" }}</span>
+    {% endif %}
+  </td>
+
+  {# 12 — موقع الدليل + evidence links #}
+  <td>
+    {% if task.evidence_source_file %}
+      <span class="info-value">{{ task.evidence_source_file }}</span>
+    {% endif %}
+
+    {% for ev in task.evidences.all %}
+      {% if ev.file %}
+        <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
+          <i class="fa-solid fa-download"></i> {{ ev.title|default:"دليل" }}
+        </a>
+      {% else %}
+        <span class="q-badge q-badge-neutral">{{ ev.title|default:"دليل" }}</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if not task.evidence_source_file and not task.evidences.all %}
+      <span class="q-badge q-badge-neutral">-</span>
+    {% endif %}
+  </td>
+
+  {# 13 — ملاحظات التنفيذ #}
+  <td class="cell-wide-text">{{ task.comments|default:"-" }}</td>
+
+  {# 14 — طلب الدليل #}
+  <td class="cell-action">
+    {% if task.evidence_request_status == 'requested' %}
+      <span class="q-badge q-badge-danger pulse"><i class="fa-solid fa-exclamation-circle"></i> مطلوب</span>
+    {% elif task.evidences.all %}
+      <span class="q-badge q-badge-success"><i class="fa-solid fa-check"></i> تم الإرفاق</span>
+    {% elif is_reviewer and task.committee_decision_display != 'معتمد' %}
+      <form method="post" action="{% url 'toggle_evidence_request' task.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="q-btn q-btn-gold">
+          <i class="fa-solid fa-file-circle-exclamation"></i> طلب دليل
+        </button>
+      </form>
+    {% else %}
+      <span class="q-badge q-badge-neutral">-</span>
+    {% endif %}
+  </td>
+
+  {# 15 — المتابعة #}
+  <td class="cell-center">
+    {% if task.committee_decision_display == 'معتمد' %}
+      <span class="q-badge q-badge-success">معتمد ومكتمل</span>
+    {% elif task.committee_decision_display == 'مُعاد للمنفذ' %}
+      <span class="q-badge q-badge-danger">إعادة للمنفذ</span>
+    {% elif task.committee_decision_display == 'بانتظار القرار' %}
+      <span class="q-badge q-badge-info">بانتظار المراجعة</span>
+    {% elif task.committee_decision_display == 'ملغى' %}
+      <span class="q-badge q-badge-neutral">ملغى</span>
+    {% else %}
+      <span class="q-badge q-badge-warning">بانتظار</span>
+    {% endif %}
+  </td>
+
+</tr>
