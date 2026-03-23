@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}نتيجة الاستيراد{% endblock %}
+{% block title %}{% if is_dry_run %}معاينة الاستيراد{% else %}نتيجة الاستيراد{% endif %}{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto space-y-6">
@@ -7,13 +7,38 @@
   <!-- Header -->
   <div class="flex items-center gap-2 text-sm text-gray-500">
     <a href="{% url 'import_grades_select' %}" class="hover:text-blue-600">الاستيراد</a> /
-    <span class="text-gray-800 font-medium">نتيجة العملية</span>
+    <span class="text-gray-800 font-medium">{% if is_dry_run %}معاينة{% else %}نتيجة العملية{% endif %}</span>
   </div>
+
+  <!-- بانر المعاينة -->
+  {% if is_dry_run %}
+  <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
+    <span class="text-2xl">🔍</span>
+    <div>
+      <p class="font-bold text-amber-800">وضع المعاينة — لم يتم حفظ أي درجات</p>
+      <p class="text-sm text-amber-700 mt-0.5">
+        هذه نتيجة تجريبية فقط. راجع الأخطاء أدناه، ثم ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.
+      </p>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- بطاقة النتيجة -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
 
-    {% if imported > 0 and not errors %}
+    {% if is_dry_run %}
+      {% if errors %}
+      <div class="bg-amber-500 px-6 py-5">
+        <div class="text-white text-4xl mb-1">🔍</div>
+        <h1 class="text-xl font-bold text-white">معاينة — يوجد {{ errors|length }} خطأ</h1>
+      </div>
+      {% else %}
+      <div class="bg-blue-600 px-6 py-5">
+        <div class="text-white text-4xl mb-1">🔍</div>
+        <h1 class="text-xl font-bold text-white">معاينة — الملف جاهز للاستيراد</h1>
+      </div>
+      {% endif %}
+    {% elif imported > 0 and not errors %}
     <div class="bg-green-600 px-6 py-5">
       <div class="text-white text-4xl mb-1">✓</div>
       <h1 class="text-xl font-bold text-white">اكتمل الاستيراد بنجاح</h1>
@@ -84,16 +109,53 @@
       {% endif %}
 
       <!-- الإجراءات -->
-      <div class="flex gap-3 pt-2">
+      <div class="flex gap-3 pt-2 flex-wrap">
+        {% if not is_dry_run %}
         <a href="{% url 'grade_entry' assessment.id %}"
            class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">
           عرض كشف الدرجات
         </a>
+        {% endif %}
         <a href="{% url 'import_grades_select' %}"
            class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">
-          رجوع للاستيراد
+          {% if is_dry_run %}ارفع الملف للاستيراد الفعلي{% else %}رجوع للاستيراد{% endif %}
         </a>
       </div>
+
+      <!-- جدول معاينة الصفوف الصحيحة (في وضع المعاينة فقط) -->
+      {% if is_dry_run and preview_rows %}
+      <div class="mt-4 pt-4 border-t">
+        <h3 class="font-bold text-green-700 text-sm mb-2">
+          ✓ الصفوف التي ستُستورد ({{ preview_rows|length }})
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr class="bg-green-50 text-green-800">
+                <th class="px-3 py-2 text-right border border-green-200">الرقم الوطني</th>
+                <th class="px-3 py-2 text-right border border-green-200">الاسم</th>
+                <th class="px-3 py-2 text-center border border-green-200">الدرجة</th>
+                <th class="px-3 py-2 text-center border border-green-200">غائب</th>
+                <th class="px-3 py-2 text-right border border-green-200">ملاحظة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in preview_rows %}
+              <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
+                <td class="px-3 py-1.5 border border-gray-200 font-mono">{{ row.national_id }}</td>
+                <td class="px-3 py-1.5 border border-gray-200">{{ row.name }}</td>
+                <td class="px-3 py-1.5 border border-gray-200 text-center font-bold">{{ row.grade }}</td>
+                <td class="px-3 py-1.5 border border-gray-200 text-center">
+                  {% if row.is_absent %}<span class="text-red-600">غائب</span>{% else %}—{% endif %}
+                </td>
+                <td class="px-3 py-1.5 border border-gray-200 text-gray-500">{{ row.notes|default:"" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
 
     </div>
   </div>

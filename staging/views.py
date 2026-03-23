@@ -183,7 +183,7 @@ def download_grade_template(request, assessment_id):
 
 @login_required
 def upload_grade_file(request, assessment_id):
-    """استيراد الدرجات من ملف Excel"""
+    """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
     if request.method != "POST":
         return redirect("import_grades_select")
 
@@ -202,22 +202,28 @@ def upload_grade_file(request, assessment_id):
         messages.error(request, "لم يتم رفع أي ملف.")
         return redirect("import_grades_select")
 
-    # ── سجل الاستيراد ──
-    log = ImportLog.objects.create(
-        school=school,
-        uploaded_by=request.user,
-        file_name=uploaded.name,
-        status="validating",
-    )
+    # ── وضع المعاينة: تحقق بدون حفظ ──
+    dry_run = request.POST.get("dry_run") == "1"
+
+    # ── سجل الاستيراد (لا يُنشأ في المعاينة) ──
+    log = None
+    if not dry_run:
+        log = ImportLog.objects.create(
+            school=school,
+            uploaded_by=request.user,
+            file_name=uploaded.name,
+            status="validating",
+        )
 
     errors = []
     imported = 0
+    preview_rows = []  # [(student_name, national_id, grade, is_absent, notes), ...]
 
     try:
         wb = openpyxl.load_workbook(uploaded, data_only=True)
         ws = wb.active
 
-        # نبحث عن صف البداية (أول صف يحتوي "الرقم الوطني" أو نصف القيمة الرقمية)
+        # نبحث عن صف البداية (أول صف يحتوي "الرقم الوطني")
         data_start = None
         for row in ws.iter_rows():
             for cell in row:
@@ -281,36 +287,58 @@ def upload_grade_file(request, assessment_id):
                     )
                     continue
 
-            # حفظ الدرجة
-            GradeService.save_grade(
-                assessment=assessment,
-                student=student,
-                grade=grade,
-                is_absent=is_absent,
-                notes=notes,
-                entered_by=request.user,
-            )
+            if dry_run:
+                # في المعاينة: نجمع الصفوف الصحيحة بدون حفظ
+                preview_rows.append({
+                    "name": student.full_name,
+                    "national_id": national_id,
+                    "grade": grade if not is_absent else "—",
+                    "is_absent": is_absent,
+                    "notes": notes,
+                })
+            else:
+                # الحفظ الفعلي
+                GradeService.save_grade(
+                    assessment=assessment,
+                    student=student,
+                    grade=grade,
+                    is_absent=is_absent,
+                    notes=notes,
+                    entered_by=request.user,
+                )
             imported += 1
 
-        # تحديث حالة التقييم
-        if imported > 0:
-            assessment.status = "graded"
-            assessment.save(update_fields=["status"])
+        if not dry_run:
+            # تحديث حالة التقييم
+            if imported > 0:
+                assessment.status = "graded"
+                assessment.save(update_fields=["status"])
 
-        log.status = "completed" if not errors else "completed"
-        log.total_rows = total_rows
-        log.imported_rows = imported
-        log.failed_rows = len(errors)
-        log.error_log = errors
-        log.completed_at = timezone.now()
-        log.save()
+            log.status = "completed"
+            log.total_rows = total_rows
+            log.imported_rows = imported
+            log.failed_rows = len(errors)
+            log.error_log = errors
+            log.completed_at = timezone.now()
+            log.save()
 
     except Exception as exc:
-        log.status = "failed"
-        log.error_log = [str(exc)]
-        log.save()
+        if not dry_run and log:
+            log.status = "failed"
+            log.error_log = [str(exc)]
+            log.save()
         messages.error(request, f"فشل تحليل الملف: {exc}")
         return redirect("import_grades_select")
+
+    # في المعاينة: نحتاج log وهمي للـ template
+    if dry_run:
+        total_rows_count = imported + len(errors)
+        log = type("FakeLog", (), {
+            "file_name": uploaded.name,
+            "total_rows": total_rows_count,
+            "imported_rows": imported,
+            "failed_rows": len(errors),
+        })()
 
     return render(
         request,
@@ -320,6 +348,8 @@ def upload_grade_file(request, assessment_id):
             "assessment": assessment,
             "errors": errors,
             "imported": imported,
+            "is_dry_run": dry_run,
+            "preview_rows": preview_rows,
         },
     )
 
