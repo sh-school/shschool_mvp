@@ -1,17 +1,8 @@
-{#
+{% comment %}
   مكوّن Pagination مع HTMX — SchoolOS v5.1
-  ══════════════════════════════════════════
-  الاستخدام:
-    {% include "components/pagination.html" with
-       page_obj=page_obj
-       target="#results"
-    %}
-
-  المتغيرات:
-    page_obj — Django Page object من Paginator
-    target   — CSS selector للـ hx-target
-    base_url — URL الأساسي (افتراضي: request.path)
-#}
+  الاستخدام: include "components/pagination.html" with page_obj=page_obj target="#results"
+  المتغيرات: page_obj (Django Page), target (hx-target), base_url (افتراضي: request.path)
+{% endcomment %}
 {% if page_obj.paginator.num_pages > 1 %}
 <nav
   class="pagination-wrap"

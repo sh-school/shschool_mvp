@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -156,14 +157,18 @@ def manage_parent_links(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     search = request.GET.get("q", "").strip()
+    rel_filter = request.GET.get("rel", "").strip()
 
-    # أولياء الأمور الحاليون
+    # جميع ارتباطات المدرسة
     links = (
         ParentStudentLink.objects.filter(school=school)
         .select_related("parent", "student")
         .order_by("student__full_name", "parent__full_name")
     )
 
+    total_count = links.count()
+
+    # فلترة بالبحث
     if search:
         links = links.filter(
             Q(parent__full_name__icontains=search)
@@ -172,32 +177,48 @@ def manage_parent_links(request):
             | Q(student__national_id__icontains=search)
         )
 
+    # فلترة بصلة القرابة
+    if rel_filter:
+        links = links.filter(relationship=rel_filter)
+
+    # إحصائيات
+    parent_count = links.values("parent").distinct().count()
+    student_count = links.values("student").distinct().count()
+
+    # Pagination
+    paginator = Paginator(links, 25)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    ctx = {
+        "page_obj": page_obj,
+        "total_count": total_count,
+        "parent_count": parent_count,
+        "student_count": student_count,
+        "search": search,
+        "rel_filter": rel_filter,
+        "year": year,
+        "RELATIONSHIP": ParentStudentLink.RELATIONSHIP,
+    }
+
+    # HTMX → partial فقط
+    if request.headers.get("HX-Request"):
+        return render(request, "parents/partials/links_table.html", ctx)
+
     # قائمة الطلاب للـ dropdown
     student_ids = StudentEnrollment.objects.filter(
         class_group__school=school,
         class_group__academic_year=year,
         is_active=True,
     ).values_list("student_id", flat=True)
-    students = CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
+    ctx["students"] = CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
 
     # قائمة أولياء الأمور
     parent_ids = Membership.objects.filter(
         school=school, is_active=True, role__name="parent"
     ).values_list("user_id", flat=True)
-    parents = CustomUser.objects.filter(id__in=parent_ids).order_by("full_name")
+    ctx["parents"] = CustomUser.objects.filter(id__in=parent_ids).order_by("full_name")
 
-    return render(
-        request,
-        "parents/manage_links.html",
-        {
-            "links": links,
-            "students": students,
-            "parents": parents,
-            "search": search,
-            "year": year,
-            "RELATIONSHIP": ParentStudentLink.RELATIONSHIP,
-        },
-    )
+    return render(request, "parents/manage_links.html", ctx)
 
 
 @login_required
