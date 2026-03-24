@@ -1,14 +1,13 @@
-{#
+{% comment %}
   مكوّن حالة الفراغ الموحّدة — SchoolOS v5.1
   ════════════════════════════════════════════
   الاستخدام:
-    {% include "components/empty_state.html" with
+    include "components/empty_state.html" with
        icon="📭"
        title="لا توجد نتائج"
        subtitle="لم يتم العثور على أي عناصر تطابق معايير البحث."
        action_url="/students/add/"
        action_label="إضافة طالب جديد"
-    %}
 
   المتغيرات:
     icon         — رمز (emoji أو SVG)
@@ -18,7 +17,7 @@
     action_label — نص الزر (اختياري)
     action_modal — data-modal-open value بدلاً من URL
     compact      — True لحجم أصغر
-#}
+{% endcomment %}
 <div class="empty-state-v2 {% if compact %}py-8{% endif %}">
   {% if icon %}
   <div class="es-icon">{{ icon }}</div>

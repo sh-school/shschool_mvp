@@ -50,23 +50,32 @@ def quality_committee(request):
     reviewed_map = dict(
         OperationalProcedure.objects.filter(
             school=school, academic_year=year, reviewed_by__isnull=False
-        ).values_list("reviewed_by").annotate(c=Count("id")).values_list("reviewed_by", "c")
+        )
+        .values_list("reviewed_by")
+        .annotate(c=Count("id"))
+        .values_list("reviewed_by", "c")
     )
     # عدد الإجراءات المعلقة لكل مجال
     pending_map = dict(
         OperationalProcedure.objects.filter(
             school=school, academic_year=year, status="Pending Review"
-        ).values("indicator__target__domain").annotate(c=Count("id"))
+        )
+        .values("indicator__target__domain")
+        .annotate(c=Count("id"))
         .values_list("indicator__target__domain", "c")
     )
 
     member_review_stats = []
     for member in members:
-        member_review_stats.append({
-            "member": member,
-            "reviewed_count": reviewed_map.get(member.user_id, 0) if member.user_id else 0,
-            "pending_in_domain": pending_map.get(member.domain_id, 0) if member.domain_id else 0,
-        })
+        member_review_stats.append(
+            {
+                "member": member,
+                "reviewed_count": reviewed_map.get(member.user_id, 0) if member.user_id else 0,
+                "pending_in_domain": pending_map.get(member.domain_id, 0)
+                if member.domain_id
+                else 0,
+            }
+        )
 
     return render(
         request,
@@ -170,9 +179,9 @@ def executor_committee(request):
             "committee_type": QualityCommitteeMember.EXECUTOR,
             "committee_label": "لجنة منفذي الخطة التشغيلية",
             "all_users": CustomUser.objects.filter(id__in=staff_ids).order_by("full_name"),
-            "domains": OperationalDomain.objects.filter(
-                school=school, academic_year=year
-            ).order_by("order"),
+            "domains": OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
+                "order"
+            ),
         },
     )
 

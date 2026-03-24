@@ -37,7 +37,11 @@ class LibraryBook(models.Model):
     quantity = models.PositiveIntegerField(default=1, verbose_name="الكمية المتوفرة")
     available_qty = models.PositiveIntegerField(default=1, verbose_name="الكمية المتاحة للإعارة")
     digital_file = models.FileField(
-        upload_to="library/digital/", null=True, blank=True, verbose_name="الملف الرقمي"
+        upload_to="library/digital/",
+        null=True,
+        blank=True,
+        verbose_name="الملف الرقمي",
+        validators=[],  # FileTypeValidator يُطبّق في الـ View/Form — لا في الـ Model migration
     )
     location = models.CharField(max_length=100, blank=True, verbose_name="موقع الكتاب (الرف)")
 

@@ -35,10 +35,19 @@ _SCORE_VERY_GOOD = 75
 _SCORE_GOOD = 60
 
 # الأدوار القابلة للتقييم
-_EVALUABLE_ROLES = frozenset([
-    "teacher", "coordinator", "specialist", "nurse",
-    "librarian", "bus_supervisor", "admin", "vice_admin", "vice_academic",
-])
+_EVALUABLE_ROLES = frozenset(
+    [
+        "teacher",
+        "coordinator",
+        "specialist",
+        "nurse",
+        "librarian",
+        "bus_supervisor",
+        "admin",
+        "vice_admin",
+        "vice_academic",
+    ]
+)
 
 # ─────────────────────────────────────────────────────────────
 # 1. الهيكل الهرمي للخطة التشغيلية

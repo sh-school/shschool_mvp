@@ -1,5 +1,6 @@
 def school_context(request):
     from core.models import School
+
     if request.user.is_authenticated:
         school = request.user.get_school()
         role = request.user.get_role()

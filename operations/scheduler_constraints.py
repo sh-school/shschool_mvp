@@ -48,6 +48,7 @@ def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
 @dataclass
 class SoftPenalty:
     """نتيجة تقييم القيود المرنة لخانة"""
+
     total: float = 0.0
     details: dict = field(default_factory=dict)
 

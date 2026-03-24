@@ -169,14 +169,16 @@ class QualityService:
             total = row.get("total", 0)
             completed = row.get("completed", 0)
             pct = round(completed / total * 100) if total else 0
-            domain_stats.append({
-                "domain": domain,
-                "total": total,
-                "completed": completed,
-                "in_progress": row.get("in_progress", 0),
-                "pending": row.get("pending", 0),
-                "pct": pct,
-            })
+            domain_stats.append(
+                {
+                    "domain": domain,
+                    "total": total,
+                    "completed": completed,
+                    "in_progress": row.get("in_progress", 0),
+                    "pending": row.get("pending", 0),
+                    "pct": pct,
+                }
+            )
 
         return {
             "domain_stats": domain_stats,
@@ -223,24 +225,28 @@ class QualityService:
                 total = row.get("total", 0)
                 completed = row.get("completed", 0)
                 pct = round(completed / total * 100) if total else 0
-                member_stats.append({
-                    "member": member,
-                    "total": total,
-                    "completed": completed,
-                    "in_progress": row.get("in_progress", 0),
-                    "pending": row.get("pending", 0),
-                    "pct": pct,
-                })
+                member_stats.append(
+                    {
+                        "member": member,
+                        "total": total,
+                        "completed": completed,
+                        "in_progress": row.get("in_progress", 0),
+                        "pending": row.get("pending", 0),
+                        "pct": pct,
+                    }
+                )
             else:
-                member_stats.append({
-                    "member": member,
-                    "total": 0,
-                    "completed": 0,
-                    "pending": 0,
-                    "in_progress": 0,
-                    "pct": 0,
-                    "unmapped": True,
-                })
+                member_stats.append(
+                    {
+                        "member": member,
+                        "total": 0,
+                        "completed": 0,
+                        "pending": 0,
+                        "in_progress": 0,
+                        "pct": 0,
+                        "unmapped": True,
+                    }
+                )
 
         all_procs = OperationalProcedure.objects.filter(school=school, academic_year=year)
         all_norms = set(all_procs.values_list("executor_norm", flat=True).distinct())

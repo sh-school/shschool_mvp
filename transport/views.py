@@ -14,7 +14,11 @@ def transport_dashboard(request):
     school = request.user.school
 
     # إحصائيات الحافلات
-    buses = SchoolBus.objects.filter(school=school).select_related("supervisor").prefetch_related("routes__students")
+    buses = (
+        SchoolBus.objects.filter(school=school)
+        .select_related("supervisor")
+        .prefetch_related("routes__students")
+    )
     total_buses = buses.count()
     total_capacity = sum(bus.capacity for bus in buses)
 

@@ -10,7 +10,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
@@ -44,10 +44,9 @@ class ParentService:
 
         # Bulk: enrollments keyed by student_id
         enrollments_map: dict = {}
-        for enr in (
-            StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
-            .select_related("class_group")
-        ):
+        for enr in StudentEnrollment.objects.filter(
+            student_id__in=student_ids, is_active=True
+        ).select_related("class_group"):
             enrollments_map.setdefault(enr.student_id, enr)
 
         # Bulk: annual result counts per student
@@ -152,9 +151,7 @@ class ParentService:
         }
 
     @staticmethod
-    def get_student_attendance(
-        student: CustomUser, school: School, days: int = 30
-    ) -> dict:
+    def get_student_attendance(student: CustomUser, school: School, days: int = 30) -> dict:
         """ملخص الغياب لطالب خلال فترة"""
         since = timezone.now().date() - timedelta(days=days)
 

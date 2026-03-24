@@ -6,9 +6,7 @@ from .base import *
 DEBUG = False
 
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
-METRICS_ALLOWED_IPS = config(
-    "METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1"
-).split(",")
+METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 
 # ══════════════════════════════════════════════════════════════
 # ✅ v5.1: Sentry — مراقبة الأخطاء (PDPPL: send_default_pii=False)
@@ -27,8 +25,8 @@ if SENTRY_DSN:
             CeleryIntegration(),
             RedisIntegration(),
         ],
-        traces_sample_rate=0.1,      # 10% من الطلبات للـ performance tracing
-        send_default_pii=False,      # ← PDPPL: لا بيانات شخصية للطلاب
+        traces_sample_rate=0.1,  # 10% من الطلبات للـ performance tracing
+        send_default_pii=False,  # ← PDPPL: لا بيانات شخصية للطلاب
         environment="production",
         release=config("APP_VERSION", default="v5.1"),
     )
@@ -133,8 +131,8 @@ LOGGING = {
             "level": "WARNING",
             "class": "logging.handlers.RotatingFileHandler",
             "filename": BASE_DIR / "logs/security.log",
-            "maxBytes": 5 * 1024 * 1024,   # 5 MB
-            "backupCount": 10,              # نحتفظ بـ 10 نسخ للأمان
+            "maxBytes": 5 * 1024 * 1024,  # 5 MB
+            "backupCount": 10,  # نحتفظ بـ 10 نسخ للأمان
             "encoding": "utf-8",
             "formatter": "security",
         },
@@ -162,13 +160,17 @@ CSP_SCRIPT_SRC = (
     "https://cdn.jsdelivr.net",
     "https://unpkg.com",
 )
+# ✅ v5.2: nonce-based style-src — إزالة unsafe-inline
+# style attributes في القوالب يجب أن تُنقل إلى CSS classes
+# أو تُضاف عبر <style nonce="{{ request.csp_nonce }}">
 CSP_STYLE_SRC = (
     "'self'",
-    "'unsafe-inline'",
     "https://fonts.googleapis.com",
 )
-CSP_INCLUDE_NONCE_IN = ["script-src"]
-CSP_REPORT_ONLY = False  # ← Enforce: أي script بلا nonce سيُحجب
+CSP_INCLUDE_NONCE_IN = ["script-src", "style-src"]  # ✅ nonce لكليهما
+CSP_REPORT_ONLY = False  # ← Enforce: أي script/style بلا nonce سيُحجب
+# ✅ v5.2: CSP Reporting — تسجيل الانتهاكات
+CSP_REPORT_URI = config("CSP_REPORT_URI", default="")
 
 # ── S3 Object Storage للملفات (media) ────────────────────────
 # فعّله بـ USE_S3=true في .env ومتغيرات AWS_* / نقطة نهاية S3 متوافقة
@@ -226,4 +228,16 @@ if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
     raise ImproperlyConfigured(
         "🔴 ALLOWED_HOSTS فارغ! أضف النطاقات المسموحة في .env:\n"
         "ALLOWED_HOSTS=schoolos.qa,www.schoolos.qa"
+    )
+
+# ── التحقق من CORS في الإنتاج ────────────────────────────────
+# يمنع CORS_ALLOWED_ORIGINS الافتراضي (localhost) في الإنتاج
+_unsafe_cors = [o for o in CORS_ALLOWED_ORIGINS if "localhost" in o or "127.0.0.1" in o]
+if _unsafe_cors:
+    import logging
+
+    logging.getLogger(__name__).warning(
+        "⚠️ CORS_ALLOWED_ORIGINS يحتوي على origins محلية في الإنتاج: %s — "
+        "عيّن CORS_ALLOWED_ORIGINS في .env بالنطاقات الصحيحة (https://...)",
+        _unsafe_cors,
     )

@@ -38,6 +38,10 @@ class TestParentViews:
 
     def test_parent_redirected_to_consent(self, client_as, parent_user):
         """ولي أمر بدون موافقة → يُعاد لصفحة الموافقة"""
+        # نزيل الموافقة لاختبار التحويل
+        parent_user.consent_given_at = None
+        parent_user.save(update_fields=["consent_given_at"])
+
         c = client_as(parent_user)
         resp = c.get("/parents/", follow=False)
         assert resp.status_code == 302

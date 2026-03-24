@@ -173,12 +173,18 @@ def download_grade_template(request, assessment_id):
     wb.save(buf)
     buf.seek(0)
 
-    filename = f"grades_{assessment.package.setup.subject.name_ar}_{assessment.class_group}.xlsx"
+    filename_ar = f"grades_{assessment.package.setup.subject.name_ar}_{assessment.class_group}.xlsx"
+    filename_ascii = f"grades_{assessment_id}.xlsx"
     resp = HttpResponse(
         buf.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # ── MED-003 Fix: RFC 6266 encoding لأسماء الملفات العربية ──
+    from urllib.parse import quote
+
+    resp["Content-Disposition"] = (
+        f'attachment; filename="{filename_ascii}"; ' f"filename*=UTF-8''{quote(filename_ar)}"
+    )
     return resp
 
 
@@ -204,6 +210,17 @@ def upload_grade_file(request, assessment_id):
     uploaded = request.FILES.get("grade_file")
     if not uploaded:
         messages.error(request, "لم يتم رفع أي ملف.")
+        return redirect("import_grades_select")
+
+    # ── HIGH-002 Fix: التحقق من نوع الملف قبل المعالجة ──
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    from core.validators import FileTypeValidator
+
+    try:
+        FileTypeValidator(allowed_types="document")(uploaded)
+    except DjangoValidationError as e:
+        messages.error(request, e.message)
         return redirect("import_grades_select")
 
     # ── وضع المعاينة: تحقق بدون حفظ ──
@@ -293,13 +310,15 @@ def upload_grade_file(request, assessment_id):
 
             if dry_run:
                 # في المعاينة: نجمع الصفوف الصحيحة بدون حفظ
-                preview_rows.append({
-                    "name": student.full_name,
-                    "national_id": national_id,
-                    "grade": grade if not is_absent else "—",
-                    "is_absent": is_absent,
-                    "notes": notes,
-                })
+                preview_rows.append(
+                    {
+                        "name": student.full_name,
+                        "national_id": national_id,
+                        "grade": grade if not is_absent else "—",
+                        "is_absent": is_absent,
+                        "notes": notes,
+                    }
+                )
             else:
                 # الحفظ الفعلي
                 GradeService.save_grade(
@@ -326,7 +345,7 @@ def upload_grade_file(request, assessment_id):
             log.completed_at = timezone.now()
             log.save()
 
-    except (ValueError, TypeError, KeyError, OSError) as exc:
+    except (ValueError, TypeError, KeyError, OSError, Exception) as exc:
         logger.exception("فشل استيراد الدرجات من Excel: %s", exc)
         if not dry_run and log:
             log.status = "failed"
@@ -338,12 +357,16 @@ def upload_grade_file(request, assessment_id):
     # في المعاينة: نحتاج log وهمي للـ template
     if dry_run:
         total_rows_count = imported + len(errors)
-        log = type("FakeLog", (), {
-            "file_name": uploaded.name,
-            "total_rows": total_rows_count,
-            "imported_rows": imported,
-            "failed_rows": len(errors),
-        })()
+        log = type(
+            "FakeLog",
+            (),
+            {
+                "file_name": uploaded.name,
+                "total_rows": total_rows_count,
+                "imported_rows": imported,
+                "failed_rows": len(errors),
+            },
+        )()
 
     return render(
         request,

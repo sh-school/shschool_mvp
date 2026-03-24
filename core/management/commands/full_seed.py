@@ -946,9 +946,7 @@ class Command(BaseCommand):
         self.stdout.write("\n── بيانات الدخول ─────────────────────────────────────")
         self.stdout.write(self.style.WARNING(f"  كلمة المرور الموحدة: {self._seed_password}"))
         if principal:
-            self.stdout.write(
-                self.style.SUCCESS(f"  المدير:    {principal.user.national_id}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"  المدير:    {principal.user.national_id}"))
         self.stdout.write("  المعلمون:  <الرقم الوطني>")
         self.stdout.write("  الطلاب:    <الرقم الوطني>")
         self.stdout.write("  الأولياء:  <الرقم الوطني>")

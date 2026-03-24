@@ -9,12 +9,11 @@ seed_class_subjects.py — توزيع المواد على الفصول حسب أ
 - G12-1: علمي | G12-2,3,4: آداب
 """
 
-from django.core.management.base import BaseCommand
 from django.conf import settings
+from django.core.management.base import BaseCommand
 
 from core.models import ClassGroup, School
 from operations.models import Subject, SubjectClassAssignment
-
 
 # ── أنصبة المواد حسب المرحلة والمسار ──
 
@@ -197,9 +196,11 @@ class Command(BaseCommand):
 
             self.stdout.write(f"  {cls} -> {total} periods/week ({cls.grade}/{cls.section})")
 
-        self.stdout.write(self.style.SUCCESS(
-            f"\n[OK] {created} created | {skipped} skipped | {len(errors)} errors"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\n[OK] {created} created | {skipped} skipped | {len(errors)} errors"
+            )
+        )
         if errors:
             for e in set(errors):
                 self.stderr.write(f"  [!] {e}")

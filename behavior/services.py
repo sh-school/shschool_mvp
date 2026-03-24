@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
-from .constants import LEVEL_DESC, LEVEL_DISPLAY, POINTS_BY_LEVEL  # noqa: E402
+from .constants import LEVEL_DESC, LEVEL_DISPLAY, POINTS_BY_LEVEL  # noqa: E402,F401
 
 PERIOD_CHOICES = [
     ("full", "العام كاملاً"),
@@ -158,7 +158,9 @@ class BehaviorService:
         """بيانات الملف السلوكي الكامل"""
         infractions = (
             BehaviorInfraction.objects.filter(student=student)
-            .select_related("reported_by", "recovery", "recovery__approved_by", "violation_category")
+            .select_related(
+                "reported_by", "recovery", "recovery__approved_by", "violation_category"
+            )
             .order_by("-date")
         )
 
@@ -314,9 +316,7 @@ class BehaviorService:
 
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
-    def get_report_period(
-        period: str, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> tuple:
+    def get_report_period(period: str, year: str = settings.CURRENT_ACADEMIC_YEAR) -> tuple:
         """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
         try:
             start_year, end_year = (int(y) for y in str(year).split("-"))
@@ -349,7 +349,9 @@ class BehaviorService:
                 date__gte=date_from,
                 date__lte=date_to,
             )
-            .select_related("reported_by", "recovery", "recovery__approved_by", "violation_category")
+            .select_related(
+                "reported_by", "recovery", "recovery__approved_by", "violation_category"
+            )
             .order_by("date")
         )
 

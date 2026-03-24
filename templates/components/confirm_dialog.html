@@ -1,22 +1,21 @@
-{#
+{% comment %}
   مكوّن تأكيد الإجراءات التدميرية — SchoolOS v5.1
   ══════════════════════════════════════════════════
   الاستخدام:
-    {% include "components/confirm_dialog.html" with
+    include "components/confirm_dialog.html" with
        confirm_id="delete-student-123"
        title="حذف الطالب"
        message="هل أنت متأكد من حذف هذا الطالب؟ لا يمكن التراجع عن هذا الإجراء."
        action_url="/students/123/delete/"
        action_label="حذف"
-    %}
 
   زر التشغيل:
-    <button data-modal-open="delete-student-123">🗑 حذف</button>
+    <button data-modal-open="delete-student-123">حذف</button>
 
-  ⚠ تحذير أمني:
+  تحذير أمني:
     extra_fields يستخدم |safe — يجب أن يكون HTML موثوقاً فقط (hidden inputs من View).
     لا تمرر بيانات من إدخال المستخدم إلى extra_fields.
-#}
+{% endcomment %}
 <div
   id="modal-{{ confirm_id }}"
   class="modal-overlay"

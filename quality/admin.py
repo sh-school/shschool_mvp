@@ -121,7 +121,9 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
                 school = self.instance.school
                 year = self.instance.academic_year
             except (AttributeError, ValueError) as e:
-                logger.warning("فشل قراءة المدرسة والسنة الدراسية من النموذج في لوحة الإدارة: %s", e)
+                logger.warning(
+                    "فشل قراءة المدرسة والسنة الدراسية من النموذج في لوحة الإدارة: %s", e
+                )
                 school = None
         if not school and self.data.get("school"):
             from core.models import School as _S

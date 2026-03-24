@@ -7,7 +7,6 @@ E2E Tests: التنقل والوصول — SchoolOS v5.1.1
 import pytest
 from playwright.sync_api import expect
 
-
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
 

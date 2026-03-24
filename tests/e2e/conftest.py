@@ -7,10 +7,10 @@ Playwright fixtures لاختبارات المتصفح الشاملة.
 
 import pytest
 
-from core.models import CustomUser, School, Role, Membership, ClassGroup, StudentEnrollment
-
+from core.models import CustomUser, Membership, Role, School
 
 # ── School + Roles Setup ────────────────────────────────────────
+
 
 @pytest.fixture
 def e2e_school(db):
@@ -24,9 +24,18 @@ def e2e_roles(e2e_school):
     """إنشاء جميع الأدوار للمدرسة."""
     roles = {}
     for name in [
-        "principal", "vice_admin", "vice_academic", "coordinator",
-        "teacher", "specialist", "nurse", "librarian",
-        "bus_supervisor", "admin", "student", "parent",
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "coordinator",
+        "teacher",
+        "specialist",
+        "nurse",
+        "librarian",
+        "bus_supervisor",
+        "admin",
+        "student",
+        "parent",
     ]:
         roles[name] = Role.objects.create(school=e2e_school, name=name)
     return roles
@@ -61,6 +70,7 @@ def e2e_student(e2e_school, e2e_roles):
 
 
 # ── Login Helpers ────────────────────────────────────────────────
+
 
 @pytest.fixture
 def login(page, live_server):

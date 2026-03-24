@@ -20,7 +20,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 # ── Cache للـ backend الناجح — نتجنّب إعادة المحاولة في كل طلب ────────────
-_WORKING_BACKEND: str | None = None   # "weasyprint" | "playwright" | "xhtml2pdf"
+_WORKING_BACKEND: str | None = None  # "weasyprint" | "playwright" | "xhtml2pdf"
 _FAILED_BACKENDS: set = set()
 
 _FONTS_DIR = None
@@ -252,7 +252,7 @@ def _register_fonts_reportlab() -> list:
             ("amiri", 1, 0, "Amiri-Bold.ttf"),
             ("amiri", 0, 1, "Amiri-Regular.ttf"),
             ("amiri", 1, 1, "Amiri-Bold.ttf"),
-            ("tajawal", 0, 0, "Amiri-Regular.ttf"),   # Tajawal CSS → Amiri (أكمل دعماً)
+            ("tajawal", 0, 0, "Amiri-Regular.ttf"),  # Tajawal CSS → Amiri (أكمل دعماً)
             ("tajawal", 1, 0, "Amiri-Bold.ttf"),
             ("tajawal", 0, 1, "Amiri-Regular.ttf"),
             ("tajawal", 1, 1, "Amiri-Bold.ttf"),
@@ -337,6 +337,7 @@ def _reverse_table_columns(html_str: str) -> str:
     xhtml2pdf لا يدعم direction:rtl للجداول — الأعمدة دائماً LTR.
     هذا الحل يعكس ترتيب HTML ليظهر بشكل RTL في PDF.
     """
+
     def _reverse_cells(match):
         tr_content = match.group(1)
         # استخرج كل الخلايا (th أو td) مع محتوياتها
@@ -564,6 +565,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
             def _run_in_thread():
                 import asyncio
                 import sys
+
                 # Windows: ProactorEventLoop لا يدعم subprocess داخل thread
                 # → نستخدم SelectorEventLoop صراحةً
                 if sys.platform == "win32":

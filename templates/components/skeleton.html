@@ -1,16 +1,16 @@
-{#
+{% comment %}
   مكوّن Skeleton Loading — SchoolOS v5.1
   ════════════════════════════════════════
   الاستخدام:
-    {% include "components/skeleton.html" with type="kpi" count=4 %}
-    {% include "components/skeleton.html" with type="table" rows=5 %}
-    {% include "components/skeleton.html" with type="card" count=3 %}
+    include "components/skeleton.html" with type="kpi" count=4
+    include "components/skeleton.html" with type="table" rows=5
+    include "components/skeleton.html" with type="card" count=3
 
   المتغيرات:
     type  — kpi | table | card | list
     count — عدد العناصر (للـ kpi و card)
     rows  — عدد الصفوف (للـ table)
-#}
+{% endcomment %}
 
 {% if type == "kpi" %}
 {# ── KPI Grid ── #}

@@ -9,6 +9,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import CustomUser, School
+from core.models._crypto import decrypt_field, encrypt_field
 
 
 def _uuid():
@@ -89,8 +90,25 @@ class NotificationSettings(models.Model):
         max_length=20, default="twilio", choices=[("twilio", "Twilio"), ("local", "محلي")]
     )
     sms_from_number = models.CharField(max_length=20, blank=True)
-    twilio_account_sid = models.CharField(max_length=100, blank=True)
-    twilio_auth_token = models.CharField(max_length=100, blank=True)
+    # ── VULN-003 Fix: Fernet encryption for Twilio credentials (CWE-312) ──
+    _twilio_account_sid = models.TextField(blank=True, default="", db_column="twilio_account_sid")
+    _twilio_auth_token = models.TextField(blank=True, default="", db_column="twilio_auth_token")
+
+    @property
+    def twilio_account_sid(self):
+        return decrypt_field(self._twilio_account_sid) or self._twilio_account_sid
+
+    @twilio_account_sid.setter
+    def twilio_account_sid(self, value):
+        self._twilio_account_sid = encrypt_field(value) if value else ""
+
+    @property
+    def twilio_auth_token(self):
+        return decrypt_field(self._twilio_auth_token) or self._twilio_auth_token
+
+    @twilio_auth_token.setter
+    def twilio_auth_token(self, value):
+        self._twilio_auth_token = encrypt_field(value) if value else ""
 
     # نصوص الرسائل (قابلة للتخصيص)
     absence_email_subject = models.CharField(
@@ -129,7 +147,17 @@ class PushSubscription(models.Model):
     # بيانات الاشتراك من المتصفح
     endpoint = models.TextField(unique=True, verbose_name="Push Endpoint")
     p256dh = models.TextField(verbose_name="p256dh key")
-    auth = models.TextField(verbose_name="auth secret")
+    # ── HIGH-003 Fix: Fernet encryption for push auth secret ──
+    _auth = models.TextField(verbose_name="auth secret (encrypted)", db_column="auth")
+
+    @property
+    def auth(self):
+        return decrypt_field(self._auth) or self._auth
+
+    @auth.setter
+    def auth(self, value):
+        self._auth = encrypt_field(value) if value else ""
+
     # معلومات الجهاز
     user_agent = models.CharField(max_length=300, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

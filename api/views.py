@@ -180,11 +180,36 @@ def student_grades(request, student_id):
     year = _year(request)
     student = get_object_or_404(CustomUser, id=student_id)
 
+    # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
+    if not request.user.is_admin():
+        from assessments.models import SubjectClassSetup
+
+        teaches = SubjectClassSetup.objects.filter(
+            teacher=request.user,
+            school=school,
+            academic_year=year,
+            class_group__enrollments__student=student,
+            class_group__enrollments__is_active=True,
+        ).exists()
+        if not teaches:
+            return Response(
+                {"detail": "ليس لديك صلاحية عرض بيانات هذا الطالب"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
     annual = (
         AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
         .select_related("setup__subject")
         .order_by("setup__subject__name_ar")
     )
+
+    # ⚡ Pre-fetch semester results لتجنب N+1 queries
+    from assessments.models import StudentSubjectResult
+
+    semester_results = StudentSubjectResult.objects.filter(
+        student=student, setup__in=[a.setup_id for a in annual]
+    )
+    semester_map = {(r.student_id, r.setup_id, r.semester): r for r in semester_results}
 
     grades = [float(a.annual_total) for a in annual if a.annual_total]
     average = round(sum(grades) / len(grades), 2) if grades else None
@@ -198,7 +223,9 @@ def student_grades(request, student_id):
         "average": average,
         "subjects": annual,
     }
-    return Response(StudentGradeSummarySerializer(data).data)
+    return Response(
+        StudentGradeSummarySerializer(data, context={"semester_map": semester_map}).data
+    )
 
 
 @extend_schema(
@@ -217,6 +244,23 @@ def student_attendance(request, student_id):
 
     school = _school(request)
     student = get_object_or_404(CustomUser, id=student_id)
+
+    # ── VULN-002 Fix: IDOR Protection — المعلم يرى طلابه فقط ──────
+    if not request.user.is_admin():
+        from assessments.models import SubjectClassSetup
+
+        teaches = SubjectClassSetup.objects.filter(
+            teacher=request.user,
+            school=school,
+            academic_year=_year(request),
+            class_group__enrollments__student=student,
+            class_group__enrollments__is_active=True,
+        ).exists()
+        if not teaches:
+            return Response(
+                {"detail": "ليس لديك صلاحية عرض بيانات هذا الطالب"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     try:
         days = max(1, min(int(request.query_params.get("days", 30)), 365))
@@ -659,6 +703,15 @@ def parent_child_grades(request, student_id):
     year = _year(request)
     data = ParentService.get_student_grades(student, school, year)
     annual = data["annual_results"]
+
+    # ⚡ Pre-fetch semester results لتجنب N+1 queries
+    from assessments.models import StudentSubjectResult
+
+    semester_results = StudentSubjectResult.objects.filter(
+        student=student, setup__in=[a.setup_id for a in annual]
+    )
+    semester_map = {(r.student_id, r.setup_id, r.semester): r for r in semester_results}
+
     return Response(
         {
             "student": UserBriefSerializer(student).data,
@@ -667,7 +720,9 @@ def parent_child_grades(request, student_id):
             "passed": data["passed"],
             "failed": data["failed"],
             "avg": data["avg"],
-            "subjects": AnnualSubjectResultSerializer(annual, many=True).data,
+            "subjects": AnnualSubjectResultSerializer(
+                annual, many=True, context={"semester_map": semester_map}
+            ).data,
         }
     )
 

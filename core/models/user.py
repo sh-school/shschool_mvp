@@ -51,10 +51,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     # ── v5.1.1: HMAC + Fernet encryption for national_id (PDPPL) ──
     national_id_encrypted = models.TextField(
-        blank=True, default="", verbose_name="الرقم الوطني (مشفّر)",
+        blank=True,
+        default="",
+        verbose_name="الرقم الوطني (مشفّر)",
     )
     national_id_hmac = models.CharField(
-        max_length=64, blank=True, default="", db_index=True,
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
         verbose_name="HMAC الرقم الوطني",
     )
 

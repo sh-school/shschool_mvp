@@ -1,13 +1,12 @@
-{#
+{% comment %}
   مكوّن رفع الملفات (Drag & Drop) — SchoolOS v5.1
   ═══════════════════════════════════════════════════
   الاستخدام:
-    {% include "components/file_upload.html" with
+    include "components/file_upload.html" with
        field_name="attachment"
        accept=".pdf,.doc,.docx"
        max_size_mb=10
        label="رفع مستند"
-    %}
 
   المتغيرات:
     field_name  — اسم حقل الـ form (افتراضي: file)
@@ -15,7 +14,7 @@
     max_size_mb — الحد الأقصى بالميغابايت (افتراضي: 10)
     label       — عنوان المنطقة
     multiple    — True لتعدد الملفات
-#}
+{% endcomment %}
 <div
   class="dropzone-wrap"
   id="dropzone-{{ field_name|default:'file' }}"

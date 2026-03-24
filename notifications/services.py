@@ -147,9 +147,7 @@ class NotificationService:
     # ── إشعار غياب الطالب لولي الأمر ─────────────────────────
 
     @staticmethod
-    def notify_absence(
-        absence_alert: AbsenceAlert, sent_by: CustomUser | None = None
-    ) -> list:
+    def notify_absence(absence_alert: AbsenceAlert, sent_by: CustomUser | None = None) -> list:
         """إشعار ولي الأمر بغياب ابنه المتكرر"""
         student = absence_alert.student
         school = absence_alert.school
@@ -306,9 +304,7 @@ class NotificationService:
     # ── إرسال جماعي لكل التنبيهات المعلقة ────────────────────
 
     @staticmethod
-    def send_pending_absence_alerts(
-        school: School, sent_by: CustomUser | None = None
-    ) -> tuple:
+    def send_pending_absence_alerts(school: School, sent_by: CustomUser | None = None) -> tuple:
         """إرسال كل تنبيهات الغياب المعلقة دفعةً واحدة"""
         from operations.models import AbsenceAlert
 

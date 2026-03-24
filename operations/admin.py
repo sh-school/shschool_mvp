@@ -102,14 +102,28 @@ class SubstituteAssignmentAdmin(admin.ModelAdmin):
 
 @admin.register(TimeSlotConfig)
 class TimeSlotConfigAdmin(admin.ModelAdmin):
-    list_display = ("period_number", "start_time", "end_time", "day_type", "is_break", "break_label")
+    list_display = (
+        "period_number",
+        "start_time",
+        "end_time",
+        "day_type",
+        "is_break",
+        "break_label",
+    )
     list_filter = ("school", "day_type", "is_break")
     ordering = ("day_type", "period_number")
 
 
 @admin.register(SubjectClassAssignment)
 class SubjectClassAssignmentAdmin(admin.ModelAdmin):
-    list_display = ("subject", "class_group", "teacher", "weekly_periods", "requires_lab", "is_active")
+    list_display = (
+        "subject",
+        "class_group",
+        "teacher",
+        "weekly_periods",
+        "requires_lab",
+        "is_active",
+    )
     list_filter = ("school", "academic_year", "subject", "requires_lab", "is_active")
     search_fields = ("teacher__full_name", "subject__name_ar", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
@@ -127,7 +141,20 @@ class TeacherPreferenceAdmin(admin.ModelAdmin):
 
 @admin.register(ScheduleGeneration)
 class ScheduleGenerationAdmin(admin.ModelAdmin):
-    list_display = ("academic_year", "status", "quality_score", "total_slots_created", "generated_by", "generated_at")
+    list_display = (
+        "academic_year",
+        "status",
+        "quality_score",
+        "total_slots_created",
+        "generated_by",
+        "generated_at",
+    )
     list_filter = ("school", "status", "academic_year")
-    readonly_fields = ("generated_at", "quality_score", "hard_violations", "soft_violations", "generation_time_ms")
+    readonly_fields = (
+        "generated_at",
+        "quality_score",
+        "hard_violations",
+        "soft_violations",
+        "generation_time_ms",
+    )
     autocomplete_fields = ("generated_by",)

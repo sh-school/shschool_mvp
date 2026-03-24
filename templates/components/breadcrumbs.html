@@ -1,10 +1,12 @@
-{# ── Breadcrumbs Component ─────────────────────────────────────── #}
-{# Usage:                                                          #}
-{#   {% include "components/breadcrumbs.html" with               #}
-{#     parent_url="/assessments/" parent_label="التقييمات"         #}
-{#     current="إدخال الدرجات"                                     #}
-{#   %}                                                            #}
-{# For deeper nesting, use parent2_url/parent2_label.              #}
+{% comment %}
+  ── Breadcrumbs Component ──────────────────────────────────────
+  Usage:
+    include "components/breadcrumbs.html" with
+      parent_url="/assessments/" parent_label="التقييمات"
+      current="إدخال الدرجات"
+
+  For deeper nesting, use parent2_url/parent2_label.
+{% endcomment %}
 <nav class="breadcrumbs" aria-label="مسار التصفح">
   <a href="/dashboard/">الرئيسية</a>
   {% if parent2_url %}

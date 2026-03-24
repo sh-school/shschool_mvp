@@ -5,11 +5,9 @@ management command: إدخال البيانات الأساسية للجدولة 
 """
 
 from django.core.management.base import BaseCommand
-from django.conf import settings
 
 from core.models import School
 from operations.models import Subject, TimeSlotConfig
-
 
 # ── توقيتات الحصص — وزارة التربية قطر 2025-2026 ──
 
@@ -86,7 +84,11 @@ class Command(BaseCommand):
 
         # ── TimeSlotConfig ──
         created_slots = 0
-        for day_type, slots in [("regular", REGULAR_SLOTS), ("thursday", THURSDAY_SLOTS), ("ramadan", RAMADAN_SLOTS)]:
+        for day_type, slots in [
+            ("regular", REGULAR_SLOTS),
+            ("thursday", THURSDAY_SLOTS),
+            ("ramadan", RAMADAN_SLOTS),
+        ]:
             for period, start, end, is_break, label in slots:
                 _, created = TimeSlotConfig.objects.get_or_create(
                     school=school,
@@ -115,5 +117,7 @@ class Command(BaseCommand):
             if created:
                 created_subjects += 1
 
-        self.stdout.write(self.style.SUCCESS(f"[OK] المواد الدراسية: {created_subjects} مادة جديدة"))
+        self.stdout.write(
+            self.style.SUCCESS(f"[OK] المواد الدراسية: {created_subjects} مادة جديدة")
+        )
         self.stdout.write(self.style.SUCCESS("[OK] اكتمل إدخال البيانات الأساسية"))

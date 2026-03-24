@@ -94,8 +94,8 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
-            "capacity": 1500,   # حد الرسائل لكل channel
-            "expiry": 30,       # TTL الرسالة بالثواني
+            "capacity": 1500,  # حد الرسائل لكل channel
+            "expiry": 30,  # TTL الرسالة بالثواني
         },
     }
 }
@@ -148,7 +148,9 @@ FERNET_KEY = config("FERNET_KEY", default="")
 if not FERNET_KEY and not DEBUG:
     from django.core.exceptions import ImproperlyConfigured
 
-    raise ImproperlyConfigured("FERNET_KEY مطلوب في الإنتاج — أنشئ مفتاحاً: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+    raise ImproperlyConfigured(
+        'FERNET_KEY مطلوب في الإنتاج — أنشئ مفتاحاً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+    )
 
 # ── كلمة سر حماية ملفات Excel (لا تُكتب في الكود) ────────────
 EXCEL_PROTECTION_PASSWORD = config("EXCEL_PROTECTION_PASSWORD", default="")
@@ -158,10 +160,30 @@ if not EXCEL_PROTECTION_PASSWORD and not DEBUG:
     raise ImproperlyConfigured("EXCEL_PROTECTION_PASSWORD مطلوب في الإنتاج — أضفه إلى ملف .env")
 
 # ── CORS (للـ API — React Native / Mobile App) ────────────────
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:8000"
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in config(
+        "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:8000"
+    ).split(",")
+    if origin.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
+# ✅ v5.2: منع credentials مع wildcard وتقييد الـ headers و methods
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "x-csrftoken",
+    "x-requested-with",
+]
 
 LANGUAGE_CODE = "ar"
 TIME_ZONE = "Asia/Qatar"
@@ -227,8 +249,8 @@ REST_FRAMEWORK = {
         "anon": "30/minute",
         "user": "120/minute",
         "login": "5/minute",
-        "burst": "60/minute",       # حماية burst للـ endpoints الحساسة
-        "sensitive": "10/minute",    # endpoints حساسة (تغيير كلمة السر، etc.)
+        "burst": "60/minute",  # حماية burst للـ endpoints الحساسة
+        "sensitive": "10/minute",  # endpoints حساسة (تغيير كلمة السر، etc.)
     },
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",

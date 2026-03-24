@@ -353,11 +353,17 @@ class SubjectClassAssignment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_assignments")
-    class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments")
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments"
+    )
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="class_assignments")
     teacher = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="subject_assignments",
-        null=True, blank=True, verbose_name="المعلم",
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="subject_assignments",
+        null=True,
+        blank=True,
+        verbose_name="المعلم",
     )
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
@@ -385,13 +391,17 @@ class TeacherPreference(models.Model):
     """تفضيلات المعلم للجدولة الذكية"""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="schedule_preferences")
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="schedule_preferences"
+    )
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_preferences")
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
     free_day = models.IntegerField(
-        null=True, blank=True, choices=ScheduleSlot.DAYS,
+        null=True,
+        blank=True,
+        choices=ScheduleSlot.DAYS,
         verbose_name="يوم التفريغ المفضل",
     )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
@@ -420,7 +430,9 @@ class ScheduleGeneration(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_generations")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="schedule_generations"
+    )
     academic_year = models.CharField(max_length=9)
     generated_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
     generated_at = models.DateTimeField(auto_now_add=True)
@@ -438,4 +450,6 @@ class ScheduleGeneration(models.Model):
         ordering = ["-generated_at"]
 
     def __str__(self):
-        return f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
+        return (
+            f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
+        )

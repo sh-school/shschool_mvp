@@ -81,9 +81,7 @@ class GradeService:
     # ── حساب درجة الباقة الواحدة ───────────────────────────
 
     @staticmethod
-    def calc_package_score(
-        student: CustomUser, package: AssessmentPackage
-    ) -> Decimal | None:
+    def calc_package_score(student: CustomUser, package: AssessmentPackage) -> Decimal | None:
         """
         يحسب درجة الطالب الفعلية في الباقة من مجموع الفصل.
 
@@ -339,9 +337,7 @@ class GradeService:
         )
 
     @staticmethod
-    def get_semester_summary_for_class(
-        setup: SubjectClassSetup, semester: str
-    ) -> dict:
+    def get_semester_summary_for_class(setup: SubjectClassSetup, semester: str) -> dict:
         """ملخص درجات الفصل في مادة (لعرض الجدول)"""
         results = StudentSubjectResult.objects.filter(setup=setup, semester=semester)
         total = results.count()

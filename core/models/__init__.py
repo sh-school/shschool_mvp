@@ -3,10 +3,9 @@
 # تجميع كل نماذج core في مكان واحد للتوافق الخلفي الكامل
 # ══════════════════════════════════════════════════════════════════════
 
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery  # noqa: F401,E402
-
 # ── التوافق الخلفي مع النماذج المنقولة لتطبيقاتها ────────────────────
 # from core.models import HealthRecord  ← لا يزال يعمل
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery  # noqa: F401,E402
 from clinic.models import ClinicVisit, HealthRecord  # noqa: F401,E402
 from library.models import BookBorrowing, LibraryActivity, LibraryBook  # noqa: F401,E402
 from transport.models import BusRoute, SchoolBus  # noqa: F401,E402
@@ -15,6 +14,12 @@ from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # no
 from .academic import ClassGroup, ParentStudentLink, StudentEnrollment  # noqa: F401
 from .access import Membership, Role  # noqa: F401
 from .audit import AuditLog, BreachReport, ConsentRecord, ErasureRequest  # noqa: F401
+from .base import (  # noqa: F401
+    AuditedModel,
+    SchoolScopedModel,
+    SoftDeleteModel,
+    TimeStampedModel,
+)
 from .school import School, _uuid  # noqa: F401
 from .user import (  # noqa: F401
     CustomUser,
@@ -24,6 +29,11 @@ from .user import (  # noqa: F401
 )
 
 __all__ = [
+    # abstract base models
+    "TimeStampedModel",
+    "AuditedModel",
+    "SoftDeleteModel",
+    "SchoolScopedModel",
     # crypto utils
     "_get_fernet",
     "encrypt_field",

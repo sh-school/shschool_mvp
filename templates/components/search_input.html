@@ -1,13 +1,12 @@
-{#
+{% comment %}
   مكوّن البحث الحي (HTMX) — SchoolOS v5.1
   ══════════════════════════════════════════
   الاستخدام:
-    {% include "components/search_input.html" with
+    include "components/search_input.html" with
        search_url=request.path
        target="#results-container"
        placeholder="ابحث عن طالب..."
        value=request.GET.q
-    %}
 
   المتغيرات:
     search_url  — URL للـ hx-get
@@ -17,7 +16,7 @@
     name        — اسم الـ param (افتراضي: q)
     delay       — تأخير إدخال (افتراضي: 400ms)
     indicator   — id لـ loading indicator
-#}
+{% endcomment %}
 <div class="search-wrap" style="position:relative;display:flex;align-items:center">
   <span style="position:absolute;right:12px;color:var(--text-muted);pointer-events:none;font-size:1rem">🔍</span>
   <input

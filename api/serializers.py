@@ -176,6 +176,19 @@ class StudentSubjectResultSerializer(serializers.ModelSerializer):
 
 
 class AnnualSubjectResultSerializer(serializers.ModelSerializer):
+    """
+    Serializer للنتيجة السنوية مع نتائج الفصلين.
+
+    ⚡ لتجنب N+1 queries: استخدم prefetch_semester_results() في الـ view:
+        AnnualSubjectResult.objects.filter(...).select_related("setup__subject").prefetch_related(
+            Prefetch("student__studentsubjectresult_set",
+                     queryset=StudentSubjectResult.objects.filter(setup=OuterRef("setup")),
+                     to_attr="_semester_results")
+        )
+    أو مرّر semester_map في context:
+        serializer = AnnualSubjectResultSerializer(qs, many=True, context={"semester_map": semester_map})
+    """
+
     subject_name = serializers.CharField(source="setup.subject.name_ar", read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     s1_result = serializers.SerializerMethodField()
@@ -195,21 +208,27 @@ class AnnualSubjectResultSerializer(serializers.ModelSerializer):
             "letter_grade",
         ]
 
-    def get_s1_result(self, obj):
+    def _get_semester_result(self, obj, semester):
+        """يبحث أولاً في semester_map (O(1)) ثم fallback لاستعلام DB."""
+        semester_map = self.context.get("semester_map")
+        if semester_map is not None:
+            r = semester_map.get((obj.student_id, obj.setup_id, semester))
+            return float(r.total) if r and r.total else None
+        # fallback — استعلام مباشر (N+1 إذا لم يُمرّر semester_map)
         r = StudentSubjectResult.objects.filter(
-            student=obj.student, setup=obj.setup, semester="S1"
+            student=obj.student, setup=obj.setup, semester=semester
         ).first()
         return float(r.total) if r and r.total else None
 
+    def get_s1_result(self, obj):
+        return self._get_semester_result(obj, "S1")
+
     def get_s2_result(self, obj):
-        r = StudentSubjectResult.objects.filter(
-            student=obj.student, setup=obj.setup, semester="S2"
-        ).first()
-        return float(r.total) if r and r.total else None
+        return self._get_semester_result(obj, "S2")
 
 
 class StudentGradeSummarySerializer(serializers.Serializer):
-    """ملخص درجات طالب لسنة دراسية"""
+    """ملخص درجات طالب لسنة دراسية — يمرّر semester_map للنتائج الفرعية."""
 
     student = UserBriefSerializer(read_only=True)
     year = serializers.CharField()
@@ -217,7 +236,10 @@ class StudentGradeSummarySerializer(serializers.Serializer):
     passed = serializers.IntegerField()
     failed = serializers.IntegerField()
     average = serializers.FloatField(allow_null=True)
-    subjects = AnnualSubjectResultSerializer(many=True)
+    subjects = serializers.SerializerMethodField()
+
+    def get_subjects(self, obj):
+        return AnnualSubjectResultSerializer(obj["subjects"], many=True, context=self.context).data
 
 
 # ══════════════════════════════════════════════════════════════════════

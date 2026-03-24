@@ -154,17 +154,18 @@ def quick_log(request):
 
     if not BehaviorPermissions.can_report(request.user):
         from django.http import HttpResponse
+
         return HttpResponse("ليس لديك صلاحية", status=403)
 
     school = request.user.get_school()
 
     if request.method == "POST":
-        student_id   = request.POST.get("student_id", "").strip()
-        description  = request.POST.get("description", "").strip()
-        action       = request.POST.get("action_taken", "").strip()
+        student_id = request.POST.get("student_id", "").strip()
+        description = request.POST.get("description", "").strip()
+        action = request.POST.get("action_taken", "").strip()
 
         try:
-            level  = int(request.POST.get("level", 1))
+            level = int(request.POST.get("level", 1))
             points = int(request.POST.get("points_deducted", POINTS_BY_LEVEL.get(level, 5)))
         except (ValueError, TypeError):
             level, points = 1, 5
@@ -182,7 +183,11 @@ def quick_log(request):
 
         if errors:
             return htmx_toast(
-                render(request, "behavior/partials/quick_log_form.html", _quick_log_context(school, student_id)),
+                render(
+                    request,
+                    "behavior/partials/quick_log_form.html",
+                    _quick_log_context(school, student_id),
+                ),
                 msg=" | ".join(errors),
                 msg_type="danger",
             )
@@ -202,6 +207,7 @@ def quick_log(request):
         # إشعار غير متزامن
         try:
             from notifications.tasks import notify_behavior_task
+
             notify_behavior_task.delay(
                 infraction_id=str(infraction.id),
                 reporter_id=str(request.user.id),
@@ -219,8 +225,11 @@ def quick_log(request):
 
     # GET — نموذج فارغ
     student_id_hint = request.GET.get("student_id", "")
-    return render(request, "behavior/partials/quick_log_form.html",
-                  _quick_log_context(school, student_id_hint))
+    return render(
+        request,
+        "behavior/partials/quick_log_form.html",
+        _quick_log_context(school, student_id_hint),
+    )
 
 
 def _quick_log_context(school, preselected_student_id=""):

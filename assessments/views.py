@@ -216,7 +216,10 @@ def grade_entry(request, assessment_id):
 
     # درجات موجودة
     existing = {
-        g.student_id: g for g in StudentAssessmentGrade.objects.filter(assessment=assessment).select_related("student")
+        g.student_id: g
+        for g in StudentAssessmentGrade.objects.filter(assessment=assessment).select_related(
+            "student"
+        )
     }
 
     students_data = [

@@ -40,9 +40,13 @@ def api_admin(db, school):
 
 @pytest.fixture
 def api_parent(db, school, student_user):
-    """ولي أمر مع API client"""
+    """ولي أمر مع API client — مع موافقة PDPPL"""
+    from django.utils import timezone
+
     role = RoleFactory(school=school, name="parent")
     user = UserFactory(full_name="ولي أمر المحو")
+    user.consent_given_at = timezone.now()
+    user.save(update_fields=["consent_given_at"])
     MembershipFactory(user=user, school=school, role=role)
     ParentStudentLink.objects.create(
         parent=user,

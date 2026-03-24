@@ -135,7 +135,8 @@ class TestOperationalProcedureProperties:
         """إجراء بموعد أمس وحالة In Progress → True"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() - timedelta(days=1),
             status="In Progress",
         )
@@ -145,7 +146,8 @@ class TestOperationalProcedureProperties:
         """إجراء بموعد أمس لكن حالته Completed → False"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() - timedelta(days=1),
             status="Completed",
         )
@@ -163,7 +165,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي بعد 5 أيام → True (ضمن 7 أيام)"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() + timedelta(days=5),
             status="In Progress",
         )
@@ -173,7 +176,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي بعد 30 يوماً → False"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() + timedelta(days=30),
             status="In Progress",
         )
@@ -185,7 +189,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي بعد يومين → True (ضمن 3 أيام)"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() + timedelta(days=2),
             status="In Progress",
         )
@@ -195,7 +200,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي بعد 5 أيام → False (خارج 3 أيام)"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() + timedelta(days=5),
             status="In Progress",
         )
@@ -207,7 +213,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي قبل 10 أيام → 10"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() - timedelta(days=10),
             status="In Progress",
         )
@@ -217,7 +224,8 @@ class TestOperationalProcedureProperties:
         """موعد نهائي في المستقبل → 0"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() + timedelta(days=5),
             status="In Progress",
         )
@@ -230,7 +238,8 @@ class TestOperationalProcedureProperties:
         domain = make_domain(school)
         reviewer = make_teacher(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             status="Completed",
             reviewed_by=reviewer,
         )
@@ -241,7 +250,8 @@ class TestOperationalProcedureProperties:
         domain = make_domain(school)
         reviewer = make_teacher(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             status="In Progress",
             reviewed_by=reviewer,
         )
@@ -288,12 +298,14 @@ class TestProcedureQuerySet:
         domain = make_domain(school)
         today = timezone.now().date()
         overdue_proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=today - timedelta(days=3),
             status="In Progress",
         )
         future_proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=today + timedelta(days=10),
             status="In Progress",
         )
@@ -305,7 +317,8 @@ class TestProcedureQuerySet:
         """overdue() يستثني المكتملة حتى لو تجاوزت الموعد"""
         domain = make_domain(school)
         proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=timezone.now().date() - timedelta(days=5),
             status="Completed",
         )
@@ -317,12 +330,14 @@ class TestProcedureQuerySet:
         domain = make_domain(school)
         today = timezone.now().date()
         soon_proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=today + timedelta(days=3),
             status="In Progress",
         )
         far_proc = make_procedure(
-            school, domain,
+            school,
+            domain,
             deadline=today + timedelta(days=30),
             status="In Progress",
         )
@@ -414,9 +429,7 @@ class TestProcedureQuerySet:
         make_procedure(school, domain, status="Completed")
         make_procedure(school, domain, status="Completed")
         make_procedure(school, domain, status="In Progress")
-        summary = list(
-            OperationalProcedure.objects.filter(school=school).summary_by_status()
-        )
+        summary = list(OperationalProcedure.objects.filter(school=school).summary_by_status())
         status_map = {item["status"]: item["count"] for item in summary}
         assert status_map["Completed"] == 2
         assert status_map["In Progress"] == 1
@@ -494,6 +507,7 @@ class TestProcedureStatusLog:
             new_status="In Progress",
         )
         import time
+
         time.sleep(0.01)  # ensure different created_at timestamps
         log2 = ProcedureStatusLog.objects.create(
             procedure=proc,

@@ -41,6 +41,7 @@ from .views_executor import (  # noqa: F401
 )
 from .views_reports import progress_report, progress_report_pdf  # noqa: F401
 
+
 def _safe_next_redirect(request, fallback):
     """تحقق من أن next URL آمن — يمنع Open Redirect."""
     next_url = request.POST.get("next", "")
@@ -69,6 +70,7 @@ _SORT_FIELDS = {
 
 # ── مساعدات داخلية ───────────────────────────────────────────
 
+
 def _is_review_member(user, school, year):
     """هل المستخدم عضو نشط في لجنة المراجعة؟ — Clean Code: G5 لا تكرار"""
     return QualityCommitteeMember.objects.filter(
@@ -86,10 +88,7 @@ def _can_edit_procedure(user, procedure):
 
 def _build_procedure_qs(request, school, year):
     """Build a filtered + sorted queryset shared by execution_list & review_list."""
-    qs = (
-        OperationalProcedure.objects.filter(school=school, academic_year=year)
-        .with_details()
-    )
+    qs = OperationalProcedure.objects.filter(school=school, academic_year=year).with_details()
 
     # ── Filters ──
     field = request.GET.get("field")
@@ -213,9 +212,9 @@ def plan_dashboard(request):
     review_committee = QualityCommitteeMember.objects.review_committee(school, year)
 
     base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
-    pending_review = base_qs.filter(status='Pending Review').count()
+    pending_review = base_qs.filter(status="Pending Review").count()
     overdue_count = base_qs.overdue().count()
-    evidence_requested = base_qs.filter(evidence_request_status='requested').count()
+    evidence_requested = base_qs.filter(evidence_request_status="requested").count()
     unmapped_count = QualityService.get_unmapped_count(school, year)
 
     my_procedures = (
@@ -275,9 +274,13 @@ def procedure_detail(request, proc_id):
     procedure = get_object_or_404(OperationalProcedure, id=proc_id, school=school)
     evidences = procedure.evidences.select_related("uploaded_by").all()
 
-    status_logs = ProcedureStatusLog.objects.filter(
-        procedure=procedure,
-    ).select_related("changed_by").order_by("-created_at")
+    status_logs = (
+        ProcedureStatusLog.objects.filter(
+            procedure=procedure,
+        )
+        .select_related("changed_by")
+        .order_by("-created_at")
+    )
 
     return render(
         request,
@@ -286,7 +289,9 @@ def procedure_detail(request, proc_id):
             "procedure": procedure,
             "evidences": evidences,
             "can_edit": _can_edit_procedure(request.user, procedure),
-            "is_reviewer": _is_review_member(request.user, school, request.GET.get("year", _DEFAULT_YEAR)),
+            "is_reviewer": _is_review_member(
+                request.user, school, request.GET.get("year", _DEFAULT_YEAR)
+            ),
             "status_logs": status_logs,
             "STATUS_CHOICES": OperationalProcedure.STATUS,
         },
@@ -338,10 +343,10 @@ def update_procedure_status(request, proc_id):
         recipients = [m.user for m in review_members if m.user]
         if recipients:
             NotificationHub.dispatch(
-                event_type='plan_update',
+                event_type="plan_update",
                 school=school,
                 recipients=recipients,
-                title=f'إجراء بانتظار المراجعة: {procedure.number}',
+                title=f"إجراء بانتظار المراجعة: {procedure.number}",
                 body=f'الإجراء "{procedure.text[:50]}" تم تقديمه للمراجعة',
             )
 
@@ -380,11 +385,11 @@ def approve_procedure(request, proc_id):
     if procedure.executor_user:
         new_status = procedure.status
         NotificationHub.dispatch(
-            event_type='plan_update',
+            event_type="plan_update",
             school=school,
             recipients=[procedure.executor_user],
             title=f'{"تم اعتماد" if new_status == "Completed" else "تم إعادة"} الإجراء {procedure.number}',
-            body=note or '',
+            body=note or "",
         )
 
     return redirect("procedure_detail", proc_id=proc_id)
@@ -404,11 +409,24 @@ def upload_evidence(request, proc_id):
         messages.error(request, "عنوان الدليل مطلوب")
         return redirect("procedure_detail", proc_id=proc_id)
 
+    uploaded_file = request.FILES.get("file")
+    # ── HIGH-002 Fix: التحقق من نوع الملف قبل الحفظ ──
+    if uploaded_file:
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from core.validators import FileTypeValidator
+
+        try:
+            FileTypeValidator(allowed_types="document")(uploaded_file)
+        except DjangoValidationError as e:
+            messages.error(request, e.message)
+            return redirect("procedure_detail", proc_id=proc_id)
+
     ProcedureEvidence.objects.create(
         procedure=procedure,
         title=title,
         description=request.POST.get("description", "").strip(),
-        file=request.FILES.get("file"),
+        file=uploaded_file,
         uploaded_by=request.user,
     )
     messages.success(request, "تم رفع الدليل بنجاح")
@@ -543,9 +561,7 @@ def task_update_modal(request, proc_id):
     """GET: عرض نموذج التحديث — POST: حفظ التغييرات."""
     school = request.user.get_school()
     procedure = get_object_or_404(
-        OperationalProcedure.objects.select_related(
-            "indicator__target__domain", "executor_user"
-        ),
+        OperationalProcedure.objects.select_related("indicator__target__domain", "executor_user"),
         id=proc_id,
         school=school,
     )
@@ -679,13 +695,13 @@ def toggle_evidence_request(request, proc_id):
 
     procedure.save(update_fields=["evidence_request_status", "updated_at"])
 
-    if procedure.evidence_request_status == 'requested' and procedure.executor_user:
+    if procedure.evidence_request_status == "requested" and procedure.executor_user:
         NotificationHub.dispatch(
-            event_type='plan_update',
+            event_type="plan_update",
             school=school,
             recipients=[procedure.executor_user],
-            title=f'مطلوب رفع دليل للإجراء {procedure.number}',
-            body=procedure.evidence_request_note or 'يرجى رفع الأدلة المطلوبة',
+            title=f"مطلوب رفع دليل للإجراء {procedure.number}",
+            body=procedure.evidence_request_note or "يرجى رفع الأدلة المطلوبة",
         )
 
     return _safe_next_redirect(request, "review_list")

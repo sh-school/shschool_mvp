@@ -70,17 +70,16 @@ def reports_index(request):
         classes = classes.filter(grade=grade_filter)
 
     # الصفوف المتاحة فعلياً (للفلاتر)
-    all_classes = ClassGroup.objects.filter(
-        school=school, academic_year=year, is_active=True
-    )
+    all_classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
     if level_filter:
-        available_grades = all_classes.filter(level_type=level_filter).values_list(
-            "grade", flat=True
-        ).distinct().order_by("grade")
+        available_grades = (
+            all_classes.filter(level_type=level_filter)
+            .values_list("grade", flat=True)
+            .distinct()
+            .order_by("grade")
+        )
     else:
-        available_grades = all_classes.values_list(
-            "grade", flat=True
-        ).distinct().order_by("grade")
+        available_grades = all_classes.values_list("grade", flat=True).distinct().order_by("grade")
 
     ctx = {
         "classes": classes,
@@ -243,7 +242,9 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    return ExcelService.class_results_excel(class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))
+    return ExcelService.class_results_excel(
+        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    )
 
 
 @login_required
@@ -254,7 +255,9 @@ def attendance_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    return ExcelService.attendance_excel(class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))
+    return ExcelService.attendance_excel(
+        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    )
 
 
 @login_required
@@ -264,4 +267,6 @@ def behavior_excel(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    return ExcelService.behavior_excel(school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR))
+    return ExcelService.behavior_excel(
+        school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    )

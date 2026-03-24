@@ -248,9 +248,7 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_behavior_report(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def get_behavior_report(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """بيانات تقرير السلوك العام"""
         from behavior.models import BehaviorInfraction
 
@@ -418,7 +416,7 @@ class ExcelService:
         from django.conf import settings
 
         ws.protection.sheet = True
-        ws.protection.password = getattr(settings, "EXCEL_PROTECTION_PASSWORD", "changeme")
+        ws.protection.password = getattr(settings, "EXCEL_PROTECTION_PASSWORD", "") or "protected"
         ws.protection.autoFilter = False  # يسمح باستخدام الفلاتر
         ws.protection.sort = False  # يسمح بالفرز
 
@@ -452,6 +450,7 @@ class ExcelService:
 
         # منطقة الطباعة
         from openpyxl.utils import get_column_letter
+
         col_letter = get_column_letter(num_cols)
         last_row = num_data_rows + 4
         ws.print_area = f"A1:{col_letter}{last_row}"

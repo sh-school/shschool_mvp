@@ -5,16 +5,28 @@ tests/test_components.py
 يختبر أن كل مكون يُعرض بدون أخطاء ويحتوي على العناصر الأساسية.
 """
 
+import pytest
 from django.template.loader import render_to_string
+from django.test import RequestFactory
+
+# ── جميع اختبارات هذا الملف تحتاج وصول DB (context_processor) ──
+pytestmark = pytest.mark.django_db
 
 # ──────────────────────────────────────────────
 #  helper: تحميل component عبر include
 # ──────────────────────────────────────────────
 
+_factory = RequestFactory()
+
 
 def render_component(template_name, context=None):
-    """يُعيد HTML string للمكون."""
-    return render_to_string(template_name, context or {})
+    """يُعيد HTML string للمكون — مع request وهمي لتجنب RecursionError."""
+    from django.contrib.auth.models import AnonymousUser
+
+    request = _factory.get("/")
+    request.user = AnonymousUser()
+    ctx = context or {}
+    return render_to_string(template_name, ctx, request=request)
 
 
 # ══════════════════════════════════════════════════════════
@@ -52,8 +64,8 @@ class TestModalComponent:
             "components/modal.html",
             {
                 "modal_id": "modal-x",
-                "modal_title": "عنوان التجربة",
-                "modal_body": "محتوى",
+                "title": "عنوان التجربة",
+                "content": "محتوى",
             },
         )
         assert "عنوان التجربة" in html
@@ -86,8 +98,8 @@ class TestToastComponent:
         assert html is not None
 
     def test_contains_toast_container_id(self):
-        html = render_component("components/toast.html")
-        assert "toast-container" in html or "toast" in html.lower()
+        html = render_component("components/toast.html", {"msg": "تم بنجاح", "type": "success"})
+        assert "toast" in html.lower()
 
 
 # ══════════════════════════════════════════════════════════
@@ -102,7 +114,7 @@ class TestSkeletonComponent:
         assert len(html) > 0
 
     def test_table_type(self):
-        html = render_component("components/skeleton.html", {"type": "table", "count": 5})
+        html = render_component("components/skeleton.html", {"type": "table", "rows": 5})
         assert html is not None
 
     def test_card_type(self):
@@ -110,7 +122,7 @@ class TestSkeletonComponent:
         assert html is not None
 
     def test_contains_skeleton_class(self):
-        html = render_component("components/skeleton.html", {"type": "table", "count": 2})
+        html = render_component("components/skeleton.html", {"type": "table", "rows": 3})
         assert "skeleton" in html.lower() or "animate" in html.lower() or "shimmer" in html.lower()
 
 
@@ -138,10 +150,9 @@ class TestConfirmDialogComponent:
             "components/confirm_dialog.html",
             {
                 "confirm_id": "m",
-                "confirm_title": "تأكيد",
-                "confirm_message": "هذا لا يمكن التراجع عنه",
-                "confirm_action_url": "/delete/",
-                "confirm_btn_label": "موافق",
+                "title": "تأكيد",
+                "message": "هذا لا يمكن التراجع عنه",
+                "action_url": "/delete/",
             },
         )
         assert "لا يمكن التراجع" in html
@@ -151,10 +162,9 @@ class TestConfirmDialogComponent:
             "components/confirm_dialog.html",
             {
                 "confirm_id": "m",
-                "confirm_title": "حذف",
-                "confirm_message": "رسالة",
-                "confirm_action_url": "/custom/delete/99/",
-                "confirm_btn_label": "نعم",
+                "title": "حذف",
+                "message": "رسالة",
+                "action_url": "/custom/delete/99/",
             },
         )
         assert "/custom/delete/99/" in html
@@ -241,9 +251,9 @@ class TestEmptyStateComponent:
         html = render_component(
             "components/empty_state.html",
             {
-                "empty_icon": "📚",
-                "empty_title": "عنوان",
-                "empty_sub": "",
+                "icon": "📚",
+                "title": "عنوان",
+                "subtitle": "",
             },
         )
         assert "📚" in html
@@ -252,11 +262,11 @@ class TestEmptyStateComponent:
         html = render_component(
             "components/empty_state.html",
             {
-                "empty_icon": "📋",
-                "empty_title": "لا شيء",
-                "empty_sub": "فارغ",
-                "empty_action_url": "/add/",
-                "empty_action_label": "إضافة جديد",
+                "icon": "📋",
+                "title": "لا شيء",
+                "subtitle": "فارغ",
+                "action_url": "/add/",
+                "action_label": "إضافة جديد",
             },
         )
         assert "/add/" in html

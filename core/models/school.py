@@ -30,25 +30,35 @@ class School(models.Model):
     name = models.CharField(max_length=200, verbose_name="اسم المدرسة")
     code = models.CharField(max_length=10, unique=True, verbose_name="كود المدرسة")
     abbreviation = models.CharField(
-        max_length=10, blank=True, verbose_name="الاختصار",
+        max_length=10,
+        blank=True,
+        verbose_name="الاختصار",
         help_text="مثلاً: SHH",
     )
     ministry_code = models.CharField(
-        max_length=20, blank=True, verbose_name="رمز الوزارة",
+        max_length=20,
+        blank=True,
+        verbose_name="رمز الوزارة",
         help_text="رمز المدرسة في وزارة التربية والتعليم",
     )
 
     # ── النوع والمرحلة ────────────────────────────────────────────
     school_type = models.CharField(
-        max_length=10, choices=SCHOOL_TYPE, default="boys",
+        max_length=10,
+        choices=SCHOOL_TYPE,
+        default="boys",
         verbose_name="نوع المدرسة",
     )
     education_level = models.CharField(
-        max_length=15, choices=EDUCATION_LEVEL, default="prep_sec",
+        max_length=15,
+        choices=EDUCATION_LEVEL,
+        default="prep_sec",
         verbose_name="المرحلة الدراسية",
     )
     established_year = models.PositiveSmallIntegerField(
-        null=True, blank=True, verbose_name="سنة التأسيس",
+        null=True,
+        blank=True,
+        verbose_name="سنة التأسيس",
     )
 
     # ── الاتصال ───────────────────────────────────────────────────
@@ -60,19 +70,26 @@ class School(models.Model):
     # ── العنوان ───────────────────────────────────────────────────
     city = models.CharField(max_length=100, verbose_name="المدينة", default="الشحانية")
     zone = models.CharField(
-        max_length=100, blank=True, verbose_name="المنطقة / الحي",
+        max_length=100,
+        blank=True,
+        verbose_name="المنطقة / الحي",
     )
     address = models.TextField(
-        blank=True, verbose_name="العنوان التفصيلي",
+        blank=True,
+        verbose_name="العنوان التفصيلي",
     )
     po_box = models.CharField(
-        max_length=20, blank=True, verbose_name="صندوق البريد",
+        max_length=20,
+        blank=True,
+        verbose_name="صندوق البريد",
     )
 
     # ── الإدارة ───────────────────────────────────────────────────
     principal = models.ForeignKey(
-        "core.CustomUser", on_delete=models.SET_NULL,
-        null=True, blank=True,
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="principal_of",
         verbose_name="المدير",
         help_text="اختر المدير من قائمة المستخدمين",
@@ -80,7 +97,9 @@ class School(models.Model):
 
     # ── الهوية البصرية ────────────────────────────────────────────
     logo = models.ImageField(
-        upload_to="schools/logos/", blank=True, null=True,
+        upload_to="schools/logos/",
+        blank=True,
+        null=True,
         verbose_name="شعار المدرسة",
         help_text="يُفضل PNG شفاف بحجم 200x200 بكسل على الأقل",
     )

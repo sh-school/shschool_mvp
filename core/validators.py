@@ -39,8 +39,7 @@ class StrongPasswordValidator:
 
     def get_help_text(self):
         return (
-            "كلمة المرور يجب أن تكون 12 حرفاً على الأقل "
-            "وتحتوي على حرف كبير وصغير ورقم ورمز خاص."
+            "كلمة المرور يجب أن تكون 12 حرفاً على الأقل " "وتحتوي على حرف كبير وصغير ورقم ورمز خاص."
         )
 
 
@@ -65,7 +64,13 @@ ALLOWED_IMAGE_TYPES = {
 ALLOWED_LIBRARY_TYPES = ALLOWED_DOCUMENT_TYPES | {"application/epub+zip"}
 
 ALLOWED_EXTENSIONS_DOCUMENT = {
-    ".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".txt",
+    ".pdf",
+    ".docx",
+    ".doc",
+    ".xlsx",
+    ".xls",
+    ".pptx",
+    ".txt",
 }
 ALLOWED_EXTENSIONS_IMAGE = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
 ALLOWED_EXTENSIONS_LIBRARY = ALLOWED_EXTENSIONS_DOCUMENT | {".epub"}
@@ -91,11 +96,29 @@ class FileTypeValidator:
 
     # امتدادات خطيرة — ممنوعة دائماً بغض النظر عن الإعدادات
     DANGEROUS_EXTENSIONS = {
-        ".exe", ".bat", ".cmd", ".com", ".msi", ".scr", ".pif",
-        ".js", ".vbs", ".wsf", ".ps1", ".sh", ".bash",
-        ".php", ".py", ".rb", ".pl", ".cgi",
-        ".dll", ".sys", ".drv",
-        ".jar", ".class",
+        ".exe",
+        ".bat",
+        ".cmd",
+        ".com",
+        ".msi",
+        ".scr",
+        ".pif",
+        ".js",
+        ".vbs",
+        ".wsf",
+        ".ps1",
+        ".sh",
+        ".bash",
+        ".php",
+        ".py",
+        ".rb",
+        ".pl",
+        ".cgi",
+        ".dll",
+        ".sys",
+        ".drv",
+        ".jar",
+        ".class",
     }
 
     def __init__(self, allowed_types="document", max_size_mb=50):

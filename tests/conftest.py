@@ -244,9 +244,13 @@ def student_user(db, school):
 
 @pytest.fixture
 def parent_user(db, school, student_user):
-    """ولي أمر مرتبط بطالب"""
+    """ولي أمر مرتبط بطالب — مع موافقة PDPPL"""
+    from django.utils import timezone
+
     role = RoleFactory(school=school, name="parent")
     user = UserFactory(full_name="ولي الأمر")
+    user.consent_given_at = timezone.now()  # ParentConsentMiddleware يتطلب الموافقة
+    user.save(update_fields=["consent_given_at"])
     MembershipFactory(user=user, school=school, role=role)
     ParentStudentLink.objects.create(
         parent=user,

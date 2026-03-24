@@ -31,6 +31,7 @@ def _safe_redirect(url, request, fallback="dashboard"):
         return redirect(url)
     return redirect(fallback)
 
+
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
 # ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
@@ -130,7 +131,17 @@ def verify_2fa(request):
 
         _s = _dfd(user.totp_secret) or user.totp_secret
         totp = pyotp.TOTP(_s)
+
+        # ── VULN-001 Fix: TOTP Replay Protection (CWE-294) ──────────
+        from django.core.cache import cache
+
+        replay_key = f"totp_used:{user.id}:{code}"
+        if cache.get(replay_key):
+            messages.error(request, "رمز التحقق مُستخدم بالفعل. انتظر رمزاً جديداً.")
+            return render(request, "auth/verify_2fa.html", {"user": user})
+
         if totp.verify(code, valid_window=1):
+            cache.set(replay_key, True, timeout=90)  # يمنع إعادة الاستخدام لـ 90 ثانية
             del request.session["pending_2fa_user"]
             login(request, user)
             if user.must_change_password:
@@ -143,6 +154,7 @@ def verify_2fa(request):
 
 
 @login_required
+@ratelimit(key="user", rate="3/m", method="POST", block=True)
 def setup_2fa(request):
     """إعداد المصادقة الثنائية — توليد QR وتفعيل TOTP للمدير والنواب."""
     user = request.user
@@ -199,6 +211,7 @@ def setup_2fa(request):
 
 
 @login_required
+@ratelimit(key="user", rate="3/m", method="POST", block=True)
 def disable_2fa(request):
     """تعطيل المصادقة الثنائية بعد التحقق من الرمز الحالي."""
     if request.method == "POST":

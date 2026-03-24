@@ -3,7 +3,7 @@ tests/test_quality_new_views.py
 اختبارات الـ Views الجديدة لمنظومة الجودة (execution_list, review_list, modals, toggle_evidence)
 """
 
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -81,11 +81,13 @@ def make_procedure(
 ):
     n = _next()
     target, _ = OperationalTarget.objects.get_or_create(
-        domain=domain, number=f"T{domain.pk!s:.4s}",
+        domain=domain,
+        number=f"T{domain.pk!s:.4s}",
         defaults={"text": "هدف تجريبي"},
     )
     indicator, _ = OperationalIndicator.objects.get_or_create(
-        target=target, number=f"I{domain.pk!s:.4s}",
+        target=target,
+        number=f"I{domain.pk!s:.4s}",
         defaults={"text": "مؤشر تجريبي"},
     )
     return OperationalProcedure.objects.create(
@@ -341,7 +343,9 @@ class TestTaskUpdateModal:
         domain = make_domain(school)
         proc = make_procedure(school, domain)
         client.force_login(admin)
-        fake_file = SimpleUploadedFile("evidence.pdf", b"PDF content", content_type="application/pdf")
+        fake_file = SimpleUploadedFile(
+            "evidence.pdf", b"PDF content", content_type="application/pdf"
+        )
         client.post(
             reverse("task_update_modal", kwargs={"proc_id": proc.pk}),
             {
@@ -561,8 +565,11 @@ class TestDashboardNewKPIs:
     def test_overdue_count_accurate(self, client, school):
         admin = make_admin(school)
         domain = make_domain(school)
-        yesterday = date.today() - timedelta(days=1)
-        tomorrow = date.today() + timedelta(days=1)
+        from django.utils import timezone
+
+        today = timezone.now().date()  # تستخدم نفس التوقيت كـ queryset.overdue()
+        yesterday = today - timedelta(days=1)
+        tomorrow = today + timedelta(days=1)
         # Overdue: deadline passed + not completed
         make_procedure(school, domain, status="In Progress", deadline=yesterday)
         make_procedure(school, domain, status="In Progress", deadline=yesterday)

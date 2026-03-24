@@ -13,7 +13,6 @@ import uuid
 import pytest
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
-from django.test import override_settings
 
 from notifications.consumers import NotificationConsumer
 from notifications.models import InAppNotification
@@ -37,20 +36,24 @@ TEST_CHANNEL_LAYERS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _channel_layer_settings(settings):
+    """تطبيق InMemoryChannelLayer على كل اختبارات الملف."""
+    settings.CHANNEL_LAYERS = TEST_CHANNEL_LAYERS
+
+
 # ──────────────────────────────────────────────
 #  helpers
 # ──────────────────────────────────────────────
 
 
 async def make_communicator(consumer_class, path, user=None, url_route_kwargs=None):
-    """يُنشئ WebsocketCommunicator مع scope محاكي."""
-    scope = {
-        "type": "websocket",
-        "path": path,
-        "user": user,
-        "url_route": {"kwargs": url_route_kwargs or {}},
-    }
-    communicator = WebsocketCommunicator(consumer_class.as_asgi(), path, scope=scope)
+    """يُنشئ WebsocketCommunicator مع scope محاكي — متوافق مع channels 4.x."""
+    app = consumer_class.as_asgi()
+    communicator = WebsocketCommunicator(app, path)
+    # نضيف البيانات مباشرة على scope بعد الإنشاء (API الجديد)
+    communicator.scope["user"] = user
+    communicator.scope["url_route"] = {"kwargs": url_route_kwargs or {}}
     return communicator
 
 
@@ -83,7 +86,6 @@ def _create_unread_notification(user, school, count=2):
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-@override_settings(CHANNEL_LAYERS=TEST_CHANNEL_LAYERS)
 class TestNotificationConsumer:
     async def test_unauthenticated_rejected(self):
         """اتصال بدون مستخدم يجب أن يُرفض."""
@@ -220,7 +222,6 @@ class TestNotificationConsumer:
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-@override_settings(CHANNEL_LAYERS=TEST_CHANNEL_LAYERS)
 class TestAttendanceConsumer:
     async def test_unauthenticated_rejected(self):
         """مستخدم غير مصادق لا يتصل."""

@@ -53,9 +53,7 @@ class AttendanceService:
 
     @staticmethod
     @transaction.atomic
-    def bulk_mark_all_present(
-        session: Session, marked_by: CustomUser | None = None
-    ) -> int:
+    def bulk_mark_all_present(session: Session, marked_by: CustomUser | None = None) -> int:
         students = StudentEnrollment.objects.filter(
             class_group=session.class_group, is_active=True
         ).select_related("student")
@@ -404,9 +402,7 @@ class SubstituteService:
         return mapping.get(date.weekday(), -1)
 
     @staticmethod
-    def get_substitute_report(
-        school: School, date_from: date, date_to: date
-    ) -> QuerySet:
+    def get_substitute_report(school: School, date_from: date, date_to: date) -> QuerySet:
         """تقرير الحصص البديلة في فترة"""
         return (
             SubstituteAssignment.objects.filter(
@@ -433,6 +429,7 @@ class SubstituteService:
 
         # حساب عدد بدائل كل معلم هذا الأسبوع
         from datetime import timedelta
+
         week_start = target_date - timedelta(days=target_date.weekday())
         week_end = week_start + timedelta(days=6)
 

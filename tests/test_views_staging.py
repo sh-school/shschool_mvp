@@ -294,8 +294,9 @@ class TestUploadGradeFile:
         client = client_as(teacher)
 
         # ملف ليس xlsx حقيقياً
-        fake_file = SimpleUploadedFile("grades.xlsx", b"not a real xlsx file",
-                                       content_type="application/octet-stream")
+        fake_file = SimpleUploadedFile(
+            "grades.xlsx", b"not a real xlsx file", content_type="application/octet-stream"
+        )
 
         initial_count = ImportLog.objects.filter(school=school).count()
         response = client.post(
@@ -326,8 +327,11 @@ class TestUploadGradeFile:
         buf = io.BytesIO()
         wb.save(buf)
         xlsx_bytes = buf.getvalue()
-        upload = SimpleUploadedFile("grades_test.xlsx", xlsx_bytes,
-                                    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        upload = SimpleUploadedFile(
+            "grades_test.xlsx",
+            xlsx_bytes,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 
         client = client_as(teacher)
         response = client.post(

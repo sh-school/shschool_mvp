@@ -11,10 +11,10 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from django.conf import settings
 from django.db import transaction
 
-from core.models import ClassGroup, School
+from core.models import School
+
 from .models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -23,7 +23,6 @@ from .models import (
     TimeSlotConfig,
 )
 from .scheduler_constraints import (
-    SoftPenalty,
     calculate_quality_score,
     evaluate_soft_constraints,
     is_slot_valid,
@@ -38,6 +37,7 @@ DAY_NAMES = {0: "الأحد", 1: "الاثنين", 2: "الثلاثاء", 3: "ا
 @dataclass
 class Task:
     """مهمة جدولة: مادة × فصل × معلم"""
+
     class_id: str
     class_name: str
     subject_id: str
@@ -86,7 +86,9 @@ class ScheduleGrid:
         self._class_slots[task.class_id].remove((day, period))
         key = (task.subject_id, task.class_id, day)
         self._subject_class_day[key] -= 1
-        self._entries = [e for e in self._entries if not (e["day"] == day and e["period"] == period)]
+        self._entries = [
+            e for e in self._entries if not (e["day"] == day and e["period"] == period)
+        ]
 
     def teacher_at(self, day: int, period: int) -> str | None:
         """معرف المعلم في خانة معينة"""
@@ -127,9 +129,7 @@ class ScheduleGrid:
 
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
         """هل إضافة حصة ستخلق فجوة للمعلم؟"""
-        periods_today = sorted(
-            p for d, p in self._teacher_slots[teacher_id] if d == day
-        )
+        periods_today = sorted(p for d, p in self._teacher_slots[teacher_id] if d == day)
         periods_today.append(period)
         periods_today.sort()
         if len(periods_today) < 2:
@@ -160,18 +160,20 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         if not a.teacher_id or a.teacher is None:
             continue
         for _ in range(a.weekly_periods):
-            tasks.append(Task(
-                class_id=str(a.class_group_id),
-                class_name=str(a.class_group),
-                subject_id=str(a.subject_id),
-                subject_name=a.subject.name_ar,
-                subject_code=a.subject.code,
-                teacher_id=str(a.teacher_id),
-                teacher_name=a.teacher.full_name,
-                weekly_periods=a.weekly_periods,
-                requires_lab=a.requires_lab,
-                preferred_periods=a.preferred_periods or [],
-            ))
+            tasks.append(
+                Task(
+                    class_id=str(a.class_group_id),
+                    class_name=str(a.class_group),
+                    subject_id=str(a.subject_id),
+                    subject_name=a.subject.name_ar,
+                    subject_code=a.subject.code,
+                    teacher_id=str(a.teacher_id),
+                    teacher_name=a.teacher.full_name,
+                    weekly_periods=a.weekly_periods,
+                    requires_lab=a.requires_lab,
+                    preferred_periods=a.preferred_periods or [],
+                )
+            )
     return tasks
 
 
@@ -185,9 +187,9 @@ def sort_tasks(tasks: list[Task]) -> list[Task]:
     def priority(task: Task) -> tuple:
         teacher_count = len(subject_teacher_count[task.subject_id])
         return (
-            teacher_count,          # معلم وحيد أولاً (1 < 2 < ...)
-            -task.weekly_periods,   # نصاب أعلى أولاً
-            -int(task.requires_lab), # المعامل أولاً
+            teacher_count,  # معلم وحيد أولاً (1 < 2 < ...)
+            -task.weekly_periods,  # نصاب أعلى أولاً
+            -int(task.requires_lab),  # المعامل أولاً
         )
 
     return sorted(tasks, key=priority)
@@ -239,7 +241,10 @@ def generate_schedule(
     # 1. بناء المهام
     tasks = build_tasks(school, academic_year)
     if not tasks:
-        return {"success": False, "errors": ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."]}
+        return {
+            "success": False,
+            "errors": ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."],
+        }
 
     # 2. تحميل التفضيلات
     prefs_qs = TeacherPreference.objects.filter(school=school, academic_year=academic_year)
@@ -273,7 +278,9 @@ def generate_schedule(
         else:
             # Backtrack
             if not placed or backtrack_count >= max_backtrack:
-                errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
+                errors.append(
+                    f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})"
+                )
                 i += 1
                 continue
             backtrack_count += 1
@@ -297,7 +304,9 @@ def generate_schedule(
 
             # إنشاء الحصص الجديدة
             time_config = {}
-            for tc in TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False):
+            for tc in TimeSlotConfig.objects.filter(
+                school=school, day_type="regular", is_break=False
+            ):
                 time_config[tc.period_number] = (tc.start_time, tc.end_time)
 
             bulk = []
@@ -306,18 +315,20 @@ def generate_schedule(
                 d = entry["day"]
                 p = entry["period"]
                 start, end = time_config.get(p, ("07:10", "07:55"))
-                bulk.append(ScheduleSlot(
-                    school=school,
-                    teacher_id=t.teacher_id,
-                    class_group_id=t.class_id,
-                    subject_id=t.subject_id,
-                    day_of_week=d,
-                    period_number=p,
-                    start_time=start,
-                    end_time=end,
-                    academic_year=academic_year,
-                    is_active=True,
-                ))
+                bulk.append(
+                    ScheduleSlot(
+                        school=school,
+                        teacher_id=t.teacher_id,
+                        class_group_id=t.class_id,
+                        subject_id=t.subject_id,
+                        day_of_week=d,
+                        period_number=p,
+                        start_time=start,
+                        end_time=end,
+                        academic_year=academic_year,
+                        is_active=True,
+                    )
+                )
             ScheduleSlot.objects.bulk_create(bulk)
 
             # سجل التوليد

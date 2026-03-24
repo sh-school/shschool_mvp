@@ -1,10 +1,8 @@
-{#
-  مكوّن Modal العام — SchoolOS v5.1
-  ══════════════════════════════════
+{% comment %}
+  مكوّن Modal العام — SchoolOS v5.2
+
   الاستخدام:
-    {% include "components/modal.html" with modal_id="my-modal" title="العنوان" size="md" %}
-      المحتوى هنا
-    {% endinclude %}
+    include "components/modal.html" with modal_id="my-modal" title="العنوان" size="md" content=modal_html
 
   أو افتح بزر: <button data-modal-open="my-modal">افتح</button>
 
@@ -12,12 +10,13 @@
     modal_id  — معرّف فريد (مطلوب)
     title     — العنوان
     size      — sm | md (افتراضي) | lg
+    content   — محتوى HTML (من mark_safe في View فقط)
     no_footer — True لإخفاء footer
 
-  ⚠ تحذير أمني:
-    content يستخدم |safe — يجب أن يكون من مصدر موثوق فقط (mark_safe في View).
+  تحذير أمني:
+    content يستخدم safe — يجب أن يكون من مصدر موثوق فقط (mark_safe في View).
     لا تمرر أي بيانات من إدخال المستخدم مباشرة إلى content.
-#}
+{% endcomment %}
 <div
   id="modal-{{ modal_id }}"
   class="modal-overlay"

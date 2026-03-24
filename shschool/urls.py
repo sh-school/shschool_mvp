@@ -2,17 +2,16 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.urls import include, path
+from django.views.generic import TemplateView
 from django_prometheus.exports import ExportToDjangoView
 
 from core.permissions import internal_only
-
 from core.views_health import health_check
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
-from django.contrib.auth.decorators import login_required
-from django.views.generic import TemplateView
 
 urlpatterns = [
     path("health/", health_check),
@@ -39,13 +38,21 @@ urlpatterns = [
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
-    path("metrics", internal_only(staff_member_required(ExportToDjangoView)), name="prometheus-metrics"),
+    path(
+        "metrics",
+        internal_only(staff_member_required(ExportToDjangoView)),
+        name="prometheus-metrics",
+    ),
     path("search/", global_search, name="global_search"),
     # ✅ v5.1.1: دليل المكونات (Styleguide) — للمطورين فقط
-    path("styleguide/", login_required(TemplateView.as_view(template_name="components/_styleguide.html")), name="styleguide"),
-    path('sw.js', global_sw, name='global_sw'),
-    path('manifest.json', global_manifest, name='global_manifest'),
-    path('offline/', offline_global, name='offline_global'),
+    path(
+        "styleguide/",
+        login_required(TemplateView.as_view(template_name="components/_styleguide.html")),
+        name="styleguide",
+    ),
+    path("sw.js", global_sw, name="global_sw"),
+    path("manifest.json", global_manifest, name="global_manifest"),
+    path("offline/", offline_global, name="offline_global"),
 ]
 
 if settings.DEBUG:

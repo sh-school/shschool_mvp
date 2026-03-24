@@ -55,32 +55,67 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "abbreviation", "city", "school_type", "education_level", "principal", "is_active")
+    list_display = (
+        "name",
+        "code",
+        "abbreviation",
+        "city",
+        "school_type",
+        "education_level",
+        "principal",
+        "is_active",
+    )
     list_filter = ("is_active", "school_type", "education_level", "city")
     search_fields = ("name", "code", "abbreviation", "ministry_code")
     readonly_fields = ("created_at",)
     autocomplete_fields = ("principal",)
 
     fieldsets = (
-        ("المعلومات الأساسية", {
-            "fields": ("name", "code", "abbreviation", "ministry_code", "school_type", "education_level", "established_year"),
-        }),
-        ("الاتصال", {
-            "fields": ("phone", "fax", "email", "website"),
-        }),
-        ("العنوان", {
-            "fields": ("city", "zone", "address", "po_box"),
-        }),
-        ("الإدارة", {
-            "fields": ("principal",),
-        }),
-        ("الهوية البصرية", {
-            "fields": ("logo",),
-            "classes": ("collapse",),
-        }),
-        ("النظام", {
-            "fields": ("is_active", "created_at"),
-        }),
+        (
+            "المعلومات الأساسية",
+            {
+                "fields": (
+                    "name",
+                    "code",
+                    "abbreviation",
+                    "ministry_code",
+                    "school_type",
+                    "education_level",
+                    "established_year",
+                ),
+            },
+        ),
+        (
+            "الاتصال",
+            {
+                "fields": ("phone", "fax", "email", "website"),
+            },
+        ),
+        (
+            "العنوان",
+            {
+                "fields": ("city", "zone", "address", "po_box"),
+            },
+        ),
+        (
+            "الإدارة",
+            {
+                "fields": ("principal",),
+            },
+        ),
+        (
+            "الهوية البصرية",
+            {
+                "fields": ("logo",),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "النظام",
+            {
+                "fields": ("is_active", "created_at"),
+            },
+        ),
     )
 
 

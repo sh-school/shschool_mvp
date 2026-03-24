@@ -1,22 +1,20 @@
-{#
-  مكوّن Toast للعرض المباشر في القوالب — SchoolOS v5.1
-  ══════════════════════════════════════════════════════
-  يُستخدم لعرض toast ثابت (ليس JavaScript dynamic).
+{% comment %}
+  مكوّن Toast للعرض المباشر في القوالب — SchoolOS v5.2
 
   الاستخدام:
-    {% include "components/toast.html" with msg="تم الحفظ بنجاح" type="success" %}
+    include "components/toast.html" with msg="تم الحفظ بنجاح" type="success"
 
   أو من Django messages:
-    {% for message in messages %}
-      {% include "components/toast.html" with msg=message type=message.tags %}
-    {% endfor %}
+    for message in messages
+      include "components/toast.html" with msg=message type=message.tags
+    endfor
 
   للـ JavaScript dynamic toast استخدم: window.showToast(msg, type)
 
   المتغيرات:
     msg  — نص الرسالة
     type — success | danger | info | warning
-#}
+{% endcomment %}
 {% if msg %}
 <div
   class="toast toast-{{ type|default:'info' }}"

@@ -29,7 +29,7 @@ from assessments.models import (
     AnnualSubjectResult,
     SubjectClassSetup,
 )
-from core.models import ClassGroup, StudentEnrollment
+from core.models import ClassGroup
 from operations.models import Session, StudentAttendance
 
 if TYPE_CHECKING:
@@ -68,9 +68,7 @@ class AnalyticsService:
 
     # ── توزيع الدرجات ───────────────────────────────────────
     @staticmethod
-    def grades_distribution(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def grades_distribution(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """توزيع الطلاب على نطاقات الدرجات"""
         results = AnnualSubjectResult.objects.filter(
             school=school,
@@ -90,27 +88,24 @@ class AnalyticsService:
 
     # ── مقارنة الفصول ───────────────────────────────────────
     @staticmethod
-    def class_comparison(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> list:
+    def class_comparison(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
         """مقارنة نسب النجاح بين الفصول — استعلام واحد بدلاً من N*3"""
         result_filter = Q(
             enrollments__is_active=True,
             enrollments__student__annual_results__school=school,
             enrollments__student__annual_results__academic_year=year,
         )
-        classes = (
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-            .annotate(
-                total=Count(
-                    "enrollments__student__annual_results",
-                    filter=result_filter,
-                ),
-                passed=Count(
-                    "enrollments__student__annual_results",
-                    filter=result_filter & Q(enrollments__student__annual_results__status="pass"),
-                ),
-            )
+        classes = ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).annotate(
+            total=Count(
+                "enrollments__student__annual_results",
+                filter=result_filter,
+            ),
+            passed=Count(
+                "enrollments__student__annual_results",
+                filter=result_filter & Q(enrollments__student__annual_results__status="pass"),
+            ),
         )
 
         data: list = []
@@ -129,9 +124,7 @@ class AnalyticsService:
 
     # ── مقارنة المواد ───────────────────────────────────────
     @staticmethod
-    def subject_comparison(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> list:
+    def subject_comparison(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
         """مقارنة متوسط الدرجات بين المواد"""
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
@@ -162,29 +155,26 @@ class AnalyticsService:
 
     # ── الراسبون حسب الفصل ──────────────────────────────────
     @staticmethod
-    def failing_by_class(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> list:
+    def failing_by_class(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
         """عدد الراسبين في كل فصل — استعلام واحد بدلاً من N*2"""
-        classes = (
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-            .annotate(
-                total=Count(
-                    "enrollments__student",
-                    filter=Q(enrollments__is_active=True),
-                    distinct=True,
+        classes = ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).annotate(
+            total=Count(
+                "enrollments__student",
+                filter=Q(enrollments__is_active=True),
+                distinct=True,
+            ),
+            fail_count=Count(
+                "enrollments__student",
+                filter=Q(
+                    enrollments__is_active=True,
+                    enrollments__student__annual_results__school=school,
+                    enrollments__student__annual_results__academic_year=year,
+                    enrollments__student__annual_results__status="fail",
                 ),
-                fail_count=Count(
-                    "enrollments__student",
-                    filter=Q(
-                        enrollments__is_active=True,
-                        enrollments__student__annual_results__school=school,
-                        enrollments__student__annual_results__academic_year=year,
-                        enrollments__student__annual_results__status="fail",
-                    ),
-                    distinct=True,
-                ),
-            )
+                distinct=True,
+            ),
         )
 
         data: list = []
@@ -241,9 +231,7 @@ class AnalyticsService:
 
     # ── تقدم الخطة التشغيلية ────────────────────────────────
     @staticmethod
-    def plan_progress(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def plan_progress(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
         """تقدم الخطة التشغيلية حسب المجال"""
         from quality.services import QualityService
 
@@ -374,13 +362,17 @@ class KPIService:
             ).count()
             * 20
         )
-        unexcused = TeacherAbsence.objects.filter(
-            school=school,
-            date__month=month,
-            date__year=today.year,
-        ).exclude(
-            reason__in=["sick", "official", "training"],
-        ).count()
+        unexcused = (
+            TeacherAbsence.objects.filter(
+                school=school,
+                date__month=month,
+                date__year=today.year,
+            )
+            .exclude(
+                reason__in=["sick", "official", "training"],
+            )
+            .count()
+        )
         kpis["teacher_unexcused_abs_pct"] = {
             "label": "غياب المعلمين غير المبرر",
             "unit": "%",

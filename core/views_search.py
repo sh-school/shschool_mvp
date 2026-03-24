@@ -29,17 +29,20 @@ def global_search(request):
 
     student_enrollments = (
         StudentEnrollment.objects.filter(
-            class_group__school=school, is_active=True,
+            class_group__school=school,
+            is_active=True,
         )
-        .filter(
-            Q(student__full_name__icontains=q) | Q(student__national_id__icontains=q)
-        )
+        .filter(Q(student__full_name__icontains=q) | Q(student__national_id__icontains=q))
         .select_related("student")
         .values("student__id", "student__full_name", "student__national_id")
         .distinct()[:6]
     )
     students = [
-        {"id": s["student__id"], "full_name": s["student__full_name"], "national_id": s["student__national_id"]}
+        {
+            "id": s["student__id"],
+            "full_name": s["student__full_name"],
+            "national_id": s["student__national_id"],
+        }
         for s in student_enrollments
     ]
     for s in students:
@@ -57,9 +60,11 @@ def global_search(request):
     if request.user.is_admin:
         from core.models import CustomUser, Membership
 
-        staff_ids = Membership.objects.filter(
-            school=school, is_active=True
-        ).exclude(role__name__in=["student", "parent"]).values_list("user_id", flat=True)
+        staff_ids = (
+            Membership.objects.filter(school=school, is_active=True)
+            .exclude(role__name__in=["student", "parent"])
+            .values_list("user_id", flat=True)
+        )
 
         staff = (
             CustomUser.objects.filter(id__in=staff_ids, is_active=True)

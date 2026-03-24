@@ -17,6 +17,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.utils import timezone
 
+
+@pytest.fixture(autouse=True)
+def _use_in_memory_channel_layer(settings):
+    """تجنب الحاجة لـ Redis في اختبارات الإشعارات."""
+    settings.CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+    settings.CELERY_TASK_ALWAYS_EAGER = False  # لا ننفّذ المهام الخارجية فعلياً
+
+
 from notifications.hub import (
     DEFAULT_CHANNELS,
     NotificationHub,

@@ -76,7 +76,10 @@ def attendance_view(request, session_id):
     )
 
     # Get existing attendance
-    existing = {att.student_id: att for att in StudentAttendance.objects.filter(session=session).select_related("student")}
+    existing = {
+        att.student_id: att
+        for att in StudentAttendance.objects.filter(session=session).select_related("student")
+    }
 
     students_data = []
     for e in enrollments:
@@ -140,7 +143,8 @@ def mark_single(request, session_id):
     # Grid mode: أعد خلية الشبكة بدلاً من الصف
     view_mode = request.POST.get("view", "list")
     partial_template = (
-        "teacher/partials/grid_cell.html" if view_mode == "grid"
+        "teacher/partials/grid_cell.html"
+        if view_mode == "grid"
         else "teacher/partials/student_row.html"
     )
 
@@ -594,30 +598,32 @@ def smart_schedule_view(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    from .models import SubjectClassAssignment, ScheduleGeneration
+    from .models import ScheduleGeneration, SubjectClassAssignment
 
-    assignments = SubjectClassAssignment.objects.filter(
-        school=school, academic_year=year, is_active=True
-    ).select_related("class_group", "subject", "teacher").order_by(
-        "class_group__grade", "class_group__section", "subject__name_ar"
+    assignments = (
+        SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
+        .select_related("class_group", "subject", "teacher")
+        .order_by("class_group__grade", "class_group__section", "subject__name_ar")
     )
 
-    generations = ScheduleGeneration.objects.filter(
-        school=school, academic_year=year
-    )[:5]
+    generations = ScheduleGeneration.objects.filter(school=school, academic_year=year)[:5]
 
     total_weekly = sum(a.weekly_periods for a in assignments)
     classes_count = assignments.values("class_group").distinct().count()
     teachers_count = assignments.values("teacher").distinct().count()
 
-    return render(request, "schedule/smart_schedule.html", {
-        "assignments": assignments,
-        "generations": generations,
-        "year": year,
-        "total_weekly": total_weekly,
-        "classes_count": classes_count,
-        "teachers_count": teachers_count,
-    })
+    return render(
+        request,
+        "schedule/smart_schedule.html",
+        {
+            "assignments": assignments,
+            "generations": generations,
+            "year": year,
+            "total_weekly": total_weekly,
+            "classes_count": classes_count,
+            "teachers_count": teachers_count,
+        },
+    )
 
 
 @login_required
@@ -638,7 +644,7 @@ def smart_generate(request):
         messages.success(
             request,
             f"تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
-            f"{result['quality']['total_slots']} حصة في {result['elapsed_ms']}ms"
+            f"{result['quality']['total_slots']} حصة في {result['elapsed_ms']}ms",
         )
     else:
         for err in result["errors"][:5]:
@@ -648,7 +654,7 @@ def smart_generate(request):
             messages.info(
                 request,
                 f"تم توليد {quality['total_slots']} حصة (جودة: {quality['score']}%) "
-                f"مع {len(result['errors'])} تعذّر"
+                f"مع {len(result['errors'])} تعذّر",
             )
 
     return redirect("smart_schedule")
@@ -664,7 +670,9 @@ def teacher_load_report(request):
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     from collections import Counter
-    from core.models import Membership, CustomUser
+
+    from core.models import CustomUser, Membership
+
     from .models import ScheduleSlot, SubstituteAssignment
 
     # معلمو المدرسة
@@ -675,13 +683,14 @@ def teacher_load_report(request):
 
     # حصص كل معلم
     slot_counts = Counter(
-        ScheduleSlot.objects.filter(
-            school=school, academic_year=year, is_active=True
-        ).values_list("teacher_id", flat=True)
+        ScheduleSlot.objects.filter(school=school, academic_year=year, is_active=True).values_list(
+            "teacher_id", flat=True
+        )
     )
 
     # بدائل كل معلم (هذا الشهر)
-    from datetime import date, timedelta
+    from datetime import date
+
     month_start = date.today().replace(day=1)
     sub_counts = Counter(
         SubstituteAssignment.objects.filter(
@@ -705,24 +714,30 @@ def teacher_load_report(request):
         min_daily = min(d for d in days if d > 0) if any(d > 0 for d in days) else 0
         free_days = sum(1 for d in days if d == 0)
 
-        teacher_data.append({
-            "teacher": t,
-            "weekly": weekly,
-            "subs": subs,
-            "max_daily": max_daily,
-            "min_daily": min_daily,
-            "free_days": free_days,
-            "days": days,
-        })
+        teacher_data.append(
+            {
+                "teacher": t,
+                "weekly": weekly,
+                "subs": subs,
+                "max_daily": max_daily,
+                "min_daily": min_daily,
+                "free_days": free_days,
+                "days": days,
+            }
+        )
 
     # ترتيب حسب الحمل الأعلى
     teacher_data.sort(key=lambda x: -x["weekly"])
 
     avg_weekly = sum(d["weekly"] for d in teacher_data) / len(teacher_data) if teacher_data else 0
 
-    return render(request, "schedule/teacher_load.html", {
-        "teacher_data": teacher_data,
-        "year": year,
-        "avg_weekly": round(avg_weekly, 1),
-        "total_teachers": len(teacher_data),
-    })
+    return render(
+        request,
+        "schedule/teacher_load.html",
+        {
+            "teacher_data": teacher_data,
+            "year": year,
+            "avg_weekly": round(avg_weekly, 1),
+            "total_teachers": len(teacher_data),
+        },
+    )

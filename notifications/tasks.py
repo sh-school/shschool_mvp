@@ -173,7 +173,12 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None):
     name="notifications.notify_fail",
 )
 def notify_fail_task(
-    self, student_id, school_id, failed_subjects, year=settings.CURRENT_ACADEMIC_YEAR, sent_by_id=None
+    self,
+    student_id,
+    school_id,
+    failed_subjects,
+    year=settings.CURRENT_ACADEMIC_YEAR,
+    sent_by_id=None,
 ):
     """إشعار ولي الأمر برسوب ابنه"""
     try:

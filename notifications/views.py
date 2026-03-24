@@ -311,6 +311,7 @@ def notification_preferences(request):
 # ✅ v5.1: البث الطارئ عبر WebSocket (مدير / مدير مدرسة فقط)
 # ══════════════════════════════════════════════════════════════
 
+
 @login_required
 @require_POST
 def emergency_broadcast(request):
