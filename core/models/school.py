@@ -70,8 +70,12 @@ class School(models.Model):
     )
 
     # ── الإدارة ───────────────────────────────────────────────────
-    principal_name = models.CharField(
-        max_length=150, blank=True, verbose_name="اسم المدير",
+    principal = models.ForeignKey(
+        "core.CustomUser", on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="principal_of",
+        verbose_name="المدير",
+        help_text="اختر المدير من قائمة المستخدمين",
     )
 
     # ── الهوية البصرية ────────────────────────────────────────────
