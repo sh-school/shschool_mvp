@@ -124,6 +124,7 @@ class BehaviorInfraction(models.Model):
         verbose_name="فئة المخالفة (ABCD)",
         related_name="infractions",
     )
+    # date: DateField تاريخ المخالفة (legacy). created_at أدق — يحتوي الوقت أيضاً
     date = models.DateField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     level = models.PositiveSmallIntegerField(choices=LEVELS, default=1)

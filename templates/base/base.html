@@ -24,7 +24,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=6">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=20">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX ── #}
@@ -111,6 +111,9 @@
     </div>
 
     <div class="nav-spacer"></div>
+
+    {# ── Theme Toggle ── #}
+    <button id="theme-toggle" class="theme-toggle" aria-label="تبديل الوضع الداكن">🌙</button>
 
     {# ── Notification Bell ── #}
     <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
@@ -278,7 +281,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=6.1" defer></script>
+<script src="{% static 'js/base.js' %}?v=6.2" defer></script>
 <script src="{% static 'js/app.js' %}?v=6.1" defer></script>
 
 {% block extra_js %}{% endblock %}

@@ -21,6 +21,12 @@ class Subject(models.Model):
         verbose_name = "مادة دراسية"
         verbose_name_plural = "المواد الدراسية"
         ordering = ["name_ar"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "name_ar"],
+                name="unique_subject_per_school",
+            )
+        ]
 
     def __str__(self):
         return self.name_ar
@@ -300,6 +306,12 @@ class AbsenceAlert(models.Model):
         verbose_name = "تنبيه غياب"
         verbose_name_plural = "تنبيهات الغياب"
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "school", "period_start", "period_end"],
+                name="unique_absence_alert_per_student_period",
+            )
+        ]
 
     def __str__(self):
         return f"تنبيه: {self.student.full_name} | {self.absence_count} يوم"
@@ -331,7 +343,12 @@ class TimeSlotConfig(models.Model):
     class Meta:
         verbose_name = "إعداد حصة زمنية"
         verbose_name_plural = "إعدادات الحصص الزمنية"
-        unique_together = ("school", "period_number", "day_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "period_number", "day_type"],
+                name="unique_timeslot_per_school",
+            )
+        ]
         ordering = ["day_type", "period_number"]
 
     def __str__(self):
@@ -366,6 +383,9 @@ class SubjectClassAssignment(models.Model):
                 name="unique_subject_per_class_year",
             )
         ]
+        indexes = [
+            models.Index(fields=["class_group", "is_active"]),
+        ]
         ordering = ["class_group__grade", "class_group__section", "subject__name_ar"]
 
     def __str__(self):
@@ -391,7 +411,12 @@ class TeacherPreference(models.Model):
     class Meta:
         verbose_name = "تفضيلات معلم"
         verbose_name_plural = "تفضيلات المعلمين"
-        unique_together = ("teacher", "school", "academic_year")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["teacher", "school", "academic_year"],
+                name="unique_teacher_pref_per_year",
+            )
+        ]
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"

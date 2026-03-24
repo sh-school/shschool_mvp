@@ -65,6 +65,9 @@ class StudentEnrollment(models.Model):
                 name="unique_active_enrollment",
             )
         ]
+        indexes = [
+            models.Index(fields=["student", "class_group"]),
+        ]
 
     def __str__(self):
         return f"{self.student.full_name} → {self.class_group}"
@@ -109,6 +112,10 @@ class ParentStudentLink(models.Model):
                 fields=["parent", "student", "school"],
                 name="unique_parent_student_school",
             )
+        ]
+        indexes = [
+            models.Index(fields=["parent", "school"]),
+            models.Index(fields=["student"]),
         ]
 
     def __str__(self):

@@ -152,7 +152,12 @@ class ConsentRecord(models.Model):
     class Meta:
         verbose_name = "سجل موافقة"
         verbose_name_plural = "سجلات الموافقة"
-        unique_together = ("parent", "student", "data_type")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "student", "data_type"],
+                name="unique_consent_per_parent_student_type",
+            )
+        ]
         ordering = ["-given_at"]
 
     def __str__(self):

@@ -44,7 +44,13 @@ class LibraryBook(models.Model):
     class Meta:
         verbose_name = "كتاب مكتبة"
         verbose_name_plural = "كتب المكتبة"
-        db_table = "core_librarybook"  # يبقي نفس الجدول الموجود
+        db_table = "core_librarybook"
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(available_qty__lte=models.F("quantity")),
+                name="available_qty_lte_quantity",
+            )
+        ]
 
     def __str__(self):
         return f"{self.title} - {self.author}"
@@ -85,7 +91,11 @@ class BookBorrowing(models.Model):
         verbose_name = "عملية إعارة"
         verbose_name_plural = "عمليات الإعارة"
         ordering = ["-borrow_date", "-id"]
-        db_table = "core_bookborrowing"  # يبقي نفس الجدول الموجود
+        db_table = "core_bookborrowing"
+        indexes = [
+            models.Index(fields=["book", "status"]),
+            models.Index(fields=["user", "status"]),
+        ]
 
     def __str__(self):
         return f"{self.user.full_name} - {self.book.title}"

@@ -250,6 +250,9 @@ class Assessment(models.Model):
         verbose_name = "تقييم"
         verbose_name_plural = "التقييمات"
         ordering = ["date", "package__package_type"]
+        indexes = [
+            models.Index(fields=["package", "status"]),
+        ]
 
     def __str__(self):
         return f"{self.title} | {self.package.setup.subject.name_ar} | {self.package.class_group}"
@@ -293,7 +296,8 @@ class StudentAssessmentGrade(models.Model):
     entered_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, related_name="entered_grades"
     )
-    entered_at = models.DateTimeField(auto_now=True)
+    entered_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "درجة طالب"

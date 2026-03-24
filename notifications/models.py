@@ -9,6 +9,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import CustomUser, School
+from core.models._crypto import decrypt_field, encrypt_field
 
 
 def _uuid():
@@ -89,8 +90,8 @@ class NotificationSettings(models.Model):
         max_length=20, default="twilio", choices=[("twilio", "Twilio"), ("local", "محلي")]
     )
     sms_from_number = models.CharField(max_length=20, blank=True)
-    twilio_account_sid = models.CharField(max_length=100, blank=True)
-    twilio_auth_token = models.CharField(max_length=100, blank=True)
+    twilio_account_sid = models.CharField(max_length=100, blank=True, help_text="مُشفَّر — استخدم get_twilio_sid() للقراءة")
+    twilio_auth_token = models.CharField(max_length=100, blank=True, help_text="مُشفَّر — استخدم get_twilio_token() للقراءة")
 
     # نصوص الرسائل (قابلة للتخصيص)
     absence_email_subject = models.CharField(
@@ -108,6 +109,22 @@ class NotificationSettings(models.Model):
 
     def __str__(self):
         return f"إعدادات إشعارات — {self.school.name}"
+
+    def get_twilio_sid(self):
+        """فك تشفير Twilio Account SID"""
+        return decrypt_field(self.twilio_account_sid)
+
+    def set_twilio_sid(self, value):
+        """تشفير وحفظ Twilio Account SID"""
+        self.twilio_account_sid = encrypt_field(value)
+
+    def get_twilio_token(self):
+        """فك تشفير Twilio Auth Token"""
+        return decrypt_field(self.twilio_auth_token)
+
+    def set_twilio_token(self, value):
+        """تشفير وحفظ Twilio Auth Token"""
+        self.twilio_auth_token = encrypt_field(value)
 
 
 # ════════════════════════════════════════════════════════════════════

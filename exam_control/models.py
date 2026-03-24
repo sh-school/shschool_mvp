@@ -61,6 +61,9 @@ class ExamRoom(models.Model):
         verbose_name = "قاعة اختبار"
         verbose_name_plural = "قاعات الاختبار"
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["session", "capacity"]),
+        ]
 
     def __str__(self):
         return f"قاعة {self.name} — {self.session.name}"
@@ -95,7 +98,12 @@ class ExamSupervisor(models.Model):
     class Meta:
         verbose_name = "مشرف كنترول"
         verbose_name_plural = "مشرفو الكنترول"
-        unique_together = [("session", "staff")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "staff"],
+                name="unique_supervisor_per_session",
+            )
+        ]
 
     def __str__(self):
         return f"{self.staff.full_name} — {self.get_role_display()}"
@@ -118,6 +126,9 @@ class ExamSchedule(models.Model):
         verbose_name = "جدول اختبار"
         verbose_name_plural = "جداول الاختبارات"
         ordering = ["exam_date", "start_time"]
+        indexes = [
+            models.Index(fields=["session", "exam_date"]),
+        ]
 
     def __str__(self):
         return f"{self.subject} — {self.grade_level} — {self.exam_date}"

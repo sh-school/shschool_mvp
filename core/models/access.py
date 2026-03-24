@@ -23,7 +23,7 @@ class Role(models.Model):
     ]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="roles")
-    name = models.CharField(max_length=30, choices=ROLES)
+    name = models.CharField(max_length=30, choices=ROLES, db_index=True)
 
     class Meta:
         verbose_name = "دور"
@@ -47,7 +47,10 @@ class Membership(models.Model):
     class Meta:
         verbose_name = "عضوية"
         verbose_name_plural = "العضويات"
-        indexes = [models.Index(fields=["school", "role"])]
+        indexes = [
+            models.Index(fields=["school", "role"]),
+            models.Index(fields=["user", "is_active"]),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["user", "school", "role"],

@@ -1,5 +1,5 @@
 /**
- * base.js — SchoolOS v6
+ * base.js — SchoolOS v6.2
  * الوظائف الأساسية للمنصة: Dropdown · Notifications · PWA · Modal · Toast
  * يُحمَّل عبر <script src> — لا يحتاج nonce (CSP 'self' يسمح بالملفات الخارجية)
  */
@@ -296,3 +296,37 @@ document.addEventListener('click', function(e) {
   if (t.dataset.modalOpen) window.modalManager.open(t.dataset.modalOpen);
   if (t.dataset.modalClose) window.modalManager.close(t.dataset.modalClose);
 });
+
+/* ── Dark Mode Toggle ─────────────────────────────────── */
+(function(){
+  const STORAGE_KEY = 'schoolos-theme';
+  function getPreferred(){
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if(saved) return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function apply(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(STORAGE_KEY, theme);
+    const btn = document.getElementById('theme-toggle');
+    if(btn){
+      btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+      btn.setAttribute('aria-label', theme === 'dark' ? 'تبديل للوضع الفاتح' : 'تبديل للوضع الداكن');
+    }
+  }
+  // Apply on load
+  apply(getPreferred());
+  // Listen for toggle click
+  document.addEventListener('click', function(e){
+    if(e.target.closest('#theme-toggle')){
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      apply(current === 'dark' ? 'light' : 'dark');
+    }
+  });
+  // Listen for system preference changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e){
+    if(!localStorage.getItem(STORAGE_KEY)){
+      apply(e.matches ? 'dark' : 'light');
+    }
+  });
+})();

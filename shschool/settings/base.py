@@ -168,6 +168,19 @@ AWS_DEFAULT_ACL = "private"  # ملفات خاصة (PDPPL)
 AWS_QUERYSTRING_AUTH = True  # روابط موقعة مؤقتة
 AWS_QUERYSTRING_EXPIRE = 3600  # صالح ساعة
 
+# ── Caching ───────────────────────────────────────────────
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": config("REDIS_URL", default="redis://127.0.0.1:6379/1"),
+        "TIMEOUT": 300,  # 5 minutes default
+        "KEY_PREFIX": "schoolos",
+        "OPTIONS": {
+            "db": 1,
+        },
+    }
+}
+
 LOGIN_URL = "/auth/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/auth/login/"
