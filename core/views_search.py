@@ -24,14 +24,24 @@ def global_search(request):
 
     results = []
 
-    # بحث في الطلاب
-    from core.models import Student
+    # بحث في الطلاب (عبر StudentEnrollment → CustomUser)
+    from core.models import StudentEnrollment
 
-    students = (
-        Student.objects.filter(school=school, is_active=True)
-        .filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
-        .values("id", "full_name", "national_id")[:6]
+    student_enrollments = (
+        StudentEnrollment.objects.filter(
+            class_group__school=school, is_active=True,
+        )
+        .filter(
+            Q(student__full_name__icontains=q) | Q(student__national_id__icontains=q)
+        )
+        .select_related("student")
+        .values("student__id", "student__full_name", "student__national_id")
+        .distinct()[:6]
     )
+    students = [
+        {"id": s["student__id"], "full_name": s["student__full_name"], "national_id": s["student__national_id"]}
+        for s in student_enrollments
+    ]
     for s in students:
         results.append(
             {
