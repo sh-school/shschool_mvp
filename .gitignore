@@ -27,3 +27,6 @@ AAdocs/
 nginx/ssl/
 node_modules/
 ZZZZ.zip
+
+# Claude Code worktrees
+.claude/worktrees/
