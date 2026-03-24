@@ -3827,3 +3827,70 @@ html.dark .login-page::before {
   background-image: radial-gradient(circle at 20% 20%, rgba(138,21,56,.15) 0%, transparent 50%),
                     radial-gradient(circle at 80% 80%, rgba(13,66,97,.1) 0%, transparent 50%);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   35. Dark-Mode-Aware Utility Classes
+   تُستبدل inline styles بهذه الكلاسات لدعم الوضع الليلي
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Status Text Colors ──────────────────────────────────────────── */
+.text-status-danger  { color: #dc2626; }
+.text-status-success { color: #16a34a; }
+.text-status-warning { color: #d97706; }
+.text-status-info    { color: #2563eb; }
+.text-status-muted   { color: #6b7280; }
+.text-status-maroon  { color: var(--maroon, #8A1538); }
+
+html.dark .text-status-danger  { color: #fca5a5; }
+html.dark .text-status-success { color: #86efac; }
+html.dark .text-status-warning { color: #fbbf24; }
+html.dark .text-status-info    { color: #93c5fd; }
+html.dark .text-status-muted   { color: #9ca3af; }
+html.dark .text-status-maroon  { color: #f9a8d4; }
+
+/* ── Surface Backgrounds ─────────────────────────────────────────── */
+.bg-surface     { background: #fff; }
+.bg-surface-alt { background: #f8fafc; }
+.bg-surface-dim { background: #f1f5f9; }
+
+html.dark .bg-surface     { background: var(--surface, #1e293b); }
+html.dark .bg-surface-alt { background: var(--surface-alt, #0f172a); }
+html.dark .bg-surface-dim { background: #334155; }
+
+/* ── Status Background Cards (light tint + border) ───────────────── */
+.bg-status-danger-light  { background: #fef2f2; border-color: #fecaca; }
+.bg-status-success-light { background: #f0fdf4; border-color: #bbf7d0; }
+.bg-status-warning-light { background: #fffbeb; border-color: #fde68a; }
+.bg-status-info-light    { background: #eff6ff; border-color: #bfdbfe; }
+.bg-status-maroon-light  { background: #fdf2f8; border-color: #fbcfe8; }
+
+html.dark .bg-status-danger-light  { background: #450a0a; border-color: #7f1d1d; }
+html.dark .bg-status-success-light { background: #052e16; border-color: #166534; }
+html.dark .bg-status-warning-light { background: #451a03; border-color: #92400e; }
+html.dark .bg-status-info-light    { background: #172554; border-color: #1e40af; }
+html.dark .bg-status-maroon-light  { background: var(--maroon-bg, #3b1125); border-color: var(--maroon-border, #6b2640); }
+
+/* ── KPI Value Sizes ─────────────────────────────────────────────── */
+.kpi-value-danger  { color: #dc2626; font-weight: 700; }
+.kpi-value-success { color: #16a34a; font-weight: 700; }
+.kpi-value-warning { color: #d97706; font-weight: 700; }
+
+html.dark .kpi-value-danger  { color: #fca5a5; }
+html.dark .kpi-value-success { color: #86efac; }
+html.dark .kpi-value-warning { color: #fbbf24; }
+
+/* ── SVG Stroke Colors (for charts/rings) ────────────────────────── */
+.stroke-muted { stroke: #e5e7eb; }
+html.dark .stroke-muted { stroke: #475569; }
+
+.stroke-danger  { stroke: #dc2626; }
+.stroke-success { stroke: #16a34a; }
+.stroke-warning { stroke: #d97706; }
+
+html.dark .stroke-danger  { stroke: #fca5a5; }
+html.dark .stroke-success { stroke: #86efac; }
+html.dark .stroke-warning { stroke: #fbbf24; }
+
+/* ── Link Accent (for inline links with specific colors) ─────────── */
+.link-maroon { color: var(--maroon, #8A1538); font-weight: 600; }
+html.dark .link-maroon { color: #f9a8d4; }

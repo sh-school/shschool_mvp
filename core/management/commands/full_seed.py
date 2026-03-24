@@ -28,6 +28,7 @@ core/management/commands/full_seed.py
 import csv
 import random
 import re
+import secrets
 from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -94,10 +95,16 @@ class Command(BaseCommand):
             ],
             help="تشغيل خطوة واحدة فقط",
         )
+        parser.add_argument(
+            "--password",
+            default="",
+            help="كلمة المرور للحسابات المُنشأة (افتراضياً: توليد عشوائي آمن)",
+        )
 
     def handle(self, *args, **options):
         step = options["step"]
         reset = options["reset"]
+        self._seed_password = options["password"] or secrets.token_urlsafe(12)
 
         if reset:
             self._reset()
@@ -189,7 +196,7 @@ class Command(BaseCommand):
                 defaults={"full_name": name, "email": email, "phone": phone, "is_staff": True},
             )
             if c:
-                user.set_password("school@2026")
+                user.set_password(self._seed_password)
                 user.save()
                 created += 1
             else:
@@ -262,7 +269,7 @@ class Command(BaseCommand):
                 national_id=nat_id, defaults={"full_name": name_ar, "is_staff": False}
             )
             if c:
-                stu.set_password("student@2026")
+                stu.set_password(self._seed_password)
                 stu.save()
                 stu_c += 1
             else:
@@ -294,7 +301,7 @@ class Command(BaseCommand):
                     },
                 )
                 if pc:
-                    par.set_password("parent@2026")
+                    par.set_password(self._seed_password)
                     par.save()
                     par_c += 1
                 else:
@@ -937,13 +944,14 @@ class Command(BaseCommand):
         )
 
         self.stdout.write("\n── بيانات الدخول ─────────────────────────────────────")
+        self.stdout.write(self.style.WARNING(f"  كلمة المرور الموحدة: {self._seed_password}"))
         if principal:
             self.stdout.write(
-                self.style.SUCCESS(f"  المدير:    {principal.user.national_id} / school@2026")
+                self.style.SUCCESS(f"  المدير:    {principal.user.national_id}")
             )
-        self.stdout.write("  المعلمون:  <الرقم الوطني>    / school@2026")
-        self.stdout.write("  الطلاب:    <الرقم الوطني>    / student@2026")
-        self.stdout.write("  الأولياء:  <الرقم الوطني>    / parent@2026")
+        self.stdout.write("  المعلمون:  <الرقم الوطني>")
+        self.stdout.write("  الطلاب:    <الرقم الوطني>")
+        self.stdout.write("  الأولياء:  <الرقم الوطني>")
         self.stdout.write("═" * 58)
         self.stdout.write("\n── روابط مهمة ─────────────────────────────────────────")
         self.stdout.write("  http://localhost:8000/          ← الداشبورد")

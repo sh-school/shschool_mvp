@@ -21,6 +21,9 @@ class Subject(models.Model):
         verbose_name = "مادة دراسية"
         verbose_name_plural = "المواد الدراسية"
         ordering = ["name_ar"]
+        indexes = [
+            models.Index(fields=["school", "name_ar"], name="idx_subject_school_name"),
+        ]
 
     def __str__(self):
         return self.name_ar
@@ -38,7 +41,7 @@ class Session(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="sessions")
     class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="sessions")
     teacher = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="sessions", verbose_name="المعلم"
+        CustomUser, on_delete=models.PROTECT, related_name="sessions", verbose_name="المعلم"
     )
     subject = models.ForeignKey(
         Subject, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions"
@@ -150,7 +153,7 @@ class ScheduleSlot(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_slots")
-    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="schedule_slots")
+    teacher = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name="schedule_slots")
     class_group = models.ForeignKey(
         ClassGroup, on_delete=models.CASCADE, related_name="schedule_slots"
     )
@@ -331,8 +334,13 @@ class TimeSlotConfig(models.Model):
     class Meta:
         verbose_name = "إعداد حصة زمنية"
         verbose_name_plural = "إعدادات الحصص الزمنية"
-        unique_together = ("school", "period_number", "day_type")
         ordering = ["day_type", "period_number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "period_number", "day_type"],
+                name="unique_timeslot_config",
+            ),
+        ]
 
     def __str__(self):
         if self.is_break:
@@ -391,7 +399,12 @@ class TeacherPreference(models.Model):
     class Meta:
         verbose_name = "تفضيلات معلم"
         verbose_name_plural = "تفضيلات المعلمين"
-        unique_together = ("teacher", "school", "academic_year")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["teacher", "school", "academic_year"],
+                name="unique_teacher_schedule_pref",
+            ),
+        ]
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"

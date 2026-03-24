@@ -219,7 +219,7 @@ def _register_fonts_reportlab() -> list:
                 if name not in pdfmetrics.getRegisteredFontNames():
                     pdfmetrics.registerFont(TTFont(name, str(path)))
                 registered.append(name)
-            except Exception as e:
+            except (OSError, KeyError, ValueError) as e:
                 logger.debug("registerFont %s: %s", name, e)
 
     try:
@@ -237,7 +237,7 @@ def _register_fonts_reportlab() -> list:
             registerFontFamily(
                 "Amiri", normal="Amiri", bold="Amiri-Bold", italic="Amiri", boldItalic="Amiri-Bold"
             )
-    except Exception as e:
+    except (KeyError, ValueError, RuntimeError) as e:
         logger.debug("registerFontFamily failed: %s", e)
 
     # ── تسجيل بنمط xhtml2pdf: fontname_BD (lowercase) ──
@@ -263,7 +263,7 @@ def _register_fonts_reportlab() -> list:
                 if full_name not in pdfmetrics.getRegisteredFontNames():
                     pdfmetrics.registerFont(TTFont(full_name, str(ttf_path)))
                 addMapping(font_name, bold, italic, full_name)
-    except Exception as e:
+    except (OSError, KeyError, ValueError, RuntimeError) as e:
         logger.debug("xhtml2pdf font mapping failed: %s", e)
 
     _FONTS_REGISTERED = True
@@ -589,7 +589,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
                             print_background=True,
                         )
                         browser.close()
-                except Exception as exc:
+                except (OSError, RuntimeError, TimeoutError) as exc:
                     logger.exception("فشل توليد PDF عبر Playwright")
                     _pdf_result["error"] = exc
                 finally:
@@ -611,7 +611,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         except ImportError:
             logger.debug("Playwright غير مثبت")
             _FAILED_BACKENDS.add("playwright")
-        except Exception as e:
+        except (OSError, RuntimeError) as e:
             logger.debug("Playwright غير متاح: %s", e)
             _FAILED_BACKENDS.add("playwright")
 
@@ -653,7 +653,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         raise RuntimeError(
             "لا توجد مكتبة PDF — شغّل: pip install weasyprint أو pip install xhtml2pdf"
         )
-    except Exception as e:
+    except (OSError, RuntimeError, ValueError) as e:
         logger.error("xhtml2pdf فشل: %s", e)
         raise RuntimeError(f"فشل توليد PDF: {e}")
 

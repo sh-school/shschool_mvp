@@ -347,6 +347,6 @@ def emergency_broadcast(request):
             },
         )
         return JsonResponse({"status": "ok", "recipients": f"school_{school.pk}"})
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError) as exc:
         logger.exception("Emergency broadcast failed: %s", exc)
         return JsonResponse({"error": "فشل الإرسال"}, status=500)

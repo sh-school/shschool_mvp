@@ -152,8 +152,13 @@ class ConsentRecord(models.Model):
     class Meta:
         verbose_name = "سجل موافقة"
         verbose_name_plural = "سجلات الموافقة"
-        unique_together = ("parent", "student", "data_type")
         ordering = ["-given_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "student", "data_type"],
+                name="unique_consent_record",
+            ),
+        ]
 
     def __str__(self):
         status = "موافق" if self.is_given else "مسحوب"

@@ -54,7 +54,7 @@ class SubjectClassSetup(models.Model):
     )
     teacher = models.ForeignKey(
         CustomUser,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name="subject_setups",
         verbose_name="المعلم المسؤول",
     )

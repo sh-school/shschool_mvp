@@ -14,6 +14,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.views.decorators.cache import cache_page
 
 from assessments.models import StudentSubjectResult
 from core.models import (
@@ -238,6 +239,7 @@ def api_grades_distribution(request):
 
 # ── API 3: مقارنة الفصول الدراسية ───────────────────────────
 @login_required
+@cache_page(300)
 def api_class_comparison(request):
     if not _admin_required(request):
         return JsonResponse({}, status=403)
@@ -276,6 +278,7 @@ def api_class_comparison(request):
 
 # ── API 4: مقارنة المواد الدراسية ───────────────────────────
 @login_required
+@cache_page(300)
 def api_subject_comparison(request):
     if not _admin_required(request):
         return JsonResponse({}, status=403)
@@ -434,6 +437,7 @@ def api_behavior_trend(request):
 
 # ── API 7: الطلاب الراسبون (حسب الفصل) ─────────────────────
 @login_required
+@cache_page(300)
 def api_failing_by_class(request):
     if not _admin_required(request):
         return JsonResponse({}, status=403)
@@ -527,6 +531,7 @@ def kpi_dashboard(request):
 
 
 @login_required
+@cache_page(300)
 def api_kpis_all(request):
     """JSON: 10 KPIs — يُعيد بيانات KPIService.compute()"""
     if not _admin_required(request):

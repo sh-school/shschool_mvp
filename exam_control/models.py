@@ -95,7 +95,12 @@ class ExamSupervisor(models.Model):
     class Meta:
         verbose_name = "مشرف كنترول"
         verbose_name_plural = "مشرفو الكنترول"
-        unique_together = [("session", "staff")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session", "staff"],
+                name="unique_exam_supervisor",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.staff.full_name} — {self.get_role_display()}"

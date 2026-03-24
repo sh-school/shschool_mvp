@@ -66,6 +66,26 @@
       font-size: 11px;
       color: #9ca3af;
     }
+    @media (prefers-color-scheme: dark) {
+      body { background: linear-gradient(145deg, #0f172a 0%, #1a0a12 50%, #0c1a35 100%); color: #f1f5f9; }
+      .error-card { background: #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+      .error-title { color: #f1f5f9; }
+      .error-desc { color: #94a3b8; }
+      .error-footer { color: #64748b; }
+    }
+  </style>
+  <script>
+    (function(){var t=localStorage.getItem('theme');
+    if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches))
+      document.documentElement.classList.add('dark');
+    })();
+  </script>
+  <style>
+    html.dark body { background: linear-gradient(145deg, #0f172a 0%, #1a0a12 50%, #0c1a35 100%); color: #f1f5f9; }
+    html.dark .error-card { background: #1e293b; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    html.dark .error-title { color: #f1f5f9; }
+    html.dark .error-desc { color: #94a3b8; }
+    html.dark .error-footer { color: #64748b; }
   </style>
 </head>
 <body>

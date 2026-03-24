@@ -6,6 +6,7 @@ core/signals.py
 import logging
 
 from django.contrib.auth.signals import user_logged_in, user_logged_out
+from django.db import DatabaseError
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
@@ -42,7 +43,7 @@ def _log(model_name, action, instance, changes=None):
             ip_address=ip or None,
             user_agent=ua,
         )
-    except Exception as e:
+    except (DatabaseError, ValueError, AttributeError) as e:
         logger.error("AuditLog _log failed [%s/%s]: %s", model_name, action, e, exc_info=True)
 
 
@@ -223,7 +224,7 @@ def audit_login(sender, request, user, **kwargs):
             ip_address=request.META.get("REMOTE_ADDR"),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
         )
-    except Exception as e:
+    except (DatabaseError, ValueError, AttributeError) as e:
         logger.error(
             "AuditLog login failed for user %s: %s", getattr(user, "pk", "?"), e, exc_info=True
         )
@@ -245,7 +246,7 @@ def audit_logout(sender, request, user, **kwargs):
             school=user.get_school() if hasattr(user, "get_school") else None,
             ip_address=request.META.get("REMOTE_ADDR"),
         )
-    except Exception as e:
+    except (DatabaseError, ValueError, AttributeError) as e:
         logger.error(
             "AuditLog logout failed for user %s: %s", getattr(user, "pk", "?"), e, exc_info=True
         )

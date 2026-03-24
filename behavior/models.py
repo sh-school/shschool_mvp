@@ -110,7 +110,7 @@ class BehaviorInfraction(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey("core.School", on_delete=models.CASCADE)
     student = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="behavior_infractions"
+        "core.CustomUser", on_delete=models.PROTECT, related_name="behavior_infractions"
     )
     reported_by = models.ForeignKey(
         "core.CustomUser", on_delete=models.SET_NULL, null=True, related_name="reported_infractions"
@@ -126,7 +126,7 @@ class BehaviorInfraction(models.Model):
     )
     date = models.DateField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
-    level = models.PositiveSmallIntegerField(choices=LEVELS, default=1)
+    level = models.PositiveSmallIntegerField(choices=LEVELS, default=1, db_index=True)
     description = models.TextField(verbose_name="وصف المخالفة", max_length=2000)
     action_taken = models.TextField(blank=True, verbose_name="الإجراء المتخذ", max_length=2000)
     points_deducted = models.PositiveSmallIntegerField(default=0, verbose_name="النقاط المخصومة")

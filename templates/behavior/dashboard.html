@@ -40,26 +40,26 @@
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:#dc2626;">{{ total_deducted }}</div>
+      <div class="kpi-value text-status-danger">{{ total_deducted }}</div>
       <div class="kpi-label">نقاط مخصومة</div>
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:#166534;">{{ total_restored }}</div>
+      <div class="kpi-value text-status-success">{{ total_restored }}</div>
       <div class="kpi-label">نقاط مستردة</div>
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:#d97706;">{{ net_deducted }}</div>
+      <div class="kpi-value text-status-warning">{{ net_deducted }}</div>
       <div class="kpi-label">صافي الخصم</div>
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:var(--maroon);">{{ critical_unresolved|length }}</div>
+      <div class="kpi-value text-status-maroon">{{ critical_unresolved|length }}</div>
       <div class="kpi-label">مخالفات جسيمة معلّقة</div>
       {% if critical_unresolved %}
       <div class="kpi-sub">
-        <a href="{% url 'behavior:committee' %}" style="color:var(--maroon);font-weight:600;font-size:11.5px;">
+        <a href="{% url 'behavior:committee' %}" class="link-maroon" style="font-size:11.5px;">
           عرض القائمة ←
         </a>
       </div>
@@ -70,7 +70,7 @@
 
   {# ── Critical pending infractions ── #}
   {% if critical_unresolved %}
-  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius-lg);padding:18px 20px;">
+  <div class="bg-status-danger-light" style="border:1px solid #fecaca;border-radius:var(--radius-lg);padding:18px 20px;">
     <div class="card-header" style="border-color:#fecaca;">
       <div class="card-header-icon" style="background:#fee2e2;color:#991b1b;">🚨</div>
       <h2 class="card-header-title" style="color:#991b1b;">مخالفات جسيمة تحتاج قرار لجنة</h2>
