@@ -369,7 +369,8 @@ class SubjectClassAssignment(models.Model):
         ordering = ["class_group__grade", "class_group__section", "subject__name_ar"]
 
     def __str__(self):
-        return f"{self.subject.name_ar} → {self.class_group} ({self.teacher.full_name}) [{self.weekly_periods}ح/أسبوع]"
+        teacher_name = self.teacher.full_name if self.teacher else "غير محدد"
+        return f"{self.subject.name_ar} → {self.class_group} ({teacher_name}) [{self.weekly_periods}ح/أسبوع]"
 
 
 class TeacherPreference(models.Model):
