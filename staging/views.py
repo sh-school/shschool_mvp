@@ -326,8 +326,8 @@ def upload_grade_file(request, assessment_id):
             log.completed_at = timezone.now()
             log.save()
 
-    except Exception as exc:
-        logger.exception("فشل استيراد الدرجات من Excel")
+    except (ValueError, TypeError, KeyError, OSError) as exc:
+        logger.exception("فشل استيراد الدرجات من Excel: %s", exc)
         if not dry_run and log:
             log.status = "failed"
             log.error_log = [str(exc)]

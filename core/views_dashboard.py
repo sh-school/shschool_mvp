@@ -2,8 +2,12 @@ import datetime
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
+
+from assessments.models import AnnualSubjectResult, SubjectClassSetup
+from operations.models import AbsenceAlert, Session, StudentAttendance
 
 
 @login_required
@@ -14,8 +18,6 @@ def dashboard(request):
     role = user.get_role()
 
     if not school:
-        from django.http import HttpResponseForbidden
-
         return HttpResponseForbidden("<h2 dir='rtl'>لم يتم تعيينك في أي مدرسة</h2>")
 
     today = timezone.now().date()
@@ -31,9 +33,6 @@ def dashboard(request):
         return render(request, "dashboard/main.html", ctx)
 
     if user.is_superuser or role in ("principal", "vice_admin", "vice_academic", "admin"):
-        from assessments.models import AnnualSubjectResult, SubjectClassSetup
-        from operations.models import AbsenceAlert, Session, StudentAttendance
-
         year = settings.CURRENT_ACADEMIC_YEAR
 
         sessions_today = Session.objects.filter(school=school, date=today)
@@ -104,9 +103,6 @@ def dashboard(request):
         )
 
     elif role in ("teacher", "coordinator", "specialist"):
-        from assessments.models import SubjectClassSetup
-        from operations.models import Session
-
         year = settings.CURRENT_ACADEMIC_YEAR
         sessions = (
             Session.objects.filter(school=school, teacher=user, date=today)

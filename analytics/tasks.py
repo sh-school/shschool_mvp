@@ -111,6 +111,6 @@ def send_monthly_kpi_report(self, school_id=None):
                 school.name,
             )
 
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError, KeyError) as exc:
         logger.exception("فشل إرسال تقرير KPIs: %s", exc)
         raise self.retry(exc=exc)

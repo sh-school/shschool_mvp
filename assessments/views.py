@@ -1,6 +1,7 @@
 import logging
 from decimal import Decimal
 
+import django.db
 from django.conf import settings
 from django.contrib import messages
 
@@ -187,8 +188,8 @@ def create_assessment(request, package_id):
             created_by=request.user,
         )
         messages.success(request, f"تم إنشاء التقييم: {assessment.title}")
-    except Exception as e:
-        logger.exception("فشل إنشاء التقييم")
+    except (ValueError, TypeError, django.db.IntegrityError) as e:
+        logger.exception("فشل إنشاء التقييم: %s", e)
         messages.error(request, f"خطأ: {e}")
 
     return redirect("setup_detail", setup_id=package.setup.id)
@@ -261,8 +262,8 @@ def save_single_grade(request, assessment_id):
         if raw:
             try:
                 grade = Decimal(raw)
-            except Exception:
-                logger.exception("فشل تحويل الدرجة إلى Decimal: %r", raw)
+            except (ValueError, TypeError, ArithmeticError) as e:
+                logger.warning("فشل تحويل الدرجة إلى Decimal: %r — %s", raw, e)
                 return HttpResponse("درجة غير صالحة", status=400)
 
     grade_obj, _ = GradeService.save_grade(
@@ -316,8 +317,8 @@ def save_all_grades(request, assessment_id):
             if raw:
                 try:
                     grade = Decimal(raw)
-                except Exception:
-                    logger.exception("فشل تحويل درجة الطالب %s إلى Decimal: %r", sid, raw)
+                except (ValueError, TypeError, ArithmeticError) as e:
+                    logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
                     continue
 
         GradeService.save_grade(

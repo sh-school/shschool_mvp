@@ -63,8 +63,8 @@ def create(request):
         discovered_str = request.POST.get("discovered_at", "")
         try:
             discovered_at = timezone.make_aware(datetime.strptime(discovered_str, "%Y-%m-%dT%H:%M"))
-        except Exception:
-            logger.exception("فشل تحليل تاريخ اكتشاف الخرق: %r", discovered_str)
+        except (ValueError, TypeError, OverflowError) as e:
+            logger.warning("فشل تحليل تاريخ اكتشاف الخرق: %r — %s", discovered_str, e)
             discovered_at = timezone.now()
 
         breach = BreachReport.objects.create(

@@ -146,7 +146,7 @@ class AttendanceService:
                         context={"student": student, "absence_count": unexcused_absent},
                         related_url=f"/operations/attendance/student/{student.pk}/",
                     )
-                except Exception as exc:
+                except (ImportError, OSError, RuntimeError, ValueError) as exc:
                     logger.warning(
                         "check_absence_threshold: Hub dispatch failed [student=%s]: %s",
                         student.pk,

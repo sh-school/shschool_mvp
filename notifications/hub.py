@@ -171,7 +171,7 @@ class NotificationHub:
                 for ch in external_channels:
                     results["queued"][ch] = results["queued"].get(ch, 0) + 1
 
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, KeyError) as e:
                 logger.error(f"NotificationHub error for {user}: {e}", exc_info=True)
 
         logger.info(
@@ -275,7 +275,7 @@ def _queue_external(user, school, channels, title, body, event_type, context, se
             context=_serialize_context(context),
             sent_by_id=str(sent_by.id) if sent_by else None,
         )
-    except Exception as e:
+    except (ImportError, OSError, RuntimeError) as e:
         # Fallback: إرسال مباشر لو Celery غير متاح
         logger.warning(f"Celery unavailable, sending sync: {e}")
         _send_sync(user, school, channels, title, body, event_type, context, sent_by)
@@ -310,7 +310,7 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
             )
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Sync email failed: {e}")
 
     if "sms" in channels and user.phone:
@@ -322,7 +322,7 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
             )
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"Sync SMS failed: {e}")
 
 
@@ -353,6 +353,6 @@ def _push_websocket(user, notif):
                 "url": notif.related_url or "",
             },
         )
-    except Exception as exc:
+    except (ImportError, OSError, RuntimeError, AttributeError) as exc:
         # لا نُوقف hub.dispatch() أبداً بسبب WebSocket
         logger.warning(f"WS push failed (non-critical): {exc}")

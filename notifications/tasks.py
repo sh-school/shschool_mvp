@@ -71,8 +71,8 @@ def send_email_task(
 
         return {"status": "sent", "recipient": recipient_email}
 
-    except Exception as exc:
-        logger.error(f"send_email_task error: {exc}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("send_email_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -111,8 +111,8 @@ def send_sms_task(
 
         return {"status": "sent", "recipient": phone_number}
 
-    except Exception as exc:
-        logger.error(f"send_sms_task error: {exc}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("send_sms_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -153,13 +153,13 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None):
                     body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
                     url="/parents/",
                 )
-        except Exception as pe:
+        except (ImportError, OSError, RuntimeError) as pe:
             logger.warning(f"Push notification failed: {pe}")
 
         return {"sent": sent, "total": len(results)}
 
-    except Exception as exc:
-        logger.error(f"notify_absence_task error: {exc}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("notify_absence_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -194,8 +194,8 @@ def notify_fail_task(
         sent = sum(1 for r in results if r["ok"])
         return {"sent": sent, "total": len(results)}
 
-    except Exception as exc:
-        logger.error(f"notify_fail_task error: {exc}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("notify_fail_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -248,8 +248,8 @@ def notify_behavior_task(self, infraction_id, reporter_id):
 
         return {"status": "done", "infraction": str(infraction_id)}
 
-    except Exception as exc:
-        logger.error(f"notify_behavior_task error: {exc}")
+    except (OSError, RuntimeError, ValueError) as exc:
+        logger.exception("notify_behavior_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -343,7 +343,7 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
                 recipient_list=list(set(recipients)),
                 fail_silently=True,
             )
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error(f"breach alert email failed: {e}")
 
 
@@ -417,8 +417,8 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
             logger.info(f"Push queued (pywebpush not installed): {title} → user {user_id}")
             return {"status": "queued_no_pywebpush", "user": str(user_id)}
 
-    except Exception as exc:
-        logger.error(f"send_push_task error: {exc}")
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        logger.exception("send_push_task error: %s", exc)
         raise self.retry(exc=exc)
 
 
@@ -496,8 +496,8 @@ def hub_send_notification_task(
             try:
                 _send_whatsapp(school, user.phone, title, body)
                 results.append(("whatsapp", True, None))
-            except Exception as e:
-                logger.exception("فشل إرسال WhatsApp إلى %s", user.phone)
+            except (ImportError, OSError, RuntimeError, ValueError) as e:
+                logger.exception("فشل إرسال WhatsApp إلى %s: %s", user.phone, e)
                 results.append(("whatsapp", False, str(e)))
 
         # ── Push ───────────────────────────────────────────────
@@ -511,8 +511,8 @@ def hub_send_notification_task(
                     str(school.id),
                 )
                 results.append(("push", True, None))
-            except Exception as e:
-                logger.exception("فشل جدولة مهمة Push للمستخدم %s", user_id)
+            except (ImportError, OSError, RuntimeError) as e:
+                logger.exception("فشل جدولة مهمة Push للمستخدم %s: %s", user_id, e)
                 results.append(("push", False, str(e)))
 
         # ── تحقق من الفشل ─────────────────────────────────────
@@ -533,7 +533,7 @@ def hub_send_notification_task(
         logger.error(f"hub_send: object not found: {e}")
         return {"error": str(e)}
 
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError, KeyError) as exc:
         # Exponential backoff: 60s, 120s, 240s
         countdown = 60 * (2**self.request.retries)
         logger.warning(

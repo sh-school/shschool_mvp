@@ -110,7 +110,7 @@ def report_infraction(request):
                     infraction_id=str(infraction.id),
                     reporter_id=str(request.user.id),
                 )
-            except Exception as e:
+            except (ImportError, OSError, RuntimeError) as e:
                 logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
                 BehaviorService.notify_parents(infraction, school, request.user)
 
@@ -206,7 +206,7 @@ def quick_log(request):
                 infraction_id=str(infraction.id),
                 reporter_id=str(request.user.id),
             )
-        except Exception as exc:
+        except (ImportError, OSError, RuntimeError) as exc:
             logger.warning("Celery unavailable for quick_log notify: %s", exc)
             BehaviorService.notify_parents(infraction, school, request.user)
 
@@ -365,7 +365,7 @@ def behavior_report(request, student_id):
                         sent_by=request.user,
                     )
                     sent_to.append(parent.full_name)
-                except Exception as e:
+                except (OSError, RuntimeError, ValueError) as e:
                     logger.error("behavior_report: email failed for %s: %s", parent.email, e)
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")

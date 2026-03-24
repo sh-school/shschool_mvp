@@ -1,5 +1,6 @@
 import logging
 
+import django.db
 from django.conf import settings
 from django.contrib import messages
 
@@ -340,8 +341,8 @@ def schedule_slot_create(request):
                 academic_year=request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
             )
             messages.success(request, f"تمت إضافة الحصة: {slot}")
-        except Exception as e:
-            logger.exception("فشل إضافة حصة في الجدول الأسبوعي")
+        except (ValueError, TypeError, django.db.IntegrityError) as e:
+            logger.exception("فشل إضافة حصة في الجدول الأسبوعي: %s", e)
             messages.error(request, f"خطأ: {e}")
         return redirect("weekly_schedule")
 

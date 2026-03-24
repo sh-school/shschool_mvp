@@ -54,18 +54,7 @@ def _notify_parents_behavior(infraction, school, reporter):
     - الدرجة 2+: بريد + SMS
     - الدرجة 3-4: بريد + SMS + تنبيه إضافي بالإحالة للجنة
     """
-    LEVEL_DISPLAY = {
-        1: "الدرجة الأولى (بسيطة)",
-        2: "الدرجة الثانية (متوسطة)",
-        3: "الدرجة الثالثة (جسيمة)",
-        4: "الدرجة الرابعة (شديدة الخطورة)",
-    }
-    LEVEL_DESC = {
-        1: "مخالفة بسيطة تستوجب التنبيه والتوجيه",
-        2: "مخالفة متوسطة تستوجب التدخل والمتابعة",
-        3: "مخالفة جسيمة أُحيلت للجنة الضبط السلوكي",
-        4: "مخالفة شديدة الخطورة تستوجب التدخل الفوري",
-    }
+    from .constants import LEVEL_DESC, LEVEL_DISPLAY
 
     try:
         from django.template.loader import render_to_string
@@ -117,8 +106,8 @@ def _notify_parents_behavior(infraction, school, reporter):
                         notif_type="behavior",
                         sent_by=reporter,
                     )
-                except Exception:
-                    logger.exception("فشل إرسال بريد الإشعار لولي الأمر عند تسجيل المخالفة")
+                except (OSError, RuntimeError, ValueError) as e:
+                    logger.exception("فشل إرسال بريد الإشعار لولي الأمر عند تسجيل المخالفة: %s", e)
                     pass  # لا نوقف التسجيل إذا فشل الإرسال
 
             # ── SMS — للدرجة 2 فأكثر فقط ─────────────────────────────
@@ -137,12 +126,12 @@ def _notify_parents_behavior(infraction, school, reporter):
                         notif_type="behavior",
                         sent_by=reporter,
                     )
-                except Exception:
-                    logger.exception("فشل إرسال SMS لولي الأمر عند تسجيل المخالفة")
+                except (OSError, RuntimeError, ValueError) as e:
+                    logger.exception("فشل إرسال SMS لولي الأمر عند تسجيل المخالفة: %s", e)
                     pass
 
-    except Exception:
-        logger.exception("فشل إرسال إشعار المخالفة لولي الأمر")
+    except (ImportError, OSError, RuntimeError, ValueError) as e:
+        logger.exception("فشل إرسال إشعار المخالفة لولي الأمر: %s", e)
         pass  # الإشعار لا يوقف عملية التسجيل أبداً
 
 
@@ -557,8 +546,8 @@ def behavior_report(request, student_id):
                         sent_by=request.user,
                     )
                     sent_to.append(parent.full_name)
-                except Exception:
-                    logger.exception("فشل إرسال التقرير السلوكي لولي الأمر")
+                except (OSError, RuntimeError, ValueError) as e:
+                    logger.exception("فشل إرسال التقرير السلوكي لولي الأمر: %s", e)
                     pass
 
         if sent_to:

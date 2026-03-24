@@ -30,7 +30,7 @@
 
   --text-primary:   #111827;
   --text-secondary: #4b5563;
-  --text-muted:     #9ca3af;
+  --text-muted:     #6b7280;   /* WCAG AA fix: was #9ca3af (2.54:1) → now 4.63:1 */
 
   --border:         #e5e7eb;
   --border-strong:  #d1d5db;
@@ -86,6 +86,12 @@ html[lang="ar"] {
 .hover\:bg-maroon-dark:hover { background-color: var(--maroon-dark); }
 .focus\:ring-maroon:focus { --tw-ring-color: var(--maroon); }
 .focus\:border-maroon:focus { border-color: var(--maroon); }
+
+/* ── WCAG AA Contrast Fixes ────────────────────────────────── */
+/* green-600 (#16A34A) = 3.30:1 on white — FAILS WCAG AA
+   green-700 (#15803D) = 4.58:1 on white — PASSES WCAG AA   */
+.text-green-600 { color: #15803D !important; }
+.text-green-500 { color: #15803D !important; }
 
 /* (variables merged into :root above) */
 
@@ -468,7 +474,7 @@ div#header h1 a {
 .site-footer-text {
   text-align: center;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-muted);  /* WCAG AA fix: uses updated --text-muted #6b7280 */
   line-height: 1.7;
   margin: 0;
 }

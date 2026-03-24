@@ -3,6 +3,8 @@ import logging
 from datetime import timedelta
 from io import BytesIO
 
+import django.db
+
 logger = logging.getLogger(__name__)
 
 import pyotp
@@ -91,8 +93,8 @@ def login_view(request):
                                 request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة."
                             )
                             return render(request, "auth/login.html")
-            except Exception:
-                logger.exception("فشل تحديث عداد محاولات تسجيل الدخول الفاشلة")
+            except (django.db.DatabaseError, ValueError) as e:
+                logger.exception("فشل تحديث عداد محاولات تسجيل الدخول الفاشلة: %s", e)
                 pass
 
             # رسالة موحّدة في كل الحالات الأخرى — لا تكشف وجود الحساب

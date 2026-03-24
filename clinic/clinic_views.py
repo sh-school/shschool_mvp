@@ -127,7 +127,7 @@ def record_visit(request, student_id=None):
                 )
                 visit.parent_notified = True
                 visit.save(update_fields=["parent_notified"])
-            except Exception as exc:
+            except (ImportError, OSError, RuntimeError, ValueError) as exc:
                 import logging
 
                 logging.getLogger(__name__).error(

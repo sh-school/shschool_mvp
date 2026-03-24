@@ -381,7 +381,7 @@ class ExcelService:
                 img.width = 54
                 img.height = 54
                 ws.add_image(img, "A1")
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:
             logger.debug("Excel logo: %s", exc)
 
     @classmethod

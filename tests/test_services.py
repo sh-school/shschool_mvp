@@ -245,7 +245,7 @@ class TestNotificationService:
         from notifications.services import NotificationService
 
         with patch("django.core.mail.send_mail") as mock_mail:
-            mock_mail.side_effect = Exception("SMTP Error")
+            mock_mail.side_effect = OSError("SMTP Error")
             ok, err = NotificationService.send_email(
                 school=school,
                 recipient_email="fail@test.com",

@@ -318,8 +318,8 @@ class KPIService:
                 schedule__session__school=school, status="submitted"
             ).count()
             grading_pct = round(submitted / total_sheets * 100, 1) if total_sheets else 100
-        except Exception:
-            logger.exception("فشل حساب نسبة رصد الدرجات في الوقت")
+        except (ImportError, ValueError, ZeroDivisionError) as e:
+            logger.exception("فشل حساب نسبة رصد الدرجات في الوقت: %s", e)
             grading_pct = 100
         kpis["grading_on_time_pct"] = {
             "label": "رصد الدرجات في الوقت",
@@ -348,8 +348,8 @@ class KPIService:
                 if exam_days
                 else 100
             )
-        except Exception:
-            logger.exception("فشل حساب نسبة أيام الاختبار بلا حوادث")
+        except (ImportError, ValueError, ZeroDivisionError) as e:
+            logger.exception("فشل حساب نسبة أيام الاختبار بلا حوادث: %s", e)
             clean_pct = 100
         kpis["exam_clean_days_pct"] = {
             "label": "أيام اختبار بلا حوادث",

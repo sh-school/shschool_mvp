@@ -136,8 +136,8 @@ def record_visit(request, student_id=None):
                         )
                 visit.parent_notified = True
                 visit.save()
-            except Exception:
-                logger.exception("فشل إرسال إشعار العيادة لولي الأمر [visit=%s]", visit.pk)
+            except (ImportError, OSError, RuntimeError, ValueError) as e:
+                logger.exception("فشل إرسال إشعار العيادة لولي الأمر [visit=%s]: %s", visit.pk, e)
                 visit.parent_notified = False
                 visit.save()
 

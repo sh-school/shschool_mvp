@@ -81,8 +81,8 @@ class NotificationService:
             log.save(update_fields=["status"])
             return True, None
 
-        except Exception as e:
-            logger.exception("فشل إرسال البريد الإلكتروني إلى %s", log.recipient)
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.exception("فشل إرسال البريد الإلكتروني إلى %s: %s", log.recipient, e)
             log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])
@@ -137,8 +137,8 @@ class NotificationService:
             log.save(update_fields=["status"])
             return True, None
 
-        except Exception as e:
-            logger.exception("فشل إرسال SMS إلى %s", log.recipient)
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.exception("فشل إرسال SMS إلى %s: %s", log.recipient, e)
             log.status = "failed"
             log.error_msg = str(e)
             log.save(update_fields=["status", "error_msg"])
@@ -475,8 +475,8 @@ class BreachNotificationService:
                         notif_type="custom",
                         sent_by=reported_by,
                     )
-                except Exception:
-                    logger.exception("فشل إرسال إشعار خرق البيانات عبر البريد الإلكتروني")
+                except (OSError, RuntimeError, ValueError) as e:
+                    logger.exception("فشل إرسال إشعار خرق البيانات عبر البريد الإلكتروني: %s", e)
 
         return {
             "breach_id": breach_id,

@@ -35,22 +35,8 @@ from core.models import (
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
-# ── نقاط مقترحة لكل درجة مخالفة ────────────────────────────
-POINTS_BY_LEVEL = {1: 5, 2: 15, 3: 25, 4: 40}
-
-LEVEL_DISPLAY = {
-    1: "الدرجة الأولى (بسيطة)",
-    2: "الدرجة الثانية (متوسطة)",
-    3: "الدرجة الثالثة (جسيمة)",
-    4: "الدرجة الرابعة (شديدة الخطورة)",
-}
-
-LEVEL_DESC = {
-    1: "مخالفة بسيطة تستوجب التنبيه والتوجيه",
-    2: "مخالفة متوسطة تستوجب التدخل والمتابعة",
-    3: "مخالفة جسيمة أُحيلت للجنة الضبط السلوكي",
-    4: "مخالفة شديدة الخطورة تستوجب التدخل الفوري",
-}
+# ── ثوابت موحدة من constants.py ────────────────────────────
+from .constants import LEVEL_DESC, LEVEL_DISPLAY, POINTS_BY_LEVEL  # noqa: E402
 
 PERIOD_CHOICES = [
     ("full", "العام كاملاً"),
@@ -403,7 +389,7 @@ class BehaviorService:
                 .first()
             )
             class_name = enrollment.class_group.name if enrollment else None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning("get_infraction_context: enrollment query failed: %s", e)
             class_name = None
 
@@ -412,7 +398,7 @@ class BehaviorService:
                 ParentStudentLink.objects.filter(student=student).select_related("parent").first()
             )
             parent = link.parent if link else None
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError) as e:
             logger.warning("get_infraction_context: parent query failed: %s", e)
             parent = None
 
@@ -472,7 +458,7 @@ class BehaviorService:
                 related_url=f"/behavior/student/{infraction.student.pk}/",
                 sent_by=reporter,
             )
-        except Exception as e:
+        except (ImportError, OSError, RuntimeError, ValueError) as e:
             logger.error(
                 "notify_parents: Hub dispatch failed [infraction=%s]: %s",
                 infraction.pk,
