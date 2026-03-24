@@ -347,7 +347,10 @@ class SubjectClassAssignment(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_assignments")
     class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments")
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="class_assignments")
-    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="subject_assignments")
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="subject_assignments",
+        null=True, blank=True, verbose_name="المعلم",
+    )
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
