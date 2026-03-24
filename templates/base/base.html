@@ -24,7 +24,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=6">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=16">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=17">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX ── #}
@@ -277,8 +277,8 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}" defer></script>
-<script src="{% static 'js/app.js' %}" defer></script>
+<script src="{% static 'js/base.js' %}?v=6.1" defer></script>
+<script src="{% static 'js/app.js' %}?v=6.1" defer></script>
 
 {% block extra_js %}{% endblock %}
 
