@@ -102,6 +102,9 @@ CHANNEL_LAYERS = {
 
 AUTH_USER_MODEL = "core.CustomUser"
 
+# ✅ v5.1.1: HMAC Authentication Backend — يبحث عبر HMAC(national_id) مع fallback
+AUTHENTICATION_BACKENDS = ["core.backends.HMACAuthBackend"]
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",

@@ -1,5 +1,5 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
-        quality lint security ci test-cov pre-commit-install
+        quality lint security ci test-cov pre-commit-install minify-js
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -134,6 +134,13 @@ pre-commit-install:
 # تشغيل pre-commit على كل الملفات
 pre-commit-run:
 	pre-commit run --all-files
+
+# ── JS Minification ──────────────────────────────────
+minify-js:
+	npx terser static/js/base.js -o static/js/base.min.js --compress --mangle
+	npx terser static/js/app.js -o static/js/app.min.js --compress --mangle
+	npx terser static/js/quality.js -o static/js/quality.min.js --compress --mangle
+	@echo "JS minified successfully"
 
 # ── E2E Tests (Playwright) ───────────────────────────
 test-e2e:

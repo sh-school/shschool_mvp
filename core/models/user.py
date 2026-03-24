@@ -4,6 +4,7 @@ from django.db import models
 from django.utils import timezone
 
 from ..managers import CustomUserManager
+from ._crypto import decrypt_field, encrypt_field, hmac_field
 from .school import _uuid
 
 _national_id_validator = RegexValidator(
@@ -48,6 +49,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         null=True, blank=True, verbose_name="تاريخ إعطاء الموافقة"
     )
 
+    # ── v5.1.1: HMAC + Fernet encryption for national_id (PDPPL) ──
+    national_id_encrypted = models.TextField(
+        blank=True, default="", verbose_name="الرقم الوطني (مشفّر)",
+    )
+    national_id_hmac = models.CharField(
+        max_length=64, blank=True, default="", db_index=True,
+        verbose_name="HMAC الرقم الوطني",
+    )
+
     USERNAME_FIELD = "national_id"
     REQUIRED_FIELDS = ["full_name"]
     objects = CustomUserManager()
@@ -58,6 +68,25 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.full_name} ({self.national_id})"
+
+    def save(self, *args, **kwargs):
+        # ── Auto-populate HMAC + Fernet fields on every save ──
+        if self.national_id:
+            new_hmac = hmac_field(self.national_id)
+            if new_hmac != self.national_id_hmac:
+                self.national_id_hmac = new_hmac
+            new_enc = encrypt_field(self.national_id)
+            if new_enc and new_enc != self.national_id_encrypted:
+                self.national_id_encrypted = new_enc
+        super().save(*args, **kwargs)
+
+    def get_national_id_decrypted(self):
+        """فك تشفير الرقم الوطني من الحقل المشفّر — fallback إلى الحقل العادي."""
+        if self.national_id_encrypted:
+            decrypted = decrypt_field(self.national_id_encrypted)
+            if decrypted and decrypted != self.national_id_encrypted:
+                return decrypted
+        return self.national_id
 
     @property
     def active_membership(self):

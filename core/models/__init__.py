@@ -11,7 +11,7 @@ from clinic.models import ClinicVisit, HealthRecord  # noqa: F401,E402
 from library.models import BookBorrowing, LibraryActivity, LibraryBook  # noqa: F401,E402
 from transport.models import BusRoute, SchoolBus  # noqa: F401,E402
 
-from ._crypto import _get_fernet, decrypt_field, encrypt_field  # noqa: F401
+from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .academic import ClassGroup, ParentStudentLink, StudentEnrollment  # noqa: F401
 from .access import Membership, Role  # noqa: F401
 from .audit import AuditLog, BreachReport, ConsentRecord, ErasureRequest  # noqa: F401
@@ -28,6 +28,7 @@ __all__ = [
     "_get_fernet",
     "encrypt_field",
     "decrypt_field",
+    "hmac_field",
     # core
     "_uuid",
     "School",

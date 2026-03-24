@@ -215,6 +215,12 @@ if USE_S3:
                 f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
             )
 
+# ── CDN Configuration (Cloudflare / CloudFront) ─────────────────
+CDN_DOMAIN = config("CDN_DOMAIN", default="")
+if CDN_DOMAIN:
+    STATIC_URL = f"https://{CDN_DOMAIN}/static/"
+    # Media continues to use signed S3 URLs if USE_S3 is enabled
+
 # ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
     raise ImproperlyConfigured(

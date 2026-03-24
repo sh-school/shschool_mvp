@@ -1,0 +1,213 @@
+{% extends "base/base.html" %}
+{% load static %}
+{% block title %}دليل المكونات — SchoolOS{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="دليل المكونات" %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-10 pb-16">
+
+  <div class="text-center mb-8">
+    <h1 class="text-3xl font-bold text-gray-800">دليل مكونات SchoolOS</h1>
+    <p class="text-gray-500 mt-2">جميع المكونات القابلة لإعادة الاستخدام في المنصة — v5.1.1</p>
+  </div>
+
+  {# ══════════════════════════════════════════ #}
+  {# 1. Toast Notifications                      #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">1. Toast Notifications</h2>
+    <p class="text-sm text-gray-600">إشعارات مؤقتة تظهر أسفل الشاشة — 4 أنواع.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>window.showToast("تم الحفظ بنجاح", "success");</code><br>
+      <code>window.showToast("حدث خطأ", "danger");</code><br>
+      <code>window.showToast("تنبيه مهم", "warning");</code><br>
+      <code>window.showToast("معلومة", "info");</code>
+    </div>
+
+    <div class="flex flex-wrap gap-3">
+      <button onclick="window.showToast('تم الحفظ بنجاح','success')" class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm">Success</button>
+      <button onclick="window.showToast('حدث خطأ','danger')" class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm">Danger</button>
+      <button onclick="window.showToast('تنبيه مهم','warning')" class="px-4 py-2 bg-yellow-500 text-white rounded-xl text-sm">Warning</button>
+      <button onclick="window.showToast('معلومة إضافية','info')" class="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm">Info</button>
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 2. Modal                                    #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">2. Modal Dialog</h2>
+    <p class="text-sm text-gray-600">نافذة حوار مع ARIA labels + focus management + Escape للإغلاق.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/modal.html" with modal_id="demo" title="عنوان" size="md" &percnt;}</code><br>
+      <code>&lt;button data-modal-open="demo"&gt;افتح&lt;/button&gt;</code>
+    </div>
+
+    <p class="text-xs text-gray-400">الأحجام: <strong>sm</strong> (صغير) | <strong>md</strong> (متوسط — افتراضي) | <strong>lg</strong> (كبير)</p>
+
+    <button data-modal-open="styleguide-modal" class="px-4 py-2 bg-[#8A1538] text-white rounded-xl text-sm">افتح Modal تجريبي</button>
+
+    {% include "components/modal.html" with modal_id="styleguide-modal" title="عنوان تجريبي" size="md" content="<p class='text-gray-600'>هذا محتوى تجريبي داخل Modal. يدعم HTML آمن.</p>" %}
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 3. Confirm Dialog                           #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">3. Confirm Dialog</h2>
+    <p class="text-sm text-gray-600">تأكيد الإجراءات التدميرية (حذف، إلغاء، إيقاف).</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/confirm_dialog.html" with</code><br>
+      <code>  confirm_id="del-123" title="حذف" message="هل أنت متأكد؟"</code><br>
+      <code>  action_url="/delete/123/" action_label="حذف" &percnt;}</code>
+    </div>
+
+    <button data-modal-open="styleguide-confirm" class="px-4 py-2 bg-red-600 text-white rounded-xl text-sm">عرض Confirm Dialog</button>
+
+    {% include "components/confirm_dialog.html" with confirm_id="styleguide-confirm" title="حذف تجريبي" message="هل أنت متأكد من هذا الإجراء؟ لا يمكن التراجع." action_url="#" action_label="حذف" %}
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 4. Breadcrumbs                              #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">4. Breadcrumbs</h2>
+    <p class="text-sm text-gray-600">مسار التنقل مع دعم مستويين.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/breadcrumbs.html" with</code><br>
+      <code>  parent_url="/dashboard/" parent_label="الرئيسية"</code><br>
+      <code>  current="الصفحة الحالية" &percnt;}</code>
+    </div>
+
+    <div class="border rounded-xl p-3 bg-gray-50">
+      {% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="دليل المكونات" %}
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 5. Empty State                              #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">5. Empty State</h2>
+    <p class="text-sm text-gray-600">حالة عدم وجود بيانات مع CTA اختياري.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/empty_state.html" with</code><br>
+      <code>  icon="📭" title="لا توجد رسائل" subtitle="ستظهر هنا عند وصولها"</code><br>
+      <code>  action_url="/new/" action_label="إنشاء جديد" &percnt;}</code>
+    </div>
+
+    <div class="border rounded-xl p-4 bg-gray-50">
+      {% include "components/empty_state.html" with icon="📭" title="لا توجد بيانات" subtitle="ستظهر هنا عند إضافتها" %}
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 6. Skeleton Loader                          #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">6. Skeleton Loader</h2>
+    <p class="text-sm text-gray-600">مؤشر تحميل بنمط shimmer — 4 أنماط.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/skeleton.html" with type="kpi" &percnt;}</code><br>
+      <code>{&percnt; include "components/skeleton.html" with type="table" rows=5 &percnt;}</code><br>
+      <code>{&percnt; include "components/skeleton.html" with type="card" &percnt;}</code><br>
+      <code>{&percnt; include "components/skeleton.html" with type="list" &percnt;}</code>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <p class="text-xs text-gray-400 mb-2">KPI Skeleton:</p>
+        {% include "components/skeleton.html" with type="kpi" %}
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-2">Card Skeleton:</p>
+        {% include "components/skeleton.html" with type="card" %}
+      </div>
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 7. Pagination                               #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">7. Pagination</h2>
+    <p class="text-sm text-gray-600">ترقيم صفحات مع HTMX — يحدّث المحتوى بدون إعادة تحميل.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/pagination.html" with</code><br>
+      <code>  page_obj=page_obj hx_target="#results" &percnt;}</code>
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 8. Search Input                             #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">8. Search Input</h2>
+    <p class="text-sm text-gray-600">حقل بحث مع HTMX live search + loading indicator.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/search_input.html" with</code><br>
+      <code>  hx_get="/endpoint/" hx_target="#results"</code><br>
+      <code>  placeholder="ابحث..." &percnt;}</code>
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# 9. File Upload                              #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">9. File Upload</h2>
+    <p class="text-sm text-gray-600">رفع ملفات مع drag & drop + preview + validation.</p>
+
+    <div class="text-sm bg-gray-50 rounded-xl p-4 font-mono" dir="ltr">
+      <code>{&percnt; include "components/file_upload.html" with</code><br>
+      <code>  name="evidence" accept=".pdf,.docx,.xlsx"</code><br>
+      <code>  max_size_mb=50 &percnt;}</code>
+    </div>
+  </section>
+
+  {# ══════════════════════════════════════════ #}
+  {# Design Tokens                               #}
+  {# ══════════════════════════════════════════ #}
+  <section class="bg-white rounded-2xl border p-6 space-y-4">
+    <h2 class="text-xl font-bold text-[#8A1538] border-b pb-2">Design Tokens</h2>
+
+    <h3 class="font-semibold text-gray-700 mt-4">الألوان الرسمية (دولة قطر)</h3>
+    <div class="flex flex-wrap gap-3">
+      <div class="w-24 h-16 rounded-xl flex items-end justify-center pb-1 text-white text-xs font-bold" style="background:#8A1538">Al Adaam</div>
+      <div class="w-24 h-16 rounded-xl flex items-end justify-center pb-1 text-white text-xs font-bold" style="background:#0D4261">Skyline</div>
+      <div class="w-24 h-16 rounded-xl flex items-end justify-center pb-1 text-white text-xs font-bold" style="background:#129B82">Palm</div>
+      <div class="w-24 h-16 rounded-xl flex items-end justify-center pb-1 text-white text-xs font-bold" style="background:#4194B3">Sea</div>
+      <div class="w-24 h-16 rounded-xl flex items-end justify-center pb-1 text-white text-xs font-bold" style="background:#C9A84C">Gold</div>
+    </div>
+
+    <h3 class="font-semibold text-gray-700 mt-4">Status Badges</h3>
+    <div class="flex flex-wrap gap-2">
+      <span class="badge badge-success">ناجح</span>
+      <span class="badge badge-danger">راسب</span>
+      <span class="badge badge-warning">تحذير</span>
+      <span class="badge badge-info">معلومة</span>
+      <span class="badge badge-gray">معلّق</span>
+      <span class="badge badge-maroon">مهم</span>
+    </div>
+
+    <h3 class="font-semibold text-gray-700 mt-4">الأزرار</h3>
+    <div class="flex flex-wrap gap-3">
+      <button class="btn-primary">زر أساسي</button>
+      <button class="btn-secondary">زر ثانوي</button>
+      <button class="btn-danger">زر خطر</button>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
