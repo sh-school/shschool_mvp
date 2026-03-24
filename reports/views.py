@@ -110,6 +110,17 @@ def class_results_pdf(request, class_id):
     preview = request.GET.get("preview") == "1"
 
     ctx = ReportDataService.get_class_results(class_grp, school, year)
+
+    # ── Guard: لا توليد PDF عند عدم وجود طلاب (reportlab يفشل مع جدول فارغ) ──
+    if not ctx.get("student_rows"):
+        if preview:
+            return render(request, "reports/class_results.html", ctx)
+        return render(
+            request,
+            "reports/class_results.html",
+            {**ctx, "_empty_msg": "لا يوجد طلاب في هذا الفصل لتوليد التقرير."},
+        )
+
     if preview:
         return render(request, "reports/class_results.html", ctx)
 

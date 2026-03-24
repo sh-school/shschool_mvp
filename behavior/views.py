@@ -374,7 +374,7 @@ def behavior_report(request, student_id):
                         sent_by=request.user,
                     )
                     sent_to.append(parent.full_name)
-                except (OSError, RuntimeError, ValueError) as e:
+                except Exception as e:
                     logger.error("behavior_report: email failed for %s: %s", parent.email, e)
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")

@@ -777,7 +777,7 @@ class TestBehaviorReport:
     def test_report_post_send_email_fails(
         self, mock_send, client_as, teacher_user, school, student_user, parent_user
     ):
-        """Email failure should not crash — يُقبل 302 (redirect) أو 500 (unhandled)."""
+        """Email failure should not crash — must redirect gracefully."""
         client = client_as(teacher_user)
         resp = client.post(
             f"/behavior/report/student/{student_user.id}/",
@@ -785,8 +785,7 @@ class TestBehaviorReport:
                 "action": "send",
             },
         )
-        # 302 = redirect ناجح مع خطأ مُعالج، 500 = الخطأ لم يُعالج (سيُصلح لاحقاً)
-        assert resp.status_code in (302, 500)
+        assert resp.status_code == 302
 
 
 # ══════════════════════════════════════════════════════════════
