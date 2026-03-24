@@ -8,13 +8,82 @@ def _uuid():
 
 
 class School(models.Model):
+    """نموذج المدرسة — يشمل جميع البيانات الأساسية والإدارية."""
+
+    # ── نوع المدرسة ──────────────────────────────────────────────
+    SCHOOL_TYPE = [
+        ("boys", "بنين"),
+        ("girls", "بنات"),
+        ("mixed", "مختلط"),
+    ]
+
+    EDUCATION_LEVEL = [
+        ("primary", "ابتدائي"),
+        ("preparatory", "إعدادي"),
+        ("secondary", "ثانوي"),
+        ("prep_sec", "إعدادي + ثانوي"),
+        ("all", "جميع المراحل"),
+    ]
+
+    # ── المعرّفات ─────────────────────────────────────────────────
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     name = models.CharField(max_length=200, verbose_name="اسم المدرسة")
-    code = models.CharField(max_length=10, unique=True, verbose_name="الكود")
+    code = models.CharField(max_length=10, unique=True, verbose_name="كود المدرسة")
+    abbreviation = models.CharField(
+        max_length=10, blank=True, verbose_name="الاختصار",
+        help_text="مثلاً: SHH",
+    )
+    ministry_code = models.CharField(
+        max_length=20, blank=True, verbose_name="رمز الوزارة",
+        help_text="رمز المدرسة في وزارة التربية والتعليم",
+    )
+
+    # ── النوع والمرحلة ────────────────────────────────────────────
+    school_type = models.CharField(
+        max_length=10, choices=SCHOOL_TYPE, default="boys",
+        verbose_name="نوع المدرسة",
+    )
+    education_level = models.CharField(
+        max_length=15, choices=EDUCATION_LEVEL, default="prep_sec",
+        verbose_name="المرحلة الدراسية",
+    )
+    established_year = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="سنة التأسيس",
+    )
+
+    # ── الاتصال ───────────────────────────────────────────────────
+    phone = models.CharField(max_length=20, blank=True, verbose_name="الهاتف")
+    fax = models.CharField(max_length=20, blank=True, verbose_name="الفاكس")
+    email = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
+    website = models.URLField(blank=True, verbose_name="الموقع الإلكتروني")
+
+    # ── العنوان ───────────────────────────────────────────────────
     city = models.CharField(max_length=100, verbose_name="المدينة", default="الشحانية")
-    phone = models.CharField(max_length=20, blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    zone = models.CharField(
+        max_length=100, blank=True, verbose_name="المنطقة / الحي",
+    )
+    address = models.TextField(
+        blank=True, verbose_name="العنوان التفصيلي",
+    )
+    po_box = models.CharField(
+        max_length=20, blank=True, verbose_name="صندوق البريد",
+    )
+
+    # ── الإدارة ───────────────────────────────────────────────────
+    principal_name = models.CharField(
+        max_length=150, blank=True, verbose_name="اسم المدير",
+    )
+
+    # ── الهوية البصرية ────────────────────────────────────────────
+    logo = models.ImageField(
+        upload_to="schools/logos/", blank=True, null=True,
+        verbose_name="شعار المدرسة",
+        help_text="يُفضل PNG شفاف بحجم 200x200 بكسل على الأقل",
+    )
+
+    # ── النظام ────────────────────────────────────────────────────
+    is_active = models.BooleanField(default=True, verbose_name="نشطة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "مدرسة"
