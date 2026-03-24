@@ -3116,9 +3116,38 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
    SchoolOS v20
    ══════════════════════════════════════════════════════════════ */
 
+/* ── Light Mode Override (when user explicitly picks light on dark OS) ── */
+[data-theme="light"] {
+  --maroon:       #8A1538;
+  --maroon-dark:  #6b0f2a;
+  --maroon-light: #b8294e;
+  --maroon-bg:    #fdf2f5;
+  --maroon-border:#e8b4c3;
+  --gold:         #D4A843;
+  --gold-light:   #F5DEB3;
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #6b7280;
+  --border:         #e5e7eb;
+  --border-strong:  #d1d5db;
+  --surface:        #ffffff;
+  --surface-alt:    #f9fafb;
+  --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:      0 4px 16px rgba(0,0,0,.10);
+  --focus-ring:     0 0 0 3px rgba(138, 21, 56, .22);
+}
+[data-theme="light"] body.bg-gray-50, [data-theme="light"] body {
+  background-color: rgb(249, 250, 251) !important;
+  color: #111827;
+}
+[data-theme="light"] .site-nav {
+  background: linear-gradient(135deg, #8A1538 0%, #5a0f26 100%);
+  border-bottom-color: rgba(255,255,255,0.1);
+}
+
 /* ── Dark Mode Design Tokens ──────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --maroon: #b8294e;
     --maroon-dark: #8A1538;
     --maroon-light: #d44a6a;
@@ -3172,8 +3201,9 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* ── Dark Mode Component Overrides ───────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  body, [data-theme="dark"] body {
-    background-color: var(--surface);
+  :root:not([data-theme="light"]) body.bg-gray-50,
+  :root:not([data-theme="light"]) body {
+    background-color: var(--surface) !important;
     color: var(--text-primary);
   }
 
@@ -3312,7 +3342,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 
 /* duplicates for [data-theme="dark"] without media query */
-[data-theme="dark"] body { background-color: var(--surface); color: var(--text-primary); }
+[data-theme="dark"] body.bg-gray-50, [data-theme="dark"] body { background-color: var(--surface) !important; color: var(--text-primary); }
 [data-theme="dark"] .site-nav { background: linear-gradient(135deg, #1a0510 0%, #0f172a 100%); border-bottom-color: var(--maroon-border); }
 [data-theme="dark"] .card-qatar { background: var(--surface-alt); border-color: var(--border); }
 [data-theme="dark"] .form-control { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
