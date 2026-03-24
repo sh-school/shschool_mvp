@@ -36,6 +36,7 @@
   --border-strong:  #d1d5db;
   --surface:        #ffffff;
   --surface-alt:    #f9fafb;
+  --page-bg:        #eef1f5;   /* سلفر فاتح — خلفية الصفحة النهارية */
 
   --radius:         10px;
   --radius-lg:      14px;
@@ -124,6 +125,7 @@ html[lang="ar"] {
 body {
   font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
   line-height: 1.6;
+  background: var(--page-bg);
 }
 
 /* ══════════════════════════════════════════════════════════
