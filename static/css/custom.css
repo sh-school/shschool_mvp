@@ -42,6 +42,13 @@
   --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
   --shadow-md:      0 4px 16px rgba(0,0,0,.10);
 
+  /* Animation Tokens */
+  --transition-fast:   100ms ease;
+  --transition-base:   150ms ease;
+  --transition-slow:   250ms ease;
+  --focus-ring:        0 0 0 3px rgba(138, 21, 56, .22);
+  --focus-ring-offset: 2px;
+
   /* Quality module tokens */
   --q-maroon: #8d1b3d;
   --q-maroon-dark: #6b142e;
@@ -56,26 +63,61 @@
   --q-transition: 0.2s ease;
 }
 
+/* ── Box sizing عالمي ─────────────────────────────────────────── */
+html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
+/* ── RTL عربي عام ─────────────────────────────────────────────── */
+html[lang="ar"] {
+  letter-spacing: 0;
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
 /* ── Maroon utility classes (Tailwind arbitrary values لا تعمل مع المصغّر) ── */
-.bg-maroon { background-color: var(--maroon) !important; }
-.bg-maroon-dark { background-color: var(--maroon-dark) !important; }
-.bg-maroon\/10 { background-color: rgba(138,21,56,0.1) !important; }
-.text-maroon { color: var(--maroon) !important; }
-.border-maroon { border-color: var(--maroon) !important; }
-.border-maroon\/20 { border-color: rgba(138,21,56,0.2) !important; }
-.border-maroon\/30 { border-color: rgba(138,21,56,0.3) !important; }
-.hover\:bg-maroon:hover { background-color: var(--maroon) !important; }
-.hover\:bg-maroon-dark:hover { background-color: var(--maroon-dark) !important; }
+.bg-maroon { background-color: var(--maroon); }
+.bg-maroon-dark { background-color: var(--maroon-dark); }
+.bg-maroon\/10 { background-color: rgba(138,21,56,0.1); }
+.text-maroon { color: var(--maroon); }
+.border-maroon { border-color: var(--maroon); }
+.border-maroon\/20 { border-color: rgba(138,21,56,0.2); }
+.border-maroon\/30 { border-color: rgba(138,21,56,0.3); }
+.hover\:bg-maroon:hover { background-color: var(--maroon); }
+.hover\:bg-maroon-dark:hover { background-color: var(--maroon-dark); }
 .focus\:ring-maroon:focus { --tw-ring-color: var(--maroon); }
-.focus\:border-maroon:focus { border-color: var(--maroon) !important; }
+.focus\:border-maroon:focus { border-color: var(--maroon); }
 
 /* (variables merged into :root above) */
 
-/* ── الخط العربي ───────────────────────────────────────────── */
-/* Tajawal: preloaded in base.html — @import removed (breaks CSS when after rules) */
+/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ───── */
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Regular.woff2') format('woff2'),
+       url('../fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Medium.woff2') format('woff2'),
+       url('../fonts/Tajawal-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Bold.woff2') format('woff2'),
+       url('../fonts/Tajawal-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 body {
-  font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+  line-height: 1.6;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -114,7 +156,7 @@ body {
   transition: background .12s;
   text-decoration: none;
   font-family: inherit;
-  line-height: 1;
+  line-height: 1.4;
 }
 .nb:hover, .nb.on { background: rgba(255,255,255,0.16); }
 .chv { font-size: 8px; opacity: .6; transition: transform .18s; }
@@ -178,7 +220,7 @@ body {
 }
 
 /* زر المستخدم */
-.nav-user-btn    { gap: 7px; flex-shrink: 0; margin-right: 2px; }
+.nav-user-btn    { gap: 7px; flex-shrink: 0; margin-inline-start: 2px; }
 .nav-user-avatar {
   width: 28px; height: 28px;
   border-radius: 50%;
@@ -224,15 +266,14 @@ body {
 .sd-menu a {
   display: flex; align-items: center; gap: 9px;
   padding: 9px 16px; font-size: 13px;
-  color: #1e293b !important; text-decoration: none;
+  color: #1e293b; text-decoration: none;
   white-space: nowrap; transition: background .1s, color .1s;
 }
-.sd-menu a:hover { background: #fdf2f5; color: var(--maroon) !important; }
+.sd-menu a:hover { background: #fdf2f5; color: var(--maroon); }
 .sd-menu hr { border: none; border-top: 1px solid #f1f5f9; margin: 4px 0; }
 .sd-label {
   padding: 6px 16px 3px;
-  font-size: 10px; font-weight: 700; color: #94a3b8 !important;
-  letter-spacing: .08em; text-transform: uppercase;
+  font-size: 10px; font-weight: 700; color: #94a3b8;
 }
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: 10px 16px 9px; border-bottom: 1px solid #f1f5f9; }
@@ -243,7 +284,7 @@ body {
 .sd-logout-form { margin: 0; }
 .sd-logout-btn {
   display: flex; align-items: center; gap: 8px;
-  width: 100%; text-align: right;
+  width: 100%; text-align: start;
   padding: 9px 16px; font-size: 13px;
   color: #dc2626; background: none;
   border: none; cursor: pointer; font-family: inherit;
@@ -261,7 +302,7 @@ body {
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
-  margin-right: auto; flex-shrink: 0;
+  margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
   opacity: .45; font-size: 15px; padding: 0 2px; line-height: 1;
 }
@@ -271,19 +312,7 @@ body {
 .msgs-wrap { max-width: 1280px; margin: 14px auto 0; padding: 0 16px; }
 
 /* ── الأزرار الرئيسية ───────────────────────────────────────── */
-/* أي زر بخلفية maroon */
-button[style*="8A1538"],
-a[style*="8A1538"],
-input[type="submit"][style*="8A1538"] {
-  background: var(--maroon) !important;
-  transition: background .15s ease, box-shadow .15s ease !important;
-}
-
-button[style*="8A1538"]:hover,
-a[style*="8A1538"]:hover {
-  background: var(--maroon-dark) !important;
-  box-shadow: 0 2px 8px rgba(138,21,56,.30) !important;
-}
+/* استخدم .btn-primary بدل inline style — see btn-primary below */
 
 /* ── حقول الإدخال — focus بلون الهوية ─────────────────────── */
 input[type="text"]:focus,
@@ -295,9 +324,9 @@ input[type="date"]:focus,
 input[type="tel"]:focus,
 select:focus,
 textarea:focus {
-  outline: none !important;
-  border-color: var(--maroon) !important;
-  box-shadow: 0 0 0 3px rgba(138,21,56,.12) !important;
+  outline: 2px solid transparent;
+  border-color: var(--maroon);
+  box-shadow: 0 0 0 3px rgba(138,21,56,.12);
 }
 
 /* ── الروابط النشطة ─────────────────────────────────────────── */
@@ -309,7 +338,7 @@ a:focus-visible {
 
 /* ── بطاقات KPI بلون الهوية ─────────────────────────────────── */
 .text-\[#8A1538\] {
-  color: var(--maroon) !important;
+  color: var(--maroon);
 }
 
 /* ── جداول البيانات ─────────────────────────────────────────── */
@@ -319,20 +348,19 @@ table {
 }
 
 thead tr {
-  background: var(--maroon) !important;
-  color: #fff !important;
+  background: var(--maroon);
+  color: #fff;
 }
 
 thead th {
-  color: #fff !important;
+  color: #fff;
   font-weight: 700;
   padding: 10px 14px;
   font-size: 13px;
-  letter-spacing: .03em;
 }
 
 tbody tr:hover {
-  background: var(--maroon-bg) !important;
+  background: var(--maroon-bg);
   transition: background .12s;
 }
 
@@ -341,7 +369,7 @@ tbody tr:nth-child(even) {
 }
 
 tbody tr:nth-child(even):hover {
-  background: var(--maroon-bg) !important;
+  background: var(--maroon-bg);
 }
 
 /* ── رأس الصفحة (h1, h2) ────────────────────────────────────── */
@@ -418,15 +446,14 @@ h1.text-3xl {
 }
 
 /* ── Django Admin — تعريب اللون الرئيسي ───────────────────── */
+/* Django Admin header — !important مطلوب لتجاوز admin CSS */
 #header {
   background: var(--maroon) !important;
 }
-
 #header a:link,
 #header a:visited {
   color: #ffe0e9 !important;
 }
-
 div#header h1 a {
   color: #fff !important;
 }
@@ -524,7 +551,7 @@ footer {
 /* ── تمييز الصف المحدد في الجداول ──────────────────────────── */
 tr.selected,
 tr.active {
-  background: var(--maroon-bg) !important;
+  background: var(--maroon-bg);
   outline: 1px solid var(--maroon-border);
 }
 
@@ -619,9 +646,9 @@ tr.active {
 
 .pagination .current,
 .pagination .active {
-  background: var(--maroon) !important;
-  border-color: var(--maroon) !important;
-  color: #fff !important;
+  background: var(--maroon);
+  border-color: var(--maroon);
+  color: #fff;
 }
 
 .pagination .disabled {
@@ -638,11 +665,50 @@ tr.active {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--maroon-light); }
 
-/* ── Print — إخفاء Nav عند الطباعة ─────────────────────────── */
+/* ── Print — طباعة احترافية ─────────────────────────────────── */
 @media print {
-  nav, footer, .no-print { display: none !important; }
-  body { background: #fff !important; }
-  .card-qatar { box-shadow: none; border: 1px solid #ddd; }
+  @page { size: A4 portrait; margin: 20mm; }
+
+  nav, footer, .no-print, .pwa-banner, .mobile-bottom-nav,
+  #cmd-palette, #toast-container, .filter-bar, .page-actions,
+  .bulk-action-bar, .skip-nav { display: none !important; }
+
+  body {
+    background: #fff !important;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* بطاقات بدون ظلال */
+  .card-qatar, .kpi-card, .table-wrap, .action-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+  }
+
+  /* الجداول */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr { break-inside: avoid; }
+
+  /* أنماط النص */
+  h1, h2, h3 { break-after: avoid; }
+  p { orphans: 3; widows: 3; }
+
+  /* الحفاظ على ألوان الخلفية */
+  .status-badge, thead tr, .kpi-card::before {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* الروابط */
+  a[href]::after { content: none; }
 }
 
 /* ── الجوال ─────────────────────────────────────────────────── */
@@ -770,7 +836,6 @@ tr.active {
 }
 .table-wrap thead th {
   font-size: 12px;
-  letter-spacing: .04em;
   padding: 11px 14px;
 }
 .table-wrap tbody td {
@@ -885,8 +950,8 @@ tr.active {
 
 /* ── تذييل الجدول (إجماليات) ── */
 tfoot tr {
-  background: var(--surface-alt) !important;
-  border-top: 2px solid var(--border) !important;
+  background: var(--surface-alt);
+  border-top: 2px solid var(--border);
   font-weight: 700;
 }
 tfoot td {
@@ -953,26 +1018,26 @@ tfoot td {
  * ✅ v5.1 — Design Tokens & Component Extensions
  * ══════════════════════════════════════════════════════════════ */
 
-/* ── Animation Tokens ──────────────────────────────────────── */
-:root {
-  --transition-fast:   100ms ease;
-  --transition-base:   150ms ease;
-  --transition-slow:   250ms ease;
-  --focus-ring:        0 0 0 3px rgba(138, 21, 56, .22);
-  --focus-ring-offset: 2px;
-}
-
 /* ── WCAG 2.1 AA — Focus Rings ─────────────────────────────── */
-*:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-  border-radius: 4px;
-}
 a:focus-visible,
 button:focus-visible,
-[tabindex]:focus-visible {
-  outline: none;
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--maroon);
+  outline-offset: var(--focus-ring-offset);
   box-shadow: var(--focus-ring);
+}
+
+/* ── Reduced Motion — احترام تفضيلات المستخدم ────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Skip Navigation ───────────────────────────────────────── */
@@ -1060,7 +1125,7 @@ button:focus-visible,
 .toast.toast-leaving  { animation: toastOut .25s ease forwards; }
 .toast-icon { font-size: 1.1rem; flex-shrink: 0; }
 .toast-close {
-  margin-right: auto;
+  margin-inline-start: auto;
   background: none;
   border: none;
   cursor: pointer;
@@ -1270,13 +1335,7 @@ button:focus-visible,
 }
 .empty-state-v2 .es-sub { font-size: .9rem; margin-bottom: 20px; }
 
-/* ── طباعة ── */
-@media print {
-  nav, footer, .no-print, .filter-bar, .page-actions { display: none !important; }
-  body { background: #fff !important; font-size: 12pt; }
-  .card-qatar, .kpi-card, .table-wrap { box-shadow: none; border: 1px solid #ccc; }
-  main { max-width: 100% !important; padding: 0 !important; }
-}
+/* (print styles merged into main @media print block above) */
 
 /* ══════════════════════════════════════════════════════════
    Mobile Navigation — Hamburger Menu (v5.2)
@@ -1293,7 +1352,7 @@ button:focus-visible,
 @media (max-width: 640px) {
   /* إظهار زر الهامبرغر */
   #mob-menu-btn {
-    display: inline-flex !important;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   }
@@ -1323,7 +1382,7 @@ button:focus-visible,
     padding: 13px 20px;
     border-bottom: 1px solid #f1f5f9;
     min-height: 48px;
-    color: #1e293b !important;
+    color: #1e293b;
     font-size: 15px;
     font-weight: 500;
     border-radius: 0;
@@ -1333,7 +1392,7 @@ button:focus-visible,
   .nb-bar .nb:hover,
   .nb-bar .nb:active {
     background: #fdf2f5;
-    color: #8A1538 !important;
+    color: #8A1538;
   }
   /* إخفاء السهم على الجوال */
   .nb-bar .chv { display: none; }
@@ -1368,7 +1427,7 @@ button:focus-visible,
   position: sticky;
   top: 54px;  /* ارتفاع شريط التنقل */
   z-index: 10;
-  background: var(--maroon) !important;
+  background: var(--maroon);
   box-shadow: 0 2px 4px rgba(0,0,0,.1);
 }
 @media (max-width: 640px) {
@@ -1489,6 +1548,7 @@ button:focus-visible,
 .cmd-item-text { flex: 1; min-width: 0; }
 .cmd-item-title { font-size: 13px; font-weight: 600; }
 .cmd-item-sub { font-size: 11px; color: var(--text-muted); }
+.cmd-empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: 13px; }
 
 /* ── KPI Delta (trend indicator) ──────────────────────────── */
 .kpi-delta {
@@ -1968,7 +2028,7 @@ button:focus-visible,
   display: inline;
   font-size: 0.72rem;
   color: #6b7280;
-  margin-left: 4px;
+  margin-inline-end: 4px;
 }
 
 /* Evidence file link — chip متسق مع نظام الـ badges */
@@ -2053,8 +2113,6 @@ button:focus-visible,
   color: rgba(255,255,255,0.7);
   font-size: 0.7rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 .q-modal-header .close-btn {
   color: white;
@@ -2568,7 +2626,7 @@ button:focus-visible,
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
-.btn-sm { font-size: 12.5px !important; }
+.btn-sm { font-size: 12.5px; }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* KPI card color variants */
@@ -2615,7 +2673,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   color: var(--maroon);
   text-decoration: none;
   font-weight: 600;
-  margin-right: auto;
+  margin-inline-start: auto;
 }
 
 /* بطاقة المجال */
@@ -2801,6 +2859,26 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   object-fit: contain; display: block;
   filter: brightness(0) invert(1);
 }
+.login-school-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+.login-platform-name {
+  font-size: 12.5px;
+  color: rgba(255,255,255,.75);
+  margin: 0;
+}
+.login-ministry {
+  font-size: 11px;
+  color: rgba(255,255,255,.55);
+  margin: 4px 0 0;
+}
+.login-submit-wrap { padding-top: 4px; }
+.login-footer { margin-top: 24px; text-align: center; }
+.login-help-text { font-size: 11px; color: #9ca3af; margin: 0; }
 .login-input {
   width: 100%; padding: 13px 16px;
   border: 1.5px solid #d1d5db;
@@ -2821,7 +2899,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   padding: 13px 16px; border-radius: 12px;
   border: none; cursor: pointer; font-family: inherit;
   transition: background .15s, box-shadow .15s, transform .1s;
-  letter-spacing: .02em;
 }
 .login-btn:hover  { background: #6b0f2a; box-shadow: 0 4px 16px rgba(138,21,56,.32); }
 .login-btn:active { transform: translateY(1px); }
@@ -2845,3 +2922,67 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   .login-card-header { padding: 24px 20px 22px; }
   .login-card-body   { padding: 22px 20px 0; }
 }
+
+/* ── Pagination ──────────────────────────────── */
+.pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+}
+.pagination-wrap .btn-primary,
+.pagination-wrap .btn-secondary {
+  padding: 6px 12px;
+  font-size: .85rem;
+}
+.pagination-wrap .btn-primary { cursor: default; padding-inline: 14px; }
+.pagination-info {
+  color: var(--text-muted);
+  font-size: .8rem;
+  margin-inline-start: 8px;
+}
+
+/* ── Dashboard KPI Colors ────────────────────── */
+.kpi-color-green   { --kpi-color: #166534; color: #166534; }
+.kpi-color-teal    { color: #0d9488; }
+.kpi-color-red     { color: #dc2626; }
+.kpi-color-amber   { color: #d97706; }
+.kpi-color-maroon  { color: var(--maroon); }
+
+/* ── Dashboard Misc ──────────────────────────── */
+.collapsible-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  list-style: none;
+  user-select: none;
+}
+.collapsible-header::-webkit-details-marker { display: none; }
+.collapsible-body { padding: 0 18px 14px; }
+.session-time { min-width: 52px; }
+.next-session-badge {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.emoji-icon-lg { font-size: 40px; }
+.pct-unit { font-size: 18px; }
+
+/* ── Progress bar conditional colors ─────────── */
+.progress-fill-green  { background: linear-gradient(90deg, #15803d, #16a34a); }
+.progress-fill-amber  { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.progress-fill-red    { background: linear-gradient(90deg, #b91c1c, #dc2626); }
+.kpi-link {
+  color: var(--maroon);
+  font-weight: 600;
+  font-size: 11.5px;
+  text-decoration: none;
+}
+.kpi-link:hover { text-decoration: underline; }
+
+/* ── Command Palette hidden state ────────────── */
+.cmd-hidden { display: none; }

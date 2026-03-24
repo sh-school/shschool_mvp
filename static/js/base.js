@@ -30,8 +30,23 @@ window.sd = function(id, btn) {
   if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); }
 };
 
+/* ── Event delegation: all interactive buttons ── */
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.sd-menu') && !e.target.closest('.nb[onclick]')) {
+  var sdBtn = e.target.closest('[data-sd]');
+  if (sdBtn) { sd(sdBtn.getAttribute('data-sd'), sdBtn); return; }
+  var mobBtn = e.target.closest('#mob-menu-btn');
+  if (mobBtn) { toggleMobMenu(); return; }
+  var printBtn = e.target.closest('.js-print-btn');
+  if (printBtn) { window.print(); return; }
+  var dismissBtn = e.target.closest('[data-dismiss="msg-bar"]');
+  if (dismissBtn) { var bar = dismissBtn.closest('.msg-bar'); if (bar) bar.remove(); return; }
+  var backdropEl = e.target.closest('[data-dismiss-on-backdrop]');
+  if (backdropEl && e.target === backdropEl && typeof closePalette === 'function') { closePalette(); return; }
+  var pwaInstall = e.target.closest('[data-action="install-pwa"]');
+  if (pwaInstall && typeof installPWA === 'function') { installPWA(); return; }
+  var pwaDismiss = e.target.closest('[data-action="dismiss-pwa"]');
+  if (pwaDismiss && typeof dismissBanner === 'function') { dismissBanner(); return; }
+  if (!e.target.closest('.sd-menu') && !e.target.closest('[data-sd]')) {
     document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open'); });
     document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); });
   }
@@ -182,21 +197,35 @@ setTimeout(function() {
 }, 7000);
 
 
-/* ── Toast System ─────────────────────────────────────────── */
+/* ── Toast System (canonical — app.js لا يعيد تعريفه) ─────── */
 window.showToast = function(msg, type, duration) {
   type = type || 'success';
   duration = duration || 4000;
-  var icons = { success: '✓', danger: '✗', info: 'ℹ', warning: '⚠' };
+  var icons = { success: '\u2713', danger: '\u2717', info: '\u2139', warning: '\u26A0' };
   var container = document.getElementById('toast-container');
   if (!container) return;
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + type;
   toast.setAttribute('role', 'alert');
-  toast.innerHTML =
-    '<span class="toast-icon">' + (icons[type] || '•') + '</span>' +
-    '<span class="toast-msg">' + msg + '</span>' +
-    '<button class="toast-close" aria-label="إغلاق">×</button>';
-  toast.querySelector('.toast-close').onclick = function() { _removeToast(toast); };
+
+  var icon = document.createElement('span');
+  icon.className = 'toast-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = icons[type] || '\u2022';
+
+  var text = document.createElement('span');
+  text.className = 'toast-msg';
+  text.textContent = msg;
+
+  var btn = document.createElement('button');
+  btn.className = 'toast-close';
+  btn.setAttribute('aria-label', '\u0625\u063a\u0644\u0627\u0642');
+  btn.textContent = '\u00d7';
+  btn.onclick = function() { _removeToast(toast); };
+
+  toast.appendChild(icon);
+  toast.appendChild(text);
+  toast.appendChild(btn);
   container.appendChild(toast);
   setTimeout(function() { _removeToast(toast); }, duration);
 };
@@ -205,6 +234,11 @@ function _removeToast(el) {
   el.classList.add('toast-leaving');
   setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
 }
+
+window.removeToast = function(btn) {
+  var toast = btn.closest ? btn.closest('.toast') : btn.parentElement;
+  if (toast) _removeToast(toast);
+};
 
 /* ── HTMX → showToast via HX-Trigger header ──────────────── */
 document.body.addEventListener('showToast', function(e) {
@@ -242,6 +276,20 @@ window.modalManager = {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') window.modalManager.closeTop();
 });
+
+
+/* ── Active nav link (aria-current) ──────────────────────── */
+(function() {
+  var path = location.pathname;
+  document.querySelectorAll('.nb-bar a.nb').forEach(function(a) {
+    var href = a.getAttribute('href');
+    if (href && path.startsWith(href) && href !== '/dashboard/') {
+      a.setAttribute('aria-current', 'page');
+    } else if (href === '/dashboard/' && path === '/dashboard/') {
+      a.setAttribute('aria-current', 'page');
+    }
+  });
+})();
 
 document.addEventListener('click', function(e) {
   var t = e.target;

@@ -1,6 +1,13 @@
-/* SchoolOS — app.js v5.3 */
+/* SchoolOS — app.js v5.4 */
 'use strict';
 (function () {
+
+  /* ── HTML escape — حماية من XSS ──────────────────────────── */
+  function esc(str) {
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
 
   /* ── Swipe يساراً على إشعار → تحديد كمقروء ──────────────── */
   function initSwipe(el) {
@@ -33,7 +40,7 @@
     cmdInput = document.getElementById('cmd-input');
     cmdResults = document.getElementById('cmd-results');
     if (!palette) return;
-    palette.style.display = 'flex';
+    palette.classList.remove('cmd-hidden');
     cmdInput.value = '';
     cmdResults.innerHTML = '';
     activeIdx = -1;
@@ -41,21 +48,21 @@
   }
 
   window.closePalette = function () {
-    if (palette) palette.style.display = 'none';
+    if (palette) palette.classList.add('cmd-hidden');
   };
 
   function renderResults(items) {
     if (!cmdResults) return;
     if (!items.length) {
-      cmdResults.innerHTML = '<div style="text-align:center;padding:24px;color:#9ca3af;font-size:13px;">لا توجد نتائج</div>';
+      cmdResults.innerHTML = '<div class="cmd-empty">\u0644\u0627 \u062a\u0648\u062c\u062f \u0646\u062a\u0627\u0626\u062c</div>';
       return;
     }
     cmdResults.innerHTML = items.map(function (r, i) {
-      return '<a class="cmd-item" href="' + r.url + '" data-idx="' + i + '">'
-        + '<span class="cmd-item-icon">' + r.icon + '</span>'
+      return '<a class="cmd-item" href="' + esc(r.url) + '" data-idx="' + i + '">'
+        + '<span class="cmd-item-icon">' + esc(r.icon) + '</span>'
         + '<div class="cmd-item-text">'
-        + '<div class="cmd-item-title">' + r.title + '</div>'
-        + '<div class="cmd-item-sub">' + r.sub + '</div>'
+        + '<div class="cmd-item-title">' + esc(r.title) + '</div>'
+        + '<div class="cmd-item-sub">' + esc(r.sub) + '</div>'
         + '</div></a>';
     }).join('');
     activeIdx = -1;
@@ -70,7 +77,7 @@
     .then(function (d) { renderResults(d.results || []); })
     .catch(function () {
       if (typeof window.showToast === 'function') {
-        window.showToast('خطأ في البحث — تحقق من الاتصال', 'danger');
+        window.showToast('\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0628\u062d\u062b \u2014 \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0627\u062a\u0635\u0627\u0644', 'danger');
       }
     });
   }
@@ -94,13 +101,13 @@
       return;
     }
     // Escape
-    if (e.key === 'Escape' && palette && palette.style.display !== 'none') {
+    if (e.key === 'Escape' && palette && !palette.classList.contains('cmd-hidden')) {
       e.preventDefault();
       closePalette();
       return;
     }
     // سهم أعلى/أسفل + Enter داخل palette
-    if (palette && palette.style.display !== 'none') {
+    if (palette && !palette.classList.contains('cmd-hidden')) {
       var items = cmdResults ? cmdResults.querySelectorAll('.cmd-item') : [];
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -115,29 +122,6 @@
     }
   });
 
-  /* ── Toast Helper (من HTMX أو JS) ───────────────────────── */
-  window.showToast = function (msg, type) {
-    type = type || 'success';
-    var container = document.getElementById('toast-container');
-    if (!container) return;
-    var icons = { success: '✅', danger: '❌', warning: '⚠️', info: 'ℹ️' };
-    var toast = document.createElement('div');
-    toast.className = 'toast toast-' + type;
-    toast.setAttribute('role', 'alert');
-    toast.innerHTML = '<span class="toast-icon">' + (icons[type] || '✅') + '</span>'
-      + '<span style="flex:1;">' + msg + '</span>'
-      + '<button class="toast-close" onclick="removeToast(this)" aria-label="إغلاق">✕</button>';
-    container.appendChild(toast);
-    setTimeout(function () { removeToast(toast.querySelector('.toast-close')); }, 4500);
-  };
-
-  window.removeToast = function (btn) {
-    var toast = btn.closest ? btn.closest('.toast') : btn.parentElement;
-    if (!toast) return;
-    toast.classList.add('toast-leaving');
-    setTimeout(function () { toast.remove(); }, 250);
-  };
-
   /* ── HTMX → Toast (عبر HX-Trigger header) ─────────────── */
   document.addEventListener('htmx:afterRequest', function (e) {
     var trigger = e.detail.xhr && e.detail.xhr.getResponseHeader('HX-Trigger');
@@ -145,7 +129,7 @@
       try {
         var parsed = JSON.parse(trigger);
         if (parsed.showToast) {
-          showToast(parsed.showToast.message || parsed.showToast, parsed.showToast.type || 'success');
+          window.showToast(parsed.showToast.message || parsed.showToast, parsed.showToast.type || 'success');
         }
       } catch (_) {}
     }
@@ -154,26 +138,31 @@
   /* ── HTMX Global Error Handler ────────────────────────────── */
   document.addEventListener('htmx:responseError', function (e) {
     var status = e.detail.xhr ? e.detail.xhr.status : 0;
-    var msg = 'حدث خطأ غير متوقع';
-    if (status === 403) msg = 'ليس لديك صلاحية لهذا الإجراء';
-    else if (status === 404) msg = 'الصفحة المطلوبة غير موجودة';
-    else if (status >= 500) msg = 'خطأ في الخادم — حاول مرة أخرى';
-    else if (status === 0) msg = 'خطأ في الاتصال — تحقق من الشبكة';
-    showToast(msg, 'danger');
+    var msg = '\u062d\u062f\u062b \u062e\u0637\u0623 \u063a\u064a\u0631 \u0645\u062a\u0648\u0642\u0639';
+    if (status === 403) msg = '\u0644\u064a\u0633 \u0644\u062f\u064a\u0643 \u0635\u0644\u0627\u062d\u064a\u0629 \u0644\u0647\u0630\u0627 \u0627\u0644\u0625\u062c\u0631\u0627\u0621';
+    else if (status === 404) msg = '\u0627\u0644\u0635\u0641\u062d\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629';
+    else if (status >= 500) msg = '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062e\u0627\u062f\u0645 \u2014 \u062d\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062e\u0631\u0649';
+    else if (status === 0) msg = '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u2014 \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629';
+    window.showToast(msg, 'danger');
   });
 
   /* ── Client-side Form Validation ────────────────────────── */
   function showFieldError(input, msg) {
     clearFieldError(input);
     input.classList.add('field-error');
+    input.setAttribute('aria-invalid', 'true');
     var el = document.createElement('div');
     el.className = 'field-error-msg';
+    el.id = 'err-' + (input.id || input.name || Math.random().toString(36).slice(2));
     el.textContent = msg;
+    input.setAttribute('aria-describedby', el.id);
     input.parentNode.appendChild(el);
   }
 
   function clearFieldError(input) {
     input.classList.remove('field-error');
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
     var err = input.parentNode.querySelector('.field-error-msg');
     if (err) err.remove();
   }
@@ -185,7 +174,7 @@
         form.querySelectorAll('[required], [pattern]').forEach(function (input) {
           clearFieldError(input);
           if (!input.validity.valid) {
-            var msg = input.title || input.validationMessage || 'هذا الحقل مطلوب';
+            var msg = input.title || input.validationMessage || '\u0647\u0630\u0627 \u0627\u0644\u062d\u0642\u0644 \u0645\u0637\u0644\u0648\u0628';
             showFieldError(input, msg);
             valid = false;
           }

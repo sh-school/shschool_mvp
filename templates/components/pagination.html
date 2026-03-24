@@ -4,89 +4,52 @@
   المتغيرات: page_obj (Django Page), target (hx-target), base_url (افتراضي: request.path)
 {% endcomment %}
 {% if page_obj.paginator.num_pages > 1 %}
-<nav
-  class="pagination-wrap"
-  style="display:flex;align-items:center;justify-content:center;gap:6px;padding:16px 0;flex-wrap:wrap"
-  aria-label="التنقل بين الصفحات"
->
+<nav class="pagination-wrap" aria-label="التنقل بين الصفحات">
 
-  {# ── الأولى ── #}
   {% if page_obj.has_previous %}
-  <a
-    href="?page=1"
-    class="btn-secondary"
-    style="padding:6px 12px;font-size:.85rem"
-    hx-get="{{ base_url|default:request.path }}?page=1"
-    hx-target="{{ target|default:'#main-content' }}"
-    hx-swap="innerHTML"
-    hx-push-url="true"
-    aria-label="الصفحة الأولى"
-  >«</a>
+  <a href="?page=1" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?page=1"
+     hx-target="{{ target|default:'#main-content' }}"
+     hx-swap="innerHTML" hx-push-url="true"
+     aria-label="الصفحة الأولى">«</a>
 
-  <a
-    href="?page={{ page_obj.previous_page_number }}"
-    class="btn-secondary"
-    style="padding:6px 12px;font-size:.85rem"
-    hx-get="{{ base_url|default:request.path }}?page={{ page_obj.previous_page_number }}"
-    hx-target="{{ target|default:'#main-content' }}"
-    hx-swap="innerHTML"
-    hx-push-url="true"
-    aria-label="الصفحة السابقة"
-  >›</a>
+  <a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.previous_page_number }}"
+     hx-target="{{ target|default:'#main-content' }}"
+     hx-swap="innerHTML" hx-push-url="true"
+     aria-label="الصفحة السابقة">›</a>
   {% endif %}
 
-  {# ── أرقام الصفحات ── #}
   {% for num in page_obj.paginator.page_range %}
     {% if num >= page_obj.number|add:"-2" and num <= page_obj.number|add:"2" %}
       {% if num == page_obj.number %}
-      <span
-        class="btn-primary"
-        style="padding:6px 14px;font-size:.85rem;cursor:default"
-        aria-current="page"
-        aria-label="الصفحة الحالية {{ num }}"
-      >{{ num }}</span>
+      <span class="btn-primary" aria-current="page"
+            aria-label="الصفحة الحالية {{ num }}">{{ num }}</span>
       {% else %}
-      <a
-        href="?page={{ num }}"
-        class="btn-secondary"
-        style="padding:6px 14px;font-size:.85rem"
-        hx-get="{{ base_url|default:request.path }}?page={{ num }}"
-        hx-target="{{ target|default:'#main-content' }}"
-        hx-swap="innerHTML"
-        hx-push-url="true"
-        aria-label="صفحة {{ num }}"
-      >{{ num }}</a>
+      <a href="?page={{ num }}" class="btn-secondary"
+         hx-get="{{ base_url|default:request.path }}?page={{ num }}"
+         hx-target="{{ target|default:'#main-content' }}"
+         hx-swap="innerHTML" hx-push-url="true"
+         aria-label="صفحة {{ num }}">{{ num }}</a>
       {% endif %}
     {% endif %}
   {% endfor %}
 
-  {# ── التالية والأخيرة ── #}
   {% if page_obj.has_next %}
-  <a
-    href="?page={{ page_obj.next_page_number }}"
-    class="btn-secondary"
-    style="padding:6px 12px;font-size:.85rem"
-    hx-get="{{ base_url|default:request.path }}?page={{ page_obj.next_page_number }}"
-    hx-target="{{ target|default:'#main-content' }}"
-    hx-swap="innerHTML"
-    hx-push-url="true"
-    aria-label="الصفحة التالية"
-  >‹</a>
+  <a href="?page={{ page_obj.next_page_number }}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.next_page_number }}"
+     hx-target="{{ target|default:'#main-content' }}"
+     hx-swap="innerHTML" hx-push-url="true"
+     aria-label="الصفحة التالية">‹</a>
 
-  <a
-    href="?page={{ page_obj.paginator.num_pages }}"
-    class="btn-secondary"
-    style="padding:6px 12px;font-size:.85rem"
-    hx-get="{{ base_url|default:request.path }}?page={{ page_obj.paginator.num_pages }}"
-    hx-target="{{ target|default:'#main-content' }}"
-    hx-swap="innerHTML"
-    hx-push-url="true"
-    aria-label="الصفحة الأخيرة"
-  >»</a>
+  <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.paginator.num_pages }}"
+     hx-target="{{ target|default:'#main-content' }}"
+     hx-swap="innerHTML" hx-push-url="true"
+     aria-label="الصفحة الأخيرة">»</a>
   {% endif %}
 
-  {# ── المعلومات ── #}
-  <span style="color:var(--text-muted);font-size:.8rem;margin-right:8px">
+  <span class="pagination-info">
     صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}
     ({{ page_obj.paginator.count }} عنصر)
   </span>

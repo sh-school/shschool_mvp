@@ -18,18 +18,17 @@
   <meta name="apple-mobile-web-app-title" content="الشحانية">
   {% endif %}
 
-  {# ── الخط العربي: Tajawal ── #}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  {# ── الخط العربي: Tajawal محلي (WOFF2) — أسرع من Google Fonts ── #}
+  <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=6">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=15">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=16">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX ── #}
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.10/htmx.min.js" defer crossorigin="anonymous"></script>
 </head>
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
@@ -38,7 +37,7 @@
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
 
 {# ✅ Toast Container #}
-<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
 
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
@@ -59,17 +58,16 @@
 
     {# ── Hamburger (mobile) ── #}
     <button id="mob-menu-btn" class="nav-hamburger"
-            aria-label="القائمة" aria-expanded="false"
-            onclick="toggleMobMenu()">☰</button>
+            aria-label="القائمة" aria-expanded="false">☰</button>
 
     {# ── Role-based nav ── #}
     <div class="nb-bar">
     {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <button class="nb" id="btn-academic" onclick="sd('m-academic',this)">📚 الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  onclick="sd('m-quality',this)">📋 الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    onclick="sd('m-admin',this)">⚙️ الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" onclick="sd('m-services',this)">🏥 الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-academic" data-sd="m-academic">📚 الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality">📋 الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin">⚙️ الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services">🏥 الخدمات <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
@@ -125,7 +123,7 @@
     </a>
 
     {# ── User Menu ── #}
-    <button class="nb nav-user-btn" id="btn-user" onclick="sd('m-user',this)">
+    <button class="nb nav-user-btn" id="btn-user" data-sd="m-user">
       <span class="nav-user-avatar" aria-hidden="true">{{ request.user.full_name|slice:":1" }}</span>
       <span class="nav-user-name">{{ request.user.full_name|truncatechars:12 }}</span>
       <span class="chv">▼</span>
@@ -228,7 +226,7 @@
       {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
     </span>
     <span class="msg-text">{{ msg }}</span>
-    <button class="msg-x" type="button" onclick="this.closest('.msg-bar').remove()" title="إغلاق">✕</button>
+    <button class="msg-x" type="button" data-dismiss="msg-bar" title="إغلاق">✕</button>
   </div>
   {% endfor %}
 </div>
@@ -245,16 +243,21 @@
 
 {# ════════════════ COMMAND PALETTE (Ctrl+K) ═════════════════════════════ #}
 {% if user.is_authenticated %}
-<div id="cmd-palette" class="cmd-overlay" style="display:none;" onclick="if(event.target===this)closePalette()">
+<div id="cmd-palette" class="cmd-overlay cmd-hidden"
+     role="dialog" aria-modal="true" aria-label="البحث السريع"
+     data-dismiss-on-backdrop="true">
   <div class="cmd-box">
     <div class="cmd-input-wrap">
-      <span class="cmd-icon">🔍</span>
+      <span class="cmd-icon" aria-hidden="true">🔍</span>
       <input id="cmd-input" class="cmd-input" type="text"
              placeholder="ابحث عن طالب، معلم، صفحة..."
-             autocomplete="off" dir="rtl">
-      <span class="cmd-kbd">Esc</span>
+             autocomplete="off" dir="rtl"
+             role="combobox" aria-expanded="false"
+             aria-owns="cmd-results" aria-haspopup="listbox"
+             aria-label="حقل البحث السريع">
+      <span class="cmd-kbd" aria-hidden="true">Esc</span>
     </div>
-    <div id="cmd-results" class="cmd-results"></div>
+    <div id="cmd-results" class="cmd-results" role="listbox"></div>
   </div>
 </div>
 {% endif %}
@@ -288,8 +291,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     <strong class="pwa-title">أضف المنصة لشاشتك الرئيسية</strong>
     <span class="pwa-subtitle">وصول سريع بدون فتح المتصفح</span>
   </div>
-  <button onclick="installPWA()" class="pwa-install-btn">تثبيت</button>
-  <button onclick="dismissBanner()" class="pwa-dismiss-btn" aria-label="إغلاق">✕</button>
+  <button class="pwa-install-btn" data-action="install-pwa">تثبيت</button>
+  <button class="pwa-dismiss-btn" data-action="dismiss-pwa" aria-label="إغلاق">✕</button>
 </div>
 {% endif %}
 

@@ -11,14 +11,13 @@
   <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
   <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
 
-  {# ── Fonts ── #}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  {# ── الخط العربي: Tajawal محلي ── #}
+  <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=15">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=16">
 
   {# Login styles — defined in custom.css section 15 #}
 </head>
@@ -29,11 +28,12 @@
     {# ── Header Strip (maroon) ── #}
     <div class="login-card-header">
       <div class="login-logo">
-        <img src="{% static 'icons/favicon.png' %}" alt="مدرسة الشحانية">
+        <img src="{% static 'icons/favicon.png' %}" alt="مدرسة الشحانية"
+             width="72" height="72" fetchpriority="high">
       </div>
-      <h1 style="font-size:17px;font-weight:800;color:#fff;margin:0 0 6px;line-height:1.5;">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</h1>
-      <p style="font-size:12.5px;color:rgba(255,255,255,.75);margin:0;">منصة الإدارة المدرسية</p>
-      <p style="font-size:11px;color:rgba(255,255,255,.55);margin:4px 0 0;">وزارة التربية والتعليم والتعليم العالي — دولة قطر 🇶🇦</p>
+      <h1 class="login-school-name">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</h1>
+      <p class="login-platform-name">منصة الإدارة المدرسية</p>
+      <p class="login-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
     </div>
 
     {# ── Card Body ── #}
@@ -41,10 +41,11 @@
 
     {# ── Error messages ── #}
     {% if messages %}
-    <div style="margin-bottom:18px;" class="space-y-2">
+    <div class="space-y-2 mb-4">
       {% for message in messages %}
-      <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:11px 14px;font-size:13.5px;display:flex;align-items:center;gap:8px;">
-        <span>❌</span><span>{{ message }}</span>
+      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" role="alert">
+        <span class="msg-icon" aria-hidden="true">❌</span>
+        <span class="msg-text">{{ message }}</span>
       </div>
       {% endfor %}
     </div>
@@ -55,11 +56,12 @@
       {% csrf_token %}
 
       <div>
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">
+        <label class="form-label" for="id_national_id">
           الرقم الوطني
         </label>
         <input
           type="text"
+          id="id_national_id"
           name="national_id"
           class="login-input"
           required
@@ -74,11 +76,12 @@
       </div>
 
       <div>
-        <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">
+        <label class="form-label" for="id_password">
           كلمة المرور
         </label>
         <input
           type="password"
+          id="id_password"
           name="password"
           class="login-input"
           required
@@ -87,7 +90,7 @@
         >
       </div>
 
-      <div style="padding-top:4px;">
+      <div class="login-submit-wrap">
         <button type="submit" class="login-btn">
           تسجيل الدخول
         </button>
@@ -95,8 +98,8 @@
     </form>
 
     {# ── Footer note ── #}
-    <div style="margin-top:24px;text-align:center;">
-      <p style="font-size:11px;color:#9ca3af;">
+    <div class="login-footer">
+      <p class="login-help-text">
         للمساعدة تواصل مع مدير النظام
       </p>
     </div>
