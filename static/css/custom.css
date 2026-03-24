@@ -2986,3 +2986,121 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* ── Command Palette hidden state ────────────── */
 .cmd-hidden { display: none; }
+
+/* ── Report Tabs ─────────────────────────────── */
+.report-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+.report-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .2s, border-color .2s;
+}
+.report-tab:hover { color: var(--maroon); }
+.report-tab.active {
+  color: var(--maroon);
+  border-bottom-color: var(--maroon);
+}
+.report-tab-icon { font-size: 1.1rem; }
+
+/* ── Report Cards ────────────────────────────── */
+.report-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow .2s, transform .15s;
+}
+.report-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  transform: translateY(-2px);
+}
+.report-card-header {
+  background: linear-gradient(135deg, var(--maroon), #6b1029);
+  color: #fff;
+  padding: 14px 16px;
+  text-align: center;
+}
+.report-card-grade {
+  display: block;
+  font-size: .8rem;
+  opacity: .85;
+}
+.report-card-section {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.report-card-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.report-card-actions {
+  display: flex;
+  gap: 6px;
+}
+.report-card-btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: .75rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity .2s;
+}
+.report-card-btn:hover { opacity: .85; }
+.report-btn-preview {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+.report-btn-pdf {
+  background: var(--maroon);
+  color: #fff;
+}
+.report-btn-excel {
+  background: #15803d;
+  color: #fff;
+}
+
+/* ── Student search dropdown ─────────────────── */
+.report-student-search { position: relative; }
+.report-student-search summary::-webkit-details-marker { display: none; }
+.report-student-dropdown {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  padding: 12px;
+  width: 340px;
+  z-index: 50;
+}
+@media (max-width: 640px) {
+  .report-student-dropdown {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    top: auto;
+  }
+}

@@ -46,9 +46,12 @@ def _set_final_status(ctx: dict) -> None:
 
 @login_required
 def reports_index(request):
-    """فهرس التقارير — يعرض الفصول المتاحة للطباعة حسب الصلاحية."""
+    """فهرس التقارير — تبويبات + فلاتر + بطاقات فصول."""
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    tab = request.GET.get("tab", "results")
+    grade_filter = request.GET.get("grade", "")
+    level_filter = request.GET.get("level", "")
 
     if request.user.is_admin():
         classes = ClassGroup.objects.filter(
@@ -58,17 +61,40 @@ def reports_index(request):
         ids = SubjectClassSetup.objects.filter(
             school=school, teacher=request.user, academic_year=year
         ).values_list("class_group_id", flat=True)
-        classes = ClassGroup.objects.filter(id__in=ids)
+        classes = ClassGroup.objects.filter(id__in=ids).order_by("grade", "section")
 
-    return render(
-        request,
-        "reports/index.html",
-        {
-            "classes": classes,
-            "year": year,
-            "school": school,
-        },
+    # فلترة
+    if level_filter:
+        classes = classes.filter(level_type=level_filter)
+    if grade_filter:
+        classes = classes.filter(grade=grade_filter)
+
+    # الصفوف المتاحة فعلياً (للفلاتر)
+    all_classes = ClassGroup.objects.filter(
+        school=school, academic_year=year, is_active=True
     )
+    if level_filter:
+        available_grades = all_classes.filter(level_type=level_filter).values_list(
+            "grade", flat=True
+        ).distinct().order_by("grade")
+    else:
+        available_grades = all_classes.values_list(
+            "grade", flat=True
+        ).distinct().order_by("grade")
+
+    ctx = {
+        "classes": classes,
+        "year": year,
+        "school": school,
+        "tab": tab,
+        "grade_filter": grade_filter,
+        "level_filter": level_filter,
+        "available_grades": available_grades,
+        "GRADES": ClassGroup.GRADES,
+        "LEVELS": ClassGroup.LEVELS,
+    }
+
+    return render(request, "reports/index.html", ctx)
 
 
 # ══════════════════════════════════════════════════════════════════════
