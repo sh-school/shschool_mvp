@@ -1,288 +1,365 @@
 {% extends "base.html" %}
 
-{% block title %}لوحة تحكم المدير — التحليلات المتقدمة{% endblock %}
+{% block title %}لوحة تحكم المدير — التحليلات{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ── Executive Dashboard — 100vh no-scroll ── */
+.exec-dash {
+  height: calc(100vh - 110px);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.exec-title { font-size: 1.25rem; font-weight: 700; color: var(--maroon, #8A1538); margin: 0; }
+.exec-subtitle { font-size: .7rem; color: #6b7280; margin: 0; }
+.exec-meta { display: flex; align-items: center; gap: 8px; }
+.exec-year-select {
+  font-size: .75rem; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 4px 8px; background: #fff;
+}
+.exec-date {
+  font-size: .7rem; background: #fef2f2; color: #991b1b;
+  border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 500;
+}
+
+/* ── KPI Strip ── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.kpi-mini {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border-right: 3px solid var(--kc, #8A1538);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  text-decoration: none;
+  transition: box-shadow .15s;
+}
+.kpi-mini:hover { box-shadow: 0 3px 8px rgba(0,0,0,.1); }
+.kpi-mini-label { font-size: .6rem; color: #6b7280; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-mini-value { font-size: 1.3rem; font-weight: 700; color: var(--kc, #8A1538); line-height: 1.1; }
+.kpi-mini-sub { font-size: .55rem; color: #9ca3af; margin-top: 1px; }
+.kpi-mini-alert { font-size: .55rem; color: #dc2626; font-weight: 600; }
+
+/* ── Charts Grid ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  min-height: 0;
+}
+.chart-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.chart-title {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.chart-canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+.chart-canvas-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ── Alert strip ── */
+.alert-strip {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: .65rem;
+  color: #991b1b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.alert-strip a { color: #991b1b; text-decoration: underline; }
+
+/* ── Quick Links ── */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.ql-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 4px;
+  font-size: .65rem;
+  font-weight: 500;
+  color: #374151;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  border: 1px solid #f3f4f6;
+  transition: background .15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ql-item:hover { background: #f9fafb; }
+.ql-icon { font-size: .9rem; flex-shrink: 0; }
+
+/* ── Mobile fallback ── */
+@media (max-width: 1024px) {
+  .exec-dash { height: auto; overflow: auto; }
+  .kpi-strip { grid-template-columns: repeat(4, 1fr); }
+  .charts-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-links { grid-template-columns: repeat(4, 1fr); }
+  .chart-canvas-wrap { min-height: 180px; }
+}
+@media (max-width: 640px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div dir="rtl">
+<div class="exec-dash" dir="rtl">
 
-  <!-- ── Header ───────────────────────────────────────────── -->
-  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="text-2xl font-bold text-gray-800">📊 لوحة تحكم المدير</h1>
-      <p class="text-sm text-gray-500 mt-0.5">نظرة شاملة على أداء {{ current_school.name|default:"مدرسة الشحانية الإعدادية" }}</p>
+      <h1 class="exec-title">📊 لوحة تحكم المدير</h1>
+      <p class="exec-subtitle">نظرة شاملة على أداء {{ current_school.name|default:"مدرسة الشحانية" }}</p>
     </div>
-    <div class="flex items-center gap-3">
-      <form method="get" class="flex gap-2">
-        <select name="year" onchange="this.form.submit()"
-                class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white shadow-sm">
+    <div class="exec-meta">
+      <form method="get">
+        <select name="year" onchange="this.form.submit()" class="exec-year-select">
           <option value="2025-2026" {% if year == "2025-2026" %}selected{% endif %}>2025-2026</option>
           <option value="2024-2025" {% if year == "2024-2025" %}selected{% endif %}>2024-2025</option>
         </select>
       </form>
-      <span class="text-sm bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg font-medium">
-        {{ today|date:"D، d M Y" }}
-      </span>
+      <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
     </div>
   </div>
 
-  <!-- ── KPIs Row 1 ─────────────────────────────────────── -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4" style="border-color:#8A1538">
-      <p class="text-xs text-gray-500 mb-1">إجمالي الطلاب</p>
-      <p class="text-3xl font-bold" style="color:#8A1538">{{ kpis.total_students }}</p>
-      <p class="text-xs text-gray-400 mt-1">في {{ year }}</p>
+  {# ── KPI Strip (8 in 1 row) ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini" style="--kc:#8A1538;">
+      <div class="kpi-mini-label">إجمالي الطلاب</div>
+      <div class="kpi-mini-value">{{ kpis.total_students }}</div>
+      <div class="kpi-mini-sub">{{ year }}</div>
     </div>
-
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-500">
-      <p class="text-xs text-gray-500 mb-1">حضور اليوم</p>
-      <p class="text-3xl font-bold text-green-700">{{ kpis.att_pct_today }}%</p>
-      <p class="text-xs text-gray-400 mt-1">{{ kpis.present_today }} طالب حاضر</p>
+    <div class="kpi-mini" style="--kc:#16a34a;">
+      <div class="kpi-mini-label">حضور اليوم</div>
+      <div class="kpi-mini-value">{{ kpis.att_pct_today }}%</div>
+      <div class="kpi-mini-sub">{{ kpis.present_today }} حاضر</div>
     </div>
-
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-blue-500">
-      <p class="text-xs text-gray-500 mb-1">المعلمون والمنسقون</p>
-      <p class="text-3xl font-bold text-blue-700">{{ kpis.total_teachers }}</p>
-      <p class="text-xs text-gray-400 mt-1">من أصل 126 موظف</p>
+    <div class="kpi-mini" style="--kc:#2563eb;">
+      <div class="kpi-mini-label">المعلمون</div>
+      <div class="kpi-mini-value">{{ kpis.total_teachers }}</div>
+      <div class="kpi-mini-sub">من 126 موظف</div>
     </div>
-
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-teal-500">
-      <p class="text-xs text-gray-500 mb-1">إنجاز الخطة التشغيلية</p>
-      <p class="text-3xl font-bold text-teal-700">{{ kpis.plan_pct }}%</p>
-      <p class="text-xs text-gray-400 mt-1">{{ kpis.completed_procs }} / {{ kpis.total_procs }} إجراء</p>
+    <div class="kpi-mini" style="--kc:#0d9488;">
+      <div class="kpi-mini-label">إنجاز الخطة</div>
+      <div class="kpi-mini-value">{{ kpis.plan_pct }}%</div>
+      <div class="kpi-mini-sub">{{ kpis.completed_procs }}/{{ kpis.total_procs }}</div>
     </div>
-
+    <a href="/clinic/" class="kpi-mini" style="--kc:#dc2626;">
+      <div class="kpi-mini-label">🏥 العيادة</div>
+      <div class="kpi-mini-value">{{ kpis.clinic_today }}</div>
+      {% if kpis.chronic_cases > 0 %}<div class="kpi-mini-alert">{{ kpis.chronic_cases }} مزمنة</div>
+      {% else %}<div class="kpi-mini-sub">0 حالة مزمنة</div>{% endif %}
+    </a>
+    <a href="/behavior/dashboard/" class="kpi-mini" style="--kc:#ea580c;">
+      <div class="kpi-mini-label">⚖️ السلوك</div>
+      <div class="kpi-mini-value">{{ kpis.behavior_month }}</div>
+      {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">⚠️ {{ kpis.critical_issues }} جسيمة</div>
+      {% else %}<div class="kpi-mini-sub">✅ لا جسيمة</div>{% endif %}
+    </a>
+    <a href="/transport/" class="kpi-mini" style="--kc:#2563eb;">
+      <div class="kpi-mini-label">🚌 النقل</div>
+      <div class="kpi-mini-value">{{ kpis.bus_students }}</div>
+      <div class="kpi-mini-sub">{{ kpis.total_buses }} حافلة</div>
+    </a>
+    <a href="/library/" class="kpi-mini" style="--kc:#7c3aed;">
+      <div class="kpi-mini-label">📚 المكتبة</div>
+      <div class="kpi-mini-value">{{ kpis.active_loans }}</div>
+      {% if kpis.overdue_books > 0 %}<div class="kpi-mini-alert">{{ kpis.overdue_books }} متأخرة</div>
+      {% else %}<div class="kpi-mini-sub">إعارة نشطة</div>{% endif %}
+    </a>
   </div>
 
-  <!-- ── KPIs Row 2 — الوحدات الجديدة ─────────────────── -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-
-    <a href="/clinic/" class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-400 hover:shadow-md transition group">
-      <p class="text-xs text-gray-500 mb-1">🏥 العيادة اليوم</p>
-      <p class="text-3xl font-bold text-red-600">{{ kpis.clinic_today }}</p>
-      <p class="text-xs text-gray-400 mt-1">{{ kpis.chronic_cases }} حالة مزمنة</p>
-    </a>
-
-    <a href="/behavior/dashboard/" class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-orange-400 hover:shadow-md transition group">
-      <p class="text-xs text-gray-500 mb-1">⚖️ السلوك (الشهر)</p>
-      <p class="text-3xl font-bold text-orange-600">{{ kpis.behavior_month }}</p>
-      {% if kpis.critical_issues > 0 %}
-      <p class="text-xs text-red-600 font-bold mt-1">⚠️ {{ kpis.critical_issues }} جسيمة غير محلولة</p>
-      {% else %}
-      <p class="text-xs text-green-600 mt-1">✅ لا مخالفات جسيمة</p>
-      {% endif %}
-    </a>
-
-    <a href="/transport/" class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-blue-400 hover:shadow-md transition group">
-      <p class="text-xs text-gray-500 mb-1">🚌 النقل</p>
-      <p class="text-3xl font-bold text-blue-600">{{ kpis.bus_students }}</p>
-      <p class="text-xs text-gray-400 mt-1">{{ kpis.total_buses }} حافلة</p>
-    </a>
-
-    <a href="/library/" class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-indigo-400 hover:shadow-md transition group">
-      <p class="text-xs text-gray-500 mb-1">📚 المكتبة</p>
-      <p class="text-3xl font-bold text-indigo-600">{{ kpis.active_loans }}</p>
-      <p class="text-xs text-gray-400 mt-1">إعارة نشطة
-        {% if kpis.overdue_books > 0 %}| <span class="text-red-500">{{ kpis.overdue_books }} متأخرة</span>{% endif %}
-      </p>
-    </a>
-
-  </div>
-
-  <!-- ── تنبيهات عاجلة ──────────────────────────────────── -->
+  {# ── Alert strip (conditional) ── #}
   {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 or kpis.overdue_books > 0 %}
-  <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex gap-3">
-    <span class="text-2xl shrink-0">🚨</span>
-    <div>
-      <p class="font-bold text-red-800 mb-1">تنبيهات إدارية عاجلة</p>
-      <ul class="text-sm text-red-700 space-y-0.5 list-disc list-inside">
-        {% if kpis.critical_issues > 0 %}
-        <li><a href="/behavior/dashboard/" class="underline">{{ kpis.critical_issues }} مخالفة سلوكية جسيمة</a> لم يتم حلها</li>
-        {% endif %}
-        {% if kpis.chronic_cases > 0 %}
-        <li><a href="/clinic/" class="underline">{{ kpis.chronic_cases }} طالب</a> لديهم حالات صحية مزمنة تستلزم المتابعة</li>
-        {% endif %}
-        {% if kpis.overdue_books > 0 %}
-        <li><a href="/library/" class="underline">{{ kpis.overdue_books }} كتاب متأخر</a> في المكتبة لم يُرجَع</li>
-        {% endif %}
-      </ul>
-    </div>
+  <div class="alert-strip">
+    <span>🚨</span>
+    {% if kpis.critical_issues > 0 %}<a href="/behavior/dashboard/">{{ kpis.critical_issues }} مخالفة جسيمة</a> · {% endif %}
+    {% if kpis.chronic_cases > 0 %}<a href="/clinic/">{{ kpis.chronic_cases }} حالة مزمنة</a> · {% endif %}
+    {% if kpis.overdue_books > 0 %}<a href="/library/">{{ kpis.overdue_books }} كتاب متأخر</a>{% endif %}
   </div>
   {% endif %}
 
-  <!-- ── الرسوم البيانية ────────────────────────────────── -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-    <!-- Chart 1: منحنى الحضور -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">📈 نسبة الحضور — آخر 30 يوم</h3>
-      <canvas id="chartAttendance" height="180"></canvas>
+  {# ── Charts Grid (3×2) ── #}
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">📈 الحضور — آخر 30 يوم</div>
+      <div class="chart-canvas-wrap"><canvas id="chartAttendance"></canvas></div>
     </div>
-
-    <!-- Chart 2: توزيع الدرجات -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">🎯 توزيع الدرجات السنوية</h3>
-      <canvas id="chartGrades" height="180"></canvas>
+    <div class="chart-card">
+      <div class="chart-title">🎯 توزيع الدرجات السنوية</div>
+      <div class="chart-canvas-wrap"><canvas id="chartGrades"></canvas></div>
     </div>
-
-    <!-- Chart 3: إنجاز الخطة التشغيلية -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">📋 إنجاز الخطة التشغيلية — حسب المجال</h3>
-      <canvas id="chartPlan" height="200"></canvas>
+    <div class="chart-card">
+      <div class="chart-title">📋 إنجاز الخطة — حسب المجال</div>
+      <div class="chart-canvas-wrap"><canvas id="chartPlan"></canvas></div>
     </div>
-
-    <!-- Chart 4: مقارنة المواد -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">📚 متوسط الدرجات ونسبة الرسوب — حسب المادة</h3>
-      <canvas id="chartSubjects" height="200"></canvas>
+    <div class="chart-card">
+      <div class="chart-title">📚 المواد — متوسط ونسبة رسوب</div>
+      <div class="chart-canvas-wrap"><canvas id="chartSubjects"></canvas></div>
     </div>
-
-    <!-- Chart 5: مخالفات السلوك -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">⚖️ مخالفات السلوك — آخر 6 أشهر</h3>
-      <canvas id="chartBehavior" height="180"></canvas>
+    <div class="chart-card">
+      <div class="chart-title">⚖️ السلوك — آخر 6 أشهر</div>
+      <div class="chart-canvas-wrap"><canvas id="chartBehavior"></canvas></div>
     </div>
-
-    <!-- Chart 6: مقارنة الفصول -->
-    <div class="bg-white rounded-xl shadow-sm p-5">
-      <h3 class="font-bold text-gray-700 mb-4">🏫 متوسط الأداء — حسب الفصل الدراسي</h3>
-      <canvas id="chartClasses" height="180"></canvas>
+    <div class="chart-card">
+      <div class="chart-title">🏫 الأداء — حسب الفصل</div>
+      <div class="chart-canvas-wrap"><canvas id="chartClasses"></canvas></div>
     </div>
-
   </div>
 
-  <!-- ── روابط سريعة ───────────────────────────────────── -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <a href="/clinic/"           class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">🏥</span><span class="font-medium text-sm text-gray-700">العيادة المدرسية</span></a>
-    <a href="/transport/"        class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">🚌</span><span class="font-medium text-sm text-gray-700">النقل والمواصلات</span></a>
-    <a href="/behavior/dashboard/" class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">⚖️</span><span class="font-medium text-sm text-gray-700">السلوك الطلابي</span></a>
-    <a href="/library/"          class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">📚</span><span class="font-medium text-sm text-gray-700">المكتبة والمصادر</span></a>
-    <a href="/quality/"          class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">📋</span><span class="font-medium text-sm text-gray-700">الخطة التشغيلية</span></a>
-    <a href="/assessments/"      class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">📝</span><span class="font-medium text-sm text-gray-700">التقييمات</span></a>
-    <a href="/reports/"          class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">📄</span><span class="font-medium text-sm text-gray-700">التقارير</span></a>
-    <a href="/notifications/"    class="flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm hover:shadow-md border border-gray-100 transition"><span class="text-2xl">🔔</span><span class="font-medium text-sm text-gray-700">الإشعارات</span></a>
+  {# ── Quick Links ── #}
+  <div class="quick-links">
+    <a href="/clinic/" class="ql-item"><span class="ql-icon">🏥</span> العيادة</a>
+    <a href="/transport/" class="ql-item"><span class="ql-icon">🚌</span> النقل</a>
+    <a href="/behavior/dashboard/" class="ql-item"><span class="ql-icon">⚖️</span> السلوك</a>
+    <a href="/library/" class="ql-item"><span class="ql-icon">📚</span> المكتبة</a>
+    <a href="/quality/" class="ql-item"><span class="ql-icon">📋</span> الخطة</a>
+    <a href="/assessments/" class="ql-item"><span class="ql-icon">📝</span> التقييمات</a>
+    <a href="/reports/" class="ql-item"><span class="ql-icon">📄</span> التقارير</a>
+    <a href="/notifications/" class="ql-item"><span class="ql-icon">🔔</span> الإشعارات</a>
   </div>
 
 </div>
 
-<!-- ── Chart.js ──────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script nonce="{{ request.csp_nonce }}">
 const YEAR = "{{ year }}";
 
-// إعدادات مشتركة
-Chart.defaults.font.family = "'Segoe UI', Tahoma, Arial, sans-serif";
+// ── Compact chart defaults ──
+Chart.defaults.font.family = "'Tajawal', 'Segoe UI', Tahoma, sans-serif";
+Chart.defaults.font.size = 10;
 Chart.defaults.plugins.legend.position = 'bottom';
-Chart.defaults.plugins.legend.labels.boxWidth = 12;
-Chart.defaults.plugins.legend.labels.padding = 10;
+Chart.defaults.plugins.legend.labels.boxWidth = 8;
+Chart.defaults.plugins.legend.labels.padding = 6;
+Chart.defaults.plugins.legend.labels.font = { size: 9 };
 
-async function fetchChart(url) {
-  try {
-    const r = await fetch(url);
-    return await r.json();
-  } catch (e) {
-    console.error("Chart API error:", url, e);
-    return null;
-  }
+async function fc(url) {
+  try { return await (await fetch(url)).json(); }
+  catch(e) { console.error("Chart:", url, e); return null; }
 }
 
-// ── Chart 1: الحضور ─────────────────────────────────────
-async function loadAttendance() {
-  const data = await fetchChart("/analytics/api/attendance-trend/?days=30");
-  if (!data) return;
+const OPTS = { responsive: true, maintainAspectRatio: false };
+
+// Chart 1: الحضور
+(async () => {
+  const d = await fc("/analytics/api/attendance-trend/?days=30");
+  if (!d) return;
   new Chart(document.getElementById("chartAttendance"), {
-    type: "line",
-    data,
-    options: {
-      responsive: true,
-      scales: { y: { min: 0, max: 100, ticks: { callback: v => v + "%" } } },
-      plugins: { legend: { display: true } }
+    type: "line", data: d,
+    options: { ...OPTS, scales: { y: { min: 0, max: 100, ticks: { callback: v => v + "%", font: {size:9} } } },
+      plugins: { legend: { display: true } },
+      elements: { point: { radius: 1.5 }, line: { borderWidth: 1.5 } }
     }
   });
-}
+})();
 
-// ── Chart 2: الدرجات ─────────────────────────────────────
-async function loadGrades() {
-  const data = await fetchChart(`/analytics/api/grades-distribution/?year=${YEAR}`);
-  if (!data) return;
+// Chart 2: الدرجات
+(async () => {
+  const d = await fc(`/analytics/api/grades-distribution/?year=${YEAR}`);
+  if (!d) return;
   new Chart(document.getElementById("chartGrades"), {
-    type: "doughnut",
-    data,
-    options: {
-      responsive: true,
-      plugins: { legend: { position: "right" } }
+    type: "doughnut", data: d,
+    options: { ...OPTS, plugins: { legend: { position: "right", labels: { font: {size:9} } } },
+      cutout: '55%'
     }
   });
-}
+})();
 
-// ── Chart 3: الخطة التشغيلية ─────────────────────────────
-async function loadPlan() {
-  const data = await fetchChart(`/analytics/api/plan-progress/?year=${YEAR}`);
-  if (!data) return;
+// Chart 3: الخطة
+(async () => {
+  const d = await fc(`/analytics/api/plan-progress/?year=${YEAR}`);
+  if (!d) return;
   new Chart(document.getElementById("chartPlan"), {
-    type: "bar",
-    data,
-    options: {
-      responsive: true,
-      indexAxis: "y",
-      scales: { x: { stacked: true }, y: { stacked: true } },
+    type: "bar", data: d,
+    options: { ...OPTS, indexAxis: "y",
+      scales: { x: { stacked: true, ticks: {font:{size:8}} }, y: { stacked: true, ticks: {font:{size:8}} } }
     }
   });
-}
+})();
 
-// ── Chart 4: المواد ──────────────────────────────────────
-async function loadSubjects() {
-  const data = await fetchChart(`/analytics/api/subject-comparison/?year=${YEAR}`);
-  if (!data) return;
+// Chart 4: المواد
+(async () => {
+  const d = await fc(`/analytics/api/subject-comparison/?year=${YEAR}`);
+  if (!d) return;
   new Chart(document.getElementById("chartSubjects"), {
-    type: "bar",
-    data,
-    options: {
-      responsive: true,
+    type: "bar", data: d,
+    options: { ...OPTS,
       scales: {
-        y:  { position: "right", title: { display: true, text: "متوسط الدرجة" } },
-        y1: { position: "left",  title: { display: true, text: "نسبة الرسوب %" }, min: 0, max: 100 }
+        y:  { position: "right", title: { display: false }, ticks: {font:{size:8}} },
+        y1: { position: "left",  title: { display: false }, min: 0, max: 100, ticks: {font:{size:8}} }
       }
     }
   });
-}
+})();
 
-// ── Chart 5: السلوك ──────────────────────────────────────
-async function loadBehavior() {
-  const data = await fetchChart("/analytics/api/behavior-trend/");
-  if (!data) return;
+// Chart 5: السلوك
+(async () => {
+  const d = await fc("/analytics/api/behavior-trend/");
+  if (!d) return;
   new Chart(document.getElementById("chartBehavior"), {
-    type: "bar",
-    data,
-    options: {
-      responsive: true,
-      scales: { x: { stacked: true }, y: { stacked: true } }
+    type: "bar", data: d,
+    options: { ...OPTS,
+      scales: { x: { stacked: true, ticks: {font:{size:8}} }, y: { stacked: true, ticks: {font:{size:8}} } }
     }
   });
-}
+})();
 
-// ── Chart 6: الفصول ──────────────────────────────────────
-async function loadClasses() {
-  const data = await fetchChart(`/analytics/api/class-comparison/?year=${YEAR}`);
-  if (!data) return;
+// Chart 6: الفصول
+(async () => {
+  const d = await fc(`/analytics/api/class-comparison/?year=${YEAR}`);
+  if (!d) return;
   new Chart(document.getElementById("chartClasses"), {
-    type: "bar",
-    data,
-    options: {
-      responsive: true,
-      scales: {
-        y: { min: 0, max: 100, title: { display: true, text: "متوسط الدرجة" } }
-      }
+    type: "bar", data: d,
+    options: { ...OPTS,
+      scales: { y: { min: 0, max: 100, ticks: {font:{size:8}} }, x: { ticks: {font:{size:8}} } }
     }
   });
-}
-
-// تحميل كل الرسوم
-loadAttendance();
-loadGrades();
-loadPlan();
-loadSubjects();
-loadBehavior();
-loadClasses();
+})();
 </script>
 {% endblock %}
