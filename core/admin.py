@@ -78,7 +78,7 @@ class MembershipAdmin(admin.ModelAdmin):
 class ClassGroupAdmin(admin.ModelAdmin):
     list_display = ("school", "grade", "section", "academic_year", "is_active")
     list_filter = ("school", "grade", "academic_year", "is_active")
-    search_fields = ("section",)
+    search_fields = ("grade", "section")
 
 
 @admin.register(StudentEnrollment)
