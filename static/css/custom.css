@@ -3110,3 +3110,446 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
     top: auto;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK MODE — الثيم الليلي الشامل
+   يُفعَّل بإضافة class="dark" على <html>
+   جميع الألوان مركزية عبر CSS Variables
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Dark Mode Variables ─────────────────────────────────────── */
+html.dark {
+  --text-primary:   #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+
+  --border:         #334155;
+  --border-strong:  #475569;
+  --surface:        #1e293b;
+  --surface-alt:    #0f172a;
+
+  --maroon-bg:      #3b1125;
+  --maroon-border:  #6b2640;
+
+  --shadow-sm:      0 1px 3px rgba(0,0,0,.3);
+  --shadow-md:      0 4px 16px rgba(0,0,0,.4);
+
+  --focus-ring:     0 0 0 3px rgba(184, 41, 78, .35);
+
+  color-scheme: dark;
+}
+
+/* ── 2. Body & Global ───────────────────────────────────────────── */
+html.dark body {
+  background: #0f172a !important;
+  color: var(--text-primary) !important;
+}
+
+/* Tailwind bg-gray-50 override */
+html.dark .bg-gray-50 { background: #0f172a !important; }
+
+/* ── 3. Navigation Bar ──────────────────────────────────────────── */
+html.dark .site-nav {
+  background: #1a0a12;
+  border-bottom-color: #4a1530;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+
+/* ── 4. Dropdown Menus ──────────────────────────────────────────── */
+html.dark .sd-menu {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+html.dark .sd-menu a { color: #e2e8f0; }
+html.dark .sd-menu a:hover { background: var(--maroon-bg); color: #f9a8c9; }
+html.dark .sd-menu hr { border-top-color: #334155; }
+html.dark .sd-label { color: #64748b; }
+html.dark .sd-user-header { border-bottom-color: #334155; }
+html.dark .sd-user-fullname { color: #f1f5f9; }
+html.dark .sd-user-nid { color: #94a3b8; }
+html.dark .sd-logout-btn { color: #f87171; }
+
+/* ── 5. Mobile Hamburger Menu ───────────────────────────────────── */
+@media (max-width: 640px) {
+  html.dark .nb-bar {
+    background: #1e293b;
+    border-bottom-color: var(--maroon);
+    box-shadow: 0 6px 24px rgba(0,0,0,.4);
+  }
+  html.dark .nb-bar .nb {
+    color: #e2e8f0;
+    border-bottom-color: #334155;
+  }
+  html.dark .nb-bar .nb:hover,
+  html.dark .nb-bar .nb:active {
+    background: var(--maroon-bg);
+    color: #f9a8c9;
+  }
+}
+
+/* ── 6. Mobile Bottom Navigation ────────────────────────────────── */
+html.dark .mobile-bottom-nav {
+  background: #1e293b;
+  border-top-color: #334155;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.3);
+}
+html.dark .mobile-nav-item { color: #94a3b8; }
+html.dark .mobile-nav-item:hover,
+html.dark .mobile-nav-item.active { color: #f9a8c9; }
+
+/* ── 7. Cards (all types) ───────────────────────────────────────── */
+html.dark .card-qatar,
+html.dark .kpi-card,
+html.dark .form-card,
+html.dark .action-card,
+html.dark .q-domain-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .card-qatar:hover,
+html.dark .kpi-card:hover,
+html.dark .action-card:hover,
+html.dark .q-domain-card:hover {
+  border-color: var(--maroon-border);
+}
+html.dark .card-header { border-bottom-color: #334155; }
+html.dark .card-header-icon {
+  background: var(--maroon-bg);
+  color: #f9a8c9;
+}
+html.dark .action-card { color: var(--text-primary); }
+html.dark .action-card-icon { background: var(--maroon-bg); }
+html.dark .action-card-body .action-desc { color: var(--text-muted); }
+
+/* ── 8. KPI Cards ───────────────────────────────────────────────── */
+html.dark .kpi-mini {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+/* ── 9. Tables ──────────────────────────────────────────────────── */
+html.dark .table-wrap {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark thead tr {
+  background: #4a1530;
+}
+html.dark .table-sticky thead th {
+  background: #4a1530;
+}
+html.dark tbody tr:nth-child(even) {
+  background: #162032;
+}
+html.dark tbody tr:hover {
+  background: var(--maroon-bg);
+}
+html.dark tbody td,
+html.dark .table-wrap tbody td {
+  color: var(--text-primary);
+  border-bottom-color: #334155;
+}
+html.dark tfoot tr {
+  background: #162032;
+  border-top-color: #475569;
+}
+html.dark tfoot td { color: var(--text-primary); }
+html.dark tr.selected,
+html.dark tr.active {
+  background: var(--maroon-bg);
+  outline-color: var(--maroon-border);
+}
+
+/* ── 10. Forms & Inputs ─────────────────────────────────────────── */
+html.dark .form-control,
+html.dark .filter-bar select,
+html.dark .filter-bar input {
+  background: #0f172a;
+  border-color: #475569;
+  color: var(--text-primary);
+}
+html.dark .form-control:focus {
+  background: #1e293b;
+}
+html.dark .form-control::placeholder { color: #64748b; }
+html.dark .form-card .form-footer { border-top-color: #334155; }
+html.dark .filter-bar {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+/* Login card */
+html.dark .login-card {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+}
+html.dark .login-input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+html.dark .login-input:focus {
+  background: #1e293b;
+}
+html.dark .login-input::placeholder { color: #64748b; }
+html.dark .login-help-text { color: #64748b; }
+
+/* ── 11. Modals ─────────────────────────────────────────────────── */
+html.dark .modal-overlay { background: rgba(0,0,0,.65); }
+html.dark .modal-box {
+  background: #1e293b;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+html.dark .modal-header { border-bottom-color: #334155; color: #f1f5f9; }
+html.dark .modal-footer { border-top-color: #334155; }
+html.dark .modal-close-btn { color: #94a3b8; }
+html.dark .modal-close-btn:hover { color: #f1f5f9; }
+
+/* Quality modals */
+html.dark .q-modal-overlay { background: rgba(0,0,0,.65); }
+html.dark .q-modal {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+html.dark .q-modal-header { background: linear-gradient(135deg, #4a1530 0%, #3b1125 100%); }
+html.dark .q-modal-body { color: var(--text-primary); }
+html.dark .q-modal-info { background: #162032; border-color: #334155; }
+html.dark .q-modal-info .info-label { color: #94a3b8; }
+html.dark .q-modal-info .info-value { color: #f1f5f9; }
+html.dark .q-modal-field select,
+html.dark .q-modal-field input,
+html.dark .q-modal-field textarea {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+html.dark .q-modal-field label { color: #cbd5e1; }
+html.dark .q-modal-decision { background: #162032; border-color: #334155; }
+html.dark .q-modal-decision select,
+html.dark .q-modal-decision textarea {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+html.dark .q-modal-footer {
+  background: #162032;
+  border-top-color: #334155;
+}
+html.dark .q-modal-footer .btn-cancel {
+  background: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+html.dark .q-modal-footer .btn-cancel:hover { background: #475569; }
+
+/* ── 12. Flash Messages ─────────────────────────────────────────── */
+html.dark .bg-green-50  { background: #052e16 !important; border-color: #166534 !important; color: #86efac !important; }
+html.dark .bg-red-50    { background: #350a0a !important; border-color: #991b1b !important; color: #fca5a5 !important; }
+html.dark .bg-amber-50  { background: #351c05 !important; border-color: #92400e !important; color: #fcd34d !important; }
+html.dark .bg-blue-50   { background: #0c1a35 !important; border-color: #1e40af !important; color: #93c5fd !important; }
+
+html.dark .msg-success { background: #052e16; border-color: #166534; color: #86efac; }
+html.dark .msg-error   { background: #350a0a; border-color: #991b1b; color: #fca5a5; }
+html.dark .msg-warning { background: #351c05; border-color: #92400e; color: #fcd34d; }
+html.dark .msg-info    { background: #0c1a35; border-color: #1e40af; color: #93c5fd; }
+
+/* ── 13. Status Badges ──────────────────────────────────────────── */
+html.dark .status-success { background: #052e16; color: #86efac; border-color: #166534; }
+html.dark .status-danger  { background: #350a0a; color: #fca5a5; border-color: #991b1b; }
+html.dark .status-warning { background: #351c05; color: #fcd34d; border-color: #92400e; }
+html.dark .status-info    { background: #0c1a35; color: #93c5fd; border-color: #1e40af; }
+html.dark .status-gray    { background: #1e293b; color: #94a3b8; border-color: #334155; }
+html.dark .status-maroon  { background: var(--maroon-bg); color: #f9a8c9; border-color: var(--maroon-border); }
+html.dark .badge-role      { background: var(--maroon-bg); color: #f9a8c9; border-color: var(--maroon-border); }
+
+/* Priority badges */
+html.dark .badge-urgent  { background: #350a0a; color: #fca5a5; }
+html.dark .badge-high    { background: #351c05; color: #fcd34d; }
+html.dark .badge-medium  { background: #0c1a35; color: #93c5fd; }
+html.dark .badge-low     { background: #1e293b; color: #94a3b8; }
+
+/* ── 14. KPI Delta ──────────────────────────────────────────────── */
+html.dark .kpi-delta.up   { color: #86efac; background: #052e16; }
+html.dark .kpi-delta.down { color: #fca5a5; background: #350a0a; }
+html.dark .kpi-delta.flat { color: #94a3b8; background: #1e293b; }
+
+/* ── 15. Toast Notifications ────────────────────────────────────── */
+html.dark .toast {
+  background: #1e293b;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  color: #f1f5f9;
+}
+
+/* ── 16. Command Palette ────────────────────────────────────────── */
+html.dark .cmd-overlay { background: rgba(0,0,0,.7); }
+html.dark .cmd-box {
+  background: #1e293b;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+html.dark .cmd-input { color: #f1f5f9; }
+html.dark .cmd-input::placeholder { color: #64748b; }
+html.dark .cmd-input-wrap { border-bottom-color: #334155; }
+html.dark .cmd-kbd { background: #334155; border-color: #475569; color: #94a3b8; }
+html.dark .cmd-item { color: #e2e8f0; }
+html.dark .cmd-item:hover,
+html.dark .cmd-item.active { background: var(--maroon-bg); }
+html.dark .cmd-item-icon { background: #334155; }
+html.dark .cmd-results:empty::after { color: #64748b; }
+
+/* ── 17. Footer ─────────────────────────────────────────────────── */
+html.dark footer,
+html.dark .site-footer {
+  border-top-color: #334155;
+  color: var(--text-muted);
+}
+
+/* ── 18. Pagination ─────────────────────────────────────────────── */
+html.dark .pagination a,
+html.dark .pagination span {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+html.dark .pagination a:hover {
+  background: var(--maroon-bg);
+  border-color: var(--maroon-border);
+  color: #f9a8c9;
+}
+
+/* ── 19. Buttons ────────────────────────────────────────────────── */
+html.dark .btn-secondary {
+  background: var(--maroon-bg);
+  color: #f9a8c9;
+  border-color: var(--maroon-border);
+}
+html.dark .btn-secondary:hover { background: #4a1530; }
+html.dark .btn-preview { border-color: var(--sea); color: var(--sea); }
+html.dark .btn-preview:hover { background: #0c2d3e; color: #7cc4d8; }
+
+/* ── 20. Skeleton Loader ────────────────────────────────────────── */
+html.dark .skeleton-pulse {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 800px 100%;
+}
+
+/* ── 21. Scrollbar ──────────────────────────────────────────────── */
+html.dark ::-webkit-scrollbar-track { background: #0f172a; }
+html.dark ::-webkit-scrollbar-thumb { background: #475569; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ── 22. Breadcrumbs ────────────────────────────────────────────── */
+html.dark .breadcrumbs a { color: #f9a8c9; }
+html.dark .breadcrumbs a:hover { color: #fcc4d8; }
+html.dark .breadcrumbs .bc-sep { color: #475569; }
+html.dark .breadcrumbs .bc-current { color: var(--text-secondary); }
+
+/* ── 23. Section Header ─────────────────────────────────────────── */
+html.dark .section-header { border-bottom-color: #334155; }
+
+/* ── 24. Progress Bars ──────────────────────────────────────────── */
+html.dark .progress-qatar { background: #334155; }
+html.dark .q-domain-card .domain-bar { background: #334155; }
+
+/* ── 25. HTMX Loading States ───────────────────────────────────── */
+html.dark .htmx-request::after { background: rgba(15,23,42,.4); }
+
+/* ── 26. PWA Banner ─────────────────────────────────────────────── */
+html.dark .pwa-banner { background: #4a1530; }
+
+/* ── 27. Quality Module ─────────────────────────────────────────── */
+html.dark .quality-page { color: var(--text-primary); }
+html.dark .quality-filters-grid select,
+html.dark .quality-filters-grid input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+html.dark .q-btn-outline {
+  border-color: #475569;
+  color: #cbd5e1;
+}
+html.dark .q-btn-outline:hover { background: #334155; }
+
+/* ── 28. Report Dropdown ────────────────────────────────────────── */
+html.dark .report-student-dropdown {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+
+/* ── 29. Bulk Action Bar ────────────────────────────────────────── */
+html.dark .bulk-action-bar { background: #0f172a; }
+
+/* ── 30. Emergency Banner ───────────────────────────────────────── */
+html.dark .emergency-banner { background: #4a1530; }
+
+/* ── 31. Tailwind Overrides for Dark ────────────────────────────── */
+html.dark .text-gray-500 { color: #94a3b8 !important; }
+html.dark .text-gray-600 { color: #94a3b8 !important; }
+html.dark .text-gray-700 { color: #cbd5e1 !important; }
+html.dark .text-gray-800 { color: #e2e8f0 !important; }
+html.dark .text-gray-900 { color: #f1f5f9 !important; }
+html.dark .bg-white { background: #1e293b !important; }
+html.dark .bg-gray-100 { background: #162032 !important; }
+html.dark .border-gray-200 { border-color: #334155 !important; }
+html.dark .border-gray-300 { border-color: #475569 !important; }
+html.dark .divide-gray-200 > * + * { border-color: #334155 !important; }
+
+/* ── 32. Dark Mode Toggle Button ────────────────────────────────── */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.12);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background .15s;
+}
+.theme-toggle:hover { background: rgba(255,255,255,.22); }
+
+/* ── 33. Fix Inline Color Overrides ─────────────────────────────── */
+/* Templates use style="color:#8A1538" etc — these need dark overrides */
+html.dark [style*="color:#8A1538"],
+html.dark [style*="color: #8A1538"] { color: #f9a8c9 !important; }
+html.dark [style*="color:#166534"],
+html.dark [style*="color: #166534"] { color: #86efac !important; }
+html.dark [style*="color:#dc2626"],
+html.dark [style*="color: #dc2626"] { color: #fca5a5 !important; }
+html.dark [style*="color:#6b7280"],
+html.dark [style*="color: #6b7280"] { color: #94a3b8 !important; }
+html.dark [style*="color:#991b1b"],
+html.dark [style*="color: #991b1b"] { color: #fca5a5 !important; }
+
+/* Inline background fixes */
+html.dark [style*="background:#fef2f2"],
+html.dark [style*="background: #fef2f2"] { background: #350a0a !important; }
+html.dark [style*="background:#fee2e2"],
+html.dark [style*="background: #fee2e2"] { background: #350a0a !important; }
+html.dark [style*="background:#fef3c7"],
+html.dark [style*="background: #fef3c7"] { background: #351c05 !important; }
+html.dark [style*="background:#f0fdf4"],
+html.dark [style*="background: #f0fdf4"] { background: #052e16 !important; }
+
+/* Spinner in dark mode */
+html.dark .spinner-border[style*="color:#8A1538"] { color: #f9a8c9 !important; }
+
+/* ── 34. Login Page Dark Mode ───────────────────────────────────── */
+html.dark .login-page {
+  background: linear-gradient(145deg, #0f172a 0%, #1a0a12 50%, #0c1a35 100%);
+}
+html.dark .login-page::before {
+  background-image: radial-gradient(circle at 20% 20%, rgba(138,21,56,.15) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 80%, rgba(13,66,97,.1) 0%, transparent 50%);
+}

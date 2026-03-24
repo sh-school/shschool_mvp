@@ -296,3 +296,40 @@ document.addEventListener('click', function(e) {
   if (t.dataset.modalOpen) window.modalManager.open(t.dataset.modalOpen);
   if (t.dataset.modalClose) window.modalManager.close(t.dataset.modalClose);
 });
+
+/* ── Dark Mode Toggle ────────────────────────────────────── */
+(function() {
+  var btn = document.getElementById('theme-toggle');
+  var icon = document.getElementById('theme-icon');
+  var meta = document.getElementById('meta-theme-color');
+  if (!btn) return;
+
+  function isDark() { return document.documentElement.classList.contains('dark'); }
+
+  function updateIcon() {
+    var dark = isDark();
+    if (icon) icon.textContent = dark ? '☀️' : '🌙';
+    if (meta) meta.content = dark ? '#1a0a12' : '#8A1538';
+    var menuIcon = document.getElementById('theme-menu-icon');
+    var menuText = document.getElementById('theme-menu-text');
+    if (menuIcon) menuIcon.textContent = dark ? '☀️' : '🌙';
+    if (menuText) menuText.textContent = dark ? 'الوضع النهاري' : 'الوضع الليلي';
+  }
+
+  updateIcon();
+
+  btn.addEventListener('click', function() {
+    document.documentElement.classList.toggle('dark');
+    var theme = isDark() ? 'dark' : 'light';
+    localStorage.setItem('theme', theme);
+    updateIcon();
+  });
+
+  // Listen for system preference changes
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+    if (!localStorage.getItem('theme')) {
+      document.documentElement.classList.toggle('dark', e.matches);
+      updateIcon();
+    }
+  });
+})();

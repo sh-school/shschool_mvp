@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#8A1538">
+  <meta name="theme-color" content="#8A1538" id="meta-theme-color">
+  <meta name="color-scheme" content="light dark">
+  {# ── Dark Mode: تطبيق مبكر لمنع وميض الأبيض (FOUC) ── #}
+  <script>
+    (function(){var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark');document.getElementById('meta-theme-color')&&(document.getElementById('meta-theme-color').content='#1a0a12')}})();
+  </script>
   {% block extra_head %}{% endblock %}
   <title>{% block title %}{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</title>
   {% load static %}
@@ -24,7 +29,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=6">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=19">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=20">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX ── #}
@@ -112,6 +117,11 @@
 
     <div class="nav-spacer"></div>
 
+    {# ── Dark Mode Toggle ── #}
+    <button class="theme-toggle" id="theme-toggle" title="تبديل الثيم" aria-label="تبديل الثيم الليلي">
+      <span id="theme-icon">🌙</span>
+    </button>
+
     {# ── Notification Bell ── #}
     <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
@@ -195,6 +205,9 @@
   <a href="/auth/choose-role/">🔄 تبديل الدور</a>
   {% endif %}
   <a href="/notifications/inbox/">🔔 الإشعارات</a>
+  <a href="#" id="theme-toggle-menu" onclick="document.getElementById('theme-toggle').click();return false;">
+    <span id="theme-menu-icon">🌙</span> <span id="theme-menu-text">الوضع الليلي</span>
+  </a>
   {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "admin" %}
   <a href="/admin/">⚙️ لوحة الإدارة</a>
   {% endif %}
@@ -278,7 +291,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=6.1" defer></script>
+<script src="{% static 'js/base.js' %}?v=6.2" defer></script>
 <script src="{% static 'js/app.js' %}?v=6.1" defer></script>
 
 {% block extra_js %}{% endblock %}
