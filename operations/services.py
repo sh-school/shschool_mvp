@@ -415,3 +415,35 @@ class SubstituteService:
             .select_related("substitute", "absence__teacher", "slot__class_group", "slot__subject")
             .order_by("absence__date", "slot__period_number")
         )
+
+    @staticmethod
+    def suggest_best_substitute(
+        school: School,
+        target_date: date,
+        day_of_week: int,
+        period_number: int,
+        exclude_teacher: CustomUser | None = None,
+    ) -> CustomUser | None:
+        """اقتراح أفضل بديل — الأقل حِملاً في البدائل هذا الأسبوع"""
+        available = SubstituteService.get_available_teachers(
+            school, target_date, day_of_week, period_number, exclude_teacher
+        )
+        if not available.exists():
+            return None
+
+        # حساب عدد بدائل كل معلم هذا الأسبوع
+        from datetime import timedelta
+        week_start = target_date - timedelta(days=target_date.weekday())
+        week_end = week_start + timedelta(days=6)
+
+        sub_counts = {}
+        for teacher in available:
+            count = SubstituteAssignment.objects.filter(
+                substitute=teacher,
+                absence__date__range=(week_start, week_end),
+                school=school,
+            ).count()
+            sub_counts[teacher] = count
+
+        # الأقل بدائل هذا الأسبوع
+        return min(sub_counts, key=sub_counts.get)
