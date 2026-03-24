@@ -6,10 +6,10 @@
 <style nonce="{{ request.csp_nonce }}">
 /* ── Weekly Schedule — Professional Grid ── */
 .sched-page {
-  height: calc(100vh - 110px);
+  height: calc(100vh - 120px);
   display: grid;
   grid-template-rows: auto auto 1fr auto;
-  gap: 10px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -49,7 +49,7 @@
   color: #fff;
   font-weight: 700;
   font-size: .8rem;
-  padding: 10px 6px;
+  padding: 8px 6px;
   text-align: center;
   border-left: 1px solid rgba(255,255,255,.15);
   position: sticky;
@@ -61,7 +61,7 @@
   border-left: none;
 }
 .sched-table tbody td {
-  padding: 4px;
+  padding: 3px;
   border-bottom: 1px solid #f3f4f6;
   border-left: 1px solid #f3f4f6;
   vertical-align: top;
@@ -157,8 +157,9 @@
 
 /* Legend */
 .sched-legend {
-  display: flex; gap: 16px; font-size: .7rem; color: #6b7280;
+  display: flex; gap: 12px; font-size: .65rem; color: #6b7280;
   align-items: center; flex-wrap: wrap;
+  padding: 2px 0;
 }
 .legend-dot {
   width: 10px; height: 10px; border-radius: 3px;
