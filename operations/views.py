@@ -643,10 +643,11 @@ def smart_generate(request):
     else:
         for err in result["errors"][:5]:
             messages.warning(request, err)
-        if result["quality"]["total_slots"] > 0:
+        quality = result.get("quality")
+        if quality and quality.get("total_slots", 0) > 0:
             messages.info(
                 request,
-                f"تم توليد {result['quality']['total_slots']} حصة (جودة: {result['quality']['score']}%) "
+                f"تم توليد {quality['total_slots']} حصة (جودة: {quality['score']}%) "
                 f"مع {len(result['errors'])} تعذّر"
             )
 
