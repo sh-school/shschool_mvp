@@ -156,6 +156,9 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
 
     tasks = []
     for a in assignments:
+        # تجاوز المواد التي لم يُعيّن لها معلم بعد
+        if not a.teacher_id or a.teacher is None:
+            continue
         for _ in range(a.weekly_periods):
             tasks.append(Task(
                 class_id=str(a.class_group_id),
