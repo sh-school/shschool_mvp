@@ -125,7 +125,7 @@ html[lang="ar"] {
 body {
   font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
   line-height: 1.6;
-  background: var(--page-bg);
+  background: var(--page-bg) !important;
 }
 
 /* ══════════════════════════════════════════════════════════
