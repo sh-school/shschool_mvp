@@ -23,10 +23,11 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
     list_display = ["student", "violation_category", "level", "date", "is_resolved", "school"]
     list_filter = ["level", "is_resolved", "violation_category__category"]
     search_fields = ["student__full_name", "description"]
-    raw_id_fields = ["student", "reported_by", "violation_category"]
+    autocomplete_fields = ["student", "reported_by", "violation_category"]
     date_hierarchy = "date"
 
 
 @admin.register(BehaviorPointRecovery)
 class BehaviorPointRecoveryAdmin(admin.ModelAdmin):
     list_display = ["infraction", "points_restored", "date", "approved_by"]
+    autocomplete_fields = ["approved_by"]

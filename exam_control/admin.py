@@ -4,6 +4,7 @@ from .models import (
     ExamGradeSheet,
     ExamIncident,
     ExamRoom,
+    ExamSchedule,
     ExamSession,
     ExamSupervisor,
 )
@@ -19,7 +20,21 @@ class ExamSupervisorInline(admin.TabularInline):
     model = ExamSupervisor
     extra = 3
     fields = ["staff", "role", "room"]
-    raw_id_fields = ["staff"]
+    autocomplete_fields = ["staff"]
+
+
+@admin.register(ExamRoom)
+class ExamRoomAdmin(admin.ModelAdmin):
+    list_display = ["name", "capacity", "floor", "session"]
+    list_filter = ["session"]
+    search_fields = ["name"]
+
+
+@admin.register(ExamSchedule)
+class ExamScheduleAdmin(admin.ModelAdmin):
+    list_display = ["subject", "grade_level", "exam_date", "session"]
+    list_filter = ["session", "exam_date"]
+    search_fields = ["subject", "grade_level"]
 
 
 @admin.register(ExamSession)
@@ -35,6 +50,7 @@ class ExamSessionAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status", "session_type", "academic_year"]
     search_fields = ["name"]
+    autocomplete_fields = ["created_by"]
     inlines = [ExamRoomInline, ExamSupervisorInline]
     date_hierarchy = "start_date"
 
@@ -44,7 +60,7 @@ class ExamIncidentAdmin(admin.ModelAdmin):
     list_display = ["session", "incident_type", "severity", "student", "status", "incident_time"]
     list_filter = ["incident_type", "severity", "status"]
     search_fields = ["description", "student__full_name"]
-    raw_id_fields = ["student", "reported_by"]
+    autocomplete_fields = ["student", "reported_by", "session", "behavior_link"]
     date_hierarchy = "incident_time"
 
 
@@ -52,3 +68,4 @@ class ExamIncidentAdmin(admin.ModelAdmin):
 class ExamGradeSheetAdmin(admin.ModelAdmin):
     list_display = ["schedule", "papers_count", "status", "submitted_at"]
     list_filter = ["status"]
+    autocomplete_fields = ["schedule", "grader"]

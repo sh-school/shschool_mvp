@@ -41,6 +41,7 @@ class TargetAdmin(admin.ModelAdmin):
     list_display = ("number", "text", "domain")
     list_filter = ("domain__school", "domain")
     search_fields = ("number", "text")
+    autocomplete_fields = ("domain",)
     inlines = [IndicatorInline]
 
 
@@ -55,6 +56,7 @@ class IndicatorAdmin(admin.ModelAdmin):
     list_display = ("number", "text", "target")
     list_filter = ("target__domain__school",)
     search_fields = ("number", "text")
+    autocomplete_fields = ("target",)
     inlines = [ProcedureInline]
 
 
@@ -69,7 +71,7 @@ class ProcedureAdmin(admin.ModelAdmin):
     list_display = ("number", "executor_norm", "status", "date_range", "evidence_type")
     list_filter = ("school", "status", "evidence_type", "academic_year")
     search_fields = ("number", "text", "executor_norm")
-    raw_id_fields = ("executor_user",)
+    autocomplete_fields = ("executor_user", "indicator", "reviewed_by")
     inlines = [EvidenceInline]
 
     def get_queryset(self, request):
@@ -89,7 +91,7 @@ class QualityCommitteeMemberAdmin(admin.ModelAdmin):
     )
     list_filter = ("school", "responsibility", "committee_type", "academic_year", "is_active")
     search_fields = ("job_title", "user__full_name")
-    autocomplete_fields = ["user"]
+    autocomplete_fields = ["user", "domain"]
 
 
 from django import forms as _forms

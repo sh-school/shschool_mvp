@@ -15,6 +15,7 @@ class BookBorrowingAdmin(admin.ModelAdmin):
     list_display = ("book", "user", "borrow_date", "due_date", "status")
     list_filter = ("status", "borrow_date", "due_date")
     search_fields = ("book__title", "user__full_name")
+    autocomplete_fields = ("book", "user", "librarian")
 
 
 @admin.register(LibraryActivity)

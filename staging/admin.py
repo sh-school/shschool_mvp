@@ -7,4 +7,5 @@ from .models import ImportLog
 class ImportLogAdmin(admin.ModelAdmin):
     list_display = ("file_name", "school", "status", "total_rows", "imported_rows", "started_at")
     list_filter = ("status",)
+    autocomplete_fields = ("uploaded_by",)
     readonly_fields = ("error_log",)

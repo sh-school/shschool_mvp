@@ -47,7 +47,7 @@ class StudentAttendanceAdmin(admin.ModelAdmin):
     list_display = ("student", "session", "status", "marked_by", "marked_at")
     list_filter = ("status", "school")
     search_fields = ("student__full_name", "student__national_id")
-    autocomplete_fields = ("student", "marked_by")
+    autocomplete_fields = ("student", "marked_by", "session")
     date_hierarchy = "marked_at"
 
 
@@ -55,7 +55,7 @@ class StudentAttendanceAdmin(admin.ModelAdmin):
 class AbsenceAlertAdmin(admin.ModelAdmin):
     list_display = ("student", "absence_count", "status", "created_at")
     list_filter = ("status", "school")
-    autocomplete_fields = ("student",)
+    autocomplete_fields = ("student", "resolved_by")
 
 
 # ── Phase 2 ──────────────────────────────────
@@ -93,7 +93,7 @@ class SubstituteAssignmentAdmin(admin.ModelAdmin):
     list_display = ("absence", "slot", "substitute", "status", "assigned_by", "created_at")
     list_filter = ("school", "status")
     search_fields = ("substitute__full_name", "absence__teacher__full_name")
-    autocomplete_fields = ("substitute", "assigned_by")
+    autocomplete_fields = ("substitute", "assigned_by", "absence", "slot")
     ordering = ("-created_at",)
 
 

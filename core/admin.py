@@ -64,6 +64,7 @@ class SchoolAdmin(admin.ModelAdmin):
 class RoleAdmin(admin.ModelAdmin):
     list_display = ("school", "name", "get_name_display")
     list_filter = ("name", "school")
+    search_fields = ("name",)
 
 
 @admin.register(Membership)
@@ -71,7 +72,7 @@ class MembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "school", "role", "is_active", "joined_at")
     list_filter = ("is_active", "school", "role__name")
     search_fields = ("user__full_name", "user__national_id")
-    raw_id_fields = ("user",)
+    autocomplete_fields = ("user",)
 
 
 @admin.register(ClassGroup)
@@ -79,6 +80,7 @@ class ClassGroupAdmin(admin.ModelAdmin):
     list_display = ("school", "grade", "section", "academic_year", "is_active")
     list_filter = ("school", "grade", "academic_year", "is_active")
     search_fields = ("grade", "section")
+    autocomplete_fields = ("supervisor",)
 
 
 @admin.register(StudentEnrollment)
@@ -86,7 +88,7 @@ class StudentEnrollmentAdmin(admin.ModelAdmin):
     list_display = ("student", "class_group", "is_active", "enrolled_at")
     list_filter = ("is_active", "class_group__grade")
     search_fields = ("student__full_name", "student__national_id")
-    raw_id_fields = ("student",)
+    autocomplete_fields = ("student", "class_group")
 
 
 admin.site.site_header = "SchoolOS — مدرسة الشحانية"
@@ -111,7 +113,7 @@ class ParentStudentLinkAdmin(admin.ModelAdmin):
         "student__full_name",
         "student__national_id",
     )
-    raw_id_fields = ("parent", "student")
+    autocomplete_fields = ("parent", "student")
 
 
 # ── AuditLog Admin ─────────────────────────────────────────────
@@ -144,6 +146,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         "user_agent",
         "school",
     )
+    autocomplete_fields = ("user",)
     ordering = ("-timestamp",)
     date_hierarchy = "timestamp"
 
@@ -170,4 +173,5 @@ class ConsentRecordAdmin(admin.ModelAdmin):
     )
     list_filter = ("data_type", "is_given", "method", "school")
     search_fields = ("parent__full_name", "student__full_name")
+    autocomplete_fields = ("parent", "student", "recorded_by")
     readonly_fields = ("given_at", "withdrawn_at")

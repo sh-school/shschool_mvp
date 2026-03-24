@@ -15,6 +15,7 @@ class SubjectClassSetupAdmin(admin.ModelAdmin):
     list_display = ("subject", "class_group", "teacher", "academic_year", "is_active")
     list_filter = ("school", "academic_year", "is_active")
     search_fields = ("subject__name_ar", "teacher__full_name", "class_group__section")
+    autocomplete_fields = ("subject", "class_group", "teacher")
 
 
 class AssessmentInline(admin.TabularInline):
@@ -36,6 +37,8 @@ class AssessmentPackageAdmin(admin.ModelAdmin):
         "is_active",
     )
     list_filter = ("package_type", "semester", "school", "is_active")
+    search_fields = ("setup__subject__name_ar",)
+    autocomplete_fields = ("setup",)
     inlines = [AssessmentInline]
 
     def get_subject(self, obj):
@@ -62,6 +65,7 @@ class AssessmentAdmin(admin.ModelAdmin):
     )
     list_filter = ("assessment_type", "status", "school", "package__semester")
     search_fields = ("title", "package__setup__subject__name_ar")
+    autocomplete_fields = ("package", "created_by")
 
     def get_subject(self, obj):
         return obj.subject.name_ar
@@ -82,7 +86,7 @@ class StudentAssessmentGradeAdmin(admin.ModelAdmin):
     list_display = ("student", "assessment", "grade", "is_absent", "is_excused", "entered_at")
     list_filter = ("is_absent", "school", "assessment__package__semester")
     search_fields = ("student__full_name", "student__national_id", "assessment__title")
-    raw_id_fields = ("student",)
+    autocomplete_fields = ("student", "assessment", "entered_by")
 
 
 @admin.register(StudentSubjectResult)
@@ -101,7 +105,7 @@ class StudentSubjectResultAdmin(admin.ModelAdmin):
     )
     list_filter = ("semester", "school")
     search_fields = ("student__full_name", "student__national_id")
-    raw_id_fields = ("student",)
+    autocomplete_fields = ("student", "setup")
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar
@@ -128,7 +132,7 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "school", "academic_year")
     search_fields = ("student__full_name", "student__national_id")
-    raw_id_fields = ("student",)
+    autocomplete_fields = ("student", "setup")
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar

@@ -24,6 +24,7 @@ class ClinicVisitAdmin(admin.ModelAdmin):
     list_display = ("student", "visit_date", "nurse", "is_sent_home", "parent_notified")
     list_filter = ("visit_date", "is_sent_home", "parent_notified")
     search_fields = ("student__full_name", "student__national_id")
+    autocomplete_fields = ("student", "nurse")
     readonly_fields = ("visit_date",)
     fieldsets = (
         ("بيانات الزيارة", {"fields": ("school", "student", "nurse", "visit_date")}),
