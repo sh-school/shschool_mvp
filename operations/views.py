@@ -577,3 +577,76 @@ def substitute_report(request):
             "date_to": date_to,
         },
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# المرحلة 3 — الجدولة الذكية
+# ══════════════════════════════════════════════════════════════
+
+
+@login_required
+def smart_schedule_view(request):
+    """صفحة إدارة الجدولة الذكية — عرض التوزيعات + زر التوليد"""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح", status=403)
+
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    from .models import SubjectClassAssignment, ScheduleGeneration
+
+    assignments = SubjectClassAssignment.objects.filter(
+        school=school, academic_year=year, is_active=True
+    ).select_related("class_group", "subject", "teacher").order_by(
+        "class_group__grade", "class_group__section", "subject__name_ar"
+    )
+
+    generations = ScheduleGeneration.objects.filter(
+        school=school, academic_year=year
+    )[:5]
+
+    total_weekly = sum(a.weekly_periods for a in assignments)
+    classes_count = assignments.values("class_group").distinct().count()
+    teachers_count = assignments.values("teacher").distinct().count()
+
+    return render(request, "schedule/smart_schedule.html", {
+        "assignments": assignments,
+        "generations": generations,
+        "year": year,
+        "total_weekly": total_weekly,
+        "classes_count": classes_count,
+        "teachers_count": teachers_count,
+    })
+
+
+@login_required
+@require_POST
+def smart_generate(request):
+    """توليد الجدول الذكي — POST فقط"""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح", status=403)
+
+    school = request.user.get_school()
+    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    from .scheduler import generate_schedule
+
+    result = generate_schedule(school, year, user=request.user)
+
+    if result["success"]:
+        messages.success(
+            request,
+            f"تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
+            f"{result['quality']['total_slots']} حصة في {result['elapsed_ms']}ms"
+        )
+    else:
+        for err in result["errors"][:5]:
+            messages.warning(request, err)
+        if result["quality"]["total_slots"] > 0:
+            messages.info(
+                request,
+                f"تم توليد {result['quality']['total_slots']} حصة (جودة: {result['quality']['score']}%) "
+                f"مع {len(result['errors'])} تعذّر"
+            )
+
+    return redirect("smart_schedule")

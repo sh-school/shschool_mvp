@@ -25,4 +25,7 @@ urlpatterns = [
         name="assign_substitute",
     ),
     path("reports/substitutes/", views.substitute_report, name="substitute_report"),
+    # ── المرحلة 3: الجدولة الذكية ──
+    path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
+    path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
 ]
