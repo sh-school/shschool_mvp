@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "corsheaders",
     "rest_framework",
     "django_htmx",
     "core.apps.CoreConfig",
@@ -49,6 +50,8 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # ✅ CORS — يجب أن يكون قبل CommonMiddleware
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -136,6 +139,9 @@ SECRET_KEY = _secret_key
 # أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FERNET_KEY = config("FERNET_KEY", default="")
 
+# ── كلمة سر حماية ملفات Excel (لا تُكتب في الكود) ────────────
+EXCEL_PROTECTION_PASSWORD = config("EXCEL_PROTECTION_PASSWORD", default="changeme")
+
 # ── CORS (للـ API — React Native / Mobile App) ────────────────
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://localhost:8000"
@@ -175,7 +181,8 @@ LOGOUT_REDIRECT_URL = "/auth/login/"
 # ── أمان الجلسات والكوكيز ─────────────────────────────────
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_HTTPONLY = True
+# CSRF cookie يجب أن يكون قابلاً للقراءة من JS (لطلبات AJAX/fetch مع X-CSRFToken)
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
@@ -197,13 +204,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",  # مجهول: 30 طلب/دقيقة
-        "rest_framework.throttling.UserRateThrottle",  # مسجّل: 120 طلب/دقيقة
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "anon": "30/minute",
         "user": "120/minute",
-        "login": "5/minute",  # Scope للـ login view — brute-force protection
+        "login": "5/minute",
+        "burst": "60/minute",       # حماية burst للـ endpoints الحساسة
+        "sensitive": "10/minute",    # endpoints حساسة (تغيير كلمة السر، etc.)
     },
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",

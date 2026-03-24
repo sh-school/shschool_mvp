@@ -9,7 +9,13 @@ from .base import *  # noqa
 
 # ── أمان ──────────────────────────────────────────────────────────
 DEBUG = False
-SECRET_KEY = "ci-testing-secret-key-not-for-production-do-not-use"
+# مفتاح ثابت للاختبارات فقط — يُولَّد عشوائياً لو أمكن من البيئة
+import os as _os
+
+SECRET_KEY = _os.environ.get(
+    "SECRET_KEY",
+    "ci-testing-only-" + "a1b2c3d4e5f6" * 4,  # 60+ chars, never used in production
+)
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
 # ── قاعدة البيانات — PostgreSQL من CI env vars ─────────────────

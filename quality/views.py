@@ -12,6 +12,7 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from notifications.hub import NotificationHub
@@ -39,6 +40,16 @@ from .views_executor import (  # noqa: F401
     save_executor_mapping,
 )
 from .views_reports import progress_report, progress_report_pdf  # noqa: F401
+
+def _safe_next_redirect(request, fallback):
+    """تحقق من أن next URL آمن — يمنع Open Redirect."""
+    next_url = request.POST.get("next", "")
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(next_url)
+    return redirect(fallback)
+
 
 # ── ثوابت ────────────────────────────────────────────────────
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
@@ -547,11 +558,7 @@ def task_update_modal(request, proc_id):
 
         _process_task_update(request, procedure)
         messages.success(request, "تم تحديث الإجراء بنجاح")
-
-        next_url = request.POST.get("next", "")
-        if next_url:
-            return redirect(next_url)
-        return redirect("execution_list")
+        return _safe_next_redirect(request, "execution_list")
 
     return render(
         request,
@@ -637,11 +644,7 @@ def review_evaluate_modal(request, proc_id):
     if request.method == "POST":
         _process_review_evaluate(request, procedure)
         messages.success(request, "تم حفظ تقييم المراجعة بنجاح")
-
-        next_url = request.POST.get("next", "")
-        if next_url:
-            return redirect(next_url)
-        return redirect("review_list")
+        return _safe_next_redirect(request, "review_list")
 
     return render(
         request,
@@ -685,7 +688,4 @@ def toggle_evidence_request(request, proc_id):
             body=procedure.evidence_request_note or 'يرجى رفع الأدلة المطلوبة',
         )
 
-    next_url = request.POST.get("next", "")
-    if next_url:
-        return redirect(next_url)
-    return redirect("review_list")
+    return _safe_next_redirect(request, "review_list")

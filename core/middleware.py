@@ -153,7 +153,7 @@ class CurrentUserMiddleware:
 
 # ── Middleware إجبار ولي الأمر على الموافقة ───────────────
 class ParentConsentMiddleware:
-    """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة"""
+    """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API)"""
 
     EXEMPT_PATHS = [
         "/auth/",
@@ -161,7 +161,7 @@ class ParentConsentMiddleware:
         "/static/",
         "/media/",
         "/admin/",
-        "/api/",
+        # /api/ لم يعد مستثنى — يجب أن يوافق ولي الأمر حتى عبر API
     ]
 
     def __init__(self, get_response):
@@ -174,6 +174,11 @@ class ParentConsentMiddleware:
             and request.user.consent_given_at is None
             and not any(request.path.startswith(p) for p in self.EXEMPT_PATHS)
         ):
+            if request.path.startswith("/api/"):
+                return JsonResponse(
+                    {"error": "يجب الموافقة على سياسة البيانات أولاً", "code": "consent_required"},
+                    status=403,
+                )
             return redirect(reverse("parent_consent"))
 
         return self.get_response(request)

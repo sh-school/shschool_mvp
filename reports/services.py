@@ -278,7 +278,7 @@ class ExcelService:
     إنشاء ملفات Excel بهوية قطرية كاملة:
       - رأس 4 صفوف: وزارة + مدرسة + عنوان + أعمدة
       - شعار المدرسة في الرأس
-      - حماية الورقة (قراءة فقط — كلمة السر 09041974)
+      - حماية الورقة (قراءة فقط — كلمة السر من EXCEL_PROTECTION_PASSWORD)
       - فلاتر تلقائية + تجميد الرأس
       - RTL عربي + صفوف متبادلة + تلوين شرطي
     """
@@ -413,10 +413,12 @@ class ExcelService:
     def _apply_protection(cls, ws: object, num_cols: int) -> None:
         """
         حماية الورقة (قراءة فقط) مع السماح بالتصفية والفرز.
-        كلمة السر للتحرير: 09041974
+        كلمة السر تُقرأ من متغير البيئة EXCEL_PROTECTION_PASSWORD.
         """
+        from django.conf import settings
+
         ws.protection.sheet = True
-        ws.protection.password = "09041974"
+        ws.protection.password = getattr(settings, "EXCEL_PROTECTION_PASSWORD", "changeme")
         ws.protection.autoFilter = False  # يسمح باستخدام الفلاتر
         ws.protection.sort = False  # يسمح بالفرز
 

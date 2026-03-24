@@ -16,10 +16,20 @@ from django.db import transaction
 from django.db.models import F
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from core.models import CustomUser
+
+
+def _safe_redirect(url, request, fallback="dashboard"):
+    """تحقق من أن الـ redirect URL آمن — يمنع Open Redirect attacks."""
+    if url and url_has_allowed_host_and_scheme(
+        url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(url)
+    return redirect(fallback)
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
@@ -69,8 +79,7 @@ def login_view(request):
             if user.must_change_password:
                 return redirect("force_change_password")
 
-            next_url = request.GET.get("next", "dashboard")
-            return redirect(next_url)
+            return _safe_redirect(request.GET.get("next", ""), request)
 
         else:
             # ── إصلاح User Enumeration ────────────────────────────────────────
@@ -126,7 +135,7 @@ def verify_2fa(request):
             login(request, user)
             if user.must_change_password:
                 return redirect("force_change_password")
-            return redirect(request.GET.get("next", "dashboard"))
+            return _safe_redirect(request.GET.get("next", ""), request)
         else:
             messages.error(request, "رمز التحقق غير صحيح. حاول مجدداً.")
 

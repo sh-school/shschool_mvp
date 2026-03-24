@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
 from operations.models import AbsenceAlert
@@ -343,17 +343,13 @@ def consent_view(request):
 
 # ── Push Subscription endpoints (VAPID) ─────────────────────
 
-from django.conf import settings
-
 from notifications.models import PushSubscription
 
 
 @login_required
-@csrf_exempt
+@require_POST
 def push_subscribe(request):
     """تسجيل اشتراك Push Notification للمستخدم على متصفحه."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST only"}, status=405)
     try:
         data = json.loads(request.body)
         endpoint = data.get("endpoint", "").strip()
@@ -382,11 +378,9 @@ def push_subscribe(request):
 
 
 @login_required
-@csrf_exempt
+@require_POST
 def push_unsubscribe(request):
     """إلغاء اشتراك Push Notification للمستخدم من متصفحه."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST only"}, status=405)
     try:
         endpoint = json.loads(request.body).get("endpoint", "")
         PushSubscription.objects.filter(endpoint=endpoint, user=request.user).update(
