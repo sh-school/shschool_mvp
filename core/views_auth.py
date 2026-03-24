@@ -234,10 +234,15 @@ def force_change_password(request):
         errors = []
         if pw1 != pw2:
             errors.append("كلمتا المرور غير متطابقتين.")
-        if len(pw1) < 8:
-            errors.append("كلمة المرور يجب أن تكون 8 أحرف على الأقل.")
-        if pw1.isdigit():
-            errors.append("لا يمكن أن تكون كلمة المرور أرقاماً فقط.")
+        else:
+            # ✅ v5.1.1: استخدام Django validators بدل التحقق اليدوي
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError as DjangoValidationError
+
+            try:
+                validate_password(pw1, user=request.user)
+            except DjangoValidationError as e:
+                errors.extend(e.messages)
 
         if errors:
             for e in errors:

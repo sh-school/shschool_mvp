@@ -14,7 +14,7 @@ def transport_dashboard(request):
     school = request.user.school
 
     # إحصائيات الحافلات
-    buses = SchoolBus.objects.filter(school=school)
+    buses = SchoolBus.objects.filter(school=school).select_related("supervisor").prefetch_related("routes__students")
     total_buses = buses.count()
     total_capacity = sum(bus.capacity for bus in buses)
 
@@ -47,7 +47,7 @@ def transport_dashboard(request):
 def buses_list(request):
     """قائمة الحافلات المدرسية"""
     school = request.user.school
-    buses = SchoolBus.objects.filter(school=school)
+    buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
 
     # تصفية حسب رقم الحافلة
     search = request.GET.get("search")
@@ -189,7 +189,7 @@ def transport_statistics(request):
     """إحصائيات النقل والمواصلات"""
     school = request.user.school
 
-    buses = SchoolBus.objects.filter(school=school)
+    buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
     total_buses = buses.count()
     total_capacity = sum(bus.capacity for bus in buses)
 

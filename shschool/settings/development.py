@@ -8,7 +8,19 @@ if not SECRET_KEY:
 
 SESSION_COOKIE_SECURE = False
 
-INSTALLED_APPS += []
+# ✅ v5.1.1: Django Debug Toolbar للتطوير — يكشف N+1 queries
+try:
+    import debug_toolbar  # noqa: F401
+
+    INSTALLED_APPS += ["debug_toolbar"]
+    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
+    INTERNAL_IPS = ["127.0.0.1"]
+    DEBUG_TOOLBAR_CONFIG = {
+        "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG,
+        "SQL_WARNING_THRESHOLD": 100,  # ms
+    }
+except ImportError:
+    INSTALLED_APPS += []
 
 CACHES = {
     "default": {

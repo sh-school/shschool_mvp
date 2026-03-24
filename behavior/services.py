@@ -158,7 +158,7 @@ class BehaviorService:
         """بيانات الملف السلوكي الكامل"""
         infractions = (
             BehaviorInfraction.objects.filter(student=student)
-            .select_related("reported_by", "recovery")
+            .select_related("reported_by", "recovery", "recovery__approved_by", "violation_category")
             .order_by("-date")
         )
 
@@ -349,7 +349,7 @@ class BehaviorService:
                 date__gte=date_from,
                 date__lte=date_to,
             )
-            .select_related("reported_by", "recovery")
+            .select_related("reported_by", "recovery", "recovery__approved_by", "violation_category")
             .order_by("date")
         )
 

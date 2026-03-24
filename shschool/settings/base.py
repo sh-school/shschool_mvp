@@ -115,13 +115,17 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 12},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "core.validators.StrongPasswordValidator"},
 ]
 
-DEBUG = config("DEBUG", default=True, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1,0.0.0.0").split(",")
+DEBUG = config("DEBUG", default=False, cast=bool)
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 
 _secret_key = config("SECRET_KEY", default="")
 if not _secret_key:
@@ -138,9 +142,17 @@ SECRET_KEY = _secret_key
 # ── تشفير البيانات الحساسة (PDPPL) ──────────────────────────
 # أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FERNET_KEY = config("FERNET_KEY", default="")
+if not FERNET_KEY and not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("FERNET_KEY مطلوب في الإنتاج — أنشئ مفتاحاً: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
 
 # ── كلمة سر حماية ملفات Excel (لا تُكتب في الكود) ────────────
-EXCEL_PROTECTION_PASSWORD = config("EXCEL_PROTECTION_PASSWORD", default="changeme")
+EXCEL_PROTECTION_PASSWORD = config("EXCEL_PROTECTION_PASSWORD", default="")
+if not EXCEL_PROTECTION_PASSWORD and not DEBUG:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("EXCEL_PROTECTION_PASSWORD مطلوب في الإنتاج — أضفه إلى ملف .env")
 
 # ── CORS (للـ API — React Native / Mobile App) ────────────────
 CORS_ALLOWED_ORIGINS = config(
@@ -300,7 +312,7 @@ CSP_CONNECT_SRC = ("'self'", "wss:", "ws:")  # wss: مطلوب للـ WebSocket
 CSP_FRAME_SRC = ("'none'",)
 CSP_OBJECT_SRC = ("'none'",)
 CSP_INCLUDE_NONCE_IN = ["script-src"]  # يُضيف nonce تلقائياً لكل <script nonce="...">
-CSP_REPORT_ONLY = True  # Report-Only: يسجّل الانتهاكات دون حجبها
+CSP_REPORT_ONLY = config("CSP_REPORT_ONLY", default=True, cast=bool)  # الإنتاج: False
 
 
 # ✅ v5: VAPID Push Notifications

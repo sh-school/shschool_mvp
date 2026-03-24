@@ -76,7 +76,7 @@ def attendance_view(request, session_id):
     )
 
     # Get existing attendance
-    existing = {att.student_id: att for att in StudentAttendance.objects.filter(session=session)}
+    existing = {att.student_id: att for att in StudentAttendance.objects.filter(session=session).select_related("student")}
 
     students_data = []
     for e in enrollments:
@@ -221,7 +221,7 @@ def daily_report(request):
         .order_by("session__class_group__grade", "student__full_name")
     )
 
-    sessions = Session.objects.filter(school=school, date=report_date)
+    sessions = Session.objects.filter(school=school, date=report_date).select_related("teacher")
     from django.db.models import Count
 
     summary = (

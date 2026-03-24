@@ -329,13 +329,15 @@ def consent_view(request):
         for link in links
     }
 
+    import json as _json
+
     return render(
         request,
         "parents/consent.html",
         {
             "links": links,
             "data_types": DATA_TYPES,
-            "consent_data": consent_data,
+            "consent_data_json": _json.dumps(consent_data),
             "school": school,
         },
     )

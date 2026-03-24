@@ -1,14 +1,47 @@
 """
 core/validators.py — مدققات مشتركة للمنصة
 
-يشمل: تحقق أنواع الملفات (MIME type) + حجم الملفات
+يشمل:
+  - تحقق أنواع الملفات (MIME type) + حجم الملفات
+  - تحقق قوة كلمات المرور (NIST SP 800-63B)
 OWASP File Upload: https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
 """
 
 import mimetypes
+import re
 
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
+
+
+# ── مدقق قوة كلمة المرور (NIST SP 800-63B) ─────────────────────
+@deconstructible
+class StrongPasswordValidator:
+    """
+    يفرض كلمة مرور قوية: 12+ حرف مع تنوع (حرف كبير + صغير + رقم + رمز).
+    متوافق مع توصيات NIST SP 800-63B و OWASP ASVS Level 2.
+    """
+
+    def validate(self, password, user=None):
+        errors = []
+        if len(password) < 12:
+            errors.append("كلمة المرور يجب أن تكون 12 حرفاً على الأقل.")
+        if not re.search(r"[A-Z]", password):
+            errors.append("يجب أن تحتوي على حرف كبير (A-Z) واحد على الأقل.")
+        if not re.search(r"[a-z]", password):
+            errors.append("يجب أن تحتوي على حرف صغير (a-z) واحد على الأقل.")
+        if not re.search(r"[0-9]", password):
+            errors.append("يجب أن تحتوي على رقم واحد على الأقل.")
+        if not re.search(r'[!@#$%^&*()\-_=+\[\]{};:\'",.<>?/\\|`~]', password):
+            errors.append("يجب أن تحتوي على رمز خاص واحد على الأقل (!@#$%...).")
+        if errors:
+            raise ValidationError(errors)
+
+    def get_help_text(self):
+        return (
+            "كلمة المرور يجب أن تكون 12 حرفاً على الأقل "
+            "وتحتوي على حرف كبير وصغير ورقم ورمز خاص."
+        )
 
 
 # ── الأنواع المسموح بها لكل سياق ────────────────────────────────

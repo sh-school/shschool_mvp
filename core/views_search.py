@@ -1,14 +1,21 @@
 """Global search endpoint for the Command Palette (Ctrl+K)."""
 
+import re
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
+
+# ✅ v5.1.1: regex للتحقق من صحة استعلامات البحث (عربي + لاتيني + أرقام + مسافات)
+_SEARCH_RE = re.compile(r"^[\w\s\u0600-\u06FF\u0750-\u077F\-_.@]+$")
 
 
 @login_required
 def global_search(request):
     q = request.GET.get("q", "").strip()[:80]
     if len(q) < 2:
+        return JsonResponse({"results": []})
+    if not _SEARCH_RE.match(q):
         return JsonResponse({"results": []})
 
     school = request.user.get_school()

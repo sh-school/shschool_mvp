@@ -60,7 +60,7 @@ def assessments_dashboard(request):
             SubjectClassSetup.objects.filter(
                 school=school, teacher=request.user, academic_year=year, is_active=True
             )
-            .select_related("subject", "class_group")
+            .select_related("subject", "class_group", "teacher")
             .order_by("class_group__grade", "class_group__section")
         )
         total_results = passed = failed = 0
@@ -216,7 +216,7 @@ def grade_entry(request, assessment_id):
 
     # درجات موجودة
     existing = {
-        g.student_id: g for g in StudentAssessmentGrade.objects.filter(assessment=assessment)
+        g.student_id: g for g in StudentAssessmentGrade.objects.filter(assessment=assessment).select_related("student")
     }
 
     students_data = [

@@ -161,7 +161,7 @@ class NotificationService:
         # أولياء الأمور المرتبطون بالطالب
         links = ParentStudentLink.objects.filter(
             student=student, school=school, can_view_attendance=True
-        ).select_related("parent")
+        ).select_related("student", "parent")
 
         results: list = []
 
@@ -244,7 +244,7 @@ class NotificationService:
 
         links = ParentStudentLink.objects.filter(
             student=student, school=school, can_view_grades=True
-        ).select_related("parent")
+        ).select_related("student", "parent")
 
         results: list = []
 

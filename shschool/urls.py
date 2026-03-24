@@ -1,8 +1,12 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import redirect
 from django.urls import include, path
+from django_prometheus.exports import ExportToDjangoView
+
+from core.permissions import internal_only
 
 from core.views_health import health_check
 from core.views_pwa import global_manifest, global_sw, offline_global
@@ -32,8 +36,8 @@ urlpatterns = [
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
-    # ✅ v5.1: Prometheus metrics — /metrics/ (محمي بـ firewall/VPN في الإنتاج)
-    path("", include("django_prometheus.urls")),
+    # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
+    path("metrics", internal_only(staff_member_required(ExportToDjangoView)), name="prometheus-metrics"),
     path("search/", global_search, name="global_search"),
     path('sw.js', global_sw, name='global_sw'),
     path('manifest.json', global_manifest, name='global_manifest'),
@@ -43,3 +47,10 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # ✅ v5.1.1: Django Debug Toolbar
+    try:
+        import debug_toolbar
+
+        urlpatterns += [path("__debug__/", include(debug_toolbar.urls))]
+    except ImportError:
+        pass

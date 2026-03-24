@@ -148,15 +148,35 @@ class QualityService:
             "order"
         )
 
+        # Bulk: count procedure statuses per domain in a single query
+        from django.db.models import Q as _Q
+
+        domain_proc_counts = (
+            OperationalProcedure.objects.filter(school=school, academic_year=year)
+            .values("indicator__target__domain_id")
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=_Q(status="Completed")),
+                in_progress=Count("id", filter=_Q(status="In Progress")),
+                pending=Count("id", filter=_Q(status="Pending Review")),
+            )
+        )
+        proc_map = {row["indicator__target__domain_id"]: row for row in domain_proc_counts}
+
         domain_stats: list = []
         for domain in domains:
-            procs = OperationalProcedure.objects.filter(
-                school=school,
-                academic_year=year,
-                indicator__target__domain=domain,
-            )
-            stats = QualityService._calc_stats(procs)
-            domain_stats.append({"domain": domain, **stats})
+            row = proc_map.get(domain.pk, {})
+            total = row.get("total", 0)
+            completed = row.get("completed", 0)
+            pct = round(completed / total * 100) if total else 0
+            domain_stats.append({
+                "domain": domain,
+                "total": total,
+                "completed": completed,
+                "in_progress": row.get("in_progress", 0),
+                "pending": row.get("pending", 0),
+                "pct": pct,
+            })
 
         return {
             "domain_stats": domain_stats,
@@ -178,14 +198,39 @@ class QualityService:
             ).values_list("executor_norm", flat=True)
         )
 
+        # Bulk: count procedure statuses per executor_user in a single query
+        from django.db.models import Q as _Q
+
+        user_ids = [m.user_id for m in members if m.user_id]
+        user_proc_counts = (
+            OperationalProcedure.objects.filter(
+                school=school, executor_user_id__in=user_ids, academic_year=year
+            )
+            .values("executor_user_id")
+            .annotate(
+                total=Count("id"),
+                completed=Count("id", filter=_Q(status="Completed")),
+                in_progress=Count("id", filter=_Q(status="In Progress")),
+                pending=Count("id", filter=_Q(status="Pending Review")),
+            )
+        )
+        user_proc_map = {row["executor_user_id"]: row for row in user_proc_counts}
+
         member_stats: list = []
         for member in members:
             if member.user:
-                procs = OperationalProcedure.objects.filter(
-                    school=school, executor_user=member.user, academic_year=year
-                )
-                stats = QualityService._calc_stats(procs)
-                member_stats.append({"member": member, **stats})
+                row = user_proc_map.get(member.user_id, {})
+                total = row.get("total", 0)
+                completed = row.get("completed", 0)
+                pct = round(completed / total * 100) if total else 0
+                member_stats.append({
+                    "member": member,
+                    "total": total,
+                    "completed": completed,
+                    "in_progress": row.get("in_progress", 0),
+                    "pending": row.get("pending", 0),
+                    "pct": pct,
+                })
             else:
                 member_stats.append({
                     "member": member,

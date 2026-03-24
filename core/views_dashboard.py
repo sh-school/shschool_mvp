@@ -35,7 +35,7 @@ def dashboard(request):
     if user.is_superuser or role in ("principal", "vice_admin", "vice_academic", "admin"):
         year = settings.CURRENT_ACADEMIC_YEAR
 
-        sessions_today = Session.objects.filter(school=school, date=today)
+        sessions_today = Session.objects.filter(school=school, date=today).select_related("teacher")
         total_sessions = sessions_today.count()
         completed = sessions_today.filter(status="completed").count()
         in_progress = sessions_today.filter(status="in_progress").count()

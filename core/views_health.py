@@ -31,7 +31,7 @@ def health_check(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
         checks["db"] = "ok"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
         checks["db"] = f"error: {type(e).__name__}"
         logger.error("health_check: DB فشل: %s", e, exc_info=True)
 
@@ -41,7 +41,7 @@ def health_check(request):
 
         cache.set("_health", "1", timeout=5)
         checks["cache"] = "ok" if cache.get("_health") == "1" else "error: read failed"
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
         checks["cache"] = f"error: {type(e).__name__}"
         logger.error("health_check: Cache فشل: %s", e, exc_info=True)
 

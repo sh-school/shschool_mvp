@@ -80,7 +80,7 @@ def session_detail(request, pk):
         "session": session,
         "rooms": session.rooms.all(),
         "supervisors": session.supervisors.select_related("staff", "room"),
-        "schedules": session.schedules.select_related("room").order_by("exam_date", "start_time"),
+        "schedules": session.schedules.select_related("room", "session").order_by("exam_date", "start_time"),
         "incidents": session.incidents.filter(status="open").count(),
         "pending_sheets": ExamGradeSheet.objects.filter(
             schedule__session=session, status="pending"

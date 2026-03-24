@@ -10,6 +10,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+from django.db.models import Count, Q, Sum
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
@@ -38,37 +39,65 @@ class ParentService:
             .order_by("student__full_name")
         )
         since = timezone.now().date() - timedelta(days=30)
-        children: list = []
 
-        for link in links:
-            student = link.student
-            enrollment = (
-                StudentEnrollment.objects.filter(student=student, is_active=True)
-                .select_related("class_group")
-                .first()
+        student_ids = [link.student_id for link in links]
+
+        # Bulk: enrollments keyed by student_id
+        enrollments_map: dict = {}
+        for enr in (
+            StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
+            .select_related("class_group")
+        ):
+            enrollments_map.setdefault(enr.student_id, enr)
+
+        # Bulk: annual result counts per student
+        annual_counts = (
+            AnnualSubjectResult.objects.filter(
+                student_id__in=student_ids, school=school, academic_year=year
             )
-
-            annual = AnnualSubjectResult.objects.filter(
-                student=student, school=school, academic_year=year
+            .values("student_id")
+            .annotate(
+                total_subj=Count("id"),
+                passed=Count("id", filter=Q(status="pass")),
+                failed=Count("id", filter=Q(status="fail")),
+                incomplete=Count("id", filter=Q(status="incomplete")),
             )
+        )
+        annual_map = {row["student_id"]: row for row in annual_counts}
 
-            att = StudentAttendance.objects.filter(
-                student=student,
+        # Bulk: attendance counts per student (last 30 days)
+        att_counts = (
+            StudentAttendance.objects.filter(
+                student_id__in=student_ids,
                 session__school=school,
                 session__date__gte=since,
             )
+            .values("student_id")
+            .annotate(
+                absent_30=Count("id", filter=Q(status="absent")),
+                late_30=Count("id", filter=Q(status="late")),
+            )
+        )
+        att_map = {row["student_id"]: row for row in att_counts}
+
+        children: list = []
+        for link in links:
+            student = link.student
+            sid = student.pk
+            ann = annual_map.get(sid, {})
+            att = att_map.get(sid, {})
 
             children.append(
                 {
                     "link": link,
                     "student": student,
-                    "enrollment": enrollment,
-                    "total_subj": annual.count(),
-                    "passed": annual.filter(status="pass").count(),
-                    "failed": annual.filter(status="fail").count(),
-                    "incomplete": annual.filter(status="incomplete").count(),
-                    "absent_30": att.filter(status="absent").count(),
-                    "late_30": att.filter(status="late").count(),
+                    "enrollment": enrollments_map.get(sid),
+                    "total_subj": ann.get("total_subj", 0),
+                    "passed": ann.get("passed", 0),
+                    "failed": ann.get("failed", 0),
+                    "incomplete": ann.get("incomplete", 0),
+                    "absent_30": att.get("absent_30", 0),
+                    "late_30": att.get("late_30", 0),
                 }
             )
 

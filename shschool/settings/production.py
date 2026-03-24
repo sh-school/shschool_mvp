@@ -5,6 +5,11 @@ from .base import *
 
 DEBUG = False
 
+# ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
+METRICS_ALLOWED_IPS = config(
+    "METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1"
+).split(",")
+
 # ══════════════════════════════════════════════════════════════
 # ✅ v5.1: Sentry — مراقبة الأخطاء (PDPPL: send_default_pii=False)
 # ══════════════════════════════════════════════════════════════

@@ -83,7 +83,8 @@
 
 <script nonce="{{ request.csp_nonce }}">
 // تفعيل حالة checkboxes من بيانات الموافقة
-const consentData = {{ consent_data|safe }};
+// ✅ v5.1.1: استخدام json_script بدل |safe لمنع XSS
+const consentData = JSON.parse('{{ consent_data_json|escapejs }}');
 document.querySelectorAll('input[type=checkbox]').forEach(cb => {
   const name = cb.name; // مثال: consent_UUID_health
   const parts = name.split('_');

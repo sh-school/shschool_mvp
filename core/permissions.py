@@ -48,3 +48,20 @@ def staff_required(view_func):
         "librarian",
         "admin",
     )(view_func)
+
+
+def internal_only(view_func):
+    """يسمح فقط بالوصول من عناوين IP الداخلية — لحماية /metrics و endpoints حساسة."""
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        from django.conf import settings as _s
+
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+        allowed = list(getattr(_s, "METRICS_ALLOWED_IPS", [])) + ["127.0.0.1", "::1"]
+        if ip not in allowed:
+            return HttpResponseForbidden("Access denied — internal only.")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper

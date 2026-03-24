@@ -135,6 +135,13 @@ pre-commit-install:
 pre-commit-run:
 	pre-commit run --all-files
 
+# ── E2E Tests (Playwright) ───────────────────────────
+test-e2e:
+	pytest tests/e2e/ -v --timeout=60
+
+test-e2e-headed:
+	pytest tests/e2e/ -v --headed --slowmo=500 --timeout=60
+
 # ── Run specific test file ────────────────────────────
 test-models:
 	pytest tests/test_models.py -v

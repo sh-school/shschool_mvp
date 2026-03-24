@@ -13,6 +13,10 @@
     title     — العنوان
     size      — sm | md (افتراضي) | lg
     no_footer — True لإخفاء footer
+
+  ⚠ تحذير أمني:
+    content يستخدم |safe — يجب أن يكون من مصدر موثوق فقط (mark_safe في View).
+    لا تمرر أي بيانات من إدخال المستخدم مباشرة إلى content.
 #}
 <div
   id="modal-{{ modal_id }}"

@@ -12,6 +12,10 @@
 
   زر التشغيل:
     <button data-modal-open="delete-student-123">🗑 حذف</button>
+
+  ⚠ تحذير أمني:
+    extra_fields يستخدم |safe — يجب أن يكون HTML موثوقاً فقط (hidden inputs من View).
+    لا تمرر بيانات من إدخال المستخدم إلى extra_fields.
 #}
 <div
   id="modal-{{ confirm_id }}"
