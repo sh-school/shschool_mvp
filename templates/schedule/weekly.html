@@ -1,50 +1,210 @@
 {% extends "base/base.html" %}
 {% load dict_filters %}
-{% block title %}الجدول الأسبوعي{% endblock %}
+{% block title %}الجدول الأسبوعي — {{ academic_year }}{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ── Weekly Schedule — Professional Grid ── */
+.sched-page {
+  height: calc(100vh - 110px);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* Header */
+.sched-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.sched-title { font-size: 1.2rem; font-weight: 700; color: var(--maroon, #8A1538); margin: 0; }
+.sched-year { font-size: .75rem; color: #6b7280; }
+
+/* Filters */
+.sched-filters {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: end;
+  background: #fff; border-radius: 8px; padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Grid Table */
+.sched-grid-wrap {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sched-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  flex: 1;
+}
+.sched-table thead th {
+  background: var(--maroon, #8A1538);
+  color: #fff;
+  font-weight: 700;
+  font-size: .8rem;
+  padding: 10px 6px;
+  text-align: center;
+  border-left: 1px solid rgba(255,255,255,.15);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.sched-table thead th:first-child {
+  width: 56px;
+  border-left: none;
+}
+.sched-table tbody td {
+  padding: 4px;
+  border-bottom: 1px solid #f3f4f6;
+  border-left: 1px solid #f3f4f6;
+  vertical-align: top;
+  height: calc((100vh - 320px) / 7);
+}
+.sched-table tbody td:first-child {
+  text-align: center;
+  font-weight: 800;
+  color: var(--maroon, #8A1538);
+  font-size: 1rem;
+  vertical-align: middle;
+  background: #fdf2f8;
+  border-left: none;
+}
+.sched-table tbody tr:hover td { background: #faf5ff; }
+.sched-table tbody tr:hover td:first-child { background: #f3e8ff; }
+
+/* Slot Card */
+.slot-card {
+  border-radius: 8px;
+  padding: 6px 8px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  transition: transform .15s, box-shadow .15s;
+  overflow: hidden;
+}
+.slot-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  z-index: 1;
+}
+.slot-subject {
+  font-weight: 700;
+  font-size: .72rem;
+  color: #1e293b;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.slot-class {
+  font-size: .65rem;
+  color: #475569;
+}
+.slot-teacher {
+  font-size: .6rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+.slot-time {
+  font-size: .55rem;
+  color: #94a3b8;
+  margin-top: 2px;
+  direction: ltr;
+  text-align: right;
+}
+.slot-delete {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px; height: 16px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+  cursor: pointer;
+}
+.slot-card:hover .slot-delete { opacity: 1; }
+
+/* Empty slot */
+.slot-empty {
+  height: 100%;
+  border: 2px dashed #e5e7eb;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #d1d5db;
+  font-size: .65rem;
+}
+
+/* Slot color palette (rotate by period) */
+.slot-p1 { background: #fef2f2; border-right: 3px solid #ef4444; }
+.slot-p2 { background: #fff7ed; border-right: 3px solid #f97316; }
+.slot-p3 { background: #fefce8; border-right: 3px solid #eab308; }
+.slot-p4 { background: #f0fdf4; border-right: 3px solid #22c55e; }
+.slot-p5 { background: #eff6ff; border-right: 3px solid #3b82f6; }
+.slot-p6 { background: #f5f3ff; border-right: 3px solid #8b5cf6; }
+.slot-p7 { background: #fdf4ff; border-right: 3px solid #d946ef; }
+
+/* Legend */
+.sched-legend {
+  display: flex; gap: 16px; font-size: .7rem; color: #6b7280;
+  align-items: center; flex-wrap: wrap;
+}
+.legend-dot {
+  width: 10px; height: 10px; border-radius: 3px;
+  display: inline-block; margin-inline-end: 4px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .sched-page { height: auto; overflow: auto; }
+  .sched-table { font-size: .7rem; }
+  .sched-table tbody td { height: auto; min-height: 60px; }
+}
+</style>
+{% endblock %}
 
 {% block breadcrumbs %}
-<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
-  <a href="/dashboard/">الرئيسية</a>
-  <span class="bc-sep">◂</span>
-  <a href="/teacher/schedule/">الأكاديمية</a>
-  <span class="bc-sep">◂</span>
-  <span class="bc-current">الجدول الأسبوعي</span>
-</nav>
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="الجدول الأسبوعي" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="sched-page">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  {# ── Header ── #}
+  <div class="sched-header">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">الجدول الأسبوعي</h1>
-      <p class="text-sm text-gray-500 mt-1">{{ academic_year }}</p>
+      <h1 class="sched-title">📅 الجدول الأسبوعي</h1>
+      <span class="sched-year">{{ academic_year }}
+        {% if target_teacher %} — {{ target_teacher.full_name }}{% endif %}
+        {% if target_class %} — {{ target_class }}{% endif %}
+      </span>
     </div>
     {% if request.user.is_admin %}
     <div class="flex gap-2 flex-wrap">
-      <a href="{% url 'slot_create' %}"
-         class="px-4 py-2 bg-[#1A4F8A] text-white rounded-lg text-sm hover:bg-[#8A1538] transition flex items-center gap-2">
-        <span>+</span> إضافة حصة
-      </a>
-      <a href="{% url 'generate_sessions' %}"
-         class="px-4 py-2 bg-[#8A1538] text-white rounded-lg text-sm hover:bg-[#6b0f2a] transition">
-        توليد حصص اليوم
-      </a>
-      <a href="{% url 'register_absence' %}"
-         class="px-4 py-2 border border-[#8A1538] text-[#8A1538] rounded-lg text-sm hover:bg-[#fdf2f5] transition">
-        تسجيل غياب معلم
-      </a>
+      <a href="{% url 'slot_create' %}" class="btn-primary btn-sm">+ إضافة حصة</a>
+      <a href="{% url 'generate_sessions' %}" class="btn-secondary btn-sm">توليد حصص اليوم</a>
+      <a href="{% url 'register_absence' %}" class="btn-secondary btn-sm">تسجيل غياب</a>
     </div>
     {% endif %}
   </div>
 
-  <!-- Filters -->
+  {# ── Filters (admin only) ── #}
   {% if request.user.is_admin %}
-  <form method="get" class="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-4 items-end">
+  <form method="get" class="sched-filters">
     <div>
-      <label class="block text-xs text-gray-500 mb-1">المعلم</label>
-      <select name="teacher" class="border rounded-lg px-3 py-2 text-sm">
+      <label class="form-label" style="margin-bottom:2px;">المعلم</label>
+      <select name="teacher" class="form-control" style="padding:4px 8px;font-size:.8rem;">
         <option value="">— كل المعلمين —</option>
         {% for t in teachers %}
         <option value="{{ t.id }}" {% if target_teacher.id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
@@ -52,72 +212,64 @@
       </select>
     </div>
     <div>
-      <label class="block text-xs text-gray-500 mb-1">الفصل</label>
-      <select name="class" class="border rounded-lg px-3 py-2 text-sm">
+      <label class="form-label" style="margin-bottom:2px;">الفصل</label>
+      <select name="class" class="form-control" style="padding:4px 8px;font-size:.8rem;">
         <option value="">— كل الفصول —</option>
         {% for c in classes %}
         <option value="{{ c.id }}" {% if target_class.id == c.id %}selected{% endif %}>{{ c }}</option>
         {% endfor %}
       </select>
     </div>
-    <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">عرض</button>
-    <a href="{% url 'weekly_schedule' %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">إعادة ضبط</a>
+    <button type="submit" class="btn-primary btn-sm">عرض</button>
+    <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
   </form>
   {% endif %}
 
-  <!-- Conflicts Banner -->
+  {# ── Conflicts ── #}
   {% if conflicts %}
-  <div class="bg-red-50 border border-red-300 rounded-xl p-4">
-    <p class="font-bold text-red-800 mb-2">⚠️ تعارضات مكتشفة ({{ conflicts|length }})</p>
-    <ul class="text-sm text-red-700 space-y-1">
-      {% for c in conflicts %}
-      <li>• {{ c.message }}</li>
-      {% endfor %}
-    </ul>
+  <div class="alert-strip" style="background:#fef2f2;border-color:#fecaca;">
+    <span>⚠️</span>
+    <strong>{{ conflicts|length }} تعارض:</strong>
+    {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
   </div>
   {% endif %}
 
-  <!-- Schedule Grid -->
-  <div class="bg-white rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
-    <table class="w-full text-sm border-collapse table-sticky">
+  {# ── Schedule Grid ── #}
+  <div class="sched-grid-wrap">
+    <table class="sched-table">
       <thead>
-        <tr class="bg-[#8A1538] text-white">
-          <th scope="col" class="p-3 text-center w-16 border-b border-white/20">الحصة</th>
+        <tr>
+          <th>الحصة</th>
           {% for day_num, day_name in days %}
-          <th scope="col" class="p-3 text-center border-b border-white/20 min-w-[150px]">{{ day_name }}</th>
+          <th>{{ day_name }}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
         {% for period in periods %}
-        <tr class="{% cycle 'bg-white' 'bg-gray-50' %} hover:bg-blue-50/30 transition">
-          <td class="p-3 text-center font-bold text-[#1A4F8A] border-b border-gray-100">
-            ح{{ period }}
-          </td>
+        <tr>
+          <td>{{ period }}</td>
           {% for day_num, day_name in days %}
           {% with slot=grid|get_item:day_num|get_item:period %}
-          <td class="p-2 border-b border-gray-100 border-r border-gray-100 align-top">
+          <td>
             {% if slot %}
-            <div class="rounded-lg p-2 bg-[#EEF2F9] border border-[#1A4F8A]/20 relative group">
-              <div class="font-semibold text-[#8A1538] text-xs">{{ slot.subject|default:"—" }}</div>
-              <div class="text-gray-600 text-xs mt-0.5">{{ slot.class_group }}</div>
+            <div class="slot-card slot-p{{ period }}">
+              <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
+              <div class="slot-class">{{ slot.class_group }}</div>
               {% if not target_teacher %}
-              <div class="text-gray-500 text-xs mt-0.5">{{ slot.teacher.full_name }}</div>
+              <div class="slot-teacher">{{ slot.teacher.full_name }}</div>
               {% endif %}
-              <div class="text-gray-400 text-xs mt-1">{{ slot.start_time|time:"H:i" }}–{{ slot.end_time|time:"H:i" }}</div>
+              <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
               {% if request.user.is_admin %}
               <form method="post" action="{% url 'slot_delete' slot.id %}"
-                    class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition"
                     onsubmit="return confirm('حذف هذه الحصة؟')">
                 {% csrf_token %}
-                <button type="submit" class="w-5 h-5 bg-red-500 text-white rounded text-xs flex items-center justify-center hover:bg-red-600">×</button>
+                <button type="submit" class="slot-delete" title="حذف">×</button>
               </form>
               {% endif %}
             </div>
             {% else %}
-            <div class="h-16 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xs">
-              فارغ
-            </div>
+            <div class="slot-empty">—</div>
             {% endif %}
           </td>
           {% endwith %}
@@ -128,19 +280,12 @@
     </table>
   </div>
 
-  <!-- Legend -->
-  <div class="flex gap-4 text-xs text-gray-500 flex-wrap">
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-[#EEF2F9] border border-[#1A4F8A]/30 inline-block"></span> حصة مجدولة</span>
-    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border-2 border-dashed border-gray-300 inline-block"></span> حصة فارغة</span>
-    {% if conflicts %}<span class="text-red-600 font-medium">⚠️ يوجد تعارضات — راجعها أعلاه</span>{% endif %}
+  {# ── Legend ── #}
+  <div class="sched-legend">
+    <span><span class="legend-dot" style="background:#EEF2F9;border:1px solid #93c5fd;"></span> حصة مجدولة</span>
+    <span><span class="legend-dot" style="border:2px dashed #d1d5db;background:transparent;"></span> فارغ</span>
+    {% if conflicts %}<span style="color:#dc2626;font-weight:600;">⚠️ تعارضات — راجع أعلاه</span>{% endif %}
   </div>
 
 </div>
-{% endblock %}
-
-{% block extra_scripts %}
-<script nonce="{{ request.csp_nonce }}">
-// Custom template filter simulation via JS (for get_item)
-// Since Django templates don't have get_item by default, we need to handle via view context
-</script>
 {% endblock %}

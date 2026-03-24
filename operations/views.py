@@ -285,7 +285,7 @@ def weekly_schedule(request):
     conflicts = ScheduleService.detect_conflicts(school, year) if user.is_admin() else []
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    PERIODS = range(1, 9)
+    PERIODS = range(1, 8)  # 7 حصص يومياً
 
     teachers = []
     classes = []
