@@ -1,0 +1,75 @@
+{% extends "base/base.html" %}
+{% block title %}تقرير أحمال المعلمين — {{ year }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="أحمال المعلمين" %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">تقرير أحمال المعلمين</h1>
+    <p class="page-subtitle">توزيع الحصص والعدالة — {{ year }}</p>
+  </div>
+  <div class="page-actions">
+    <span class="status-badge status-maroon">{{ total_teachers }} معلم</span>
+    <span class="status-badge status-success">متوسط: {{ avg_weekly }} ح/أسبوع</span>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="w-full text-sm">
+    <thead>
+      <tr>
+        <th class="text-right">#</th>
+        <th class="text-right">المعلم</th>
+        <th class="text-center">أسبوعي</th>
+        <th class="text-center">أحد</th>
+        <th class="text-center">اثنين</th>
+        <th class="text-center">ثلاثاء</th>
+        <th class="text-center">أربعاء</th>
+        <th class="text-center">خميس</th>
+        <th class="text-center">أقصى/يوم</th>
+        <th class="text-center">أيام فارغة</th>
+        <th class="text-center">بدائل/شهر</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in teacher_data %}
+      <tr>
+        <td class="text-gray-400">{{ forloop.counter }}</td>
+        <td class="font-medium text-maroon">{{ d.teacher.full_name }}</td>
+        <td class="text-center font-bold
+          {% if d.weekly > avg_weekly|add:3 %}text-red-600
+          {% elif d.weekly < avg_weekly|add:-3 %}text-blue-600
+          {% else %}text-gray-800{% endif %}">
+          {{ d.weekly }}
+        </td>
+        {% for day_count in d.days %}
+        <td class="text-center {% if day_count >= 6 %}text-red-600 font-bold{% elif day_count == 0 %}text-gray-300{% endif %}">
+          {{ day_count }}
+        </td>
+        {% endfor %}
+        <td class="text-center {% if d.max_daily >= 6 %}text-red-600 font-bold{% endif %}">
+          {{ d.max_daily }}
+        </td>
+        <td class="text-center {% if d.free_days > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
+          {{ d.free_days }}
+        </td>
+        <td class="text-center {% if d.subs >= 3 %}text-amber-600 font-bold{% endif %}">
+          {{ d.subs }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="flex gap-4 text-xs text-gray-500 mt-4 flex-wrap">
+  <span><span class="text-red-600 font-bold">أحمر</span> = حمل زائد (> {{ avg_weekly|add:3 }} ح/أسبوع أو ≥ 6 ح/يوم)</span>
+  <span><span class="text-blue-600 font-bold">أزرق</span> = حمل منخفض (< {{ avg_weekly|add:-3 }} ح/أسبوع)</span>
+  <span><span class="text-green-600">أخضر</span> = يوم فارغ (تفريغ)</span>
+</div>
+
+{% endblock %}

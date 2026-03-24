@@ -28,4 +28,5 @@ urlpatterns = [
     # ── المرحلة 3: الجدولة الذكية ──
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
+    path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
 ]
