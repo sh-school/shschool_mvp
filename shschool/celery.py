@@ -40,6 +40,14 @@ app.conf.beat_schedule = {
 
 app.conf.timezone = "Asia/Qatar"
 
+# ── v5.2: Task reliability — retry + ack-late + reject on worker lost ──────
+app.conf.task_acks_late = True  # Ack بعد اكتمال المهمة (لا قبلها)
+app.conf.task_reject_on_worker_lost = True  # إعادة المهمة إذا مات العامل
+app.conf.task_default_retry_delay = 60  # تأخير بين المحاولات (ثانية)
+app.conf.task_max_retries = 3  # أقصى 3 محاولات
+app.conf.task_soft_time_limit = 300  # 5 دقائق (تحذير)
+app.conf.task_time_limit = 600  # 10 دقائق (حد أقصى)
+
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

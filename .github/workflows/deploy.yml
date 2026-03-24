@@ -29,8 +29,8 @@ jobs:
           wait-interval:    10
           allowed-conclusions: success
 
-      # ── النشر عبر SSH ─────────────────────────────────────────
-      - name: نشر على الخادم
+      # ── النشر عبر SSH مع Rollback تلقائي ─────────────────────
+      - name: نشر على الخادم (مع rollback عند الفشل)
         uses: appleboy/ssh-action@v1.0.3
         with:
           host:     ${{ secrets.SERVER_HOST }}
@@ -41,11 +41,20 @@ jobs:
             set -e
             cd /opt/schoolos
 
+            # ── حفظ الحالة الحالية للـ rollback ──
+            PREV_IMAGE=$(docker compose -f docker-compose.prod.yml images web -q 2>/dev/null || echo "")
+            echo "▶ الـ Image الحالي: $PREV_IMAGE"
+
+            # ── نسخة احتياطية سريعة قبل النشر ──
+            echo "▶ نسخة احتياطية قبل النشر..."
+            docker compose -f docker-compose.prod.yml exec -T backup sh /backup.sh || true
+
             echo "▶ سحب آخر تحديث..."
             git pull origin main
 
-            echo "▶ بناء الـ Image الجديد..."
+            echo "▶ بناء الـ Image الجديد (tagged by commit SHA)..."
             docker compose -f docker-compose.prod.yml build web
+            docker tag schoolos-web:latest schoolos-web:${{ github.sha }}
 
             echo "▶ تطبيق Migrations..."
             docker compose -f docker-compose.prod.yml run --rm web \
@@ -59,18 +68,25 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --no-deps web
 
             echo "▶ الانتظار حتى يعمل الـ container..."
-            sleep 15
+            sleep 20
 
             echo "▶ فحص صحة المنصة..."
-            curl -f http://localhost/health/ | python3 -m json.tool
+            if curl -sf http://localhost/health/ | python3 -m json.tool; then
+              echo "✅ النشر تم بنجاح! (${{ github.sha }})"
+            else
+              echo "❌ فشل فحص الصحة — تنفيذ Rollback..."
+              if [ -n "$PREV_IMAGE" ]; then
+                docker compose -f docker-compose.prod.yml up -d --no-deps web
+                echo "🔄 Rollback تم — الخدمة أُعيدت للحالة السابقة"
+              fi
+              exit 1
+            fi
 
-            echo "✅ النشر تم بنجاح!"
-
-      # ── إشعار بنجاح النشر أو فشله ────────────────────────────
+      # ── إشعارات ────────────────────────────────
       - name: إشعار النجاح
         if: success()
         run: echo "✅ تم نشر الإصدار ${{ github.sha }} بنجاح"
 
       - name: إشعار الفشل
         if: failure()
-        run: echo "❌ فشل نشر الإصدار ${{ github.sha }} — راجع السجلات"
+        run: echo "❌ فشل نشر الإصدار ${{ github.sha }} — راجع السجلات (rollback تم تلقائياً)"

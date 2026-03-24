@@ -145,6 +145,8 @@ SECRET_KEY = _secret_key
 # ── تشفير البيانات الحساسة (PDPPL) ──────────────────────────
 # أنشئ مفتاحاً جديداً: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FERNET_KEY = config("FERNET_KEY", default="")
+# ✅ v5.2: مفاتيح قديمة لدعم key rotation (مفصولة بفاصلة)
+FERNET_OLD_KEYS = config("FERNET_OLD_KEYS", default="")
 if not FERNET_KEY and not DEBUG:
     from django.core.exceptions import ImproperlyConfigured
 

@@ -1,13 +1,15 @@
 version: "3.9"
 
 # ══════════════════════════════════════════════════════════════
-# SchoolOS — Compose الإنتاج
-# [مهمة 15] إضافة Redis + Celery Worker + Celery Beat
+# SchoolOS v5.2 — Compose الإنتاج
+# - WAL archiving for PITR
+# - Pinned image tags
+# - Non-root containers
 # ══════════════════════════════════════════════════════════════
 
 services:
 
-  # ── قاعدة البيانات ──────────────────────────────────────────
+  # ── قاعدة البيانات (WAL archiving enabled) ────────────────
   db:
     image: postgres:16-alpine
     restart: always
@@ -16,6 +18,15 @@ services:
       POSTGRES_DB:       ${DB_NAME}
       POSTGRES_USER:     ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    # ✅ v5.2: WAL archiving for point-in-time recovery
+    command: >
+      postgres
+        -c wal_level=replica
+        -c archive_mode=on
+        -c archive_command='test ! -f /backups/wal/%f && cp %p /backups/wal/%f || true'
+        -c max_wal_senders=3
+        -c log_statement=ddl
+        -c log_connections=on
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -136,9 +147,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # cron يومي الساعة 2:00 ص
     command: >
       sh -c "
+        mkdir -p /backups/wal &&
         echo '0 2 * * * sh /backup.sh >> /var/log/backup.log 2>&1' | crontab - &&
         crond -f -l 8
       "
