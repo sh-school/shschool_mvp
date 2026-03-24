@@ -3545,6 +3545,278 @@ html.dark [style*="background: #f0fdf4"] { background: #052e16 !important; }
 /* Spinner in dark mode */
 html.dark .spinner-border[style*="color:#8A1538"] { color: #f9a8c9 !important; }
 
+/* ══════════════════════════════════════════════════════════════════
+   35. GLOBAL DARK MODE FIXES — إصلاح شامل لكل التباينات
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── 35a. ALL Inputs, Selects, Textareas — مركزي ─────────────── */
+html.dark input[type="text"],
+html.dark input[type="search"],
+html.dark input[type="number"],
+html.dark input[type="email"],
+html.dark input[type="password"],
+html.dark input[type="date"],
+html.dark input[type="tel"],
+html.dark input[type="url"],
+html.dark select,
+html.dark textarea {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+html.dark input:focus,
+html.dark select:focus,
+html.dark textarea:focus {
+  background: #1e293b !important;
+  border-color: #8A1538 !important;
+  box-shadow: 0 0 0 2px rgba(138,21,56,.25) !important;
+}
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+/* Select option dropdown */
+html.dark select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* ── 35b. ALL Tables — مركزي ──────────────────────────────────── */
+html.dark table {
+  border-color: #334155 !important;
+}
+html.dark table thead th,
+html.dark table thead td {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+html.dark table tbody tr {
+  background: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-color: #1e293b !important;
+}
+html.dark table tbody tr:nth-child(even) {
+  background: #1a1f35 !important;
+}
+html.dark table tbody tr:hover {
+  background: #1e293b !important;
+}
+html.dark table tbody td {
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+html.dark table tfoot td,
+html.dark table tfoot th {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+/* ── 35c. Charts & Canvas — خلفية داكنة ──────────────────────── */
+html.dark canvas {
+  filter: none;
+}
+html.dark .chart-container,
+html.dark .chart-wrap,
+html.dark [class*="chart"] {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  border-radius: 12px;
+}
+
+/* ── 35d. Buttons — الأزرار الثانوية ─────────────────────────── */
+html.dark .btn-outline,
+html.dark .btn-light,
+html.dark button[class*="outline"],
+html.dark a.btn-light {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+html.dark .btn-outline:hover,
+html.dark .btn-light:hover,
+html.dark button[class*="outline"]:hover {
+  background: #334155 !important;
+}
+
+/* ── 35e. Cards — بطاقات بخلفية بيضاء ────────────────────────── */
+html.dark .card,
+html.dark [class*="card"]:not(.stat-card):not(.q-domain-card):not(.dash-card):not(.login-card) {
+  background: var(--surface, #1e293b) !important;
+  border-color: var(--border, #334155) !important;
+  color: var(--text-primary, #e2e8f0) !important;
+}
+
+/* ── 35f. Badges & Tags ──────────────────────────────────────── */
+html.dark .badge-light,
+html.dark .tag-light {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* ── 35g. Pagination ─────────────────────────────────────────── */
+html.dark .pagination a,
+html.dark .pagination span {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+html.dark .pagination .active,
+html.dark .pagination .current {
+  background: #8A1538 !important;
+  color: #fff !important;
+}
+
+/* ── 35h. Breadcrumbs ────────────────────────────────────────── */
+html.dark .breadcrumb,
+html.dark nav[aria-label="breadcrumb"] {
+  color: #94a3b8 !important;
+}
+html.dark .breadcrumb a {
+  color: #cbd5e1 !important;
+}
+
+/* ── 35i. Alerts & Messages ──────────────────────────────────── */
+html.dark .alert,
+html.dark .msg-bar {
+  border-color: #334155 !important;
+}
+html.dark .alert-info { background: #0c2d48 !important; color: #7dd3fc !important; }
+html.dark .alert-success { background: #052e16 !important; color: #86efac !important; }
+html.dark .alert-warning { background: #451a03 !important; color: #fcd34d !important; }
+html.dark .alert-danger { background: #450a0a !important; color: #fca5a5 !important; }
+
+/* ── 35j. Tooltips & Popovers ────────────────────────────────── */
+html.dark .tooltip-inner,
+html.dark [role="tooltip"] {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* ── 35k. White background overrides — أي عنصر bg-white/bg-gray ─ */
+html.dark .bg-white,
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background: #0f172a !important;
+}
+html.dark .bg-gray-200 { background: #1e293b !important; }
+
+/* ── 35l. Text color overrides ───────────────────────────────── */
+html.dark .text-gray-500 { color: #94a3b8 !important; }
+html.dark .text-gray-600 { color: #94a3b8 !important; }
+html.dark .text-gray-700 { color: #cbd5e1 !important; }
+html.dark .text-gray-800 { color: #e2e8f0 !important; }
+html.dark .text-gray-900 { color: #f1f5f9 !important; }
+html.dark .text-black { color: #f1f5f9 !important; }
+
+/* ── 35m. Borders ────────────────────────────────────────────── */
+html.dark .border,
+html.dark .border-b,
+html.dark .border-t,
+html.dark [class*="border-gray"] {
+  border-color: #334155 !important;
+}
+html.dark hr { border-color: #334155 !important; }
+
+/* ── 35n. Shadows — تخفيف الظلال في الداكن ───────────────────── */
+html.dark .shadow,
+html.dark .shadow-md,
+html.dark .shadow-lg {
+  box-shadow: 0 4px 12px rgba(0,0,0,.3) !important;
+}
+
+/* ── 35o. Reports page selects ───────────────────────────────── */
+html.dark .report-filters select,
+html.dark .report-filters input {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #e2e8f0 !important;
+}
+
+/* ── 35p. Analytics charts white area fix ────────────────────── */
+html.dark .analytics-chart,
+html.dark .chart-card,
+html.dark div[style*="background:#fff"],
+html.dark div[style*="background: #fff"],
+html.dark div[style*="background:white"],
+html.dark div[style*="background: white"],
+html.dark div[style*="background-color:#fff"],
+html.dark div[style*="background-color: #fff"],
+html.dark div[style*="background-color:white"],
+html.dark div[style*="background-color: white"] {
+  background: #0f172a !important;
+}
+
+/* ── 35q. Scrollbar in dark mode ─────────────────────────────── */
+html.dark ::-webkit-scrollbar { background: #0f172a; }
+html.dark ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+/* ── 35r. Code blocks & pre ──────────────────────────────────── */
+html.dark pre, html.dark code {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* ── 35s. Empty states ───────────────────────────────────────── */
+html.dark .empty-state,
+html.dark .no-data {
+  color: #64748b !important;
+}
+
+/* ── 35t. Analytics quick-links & exec-date ───────────────────── */
+html.dark .ql-item {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html.dark .ql-item:hover {
+  background: #334155 !important;
+}
+html.dark .exec-date {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #475569 !important;
+}
+
+/* ── 35u. Quality-specific white elements ─────────────────────── */
+html.dark .quality-filters {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+html.dark .quality-btn-clear {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+html.dark .quality-table-wrap {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+html.dark .page-info {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+html.dark .page-link {
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
+}
+html.dark .page-link:hover {
+  background: #334155 !important;
+}
+html.dark .page-link.active,
+html.dark .page-item.active .page-link {
+  background: #8A1538 !important;
+  color: #fff !important;
+}
+html.dark .pwa-install-btn {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+}
+
 /* ── 34. Login Page Dark Mode ───────────────────────────────────── */
 html.dark .login-page {
   background: linear-gradient(145deg, #0f172a 0%, #1a0a12 50%, #0c1a35 100%);
