@@ -156,7 +156,7 @@ class ScheduleSlot(models.Model):
     )
     subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True)
     day_of_week = models.IntegerField(choices=DAYS, verbose_name="اليوم")
-    period_number = models.IntegerField(verbose_name="رقم الحصة")  # 1..8
+    period_number = models.IntegerField(verbose_name="رقم الحصة")  # 1..7
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
@@ -303,3 +303,122 @@ class AbsenceAlert(models.Model):
 
     def __str__(self):
         return f"تنبيه: {self.student.full_name} | {self.absence_count} يوم"
+
+
+# ─────────────────────────────────────────────
+# المرحلة 3 — الجدولة الذكية
+# ─────────────────────────────────────────────
+
+
+class TimeSlotConfig(models.Model):
+    """إعدادات الحصص الزمنية للمدرسة — تُعرِّف توقيت كل حصة"""
+
+    DAY_TYPES = [
+        ("regular", "عادي (أحد-أربعاء)"),
+        ("thursday", "خميس"),
+        ("ramadan", "رمضان"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_slots_config")
+    period_number = models.PositiveIntegerField(verbose_name="رقم الحصة")
+    start_time = models.TimeField(verbose_name="وقت البدء")
+    end_time = models.TimeField(verbose_name="وقت الانتهاء")
+    day_type = models.CharField(max_length=10, choices=DAY_TYPES, default="regular")
+    is_break = models.BooleanField(default=False, verbose_name="استراحة؟")
+    break_label = models.CharField(max_length=50, blank=True, verbose_name="نوع الاستراحة")
+
+    class Meta:
+        verbose_name = "إعداد حصة زمنية"
+        verbose_name_plural = "إعدادات الحصص الزمنية"
+        unique_together = ("school", "period_number", "day_type")
+        ordering = ["day_type", "period_number"]
+
+    def __str__(self):
+        if self.is_break:
+            return f"استراحة ({self.break_label}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
+        return f"ح{self.period_number} ({self.get_day_type_display()}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
+
+
+class SubjectClassAssignment(models.Model):
+    """ربط مادة بفصل بمعلم — المصفوفة الأساسية للتوليد التلقائي"""
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_assignments")
+    class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments")
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="class_assignments")
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="subject_assignments")
+    weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
+    preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "توزيع مادة على فصل"
+        verbose_name_plural = "توزيع المواد على الفصول"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "subject", "academic_year"],
+                name="unique_subject_per_class_year",
+            )
+        ]
+        ordering = ["class_group__grade", "class_group__section", "subject__name_ar"]
+
+    def __str__(self):
+        return f"{self.subject.name_ar} → {self.class_group} ({self.teacher.full_name}) [{self.weekly_periods}ح/أسبوع]"
+
+
+class TeacherPreference(models.Model):
+    """تفضيلات المعلم للجدولة الذكية"""
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    teacher = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="schedule_preferences")
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_preferences")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
+    max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    free_day = models.IntegerField(
+        null=True, blank=True, choices=ScheduleSlot.DAYS,
+        verbose_name="يوم التفريغ المفضل",
+    )
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+
+    class Meta:
+        verbose_name = "تفضيلات معلم"
+        verbose_name_plural = "تفضيلات المعلمين"
+        unique_together = ("teacher", "school", "academic_year")
+
+    def __str__(self):
+        return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
+
+
+class ScheduleGeneration(models.Model):
+    """سجل عمليات التوليد التلقائي للجدول"""
+
+    STATUS = [
+        ("draft", "مسودة"),
+        ("approved", "معتمد"),
+        ("archived", "مؤرشف"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_generations")
+    academic_year = models.CharField(max_length=9)
+    generated_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    generated_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS, default="draft")
+    quality_score = models.FloatField(default=0, verbose_name="نقاط الجودة (0-100)")
+    hard_violations = models.IntegerField(default=0, verbose_name="انتهاكات صلبة")
+    soft_violations = models.JSONField(default=dict, verbose_name="انتهاكات مرنة")
+    total_slots_created = models.IntegerField(default=0)
+    generation_time_ms = models.IntegerField(default=0, verbose_name="زمن التوليد (مللي ثانية)")
+    config_snapshot = models.JSONField(default=dict, verbose_name="نسخة الإعدادات")
+
+    class Meta:
+        verbose_name = "عملية توليد جدول"
+        verbose_name_plural = "عمليات توليد الجدول"
+        ordering = ["-generated_at"]
+
+    def __str__(self):
+        return f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
