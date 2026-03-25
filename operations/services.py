@@ -1023,7 +1023,7 @@ class SwapService:
                 body=body,
                 related_url="/teacher/schedule/swaps/",
             )
-        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        except Exception as exc:
             logger.warning("SwapService._notify failed [swap=%s]: %s", swap.pk, exc)
 
 
