@@ -3,17 +3,17 @@
 {% block content %}
 <div dir="rtl" class="max-w-2xl mx-auto">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">⚖️ تسجيل مخالفة سلوكية</h1>
-    <a href="{% url 'behavior:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+    <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">⚖️ تسجيل مخالفة سلوكية</h1>
+    <a href="{% url 'behavior:dashboard' %}" class="text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">← رجوع</a>
   </div>
-  <div class="bg-white rounded-xl shadow-sm p-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
     <form method="post" data-validate>
       {% csrf_token %}
       <div class="space-y-4">
         <div>
-          <label class="text-sm font-medium text-gray-700 block mb-1">الطالب <span class="text-red-500">*</span></label>
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">الطالب <span class="text-red-500">*</span></label>
           <select name="student_id" required id="studentSelect"
-                  class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+                  class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
             <option value="">— اختر الطالب —</option>
             {% for s in students %}
             <option value="{{ s.id }}">{{ s.full_name }}</option>
@@ -21,40 +21,40 @@
           </select>
         </div>
         <div>
-          <label class="text-sm font-medium text-gray-700 block mb-1">درجة المخالفة <span class="text-red-500">*</span></label>
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">درجة المخالفة <span class="text-red-500">*</span></label>
           <div class="grid grid-cols-2 gap-2" id="levelOptions">
             {% for val, label in levels %}
-            <label class="flex items-center gap-2 border rounded-lg p-3 cursor-pointer hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
+            <label class="flex items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 has-[:checked]:border-red-500 has-[:checked]:bg-red-50 dark:has-[:checked]:bg-red-900/30">
               <input type="radio" name="level" value="{{ val }}" class="accent-red-600"
                      onchange="updatePoints({{ POINTS_BY_LEVEL|default:'{}' }}, {{ val }})"
                      {% if val == 1 %}checked{% endif %}>
               <div>
-                <p class="text-sm font-medium">الدرجة {{ val }}</p>
-                <p class="text-xs text-gray-500">{{ label }}</p>
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-100">الدرجة {{ val }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ label }}</p>
               </div>
             </label>
             {% endfor %}
           </div>
         </div>
         <div>
-          <label class="text-sm font-medium text-gray-700 block mb-1">وصف المخالفة <span class="text-red-500">*</span></label>
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">وصف المخالفة <span class="text-red-500">*</span></label>
           <textarea name="description" rows="3" required
                     placeholder="اكتب وصفاً تفصيلياً للمخالفة..."
-                    class="w-full border rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300"></textarea>
+                    class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"></textarea>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-medium text-gray-700 block mb-1">النقاط المخصومة</label>
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">النقاط المخصومة</label>
             <input type="number" name="points_deducted" id="pointsInput" value="5" min="0" max="100"
-                   class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
           </div>
           <div>
-            <label class="text-sm font-medium text-gray-700 block mb-1">الإجراء الأولي</label>
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">الإجراء الأولي</label>
             <input type="text" name="action_taken" placeholder="مثال: تحذير شفوي..."
-                   class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300">
+                   class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400">
           </div>
         </div>
-        <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-700">
+        <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-3 text-sm text-orange-700 dark:text-orange-300">
           ⚠️ المخالفات من الدرجة 3 و4 ستُحال تلقائياً للجنة الضبط السلوكي
         </div>
       </div>
@@ -62,7 +62,7 @@
         <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium transition">
           تسجيل المخالفة
         </button>
-        <a href="{% url 'behavior:dashboard' %}" class="px-6 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
+        <a href="{% url 'behavior:dashboard' %}" class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">إلغاء</a>
       </div>
     </form>
   </div>
