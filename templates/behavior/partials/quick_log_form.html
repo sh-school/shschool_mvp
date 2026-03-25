@@ -1,144 +1,144 @@
 {#
-  نموذج تسجيل المخالفة السريعة — SchoolOS v5.1
-  يُستخدم داخل مكوّن modal.html
-  hx-post="{% url 'behavior:quick_log' %}" hx-target="#modal-quick-log .modal-body"
+ نموذج تسجيل المخالفة السريعة — SchoolOS v5.1
+ يُستخدم داخل مكوّن modal.html
+ hx-post="{% url 'behavior:quick_log' %}" hx-target="#modal-quick-log .modal-body"
 #}
 <form
-  id="quick-log-form"
-  hx-post="{% url 'behavior:quick_log' %}"
-  hx-swap="none"
-  hx-include="[name=csrfmiddlewaretoken]"
-  class="space-y-4"
-  dir="rtl"
+ id="quick-log-form"
+ hx-post="{% url 'behavior:quick_log' %}"
+ hx-swap="none"
+ hx-include="[name=csrfmiddlewaretoken]"
+ class="space-y-4"
+ dir="rtl"
 >
-  {% csrf_token %}
+ {% csrf_token %}
 
-  {# ── اختيار الطالب ── #}
-  <div>
-    <label for="ql-student" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-      الطالب <span class="text-red-600">*</span>
-    </label>
-    <select
-      id="ql-student"
-      name="student_id"
-      required
-      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-    >
-      <option value="">— اختر الطالب —</option>
-      {% for s in students %}
-      <option value="{{ s.id }}" {% if s.id|stringformat:"s" == preselected_student_id %}selected{% endif %}>
-        {{ s.full_name }}
-      </option>
-      {% endfor %}
-    </select>
-  </div>
+ {# ── اختيار الطالب ── #}
+ <div>
+ <label for="ql-student" class="block text-sm font-medium text-gray-700 mb-1">
+ الطالب <span class="text-red-600">*</span>
+ </label>
+ <select
+ id="ql-student"
+ name="student_id"
+ required
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900"
+ >
+ <option value="">— اختر الطالب —</option>
+ {% for s in students %}
+ <option value="{{ s.id }}" {% if s.id|stringformat:"s" == preselected_student_id %}selected{% endif %}>
+ {{ s.full_name }}
+ </option>
+ {% endfor %}
+ </select>
+ </div>
 
-  {# ── درجة المخالفة (أزرار كبيرة) ── #}
-  <div>
-    <p class="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">درجة المخالفة <span class="text-red-600">*</span></p>
-    <div class="grid grid-cols-4 gap-2" role="radiogroup" aria-label="درجة المخالفة">
-      {% for val, label in levels %}
-      <label
-        class="cursor-pointer text-center"
-        title="{{ label }}"
-      >
-        <input
-          type="radio"
-          name="level"
-          value="{{ val }}"
-          class="sr-only peer"
-          {% if val == 1 %}checked{% endif %}
-          required
-        >
-        <div class="min-h-[56px] rounded-xl border-2 flex flex-col items-center justify-center gap-0.5
-                    text-sm font-bold transition-all
-                    peer-checked:border-maroon peer-checked:bg-red-900/20 peer-checked:text-maroon
-                    border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500
-                    {% if val == 4 %}peer-checked:border-red-700 peer-checked:bg-red-900/30 peer-checked:text-red-700 dark:peer-checked:text-red-400{% endif %}">
-          <span class="text-lg">
-            {% if val == 1 %}🟡{% elif val == 2 %}🟠{% elif val == 3 %}🔴{% else %}⛔{% endif %}
-          </span>
-          <span>{{ val }}</span>
-        </div>
-      </label>
-      {% endfor %}
-    </div>
-    <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-      1: بسيطة &nbsp;·&nbsp; 2: متوسطة &nbsp;·&nbsp; 3: جسيمة &nbsp;·&nbsp; 4: شديدة الخطورة
-    </p>
-  </div>
+ {# ── درجة المخالفة (أزرار كبيرة) ── #}
+ <div>
+ <p class="text-sm font-medium text-gray-700 mb-2">درجة المخالفة <span class="text-red-600">*</span></p>
+ <div class="grid grid-cols-4 gap-2" role="radiogroup" aria-label="درجة المخالفة">
+ {% for val, label in levels %}
+ <label
+ class="cursor-pointer text-center"
+ title="{{ label }}"
+ >
+ <input
+ type="radio"
+ name="level"
+ value="{{ val }}"
+ class="sr-only peer"
+ {% if val == 1 %}checked{% endif %}
+ required
+ >
+ <div class="min-h-[56px] rounded-xl border-2 flex flex-col items-center justify-center gap-0.5
+ text-sm font-bold transition-all
+ peer-checked:border-maroon peer-checked:bg-red-900/20 peer-checked:text-maroon
+ border-gray-200 text-gray-500 hover:border-gray-400
+ {% if val == 4 %}peer-checked:border-red-700 peer-checked:bg-red-900/30 peer-checked:text-red-700{% endif %}">
+ <span class="text-lg">
+ {% if val == 1 %}🟡{% elif val == 2 %}🟠{% elif val == 3 %}🔴{% else %}⛔{% endif %}
+ </span>
+ <span>{{ val }}</span>
+ </div>
+ </label>
+ {% endfor %}
+ </div>
+ <p class="text-xs text-gray-400 mt-1">
+ 1: بسيطة &nbsp;·&nbsp; 2: متوسطة &nbsp;·&nbsp; 3: جسيمة &nbsp;·&nbsp; 4: شديدة الخطورة
+ </p>
+ </div>
 
-  {# ── وصف المخالفة ── #}
-  <div>
-    <label for="ql-desc" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-      وصف المخالفة <span class="text-red-600">*</span>
-    </label>
-    <textarea
-      id="ql-desc"
-      name="description"
-      rows="3"
-      maxlength="2000"
-      required
-      placeholder="اكتب وصفاً موجزاً للمخالفة..."
-      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
-    ></textarea>
-    <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5 text-left" id="ql-desc-count">0 / 2000</p>
-  </div>
+ {# ── وصف المخالفة ── #}
+ <div>
+ <label for="ql-desc" class="block text-sm font-medium text-gray-700 mb-1">
+ وصف المخالفة <span class="text-red-600">*</span>
+ </label>
+ <textarea
+ id="ql-desc"
+ name="description"
+ rows="3"
+ maxlength="2000"
+ required
+ placeholder="اكتب وصفاً موجزاً للمخالفة..."
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 resize-none bg-white text-gray-900 placeholder:text-gray-400"
+ ></textarea>
+ <p class="text-xs text-gray-400 mt-0.5 text-left" id="ql-desc-count">0 / 2000</p>
+ </div>
 
-  {# ── الإجراء المتخذ (اختياري) ── #}
-  <div>
-    <label for="ql-action" class="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-      الإجراء المتخذ <span class="text-gray-400 dark:text-gray-500 font-normal text-xs">(اختياري)</span>
-    </label>
-    <input
-      id="ql-action"
-      type="text"
-      name="action_taken"
-      maxlength="500"
-      placeholder="مثال: تنبيه شفهي، تواصل مع ولي الأمر..."
-      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
-    >
-  </div>
+ {# ── الإجراء المتخذ (اختياري) ── #}
+ <div>
+ <label for="ql-action" class="block text-sm font-medium text-gray-700 mb-1">
+ الإجراء المتخذ <span class="text-gray-400 font-normal text-xs">(اختياري)</span>
+ </label>
+ <input
+ id="ql-action"
+ type="text"
+ name="action_taken"
+ maxlength="500"
+ placeholder="مثال: تنبيه شفهي، تواصل مع ولي الأمر..."
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900 placeholder:text-gray-400"
+ >
+ </div>
 
-  {# ── أزرار التحكم ── #}
-  <div class="flex gap-3 justify-between pt-2 border-t dark:border-gray-700">
-    <button
-      type="button"
-      class="btn-secondary"
-      data-modal-close="quick-log"
-    >إلغاء</button>
-    <button
-      type="submit"
-      class="btn-primary min-w-[120px] flex items-center justify-center gap-2"
-    >
-      <span class="htmx-indicator">
-        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-        </svg>
-      </span>
-      تسجيل المخالفة
-    </button>
-  </div>
+ {# ── أزرار التحكم ── #}
+ <div class="flex gap-3 justify-between pt-2 border-t">
+ <button
+ type="button"
+ class="btn-secondary"
+ data-modal-close="quick-log"
+ >إلغاء</button>
+ <button
+ type="submit"
+ class="btn-primary min-w-[120px] flex items-center justify-center gap-2"
+ >
+ <span class="htmx-indicator">
+ <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+ <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+ <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+ </svg>
+ </span>
+ تسجيل المخالفة
+ </button>
+ </div>
 </form>
 
 <script nonce="{{ request.csp_nonce }}">
 (function () {
-  // عداد الأحرف
-  var ta = document.getElementById('ql-desc');
-  var cnt = document.getElementById('ql-desc-count');
-  if (ta && cnt) {
-    ta.addEventListener('input', function () {
-      cnt.textContent = ta.value.length + ' / 2000';
-    });
-  }
+ // عداد الأحرف
+ var ta = document.getElementById('ql-desc');
+ var cnt = document.getElementById('ql-desc-count');
+ if (ta && cnt) {
+ ta.addEventListener('input', function () {
+ cnt.textContent = ta.value.length + ' / 2000';
+ });
+ }
 
-  // عند النجاح: إغلاق المودال + toast
-  document.getElementById('quick-log-form')?.addEventListener('htmx:afterRequest', function (e) {
-    if (e.detail.successful) {
-      if (typeof modalManager !== 'undefined') modalManager.close('quick-log');
-      this.reset();
-    }
-  });
+ // عند النجاح: إغلاق المودال + toast
+ document.getElementById('quick-log-form')?.addEventListener('htmx:afterRequest', function (e) {
+ if (e.detail.successful) {
+ if (typeof modalManager !== 'undefined') modalManager.close('quick-log');
+ this.reset();
+ }
+ });
 })();
 </script>

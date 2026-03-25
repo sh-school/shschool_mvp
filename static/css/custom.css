@@ -3477,6 +3477,78 @@ html.dark .q-btn-outline {
 }
 html.dark .q-btn-outline:hover { background: #334155; }
 
+/* Progress bar card */
+html.dark .q-progress-bar {
+  background: #1e293b;
+  border-color: #334155;
+}
+html.dark .q-progress-bar .progress-label span { color: #cbd5e1; }
+html.dark .q-progress-bar .progress-label .pct.green { color: #4ade80; }
+html.dark .q-progress-bar .progress-label .pct.amber { color: #fbbf24; }
+html.dark .q-progress-bar .progress-label .pct.red   { color: #f87171; }
+html.dark .q-progress-bar .progress-track,
+html.dark .mini-progress-track { background: #334155; }
+html.dark .q-progress-bar .stat-value.green { color: #4ade80; }
+html.dark .q-progress-bar .stat-value.amber { color: #fbbf24; }
+html.dark .q-progress-bar .stat-value.muted { color: #94a3b8; }
+html.dark .q-progress-bar .stat-label { color: #64748b; }
+
+/* Alert banners */
+html.dark .q-alert-warn {
+  background: #1c1305;
+  border-color: #854d0e;
+  color: #fcd34d;
+}
+html.dark .q-alert-tag {
+  background: #422006;
+  color: #fcd34d;
+}
+html.dark .q-alert-info {
+  background: #0c1a35;
+  border-color: #1e40af;
+  color: #93c5fd;
+}
+html.dark .q-alert-success {
+  background: #052e16;
+  border-color: #166534;
+  color: #86efac;
+}
+
+/* Add-member form */
+html.dark .q-add-form {
+  background: #1e293b;
+  border-color: #334155;
+}
+html.dark .q-add-form-body { background: #1e293b; }
+html.dark .q-add-form-field label { color: #cbd5e1; }
+html.dark .q-add-form-field select,
+html.dark .q-add-form-field input {
+  background: #0f172a;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+/* Badges */
+html.dark .q-badge-success  { background: rgba(22,163,74,0.2);  color: #4ade80; }
+html.dark .q-badge-warning  { background: rgba(202,138,4,0.2);  color: #fbbf24; }
+html.dark .q-badge-danger   { background: rgba(220,38,38,0.2);  color: #f87171; }
+html.dark .q-badge-info     { background: rgba(2,132,199,0.2);  color: #7dd3fc; }
+html.dark .q-badge-neutral  { background: rgba(148,163,184,0.15); color: #94a3b8; }
+html.dark .q-badge-maroon   { background: rgba(141,27,61,0.2);  color: #e8b4c8; }
+
+/* Accordion / section headers */
+html.dark .q-accordion-header {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+html.dark .q-section-header {
+  background: linear-gradient(135deg, #4a1530 0%, #3b1125 100%);
+}
+
+/* Mini progress percentage */
+html.dark .mini-progress-pct { color: #cbd5e1; }
+
 /* ── 28. Report Dropdown ────────────────────────────────────────── */
 html.dark .report-student-dropdown {
   background: #1e293b;
@@ -3501,6 +3573,112 @@ html.dark .bg-gray-100 { background: #162032 !important; }
 html.dark .border-gray-200 { border-color: #334155 !important; }
 html.dark .border-gray-300 { border-color: #475569 !important; }
 html.dark .divide-gray-200 > * + * { border-color: #334155 !important; }
+html.dark .text-black { color: #f1f5f9 !important; }
+html.dark .bg-gray-50  { background: #162032 !important; }
+html.dark .bg-gray-200 { background: #1e293b !important; }
+
+/* ── 31a. Status Colors — Green (success/positive) ─────────────── */
+html.dark .text-green-500 { color: #4ade80 !important; }
+html.dark .text-green-600 { color: #4ade80 !important; }
+html.dark .text-green-700 { color: #86efac !important; }
+html.dark .text-green-800 { color: #86efac !important; }
+html.dark .bg-green-50   { background: #052e16 !important; }
+html.dark .bg-green-100  { background: #052e16 !important; }
+html.dark .bg-green-500  { background: #16a34a !important; }
+html.dark .bg-green-600  { background: #15803d !important; }
+html.dark .border-green-200 { border-color: #166534 !important; }
+html.dark .border-green-300 { border-color: #166534 !important; }
+html.dark .border-green-500 { border-color: #16a34a !important; }
+html.dark .divide-green-200 > * + * { border-color: #166534 !important; }
+
+/* ── 31b. Status Colors — Red (danger/negative) ────────────────── */
+html.dark .text-red-500 { color: #f87171 !important; }
+html.dark .text-red-600 { color: #fca5a5 !important; }
+html.dark .text-red-700 { color: #fca5a5 !important; }
+html.dark .text-red-800 { color: #f87171 !important; }
+html.dark .bg-red-50    { background: #1a0a0a !important; }
+html.dark .bg-red-100   { background: #1f0c0c !important; }
+html.dark .bg-red-500   { background: #dc2626 !important; }
+html.dark .bg-red-600   { background: #b91c1c !important; }
+html.dark .border-red-200 { border-color: #991b1b !important; }
+html.dark .border-red-300 { border-color: #991b1b !important; }
+html.dark .border-red-500 { border-color: #dc2626 !important; }
+
+/* ── 31c. Status Colors — Blue (info) ──────────────────────────── */
+html.dark .text-blue-500 { color: #60a5fa !important; }
+html.dark .text-blue-600 { color: #93c5fd !important; }
+html.dark .text-blue-700 { color: #93c5fd !important; }
+html.dark .text-blue-800 { color: #60a5fa !important; }
+html.dark .bg-blue-50   { background: #0c1a35 !important; }
+html.dark .bg-blue-100  { background: #0c1a35 !important; }
+html.dark .bg-blue-500  { background: #3b82f6 !important; }
+html.dark .bg-blue-600  { background: #2563eb !important; }
+html.dark .border-blue-200 { border-color: #1e40af !important; }
+html.dark .border-blue-300 { border-color: #1e40af !important; }
+html.dark .border-blue-500 { border-color: #3b82f6 !important; }
+
+/* ── 31d. Status Colors — Amber (warning) ──────────────────────── */
+html.dark .text-amber-500 { color: #f59e0b !important; }
+html.dark .text-amber-600 { color: #fcd34d !important; }
+html.dark .text-amber-700 { color: #fcd34d !important; }
+html.dark .text-amber-800 { color: #f59e0b !important; }
+html.dark .bg-amber-50   { background: #1c1305 !important; }
+html.dark .bg-amber-100  { background: #1c1305 !important; }
+html.dark .bg-amber-500  { background: #d97706 !important; }
+html.dark .bg-amber-600  { background: #b45309 !important; }
+html.dark .border-amber-200 { border-color: #92400e !important; }
+html.dark .border-amber-300 { border-color: #92400e !important; }
+
+/* ── 31e. Status Colors — Orange ───────────────────────────────── */
+html.dark .text-orange-500 { color: #fb923c !important; }
+html.dark .text-orange-600 { color: #fdba74 !important; }
+html.dark .text-orange-700 { color: #fdba74 !important; }
+html.dark .text-orange-800 { color: #fb923c !important; }
+html.dark .bg-orange-50   { background: #1c0f05 !important; }
+html.dark .bg-orange-100  { background: #1c0f05 !important; }
+html.dark .bg-orange-500  { background: #ea580c !important; }
+html.dark .border-orange-200 { border-color: #9a3412 !important; }
+
+/* ── 31f. Status Colors — Yellow ───────────────────────────────── */
+html.dark .text-yellow-500 { color: #facc15 !important; }
+html.dark .text-yellow-600 { color: #fde047 !important; }
+html.dark .text-yellow-700 { color: #fde047 !important; }
+html.dark .bg-yellow-50   { background: #1c1805 !important; }
+html.dark .bg-yellow-100  { background: #1c1805 !important; }
+html.dark .border-yellow-200 { border-color: #854d0e !important; }
+
+/* ── 31g. Status Colors — Purple/Indigo ────────────────────────── */
+html.dark .text-purple-600 { color: #c4b5fd !important; }
+html.dark .text-purple-700 { color: #c4b5fd !important; }
+html.dark .bg-purple-50   { background: #1a0c2e !important; }
+html.dark .bg-purple-100  { background: #1a0c2e !important; }
+html.dark .border-purple-200 { border-color: #581c87 !important; }
+html.dark .text-indigo-600 { color: #a5b4fc !important; }
+html.dark .text-indigo-700 { color: #a5b4fc !important; }
+html.dark .bg-indigo-50   { background: #0c0c35 !important; }
+html.dark .bg-indigo-100  { background: #0c0c35 !important; }
+
+/* ── 31h. Common dark overrides — misc ─────────────────────────── */
+html.dark .bg-white\/80   { background: rgba(30,41,59,0.8) !important; }
+html.dark .bg-gray-50\/80 { background: rgba(22,32,50,0.8) !important; }
+html.dark .ring-gray-300  { --tw-ring-color: #475569 !important; }
+html.dark .placeholder-gray-400::placeholder { color: #64748b !important; }
+html.dark .hover\:bg-gray-50:hover  { background: #162032 !important; }
+html.dark .hover\:bg-gray-100:hover { background: #1e293b !important; }
+html.dark .hover\:bg-gray-200:hover { background: #283548 !important; }
+html.dark .hover\:bg-gray-700:hover { background: #334155 !important; }
+html.dark .focus\:ring-gray-300:focus { --tw-ring-color: #475569 !important; }
+html.dark .divide-gray-100 > * + * { border-color: #1e293b !important; }
+html.dark .divide-gray-300 > * + * { border-color: #475569 !important; }
+
+/* ── 31i. Tailwind compound variants — has/hover/checked ───────── */
+html.dark .has-\[\:checked\]\:bg-red-50:has(:checked)     { background: #1a0a0a !important; }
+html.dark .has-\[\:checked\]\:bg-green-50:has(:checked)   { background: #052e16 !important; }
+html.dark .has-\[\:checked\]\:bg-blue-50:has(:checked)    { background: #0c1a35 !important; }
+html.dark .has-\[\:checked\]\:bg-amber-50:has(:checked)   { background: #1c1305 !important; }
+html.dark .has-\[\:checked\]\:border-red-500:has(:checked)   { border-color: #dc2626 !important; }
+html.dark .has-\[\:checked\]\:border-green-500:has(:checked) { border-color: #16a34a !important; }
+html.dark .has-\[\:checked\]\:border-blue-500:has(:checked)  { border-color: #3b82f6 !important; }
 
 /* ── 32. Dark Mode Toggle Button ────────────────────────────────── */
 .theme-toggle {

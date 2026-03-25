@@ -8,92 +8,92 @@
 {% block content %}
 <div class="max-w-4xl mx-auto space-y-5" dir="rtl">
 
-  <div class="flex items-center justify-between">
-    <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">إحصاءات السلوك المدرسي</h1>
-    <span class="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 px-3 py-1 rounded-full">{{ year }} · QNSA المعيار 2</span>
-  </div>
+ <div class="flex items-center justify-between">
+ <h1 class="text-xl font-bold text-gray-800">إحصاءات السلوك المدرسي</h1>
+ <span class="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full">{{ year }} · QNSA المعيار 2</span>
+ </div>
 
-  <!-- بطاقات عامة -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4 text-center">
-      <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ total }}</p>
-      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">إجمالي المخالفات</p>
-    </div>
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4 text-center">
-      <p class="text-3xl font-bold text-blue-700 dark:text-blue-400">{{ by_level.1 }}</p>
-      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">درجة أولى</p>
-    </div>
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4 text-center">
-      <p class="text-3xl font-bold text-amber-600 dark:text-amber-400">{{ by_level.2 }}</p>
-      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">درجة ثانية</p>
-    </div>
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4 text-center">
-      <p class="text-3xl font-bold text-red-600">{{ by_level.3|add:by_level.4 }}</p>
-      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">درجة 3 و4</p>
-    </div>
-  </div>
+ <!-- بطاقات عامة -->
+ <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+ <div class="bg-white border rounded-xl p-4 text-center">
+ <p class="text-3xl font-bold text-gray-800">{{ total }}</p>
+ <p class="text-xs text-gray-500 mt-1">إجمالي المخالفات</p>
+ </div>
+ <div class="bg-white border rounded-xl p-4 text-center">
+ <p class="text-3xl font-bold text-blue-700">{{ by_level.1 }}</p>
+ <p class="text-xs text-gray-500 mt-1">درجة أولى</p>
+ </div>
+ <div class="bg-white border rounded-xl p-4 text-center">
+ <p class="text-3xl font-bold text-amber-600">{{ by_level.2 }}</p>
+ <p class="text-xs text-gray-500 mt-1">درجة ثانية</p>
+ </div>
+ <div class="bg-white border rounded-xl p-4 text-center">
+ <p class="text-3xl font-bold text-red-600">{{ by_level.3|add:by_level.4 }}</p>
+ <p class="text-xs text-gray-500 mt-1">درجة 3 و4</p>
+ </div>
+ </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+ <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-    <!-- أكثر الطلاب مخالفة -->
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden">
-      <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b dark:border-gray-700">
-        <p class="font-semibold text-sm text-gray-700 dark:text-gray-200">أكثر الطلاب مخالفة</p>
-      </div>
-      <div class="divide-y dark:divide-gray-700">
-        {% for s in top_students %}
-        <div class="flex items-center justify-between px-4 py-2.5">
-          <div>
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ s.student__full_name }}</p>
-            <p class="text-xs text-red-500">-{{ s.pts }} نقطة</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ s.count }}</span>
-            <a href="{% url 'behavior:behavior_report' s.student__id %}"
-               class="text-xs text-blue-600 dark:text-blue-400 hover:underline">تقرير</a>
-          </div>
-        </div>
-        {% empty %}
-        <p class="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">لا توجد بيانات</p>
-        {% endfor %}
-      </div>
-    </div>
+ <!-- أكثر الطلاب مخالفة -->
+ <div class="bg-white border rounded-xl overflow-hidden">
+ <div class="bg-gray-50 px-4 py-3 border-b">
+ <p class="font-semibold text-sm text-gray-700">أكثر الطلاب مخالفة</p>
+ </div>
+ <div class="divide-y">
+ {% for s in top_students %}
+ <div class="flex items-center justify-between px-4 py-2.5">
+ <div>
+ <p class="text-sm font-medium text-gray-800">{{ s.student__full_name }}</p>
+ <p class="text-xs text-red-500">-{{ s.pts }} نقطة</p>
+ </div>
+ <div class="flex items-center gap-2">
+ <span class="text-sm font-bold text-gray-700">{{ s.count }}</span>
+ <a href="{% url 'behavior:behavior_report' s.student__id %}"
+ class="text-xs text-blue-600 hover:underline">تقرير</a>
+ </div>
+ </div>
+ {% empty %}
+ <p class="text-center py-6 text-gray-400 text-sm">لا توجد بيانات</p>
+ {% endfor %}
+ </div>
+ </div>
 
-    <!-- التوزيع الشهري -->
-    <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl overflow-hidden">
-      <div class="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 border-b dark:border-gray-700">
-        <p class="font-semibold text-sm text-gray-700 dark:text-gray-200">التوزيع الشهري</p>
-      </div>
-      <div class="divide-y dark:divide-gray-700">
-        {% for m in monthly %}
-        <div class="flex items-center justify-between px-4 py-2.5">
-          <p class="text-sm text-gray-700 dark:text-gray-300">{{ m.month|date:"F Y" }}</p>
-          <div class="flex items-center gap-2">
-            <div class="bg-gray-100 dark:bg-gray-700 rounded-full h-2" style="width:80px">
-              <div class="bg-[#8A1538] h-2 rounded-full" style="width:{% widthratio m.count 20 100 %}%"></div>
-            </div>
-            <span class="text-sm font-medium text-gray-800 dark:text-gray-200 w-6 text-left">{{ m.count }}</span>
-          </div>
-        </div>
-        {% empty %}
-        <p class="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">لا توجد بيانات</p>
-        {% endfor %}
-      </div>
-    </div>
+ <!-- التوزيع الشهري -->
+ <div class="bg-white border rounded-xl overflow-hidden">
+ <div class="bg-gray-50 px-4 py-3 border-b">
+ <p class="font-semibold text-sm text-gray-700">التوزيع الشهري</p>
+ </div>
+ <div class="divide-y">
+ {% for m in monthly %}
+ <div class="flex items-center justify-between px-4 py-2.5">
+ <p class="text-sm text-gray-700">{{ m.month|date:"F Y" }}</p>
+ <div class="flex items-center gap-2">
+ <div class="bg-gray-100 rounded-full h-2" style="width:80px">
+ <div class="bg-[#8A1538] h-2 rounded-full" style="width:{% widthratio m.count 20 100 %}%"></div>
+ </div>
+ <span class="text-sm font-medium text-gray-800 w-6 text-left">{{ m.count }}</span>
+ </div>
+ </div>
+ {% empty %}
+ <p class="text-center py-6 text-gray-400 text-sm">لا توجد بيانات</p>
+ {% endfor %}
+ </div>
+ </div>
 
-  </div>
+ </div>
 
-  <!-- نسبة الحل -->
-  <div class="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-xl p-4">
-    <div class="flex items-center justify-between mb-2">
-      <p class="text-sm font-medium text-gray-700 dark:text-gray-200">نسبة حل المخالفات الجسيمة</p>
-      <span class="text-lg font-bold {% if resolved_pct >= 80 %}text-green-700 dark:text-green-400{% elif resolved_pct >= 50 %}text-amber-600 dark:text-amber-400{% else %}text-red-600{% endif %}">{{ resolved_pct }}%</span>
-    </div>
-    <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5">
-      <div class="h-2.5 rounded-full {% if resolved_pct >= 80 %}bg-green-500{% elif resolved_pct >= 50 %}bg-amber-400{% else %}bg-red-500{% endif %}"
-           style="width:{{ resolved_pct }}%"></div>
-    </div>
-  </div>
+ <!-- نسبة الحل -->
+ <div class="bg-white border rounded-xl p-4">
+ <div class="flex items-center justify-between mb-2">
+ <p class="text-sm font-medium text-gray-700">نسبة حل المخالفات الجسيمة</p>
+ <span class="text-lg font-bold {% if resolved_pct >= 80 %}text-green-700{% elif resolved_pct >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">{{ resolved_pct }}%</span>
+ </div>
+ <div class="w-full bg-gray-100 rounded-full h-2.5">
+ <div class="h-2.5 rounded-full {% if resolved_pct >= 80 %}bg-green-500{% elif resolved_pct >= 50 %}bg-amber-400{% else %}bg-red-500{% endif %}"
+ style="width:{{ resolved_pct }}%"></div>
+ </div>
+ </div>
 
 </div>
 {% endblock %}
