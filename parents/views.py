@@ -144,6 +144,92 @@ def student_attendance(request, student_id):
     )
 
 
+# ── درجات كل الأبناء ─────────────────────────────────────────
+
+
+@login_required
+def parent_all_grades(request):
+    """ملخص درجات كل أبناء ولي الأمر."""
+    school = _get_parent_school(request)
+    if not school:
+        return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
+
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    links = ParentStudentLink.objects.filter(
+        parent=request.user, school=school
+    ).select_related("student")
+
+    children_grades = []
+    for link in links:
+        if not link.can_view_grades:
+            continue
+        enrollment = (
+            StudentEnrollment.objects.filter(student=link.student, is_active=True)
+            .select_related("class_group")
+            .first()
+        )
+        data = ParentService.get_student_grades(link.student, school, year)
+        children_grades.append({
+            "student": link.student,
+            "enrollment": enrollment,
+            **data,
+        })
+
+    return render(request, "parents/all_grades.html", {
+        "children_grades": children_grades,
+        "school": school,
+        "year": year,
+    })
+
+
+# ── حضور كل الأبناء ─────────────────────────────────────────
+
+
+@login_required
+def parent_all_attendance(request):
+    """ملخص حضور كل أبناء ولي الأمر."""
+    school = _get_parent_school(request)
+    if not school:
+        return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
+
+    period = request.GET.get("period", "30")
+    try:
+        days = int(period)
+    except ValueError:
+        days = 30
+
+    links = ParentStudentLink.objects.filter(
+        parent=request.user, school=school
+    ).select_related("student")
+
+    children_attendance = []
+    for link in links:
+        if not link.can_view_attendance:
+            continue
+        enrollment = (
+            StudentEnrollment.objects.filter(student=link.student, is_active=True)
+            .select_related("class_group")
+            .first()
+        )
+        data = ParentService.get_student_attendance(link.student, school, days)
+        alerts = AbsenceAlert.objects.filter(
+            student=link.student, school=school
+        ).order_by("-created_at")[:3]
+        children_attendance.append({
+            "student": link.student,
+            "enrollment": enrollment,
+            "alerts": alerts,
+            **data,
+        })
+
+    return render(request, "parents/all_attendance.html", {
+        "children_attendance": children_attendance,
+        "school": school,
+        "period": period,
+        "period_choices": ["7", "14", "30", "60"],
+    })
+
+
 # ── سلوك الأبناء ──────────────────────────────────────────────
 
 

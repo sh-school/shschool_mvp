@@ -1,0 +1,105 @@
+{% extends "base/base.html" %}
+{% block title %}درجات الأبناء{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/parents/" parent_label="بوابة ولي الأمر" current="الدرجات" %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">درجات الأبناء</h1>
+      <p class="page-subtitle">{{ school.name }} — العام الدراسي {{ year }}</p>
+    </div>
+    <a href="{% url 'parent_dashboard' %}" class="btn-secondary">العودة للبوابة</a>
+  </div>
+
+  {% if not children_grades %}
+  <div class="card text-center py-12">
+    <p class="text-gray-500 text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الدرجات</p>
+  </div>
+  {% endif %}
+
+  {% for child in children_grades %}
+  <div class="card">
+    {# Header #}
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
+        <p class="text-sm text-gray-500">
+          {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
+          {{ child.total }} مادة
+        </p>
+      </div>
+      {% if child.avg %}
+      <div class="text-center">
+        <div class="text-2xl font-bold {% if child.avg >= 80 %}text-green-600{% elif child.avg >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+          {{ child.avg }}%
+        </div>
+        <div class="text-xs text-gray-500">المعدل العام</div>
+      </div>
+      {% endif %}
+    </div>
+
+    {# KPI Row #}
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold text-green-600">{{ child.passed }}</div>
+        <div class="text-xs text-gray-500">ناجح</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold text-red-600">{{ child.failed }}</div>
+        <div class="text-xs text-gray-500">راسب</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold">{{ child.total }}</div>
+        <div class="text-xs text-gray-500">إجمالي</div>
+      </div>
+    </div>
+
+    {# Grades Table #}
+    {% if child.rows %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b dark:border-gray-700">
+            <th class="text-right py-2 px-2">المادة</th>
+            <th class="text-center py-2 px-2">الفصل الأول</th>
+            <th class="text-center py-2 px-2">الفصل الثاني</th>
+            <th class="text-center py-2 px-2">النهائي</th>
+            <th class="text-center py-2 px-2">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in child.rows %}
+          <tr class="border-b dark:border-gray-700/50">
+            <td class="py-2 px-2 font-medium">{{ row.subject }}</td>
+            <td class="py-2 px-2 text-center">{% if row.s1 %}{{ row.s1.total|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td class="py-2 px-2 text-center">{% if row.s2 %}{{ row.s2.total|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td class="py-2 px-2 text-center font-bold">{% if row.annual.annual_total %}{{ row.annual.annual_total|floatformat:0 }}{% else %}—{% endif %}</td>
+            <td class="py-2 px-2 text-center">
+              {% if row.annual.status == "pass" %}
+              <span class="text-green-600 text-xs font-bold">ناجح</span>
+              {% elif row.annual.status == "fail" %}
+              <span class="text-red-600 text-xs font-bold">راسب</span>
+              {% else %}
+              <span class="text-gray-400 text-xs">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-6 text-gray-400">
+      لم تُدخل الدرجات بعد لهذا العام الدراسي
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "base/base.html" %}
+{% block title %}حضور الأبناء{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/parents/" parent_label="بوابة ولي الأمر" current="الحضور" %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">حضور الأبناء</h1>
+      <p class="page-subtitle">{{ school.name }} — آخر {{ period }} يوم</p>
+    </div>
+    <div class="flex items-center gap-2">
+      {% for d in period_choices %}
+      <a href="?period={{ d }}"
+         class="px-3 py-1.5 rounded-lg text-sm font-medium transition
+                {% if period == d %}bg-[var(--maroon)] text-white{% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200{% endif %}">
+        {{ d }} يوم
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if not children_attendance %}
+  <div class="card text-center py-12">
+    <p class="text-gray-500 text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
+  </div>
+  {% endif %}
+
+  {% for child in children_attendance %}
+  <div class="card">
+    {# Header #}
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
+        <p class="text-sm text-gray-500">
+          {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
+          منذ {{ child.since|date:"Y/m/d" }}
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="text-2xl font-bold {% if child.att_pct >= 90 %}text-green-600{% elif child.att_pct >= 75 %}text-yellow-600{% else %}text-red-600{% endif %}">
+          {{ child.att_pct }}%
+        </div>
+        <div class="text-xs text-gray-500">نسبة الحضور</div>
+      </div>
+    </div>
+
+    {# KPI Row #}
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold text-green-600">{{ child.present }}</div>
+        <div class="text-xs text-gray-500">حاضر</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold text-red-600">{{ child.absent }}</div>
+        <div class="text-xs text-gray-500">غائب</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold text-orange-600">{{ child.late }}</div>
+        <div class="text-xs text-gray-500">متأخر</div>
+      </div>
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
+        <div class="text-xl font-bold">{{ child.total }}</div>
+        <div class="text-xs text-gray-500">إجمالي الحصص</div>
+      </div>
+    </div>
+
+    {# Alerts #}
+    {% if child.alerts %}
+    <div class="mb-4">
+      <h3 class="font-semibold text-sm mb-2 text-red-600">تنبيهات الغياب</h3>
+      {% for alert in child.alerts %}
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 mb-2 text-sm">
+        {{ alert.message|default:"تنبيه غياب متكرر" }} — {{ alert.created_at|date:"Y/m/d" }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Days List #}
+    {% if child.days_list %}
+    <h3 class="font-semibold text-sm mb-2 text-gray-600">سجل الحضور</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b dark:border-gray-700">
+            <th class="text-right py-2 px-2">التاريخ</th>
+            <th class="text-center py-2 px-2">الحصص</th>
+            <th class="text-center py-2 px-2">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for day in child.days_list %}
+          <tr class="border-b dark:border-gray-700/50 {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}">
+            <td class="py-2 px-2 whitespace-nowrap">{{ day.date|date:"m/d D" }}</td>
+            <td class="py-2 px-2 text-center">{{ day.records|length }}</td>
+            <td class="py-2 px-2 text-center">
+              {% if day.has_absent %}
+              <span class="text-red-600 text-xs font-bold">غياب</span>
+              {% elif day.has_late %}
+              <span class="text-orange-600 text-xs font-bold">تأخر</span>
+              {% else %}
+              <span class="text-green-600 text-xs font-bold">حاضر</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-6 text-gray-400">
+      لا توجد بيانات حضور مسجلة في هذه الفترة
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div>
+{% endblock %}
