@@ -228,13 +228,17 @@ td:has(.slot-empty) {
         {% if target_class %} — {{ target_class }}{% endif %}
       </span>
     </div>
-    {% if request.user.is_admin %}
     <div class="flex gap-2 flex-wrap">
+      {% if request.user.is_admin %}
       <a href="{% url 'slot_create' %}" class="btn-primary btn-sm">+ إضافة حصة</a>
       <a href="{% url 'generate_sessions' %}" class="btn-secondary btn-sm">توليد حصص اليوم</a>
       <a href="{% url 'register_absence' %}" class="btn-secondary btn-sm">تسجيل غياب</a>
+      {% endif %}
+      {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin" %}
+      <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">🔄 طلبات التبديل</a>
+      <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">📅 الحصص التعويضية</a>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   {# ── Filters (admin only) ── #}

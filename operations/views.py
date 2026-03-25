@@ -57,6 +57,7 @@ def schedule(request):
             "selected_date": selected_date,
             "today": timezone.now().date(),
             "next_session": next_session,
+            "user_role": request.user.get_role(),
         },
     )
 
@@ -326,6 +327,7 @@ def weekly_schedule(request):
             "teachers": teachers,
             "classes": classes,
             "academic_year": year,
+            "user_role": user.get_role(),
         },
     )
 
