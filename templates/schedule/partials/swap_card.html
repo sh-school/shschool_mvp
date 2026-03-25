@@ -1,0 +1,43 @@
+{# HTMX partial — بطاقة طلب تبديل واحدة (قابلة لإعادة الاستخدام) #}
+<div class="swap-card" id="swap-{{ swap.pk }}">
+  <div class="swap-row">
+    <span class="swap-teacher">{{ swap.teacher_a.full_name }}</span>
+    <span class="swap-arrow">&harr;</span>
+    <span class="swap-teacher">{{ swap.teacher_b.full_name }}</span>
+    <span class="swap-badge {% if swap.status == 'executed' or swap.status == 'approved' %}executed{% elif 'rejected' in swap.status or swap.status == 'cancelled' %}rejected{% else %}pending{% endif %}">
+      {{ swap.get_status_display }}
+    </span>
+  </div>
+  <div class="swap-info" style="margin-top:4px">
+    <strong>حصة أ:</strong> {{ swap.slot_a.subject|default:"—" }} ({{ swap.slot_a.class_group }}) — {{ swap.slot_a.get_day_of_week_display }} ح{{ swap.slot_a.period_number }}
+    &nbsp;|&nbsp;
+    <strong>حصة ب:</strong> {{ swap.slot_b.subject|default:"—" }} ({{ swap.slot_b.class_group }}) — {{ swap.slot_b.get_day_of_week_display }} ح{{ swap.slot_b.period_number }}
+    &nbsp;|&nbsp;
+    {{ swap.created_at|date:"Y/m/d H:i" }}
+  </div>
+  {% if swap.reason %}
+  <div class="swap-info" style="margin-top:2px"><strong>السبب:</strong> {{ swap.reason }}</div>
+  {% endif %}
+
+  {# أزرار الإجراءات حسب الدور والحالة #}
+  {% if swap.status == "pending_b" and request.user == swap.teacher_b %}
+  <div class="swap-actions">
+    <a href="{% url 'swap_respond' swap.pk %}" class="btn-sm btn-approve" style="text-decoration:none;padding:5px 14px">عرض والرد</a>
+  </div>
+  {% endif %}
+
+  {% if swap.status == "pending_coordinator" or swap.status == "pending_vp" or swap.status == "accepted_b" %}
+    {% if current_role == "coordinator" or current_role == "principal" or current_role == "vice_academic" or current_role == "vice_admin" %}
+    <div class="swap-actions">
+      <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
+        <input type="hidden" name="action" value="approve">
+        <button class="btn-sm btn-approve">اعتماد</button>
+      </form>
+      <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
+        <input type="hidden" name="action" value="reject">
+        <button class="btn-sm btn-reject">رفض</button>
+      </form>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>

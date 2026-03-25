@@ -454,3 +454,270 @@ class ScheduleGeneration(models.Model):
         return (
             f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
         )
+
+
+# ═════════════════════════════════════════════════════════════════════
+# المرحلة 2 — التبديل والتعويض وسجل الحصص الحرة
+# المرجع: خطة الجدول الذكي الشامل (7 مراحل)
+# ═════════════════════════════════════════════════════════════════════
+
+
+class TeacherSwap(models.Model):
+    """
+    تبديل بين معلمين — يمر بمسار موافقة:
+    المعلم أ → المعلم ب (قبول/رفض) → المنسق (موافقة) → تنفيذ
+    القيد: التبديل مع معلمي نفس الصف فقط (إلا بصلاحية أعلى)
+    """
+
+    SWAP_TYPE = [
+        ("same_day", "تبديل نفس اليوم"),
+        ("cross_day", "تبديل بين يومين"),
+    ]
+    STATUS = [
+        ("pending_b", "بانتظار موافقة المعلم"),
+        ("accepted_b", "المعلم وافق — بانتظار المنسق"),
+        ("rejected_b", "المعلم رفض"),
+        ("pending_coordinator", "بانتظار المنسق"),
+        ("pending_vp", "بانتظار النائب (تخصصات مختلفة)"),
+        ("approved", "معتمد"),
+        ("executed", "تم التنفيذ"),
+        ("rejected", "مرفوض"),
+        ("cancelled", "ملغى"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_swaps")
+
+    # المعلمان
+    teacher_a = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="swaps_as_requester",
+        verbose_name="المعلم الطالب",
+    )
+    teacher_b = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="swaps_as_target",
+        verbose_name="المعلم المستهدف",
+    )
+
+    # الحصتان
+    slot_a = models.ForeignKey(
+        ScheduleSlot, on_delete=models.CASCADE, related_name="swaps_as_slot_a",
+        verbose_name="حصة المعلم أ",
+    )
+    slot_b = models.ForeignKey(
+        ScheduleSlot, on_delete=models.CASCADE, related_name="swaps_as_slot_b",
+        verbose_name="حصة المعلم ب",
+    )
+
+    # تواريخ التبديل الفعلية
+    swap_date_a = models.DateField(verbose_name="تاريخ حصة أ")
+    swap_date_b = models.DateField(verbose_name="تاريخ حصة ب")
+
+    swap_type = models.CharField(max_length=10, choices=SWAP_TYPE, default="same_day")
+    status = models.CharField(max_length=25, choices=STATUS, default="pending_b", db_index=True)
+
+    # ربط اختياري بغياب (إذا التبديل بسبب غياب)
+    absence = models.ForeignKey(
+        TeacherAbsence, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="related_swaps", verbose_name="الغياب المرتبط",
+    )
+
+    # سلسلة الموافقة
+    requested_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True,
+        related_name="swap_requests_created", verbose_name="مُنشئ الطلب",
+    )
+    b_responded_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="swap_approvals", verbose_name="المعتمِد",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    executed_at = models.DateTimeField(null=True, blank=True)
+
+    reason = models.TextField(blank=True, verbose_name="سبب التبديل")
+    rejection_reason = models.TextField(blank=True, verbose_name="سبب الرفض")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "طلب تبديل"
+        verbose_name_plural = "طلبات التبديل"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["school", "status"]),
+            models.Index(fields=["teacher_a", "status"]),
+            models.Index(fields=["teacher_b", "status"]),
+            models.Index(fields=["swap_date_a"]),
+        ]
+        constraints = [
+            # لا يمكن أن يكون نفس المعلم طرفي التبديل
+            models.CheckConstraint(
+                check=~models.Q(teacher_a=models.F("teacher_b")),
+                name="swap_different_teachers",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"تبديل: {self.teacher_a.full_name} <-> {self.teacher_b.full_name} "
+            f"| {self.get_status_display()}"
+        )
+
+    @property
+    def is_cross_department(self):
+        """هل التبديل بين تخصصين مختلفين؟ (يحتاج نائب بدل منسق)"""
+        subj_a = self.slot_a.subject
+        subj_b = self.slot_b.subject
+        if subj_a and subj_b:
+            return subj_a != subj_b
+        return False
+
+    @property
+    def is_pending(self):
+        return self.status in ("pending_b", "accepted_b", "pending_coordinator", "pending_vp")
+
+
+class CompensatorySession(models.Model):
+    """
+    حصة تعويضية — المعلم يعوّض حصة فاتته بسبب غياب.
+    القيد: أسبوع واحد كحد أقصى (week_offset: 0 أو 1)
+    """
+
+    STATUS = [
+        ("pending", "بانتظار الموافقة"),
+        ("approved", "معتمدة"),
+        ("completed", "مكتملة"),
+        ("cancelled", "ملغاة"),
+        ("expired", "انتهت المهلة"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="compensatory_sessions")
+
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="compensatory_sessions",
+        verbose_name="المعلم",
+    )
+    original_slot = models.ForeignKey(
+        ScheduleSlot, on_delete=models.CASCADE, related_name="compensatory_originals",
+        verbose_name="الحصة الأصلية (الفائتة)",
+    )
+    absence = models.ForeignKey(
+        TeacherAbsence, on_delete=models.CASCADE, related_name="compensatory_sessions",
+        verbose_name="الغياب المرتبط",
+    )
+
+    # تفاصيل الحصة التعويضية
+    compensatory_date = models.DateField(verbose_name="تاريخ التعويض")
+    compensatory_period = models.IntegerField(verbose_name="رقم حصة التعويض")
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="compensatory_sessions",
+        verbose_name="الشعبة",
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="compensatory_sessions", verbose_name="المادة",
+    )
+
+    # 0 = نفس الأسبوع, 1 = الأسبوع التالي
+    week_offset = models.PositiveSmallIntegerField(
+        default=0, verbose_name="أسبوع التعويض",
+        help_text="0 = نفس الأسبوع, 1 = الأسبوع التالي (الحد الأقصى)",
+    )
+
+    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
+
+    # الموافقة
+    approved_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="compensatory_approvals", verbose_name="المعتمِد",
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+
+    # الربط بالحصة الفعلية بعد الإنشاء
+    session_created = models.ForeignKey(
+        Session, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="compensatory_source", verbose_name="الحصة المنشأة",
+    )
+
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "حصة تعويضية"
+        verbose_name_plural = "الحصص التعويضية"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["school", "status"]),
+            models.Index(fields=["teacher", "status"]),
+            models.Index(fields=["compensatory_date"]),
+        ]
+        constraints = [
+            # لا يمكن تعويض حصتين بنفس الوقت لنفس المعلم
+            models.UniqueConstraint(
+                fields=["teacher", "compensatory_date", "compensatory_period"],
+                condition=~models.Q(status__in=["cancelled", "expired"]),
+                name="unique_compensatory_slot",
+            ),
+            # week_offset بين 0 و 1 فقط
+            models.CheckConstraint(
+                check=models.Q(week_offset__lte=1),
+                name="compensatory_max_one_week",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"تعويض: {self.teacher.full_name} | {self.subject or 'مادة'} "
+            f"| {self.compensatory_date} ح{self.compensatory_period} "
+            f"| {self.get_status_display()}"
+        )
+
+
+class FreeSlotRegistry(models.Model):
+    """
+    سجل الحصص الحرة لكل معلم — يُبنى تلقائياً من فراغات ScheduleSlot.
+    يُستخدم لتسهيل البحث عن بديل أو وقت تعويض.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="free_slots",
+        verbose_name="المعلم",
+    )
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="free_slots")
+    day_of_week = models.IntegerField(choices=ScheduleSlot.DAYS, verbose_name="اليوم")
+    period_number = models.IntegerField(verbose_name="رقم الحصة")
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    is_available = models.BooleanField(
+        default=True, verbose_name="متاح؟",
+        help_text="False = محجوز مؤقتاً (تعويض أو مهمة)",
+    )
+    reserved_for = models.ForeignKey(
+        "CompensatorySession", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="reserved_slots",
+        verbose_name="محجوز لحصة تعويضية",
+    )
+
+    class Meta:
+        verbose_name = "حصة حرة"
+        verbose_name_plural = "سجل الحصص الحرة"
+        ordering = ["day_of_week", "period_number"]
+        indexes = [
+            models.Index(fields=["school", "day_of_week", "period_number"]),
+            models.Index(fields=["teacher", "is_available"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["teacher", "day_of_week", "period_number", "academic_year"],
+                name="unique_free_slot_entry",
+            ),
+        ]
+
+    def __str__(self):
+        day = dict(ScheduleSlot.DAYS).get(self.day_of_week, "")
+        avail = "متاح" if self.is_available else "محجوز"
+        return f"{self.teacher.full_name} | {day} ح{self.period_number} | {avail}"

@@ -115,6 +115,12 @@ LOGGING = {
             "style": "{",
         },
     },
+    # ✅ v5.3: فلتر إخفاء البيانات الشخصية — PDPPL م.13
+    "filters": {
+        "pii_masking": {
+            "()": "core.logging_filters.PIIMaskingFilter",
+        },
+    },
     "handlers": {
         "file": {
             "level": "WARNING",
@@ -126,6 +132,7 @@ LOGGING = {
             "backupCount": 5,
             "encoding": "utf-8",
             "formatter": "verbose",
+            "filters": ["pii_masking"],  # ✅ v5.3: إخفاء PII
         },
         "security_file": {
             "level": "WARNING",
@@ -135,8 +142,12 @@ LOGGING = {
             "backupCount": 10,  # نحتفظ بـ 10 نسخ للأمان
             "encoding": "utf-8",
             "formatter": "security",
+            "filters": ["pii_masking"],  # ✅ v5.3: إخفاء PII
         },
-        "console": {"class": "logging.StreamHandler"},
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["pii_masking"],  # ✅ v5.3: إخفاء PII
+        },
     },
     "root": {"handlers": ["file", "console"], "level": "WARNING"},
     "loggers": {

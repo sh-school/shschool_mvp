@@ -1,6 +1,16 @@
 """
 scheduler_constraints.py — القيود الصلبة والمرنة للجدولة الذكية
 مدرسة الشحانية الإعدادية الثانوية — قطر 2025-2026
+═══════════════════════════════════════════════════════════════
+
+المرحلة 5: تحديث القيود حسب الخطة المتفق عليها:
+  HC4 (تحديث): الخميس إعدادي=6, ثانوي=7
+  HC5 (جديد): حد أقصى 3 حصص متتالية (صلب)
+  HC6 (جديد): مادة 5+/أسبوع: حد أقصى 2 بنفس اليوم
+  SC1 (تحديث): تفضيل 2 متتاليتين كحد أقصى
+  SC1b (جديد): PE والعلوم المعملية لا تُحسب ضمن المتتالية
+  SC7 (جديد): حصة مزدوجة لـ ART و TECH فقط
+  SC8 (جديد): مادة 5+/أسبوع بنفس اليوم يجب ألا تكون متتالية
 """
 
 from __future__ import annotations
@@ -12,7 +22,23 @@ if TYPE_CHECKING:
     from .scheduler import ScheduleGrid, Task
 
 
-# ── القيود الصلبة ──────────────────────────────────────────
+# ── أكواد المواد الخاصة ─────────────────────────────────────
+# المواد التي تُعيد عدّاد الحصص المتتالية (لا تُحسب ضمن التتابع)
+CONSECUTIVE_RESET_CODES = {"PE", "SCI"}  # بدنية + علوم معملية
+
+# المواد المسموح لها بحصة مزدوجة
+DOUBLE_PERIOD_CODES = {"ART", "TECH"}
+
+# المواد الأساسية (تُفضّل في الحصص الأولى)
+CORE_CODES = {"ARA", "ENG", "MAT", "SCI", "CHM", "PHY", "BIO"}
+
+# عتبة المادة ذات النصاب العالي (5+ حصص/أسبوع)
+HIGH_WEEKLY_THRESHOLD = 5
+
+
+# ══════════════════════════════════════════════════════════════
+# 1. القيود الصلبة (Hard Constraints)
+# ══════════════════════════════════════════════════════════════
 
 
 def check_teacher_conflict(grid: ScheduleGrid, day: int, period: int, teacher_id) -> bool:
@@ -30,19 +56,60 @@ def check_day_capacity(grid: ScheduleGrid, day: int, class_id, max_periods: int)
     return grid.class_periods_on_day(class_id, day) < max_periods
 
 
+def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """
+    HC5 (جديد): الحد الأقصى 3 حصص متتالية للمعلم.
+    PE والعلوم المعملية تُعيد العدّاد (لا تُحسب ضمن التتابع).
+    """
+    consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
+    return consecutive < 3
+
+
+def check_high_weekly_daily_limit(grid: ScheduleGrid, day: int, task: Task) -> bool:
+    """
+    HC6 (جديد): مادة 5+ حصص/أسبوع: حد أقصى 2 حصص بنفس اليوم للشعبة.
+    """
+    if task.weekly_periods < HIGH_WEEKLY_THRESHOLD:
+        return True  # لا ينطبق على مواد أقل من 5
+    count = grid.subject_on_day(task.class_id, task.subject_id, day)
+    return count < 2
+
+
+def get_max_periods_for_day(day: int, level_type: str = "") -> int:
+    """
+    HC4 (تحديث): الحد الأقصى لحصص اليوم.
+    الخميس (day=4): إعدادي=6, ثانوي=7.
+    باقي الأيام: 7 دائماً.
+    """
+    if day != 4:
+        return 7
+    if level_type == "prep":
+        return 6
+    if level_type == "sec":
+        return 7
+    return 6  # default = 6 (الأكثر تقييداً)
+
+
 def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
     """تحقق من كل القيود الصلبة لخانة معينة"""
-    max_p = 6 if day == 4 else 7  # الخميس = 6 حصص
+    level_type = getattr(task, "level_type", "")
+    max_p = get_max_periods_for_day(day, level_type)
     if period > max_p:
         return False
     if not check_teacher_conflict(grid, day, period, task.teacher_id):
         return False
     if not check_class_conflict(grid, day, period, task.class_id):
         return False
+    if not check_max_consecutive(grid, day, period, task):
+        return False
+    if not check_high_weekly_daily_limit(grid, day, task):
+        return False
     return True
 
 
-# ── القيود المرنة ──────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════
+# 2. القيود المرنة (Soft Constraints)
+# ══════════════════════════════════════════════════════════════
 
 
 @dataclass
@@ -68,40 +135,61 @@ def evaluate_soft_constraints(
     """تقييم القيود المرنة لتحديد أفضل خانة"""
     penalty = SoftPenalty()
 
-    # SC1: تتابع الحصص — لا أكثر من 3 متتالية (وزن 10)
-    consecutive = grid.teacher_consecutive_at(task.teacher_id, day, period)
-    max_consec = 3
-    if preferences and task.teacher_id in preferences:
-        max_consec = preferences[task.teacher_id].get("max_consecutive", 3)
-    penalty.add("consecutive", 10, consecutive >= max_consec)
+    # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
+    consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
+    penalty.add("consecutive", 10, consecutive >= 2)
 
-    # SC2: فراغات المعلم — تقليل الفجوات (وزن 8)
+    # ── SC2: فراغات المعلم — تقليل الفجوات ──
     creates_gap = grid.would_create_gap(task.teacher_id, day, period)
     penalty.add("gap", 8, creates_gap)
 
-    # SC3: توزيع المادة — لا حصتين نفس المادة نفس اليوم للفصل (وزن 6)
+    # ── SC3: توزيع المادة — لا حصتين نفس المادة نفس اليوم للفصل ──
     same_subject_today = grid.subject_on_day(task.class_id, task.subject_id, day)
-    penalty.add("subject_spread", 6, same_subject_today > 0)
+    # SC7 (جديد): مكافأة الحصة المزدوجة لـ ART و TECH
+    if task.subject_code in DOUBLE_PERIOD_CODES:
+        # ART/TECH: حصتان بنفس اليوم مرغوبة — لا عقوبة على الأولى
+        penalty.add("subject_spread", 6, same_subject_today > 1)
+    else:
+        penalty.add("subject_spread", 6, same_subject_today > 0)
 
-    # SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم (وزن 5)
+    # ── SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم ──
     teacher_today = grid.teacher_periods_on_day(task.teacher_id, day)
     max_daily = 5
     if preferences and task.teacher_id in preferences:
         max_daily = preferences[task.teacher_id].get("max_daily", 5)
     penalty.add("daily_load", 5, teacher_today >= max_daily)
 
-    # SC5: المواد الأساسية في الحصص الأولى (وزن 3)
-    is_core = task.subject_code in ("ARA", "ENG", "MAT", "SCI", "CHM", "PHY", "BIO")
+    # ── SC5: المواد الأساسية في الحصص الأولى ──
+    is_core = task.subject_code in CORE_CODES
     penalty.add("core_early", 3, is_core and period >= 6)
 
-    # SC6: البدنية بعد الاستراحة (وزن 2)
+    # ── SC6: البدنية بعد الاستراحة ──
     is_pe = task.subject_code == "PE"
     penalty.add("pe_after_break", 2, is_pe and period not in (4, 5))
+
+    # ── SC7 (جديد): مكافأة الحصة المزدوجة لـ ART و TECH ──
+    if task.subject_code in DOUBLE_PERIOD_CODES and same_subject_today == 1:
+        # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
+        prev_task = grid.get_task_at(day, period - 1)
+        if prev_task and prev_task.subject_id == task.subject_id and prev_task.class_id == task.class_id:
+            penalty.add("double_bonus", -5, True)  # مكافأة (قيمة سالبة)
+
+    # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
+    if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
+        prev_task = grid.get_task_at(day, period - 1)
+        next_task = grid.get_task_at(day, period + 1) if period < 7 else None
+        is_adj_same = (
+            (prev_task and prev_task.subject_id == task.subject_id and prev_task.class_id == task.class_id)
+            or (next_task and next_task.subject_id == task.subject_id and next_task.class_id == task.class_id)
+        )
+        penalty.add("high_weekly_adjacent", 7, is_adj_same)
 
     return penalty
 
 
-# ── حساب نقاط الجودة الإجمالية ──────────────────────────
+# ══════════════════════════════════════════════════════════════
+# 3. حساب نقاط الجودة الإجمالية
+# ══════════════════════════════════════════════════════════════
 
 
 def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None) -> dict:
@@ -113,6 +201,8 @@ def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None)
         "daily_load": 0,
         "core_early": 0,
         "pe_after_break": 0,
+        "double_bonus": 0,
+        "high_weekly_adjacent": 0,
     }
     total_penalty = 0.0
     total_slots = 0
@@ -128,7 +218,8 @@ def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None)
             violations[k] = violations.get(k, 0) + 1
 
     # نقاط الجودة: 100 - (العقوبات المرجحة / العدد الكلي)
-    max_possible = total_slots * 34  # مجموع أوزان كل القيود المرنة
+    # مجموع أوزان كل القيود المرنة: 10+8+6+5+3+2+5+7 = 46
+    max_possible = total_slots * 46
     if max_possible == 0:
         score = 100.0
     else:

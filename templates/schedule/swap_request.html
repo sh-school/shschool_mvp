@@ -1,0 +1,80 @@
+{% extends "base/base.html" %}
+{% block title %}طلب تبديل حصة{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+.form-page { max-width: 700px; margin: 0 auto; padding: 16px; }
+.form-card { background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 20px 24px; }
+.form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon, #8A1538); margin-bottom: 16px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.form-group select, .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
+.form-group textarea { min-height: 60px; resize: vertical; }
+.btn-submit { background: var(--maroon, #8A1538); color: #fff; padding: 10px 28px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.btn-submit:hover { opacity: .9; }
+.slot-option { padding: 6px 8px; font-size: .8rem; }
+.hint { font-size: .72rem; color: #9ca3af; margin-top: 2px; }
+#swap-options-container { margin-top: 12px; min-height: 40px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <h2 class="form-title">طلب تبديل حصة</h2>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>اختر حصتك التي تريد تبديلها</label>
+        <select name="slot_a" id="slot_a" required>
+          <option value="">— اختر حصة —</option>
+          {% for slot in my_slots %}
+          <option value="{{ slot.pk }}">
+            {{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group }})
+          </option>
+          {% endfor %}
+        </select>
+        <p class="hint">ستظهر خيارات التبديل المتاحة بعد الاختيار</p>
+      </div>
+
+      <div id="swap-options-container">
+        <div class="form-group">
+          <label>اختر حصة المعلم الآخر</label>
+          <select name="slot_b" id="slot_b" required>
+            <option value="">— اختر حصة أ أولاً —</option>
+          </select>
+          <p class="hint">التبديل متاح مع معلمي نفس الصف فقط</p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>تاريخ التبديل</label>
+        <input type="date" name="swap_date" required>
+      </div>
+
+      <div class="form-group">
+        <label>سبب التبديل (اختياري)</label>
+        <textarea name="reason" placeholder="مثال: لدي ارتباط في هذه الحصة..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-submit">إرسال طلب التبديل</button>
+    </form>
+  </div>
+</div>
+
+<script nonce="{{ request.csp_nonce }}">
+document.getElementById('slot_a')?.addEventListener('change', function() {
+  const slotId = this.value;
+  if (!slotId) return;
+  const container = document.getElementById('swap-options-container');
+  fetch(`/operations/schedule/swap/${slotId}/options/`, {
+    headers: {'X-Requested-With': 'XMLHttpRequest'}
+  })
+  .then(r => r.text())
+  .then(html => { container.innerHTML = html; })
+  .catch(() => {});
+});
+</script>
+{% endblock %}

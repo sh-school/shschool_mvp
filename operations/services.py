@@ -11,11 +11,14 @@ from django.db.models import Count, QuerySet
 from core.models import StudentEnrollment
 from operations.models import (
     AbsenceAlert,
+    CompensatorySession,
+    FreeSlotRegistry,
     ScheduleSlot,
     Session,
     StudentAttendance,
     SubstituteAssignment,
     TeacherAbsence,
+    TeacherSwap,
 )
 
 logger = logging.getLogger(__name__)
@@ -444,3 +447,564 @@ class SubstituteService:
 
         # الأقل بدائل هذا الأسبوع
         return min(sub_counts, key=sub_counts.get)
+
+    @staticmethod
+    @transaction.atomic
+    def assign_substitute_and_update_session(
+        absence: TeacherAbsence,
+        slot: ScheduleSlot,
+        substitute: "CustomUser",
+        assigned_by: "CustomUser | None" = None,
+        notes: str = "",
+    ) -> SubstituteAssignment:
+        """
+        تعيين بديل + تحديث Session.teacher (الفجوة الحرجة المكتشفة).
+        يضمن أن الحصة اليومية تعكس المعلم الفعلي.
+        """
+        assignment = SubstituteService.assign_substitute(
+            absence, slot, substitute, assigned_by, notes,
+        )
+        # تحديث Session اليومية إذا وُجدت
+        Session.objects.filter(
+            school=absence.school,
+            teacher=absence.teacher,
+            date=absence.date,
+            start_time=slot.start_time,
+        ).update(teacher=substitute)
+        return assignment
+
+
+# ═════════════════════════════════════════════════════════════════════
+# المرحلة 4 — خدمات التبديل والتعويض والحصص الحرة
+# ═════════════════════════════════════════════════════════════════════
+
+
+class FreeSlotService:
+    """خدمة سجل الحصص الحرة — يُبنى تلقائياً من فراغات ScheduleSlot."""
+
+    @staticmethod
+    @transaction.atomic
+    def build_registry(
+        school: "School",
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        max_periods: int = 7,
+    ) -> int:
+        """
+        بناء/إعادة بناء سجل الحصص الحرة لكل معلمي المدرسة.
+        يمسح القديم ويبني من جديد بناءً على ScheduleSlot.
+        """
+        from core.models import Membership
+
+        # حذف السجل القديم
+        FreeSlotRegistry.objects.filter(school=school, academic_year=academic_year).delete()
+
+        # جميع معلمي المدرسة
+        teacher_ids = list(
+            Membership.objects.filter(
+                school=school, is_active=True,
+                role__name__in=("teacher", "coordinator", "ese_teacher"),
+            ).values_list("user_id", flat=True)
+        )
+
+        # بناء مجموعة الحصص المشغولة لكل معلم
+        busy = {}
+        slots = ScheduleSlot.objects.filter(
+            school=school, academic_year=academic_year, is_active=True,
+        ).values_list("teacher_id", "day_of_week", "period_number")
+
+        for tid, day, period in slots:
+            busy.setdefault(tid, set()).add((day, period))
+
+        # بناء السجل
+        records = []
+        for tid in teacher_ids:
+            teacher_busy = busy.get(tid, set())
+            for day in range(5):  # 0=أحد → 4=خميس
+                for period in range(1, max_periods + 1):
+                    if (day, period) not in teacher_busy:
+                        records.append(FreeSlotRegistry(
+                            teacher_id=tid,
+                            school=school,
+                            day_of_week=day,
+                            period_number=period,
+                            academic_year=academic_year,
+                            is_available=True,
+                        ))
+
+        FreeSlotRegistry.objects.bulk_create(records, batch_size=500)
+        logger.info("FreeSlotService.build_registry: created %d entries for school %s", len(records), school.code)
+        return len(records)
+
+    @staticmethod
+    def get_teacher_free_slots(
+        teacher: "CustomUser",
+        school: "School",
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> QuerySet:
+        """حصص المعلم الفارغة — مرتبة حسب اليوم والحصة."""
+        return FreeSlotRegistry.objects.filter(
+            teacher=teacher, school=school, academic_year=academic_year, is_available=True,
+        ).order_by("day_of_week", "period_number")
+
+    @staticmethod
+    def get_free_teachers_at(
+        school: "School",
+        day_of_week: int,
+        period_number: int,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        department: str = "",
+    ) -> QuerySet:
+        """
+        المعلمون المتاحون في وقت معيّن.
+        إذا حُدّد department → يُرشّح حسب القسم.
+        """
+        from core.models import CustomUser, Membership
+
+        qs = FreeSlotRegistry.objects.filter(
+            school=school,
+            day_of_week=day_of_week,
+            period_number=period_number,
+            academic_year=academic_year,
+            is_available=True,
+        ).values_list("teacher_id", flat=True)
+
+        teachers = CustomUser.objects.filter(id__in=qs).order_by("full_name")
+
+        if department:
+            dept_teacher_ids = Membership.objects.filter(
+                school=school, is_active=True, department=department,
+            ).values_list("user_id", flat=True)
+            teachers = teachers.filter(id__in=dept_teacher_ids)
+
+        return teachers
+
+
+class SwapService:
+    """خدمة تبديل الحصص بين المعلمين."""
+
+    @staticmethod
+    def get_swap_options(
+        teacher: "CustomUser",
+        slot: ScheduleSlot,
+        school: "School",
+    ) -> list:
+        """
+        معلمي نفس الصف المتاحين للتبديل مع حصة معيّنة.
+        القيد: التبديل مع معلمي نفس الصف فقط.
+        """
+        grade = slot.class_group.grade
+        same_grade_slots = ScheduleSlot.objects.filter(
+            school=school,
+            class_group__grade=grade,
+            is_active=True,
+        ).exclude(
+            teacher=teacher,
+        ).select_related("teacher", "class_group", "subject")
+
+        # تصفية: المعلم ب يجب أن يكون فارغاً في وقت الحصة أ
+        options = []
+        for candidate_slot in same_grade_slots:
+            # هل المعلم ب فارغ في وقت حصة أ؟
+            b_busy_at_a = ScheduleSlot.objects.filter(
+                teacher=candidate_slot.teacher,
+                day_of_week=slot.day_of_week,
+                period_number=slot.period_number,
+                is_active=True,
+            ).exists()
+            # هل المعلم أ فارغ في وقت حصة ب؟
+            a_busy_at_b = ScheduleSlot.objects.filter(
+                teacher=teacher,
+                day_of_week=candidate_slot.day_of_week,
+                period_number=candidate_slot.period_number,
+                is_active=True,
+            ).exists()
+
+            if not b_busy_at_a and not a_busy_at_b:
+                options.append({
+                    "teacher": candidate_slot.teacher,
+                    "slot": candidate_slot,
+                    "same_subject": candidate_slot.subject == slot.subject,
+                })
+        return options
+
+    @staticmethod
+    @transaction.atomic
+    def create_swap_request(
+        school: "School",
+        teacher_a: "CustomUser",
+        teacher_b: "CustomUser",
+        slot_a: ScheduleSlot,
+        slot_b: ScheduleSlot,
+        swap_date_a: date,
+        swap_date_b: date,
+        reason: str = "",
+        requested_by: "CustomUser | None" = None,
+    ) -> TeacherSwap:
+        """إنشاء طلب تبديل + إرسال إشعار للمعلم ب."""
+        swap_type = "same_day" if swap_date_a == swap_date_b else "cross_day"
+        swap = TeacherSwap.objects.create(
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=swap_date_a,
+            swap_date_b=swap_date_b,
+            swap_type=swap_type,
+            status="pending_b",
+            requested_by=requested_by or teacher_a,
+            reason=reason,
+        )
+        # إشعار المعلم ب
+        SwapService._notify(
+            swap, teacher_b,
+            title=f"طلب تبديل حصة من {teacher_a.full_name}",
+            body=f"يطلب منك تبديل حصته ({slot_a.subject or 'حصة'}) بحصتك ({slot_b.subject or 'حصة'})",
+            event_type="swap_request",
+        )
+        logger.info("SwapService: created swap %s (%s <-> %s)", swap.pk, teacher_a.full_name, teacher_b.full_name)
+        return swap
+
+    @staticmethod
+    @transaction.atomic
+    def respond_to_swap(swap: TeacherSwap, accepted: bool, rejection_reason: str = "") -> TeacherSwap:
+        """المعلم ب يقبل أو يرفض."""
+        from django.utils import timezone as tz
+
+        if swap.status != "pending_b":
+            raise ValueError(f"لا يمكن الرد على طلب بحالة: {swap.get_status_display()}")
+
+        swap.b_responded_at = tz.now()
+        if accepted:
+            # تحديد المرحلة التالية
+            if swap.is_cross_department:
+                swap.status = "pending_vp"
+            else:
+                swap.status = "pending_coordinator"
+            SwapService._notify(
+                swap, swap.teacher_a,
+                title=f"{swap.teacher_b.full_name} وافق على التبديل",
+                body="بانتظار موافقة المنسق",
+                event_type="swap_response",
+            )
+        else:
+            swap.status = "rejected_b"
+            swap.rejection_reason = rejection_reason
+            SwapService._notify(
+                swap, swap.teacher_a,
+                title=f"{swap.teacher_b.full_name} رفض التبديل",
+                body=rejection_reason or "يمكنك اختيار معلم آخر",
+                event_type="swap_response",
+            )
+        swap.save()
+        return swap
+
+    @staticmethod
+    @transaction.atomic
+    def approve_swap(swap: TeacherSwap, approved_by: "CustomUser", approved: bool = True, rejection_reason: str = "") -> TeacherSwap:
+        """المنسق أو النائب يوافق/يرفض."""
+        from django.utils import timezone as tz
+
+        valid_statuses = ("pending_coordinator", "pending_vp", "accepted_b")
+        if swap.status not in valid_statuses:
+            raise ValueError(f"لا يمكن اعتماد طلب بحالة: {swap.get_status_display()}")
+
+        swap.approved_by = approved_by
+        swap.approved_at = tz.now()
+
+        if approved:
+            swap.status = "approved"
+            # تنفيذ تلقائي
+            SwapService.execute_swap(swap)
+        else:
+            swap.status = "rejected"
+            swap.rejection_reason = rejection_reason
+            # إشعار الطرفين
+            for t in (swap.teacher_a, swap.teacher_b):
+                SwapService._notify(
+                    swap, t,
+                    title="تم رفض طلب التبديل",
+                    body=rejection_reason or "تم رفض الطلب من الإدارة",
+                    event_type="swap_response",
+                )
+        swap.save()
+        return swap
+
+    @staticmethod
+    @transaction.atomic
+    def execute_swap(swap: TeacherSwap) -> None:
+        """تنفيذ التبديل الفعلي — تبديل المعلمين في الحصتين."""
+        from django.utils import timezone as tz
+
+        # تبديل المعلمين في ScheduleSlot
+        slot_a = swap.slot_a
+        slot_b = swap.slot_b
+        slot_a.teacher, slot_b.teacher = slot_b.teacher, slot_a.teacher
+        slot_a.save(update_fields=["teacher"])
+        slot_b.save(update_fields=["teacher"])
+
+        # تحديث Session اليومية إذا وُجدت
+        Session.objects.filter(
+            school=swap.school, teacher=swap.teacher_a,
+            date=swap.swap_date_a, start_time=slot_a.start_time,
+        ).update(teacher=swap.teacher_b)
+
+        Session.objects.filter(
+            school=swap.school, teacher=swap.teacher_b,
+            date=swap.swap_date_b, start_time=slot_b.start_time,
+        ).update(teacher=swap.teacher_a)
+
+        swap.status = "executed"
+        swap.executed_at = tz.now()
+        swap.save(update_fields=["status", "executed_at"])
+
+        # إشعار الطرفين
+        for t in (swap.teacher_a, swap.teacher_b):
+            SwapService._notify(
+                swap, t,
+                title="تم تنفيذ التبديل بنجاح",
+                body=f"التبديل بين {swap.teacher_a.full_name} و {swap.teacher_b.full_name} تم",
+                event_type="swap_approved",
+            )
+        logger.info("SwapService: executed swap %s", swap.pk)
+
+    @staticmethod
+    @transaction.atomic
+    def force_swap(
+        school: "School",
+        teacher_a: "CustomUser",
+        teacher_b: "CustomUser",
+        slot_a: ScheduleSlot,
+        slot_b: ScheduleSlot,
+        swap_date_a: date,
+        swap_date_b: date,
+        forced_by: "CustomUser",
+        reason: str = "",
+    ) -> TeacherSwap:
+        """نائب/مدير ينشئ وينفذ تبديل مباشرة بدون مسار موافقة."""
+        swap_type = "same_day" if swap_date_a == swap_date_b else "cross_day"
+        swap = TeacherSwap.objects.create(
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=swap_date_a,
+            swap_date_b=swap_date_b,
+            swap_type=swap_type,
+            status="approved",
+            requested_by=forced_by,
+            approved_by=forced_by,
+            reason=reason,
+        )
+        SwapService.execute_swap(swap)
+        return swap
+
+    @staticmethod
+    def _notify(swap: TeacherSwap, recipient: "CustomUser", title: str, body: str, event_type: str):
+        """إرسال إشعار — يفشل بصمت إذا نظام الإشعارات غير متاح."""
+        try:
+            from notifications.hub import NotificationHub
+            NotificationHub.send_to_user(
+                user=recipient,
+                event_type=event_type,
+                title=title,
+                body=body,
+                related_url=f"/operations/schedule/swaps/",
+            )
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            logger.warning("SwapService._notify failed [swap=%s]: %s", swap.pk, exc)
+
+
+class CompensatoryService:
+    """خدمة الحصص التعويضية."""
+
+    @staticmethod
+    def get_available_compensatory_slots(
+        teacher: "CustomUser",
+        school: "School",
+        target_date: date,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> list:
+        """
+        الأوقات المتاحة للتعويض — حصص حرة للمعلم في اليوم المطلوب.
+        يتحقق أيضاً أن الشعبة ليست مشغولة.
+        """
+        from datetime import timedelta
+
+        mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
+        day = mapping.get(target_date.weekday(), -1)
+        if day == -1:
+            return []
+
+        # حصص المعلم الحرة في هذا اليوم
+        free = FreeSlotRegistry.objects.filter(
+            teacher=teacher, school=school,
+            day_of_week=day, academic_year=academic_year,
+            is_available=True,
+        ).values_list("period_number", flat=True)
+
+        return sorted(free)
+
+    @staticmethod
+    @transaction.atomic
+    def request_compensatory(
+        school: "School",
+        teacher: "CustomUser",
+        original_slot: ScheduleSlot,
+        absence: TeacherAbsence,
+        compensatory_date: date,
+        compensatory_period: int,
+        notes: str = "",
+    ) -> CompensatorySession:
+        """إنشاء طلب تعويض + إشعار المنسق."""
+        from datetime import timedelta
+
+        # حساب week_offset
+        original_date = absence.date
+        diff_days = (compensatory_date - original_date).days
+        week_offset = 1 if diff_days > 7 else 0
+
+        if week_offset > 1:
+            raise ValueError("الحد الأقصى للتعويض أسبوع واحد")
+
+        comp = CompensatorySession.objects.create(
+            school=school,
+            teacher=teacher,
+            original_slot=original_slot,
+            absence=absence,
+            compensatory_date=compensatory_date,
+            compensatory_period=compensatory_period,
+            class_group=original_slot.class_group,
+            subject=original_slot.subject,
+            week_offset=week_offset,
+            status="pending",
+            notes=notes,
+        )
+
+        # إشعار المنسق (إذا وُجد)
+        try:
+            from core.models import Membership
+            from notifications.hub import NotificationHub
+
+            dept = teacher.department
+            if dept:
+                coordinators = Membership.objects.filter(
+                    school=school, is_active=True,
+                    role__name="coordinator", department=dept,
+                ).values_list("user_id", flat=True)
+
+                from core.models import CustomUser
+                for cid in coordinators:
+                    try:
+                        coord = CustomUser.objects.get(pk=cid)
+                        NotificationHub.send_to_user(
+                            user=coord,
+                            event_type="compensatory",
+                            title=f"طلب تعويض من {teacher.full_name}",
+                            body=f"يطلب تعويض حصة {original_slot.subject or 'مادة'} بتاريخ {compensatory_date}",
+                            related_url="/operations/schedule/compensatory/",
+                        )
+                    except Exception:
+                        pass
+        except (ImportError, OSError):
+            pass
+
+        logger.info("CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name)
+        return comp
+
+    @staticmethod
+    @transaction.atomic
+    def approve_compensatory(
+        comp: CompensatorySession,
+        approved_by: "CustomUser",
+        approved: bool = True,
+        rejection_reason: str = "",
+    ) -> CompensatorySession:
+        """المنسق/النائب يوافق على التعويض — ينشئ Session تلقائياً."""
+        from django.utils import timezone as tz
+
+        if comp.status != "pending":
+            raise ValueError(f"لا يمكن اعتماد طلب بحالة: {comp.get_status_display()}")
+
+        comp.approved_by = approved_by
+        comp.approved_at = tz.now()
+
+        if approved:
+            comp.status = "approved"
+
+            # إنشاء Session فعلية
+            from operations.models import TimeSlotConfig
+            time_config = TimeSlotConfig.objects.filter(
+                school=comp.school, period_number=comp.compensatory_period,
+                day_type="regular", is_break=False,
+            ).first()
+
+            if time_config:
+                session, _ = Session.objects.get_or_create(
+                    school=comp.school,
+                    teacher=comp.teacher,
+                    class_group=comp.class_group,
+                    date=comp.compensatory_date,
+                    start_time=time_config.start_time,
+                    defaults={
+                        "subject": comp.subject,
+                        "end_time": time_config.end_time,
+                        "status": "scheduled",
+                        "notes": f"حصة تعويضية — أصلية: {comp.original_slot}",
+                    },
+                )
+                comp.session_created = session
+
+            # تحديث FreeSlotRegistry — حجز الحصة وربطها بالتعويض
+            mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
+            our_day = mapping.get(comp.compensatory_date.weekday(), -1)
+            if our_day >= 0:
+                FreeSlotRegistry.objects.filter(
+                    teacher=comp.teacher, school=comp.school,
+                    day_of_week=our_day, period_number=comp.compensatory_period,
+                ).update(is_available=False, reserved_for=comp)
+        else:
+            comp.status = "cancelled"
+            comp.notes = f"{comp.notes}\nسبب الرفض: {rejection_reason}".strip()
+
+        comp.save()
+
+        # إشعار المعلم
+        try:
+            from notifications.hub import NotificationHub
+            status_text = "تمت الموافقة" if approved else "تم الرفض"
+            NotificationHub.send_to_user(
+                user=comp.teacher,
+                event_type="compensatory",
+                title=f"طلب التعويض: {status_text}",
+                body=f"حصة {comp.subject or 'مادة'} بتاريخ {comp.compensatory_date}",
+                related_url="/operations/schedule/compensatory/",
+            )
+        except (ImportError, OSError, RuntimeError, ValueError):
+            pass
+
+        return comp
+
+    @staticmethod
+    @transaction.atomic
+    def complete_compensatory(comp: CompensatorySession) -> CompensatorySession:
+        """إكمال الحصة التعويضية بعد تسجيل الحضور."""
+        if comp.status != "approved":
+            raise ValueError("الحصة ليست معتمدة بعد")
+        comp.status = "completed"
+        comp.save(update_fields=["status", "updated_at"])
+        return comp
+
+    @staticmethod
+    def expire_overdue(school: "School") -> int:
+        """إلغاء الحصص التعويضية التي انتهت مهلتها (أكثر من أسبوعين)."""
+        from datetime import timedelta
+        cutoff = date.today() - timedelta(days=14)
+        updated = CompensatorySession.objects.filter(
+            school=school, status="pending",
+            created_at__date__lt=cutoff,
+        ).update(status="expired")
+        if updated:
+            logger.info("CompensatoryService.expire_overdue: expired %d requests", updated)
+        return updated

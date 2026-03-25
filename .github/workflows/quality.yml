@@ -205,3 +205,122 @@ jobs:
           except Exception as e:
               print(f'| خطأ | {e} |')
           " >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  Mutation Testing — mutmut (أسبوعي)
+  # ══════════════════════════════════════════════════════
+  mutation-testing:
+    name: mutmut — اختبار الطفرات
+    runs-on: ubuntu-latest
+    continue-on-error: true  # تقرير فقط
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: تثبيت المتطلبات
+        run: |
+          pip install -r requirements.txt
+          pip install mutmut==2.5.1
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: تشغيل Mutation Testing (عينة محدودة)
+        run: |
+          mutmut run \
+            --paths-to-mutate=core/models/ \
+            --runner="pytest tests/test_models.py tests/test_auth_security.py -x -q --no-header --tb=no" \
+            --CI || true
+
+      - name: تقرير الطفرات
+        if: always()
+        run: |
+          echo "## تقرير اختبار الطفرات (Mutation Testing)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          mutmut results >> $GITHUB_STEP_SUMMARY 2>&1 || echo "لا نتائج" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  API Contract Testing — أسبوعي
+  # ══════════════════════════════════════════════════════
+  api-contracts:
+    name: اختبار عقود API
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: اختبار عقود API
+        run: pytest tests/test_api_contract.py -v --tb=short

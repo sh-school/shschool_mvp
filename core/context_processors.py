@@ -4,10 +4,30 @@ def school_context(request):
     if request.user.is_authenticated:
         school = request.user.get_school()
         role = request.user.get_role()
+        department = request.user.department
     else:
         school = School.objects.filter(is_active=True).first()
         role = None
-    return {"current_school": school, "current_role": role}
+        department = ""
+    return {
+        "current_school": school,
+        "current_role": role,
+        "current_department": department,
+    }
+
+
+def permissions_context(request):
+    """يُضيف صلاحيات المستخدم ووحداته المتاحة لكل قالب — لعرض القائمة الجانبية ديناميكياً."""
+    if not request.user.is_authenticated:
+        return {"accessible_modules": [], "is_leadership": False, "is_staff_member": False}
+
+    from core.permissions import get_accessible_modules
+
+    return {
+        "accessible_modules": get_accessible_modules(request.user),
+        "is_leadership": request.user.is_leadership(),
+        "is_staff_member": request.user.is_staff_member(),
+    }
 
 
 def quality_nav_context(request):

@@ -134,7 +134,7 @@ ignore_missing_imports = true
 exclude                = ["migrations", ".venv", "manage.py", "scripts"]
 plugins                = ["mypy_django_plugin.main"]
 
-# ✅ v5.2: تفعيل فحوصات إضافية تدريجياً
+# ✅ v5.2: strict mode — فحص صارم للأنواع
 warn_return_any             = true
 warn_unused_configs         = true
 warn_redundant_casts        = true
@@ -143,16 +143,35 @@ no_implicit_optional        = true
 strict_equality             = true
 check_untyped_defs          = true
 disallow_untyped_decorators = true
+# ✅ v5.3: strict mode additions
+disallow_untyped_defs       = true
+disallow_incomplete_defs    = true
+disallow_untyped_calls      = true
+warn_unreachable            = true
 
 # ── تخصيص لكل وحدة ─────────────────────────────────
 [[tool.mypy.overrides]]
 module = ["tests.*", "conftest"]
 disallow_untyped_defs   = false
+disallow_untyped_calls  = false
 check_untyped_defs      = false
+
+# ✅ v5.3: تخفيف على views (Django CBV signatures معقدة)
+[[tool.mypy.overrides]]
+module = ["*.views", "*.views_*", "*.admin"]
+disallow_untyped_defs   = false
+disallow_untyped_calls  = false
 
 [[tool.mypy.overrides]]
 module = ["celery.*", "redis.*", "weasyprint.*", "openpyxl.*", "PIL.*"]
 ignore_missing_imports = true
+
+# ── mutmut — Mutation Testing ───────────────────────
+[tool.mutmut]
+paths_to_mutate = "core/,assessments/,operations/,behavior/"
+tests_dir = "tests/"
+runner = "python -m pytest tests/ -x -q --no-header --tb=no"
+dict_synonyms = "Struct,NamedStruct"
 
 [tool.django-stubs]
 django_settings_module = "shschool.settings.testing"

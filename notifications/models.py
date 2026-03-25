@@ -222,6 +222,11 @@ class InAppNotification(models.Model):
         ("plan_deadline", "اقتراب موعد نهائي"),
         ("plan_overdue", "تأخر إجراء"),
         ("review_cycle", "دورة مراجعة ذاتية"),
+        # ── إشعارات التبديل والتعويض ──
+        ("swap_request", "طلب تبديل حصة"),
+        ("swap_response", "رد على طلب تبديل"),
+        ("swap_approved", "موافقة على تبديل"),
+        ("compensatory", "حصة تعويضية"),
         ("general", "إشعار عام"),
     ]
     PRIORITY = [

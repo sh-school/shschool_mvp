@@ -176,9 +176,9 @@ jobs:
   #  4. فحص الأنواع — mypy (تحذير فقط)
   # ══════════════════════════════════════════════════════
   typecheck:
-    name: mypy — فحص الأنواع
+    name: mypy — فحص الأنواع (strict)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    continue-on-error: false  # ✅ v5.3: صارم — يفشل عند وجود أخطاء
     needs: [test]
     steps:
       - uses: actions/checkout@v4
@@ -193,13 +193,12 @@ jobs:
           pip install mypy==1.10.0 django-stubs==5.0.2 \
             djangorestframework-stubs==3.15.0
 
-      - name: فحص الأنواع
+      - name: فحص الأنواع (strict mode)
         run: |
           mypy . \
             --ignore-missing-imports \
             --exclude "migrations|\.venv|manage\.py|conftest" \
-            --django-settings-module=shschool.settings.testing \
-            || echo "mypy وجد مشاكل — راجع التقرير (تحذير فقط)"
+            --django-settings-module=shschool.settings.testing
 
   # ══════════════════════════════════════════════════════
   #  5. فحص ثغرات المكتبات — pip-audit (blocking)

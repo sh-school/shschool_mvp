@@ -1,0 +1,104 @@
+{% extends "base/base.html" %}
+{% block title %}رد على طلب تبديل{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+.respond-page { max-width: 680px; margin: 0 auto; padding: 24px 16px; }
+.respond-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
+.respond-header { background: linear-gradient(135deg, #8A1538 0%, #6B102C 100%); padding: 16px 20px; color: #fff; }
+.respond-header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.respond-header p { font-size: .8rem; opacity: .8; margin: 4px 0 0; }
+.respond-body { padding: 20px; }
+.swap-detail { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-bottom: 20px; }
+.swap-side { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; text-align: center; }
+.swap-side-label { font-size: .7rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+.swap-side-teacher { font-size: .95rem; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+.swap-side-info { font-size: .78rem; color: #6b7280; line-height: 1.6; }
+.swap-side-info strong { color: #374151; }
+.swap-arrow-col { font-size: 1.6rem; color: var(--maroon, #8A1538); font-weight: 900; }
+.swap-reason { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 10px 14px; font-size: .8rem; color: #92400E; margin-bottom: 16px; }
+.swap-reason strong { display: block; margin-bottom: 2px; }
+.respond-actions { display: flex; gap: 10px; margin-top: 20px; }
+.respond-actions form { flex: 1; }
+.btn-respond { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .2s; }
+.btn-respond:hover { opacity: .85; }
+.btn-accept { background: #059669; color: #fff; }
+.btn-decline { background: #DC2626; color: #fff; }
+.reject-reason { margin-top: 12px; }
+.reject-reason textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: .8rem; font-family: inherit; resize: vertical; min-height: 60px; }
+.reject-reason label { font-size: .78rem; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
+.back-link { display: inline-block; margin-bottom: 12px; font-size: .8rem; color: #6b7280; text-decoration: none; }
+.back-link:hover { color: #1f2937; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="respond-page">
+  <a href="{% url 'swap_list' %}" class="back-link">&rarr; العودة لقائمة التبديلات</a>
+
+  <div class="respond-card">
+    <div class="respond-header">
+      <h1>طلب تبديل حصة</h1>
+      <p>من {{ swap.teacher_a.full_name }} &mdash; {{ swap.created_at|date:"Y/m/d H:i" }}</p>
+    </div>
+
+    <div class="respond-body">
+      <div class="swap-detail">
+        <div class="swap-side">
+          <div class="swap-side-label">حصة المعلم أ</div>
+          <div class="swap-side-teacher">{{ swap.teacher_a.full_name }}</div>
+          <div class="swap-side-info">
+            <strong>{{ swap.slot_a.subject|default:"—" }}</strong><br>
+            {{ swap.slot_a.class_group }}<br>
+            {{ swap.slot_a.get_day_of_week_display }} &mdash; ح{{ swap.slot_a.period_number }}
+          </div>
+        </div>
+
+        <div class="swap-arrow-col">&harr;</div>
+
+        <div class="swap-side">
+          <div class="swap-side-label">حصتك</div>
+          <div class="swap-side-teacher">{{ swap.teacher_b.full_name }}</div>
+          <div class="swap-side-info">
+            <strong>{{ swap.slot_b.subject|default:"—" }}</strong><br>
+            {{ swap.slot_b.class_group }}<br>
+            {{ swap.slot_b.get_day_of_week_display }} &mdash; ح{{ swap.slot_b.period_number }}
+          </div>
+        </div>
+      </div>
+
+      {% if swap.reason %}
+      <div class="swap-reason">
+        <strong>سبب الطلب:</strong>
+        {{ swap.reason }}
+      </div>
+      {% endif %}
+
+      {% if swap.status == "pending_b" %}
+      <div class="reject-reason" id="reject-section" style="display:none">
+        <label for="rejection_reason">سبب الرفض (اختياري):</label>
+        <textarea name="rejection_reason" id="rejection_reason" form="reject-form" placeholder="اكتب سبب الرفض إن وجد..."></textarea>
+      </div>
+
+      <div class="respond-actions">
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="action" value="accept">
+          <button type="submit" class="btn-respond btn-accept">قبول التبديل</button>
+        </form>
+        <form method="post" id="reject-form">{% csrf_token %}
+          <input type="hidden" name="action" value="reject">
+          <button type="button" class="btn-respond btn-decline" onclick="
+            var sec = document.getElementById('reject-section');
+            if (sec.style.display === 'none') { sec.style.display = 'block'; this.textContent = 'تأكيد الرفض'; this.type = 'submit'; }
+          ">رفض التبديل</button>
+        </form>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:16px;color:#6b7280;font-size:.85rem">
+        هذا الطلب بحالة: <strong>{{ swap.get_status_display }}</strong> &mdash; لا يمكن الرد عليه الآن.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

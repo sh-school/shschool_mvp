@@ -1,0 +1,27 @@
+<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px">
+  <h3 style="font-size:.9rem;font-weight:700;color:var(--maroon,#8A1538);margin-bottom:10px">
+    الحصص الحرة — {{ teacher.full_name }}
+  </h3>
+  <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+    <thead>
+      <tr>
+        {% for d_num, d_name in days %}
+        <th style="background:#f3f4f6;padding:6px 8px;font-weight:700;text-align:center;border:1px solid #e5e7eb">{{ d_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        {% for d_num, d_name in days %}
+        <td style="padding:6px 8px;text-align:center;border:1px solid #e5e7eb;vertical-align:top">
+          {% for p in grid|dictkey:d_num %}
+            <span style="display:inline-block;background:#D1FAE5;color:#065F46;padding:1px 8px;border-radius:99px;margin:1px;font-size:.7rem;font-weight:600">ح{{ p }}</span>
+          {% empty %}
+            <span style="color:#d1d5db;font-size:.7rem">—</span>
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+</div>

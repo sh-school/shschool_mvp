@@ -22,56 +22,64 @@ EXEMPT = [
 ]
 
 PROTECTED_PATHS = {
+    # ── التقييمات والدرجات ──────────────────────────────────────
     "/assessments/": [
-        "principal",
-        "vice_academic",
-        "vice_admin",
-        "teacher",
-        "coordinator",
-        "admin",
+        "principal", "vice_academic", "vice_admin",
+        "coordinator", "teacher", "ese_teacher",
+        "admin", "academic_advisor",
     ],
+    # ── الجودة (عام) ────────────────────────────────────────────
     "/quality/": [
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "coordinator",
-        "teacher",
-        "specialist",
+        "principal", "vice_admin", "vice_academic",
+        "coordinator", "teacher", "ese_teacher",
+        "specialist", "social_worker", "psychologist",
     ],
-    "/analytics/": ["principal", "vice_academic", "vice_admin", "admin"],
-    "/clinic/": ["principal", "vice_admin", "nurse"],
-    "/transport/": ["principal", "vice_admin", "bus_supervisor"],
-    "/library/": [
-        "principal",
-        "vice_admin",
-        "librarian",
-        "teacher",
-        "coordinator",
-        "specialist",
-        "student",
-    ],
-    "/behavior/": [
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "teacher",
-        "coordinator",
-        "specialist",
-    ],
-    "/staging/": ["principal", "vice_academic", "vice_admin", "admin"],
+    # ── الجودة (التقييمات) — الكل يُقيَّم ───────────────────────
     "/quality/evaluations/": [
-        "principal",
-        "vice_admin",
-        "vice_academic",
-        "teacher",
-        "coordinator",
-        "specialist",
-        "nurse",
-        "librarian",
-        "bus_supervisor",
-        "admin",
+        "principal", "vice_admin", "vice_academic",
+        "coordinator", "teacher", "ese_teacher",
+        "specialist", "social_worker", "psychologist", "academic_advisor",
+        "nurse", "librarian", "bus_supervisor", "admin_supervisor",
+        "admin", "secretary", "it_technician",
     ],
-    "/reports/": ["principal", "vice_academic", "vice_admin", "teacher", "coordinator"],
+    # ── التحليلات ────────────────────────────────────────────────
+    "/analytics/": [
+        "principal", "vice_academic", "vice_admin",
+        "admin", "coordinator", "teacher", "ese_teacher",
+        "social_worker", "psychologist", "academic_advisor",
+        "nurse", "librarian",
+    ],
+    # ── العيادة الصحية ──────────────────────────────────────────
+    "/clinic/": ["principal", "vice_admin", "nurse"],
+    # ── النقل المدرسي ───────────────────────────────────────────
+    "/transport/": ["principal", "vice_admin", "bus_supervisor"],
+    # ── المكتبة ─────────────────────────────────────────────────
+    "/library/": [
+        "principal", "vice_admin", "librarian",
+        "teacher", "coordinator", "ese_teacher",
+        "specialist", "social_worker", "student",
+    ],
+    # ── السلوك والانضباط ────────────────────────────────────────
+    "/behavior/": [
+        "principal", "vice_admin", "vice_academic",
+        "coordinator", "teacher", "ese_teacher",
+        "specialist", "social_worker", "psychologist",
+        "admin_supervisor",
+    ],
+    # ── الخطة التشغيلية ─────────────────────────────────────────
+    "/staging/": ["principal", "vice_academic", "vice_admin", "admin", "secretary"],
+    # ── التقارير ─────────────────────────────────────────────────
+    "/reports/": [
+        "principal", "vice_academic", "vice_admin",
+        "coordinator", "teacher", "ese_teacher",
+    ],
+    # ── الجدول الدراسي ──────────────────────────────────────────
+    "/operations/schedule/": [
+        "principal", "vice_academic", "vice_admin",
+        "coordinator", "teacher", "ese_teacher",
+        "academic_advisor", "admin_supervisor",
+        "student", "parent",
+    ],
 }
 
 

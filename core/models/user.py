@@ -129,6 +129,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def has_role(self, role_name):
         return self.memberships.filter(is_active=True, role__name=role_name).exists()
 
+    def has_any_role(self, *role_names):
+        """يتحقق من أن المستخدم لديه أحد الأدوار المعطاة (أسرع من استدعاء has_role عدة مرات)."""
+        return self.get_role() in role_names
+
     def get_parent_membership(self):
         return (
             self.memberships.filter(is_active=True, role__name="parent")
@@ -136,11 +140,42 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             .first()
         )
 
+    @property
+    def department(self):
+        """يُعيد قسم/تخصص المستخدم من العضوية النشطة."""
+        m = self.active_membership
+        return m.department if m else ""
+
+    def get_department(self):
+        return self.department
+
     def is_admin(self):
+        """مدير أو superuser — صلاحيات إدارية كاملة."""
         return self.is_superuser or self.get_role() in ("admin", "principal")
 
+    def is_admin_or_principal(self):
+        """مدير المدرسة أو نوابه — للقرارات الإدارية العليا."""
+        return self.is_superuser or self.get_role() in (
+            "principal", "vice_admin", "vice_academic", "admin",
+        )
+
     def is_teacher(self):
-        return self.get_role() in ("teacher", "coordinator")
+        return self.get_role() in ("teacher", "coordinator", "ese_teacher")
+
+    def is_leadership(self):
+        """المستوى الأول والثاني — القيادة العليا ونواب المدير."""
+        return self.is_superuser or self.get_role() in (
+            "principal", "vice_admin", "vice_academic",
+        )
+
+    def is_staff_member(self):
+        """أي دور من الطاقم (ليس طالب أو ولي أمر)."""
+        from .access import ALL_STAFF_ROLES
+        return self.is_superuser or self.get_role() in ALL_STAFF_ROLES or self.get_role() == "specialist"
+
+    def is_same_department(self, other_department):
+        """يتحقق إذا كان المستخدم من نفس القسم/التخصص."""
+        return self.department and self.department == other_department
 
 
 class Profile(models.Model):

@@ -1,0 +1,66 @@
+{% extends "base/base.html" %}
+{% block title %}طلبات التبديل{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+.swap-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.swap-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.swap-title { font-size: 1.2rem; font-weight: 700; color: var(--maroon, #8A1538); }
+.swap-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.swap-filters select { padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: .8rem; font-family: inherit; }
+.swap-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; transition: box-shadow .2s; }
+.swap-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.swap-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.swap-teacher { font-weight: 700; font-size: .9rem; }
+.swap-arrow { color: var(--maroon, #8A1538); font-weight: 900; font-size: 1.1rem; }
+.swap-info { font-size: .78rem; color: #6b7280; }
+.swap-badge { display: inline-block; font-size: .7rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+.swap-badge.pending { background: #FEF3C7; color: #92400E; }
+.swap-badge.approved, .swap-badge.executed { background: #D1FAE5; color: #065F46; }
+.swap-badge.rejected, .swap-badge.cancelled { background: #FEE2E2; color: #991B1B; }
+.swap-actions { display: flex; gap: 6px; margin-top: 8px; }
+.swap-actions form { display: inline; }
+.btn-sm { padding: 5px 14px; border-radius: 6px; font-size: .75rem; font-weight: 700; border: none; cursor: pointer; font-family: inherit; }
+.btn-approve { background: #059669; color: #fff; }
+.btn-reject { background: #DC2626; color: #fff; }
+.btn-approve:hover { background: #047857; }
+.btn-reject:hover { background: #B91C1C; }
+.empty-state { text-align: center; padding: 48px 16px; color: #9ca3af; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="swap-page">
+  <div class="swap-header">
+    <h1 class="swap-title">طلبات التبديل</h1>
+    <div style="display:flex;gap:6px">
+      {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
+      <a href="{% url 'swap_request' %}" class="btn-sm" style="background:var(--maroon,#8A1538);color:#fff;text-decoration:none;padding:7px 16px">+ طلب تبديل</a>
+      {% endif %}
+      <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
+        <button type="submit" class="btn-sm" style="background:#1D4ED8;color:#fff">بناء سجل الحصص الحرة</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="swap-filters">
+    <form method="get">
+      <select name="status" onchange="this.form.submit()">
+        <option value="">كل الحالات</option>
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% for swap in swaps %}
+  {% include "schedule/partials/swap_card.html" with swap=swap %}
+  {% empty %}
+  <div class="empty-state">
+    <p style="font-size:2rem;margin-bottom:8px">&#x1f504;</p>
+    <p>لا توجد طلبات تبديل</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

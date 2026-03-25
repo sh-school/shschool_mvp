@@ -48,6 +48,7 @@ class Task:
     weekly_periods: int
     requires_lab: bool = False
     preferred_periods: list = field(default_factory=list)
+    level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
 
 
 class ScheduleGrid:
@@ -64,8 +65,8 @@ class ScheduleGrid:
 
         for d in DAYS:
             self._grid[d] = {}
-            max_p = 6 if d == 4 else 7
-            for p in range(1, max_p + 1):
+            # الخميس يدعم 7 حصص (ثانوي) — is_slot_valid يحدد حسب level_type
+            for p in range(1, 8):
                 self._grid[d][p] = None
 
     def place(self, day: int, period: int, task: Task):
@@ -127,6 +128,32 @@ class ScheduleGrid:
                 break
         return count
 
+    def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
+        """
+        عدد الحصص المتتالية مع استثناء PE والعلوم المعملية.
+        PE/SCI تُعيد العدّاد (لا تُحسب ضمن التتابع).
+        """
+        from .scheduler_constraints import CONSECUTIVE_RESET_CODES
+
+        count = 0
+        # عدّ للخلف
+        for p in range(period - 1, 0, -1):
+            task = self.get_task_at(day, p)
+            if task is None or task.teacher_id != teacher_id:
+                break
+            if task.subject_code in CONSECUTIVE_RESET_CODES:
+                break  # PE/SCI تُعيد العدّاد
+            count += 1
+        # عدّ للأمام
+        for p in range(period + 1, 8):
+            task = self.get_task_at(day, p)
+            if task is None or task.teacher_id != teacher_id:
+                break
+            if task.subject_code in CONSECUTIVE_RESET_CODES:
+                break
+            count += 1
+        return count
+
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
         """هل إضافة حصة ستخلق فجوة للمعلم؟"""
         periods_today = sorted(p for d, p in self._teacher_slots[teacher_id] if d == day)
@@ -159,6 +186,16 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         # تجاوز المواد التي لم يُعيّن لها معلم بعد
         if not a.teacher_id or a.teacher is None:
             continue
+
+        # تحديد level_type من الصف (grade)
+        grade = a.class_group.grade
+        if grade in (7, 8, 9):
+            level_type = "prep"  # إعدادي
+        elif grade in (10, 11, 12):
+            level_type = "sec"  # ثانوي
+        else:
+            level_type = ""
+
         for _ in range(a.weekly_periods):
             tasks.append(
                 Task(
@@ -172,6 +209,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
                     weekly_periods=a.weekly_periods,
                     requires_lab=a.requires_lab,
                     preferred_periods=a.preferred_periods or [],
+                    level_type=level_type,
                 )
             )
     return tasks
@@ -197,9 +235,12 @@ def sort_tasks(tasks: list[Task]) -> list[Task]:
 
 def get_available_slots(grid: ScheduleGrid, task: Task) -> list[tuple[int, int]]:
     """الخانات المتاحة (تحقق قيود صلبة فقط)"""
+    from .scheduler_constraints import get_max_periods_for_day
+
     available = []
+    level_type = getattr(task, "level_type", "")
     for day in DAYS:
-        max_p = 6 if day == 4 else 7
+        max_p = get_max_periods_for_day(day, level_type)
         for period in range(1, max_p + 1):
             if grid.get_task_at(day, period) is not None:
                 continue

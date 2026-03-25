@@ -165,6 +165,28 @@ test-apis:
 test-api-v1:
 	pytest tests/test_api_v1.py -v
 
+# ── Mutation Testing (mutmut) ──────────────────────────
+test-mutmut:
+	mutmut run --paths-to-mutate=core/ --runner="pytest tests/ -x -q --no-header --tb=no"
+	mutmut results
+
+test-mutmut-report:
+	mutmut html
+	@echo "تقرير Mutation: html/index.html"
+
+# ── Load Testing (Locust) ─────────────────────────────
+loadtest:
+	locust -f tests/loadtest/locustfile.py --host=http://localhost:8000
+
+loadtest-headless:
+	locust -f tests/loadtest/locustfile.py --host=http://localhost:8000 \
+	  --headless -u 50 -r 5 --run-time 2m \
+	  --csv=tests/loadtest/results
+
+# ── API Contract Tests ─────────────────────────────────
+test-contracts:
+	pytest tests/test_api_contract.py -v
+
 # ── Help ──────────────────────────────────────────────
 help:
 	@echo ""
@@ -177,4 +199,8 @@ help:
 	@echo "  make quality       فحص شامل (lint+security+test-cov+radon)"
 	@echo "  make ci            نفس GitHub Actions محلياً"
 	@echo "  make pre-commit-install  تفعيل hooks"
+	@echo "  make test-mutmut   Mutation Testing (mutmut)"
+	@echo "  make loadtest      Load Testing (Locust UI)"
+	@echo "  make loadtest-headless  Load Testing بدون واجهة"
+	@echo "  make test-contracts  API Contract Tests"
 	@echo ""

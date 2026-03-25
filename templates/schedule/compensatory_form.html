@@ -1,0 +1,73 @@
+{% extends "base/base.html" %}
+{% block title %}طلب حصة تعويضية{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+.form-page { max-width: 700px; margin: 0 auto; padding: 16px; }
+.form-card { background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 20px 24px; }
+.form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon, #8A1538); margin-bottom: 16px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.form-group select, .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
+.form-group textarea { min-height: 60px; resize: vertical; }
+.btn-submit { background: var(--maroon, #8A1538); color: #fff; padding: 10px 28px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.hint { font-size: .72rem; color: #9ca3af; margin-top: 2px; }
+.alert-box { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 10px 14px; font-size: .8rem; color: #92400E; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    <h2 class="form-title">طلب حصة تعويضية</h2>
+    <div class="alert-box">الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب</div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>الغياب المرتبط</label>
+        <select name="absence" required>
+          <option value="">— اختر —</option>
+          {% for abs in my_absences %}
+          <option value="{{ abs.pk }}">{{ abs.date|date:"Y/m/d" }} — {{ abs.get_reason_display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>الحصة الأصلية (الفائتة)</label>
+        <select name="original_slot" required>
+          <option value="">— اختر حصة —</option>
+          {% for slot in my_slots %}
+          <option value="{{ slot.pk }}">{{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>تاريخ التعويض</label>
+        <input type="date" name="compensatory_date" required>
+        <p class="hint">يجب أن يكون خلال أسبوع من تاريخ الغياب</p>
+      </div>
+
+      <div class="form-group">
+        <label>رقم الحصة (1-7)</label>
+        <select name="compensatory_period" required>
+          {% for p in "1234567" %}
+          <option value="{{ p }}">حصة {{ p }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">اختر حصة تكون فارغة لك وللشعبة</p>
+      </div>
+
+      <div class="form-group">
+        <label>ملاحظات (اختياري)</label>
+        <textarea name="notes" placeholder="أي ملاحظات إضافية..."></textarea>
+      </div>
+
+      <button type="submit" class="btn-submit">إرسال طلب التعويض</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

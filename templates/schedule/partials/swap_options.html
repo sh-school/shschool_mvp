@@ -1,0 +1,17 @@
+<div class="form-group">
+  <label>اختر حصة المعلم الآخر للتبديل</label>
+  <select name="slot_b" id="slot_b" required>
+    <option value="">— اختر —</option>
+    {% for opt in options %}
+    <option value="{{ opt.slot.pk }}">
+      {{ opt.teacher.full_name }} — {{ opt.slot.get_day_of_week_display }} ح{{ opt.slot.period_number }} — {{ opt.slot.subject|default:"مادة" }} ({{ opt.slot.class_group }})
+      {% if opt.same_subject %}[نفس المادة]{% endif %}
+    </option>
+    {% endfor %}
+  </select>
+  {% if not options %}
+  <p class="hint" style="color:#DC2626">لا يوجد معلمون متاحون للتبديل مع هذه الحصة</p>
+  {% else %}
+  <p class="hint">{{ options|length }} خيار متاح — التبديل مع معلمي نفس الصف فقط</p>
+  {% endif %}
+</div>

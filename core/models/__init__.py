@@ -12,7 +12,19 @@ from transport.models import BusRoute, SchoolBus  # noqa: F401,E402
 
 from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .academic import ClassGroup, ParentStudentLink, StudentEnrollment  # noqa: F401
-from .access import Membership, Role  # noqa: F401
+from .access import (  # noqa: F401
+    ACADEMIC_ROLES,
+    ADMIN_ROLES,
+    ALL_STAFF_ROLES,
+    LEADERSHIP,
+    TIER_1_LEADERSHIP,
+    TIER_2_DEPUTIES,
+    TIER_3_SUPERVISORS,
+    TIER_4_STAFF,
+    TIER_5_BENEFICIARIES,
+    Membership,
+    Role,
+)
 from .audit import AuditLog, BreachReport, ConsentRecord, ErasureRequest  # noqa: F401
 from .base import (  # noqa: F401
     AuditedModel,

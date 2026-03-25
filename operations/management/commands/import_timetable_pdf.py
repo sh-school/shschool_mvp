@@ -239,6 +239,11 @@ class Command(BaseCommand):
             action="store_true",
             help="عرض التغييرات فقط بدون تنفيذ",
         )
+        parser.add_argument(
+            "--validate-only",
+            action="store_true",
+            help="التحقق من البيانات فقط (مطابقة المعلمين والمواد والشعب) بدون أي كتابة في قاعدة البيانات",
+        )
 
     def handle(self, *args, **options):
         import io
@@ -247,9 +252,16 @@ class Command(BaseCommand):
 
         pdf_path = options["pdf"]
         dry_run = options["dry_run"]
+        validate_only = options["validate_only"]
+
+        mode_label = (
+            "وضع التحقق فقط" if validate_only
+            else "وضع المعاينة" if dry_run
+            else "تنظيف + إعادة حقن"
+        )
 
         self.stdout.write(self.style.WARNING("=" * 60))
-        self.stdout.write(self.style.WARNING("  تنظيف + إعادة حقن الجدول الدراسي"))
+        self.stdout.write(self.style.WARNING(f"  {mode_label} — الجدول الدراسي"))
         self.stdout.write(self.style.WARNING("=" * 60))
 
         # ─── 1. استخراج بيانات PDF ───
@@ -265,6 +277,15 @@ class Command(BaseCommand):
         self.stdout.write("\nمطابقة الشعب...")
         classgroup_map = self._build_classgroup_map()
 
+        # بناء خريطة عكسية: classgroup_id -> grade number
+        cg_grade_map = {}
+        for cg in ClassGroup.objects.filter(is_active=True):
+            grade_num = str(cg.grade).replace("G", "").replace("g", "")
+            try:
+                cg_grade_map[str(cg.id)] = int(grade_num)
+            except (ValueError, TypeError):
+                pass
+
         # ─── 4. تجهيز البيانات ───
         self.stdout.write("\nتجهيز البيانات...")
         schedule_rows, assignment_map, errors = self._prepare_data(
@@ -277,6 +298,41 @@ class Command(BaseCommand):
         if errors:
             for e in errors:
                 self.stdout.write(self.style.ERROR(f"   {e}"))
+
+        # ─── 4b. التحقق من قيد الخميس (إعدادي=6، ثانوي=7) ───
+        thursday_warnings = []
+        for row in schedule_rows:
+            if row["day_idx"] == 4 and row["period"] == 7:
+                grade = cg_grade_map.get(row["classgroup_id"])
+                if grade and grade in (7, 8, 9):
+                    thursday_warnings.append(
+                        f"   [!] خميس ح7 لشعبة إعدادية (صف {grade}): "
+                        f"معلم={row['teacher_id'][:8]}.. مادة={row['subject_name']}"
+                    )
+        if thursday_warnings:
+            self.stdout.write(self.style.WARNING(
+                f"\n[تحذير] {len(thursday_warnings)} حصة خميس ح7 لشعب إعدادية (الحد 6 حصص):"
+            ))
+            for w in thursday_warnings:
+                self.stdout.write(self.style.WARNING(w))
+
+        # ─── 4c. ملخص التحقق ───
+        total_errors = len(errors)
+        total_warnings = len(thursday_warnings)
+        if validate_only:
+            self.stdout.write("\n" + "=" * 60)
+            if total_errors == 0 and total_warnings == 0:
+                self.stdout.write(self.style.SUCCESS(
+                    "  [OK] التحقق ناجح — صفر اخطاء، صفر تحذيرات"
+                ))
+            else:
+                self.stdout.write(self.style.WARNING(
+                    f"  نتيجة التحقق: {total_errors} خطأ، {total_warnings} تحذير"
+                ))
+            self.stdout.write(f"  الحصص: {len(schedule_rows)}")
+            self.stdout.write(f"  التوزيعات: {len(assignment_map)}")
+            self.stdout.write("=" * 60)
+            return
 
         if dry_run:
             self.stdout.write(self.style.WARNING("\nوضع المعاينة — لم يتم تنفيذ أي تغيير"))
@@ -359,17 +415,35 @@ class Command(BaseCommand):
                     scs_count += 1
                 self.stdout.write(f"   {scs_count} إعداد مادة تم إنشاؤه")
 
-            # إنشاء ScheduleSlot (مع إزالة التكرارات)
+            # إنشاء ScheduleSlot (مع إزالة التكرارات + تفريق الخميس)
             self.stdout.write("\nإنشاء ScheduleSlot...")
             slots = []
             seen_teacher = set()  # (teacher, day, period)
             seen_class = set()    # (class, day, period)
             skipped = 0
+            skipped_details = []   # تفاصيل الحصص المتخطاة (تقسيم شعبة)
+            thursday_prep_skipped = 0  # حصص خميس ح7 إعدادي محذوفة
             for row in schedule_rows:
                 t_key = (row["teacher_id"], row["day_idx"], row["period"])
                 c_key = (row["classgroup_id"], row["day_idx"], row["period"])
+
+                # تخطي الحصة السابعة يوم الخميس للشعب الإعدادية
+                if row["day_idx"] == 4 and row["period"] == 7:
+                    grade = cg_grade_map.get(row["classgroup_id"])
+                    if grade and grade in (7, 8, 9):
+                        thursday_prep_skipped += 1
+                        skipped_details.append(
+                            f"   خميس ح7 إعدادي (صف {grade}): "
+                            f"{row['subject_name']} — تم التخطي (الحد 6 حصص)"
+                        )
+                        continue
+
                 if t_key in seen_teacher or c_key in seen_class:
                     skipped += 1
+                    skipped_details.append(
+                        f"   تكرار (تقسيم شعبة): يوم={DAY_NAMES[row['day_idx']]} "
+                        f"ح{row['period']} — {row['subject_name']}"
+                    )
                     continue
                 seen_teacher.add(t_key)
                 seen_class.add(c_key)
@@ -390,7 +464,17 @@ class Command(BaseCommand):
                     )
                 )
             ScheduleSlot.objects.bulk_create(slots, batch_size=200)
-            self.stdout.write(f"   {len(slots)} حصة تم إنشاؤها (تخطي {skipped} تكرار)")
+            self.stdout.write(f"   {len(slots)} حصة تم إنشاؤها")
+            if skipped:
+                self.stdout.write(f"   تخطي {skipped} تكرار (تقسيم شعبة)")
+            if thursday_prep_skipped:
+                self.stdout.write(self.style.WARNING(
+                    f"   تخطي {thursday_prep_skipped} حصة خميس ح7 إعدادي"
+                ))
+            if skipped_details:
+                self.stdout.write("\n   تفاصيل الحصص المتخطاة:")
+                for detail in skipped_details:
+                    self.stdout.write(detail)
 
         # ─── 6. ملخص نهائي ───
         self.stdout.write(self.style.SUCCESS("\n" + "=" * 60))
