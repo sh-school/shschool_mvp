@@ -6,11 +6,10 @@
 <style nonce="{{ request.csp_nonce }}">
 /* ── Weekly Schedule — Professional Grid ── */
 .sched-page {
-  height: calc(100vh - 120px);
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  overflow: hidden;
+  padding-bottom: 20px;
 }
 
 /* Header */
@@ -33,16 +32,12 @@
   background: #fff;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
-  overflow: hidden;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  overflow-x: auto;
 }
 .sched-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  flex: 1;
 }
 .sched-table thead th {
   background: var(--maroon, #8A1538);
@@ -65,7 +60,7 @@
   border-bottom: 1px solid #f3f4f6;
   border-left: 1px solid #f3f4f6;
   vertical-align: top;
-  height: calc((100vh - 320px) / 7);
+  min-height: 80px;
 }
 .sched-table tbody td:first-child {
   text-align: center;
@@ -168,9 +163,8 @@
 
 /* Mobile */
 @media (max-width: 768px) {
-  .sched-page { height: auto; overflow: auto; }
   .sched-table { font-size: .7rem; }
-  .sched-table tbody td { height: auto; min-height: 60px; }
+  .sched-table tbody td { min-height: 60px; }
 }
 </style>
 {% endblock %}

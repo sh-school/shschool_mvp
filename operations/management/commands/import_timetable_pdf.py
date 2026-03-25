@@ -224,6 +224,10 @@ COL_TO_PERIOD = {8: 1, 6: 2, 5: 3, 4: 4, 2: 5, 1: 6, 0: 7}
 # أيام الأسبوع
 DAY_NAMES = ["الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس"]
 
+# المواد ذات الحصتين المتتاليتين (حصة مزدوجة) — تُستخرج كخلية مدمجة من PDF
+# ملاحظة: التكنولوجيا (TECH) ليست مزدوجة — حصتان في أيام مختلفة
+DOUBLE_PERIOD_SUBJECTS = {"الفنون البصرية", "تكنولوجيا المعلومات", "علوم الحاسب"}
+
 
 class Command(BaseCommand):
     help = "تنظيف + إعادة حقن الجدول الدراسي من PDF المعلمين"
@@ -298,6 +302,13 @@ class Command(BaseCommand):
         if errors:
             for e in errors:
                 self.stdout.write(self.style.ERROR(f"   {e}"))
+
+        # ─── 4a+. ملء الحصص المزدوجة المفقودة (merged cells) ───
+        schedule_rows, filled_count = self._fill_double_periods(schedule_rows, cg_grade_map)
+        if filled_count:
+            self.stdout.write(self.style.SUCCESS(
+                f"   [+] {filled_count} حصة مزدوجة مُكتملة (كانت مفقودة بسبب merged cells)"
+            ))
 
         # ─── 4b. التحقق من قيد الخميس (إعدادي=6، ثانوي=7) ───
         thursday_warnings = []
@@ -676,3 +687,83 @@ class Command(BaseCommand):
             assignment_map[(subj, cg, main_teacher)] = {"weekly_periods": total}
 
         return schedule_rows, assignment_map, errors
+
+    def _fill_double_periods(self, schedule_rows, cg_grade_map):
+        """
+        ملء الحصص المزدوجة المفقودة.
+        في PDF aSc Timetables، الحصة المزدوجة (مثل ART/IT/CS) تظهر كخلية مدمجة
+        فيُستخرج منها حصة واحدة فقط. هذه الدالة تكتشف الحصة المفقودة وتضيفها.
+        """
+        from collections import defaultdict
+
+        # فهرس الحصص الموجودة: (classgroup, day) -> set of periods
+        class_day_periods = defaultdict(set)
+        # فهرس المعلم: (teacher, day) -> set of periods
+        teacher_day_periods = defaultdict(set)
+        # فهرس الحصص حسب (teacher, classgroup, subject, day) -> [periods]
+        teacher_subject_day = defaultdict(list)
+
+        for row in schedule_rows:
+            key_cd = (row["classgroup_id"], row["day_idx"])
+            class_day_periods[key_cd].add(row["period"])
+
+            key_td = (row["teacher_id"], row["day_idx"])
+            teacher_day_periods[key_td].add(row["period"])
+
+            if row["subject_name"] in DOUBLE_PERIOD_SUBJECTS:
+                key_tsd = (row["teacher_id"], row["classgroup_id"], row["subject_name"], row["day_idx"])
+                teacher_subject_day[key_tsd].append(row["period"])
+
+        # ترتيب: المواد الأقل حصصاً أولاً (IT/CS قبل ART)
+        subject_total = defaultdict(int)
+        for key, plist in teacher_subject_day.items():
+            subject_total[key[2]] += len(plist)
+        sorted_items = sorted(
+            teacher_subject_day.items(),
+            key=lambda x: subject_total[x[0][2]]
+        )
+
+        filled = []
+        for key, periods in sorted_items:
+            if len(periods) >= 2:
+                continue
+
+            teacher_id, cg_id, subject_name, day_idx = key
+            existing_period = periods[0]
+
+            grade = cg_grade_map.get(cg_id)
+            if day_idx == 4:
+                max_period = 6 if grade and grade in (7, 8, 9) else 7
+            else:
+                max_period = 7
+
+            class_occupied = class_day_periods[(cg_id, day_idx)]
+            teacher_busy = teacher_day_periods[(teacher_id, day_idx)]
+
+            candidate = None
+            # أولاً: الحصة السابقة
+            if (existing_period - 1 >= 1
+                    and (existing_period - 1) not in class_occupied
+                    and (existing_period - 1) not in teacher_busy):
+                candidate = existing_period - 1
+            # ثانياً: الحصة التالية
+            elif (existing_period + 1 <= max_period
+                    and (existing_period + 1) not in class_occupied
+                    and (existing_period + 1) not in teacher_busy):
+                candidate = existing_period + 1
+
+            if candidate:
+                new_row = {
+                    "teacher_id": teacher_id,
+                    "classgroup_id": cg_id,
+                    "subject_name": subject_name,
+                    "day_idx": day_idx,
+                    "period": candidate,
+                }
+                filled.append(new_row)
+                # تحديث الفهارس لمنع التصادم
+                class_day_periods[(cg_id, day_idx)].add(candidate)
+                teacher_day_periods[(teacher_id, day_idx)].add(candidate)
+
+        schedule_rows.extend(filled)
+        return schedule_rows, len(filled)
