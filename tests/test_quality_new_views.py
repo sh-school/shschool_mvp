@@ -110,10 +110,12 @@ def make_committee_member(
     committee_type=QualityCommitteeMember.REVIEW,
     can_review=True,
     year="2025-2026",
+    domain=None,
 ):
     return QualityCommitteeMember.objects.create(
         school=school,
         user=user,
+        domain=domain,
         job_title=user.full_name,
         responsibility="عضو",
         committee_type=committee_type,
@@ -141,12 +143,12 @@ class TestExecutionList:
         assert resp.status_code == 200
         assert "page_obj" in resp.context
 
-    def test_teacher_sees_page(self, client, school):
-        """المعلم يمكنه عرض قائمة التنفيذ"""
+    def test_teacher_gets_403(self, client, school):
+        """FIX-01: المعلم لا يصل لقائمة التنفيذ (admin-only)"""
         teacher = make_teacher(school)
         client.force_login(teacher)
         resp = client.get(reverse("execution_list"))
-        assert resp.status_code == 200
+        assert resp.status_code == 403
 
     def test_unauthenticated_redirects(self, client):
         resp = client.get(reverse("execution_list"))
@@ -359,17 +361,16 @@ class TestTaskUpdateModal:
         assert ev.title == "دليل الإجراء"
         assert ev.uploaded_by == admin
 
-    def test_non_executor_cannot_edit(self, client, school):
-        """معلم ليس منفذاً يحصل على modal للعرض فقط (GET يعمل, POST يرفض)"""
+    def test_non_executor_gets_403_on_get(self, client, school):
+        """FIX-03: معلم ليس منفذاً يحصل على 403 حتى على GET"""
         executor = make_teacher(school)
         other_teacher = make_teacher(school)
         domain = make_domain(school)
         proc = make_procedure(school, domain, executor_user=executor)
         client.force_login(other_teacher)
-        # GET should work but is_executor=False
+        # GET should also be forbidden now
         resp = client.get(reverse("task_update_modal", kwargs={"proc_id": proc.pk}))
-        assert resp.status_code == 200
-        assert resp.context["is_executor"] is False
+        assert resp.status_code == 403
         # POST should be forbidden
         resp = client.post(
             reverse("task_update_modal", kwargs={"proc_id": proc.pk}),
@@ -408,8 +409,8 @@ class TestReviewEvaluateModal:
 
     def test_get_returns_modal(self, client, school):
         reviewer = make_teacher(school)
-        make_committee_member(school, reviewer, QualityCommitteeMember.REVIEW)
         domain = make_domain(school)
+        make_committee_member(school, reviewer, QualityCommitteeMember.REVIEW, domain=domain)
         proc = make_procedure(school, domain)
         client.force_login(reviewer)
         resp = client.get(reverse("review_evaluate_modal", kwargs={"proc_id": proc.pk}))
@@ -468,8 +469,8 @@ class TestReviewEvaluateModal:
 
     def test_sets_reviewed_by(self, client, school):
         reviewer = make_teacher(school)
-        make_committee_member(school, reviewer, QualityCommitteeMember.REVIEW)
         domain = make_domain(school)
+        make_committee_member(school, reviewer, QualityCommitteeMember.REVIEW, domain=domain)
         proc = make_procedure(school, domain, status="Pending Review")
         assert proc.reviewed_by is None
         assert proc.reviewed_at is None

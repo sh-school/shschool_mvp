@@ -82,11 +82,13 @@ def make_procedure(
 
 
 def make_committee_member(
-    school, user, committee_type=QualityCommitteeMember.REVIEW, can_review=True, year="2025-2026"
+    school, user, committee_type=QualityCommitteeMember.REVIEW, can_review=True, year="2025-2026",
+    domain=None,
 ):
     return QualityCommitteeMember.objects.create(
         school=school,
         user=user,
+        domain=domain,
         job_title=user.full_name,
         responsibility="عضو",
         committee_type=committee_type,
@@ -215,34 +217,35 @@ class TestProcedureDetail:
         assert resp.status_code == 200
         assert resp.context["can_edit"] is True
 
-    def test_non_executor_cannot_edit(self, client, school):
+    def test_non_executor_gets_403(self, client, school):
+        """FIX-06: معلم ليس منفذاً ولا مراجعاً يحصل على 403"""
         teacher = make_teacher(school, "02")
         domain = make_domain(school)
         other_teacher = make_teacher(school, "03")
         proc = make_procedure(school, domain, executor_user=other_teacher)
         client.force_login(teacher)
         resp = client.get(reverse("procedure_detail", kwargs={"proc_id": proc.pk}))
-        assert resp.status_code == 200
-        assert resp.context["can_edit"] is False
+        assert resp.status_code == 403
 
-    def test_reviewer_flag_set(self, client, school):
+    def test_reviewer_can_view_own_domain(self, client, school):
+        """FIX-06: المراجع يرى إجراءات مجاله"""
         teacher = make_teacher(school, "04")
-        make_committee_member(school, teacher, QualityCommitteeMember.REVIEW)
         domain = make_domain(school)
+        make_committee_member(school, teacher, QualityCommitteeMember.REVIEW, domain=domain)
         proc = make_procedure(school, domain)
         client.force_login(teacher)
         resp = client.get(reverse("procedure_detail", kwargs={"proc_id": proc.pk}))
         assert resp.status_code == 200
         assert resp.context["is_reviewer"] is True
 
-    def test_non_reviewer_flag_false(self, client, school):
+    def test_non_reviewer_gets_403(self, client, school):
+        """FIX-06: معلم عادي لا يرى إجراء ليس له"""
         teacher = make_teacher(school, "05")
         domain = make_domain(school)
         proc = make_procedure(school, domain)
         client.force_login(teacher)
         resp = client.get(reverse("procedure_detail", kwargs={"proc_id": proc.pk}))
-        assert resp.status_code == 200
-        assert resp.context["is_reviewer"] is False
+        assert resp.status_code == 403
 
 
 # ══════════════════════════════════════════════
@@ -397,8 +400,8 @@ class TestApproveProcedure:
 
     def test_reviewer_can_approve(self, client, school):
         teacher = make_teacher(school, "09")
-        make_committee_member(school, teacher, QualityCommitteeMember.REVIEW, can_review=True)
         domain = make_domain(school)
+        make_committee_member(school, teacher, QualityCommitteeMember.REVIEW, can_review=True, domain=domain)
         proc = make_procedure(school, domain, status="Pending Review")
         client.force_login(teacher)
         resp = client.post(

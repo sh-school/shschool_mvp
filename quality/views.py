@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.models import AuditLog
 from notifications.hub import NotificationHub
 
 from .models import (
@@ -84,6 +85,39 @@ def _is_review_member(user, school, year):
 def _can_edit_procedure(user, procedure):
     """هل يملك المستخدم صلاحية تعديل الإجراء؟"""
     return user.is_admin() or procedure.executor_user == user
+
+
+def _get_reviewer_domain(user, school, year=_DEFAULT_YEAR):
+    """الحصول على مجال المراجع (أو None إذا لم يكن مراجعاً)."""
+    membership = QualityCommitteeMember.objects.filter(
+        school=school,
+        user=user,
+        committee_type=QualityCommitteeMember.REVIEW,
+        is_active=True,
+    ).select_related("domain").first()
+    return membership.domain if membership else None
+
+
+def _can_review_procedure(user, school, procedure, year=_DEFAULT_YEAR):
+    """هل يحق للمراجع مراجعة هذا الإجراء (مجاله فقط)؟"""
+    if user.is_admin():
+        return True
+    reviewer_domain = _get_reviewer_domain(user, school, year)
+    if not reviewer_domain:
+        return False
+    proc_domain = getattr(procedure, "_cached_domain", None)
+    if not proc_domain:
+        proc_domain = procedure.indicator.target.domain if procedure.indicator else None
+    return proc_domain == reviewer_domain
+
+
+def _can_view_procedure(user, school, procedure, year=_DEFAULT_YEAR):
+    """هل يحق للمستخدم رؤية هذا الإجراء؟"""
+    if user.is_admin():
+        return True
+    if procedure.executor_user == user:
+        return True
+    return _can_review_procedure(user, school, procedure, year)
 
 
 def _build_procedure_qs(request, school, year):
@@ -246,6 +280,17 @@ def plan_dashboard(request):
 def domain_detail(request, domain_id):
     school = request.user.get_school()
     domain = get_object_or_404(OperationalDomain, id=domain_id, school=school)
+
+    # FIX-06: تقييد الوصول للمجال — المنفذ/المراجع يرى مجاله فقط
+    if not request.user.is_admin():
+        reviewer_domain = _get_reviewer_domain(request.user, school)
+        has_procs = OperationalProcedure.objects.filter(
+            school=school, executor_user=request.user,
+            indicator__target__domain=domain,
+        ).exists()
+        if not has_procs and reviewer_domain != domain:
+            return HttpResponse("غير مسموح — ليس لديك إجراءات في هذا المجال", status=403)
+
     status_filter = request.GET.get("status", "")
     executor_filter = request.GET.get("executor", "")
 
@@ -271,7 +316,13 @@ def domain_detail(request, domain_id):
 @login_required
 def procedure_detail(request, proc_id):
     school = request.user.get_school()
-    procedure = get_object_or_404(OperationalProcedure, id=proc_id, school=school)
+    procedure = get_object_or_404(
+        OperationalProcedure.objects.select_related("indicator__target__domain"),
+        id=proc_id, school=school,
+    )
+    # FIX-06: فحص الدور — المنفذ يرى إجراءه، المراجع يرى مجاله، المدير يرى الكل
+    if not _can_view_procedure(request.user, school, procedure):
+        return HttpResponse("غير مسموح — لا تملك صلاحية لعرض هذا الإجراء", status=403)
     evidences = procedure.evidences.select_related("uploaded_by").all()
 
     status_logs = (
@@ -357,10 +408,13 @@ def update_procedure_status(request, proc_id):
 @require_POST
 def approve_procedure(request, proc_id):
     school = request.user.get_school()
-    procedure = get_object_or_404(OperationalProcedure, id=proc_id, school=school)
-
-    if not (request.user.is_admin() or _is_review_member(request.user, school, _DEFAULT_YEAR)):
-        return HttpResponse("غير مسموح", status=403)
+    procedure = get_object_or_404(
+        OperationalProcedure.objects.select_related("indicator__target__domain"),
+        id=proc_id, school=school,
+    )
+    # FIX-05: فحص المجال — المراجع يعتمد مجاله فقط
+    if not _can_review_procedure(request.user, school, procedure):
+        return HttpResponse("غير مسموح — لا تملك صلاحية لهذا المجال", status=403)
 
     action = request.POST.get("action")
     note = request.POST.get("review_note", "").strip()
@@ -380,6 +434,13 @@ def approve_procedure(request, proc_id):
 
     procedure.save(
         update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"]
+    )
+
+    # FIX-08: AuditLog
+    AuditLog.log(
+        user=request.user, action="update", model_name="other",
+        object_id=procedure.pk, object_repr=f"Approve/Reject {procedure.number}",
+        request=request, changes={"action": action, "status": procedure.status, "note": note},
     )
 
     if procedure.executor_user:
@@ -469,9 +530,11 @@ def my_procedures(request):
 
 
 @login_required
-@login_required
 def execution_list(request):
-    """قائمة التنفيذ — للمنفذين والمراجعين والمدير."""
+    """قائمة التنفيذ — للمدير فقط (FIX-01: كانت مفتوحة لأي مستخدم)."""
+    if not request.user.is_admin():
+        return HttpResponse("غير مسموح — للمدير فقط", status=403)
+
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
 
@@ -508,8 +571,8 @@ def review_list(request):
 
     qs, sort, direction = _build_procedure_qs(request, school, year)
 
-    # فلترة تلقائية بالمجال إذا العضو مسؤول عن مجال ولم يختر فلتر يدوي
-    if member_domain and not request.GET.get("field"):
+    # FIX-02: فلتر المجال إلزامي — لا يمكن تجاوزه بـ ?field=
+    if member_domain:
         qs = qs.filter(indicator__target__domain=member_domain)
 
     page_obj, per_page = _paginate(request, qs)
@@ -587,10 +650,11 @@ def task_update_modal(request, proc_id):
 
     is_executor = _can_edit_procedure(request.user, procedure)
 
-    if request.method == "POST":
-        if not is_executor:
-            return HttpResponse("غير مسموح", status=403)
+    # FIX-03: 403 فوري لغير المنفذ والمدير — حتى على GET
+    if not is_executor:
+        return HttpResponse("غير مسموح — فقط المنفذ المُعيَّن يمكنه التحديث", status=403)
 
+    if request.method == "POST":
         _process_task_update(request, procedure)
         messages.success(request, "تم تحديث الإجراء بنجاح")
         return _safe_next_redirect(request, "execution_list")
@@ -670,11 +734,9 @@ def review_evaluate_modal(request, proc_id):
         school=school,
     )
 
-    is_admin = request.user.is_admin()
-    is_reviewer = _is_review_member(request.user, school, _DEFAULT_YEAR)
-
-    if not (is_admin or is_reviewer):
-        return HttpResponse("غير مسموح", status=403)
+    # FIX-04: فحص المجال — المراجع يراجع مجاله فقط
+    if not _can_review_procedure(request.user, school, procedure):
+        return HttpResponse("غير مسموح — هذا الإجراء ليس في مجالك", status=403)
 
     if request.method == "POST":
         _process_review_evaluate(request, procedure)
@@ -702,10 +764,13 @@ def review_evaluate_modal(request, proc_id):
 def toggle_evidence_request(request, proc_id):
     """تبديل حالة طلب الدليل بين مطلوب وغير مطلوب."""
     school = request.user.get_school()
-    procedure = get_object_or_404(OperationalProcedure, id=proc_id, school=school)
-
-    if not (request.user.is_admin() or _is_review_member(request.user, school, _DEFAULT_YEAR)):
-        return HttpResponse("غير مسموح", status=403)
+    procedure = get_object_or_404(
+        OperationalProcedure.objects.select_related("indicator__target__domain"),
+        id=proc_id, school=school,
+    )
+    # FIX-05: فحص المجال — المراجع يطلب أدلة لمجاله فقط
+    if not _can_review_procedure(request.user, school, procedure):
+        return HttpResponse("غير مسموح — ليس في مجالك", status=403)
 
     if procedure.evidence_request_status == "requested":
         procedure.evidence_request_status = "not_requested"
