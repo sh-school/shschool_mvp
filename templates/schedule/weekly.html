@@ -131,8 +131,7 @@
 }
 .slot-card:hover .slot-delete { opacity: 1; }
 
-/* Empty slot */
-/* Empty cell — dashed border on entire td via adjacent selector */
+/* Empty cell — dashed border on entire td */
 td:has(.slot-empty) {
   background: #fafafa;
   border: 2px dashed #e5e7eb !important;
@@ -163,6 +162,47 @@ td:has(.slot-empty) {
   width: 10px; height: 10px; border-radius: 3px;
   display: inline-block; margin-inline-end: 4px;
 }
+
+/* ── Dark Mode ── */
+.dark .sched-filters {
+  background: #1e293b; border-color: #334155;
+}
+.dark .sched-grid-wrap {
+  background: #1e293b; border-color: #334155;
+}
+.dark .sched-table tbody td {
+  border-bottom-color: #334155;
+  border-left-color: #334155;
+}
+.dark .sched-table tbody td:first-child {
+  background: #1a1625;
+  color: #e8b4c8;
+}
+.dark .sched-table tbody tr:hover td { background: #262040; }
+.dark .sched-table tbody tr:hover td:first-child { background: #2d1f3d; }
+/* Slot text */
+.dark .slot-subject { color: #f1f5f9; }
+.dark .slot-class { color: #cbd5e1; }
+.dark .slot-teacher { color: #94a3b8; }
+.dark .slot-time { color: #64748b; }
+/* Slot colors — muted dark variants */
+.dark .slot-p1 { background: #2a1a1a; border-right-color: #dc2626; }
+.dark .slot-p2 { background: #2a2014; border-right-color: #ea580c; }
+.dark .slot-p3 { background: #2a2810; border-right-color: #ca8a04; }
+.dark .slot-p4 { background: #142a1a; border-right-color: #16a34a; }
+.dark .slot-p5 { background: #141e2a; border-right-color: #2563eb; }
+.dark .slot-p6 { background: #1e142a; border-right-color: #7c3aed; }
+.dark .slot-p7 { background: #2a142a; border-right-color: #c026d3; }
+/* Empty cells dark */
+.dark td:has(.slot-empty) {
+  background: #1a2030 !important;
+  border: 2px dashed #334155 !important;
+}
+.dark .slot-empty { color: #475569; }
+/* Legend dark */
+.dark .sched-legend { color: #94a3b8; }
+.dark .sched-title { color: #e8b4c8; }
+.dark .sched-year { color: #94a3b8; }
 
 /* Mobile */
 @media (max-width: 768px) {
