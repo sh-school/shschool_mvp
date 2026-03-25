@@ -37,6 +37,17 @@ def quality_committee(request):
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
 
+    # فحص الصلاحيات — المدير أو أعضاء لجنة المراجعة فقط
+    is_admin = request.user.is_admin()
+    is_reviewer = QualityCommitteeMember.objects.filter(
+        school=school,
+        user=request.user,
+        committee_type=QualityCommitteeMember.REVIEW,
+        is_active=True,
+    ).exists()
+    if not (is_admin or is_reviewer):
+        return HttpResponse("غير مسموح — للمدير وأعضاء لجنة المراجعة فقط", status=403)
+
     staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
         "user_id", flat=True
     )

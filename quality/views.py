@@ -469,8 +469,9 @@ def my_procedures(request):
 
 
 @login_required
+@login_required
 def execution_list(request):
-    """قائمة التنفيذ — جميع الإجراءات مع فلترة وترقيم."""
+    """قائمة التنفيذ — للمنفذين والمراجعين والمدير."""
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
 
