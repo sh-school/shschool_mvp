@@ -3,24 +3,24 @@
 {% block content %}
 <div dir="rtl" class="max-w-xl mx-auto">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">⚖️ قرار لجنة الضبط السلوكي</h1>
-    <a href="{% url 'behavior:committee' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+    <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">⚖️ قرار لجنة الضبط السلوكي</h1>
+    <a href="{% url 'behavior:committee' %}" class="text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">← رجوع</a>
   </div>
-  <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-    <p class="font-bold text-red-800">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }}</p>
-    <p class="text-sm text-red-700 mt-1">{{ infraction.description }}</p>
-    <p class="text-xs text-red-500 mt-1">تاريخ المخالفة: {{ infraction.date }}</p>
+  <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4">
+    <p class="font-bold text-red-800 dark:text-red-300">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }}</p>
+    <p class="text-sm text-red-700 dark:text-red-400 mt-1">{{ infraction.description }}</p>
+    <p class="text-xs text-red-500 dark:text-red-500 mt-1">تاريخ المخالفة: {{ infraction.date }}</p>
   </div>
-  <div class="bg-white rounded-xl shadow-sm p-6">
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
     <form method="post">
       {% csrf_token %}
       <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة..."
-                class="w-full border rounded-lg px-3 py-2 text-sm resize-none mb-4 focus:ring-2 focus:ring-red-300"></textarea>
+                class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-none mb-4 focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"></textarea>
       <div class="grid grid-cols-2 gap-3 mb-4">
         <input type="number" name="points_restored" placeholder="نقاط للاسترداد" min="0" max="{{ infraction.points_deducted }}"
-               class="border rounded-lg px-3 py-2 text-sm">
+               class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400">
         <input type="text" name="recovery_reason" placeholder="سبب الاسترداد"
-               class="border rounded-lg px-3 py-2 text-sm">
+               class="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400">
       </div>
       <div class="grid grid-cols-3 gap-3">
         <button name="decision" value="resolve" class="btn-success text-white py-2.5 rounded-lg text-sm font-medium">✅ حل وإغلاق</button>
