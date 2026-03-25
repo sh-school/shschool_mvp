@@ -20,6 +20,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 from operations.models import AbsenceAlert
 
 from .services import ParentService
@@ -141,6 +142,55 @@ def student_attendance(request, student_id):
             **data,
         },
     )
+
+
+# ── سلوك الأبناء ──────────────────────────────────────────────
+
+
+@login_required
+def parent_behavior(request):
+    """ملخص السلوك لأبناء ولي الأمر."""
+    school = _get_parent_school(request)
+    if not school:
+        return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
+
+    links = ParentStudentLink.objects.filter(
+        parent=request.user, school=school
+    ).select_related("student")
+
+    children_behavior = []
+    for link in links:
+        infractions = BehaviorInfraction.objects.filter(
+            school=school, student=link.student
+        ).select_related("violation_category").order_by("-date")
+
+        total_points = sum(i.points_deducted for i in infractions)
+        recovered = BehaviorPointRecovery.objects.filter(
+            infraction__school=school, infraction__student=link.student
+        ).count()
+        recovered_points = sum(
+            r.points_restored
+            for r in BehaviorPointRecovery.objects.filter(
+                infraction__school=school, infraction__student=link.student
+            )
+        )
+
+        behavior_score = max(0, 100 - total_points + recovered_points)
+
+        children_behavior.append({
+            "student": link.student,
+            "infractions": infractions[:10],
+            "total_infractions": infractions.count(),
+            "total_points_deducted": total_points,
+            "recovered_points": recovered_points,
+            "behavior_score": min(100, behavior_score),
+            "unresolved": infractions.filter(is_resolved=False).count(),
+        })
+
+    return render(request, "parents/behavior.html", {
+        "children_behavior": children_behavior,
+        "school": school,
+    })
 
 
 # ══════════════════════════════════════════════════════════════

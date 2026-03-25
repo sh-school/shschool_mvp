@@ -12,6 +12,8 @@ urlpatterns = [
         views.student_attendance,
         name="parent_student_attendance",
     ),
+    # سلوك الأبناء
+    path("behavior/", views.parent_behavior, name="parent_behavior"),
     # إدارة الربط (مدير)
     path("admin/links/", views.manage_parent_links, name="manage_parent_links"),
     path("admin/links/add/", views.add_parent_link, name="add_parent_link"),
