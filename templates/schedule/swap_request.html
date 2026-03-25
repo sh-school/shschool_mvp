@@ -69,7 +69,7 @@ document.getElementById('slot_a')?.addEventListener('change', function() {
   const slotId = this.value;
   if (!slotId) return;
   const container = document.getElementById('swap-options-container');
-  fetch(`/operations/schedule/swap/${slotId}/options/`, {
+  fetch(`/teacher/schedule/swap/${slotId}/options/`, {
     headers: {'X-Requested-With': 'XMLHttpRequest'}
   })
   .then(r => r.text())
