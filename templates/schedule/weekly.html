@@ -234,7 +234,7 @@ td:has(.slot-empty) {
       <a href="{% url 'generate_sessions' %}" class="btn-secondary btn-sm">توليد حصص اليوم</a>
       <a href="{% url 'register_absence' %}" class="btn-secondary btn-sm">تسجيل غياب</a>
       {% endif %}
-      {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin" %}
+      {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
       <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">🔄 طلبات التبديل</a>
       <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">📅 الحصص التعويضية</a>
       {% endif %}

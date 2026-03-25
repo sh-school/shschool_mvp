@@ -20,7 +20,7 @@
         عرض
       </button>
     </form>
-    {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin" %}
+    {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
     <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
     <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
     {% endif %}
