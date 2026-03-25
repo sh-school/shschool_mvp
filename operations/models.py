@@ -164,6 +164,7 @@ class ScheduleSlot(models.Model):
     end_time = models.TimeField(verbose_name="وقت النهاية")
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
