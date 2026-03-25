@@ -2062,11 +2062,11 @@ textarea:focus-visible {
 .q-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 99999;
+  z-index: 999999;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 60px 1rem 1rem;
+  padding: 1rem;
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
