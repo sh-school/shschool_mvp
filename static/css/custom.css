@@ -3562,7 +3562,7 @@ html.dark input[type="tel"],
 html.dark input[type="url"],
 html.dark select,
 html.dark textarea {
-  background: #0f172a !important;
+  background: #1e293b !important;
   border-color: #475569 !important;
   color: #e2e8f0 !important;
 }
