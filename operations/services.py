@@ -5,7 +5,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from django.conf import settings
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Count, QuerySet
 
 from core.models import StudentEnrollment
@@ -19,6 +19,7 @@ from operations.models import (
     SubstituteAssignment,
     TeacherAbsence,
     TeacherSwap,
+    TimeSlotConfig,
 )
 
 logger = logging.getLogger(__name__)
@@ -582,6 +583,129 @@ class FreeSlotService:
 class SwapService:
     """خدمة تبديل الحصص بين المعلمين."""
 
+    # ── ثوابت القوانين ────────────────────────────────────────────
+    MIN_ADVANCE_HOURS = 24       # القانون 6: حد أدنى 24 ساعة مسبقاً
+    MAX_ADVANCE_DAYS = 14        # القانون 8: حد أقصى 14 يوم مسبقاً
+    EXPIRY_HOURS = 48            # القانون 7: انتهاء صلاحية بعد 48 ساعة
+    MAX_PENDING_PER_TEACHER = 2  # القانون 8: حد أقصى طلبين معلّقين
+    MAX_EXECUTED_PER_MONTH = 4   # القانون 8: حد أقصى 4 تبديلات شهرياً
+    # مواد تُعامل كحصص مزدوجة (SC7)
+    DOUBLE_PERIOD_SUBJECTS = {"فنون بصرية", "الفنون البصرية", "تكنولوجيا", "التكنولوجيا", "تكنولوجيا المعلومات"}
+
+    # ── التحقق الشامل من قوانين التبديل ───────────────────────────
+
+    @staticmethod
+    def validate_swap_request(
+        teacher: "CustomUser",
+        slot_a: ScheduleSlot,
+        slot_b: ScheduleSlot,
+        swap_date: date,
+        school: "School",
+    ) -> list[str]:
+        """
+        يتحقق من جميع قوانين التبديل — يعيد قائمة أخطاء (فارغة = صالح).
+
+        القوانين:
+        1. لا طلب مكرر لنفس الحصة المعلّقة
+        2. نفس الفصل فقط
+        3. لا تعارض مع طلبات معلّقة على حصة ب
+        6. تاريخ مستقبلي + 24 ساعة على الأقل
+        7. (تلقائي — cron/management command)
+        8a. حد الطلبات المعلّقة (2)
+        8b. حد التبديلات الشهرية (4)
+        5. حصص مزدوجة تُبدّل كوحدة
+        """
+        from datetime import datetime, timedelta
+        from django.utils import timezone as tz
+
+        errors = []
+        now = tz.now()
+        today = now.date()
+
+        # ── القانون 2: نفس الفصل ──────────────────────────────────
+        if slot_a.class_group_id != slot_b.class_group_id:
+            errors.append("التبديل مسموح فقط مع معلمي نفس الفصل")
+
+        # ── القانون 6: تاريخ مستقبلي + 24 ساعة ────────────────────
+        if swap_date < today:
+            errors.append("لا يمكن التبديل في تاريخ ماضٍ")
+        else:
+            # حساب 24 ساعة من الآن
+            swap_datetime = datetime.combine(swap_date, slot_a.start_time)
+            swap_datetime = tz.make_aware(swap_datetime) if tz.is_naive(swap_datetime) else swap_datetime
+            if swap_datetime - now < timedelta(hours=SwapService.MIN_ADVANCE_HOURS):
+                errors.append("يجب تقديم الطلب قبل 24 ساعة على الأقل من موعد الحصة")
+
+        # ── القانون 6b: حد أقصى 14 يوم ────────────────────────────
+        if swap_date > today + timedelta(days=SwapService.MAX_ADVANCE_DAYS):
+            errors.append(f"لا يمكن حجز تبديل بعد أكثر من {SwapService.MAX_ADVANCE_DAYS} يوماً")
+
+        # ── القانون 1: لا طلب مكرر لنفس الحصة ─────────────────────
+        pending_on_a = TeacherSwap.objects.filter(
+            slot_a=slot_a,
+            status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
+        ).exists()
+        if pending_on_a:
+            errors.append("يوجد طلب تبديل معلّق على هذه الحصة بالفعل")
+
+        # ── القانون 3: لا طلب معلّق على حصة ب ─────────────────────
+        pending_on_b = TeacherSwap.objects.filter(
+            status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
+        ).filter(
+            models.Q(slot_a=slot_b) | models.Q(slot_b=slot_b)
+        ).exists()
+        if pending_on_b:
+            errors.append("حصة المعلم الآخر عليها طلب تبديل معلّق")
+
+        # ── القانون 8a: حد الطلبات المعلّقة (2) ───────────────────
+        pending_count = TeacherSwap.objects.filter(
+            teacher_a=teacher,
+            status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
+        ).count()
+        if pending_count >= SwapService.MAX_PENDING_PER_TEACHER:
+            errors.append(f"لديك {pending_count} طلبات معلّقة — الحد الأقصى {SwapService.MAX_PENDING_PER_TEACHER}")
+
+        # ── القانون 8b: حد التبديلات الشهرية (4) ──────────────────
+        month_start = swap_date.replace(day=1)
+        next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        executed_this_month = TeacherSwap.objects.filter(
+            teacher_a=teacher,
+            status="executed",
+            swap_date_a__gte=month_start,
+            swap_date_a__lt=next_month,
+        ).count()
+        if executed_this_month >= SwapService.MAX_EXECUTED_PER_MONTH:
+            errors.append(f"وصلت للحد الأقصى ({SwapService.MAX_EXECUTED_PER_MONTH} تبديلات) هذا الشهر")
+
+        # ── القانون 5: حصص مزدوجة تُبدّل كوحدة ───────────────────
+        subj_name = (slot_a.subject.name_ar if slot_a.subject else "")
+        if subj_name in SwapService.DOUBLE_PERIOD_SUBJECTS:
+            # ابحث عن الحصة المتتالية لنفس المعلم/الفصل/المادة/اليوم
+            adjacent = ScheduleSlot.objects.filter(
+                teacher=slot_a.teacher,
+                class_group=slot_a.class_group,
+                subject=slot_a.subject,
+                day_of_week=slot_a.day_of_week,
+                is_active=True,
+                period_number__in=(slot_a.period_number - 1, slot_a.period_number + 1),
+            ).first()
+            if adjacent:
+                # تأكد أنه لا يوجد استراحة بينهما
+                between_min = min(slot_a.period_number, adjacent.period_number)
+                between_max = max(slot_a.period_number, adjacent.period_number)
+                has_break_between = TimeSlotConfig.objects.filter(
+                    school=school,
+                    is_break=True,
+                    period_number__gt=between_min,
+                    period_number__lt=between_max,
+                ).exists()
+                if not has_break_between:
+                    errors.append(
+                        f"هذه حصة مزدوجة ({subj_name}) — يجب تبديل الحصتين معاً (ح{adjacent.period_number} أيضاً)"
+                    )
+
+        return errors
+
     @staticmethod
     def get_swap_options(
         teacher: "CustomUser",
@@ -589,13 +713,12 @@ class SwapService:
         school: "School",
     ) -> list:
         """
-        معلمي نفس الصف المتاحين للتبديل مع حصة معيّنة.
-        القيد: التبديل مع معلمي نفس الصف فقط.
+        معلمي نفس الفصل المتاحين للتبديل مع حصة معيّنة.
+        القيد: التبديل مع معلمي نفس الفصل فقط.
         """
-        grade = slot.class_group.grade
-        same_grade_slots = ScheduleSlot.objects.filter(
+        same_class_slots = ScheduleSlot.objects.filter(
             school=school,
-            class_group__grade=grade,
+            class_group=slot.class_group,
             is_active=True,
         ).exclude(
             teacher=teacher,
@@ -603,7 +726,7 @@ class SwapService:
 
         # تصفية: المعلم ب يجب أن يكون فارغاً في وقت الحصة أ
         options = []
-        for candidate_slot in same_grade_slots:
+        for candidate_slot in same_class_slots:
             # هل المعلم ب فارغ في وقت حصة أ؟
             b_busy_at_a = ScheduleSlot.objects.filter(
                 teacher=candidate_slot.teacher,
@@ -640,7 +763,18 @@ class SwapService:
         reason: str = "",
         requested_by: "CustomUser | None" = None,
     ) -> TeacherSwap:
-        """إنشاء طلب تبديل + إرسال إشعار للمعلم ب."""
+        """إنشاء طلب تبديل + التحقق من القوانين + إرسال إشعار للمعلم ب."""
+        # ── التحقق من القوانين ─────────────────────────────────
+        errors = SwapService.validate_swap_request(
+            teacher=teacher_a,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date=swap_date_a,
+            school=school,
+        )
+        if errors:
+            raise ValueError(" | ".join(errors))
+
         swap_type = "same_day" if swap_date_a == swap_date_b else "cross_day"
         swap = TeacherSwap.objects.create(
             school=school,
@@ -799,6 +933,82 @@ class SwapService:
         )
         SwapService.execute_swap(swap)
         return swap
+
+    # ── إلغاء الطلب (القانون 9 / 12-14) ─────────────────────────
+
+    @staticmethod
+    @transaction.atomic
+    def cancel_swap(swap: TeacherSwap, cancelled_by: "CustomUser") -> TeacherSwap:
+        """
+        إلغاء طلب تبديل:
+        - قبل رد المعلم ب → المعلم أ يلغي بحرية
+        - بعد رد المعلم ب وقبل المنسق → أي طرف يطلب سحب
+        - بعد موافقة المنسق → المنسق/النائب/المدير فقط
+        """
+        role = cancelled_by.get_role()
+        is_leadership = role in ("coordinator", "principal", "vice_academic", "vice_admin")
+
+        if swap.status == "pending_b":
+            # القانون 12: المعلم أ يلغي بحرية
+            if cancelled_by != swap.teacher_a and not is_leadership:
+                raise ValueError("فقط المعلم صاحب الطلب يمكنه الإلغاء في هذه المرحلة")
+        elif swap.status in ("accepted_b", "pending_coordinator", "pending_vp"):
+            # القانون 13: أي طرف أو القيادة
+            if cancelled_by not in (swap.teacher_a, swap.teacher_b) and not is_leadership:
+                raise ValueError("فقط أحد المعلمين أو القيادة يمكنهم السحب")
+        elif swap.status == "approved":
+            # القانون 14: القيادة فقط
+            if not is_leadership:
+                raise ValueError("بعد الموافقة — فقط المنسق أو النائب أو المدير يمكنه الإلغاء")
+        else:
+            raise ValueError(f"لا يمكن إلغاء طلب بحالة: {swap.get_status_display()}")
+
+        swap.status = "cancelled"
+        swap.notes = f"ألغاه: {cancelled_by.full_name}"
+        swap.save(update_fields=["status", "notes", "updated_at"])
+
+        # إشعار الطرفين
+        for t in (swap.teacher_a, swap.teacher_b):
+            if t != cancelled_by:
+                SwapService._notify(
+                    swap, t,
+                    title="تم إلغاء طلب التبديل",
+                    body=f"قام {cancelled_by.full_name} بإلغاء الطلب",
+                    event_type="swap_cancelled",
+                )
+        logger.info("SwapService: cancelled swap %s by %s", swap.pk, cancelled_by.full_name)
+        return swap
+
+    # ── انتهاء صلاحية الطلبات المعلّقة (القانون 7) ────────────────
+
+    @staticmethod
+    def expire_stale_swaps() -> int:
+        """
+        يُنفّذ دورياً (cron/management command) —
+        يُلغي الطلبات المعلّقة أكثر من 48 ساعة بدون رد من المعلم ب.
+        """
+        from datetime import timedelta
+        from django.utils import timezone as tz
+
+        cutoff = tz.now() - timedelta(hours=SwapService.EXPIRY_HOURS)
+        stale = TeacherSwap.objects.filter(
+            status="pending_b",
+            created_at__lt=cutoff,
+        )
+        count = stale.count()
+        for swap in stale:
+            swap.status = "cancelled"
+            swap.notes = "انتهت صلاحية الطلب — لم يرد المعلم خلال 48 ساعة"
+            swap.save(update_fields=["status", "notes", "updated_at"])
+            SwapService._notify(
+                swap, swap.teacher_a,
+                title="انتهت صلاحية طلب التبديل",
+                body=f"لم يرد {swap.teacher_b.full_name} خلال 48 ساعة — يمكنك تقديم طلب جديد",
+                event_type="swap_expired",
+            )
+        if count:
+            logger.info("SwapService: expired %d stale swaps", count)
+        return count
 
     @staticmethod
     def _notify(swap: TeacherSwap, recipient: "CustomUser", title: str, body: str, event_type: str):

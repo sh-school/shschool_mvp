@@ -964,6 +964,24 @@ def swap_approve(request, swap_id):
     return redirect("swap_list")
 
 
+# ── إلغاء طلب تبديل (القانون 9 / 12-14) ─────────────────────────
+
+@login_required
+@require_POST
+def swap_cancel(request, swap_id):
+    """إلغاء طلب تبديل — القواعد تعتمد على المرحلة والدور."""
+    school = request.user.get_school()
+    swap = get_object_or_404(TeacherSwap, pk=swap_id, school=school)
+
+    try:
+        SwapService.cancel_swap(swap, cancelled_by=request.user)
+        messages.success(request, "تم إلغاء طلب التبديل")
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect("swap_list")
+
+
 # ── قائمة الحصص التعويضية ────────────────────────────────────────
 
 @login_required

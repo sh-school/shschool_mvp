@@ -35,6 +35,7 @@ urlpatterns = [
     path("schedule/swap/<uuid:slot_id>/options/", views.swap_options_htmx, name="swap_options"),
     path("schedule/swap/<uuid:swap_id>/respond/", views.swap_respond, name="swap_respond"),
     path("schedule/swap/<uuid:swap_id>/approve/", views.swap_approve, name="swap_approve"),
+    path("schedule/swap/<uuid:swap_id>/cancel/", views.swap_cancel, name="swap_cancel"),
     path("schedule/compensatory/", views.compensatory_list, name="compensatory_list"),
     path("schedule/compensatory/request/", views.compensatory_request, name="compensatory_request"),
     path("schedule/compensatory/<uuid:comp_id>/approve/", views.compensatory_approve, name="compensatory_approve"),
