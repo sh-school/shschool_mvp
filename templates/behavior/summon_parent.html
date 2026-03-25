@@ -1,0 +1,66 @@
+{% extends "base/base.html" %}
+{% block title %}استدعاء ولي أمر{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="استدعاء ولي أمر" %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">استدعاء ولي أمر</h1>
+      <p class="page-subtitle">{{ school.name }}</p>
+    </div>
+    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">العودة للسلوك</a>
+  </div>
+
+  <div class="card" style="max-width:640px;">
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="space-y-4">
+        {# اختيار الطالب #}
+        <div>
+          <label class="block text-sm font-semibold mb-1">الطالب <span class="text-red-500">*</span></label>
+          <select name="student_id" required
+                  class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+            <option value="">— اختر الطالب —</option>
+            {% for s in students %}
+            <option value="{{ s.pk }}" {% if selected_student and selected_student.pk == s.pk %}selected{% endif %}>
+              {{ s.full_name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {# سبب الاستدعاء #}
+        <div>
+          <label class="block text-sm font-semibold mb-1">سبب الاستدعاء <span class="text-red-500">*</span></label>
+          <textarea name="reason" required rows="4" maxlength="1000" placeholder="اكتب سبب استدعاء ولي الأمر..."
+                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"></textarea>
+        </div>
+
+        {# الموعد المطلوب #}
+        <div>
+          <label class="block text-sm font-semibold mb-1">الموعد المطلوب للحضور</label>
+          <input type="date" name="summon_date"
+                 class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
+        </div>
+
+        {# تنبيه #}
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-4 py-3 text-sm">
+          <strong>تنبيه:</strong> سيتم إرسال إشعار فوري لولي الأمر عبر المنصة والرسائل النصية والبريد الإلكتروني.
+        </div>
+
+        <button type="submit"
+                class="w-full bg-[var(--maroon)] text-white font-bold py-3 rounded-lg hover:opacity-90 transition">
+          إرسال الاستدعاء
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

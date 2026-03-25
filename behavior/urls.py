@@ -36,6 +36,9 @@ urlpatterns = [
         views.infraction_student_pdf,
         name="student_pdf",
     ),
+    # استدعاء ولي أمر
+    path("summon/", views.summon_parent, name="summon_parent"),
+    path("summon/<uuid:student_id>/", views.summon_parent, name="summon_parent_student"),
     # ✅ v5: لائحة السلوك PDF — للموظفين + أولياء الأمور
     path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
 ]

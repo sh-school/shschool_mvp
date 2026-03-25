@@ -218,6 +218,7 @@ class InAppNotification(models.Model):
         ("clinic", "زيارة عيادة"),
         ("sent_home", "إرسال للمنزل"),
         ("meeting", "اجتماع أولياء أمور"),
+        ("parent_summon", "استدعاء ولي أمر"),
         ("plan_update", "تحديث الخطة التشغيلية"),
         ("plan_deadline", "اقتراب موعد نهائي"),
         ("plan_overdue", "تأخر إجراء"),

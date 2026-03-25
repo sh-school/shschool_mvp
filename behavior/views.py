@@ -481,6 +481,75 @@ def infraction_student_pdf(request, infraction_id):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD)
+def summon_parent(request, student_id=None):
+    """استدعاء ولي أمر طالب — إرسال إشعار رسمي."""
+    school = request.user.get_school()
+    if not school:
+        return HttpResponseForbidden("لم يتم تعيينك في مدرسة")
+
+    if request.method == "POST":
+        sid = request.POST.get("student_id") or student_id
+        reason = request.POST.get("reason", "").strip()
+        summon_date = request.POST.get("summon_date", "")
+
+        if not sid or not reason:
+            messages.error(request, "يجب اختيار الطالب وكتابة السبب")
+            return redirect("behavior:summon_parent")
+
+        student = get_object_or_404(CustomUser, pk=sid)
+
+        from notifications.hub import NotificationHub
+
+        title = f"استدعاء ولي أمر — {student.full_name}"
+        body = f"السبب: {reason}"
+        if summon_date:
+            body += f"\nالموعد المطلوب: {summon_date}"
+        body += f"\nمن: {request.user.full_name}"
+
+        result = NotificationHub.dispatch_to_parents(
+            event_type="parent_summon",
+            school=school,
+            student=student,
+            title=title,
+            body=body,
+            related_url=f"/behavior/student/{student.pk}/",
+            sent_by=request.user,
+        )
+
+        count = result.get("in_app", 0)
+        if count:
+            messages.success(request, f"تم إرسال الاستدعاء لـ {count} ولي أمر")
+        else:
+            messages.warning(request, "لم يُعثر على أولياء أمور مربوطين بهذا الطالب")
+
+        return redirect("behavior:summon_parent")
+
+    # GET — نموذج الاستدعاء
+    from core.models import Membership
+
+    students = (
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__role__name="student",
+            memberships__is_active=True,
+        )
+        .order_by("full_name")
+        .distinct()
+    )
+
+    selected_student = None
+    if student_id:
+        selected_student = CustomUser.objects.filter(pk=student_id).first()
+
+    return render(request, "behavior/summon_parent.html", {
+        "students": students,
+        "selected_student": selected_student,
+        "school": school,
+    })
+
+
+@login_required
 def behavior_policy_pdf(request):
     """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
     import os
