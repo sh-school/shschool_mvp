@@ -805,12 +805,13 @@ class SwapService:
         """إرسال إشعار — يفشل بصمت إذا نظام الإشعارات غير متاح."""
         try:
             from notifications.hub import NotificationHub
-            NotificationHub.send_to_user(
-                user=recipient,
+            NotificationHub.dispatch(
                 event_type=event_type,
+                school=swap.school,
+                recipients=[recipient],
                 title=title,
                 body=body,
-                related_url=f"/operations/schedule/swaps/",
+                related_url="/teacher/schedule/swaps/",
             )
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             logger.warning("SwapService._notify failed [swap=%s]: %s", swap.pk, exc)
@@ -895,18 +896,16 @@ class CompensatoryService:
                 ).values_list("user_id", flat=True)
 
                 from core.models import CustomUser
-                for cid in coordinators:
-                    try:
-                        coord = CustomUser.objects.get(pk=cid)
-                        NotificationHub.send_to_user(
-                            user=coord,
-                            event_type="compensatory",
-                            title=f"طلب تعويض من {teacher.full_name}",
-                            body=f"يطلب تعويض حصة {original_slot.subject or 'مادة'} بتاريخ {compensatory_date}",
-                            related_url="/operations/schedule/compensatory/",
-                        )
-                    except Exception:
-                        pass
+                coord_users = list(CustomUser.objects.filter(pk__in=coordinators))
+                if coord_users:
+                    NotificationHub.dispatch(
+                        event_type="compensatory",
+                        school=school,
+                        recipients=coord_users,
+                        title=f"طلب تعويض من {teacher.full_name}",
+                        body=f"يطلب تعويض حصة {original_slot.subject or 'مادة'} بتاريخ {compensatory_date}",
+                        related_url="/teacher/schedule/compensatory/",
+                    )
         except (ImportError, OSError):
             pass
 
@@ -974,12 +973,13 @@ class CompensatoryService:
         try:
             from notifications.hub import NotificationHub
             status_text = "تمت الموافقة" if approved else "تم الرفض"
-            NotificationHub.send_to_user(
-                user=comp.teacher,
+            NotificationHub.dispatch(
                 event_type="compensatory",
+                school=comp.school,
+                recipients=[comp.teacher],
                 title=f"طلب التعويض: {status_text}",
                 body=f"حصة {comp.subject or 'مادة'} بتاريخ {comp.compensatory_date}",
-                related_url="/operations/schedule/compensatory/",
+                related_url="/teacher/schedule/compensatory/",
             )
         except (ImportError, OSError, RuntimeError, ValueError):
             pass
