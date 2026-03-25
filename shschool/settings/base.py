@@ -60,6 +60,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    "core.middleware_rls.RLSMiddleware",  # ✅ v5.2: PostgreSQL RLS — defense-in-depth
     "csp.middleware.CSPMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # ✅ v5.1: Prometheus آخر middleware لقياس وقت الاستجابة كاملاً
@@ -80,6 +81,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.school_context",
+                "core.context_processors.quality_nav_context",
             ],
         },
     },

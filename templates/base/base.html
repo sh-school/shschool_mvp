@@ -101,6 +101,10 @@
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      {% if is_quality_reviewer %}
+      <a href="/quality/review/" class="nb">🔍 المراجعة الذاتية</a>
+      <a href="/quality/committee/" class="nb">📋 لجنة المراجعة</a>
+      {% endif %}
       <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
 
     {% elif role == "student" %}
