@@ -36,6 +36,15 @@
     </div>
   </div>
 
+  {# ══ Member Domain Notice ════════════════════════════════ #}
+  {% if member_domain %}
+  <div class="quality-notice" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:0.75rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:#92400e">
+    <i class="fa-solid fa-filter"></i>
+    <span>أنت مسؤول عن مجال <strong>{{ member_domain.name }}</strong> — يتم عرض إجراءات هذا المجال فقط.
+    <a href="?field=" style="color:#8A1538;font-weight:600;text-decoration:underline">عرض كل المجالات</a></span>
+  </div>
+  {% endif %}
+
   {# ══ Filters ═════════════════════════════════════════════ #}
   <div class="quality-filters">
     <div class="quality-filters-header">

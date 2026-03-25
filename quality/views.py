@@ -493,11 +493,29 @@ def review_list(request):
     if not (is_admin or is_reviewer):
         return HttpResponse("غير مسموح", status=403)
 
+    # ── الحصول على مجال العضو (للفلترة التلقائية) ──
+    member_domain = None
+    if is_reviewer and not is_admin:
+        membership = QualityCommitteeMember.objects.filter(
+            school=school,
+            user=request.user,
+            committee_type=QualityCommitteeMember.REVIEW,
+            is_active=True,
+        ).select_related("domain").first()
+        if membership and membership.domain:
+            member_domain = membership.domain
+
     qs, sort, direction = _build_procedure_qs(request, school, year)
+
+    # فلترة تلقائية بالمجال إذا العضو مسؤول عن مجال ولم يختر فلتر يدوي
+    if member_domain and not request.GET.get("field"):
+        qs = qs.filter(indicator__target__domain=member_domain)
+
     page_obj, per_page = _paginate(request, qs)
     ctx = _list_context(request, school, year, page_obj, per_page, sort, direction)
     ctx["evidence_request_choices"] = OperationalProcedure.EVIDENCE_REQUEST_STATUS
     ctx["is_reviewer"] = is_reviewer or is_admin
+    ctx["member_domain"] = member_domain
 
     return render(request, "quality/review_list.html", ctx)
 

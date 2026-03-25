@@ -44,9 +44,9 @@ def quality_committee(request):
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
     # ── Bulk counts بدلاً من N+1 ────────────────────────────
-    from django.db.models import Count
+    from django.db.models import Count, Q
 
-    # عدد المراجعات لكل مستخدم
+    # عدد المراجعات لكل مستخدم (reviewed_by أو status مكتمل+معتمد)
     reviewed_map = dict(
         OperationalProcedure.objects.filter(
             school=school, academic_year=year, reviewed_by__isnull=False
@@ -55,10 +55,27 @@ def quality_committee(request):
         .annotate(c=Count("id"))
         .values_list("reviewed_by", "c")
     )
-    # عدد الإجراءات المعلقة لكل مجال
-    pending_map = dict(
+
+    # عدد الإجراءات بحاجة مراجعة لكل مجال:
+    # أي إجراء لم يُراجع بعد (reviewed_by=NULL) وليس ملغى
+    needs_review_map = dict(
         OperationalProcedure.objects.filter(
-            school=school, academic_year=year, status="Pending Review"
+            school=school,
+            academic_year=year,
+            reviewed_by__isnull=True,
+        )
+        .exclude(status__in=["Not Started", "Cancelled"])
+        .values("indicator__target__domain")
+        .annotate(c=Count("id"))
+        .values_list("indicator__target__domain", "c")
+    )
+
+    # الإجراءات المعتمدة (مكتملة ومُراجعة) لكل مجال
+    reviewed_domain_map = dict(
+        OperationalProcedure.objects.filter(
+            school=school,
+            academic_year=year,
+            reviewed_by__isnull=False,
         )
         .values("indicator__target__domain")
         .annotate(c=Count("id"))
@@ -70,10 +87,16 @@ def quality_committee(request):
         member_review_stats.append(
             {
                 "member": member,
-                "reviewed_count": reviewed_map.get(member.user_id, 0) if member.user_id else 0,
-                "pending_in_domain": pending_map.get(member.domain_id, 0)
-                if member.domain_id
-                else 0,
+                "reviewed_count": (
+                    reviewed_domain_map.get(member.domain_id, 0)
+                    if member.domain_id
+                    else reviewed_map.get(member.user_id, 0) if member.user_id else 0
+                ),
+                "pending_in_domain": (
+                    needs_review_map.get(member.domain_id, 0)
+                    if member.domain_id
+                    else 0
+                ),
             }
         )
 

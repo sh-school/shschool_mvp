@@ -93,7 +93,8 @@
             <th>المسؤولية</th>
             <th>المجال</th>
             <th>تم مراجعتها</th>
-            <th>بانتظار المراجعة</th>
+            <th>بحاجة مراجعة</th>
+            <th>مراجعة المجال</th>
             <th>حذف</th>
           </tr>
         </thead>
@@ -125,6 +126,16 @@
                 <span class="q-badge q-badge-warning">{{ ms.pending_in_domain }}</span>
               {% else %}
                 <span class="cell-zero">0</span>
+              {% endif %}
+            </td>
+            <td class="cell-center">
+              {% if ms.member.domain %}
+                <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}"
+                   class="q-btn q-btn-maroon" style="font-size:0.75rem;padding:0.25rem 0.75rem">
+                  <i class="fa-solid fa-gavel"></i> مراجعة
+                </a>
+              {% else %}
+                <span class="cell-empty">—</span>
               {% endif %}
             </td>
             <td class="cell-center">
