@@ -19,6 +19,7 @@ from core.models import AuditLog
 from notifications.hub import NotificationHub
 
 from .models import (
+    ExecutorMapping,
     OperationalDomain,
     OperationalProcedure,
     ProcedureEvidence,
@@ -511,6 +512,13 @@ def my_procedures(request):
     completed = qs.filter(status="Completed").count()
     pct = round(completed / total * 100) if total else 0
 
+    # فحص هل حساب المستخدم مربوط بمنفذ في الخطة
+    mapping_exists = ExecutorMapping.objects.filter(
+        school=school, user=request.user
+    ).exists() or OperationalProcedure.objects.filter(
+        school=school, executor_user=request.user, academic_year=year
+    ).exists()
+
     return render(
         request,
         "quality/my_procedures.html",
@@ -522,6 +530,7 @@ def my_procedures(request):
             "completed": completed,
             "pct": pct,
             "year": year,
+            "mapping_exists": mapping_exists,
         },
     )
 

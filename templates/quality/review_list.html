@@ -31,8 +31,10 @@
           <option value="all" {% if current_per_page == "all" %}selected{% endif %}>الكل</option>
         </select>
       </form>
+      {% if request.user.is_admin %}
       <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">لجنة المنفذين</a>
       <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
+      {% endif %}
     </div>
   </div>
 
@@ -40,8 +42,7 @@
   {% if member_domain %}
   <div class="quality-notice" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:0.75rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:#92400e">
     <i class="fa-solid fa-filter"></i>
-    <span>أنت مسؤول عن مجال <strong>{{ member_domain.name }}</strong> — يتم عرض إجراءات هذا المجال فقط.
-    <a href="?field=" style="color:#8A1538;font-weight:600;text-decoration:underline">عرض كل المجالات</a></span>
+    <span>أنت مسؤول عن مجال <strong>{{ member_domain.name }}</strong> — يتم عرض إجراءات هذا المجال فقط.</span>
   </div>
   {% endif %}
 
@@ -55,15 +56,21 @@
       <input type="hidden" name="dir" value="{{ current_dir }}">
 
       <div class="quality-filters-grid">
-        {# 1 — المجال #}
+        {# 1 — المجال (مقفل للمراجع على مجاله فقط) #}
         <div class="quality-filter-field">
           <label>المجال</label>
+          {% if member_domain %}
+          <select name="field" disabled style="opacity:.7;cursor:not-allowed">
+            <option value="{{ member_domain.id }}" selected>{{ member_domain.name }}</option>
+          </select>
+          {% else %}
           <select name="field">
             <option value="">الكل</option>
             {% for f in fields %}
               <option value="{{ f.id }}" {% if request.GET.field == f.id|stringformat:"s" %}selected{% endif %}>{{ f.name }}</option>
             {% endfor %}
           </select>
+          {% endif %}
         </div>
 
         {# 2 — رقم الهدف #}
