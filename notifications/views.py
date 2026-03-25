@@ -215,8 +215,8 @@ def notification_inbox(request):
     unread_count = InAppNotification.objects.unread_count(request.user)
 
     # فلترة أنواع الإشعارات حسب الدور
-    PARENT_TYPES = {"behavior", "absence", "grade", "fail", "clinic", "sent_home", "general"}
-    STUDENT_TYPES = {"grade", "fail", "behavior", "absence", "general"}
+    PARENT_TYPES = {"behavior", "absence", "grade", "fail", "clinic", "sent_home", "meeting", "general"}
+    STUDENT_TYPES = {"grade", "fail", "behavior", "absence", "clinic", "general"}
     role = getattr(request.user, "get_role", lambda: "")()
     if role == "parent":
         visible_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in PARENT_TYPES]
