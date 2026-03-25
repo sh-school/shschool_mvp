@@ -132,10 +132,13 @@
 .slot-card:hover .slot-delete { opacity: 1; }
 
 /* Empty slot */
+/* Empty cell — dashed border on entire td via adjacent selector */
+td:has(.slot-empty) {
+  background: #fafafa;
+  border: 2px dashed #e5e7eb !important;
+}
 .slot-empty {
   height: 100%;
-  border: 2px dashed #e5e7eb;
-  border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   color: #d1d5db;
   font-size: .65rem;
