@@ -1252,6 +1252,8 @@ class TestEvaluationCycle:
         )
         # Now 1 out of 1 teacher staff = 100%
         # (principal has role 'principal' which is not in the staff list)
+        # Re-fetch to clear cached_property
+        cycle = EvaluationCycle.objects.get(pk=cycle.pk)
         assert cycle.completion_rate == 100
 
     def test_unique_constraint(self):

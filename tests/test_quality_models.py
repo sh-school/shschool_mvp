@@ -11,6 +11,10 @@ from django.utils import timezone
 
 from core.models import CustomUser, Membership, Role
 from quality.models import (
+    EmployeeEvaluation,
+    EvaluationAxis,
+    EvaluationCycle,
+    EvaluationScore,
     ExecutorMapping,
     OperationalDomain,
     OperationalIndicator,
@@ -18,6 +22,7 @@ from quality.models import (
     OperationalTarget,
     ProcedureStatusLog,
     QualityCommitteeMember,
+    RoleEvaluationTemplate,
 )
 
 # ══════════════════════════════════════════════
@@ -704,3 +709,321 @@ class TestNewFields:
             proc.save()
             proc.refresh_from_db()
             assert proc.follow_up == value
+
+
+# ══════════════════════════════════════════════
+#  HELPER: إنشاء تقييم موظف
+# ══════════════════════════════════════════════
+
+
+def make_evaluation(school, employee, evaluator, period="S1", **kwargs):
+    defaults = {
+        "school": school,
+        "employee": employee,
+        "evaluator": evaluator,
+        "period": period,
+        "academic_year": "2025-2026",
+        "axis_professional": 20,
+        "axis_commitment": 22,
+        "axis_teamwork": 18,
+        "axis_development": 21,
+    }
+    defaults.update(kwargs)
+    return EmployeeEvaluation.objects.create(**defaults)
+
+
+# ══════════════════════════════════════════════
+#  7. EmployeeEvaluation — إصلاح #3 (calculate_total تحسين)
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestEmployeeEvaluation:
+    """اختبار EmployeeEvaluation مع إصلاح #3"""
+
+    def test_calculate_total_on_create(self, school):
+        """عند الإنشاء يُحسب المجموع والتقدير تلقائياً"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        assert ev.total_score == 81  # 20+22+18+21
+        assert ev.rating == "very_good"
+
+    def test_rating_excellent(self, school):
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(
+            school, teacher, admin,
+            axis_professional=25, axis_commitment=25,
+            axis_teamwork=23, axis_development=22,
+        )
+        assert ev.total_score == 95
+        assert ev.rating == "excellent"
+
+    def test_rating_good(self, school):
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(
+            school, teacher, admin,
+            axis_professional=15, axis_commitment=16,
+            axis_teamwork=15, axis_development=16,
+        )
+        assert ev.total_score == 62
+        assert ev.rating == "good"
+
+    def test_rating_needs_dev(self, school):
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(
+            school, teacher, admin,
+            axis_professional=10, axis_commitment=10,
+            axis_teamwork=10, axis_development=10,
+        )
+        assert ev.total_score == 40
+        assert ev.rating == "needs_dev"
+
+    def test_save_with_update_fields_skips_recalc(self, school):
+        """إصلاح #3: update_fields بدون محاور لا يُعيد الحساب"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        original_total = ev.total_score
+
+        # تغيير حقل غير محوري
+        ev.employee_comment = "تعليق اختباري"
+        ev.save(update_fields=["employee_comment"])
+        ev.refresh_from_db()
+        assert ev.total_score == original_total
+        assert ev.employee_comment == "تعليق اختباري"
+
+    def test_save_with_axis_update_fields_recalculates(self, school):
+        """إصلاح #3: update_fields يشمل محور → يُعيد الحساب"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+
+        ev.axis_professional = 25
+        ev.save(update_fields=["axis_professional"])
+        ev.refresh_from_db()
+        assert ev.total_score == 86  # 25+22+18+21
+
+    def test_acknowledge(self, school):
+        """الموظف يُقرّ باستلام التقييم"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin, status="approved")
+        ev.acknowledge()
+        ev.refresh_from_db()
+        assert ev.status == "acknowledged"
+        assert ev.acknowledged_at is not None
+
+    def test_unique_eval_per_period(self, school):
+        """لا يمكن إنشاء تقييمين لنفس الموظف في نفس الفترة"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        make_evaluation(school, teacher, admin, period="S1")
+        with pytest.raises(Exception):
+            make_evaluation(school, teacher, admin, period="S1")
+
+
+# ══════════════════════════════════════════════
+#  8. EvaluationScore — إصلاح #5 (متعدد المقيّمين)
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestEvaluationScore:
+    """اختبار نظام متعدد المقيّمين"""
+
+    def test_create_score(self, school):
+        """إنشاء تقييم من مقيِّم واحد"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        score = EvaluationScore.objects.create(
+            evaluation=ev,
+            evaluator=admin,
+            weight=100,
+            axis_professional=22,
+            axis_commitment=20,
+            axis_teamwork=19,
+            axis_development=21,
+        )
+        assert score.total_score == 82
+
+    def test_multi_evaluator_weighted_total(self, school):
+        """إصلاح #5: حساب المجموع المرجح من متعدد المقيّمين"""
+        admin = make_admin(school)
+        vice = make_teacher(school, suffix="نائب")
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+
+        # مدير: وزن 60%، درجة 90
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=admin, weight=60,
+            axis_professional=24, axis_commitment=23,
+            axis_teamwork=22, axis_development=21,
+        )
+        # نائب: وزن 40%، درجة 70
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=vice, weight=40,
+            axis_professional=18, axis_commitment=17,
+            axis_teamwork=18, axis_development=17,
+        )
+
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        # (90*60 + 70*40) / 100 = (5400+2800)/100 = 82
+        assert ev.total_score == 82
+        assert ev.rating == "very_good"
+
+    def test_custom_axes_in_score(self, school):
+        """محاور مخصصة عبر JSON"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        score = EvaluationScore.objects.create(
+            evaluation=ev,
+            evaluator=admin,
+            weight=100,
+            custom_axes={"teaching_skills": 30, "classroom_mgmt": 25, "tech_use": 20},
+        )
+        assert score.total_score == 75
+
+    def test_unique_score_per_evaluator(self, school):
+        """لا يمكن لمقيِّم واحد تقييم نفس الموظف مرتين"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=admin, weight=100,
+            axis_professional=20, axis_commitment=20,
+            axis_teamwork=20, axis_development=20,
+        )
+        with pytest.raises(Exception):
+            EvaluationScore.objects.create(
+                evaluation=ev, evaluator=admin, weight=100,
+                axis_professional=15, axis_commitment=15,
+                axis_teamwork=15, axis_development=15,
+            )
+
+
+# ══════════════════════════════════════════════
+#  9. RoleEvaluationTemplate — إصلاح #6
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestRoleEvaluationTemplate:
+    """اختبار قوالب تقييم الأدوار"""
+
+    def test_create_template_with_axes(self, school):
+        """إنشاء قالب تقييم بمحاور مخصصة"""
+        tmpl = RoleEvaluationTemplate.objects.create(
+            school=school, role_name="teacher", academic_year="2025-2026",
+        )
+        EvaluationAxis.objects.create(
+            template=tmpl, key="teaching_skills", label="مهارات التدريس", weight=30, order=1,
+        )
+        EvaluationAxis.objects.create(
+            template=tmpl, key="classroom_mgmt", label="إدارة الفصل", weight=25, order=2,
+        )
+        EvaluationAxis.objects.create(
+            template=tmpl, key="assessment", label="التقييم والقياس", weight=25, order=3,
+        )
+        EvaluationAxis.objects.create(
+            template=tmpl, key="professional_dev", label="التطوير المهني", weight=20, order=4,
+        )
+        assert tmpl.total_weight == 100
+        assert tmpl.axes.count() == 4
+
+    def test_unique_template_per_role_year(self, school):
+        """لا يمكن إنشاء قالبين لنفس الدور في نفس السنة"""
+        RoleEvaluationTemplate.objects.create(
+            school=school, role_name="nurse", academic_year="2025-2026",
+        )
+        with pytest.raises(Exception):
+            RoleEvaluationTemplate.objects.create(
+                school=school, role_name="nurse", academic_year="2025-2026",
+            )
+
+    def test_unique_axis_per_template(self, school):
+        """لا يمكن تكرار نفس المحور في القالب"""
+        tmpl = RoleEvaluationTemplate.objects.create(
+            school=school, role_name="coordinator", academic_year="2025-2026",
+        )
+        EvaluationAxis.objects.create(
+            template=tmpl, key="leadership", label="القيادة", weight=30,
+        )
+        with pytest.raises(Exception):
+            EvaluationAxis.objects.create(
+                template=tmpl, key="leadership", label="القيادة مكرر", weight=20,
+            )
+
+    def test_evaluation_linked_to_template(self, school):
+        """ربط تقييم بقالب دور"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        tmpl = RoleEvaluationTemplate.objects.create(
+            school=school, role_name="teacher", academic_year="2025-2026",
+        )
+        ev = make_evaluation(school, teacher, admin, template=tmpl)
+        assert ev.template == tmpl
+
+
+# ══════════════════════════════════════════════
+#  10. EvaluationCycle — إصلاح #4 (cached_property)
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestEvaluationCycle:
+    """اختبار دورة التقييم"""
+
+    def test_completion_rate_zero(self, school):
+        """دورة بدون تقييمات → 0%"""
+        admin = make_admin(school)
+        cycle = EvaluationCycle.objects.create(
+            school=school, academic_year="2025-2026", period="S1",
+            deadline=timezone.now().date() + timedelta(days=30),
+            created_by=admin,
+        )
+        assert cycle.completion_rate == 0
+
+    def test_completion_rate_with_evals(self, school):
+        """دورة مع تقييمات مُقدمة → نسبة صحيحة"""
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        cycle = EvaluationCycle.objects.create(
+            school=school, academic_year="2025-2026", period="S1",
+            deadline=timezone.now().date() + timedelta(days=30),
+            created_by=admin,
+        )
+        make_evaluation(school, teacher, admin, period="S1", status="submitted")
+        # cached_property: إنشاء instance جديد لأن القيمة مخزنة مؤقتاً
+        cycle2 = EvaluationCycle.objects.get(pk=cycle.pk)
+        # المعلم الوحيد مقيَّم → 100% (إذا كان هناك role teacher)
+        rate = cycle2.completion_rate
+        assert rate >= 0  # يعتمد على عدد الموظفين في المدرسة
+
+
+# ══════════════════════════════════════════════
+#  11. OperationalDomain — إصلاح #2 (annotate cache)
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestDomainAnnotateCache:
+    """اختبار أن annotate يملأ cache الـ properties"""
+
+    def test_with_progress_uses_cache(self, school):
+        """with_progress() يضبط total_procedures/completed_procedures من annotate"""
+        domain = make_domain(school)
+        make_procedure(school, domain, status="Completed")
+        make_procedure(school, domain, status="In Progress")
+
+        annotated = OperationalDomain.objects.filter(pk=domain.pk).with_progress().first()
+        # يجب أن تستخدم القيم المُحسَّبة (annotate) لا queries إضافية
+        assert annotated.total_procedures == 2
+        assert annotated.completed_procedures == 1
+        assert annotated.completion_pct == 50

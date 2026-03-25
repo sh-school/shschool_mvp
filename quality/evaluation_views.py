@@ -13,7 +13,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core.models import AuditLog, CustomUser, Membership
 
-from .models import EmployeeEvaluation, EvaluationCycle
+from .models import (
+    EmployeeEvaluation,
+    EvaluationCycle,
+    EvaluationScore,
+    RoleEvaluationTemplate,
+)
 
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 

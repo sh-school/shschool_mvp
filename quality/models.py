@@ -1,18 +1,19 @@
 """
 quality/models.py
 الخطة التشغيلية + لجنة موحّدة (تنفيذية + مراجعة ذاتية) + ربط المنفذين
++ تقييم أداء الموظفين (متعدد المقيّمين + قوالب أدوار)
 الهيكل الهرمي: مجال → هدف → مؤشر → إجراء → دليل
 
-التغييرات في هذا الإصدار (الإصلاح #2):
-- دمج OperationalPlanExecutorCommittee مع QualityCommitteeMember
-- إضافة committee_type لتمييز نوع اللجنة
-- إضافة صلاحيات على مستوى الفرد (can_execute / can_review / can_report)
-- إضافة CommitteeManager للاستعلامات المتقدمة
-- إزالة advanced_search من النموذج ونقلها للـ Manager
+الإصلاحات:
+- #2: دمج اللجان + CommitteeManager
+- #5: نظام متعدد المقيّمين بأوزان (EvaluationScore)
+- #6: قوالب تقييم مخصصة لكل دور (RoleEvaluationTemplate + EvaluationAxis)
+- #7: توسيع _EVALUABLE_ROLES لتشمل كل الأدوار الوظيفية
 """
 
 import uuid
 from datetime import timedelta
+from functools import cached_property
 
 from django.conf import settings
 from django.db import models
@@ -34,7 +35,7 @@ _SCORE_EXCELLENT = 90
 _SCORE_VERY_GOOD = 75
 _SCORE_GOOD = 60
 
-# الأدوار القابلة للتقييم
+# الأدوار القابلة للتقييم — إصلاح #7: شاملة لكل الأدوار الوظيفية
 _EVALUABLE_ROLES = frozenset(
     [
         "teacher",
@@ -48,6 +49,14 @@ _EVALUABLE_ROLES = frozenset(
         "vice_academic",
     ]
 )
+
+# الأوزان الافتراضية للمحاور الأربعة (كل محور من 25)
+_DEFAULT_AXES = [
+    ("professional", "الكفاءة المهنية", 25),
+    ("commitment", "الالتزام والمسؤولية", 25),
+    ("teamwork", "العمل الجماعي والتواصل", 25),
+    ("development", "التطوير المهني والمبادرة", 25),
+]
 
 # ─────────────────────────────────────────────────────────────
 # 1. الهيكل الهرمي للخطة التشغيلية
@@ -84,21 +93,27 @@ class OperationalDomain(models.Model):
 
     @property
     def total_procedures(self):
+        """عدد الإجراءات — يُفضّل استخدام DomainQuerySet.with_progress() لتجنب N+1"""
+        # إذا كانت القيمة مُحسَّبة عبر annotate، استخدمها مباشرة
+        if hasattr(self, "_total_procedures_cache"):
+            return self._total_procedures_cache
         return OperationalProcedure.objects.filter(indicator__target__domain=self).count()
 
     @total_procedures.setter
     def total_procedures(self, value):
-        pass  # يسمح لـ Django ORM بضبط القيمة المُحسَّبة (annotate)
+        self._total_procedures_cache = value
 
     @property
     def completed_procedures(self):
+        if hasattr(self, "_completed_procedures_cache"):
+            return self._completed_procedures_cache
         return OperationalProcedure.objects.filter(
             indicator__target__domain=self, status="Completed"
         ).count()
 
     @completed_procedures.setter
     def completed_procedures(self, value):
-        pass  # يسمح لـ Django ORM بضبط القيمة المُحسَّبة (annotate)
+        self._completed_procedures_cache = value
 
     @property
     def completion_pct(self):
@@ -558,7 +573,81 @@ class QualityCommitteeMember(models.Model):
 # ─────────────────────────────────────────────────────────────
 # Phase 6 — تقييم أداء الموظفين
 # القرار الأميري 9/2016 م.11 + قانون تنظيم المدارس 9/2017
+# إصلاح #5: متعدد المقيّمين | #6: قوالب أدوار | #3: تحسين الأداء
 # ─────────────────────────────────────────────────────────────
+
+
+class RoleEvaluationTemplate(models.Model):
+    """
+    إصلاح #6 — قالب تقييم مخصص لكل دور وظيفي.
+    يحدد محاور التقييم وأوزانها لكل دور.
+    مثال: المعلم → 4 محاور بأوزان مختلفة عن الممرض.
+    إذا لم يوجد قالب للدور، تُستخدم المحاور الافتراضية (4×25).
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="eval_templates"
+    )
+    role_name = models.CharField(
+        max_length=30, verbose_name="الدور الوظيفي",
+        help_text="يطابق Role.name — مثل teacher, nurse, librarian",
+    )
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "قالب تقييم دور"
+        verbose_name_plural = "قوالب تقييم الأدوار"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "role_name", "academic_year"],
+                name="unique_eval_template_per_role_year",
+            )
+        ]
+
+    def __str__(self):
+        return f"قالب {self.role_name} — {self.academic_year}"
+
+    @property
+    def total_weight(self):
+        return sum(a.weight for a in self.axes.all())
+
+
+class EvaluationAxis(models.Model):
+    """
+    محور تقييم ضمن قالب دور — إصلاح #6.
+    يسمح بتعريف محاور مخصصة لكل دور بأوزان مختلفة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    template = models.ForeignKey(
+        RoleEvaluationTemplate, on_delete=models.CASCADE, related_name="axes"
+    )
+    key = models.CharField(
+        max_length=50, verbose_name="معرّف المحور",
+        help_text="معرّف برمجي — مثل professional, commitment, teaching_skills",
+    )
+    label = models.CharField(max_length=200, verbose_name="اسم المحور")
+    weight = models.PositiveSmallIntegerField(
+        default=25, verbose_name="الوزن (من 100)"
+    )
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "محور تقييم"
+        verbose_name_plural = "محاور التقييم"
+        ordering = ["order", "key"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["template", "key"],
+                name="unique_axis_per_template",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.label} ({self.weight})"
 
 
 class EmployeeEvaluation(models.Model):
@@ -588,11 +677,22 @@ class EmployeeEvaluation(models.Model):
         CustomUser,
         on_delete=models.CASCADE,
         related_name="evaluations_given",
-        verbose_name="المقيِّم",
+        verbose_name="المقيِّم الرئيسي",
+    )
+    template = models.ForeignKey(
+        RoleEvaluationTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="evaluations",
+        verbose_name="قالب التقييم",
+        help_text="يُحدَّد تلقائياً حسب دور الموظف. null = المحاور الافتراضية",
     )
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
     period = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
     status = models.CharField(max_length=15, choices=STATUS, default="draft")
+
+    # المحاور الأربعة الافتراضية (backward compatible)
     axis_professional = models.PositiveSmallIntegerField(
         default=0, verbose_name="الكفاءة المهنية (25)"
     )
@@ -629,7 +729,14 @@ class EmployeeEvaluation(models.Model):
     def __str__(self):
         return f"{self.employee.full_name} | {self.get_period_display()} | {self.academic_year}"
 
+    # ── الحقول التي تستوجب إعادة حساب المجموع ──
+    _AXIS_FIELDS = frozenset([
+        "axis_professional", "axis_commitment",
+        "axis_teamwork", "axis_development",
+    ])
+
     def calculate_total(self):
+        """حساب المجموع من المحاور الأربعة الافتراضية + التقدير"""
         self.total_score = (
             self.axis_professional
             + self.axis_commitment
@@ -645,14 +752,136 @@ class EmployeeEvaluation(models.Model):
         else:
             self.rating = "needs_dev"
 
+    def calculate_weighted_total(self):
+        """
+        إصلاح #5 — حساب المجموع المرجح من EvaluationScore (متعدد المقيّمين).
+        إذا وُجدت تقييمات فردية، يُحسب المتوسط المرجح.
+        وإلا يُستخدم المحاور الأربعة الافتراضية.
+        """
+        scores = self.scores.all()
+        if not scores.exists():
+            self.calculate_total()
+            return
+
+        weighted_sum = 0
+        total_weight = 0
+        for score in scores:
+            weighted_sum += score.total_score * score.weight
+            total_weight += score.weight
+
+        if total_weight > 0:
+            self.total_score = round(weighted_sum / total_weight)
+        else:
+            self.calculate_total()
+            return
+
+        if self.total_score >= _SCORE_EXCELLENT:
+            self.rating = "excellent"
+        elif self.total_score >= _SCORE_VERY_GOOD:
+            self.rating = "very_good"
+        elif self.total_score >= _SCORE_GOOD:
+            self.rating = "good"
+        else:
+            self.rating = "needs_dev"
+
     def save(self, *args, **kwargs):
-        self.calculate_total()
+        # إصلاح #3: حساب المجموع فقط عندما لا يكون update_fields محدداً
+        # أو عندما تتضمن update_fields أحد حقول المحاور
+        update_fields = kwargs.get("update_fields")
+        if update_fields is None or self._AXIS_FIELDS & set(update_fields):
+            self.calculate_total()
+            # إضافة total_score و rating لقائمة update_fields إذا كانت محددة
+            if update_fields is not None:
+                update_fields = list(update_fields)
+                for f in ("total_score", "rating"):
+                    if f not in update_fields:
+                        update_fields.append(f)
+                kwargs["update_fields"] = update_fields
         super().save(*args, **kwargs)
 
     def acknowledge(self):
         self.status = "acknowledged"
         self.acknowledged_at = timezone.now()
         self.save(update_fields=["status", "acknowledged_at"])
+
+    def recalculate_from_scores(self):
+        """أعد حساب المجموع من تقييمات المقيّمين المتعددين"""
+        self.calculate_weighted_total()
+        self.save(update_fields=["total_score", "rating"])
+
+
+class EvaluationScore(models.Model):
+    """
+    إصلاح #5 — تقييم فردي من مقيِّم واحد ضمن تقييم متعدد المقيّمين.
+    المعلم مثلاً: مدير (40%) + نائب أكاديمي (35%) + منسق (25%)
+
+    كل مقيِّم يعطي درجات على المحاور الأربعة الافتراضية،
+    أو على محاور القالب المخصص عبر JSON.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    evaluation = models.ForeignKey(
+        EmployeeEvaluation, on_delete=models.CASCADE, related_name="scores"
+    )
+    evaluator = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="evaluation_scores_given",
+        verbose_name="المقيِّم",
+    )
+    weight = models.PositiveSmallIntegerField(
+        default=100, verbose_name="الوزن (%)",
+        help_text="وزن هذا المقيِّم — مثل 40 للمدير، 35 للنائب، 25 للمنسق",
+    )
+
+    # المحاور الافتراضية
+    axis_professional = models.PositiveSmallIntegerField(default=0)
+    axis_commitment = models.PositiveSmallIntegerField(default=0)
+    axis_teamwork = models.PositiveSmallIntegerField(default=0)
+    axis_development = models.PositiveSmallIntegerField(default=0)
+    total_score = models.PositiveSmallIntegerField(default=0)
+
+    # محاور مخصصة (JSON) — للقوالب المخصصة
+    custom_axes = models.JSONField(
+        default=dict, blank=True,
+        verbose_name="محاور مخصصة",
+        help_text='{"teaching_skills": 20, "classroom_mgmt": 22, ...}',
+    )
+
+    note = models.TextField(blank=True, verbose_name="ملاحظات المقيِّم")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "تقييم مقيِّم"
+        verbose_name_plural = "تقييمات المقيِّمين"
+        ordering = ["-weight"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["evaluation", "evaluator"],
+                name="unique_score_per_evaluator",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.evaluator.full_name} → "
+            f"{self.evaluation.employee.full_name} ({self.weight}%)"
+        )
+
+    def calculate_total(self):
+        """حساب مجموع المحاور"""
+        if self.custom_axes:
+            self.total_score = sum(self.custom_axes.values())
+        else:
+            self.total_score = (
+                self.axis_professional
+                + self.axis_commitment
+                + self.axis_teamwork
+                + self.axis_development
+            )
+
+    def save(self, *args, **kwargs):
+        self.calculate_total()
+        super().save(*args, **kwargs)
 
 
 class EvaluationCycle(models.Model):
@@ -678,7 +907,8 @@ class EvaluationCycle(models.Model):
     def __str__(self):
         return f"{self.school.code} | {self.get_period_display()} | {self.academic_year}"
 
-    @property
+    # إصلاح #4: cached_property لتجنب 2×N queries
+    @cached_property
     def completion_rate(self):
         total_staff = Membership.objects.filter(
             school=self.school,

@@ -6,6 +6,10 @@ from django.contrib import admin
 logger = logging.getLogger(__name__)
 
 from .models import (
+    EmployeeEvaluation,
+    EvaluationAxis,
+    EvaluationCycle,
+    EvaluationScore,
     ExecutorMapping,
     OperationalDomain,
     OperationalIndicator,
@@ -13,6 +17,7 @@ from .models import (
     OperationalTarget,
     ProcedureEvidence,
     QualityCommitteeMember,
+    RoleEvaluationTemplate,
 )
 
 
@@ -205,3 +210,46 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
             "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js",
             "https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ar.js",
         )
+
+
+# ── Phase 6: تقييم الموظفين (New Models) ──────────────────────────
+
+
+class EvaluationAxisInline(admin.TabularInline):
+    model = EvaluationAxis
+    extra = 1
+    fields = ("key", "label", "weight", "order")
+
+
+@admin.register(RoleEvaluationTemplate)
+class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
+    list_display = ("role_name", "school", "academic_year", "is_active", "total_weight")
+    list_filter = ("school", "academic_year", "is_active")
+    search_fields = ("role_name",)
+    inlines = [EvaluationAxisInline]
+
+
+class EvaluationScoreInline(admin.TabularInline):
+    model = EvaluationScore
+    extra = 0
+    fields = (
+        "evaluator", "weight",
+        "axis_professional", "axis_commitment", "axis_teamwork", "axis_development",
+        "total_score",
+    )
+    readonly_fields = ("total_score",)
+
+
+@admin.register(EmployeeEvaluation)
+class EmployeeEvaluationAdmin(admin.ModelAdmin):
+    list_display = ("employee", "evaluator", "period", "total_score", "rating", "status", "academic_year")
+    list_filter = ("school", "academic_year", "period", "status", "rating")
+    search_fields = ("employee__full_name", "evaluator__full_name")
+    readonly_fields = ("total_score", "rating")
+    inlines = [EvaluationScoreInline]
+
+
+@admin.register(EvaluationCycle)
+class EvaluationCycleAdmin(admin.ModelAdmin):
+    list_display = ("school", "period", "academic_year", "deadline", "is_closed")
+    list_filter = ("school", "academic_year", "period", "is_closed")

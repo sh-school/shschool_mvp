@@ -148,7 +148,7 @@ class PushSubscription(models.Model):
     endpoint = models.TextField(unique=True, verbose_name="Push Endpoint")
     p256dh = models.TextField(verbose_name="p256dh key")
     # ── HIGH-003 Fix: Fernet encryption for push auth secret ──
-    _auth = models.TextField(verbose_name="auth secret (encrypted)", db_column="auth")
+    _auth = models.TextField(verbose_name="auth secret (encrypted)", db_column="auth", default="")
 
     @property
     def auth(self):
