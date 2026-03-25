@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% block title %}تقييم أداء الموظفين — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
+{% block title %}تقييم أداء الموظفين — {{ current_school.name|default:"مدرسة الشحانية" }}{% endblock %}
 
 {% block breadcrumbs %}
 <nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
@@ -12,17 +12,18 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6" dir="rtl">
+<div class="max-w-6xl mx-auto space-y-6" dir="rtl">
 
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between flex-wrap gap-3">
     <h1 class="text-2xl font-bold text-gray-800">تقييم أداء الموظفين</h1>
     <span class="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full font-medium">
       القرار الأميري 9/2016 · QNSA المعيار 1
     </span>
   </div>
 
+  {# ── KPIs ── #}
   {% if avg_score %}
-  <div class="grid grid-cols-3 gap-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="bg-white border rounded-xl p-4 text-center">
       <p class="text-3xl font-bold text-[#8A1538]">{{ avg_score }}</p>
       <p class="text-sm text-gray-500 mt-1">متوسط الدرجات</p>
@@ -32,12 +33,17 @@
       <p class="text-sm text-gray-500 mt-1">تقدير ممتاز</p>
     </div>
     <div class="bg-white border rounded-xl p-4 text-center">
+      <p class="text-3xl font-bold text-blue-600">{{ rating_dist.very_good|default:0 }}</p>
+      <p class="text-sm text-gray-500 mt-1">جيد جداً</p>
+    </div>
+    <div class="bg-white border rounded-xl p-4 text-center">
       <p class="text-3xl font-bold text-amber-600">{{ rating_dist.needs_dev|default:0 }}</p>
       <p class="text-sm text-gray-500 mt-1">يحتاج تطوير</p>
     </div>
   </div>
   {% endif %}
 
+  {# ── دورات التقييم ── #}
   {% for cs in cycle_stats %}
   <div class="bg-white border rounded-xl p-4">
     <div class="flex items-center justify-between mb-2">
@@ -54,6 +60,70 @@
   </div>
   {% endfor %}
 
+  {# ── قائمة الموظفين القابلين للتقييم ── #}
+  {% if staff_list %}
+  <div class="bg-white border rounded-xl overflow-hidden">
+    <div class="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
+      <p class="font-semibold text-gray-700">الموظفون القابلون للتقييم ({{ staff_list|length }})</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 text-gray-500 text-xs">
+          <tr>
+            <th class="text-right px-4 py-2">الموظف</th>
+            <th class="text-right px-4 py-2">الدور</th>
+            <th class="text-center px-4 py-2">الفصل الأول (S1)</th>
+            <th class="text-center px-4 py-2">نهاية العام (S2)</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          {% for s in staff_list %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 font-medium text-gray-800">{{ s.user.full_name }}</td>
+            <td class="px-4 py-3 text-gray-500">{{ s.role_display }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if s.s1 %}
+                <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}"
+                   class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full
+                   {% if s.s1.status == 'acknowledged' %}bg-green-100 text-green-800
+                   {% elif s.s1.status == 'approved' %}bg-blue-100 text-blue-800
+                   {% elif s.s1.status == 'submitted' %}bg-amber-100 text-amber-800
+                   {% else %}bg-gray-100 text-gray-600{% endif %}">
+                  {{ s.s1.total_score }} · {{ s.s1.get_status_display }}
+                </a>
+              {% else %}
+                <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}"
+                   class="text-xs px-3 py-1 bg-[#8A1538] text-white rounded-lg hover:bg-[#6d1030]">
+                  تقييم
+                </a>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if s.s2 %}
+                <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}"
+                   class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full
+                   {% if s.s2.status == 'acknowledged' %}bg-green-100 text-green-800
+                   {% elif s.s2.status == 'approved' %}bg-blue-100 text-blue-800
+                   {% elif s.s2.status == 'submitted' %}bg-amber-100 text-amber-800
+                   {% else %}bg-gray-100 text-gray-600{% endif %}">
+                  {{ s.s2.total_score }} · {{ s.s2.get_status_display }}
+                </a>
+              {% else %}
+                <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}"
+                   class="text-xs px-3 py-1 bg-[#8A1538] text-white rounded-lg hover:bg-[#6d1030]">
+                  تقييم
+                </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── التقييمات الأخيرة ── #}
   <div class="bg-white border rounded-xl overflow-hidden">
     <div class="bg-gray-50 px-4 py-3 border-b">
       <p class="font-semibold text-gray-700">التقييمات الأخيرة</p>
@@ -63,7 +133,7 @@
       <div class="flex items-center justify-between px-4 py-3">
         <div>
           <p class="font-medium text-gray-800 text-sm">{{ ev.employee.full_name }}</p>
-          <p class="text-xs text-gray-400">{{ ev.get_period_display }} · {{ ev.academic_year }}</p>
+          <p class="text-xs text-gray-400">{{ ev.get_period_display }} · {{ ev.academic_year }} · المقيِّم: {{ ev.evaluator.full_name }}</p>
         </div>
         <div class="flex items-center gap-3">
           <span class="text-lg font-bold {% if ev.rating == 'excellent' %}text-green-700{% elif ev.rating == 'needs_dev' %}text-red-600{% else %}text-amber-600{% endif %}">
