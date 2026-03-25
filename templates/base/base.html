@@ -94,10 +94,9 @@
       <a href="/library/books/" class="nb">الكتب</a>
       <a href="/library/borrow/" class="nb">إعارة جديدة</a>
 
-    {% elif role == "teacher" or role == "coordinator" or role == "specialist" %}
+    {% elif role == "coordinator" %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/teacher/schedule/" class="nb">جدولي</a>
-      <a href="/teacher/weekly-schedule/" class="nb">الجدول الأسبوعي</a>
+      <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule">📅 الجداول <span class="chv">▼</span></button>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
@@ -106,14 +105,57 @@
       {% endif %}
       <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
 
+    {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" %}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule">📅 جدولي <span class="chv">▼</span></button>
+      <a href="/assessments/" class="nb">التقييمات</a>
+      <a href="/reports/" class="nb">التقارير</a>
+      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      {% if is_quality_reviewer %}
+      <a href="/quality/review/" class="nb">🔍 المراجعة الذاتية</a>
+      {% endif %}
+      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+
+    {% elif role == "social_worker" or role == "psychologist" %}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+      <a href="/reports/" class="nb">التقارير</a>
+      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+
+    {% elif role == "academic_advisor" %}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/assessments/" class="nb">التقييمات</a>
+      <a href="/reports/" class="nb">التقارير</a>
+      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+
+    {% elif role == "secretary" or role == "admin_supervisor" %}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/reports/" class="nb">التقارير</a>
+      <a href="/notifications/" class="nb">🔔 الإشعارات</a>
+      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+
+    {% elif role == "it_technician" %}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/admin/" class="nb">🛠️ لوحة الإدارة</a>
+
     {% elif role == "student" %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/reports/" class="nb">📊 درجاتي</a>
       <a href="/library/" class="nb">📚 المكتبة</a>
 
     {% elif role == "parent" %}
       <a href="/parents/" class="nb">🏠 بوابتي</a>
       <a href="/parents/attendance/" class="nb">📋 الحضور</a>
       <a href="/parents/grades/" class="nb">📊 الدرجات</a>
+      <a href="/parents/behavior/" class="nb">⚖️ السلوك</a>
+
+    {% else %}
+      {# platform_developer أو أي دور آخر — نفس المدير #}
+      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <button class="nb" id="btn-academic" data-sd="m-academic">📚 الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality">📋 الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin">⚙️ الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services">🏥 الخدمات <span class="chv">▼</span></button>
 
     {% endif %}
     </div>
@@ -157,6 +199,8 @@
   <div class="sd-label">الجدول الدراسي</div>
   <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
   <a href="/teacher/smart-schedule/">🤖 الجدولة الذكية</a>
+  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
   <a href="/teacher/absences/">🚫 غياب المعلمين والبدلاء</a>
   <a href="/import/">📥 استيراد الدرجات</a>
 </div>
@@ -196,6 +240,31 @@
   <a href="/library/">📚 المكتبة</a>
 </div>
 
+{% endif %}
+
+{# ── Coordinator Schedule Dropdown ── #}
+{% if role == "coordinator" %}
+<div class="sd-menu" id="m-coord-schedule">
+  <div class="sd-label">جدولي</div>
+  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/schedule/">📋 حصص اليوم</a>
+  <hr>
+  <div class="sd-label">إدارة التخصص</div>
+  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
+  <a href="/teacher/absences/">🚫 غياب المعلمين والبدلاء</a>
+</div>
+{% endif %}
+
+{# ── Teacher Schedule Dropdown ── #}
+{% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
+<div class="sd-menu" id="m-teacher-schedule">
+  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/schedule/">📋 حصص اليوم</a>
+  <hr>
+  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
+</div>
 {% endif %}
 
 <div class="sd-menu" id="m-user">
@@ -322,14 +391,19 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
       <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
     </a>
-    {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}
-    <a href="/teacher/schedule/" class="mobile-nav-item {% if 'schedule' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📋</span><span>جدولي</span>
+    {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
+    <a href="/teacher/weekly-schedule/" class="mobile-nav-item {% if 'schedule' in request.path or 'weekly' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📅</span><span>جدولي</span>
     </a>
     {% endif %}
     {% if role == 'parent' %}
     <a href="/parents/" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">👨‍👩‍👧</span><span>أبنائي</span>
+    </a>
+    {% endif %}
+    {% if role == 'student' %}
+    <a href="/reports/" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📊</span><span>درجاتي</span>
     </a>
     {% endif %}
     <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
