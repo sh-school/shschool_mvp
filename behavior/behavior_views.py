@@ -35,15 +35,18 @@ def _can_report(user):
         "vice_academic",
         "coordinator",
         "teacher",
+        "ese_teacher",
+        "social_worker",
         "specialist",
+        "admin_supervisor",
         "admin",
     ]
 
 
 def _is_committee(user):
-    """أعضاء لجنة الضبط السلوكي: المدير + النواب + الأخصائي"""
+    """أعضاء لجنة الضبط السلوكي: المدير + النواب + الأخصائي الاجتماعي"""
     role = user.get_role()
-    return role in ["principal", "vice_admin", "vice_academic", "specialist"] or user.is_superuser
+    return role in ["principal", "vice_admin", "vice_academic", "social_worker", "specialist"] or user.is_superuser
 
 
 # ── [مهمة 18] إشعار تلقائي لولي الأمر عند تسجيل مخالفة ─────────

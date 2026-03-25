@@ -54,10 +54,13 @@ class BehaviorPermissions:
         "vice_academic",
         "coordinator",
         "teacher",
+        "ese_teacher",
+        "social_worker",
         "specialist",
+        "admin_supervisor",
         "admin",
     }
-    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "specialist"}
+    COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:

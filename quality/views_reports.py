@@ -11,6 +11,10 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.pdf_utils import render_pdf
+from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
+
+# All roles that can access quality module
+_QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
 
 from .models import OperationalProcedure
 from .services import QualityService
@@ -19,10 +23,8 @@ _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def progress_report(request):
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
     data = QualityService.get_progress_report_data(school, year)
@@ -66,10 +68,8 @@ def progress_report(request):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def progress_report_pdf(request):
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
     data = QualityService.get_progress_report_data(school, year)

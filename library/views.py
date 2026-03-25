@@ -12,11 +12,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.models import BookBorrowing, CustomUser, LibraryBook
-from core.permissions import librarian_required, staff_required
+from core.permissions import LIBRARY_FULL, LIBRARY_VIEW, librarian_required, role_required
 
 
 @login_required
-@staff_required
+@role_required(LIBRARY_VIEW | LIBRARY_FULL)
 def library_dashboard(request):
     """لوحة تحكم المكتبة"""
     school = request.user.get_school()
@@ -42,7 +42,7 @@ def library_dashboard(request):
 
 
 @login_required
-@staff_required
+@role_required(LIBRARY_VIEW | LIBRARY_FULL)
 def book_list(request):
     """
     قائمة الكتب مع البحث

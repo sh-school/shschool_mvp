@@ -39,12 +39,19 @@ _SCORE_GOOD = 60
 _EVALUABLE_ROLES = frozenset(
     [
         "teacher",
+        "ese_teacher",
         "coordinator",
+        "social_worker",
+        "psychologist",
+        "academic_advisor",
         "specialist",
         "nurse",
         "librarian",
         "bus_supervisor",
+        "admin_supervisor",
         "admin",
+        "secretary",
+        "it_technician",
         "vice_admin",
         "vice_academic",
     ]

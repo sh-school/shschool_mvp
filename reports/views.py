@@ -17,6 +17,8 @@ from assessments.models import SubjectClassSetup
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.pdf_utils import render_pdf
 
+from core.permissions import leadership_required, role_required
+
 from .services import ExcelService, ReportDataService
 
 # ── helpers مشتركة ──────────────────────────────────────────────────
@@ -45,6 +47,7 @@ def _set_final_status(ctx: dict) -> None:
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
 def reports_index(request):
     """فهرس التقارير — تبويبات + فلاتر + بطاقات فصول."""
     school = request.user.get_school()
@@ -102,6 +105,7 @@ def reports_index(request):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
 def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
     school = request.user.get_school()
@@ -132,6 +136,7 @@ def class_results_pdf(request, class_id):
 
 
 @login_required
+@leadership_required
 def class_certificates_pdf(request, class_id):
     """PDF: شهادات جميع طلاب فصل في ملف واحد"""
     if not request.user.is_admin():
@@ -172,6 +177,7 @@ def class_certificates_pdf(request, class_id):
 
 
 @login_required
+@leadership_required
 def attendance_report_pdf(request, class_id):
     """PDF: تقرير حضور وغياب الفصل"""
     if not request.user.is_admin():
@@ -199,6 +205,7 @@ def attendance_report_pdf(request, class_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
 def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
     school = request.user.get_school()
@@ -219,6 +226,7 @@ def student_result_pdf(request, student_id):
 
 
 @login_required
+@leadership_required
 def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
     school = request.user.get_school()
@@ -246,6 +254,7 @@ def student_certificate_pdf(request, student_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
 def class_results_excel(request, class_id):
     """Excel: كشف نتائج الفصل"""
     if not (request.user.is_admin() or request.user.is_teacher()):
@@ -259,6 +268,7 @@ def class_results_excel(request, class_id):
 
 
 @login_required
+@leadership_required
 def attendance_excel(request, class_id):
     """Excel: تقرير الغياب"""
     if not request.user.is_admin():
@@ -272,6 +282,7 @@ def attendance_excel(request, class_id):
 
 
 @login_required
+@leadership_required
 def behavior_excel(request):
     """Excel: تقرير المخالفات السلوكية"""
     if not request.user.is_admin():

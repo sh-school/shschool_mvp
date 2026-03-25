@@ -14,6 +14,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from core.permissions import leadership_required
 from operations.models import AbsenceAlert
 
 from .models import NotificationLog, NotificationSettings
@@ -21,10 +22,8 @@ from .services import NotificationService
 
 
 @login_required
+@leadership_required
 def notifications_dashboard(request):
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -77,12 +76,10 @@ def notifications_dashboard(request):
 
 
 @login_required
+@leadership_required
 @require_POST
 def send_absence_alerts(request):
     """إرسال كل تنبيهات الغياب المعلقة"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     sent, failed = NotificationService.send_pending_absence_alerts(
         school=school, sent_by=request.user
@@ -94,12 +91,10 @@ def send_absence_alerts(request):
 
 
 @login_required
+@leadership_required
 @require_POST
 def send_fail_alerts(request):
     """إرسال إشعارات الرسوب للسنة الدراسية"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
     sent, failed = NotificationService.send_fail_alerts_for_year(
@@ -112,12 +107,10 @@ def send_fail_alerts(request):
 
 
 @login_required
+@leadership_required
 @require_POST
 def resend_notification(request, log_id):
     """إعادة إرسال إشعار فشل"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     log = get_object_or_404(NotificationLog, id=log_id, school=school)
 
@@ -149,9 +142,10 @@ def resend_notification(request, log_id):
 
 
 @login_required
+@leadership_required
 def save_settings(request):
     """حفظ إعدادات الإشعارات"""
-    if not request.user.is_admin() or request.method != "POST":
+    if request.method != "POST":
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()

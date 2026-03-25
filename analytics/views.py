@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.views.decorators.cache import cache_page
 
 from assessments.models import StudentSubjectResult
+from core.permissions import leadership_required
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -34,17 +35,11 @@ from quality.models import OperationalDomain, OperationalProcedure
 from .services import KPIService
 
 
-def _admin_required(request):
-    return request.user.is_admin() or request.user.is_superuser
-
-
 # ── لوحة القيادة الرئيسية ────────────────────────────────────
 @login_required
+@leadership_required
 def analytics_dashboard(request):
     """لوحة الإحصاءات المتقدمة للمدير"""
-    if not _admin_required(request):
-        return HttpResponse("غير مسموح — للمدير فقط", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     today = timezone.now().date()
@@ -135,10 +130,8 @@ def analytics_dashboard(request):
 
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
 @login_required
+@leadership_required
 def api_attendance_trend(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     days = int(request.GET.get("days", 30))
     since = timezone.now().date() - timedelta(days=days)
@@ -191,10 +184,8 @@ def api_attendance_trend(request):
 
 # ── API 2: توزيع الدرجات ────────────────────────────────────
 @login_required
+@leadership_required
 def api_grades_distribution(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -239,11 +230,9 @@ def api_grades_distribution(request):
 
 # ── API 3: مقارنة الفصول الدراسية ───────────────────────────
 @login_required
+@leadership_required
 @cache_page(300)
 def api_class_comparison(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -278,11 +267,9 @@ def api_class_comparison(request):
 
 # ── API 4: مقارنة المواد الدراسية ───────────────────────────
 @login_required
+@leadership_required
 @cache_page(300)
 def api_subject_comparison(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -329,10 +316,8 @@ def api_subject_comparison(request):
 
 # ── API 5: تقدم الخطة التشغيلية (حسب المجال) ───────────────
 @login_required
+@leadership_required
 def api_plan_progress(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -370,10 +355,8 @@ def api_plan_progress(request):
 
 # ── API 6: مخالفات السلوك (آخر 6 أشهر) ─────────────────────
 @login_required
+@leadership_required
 def api_behavior_trend(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     today = timezone.now().date()
     since = today.replace(day=1) - timedelta(days=150)
@@ -437,11 +420,9 @@ def api_behavior_trend(request):
 
 # ── API 7: الطلاب الراسبون (حسب الفصل) ─────────────────────
 @login_required
+@leadership_required
 @cache_page(300)
 def api_failing_by_class(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -473,10 +454,8 @@ def api_failing_by_class(request):
 
 # ── API 8: إحصائيات العيادة (آخر 30 يوم) ────────────────────
 @login_required
+@leadership_required
 def api_clinic_stats(request):
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     since = timezone.now().date() - timedelta(days=30)
 
@@ -521,22 +500,19 @@ def api_clinic_stats(request):
 
 
 @login_required
+@leadership_required
 def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
-    if not _admin_required(request):
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     return render(request, "analytics/kpi_dashboard.html", {"school": school, "year": year})
 
 
 @login_required
+@leadership_required
 @cache_page(300)
 def api_kpis_all(request):
     """JSON: 10 KPIs — يُعيد بيانات KPIService.compute()"""
-    if not _admin_required(request):
-        return JsonResponse({}, status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     data = KPIService.compute(school, year)
@@ -557,11 +533,9 @@ def api_kpis_all(request):
 
 
 @login_required
+@leadership_required
 def kpi_monthly_pdf(request):
     """PDF: تقرير KPIs الشهري"""
-    if not _admin_required(request):
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"

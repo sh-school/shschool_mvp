@@ -14,6 +14,13 @@ from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.permissions import (
+    BEHAVIOR_MANAGE,
+    BEHAVIOR_RECORD,
+    BEHAVIOR_VIEW_ALL,
+    role_required,
+)
+
 logger = logging.getLogger(__name__)
 
 _VALID_LEVELS = {1, 2, 3, 4}
@@ -32,6 +39,7 @@ from .services import (
 
 # ── لوحة التحكم ──────────────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
 def behavior_dashboard(request):
     """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
@@ -51,6 +59,7 @@ def behavior_dashboard(request):
 
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_RECORD)
 def report_infraction(request):
     """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر تلقائياً."""
     if not BehaviorPermissions.can_report(request.user):
@@ -143,6 +152,7 @@ def report_infraction(request):
 
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
 @login_required
+@role_required(BEHAVIOR_RECORD)
 def quick_log(request):
     """
     تسجيل مخالفة سريعة عبر HTMX Modal.
@@ -253,6 +263,7 @@ def _quick_log_context(school, preselected_student_id=""):
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     student = get_object_or_404(CustomUser, id=student_id)
@@ -265,6 +276,7 @@ def student_behavior_profile(request, student_id):
 
 # ── استعادة النقاط ────────────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def point_recovery_request(request, infraction_id):
     """طلب استعادة نقاط مخصومة — للجنة الضبط السلوكي فقط."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -303,6 +315,7 @@ def point_recovery_request(request, infraction_id):
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def committee_dashboard(request):
     """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -313,6 +326,7 @@ def committee_dashboard(request):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def committee_decision(request, infraction_id):
     """تسجيل قرار لجنة الضبط السلوكي في مخالفة جسيمة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -336,6 +350,7 @@ def committee_decision(request, infraction_id):
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_RECORD | BEHAVIOR_MANAGE)
 def behavior_report(request, student_id):
     """التقرير السلوكي الدوري للطالب — مع إمكانية الإرسال لولي الأمر."""
     if not BehaviorPermissions.can_report(request.user) and not request.user.is_superuser:
@@ -398,6 +413,7 @@ def behavior_report(request, student_id):
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
 @login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL)
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي للمدرسة — للمدير ولجنة الضبط فقط."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -423,6 +439,7 @@ def _render_behavior_pdf(template_name, context, filename):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def infraction_warning_pdf(request, infraction_id):
     """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -436,6 +453,7 @@ def infraction_warning_pdf(request, infraction_id):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def infraction_parent_pdf(request, infraction_id):
     """PDF: تعهد ولي الأمر المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -449,6 +467,7 @@ def infraction_parent_pdf(request, infraction_id):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE)
 def infraction_student_pdf(request, infraction_id):
     """PDF: تعهد الطالب المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())

@@ -16,7 +16,11 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.models import AuditLog
+from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 from notifications.hub import NotificationHub
+
+# All roles that can access quality module (view + manage)
+_QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
 
 from .models import (
     ExecutorMapping,
@@ -238,6 +242,7 @@ def _list_context(request, school, year, page_obj, per_page, sort, direction):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def plan_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
@@ -278,6 +283,7 @@ def plan_dashboard(request):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def domain_detail(request, domain_id):
     school = request.user.get_school()
     domain = get_object_or_404(OperationalDomain, id=domain_id, school=school)
@@ -315,6 +321,7 @@ def domain_detail(request, domain_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def procedure_detail(request, proc_id):
     school = request.user.get_school()
     procedure = get_object_or_404(
@@ -499,6 +506,7 @@ def upload_evidence(request, proc_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def my_procedures(request):
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
@@ -539,6 +547,7 @@ def my_procedures(request):
 
 
 @login_required
+@role_required(QUALITY_MANAGE)
 def execution_list(request):
     """قائمة التنفيذ — للمدير فقط (FIX-01: كانت مفتوحة لأي مستخدم)."""
     if not request.user.is_admin():
@@ -555,6 +564,7 @@ def execution_list(request):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def review_list(request):
     """قائمة المراجعة — لأعضاء لجنة المراجعة والمدير."""
     school = request.user.get_school()
@@ -648,6 +658,7 @@ def _process_task_update(request, procedure):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def task_update_modal(request, proc_id):
     """GET: عرض نموذج التحديث — POST: حفظ التغييرات."""
     school = request.user.get_school()

@@ -102,7 +102,7 @@ def dashboard(request):
             }
         )
 
-    elif role in ("teacher", "coordinator", "specialist"):
+    elif role in ("teacher", "coordinator", "ese_teacher", "specialist", "social_worker"):
         year = settings.CURRENT_ACADEMIC_YEAR
         sessions = (
             Session.objects.filter(school=school, teacher=user, date=today)

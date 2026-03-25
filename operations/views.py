@@ -12,12 +12,14 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.models import StudentEnrollment
+from core.permissions import leadership_required, role_required
 
 from .models import Session, StudentAttendance, Subject
 from .services import AttendanceService
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor", "admin_supervisor", "student", "parent")
 def schedule(request):
     """جدول حصص المعلم اليوم"""
     school = request.user.get_school()
@@ -60,6 +62,7 @@ def schedule(request):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin_supervisor")
 def attendance_view(request, session_id):
     """صفحة تسجيل الحضور لحصة"""
     school = request.user.get_school()
@@ -111,6 +114,7 @@ def attendance_view(request, session_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin_supervisor")
 @require_POST
 def mark_single(request, session_id):
     """HTMX: تسجيل حضور طالب واحد"""
@@ -162,6 +166,7 @@ def mark_single(request, session_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin_supervisor")
 @require_POST
 def mark_all_present(request, session_id):
     """HTMX: الكل حاضر بضغطة واحدة"""
@@ -176,6 +181,7 @@ def mark_all_present(request, session_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin_supervisor")
 @require_POST
 def complete_session(request, session_id):
     """إنهاء الحصة"""
@@ -189,6 +195,7 @@ def complete_session(request, session_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin_supervisor")
 def session_summary(request, session_id):
     """ملخص الحصة — HTMX partial"""
     school = request.user.get_school()
@@ -201,6 +208,7 @@ def session_summary(request, session_id):
 
 # ── Director Views ──────────────────────────────────────
 @login_required
+@leadership_required
 def daily_report(request):
     """تقرير الغياب اليومي للمدير"""
     school = request.user.get_school()
