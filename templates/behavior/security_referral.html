@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}إحالة أمنية{% endblock %}
+{% block content %}
+<div dir="rtl" class="max-w-xl mx-auto">
+ <div class="flex justify-between items-center mb-6">
+ <h1 class="text-2xl font-bold text-gray-800">🔒 تسجيل إحالة أمنية</h1>
+ <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">&larr; رجوع</a>
+ </div>
+ <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+ <p class="font-bold text-red-800">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }}</p>
+ {% if infraction.violation_category %}
+ <p class="text-sm text-red-700 mt-1">[{{ infraction.violation_category.code }}] {{ infraction.violation_category.name_ar }}</p>
+ {% endif %}
+ <p class="text-sm text-red-700 mt-1">{{ infraction.description }}</p>
+ </div>
+ <div class="bg-white rounded-xl shadow-sm p-6">
+ <form method="post">
+ {% csrf_token %}
+ <div class="space-y-4">
+ <div>
+ <label class="text-sm font-medium text-gray-700 block mb-1">الجهة الأمنية <span class="text-red-500">*</span></label>
+ <select name="security_agency" required
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900">
+ <option value="">— اختر الجهة —</option>
+ {% for code, label in agencies %}
+ <option value="{{ code }}">{{ label }}</option>
+ {% endfor %}
+ </select>
+ </div>
+ <div>
+ <label class="text-sm font-medium text-gray-700 block mb-1">رقم المرجع</label>
+ <input type="text" name="reference_number" placeholder="رقم الإحالة / المرجع الأمني"
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900 placeholder:text-gray-400">
+ </div>
+ <div>
+ <label class="text-sm font-medium text-gray-700 block mb-1">ملاحظات</label>
+ <textarea name="security_notes" rows="3" placeholder="ملاحظات الإحالة الأمنية..."
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300 bg-white text-gray-900 placeholder:text-gray-400"></textarea>
+ </div>
+ </div>
+ <div class="flex gap-3 mt-6">
+ <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium">
+ 🔒 تسجيل الإحالة الأمنية
+ </button>
+ <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
+ </div>
+ </form>
+ </div>
+</div>
+{% endblock %}

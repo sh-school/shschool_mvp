@@ -30,6 +30,7 @@ _VALID_LEVELS = {1, 2, 3, 4}
 _MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
 
+from behavior.models import ViolationCategory
 from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
 
 
@@ -93,8 +94,15 @@ def report_infraction(request):
 
     school = request.user.get_school()
 
+    # فئات المخالفات النشطة (2025) — مجمّعة حسب الدرجة (مفاتيح نصية للـ template)
+    all_violations = ViolationCategory.objects.filter(is_active=True).order_by("code")
+    violations_by_degree = {
+        str(d): list(all_violations.filter(degree=d)) for d in range(1, 5)
+    }
+
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
+        violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
 
@@ -118,17 +126,36 @@ def report_infraction(request):
         if not (0 <= points <= _MAX_POINTS):
             errors.append(f"نقاط الخصم يجب أن تكون بين 0 و {_MAX_POINTS}.")
 
+        # جلب فئة المخالفة إن وُجدت
+        violation_cat = None
+        if violation_cat_id:
+            try:
+                violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
+                level = violation_cat.degree
+                if not points:
+                    points = violation_cat.points
+            except ViolationCategory.DoesNotExist:
+                errors.append("فئة المخالفة غير موجودة.")
+
         if errors:
             for err in errors:
                 messages.error(request, err)
         else:
             student = get_object_or_404(CustomUser, id=student_id)
+
+            # حساب خطوة التصعيد المقترحة
+            escalation_step = BehaviorService.suggest_escalation_step(
+                student, school, level, violation_cat,
+            )
+
             with transaction.atomic():
                 infraction = BehaviorInfraction.objects.create(
                     school=school,
                     student=student,
                     reported_by=request.user,
+                    violation_category=violation_cat,
                     level=level,
+                    escalation_step=escalation_step,
                     description=description,
                     action_taken=action,
                     points_deducted=points,
@@ -163,6 +190,7 @@ def report_infraction(request):
             "students": students,
             "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
             "levels": BehaviorInfraction.LEVELS,
+            "violations_by_degree": violations_by_degree,
         },
     )
 
@@ -188,6 +216,7 @@ def quick_log(request):
 
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
+        violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
 
@@ -196,6 +225,17 @@ def quick_log(request):
             points = int(request.POST.get("points_deducted", POINTS_BY_LEVEL.get(level, 5)))
         except (ValueError, TypeError):
             level, points = 1, 5
+
+        # جلب فئة المخالفة
+        violation_cat = None
+        if violation_cat_id:
+            try:
+                violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
+                level = violation_cat.degree
+                if not points:
+                    points = violation_cat.points
+            except ViolationCategory.DoesNotExist:
+                pass
 
         # Validation
         errors = []
@@ -220,12 +260,17 @@ def quick_log(request):
             )
 
         student = get_object_or_404(CustomUser, id=student_id)
+        escalation_step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_cat,
+        )
         with transaction.atomic():
             infraction = BehaviorInfraction.objects.create(
                 school=school,
                 student=student,
                 reported_by=request.user,
+                violation_category=violation_cat,
                 level=level,
+                escalation_step=escalation_step,
                 description=description,
                 action_taken=action,
                 points_deducted=points,
@@ -266,6 +311,7 @@ def _quick_log_context(user, school, preselected_student_id=""):
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
         "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
+        "violation_categories": ViolationCategory.objects.filter(is_active=True).order_by("degree", "code"),
         "preselected_student_id": str(preselected_student_id),
     }
 
@@ -360,10 +406,17 @@ def committee_decision(request, infraction_id):
             restore_pts=int(request.POST.get("points_restored", 0)),
             reason=request.POST.get("recovery_reason", "").strip(),
             approved_by=request.user,
+            suspension_type=request.POST.get("suspension_type", "internal"),
+            suspension_days=int(request.POST.get("suspension_days", 1) or 1),
         )
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
-    return render(request, "behavior/committee_decision.html", {"infraction": infraction})
+
+    from .constants import ESCALATION_STEPS as ESC_STEPS
+    return render(request, "behavior/committee_decision.html", {
+        "infraction": infraction,
+        "escalation_steps": ESC_STEPS.get(infraction.level, []),
+    })
 
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
@@ -448,6 +501,57 @@ def behavior_statistics(request):
     stats = BehaviorService.get_statistics(school)
     stats["year"] = year
     return render(request, "behavior/statistics.html", stats)
+
+
+# ── تصعيد إجراء ──────────────────────────────────────────────
+@login_required
+@role_required(BEHAVIOR_COMMITTEE)
+def escalate_infraction(request, infraction_id):
+    """تصعيد المخالفة إلى الخطوة التالية."""
+    if not BehaviorPermissions.is_committee(request.user):
+        return HttpResponseForbidden("غير مسموح.")
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id)
+    if request.method == "POST":
+        notes = request.POST.get("notes", "").strip()
+        success, msg = BehaviorService.escalate_infraction(
+            infraction, escalated_by=request.user, notes=notes,
+        )
+        if success:
+            messages.success(request, f"⬆️ {msg}")
+        else:
+            messages.warning(request, msg)
+        return redirect("behavior:student_profile", student_id=infraction.student.id)
+    return redirect("behavior:committee")
+
+
+# ── تسجيل إحالة أمنية ────────────────────────────────────────
+@login_required
+@role_required(BEHAVIOR_COMMITTEE)
+def security_referral(request, infraction_id):
+    """تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة."""
+    if not BehaviorPermissions.is_committee(request.user):
+        return HttpResponseForbidden("غير مسموح.")
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4)
+
+    if request.method == "POST":
+        agency = request.POST.get("security_agency", "")
+        ref_num = request.POST.get("reference_number", "").strip()
+        notes = request.POST.get("security_notes", "").strip()
+        success, msg = BehaviorService.record_security_referral(
+            infraction, agency=agency, reference_number=ref_num,
+            notes=notes, referred_by=request.user,
+        )
+        if success:
+            messages.success(request, f"🔒 {msg}")
+        else:
+            messages.error(request, msg)
+        return redirect("behavior:student_profile", student_id=infraction.student.id)
+
+    from .constants import SECURITY_AGENCIES
+    return render(request, "behavior/security_referral.html", {
+        "infraction": infraction,
+        "agencies": SECURITY_AGENCIES,
+    })
 
 
 # ════════════════════════════════════════════════════════════════

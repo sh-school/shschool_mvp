@@ -48,7 +48,7 @@
  <div class="px-5 py-4 hover:bg-gray-50">
  <div class="flex justify-between items-start">
  <div class="flex-1">
- <div class="flex items-center gap-2 mb-1">
+ <div class="flex items-center gap-2 mb-1 flex-wrap">
  <span class="text-xs font-medium px-2 py-0.5 rounded-full
  {% if inf.level == 1 %}bg-green-100 text-green-800
  {% elif inf.level == 2 %}bg-yellow-100 text-yellow-800
@@ -56,33 +56,61 @@
  {% else %}bg-red-100 text-red-800{% endif %}">
  الدرجة {{ inf.level }}
  </span>
+ {% if inf.violation_category %}
+ <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full" title="{{ inf.violation_category.name_ar }}">
+ {{ inf.violation_category.code }}
+ </span>
+ {% endif %}
+ {% if inf.escalation_step %}
+ <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+ الخطوة {{ inf.escalation_step }}
+ </span>
+ {% endif %}
  <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
  {% if inf.is_resolved %}<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">محلولة</span>{% endif %}
+ {% if inf.parent_summoned %}<span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">استدعاء ولي أمر</span>{% endif %}
+ {% if inf.security_agency %}<span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">إحالة أمنية</span>{% endif %}
  </div>
+ {% if inf.violation_category %}
+ <p class="text-sm font-medium text-gray-800 mb-0.5">{{ inf.violation_category.name_ar }}</p>
+ {% endif %}
  <p class="text-sm text-gray-700">{{ inf.description }}</p>
  {% if inf.action_taken %}<p class="text-xs text-gray-500 mt-1">الإجراء: {{ inf.action_taken }}</p>{% endif %}
  {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">✓ استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
  <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
  </div>
+ <div class="flex flex-col gap-1 shrink-0 mr-2">
  {% if is_committee and not inf.is_resolved and not inf.recovery %}
  <a href="{% url 'behavior:point_recovery' inf.id %}"
- class="btn-success text-xs text-white px-3 py-1.5 rounded-lg mr-3 shrink-0">
+ class="btn-success text-xs text-white px-3 py-1.5 rounded-lg">
  استرداد نقاط
  </a>
  {% endif %}
- <!-- أزرار PDF -->
- <div class="flex flex-col gap-1 shrink-0 mr-2">
+ {% if is_committee and not inf.is_resolved %}
+ <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" class="inline">
+ {% csrf_token %}
+ <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-xs text-white px-3 py-1.5 rounded-lg w-full">
+ ⬆️ تصعيد
+ </button>
+ </form>
+ {% endif %}
+ {% if is_committee and inf.level == 4 and not inf.security_agency %}
+ <a href="{% url 'behavior:security_referral' inf.id %}"
+ class="btn-danger text-xs text-white px-3 py-1.5 rounded-lg text-center">
+ 🔒 إحالة أمنية
+ </a>
+ {% endif %}
  <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank"
- class="btn-danger text-xs text-white px-2 py-1 rounded" title="طباعة PDF">
- 🖨️ إنذار PDF
+ class="btn-danger text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
+ 🖨️ إنذار
  </a>
  <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank"
- class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700" title="طباعة PDF">
- 🖨️ تعهد ولي PDF
+ class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 text-center" title="طباعة PDF">
+ 🖨️ تعهد ولي
  </a>
  <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank"
- class="btn-primary text-xs text-white px-2 py-1 rounded" title="طباعة PDF">
- 🖨️ تعهد طالب PDF
+ class="btn-primary text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
+ 🖨️ تعهد طالب
  </a>
  </div>
  </div>

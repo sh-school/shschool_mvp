@@ -36,6 +36,17 @@ urlpatterns = [
         views.infraction_student_pdf,
         name="student_pdf",
     ),
+    # ✅ v6: تصعيد + إحالة أمنية
+    path(
+        "infraction/<uuid:infraction_id>/escalate/",
+        views.escalate_infraction,
+        name="escalate_infraction",
+    ),
+    path(
+        "infraction/<uuid:infraction_id>/security-referral/",
+        views.security_referral,
+        name="security_referral",
+    ),
     # استدعاء ولي أمر
     path("summon/", views.summon_parent, name="summon_parent"),
     path("summon/<uuid:student_id>/", views.summon_parent, name="summon_parent_student"),

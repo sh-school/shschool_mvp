@@ -8,9 +8,28 @@
  </div>
  <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
  <p class="font-bold text-red-800">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }}</p>
+ {% if infraction.violation_category %}
+ <p class="text-sm text-red-700 mt-1 font-medium">[{{ infraction.violation_category.code }}] {{ infraction.violation_category.name_ar }}</p>
+ {% endif %}
  <p class="text-sm text-red-700 mt-1">{{ infraction.description }}</p>
  <p class="text-xs text-red-500 mt-1">تاريخ المخالفة: {{ infraction.date }}</p>
+ {% if infraction.escalation_step %}
+ <p class="text-xs text-red-500 mt-1">الخطوة الحالية: {{ infraction.escalation_step }} — {{ infraction.get_current_step_text }}</p>
+ {% endif %}
  </div>
+ {% if escalation_steps %}
+ <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+ <p class="text-sm font-bold text-blue-800 mb-2">الإجراءات التصاعدية للدرجة {{ infraction.level }}:</p>
+ <ol class="list-decimal list-inside text-sm text-blue-700 space-y-1">
+ {% for step_num, step_text in escalation_steps %}
+ <li class="{% if step_num == infraction.escalation_step %}font-bold text-blue-900{% endif %}">
+ {{ step_text }}
+ {% if step_num == infraction.escalation_step %} (الحالية){% endif %}
+ </li>
+ {% endfor %}
+ </ol>
+ </div>
+ {% endif %}
  <div class="bg-white rounded-xl shadow-sm p-6">
  <form method="post">
  {% csrf_token %}
@@ -22,11 +41,25 @@
  <input type="text" name="recovery_reason" placeholder="سبب الاسترداد"
  class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 placeholder:text-gray-400">
  </div>
+ <div class="grid grid-cols-2 gap-3 mb-4">
+ <div>
+ <label class="text-xs text-gray-600 block mb-1">نوع الإيقاف</label>
+ <select name="suspension_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900">
+ <option value="internal">داخلي (داخل المدرسة)</option>
+ <option value="external">خارجي (خارج المدرسة)</option>
+ </select>
+ </div>
+ <div>
+ <label class="text-xs text-gray-600 block mb-1">عدد أيام الإيقاف</label>
+ <input type="number" name="suspension_days" value="1" min="1" max="15"
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900">
+ </div>
+ </div>
  <div class="grid grid-cols-3 gap-3">
  <button name="decision" value="resolve" class="btn-success text-white py-2.5 rounded-lg text-sm font-medium">✅ حل وإغلاق</button>
  <button name="decision" value="suspend" class="bg-orange-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600">⏸ إيقاف مؤقت</button>
  {% if infraction.level == 3 %}
- <button name="decision" value="escalate" class="btn-danger text-white py-2.5 rounded-lg text-sm font-medium">⬆️ تصعيد</button>
+ <button name="decision" value="escalate" class="btn-danger text-white py-2.5 rounded-lg text-sm font-medium">⬆️ تصعيد للدرجة 4</button>
  {% endif %}
  </div>
  </form>

@@ -33,6 +33,27 @@
  </select>
  </div>
 
+ {# ── نوع المخالفة (اللائحة 2025) ── #}
+ <div>
+ <label for="ql-violation" class="block text-sm font-medium text-gray-700 mb-1">
+ نوع المخالفة <span class="text-gray-400 font-normal text-xs">(حسب اللائحة)</span>
+ </label>
+ <select id="ql-violation" name="violation_category"
+ class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900">
+ <option value="">— اختر (اختياري) —</option>
+ {% regroup violation_categories by get_degree_display as degree_list %}
+ {% for degree in degree_list %}
+ <optgroup label="{{ degree.grouper }}">
+ {% for vc in degree.list %}
+ <option value="{{ vc.id }}" data-degree="{{ vc.degree }}" data-points="{{ vc.points }}">
+ [{{ vc.code }}] {{ vc.name_ar }}
+ </option>
+ {% endfor %}
+ </optgroup>
+ {% endfor %}
+ </select>
+ </div>
+
  {# ── درجة المخالفة (أزرار كبيرة) ── #}
  <div>
  <p class="text-sm font-medium text-gray-700 mb-2">درجة المخالفة <span class="text-red-600">*</span></p>
@@ -130,6 +151,18 @@
  if (ta && cnt) {
  ta.addEventListener('input', function () {
  cnt.textContent = ta.value.length + ' / 2000';
+ });
+ }
+
+ // عند اختيار نوع المخالفة — ضبط الدرجة تلقائياً
+ var vcSel = document.getElementById('ql-violation');
+ if (vcSel) {
+ vcSel.addEventListener('change', function() {
+ var opt = this.options[this.selectedIndex];
+ if (!opt.value) return;
+ var degree = opt.dataset.degree;
+ var radio = document.querySelector('input[name="level"][value="' + degree + '"]');
+ if (radio) radio.checked = true;
  });
  }
 

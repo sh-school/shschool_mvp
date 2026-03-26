@@ -36,7 +36,13 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
-from .constants import LEVEL_DESC, LEVEL_DISPLAY, POINTS_BY_LEVEL  # noqa: E402,F401
+from .constants import (  # noqa: E402,F401
+    ESCALATION_STEPS,
+    LEVEL_AUTHORITY,
+    LEVEL_DESC,
+    LEVEL_DISPLAY,
+    POINTS_BY_LEVEL,
+)
 
 PERIOD_CHOICES = [
     ("full", "العام كاملاً"),
@@ -230,6 +236,7 @@ class BehaviorService:
         restore_pts: int = 0,
         reason: str = "",
         approved_by: CustomUser | None = None,
+        **kwargs,
     ) -> tuple:
         """
         تطبيق قرار اللجنة على المخالفة.
@@ -261,6 +268,8 @@ class BehaviorService:
             infraction.action_taken = (
                 infraction.action_taken + "\n[قرار اللجنة: إيقاف مؤقت]"
             ).strip()
+            infraction.suspension_type = kwargs.get("suspension_type", "internal")
+            infraction.suspension_days = kwargs.get("suspension_days", 1)
             infraction.save()
             BehaviorService._auto_summon_parent(infraction, approved_by, "إيقاف مؤقت بقرار لجنة الضبط")
             return "📋 تم تسجيل قرار الإيقاف المؤقت + استدعاء ولي الأمر", "info"
@@ -283,10 +292,15 @@ class BehaviorService:
             sender_name = approved_by.full_name if approved_by else "لجنة الضبط السلوكي"
 
             title = f"استدعاء ولي أمر — {student.full_name}"
+            violation_name = (
+                infraction.violation_category.name_ar
+                if infraction.violation_category
+                else infraction.get_level_display()
+            )
             body = (
                 f"بناءً على قرار لجنة الضبط السلوكي:\n"
                 f"السبب: {reason}\n"
-                f"المخالفة: {infraction.get_category_display()} (درجة {infraction.level})\n"
+                f"المخالفة: {violation_name} (درجة {infraction.level})\n"
                 f"من: {sender_name}"
             )
 
@@ -506,10 +520,137 @@ class BehaviorService:
                 related_url=f"/behavior/student/{infraction.student.pk}/",
                 sent_by=reporter,
             )
-        except (ImportError, OSError, RuntimeError, ValueError) as e:
+        except Exception as e:
             logger.error(
                 "notify_parents: Hub dispatch failed [infraction=%s]: %s",
                 infraction.pk,
                 e,
                 exc_info=True,
             )
+
+    # ── تصعيد الإجراء التصاعدي ───────────────────────────────
+    @staticmethod
+    def escalate_infraction(
+        infraction: BehaviorInfraction,
+        escalated_by: CustomUser | None = None,
+        notes: str = "",
+    ) -> tuple:
+        """
+        ينقل المخالفة إلى الخطوة التصاعدية التالية.
+        Returns: (success: bool, message: str)
+        """
+        current_step = infraction.escalation_step or 0
+        steps = ESCALATION_STEPS.get(infraction.level, [])
+        max_step = len(steps)
+
+        if current_step >= max_step:
+            return False, f"المخالفة وصلت الحد الأقصى (الخطوة {max_step})"
+
+        new_step = current_step + 1
+        infraction.escalation_step = new_step
+
+        step_text = next((txt for s, txt in steps if s == new_step), "")
+        action_line = f"[تصعيد → الخطوة {new_step}: {step_text}]"
+        if notes:
+            action_line += f" — {notes}"
+        infraction.action_taken = (
+            (infraction.action_taken or "") + "\n" + action_line
+        ).strip()
+
+        # تحديث الحقول المرتبطة تلقائياً
+        if infraction.level >= 2 and new_step >= 2:
+            infraction.parent_summoned = True
+            if not infraction.parent_summon_date:
+                infraction.parent_summon_date = timezone.now().date()
+
+        infraction.save()
+
+        # إشعار ولي الأمر عند التصعيد
+        if infraction.level >= 2:
+            BehaviorService._auto_summon_parent(
+                infraction, escalated_by,
+                f"تصعيد إجراء — الخطوة {new_step}: {step_text}",
+            )
+
+        return True, f"تم التصعيد إلى الخطوة {new_step}: {step_text}"
+
+    # ── تسجيل إحالة أمنية (الدرجة الرابعة) ───────────────────
+    @staticmethod
+    def record_security_referral(
+        infraction: BehaviorInfraction,
+        agency: str,
+        reference_number: str = "",
+        notes: str = "",
+        referred_by: CustomUser | None = None,
+    ) -> tuple:
+        """
+        تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة.
+        Returns: (success: bool, message: str)
+        """
+        if infraction.level < 4:
+            return False, "الإحالة الأمنية متاحة فقط لمخالفات الدرجة الرابعة"
+
+        from .constants import SECURITY_AGENCIES
+        valid_agencies = [code for code, _ in SECURITY_AGENCIES]
+        if agency not in valid_agencies:
+            return False, f"جهة أمنية غير معروفة: {agency}"
+
+        infraction.security_referral_date = timezone.now().date()
+        infraction.security_agency = agency
+        if reference_number:
+            infraction.security_reference_number = reference_number
+        if notes:
+            infraction.security_notes = (
+                (infraction.security_notes or "") + "\n" + notes
+            ).strip()
+
+        agency_name = dict(SECURITY_AGENCIES).get(agency, agency)
+        action_line = f"[إحالة أمنية → {agency_name}]"
+        if reference_number:
+            action_line += f" رقم المرجع: {reference_number}"
+        infraction.action_taken = (
+            (infraction.action_taken or "") + "\n" + action_line
+        ).strip()
+
+        infraction.save()
+
+        # إشعار ولي الأمر
+        BehaviorService._auto_summon_parent(
+            infraction, referred_by,
+            f"إحالة أمنية إلى {agency_name}",
+        )
+
+        return True, f"تم تسجيل الإحالة الأمنية إلى {agency_name}"
+
+    # ── عدد المخالفات السابقة (لحساب خطوة التصعيد) ──────────
+    @staticmethod
+    def get_prior_infraction_count(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category=None,
+    ) -> int:
+        """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة)."""
+        qs = BehaviorInfraction.objects.filter(
+            student=student, school=school, level=level,
+        )
+        if violation_category:
+            qs = qs.filter(violation_category=violation_category)
+        return qs.count()
+
+    # ── اقتراح الخطوة التصاعدية للمخالفة الجديدة ────────────
+    @staticmethod
+    def suggest_escalation_step(
+        student: CustomUser,
+        school: School,
+        level: int,
+        violation_category=None,
+    ) -> int:
+        """يقترح خطوة التصعيد المناسبة بناءً على تكرار المخالفات."""
+        prior = BehaviorService.get_prior_infraction_count(
+            student, school, level, violation_category,
+        )
+        steps = ESCALATION_STEPS.get(level, [])
+        max_step = len(steps)
+        # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
+        return min(prior + 1, max_step)

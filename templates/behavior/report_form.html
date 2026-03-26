@@ -1,78 +1,221 @@
 {% extends "base.html" %}
 {% block title %}تسجيل مخالفة سلوكية{% endblock %}
 {% block content %}
-<div dir="rtl" class="max-w-2xl mx-auto">
- <div class="flex justify-between items-center mb-6">
- <h1 class="text-2xl font-bold text-gray-800">⚖️ تسجيل مخالفة سلوكية</h1>
- <a href="{% url 'behavior:dashboard' %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">← رجوع</a>
+<div dir="rtl" class="space-y-6">
+
+ {# ── العنوان ── #}
+ <div class="page-header flex justify-between items-center">
+  <div>
+   <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">تسجيل مخالفة سلوكية</h1>
+   <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">لائحة السلوك الطلابي — قطر 2025-2026</p>
+  </div>
+  <a href="{% url 'behavior:dashboard' %}" class="text-sm border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">&larr; رجوع</a>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-6">
+
  <form method="post" data-validate>
  {% csrf_token %}
- <div class="space-y-4">
- <div>
- <label class="text-sm font-medium text-gray-700 block mb-1">الطالب <span class="text-red-500">*</span></label>
- <select name="student_id" required id="studentSelect"
- class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900">
- <option value="">— اختر الطالب —</option>
- {% for s in students %}
- <option value="{{ s.id }}">{{ s.full_name }}</option>
- {% endfor %}
- </select>
+ <input type="hidden" name="violation_category" id="hiddenViolationId" value="">
+ <input type="hidden" name="level" id="hiddenLevel" value="1">
+
+ {# ══════════ القوائم الأربع — صف واحد عريض ══════════ #}
+ <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-3">اختر المخالفة حسب الدرجة <span class="text-red-500">*</span></label>
+
+ <div class="flex flex-wrap lg:flex-nowrap gap-3" id="degreePanels">
+
+  {# ── الدرجة 1 ── #}
+  <div class="degree-panel rounded-xl overflow-hidden transition-all hover:shadow-lg border-2 border-green-500 dark:border-green-400 flex-1 min-w-[180px]"
+   data-degree="1" data-color="green">
+   <div class="flex items-center justify-between px-3 py-2 bg-green-600 dark:bg-green-700">
+    <span class="text-xs font-bold text-white">الدرجة 1 — بسيطة</span>
+    <span class="text-xs bg-white text-green-700 px-2 py-0.5 rounded-full font-bold">
+     {{ violations_by_degree.1|length }}
+    </span>
+   </div>
+   <div class="p-3 bg-green-50 dark:bg-green-950/40">
+   <select class="degree-select w-full border border-green-300 dark:border-green-700 rounded-lg px-2 py-2 text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-green-500"
+    data-degree="1">
+    <option value="">— اختر —</option>
+    {% for vc in violations_by_degree.1 %}
+    <option value="{{ vc.id }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    {% endfor %}
+   </select>
+   </div>
+  </div>
+
+  {# ── الدرجة 2 ── #}
+  <div class="degree-panel rounded-xl overflow-hidden transition-all hover:shadow-lg border-2 border-yellow-500 dark:border-yellow-400 flex-1 min-w-[180px]"
+   data-degree="2" data-color="yellow">
+   <div class="flex items-center justify-between px-3 py-2 bg-yellow-500 dark:bg-yellow-700">
+    <span class="text-xs font-bold text-white">الدرجة 2 — متوسطة</span>
+    <span class="text-xs bg-white text-yellow-700 px-2 py-0.5 rounded-full font-bold">
+     {{ violations_by_degree.2|length }}
+    </span>
+   </div>
+   <div class="p-3 bg-yellow-50 dark:bg-yellow-950/40">
+   <select class="degree-select w-full border border-yellow-300 dark:border-yellow-700 rounded-lg px-2 py-2 text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-yellow-500"
+    data-degree="2">
+    <option value="">— اختر —</option>
+    {% for vc in violations_by_degree.2 %}
+    <option value="{{ vc.id }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    {% endfor %}
+   </select>
+   </div>
+  </div>
+
+  {# ── الدرجة 3 ── #}
+  <div class="degree-panel rounded-xl overflow-hidden transition-all hover:shadow-lg border-2 border-orange-500 dark:border-orange-400 flex-1 min-w-[180px]"
+   data-degree="3" data-color="orange">
+   <div class="flex items-center justify-between px-3 py-2 bg-orange-500 dark:bg-orange-600">
+    <span class="text-xs font-bold text-white">الدرجة 3 — خطيرة</span>
+    <span class="text-xs bg-white text-orange-700 px-2 py-0.5 rounded-full font-bold">
+     {{ violations_by_degree.3|length }}
+    </span>
+   </div>
+   <div class="p-3 bg-orange-50 dark:bg-orange-950/40">
+   <select class="degree-select w-full border border-orange-300 dark:border-orange-700 rounded-lg px-2 py-2 text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-orange-500"
+    data-degree="3">
+    <option value="">— اختر —</option>
+    {% for vc in violations_by_degree.3 %}
+    <option value="{{ vc.id }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    {% endfor %}
+   </select>
+   </div>
+  </div>
+
+  {# ── الدرجة 4 ── #}
+  <div class="degree-panel rounded-xl overflow-hidden transition-all hover:shadow-lg border-2 border-red-500 dark:border-red-400 flex-1 min-w-[180px]"
+   data-degree="4" data-color="red">
+   <div class="flex items-center justify-between px-3 py-2 bg-red-600 dark:bg-red-700">
+    <span class="text-xs font-bold text-white">الدرجة 4 — جسيمة</span>
+    <span class="text-xs bg-white text-red-700 px-2 py-0.5 rounded-full font-bold">
+     {{ violations_by_degree.4|length }}
+    </span>
+   </div>
+   <div class="p-3 bg-red-50 dark:bg-red-950/40">
+   <select class="degree-select w-full border border-red-300 dark:border-red-700 rounded-lg px-2 py-2 text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-red-500"
+    data-degree="4">
+    <option value="">— اختر —</option>
+    {% for vc in violations_by_degree.4 %}
+    <option value="{{ vc.id }}" data-points="{{ vc.points }}">[{{ vc.code }}] {{ vc.name_ar }}</option>
+    {% endfor %}
+   </select>
+   </div>
+  </div>
+
  </div>
- <div>
- <label class="text-sm font-medium text-gray-700 block mb-1">درجة المخالفة <span class="text-red-500">*</span></label>
- <div class="grid grid-cols-2 gap-2" id="levelOptions">
- {% for val, label in levels %}
- <label class="flex items-center gap-2 border border-gray-300 rounded-lg p-3 cursor-pointer hover:bg-gray-50 has-[:checked]:border-red-500 has-[:checked]:bg-red-50">
- <input type="radio" name="level" value="{{ val }}" class="accent-red-600"
- onchange="updatePoints({{ POINTS_BY_LEVEL|default:'{}' }}, {{ val }})"
- {% if val == 1 %}checked{% endif %}>
- <div>
- <p class="text-sm font-medium text-gray-800">الدرجة {{ val }}</p>
- <p class="text-xs text-gray-500">{{ label }}</p>
+
+ {# ── المخالفة المختارة (تأكيد) ── #}
+ <div id="selectedViolation" class="hidden bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mt-4">
+  <div class="flex items-center justify-between">
+   <div>
+    <p class="text-xs text-blue-500 dark:text-blue-400">المخالفة المختارة:</p>
+    <p class="text-sm font-bold text-blue-800 dark:text-blue-200" id="selectedText"></p>
+   </div>
+   <button type="button" id="clearSelection" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">تغيير</button>
+  </div>
  </div>
- </label>
- {% endfor %}
+
+ {# ══════════ بيانات المخالفة — بطاقة واحدة عريضة ══════════ #}
+ <div class="card-qatar mt-6 p-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+   {# ── الطالب ── #}
+   <div>
+    <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">الطالب <span class="text-red-500">*</span></label>
+    <select name="student_id" required id="studentSelect"
+     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+     <option value="">— اختر الطالب —</option>
+     {% for s in students %}
+     <option value="{{ s.id }}">{{ s.full_name }}</option>
+     {% endfor %}
+    </select>
+   </div>
+
+   {# ── النقاط + الإجراء ── #}
+   <div class="grid grid-cols-2 gap-4">
+    <div>
+     <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">النقاط المخصومة</label>
+     <input type="number" name="points_deducted" id="pointsInput" value="5" min="0" max="100"
+      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+    </div>
+    <div>
+     <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">الإجراء الأولي</label>
+     <input type="text" name="action_taken" placeholder="مثال: تحذير شفوي..."
+      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400">
+    </div>
+   </div>
+
+   {# ── وصف المخالفة — عرض كامل ── #}
+   <div class="md:col-span-2">
+    <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">وصف المخالفة <span class="text-red-500">*</span></label>
+    <textarea name="description" rows="3" required
+     placeholder="اكتب وصفاً تفصيلياً للمخالفة..."
+     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"></textarea>
+   </div>
+  </div>
+
+  <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3 text-sm text-orange-700 dark:text-orange-300 mt-4">
+   المخالفات من الدرجة 3 و4 ستُحال تلقائياً للجنة الضبط السلوكي
+  </div>
+
+  <div class="flex gap-3 mt-6">
+   <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium transition">
+    تسجيل المخالفة
+   </button>
+   <a href="{% url 'behavior:dashboard' %}" class="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">إلغاء</a>
+  </div>
  </div>
- </div>
- <div>
- <label class="text-sm font-medium text-gray-700 block mb-1">وصف المخالفة <span class="text-red-500">*</span></label>
- <textarea name="description" rows="3" required
- placeholder="اكتب وصفاً تفصيلياً للمخالفة..."
- class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-red-300 bg-white text-gray-900 placeholder:text-gray-400"></textarea>
- </div>
- <div class="grid grid-cols-2 gap-4">
- <div>
- <label class="text-sm font-medium text-gray-700 block mb-1">النقاط المخصومة</label>
- <input type="number" name="points_deducted" id="pointsInput" value="5" min="0" max="100"
- class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900">
- </div>
- <div>
- <label class="text-sm font-medium text-gray-700 block mb-1">الإجراء الأولي</label>
- <input type="text" name="action_taken" placeholder="مثال: تحذير شفوي..."
- class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white text-gray-900 placeholder:text-gray-400">
- </div>
- </div>
- <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 text-sm text-orange-700">
- ⚠️ المخالفات من الدرجة 3 و4 ستُحال تلقائياً للجنة الضبط السلوكي
- </div>
- </div>
- <div class="flex gap-3 mt-6">
- <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium transition">
- تسجيل المخالفة
- </button>
- <a href="{% url 'behavior:dashboard' %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
- </div>
+
  </form>
- </div>
 </div>
+
 <script nonce="{{ request.csp_nonce }}">
-const points = {"1": 5, "2": 15, "3": 25, "4": 40};
-document.querySelectorAll('input[name="level"]').forEach(r => {
- r.addEventListener('change', () => {
- document.getElementById('pointsInput').value = points[r.value] || 5;
+(function() {
+ var hiddenId = document.getElementById('hiddenViolationId');
+ var hiddenLevel = document.getElementById('hiddenLevel');
+ var pointsInput = document.getElementById('pointsInput');
+ var selectedBox = document.getElementById('selectedViolation');
+ var selectedText = document.getElementById('selectedText');
+ var clearBtn = document.getElementById('clearSelection');
+ var allSelects = document.querySelectorAll('.degree-select');
+ var allPanels = document.querySelectorAll('.degree-panel');
+ var defaultPoints = {'1': 5, '2': 15, '3': 25, '4': 40};
+
+ allSelects.forEach(function(sel) {
+  sel.addEventListener('change', function() {
+   var opt = sel.options[sel.selectedIndex];
+   if (!opt.value) return;
+   var degree = sel.dataset.degree;
+
+   allSelects.forEach(function(other) {
+    if (other !== sel) other.selectedIndex = 0;
+   });
+
+   hiddenId.value = opt.value;
+   hiddenLevel.value = degree;
+   pointsInput.value = opt.dataset.points || defaultPoints[degree] || 5;
+
+   selectedText.textContent = opt.textContent.trim();
+   selectedBox.classList.remove('hidden');
+
+   allPanels.forEach(function(p) {
+    p.classList.remove('ring-2', 'ring-offset-2', 'ring-green-500', 'ring-yellow-500', 'ring-orange-500', 'ring-red-500', 'shadow-lg');
+   });
+   var panel = sel.closest('.degree-panel');
+   panel.classList.add('ring-2', 'ring-offset-2', 'ring-' + panel.dataset.color + '-500', 'shadow-lg');
+  });
  });
-});
+
+ clearBtn.addEventListener('click', function() {
+  hiddenId.value = '';
+  hiddenLevel.value = '1';
+  pointsInput.value = 5;
+  selectedBox.classList.add('hidden');
+  allSelects.forEach(function(sel) { sel.selectedIndex = 0; });
+  allPanels.forEach(function(p) {
+   p.classList.remove('ring-2', 'ring-offset-2', 'ring-green-500', 'ring-yellow-500', 'ring-orange-500', 'ring-red-500', 'shadow-lg');
+  });
+ });
+})();
 </script>
 {% endblock %}
