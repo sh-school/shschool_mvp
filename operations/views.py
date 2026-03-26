@@ -211,9 +211,9 @@ def session_summary(request, session_id):
 @login_required
 @leadership_required
 def daily_report(request):
-    """تقرير الغياب اليومي للمدير"""
+    """تقرير الغياب اليومي — للمدير والمنسق"""
     school = request.user.get_school()
-    if not request.user.is_admin():
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
 
     from datetime import date
@@ -491,8 +491,8 @@ def register_teacher_absence(request):
 
 @login_required
 def absence_detail(request, absence_id):
-    """تفاصيل الغياب + تعيين البدلاء"""
-    if not request.user.is_admin():
+    """تفاصيل الغياب + تعيين البدلاء — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
@@ -533,8 +533,8 @@ def absence_detail(request, absence_id):
 @login_required
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
-    """HTMX: تعيين بديل لحصة"""
-    if not request.user.is_admin():
+    """HTMX: تعيين بديل لحصة — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
@@ -561,8 +561,8 @@ def assign_substitute(request, absence_id, slot_id):
 
 @login_required
 def substitute_report(request):
-    """تقرير الحصص البديلة"""
-    if not request.user.is_admin():
+    """تقرير الحصص البديلة — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     from datetime import date as dclass
@@ -672,8 +672,8 @@ def smart_generate(request):
 
 @login_required
 def teacher_load_report(request):
-    """تقرير أحمال المعلمين — عدد الحصص والعدالة"""
-    if not request.user.is_admin():
+    """تقرير أحمال المعلمين — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
