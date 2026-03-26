@@ -32,7 +32,8 @@
 {# ── ملخص الحضور (تحديث كل 10 ثوانٍ) ── #}
 <div id="summary-widget"
      hx-get="{% url 'session_summary' session.id %}"
-     hx-trigger="every 10s, refresh"
+     hx-trigger="refresh from:body"
+     hx-swap="innerHTML transition:false"
      class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
