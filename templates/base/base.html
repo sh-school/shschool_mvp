@@ -29,7 +29,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=7">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=120">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=121">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -139,7 +139,7 @@
 
     {% elif role == "it_technician" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/admin/" class="nb">🛠️ لوحة الإدارة</a>
+      <a href="/admin/" class="nb">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة</a>
 
     {% elif role == "student" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
@@ -232,7 +232,7 @@
   <a href="/parents/admin/links/">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
   <a href="/notifications/">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
   <hr>
-  <a href="/admin/">🛠️ لوحة الإدارة التقنية</a>
+  <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
 </div>
 
 <div class="sd-menu" id="m-services">

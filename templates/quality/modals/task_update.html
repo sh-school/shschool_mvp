@@ -6,14 +6,14 @@
     {# ═══ Header ═══ #}
     <div class="q-modal-header">
       <div class="header-content">
-        <div class="header-icon"><i class="fa-solid fa-pen-to-square"></i></div>
+        <div class="header-icon">{% include "components/icon.html" with name="pen-square" %}</div>
         <div>
           <h3>تحديث بيانات التنفيذ</h3>
           <p class="sub">رقم الإجراء: {{ task.number }}</p>
         </div>
       </div>
       <button class="close-btn" onclick="closeModal();this.closest('.q-modal-overlay').remove()">
-        <i class="fa-solid fa-xmark"></i>
+        {% include "components/icon.html" with name="x" %}
       </button>
     </div>
 
@@ -22,7 +22,7 @@
 
       {# Section 1: بيانات الإجراء والمؤشر (read-only) #}
       <div class="q-modal-info">
-        <div class="section-title"><i class="fa-solid fa-circle-info"></i> بيانات الإجراء والمؤشر</div>
+        <div class="section-title">{% include "components/icon.html" with name="info" %} بيانات الإجراء والمؤشر</div>
         <div class="info-grid">
           <div>
             <div class="info-label">الإجراء</div>
@@ -46,7 +46,7 @@
       {# View-only notice for non-executors #}
       {% if not is_executor %}
       <div class="q-view-only-notice">
-        <i class="fa-solid fa-lock"></i>
+        {% include "components/icon.html" with name="lock" %}
         وضع المعاينة فقط &mdash; ليس لديك صلاحية التعديل
       </div>
       {% endif %}
@@ -102,7 +102,7 @@
           {# Section 3: رفع الدليل #}
           {% if task.evidence_request_status == 'requested' %}
           <div class="q-view-only-notice" style="background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.3);color:var(--status-danger-dark);">
-            <i class="fa-solid fa-exclamation-triangle"></i>
+            {% include "components/icon.html" with name="alert-triangle" %}
             مطلوب رفع دليل من لجنة المراجعة
             {% if task.evidence_request_note %}
               — {{ task.evidence_request_note }}
@@ -117,7 +117,7 @@
             <div class="flex flex-wrap gap-2 mt-1">
               {% for ev in task.evidences.all %}
               <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
-                <i class="fa-solid fa-paperclip"></i> {{ ev.title }}
+                {% include "components/icon.html" with name="paperclip" %} {{ ev.title }}
               </a>
               {% endfor %}
             </div>
@@ -132,7 +132,7 @@
                    onclick="event.stopPropagation()"
                    class="q-modal-field">
             <div class="upload-icon">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
+              {% include "components/icon.html" with name="cloud-upload" %}
             </div>
             <p class="info-value">اضغط لرفع الدليل</p>
             <p class="info-label" id="file-name-display">PDF, Word, Images (Max 10MB)</p>
@@ -144,7 +144,7 @@
           <button type="button" class="btn-cancel" onclick="closeModal();this.closest('.q-modal-overlay').remove()">إلغاء</button>
           {% if is_executor %}
           <button type="submit" class="btn-save">
-            <i class="fa-solid fa-floppy-disk"></i> حفظ التغييرات
+            {% include "components/icon.html" with name="floppy-disk" %} حفظ التغييرات
           </button>
           {% endif %}
         </div>

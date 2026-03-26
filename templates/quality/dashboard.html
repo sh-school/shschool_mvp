@@ -12,7 +12,7 @@
   {# ── Header row — uses global page-header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">الخطة التشغيلية</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} الخطة التشغيلية</h1>
       <p class="page-subtitle">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
     </div>
     <nav class="qd-header__actions" aria-label="إجراءات الخطة">

@@ -17,7 +17,7 @@
   <!-- بانر المعاينة -->
   {% if is_dry_run %}
   <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
-    <span class="text-2xl">🔍</span>
+    <span class="text-2xl">{% include "components/icon.html" with name="eye" size="icon-lg" %}</span>
     <div>
       <p class="font-bold text-amber-800">وضع المعاينة — لم يتم حفظ أي درجات</p>
       <p class="text-sm text-amber-700 mt-0.5">
@@ -33,28 +33,28 @@
     {% if is_dry_run %}
       {% if errors %}
       <div class="bg-amber-500 px-6 py-5">
-        <div class="text-white text-4xl mb-1">🔍</div>
+        <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
         <h1 class="text-xl font-bold text-white">معاينة — يوجد {{ errors|length }} خطأ</h1>
       </div>
       {% else %}
       <div class="bg-blue-600 px-6 py-5">
-        <div class="text-white text-4xl mb-1">🔍</div>
+        <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
         <h1 class="text-xl font-bold text-white">معاينة — الملف جاهز للاستيراد</h1>
       </div>
       {% endif %}
     {% elif imported > 0 and not errors %}
     <div class="bg-green-600 px-6 py-5">
-      <div class="text-white text-4xl mb-1">✓</div>
+      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</div>
       <h1 class="text-xl font-bold text-white">اكتمل الاستيراد بنجاح</h1>
     </div>
     {% elif imported > 0 %}
     <div class="bg-amber-500 px-6 py-5">
-      <div class="text-white text-4xl mb-1">⚠</div>
+      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="alert-triangle" size="icon-2xl" %}</div>
       <h1 class="text-xl font-bold text-white">اكتمل الاستيراد مع تحذيرات</h1>
     </div>
     {% else %}
     <div class="bg-red-600 px-6 py-5">
-      <div class="text-white text-4xl mb-1">✕</div>
+      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="x-circle" size="icon-2xl" %}</div>
       <h1 class="text-xl font-bold text-white">فشل الاستيراد</h1>
     </div>
     {% endif %}

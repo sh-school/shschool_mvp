@@ -4,14 +4,14 @@
   {# 1 — قرار اللجنة #}
   <td class="cell-action">
     {% if task.committee_decision_display == 'معتمد' %}
-      <span class="q-badge q-badge-success"><i class="fa-solid fa-circle-check"></i> معتمد</span>
+      <span class="q-badge q-badge-success">{% include "components/icon.html" with name="check-circle" %} معتمد</span>
     {% elif is_reviewer and task.committee_decision_display != 'ملغى' %}
       <button type="button"
               hx-get="{% url 'review_evaluate_modal' task.id %}"
               hx-target="#modal-container"
               hx-swap="innerHTML"
               class="q-btn q-btn-maroon">
-        <i class="fa-solid fa-gavel"></i> القرار
+        {% include "components/icon.html" with name="gavel" %} القرار
       </button>
     {% else %}
       <span class="q-badge q-badge-neutral">{{ task.committee_decision_display }}</span>
@@ -71,7 +71,7 @@
     {% for ev in task.evidences.all %}
       {% if ev.file %}
         <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
-          <i class="fa-solid fa-download"></i> {{ ev.title|default:"دليل" }}
+          {% include "components/icon.html" with name="download" %} {{ ev.title|default:"دليل" }}
         </a>
       {% else %}
         <span class="q-badge q-badge-neutral">{{ ev.title|default:"دليل" }}</span>
@@ -89,15 +89,15 @@
   {# 14 — طلب الدليل #}
   <td class="cell-action">
     {% if task.evidence_request_status == 'requested' %}
-      <span class="q-badge q-badge-danger pulse"><i class="fa-solid fa-exclamation-circle"></i> مطلوب</span>
+      <span class="q-badge q-badge-danger pulse">{% include "components/icon.html" with name="circle-alert" %} مطلوب</span>
     {% elif task.evidences.all %}
-      <span class="q-badge q-badge-success"><i class="fa-solid fa-check"></i> تم الإرفاق</span>
+      <span class="q-badge q-badge-success">{% include "components/icon.html" with name="check" %} تم الإرفاق</span>
     {% elif is_reviewer and task.committee_decision_display != 'معتمد' %}
       <form method="post" action="{% url 'toggle_evidence_request' task.id %}">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
         <button type="submit" class="q-btn q-btn-gold">
-          <i class="fa-solid fa-file-circle-exclamation"></i> طلب دليل
+          {% include "components/icon.html" with name="file-warning" %} طلب دليل
         </button>
       </form>
     {% else %}

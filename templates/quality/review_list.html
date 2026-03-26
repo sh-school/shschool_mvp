@@ -13,7 +13,7 @@
   {# ══ Header ══════════════════════════════════════════════ #}
   <div class="page-header">
     <div>
-      <h1 class="page-title"><i class="fa-solid fa-clipboard-check"></i> لجنة المراجعة الذاتية</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="clipboard-check" %} لجنة المراجعة الذاتية</h1>
       <p class="page-subtitle">
         الإجراءات: {{ page_obj.paginator.count }}
         {% if member_domain %} · مجالك: <strong>{{ member_domain.name }}</strong>{% endif %}
@@ -44,7 +44,7 @@
   {# ══ Member Domain Notice ════════════════════════════════ #}
   {% if member_domain %}
   <div class="quality-notice" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border);border-radius:0.75rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--status-warning-dark)">
-    <i class="fa-solid fa-filter"></i>
+    {% include "components/icon.html" with name="filter" %}
     <span>أنت مسؤول عن مجال <strong>{{ member_domain.name }}</strong> — يتم عرض إجراءات هذا المجال فقط.</span>
   </div>
   {% endif %}
@@ -52,7 +52,7 @@
   {# ══ Filters ═════════════════════════════════════════════ #}
   <div class="quality-filters">
     <div class="quality-filters-header">
-      <i class="fa-solid fa-filter"></i> أدوات التصفية
+      {% include "components/icon.html" with name="filter" %} أدوات التصفية
     </div>
     <form method="GET" id="filters-form" class="quality-filters-body">
       <input type="hidden" name="sort" value="{{ current_sort }}">
@@ -146,7 +146,7 @@
 
       <div class="quality-filters-actions">
         <button type="submit" class="quality-btn-search">
-          <i class="fa-solid fa-magnifying-glass"></i> بحث
+          {% include "components/icon.html" with name="search" %} بحث
         </button>
         <a href="{% url 'review_list' %}" class="quality-btn-clear">مسح</a>
       </div>
@@ -158,12 +158,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="page-link"><i class="fa-solid fa-chevron-right"></i> السابق</a>
+         class="page-link">{% include "components/icon.html" with name="chevron-right" %} السابق</a>
     {% endif %}
     <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="page-link">التالي <i class="fa-solid fa-chevron-left"></i></a>
+         class="page-link">التالي {% include "components/icon.html" with name="chevron-left" %}</a>
     {% endif %}
   </div>
   {% endif %}
@@ -197,7 +197,7 @@
           {% empty %}
             <tr>
               <td colspan="15" class="quality-empty">
-                <i class="fa-solid fa-inbox"></i>
+                {% include "components/icon.html" with name="inbox" %}
                 <p>لا توجد إجراءات مطابقة للتصفية</p>
               </td>
             </tr>
@@ -212,12 +212,12 @@
   <div class="quality-pagination">
     {% if page_obj.has_previous %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}"
-         class="page-link"><i class="fa-solid fa-chevron-right"></i> السابق</a>
+         class="page-link">{% include "components/icon.html" with name="chevron-right" %} السابق</a>
     {% endif %}
     <span class="page-info">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
       <a href="?{% for key, val in request.GET.items %}{% if key != 'page' %}{{ key }}={{ val }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}"
-         class="page-link">التالي <i class="fa-solid fa-chevron-left"></i></a>
+         class="page-link">التالي {% include "components/icon.html" with name="chevron-left" %}</a>
     {% endif %}
   </div>
   {% endif %}

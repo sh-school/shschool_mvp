@@ -13,7 +13,7 @@
   {# ══ Header ══════════════════════════════════════════════ #}
   <div class="page-header">
     <div>
-      <h1 class="page-title"><i class="fa-solid fa-users-gear"></i> لجنة منفذي الخطة التشغيلية</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة التشغيلية</h1>
       <p class="page-subtitle">{{ year }} — {{ total_all }} إجراء</p>
     </div>
     <div class="page-actions">
@@ -53,7 +53,7 @@
   {# ══ Unmapped Executors Alert ═══════════════════════════════ #}
   {% if unmapped_norms %}
   <div class="q-alert q-alert-warn">
-    <span class="q-alert-icon">⚠️</span>
+    <span class="q-alert-icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
       <strong>{{ unmapped_norms|length }} منفذ لم يُربط بعد بمستخدم في النظام</strong>
       <div class="q-alert-tags">
@@ -68,7 +68,7 @@
   {# ══ Add Member Form ═══════════════════════════════════════ #}
   <div class="q-add-form">
     <div class="q-add-form-header" onclick="toggleForm()">
-      <span><i class="fa-solid fa-user-plus"></i> إضافة عضو للجنة المنفذين</span>
+      <span>{% include "components/icon.html" with name="plus" %} إضافة عضو للجنة المنفذين</span>
       <span id="form-toggle-icon" class="toggle-icon">＋</span>
     </div>
     <div id="add-form" class="q-add-form-body" style="display:none">
@@ -113,7 +113,7 @@
 
         <div class="q-add-form-actions">
           <button type="submit" class="q-btn q-btn-maroon">
-            <i class="fa-solid fa-plus"></i> إضافة للجنة
+            {% include "components/icon.html" with name="plus" %} إضافة للجنة
           </button>
         </div>
       </form>
@@ -123,7 +123,7 @@
   {# ══ Members Table ═════════════════════════════════════════ #}
   <div class="quality-table-wrap">
     <div class="quality-filters-header">
-      <i class="fa-solid fa-chart-bar"></i> أعضاء اللجنة وتقارير الإنجاز ({{ member_stats|length }})
+      {% include "components/icon.html" with name="bar-chart" %} أعضاء اللجنة وتقارير الإنجاز ({{ member_stats|length }})
     </div>
 
     {% if member_stats %}
@@ -191,7 +191,7 @@
     </div>
     {% else %}
     <div class="quality-empty">
-      <i class="fa-solid fa-users"></i>
+      {% include "components/icon.html" with name="users" %}
       <p>لا يوجد أعضاء في اللجنة التنفيذية بعد</p>
       <p class="sub">ابدأ بإضافة الأعضاء من النموذج أعلاه</p>
     </div>

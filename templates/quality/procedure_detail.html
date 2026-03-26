@@ -131,7 +131,7 @@
   {% if status_logs %}
   <div class="bg-white rounded-xl border shadow-sm p-6">
     <h3 class="text-lg font-bold text-[var(--maroon)] mb-4 flex items-center gap-2">
-        <i class="fa-solid fa-clock-rotate-left"></i>
+        {% include "components/icon.html" with name="clock" %}
         سجل التغييرات
     </h3>
     <div class="relative pr-8">
@@ -166,7 +166,7 @@
                     <span class="text-xs text-gray-400">{{ log.created_at|timesince }} مضت</span>
                 </div>
                 <div class="flex items-center gap-2 text-xs text-gray-500">
-                    <i class="fa-solid fa-user"></i>
+                    {% include "components/icon.html" with name="user" %}
                     <span>{{ log.changed_by.full_name|default:"النظام" }}</span>
                 </div>
                 {% if log.note %}

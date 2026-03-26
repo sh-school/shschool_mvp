@@ -2,7 +2,7 @@
 {% block content %}
 
 <div class="header">
-  <div class="school-name">🏫 {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
+  <div class="school-name">{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
   <div class="form-title">نموذج تعهّد ولي الأمر</div>
   <div class="date-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div>
 </div>

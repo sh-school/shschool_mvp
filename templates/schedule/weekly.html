@@ -2,6 +2,10 @@
 {% load dict_filters %}
 {% block title %}الجدول الأسبوعي — {{ academic_year }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="الجدول الأسبوعي" %}
+{% endblock %}
+
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
 /* ── Weekly Schedule — Professional Grid ── */

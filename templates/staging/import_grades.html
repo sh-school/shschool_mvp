@@ -11,7 +11,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">استيراد الدرجات</h1>
+      <h1 class="text-2xl font-bold text-gray-900">{% include "components/icon.html" with name="download" %} استيراد الدرجات</h1>
       <p class="text-gray-500 text-sm mt-1">رفع ملف Excel لتعبئة الدرجات دفعةً واحدة</p>
     </div>
     <a href="{% url 'import_log_list' %}"
@@ -20,7 +20,7 @@
 
   {% if not openpyxl_ok %}
   <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 text-sm">
-    ⚠️ مكتبة <code>openpyxl</code> غير مثبتة. شغّل:
+    {% include "components/icon.html" with name="alert-triangle" %} مكتبة <code>openpyxl</code> غير مثبتة. شغّل:
     <code class="bg-amber-100 px-2 py-0.5 rounded">pip install openpyxl</code>
     لتفعيل هذه الميزة.
   </div>
@@ -81,13 +81,13 @@
                 <!-- تحميل القالب -->
                 <a href="{% url 'download_grade_template' a.id %}"
                    class="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 transition {% if not openpyxl_ok %}opacity-50 pointer-events-none{% endif %}">
-                  ⬇ قالب Excel
+                  {% include "components/icon.html" with name="arrow-down-to-line" %} قالب Excel
                 </a>
 
                 <!-- زر رفع -->
                 <button onclick="toggleUpload('{{ a.id }}')"
                         class="inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg bg-[#8A1538] text-white hover:bg-[#1A4F8A] transition {% if not openpyxl_ok %}opacity-50 pointer-events-none{% endif %}">
-                  ⬆ رفع الدرجات
+                  {% include "components/icon.html" with name="arrow-up-from-line" %} رفع الدرجات
                 </button>
               </div>
 
@@ -104,18 +104,18 @@
                     <button type="submit"
                             onclick="document.getElementById('dry-run-{{ a.id }}').value='1'"
                             class="text-xs px-3 py-1.5 rounded border border-amber-500 text-amber-700 hover:bg-amber-50 transition whitespace-nowrap">
-                      🔍 معاينة
+                      {% include "components/icon.html" with name="eye" %} معاينة
                     </button>
                     <button type="submit"
                             onclick="document.getElementById('dry-run-{{ a.id }}').value='0'"
                             class="btn-primary text-xs px-3 py-1.5 rounded text-white transition whitespace-nowrap">
-                      ⬆ استيراد
+                      {% include "components/icon.html" with name="arrow-up-from-line" %} استيراد
                     </button>
                     <button type="button" onclick="toggleUpload('{{ a.id }}')"
                             class="text-xs px-2 py-1.5 text-gray-500 hover:text-gray-700">✕</button>
                   </div>
                   <p class="text-xs text-gray-400 mt-1">
-                    💡 استخدم <strong>معاينة</strong> للتحقق من الأخطاء قبل الحفظ الفعلي
+                    {% include "components/icon.html" with name="lightbulb" %} استخدم <strong>معاينة</strong> للتحقق من الأخطاء قبل الحفظ الفعلي
                   </p>
                 </form>
               </div>
@@ -128,7 +128,7 @@
 
     {% else %}
     <div class="px-6 py-12 text-center text-gray-400">
-      <p class="text-4xl mb-3">📊</p>
+      <p class="text-4xl mb-3">{% include "components/icon.html" with name="bar-chart" size="icon-2xl" %}</p>
       <p>لا توجد تقييمات منشورة حالياً</p>
       <a href="{% url 'assessments_dashboard' %}" class="text-blue-600 text-sm hover:underline mt-2 inline-block">
         الذهاب إلى التقييمات ←
