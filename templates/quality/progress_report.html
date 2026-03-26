@@ -1,190 +1,469 @@
 {% extends "base/base.html" %}
-{% block title %}تقرير التقدم{% endblock %}
+{% load static %}
+{% block title %}تقرير التقدم — الخطة التشغيلية{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تقرير التقدم" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-  <div class="flex items-center justify-between flex-wrap gap-3">
-    <h1 class="text-2xl font-bold text-[#8A1538]">تقرير التقدم الكلي</h1>
-    <a href="{% url 'quality_report_pdf' %}?year={{ year }}"
-       class="btn-danger px-4 py-2 text-white text-sm rounded-lg transition flex items-center gap-2">
-      📄 تصدير PDF
-    </a>
-    <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline">← العودة</a>
+<div class="qr">
+
+  {# ── Header ── #}
+  <div class="qr-header">
+    <div class="qr-header__info">
+      <h1 class="qr-header__title">تقرير التقدم الكلي</h1>
+      <p class="qr-header__sub">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+    </div>
+    <nav class="qr-header__actions">
+      <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="qr-btn qr-btn--pdf">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        تصدير PDF
+      </a>
+      <a href="{% url 'quality_dashboard' %}" class="qr-btn qr-btn--back">الخطة التشغيلية</a>
+    </nav>
   </div>
 
-  <!-- KPI Cards -->
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold text-gray-800">{{ total_all }}</div>
-      <div class="text-xs text-gray-500 mt-1">إجمالي الإجراءات</div>
+  {# ── Hero: Big ring + KPIs ── #}
+  <div class="qr-hero">
+    <div class="qr-hero__ring" data-pct="{{ pct_all }}">
+      <svg viewBox="0 0 36 36" class="qr-ring-svg" aria-hidden="true">
+        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="2"/>
+        <circle class="qr-ring-arc" cx="18" cy="18" r="15.9" fill="none"
+                stroke="{% if pct_all == 100 %}#16a34a{% elif pct_all > 60 %}var(--maroon){% elif pct_all > 30 %}#d97706{% else %}#dc2626{% endif %}"
+                stroke-width="2.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+      </svg>
+      <span class="qr-ring-pct" id="qr-main-pct">0%</span>
+      <span class="qr-ring-label">الإنجاز الكلي</span>
     </div>
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold text-green-600">{{ completed_all }}</div>
-      <div class="text-xs text-gray-500 mt-1">مكتمل</div>
-    </div>
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold text-amber-600">{{ in_progress_all }}</div>
-      <div class="text-xs text-gray-500 mt-1">قيد التنفيذ</div>
-    </div>
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold text-blue-600">{{ pending_review_all }}</div>
-      <div class="text-xs text-gray-500 mt-1">بانتظار المراجعة</div>
-    </div>
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold text-red-600">{{ overdue_count }}</div>
-      <div class="text-xs text-gray-500 mt-1">متأخرة</div>
-    </div>
-    <div class="bg-white rounded-xl border shadow-sm p-4 text-center">
-      <div class="text-3xl font-bold {% if pct_all >= 70 %}text-green-600{% elif pct_all >= 40 %}text-amber-600{% else %}text-red-600{% endif %}">{{ pct_all }}%</div>
-      <div class="text-xs text-gray-500 mt-1">نسبة الإنجاز</div>
+    <div class="qr-hero__kpis">
+      <div class="qr-kpi">
+        <span class="qr-kpi__val" style="color:var(--skyline)">{{ total_all }}</span>
+        <span class="qr-kpi__lbl">إجمالي الإجراءات</span>
+      </div>
+      <div class="qr-kpi">
+        <span class="qr-kpi__val" style="color:#16a34a">{{ completed_all }}</span>
+        <span class="qr-kpi__lbl">مكتمل</span>
+      </div>
+      <div class="qr-kpi">
+        <span class="qr-kpi__val" style="color:#d97706">{{ in_progress_all }}</span>
+        <span class="qr-kpi__lbl">قيد التنفيذ</span>
+      </div>
+      <div class="qr-kpi">
+        <span class="qr-kpi__val" style="color:#2563eb">{{ pending_review_all }}</span>
+        <span class="qr-kpi__lbl">بانتظار المراجعة</span>
+      </div>
+      <div class="qr-kpi">
+        <span class="qr-kpi__val" style="color:#dc2626">{{ overdue_count }}</span>
+        <span class="qr-kpi__lbl">متأخرة</span>
+      </div>
     </div>
   </div>
 
-  <!-- تقدم المجالات -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#8A1538] px-5 py-3">
-      <h2 class="text-white font-bold">التقدم حسب المجال</h2>
-    </div>
-    <div class="divide-y">
+  {# ── Domains: Donut grid ── #}
+  <section class="qr-section">
+    <h2 class="qr-section__title">التقدم حسب المجال</h2>
+    <div class="qr-domains" id="qr-domains">
       {% for ds in domain_stats %}
-      <div class="px-5 py-4">
-        <div class="flex items-center justify-between mb-2">
-          <div>
-            <p class="font-bold text-gray-800">{{ ds.domain.name }}</p>
-            <p class="text-xs text-gray-500">{{ ds.completed }}/{{ ds.total }} إجراء مكتمل · {{ ds.in_progress }} قيد التنفيذ</p>
-          </div>
-          <span class="text-2xl font-bold {% if ds.pct == 100 %}text-green-600{% elif ds.pct > 50 %}text-blue-600{% else %}text-amber-600{% endif %}">
-            {{ ds.pct }}%
-          </span>
+      <div class="qr-dom" data-pct="{{ ds.pct }}" data-done="{{ ds.completed }}" data-total="{{ ds.total }}">
+        <div class="qr-dom__ring">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="3.5"/>
+            <circle class="qr-dom__arc" cx="18" cy="18" r="15.9" fill="none"
+                    stroke="{% if ds.pct == 100 %}#16a34a{% elif ds.pct > 50 %}var(--maroon){% elif ds.pct > 25 %}#d97706{% else %}#94a3b8{% endif %}"
+                    stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+          </svg>
+          <span class="qr-dom__pct">{{ ds.pct }}%</span>
         </div>
-        <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
-          <div class="h-3 rounded-full transition-all
-            {% if ds.pct == 100 %}bg-green-500{% elif ds.pct > 50 %}bg-blue-500{% else %}bg-amber-500{% endif %}"
-            style="width:{{ ds.pct }}%"></div>
+        <div class="qr-dom__info">
+          <span class="qr-dom__name">{{ ds.domain.name }}</span>
+          <span class="qr-dom__meta">{{ ds.completed }}/{{ ds.total }} مكتمل · {{ ds.in_progress }} جارٍ</span>
         </div>
       </div>
       {% endfor %}
     </div>
-  </div>
+  </section>
 
-  <!-- أكثر المنفذين إجراءات -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#8A1538] px-5 py-3">
-      <h2 class="text-white font-bold">أكثر المنفذين إجراءات (أول 20)</h2>
+  {# ── Executors: Top 20 as donuts ── #}
+  <section class="qr-section">
+    <h2 class="qr-section__title">أداء المنفذين <span class="qr-section__badge">أول 20</span></h2>
+    <div class="qr-executors" id="qr-executors">
+      {% for ex in executor_stats %}
+      <div class="qr-exec" {% if ex.total %}data-pct="{% widthratio ex.completed ex.total 100 %}"{% else %}data-pct="0"{% endif %}>
+        <div class="qr-exec__ring">
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="3.5"/>
+            <circle class="qr-exec__arc" cx="18" cy="18" r="15.9" fill="none"
+                    stroke="{% if ex.total and ex.completed == ex.total %}#16a34a{% elif ex.total %}var(--maroon){% else %}#94a3b8{% endif %}"
+                    stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
+          </svg>
+          <span class="qr-exec__pct">{% if ex.total %}{% widthratio ex.completed ex.total 100 %}%{% else %}—{% endif %}</span>
+        </div>
+        <div class="qr-exec__info">
+          <span class="qr-exec__name">{{ ex.executor_norm }}</span>
+          <span class="qr-exec__meta">
+            <strong class="qr-exec__done">{{ ex.completed }}</strong> مكتمل من <strong>{{ ex.total }}</strong>
+          </span>
+        </div>
+      </div>
+      {% endfor %}
     </div>
-    <table class="w-full text-sm">
-      <thead class="bg-gray-50 border-b">
-        <tr>
-          <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
-          <th scope="col" class="px-4 py-3 text-center">المكتملة</th>
-          <th scope="col" class="px-4 py-3 text-center">الإجمالي</th>
-          <th scope="col" class="px-4 py-3 text-center">%</th>
-          <th scope="col" class="px-4 py-3">التقدم</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y">
-        {% for ex in executor_stats %}
-        {% with pct=ex.completed|floatformat:0 %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-3 font-medium text-gray-800">{{ ex.executor_norm }}</td>
-          <td class="px-4 py-3 text-center text-green-600 font-bold">{{ ex.completed }}</td>
-          <td class="px-4 py-3 text-center text-gray-600">{{ ex.total }}</td>
-          <td class="px-4 py-3 text-center font-bold text-[#1A4F8A]">
-            {% if ex.total %}{{ ex.completed|floatformat:0 }}{% endif %}
-          </td>
-          <td class="px-4 py-3">
-            <div class="h-2 bg-gray-100 rounded-full w-full">
-              {% if ex.total %}
-              <div class="h-2 bg-blue-500 rounded-full"
-                   style="width:{% widthratio ex.completed ex.total 100 %}%"></div>
-              {% endif %}
-            </div>
-          </td>
-        </tr>
-        {% endwith %}
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  </section>
 
-  <!-- الإجراءات المتأخرة -->
+  {# ── Overdue ── #}
   {% if overdue_procedures %}
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-red-700 px-5 py-3">
-      <h2 class="text-white font-bold">الإجراءات المتأخرة ({{ overdue_count }})</h2>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
+  <section class="qr-section qr-section--alert">
+    <h2 class="qr-section__title qr-section__title--danger">
+      الإجراءات المتأخرة <span class="qr-section__badge qr-section__badge--danger">{{ overdue_count }}</span>
+    </h2>
+    <div class="qr-table-wrap">
+      <table class="qr-table">
+        <thead>
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">رقم</th>
-            <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
-            <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
-            <th scope="col" class="px-4 py-3 text-right">المجال</th>
-            <th scope="col" class="px-4 py-3 text-center">الموعد</th>
-            <th scope="col" class="px-4 py-3 text-center">أيام التأخير</th>
+            <th scope="col">رقم</th>
+            <th scope="col">الإجراء</th>
+            <th scope="col">المنفذ</th>
+            <th scope="col">المجال</th>
+            <th scope="col" class="qr-tc">الموعد</th>
+            <th scope="col" class="qr-tc">التأخير</th>
           </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody>
           {% for item in overdue_procedures %}
-          <tr class="hover:bg-red-50">
-            <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ item.procedure.number }}</td>
-            <td class="px-4 py-3 text-gray-800">{{ item.procedure.text|truncatewords:10 }}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
-            <td class="px-4 py-3 text-center text-xs text-red-600">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 font-bold">
-                {{ item.days_overdue }} يوم
-              </span>
+          <tr>
+            <td class="qr-td-mono">{{ item.procedure.number }}</td>
+            <td>{{ item.procedure.text|truncatewords:8 }}</td>
+            <td class="qr-td-muted">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
+            <td class="qr-td-muted">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
+            <td class="qr-tc qr-td-muted">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
+            <td class="qr-tc">
+              <span class="qr-chip qr-chip--danger">{{ item.days_overdue }} يوم</span>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% endif %}
 
-  <!-- طلبات الدليل المعلقة -->
+  {# ── Evidence Requests ── #}
   {% if evidence_requests %}
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-amber-600 px-5 py-3">
-      <h2 class="text-white font-bold">طلبات الدليل المعلقة ({{ evidence_requests|length }})</h2>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
+  <section class="qr-section">
+    <h2 class="qr-section__title qr-section__title--warning">
+      طلبات الدليل المعلقة <span class="qr-section__badge qr-section__badge--warning">{{ evidence_requests|length }}</span>
+    </h2>
+    <div class="qr-table-wrap">
+      <table class="qr-table">
+        <thead>
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">رقم</th>
-            <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
-            <th scope="col" class="px-4 py-3 text-right">المنفذ</th>
-            <th scope="col" class="px-4 py-3 text-right">المجال</th>
-            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
+            <th scope="col">رقم</th>
+            <th scope="col">الإجراء</th>
+            <th scope="col">المنفذ</th>
+            <th scope="col">المجال</th>
+            <th scope="col" class="qr-tc">الحالة</th>
           </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody>
           {% for proc in evidence_requests %}
-          <tr class="hover:bg-amber-50">
-            <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ proc.number }}</td>
-            <td class="px-4 py-3 text-gray-800">{{ proc.text|truncatewords:10 }}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs">{{ proc.indicator.target.domain.name|default:"—" }}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">
-                {{ proc.get_status_display }}
-              </span>
-            </td>
+          <tr>
+            <td class="qr-td-mono">{{ proc.number }}</td>
+            <td>{{ proc.text|truncatewords:8 }}</td>
+            <td class="qr-td-muted">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
+            <td class="qr-td-muted">{{ proc.indicator.target.domain.name|default:"—" }}</td>
+            <td class="qr-tc"><span class="qr-chip qr-chip--warning">{{ proc.get_status_display }}</span></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  </section>
   {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ═══════════════════════════════════════════════════════
+   Quality Progress Report — Qatar Brand Identity
+   --maroon #8A1538 | --skyline #0D4261 | --gold #D4A843
+   ═══════════════════════════════════════════════════════ */
+:root { --ring-track: #e5e7eb; }
+html.dark { --ring-track: #374151; }
+
+.qr { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Header ── */
+.qr-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.qr-header__title { font-size: 1.3rem; font-weight: 800; color: var(--maroon); margin: 0; }
+html.dark .qr-header__title { color: #f9a8c0; }
+.qr-header__sub { font-size: 0.78rem; color: var(--text-secondary); margin: 2px 0 0; }
+.qr-header__actions { display: flex; gap: 8px; align-items: center; }
+.qr-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600;
+  text-decoration: none; transition: all .15s; border: 1px solid;
+}
+.qr-btn--pdf { background: var(--maroon); color: white; border-color: var(--maroon); }
+.qr-btn--pdf:hover { background: var(--maroon-dark); }
+.qr-btn--back { background: white; color: var(--text-secondary); border-color: #e5e7eb; }
+.qr-btn--back:hover { border-color: var(--maroon-border); color: var(--maroon); }
+html.dark .qr-btn--back { background: #1e293b; border-color: #334155; color: #94a3b8; }
+
+/* ── Hero: Ring + KPIs ── */
+.qr-hero {
+  display: flex; align-items: center; gap: 28px;
+  background: white; border: 1px solid #e5e7eb; border-radius: 14px;
+  padding: 24px 28px;
+}
+html.dark .qr-hero { background: #1e293b; border-color: #334155; }
+@media (max-width: 700px) { .qr-hero { flex-direction: column; text-align: center; } }
+
+.qr-hero__ring { position: relative; width: 150px; height: 150px; flex-shrink: 0; }
+.qr-ring-svg { width: 150px; height: 150px; transform: rotate(-90deg); }
+.qr-ring-pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; color: var(--maroon);
+  padding-bottom: 14px;
+}
+html.dark .qr-ring-pct { color: #f9a8c0; }
+.qr-ring-label {
+  position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+  font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap;
+}
+
+.qr-hero__kpis {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 12px; flex: 1;
+}
+@media (max-width: 900px) { .qr-hero__kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 500px) { .qr-hero__kpis { grid-template-columns: repeat(2, 1fr); } }
+
+.qr-kpi {
+  text-align: center; padding: 12px 8px;
+  background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 10px;
+}
+html.dark .qr-kpi { background: #0f172a; border-color: #1e293b; }
+.qr-kpi__val { display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
+.qr-kpi__lbl { display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px; }
+html.dark .qr-kpi__val { filter: brightness(1.3); }
+
+/* ── Sections ── */
+.qr-section {
+  background: white; border: 1px solid #e5e7eb; border-radius: 14px;
+  padding: 20px; overflow: hidden;
+}
+html.dark .qr-section { background: #1e293b; border-color: #334155; }
+.qr-section--alert { border-color: #fecaca; }
+html.dark .qr-section--alert { border-color: #7f1d1d; }
+
+.qr-section__title {
+  font-size: 0.95rem; font-weight: 700; color: var(--maroon);
+  margin: 0 0 16px; padding-bottom: 10px;
+  border-bottom: 2px solid var(--maroon-bg);
+  display: flex; align-items: center; gap: 8px;
+}
+html.dark .qr-section__title { color: #f9a8c0; border-color: #334155; }
+.qr-section__title--danger { color: #dc2626; }
+.qr-section__title--warning { color: #d97706; }
+html.dark .qr-section__title--danger { color: #fca5a5; }
+html.dark .qr-section__title--warning { color: #fbbf24; }
+
+.qr-section__badge {
+  font-size: 0.65rem; padding: 2px 8px; border-radius: 10px;
+  background: var(--maroon-bg); color: var(--maroon); font-weight: 600;
+}
+.qr-section__badge--danger { background: #fee2e2; color: #991b1b; }
+.qr-section__badge--warning { background: #fef3c7; color: #92400e; }
+html.dark .qr-section__badge { background: rgba(138,21,56,.2); color: #f9a8c0; }
+html.dark .qr-section__badge--danger { background: rgba(220,38,38,.15); color: #fca5a5; }
+html.dark .qr-section__badge--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
+
+/* ── Domain donuts grid ── */
+.qr-domains {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.qr-dom {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 12px;
+  border: 1px solid #f1f5f9; background: #fafbfc;
+  transition: border-color .15s, box-shadow .15s;
+}
+.qr-dom:hover {
+  border-color: var(--maroon-border);
+  box-shadow: 0 2px 10px rgba(138,21,56,.07);
+}
+html.dark .qr-dom { background: #0f172a; border-color: #1e293b; }
+html.dark .qr-dom:hover { border-color: #475569; }
+
+.qr-dom__ring { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
+.qr-dom__ring svg { width: 60px; height: 60px; transform: rotate(-90deg); }
+.qr-dom__pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 800; color: var(--text-primary);
+}
+html.dark .qr-dom__pct { color: #e2e8f0; }
+
+.qr-dom__info { min-width: 0; }
+.qr-dom__name {
+  display: block; font-size: 0.82rem; font-weight: 700;
+  color: var(--text-primary); line-height: 1.4;
+}
+html.dark .qr-dom__name { color: #e2e8f0; }
+.qr-dom__meta {
+  display: block; font-size: 0.68rem; color: var(--text-secondary);
+  margin-top: 3px; line-height: 1.4;
+}
+
+/* ── Tables ── */
+.qr-table-wrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+.qr-table {
+  width: 100%; border-collapse: collapse; font-size: 0.78rem;
+}
+.qr-table thead { border-bottom: 2px solid var(--maroon-bg); }
+html.dark .qr-table thead { border-color: #334155; }
+.qr-table th {
+  padding: 8px 10px; text-align: right; font-weight: 700;
+  font-size: 0.7rem; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0;
+}
+.qr-table td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; }
+html.dark .qr-table td { border-color: #1e293b; }
+.qr-table tbody tr:hover { background: #fdf2f5; }
+html.dark .qr-table tbody tr:hover { background: rgba(138,21,56,.06); }
+
+.qr-tc { text-align: center; }
+.qr-td-name { font-weight: 600; color: var(--text-primary); }
+html.dark .qr-td-name { color: #e2e8f0; }
+.qr-td-success { color: #16a34a; font-weight: 700; }
+html.dark .qr-td-success { color: #86efac; }
+.qr-td-bold { font-weight: 700; color: var(--skyline); }
+html.dark .qr-td-bold { color: #7dd3fc; }
+.qr-td-muted { color: var(--text-secondary); font-size: 0.72rem; }
+.qr-td-mono { font-family: monospace; font-size: 0.68rem; color: var(--text-secondary); }
+
+/* Progress bars */
+.qr-bar { height: 6px; background: #f1f5f9; border-radius: 3px; min-width: 80px; }
+html.dark .qr-bar { background: #1e293b; }
+.qr-bar__fill { height: 6px; border-radius: 3px; transition: width .6s ease-out; }
+.qr-bar--maroon { background: var(--maroon); }
+.qr-bar--green  { background: #16a34a; }
+
+/* ── Executor donuts grid ── */
+.qr-executors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.qr-exec {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid #f1f5f9; background: #fafbfc;
+  transition: border-color .15s;
+}
+.qr-exec:hover { border-color: var(--maroon-border); }
+html.dark .qr-exec { background: #0f172a; border-color: #1e293b; }
+html.dark .qr-exec:hover { border-color: #475569; }
+
+.qr-exec__ring { position: relative; width: 48px; height: 48px; flex-shrink: 0; }
+.qr-exec__ring svg { width: 48px; height: 48px; transform: rotate(-90deg); }
+.qr-exec__pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.62rem; font-weight: 800; color: var(--text-primary);
+}
+html.dark .qr-exec__pct { color: #e2e8f0; }
+
+.qr-exec__info { min-width: 0; }
+.qr-exec__name {
+  display: block; font-size: 0.75rem; font-weight: 700;
+  color: var(--text-primary); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+html.dark .qr-exec__name { color: #e2e8f0; }
+.qr-exec__meta {
+  display: block; font-size: 0.62rem; color: var(--text-secondary);
+  margin-top: 2px;
+}
+.qr-exec__done { color: #16a34a; }
+html.dark .qr-exec__done { color: #86efac; }
+
+/* Chips */
+.qr-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 8px;
+  font-size: 0.65rem; font-weight: 700; white-space: nowrap;
+}
+.qr-chip--danger  { background: #fee2e2; color: #991b1b; }
+.qr-chip--warning { background: #fef3c7; color: #92400e; }
+html.dark .qr-chip--danger  { background: rgba(220,38,38,.15); color: #fca5a5; }
+html.dark .qr-chip--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
+
+/* ── Print ── */
+@media print {
+  .qr-header__actions { display: none; }
+  .qr-hero, .qr-section, .qr-dom, .qr-exec { box-shadow: none; border-color: #ddd; }
+  .qr-table tbody tr:hover { background: none; }
+  .qr-dom:hover, .qr-exec:hover { box-shadow: none; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .qr-ring-arc, .qr-dom__arc, .qr-exec__arc, .qr-bar__fill { transition: none; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+  /* ── Big ring animation ── */
+  var hero = document.querySelector('.qr-hero__ring');
+  if (hero) {
+    var target = parseInt(hero.dataset.pct, 10) || 0;
+    var arc = hero.querySelector('.qr-ring-arc');
+    var label = document.getElementById('qr-main-pct');
+    if (arc && label) {
+      var start = performance.now();
+      var dur = 1000;
+      (function animate(ts) {
+        var p = Math.min((ts - start) / dur, 1);
+        var e = 1 - Math.pow(1 - p, 3);
+        var cur = Math.round(target * e);
+        arc.setAttribute('stroke-dasharray', cur + ' ' + (100 - cur));
+        label.textContent = cur + '%';
+        if (p < 1) requestAnimationFrame(animate);
+      })(performance.now());
+    }
+  }
+
+  /* ── Domain donuts staggered animation ── */
+  var doms = document.querySelectorAll('.qr-dom');
+  doms.forEach(function(el, i) {
+    var pct = parseInt(el.dataset.pct, 10) || 0;
+    var arc = el.querySelector('.qr-dom__arc');
+    if (!arc) return;
+    setTimeout(function() {
+      arc.style.transition = 'stroke-dasharray .7s ease-out';
+      arc.setAttribute('stroke-dasharray', pct + ' ' + (100 - pct));
+    }, 200 + i * 100);
+  });
+
+  /* ── Executor donuts staggered animation ── */
+  var execs = document.querySelectorAll('.qr-exec');
+  execs.forEach(function(el, i) {
+    var pct = parseInt(el.dataset.pct, 10) || 0;
+    var arc = el.querySelector('.qr-exec__arc');
+    if (!arc) return;
+    setTimeout(function() {
+      arc.style.transition = 'stroke-dasharray .7s ease-out';
+      arc.setAttribute('stroke-dasharray', pct + ' ' + (100 - pct));
+    }, 400 + i * 60);
+  });
+});
+</script>
 {% endblock %}
