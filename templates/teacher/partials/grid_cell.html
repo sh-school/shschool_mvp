@@ -85,4 +85,4 @@
     >📄<br><span class="text-[10px]">معذور</span></button>
   </div>
 </div>
-{% if summary %}<script nonce="{{ request.csp_nonce }}">document.getElementById('summary-widget')?.dispatchEvent(new Event('refresh'));</script>{% endif %}
+{% if summary %}<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>{% endif %}

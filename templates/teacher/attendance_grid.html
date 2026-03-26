@@ -45,8 +45,9 @@
         hx-target="#grid-container"
         hx-swap="outerHTML">
     {% csrf_token %}
+    <input type="hidden" name="view" value="grid">
     <button type="submit"
-            class="btn-success flex items-center gap-2 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
       ✓ الكل حاضر
     </button>
   </form>
@@ -72,13 +73,7 @@
      class="grid gap-3"
      style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
   {% for item in students_data %}
-  {% include "teacher/partials/grid_cell.html" with
-     student=item.student
-     attendance=item.attendance
-     status=item.status
-     session=session
-     only
-  %}
+  {% include "teacher/partials/grid_cell.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
   {% endfor %}
 </div>
 

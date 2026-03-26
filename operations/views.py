@@ -202,9 +202,16 @@ def mark_all_present(request, session_id):
 
     summary = AttendanceService.get_session_summary(session)
 
+    view_mode = request.POST.get("view", "list")
+    partial_template = (
+        "teacher/partials/grid_container.html"
+        if view_mode == "grid"
+        else "teacher/partials/students_list.html"
+    )
+
     return render(
         request,
-        "teacher/partials/students_list.html",
+        partial_template,
         {"students_data": students_data, "session": session, "summary": summary},
     )
 

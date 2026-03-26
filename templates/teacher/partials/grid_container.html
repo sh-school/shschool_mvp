@@ -1,0 +1,8 @@
+<div id="grid-container"
+     class="grid gap-3"
+     style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
+  {% for item in students_data %}
+  {% include "teacher/partials/grid_cell.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
+  {% endfor %}
+</div>
+<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>
