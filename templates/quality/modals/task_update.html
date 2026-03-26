@@ -101,7 +101,7 @@
 
           {# Section 3: رفع الدليل #}
           {% if task.evidence_request_status == 'requested' %}
-          <div class="q-view-only-notice" style="background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.3);color:#991b1b;">
+          <div class="q-view-only-notice" style="background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.3);color:var(--status-danger-dark);">
             <i class="fa-solid fa-exclamation-triangle"></i>
             مطلوب رفع دليل من لجنة المراجعة
             {% if task.evidence_request_note %}

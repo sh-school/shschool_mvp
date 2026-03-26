@@ -12,8 +12,8 @@
     {% csrf_token %}
 
     <!-- القنوات -->
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
-      <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:#8A1538;">قنوات الإشعارات</h2>
+    <div class="card-qatar" style="margin-bottom:20px;">
+      <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:var(--maroon);">قنوات الإشعارات</h2>
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
         <div>
@@ -62,8 +62,8 @@
     </div>
 
     <!-- ساعات الهدوء -->
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
-      <h2 style="font-size:16px;font-weight:600;margin:0 0 8px;color:#8A1538;">ساعات الهدوء</h2>
+    <div class="card-qatar" style="margin-bottom:20px;">
+      <h2 style="font-size:16px;font-weight:600;margin:0 0 8px;color:var(--maroon);">ساعات الهدوء</h2>
       <p style="color:#666;font-size:13px;margin-bottom:16px;">لا تُرسل إشعارات خارجية (SMS/WhatsApp/Email) في هذه الفترة</p>
 
       <div style="display:flex;gap:16px;align-items:center;">
@@ -82,13 +82,12 @@
       </div>
     </div>
 
-    <button type="submit"
-            style="background:#8A1538;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%;">
+    <button type="submit" class="btn-primary" style="width:100%;padding:12px 32px;font-size:15px;">
       حفظ التفضيلات
     </button>
   </form>
 
-  <a href="{% url 'notification_inbox' %}" style="display:block;text-align:center;margin-top:16px;color:#8A1538;font-size:14px;">
+  <a href="{% url 'notification_inbox' %}" style="display:block;text-align:center;margin-top:16px;color:var(--maroon);font-size:14px;">
     ← العودة لصندوق الإشعارات
   </a>
 </div>

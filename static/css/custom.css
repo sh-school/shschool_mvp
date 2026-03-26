@@ -50,6 +50,24 @@
   --focus-ring:        0 0 0 3px rgba(138, 21, 56, .22);
   --focus-ring-offset: 2px;
 
+  /* ── Status Colors — unified across all pages ── */
+  --status-danger:       #dc2626;
+  --status-danger-dark:  #991b1b;
+  --status-danger-bg:    #fef2f2;
+  --status-danger-border:#fecaca;
+  --status-warning:      #d97706;
+  --status-warning-dark: #92400e;
+  --status-warning-bg:   #fef3c7;
+  --status-warning-border:#f59e0b;
+  --status-success:      #16a34a;
+  --status-success-dark: #166534;
+  --status-success-bg:   #dcfce7;
+  --status-success-border:#86efac;
+  --status-info:         #2563eb;
+  --status-info-dark:    #1e40af;
+  --status-info-bg:      #dbeafe;
+  --status-info-border:  #93c5fd;
+
   /* Quality module tokens */
   --q-maroon: #8d1b3d;
   --q-maroon-dark: #6b142e;
@@ -344,9 +362,33 @@ a:focus-visible {
   border-radius: 4px;
 }
 
-/* ── بطاقات KPI بلون الهوية ─────────────────────────────────── */
-.text-\[#8A1538\] {
+/* ── Tailwind arbitrary value → CSS variable bridge ────────────── */
+/* هذه الـ selectors تترجم Tailwind arbitrary values إلى CSS variables
+   حتى يعمل كل شيء من مصدر واحد ويتوافق مع Dark Mode */
+.text-\[\#8A1538\],
+.text-\[\#8a1538\] {
   color: var(--maroon);
+}
+.bg-\[\#8A1538\],
+.bg-\[\#8a1538\] {
+  background-color: var(--maroon);
+}
+.hover\:bg-\[\#8A1538\]:hover,
+.hover\:bg-\[\#1A4F8A\]:hover {
+  background-color: var(--maroon-dark);
+}
+.border-\[\#8A1538\],
+.border-\[\#8a1538\] {
+  border-color: var(--maroon);
+}
+/* Style tag overrides via CSS attribute selectors — catch inline style="color:#8A1538" */
+[style*="color:#8A1538"],
+[style*="color: #8A1538"] {
+  color: var(--maroon) !important;
+}
+[style*="border-color:#8A1538"],
+[style*="border-color: #8A1538"] {
+  border-color: var(--maroon) !important;
 }
 
 /* ── جداول البيانات ─────────────────────────────────────────── */
@@ -424,18 +466,25 @@ h1.text-3xl {
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--maroon-bg);
+  padding: 10px 16px;
+  background: var(--maroon);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+html.dark .section-header { background: var(--maroon-dark); }
+
+.section-header h2,
+.section-header h3 {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
 }
 
 .section-header::before {
-  content: '';
-  display: block;
-  width: 4px;
-  height: 22px;
-  background: var(--maroon);
-  border-radius: 2px;
-  flex-shrink: 0;
+  display: none;
 }
 
 /* ── شريط التقدم بلون الهوية ─────────────────────────────────── */
@@ -972,6 +1021,43 @@ tr.active {
   font-size: 17px;
   flex-shrink: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   شريط ماروني — الهوية البصرية الموحدة لدولة قطر
+   يُستخدم كعنوان للبطاقات والأقسام في كل صفحات المنصة
+   ══════════════════════════════════════════════════════════════════ */
+.card-bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--maroon);
+  color: #fff;
+  padding: 10px 16px;
+  margin: -18px -20px 16px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  font-size: 14px; font-weight: 700;
+  line-height: 1.4;
+}
+/* card-bar inside table-wrap or section-header: reset negative margin */
+.table-wrap > .card-bar,
+.section-header > .card-bar {
+  margin: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.card-bar .badge {
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.card-bar .card-bar-sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: .85;
+  margin-inline-start: auto;
+}
+html.dark .card-bar { background: var(--maroon-dark); }
 
 /* ── Empty State ── */
 .empty-state {

@@ -126,25 +126,25 @@
       </div>
 
       <div class="p-4 text-center" style="border-left:1px solid var(--border);">
-        <div style="font-size:26px;font-weight:800;color:#166534;">{{ child.passed }}</div>
+        <div style="font-size:26px;font-weight:800;color:var(--status-success-dark);">{{ child.passed }}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">ناجح</div>
       </div>
 
-      <div class="p-4 text-center" style="border-left:1px solid var(--border);{% if child.failed %}background:#fef2f2;{% endif %}">
-        <div style="font-size:26px;font-weight:800;color:{% if child.failed %}#dc2626{% else %}#9ca3af{% endif %};">
+      <div class="p-4 text-center" style="border-left:1px solid var(--border);{% if child.failed %}background:var(--status-danger-bg);{% endif %}">
+        <div style="font-size:26px;font-weight:800;color:{% if child.failed %}#dc2626{% else %}var(--text-muted){% endif %};">
           {{ child.failed }}
         </div>
         <div style="font-size:11px;color:{% if child.failed %}#dc2626{% else %}var(--text-muted){% endif %};margin-top:3px;">
           راسب
         </div>
         {% if child.failed %}
-        <div style="font-size:10px;color:#dc2626;margin-top:3px;font-weight:600;">⚠ يحتاج متابعة</div>
+        <div style="font-size:10px;color:var(--status-danger);margin-top:3px;font-weight:600;">⚠ يحتاج متابعة</div>
         {% endif %}
       </div>
 
       <div class="p-4 text-center" style="{% if child.absent_30 >= 5 %}background:#fff7ed;{% endif %}">
         <div style="font-size:26px;font-weight:800;
-                    color:{% if child.absent_30 >= 5 %}#d97706{% elif child.absent_30 > 0 %}#f59e0b{% else %}#9ca3af{% endif %};">
+                    color:{% if child.absent_30 >= 5 %}#d97706{% elif child.absent_30 > 0 %}var(--status-warning){% else %}var(--text-muted){% endif %};">
           {{ child.absent_30 }}
         </div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">غياب (30 يوم)</div>
@@ -157,8 +157,8 @@
 
     {# ── Alert bar ── #}
     {% if child.failed or child.absent_30 >= 5 %}
-    <div style="padding:11px 20px;background:#fef2f2;border-top:1px solid #fecaca;
-                display:flex;align-items:center;gap:8px;font-size:13px;color:#991b1b;">
+    <div style="padding:11px 20px;background:var(--status-danger-bg);border-top:1px solid var(--status-danger-border);
+                display:flex;align-items:center;gap:8px;font-size:13px;color:var(--status-danger-dark);">
       <span>⚠️</span>
       <span>
         {% if child.failed %}يوجد {{ child.failed }} مادة راسب فيها.{% endif %}

@@ -8,7 +8,7 @@
 .swap-title { font-size: 1.2rem; font-weight: 700; color: var(--maroon, #8A1538); }
 .swap-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .swap-filters select { padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: .8rem; font-family: inherit; }
-.swap-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; transition: box-shadow .2s; }
+.swap-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; transition: box-shadow .2s; }
 .swap-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
 .swap-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .swap-teacher { font-weight: 700; font-size: .9rem; }
@@ -35,10 +35,10 @@
     <h1 class="swap-title">طلبات التبديل</h1>
     <div style="display:flex;gap:6px">
       {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
-      <a href="{% url 'swap_request' %}" class="btn-sm" style="background:var(--maroon,#8A1538);color:#fff;text-decoration:none;padding:7px 16px">+ طلب تبديل</a>
+      <a href="{% url 'swap_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تبديل</a>
       {% endif %}
       <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
-        <button type="submit" class="btn-sm" style="background:#1D4ED8;color:#fff">بناء سجل الحصص الحرة</button>
+        <button type="submit" class="btn-secondary" style="font-size:12.5px;">بناء سجل الحصص الحرة</button>
       </form>
     </div>
   </div>

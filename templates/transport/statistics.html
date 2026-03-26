@@ -1,49 +1,71 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 {% block title %}إحصائيات النقل{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/transport/" parent_label="النقل المدرسي" current="الإحصائيات" %}
+{% endblock %}
+
 {% block content %}
-<div dir="rtl">
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">📊 إحصائيات النقل المدرسي</h1>
-    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
-  </div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-blue-500">
-      <p class="text-xs text-gray-500">عدد الحافلات</p>
-      <p class="text-3xl font-bold text-blue-600">{{ total_buses }}</p>
+<div class="space-y-6">
+
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">📊 إحصائيات النقل المدرسي</h1>
     </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-500">
-      <p class="text-xs text-gray-500">الطاقة الإجمالية</p>
-      <p class="text-3xl font-bold text-green-600">{{ total_capacity }}</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4" style="border-color:#8A1538">
-      <p class="text-xs text-gray-500">الطلاب المسجلون</p>
-      <p class="text-3xl font-bold" style="color:#8A1538">{{ students_count }}</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-orange-500">
-      <p class="text-xs text-gray-500">نسبة الإشغال</p>
-      <p class="text-3xl font-bold text-orange-600">{{ utilization_rate|floatformat:0 }}%</p>
+    <div class="page-actions">
+      <a href="{% url 'transport:dashboard' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">← رجوع</a>
     </div>
   </div>
-  <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b"><h2 class="font-bold text-gray-700">تفاصيل الحافلات</h2></div>
-    <table class="w-full text-sm text-right">
-      <thead class="bg-gray-50 text-gray-500 text-xs">
-        <tr><th scope="col" class="px-4 py-3">رقم الحافلة</th><th scope="col" class="px-4 py-3">السائق</th>
-            <th scope="col" class="px-4 py-3">الطاقة</th><th scope="col" class="px-4 py-3">كروة</th></tr>
-      </thead>
-      <tbody class="divide-y">
-        {% for bus in buses %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-3 font-medium">
-            <a href="{% url 'transport:bus_detail' bus.id %}" class="text-blue-600 hover:underline">{{ bus.bus_number }}</a>
-          </td>
-          <td class="px-4 py-3">{{ bus.driver_name }}</td>
-          <td class="px-4 py-3">{{ bus.capacity }} مقعد</td>
-          <td class="px-4 py-3 text-xs text-gray-400">{{ bus.karwa_id|default:"—" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+
+  {# ── KPIs ── #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="kpi-card">
+      <div class="kpi-value text-status-info">{{ total_buses }}</div>
+      <div class="kpi-label">عدد الحافلات</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-success">{{ total_capacity }}</div>
+      <div class="kpi-label">الطاقة الإجمالية</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ students_count }}</div>
+      <div class="kpi-label">الطلاب المسجلون</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-warning">{{ utilization_rate|floatformat:0 }}%</div>
+      <div class="kpi-label">نسبة الإشغال</div>
+    </div>
   </div>
+
+  {# ── جدول الحافلات ── #}
+  <div class="table-wrap">
+    <div class="card-bar">تفاصيل الحافلات</div>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">رقم الحافلة</th>
+            <th scope="col">السائق</th>
+            <th scope="col">الطاقة</th>
+            <th scope="col">كروة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bus in buses %}
+          <tr>
+            <td style="font-weight:600;">
+              <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon" style="text-decoration:none;">{{ bus.bus_number }}</a>
+            </td>
+            <td>{{ bus.driver_name }}</td>
+            <td>{{ bus.capacity }} مقعد</td>
+            <td style="font-size:12px;color:var(--text-muted);">{{ bus.karwa_id|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

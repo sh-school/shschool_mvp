@@ -9,11 +9,11 @@
 {% block content %}
 <div class="qd">
 
-  {# ── Header row ── #}
-  <div class="qd-header">
-    <div class="qd-header__info">
-      <h1 class="qd-header__title">الخطة التشغيلية</h1>
-      <p class="qd-header__sub">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+  {# ── Header row — uses global page-header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">الخطة التشغيلية</h1>
+      <p class="page-subtitle">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
     </div>
     <nav class="qd-header__actions" aria-label="إجراءات الخطة">
       {% if is_admin %}
@@ -44,7 +44,7 @@
   <div class="qd-body">
 
     {# ── LEFT: Overview panel ── #}
-    <div class="qd-overview">
+    <div class="card-qatar qd-overview">
 
       {# Big central ring #}
       <div class="qd-ring-main" data-pct="{{ pct }}">
@@ -97,8 +97,8 @@
     </div>
 
     {# ── RIGHT: Domains as interactive donuts ── #}
-    <div class="qd-domains">
-      <h2 class="qd-domains__title">المجالات</h2>
+    <div class="card-qatar qd-domains">
+      <div class="card-bar">المجالات</div>
       <div class="qd-domains__grid" id="domains-grid">
         {% for domain in domains %}
         <a href="{% url 'domain_detail' domain.id %}" class="qd-domain"
@@ -131,9 +131,9 @@
 
   {# ── My procedures compact (executor/reviewer only) ── #}
   {% if my_procedures %}
-  <div class="qd-myprocs">
+  <div class="card-qatar qd-myprocs">
+    <div class="card-bar">إجراءاتي</div>
     <div class="qd-myprocs__head">
-      <h2 class="qd-myprocs__title">إجراءاتي</h2>
       <div class="qd-myprocs__tabs">
         <button type="button" onclick="filterProcs('all')" id="tab-all" class="qd-tab qd-tab--active">الكل</button>
         <button type="button" onclick="filterProcs('InProgress')" id="tab-in-progress" class="qd-tab">قيد التنفيذ</button>
@@ -172,17 +172,16 @@ html.dark { --ring-track: #374151; }
 
 .qd { display: flex; flex-direction: column; gap: 12px; }
 
-/* ── Header ── */
+/* ── Header — reuse global .page-header pattern ── */
 .qd-header {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 8px;
 }
 .qd-header__title {
-  font-size: 1.35rem; font-weight: 800; color: var(--maroon);
-  margin: 0; line-height: 1.3;
+  font-size: 22px; font-weight: 800; color: var(--text-primary);
+  margin: 0; line-height: 1.2;
 }
-html.dark .qd-header__title { color: #f9a8c0; }
-.qd-header__sub { font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0 0; }
+.qd-header__sub { font-size: 13px; color: var(--text-secondary); margin: 4px 0 0; }
 .qd-header__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* ── Role Banner ── */
@@ -210,13 +209,12 @@ html.dark .qd-banner--executor { background: rgba(30,64,175,.12); border-color: 
   .qd-body { grid-template-columns: 1fr; }
 }
 
-/* ── Overview (left panel) ── */
+/* ── Overview (left panel) — extends card-qatar ── */
 .qd-overview {
-  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
-  padding: 20px 16px; display: flex; flex-direction: column;
+  display: flex; flex-direction: column;
   align-items: center; gap: 16px;
+  padding: 20px 16px;
 }
-html.dark .qd-overview { background: #1e293b; border-color: #334155; }
 
 /* Big ring */
 .qd-ring-main {
@@ -267,17 +265,8 @@ html.dark .qd-kpi__val--orange  { color: #fdba74; }
 }
 html.dark .qd-alert { background: rgba(153,27,27,.15); border-color: #7f1d1d; color: #fca5a5; }
 
-/* ── Domains (right panel) ── */
-.qd-domains {
-  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
-  padding: 16px;
-}
-html.dark .qd-domains { background: #1e293b; border-color: #334155; }
-.qd-domains__title {
-  font-size: 0.95rem; font-weight: 700; color: var(--maroon);
-  margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--maroon-bg);
-}
-html.dark .qd-domains__title { color: #f9a8c0; border-color: #334155; }
+/* ── Domains (right panel) — extends card-qatar ── */
+.qd-domains { padding: 18px 20px; }
 .qd-domains__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -287,16 +276,16 @@ html.dark .qd-domains__title { color: #f9a8c0; border-color: #334155; }
 /* Single domain donut card */
 .qd-domain {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px; text-decoration: none;
-  border: 1px solid #f1f5f9; background: #fafbfc;
+  padding: 10px 12px; border-radius: var(--radius); text-decoration: none;
+  border: 1px solid var(--border); background: var(--surface-alt);
   transition: border-color .15s, box-shadow .15s;
 }
 .qd-domain:hover {
   border-color: var(--maroon-border);
-  box-shadow: 0 2px 8px rgba(138,21,56,.08);
+  box-shadow: var(--shadow-sm);
 }
-html.dark .qd-domain { background: #0f172a; border-color: #1e293b; }
-html.dark .qd-domain:hover { border-color: #7c3aed40; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+html.dark .qd-domain { background: var(--surface-alt); border-color: var(--border); }
+html.dark .qd-domain:hover { border-color: var(--maroon-border); }
 
 .qd-domain__ring {
   position: relative; width: 52px; height: 52px; flex-shrink: 0;
@@ -329,20 +318,13 @@ html.dark .qd-domain__name { color: #e2e8f0; }
   color: var(--text-secondary); font-size: 0.85rem;
 }
 
-/* ── My Procedures (bottom strip) ── */
-.qd-myprocs {
-  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
-  padding: 12px 16px;
-}
-html.dark .qd-myprocs { background: #1e293b; border-color: #334155; }
+/* ── My Procedures (bottom strip) — extends card-qatar ── */
+.qd-myprocs { padding: 12px 16px; }
 .qd-myprocs__head {
   display: flex; align-items: center; gap: 12px;
   flex-wrap: wrap; margin-bottom: 8px;
 }
-.qd-myprocs__title {
-  font-size: 0.9rem; font-weight: 700; color: var(--maroon); margin: 0;
-}
-html.dark .qd-myprocs__title { color: #f9a8c0; }
+/* title moved to card-bar */
 .qd-myprocs__tabs { display: flex; gap: 4px; }
 .qd-tab {
   padding: 3px 10px; border-radius: 6px; font-size: 0.7rem;

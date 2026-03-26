@@ -6,94 +6,97 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto space-y-5" dir="rtl">
+<div class="space-y-6" style="max-width:960px;margin:0 auto;">
 
- <div class="flex items-center justify-between">
- <h1 class="text-xl font-bold text-gray-800">إحصاءات السلوك المدرسي</h1>
- <span class="text-xs bg-amber-100 text-amber-800 px-3 py-1 rounded-full">{{ year }} · QNSA المعيار 2</span>
- </div>
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">📊 إحصاءات السلوك المدرسي</h1>
+    </div>
+    <span class="status-badge status-warning">{{ year }} · QNSA المعيار 2</span>
+  </div>
 
- <!-- بطاقات عامة -->
- <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
- <div class="bg-white border rounded-xl p-4 text-center">
- <p class="text-3xl font-bold text-gray-800">{{ total }}</p>
- <p class="text-xs text-gray-500 mt-1">إجمالي المخالفات</p>
- </div>
- <div class="bg-white border rounded-xl p-4 text-center">
- <p class="text-3xl font-bold text-blue-700">{{ by_level.1 }}</p>
- <p class="text-xs text-gray-500 mt-1">درجة أولى</p>
- </div>
- <div class="bg-white border rounded-xl p-4 text-center">
- <p class="text-3xl font-bold text-amber-600">{{ by_level.2 }}</p>
- <p class="text-xs text-gray-500 mt-1">درجة ثانية</p>
- </div>
- <div class="bg-white border rounded-xl p-4 text-center">
- <p class="text-3xl font-bold text-red-600">{{ by_level.3|add:by_level.4 }}</p>
- <p class="text-xs text-gray-500 mt-1">درجة 3 و4</p>
- </div>
- </div>
+  {# ── KPIs ── #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ total }}</div>
+      <div class="kpi-label">إجمالي المخالفات</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-info">{{ by_level.1 }}</div>
+      <div class="kpi-label">درجة أولى</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-warning">{{ by_level.2 }}</div>
+      <div class="kpi-label">درجة ثانية</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-danger">{{ by_level.3|add:by_level.4 }}</div>
+      <div class="kpi-label">درجة 3 و4</div>
+    </div>
+  </div>
 
- <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
- <!-- أكثر الطلاب مخالفة -->
- <div class="bg-white border rounded-xl overflow-hidden">
- <div class="bg-gray-50 px-4 py-3 border-b">
- <p class="font-semibold text-sm text-gray-700">أكثر الطلاب مخالفة</p>
- </div>
- <div class="divide-y">
- {% for s in top_students %}
- <div class="flex items-center justify-between px-4 py-2.5">
- <div>
- <p class="text-sm font-medium text-gray-800">{{ s.student__full_name }}</p>
- <p class="text-xs text-red-500">-{{ s.pts }} نقطة</p>
- </div>
- <div class="flex items-center gap-2">
- <span class="text-sm font-bold text-gray-700">{{ s.count }}</span>
- <a href="{% url 'behavior:behavior_report' s.student__id %}"
- class="text-xs text-blue-600 hover:underline">تقرير</a>
- </div>
- </div>
- {% empty %}
- <p class="text-center py-6 text-gray-400 text-sm">لا توجد بيانات</p>
- {% endfor %}
- </div>
- </div>
+    {# ── أكثر الطلاب مخالفة ── #}
+    <div class="card-qatar" style="padding:0;overflow:hidden;">
+      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">أكثر الطلاب مخالفة</div>
+      {% for s in top_students %}
+      <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+        <div>
+          <p style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:0 0 2px;">{{ s.student__full_name }}</p>
+          <p style="font-size:12px;color:var(--status-danger);margin:0;">-{{ s.pts }} نقطة</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:14px;font-weight:700;color:var(--text-primary);">{{ s.count }}</span>
+          <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon" style="font-size:12px;text-decoration:none;">تقرير</a>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state" style="padding:32px;">
+        <p class="empty-sub">لا توجد بيانات</p>
+      </div>
+      {% endfor %}
+    </div>
 
- <!-- التوزيع الشهري -->
- <div class="bg-white border rounded-xl overflow-hidden">
- <div class="bg-gray-50 px-4 py-3 border-b">
- <p class="font-semibold text-sm text-gray-700">التوزيع الشهري</p>
- </div>
- <div class="divide-y">
- {% for m in monthly %}
- <div class="flex items-center justify-between px-4 py-2.5">
- <p class="text-sm text-gray-700">{{ m.month|date:"F Y" }}</p>
- <div class="flex items-center gap-2">
- <div class="bg-gray-100 rounded-full h-2" style="width:80px">
- <div class="bg-[#8A1538] h-2 rounded-full" style="width:{% widthratio m.count 20 100 %}%"></div>
- </div>
- <span class="text-sm font-medium text-gray-800 w-6 text-left">{{ m.count }}</span>
- </div>
- </div>
- {% empty %}
- <p class="text-center py-6 text-gray-400 text-sm">لا توجد بيانات</p>
- {% endfor %}
- </div>
- </div>
+    {# ── التوزيع الشهري ── #}
+    <div class="card-qatar" style="padding:0;overflow:hidden;">
+      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">التوزيع الشهري</div>
+      {% for m in monthly %}
+      <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+        <p style="font-size:13px;color:var(--text-primary);margin:0;">{{ m.month|date:"F Y" }}</p>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="progress-qatar" style="width:80px;">
+            <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
+          </div>
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary);min-width:24px;text-align:left;">{{ m.count }}</span>
+        </div>
+      </div>
+      {% empty %}
+      <div class="empty-state" style="padding:32px;">
+        <p class="empty-sub">لا توجد بيانات</p>
+      </div>
+      {% endfor %}
+    </div>
 
- </div>
+  </div>
 
- <!-- نسبة الحل -->
- <div class="bg-white border rounded-xl p-4">
- <div class="flex items-center justify-between mb-2">
- <p class="text-sm font-medium text-gray-700">نسبة حل المخالفات الجسيمة</p>
- <span class="text-lg font-bold {% if resolved_pct >= 80 %}text-green-700{% elif resolved_pct >= 50 %}text-amber-600{% else %}text-red-600{% endif %}">{{ resolved_pct }}%</span>
- </div>
- <div class="w-full bg-gray-100 rounded-full h-2.5">
- <div class="h-2.5 rounded-full {% if resolved_pct >= 80 %}bg-green-500{% elif resolved_pct >= 50 %}bg-amber-400{% else %}bg-red-500{% endif %}"
- style="width:{{ resolved_pct }}%"></div>
- </div>
- </div>
+  {# ── نسبة الحل ── #}
+  <div class="card-qatar">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <span style="font-size:14px;font-weight:600;color:var(--text-primary);">نسبة حل المخالفات الجسيمة</span>
+      <span style="font-size:20px;font-weight:800;
+        {% if resolved_pct >= 80 %}color:var(--status-success);
+        {% elif resolved_pct >= 50 %}color:var(--status-warning);
+        {% else %}color:var(--status-danger);{% endif %}">{{ resolved_pct }}%</span>
+    </div>
+    <div class="progress-qatar" style="height:10px;">
+      <div class="progress-qatar-fill" style="width:{{ resolved_pct }}%;
+        {% if resolved_pct >= 80 %}background:var(--status-success);
+        {% elif resolved_pct >= 50 %}background:var(--status-warning);
+        {% else %}background:var(--status-danger);{% endif %}"></div>
+    </div>
+  </div>
 
 </div>
 {% endblock %}

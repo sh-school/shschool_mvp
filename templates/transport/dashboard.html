@@ -8,67 +8,68 @@
 {% block content %}
 <div class="space-y-6">
 
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  {# ── Page Header ── #}
+  <div class="page-header">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">🚌 لوحة تحكم النقل المدرسي</h1>
-      <p class="text-sm text-gray-500 mt-1">إدارة الحافلات والمسارات</p>
+      <h1 class="page-title">🚌 لوحة تحكم النقل المدرسي</h1>
+      <p class="page-subtitle">إدارة الحافلات والمسارات</p>
     </div>
-    <div class="flex gap-2">
-      <a href="{% url 'transport:buses_list' %}" class="px-4 py-2 bg-[#8A1538] text-white text-sm rounded-lg hover:bg-[#1A4F8A] transition">قائمة الحافلات</a>
-      <a href="{% url 'transport:student_assignments' %}" class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">إسناد الطلاب</a>
+    <div class="page-actions">
+      <a href="{% url 'transport:buses_list' %}" class="btn-primary" style="font-size:12.5px;text-decoration:none;">قائمة الحافلات</a>
+      <a href="{% url 'transport:student_assignments' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">إسناد الطلاب</a>
     </div>
   </div>
 
-  <!-- إحصائيات -->
+  {# ── KPIs ── #}
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-[#8A1538]">{{ total_buses }}</p>
-      <p class="text-xs text-gray-500 mt-1">إجمالي الحافلات</p>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ total_buses }}</div>
+      <div class="kpi-label">إجمالي الحافلات</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-blue-600">{{ total_capacity }}</p>
-      <p class="text-xs text-gray-500 mt-1">الطاقة الاستيعابية</p>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-info">{{ total_capacity }}</div>
+      <div class="kpi-label">الطاقة الاستيعابية</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
-      <p class="text-3xl font-bold text-green-600">{{ total_students }}</p>
-      <p class="text-xs text-gray-500 mt-1">طلاب مسجلون</p>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-success">{{ total_students }}</div>
+      <div class="kpi-label">طلاب مسجلون</div>
     </div>
   </div>
 
-  <!-- الحافلات -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#8A1538] px-6 py-4">
-      <h2 class="text-white font-bold">الحافلات المدرسية</h2>
-    </div>
+  {# ── جدول الحافلات ── #}
+  <div class="table-wrap">
+    <div class="card-bar">الحافلات المدرسية</div>
     {% if bus_data %}
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">رقم الحافلة</th>
-            <th scope="col" class="px-4 py-3 text-right">السائق</th>
-            <th scope="col" class="px-4 py-3 text-center">الطلاب</th>
-            <th scope="col" class="px-4 py-3 text-center">نسبة الإشغال</th>
-            <th scope="col" class="px-4 py-3 text-center">إجراءات</th>
+            <th scope="col">رقم الحافلة</th>
+            <th scope="col">السائق</th>
+            <th scope="col" style="text-align:center;">الطلاب</th>
+            <th scope="col" style="text-align:center;">نسبة الإشغال</th>
+            <th scope="col" style="text-align:center;">إجراءات</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody>
           {% for item in bus_data %}
-          <tr class="hover:bg-gray-50">
-            <td class="px-4 py-3 font-medium">{{ item.bus.bus_number }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ item.bus.driver_name }}</td>
-            <td class="px-4 py-3 text-center">{{ item.students_count }} / {{ item.bus.capacity }}</td>
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-2">
-                <div class="flex-1 bg-gray-100 rounded-full h-2">
-                  <div class="h-2 rounded-full {% if item.occupancy_rate >= 90 %}bg-red-500{% elif item.occupancy_rate >= 70 %}bg-amber-400{% else %}bg-green-500{% endif %}"
-                       style="width:{{ item.occupancy_rate|floatformat:0 }}%"></div>
+          <tr>
+            <td style="font-weight:600;">{{ item.bus.bus_number }}</td>
+            <td>{{ item.bus.driver_name }}</td>
+            <td style="text-align:center;">{{ item.students_count }} / {{ item.bus.capacity }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="progress-qatar" style="flex:1;">
+                  <div class="progress-qatar-fill" style="width:{{ item.occupancy_rate|floatformat:0 }}%;
+                    {% if item.occupancy_rate >= 90 %}background:var(--status-danger);
+                    {% elif item.occupancy_rate >= 70 %}background:var(--status-warning);
+                    {% else %}background:var(--status-success);{% endif %}"></div>
                 </div>
-                <span class="text-xs font-medium w-10">{{ item.occupancy_rate|floatformat:0 }}%</span>
+                <span style="font-size:12px;font-weight:600;min-width:32px;">{{ item.occupancy_rate|floatformat:0 }}%</span>
               </div>
             </td>
-            <td class="px-4 py-3 text-center">
-              <a href="{% url 'transport:bus_detail' item.bus.id %}" class="text-blue-600 hover:underline text-xs">التفاصيل</a>
+            <td style="text-align:center;">
+              <a href="{% url 'transport:bus_detail' item.bus.id %}" class="link-maroon" style="font-size:12px;text-decoration:none;">التفاصيل</a>
             </td>
           </tr>
           {% endfor %}
@@ -76,9 +77,9 @@
       </table>
     </div>
     {% else %}
-    <div class="py-12 text-center text-gray-400">
-      <p class="text-4xl mb-3">🚌</p>
-      <p>لا توجد حافلات مسجلة</p>
+    <div class="empty-state">
+      <span class="empty-icon">🚌</span>
+      <p class="empty-title">لا توجد حافلات مسجلة</p>
     </div>
     {% endif %}
   </div>

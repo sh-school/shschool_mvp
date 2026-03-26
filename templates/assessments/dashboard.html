@@ -66,10 +66,10 @@
 
   {# Failing students alert #}
   {% if failing_list %}
-  <div class="bg-status-danger-light" style="border:1px solid #fecaca;border-radius:var(--radius-lg);padding:16px 18px;">
-    <div class="card-header" style="border-color:#fecaca;margin-bottom:12px;">
-      <div class="card-header-icon" style="background:#fee2e2;color:#991b1b;">⚠</div>
-      <h3 class="card-header-title" style="color:#991b1b;">آخر الطلاب الراسبين</h3>
+  <div class="bg-status-danger-light" style="border:1px solid var(--status-danger-border);border-radius:var(--radius-lg);padding:16px 18px;">
+    <div class="card-header" style="border-color:var(--status-danger-border);margin-bottom:12px;">
+      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">⚠</div>
+      <h3 class="card-header-title" style="color:var(--status-danger-dark);">آخر الطلاب الراسبين</h3>
       <a href="{% url 'failing_students' %}" class="link-maroon"
          style="font-size:12px;text-decoration:none;font-weight:600;margin-right:auto;">
         عرض الكل →
@@ -79,8 +79,8 @@
       {% for r in failing_list %}
       <a href="{% url 'student_report' r.student.id %}?semester={{ semester }}"
          class="bg-surface"
-         style="padding:5px 12px;border:1px solid #fecaca;border-radius:20px;
-                font-size:12px;color:#991b1b;text-decoration:none;transition:background .1s;">
+         style="padding:5px 12px;border:1px solid var(--status-danger-border);border-radius:20px;
+                font-size:12px;color:var(--status-danger-dark);text-decoration:none;transition:background .1s;">
         {{ r.student.full_name }} — {{ r.setup.subject.name_ar }}
       </a>
       {% endfor %}
@@ -92,9 +92,7 @@
   {# ── Subjects grouped by class ── #}
   <div>
     <div class="section-header">
-      <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0;">
-        {% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}
-      </h2>
+      <h2>{% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}</h2>
     </div>
 
     {% regroup setups by class_group as grouped %}

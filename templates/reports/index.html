@@ -86,14 +86,13 @@
 {# ── بطاقات الفصول ── #}
 {% if tab == "behavior" %}
   {# ── السلوك: بطاقة واحدة فقط ── #}
-  <div class="card-qatar">
-    <div class="card-header" style="background:var(--maroon);">
-      <div class="card-header-icon">⚖️</div>
-      <h2 class="card-header-title">كشف المخالفات السلوكية</h2>
+  <div class="card-qatar" style="padding:0;overflow:hidden;">
+    <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
+      ⚖️ كشف المخالفات السلوكية
     </div>
-    <div class="p-5 flex items-center justify-between">
-      <span class="text-sm text-gray-600">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success btn-sm">
+    <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:13px;color:var(--text-secondary);">تصدير كامل بيانات السلوك للعام {{ year }}</span>
+      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success" style="font-size:12.5px;text-decoration:none;">
         ⬇ تنزيل Excel
       </a>
     </div>

@@ -74,10 +74,10 @@
 
   {# ── Critical pending infractions ── #}
   {% if critical_unresolved %}
-  <div class="bg-status-danger-light" style="border:1px solid #fecaca;border-radius:var(--radius-lg);padding:18px 20px;">
-    <div class="card-header" style="border-color:#fecaca;">
-      <div class="card-header-icon" style="background:#fee2e2;color:#991b1b;">🚨</div>
-      <h2 class="card-header-title" style="color:#991b1b;">مخالفات جسيمة تحتاج قرار لجنة</h2>
+  <div class="bg-status-danger-light" style="border:1px solid var(--status-danger-border);border-radius:var(--radius-lg);padding:18px 20px;">
+    <div class="card-header" style="border-color:var(--status-danger-border);">
+      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">🚨</div>
+      <h2 class="card-header-title" style="color:var(--status-danger-dark);">مخالفات جسيمة تحتاج قرار لجنة</h2>
       <span class="status-badge status-danger">{{ critical_unresolved|length }}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;">
@@ -112,12 +112,12 @@
                     border-bottom:1px solid var(--border);">
           <div style="display:flex;align-items:center;gap:10px;">
             <span style="width:10px;height:10px;border-radius:50%;flex-shrink:0;
-              background:{% if stat.level == 1 %}#3b82f6{% elif stat.level == 2 %}#f59e0b{% elif stat.level == 3 %}#f97316{% else %}#ef4444{% endif %};">
+              background:{% if stat.level == 1 %}var(--status-info){% elif stat.level == 2 %}var(--status-warning){% elif stat.level == 3 %}var(--status-warning){% else %}var(--status-danger){% endif %};">
             </span>
             <span style="font-size:13px;color:var(--text-primary);">درجة {{ stat.level }}</span>
           </div>
           <span style="font-size:14px;font-weight:700;
-            color:{% if stat.level == 1 %}#2563eb{% elif stat.level == 2 %}#d97706{% elif stat.level == 3 %}#ea580c{% else %}#dc2626{% endif %};">
+            color:{% if stat.level == 1 %}var(--status-info){% elif stat.level == 2 %}var(--status-warning){% elif stat.level == 3 %}var(--status-warning){% else %}var(--status-danger){% endif %};">
             {{ stat.count }}
           </span>
         </div>

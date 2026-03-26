@@ -6,7 +6,7 @@
 .comp-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
 .comp-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .comp-title { font-size: 1.2rem; font-weight: 700; color: var(--maroon, #8A1538); }
-.comp-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+.comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
 .comp-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .comp-badge { display: inline-block; font-size: .7rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
 .comp-badge.pending { background: #FEF3C7; color: #92400E; }
@@ -26,7 +26,7 @@
   <div class="comp-header">
     <h1 class="comp-title">الحصص التعويضية</h1>
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-sm" style="background:var(--maroon,#8A1538);color:#fff;text-decoration:none;padding:7px 16px">+ طلب تعويض</a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تعويض</a>
     {% endif %}
   </div>
 

@@ -4,13 +4,13 @@
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
 .respond-page { max-width: 680px; margin: 0 auto; padding: 24px 16px; }
-.respond-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
-.respond-header { background: linear-gradient(135deg, #8A1538 0%, #6B102C 100%); padding: 16px 20px; color: #fff; }
+.respond-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.respond-header { background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%); padding: 16px 20px; color: #fff; }
 .respond-header h1 { font-size: 1.1rem; font-weight: 700; margin: 0; }
 .respond-header p { font-size: .8rem; opacity: .8; margin: 4px 0 0; }
 .respond-body { padding: 20px; }
 .swap-detail { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-bottom: 20px; }
-.swap-side { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; text-align: center; }
+.swap-side { background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; text-align: center; }
 .swap-side-label { font-size: .7rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
 .swap-side-teacher { font-size: .95rem; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
 .swap-side-info { font-size: .78rem; color: #6b7280; line-height: 1.6; }

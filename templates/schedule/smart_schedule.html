@@ -13,35 +13,34 @@
     <p class="page-subtitle">توليد تلقائي للجدول الأسبوعي — {{ year }}</p>
   </div>
   <div class="page-actions">
-    <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">عرض الجدول الحالي</a>
+    <a href="{% url 'weekly_schedule' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">عرض الجدول الحالي</a>
   </div>
 </div>
 
 {# ── KPIs ── #}
 <div class="grid grid-cols-3 gap-4 mb-6">
   <div class="kpi-card">
-    <div class="kpi-value kpi-color-maroon">{{ assignments|length }}</div>
+    <div class="kpi-value text-status-maroon">{{ assignments|length }}</div>
     <div class="kpi-label">توزيعات مواد</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value kpi-color-teal">{{ total_weekly }}</div>
+    <div class="kpi-value" style="color:var(--skyline);">{{ total_weekly }}</div>
     <div class="kpi-label">حصة أسبوعية إجمالية</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" style="color:#2563eb;">{{ classes_count }} فصل / {{ teachers_count }} معلم</div>
+    <div class="kpi-value text-status-info">{{ classes_count }} فصل / {{ teachers_count }} معلم</div>
     <div class="kpi-label">فصول ومعلمون مشاركون</div>
   </div>
 </div>
 
 {# ── زر التوليد ── #}
 {% if assignments %}
-<div class="card-qatar mb-6">
-  <div class="card-header" style="background:var(--maroon);">
-    <div class="card-header-icon">🤖</div>
-    <h2 class="card-header-title">توليد الجدول التلقائي</h2>
+<div class="card-qatar mb-6" style="padding:0;overflow:hidden;">
+  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
+    🤖 توليد الجدول التلقائي
   </div>
-  <div class="p-5">
-    <p class="text-sm text-gray-600 mb-4">
+  <div style="padding:20px;">
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
       سيقوم النظام بتوليد جدول أسبوعي كامل بناءً على توزيعات المواد أدناه.
       الجدول القديم سيُعطَّل تلقائياً ويُنشأ جدول جديد.
     </p>
@@ -49,58 +48,60 @@
           onsubmit="return confirm('هل تريد توليد جدول جديد؟ سيحل محل الجدول الحالي.')">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
-      <button type="submit" class="btn-primary">
+      <button type="submit" class="btn-primary" style="padding:12px 32px;font-size:14px;">
         توليد الجدول الآن
       </button>
     </form>
   </div>
 </div>
 {% else %}
-<div class="card-qatar mb-6 p-8 text-center text-gray-400">
-  <p class="text-4xl mb-3">📋</p>
-  <p class="font-medium text-gray-600">لا توجد توزيعات مواد</p>
-  <p class="text-sm mt-1">أضف توزيعات المواد على الفصول من
-    <a href="/admin/operations/subjectclassassignment/" class="text-maroon underline">لوحة الإدارة</a>
-    أولاً
-  </p>
+<div class="card-qatar mb-6">
+  <div class="empty-state">
+    <span class="empty-icon">📋</span>
+    <p class="empty-title">لا توجد توزيعات مواد</p>
+    <p class="empty-sub">أضف توزيعات المواد على الفصول من
+      <a href="/admin/operations/subjectclassassignment/" class="link-maroon">لوحة الإدارة</a>
+      أولاً
+    </p>
+  </div>
 </div>
 {% endif %}
 
 {# ── سجل التوليد السابق ── #}
 {% if generations %}
-<div class="card-qatar mb-6">
-  <div class="card-header">
-    <div class="card-header-icon">📊</div>
-    <h2 class="card-header-title">سجل التوليد</h2>
-  </div>
-  <div class="table-wrap">
-    <table class="w-full text-sm">
+<div class="table-wrap mb-6">
+  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">📊 سجل التوليد</div>
+  <div style="overflow-x:auto;">
+    <table>
       <thead>
         <tr>
-          <th class="text-right">التاريخ</th>
-          <th class="text-center">الحالة</th>
-          <th class="text-center">الجودة</th>
-          <th class="text-center">الحصص</th>
-          <th class="text-center">الزمن</th>
-          <th class="text-right">بواسطة</th>
+          <th scope="col">التاريخ</th>
+          <th scope="col" style="text-align:center;">الحالة</th>
+          <th scope="col" style="text-align:center;">الجودة</th>
+          <th scope="col" style="text-align:center;">الحصص</th>
+          <th scope="col" style="text-align:center;">الزمن</th>
+          <th scope="col">بواسطة</th>
         </tr>
       </thead>
       <tbody>
         {% for g in generations %}
         <tr>
           <td>{{ g.generated_at|date:"d/m/Y H:i" }}</td>
-          <td class="text-center">
+          <td style="text-align:center;">
             <span class="status-badge {% if g.status == 'approved' %}status-success{% elif g.status == 'draft' %}status-warning{% else %}status-gray{% endif %}">
               {{ g.get_status_display }}
             </span>
           </td>
-          <td class="text-center">
-            <span class="font-bold {% if g.quality_score >= 80 %}text-green-700{% elif g.quality_score >= 60 %}text-amber-600{% else %}text-red-600{% endif %}">
+          <td style="text-align:center;">
+            <span style="font-weight:700;
+              {% if g.quality_score >= 80 %}color:var(--status-success);
+              {% elif g.quality_score >= 60 %}color:var(--status-warning);
+              {% else %}color:var(--status-danger);{% endif %}">
               {{ g.quality_score|floatformat:0 }}%
             </span>
           </td>
-          <td class="text-center">{{ g.total_slots_created }}</td>
-          <td class="text-center text-gray-400">{{ g.generation_time_ms }}ms</td>
+          <td style="text-align:center;">{{ g.total_slots_created }}</td>
+          <td style="text-align:center;color:var(--text-muted);">{{ g.generation_time_ms }}ms</td>
           <td>{{ g.generated_by.full_name|default:"—" }}</td>
         </tr>
         {% endfor %}
@@ -112,30 +113,27 @@
 
 {# ── جدول التوزيعات ── #}
 {% if assignments %}
-<div class="card-qatar">
-  <div class="card-header">
-    <div class="card-header-icon">📚</div>
-    <h2 class="card-header-title">توزيعات المواد على الفصول ({{ assignments|length }})</h2>
-  </div>
-  <div class="table-wrap">
-    <table class="w-full text-sm">
+<div class="table-wrap">
+  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">📚 توزيعات المواد على الفصول ({{ assignments|length }})</div>
+  <div style="overflow-x:auto;">
+    <table>
       <thead>
         <tr>
-          <th class="text-right">الفصل</th>
-          <th class="text-right">المادة</th>
-          <th class="text-right">المعلم</th>
-          <th class="text-center">الحصص/أسبوع</th>
-          <th class="text-center">معمل</th>
+          <th scope="col">الفصل</th>
+          <th scope="col">المادة</th>
+          <th scope="col">المعلم</th>
+          <th scope="col" style="text-align:center;">الحصص/أسبوع</th>
+          <th scope="col" style="text-align:center;">معمل</th>
         </tr>
       </thead>
       <tbody>
         {% for a in assignments %}
         <tr>
-          <td class="font-medium">{{ a.class_group }}</td>
+          <td style="font-weight:600;">{{ a.class_group }}</td>
           <td>{{ a.subject.name_ar }}</td>
-          <td class="text-maroon">{{ a.teacher.full_name }}</td>
-          <td class="text-center font-bold">{{ a.weekly_periods }}</td>
-          <td class="text-center">
+          <td style="color:var(--maroon);">{{ a.teacher.full_name }}</td>
+          <td style="text-align:center;font-weight:700;">{{ a.weekly_periods }}</td>
+          <td style="text-align:center;">
             {% if a.requires_lab %}
             <span class="status-badge status-warning">معمل</span>
             {% else %}—{% endif %}

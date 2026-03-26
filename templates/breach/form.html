@@ -1,29 +1,45 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
 {% block title %}تسجيل خرق بيانات{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/breach/" parent_label="خرق البيانات" current="تسجيل خرق" %}
+{% endblock %}
+
 {% block content %}
-<div class="container mt-3" style="max-width:760px" dir="rtl">
-  <h5 class="fw-bold mb-1" style="color:#8A1538">🔒 تسجيل خرق بيانات جديد</h5>
-  <p class="text-muted small mb-3">PDPPL م.11 — سيُحسَب deadline إشعار NCSA تلقائياً (72 ساعة)</p>
+<div class="space-y-6" style="max-width:760px;margin:0 auto;">
+
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">🔒 تسجيل خرق بيانات جديد</h1>
+      <p class="page-subtitle">PDPPL م.11 — سيُحسَب deadline إشعار NCSA تلقائياً (72 ساعة)</p>
+    </div>
+  </div>
 
   <form method="post" data-validate>{% csrf_token %}
-    <div class="card p-3 mb-3">
-      <div class="mb-2">
-        <label class="form-label fw-semibold">عنوان الخرق <span class="text-danger">*</span></label>
+
+    {# ── البيانات الأساسية ── #}
+    <div class="form-card" style="margin-bottom:16px;">
+      <div class="card-bar" style="margin:-24px -28px 20px;">عنوان الخرق والتصنيف</div>
+
+      <div class="form-group">
+        <label class="form-label">عنوان الخرق <span class="required">*</span></label>
         <input name="title" class="form-control" required placeholder="مثال: تسريب بيانات طلاب من قاعدة البيانات">
       </div>
-      <div class="row g-2 mb-2">
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">الخطورة</label>
-          <select name="severity" class="form-select">
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 form-group">
+        <div>
+          <label class="form-label">الخطورة</label>
+          <select name="severity" class="form-control">
             <option value="low">منخفضة</option>
             <option value="medium" selected>متوسطة</option>
             <option value="high">عالية</option>
             <option value="critical">حرجة</option>
           </select>
         </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">نوع البيانات المتأثرة</label>
-          <select name="data_type_affected" class="form-select">
+        <div>
+          <label class="form-label">نوع البيانات المتأثرة</label>
+          <select name="data_type_affected" class="form-control">
             <option value="health">بيانات صحية</option>
             <option value="academic">بيانات أكاديمية</option>
             <option value="personal" selected>بيانات شخصية</option>
@@ -31,48 +47,59 @@
             <option value="all">جميع البيانات</option>
           </select>
         </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">عدد الأشخاص المتأثرين</label>
+        <div>
+          <label class="form-label">عدد الأشخاص المتأثرين</label>
           <input name="affected_count" type="number" class="form-control" value="0" min="0">
         </div>
       </div>
-      <div class="mb-2">
-        <label class="form-label fw-semibold">وقت الاكتشاف <span class="text-danger">*</span></label>
+
+      <div class="form-group">
+        <label class="form-label">وقت الاكتشاف <span class="required">*</span></label>
         <input name="discovered_at" type="datetime-local" class="form-control" required value="{{ now }}">
       </div>
     </div>
 
-    <div class="card p-3 mb-3">
-      <div class="mb-2">
-        <label class="form-label fw-semibold">وصف الخرق التفصيلي <span class="text-danger">*</span></label>
+    {# ── التفاصيل ── #}
+    <div class="form-card" style="margin-bottom:16px;">
+      <div class="card-bar" style="margin:-24px -28px 20px;">وصف الخرق والإجراءات</div>
+
+      <div class="form-group">
+        <label class="form-label">وصف الخرق التفصيلي <span class="required">*</span></label>
         <textarea name="description" class="form-control" rows="3" required
-          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟"></textarea>
+          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟" style="resize:vertical;"></textarea>
       </div>
-      <div class="mb-2">
-        <label class="form-label fw-semibold">الإجراء الفوري المتخذ</label>
+      <div class="form-group">
+        <label class="form-label">الإجراء الفوري المتخذ</label>
         <textarea name="immediate_action" class="form-control" rows="2"
-          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..."></textarea>
+          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..." style="resize:vertical;"></textarea>
       </div>
-      <div class="mb-2">
-        <label class="form-label fw-semibold">إجراءات الاحتواء</label>
-        <textarea name="containment_action" class="form-control" rows="2"></textarea>
+      <div class="form-group">
+        <label class="form-label">إجراءات الاحتواء</label>
+        <textarea name="containment_action" class="form-control" rows="2" style="resize:vertical;"></textarea>
       </div>
     </div>
 
-    <div class="card p-3 mb-3">
-      <label class="form-label fw-semibold">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
-      <textarea name="notification_text" class="form-control" rows="4"
-        placeholder="وفق نموذج NCSA الرسمي...">{{ ncsa_template }}</textarea>
+    {# ── إشعار NCSA ── #}
+    <div class="form-card" style="margin-bottom:16px;">
+      <div class="card-bar" style="margin:-24px -28px 20px;">إشعار NCSA</div>
+      <div class="form-group">
+        <label class="form-label">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
+        <textarea name="notification_text" class="form-control" rows="4"
+          placeholder="وفق نموذج NCSA الرسمي..." style="resize:vertical;">{{ ncsa_template }}</textarea>
+      </div>
     </div>
 
-    <div class="alert alert-warning">
+    {# ── تنبيه ── #}
+    <div class="status-badge status-warning" style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius);font-size:13px;white-space:normal;margin-bottom:20px;width:100%;">
       ⏱ بعد الحفظ سيظهر countdown لـ 72 ساعة وستصل تنبيهات تلقائية للمسؤول
     </div>
 
-    <div class="d-flex gap-2">
-      <button type="submit" class="btn btn-danger">تسجيل الخرق</button>
-      <a href="{% url 'breach:dashboard' %}" class="btn btn-outline-secondary">إلغاء</a>
+    {# ── أزرار ── #}
+    <div style="display:flex;gap:10px;">
+      <button type="submit" class="btn-danger" style="flex:1;padding:12px;font-size:14px;font-weight:700;">تسجيل الخرق</button>
+      <a href="{% url 'breach:dashboard' %}" class="btn-secondary" style="padding:12px 24px;text-decoration:none;">إلغاء</a>
     </div>
   </form>
+
 </div>
 {% endblock %}
