@@ -45,7 +45,7 @@ SCHEDULE_SUBSTITUTE_ASSIGN = {"coordinator"}  # تخصصه فقط
 SCHEDULE_SUBSTITUTE_APPROVE = {"principal", "vice_academic", "vice_admin"}
 
 # ── الحضور والغياب ──────────────────────────────────────────────
-ATTENDANCE_RECORD = {"teacher", "ese_teacher", "admin_supervisor"}
+ATTENDANCE_RECORD = {"teacher", "ese_teacher", "coordinator", "admin_supervisor"}
 ATTENDANCE_VIEW_ALL = {"principal", "vice_academic", "vice_admin", "admin_supervisor", "social_worker"}
 ATTENDANCE_VIEW_DEPT = {"coordinator"}
 ATTENDANCE_VIEW_OWN = {"teacher", "ese_teacher"}
@@ -62,7 +62,7 @@ ASSESSMENT_VIEW_CHILD = {"parent"}
 ASSESSMENT_VIEW_SELF = {"student"}
 
 # ── السلوك والانضباط ────────────────────────────────────────────
-BEHAVIOR_RECORD = {"teacher", "ese_teacher", "social_worker", "admin_supervisor"}
+BEHAVIOR_RECORD = {"teacher", "ese_teacher", "coordinator", "social_worker", "admin_supervisor"}
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
 BEHAVIOR_VIEW_ALL = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
 BEHAVIOR_VIEW_CHILD = {"parent"}

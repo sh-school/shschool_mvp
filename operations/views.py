@@ -420,8 +420,8 @@ def generate_sessions(request):
 
 @login_required
 def teacher_absence_list(request):
-    """قائمة غيابات المعلمين — للمدير"""
-    if not request.user.is_admin():
+    """قائمة غيابات المعلمين — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     from datetime import date as dclass
@@ -450,8 +450,8 @@ def teacher_absence_list(request):
 
 @login_required
 def register_teacher_absence(request):
-    """تسجيل غياب معلم"""
-    if not request.user.is_admin():
+    """تسجيل غياب معلم — للمدير والمنسق"""
+    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
         return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
 
