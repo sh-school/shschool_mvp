@@ -36,6 +36,11 @@ app.conf.beat_schedule = {
         "task": "analytics.send_monthly_kpi_report",
         "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
+    # ✅ v7: توليد الحصص اليومية — 6:00 صباحاً (أحد–خميس = أسبوع قطر الدراسي)
+    "generate-daily-sessions": {
+        "task": "operations.generate_daily_sessions",
+        "schedule": crontab(hour=6, minute=0, day_of_week="0-4"),  # Sun=0 .. Thu=4
+    },
 }
 
 app.conf.timezone = "Asia/Qatar"

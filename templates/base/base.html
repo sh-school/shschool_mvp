@@ -247,8 +247,8 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule">
   <div class="sd-label">جدولي</div>
+  <a href="/teacher/schedule/" style="font-weight:600;">📋 تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
-  <a href="/teacher/schedule/">📋 حصص اليوم</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
   <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
@@ -260,8 +260,8 @@
 {# ── Teacher Schedule Dropdown ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
 <div class="sd-menu" id="m-teacher-schedule">
+  <a href="/teacher/schedule/" style="font-weight:600;">📋 تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
-  <a href="/teacher/schedule/">📋 حصص اليوم</a>
   <hr>
   <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
   <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
@@ -397,7 +397,10 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
       <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
     </a>
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
-    <a href="/teacher/weekly-schedule/" class="mobile-nav-item {% if 'schedule' in request.path or 'weekly' in request.path %}active{% endif %}">
+    <a href="/teacher/schedule/" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">📋</span><span>الحضور</span>
+    </a>
+    <a href="/teacher/weekly-schedule/" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">📅</span><span>جدولي</span>
     </a>
     {% endif %}
