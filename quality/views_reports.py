@@ -16,7 +16,7 @@ from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 # All roles that can access quality module
 _QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
 
-from .models import OperationalProcedure
+from .models import ExecutorMapping, OperationalProcedure, QualityCommitteeMember
 from .services import QualityService
 
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
@@ -30,12 +30,36 @@ def progress_report(request):
     data = QualityService.get_progress_report_data(school, year)
     overall = data["overall"]
 
-    executor_stats = (
+    # ── المنفذين مع اسم الموظف الفعلي ──
+    executor_raw = (
         OperationalProcedure.objects.filter(school=school, academic_year=year)
         .values("executor_norm")
         .annotate(total=Count("id"), completed=Count("id", filter=Q(status="Completed")))
         .order_by("-total")[:20]
     )
+    # بناء خريطة اسم المنفذ → اسم الموظف
+    mapping_dict = dict(
+        ExecutorMapping.objects.filter(
+            school=school, academic_year=year, user__isnull=False,
+        ).select_related("user").values_list("executor_norm", "user__full_name")
+    )
+    executor_stats = []
+    for ex in executor_raw:
+        ex["user_name"] = mapping_dict.get(ex["executor_norm"], "")
+        executor_stats.append(ex)
+
+    # ── مسؤول كل مجال (من لجنة المراجعة) ──
+    reviewer_map = {}
+    for m in QualityCommitteeMember.objects.filter(
+        school=school, committee_type=QualityCommitteeMember.REVIEW,
+        is_active=True, domain__isnull=False,
+    ).select_related("user", "domain"):
+        if m.domain_id and m.user:
+            reviewer_map[m.domain_id] = m.user.full_name
+
+    domain_stats = data["domain_stats"]
+    for ds in domain_stats:
+        ds["reviewer_name"] = reviewer_map.get(ds["domain"].pk, "")
 
     base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
     today = timezone.now().date()
@@ -52,7 +76,7 @@ def progress_report(request):
         request,
         "quality/progress_report.html",
         {
-            "domain_stats": data["domain_stats"],
+            "domain_stats": domain_stats,
             "executor_stats": executor_stats,
             "year": year,
             "total_all": overall["total"],
