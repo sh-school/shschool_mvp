@@ -11,7 +11,7 @@
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">الإشعارات التلقائية</h1>
+      <h1 class="text-2xl font-bold text-gray-900">{% include "components/icon.html" with name="bell" %} الإشعارات التلقائية</h1>
       <p class="text-gray-500 text-sm mt-1">إشعارات البريد الإلكتروني و SMS لأولياء الأمور</p>
     </div>
   </div>
@@ -42,7 +42,7 @@
     <!-- إرسال تنبيهات الغياب -->
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
       <div class="bg-amber-600 px-5 py-4">
-        <h2 class="text-white font-bold">📅 تنبيهات الغياب المتكرر</h2>
+        <h2 class="text-white font-bold">{% include "components/icon.html" with name="calendar" %} تنبيهات الغياب المتكرر</h2>
         <p class="text-amber-100 text-xs mt-0.5">إرسال لأولياء الأمور بغياب أبنائهم</p>
       </div>
       <div class="p-5">
@@ -63,7 +63,7 @@
     <!-- إرسال تنبيهات الرسوب -->
     <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
       <div class="bg-red-700 px-5 py-4">
-        <h2 class="text-white font-bold">📊 إشعارات الرسوب السنوي</h2>
+        <h2 class="text-white font-bold">{% include "components/icon.html" with name="bar-chart" %} إشعارات الرسوب السنوي</h2>
         <p class="text-red-100 text-xs mt-0.5">إبلاغ أولياء الأمور بنتائج الرسوب</p>
       </div>
       <div class="p-5">
@@ -88,7 +88,7 @@
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <button onclick="document.getElementById('settings-panel').classList.toggle('hidden')"
             class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-      <h2 class="font-bold text-gray-900">⚙️ إعدادات الإشعارات</h2>
+      <h2 class="font-bold text-gray-900">{% include "components/icon.html" with name="settings" %} إعدادات الإشعارات</h2>
       <span class="text-gray-400 text-sm">▼</span>
     </button>
 
@@ -228,10 +228,10 @@
             <td class="px-4 py-3 text-center text-xs text-gray-600">{{ log.get_notif_type_display }}</td>
             <td class="px-4 py-3 text-center">
               {% if log.status == "sent" %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">✓ أُرسل</span>
+                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">{% include "components/icon.html" with name="check" %} أُرسل</span>
               {% elif log.status == "failed" %}
                 <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700"
-                      title="{{ log.error_msg }}">✕ فشل</span>
+                      title="{{ log.error_msg }}">{% include "components/icon.html" with name="x-circle" %} فشل</span>
               {% else %}
                 <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">معلّق</span>
               {% endif %}
@@ -254,7 +254,7 @@
     </div>
     {% else %}
     <div class="py-16 text-center text-gray-400">
-      <p class="text-4xl mb-3">📬</p>
+      <p class="text-4xl mb-3">{% include "components/icon.html" with name="mail" size="icon-2xl" %}</p>
       <p>لا توجد إشعارات مُرسَلة بعد</p>
     </div>
     {% endif %}

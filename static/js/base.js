@@ -309,12 +309,12 @@ document.addEventListener('click', function(e) {
 
   function updateIcon() {
     var dark = isDark();
-    if (icon) icon.textContent = dark ? '☀️' : '🌙';
+    if (icon) icon.innerHTML = dark ? '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sun"/></svg>' : '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-moon"/></svg>';
     if (meta) meta.content = dark ? '#1a0a12' : '#8A1538';
     if (metaCS) metaCS.content = dark ? 'dark' : 'light';
     var menuIcon = document.getElementById('theme-menu-icon');
     var menuText = document.getElementById('theme-menu-text');
-    if (menuIcon) menuIcon.textContent = dark ? '☀️' : '🌙';
+    if (menuIcon) menuIcon.innerHTML = dark ? '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sun"/></svg>' : '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-moon"/></svg>';
     if (menuText) menuText.textContent = dark ? 'الوضع النهاري' : 'الوضع الليلي';
   }
 

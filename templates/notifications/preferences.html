@@ -5,7 +5,7 @@
 {% block content %}
 <div style="max-width:600px;margin:0 auto;padding:20px;">
 
-  <h1 style="font-size:22px;font-weight:700;margin-bottom:8px;">تفضيلات الإشعارات</h1>
+  <h1 style="font-size:22px;font-weight:700;margin-bottom:8px;">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
   <p style="color:#666;font-size:14px;margin-bottom:24px;">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
 
   <form method="post">
@@ -17,7 +17,7 @@
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
         <div>
-          <span style="font-weight:500;">🔔 إشعارات المنصة</span>
+          <span style="font-weight:500;">{% include "components/icon.html" with name="bell" %} إشعارات المنصة</span>
           <p style="color:#666;font-size:12px;margin:2px 0 0;">الجرس داخل التطبيق — مجاني ودائماً</p>
         </div>
         <input type="checkbox" name="in_app_enabled" {% if prefs.in_app_enabled %}checked{% endif %}
@@ -26,7 +26,7 @@
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
         <div>
-          <span style="font-weight:500;">📲 Push Notifications</span>
+          <span style="font-weight:500;">{% include "components/icon.html" with name="bell" %} Push Notifications</span>
           <p style="color:#666;font-size:12px;margin:2px 0 0;">إشعارات المتصفح حتى لو التطبيق مغلق</p>
         </div>
         <input type="checkbox" name="push_enabled" {% if prefs.push_enabled %}checked{% endif %}
@@ -35,7 +35,7 @@
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
         <div>
-          <span style="font-weight:500;">💬 WhatsApp</span>
+          <span style="font-weight:500;">{% include "components/icon.html" with name="phone" %} WhatsApp</span>
           <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل WhatsApp على رقم الجوال المسجل</p>
         </div>
         <input type="checkbox" name="whatsapp_enabled" {% if prefs.whatsapp_enabled %}checked{% endif %}
@@ -44,7 +44,7 @@
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
         <div>
-          <span style="font-weight:500;">📧 البريد الإلكتروني</span>
+          <span style="font-weight:500;">{% include "components/icon.html" with name="mail" %} البريد الإلكتروني</span>
           <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل تفصيلية على البريد</p>
         </div>
         <input type="checkbox" name="email_enabled" {% if prefs.email_enabled %}checked{% endif %}
@@ -53,7 +53,7 @@
 
       <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
         <div>
-          <span style="font-weight:500;">📱 SMS</span>
+          <span style="font-weight:500;">{% include "components/icon.html" with name="phone" %} SMS</span>
           <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل نصية قصيرة — للحالات العاجلة</p>
         </div>
         <input type="checkbox" name="sms_enabled" {% if prefs.sms_enabled %}checked{% endif %}

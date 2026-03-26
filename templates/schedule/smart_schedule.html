@@ -9,7 +9,7 @@
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">الجدولة الذكية</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</h1>
     <p class="page-subtitle">توليد تلقائي للجدول الأسبوعي — {{ year }}</p>
   </div>
   <div class="page-actions">
@@ -37,7 +37,7 @@
 {% if assignments %}
 <div class="card-qatar mb-6" style="padding:0;overflow:hidden;">
   <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
-    🤖 توليد الجدول التلقائي
+    {% include "components/icon.html" with name="bot" %} توليد الجدول التلقائي
   </div>
   <div style="padding:20px;">
     <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">
@@ -57,7 +57,7 @@
 {% else %}
 <div class="card-qatar mb-6">
   <div class="empty-state">
-    <span class="empty-icon">📋</span>
+    <span class="empty-icon">{% include "components/icon.html" with name="list-checks" size="icon-2xl" %}</span>
     <p class="empty-title">لا توجد توزيعات مواد</p>
     <p class="empty-sub">أضف توزيعات المواد على الفصول من
       <a href="/admin/operations/subjectclassassignment/" class="link-maroon">لوحة الإدارة</a>
@@ -70,7 +70,7 @@
 {# ── سجل التوليد السابق ── #}
 {% if generations %}
 <div class="table-wrap mb-6">
-  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">📊 سجل التوليد</div>
+  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">{% include "components/icon.html" with name="bar-chart" %} سجل التوليد</div>
   <div style="overflow-x:auto;">
     <table>
       <thead>
@@ -114,7 +114,7 @@
 {# ── جدول التوزيعات ── #}
 {% if assignments %}
 <div class="table-wrap">
-  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">📚 توزيعات المواد على الفصول ({{ assignments|length }})</div>
+  <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الفصول ({{ assignments|length }})</div>
   <div style="overflow-x:auto;">
     <table>
       <thead>

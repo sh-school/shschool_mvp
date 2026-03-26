@@ -17,7 +17,7 @@
 
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <div class="bg-[#8A1538] px-6 py-4">
-      <h1 class="text-xl font-bold text-white">{{ assessment.title }}</h1>
+      <h1 class="text-xl font-bold text-white">{% include "components/icon.html" with name="file-pen" %} {{ assessment.title }}</h1>
       <p class="text-blue-200 text-sm mt-1">
         {{ assessment.subject.name_ar }} | {{ assessment.class_group }} |
         {{ assessment.get_package_type_display|default:assessment.package.get_package_type_display }} |
@@ -75,7 +75,7 @@
         {% endfor %}
         <button type="submit"
                 class="btn-success px-6 py-2 text-white rounded-lg text-sm transition font-medium">
-          ✓ حفظ الكل وإغلاق
+          {% include "components/icon.html" with name="check" %} حفظ الكل وإغلاق
         </button>
       </form>
     </div>

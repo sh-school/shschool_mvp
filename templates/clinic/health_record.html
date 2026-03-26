@@ -4,13 +4,13 @@
 <div dir="rtl">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-800">🏥 السجل الصحي</h1>
+      <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="hospital" %} السجل الصحي</h1>
       <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
     </div>
     <div class="flex gap-2">
       <a href="{% url 'clinic:record_visit_student' student.id %}"
          class="btn-danger text-white px-4 py-2 rounded-lg text-sm transition">
-        ➕ تسجيل زيارة جديدة
+        + تسجيل زيارة جديدة
       </a>
       <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
     </div>
@@ -21,7 +21,7 @@
     <!-- البيانات الصحية -->
     <div class="lg:col-span-1 space-y-4">
       <div class="bg-white rounded-xl shadow-sm p-5">
-        <h2 class="font-bold text-gray-700 mb-4 border-b pb-2">📋 البيانات الصحية</h2>
+        <h2 class="font-bold text-gray-700 mb-4 border-b pb-2">{% include "components/icon.html" with name="list-checks" %} البيانات الصحية</h2>
 
         <form method="post" action="">
           {% csrf_token %}
@@ -62,7 +62,7 @@
             </div>
           </div>
           <button type="submit" class="btn-danger mt-4 w-full text-white py-2 rounded-lg text-sm transition">
-            💾 حفظ السجل الصحي
+            {% include "components/icon.html" with name="save" %} حفظ السجل الصحي
           </button>
         </form>
 
@@ -76,7 +76,7 @@
     <div class="lg:col-span-2">
       <div class="bg-white rounded-xl shadow-sm overflow-hidden">
         <div class="px-5 py-4 border-b flex justify-between items-center">
-          <h2 class="font-bold text-gray-700">📅 سجل الزيارات ({{ visits.count }} زيارة)</h2>
+          <h2 class="font-bold text-gray-700">{% include "components/icon.html" with name="calendar" %} سجل الزيارات ({{ visits.count }} زيارة)</h2>
         </div>
 
         {% if visits %}
@@ -90,11 +90,11 @@
                 <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">أُرسل للمنزل</span>
                 {% endif %}
                 {% if visit.parent_notified %}
-                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ أُبلغ ولي الأمر</span>
+                <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{% include "components/icon.html" with name="check" %} أُبلغ ولي الأمر</span>
                 {% endif %}
               </div>
               {% if visit.temperature %}
-              <span class="text-sm text-gray-500">🌡 {{ visit.temperature }}°</span>
+              <span class="text-sm text-gray-500">{{ visit.temperature }}°</span>
               {% endif %}
             </div>
             <p class="text-sm text-gray-600"><strong>السبب:</strong> {{ visit.reason }}</p>
@@ -110,7 +110,7 @@
         </div>
         {% else %}
         <div class="p-12 text-center text-gray-400">
-          <p class="text-3xl mb-2">📋</p>
+          <p class="text-3xl mb-2">{% include "components/icon.html" with name="list-checks" size="icon-2xl" %}</p>
           <p>لا توجد زيارات مسجلة لهذا الطالب</p>
         </div>
         {% endif %}

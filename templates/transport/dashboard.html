@@ -11,7 +11,7 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">🚌 لوحة تحكم النقل المدرسي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} لوحة تحكم النقل المدرسي</h1>
       <p class="page-subtitle">إدارة الحافلات والمسارات</p>
     </div>
     <div class="page-actions">
@@ -78,7 +78,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-      <span class="empty-icon">🚌</span>
+      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
       <p class="empty-title">لا توجد حافلات مسجلة</p>
     </div>
     {% endif %}

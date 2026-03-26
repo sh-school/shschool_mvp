@@ -3,7 +3,7 @@
 {% block content %}
 <div dir="rtl" class="max-w-xl mx-auto">
  <div class="flex justify-between items-center mb-6">
- <h1 class="text-2xl font-bold text-gray-800">🟢 استعادة النقاط</h1>
+ <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="refresh" %} استعادة النقاط</h1>
  <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">← رجوع</a>
  </div>
  <!-- Infraction summary -->
@@ -30,7 +30,7 @@
  </div>
  <div class="flex gap-3 mt-6">
  <button type="submit" class="btn-success flex-1 text-white py-2.5 rounded-lg text-sm font-medium">
- ✅ اعتماد استعادة النقاط
+ {% include "components/icon.html" with name="check-circle" %} اعتماد استعادة النقاط
  </button>
  <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
  </div>

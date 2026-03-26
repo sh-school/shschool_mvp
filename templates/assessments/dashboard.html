@@ -11,14 +11,14 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">📝 التقييمات والاختبارات</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} التقييمات والاختبارات</h1>
       <p class="page-subtitle">الباقات الأربع — {{ year }}</p>
     </div>
     <div class="page-actions">
       {% if request.user.is_admin or request.user.is_superuser %}
       <a href="{% url 'failing_students' %}" class="btn-secondary text-status-danger bg-status-danger-light"
          style="font-size:12.5px;text-decoration:none;border-color:#fecaca;">
-        ⚠ الطلاب الراسبون
+        {% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون
       </a>
       <a href="{% url 'setup_subject' %}" class="btn-primary"
          style="font-size:12.5px;text-decoration:none;">+ ربط مادة بفصل</a>
@@ -68,7 +68,7 @@
   {% if failing_list %}
   <div class="bg-status-danger-light" style="border:1px solid var(--status-danger-border);border-radius:var(--radius-lg);padding:16px 18px;">
     <div class="card-header" style="border-color:var(--status-danger-border);margin-bottom:12px;">
-      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">⚠</div>
+      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">{% include "components/icon.html" with name="alert-triangle" %}</div>
       <h3 class="card-header-title" style="color:var(--status-danger-dark);">آخر الطلاب الراسبين</h3>
       <a href="{% url 'failing_students' %}" class="link-maroon"
          style="font-size:12px;text-decoration:none;font-weight:600;margin-right:auto;">
@@ -99,7 +99,7 @@
     {% for group in grouped %}
     <div style="margin-bottom:22px;">
       <p style="font-size:13px;font-weight:700;color:var(--text-secondary);margin:0 0 10px;padding-right:4px;">
-        📚 {{ group.grouper }}
+        {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {% for setup in group.list %}
@@ -134,7 +134,7 @@
 
     {% empty %}
     <div class="empty-state card-qatar">
-      <span class="empty-icon">📚</span>
+      <span class="empty-icon">{% include "components/icon.html" with name="book-open" size="icon-2xl" %}</span>
       <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
       <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
       {% if request.user.is_admin or request.user.is_superuser %}

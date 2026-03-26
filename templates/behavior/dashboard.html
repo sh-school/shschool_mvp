@@ -15,15 +15,15 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">⚖️ السلوك المدرسي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} السلوك المدرسي</h1>
       <p class="page-subtitle">متابعة المخالفات السلوكية وسجلات الطلاب</p>
     </div>
     <div class="page-actions">
       {% if is_committee %}
       <a href="{% url 'behavior:statistics' %}" class="btn-secondary"
-         style="font-size:12.5px;text-decoration:none;">📊 الإحصاءات</a>
+         style="font-size:12.5px;text-decoration:none;">{% include "components/icon.html" with name="bar-chart" %} الإحصاءات</a>
       <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
-         class="btn-secondary" style="font-size:12.5px;text-decoration:none;">🖨️ لائحة السلوك</a>
+         class="btn-secondary" style="font-size:12.5px;text-decoration:none;">{% include "components/icon.html" with name="printer" %} لائحة السلوك</a>
       {% endif %}
       {% if can_report %}
       <a href="{% url 'behavior:report_infraction' %}"
@@ -35,7 +35,7 @@
       {% endif %}
       {% if can_summon %}
       <a href="{% url 'behavior:summon_parent' %}" class="btn-secondary"
-         style="font-size:12.5px;text-decoration:none;">📩 استدعاء ولي أمر</a>
+         style="font-size:12.5px;text-decoration:none;">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
       {% endif %}
     </div>
   </div>
@@ -76,7 +76,7 @@
   {% if critical_unresolved %}
   <div class="bg-status-danger-light" style="border:1px solid var(--status-danger-border);border-radius:var(--radius-lg);padding:18px 20px;">
     <div class="card-header" style="border-color:var(--status-danger-border);">
-      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">🚨</div>
+      <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">{% include "components/icon.html" with name="alert-critical" %}</div>
       <h2 class="card-header-title" style="color:var(--status-danger-dark);">مخالفات جسيمة تحتاج قرار لجنة</h2>
       <span class="status-badge status-danger">{{ critical_unresolved|length }}</span>
     </div>
@@ -102,7 +102,7 @@
     {# توزيع المخالفات #}
     <div class="card-qatar">
       <div class="card-header">
-        <div class="card-header-icon">📊</div>
+        <div class="card-header-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
         <h3 class="card-header-title">توزيع المخالفات حسب الدرجة</h3>
       </div>
       {% if stats %}
@@ -134,7 +134,7 @@
     <div class="table-wrap">
       <div style="padding:12px 18px;border-bottom:1px solid var(--border);
                   display:flex;align-items:center;gap:10px;background:var(--surface-alt);">
-        <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">⏰</div>
+        <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">{% include "components/icon.html" with name="clock" %}</div>
         <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">آخر المخالفات</h3>
       </div>
       {% if recent_infractions %}

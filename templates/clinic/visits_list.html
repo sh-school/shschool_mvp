@@ -5,9 +5,9 @@
 
   {# ── Header ── #}
   <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
-    <h1 class="text-2xl font-bold text-gray-800">📋 سجل زيارات العيادة</h1>
+    <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
     <div class="flex gap-2">
-      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-sm">➕ زيارة جديدة</a>
+      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-sm">+ زيارة جديدة</a>
       <a href="{% url 'clinic:dashboard' %}" class="btn-secondary text-sm">← رجوع</a>
     </div>
   </div>
@@ -54,7 +54,7 @@
             hx-indicator="#visits-skeleton"
             hx-push-url="false"
           >
-          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔍</span>
+          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">{% include "components/icon.html" with name="search" %}</span>
           <span class="htmx-indicator absolute left-8 top-1/2 -translate-y-1/2">
             <svg class="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -74,7 +74,7 @@
         hx-swap="innerHTML"
         hx-push-url="true"
         hx-on:click="document.getElementById('date-filter').value=''; document.getElementById('student-filter').value='';"
-      >✕ مسح</a>
+      >{% include "components/icon.html" with name="x-circle" %} مسح</a>
       {% endif %}
 
     </div>

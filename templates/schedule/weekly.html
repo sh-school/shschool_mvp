@@ -222,7 +222,7 @@ td:has(.slot-empty) {
   {# ── Header ── #}
   <div class="sched-header">
     <div>
-      <h1 class="sched-title">📅 الجدول الأسبوعي</h1>
+      <h1 class="sched-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</h1>
       <span class="sched-year">{{ academic_year }}
         {% if target_teacher %} — {{ target_teacher.full_name }}{% endif %}
         {% if target_class %} — {{ target_class }}{% endif %}
@@ -235,8 +235,8 @@ td:has(.slot-empty) {
       <a href="{% url 'register_absence' %}" class="btn-secondary btn-sm">تسجيل غياب</a>
       {% endif %}
       {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
-      <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">🔄 طلبات التبديل</a>
-      <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">📅 الحصص التعويضية</a>
+      <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+      <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الحصص التعويضية</a>
       {% endif %}
     </div>
   </div>
@@ -270,7 +270,7 @@ td:has(.slot-empty) {
   {# ── Conflicts ── #}
   {% if conflicts %}
   <div class="alert-strip" style="background:#fef2f2;border-color:#fecaca;">
-    <span>⚠️</span>
+    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
     <strong>{{ conflicts|length }} تعارض:</strong>
     {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
   </div>
@@ -326,7 +326,7 @@ td:has(.slot-empty) {
   <div class="sched-legend">
     <span><span class="legend-dot" style="background:#EEF2F9;border:1px solid #93c5fd;"></span> حصة مجدولة</span>
     <span><span class="legend-dot" style="border:2px dashed #d1d5db;background:transparent;"></span> فارغ</span>
-    {% if conflicts %}<span style="color:#dc2626;font-weight:600;">⚠️ تعارضات — راجع أعلاه</span>{% endif %}
+    {% if conflicts %}<span style="color:#dc2626;font-weight:600;">{% include "components/icon.html" with name="alert-triangle" %} تعارضات — راجع أعلاه</span>{% endif %}
   </div>
 
 </div>

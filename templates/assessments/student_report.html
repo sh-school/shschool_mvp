@@ -11,7 +11,7 @@
 
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">كشف الدرجات السنوي</h1>
+      <h1 class="text-2xl font-bold text-[#8A1538]">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات السنوي</h1>
       <p class="text-sm text-gray-500 mt-1">{{ student.full_name }} | {{ student.national_id }}</p>
     </div>
     <a href="?year={{ year }}" class="text-sm text-blue-600 hover:underline">{{ year }}</a>
@@ -127,7 +127,7 @@
 
   <!-- توضيح المعادلة -->
   <div class="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
-    <p class="font-bold mb-1">📐 معادلة احتساب المجموع السنوي</p>
+    <p class="font-bold mb-1">{% include "components/icon.html" with name="formula" %} معادلة احتساب المجموع السنوي</p>
     <p>المجموع السنوي = درجة الفصل الأول (من 40) + درجة الفصل الثاني (من 60)</p>
     <p class="mt-1">درجة النجاح: <strong>50 من 100</strong></p>
   </div>

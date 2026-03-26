@@ -11,14 +11,14 @@
   <a href="/teacher/schedule/" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
   <span class="text-gray-300">/</span>
   <h1 class="text-xl font-bold text-gray-900">
-    {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
+    {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
   </h1>
   <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
 
   {# تبديل العرض #}
   <div class="mr-auto flex items-center gap-2">
-    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">☰ قائمة</span>
-    <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">⊞ شبكة</a>
+    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">{% include "components/icon.html" with name="list-checks" %} قائمة</span>
+    <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">{% include "components/icon.html" with name="bar-chart" %} شبكة</a>
   </div>
 </div>
 
@@ -40,7 +40,7 @@
     {% csrf_token %}
     <button type="submit"
             class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-      <span>✓</span> الكل حاضر
+      <span>{% include "components/icon.html" with name="check" %}</span> الكل حاضر
     </button>
   </form>
 
@@ -52,11 +52,11 @@
     {% csrf_token %}
     <button type="submit"
             class="bg-[#8A1538] hover:bg-[#1A4F8A] text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-      إنهاء الحصة ✓
+      إنهاء الحصة {% include "components/icon.html" with name="check" %}
     </button>
   </form>
   {% else %}
-  <span class="mr-auto text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">✓ الحصة منتهية</span>
+  <span class="mr-auto text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
 </div>
 

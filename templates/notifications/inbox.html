@@ -13,7 +13,7 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">🔔 الإشعارات</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="bell" %} الإشعارات</h1>
       <p class="page-subtitle" id="inbox-subtitle">
         {% if unread_count %}
           <span id="inbox-unread-text" style="color:var(--maroon);font-weight:700;">{{ unread_count }}</span> إشعار غير مقروء
@@ -30,11 +30,11 @@
         hx-swap="innerHTML"
         hx-include="[name=csrfmiddlewaretoken]"
         class="btn-secondary" style="font-size:12.5px;">
-        ✓✓ تحديد الكل كمقروء
+        {% include "components/icon.html" with name="check-circle" %} تحديد الكل كمقروء
       </button>
       {% endif %}
       <a href="{% url 'notification_preferences' %}" class="btn-secondary"
-         style="font-size:12.5px;text-decoration:none;">⚙️ التفضيلات</a>
+         style="font-size:12.5px;text-decoration:none;">{% include "components/icon.html" with name="settings" %} التفضيلات</a>
     </div>
   </div>
 
@@ -56,7 +56,7 @@
     {% if forloop.first %}
     <div style="margin-bottom:16px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:13px;font-weight:700;color:var(--status-danger);">🚨 إشعارات عاجلة</span>
+        <span style="font-size:13px;font-weight:700;color:var(--status-danger);">{% include "components/icon.html" with name="alert-triangle" %} إشعارات عاجلة</span>
         <div style="flex:1;height:1px;background:var(--status-danger-border);"></div>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;" id="urgent-section">
@@ -71,7 +71,7 @@
 
   {# ── Keyboard shortcut hint ── #}
   <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;text-align:left;">
-    💡 اختصارات: <kbd>j</kbd>/<kbd>k</kbd> للتنقل &nbsp;·&nbsp;
+    {% include "components/icon.html" with name="lightbulb" %} اختصارات: <kbd>j</kbd>/<kbd>k</kbd> للتنقل &nbsp;·&nbsp;
     <kbd>m</kbd> للتحديد كمقروء &nbsp;·&nbsp;
     <kbd>Enter</kbd> لفتح الرابط
   </p>
@@ -82,7 +82,7 @@
     {% include "notifications/partials/notif_item.html" with notif=notif %}
     {% empty %}
     <div class="empty-state">
-      <span class="empty-icon">🔔</span>
+      <span class="empty-icon">{% include "components/icon.html" with name="bell" size="icon-2xl" %}</span>
       <p class="empty-title">لا توجد إشعارات</p>
       <p class="empty-sub">ستظهر هنا إشعارات المدرسة والتنبيهات الهامة</p>
     </div>

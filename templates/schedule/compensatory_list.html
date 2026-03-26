@@ -24,7 +24,7 @@
 {% block content %}
 <div class="comp-page">
   <div class="comp-header">
-    <h1 class="comp-title">الحصص التعويضية</h1>
+    <h1 class="comp-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
     <a href="{% url 'compensatory_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تعويض</a>
     {% endif %}
@@ -74,7 +74,7 @@
   </div>
   {% empty %}
   <div class="empty-state">
-    <p style="font-size:2rem;margin-bottom:8px">&#x1f4c5;</p>
+    <p style="font-size:2rem;margin-bottom:8px">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
     <p>لا توجد حصص تعويضية</p>
   </div>
   {% endfor %}

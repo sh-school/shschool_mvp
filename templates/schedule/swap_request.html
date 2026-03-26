@@ -21,7 +21,7 @@
 {% block content %}
 <div class="form-page">
   <div class="form-card">
-    <h2 class="form-title">طلب تبديل حصة</h2>
+    <h2 class="form-title">{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h2>
 
     <form method="post">
       {% csrf_token %}

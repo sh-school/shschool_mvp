@@ -3,7 +3,7 @@
 {% block content %}
 <div dir="rtl" class="max-w-xl mx-auto">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">📚 تسجيل إعارة جديدة</h1>
+    <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
     <a href="{% url 'library:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
   <div class="bg-white rounded-xl shadow-sm p-6">
@@ -40,7 +40,7 @@
       </div>
       <div class="flex gap-3 mt-6">
         <button type="submit" class="btn-danger flex-1 text-white py-2.5 rounded-lg text-sm font-medium">
-          📚 تسجيل الإعارة
+          {% include "components/icon.html" with name="book-open" %} تسجيل الإعارة
         </button>
         <a href="{% url 'library:dashboard' %}" class="px-6 py-2.5 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
       </div>

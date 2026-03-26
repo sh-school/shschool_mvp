@@ -29,7 +29,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=7">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=119">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=120">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -37,6 +37,9 @@
 </head>
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
+
+{# ✅ SVG Icon Sprite — loaded once, used everywhere via <use href="#icon-name"/> #}
+{% include "components/sprite.html" %}
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
@@ -68,94 +71,94 @@
     {# ── Role-based nav ── #}
     <div class="nb-bar">
     {% if is_admin_role %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic">📚 الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality">📋 الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin">⚙️ الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services">🏥 الخدمات <span class="chv">▼</span></button>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <button class="nb" id="btn-academic" data-sd="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/clinic/" class="nb">🏥 العيادة</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="/clinic/" class="nb">{% include "components/icon.html" with name="hospital" %} العيادة</a>
       <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
       <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
       <a href="/clinic/statistics/" class="nb">الإحصائيات</a>
 
     {% elif role == "bus_supervisor" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/transport/" class="nb">🚌 النقل</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="/transport/" class="nb">{% include "components/icon.html" with name="bus" %} النقل</a>
       <a href="/transport/buses/" class="nb">الحافلات</a>
       <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
       <a href="/transport/statistics/" class="nb">الإحصائيات</a>
 
     {% elif role == "librarian" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/library/" class="nb">📚 المكتبة</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="/library/" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
       <a href="/library/books/" class="nb">الكتب</a>
       <a href="/library/borrow/" class="nb">إعارة جديدة</a>
 
     {% elif role == "coordinator" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule">📅 الجداول <span class="chv">▼</span></button>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
       {% if is_quality_reviewer %}
-      <a href="/quality/review/" class="nb">🔍 المراجعة الذاتية</a>
+      <a href="/quality/review/" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
-      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule">📅 جدولي <span class="chv">▼</span></button>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
       {% if is_quality_reviewer %}
-      <a href="/quality/review/" class="nb">🔍 المراجعة الذاتية</a>
+      <a href="/quality/review/" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
-      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% elif role == "social_worker" or role == "psychologist" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/behavior/dashboard/" class="nb">⚖️ السلوك</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
 
     {% elif role == "academic_advisor" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="/reports/" class="nb">التقارير</a>
-      <a href="/notifications/" class="nb">🔔 الإشعارات</a>
+      <a href="/notifications/" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
 
     {% elif role == "it_technician" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="/admin/" class="nb">🛠️ لوحة الإدارة</a>
 
     {% elif role == "student" %}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <a href="/reports/" class="nb">📊 درجاتي</a>
-      <a href="/library/" class="nb">📚 المكتبة</a>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="/reports/" class="nb">{% include "components/icon.html" with name="bar-chart" %} درجاتي</a>
+      <a href="/library/" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
 
     {% elif role == "parent" %}
-      <a href="/parents/" class="nb">🏠 بوابتي</a>
-      <a href="/parents/grades/" class="nb">📊 الدرجات</a>
-      <a href="/parents/attendance/" class="nb">📋 الحضور</a>
-      <a href="/parents/behavior/" class="nb">⚖️ السلوك</a>
+      <a href="/parents/" class="nb">{% include "components/icon.html" with name="home" %} بوابتي</a>
+      <a href="/parents/grades/" class="nb">{% include "components/icon.html" with name="bar-chart" %} الدرجات</a>
+      <a href="/parents/attendance/" class="nb">{% include "components/icon.html" with name="list-checks" %} الحضور</a>
+      <a href="/parents/behavior/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% else %}
       {# platform_developer أو أي دور آخر — نفس المدير #}
-      <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic">📚 الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality">📋 الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin">⚙️ الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services">🏥 الخدمات <span class="chv">▼</span></button>
+      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <button class="nb" id="btn-academic" data-sd="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
 
     {% endif %}
     </div>
@@ -164,7 +167,7 @@
 
     {# ── Dark Mode Toggle ── #}
     <button class="theme-toggle" id="theme-toggle" title="تبديل الثيم" aria-label="تبديل الثيم الليلي">
-      <span id="theme-icon">🌙</span>
+      <span id="theme-icon">{% include "components/icon.html" with name="moon" %}</span>
     </button>
 
     {# ── Notification Bell ── #}
@@ -192,53 +195,53 @@
 
 <div class="sd-menu" id="m-academic">
   <div class="sd-label">الدراسة والتقييم</div>
-  <a href="/assessments/">📝 التقييمات والدرجات</a>
-  <a href="/reports/">📊 التقارير الأكاديمية</a>
-  <a href="/analytics/">📈 الإحصاءات والتحليل</a>
+  <a href="/assessments/">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
+  <a href="/reports/">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
+  <a href="/analytics/">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
   <hr>
   <div class="sd-label">الجدول الدراسي</div>
-  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
-  <a href="/teacher/smart-schedule/">🤖 الجدولة الذكية</a>
-  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
-  <a href="/teacher/absences/">🚫 غياب المعلمين والبدلاء</a>
-  <a href="/import/">📥 استيراد الدرجات</a>
+  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="/teacher/smart-schedule/">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
+  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
+  <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
 </div>
 
 <div class="sd-menu" id="m-quality">
   <div class="sd-label">الخطة التشغيلية</div>
-  <a href="/quality/">📊 لوحة الخطة</a>
-  <a href="/quality/execution/">🚀 تنفيذ الخطة</a>
-  <a href="/quality/review/">🔍 المراجعة الذاتية</a>
-  <a href="/quality/report/">📈 تقرير التقدم</a>
+  <a href="/quality/">{% include "components/icon.html" with name="bar-chart" %} لوحة الخطة</a>
+  <a href="/quality/execution/">{% include "components/icon.html" with name="rocket" %} تنفيذ الخطة</a>
+  <a href="/quality/review/">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
+  <a href="/quality/report/">{% include "components/icon.html" with name="activity" %} تقرير التقدم</a>
   <hr>
   <div class="sd-label">اللجان</div>
-  <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
-  <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
+  <a href="/quality/executor-committee/">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة</a>
+  <a href="/quality/committee/">{% include "components/icon.html" with name="search" %} لجنة المراجعة الذاتية</a>
   {% if is_leadership %}
   <hr>
   <div class="sd-label">تقييم الأداء</div>
-  <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
+  <a href="/quality/evaluations/">{% include "components/icon.html" with name="list-checks" %} تقييم الموظفين</a>
   {% endif %}
   <hr>
-  <a href="/quality/my-procedures/">📝 إجراءاتي</a>
+  <a href="/quality/my-procedures/">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 </div>
 
 <div class="sd-menu" id="m-admin">
   <div class="sd-label">إدارة المدرسة</div>
-  <a href="/parents/admin/links/">👨‍👩‍👧 ربط أولياء الأمور</a>
-  <a href="/notifications/">🔔 مركز الإشعارات</a>
+  <a href="/parents/admin/links/">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
+  <a href="/notifications/">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
   <hr>
   <a href="/admin/">🛠️ لوحة الإدارة التقنية</a>
 </div>
 
 <div class="sd-menu" id="m-services">
   <div class="sd-label">الخدمات الطلابية</div>
-  <a href="/clinic/">🏥 العيادة المدرسية</a>
-  <a href="/transport/">🚌 النقل المدرسي</a>
-  <a href="/behavior/dashboard/">⚖️ السلوك الطلابي</a>
-  <a href="/behavior/summon/">📩 استدعاء ولي أمر</a>
-  <a href="/library/">📚 المكتبة</a>
+  <a href="/clinic/">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</a>
+  <a href="/transport/">{% include "components/icon.html" with name="bus" %} النقل المدرسي</a>
+  <a href="/behavior/dashboard/">{% include "components/icon.html" with name="scale" %} السلوك الطلابي</a>
+  <a href="/behavior/summon/">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
+  <a href="/library/">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
 </div>
 
 {% endif %}
@@ -247,24 +250,24 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule">
   <div class="sd-label">جدولي</div>
-  <a href="/teacher/schedule/" style="font-weight:600;">📋 تسجيل الحضور</a>
-  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/schedule/" style="font-weight:600;">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
-  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
-  <a href="/teacher/absences/">🚫 غياب المعلمين والبدلاء</a>
+  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
 </div>
 {% endif %}
 
 {# ── Teacher Schedule Dropdown ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
 <div class="sd-menu" id="m-teacher-schedule">
-  <a href="/teacher/schedule/" style="font-weight:600;">📋 تسجيل الحضور</a>
-  <a href="/teacher/weekly-schedule/">📅 الجدول الأسبوعي</a>
+  <a href="/teacher/schedule/" style="font-weight:600;">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
-  <a href="/teacher/schedule/swaps/">🔄 طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">📋 الحصص التعويضية</a>
+  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
 </div>
 {% endif %}
 
@@ -275,24 +278,24 @@
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.memberships.count > 1 %}
-  <a href="/auth/choose-role/">🔄 تبديل الدور</a>
+  <a href="/auth/choose-role/">{% include "components/icon.html" with name="refresh" %} تبديل الدور</a>
   {% endif %}
-  <a href="/notifications/inbox/">🔔 الإشعارات</a>
+  <a href="/notifications/inbox/">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
   <a href="#" id="theme-toggle-menu" onclick="document.getElementById('theme-toggle').click();return false;">
-    <span id="theme-menu-icon">🌙</span> <span id="theme-menu-text">الوضع الليلي</span>
+    <span id="theme-menu-icon">{% include "components/icon.html" with name="moon" %}</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
   {% if is_admin_role %}
-  <a href="/admin/">⚙️ لوحة الإدارة</a>
+  <a href="/admin/">{% include "components/icon.html" with name="settings" %} لوحة الإدارة</a>
   {% endif %}
   {% if is_admin_role %}
   <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
-    🔐 المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
+    {% include "components/icon.html" with name="lock" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
   </a>
   {% endif %}
   <hr>
   <form method="post" action="/auth/logout/" class="sd-logout-form">
     {% csrf_token %}
-    <button type="submit" class="sd-logout-btn">🚪 تسجيل الخروج</button>
+    <button type="submit" class="sd-logout-btn">{% include "components/icon.html" with name="log-out" %} تسجيل الخروج</button>
   </form>
 </div>
 
@@ -310,7 +313,7 @@
     {% elif msg.tags == 'warning' %}bg-amber-50 border border-amber-200 text-amber-800
     {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
     <span class="msg-icon">
-      {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+      {% if msg.tags == 'success' %}{% include "components/icon.html" with name="check-circle" %}{% elif msg.tags == 'error' %}{% include "components/icon.html" with name="x-circle" %}{% elif msg.tags == 'warning' %}{% include "components/icon.html" with name="alert-triangle" %}{% else %}{% include "components/icon.html" with name="info" %}{% endif %}
     </span>
     <span class="msg-text">{{ msg }}</span>
     <button class="msg-x" type="button" data-dismiss="msg-bar" title="إغلاق">✕</button>
@@ -335,7 +338,7 @@
      data-dismiss-on-backdrop="true">
   <div class="cmd-box">
     <div class="cmd-input-wrap">
-      <span class="cmd-icon" aria-hidden="true">🔍</span>
+      <span class="cmd-icon" aria-hidden="true">{% include "components/icon.html" with name="search" %}</span>
       <input id="cmd-input" class="cmd-input" type="text"
              placeholder="ابحث عن طالب، معلم، صفحة..."
              autocomplete="off" dir="rtl"
@@ -394,32 +397,32 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">
   <div class="mobile-bottom-nav-inner">
     <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
-      <span class="mobile-nav-icon">🏠</span><span>الرئيسية</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="home" %}</span><span>الرئيسية</span>
     </a>
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
     <a href="/teacher/schedule/" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📋</span><span>الحضور</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>الحضور</span>
     </a>
     <a href="/teacher/weekly-schedule/" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📅</span><span>جدولي</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="calendar" %}</span><span>جدولي</span>
     </a>
     {% endif %}
     {% if role == 'parent' %}
     <a href="/parents/" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">👨‍👩‍👧</span><span>أبنائي</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="waypoints" %}</span><span>أبنائي</span>
     </a>
     {% endif %}
     {% if role == 'student' %}
     <a href="/reports/" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📊</span><span>درجاتي</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>درجاتي</span>
     </a>
     {% endif %}
     <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">🔔</span><span>الإشعارات</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="bell" %}</span><span>الإشعارات</span>
     </a>
     {% if is_admin_role %}
     <a href="/analytics/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">📊</span><span>التحليلات</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>التحليلات</span>
     </a>
     {% endif %}
   </div>

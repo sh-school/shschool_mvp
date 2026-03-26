@@ -9,7 +9,7 @@
 
 <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
   <div>
-    <h1 class="text-2xl font-bold text-gray-900">جدول حصصي</h1>
+    <h1 class="text-2xl font-bold text-gray-900">{% include "components/icon.html" with name="calendar" %} جدول حصصي</h1>
     <p class="text-gray-500 text-sm mt-1">{{ user.full_name }}</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
@@ -93,7 +93,7 @@
   </div>{# end tbl-wrap-mobile #}
   {% else %}
   <div class="py-16 text-center">
-    <div class="text-5xl mb-4">📅</div>
+    <div class="text-5xl mb-4">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</div>
     <p class="text-gray-500 font-medium">لا توجد حصص في هذا اليوم</p>
     <p class="text-gray-400 text-sm mt-1">{{ selected_date }}</p>
   </div>

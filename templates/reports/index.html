@@ -16,7 +16,7 @@
   <div class="page-actions">
     <details class="report-student-search">
       <summary class="btn-secondary btn-sm" style="cursor:pointer;list-style:none;">
-        👤 بحث طالب فردي
+        {% include "components/icon.html" with name="user" %} بحث طالب فردي
       </summary>
       <div class="report-student-dropdown">
         <div class="flex gap-2 mb-2">
@@ -36,20 +36,20 @@
 <div class="report-tabs">
   <a href="?tab=results&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
      class="report-tab {% if tab == 'results' %}active{% endif %}">
-    <span class="report-tab-icon">📊</span> كشف النتائج
+    <span class="report-tab-icon">{% include "components/icon.html" with name="bar-chart" %}</span> كشف النتائج
   </a>
   <a href="?tab=certificates&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
      class="report-tab {% if tab == 'certificates' %}active{% endif %}">
-    <span class="report-tab-icon">🎓</span> الشهادات
+    <span class="report-tab-icon">{% include "components/icon.html" with name="file-text" %}</span> الشهادات
   </a>
   <a href="?tab=attendance&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
      class="report-tab {% if tab == 'attendance' %}active{% endif %}">
-    <span class="report-tab-icon">📅</span> الحضور والغياب
+    <span class="report-tab-icon">{% include "components/icon.html" with name="calendar" %}</span> الحضور والغياب
   </a>
   {% if request.user.is_admin or request.user.get_role == "principal" %}
   <a href="?tab=behavior&year={{ year }}"
      class="report-tab {% if tab == 'behavior' %}active{% endif %}">
-    <span class="report-tab-icon">⚖️</span> المخالفات السلوكية
+    <span class="report-tab-icon">{% include "components/icon.html" with name="scale" %}</span> المخالفات السلوكية
   </a>
   {% endif %}
 </div>
@@ -88,12 +88,12 @@
   {# ── السلوك: بطاقة واحدة فقط ── #}
   <div class="card-qatar" style="padding:0;overflow:hidden;">
     <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
-      ⚖️ كشف المخالفات السلوكية
+      {% include "components/icon.html" with name="scale" %} كشف المخالفات السلوكية
     </div>
     <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
       <span style="font-size:13px;color:var(--text-secondary);">تصدير كامل بيانات السلوك للعام {{ year }}</span>
       <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success" style="font-size:12.5px;text-decoration:none;">
-        ⬇ تنزيل Excel
+        {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>
     </div>
   </div>
@@ -110,7 +110,7 @@
 
         {% if tab == "results" %}
           <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">👁 معاينة</a>
+             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
           <div class="report-card-actions">
             <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
                class="report-card-btn report-btn-pdf">PDF</a>
@@ -120,7 +120,7 @@
 
         {% elif tab == "certificates" %}
           <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">👁 معاينة</a>
+             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
           <div class="report-card-actions">
             <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
                class="report-card-btn report-btn-pdf">PDF</a>
@@ -128,7 +128,7 @@
 
         {% elif tab == "attendance" %}
           <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">👁 معاينة</a>
+             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
           <div class="report-card-actions">
             <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
                class="report-card-btn report-btn-pdf">PDF</a>
@@ -144,7 +144,7 @@
 
 {% else %}
   {% include "components/empty_state.html" with
-     icon="📋"
+     icon="list-checks"
      title="لا توجد فصول"
      subtitle="لا توجد فصول تطابق الفلاتر المحددة. جرّب تغيير المرحلة أو الصف."
      compact=True

@@ -50,6 +50,11 @@ urlpatterns = [
         login_required(TemplateView.as_view(template_name="components/_styleguide.html")),
         name="styleguide",
     ),
+    path(
+        "styleguide/icons/",
+        login_required(TemplateView.as_view(template_name="styleguide/icon_preview.html")),
+        name="icon_preview",
+    ),
     path("sw.js", global_sw, name="global_sw"),
     path("manifest.json", global_manifest, name="global_manifest"),
     path("offline/", offline_global, name="offline_global"),

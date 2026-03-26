@@ -30,7 +30,7 @@
 
     <div class="modal-header">
       <span id="confirm-title-{{ confirm_id }}" style="color:#dc2626">
-        ⚠ {{ title|default:"تأكيد الإجراء" }}
+        {% include "components/icon.html" with name="alert-triangle" %} {{ title|default:"تأكيد الإجراء" }}
       </span>
       <button class="modal-close-btn" data-modal-close="{{ confirm_id }}" aria-label="إغلاق">×</button>
     </div>

@@ -15,7 +15,7 @@
   <!-- تنبيه: الحساب غير مربوط بأي منفذ -->
   {% if not mapping_exists %}
   <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
-    <span class="text-2xl">⚠️</span>
+    <span class="text-2xl">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
       <p class="font-bold text-amber-800 text-sm">حسابك غير مربوط بالخطة التشغيلية</p>
       <p class="text-amber-700 text-xs mt-1">
@@ -62,10 +62,10 @@
       <div class="flex-1">
         <p class="text-xs text-gray-400 font-mono mb-0.5">{{ proc.number }} · {{ proc.indicator.target.domain.name }}</p>
         <p class="text-sm font-medium text-gray-800">{{ proc.text|truncatechars:100 }}</p>
-        <p class="text-xs text-gray-500 mt-1">📅 {{ proc.date_range }}
+        <p class="text-xs text-gray-500 mt-1">{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
           {% if proc.deadline %}
           · <span class="{% if proc.status != 'Completed' %}text-red-500 font-medium{% endif %}">
-            ⏰ {{ proc.deadline|date:"Y/m/d" }}
+            {% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}
           </span>
           {% endif %}
         </p>

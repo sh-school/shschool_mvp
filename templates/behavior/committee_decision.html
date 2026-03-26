@@ -3,7 +3,7 @@
 {% block content %}
 <div dir="rtl" class="max-w-xl mx-auto">
  <div class="flex justify-between items-center mb-6">
- <h1 class="text-2xl font-bold text-gray-800">⚖️ قرار لجنة الضبط السلوكي</h1>
+ <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="scale" %} قرار لجنة الضبط السلوكي</h1>
  <a href="{% url 'behavior:committee' %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">← رجوع</a>
  </div>
  <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
@@ -56,10 +56,10 @@
  </div>
  </div>
  <div class="grid grid-cols-3 gap-3">
- <button name="decision" value="resolve" class="btn-success text-white py-2.5 rounded-lg text-sm font-medium">✅ حل وإغلاق</button>
- <button name="decision" value="suspend" class="bg-orange-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600">⏸ إيقاف مؤقت</button>
+ <button name="decision" value="resolve" class="btn-success text-white py-2.5 rounded-lg text-sm font-medium">{% include "components/icon.html" with name="check-circle" %} حل وإغلاق</button>
+ <button name="decision" value="suspend" class="bg-orange-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600">{% include "components/icon.html" with name="clock" %} إيقاف مؤقت</button>
  {% if infraction.level == 3 %}
- <button name="decision" value="escalate" class="btn-danger text-white py-2.5 rounded-lg text-sm font-medium">⬆️ تصعيد للدرجة 4</button>
+ <button name="decision" value="escalate" class="btn-danger text-white py-2.5 rounded-lg text-sm font-medium">{% include "components/icon.html" with name="activity" %} تصعيد للدرجة 4</button>
  {% endif %}
  </div>
  </form>

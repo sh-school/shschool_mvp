@@ -4,12 +4,12 @@
 <div dir="rtl">
  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
  <div>
- <h1 class="text-2xl font-bold text-gray-800">⚖️ الملف السلوكي</h1>
+ <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="scale" %} الملف السلوكي</h1>
  <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
  </div>
  <div class="flex gap-2">
  {% if can_summon %}
- <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">📩 استدعاء ولي أمر</a>
+ <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
  {% endif %}
  {% if can_report %}
  <a href="{% url 'behavior:report_infraction' %}" class="btn-danger text-white px-4 py-2 rounded-lg text-sm">➕ مخالفة جديدة</a>
@@ -76,7 +76,7 @@
  {% endif %}
  <p class="text-sm text-gray-700">{{ inf.description }}</p>
  {% if inf.action_taken %}<p class="text-xs text-gray-500 mt-1">الإجراء: {{ inf.action_taken }}</p>{% endif %}
- {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">✓ استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
+ {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">{% include "components/icon.html" with name="check" %} استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
  <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
  </div>
  <div class="flex flex-col gap-1 shrink-0 mr-2">
@@ -90,27 +90,27 @@
  <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" class="inline">
  {% csrf_token %}
  <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-xs text-white px-3 py-1.5 rounded-lg w-full">
- ⬆️ تصعيد
+ {% include "components/icon.html" with name="activity" %} تصعيد
  </button>
  </form>
  {% endif %}
  {% if is_committee and inf.level == 4 and not inf.security_agency %}
  <a href="{% url 'behavior:security_referral' inf.id %}"
  class="btn-danger text-xs text-white px-3 py-1.5 rounded-lg text-center">
- 🔒 إحالة أمنية
+ {% include "components/icon.html" with name="lock" %} إحالة أمنية
  </a>
  {% endif %}
  <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank"
  class="btn-danger text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
- 🖨️ إنذار
+ {% include "components/icon.html" with name="printer" %} إنذار
  </a>
  <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank"
  class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 text-center" title="طباعة PDF">
- 🖨️ تعهد ولي
+ {% include "components/icon.html" with name="printer" %} تعهد ولي
  </a>
  <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank"
  class="btn-primary text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
- 🖨️ تعهد طالب
+ {% include "components/icon.html" with name="printer" %} تعهد طالب
  </a>
  </div>
  </div>
@@ -118,7 +118,7 @@
  {% endfor %}
  </div>
  {% else %}
- <div class="p-12 text-center text-gray-400"><p class="text-3xl mb-2">✅</p><p>لا توجد مخالفات مسجلة</p></div>
+ <div class="p-12 text-center text-gray-400"><p class="text-3xl mb-2">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</p><p>لا توجد مخالفات مسجلة</p></div>
  {% endif %}
  </div>
 </div>

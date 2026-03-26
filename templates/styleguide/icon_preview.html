@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SchoolOS — نظام الأيقونات الاحترافي Lucide</title>
+<style>
+  :root {
+    --maroon: #8A1538;
+    --maroon-light: #f9e8ee;
+    --surface: #ffffff;
+    --surface-alt: #f8fafc;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Tajawal', 'Segoe UI', system-ui, sans-serif;
+    background: var(--surface-alt);
+    color: var(--text-primary);
+    line-height: 1.6;
+    padding: 24px;
+  }
+  .page-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 32px 20px;
+    background: linear-gradient(135deg, var(--maroon) 0%, #6b1030 100%);
+    border-radius: var(--radius);
+    color: #fff;
+  }
+  .page-header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+  .page-header p { font-size: 14px; opacity: .85; }
+  .page-header .stats {
+    display: flex; justify-content: center; gap: 32px; margin-top: 16px;
+    font-size: 13px; font-weight: 600;
+  }
+  .page-header .stats span { background: rgba(255,255,255,.15); padding: 6px 16px; border-radius: 99px; }
+
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 15px; font-weight: 700; color: var(--maroon);
+    margin-bottom: 12px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--maroon-light);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title .count {
+    background: var(--maroon); color: #fff;
+    font-size: 11px; padding: 2px 8px; border-radius: 99px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .icon-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+    transition: all .15s;
+    cursor: default;
+  }
+  .icon-card:hover {
+    border-color: var(--maroon);
+    box-shadow: 0 4px 12px rgba(138,21,56,.12);
+    transform: translateY(-2px);
+  }
+  .icon-card .icon-wrap {
+    width: 48px; height: 48px;
+    margin: 0 auto 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--maroon-light);
+    border-radius: 12px;
+  }
+  .icon-card svg {
+    width: 24px; height: 24px;
+    stroke: var(--maroon);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
+  }
+  .icon-card .icon-name {
+    font-size: 12px; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 2px; direction: ltr; font-family: 'Consolas', monospace;
+  }
+  .icon-card .icon-label {
+    font-size: 12px; color: var(--text-secondary);
+  }
+  .icon-card .icon-old {
+    font-size: 18px; margin-top: 6px;
+    padding: 2px 8px; background: #fef2f2; border-radius: 6px;
+    display: inline-block;
+  }
+
+  .compare-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 28px;
+  }
+  .compare-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--maroon); }
+  .compare-row {
+    display: flex; align-items: center; gap: 24px;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-label { font-size: 13px; width: 100px; color: var(--text-secondary); font-weight: 600; }
+  .compare-old { font-size: 28px; width: 60px; text-align: center; }
+  .compare-arrow { color: var(--text-muted); font-size: 20px; }
+  .compare-new {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--maroon-light); border-radius: 10px;
+  }
+  .compare-new svg {
+    width: 24px; height: 24px; stroke: var(--maroon);
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
+  }
+
+  .sizes-demo {
+    display: flex; align-items: end; gap: 24px; justify-content: center;
+    padding: 20px; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--border); margin-bottom: 28px;
+  }
+  .size-item { text-align: center; }
+  .size-item svg {
+    stroke: var(--maroon); stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round; fill: none;
+  }
+  .size-item .size-label {
+    font-size: 11px; color: var(--text-muted); margin-top: 6px;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>نظام أيقونات SchoolOS</h1>
+  <p>Lucide Icons — معيار عالمي احترافي لمنصة تعليمية حكومية</p>
+  <div class="stats">
+    <span>48 أيقونة</span>
+    <span>شبكة 24×24</span>
+    <span>Stroke: 2px</span>
+    <span>MIT License</span>
+  </div>
+</div>
+
+<!-- ── Size Demo ── -->
+<div class="sizes-demo">
+  <div class="size-item">
+    <svg width="16" height="16" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+    <div class="size-label">.icon-sm 16px</div>
+  </div>
+  <div class="size-item">
+    <svg width="20" height="20" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+    <div class="size-label">.icon 20px</div>
+  </div>
+  <div class="size-item">
+    <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+    <div class="size-label">.icon-lg 24px</div>
+  </div>
+  <div class="size-item">
+    <svg width="32" height="32" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+    <div class="size-label">.icon-xl 32px</div>
+  </div>
+  <div class="size-item">
+    <svg width="48" height="48" viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+    <div class="size-label">.icon-2xl 48px</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 1: Navigation -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">التنقل الأساسي <span class="count">8</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="icon-name">home</div>
+      <div class="icon-label">الرئيسية</div>
+      <div class="icon-old">🏠</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      </div>
+      <div class="icon-name">bell</div>
+      <div class="icon-label">الإشعارات</div>
+      <div class="icon-old">🔔</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </div>
+      <div class="icon-name">search</div>
+      <div class="icon-label">البحث</div>
+      <div class="icon-old">🔍</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </div>
+      <div class="icon-name">menu</div>
+      <div class="icon-label">القائمة</div>
+      <div class="icon-old">☰</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      </div>
+      <div class="icon-name">log-out</div>
+      <div class="icon-label">تسجيل الخروج</div>
+      <div class="icon-old">🚪</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </div>
+      <div class="icon-name">moon</div>
+      <div class="icon-label">الوضع الداكن</div>
+      <div class="icon-old">🌙</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+      </div>
+      <div class="icon-name">sun</div>
+      <div class="icon-label">الوضع الفاتح</div>
+      <div class="icon-old">☀️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <div class="icon-name">settings</div>
+      <div class="icon-label">الإعدادات</div>
+      <div class="icon-old">⚙️</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 2: Modules -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">الوحدات الرئيسية <span class="count">16</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V15"/><path d="M18 18H3V3"/><path d="m14 3-2 2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H14"/><path d="M20 22v-9a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v9"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+      </div>
+      <div class="icon-name">file-pen</div>
+      <div class="icon-label">التقييمات</div>
+      <div class="icon-old">📝</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+      </div>
+      <div class="icon-name">calendar</div>
+      <div class="icon-label">الجدول المدرسي</div>
+      <div class="icon-old">📅</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>
+      </div>
+      <div class="icon-name">list-checks</div>
+      <div class="icon-label">الجودة / الخطة</div>
+      <div class="icon-old">📋</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/><path d="m17 3-2 6h4"/></svg>
+      </div>
+      <div class="icon-name">scale</div>
+      <div class="icon-label">السلوك</div>
+      <div class="icon-old">⚖️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6"/><path d="M8 11h8"/></svg>
+      </div>
+      <div class="icon-name">book-open</div>
+      <div class="icon-label">المكتبة</div>
+      <div class="icon-old">📚</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="12" x="3" y="6" rx="2"/><path d="M11 10h2"/><path d="M12 10v4"/></svg>
+      </div>
+      <div class="icon-name">hospital</div>
+      <div class="icon-label">العيادة</div>
+      <div class="icon-old">🏥</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-1.1-.8-2-2-2h-14c-1.2 0-2 .9-2 2 0 .4.1.8.2 1.2.3 1.1.8 2.8.8 2.8h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg>
+      </div>
+      <div class="icon-name">bus</div>
+      <div class="icon-label">النقل المدرسي</div>
+      <div class="icon-old">🚌</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg>
+      </div>
+      <div class="icon-name">bar-chart-3</div>
+      <div class="icon-label">التحليلات</div>
+      <div class="icon-old">📊</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      </div>
+      <div class="icon-name">activity</div>
+      <div class="icon-label">الإحصائيات</div>
+      <div class="icon-old">📈</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </div>
+      <div class="icon-name">lock</div>
+      <div class="icon-label">الأمان</div>
+      <div class="icon-old">🔐</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <div class="icon-name">users</div>
+      <div class="icon-label">المستخدمين</div>
+      <div class="icon-old">👥</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
+      <div class="icon-name">user</div>
+      <div class="icon-label">الملف الشخصي</div>
+      <div class="icon-old">👤</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.5"/><path d="m10.2 6.3-3.9 3.9"/><circle cx="4.5" cy="12" r="2.5"/><path d="m13.8 6.3 3.9 3.9"/><circle cx="19.5" cy="12" r="2.5"/><path d="m10.2 17.7-3.9-3.9"/><circle cx="4.5" cy="12" r="2.5"/><path d="m13.8 17.7 3.9-3.9"/><circle cx="12" cy="19.5" r="2.5"/></svg>
+      </div>
+      <div class="icon-name">waypoints</div>
+      <div class="icon-label">أولياء الأمور</div>
+      <div class="icon-old">👨‍👩‍👧</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+      </div>
+      <div class="icon-name">bot</div>
+      <div class="icon-label">الجدول الذكي</div>
+      <div class="icon-old">🤖</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+      </div>
+      <div class="icon-name">file-text</div>
+      <div class="icon-label">التقارير</div>
+      <div class="icon-old">📄</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      </div>
+      <div class="icon-name">heart</div>
+      <div class="icon-label">الخدمات</div>
+      <div class="icon-old">❤️</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 3: Status -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">الحالات والتنبيهات <span class="count">7</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#dcfce7;">
+        <svg viewBox="0 0 24 24" style="stroke:#16a34a;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div class="icon-name">check-circle</div>
+      <div class="icon-label">نجاح / مكتمل</div>
+      <div class="icon-old">✅</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+      </div>
+      <div class="icon-name">x-circle</div>
+      <div class="icon-label">خطأ / مرفوض</div>
+      <div class="icon-old">❌</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#fef3c7;">
+        <svg viewBox="0 0 24 24" style="stroke:#d97706;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      </div>
+      <div class="icon-name">alert-triangle</div>
+      <div class="icon-label">تحذير</div>
+      <div class="icon-old">⚠️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#dbeafe;">
+        <svg viewBox="0 0 24 24" style="stroke:#2563eb;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      </div>
+      <div class="icon-name">info</div>
+      <div class="icon-label">معلومة</div>
+      <div class="icon-old">ℹ️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="icon-name">clock</div>
+      <div class="icon-label">وقت / انتظار</div>
+      <div class="icon-old">⏰</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+      </div>
+      <div class="icon-name">ban</div>
+      <div class="icon-label">غياب / محظور</div>
+      <div class="icon-old">🚫</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap" style="background:#fee2e2;">
+        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><circle cx="12" cy="16" r="1"/><path d="M12 9v4"/></svg>
+      </div>
+      <div class="icon-name">alert-critical</div>
+      <div class="icon-label">إنذار عاجل</div>
+      <div class="icon-old">🚨</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 4: Actions -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">الإجراءات <span class="count">11</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      </div>
+      <div class="icon-name">refresh-cw</div>
+      <div class="icon-label">تبديل / تحديث</div>
+      <div class="icon-old">🔄</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      </div>
+      <div class="icon-name">mail</div>
+      <div class="icon-label">استدعاء / رسالة</div>
+      <div class="icon-old">📩</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      </div>
+      <div class="icon-name">save</div>
+      <div class="icon-label">حفظ</div>
+      <div class="icon-old">💾</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+      </div>
+      <div class="icon-name">printer</div>
+      <div class="icon-label">طباعة</div>
+      <div class="icon-old">🖨️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+      </div>
+      <div class="icon-name">download</div>
+      <div class="icon-label">تنزيل / استيراد</div>
+      <div class="icon-old">📥</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+      </div>
+      <div class="icon-name">upload</div>
+      <div class="icon-label">رفع ملف</div>
+      <div class="icon-old">☁️</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <div class="icon-name">target</div>
+      <div class="icon-label">أهداف / مؤشرات</div>
+      <div class="icon-old">🎯</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="icon-name">check</div>
+      <div class="icon-label">موافقة</div>
+      <div class="icon-old">✓</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </div>
+      <div class="icon-name">phone</div>
+      <div class="icon-label">اتصال</div>
+      <div class="icon-old">📞</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+      </div>
+      <div class="icon-name">lightbulb</div>
+      <div class="icon-label">ملاحظات / نصائح</div>
+      <div class="icon-old">💡</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+      </div>
+      <div class="icon-name">flag</div>
+      <div class="icon-label">الخروقات</div>
+      <div class="icon-old">🚩</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 5: Quality Module (replacing Font Awesome) -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">وحدة الجودة — بديل Font Awesome <span class="count">6</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="2"/><path d="m9 14 2 2 4-4"/></svg>
+      </div>
+      <div class="icon-name">clipboard-check</div>
+      <div class="icon-label">مراجعة</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-clipboard-check</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="m14 14-8.5 8.5a2.12 2.12 0 1 1-3-3L11 11"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+      </div>
+      <div class="icon-name">gavel</div>
+      <div class="icon-label">لجنة / قرار</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-gavel</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      </div>
+      <div class="icon-name">filter</div>
+      <div class="icon-label">تصفية</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-filter</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </div>
+      <div class="icon-name">paperclip</div>
+      <div class="icon-label">مرفقات</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-paperclip</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+      </div>
+      <div class="icon-name">pencil</div>
+      <div class="icon-label">تعديل</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-pen-to-square</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      </div>
+      <div class="icon-name">plus</div>
+      <div class="icon-label">إضافة</div>
+      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-plus</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SECTION 6: School-Specific -->
+<!-- ══════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">أيقونات مدرسية خاصة <span class="count">6</span></div>
+  <div class="grid">
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <div class="icon-name">book</div>
+      <div class="icon-label">المواد الدراسية</div>
+      <div class="icon-old">📖</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/></svg>
+      </div>
+      <div class="icon-name">graduation-cap</div>
+      <div class="icon-label">الطلاب</div>
+      <div class="icon-old">🎓</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="16" y1="10" y2="10"/><line x1="8" x2="12" y1="14" y2="14"/></svg>
+      </div>
+      <div class="icon-name">notebook</div>
+      <div class="icon-label">الحضور اليومي</div>
+      <div class="icon-old">📓</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      </div>
+      <div class="icon-name">megaphone</div>
+      <div class="icon-label">الإعلانات</div>
+      <div class="icon-old">📢</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
+      </div>
+      <div class="icon-name">newspaper</div>
+      <div class="icon-label">الأخبار / النشرات</div>
+      <div class="icon-old">📰</div>
+    </div>
+
+    <div class="icon-card">
+      <div class="icon-wrap">
+        <svg viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
+      </div>
+      <div class="icon-name">building</div>
+      <div class="icon-label">المدرسة</div>
+      <div class="icon-old">🏫</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">
+  <p>Lucide Icons — MIT License — <a href="https://lucide.dev" style="color:var(--maroon);">lucide.dev</a></p>
+  <p style="margin-top:4px;">SchoolOS Icon System v1.0 — 48 أيقونة مختارة</p>
+</div>
+
+</body>
+</html>

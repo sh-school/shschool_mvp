@@ -71,9 +71,9 @@
           <div class="flex-1">
             <p class="text-sm text-gray-800">{{ proc.text|truncatechars:100 }}</p>
             <div class="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
-              <span>📌 {{ proc.executor_norm }}</span>
-              <span>📅 {{ proc.date_range }}</span>
-              {% if proc.evidence_type %}<span>📄 {{ proc.evidence_type }}</span>{% endif %}
+              <span>{% include "components/icon.html" with name="target" %} {{ proc.executor_norm }}</span>
+              <span>{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}</span>
+              {% if proc.evidence_type %}<span>{% include "components/icon.html" with name="file-text" %} {{ proc.evidence_type }}</span>{% endif %}
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">

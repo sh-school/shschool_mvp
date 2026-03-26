@@ -11,7 +11,7 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">🚌 حافلة {{ bus.bus_number }}</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} حافلة {{ bus.bus_number }}</h1>
     </div>
     <div class="page-actions">
       <a href="{% url 'transport:buses_list' %}" class="btn-secondary" style="font-size:12.5px;text-decoration:none;">← رجوع</a>
@@ -50,7 +50,7 @@
             <label class="form-label">رابط GPS</label>
             <input name="gps_link" value="{{ bus.gps_link }}" class="form-control" placeholder="https://...">
           </div>
-          <button class="btn-primary" style="width:100%;padding:10px;">💾 حفظ</button>
+          <button class="btn-primary" style="width:100%;padding:10px;">{% include "components/icon.html" with name="save" %} حفظ</button>
         </form>
       </div>
 
@@ -66,7 +66,7 @@
         {% if bus.gps_link %}
         <a href="{% url 'transport:tracking_map' bus.id %}"
            class="btn-primary" style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:10px;">
-          🗺 تتبع الحافلة
+          {% include "components/icon.html" with name="bus" %} تتبع الحافلة
         </a>
         {% endif %}
       </div>

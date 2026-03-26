@@ -23,13 +23,13 @@
   style="animation: toastIn .25s ease forwards"
 >
   {% if type == 'success' or type == 'حسن' %}
-    <span class="toast-icon">✓</span>
+    <span class="toast-icon">{% include "components/icon.html" with name="check-circle" %}</span>
   {% elif type == 'danger' or type == 'error' or type == 'خطأ' %}
-    <span class="toast-icon">✗</span>
+    <span class="toast-icon">{% include "components/icon.html" with name="x-circle" %}</span>
   {% elif type == 'warning' or type == 'تحذير' %}
-    <span class="toast-icon">⚠</span>
+    <span class="toast-icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
   {% else %}
-    <span class="toast-icon">ℹ</span>
+    <span class="toast-icon">{% include "components/icon.html" with name="info" %}</span>
   {% endif %}
   <span>{{ msg }}</span>
   <button

@@ -154,7 +154,7 @@
   {# ── Header ── #}
   <div class="exec-header">
     <div>
-      <h1 class="exec-title">📊 لوحة تحكم المدير</h1>
+      <h1 class="exec-title">{% include "components/icon.html" with name="bar-chart" %} لوحة تحكم المدير</h1>
       <p class="exec-subtitle">نظرة شاملة على أداء {{ current_school.name|default:"مدرسة الشحانية" }}</p>
     </div>
     <div class="exec-meta">
@@ -191,24 +191,24 @@
       <div class="kpi-mini-sub">{{ kpis.completed_procs }}/{{ kpis.total_procs }}</div>
     </div>
     <a href="/clinic/" class="kpi-mini" style="--kc:#dc2626;">
-      <div class="kpi-mini-label">🏥 العيادة</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} العيادة</div>
       <div class="kpi-mini-value">{{ kpis.clinic_today }}</div>
       {% if kpis.chronic_cases > 0 %}<div class="kpi-mini-alert">{{ kpis.chronic_cases }} مزمنة</div>
       {% else %}<div class="kpi-mini-sub">0 حالة مزمنة</div>{% endif %}
     </a>
     <a href="/behavior/dashboard/" class="kpi-mini" style="--kc:#ea580c;">
-      <div class="kpi-mini-label">⚖️ السلوك</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="scale" %} السلوك</div>
       <div class="kpi-mini-value">{{ kpis.behavior_month }}</div>
-      {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">⚠️ {{ kpis.critical_issues }} جسيمة</div>
-      {% else %}<div class="kpi-mini-sub">✅ لا جسيمة</div>{% endif %}
+      {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} {{ kpis.critical_issues }} جسيمة</div>
+      {% else %}<div class="kpi-mini-sub">{% include "components/icon.html" with name="check-circle" %} لا جسيمة</div>{% endif %}
     </a>
     <a href="/transport/" class="kpi-mini" style="--kc:#2563eb;">
-      <div class="kpi-mini-label">🚌 النقل</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="bus" %} النقل</div>
       <div class="kpi-mini-value">{{ kpis.bus_students }}</div>
       <div class="kpi-mini-sub">{{ kpis.total_buses }} حافلة</div>
     </a>
     <a href="/library/" class="kpi-mini" style="--kc:#7c3aed;">
-      <div class="kpi-mini-label">📚 المكتبة</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} المكتبة</div>
       <div class="kpi-mini-value">{{ kpis.active_loans }}</div>
       {% if kpis.overdue_books > 0 %}<div class="kpi-mini-alert">{{ kpis.overdue_books }} متأخرة</div>
       {% else %}<div class="kpi-mini-sub">إعارة نشطة</div>{% endif %}
@@ -218,7 +218,7 @@
   {# ── Alert strip (conditional) ── #}
   {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 or kpis.overdue_books > 0 %}
   <div class="alert-strip">
-    <span>🚨</span>
+    <span>{% include "components/icon.html" with name="alert-critical" %}</span>
     {% if kpis.critical_issues > 0 %}<a href="/behavior/dashboard/">{{ kpis.critical_issues }} مخالفة جسيمة</a> · {% endif %}
     {% if kpis.chronic_cases > 0 %}<a href="/clinic/">{{ kpis.chronic_cases }} حالة مزمنة</a> · {% endif %}
     {% if kpis.overdue_books > 0 %}<a href="/library/">{{ kpis.overdue_books }} كتاب متأخر</a>{% endif %}
@@ -228,41 +228,41 @@
   {# ── Charts Grid (3×2) ── #}
   <div class="charts-grid">
     <div class="chart-card">
-      <div class="chart-title">📈 الحضور — آخر 30 يوم</div>
+      <div class="chart-title">{% include "components/icon.html" with name="activity" %} الحضور — آخر 30 يوم</div>
       <div class="chart-canvas-wrap"><canvas id="chartAttendance"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">🎯 توزيع الدرجات السنوية</div>
+      <div class="chart-title">{% include "components/icon.html" with name="target" %} توزيع الدرجات السنوية</div>
       <div class="chart-canvas-wrap"><canvas id="chartGrades"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">📋 إنجاز الخطة — حسب المجال</div>
+      <div class="chart-title">{% include "components/icon.html" with name="list-checks" %} إنجاز الخطة — حسب المجال</div>
       <div class="chart-canvas-wrap"><canvas id="chartPlan"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">📚 المواد — متوسط ونسبة رسوب</div>
+      <div class="chart-title">{% include "components/icon.html" with name="book-open" %} المواد — متوسط ونسبة رسوب</div>
       <div class="chart-canvas-wrap"><canvas id="chartSubjects"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">⚖️ السلوك — آخر 6 أشهر</div>
+      <div class="chart-title">{% include "components/icon.html" with name="scale" %} السلوك — آخر 6 أشهر</div>
       <div class="chart-canvas-wrap"><canvas id="chartBehavior"></canvas></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">🏫 الأداء — حسب الفصل</div>
+      <div class="chart-title">{% include "components/icon.html" with name="building" %} الأداء — حسب الفصل</div>
       <div class="chart-canvas-wrap"><canvas id="chartClasses"></canvas></div>
     </div>
   </div>
 
   {# ── Quick Links ── #}
   <div class="quick-links">
-    <a href="/clinic/" class="ql-item"><span class="ql-icon">🏥</span> العيادة</a>
-    <a href="/transport/" class="ql-item"><span class="ql-icon">🚌</span> النقل</a>
-    <a href="/behavior/dashboard/" class="ql-item"><span class="ql-icon">⚖️</span> السلوك</a>
-    <a href="/library/" class="ql-item"><span class="ql-icon">📚</span> المكتبة</a>
-    <a href="/quality/" class="ql-item"><span class="ql-icon">📋</span> الخطة</a>
-    <a href="/assessments/" class="ql-item"><span class="ql-icon">📝</span> التقييمات</a>
-    <a href="/reports/" class="ql-item"><span class="ql-icon">📄</span> التقارير</a>
-    <a href="/notifications/" class="ql-item"><span class="ql-icon">🔔</span> الإشعارات</a>
+    <a href="/clinic/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="hospital" %}</span> العيادة</a>
+    <a href="/transport/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bus" %}</span> النقل</a>
+    <a href="/behavior/dashboard/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="scale" %}</span> السلوك</a>
+    <a href="/library/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> المكتبة</a>
+    <a href="/quality/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="list-checks" %}</span> الخطة</a>
+    <a href="/assessments/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="file-pen" %}</span> التقييمات</a>
+    <a href="/reports/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="file-text" %}</span> التقارير</a>
+    <a href="/notifications/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bell" %}</span> الإشعارات</a>
   </div>
 
 </div>

@@ -13,6 +13,34 @@
  * ══════════════════════════════════════════════════════════════
  */
 
+/* ── SVG Icon System — Lucide ───────────────────────────────── */
+.icon {
+  width: 20px; height: 20px;
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-sm  { width: 16px; height: 16px; }
+.icon-lg  { width: 24px; height: 24px; }
+.icon-xl  { width: 32px; height: 32px; }
+.icon-2xl { width: 48px; height: 48px; }
+
+/* icon inside card-header-icon slot */
+.card-header-icon .icon { width: 18px; height: 18px; }
+
+/* icon colors — inherit by default, override when needed */
+.icon-maroon { color: var(--maroon); }
+.icon-success { color: var(--status-success); }
+.icon-danger { color: var(--status-danger); }
+.icon-warning { color: var(--status-warning); }
+.icon-info { color: var(--status-info); }
+.icon-muted { color: var(--text-muted); }
+
 /* ── متغيرات الألوان الرسمية ────────────────────────────────── */
 :root {
   --maroon:       #8A1538;   /* Al Adaam — اللون الرئيسي */

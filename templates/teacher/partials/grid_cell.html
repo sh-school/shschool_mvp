@@ -25,10 +25,10 @@
       {% elif status == 'late' %}bg-yellow-200 text-yellow-800
       {% elif status == 'excused' %}bg-purple-200 text-purple-800
       {% else %}bg-gray-200 text-gray-600{% endif %}">
-      {% if status == 'present' %}✓ حاضر
-      {% elif status == 'absent' %}✗ غائب
-      {% elif status == 'late' %}⏱ متأخر
-      {% elif status == 'excused' %}📄 معذور
+      {% if status == 'present' %}{% include "components/icon.html" with name="check" %} حاضر
+      {% elif status == 'absent' %}{% include "components/icon.html" with name="x-circle" %} غائب
+      {% elif status == 'late' %}{% include "components/icon.html" with name="clock" %} متأخر
+      {% elif status == 'excused' %}{% include "components/icon.html" with name="file-text" %} معذور
       {% else %}— غير محدد{% endif %}
     </span>
   </div>
@@ -44,7 +44,7 @@
       class="min-h-[44px] rounded-lg text-xs font-bold transition-all
         {% if status == 'present' %}bg-green-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700{% endif %}"
       title="P — حاضر"
-    >✓<br><span class="text-[10px]">حاضر</span></button>
+    >{% include "components/icon.html" with name="check" %}<br><span class="text-[10px]">حاضر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -55,7 +55,7 @@
       class="min-h-[44px] rounded-lg text-xs font-bold transition-all
         {% if status == 'absent' %}bg-red-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700{% endif %}"
       title="A — غائب"
-    >✗<br><span class="text-[10px]">غائب</span></button>
+    >{% include "components/icon.html" with name="x-circle" %}<br><span class="text-[10px]">غائب</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -66,7 +66,7 @@
       class="min-h-[44px] rounded-lg text-xs font-bold transition-all
         {% if status == 'late' %}bg-yellow-500 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}"
       title="L — متأخر"
-    >⏱<br><span class="text-[10px]">متأخر</span></button>
+    >{% include "components/icon.html" with name="clock" %}<br><span class="text-[10px]">متأخر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -77,7 +77,7 @@
       class="min-h-[44px] rounded-lg text-xs font-bold transition-all
         {% if status == 'excused' %}bg-purple-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700{% endif %}"
       title="E — معذور"
-    >📄<br><span class="text-[10px]">معذور</span></button>
+    >{% include "components/icon.html" with name="file-text" %}<br><span class="text-[10px]">معذور</span></button>
   </div>
 </div>
 {% if summary %}<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>{% endif %}

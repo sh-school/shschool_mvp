@@ -18,7 +18,7 @@
     indicator   — id لـ loading indicator
 {% endcomment %}
 <div class="search-wrap" style="position:relative;display:flex;align-items:center">
-  <span style="position:absolute;right:12px;color:var(--text-muted);pointer-events:none;font-size:1rem">🔍</span>
+  <span style="position:absolute;right:12px;color:var(--text-muted);pointer-events:none;font-size:1rem">{% include "components/icon.html" with name="search" %}</span>
   <input
     type="search"
     name="{{ name|default:'q' }}"
@@ -42,5 +42,5 @@
     class="htmx-indicator"
     style="position:absolute;left:12px"
     aria-hidden="true"
-  >⏳</span>
+  >{% include "components/icon.html" with name="clock" %}</span>
 </div>

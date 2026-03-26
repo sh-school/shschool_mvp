@@ -11,7 +11,7 @@
   {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">🏥 العيادة المدرسية</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</h1>
       <p class="page-subtitle">متابعة زيارات الطلاب والسجلات الصحية</p>
     </div>
     <div class="page-actions">
@@ -50,7 +50,7 @@
   {% if follow_up_visits %}
   <div class="bg-status-warning-light" style="border:1px solid var(--status-warning-border);border-radius:var(--radius-lg);padding:18px 20px;">
     <div class="card-header" style="border-color:var(--status-warning-border);">
-      <div class="card-header-icon" style="background:var(--status-warning-bg);color:var(--status-warning-dark);">⚠️</div>
+      <div class="card-header-icon" style="background:var(--status-warning-bg);color:var(--status-warning-dark);">{% include "components/icon.html" with name="alert-triangle" %}</div>
       <h2 class="card-header-title" style="color:var(--status-warning-dark);">طلاب أُرسلوا للمنزل اليوم</h2>
       <span class="status-badge status-warning">{{ follow_up_visits|length }}</span>
     </div>
@@ -66,7 +66,7 @@
         </div>
         <span class="status-badge {% if visit.parent_notified %}status-success{% else %}status-warning{% endif %}"
               style="flex-shrink:0;font-size:11px;">
-          {{ visit.parent_notified|yesno:"✅ أُشعر ولي الأمر,⏳ لم يُشعَر بعد" }}
+          {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
         </span>
       </div>
       {% endfor %}
@@ -104,7 +104,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-      <span class="empty-icon">🏥</span>
+      <span class="empty-icon">{% include "components/icon.html" with name="hospital" size="icon-2xl" %}</span>
       <p class="empty-title">لا توجد زيارات مسجّلة</p>
       <p class="empty-sub">ستظهر هنا زيارات الطلاب بعد تسجيلها</p>
     </div>

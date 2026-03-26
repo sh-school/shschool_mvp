@@ -38,7 +38,7 @@
       </button>
     </form>
     {% elif ev.acknowledged_at %}
-    <p class="text-xs text-green-600 mt-2">✓ تم الإقرار بالاستلام {{ ev.acknowledged_at|date:"Y-m-d" }}</p>
+    <p class="text-xs text-green-600 mt-2">{% include "components/icon.html" with name="check" %} تم الإقرار بالاستلام {{ ev.acknowledged_at|date:"Y-m-d" }}</p>
     {% endif %}
   </div>
   {% empty %}

@@ -16,7 +16,7 @@
 
   <!-- Header -->
   <div class="bg-gradient-to-l from-[#8A1538] to-[#1A4F8A] rounded-2xl px-6 py-5">
-    <h1 class="text-xl font-bold text-white">{{ student.full_name }}</h1>
+    <h1 class="text-xl font-bold text-white">{% include "components/icon.html" with name="bar-chart" %} {{ student.full_name }}</h1>
     <p class="text-blue-200 text-sm mt-1">
       {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
       العام الدراسي {{ year }}
@@ -130,7 +130,7 @@
   <!-- تنبيه الرسوب -->
   {% if failed %}
   <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
-    <span class="text-2xl">⚠️</span>
+    <span class="text-2xl">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
       <p class="font-bold text-red-800">{{ student.full_name }} راسب في {{ failed }} مادة</p>
       <p class="text-red-700 text-sm mt-1">
@@ -142,7 +142,7 @@
 
   {% else %}
   <div class="bg-white rounded-xl border p-12 text-center text-gray-400">
-    <p class="text-4xl mb-3">📊</p>
+    <p class="text-4xl mb-3">{% include "components/icon.html" with name="bar-chart" size="icon-2xl" %}</p>
     <p>لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
   </div>
   {% endif %}

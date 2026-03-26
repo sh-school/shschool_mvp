@@ -10,7 +10,7 @@
 {# ── Header ── #}
 <div class="page-header">
   <div>
-    <h1 class="page-title">ربط أولياء الأمور بالطلاب</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</h1>
     <p class="page-subtitle">إدارة ارتباطات ولي الأمر بأبنائه — {{ year }}</p>
   </div>
   <div class="page-actions">
@@ -37,7 +37,7 @@
 {# ── إضافة ربط جديد (قابل للطي) ── #}
 <details class="card-qatar mb-6">
   <summary class="card-header" style="cursor:pointer;list-style:none;user-select:none;">
-    <div class="card-header-icon">➕</div>
+    <div class="card-header-icon">+</div>
     <h2 class="card-header-title" style="flex:1;margin:0;">إضافة ربط جديد</h2>
     <span style="color:var(--text-muted);font-size:12px;" aria-hidden="true">▼</span>
   </summary>

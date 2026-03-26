@@ -37,10 +37,10 @@
         <td class="px-4 py-3">
           <div class="flex flex-wrap gap-1">
             {% if v.is_sent_home %}
-              <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🏠 منزل</span>
+              <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{% include "components/icon.html" with name="home" %} منزل</span>
             {% endif %}
             {% if v.parent_notified %}
-              <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">📞 أُبلغ</span>
+              <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{% include "components/icon.html" with name="phone" %} أُبلغ</span>
             {% endif %}
             {% if not v.is_sent_home and not v.parent_notified %}
               <span class="text-xs text-gray-400">—</span>
@@ -62,7 +62,7 @@
 
 {% else %}
 {% include "components/empty_state.html" with
-   icon="📋"
+   icon="list-checks"
    title="لا توجد زيارات"
    subtitle="لا توجد زيارات مطابقة للمعايير المحددة"
 %}

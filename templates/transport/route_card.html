@@ -1,6 +1,6 @@
 <div class="border rounded-lg p-3 flex justify-between items-center bg-green-50">
   <div>
-    <p class="font-medium text-sm text-green-800">✅ {{ route.area_name }}</p>
+    <p class="font-medium text-sm text-green-800">{% include "components/icon.html" with name="check-circle" %} {{ route.area_name }}</p>
     <p class="text-xs text-gray-400">{{ route.students.count }} طالب</p>
   </div>
 </div>
