@@ -302,6 +302,7 @@ document.addEventListener('click', function(e) {
   var btn = document.getElementById('theme-toggle');
   var icon = document.getElementById('theme-icon');
   var meta = document.getElementById('meta-theme-color');
+  var metaCS = document.getElementById('meta-color-scheme');
   if (!btn) return;
 
   function isDark() { return document.documentElement.classList.contains('dark'); }
@@ -310,6 +311,7 @@ document.addEventListener('click', function(e) {
     var dark = isDark();
     if (icon) icon.textContent = dark ? '☀️' : '🌙';
     if (meta) meta.content = dark ? '#1a0a12' : '#8A1538';
+    if (metaCS) metaCS.content = dark ? 'dark' : 'light';
     var menuIcon = document.getElementById('theme-menu-icon');
     var menuText = document.getElementById('theme-menu-text');
     if (menuIcon) menuIcon.textContent = dark ? '☀️' : '🌙';

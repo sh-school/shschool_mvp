@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#8A1538" id="meta-theme-color">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="light" id="meta-color-scheme">
   {# ── Dark Mode: تطبيق مبكر لمنع وميض الأبيض (FOUC) ── #}
   <script>
-    (function(){var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches)){document.documentElement.classList.add('dark');document.getElementById('meta-theme-color')&&(document.getElementById('meta-theme-color').content='#1a0a12')}})();
+    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   {% block extra_head %}{% endblock %}
   <title>{% block title %}{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</title>
@@ -237,6 +237,7 @@
   <a href="/clinic/">🏥 العيادة المدرسية</a>
   <a href="/transport/">🚌 النقل المدرسي</a>
   <a href="/behavior/dashboard/">⚖️ السلوك الطلابي</a>
+  <a href="/behavior/summon/">📩 استدعاء ولي أمر</a>
   <a href="/library/">📚 المكتبة</a>
 </div>
 
@@ -363,7 +364,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=100" defer></script>
+<script src="{% static 'js/base.js' %}?v=101" defer></script>
 <script src="{% static 'js/app.js' %}?v=100" defer></script>
 
 {% block extra_js %}{% endblock %}

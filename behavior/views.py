@@ -54,6 +54,7 @@ def behavior_dashboard(request):
     context = BehaviorService.get_dashboard_stats(school)
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
+    context["can_summon"] = BehaviorPermissions.can_summon(request.user)
     return render(request, "behavior/dashboard.html", context)
 
 
@@ -271,6 +272,7 @@ def student_behavior_profile(request, student_id):
     context["student"] = student
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
+    context["can_summon"] = BehaviorPermissions.can_summon(request.user)
     return render(request, "behavior/student_profile.html", context)
 
 
@@ -481,17 +483,43 @@ def infraction_student_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD)
+@role_required(BEHAVIOR_MANAGE | {"psychologist"})
 def summon_parent(request, student_id=None):
-    """استدعاء ولي أمر طالب — إرسال إشعار رسمي."""
+    """استدعاء ولي أمر طالب — إرسال إشعار رسمي (إداري فقط)."""
     school = request.user.get_school()
     if not school:
         return HttpResponseForbidden("لم يتم تعيينك في مدرسة")
 
+    from core.models import Membership
+    from core.models.academic import ParentStudentLink
+
+    SUMMON_CATEGORIES = [
+        ("behavior", "سلوكي"),
+        ("academic", "أكاديمي"),
+        ("attendance", "حضور وغياب"),
+        ("general", "عام"),
+    ]
+    URGENCY_LEVELS = [
+        ("normal", "عادي"),
+        ("urgent", "مستعجل"),
+        ("emergency", "طارئ"),
+    ]
+    MEETING_PLACES = [
+        ("principal_office", "مكتب المدير"),
+        ("counseling", "مكتب الإرشاد"),
+        ("meeting_room", "غرفة الاجتماعات"),
+        ("other", "أخرى"),
+    ]
+
     if request.method == "POST":
         sid = request.POST.get("student_id") or student_id
         reason = request.POST.get("reason", "").strip()
+        category = request.POST.get("category", "behavior")
+        urgency = request.POST.get("urgency", "normal")
         summon_date = request.POST.get("summon_date", "")
+        summon_time = request.POST.get("summon_time", "")
+        meeting_place = request.POST.get("meeting_place", "")
+        meeting_place_other = request.POST.get("meeting_place_other", "").strip()
 
         if not sid or not reason:
             messages.error(request, "يجب اختيار الطالب وكتابة السبب")
@@ -501,11 +529,31 @@ def summon_parent(request, student_id=None):
 
         from notifications.hub import NotificationHub
 
-        title = f"استدعاء ولي أمر — {student.full_name}"
-        body = f"السبب: {reason}"
+        # بناء عنوان الإشعار حسب الاستعجال
+        urgency_label = dict(URGENCY_LEVELS).get(urgency, "عادي")
+        category_label = dict(SUMMON_CATEGORIES).get(category, "عام")
+        prefix = "🔴 " if urgency == "emergency" else "🟡 " if urgency == "urgent" else ""
+        title = f"{prefix}استدعاء ولي أمر — {student.full_name}"
+
+        # بناء نص الإشعار
+        place_label = dict(MEETING_PLACES).get(meeting_place, "")
+        if meeting_place == "other" and meeting_place_other:
+            place_label = meeting_place_other
+
+        body_parts = [
+            f"التصنيف: {category_label}",
+            f"درجة الاستعجال: {urgency_label}",
+            f"السبب: {reason}",
+        ]
         if summon_date:
-            body += f"\nالموعد المطلوب: {summon_date}"
-        body += f"\nمن: {request.user.full_name}"
+            date_str = summon_date
+            if summon_time:
+                date_str += f" الساعة {summon_time}"
+            body_parts.append(f"الموعد المطلوب: {date_str}")
+        if place_label:
+            body_parts.append(f"مكان الاجتماع: {place_label}")
+        body_parts.append(f"من: {request.user.full_name}")
+        body = "\n".join(body_parts)
 
         result = NotificationHub.dispatch_to_parents(
             event_type="parent_summon",
@@ -526,8 +574,6 @@ def summon_parent(request, student_id=None):
         return redirect("behavior:summon_parent")
 
     # GET — نموذج الاستدعاء
-    from core.models import Membership
-
     students = (
         CustomUser.objects.filter(
             memberships__school=school,
@@ -539,13 +585,42 @@ def summon_parent(request, student_id=None):
     )
 
     selected_student = None
+    student_context = {}
     if student_id:
         selected_student = CustomUser.objects.filter(pk=student_id).first()
+    if selected_student:
+        # معلومات سياقية عن الطالب
+        score_data = BehaviorService.get_student_score(selected_student)
+        parent_links = ParentStudentLink.objects.filter(
+            student=selected_student, school=school
+        ).select_related("parent")
+        active_infractions = BehaviorInfraction.objects.filter(
+            student=selected_student, is_resolved=False
+        ).count()
+        # بيانات أولياء الأمور مع أرقام الهواتف
+        parents_info = []
+        for link in parent_links:
+            parents_info.append({
+                "name": link.parent.full_name,
+                "phone": link.parent.phone or "",
+                "relationship": link.get_relationship_display(),
+                "is_primary": link.is_primary,
+            })
+        student_context = {
+            "behavior_score": score_data.get("net_score", 100),
+            "active_infractions": active_infractions,
+            "parents_info": parents_info,
+        }
 
     return render(request, "behavior/summon_parent.html", {
         "students": students,
         "selected_student": selected_student,
         "school": school,
+        "categories": SUMMON_CATEGORIES,
+        "urgency_levels": URGENCY_LEVELS,
+        "meeting_places": MEETING_PLACES,
+        "sender": request.user,
+        **student_context,
     })
 
 

@@ -8,6 +8,9 @@
  <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
  </div>
  <div class="flex gap-2">
+ {% if can_summon %}
+ <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">📩 استدعاء ولي أمر</a>
+ {% endif %}
  {% if can_report %}
  <a href="{% url 'behavior:report_infraction' %}" class="btn-danger text-white px-4 py-2 rounded-lg text-sm">➕ مخالفة جديدة</a>
  {% endif %}

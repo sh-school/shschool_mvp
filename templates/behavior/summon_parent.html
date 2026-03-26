@@ -8,59 +8,227 @@
 {% block content %}
 <div class="space-y-6">
 
+  {# ── Page Header ── #}
   <div class="page-header">
     <div>
-      <h1 class="page-title">استدعاء ولي أمر</h1>
+      <h1 class="page-title">📩 استدعاء ولي أمر</h1>
       <p class="page-subtitle">{{ school.name }}</p>
     </div>
-    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">العودة للسلوك</a>
+    <div class="page-actions">
+      <a href="{% url 'behavior:dashboard' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;">← العودة للسلوك</a>
+    </div>
   </div>
 
-  <div class="card" style="max-width:640px;">
-    <form method="post">
-      {% csrf_token %}
+  {% if selected_student %}
+  {# ── بطاقات KPI — سياق الطالب ── #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="kpi-card">
+      <div class="kpi-value {% if behavior_score >= 80 %}text-status-success{% elif behavior_score >= 50 %}text-status-warning{% else %}text-status-danger{% endif %}">{{ behavior_score }}</div>
+      <div class="kpi-label">مؤشر السلوك / 100</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-danger">{{ active_infractions }}</div>
+      <div class="kpi-label">مخالفات نشطة</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ parents_info|length }}</div>
+      <div class="kpi-label">أولياء أمور مربوطين</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="font-size:1rem;line-height:1.4;">{{ selected_student.full_name }}</div>
+      <div class="kpi-label">الطالب المحدد</div>
+    </div>
+  </div>
 
-      <div class="space-y-4">
-        {# اختيار الطالب #}
-        <div>
-          <label class="block text-sm font-semibold mb-1">الطالب <span class="text-red-500">*</span></label>
-          <select name="student_id" required
-                  class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
-            <option value="">— اختر الطالب —</option>
-            {% for s in students %}
-            <option value="{{ s.pk }}" {% if selected_student and selected_student.pk == s.pk %}selected{% endif %}>
-              {{ s.full_name }}
-            </option>
-            {% endfor %}
-          </select>
-        </div>
+  {# ── بطاقة أولياء الأمور ── #}
+  {% if parents_info %}
+  <div class="card">
+    <div class="card-header">
+      <span>👨‍👩‍👧 أولياء الأمور — سيستلمون الإشعار</span>
+    </div>
+    <div style="overflow-x:auto;">
+      <table class="data-table" style="width:100%;">
+        <thead>
+          <tr>
+            <th>الاسم</th>
+            <th>صلة القرابة</th>
+            <th>الهاتف</th>
+            <th>النوع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in parents_info %}
+          <tr>
+            <td style="font-weight:600;">{{ p.name }}</td>
+            <td>{{ p.relationship }}</td>
+            <td>
+              {% if p.phone %}
+              <a href="tel:{{ p.phone }}" style="color:var(--maroon);font-family:monospace;text-decoration:none;" dir="ltr">{{ p.phone }}</a>
+              {% else %}
+              <span style="color:var(--text-muted);">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.is_primary %}
+              <span class="status-badge status-success">أساسي</span>
+              {% else %}
+              <span class="status-badge status-muted">ثانوي</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div style="background:var(--bg-danger-subtle,#fef2f2);border:1px solid var(--border-danger,#fecaca);border-radius:var(--radius);padding:12px 16px;">
+    <p style="color:var(--text-danger,#dc2626);font-size:13px;">⚠️ لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
+  </div>
+  {% endif %}
+  {% endif %}
 
-        {# سبب الاستدعاء #}
-        <div>
-          <label class="block text-sm font-semibold mb-1">سبب الاستدعاء <span class="text-red-500">*</span></label>
-          <textarea name="reason" required rows="4" maxlength="1000" placeholder="اكتب سبب استدعاء ولي الأمر..."
-                    class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"></textarea>
-        </div>
+  {# ── نموذج الاستدعاء ── #}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {# الموعد المطلوب #}
-        <div>
-          <label class="block text-sm font-semibold mb-1">الموعد المطلوب للحضور</label>
-          <input type="date" name="summon_date"
-                 class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm">
-        </div>
+    {# العمود الرئيسي — الفورم #}
+    <div class="lg:col-span-2">
+      <div class="form-card">
+        <form method="post">
+          {% csrf_token %}
 
-        {# تنبيه #}
-        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg px-4 py-3 text-sm">
-          <strong>تنبيه:</strong> سيتم إرسال إشعار فوري لولي الأمر عبر المنصة والرسائل النصية والبريد الإلكتروني.
-        </div>
+          {# الطالب #}
+          <div style="margin-bottom:16px;">
+            <label class="form-label">الطالب <span class="required">*</span></label>
+            <select name="student_id" required class="form-control">
+              <option value="">— اختر الطالب —</option>
+              {% for s in students %}
+              <option value="{{ s.pk }}" {% if selected_student and selected_student.pk == s.pk %}selected{% endif %}>
+                {{ s.full_name }}
+              </option>
+              {% endfor %}
+            </select>
+            {% if not selected_student %}
+            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">اختر الطالب ثم اضغط "تحميل البيانات" لعرض بيانات أولياء الأمور</p>
+            {% endif %}
+          </div>
 
-        <button type="submit"
-                class="w-full bg-[var(--maroon)] text-white font-bold py-3 rounded-lg hover:opacity-90 transition">
-          إرسال الاستدعاء
-        </button>
+          {% if not selected_student %}
+          <div style="margin-bottom:16px;">
+            <button type="button" id="loadStudentBtn" class="btn-secondary" style="font-size:12.5px;">تحميل بيانات الطالب</button>
+          </div>
+          {% endif %}
+
+          {# التصنيف + الاستعجال #}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" style="margin-bottom:16px;">
+            <div>
+              <label class="form-label">تصنيف الاستدعاء <span class="required">*</span></label>
+              <select name="category" required class="form-control">
+                {% for val, label in categories %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">درجة الاستعجال</label>
+              <div style="display:flex;gap:8px;margin-top:4px;">
+                {% for val, label in urgency_levels %}
+                <label style="display:flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;cursor:pointer;font-size:13px;">
+                  <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}>
+                  {{ label }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          {# سبب الاستدعاء #}
+          <div style="margin-bottom:16px;">
+            <label class="form-label">سبب الاستدعاء <span class="required">*</span></label>
+            <textarea name="reason" required rows="4" maxlength="1000"
+                      placeholder="اكتب سبب استدعاء ولي الأمر بالتفصيل..."
+                      class="form-control" style="resize:vertical;"></textarea>
+          </div>
+
+          {# الموعد + الوقت + المكان #}
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom:16px;">
+            <div>
+              <label class="form-label">تاريخ الحضور</label>
+              <input type="date" name="summon_date" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">الوقت</label>
+              <input type="time" name="summon_time" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">مكان الاجتماع</label>
+              <select name="meeting_place" id="meetingPlace" class="form-control">
+                <option value="">— المكان —</option>
+                {% for val, label in meeting_places %}
+                <option value="{{ val }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <input type="text" name="meeting_place_other" id="meetingPlaceOther"
+                 placeholder="حدد المكان..." style="display:none;margin-bottom:16px;"
+                 class="form-control">
+
+          {# تنبيه #}
+          <div style="background:var(--maroon-bg);border:1px solid var(--maroon-border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--text-primary);">
+            ⚠️ سيتم إرسال إشعار فوري لولي الأمر عبر: <strong>المنصة</strong>، <strong>الرسائل النصية</strong>، <strong>البريد الإلكتروني</strong>.
+          </div>
+
+          {# أزرار #}
+          <div class="form-footer">
+            <button type="submit" class="btn-primary" style="flex:1;padding:12px;font-size:14px;font-weight:700;">
+              📩 إرسال الاستدعاء
+            </button>
+            <a href="{% url 'behavior:dashboard' %}" class="btn-secondary" style="padding:12px 24px;text-decoration:none;">إلغاء</a>
+          </div>
+        </form>
       </div>
-    </form>
-  </div>
+    </div>
 
+    {# العمود الجانبي — معلومات سريعة #}
+    <div>
+      {# مرسل الاستدعاء #}
+      <div class="form-card" style="margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">مرسل الاستدعاء</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">{{ sender.full_name }}</div>
+        {% if sender.get_role_display %}
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">{{ sender.get_role_display }}</div>
+        {% endif %}
+        {% if sender.phone %}
+        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-family:monospace;" dir="ltr">{{ sender.phone }}</div>
+        {% endif %}
+      </div>
+
+      {# ملاحظات #}
+      <div class="form-card">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">ملاحظات</div>
+        <ul style="font-size:12px;color:var(--text-secondary);padding-right:16px;margin:0;line-height:1.8;">
+          <li>الاستدعاء يُرسل لجميع أولياء الأمور المربوطين</li>
+          <li>الحالات الطارئة تُعطى أولوية عالية</li>
+          <li>يُفضّل تحديد الموعد والمكان</li>
+          <li>يمكن الاتصال مباشرة بالضغط على رقم الهاتف</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<script nonce="{{ request.csp_nonce }}">
+document.getElementById('meetingPlace').addEventListener('change', function() {
+  document.getElementById('meetingPlaceOther').style.display = this.value === 'other' ? 'block' : 'none';
+});
+{% if not selected_student %}
+document.getElementById('loadStudentBtn')?.addEventListener('click', function() {
+  var sid = document.querySelector('[name="student_id"]').value;
+  if (sid) window.location.href = '/behavior/summon/' + sid + '/';
+});
+{% endif %}
+</script>
 {% endblock %}

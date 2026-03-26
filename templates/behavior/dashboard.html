@@ -33,6 +33,10 @@
       <a href="{% url 'behavior:committee' %}" class="btn-secondary"
          style="font-size:12.5px;text-decoration:none;">لجنة الضبط</a>
       {% endif %}
+      {% if can_summon %}
+      <a href="{% url 'behavior:summon_parent' %}" class="btn-secondary"
+         style="font-size:12.5px;text-decoration:none;">📩 استدعاء ولي أمر</a>
+      {% endif %}
     </div>
   </div>
 

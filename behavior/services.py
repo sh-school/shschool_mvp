@@ -61,6 +61,7 @@ class BehaviorPermissions:
         "admin",
     }
     COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
+    SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
@@ -69,6 +70,10 @@ class BehaviorPermissions:
     @staticmethod
     def is_committee(user: CustomUser) -> bool:
         return user.get_role() in BehaviorPermissions.COMMITTEE_ROLES or user.is_superuser
+
+    @staticmethod
+    def can_summon(user: CustomUser) -> bool:
+        return user.get_role() in BehaviorPermissions.SUMMON_ROLES or user.is_superuser
 
 
 class BehaviorService:
@@ -249,16 +254,54 @@ class BehaviorService:
             if infraction.level < 4:
                 infraction.level = 4
                 infraction.save()
-            return "⬆️ تم تصعيد المخالفة إلى الدرجة الرابعة", "warning"
+            BehaviorService._auto_summon_parent(infraction, approved_by, "تصعيد مخالفة إلى الدرجة الرابعة")
+            return "⬆️ تم تصعيد المخالفة إلى الدرجة الرابعة + استدعاء ولي الأمر", "warning"
 
         elif decision == "suspend":
             infraction.action_taken = (
                 infraction.action_taken + "\n[قرار اللجنة: إيقاف مؤقت]"
             ).strip()
             infraction.save()
-            return "📋 تم تسجيل قرار الإيقاف المؤقت", "info"
+            BehaviorService._auto_summon_parent(infraction, approved_by, "إيقاف مؤقت بقرار لجنة الضبط")
+            return "📋 تم تسجيل قرار الإيقاف المؤقت + استدعاء ولي الأمر", "info"
 
         return "لم يتم تحديد قرار", "error"
+
+    # ── استدعاء تلقائي لولي الأمر (قرار لجنة الضبط) ────────
+    @staticmethod
+    def _auto_summon_parent(
+        infraction: BehaviorInfraction,
+        approved_by: CustomUser | None,
+        reason: str,
+    ) -> None:
+        """يرسل استدعاء ولي أمر تلقائياً عند قرار لجنة الضبط (درجة 3-4)."""
+        try:
+            from notifications.hub import NotificationHub
+
+            school = infraction.school
+            student = infraction.student
+            sender_name = approved_by.full_name if approved_by else "لجنة الضبط السلوكي"
+
+            title = f"استدعاء ولي أمر — {student.full_name}"
+            body = (
+                f"بناءً على قرار لجنة الضبط السلوكي:\n"
+                f"السبب: {reason}\n"
+                f"المخالفة: {infraction.get_category_display()} (درجة {infraction.level})\n"
+                f"من: {sender_name}"
+            )
+
+            NotificationHub.dispatch_to_parents(
+                event_type="parent_summon",
+                school=school,
+                student=student,
+                title=title,
+                body=body,
+                related_url=f"/behavior/student/{student.pk}/",
+                sent_by=approved_by,
+            )
+            logger.info("Auto-summon sent for student %s (infraction %s)", student.pk, infraction.pk)
+        except Exception:
+            logger.exception("Failed to auto-summon parent for infraction %s", infraction.pk)
 
     # ── إحصائيات شاملة (تقرير المدير) ──────────────────────
     @staticmethod
