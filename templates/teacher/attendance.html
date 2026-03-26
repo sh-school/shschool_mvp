@@ -25,7 +25,8 @@
 <!-- Summary Widget (HTMX updates) -->
 <div id="summary-widget"
      hx-get="/teacher/attendance/{{ session.id }}/summary/"
-     hx-trigger="every 10s"
+     hx-trigger="refresh from:body"
+     hx-swap="innerHTML transition:false"
      class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
   {% include "teacher/partials/summary_widget.html" %}
 </div>

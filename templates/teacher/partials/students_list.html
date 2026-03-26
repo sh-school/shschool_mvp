@@ -5,3 +5,4 @@
     {% endfor %}
   </div>
 </div>
+<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>
