@@ -7,6 +7,8 @@ import logging
 
 from django.contrib.auth.decorators import login_required
 
+from core.permissions import role_required
+
 logger = logging.getLogger(__name__)
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -37,6 +39,7 @@ NCSA_TEMPLATE = """إلى: المركز الوطني للأمن السيبران
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic", "admin")
 def dashboard(request):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
@@ -52,6 +55,7 @@ def dashboard(request):
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic", "admin")
 def create(request):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
@@ -114,6 +118,7 @@ def create(request):
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic", "admin")
 def detail(request, pk):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
@@ -122,6 +127,7 @@ def detail(request, pk):
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic", "admin")
 def update_status(request, pk):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
@@ -143,6 +149,7 @@ def update_status(request, pk):
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic", "admin")
 def breach_pdf(request, pk):
     breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
     from django.template.loader import render_to_string

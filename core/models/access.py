@@ -4,6 +4,9 @@ from django.utils import timezone
 from .school import School, _uuid
 from .user import CustomUser
 
+# Lazy import to avoid circular dependency — Department imports CustomUser
+# Department FK is referenced as string "department.Department" below
+
 
 # ══════════════════════════════════════════════════════════════════════
 # Role — الأدوار الوظيفية حسب الهيكل التنظيمي الرسمي
@@ -110,13 +113,24 @@ class Membership(models.Model):
     joined_at = models.DateField(default=timezone.now)
 
     # ── القسم/التخصص — مهم للمنسقين والمعلمين ────────────────────
+    # ❌ القديم: CharField — يبقى مؤقتاً كـ fallback حتى اكتمال الترحيل
     department = models.CharField(
         max_length=60,
         blank=True,
         default="",
-        verbose_name="القسم / التخصص",
-        help_text="مثال: رياضيات، علوم، لغة عربية — يُستخدم لتقييد صلاحيات المنسق بتخصصه",
+        verbose_name="القسم / التخصص (نص — قديم)",
+        help_text="⚠ حقل قديم — سيُحذف بعد اكتمال الترحيل إلى department_obj",
         db_index=True,
+    )
+    # ✅ الجديد: FK إلى Department model
+    department_obj = models.ForeignKey(
+        "core.Department",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="memberships",
+        verbose_name="القسم الأكاديمي",
+        help_text="القسم من جدول الأقسام — يحل محل حقل department النصي",
     )
 
     class Meta:
@@ -134,6 +148,13 @@ class Membership(models.Model):
             )
         ]
 
+    @property
+    def department_name(self):
+        """يُعيد اسم القسم — من FK أولاً، ثم من CharField كـ fallback."""
+        if self.department_obj_id:
+            return self.department_obj.name
+        return self.department
+
     def __str__(self):
-        dept = f" [{self.department}]" if self.department else ""
+        dept = f" [{self.department_name}]" if self.department_name else ""
         return f"{self.user.full_name} | {self.role}{dept} | {self.school.code}"

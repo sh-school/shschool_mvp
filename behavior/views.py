@@ -18,7 +18,9 @@ from core.permissions import (
     BEHAVIOR_MANAGE,
     BEHAVIOR_RECORD,
     BEHAVIOR_VIEW_ALL,
+    get_teacher_student_ids,
     role_required,
+    teacher_can_access_student,
 )
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,27 @@ _MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
 
 from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
+
+
+def _get_scoped_students(user, school):
+    """
+    يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
+    - القيادة/الأخصائيون → كل طلاب المدرسة
+    - المعلم/المنسق → طلاب فصوله فقط
+    """
+    student_ids = get_teacher_student_ids(user)
+    if student_ids is None:
+        # admin/leadership — all students
+        return (
+            CustomUser.objects.filter(
+                memberships__school=school,
+                memberships__role__name="student",
+                memberships__is_active=True,
+            )
+            .order_by("full_name")
+            .distinct()
+        )
+    return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
 
 from .services import (
     PERIOD_CHOICES,
@@ -131,15 +154,7 @@ def report_infraction(request):
                 return redirect("behavior:committee")
             return redirect("behavior:student_profile", student_id=student.id)
 
-    students = (
-        CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__role__name="student",
-            memberships__is_active=True,
-        )
-        .order_by("full_name")
-        .distinct()
-    )
+    students = _get_scoped_students(request.user, school)
     return render(
         request,
         "behavior/report_form.html",
@@ -197,7 +212,7 @@ def quick_log(request):
                 render(
                     request,
                     "behavior/partials/quick_log_form.html",
-                    _quick_log_context(school, student_id),
+                    _quick_log_context(request.user, school, student_id),
                 ),
                 msg=" | ".join(errors),
                 msg_type="danger",
@@ -239,21 +254,13 @@ def quick_log(request):
     return render(
         request,
         "behavior/partials/quick_log_form.html",
-        _quick_log_context(school, student_id_hint),
+        _quick_log_context(request.user, school, student_id_hint),
     )
 
 
-def _quick_log_context(school, preselected_student_id=""):
-    """Context مشترك لنموذج التسجيل السريع."""
-    students = (
-        CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__role__name="student",
-            memberships__is_active=True,
-        )
-        .order_by("full_name")
-        .distinct()
-    )
+def _quick_log_context(user, school, preselected_student_id=""):
+    """Context مشترك لنموذج التسجيل السريع — يُظهر طلاب المعلم فقط."""
+    students = _get_scoped_students(user, school)
     return {
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
@@ -268,6 +275,14 @@ def _quick_log_context(school, preselected_student_id=""):
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     student = get_object_or_404(CustomUser, id=student_id)
+
+    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
+    if not teacher_can_access_student(request.user, student.id):
+        return HttpResponseForbidden(
+            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
+            "هذا الطالب ليس من طلابك — لا يمكنك عرض ملفه السلوكي.</h2>"
+        )
+
     context = BehaviorService.get_student_profile(student)
     context["student"] = student
     context["can_report"] = BehaviorPermissions.can_report(request.user)
@@ -360,6 +375,13 @@ def behavior_report(request, student_id):
 
     school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id)
+
+    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
+    if not teacher_can_access_student(request.user, student.id):
+        return HttpResponseForbidden(
+            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
+            "هذا الطالب ليس من طلابك.</h2>"
+        )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     period = request.GET.get("period", "full")
 
@@ -573,16 +595,8 @@ def summon_parent(request, student_id=None):
 
         return redirect("behavior:summon_parent")
 
-    # GET — نموذج الاستدعاء
-    students = (
-        CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__role__name="student",
-            memberships__is_active=True,
-        )
-        .order_by("full_name")
-        .distinct()
-    )
+    # GET — نموذج الاستدعاء (طلاب المعلم/المنسق فقط)
+    students = _get_scoped_students(request.user, school)
 
     selected_student = None
     student_context = {}

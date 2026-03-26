@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.models import ClassGroup, CustomUser, StudentEnrollment
-from core.permissions import leadership_required, role_required
+from core.permissions import leadership_required, role_required, teacher_can_access_student
 from operations.models import Subject
 
 from .models import (
@@ -599,8 +599,9 @@ def student_report(request, student_id):
     student = get_object_or_404(CustomUser, id=student_id)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    if not request.user.is_admin() and not request.user.is_teacher() and request.user != student:
-        return HttpResponse("غير مسموح", status=403)
+    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
+    if not teacher_can_access_student(request.user, student.id) and request.user != student:
+        return HttpResponse("غير مسموح — هذا الطالب ليس من طلابك", status=403)
 
     results = GradeService.get_student_annual_report(student, school, year)
     total_subjects = results.count()

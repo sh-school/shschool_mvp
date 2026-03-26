@@ -93,4 +93,4 @@ class IsSameDepartment(BasePermission):
         dept = getattr(view, "department", None) or view.kwargs.get("department", "")
         if not dept:
             return True  # لا يوجد قسم محدد = السماح والتحقق في الـ view
-        return request.user.department == dept
+        return request.user.is_same_department(dept)

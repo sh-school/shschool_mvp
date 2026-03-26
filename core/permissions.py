@@ -29,6 +29,42 @@ from .models.access import (
 
 
 # ══════════════════════════════════════════════════════════════════════
+# 0. ROLE INHERITANCE — وراثة الأدوار التلقائية (v6)
+# ══════════════════════════════════════════════════════════════════════
+
+ROLE_INHERITS = {
+    # child → parent (يرث كل صلاحياته الأكاديمية)
+    "coordinator": "teacher",           # المنسق يرث المعلم
+    "ese_teacher": "teacher",           # معلم ESE يرث المعلم
+    "vice_academic": "coordinator",     # النائب الأكاديمي يرث المنسق
+    "vice_admin": "admin_supervisor",   # النائب الإداري يرث المشرف الإداري
+    "principal": "vice_academic",       # المدير يرث النائب الأكاديمي
+}
+
+
+def expand_roles(roles: set) -> set:
+    """
+    يوسّع مجموعة أدوار لتشمل كل دور يرث منها.
+
+    مثال:
+        expand_roles({"teacher"})
+        → {"teacher", "ese_teacher", "coordinator", "vice_academic", "principal"}
+
+    ملاحظة: تُستخدم فقط للصلاحيات ذات الطبيعة الوراثية (الأكاديمية).
+    الصلاحيات المتخصصة (nurse, librarian...) تبقى صريحة.
+    """
+    expanded = set(roles)
+    changed = True
+    while changed:
+        changed = False
+        for child, parent in ROLE_INHERITS.items():
+            if parent in expanded and child not in expanded:
+                expanded.add(child)
+                changed = True
+    return expanded
+
+
+# ══════════════════════════════════════════════════════════════════════
 # 1. PERMISSION CONSTANTS — ثوابت الصلاحيات لكل نظام فرعي
 # ══════════════════════════════════════════════════════════════════════
 
@@ -310,6 +346,7 @@ def can_manage_department(user, department):
     """
     يتحقق إذا كان المستخدم يستطيع إدارة قسم معيّن.
     القيادة تدير الكل. المنسق يدير قسمه فقط.
+    يقبل: اسم نصي أو كائن Department.
     """
     if not user or not user.is_authenticated:
         return False
@@ -319,7 +356,7 @@ def can_manage_department(user, department):
     if role in LEADERSHIP:
         return True
     if role == "coordinator":
-        return user.department == department
+        return user.is_same_department(department)
     return False
 
 
@@ -343,13 +380,190 @@ def can_view_student_data(user, student=None):
     )
 
 
+def get_teacher_student_ids(user):
+    """
+    يُعيد قائمة IDs الطلاب المرئيّين حسب دور المستخدم:
+
+    - superuser / القيادة / الأخصائيون → None (كل الطلاب)
+    - المنسق → طلاب كل معلمي قسمه + طلاب فصوله الشخصية + حصص الإشغال
+    - المعلم → طلاب فصوله فقط + حصص الإشغال (اليوم)
+
+    يعتمد على ScheduleSlot (الجدول الأسبوعي) — أكثر ثباتاً من Sessions اليومية.
+
+    Usage:
+        student_ids = get_teacher_student_ids(request.user)
+        if student_ids is None:
+            qs = Student.objects.all()  # admin — no filter
+        else:
+            qs = Student.objects.filter(id__in=student_ids)
+    """
+    from django.conf import settings
+
+    from core.models import Membership, StudentEnrollment
+
+    if not user or not user.is_authenticated:
+        return set()
+    if user.is_superuser:
+        return None  # all students
+
+    role = user.get_role()
+
+    # القيادة والأخصائيون يرون كل الطلاب
+    ALL_STUDENTS_ROLES = {
+        "principal", "vice_admin", "vice_academic",
+        "social_worker", "psychologist", "academic_advisor",
+        "admin_supervisor", "nurse", "admin",
+    }
+    if role in ALL_STUDENTS_ROLES:
+        return None
+
+    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026")
+    school = user.get_school()
+
+    from operations.models import ScheduleSlot, SubstituteAssignment
+
+    # ── 1) فصول المعلم الشخصية من الجدول الأسبوعي ──
+    own_class_ids = set(
+        ScheduleSlot.objects.filter(
+            teacher=user, is_active=True, academic_year=year,
+        ).values_list("class_group_id", flat=True)
+    )
+
+    # ── 2) المنسق: فصول كل معلمي قسمه ──
+    dept_class_ids = set()
+    if role == "coordinator" and school:
+        dept_obj = user.department_obj  # ✅ v6: FK أولاً
+        if dept_obj:
+            dept_teacher_ids = dept_obj.get_teacher_ids()
+        else:
+            # fallback: اسم القسم النصي → department_obj__name
+            dept_name = user.department
+            dept_teacher_ids = set(
+                Membership.objects.filter(
+                    school=school,
+                    department_obj__name=dept_name,
+                    is_active=True,
+                    role__name__in=("teacher", "ese_teacher", "coordinator"),
+                ).values_list("user_id", flat=True)
+            ) if dept_name else set()
+
+        if dept_teacher_ids:
+            dept_class_ids = set(
+                ScheduleSlot.objects.filter(
+                    teacher_id__in=dept_teacher_ids,
+                    is_active=True,
+                    academic_year=year,
+                ).values_list("class_group_id", flat=True)
+            )
+
+    # ── 3) حصص الإشغال (بديل) — اليوم فقط ──
+    import datetime
+
+    today = datetime.date.today()
+    substitute_class_ids = set(
+        SubstituteAssignment.objects.filter(
+            substitute=user,
+            status__in=("assigned", "confirmed"),
+            absence__date=today,
+        ).select_related("slot").values_list("slot__class_group_id", flat=True)
+    )
+
+    all_class_ids = own_class_ids | dept_class_ids | substitute_class_ids
+
+    if not all_class_ids:
+        return set()
+
+    return set(
+        StudentEnrollment.objects.filter(
+            class_group_id__in=all_class_ids, is_active=True,
+        ).values_list("student_id", flat=True)
+    )
+
+
+def teacher_can_access_student(user, student_id):
+    """
+    يتحقق إذا كان المعلم/المنسق يمكنه الوصول لطالب معيّن.
+    True = يُسمح، False = ممنوع.
+    """
+    ids = get_teacher_student_ids(user)
+    if ids is None:
+        return True  # admin/leadership — all access
+    return student_id in ids
+
+
+def get_department_teacher_ids(user):
+    """
+    يُعيد قائمة IDs المعلمين في قسم المنسق.
+    - المنسق → معلمي قسمه/تخصصه في نفس المدرسة
+    - القيادة → None (كل المعلمين)
+    - المعلم العادي → مجموعة فارغة (لا يرى معلمين آخرين)
+    """
+    if not user or not user.is_authenticated:
+        return set()
+    if user.is_superuser:
+        return None
+
+    role = user.get_role()
+    ALL_TEACHERS_ROLES = {
+        "principal", "vice_admin", "vice_academic", "admin",
+    }
+    if role in ALL_TEACHERS_ROLES:
+        return None
+
+    if role != "coordinator":
+        return set()
+
+    school = user.get_school()
+    if not school:
+        return set()
+
+    # ✅ v6: استخدام Department FK أولاً
+    dept_obj = user.department_obj
+    if dept_obj:
+        return dept_obj.get_teacher_ids()
+
+    # fallback: اسم القسم النصي → department_obj__name
+    dept_name = user.department
+    if not dept_name:
+        return set()
+
+    from core.models import Membership
+
+    return set(
+        Membership.objects.filter(
+            school=school,
+            department_obj__name=dept_name,
+            is_active=True,
+            role__name__in=("teacher", "ese_teacher", "coordinator"),
+        ).values_list("user_id", flat=True)
+    )
+
+
 def get_accessible_modules(user):
     """
     يُعيد قائمة الأنظمة الفرعية التي يمكن للمستخدم الوصول إليها.
+    يستخدم Module Registry (v6) مع fallback للقاموس القديم.
     مفيد لعرض القائمة الجانبية (sidebar) ديناميكياً.
     """
     if not user or not user.is_authenticated:
         return []
+
+    # ── محاولة استخدام Module Registry أولاً ──
+    from core.module_registry import get_accessible_modules_from_registry, is_registered
+
+    if is_registered("assessments"):
+        # Registry مفعّل — نستخدمه
+        registry_modules = get_accessible_modules_from_registry(user)
+        # أضف dashboard دائماً + استخرج الأسماء فقط للتوافقية
+        names = ["dashboard"] + [m["name"] for m in registry_modules]
+        # أضف users و system للمشرفين
+        if user.is_superuser:
+            names.extend(["users", "system"])
+        elif user.get_role() in USER_MANAGE:
+            names.append("users")
+        return names
+
+    # ── Fallback: القاموس القديم (حتى اكتمال الهجرة) ──
     if user.is_superuser:
         return [
             "dashboard", "schedule", "attendance", "assessments",
@@ -359,9 +573,8 @@ def get_accessible_modules(user):
         ]
 
     role = user.get_role()
-    modules = ["dashboard"]  # الكل يرى لوحة التحكم
+    modules = ["dashboard"]
 
-    # بناء القائمة حسب الدور
     module_access = {
         "schedule": SCHEDULE_VIEW,
         "attendance": ATTENDANCE_VIEW_ALL | ATTENDANCE_RECORD | ATTENDANCE_VIEW_DEPT | ATTENDANCE_VIEW_OWN | {"parent", "student"},

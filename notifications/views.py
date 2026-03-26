@@ -14,7 +14,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.permissions import leadership_required
+from core.permissions import leadership_required, role_required
 from operations.models import AbsenceAlert
 
 from .models import NotificationLog, NotificationSettings
@@ -318,6 +318,7 @@ def notification_preferences(request):
 
 
 @login_required
+@role_required("principal", "vice_admin", "vice_academic")
 @require_POST
 def emergency_broadcast(request):
     """

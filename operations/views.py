@@ -207,14 +207,17 @@ def session_summary(request, session_id):
     )
 
 
+# ── الأدوار المشتركة ──────────────────────────────────────
+_REPORT_ROLES = {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+_ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
+
+
 # ── Director Views ──────────────────────────────────────
 @login_required
-@leadership_required
+@role_required(_REPORT_ROLES)
 def daily_report(request):
-    """تقرير الغياب اليومي — للمدير والمنسق"""
+    """تقرير الغياب اليومي — للمدير والمنسق (قسمه فقط)"""
     school = request.user.get_school()
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
 
     from datetime import date
 
@@ -235,13 +238,21 @@ def daily_report(request):
     )
 
     sessions = Session.objects.filter(school=school, date=report_date).select_related("teacher")
+
+    # ── المنسق يرى بيانات معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None:
+        absences = absences.filter(session__teacher_id__in=dept_ids)
+        sessions = sessions.filter(teacher_id__in=dept_ids)
+
     from django.db.models import Count
 
-    summary = (
-        StudentAttendance.objects.filter(school=school, session__date=report_date)
-        .values("status")
-        .annotate(count=Count("id"))
-    )
+    att_qs = StudentAttendance.objects.filter(school=school, session__date=report_date)
+    if dept_ids is not None:
+        att_qs = att_qs.filter(session__teacher_id__in=dept_ids)
+    summary = att_qs.values("status").annotate(count=Count("id"))
 
     stats = {s["status"]: s["count"] for s in summary}
     total = sum(stats.values())
@@ -274,6 +285,7 @@ from .services import ScheduleService, SubstituteService
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor", "admin_supervisor", "admin")
 def weekly_schedule(request):
     """عرض الجدول الأسبوعي — للمعلم أو كل المعلمين للمدير"""
     school = request.user.get_school()
@@ -333,10 +345,9 @@ def weekly_schedule(request):
 
 
 @login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
 def schedule_slot_create(request):
     """إضافة حصة جديدة للجدول — POST"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
 
     if request.method == "POST":
@@ -383,10 +394,9 @@ def schedule_slot_create(request):
 
 
 @login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
 def schedule_slot_delete(request, slot_id):
     """حذف حصة من الجدول"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school)
     slot.is_active = False
@@ -396,10 +406,9 @@ def schedule_slot_delete(request, slot_id):
 
 
 @login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
 def generate_sessions(request):
     """توليد حصص يومية من الجدول — للمدير"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
     if request.method == "POST":
         from datetime import date as dclass
 
@@ -419,10 +428,9 @@ def generate_sessions(request):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 def teacher_absence_list(request):
     """قائمة غيابات المعلمين — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     from datetime import date as dclass
 
@@ -438,6 +446,13 @@ def teacher_absence_list(request):
         .prefetch_related("assignments__substitute")
     )
 
+    # ── المنسق يرى غيابات معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None:
+        absences = absences.filter(teacher_id__in=dept_ids)
+
     return render(
         request,
         "substitute/absence_list.html",
@@ -449,10 +464,9 @@ def teacher_absence_list(request):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 def register_teacher_absence(request):
     """تسجيل غياب معلم — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
 
     if request.method == "POST":
@@ -474,10 +488,19 @@ def register_teacher_absence(request):
         messages.success(request, f"تم تسجيل غياب {teacher.full_name} بتاريخ {abs_date}")
         return redirect("absence_detail", absence_id=absence.id)
 
-    teacher_ids = Membership.objects.filter(
-        school=school, is_active=True, role__name__in=("teacher", "coordinator")
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
+    # ── المنسق يرى معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None:
+        # المنسق: معلمي قسمه فقط
+        teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
+    else:
+        # القيادة: كل المعلمين
+        teacher_ids = Membership.objects.filter(
+            school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher")
+        ).values_list("user_id", flat=True)
+        teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
     return render(
         request,
         "substitute/register_absence.html",
@@ -490,12 +513,18 @@ def register_teacher_absence(request):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 def absence_detail(request, absence_id):
     """تفاصيل الغياب + تعيين البدلاء — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
+
+    # ── المنسق يرى غيابات معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None and absence.teacher_id not in dept_ids:
+        return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
     our_day = SubstituteService._date_to_day(absence.date)
     slots = ScheduleSlot.objects.filter(
@@ -531,14 +560,20 @@ def absence_detail(request, absence_id):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
-    """HTMX: تعيين بديل لحصة — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
+    """HTMX: تعيين بديل لحصة — للمدير والمنسق (قسمه فقط)"""
     school = request.user.get_school()
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
     slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school)
+
+    # ── المنسق يعيّن بديل فقط لمعلمي قسمه ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None and absence.teacher_id not in dept_ids:
+        return HttpResponse("هذا المعلم ليس من قسمك", status=403)
     substitute = get_object_or_404(CustomUser, id=request.POST["substitute"])
 
     assignment = SubstituteService.assign_substitute(
@@ -560,10 +595,9 @@ def assign_substitute(request, absence_id, slot_id):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 def substitute_report(request):
     """تقرير الحصص البديلة — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
     school = request.user.get_school()
     from datetime import date as dclass
     from datetime import timedelta
@@ -575,6 +609,13 @@ def substitute_report(request):
     date_to = dclass.fromisoformat(request.GET.get("to", today.isoformat()))
 
     assignments = SubstituteService.get_substitute_report(school, date_from, date_to)
+
+    # ── المنسق يرى تقارير معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None:
+        assignments = [a for a in assignments if a.absence.teacher_id in dept_ids]
 
     # ملخص: كم حصة لكل بديل
     summary = {}
@@ -600,10 +641,9 @@ def substitute_report(request):
 
 
 @login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية — عرض التوزيعات + زر التوليد"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -637,11 +677,10 @@ def smart_schedule_view(request):
 
 
 @login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
 @require_POST
 def smart_generate(request):
     """توليد الجدول الذكي — POST فقط"""
-    if not request.user.is_admin():
-        return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
     year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -671,10 +710,9 @@ def smart_generate(request):
 
 
 @login_required
+@role_required(_REPORT_ROLES)
 def teacher_load_report(request):
     """تقرير أحمال المعلمين — للمدير والمنسق"""
-    if not (request.user.is_admin_or_principal() or request.user.get_role() == "coordinator"):
-        return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -685,11 +723,17 @@ def teacher_load_report(request):
 
     from .models import ScheduleSlot, SubstituteAssignment
 
-    # معلمو المدرسة
-    teacher_ids = Membership.objects.filter(
-        school=school, is_active=True, role__name__in=("teacher", "coordinator")
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
+    # ── المنسق يرى معلمي قسمه فقط ──
+    from core.permissions import get_department_teacher_ids
+
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None:
+        teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
+    else:
+        teacher_ids = Membership.objects.filter(
+            school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher")
+        ).values_list("user_id", flat=True)
+        teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
     # حصص كل معلم
     slot_counts = Counter(
@@ -792,11 +836,8 @@ def swap_list(request):
         swaps = TeacherSwap.objects.filter(school=school)
     elif role == "coordinator":
         # المنسق يرى طلبات تخصصه
-        dept = request.user.department
-        from core.models import Membership
-        dept_teachers = Membership.objects.filter(
-            school=school, is_active=True, department=dept,
-        ).values_list("user_id", flat=True)
+        from core.permissions import get_department_teacher_ids
+        dept_teachers = get_department_teacher_ids(request.user) or set()
         swaps = TeacherSwap.objects.filter(
             school=school,
         ).filter(
@@ -888,6 +929,7 @@ def swap_request(request):
 # ── HTMX: خيارات التبديل لحصة معيّنة ────────────────────────────
 
 @login_required
+@role_required(SCHEDULE_VIEW)
 def swap_options_htmx(request, slot_id):
     """HTMX partial — يُعيد معلمين متاحين للتبديل مع حصة معيّنة."""
     school = request.user.get_school()
@@ -902,6 +944,7 @@ def swap_options_htmx(request, slot_id):
 # ── رد المعلم ب (قبول/رفض) ───────────────────────────────────────
 
 @login_required
+@role_required("teacher", "ese_teacher", "coordinator", "principal", "vice_academic", "vice_admin")
 def swap_respond(request, swap_id):
     """المعلم ب يعرض تفاصيل الطلب ثم يقبل أو يرفض."""
     school = request.user.get_school()
@@ -967,6 +1010,7 @@ def swap_approve(request, swap_id):
 # ── إلغاء طلب تبديل (القانون 9 / 12-14) ─────────────────────────
 
 @login_required
+@role_required(SCHEDULE_VIEW)
 @require_POST
 def swap_cancel(request, swap_id):
     """إلغاء طلب تبديل — القواعد تعتمد على المرحلة والدور."""
@@ -994,11 +1038,8 @@ def compensatory_list(request):
     if role in ("principal", "vice_academic", "vice_admin"):
         comps = CompensatorySession.objects.filter(school=school)
     elif role == "coordinator":
-        dept = request.user.department
-        from core.models import Membership
-        dept_teachers = Membership.objects.filter(
-            school=school, is_active=True, department=dept,
-        ).values_list("user_id", flat=True)
+        from core.permissions import get_department_teacher_ids
+        dept_teachers = get_department_teacher_ids(request.user) or set()
         comps = CompensatorySession.objects.filter(school=school, teacher_id__in=dept_teachers)
     else:
         comps = CompensatorySession.objects.filter(school=school, teacher=request.user)
@@ -1108,6 +1149,7 @@ def compensatory_approve(request, comp_id):
 # ── HTMX: الحصص الحرة لمعلم ─────────────────────────────────────
 
 @login_required
+@role_required(SCHEDULE_VIEW)
 def teacher_free_slots(request, teacher_id):
     """HTMX partial — يُعيد الحصص الحرة لمعلم معيّن."""
     from core.models import CustomUser

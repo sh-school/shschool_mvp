@@ -358,6 +358,7 @@ def procedure_detail(request, proc_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 @require_POST
 def update_procedure_status(request, proc_id):
     school = request.user.get_school()
@@ -413,6 +414,7 @@ def update_procedure_status(request, proc_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 @require_POST
 def approve_procedure(request, proc_id):
     school = request.user.get_school()
@@ -465,6 +467,7 @@ def approve_procedure(request, proc_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 @require_POST
 def upload_evidence(request, proc_id):
     school = request.user.get_school()
@@ -743,6 +746,7 @@ def _process_review_evaluate(request, procedure):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 def review_evaluate_modal(request, proc_id):
     """GET: عرض نموذج تقييم المراجعة — POST: حفظ التقييم."""
     school = request.user.get_school()
@@ -780,6 +784,7 @@ def review_evaluate_modal(request, proc_id):
 
 
 @login_required
+@role_required(_QUALITY_ALL)
 @require_POST
 def toggle_evidence_request(request, proc_id):
     """تبديل حالة طلب الدليل بين مطلوب وغير مطلوب."""

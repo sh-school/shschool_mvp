@@ -553,11 +553,11 @@ class FreeSlotService:
         day_of_week: int,
         period_number: int,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
-        department: str = "",
+        department=None,
     ) -> QuerySet:
         """
         المعلمون المتاحون في وقت معيّن.
-        إذا حُدّد department → يُرشّح حسب القسم.
+        department: كائن Department أو اسم نصي — يُرشّح حسب القسم.
         """
         from core.models import CustomUser, Membership
 
@@ -572,9 +572,15 @@ class FreeSlotService:
         teachers = CustomUser.objects.filter(id__in=qs).order_by("full_name")
 
         if department:
-            dept_teacher_ids = Membership.objects.filter(
-                school=school, is_active=True, department=department,
-            ).values_list("user_id", flat=True)
+            from core.models import Department
+
+            if isinstance(department, Department):
+                dept_teacher_ids = department.get_teacher_ids()
+            else:
+                # fallback: اسم نصي
+                dept_teacher_ids = Membership.objects.filter(
+                    school=school, is_active=True, department_obj__name=department,
+                ).values_list("user_id", flat=True)
             teachers = teachers.filter(id__in=dept_teacher_ids)
 
         return teachers
@@ -1098,12 +1104,20 @@ class CompensatoryService:
             from core.models import Membership
             from notifications.hub import NotificationHub
 
-            dept = teacher.department
-            if dept:
+            dept_obj = teacher.department_obj
+            if dept_obj:
+                coordinators = dept_obj.memberships.filter(
+                    is_active=True, role__name="coordinator",
+                ).values_list("user_id", flat=True)
+            elif teacher.department:
+                # fallback: CharField
                 coordinators = Membership.objects.filter(
                     school=school, is_active=True,
-                    role__name="coordinator", department=dept,
+                    role__name="coordinator", department_obj__name=teacher.department,
                 ).values_list("user_id", flat=True)
+            else:
+                coordinators = []
+            if coordinators:
 
                 from core.models import CustomUser
                 coord_users = list(CustomUser.objects.filter(pk__in=coordinators))

@@ -1,11 +1,16 @@
 """
 core/middleware.py
 حماية كاملة لكل المسارات — بما فيها /api/
+يستخدم Module Registry للمسارات المحمية (v6).
 """
+
+import logging
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
+
+logger = logging.getLogger(__name__)
 
 EXEMPT = [
     "/auth/",
@@ -21,71 +26,30 @@ EXEMPT = [
     "/metrics",
 ]
 
-PROTECTED_PATHS = {
-    # ── التقييمات والدرجات ──────────────────────────────────────
-    "/assessments/": [
-        "principal", "vice_academic", "vice_admin",
-        "coordinator", "teacher", "ese_teacher",
-        "admin", "academic_advisor",
-    ],
-    # ── الجودة (عام) ────────────────────────────────────────────
-    "/quality/": [
-        "principal", "vice_admin", "vice_academic",
-        "coordinator", "teacher", "ese_teacher",
-        "specialist", "social_worker", "psychologist",
-    ],
-    # ── الجودة (التقييمات) — الكل يُقيَّم ───────────────────────
-    "/quality/evaluations/": [
-        "principal", "vice_admin", "vice_academic",
-        "coordinator", "teacher", "ese_teacher",
-        "specialist", "social_worker", "psychologist", "academic_advisor",
-        "nurse", "librarian", "bus_supervisor", "admin_supervisor",
-        "admin", "secretary", "it_technician",
-    ],
-    # ── التحليلات ────────────────────────────────────────────────
-    "/analytics/": [
-        "principal", "vice_academic", "vice_admin",
-        "admin", "coordinator", "teacher", "ese_teacher",
-        "social_worker", "psychologist", "academic_advisor",
-        "nurse", "librarian",
-    ],
-    # ── العيادة الصحية ──────────────────────────────────────────
-    "/clinic/": ["principal", "vice_admin", "nurse"],
-    # ── النقل المدرسي ───────────────────────────────────────────
-    "/transport/": ["principal", "vice_admin", "bus_supervisor"],
-    # ── المكتبة ─────────────────────────────────────────────────
-    "/library/": [
-        "principal", "vice_admin", "librarian",
-        "teacher", "coordinator", "ese_teacher",
-        "specialist", "social_worker", "student",
-    ],
-    # ── السلوك والانضباط ────────────────────────────────────────
-    "/behavior/": [
-        "principal", "vice_admin", "vice_academic",
-        "coordinator", "teacher", "ese_teacher",
-        "specialist", "social_worker", "psychologist",
-        "admin_supervisor",
-    ],
-    # ── الخطة التشغيلية ─────────────────────────────────────────
-    "/staging/": ["principal", "vice_academic", "vice_admin", "admin", "secretary"],
-    # ── التقارير ─────────────────────────────────────────────────
-    "/reports/": [
-        "principal", "vice_academic", "vice_admin",
-        "coordinator", "teacher", "ese_teacher",
-    ],
-    # ── الجدول الدراسي ──────────────────────────────────────────
-    "/operations/schedule/": [
-        "principal", "vice_academic", "vice_admin",
-        "coordinator", "teacher", "ese_teacher",
-        "academic_advisor", "admin_supervisor",
-        "student", "parent",
-    ],
-}
+
+def _build_protected_paths() -> dict[str, list[str]]:
+    """
+    يبني قاموس المسارات المحمية من Module Registry.
+    يُستدعى مرة واحدة فقط (lazy singleton).
+    """
+    from core.module_registry import get_protected_paths
+
+    paths = get_protected_paths()
+    if paths:
+        logger.debug("Middleware: loaded %d protected paths from registry", len(paths))
+    return paths
 
 
 class SchoolPermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self._protected_paths = None  # lazy load
+
+    @property
+    def protected_paths(self):
+        if self._protected_paths is None:
+            self._protected_paths = _build_protected_paths()
+        return self._protected_paths
 
     def __call__(self, request):
         path = request.path
@@ -123,7 +87,7 @@ class SchoolPermissionMiddleware:
             )
 
         user_role = request.user.get_role()
-        for protected_path, allowed_roles in PROTECTED_PATHS.items():
+        for protected_path, allowed_roles in self.protected_paths.items():
             if path.startswith(protected_path):
                 if user_role not in allowed_roles:
                     if path.startswith("/api/"):
