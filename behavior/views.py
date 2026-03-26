@@ -76,7 +76,9 @@ def behavior_dashboard(request):
         messages.error(request, "لم يتم العثور على مدرسة مرتبطة بحسابك.")
         return redirect("dashboard")
 
-    context = BehaviorService.get_dashboard_stats(school)
+    # المعلم/المنسق يرى سلوك طلابه فقط
+    student_ids = get_teacher_student_ids(request.user)
+    context = BehaviorService.get_dashboard_stats(school, student_ids=student_ids)
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)

@@ -136,19 +136,26 @@ class BehaviorService:
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
-    def get_dashboard_stats(school: School) -> dict:
-        """إحصائيات لوحة التحكم الرئيسية"""
+    def get_dashboard_stats(school: School, student_ids=None) -> dict:
+        """
+        إحصائيات لوحة التحكم الرئيسية.
+
+        student_ids: قائمة IDs الطلاب المرئيّين (للمعلم/المنسق).
+                     None = كل طلاب المدرسة (القيادة/المدير).
+        """
         base = BehaviorInfraction.objects.filter(school=school)
+        if student_ids is not None:
+            base = base.filter(student_id__in=student_ids)
 
         stats = base.values("level").annotate(count=Count("id"))
 
         total_deducted = base.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
 
+        recovery_qs = BehaviorPointRecovery.objects.filter(infraction__school=school)
+        if student_ids is not None:
+            recovery_qs = recovery_qs.filter(infraction__student_id__in=student_ids)
         total_restored = (
-            BehaviorPointRecovery.objects.filter(infraction__school=school).aggregate(
-                Sum("points_restored")
-            )["points_restored__sum"]
-            or 0
+            recovery_qs.aggregate(Sum("points_restored"))["points_restored__sum"] or 0
         )
 
         recent = base.select_related("student", "reported_by").order_by("-date")[:15]
