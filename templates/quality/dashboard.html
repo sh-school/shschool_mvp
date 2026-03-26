@@ -1,181 +1,155 @@
 {% extends "base/base.html" %}
 {% load static %}
-{% block title %}الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
+{% block title %}الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="الخطة التشغيلية" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="qd">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">📋 الخطة التشغيلية</h1>
-      <p class="page-subtitle">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+  {# ── Header row ── #}
+  <div class="qd-header">
+    <div class="qd-header__info">
+      <h1 class="qd-header__title">الخطة التشغيلية</h1>
+      <p class="qd-header__sub">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
     </div>
-    <div class="page-actions">
-      {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'quality_report' %}" class="btn-secondary btn-sm">📈 تقرير التقدم</a>
-      <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">⚙️ لجنة التنفيذ</a>
-      <a href="{% url 'quality_committee' %}" class="btn-secondary btn-sm">🔍 لجنة الجودة</a>
-      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">📌 تنفيذ الخطة</a>
-      <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">📝 لجنة المراجعة الذاتية</a>
+    <nav class="qd-header__actions" aria-label="إجراءات الخطة">
+      {% if is_admin %}
+      <a href="{% url 'quality_report' %}" class="btn-secondary btn-sm">تقرير التقدم</a>
+      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">تنفيذ الخطة</a>
+      <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
+      <a href="{% url 'quality_committee' %}" class="btn-secondary btn-sm">لجنة الجودة</a>
+      <a href="{% url 'executor_committee' %}" class="btn-secondary btn-sm">لجنة التنفيذ</a>
       {% else %}
-      <a href="{% url 'my_procedures' %}" class="btn-primary btn-sm">📝 إجراءاتي</a>
+      <a href="{% url 'my_procedures' %}" class="btn-primary btn-sm">إجراءاتي</a>
+      {% if is_reviewer %}<a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>{% endif %}
       {% endif %}
-    </div>
+    </nav>
   </div>
 
-  {# ── Role context banner (executor/reviewer) ── #}
+  {# ── Role banner ── #}
   {% if is_reviewer and reviewer_domain and not is_admin %}
-  <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-3 text-sm text-purple-700 dark:text-purple-300">
-    🟣 أنت مراجع — مسؤول عن مجال <strong>{{ reviewer_domain.name }}</strong>. الإحصائيات والمجالات أدناه تخص مجالك فقط.
+  <div class="qd-banner qd-banner--reviewer">
+    أنت مراجع — مسؤول عن مجال <strong>{{ reviewer_domain.name }}</strong>
   </div>
   {% elif not is_admin and not is_reviewer %}
-  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
-    🔵 أنت منفذ — الإحصائيات أدناه تخص إجراءاتك المُسندة إليك فقط.
+  <div class="qd-banner qd-banner--executor">
+    أنت منفذ — الإحصائيات أدناه تخص إجراءاتك المُسندة إليك فقط
   </div>
   {% endif %}
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 {% if is_admin %}lg:grid-cols-7{% else %}lg:grid-cols-5{% endif %} gap-4">
+  {# ── Main 2-column layout: KPIs + big ring LEFT | Domains RIGHT ── #}
+  <div class="qd-body">
 
-    <div class="kpi-card">
-      <div class="kpi-value kpi-value--primary">{{ total }}</div>
-      <div class="kpi-label">{% if is_admin %}إجمالي الإجراءات{% else %}إجراءاتي{% endif %}</div>
-    </div>
+    {# ── LEFT: Overview panel ── #}
+    <div class="qd-overview">
 
-    <div class="kpi-card">
-      <div class="kpi-value kpi-value--success">{{ completed }}</div>
-      <div class="kpi-label">مكتمل</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value kpi-value--warning">{{ in_progress }}</div>
-      <div class="kpi-label">قيد التنفيذ</div>
-    </div>
-
-    {# ── Circular progress — animated via quality.js ── #}
-    <div class="kpi-card kpi-card--ring" data-pct="{{ pct }}">
-      <div class="kpi-ring-wrap">
-        <svg viewBox="0 0 36 36" class="kpi-ring-svg" aria-hidden="true">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+      {# Big central ring #}
+      <div class="qd-ring-main" data-pct="{{ pct }}">
+        <svg viewBox="0 0 36 36" class="qd-ring-svg" aria-hidden="true">
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="2.5"/>
           <circle id="quality-ring" cx="18" cy="18" r="15.9" fill="none"
-                  stroke="{% if pct == 100 %}#16a34a{% elif pct > 60 %}#8A1538{% else %}#d97706{% endif %}"
-                  stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round"/>
+                  stroke="{% if pct == 100 %}#16a34a{% elif pct > 60 %}var(--maroon){% else %}#d97706{% endif %}"
+                  stroke-width="2.5" stroke-dasharray="0 100" stroke-linecap="round"
+                  style="transition:stroke-dasharray .9s ease-out"/>
         </svg>
-        <span class="kpi-ring-label" id="quality-pct-label" aria-label="نسبة الإنجاز {{ pct }}%">0%</span>
+        <span class="qd-ring-pct" id="quality-pct-label" aria-label="نسبة الإنجاز {{ pct }}%">0%</span>
+        <span class="qd-ring-caption">الإنجاز الكلي</span>
       </div>
-      <div class="kpi-label">نسبة الإنجاز</div>
-    </div>
 
-    <div class="kpi-card kpi-card--blue">
-      <div class="kpi-value kpi-value--blue">{{ pending_review }}</div>
-      <div class="kpi-label">بانتظار المراجعة</div>
-    </div>
-
-    {% if is_admin %}
-    <div class="kpi-card kpi-card--red">
-      <div class="kpi-value kpi-value--danger">{{ overdue_count }}</div>
-      <div class="kpi-label">متأخر</div>
-    </div>
-
-    <div class="kpi-card kpi-card--orange">
-      <div class="kpi-value kpi-value--orange">{{ evidence_requested }}</div>
-      <div class="kpi-label">طلبات الدليل</div>
-    </div>
-    {% endif %}
-
-  </div>
-  {# ── Overall progress bar ── #}
-  <div class="card-qatar plan-progress-wrap">
-    <div class="plan-progress-header">
-      <span class="plan-progress-label">التقدم الكلي للخطة التشغيلية</span>
-      <span class="plan-progress-pct {% if pct == 100 %}plan-progress-pct--success{% elif pct > 60 %}plan-progress-pct--primary{% else %}plan-progress-pct--warning{% endif %}">
-        {{ pct }}%
-      </span>
-    </div>
-    <div class="progress-qatar">
-      <div class="progress-qatar-fill {% if pct == 100 %}progress-qatar-fill--success{% elif pct > 60 %}progress-qatar-fill--primary{% else %}progress-qatar-fill--warning{% endif %}"
-           style="width:{{ pct }}%;">
-      </div>
-    </div>
-  </div>
-
-  {# ── Domains ── #}
-  <div>
-    <div class="section-header">
-      <h2 class="section-heading">المجالات</h2>
-    </div>
-    <div class="domain-cards-list">
-      {% for domain in domains %}
-      <a href="{% url 'domain_detail' domain.id %}" class="card-qatar domain-card-link">
-        <div class="domain-card-inner">
-          <div class="domain-card-info">
-            <h3 class="domain-card-name">{{ domain.name }}</h3>
-            <p class="domain-card-meta">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف</p>
-          </div>
-          <div class="domain-card-stats">
-            <p class="domain-card-pct {% if domain.completion_pct == 100 %}domain-card-pct--success{% elif domain.completion_pct > 50 %}domain-card-pct--primary{% else %}domain-card-pct--warning{% endif %}">
-              {{ domain.completion_pct }}%
-            </p>
-            <p class="domain-card-sub">{{ domain.completed_procedures }}/{{ domain.total_procedures }}</p>
-          </div>
+      {# KPI chips grid #}
+      <div class="qd-kpis">
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--primary">{{ total }}</span>
+          <span class="qd-kpi__lbl">{% if is_admin %}إجمالي{% else %}إجراءاتي{% endif %}</span>
         </div>
-        <div class="domain-card-bar">
-          <div class="domain-card-bar-fill {% if domain.completion_pct == 100 %}domain-card-bar-fill--success{% elif domain.completion_pct > 50 %}domain-card-bar-fill--primary{% else %}domain-card-bar-fill--warning{% endif %}"
-               style="width:{{ domain.completion_pct }}%;">
-          </div>
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--success">{{ completed }}</span>
+          <span class="qd-kpi__lbl">مكتمل</span>
         </div>
-      </a>
-      {% empty %}
-      <div class="empty-state card-qatar">
-        <span class="empty-icon">📋</span>
-        <p class="empty-title">لا توجد بيانات</p>
-        <p class="empty-sub">شغّل <code>python manage.py seed_quality</code></p>
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--warning">{{ in_progress }}</span>
+          <span class="qd-kpi__lbl">قيد التنفيذ</span>
+        </div>
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--blue">{{ pending_review }}</span>
+          <span class="qd-kpi__lbl">بانتظار المراجعة</span>
+        </div>
+        {% if is_admin %}
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--danger">{{ overdue_count }}</span>
+          <span class="qd-kpi__lbl">متأخر</span>
+        </div>
+        <div class="qd-kpi">
+          <span class="qd-kpi__val qd-kpi__val--orange">{{ evidence_requested }}</span>
+          <span class="qd-kpi__lbl">طلبات الدليل</span>
+        </div>
+        {% endif %}
       </div>
-      {% endfor %}
-    </div>
-  </div>
 
-  {# ── My procedures — with status filter tabs ── #}
-  {% if my_procedures %}
-  <div>
-    <div class="section-header">
-      <h2 class="section-heading">إجراءاتي</h2>
-      {% if my_procedures.count > 5 %}
-      <a href="{% url 'my_procedures' %}" class="section-link">
-        عرض الكل ({{ my_procedures.count }}) →
+      {% if unmapped_count and is_admin %}
+      <a href="{% url 'executor_mapping' %}" class="qd-alert">
+        <strong>{{ unmapped_count }}</strong> منفذ بدون ربط
       </a>
       {% endif %}
     </div>
 
-    {# Filter tabs #}
-    <div class="filter-tabs">
-      <button onclick="filterProcs('all')" id="tab-all" class="btn-primary btn-sm">الكل</button>
-      <button onclick="filterProcs('InProgress')" id="tab-in-progress" class="btn-secondary btn-sm">قيد التنفيذ</button>
-      <button onclick="filterProcs('NotStarted')" id="tab-not-started" class="btn-secondary btn-sm">لم يبدأ</button>
-      <button onclick="filterProcs('Completed')" id="tab-completed" class="btn-secondary btn-sm">مكتمل</button>
+    {# ── RIGHT: Domains as interactive donuts ── #}
+    <div class="qd-domains">
+      <h2 class="qd-domains__title">المجالات</h2>
+      <div class="qd-domains__grid" id="domains-grid">
+        {% for domain in domains %}
+        <a href="{% url 'domain_detail' domain.id %}" class="qd-domain"
+           data-pct="{{ domain.completion_pct }}"
+           data-done="{{ domain.completed_procedures }}"
+           data-total="{{ domain.total_procedures }}">
+          <div class="qd-domain__ring">
+            <svg viewBox="0 0 36 36" aria-hidden="true">
+              <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="3"/>
+              <circle class="qd-domain__arc" cx="18" cy="18" r="15.9" fill="none"
+                      stroke="{% if domain.completion_pct == 100 %}#16a34a{% elif domain.completion_pct > 50 %}var(--maroon){% elif domain.completion_pct > 25 %}#d97706{% else %}#94a3b8{% endif %}"
+                      stroke-width="3" stroke-dasharray="0 100" stroke-linecap="round"/>
+            </svg>
+            <span class="qd-domain__pct">{{ domain.completion_pct }}%</span>
+          </div>
+          <div class="qd-domain__info">
+            <span class="qd-domain__name">{{ domain.name }}</span>
+            <span class="qd-domain__meta">{{ domain.completed_procedures }}/{{ domain.total_procedures }} إجراء</span>
+          </div>
+        </a>
+        {% empty %}
+        <div class="qd-empty">
+          <p>لا توجد بيانات للخطة التشغيلية</p>
+        </div>
+        {% endfor %}
+      </div>
     </div>
 
-    <div class="table-wrap" id="procedures-list">
-      {% for proc in my_procedures|slice:":10" %}
-      <a href="{% url 'procedure_detail' proc.id %}"
-         data-status="{{ proc.status }}"
-         class="proc-list-row">
-        <div class="proc-list-info">
-          <p class="proc-list-title">{{ proc.text|truncatechars:70 }}</p>
-          <p class="proc-list-meta">
-            {{ proc.indicator.target.domain.name }} · {{ proc.date_range }}
-            {# بادج موعد متأخر #}
-            {% if proc.is_overdue %}
-            <span class="proc-badge-overdue">⏰ متأخر</span>
-            {% endif %}
-          </p>
-        </div>
-        <span class="status-badge status-badge--inline {% if proc.status == 'Completed' %}status-success{% elif proc.status == 'InProgress' %}status-warning{% else %}status-gray{% endif %}">
+  </div>{# /qd-body #}
+
+  {# ── My procedures compact (executor/reviewer only) ── #}
+  {% if my_procedures %}
+  <div class="qd-myprocs">
+    <div class="qd-myprocs__head">
+      <h2 class="qd-myprocs__title">إجراءاتي</h2>
+      <div class="qd-myprocs__tabs">
+        <button type="button" onclick="filterProcs('all')" id="tab-all" class="qd-tab qd-tab--active">الكل</button>
+        <button type="button" onclick="filterProcs('InProgress')" id="tab-in-progress" class="qd-tab">قيد التنفيذ</button>
+        <button type="button" onclick="filterProcs('NotStarted')" id="tab-not-started" class="qd-tab">لم يبدأ</button>
+        <button type="button" onclick="filterProcs('Completed')" id="tab-completed" class="qd-tab">مكتمل</button>
+      </div>
+      {% if my_procedures.count > 5 %}
+      <a href="{% url 'my_procedures' %}" class="qd-myprocs__all">عرض الكل ({{ my_procedures.count }})</a>
+      {% endif %}
+    </div>
+    <div class="qd-myprocs__list" id="procedures-list">
+      {% for proc in my_procedures|slice:":6" %}
+      <a href="{% url 'procedure_detail' proc.id %}" data-status="{{ proc.status }}" class="qd-proc">
+        <span class="qd-proc__text">{{ proc.text|truncatechars:60 }}</span>
+        <span class="qd-proc__domain">{{ proc.indicator.target.domain.name }}</span>
+        <span class="qd-proc__badge {% if proc.status == 'Completed' %}qd-proc__badge--success{% elif proc.status == 'In Progress' %}qd-proc__badge--warning{% elif proc.status == 'Pending Review' %}qd-proc__badge--blue{% else %}qd-proc__badge--gray{% endif %}">
           {{ proc.get_status_display }}
         </span>
       </a>
@@ -184,54 +158,285 @@
   </div>
   {% endif %}
 
-  {# ── Review committee (admin only) ── #}
-  {% if review_committee and request.user.is_admin %}
-  <div>
-    <div class="section-header">
-      <h2 class="section-heading">لجنة المراجعة الذاتية</h2>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">المسمى الوظيفي</th>
-            <th scope="col">المسؤولية</th>
-            <th scope="col">المجال</th>
-            <th scope="col">الموظف</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in review_committee %}
-          <tr>
-            <td class="td-bold">{{ m.job_title }}</td>
-            <td>
-              <span class="status-badge
-                {% if m.responsibility == 'رئيس اللجنة' %}status-danger
-                {% elif m.responsibility == 'نائب رئيس اللجنة' %}status-warning
-                {% elif m.responsibility == 'مقرر' %}status-info
-                {% else %}status-gray{% endif %}">
-                {{ m.responsibility }}
-              </span>
-            </td>
-            <td class="td-secondary">{{ m.domain.name|default:"—" }}</td>
-            <td class="td-maroon">{{ m.user.full_name|default:"—" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ═══════════════════════════════════════════════════════
+   Quality Dashboard — compact, no-scroll, donut-based
+   Brand: --maroon #8A1538 | --skyline #0D4261 | --gold #D4A843
+   ═══════════════════════════════════════════════════════ */
+:root { --ring-track: #e5e7eb; }
+html.dark { --ring-track: #374151; }
+
+.qd { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Header ── */
+.qd-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px;
+}
+.qd-header__title {
+  font-size: 1.35rem; font-weight: 800; color: var(--maroon);
+  margin: 0; line-height: 1.3;
+}
+html.dark .qd-header__title { color: #f9a8c0; }
+.qd-header__sub { font-size: 0.8rem; color: var(--text-secondary); margin: 2px 0 0; }
+.qd-header__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Role Banner ── */
+.qd-banner {
+  padding: 6px 14px; border-radius: 8px; font-size: 0.8rem;
+  border: 1px solid; line-height: 1.5;
+}
+.qd-banner--reviewer {
+  background: #f5f3ff; border-color: #c4b5fd; color: #5b21b6;
+}
+.qd-banner--executor {
+  background: #eff6ff; border-color: #93c5fd; color: #1e40af;
+}
+html.dark .qd-banner--reviewer { background: rgba(91,33,182,.12); border-color: #7c3aed40; color: #c4b5fd; }
+html.dark .qd-banner--executor { background: rgba(30,64,175,.12); border-color: #3b82f640; color: #93c5fd; }
+
+/* ── Body: 2-column layout ── */
+.qd-body {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .qd-body { grid-template-columns: 1fr; }
+}
+
+/* ── Overview (left panel) ── */
+.qd-overview {
+  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 20px 16px; display: flex; flex-direction: column;
+  align-items: center; gap: 16px;
+}
+html.dark .qd-overview { background: #1e293b; border-color: #334155; }
+
+/* Big ring */
+.qd-ring-main {
+  position: relative; width: 130px; height: 130px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qd-ring-svg { width: 130px; height: 130px; transform: rotate(-90deg); }
+.qd-ring-pct {
+  position: absolute; font-size: 1.75rem; font-weight: 800;
+  color: var(--maroon); line-height: 1;
+}
+html.dark .qd-ring-pct { color: #f9a8c0; }
+.qd-ring-caption {
+  position: absolute; bottom: 8px; font-size: 0.7rem;
+  color: var(--text-secondary); letter-spacing: 0;
+}
+
+/* KPI chips */
+.qd-kpis {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 8px; width: 100%;
+}
+.qd-kpi {
+  text-align: center; padding: 8px 4px; border-radius: 8px;
+  background: #f8fafc; border: 1px solid #f1f5f9;
+}
+html.dark .qd-kpi { background: #0f172a; border-color: #1e293b; }
+.qd-kpi__val { display: block; font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
+.qd-kpi__lbl { display: block; font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
+.qd-kpi__val--primary { color: var(--skyline); }
+.qd-kpi__val--success { color: #16a34a; }
+.qd-kpi__val--warning { color: #d97706; }
+.qd-kpi__val--blue    { color: #2563eb; }
+.qd-kpi__val--danger  { color: #dc2626; }
+.qd-kpi__val--orange  { color: #ea580c; }
+html.dark .qd-kpi__val--primary { color: #7dd3fc; }
+html.dark .qd-kpi__val--success { color: #86efac; }
+html.dark .qd-kpi__val--warning { color: #fbbf24; }
+html.dark .qd-kpi__val--blue    { color: #93c5fd; }
+html.dark .qd-kpi__val--danger  { color: #fca5a5; }
+html.dark .qd-kpi__val--orange  { color: #fdba74; }
+
+/* Unmapped alert */
+.qd-alert {
+  display: block; width: 100%; text-align: center; padding: 6px;
+  border-radius: 8px; font-size: 0.75rem; text-decoration: none;
+  background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
+}
+html.dark .qd-alert { background: rgba(153,27,27,.15); border-color: #7f1d1d; color: #fca5a5; }
+
+/* ── Domains (right panel) ── */
+.qd-domains {
+  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 16px;
+}
+html.dark .qd-domains { background: #1e293b; border-color: #334155; }
+.qd-domains__title {
+  font-size: 0.95rem; font-weight: 700; color: var(--maroon);
+  margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--maroon-bg);
+}
+html.dark .qd-domains__title { color: #f9a8c0; border-color: #334155; }
+.qd-domains__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* Single domain donut card */
+.qd-domain {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px; text-decoration: none;
+  border: 1px solid #f1f5f9; background: #fafbfc;
+  transition: border-color .15s, box-shadow .15s;
+}
+.qd-domain:hover {
+  border-color: var(--maroon-border);
+  box-shadow: 0 2px 8px rgba(138,21,56,.08);
+}
+html.dark .qd-domain { background: #0f172a; border-color: #1e293b; }
+html.dark .qd-domain:hover { border-color: #7c3aed40; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+
+.qd-domain__ring {
+  position: relative; width: 52px; height: 52px; flex-shrink: 0;
+}
+.qd-domain__ring svg {
+  width: 52px; height: 52px; transform: rotate(-90deg);
+}
+.qd-domain__pct {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; font-weight: 800; color: var(--text-primary);
+}
+html.dark .qd-domain__pct { color: #e2e8f0; }
+
+.qd-domain__info { min-width: 0; }
+.qd-domain__name {
+  display: block; font-size: 0.8rem; font-weight: 700;
+  color: var(--text-primary); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+html.dark .qd-domain__name { color: #e2e8f0; }
+.qd-domain__meta {
+  display: block; font-size: 0.68rem; color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Empty state */
+.qd-empty {
+  grid-column: 1/-1; text-align: center; padding: 40px;
+  color: var(--text-secondary); font-size: 0.85rem;
+}
+
+/* ── My Procedures (bottom strip) ── */
+.qd-myprocs {
+  background: white; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 12px 16px;
+}
+html.dark .qd-myprocs { background: #1e293b; border-color: #334155; }
+.qd-myprocs__head {
+  display: flex; align-items: center; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 8px;
+}
+.qd-myprocs__title {
+  font-size: 0.9rem; font-weight: 700; color: var(--maroon); margin: 0;
+}
+html.dark .qd-myprocs__title { color: #f9a8c0; }
+.qd-myprocs__tabs { display: flex; gap: 4px; }
+.qd-tab {
+  padding: 3px 10px; border-radius: 6px; font-size: 0.7rem;
+  border: 1px solid #e5e7eb; background: white; color: var(--text-secondary);
+  cursor: pointer; transition: all .15s;
+}
+.qd-tab:hover { border-color: var(--maroon-border); }
+.qd-tab--active, .qd-tab.qd-tab--active {
+  background: var(--maroon); color: white; border-color: var(--maroon);
+}
+html.dark .qd-tab { background: #0f172a; border-color: #334155; color: #94a3b8; }
+html.dark .qd-tab--active { background: var(--maroon); border-color: var(--maroon); color: white; }
+.qd-myprocs__all {
+  margin-inline-start: auto; font-size: 0.72rem;
+  color: var(--maroon); text-decoration: none; font-weight: 600;
+}
+html.dark .qd-myprocs__all { color: #f9a8c0; }
+
+.qd-myprocs__list { display: flex; flex-direction: column; gap: 4px; }
+.qd-proc {
+  display: grid; grid-template-columns: 1fr auto auto;
+  align-items: center; gap: 10px; padding: 6px 10px;
+  border-radius: 8px; text-decoration: none;
+  transition: background .12s;
+}
+.qd-proc:hover { background: #f8fafc; }
+html.dark .qd-proc:hover { background: #0f172a; }
+.qd-proc__text {
+  font-size: 0.78rem; color: var(--text-primary); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+html.dark .qd-proc__text { color: #e2e8f0; }
+.qd-proc__domain {
+  font-size: 0.65rem; color: var(--text-secondary);
+  white-space: nowrap;
+}
+.qd-proc__badge {
+  padding: 2px 8px; border-radius: 6px; font-size: 0.62rem; font-weight: 600;
+  white-space: nowrap;
+}
+.qd-proc__badge--success { background: #dcfce7; color: #166534; }
+.qd-proc__badge--warning { background: #fef9c3; color: #854d0e; }
+.qd-proc__badge--blue    { background: #dbeafe; color: #1e40af; }
+.qd-proc__badge--gray    { background: #f1f5f9; color: #64748b; }
+html.dark .qd-proc__badge--success { background: rgba(22,163,74,.15); color: #86efac; }
+html.dark .qd-proc__badge--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
+html.dark .qd-proc__badge--blue    { background: rgba(37,99,235,.15); color: #93c5fd; }
+html.dark .qd-proc__badge--gray    { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+/* ── Print ── */
+@media print {
+  .qd-header__actions, .qd-banner, .qd-myprocs__tabs, .qd-alert { display: none; }
+  .qd-body { grid-template-columns: 250px 1fr; }
+  .qd-domain:hover, .qd-proc:hover { background: none; box-shadow: none; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .qd-domain__arc, #quality-ring { transition: none; }
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/quality.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
-  var card = document.querySelector('[data-pct]');
-  if (card) window.initQualityRing(parseInt(card.dataset.pct, 10));
+  /* ── Big ring animation ── */
+  var mainRing = document.querySelector('.qd-ring-main');
+  if (mainRing) window.initQualityRing(parseInt(mainRing.dataset.pct, 10));
+
+  /* ── Domain donut animations ── */
+  var domains = document.querySelectorAll('.qd-domain');
+  var delay = 150;
+  domains.forEach(function(el, i) {
+    var pct  = parseInt(el.dataset.pct, 10) || 0;
+    var arc  = el.querySelector('.qd-domain__arc');
+    if (!arc) return;
+    setTimeout(function() {
+      arc.setAttribute('stroke-dasharray', pct + ' ' + (100 - pct));
+    }, delay + i * 80);
+  });
+
+  /* ── Filter tabs ── */
+  window.filterProcs = function(status) {
+    var list = document.getElementById('procedures-list');
+    if (!list) return;
+    list.querySelectorAll('a[data-status]').forEach(function(row) {
+      row.style.display = (status === 'all' || row.dataset.status === status) ? '' : 'none';
+    });
+    document.querySelectorAll('.qd-tab').forEach(function(btn) {
+      btn.classList.toggle('qd-tab--active', btn.id === 'tab-' + (status === 'all' ? 'all' : status === 'InProgress' ? 'in-progress' : status === 'NotStarted' ? 'not-started' : 'completed'));
+    });
+  };
 });
 </script>
 {% endblock %}
