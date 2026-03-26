@@ -28,12 +28,23 @@
     </div>
   </div>
 
+  {# ── Role context banner (executor/reviewer) ── #}
+  {% if is_reviewer and reviewer_domain and not is_admin %}
+  <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded-lg p-3 text-sm text-purple-700 dark:text-purple-300">
+    🟣 أنت مراجع — مسؤول عن مجال <strong>{{ reviewer_domain.name }}</strong>. الإحصائيات والمجالات أدناه تخص مجالك فقط.
+  </div>
+  {% elif not is_admin and not is_reviewer %}
+  <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
+    🔵 أنت منفذ — الإحصائيات أدناه تخص إجراءاتك المُسندة إليك فقط.
+  </div>
+  {% endif %}
+
   {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+  <div class="grid grid-cols-2 md:grid-cols-4 {% if is_admin %}lg:grid-cols-7{% else %}lg:grid-cols-5{% endif %} gap-4">
 
     <div class="kpi-card">
       <div class="kpi-value kpi-value--primary">{{ total }}</div>
-      <div class="kpi-label">إجمالي الإجراءات</div>
+      <div class="kpi-label">{% if is_admin %}إجمالي الإجراءات{% else %}إجراءاتي{% endif %}</div>
     </div>
 
     <div class="kpi-card">
@@ -65,6 +76,7 @@
       <div class="kpi-label">بانتظار المراجعة</div>
     </div>
 
+    {% if is_admin %}
     <div class="kpi-card kpi-card--red">
       <div class="kpi-value kpi-value--danger">{{ overdue_count }}</div>
       <div class="kpi-label">متأخر</div>
@@ -74,6 +86,7 @@
       <div class="kpi-value kpi-value--orange">{{ evidence_requested }}</div>
       <div class="kpi-label">طلبات الدليل</div>
     </div>
+    {% endif %}
 
   </div>
   {# ── Overall progress bar ── #}

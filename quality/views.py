@@ -247,19 +247,60 @@ def plan_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year", _DEFAULT_YEAR)
 
-    domains = OperationalDomain.objects.filter(school=school, academic_year=year).with_progress()
-    stats = QualityService.get_plan_stats(school, year)
-    review_committee = QualityCommitteeMember.objects.review_committee(school, year)
+    is_admin = request.user.is_admin()
+    is_reviewer = _is_review_member(request.user, school, year)
+    reviewer_domain = _get_reviewer_domain(request.user, school, year) if is_reviewer else None
 
-    base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
+    # ── المجالات — المنفذ/المراجع يرى مجالاته فقط ──
+    all_domains = OperationalDomain.objects.filter(school=school, academic_year=year).with_progress()
+    if is_admin:
+        domains = all_domains
+    elif is_reviewer and reviewer_domain:
+        # المراجع يرى مجاله + مجالات فيها إجراءاته
+        my_domain_ids = set()
+        my_domain_ids.add(reviewer_domain.pk)
+        my_domain_ids.update(
+            OperationalProcedure.objects.filter(
+                school=school, executor_user=request.user, academic_year=year,
+            ).values_list("indicator__target__domain_id", flat=True)
+        )
+        domains = all_domains.filter(pk__in=my_domain_ids)
+    else:
+        # المنفذ العادي — يرى فقط مجالات إجراءاته
+        my_domain_ids = set(
+            OperationalProcedure.objects.filter(
+                school=school, executor_user=request.user, academic_year=year,
+            ).values_list("indicator__target__domain_id", flat=True)
+        )
+        domains = all_domains.filter(pk__in=my_domain_ids) if my_domain_ids else all_domains.none()
+
+    # ── الإحصائيات — المدير يرى الكل، المنفذ يرى إجراءاته ──
+    if is_admin:
+        stats = QualityService.get_plan_stats(school, year)
+        base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
+    elif is_reviewer and reviewer_domain:
+        base_qs = OperationalProcedure.objects.filter(
+            school=school, academic_year=year,
+            indicator__target__domain=reviewer_domain,
+        )
+        stats = QualityService._calc_stats(base_qs)
+        stats["pending_review"] = stats.pop("pending")
+    else:
+        base_qs = OperationalProcedure.objects.filter(
+            school=school, academic_year=year, executor_user=request.user,
+        )
+        stats = QualityService._calc_stats(base_qs)
+        stats["pending_review"] = stats.pop("pending")
+
+    review_committee = QualityCommitteeMember.objects.review_committee(school, year)
     pending_review = base_qs.filter(status="Pending Review").count()
     overdue_count = base_qs.overdue().count()
     evidence_requested = base_qs.filter(evidence_request_status="requested").count()
-    unmapped_count = QualityService.get_unmapped_count(school, year)
+    unmapped_count = QualityService.get_unmapped_count(school, year) if is_admin else 0
 
     my_procedures = (
         []
-        if request.user.is_admin()
+        if is_admin
         else QualityService.get_my_procedures(request.user, school, year)
     )
     return render(
@@ -274,6 +315,9 @@ def plan_dashboard(request):
             "overdue_count": overdue_count,
             "evidence_requested": evidence_requested,
             "unmapped_count": unmapped_count,
+            "is_admin": is_admin,
+            "is_reviewer": is_reviewer,
+            "reviewer_domain": reviewer_domain,
             **stats,
         },
     )
@@ -678,7 +722,13 @@ def task_update_modal(request, proc_id):
         return HttpResponse("غير مسموح — فقط المنفذ المُعيَّن يمكنه التحديث", status=403)
 
     if request.method == "POST":
+        old_status = procedure.status
         _process_task_update(request, procedure)
+        AuditLog.log(
+            user=request.user, action="update", model_name="other",
+            object_id=procedure.pk, object_repr=f"TaskUpdate {procedure.number}",
+            request=request, changes={"old_status": old_status, "new_status": procedure.status},
+        )
         messages.success(request, "تم تحديث الإجراء بنجاح")
         return _safe_next_redirect(request, "execution_list")
 
@@ -763,7 +813,17 @@ def review_evaluate_modal(request, proc_id):
         return HttpResponse("غير مسموح — هذا الإجراء ليس في مجالك", status=403)
 
     if request.method == "POST":
+        old_status = procedure.status
         _process_review_evaluate(request, procedure)
+        AuditLog.log(
+            user=request.user, action="update", model_name="other",
+            object_id=procedure.pk, object_repr=f"ReviewEvaluate {procedure.number}",
+            request=request, changes={
+                "old_status": old_status, "new_status": procedure.status,
+                "quality_rating": procedure.quality_rating,
+                "evidence_request": procedure.evidence_request_status,
+            },
+        )
         messages.success(request, "تم حفظ تقييم المراجعة بنجاح")
         return _safe_next_redirect(request, "review_list")
 
