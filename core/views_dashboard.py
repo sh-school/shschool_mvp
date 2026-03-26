@@ -47,12 +47,12 @@ def dashboard(request):
         student_total = student_present + student_absent + student_late
         student_att_pct = round(student_present / student_total * 100) if student_total else 100
         # حصص اليوم
-        from core.models import Membership
-        membership = Membership.objects.filter(user=user, school=school, is_active=True).first()
+        from core.models import StudentEnrollment
+        enrollment = StudentEnrollment.objects.filter(student=user, is_active=True).select_related("class_group").first()
         student_sessions = []
-        if membership and membership.class_group:
+        if enrollment and enrollment.class_group:
             student_sessions = (
-                Session.objects.filter(school=school, class_group=membership.class_group, date=today)
+                Session.objects.filter(school=school, class_group=enrollment.class_group, date=today)
                 .select_related("subject", "teacher")
                 .order_by("start_time")
             )
@@ -63,7 +63,7 @@ def dashboard(request):
             "student_absent": student_absent,
             "student_late": student_late,
             "student_sessions": student_sessions,
-            "class_group": membership.class_group if membership else None,
+            "class_group": enrollment.class_group if enrollment else None,
         })
         return render(request, "dashboard/main.html", ctx)
 
