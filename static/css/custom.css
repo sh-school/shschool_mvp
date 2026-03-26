@@ -3603,10 +3603,12 @@ html.dark .text-green-700 { color: #86efac !important; }
 html.dark .text-green-800 { color: #86efac !important; }
 html.dark .bg-green-50   { background: #052e16 !important; }
 html.dark .bg-green-100  { background: #052e16 !important; }
+html.dark .bg-green-200  { background: #064e3b !important; }
 html.dark .bg-green-500  { background: #16a34a !important; }
 html.dark .bg-green-600  { background: #15803d !important; }
 html.dark .border-green-200 { border-color: #166534 !important; }
 html.dark .border-green-300 { border-color: #166534 !important; }
+html.dark .border-green-400 { border-color: #16a34a !important; }
 html.dark .border-green-500 { border-color: #16a34a !important; }
 html.dark .divide-green-200 > * + * { border-color: #166534 !important; }
 
@@ -3617,10 +3619,12 @@ html.dark .text-red-700 { color: #fca5a5 !important; }
 html.dark .text-red-800 { color: #f87171 !important; }
 html.dark .bg-red-50    { background: #1a0a0a !important; }
 html.dark .bg-red-100   { background: #1f0c0c !important; }
+html.dark .bg-red-200   { background: #450a0a !important; }
 html.dark .bg-red-500   { background: #dc2626 !important; }
 html.dark .bg-red-600   { background: #b91c1c !important; }
 html.dark .border-red-200 { border-color: #991b1b !important; }
 html.dark .border-red-300 { border-color: #991b1b !important; }
+html.dark .border-red-400 { border-color: #dc2626 !important; }
 html.dark .border-red-500 { border-color: #dc2626 !important; }
 
 /* ── 31c. Status Colors — Blue (info) ──────────────────────────── */
@@ -3664,14 +3668,22 @@ html.dark .text-yellow-600 { color: #fde047 !important; }
 html.dark .text-yellow-700 { color: #fde047 !important; }
 html.dark .bg-yellow-50   { background: #1c1805 !important; }
 html.dark .bg-yellow-100  { background: #1c1805 !important; }
+html.dark .bg-yellow-200  { background: #422006 !important; }
+html.dark .bg-yellow-500  { background: #ca8a04 !important; }
+html.dark .text-yellow-800 { color: #fde047 !important; }
 html.dark .border-yellow-200 { border-color: #854d0e !important; }
+html.dark .border-yellow-400 { border-color: #ca8a04 !important; }
 
 /* ── 31g. Status Colors — Purple/Indigo ────────────────────────── */
 html.dark .text-purple-600 { color: #c4b5fd !important; }
 html.dark .text-purple-700 { color: #c4b5fd !important; }
+html.dark .text-purple-800 { color: #c4b5fd !important; }
 html.dark .bg-purple-50   { background: #1a0c2e !important; }
 html.dark .bg-purple-100  { background: #1a0c2e !important; }
+html.dark .bg-purple-200  { background: #2e1065 !important; }
+html.dark .bg-purple-600  { background: #7c3aed !important; }
 html.dark .border-purple-200 { border-color: #581c87 !important; }
+html.dark .border-purple-400 { border-color: #7c3aed !important; }
 html.dark .text-indigo-600 { color: #a5b4fc !important; }
 html.dark .text-indigo-700 { color: #a5b4fc !important; }
 html.dark .bg-indigo-50   { background: #0c0c35 !important; }
