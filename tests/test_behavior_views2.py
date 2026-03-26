@@ -323,7 +323,7 @@ class TestStudentBehaviorProfileExtended:
         resp = client.get(f"/behavior/student/{uuid.uuid4()}/")
         assert resp.status_code == 404
 
-    def test_profile_by_level_counts(self, client_as, teacher_user, school, student_user):
+    def test_profile_by_level_counts(self, client_as, principal_user, school, student_user, teacher_user):
         BehaviorInfractionFactory(
             school=school,
             student=student_user,
@@ -338,14 +338,14 @@ class TestStudentBehaviorProfileExtended:
             level=2,
             points_deducted=15,
         )
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/student/{student_user.id}/")
         assert resp.status_code == 200
         by_level = resp.context["by_level"]
         assert by_level[1] == 1
         assert by_level[2] == 1
 
-    def test_profile_status_color_yellow(self, client_as, teacher_user, school, student_user):
+    def test_profile_status_color_yellow(self, client_as, principal_user, school, student_user, teacher_user):
         """score = 100 - 25 = 75 => yellow (60<=score<80)"""
         BehaviorInfractionFactory(
             school=school,
@@ -354,11 +354,11 @@ class TestStudentBehaviorProfileExtended:
             level=3,
             points_deducted=25,
         )
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/student/{student_user.id}/")
         assert resp.context["status_color"] == "yellow"
 
-    def test_profile_status_color_red(self, client_as, teacher_user, school, student_user):
+    def test_profile_status_color_red(self, client_as, principal_user, school, student_user, teacher_user):
         """score = 100 - 50 = 50 => red (<60)"""
         BehaviorInfractionFactory(
             school=school,
@@ -374,7 +374,7 @@ class TestStudentBehaviorProfileExtended:
             level=3,
             points_deducted=25,
         )
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/student/{student_user.id}/")
         assert resp.context["status_color"] == "red"
 
@@ -393,9 +393,10 @@ class TestStudentBehaviorProfileExtended:
 @pytest.mark.django_db
 class TestPointRecoveryExtended:
     def test_teacher_cannot_access_recovery(self, client_as, teacher_user, behavior_infraction):
+        """المعلم ليس من لجنة الضبط — يُمنع (v6 RBAC: 403)"""
         client = client_as(teacher_user)
         resp = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert resp.status_code == 302
+        assert resp.status_code == 403
 
     def test_recovery_already_exists(
         self, client_as, principal_user, school, student_user, teacher_user, behavior_infraction
@@ -545,9 +546,10 @@ class TestCommitteeDashboardExtended:
 @pytest.mark.django_db
 class TestCommitteeDecisionExtended:
     def test_teacher_cannot_make_decision(self, client_as, teacher_user, level3_infraction):
+        """المعلم ليس من لجنة الضبط — يُمنع (v6 RBAC: 403)"""
         client = client_as(teacher_user)
         resp = client.get(f"/behavior/committee/{level3_infraction.id}/decision/")
-        assert resp.status_code == 302
+        assert resp.status_code == 403
 
     def test_get_decision_form(self, client_as, principal_user, level3_infraction):
         client = client_as(principal_user)
@@ -685,28 +687,29 @@ class TestBehaviorReport:
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         assert resp.status_code == 403
 
-    def test_teacher_can_access_report(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_principal_can_access_report(self, client_as, principal_user, school, student_user):
+        """القيادة تصل لتقارير كل الطلاب"""
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         assert resp.status_code == 200
 
-    def test_report_default_period(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_default_period(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         assert resp.context["period"] == "full"
 
-    def test_report_s1_period(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_s1_period(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/?period=S1")
         assert resp.status_code == 200
 
-    def test_report_s2_period(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_s2_period(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/?period=S2")
         assert resp.status_code == 200
 
-    def test_report_context_keys(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_context_keys(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         for key in (
             "student",
@@ -724,15 +727,15 @@ class TestBehaviorReport:
         ):
             assert key in resp.context, f"Missing context key: {key}"
 
-    def test_report_net_score_no_infractions(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_net_score_no_infractions(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         assert resp.context["net_score"] == 100
 
-    def test_report_404_nonexistent_student(self, client_as, teacher_user, school):
+    def test_report_404_nonexistent_student(self, client_as, principal_user, school):
         import uuid
 
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{uuid.uuid4()}/")
         assert resp.status_code == 404
 
@@ -741,14 +744,14 @@ class TestBehaviorReport:
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
         assert resp.status_code == 200
 
-    def test_report_year_param(self, client_as, teacher_user, school, student_user):
-        client = client_as(teacher_user)
+    def test_report_year_param(self, client_as, principal_user, school, student_user):
+        client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/?year=2024-2025")
         assert resp.context["year"] == "2024-2025"
 
-    def test_report_post_send_no_parents(self, client_as, teacher_user, school, student_user):
+    def test_report_post_send_no_parents(self, client_as, principal_user, school, student_user):
         """POST send with no parent links => warning message."""
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.post(
             f"/behavior/report/student/{student_user.id}/",
             {
@@ -759,10 +762,10 @@ class TestBehaviorReport:
 
     @patch("notifications.services.NotificationService.send_email")
     def test_report_post_send_with_parent(
-        self, mock_send, client_as, teacher_user, school, student_user, parent_user
+        self, mock_send, client_as, principal_user, school, student_user, parent_user
     ):
         """POST send with parent email => sends email."""
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.post(
             f"/behavior/report/student/{student_user.id}/",
             {
@@ -775,10 +778,10 @@ class TestBehaviorReport:
         "notifications.services.NotificationService.send_email", side_effect=Exception("SMTP error")
     )
     def test_report_post_send_email_fails(
-        self, mock_send, client_as, teacher_user, school, student_user, parent_user
+        self, mock_send, client_as, principal_user, school, student_user, parent_user
     ):
         """Email failure should not crash — must redirect gracefully."""
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         resp = client.post(
             f"/behavior/report/student/{student_user.id}/",
             {

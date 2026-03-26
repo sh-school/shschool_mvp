@@ -248,10 +248,11 @@ class TestLibraryDashboard:
         assert resp.status_code == 200
 
     @pytest.mark.django_db
-    def test_student_forbidden(self, client_as, student_user):
+    def test_student_can_access(self, client_as, student_user):
+        """الطالب ضمن LIBRARY_VIEW — يمكنه تصفح المكتبة"""
         c = client_as(student_user)
         resp = c.get(reverse("library:dashboard"))
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     @pytest.mark.django_db
     def test_anonymous_redirected(self, client):
@@ -288,10 +289,11 @@ class TestBookList:
         assert resp.status_code == 200
 
     @pytest.mark.django_db
-    def test_student_forbidden(self, client_as, student_user):
+    def test_student_can_browse_books(self, client_as, student_user):
+        """الطالب ضمن LIBRARY_VIEW — يمكنه تصفح الكتب"""
         c = client_as(student_user)
         resp = c.get(reverse("library:book_list"))
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
 
 class TestBorrowBook:

@@ -86,8 +86,9 @@ class TestReportInfraction:
 
 @pytest.mark.django_db
 class TestStudentBehaviorProfile:
-    def test_profile_loads(self, client_as, teacher_user, student_user, behavior_infraction):
-        client = client_as(teacher_user)
+    def test_profile_loads(self, client_as, principal_user, student_user, behavior_infraction):
+        """القيادة تصل لملفات كل الطلاب"""
+        client = client_as(principal_user)
         response = client.get(f"/behavior/student/{student_user.id}/")
         assert response.status_code == 200
         assert "infractions" in response.context
@@ -107,12 +108,12 @@ class TestStudentBehaviorProfile:
         BehaviorPointRecovery.objects.create(
             infraction=inf, reason="سلوك إيجابي", points_restored=10, approved_by=principal_user
         )
-        client = client_as(teacher_user)
+        client = client_as(principal_user)
         response = client.get(f"/behavior/student/{student_user.id}/")
         assert response.context["net_score"] == 95
 
-    def test_status_green_for_high_score(self, client_as, teacher_user, student_user, school):
-        client = client_as(teacher_user)
+    def test_status_green_for_high_score(self, client_as, principal_user, student_user, school):
+        client = client_as(principal_user)
         response = client.get(f"/behavior/student/{student_user.id}/")
         # بدون مخالفات → net_score = 100 → green
         assert response.context["status_color"] == "green"

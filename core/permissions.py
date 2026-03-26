@@ -100,6 +100,7 @@ ASSESSMENT_VIEW_SELF = {"student"}
 # ── السلوك والانضباط ────────────────────────────────────────────
 BEHAVIOR_RECORD = {"teacher", "ese_teacher", "coordinator", "social_worker", "admin_supervisor"}
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
+BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
 BEHAVIOR_VIEW_ALL = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
 BEHAVIOR_VIEW_CHILD = {"parent"}
 BEHAVIOR_VIEW_SELF = {"student"}

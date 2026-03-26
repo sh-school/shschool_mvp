@@ -98,11 +98,11 @@ class TestExamDashboard:
         response = client.get("/exam-control/")
         assert response.status_code == 200
 
-    def test_teacher_can_view(self, client_as, school, teacher_user):
-        """جميع المستخدمين المسجّلين يمكنهم رؤية اللوحة"""
+    def test_teacher_cannot_view(self, client_as, school, teacher_user):
+        """المعلم العادي ليس من أدوار الكنترول — يُمنع (v6 RBAC)"""
         client = client_as(teacher_user)
         response = client.get("/exam-control/")
-        assert response.status_code == 200
+        assert response.status_code == 403
 
     def test_shows_sessions(self, client_as, school, principal_user):
         make_exam_session(school, principal_user)
@@ -212,11 +212,12 @@ class TestExamSupervisors:
         response = client.get(f"/exam-control/session/{session.pk}/supervisors/")
         assert response.status_code == 200
 
-    def test_teacher_can_view_supervisors(self, client_as, school, teacher_user, principal_user):
+    def test_teacher_cannot_view_supervisors(self, client_as, school, teacher_user, principal_user):
+        """المعلم العادي ليس من أدوار الكنترول — يُمنع (v6 RBAC)"""
         session = make_exam_session(school, principal_user)
         client = client_as(teacher_user)
         response = client.get(f"/exam-control/session/{session.pk}/supervisors/")
-        assert response.status_code == 200
+        assert response.status_code == 403
 
 
 # ══════════════════════════════════════════════════════════

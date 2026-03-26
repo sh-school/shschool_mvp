@@ -15,6 +15,7 @@ from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.permissions import (
+    BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
     BEHAVIOR_RECORD,
     BEHAVIOR_VIEW_ALL,
@@ -83,7 +84,7 @@ def behavior_dashboard(request):
 
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_RECORD)
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD)
 def report_infraction(request):
     """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر تلقائياً."""
     if not BehaviorPermissions.can_report(request.user):
@@ -293,7 +294,7 @@ def student_behavior_profile(request, student_id):
 
 # ── استعادة النقاط ────────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@role_required(BEHAVIOR_COMMITTEE)
 def point_recovery_request(request, infraction_id):
     """طلب استعادة نقاط مخصومة — للجنة الضبط السلوكي فقط."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -332,7 +333,7 @@ def point_recovery_request(request, infraction_id):
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@role_required(BEHAVIOR_COMMITTEE)
 def committee_dashboard(request):
     """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -343,7 +344,7 @@ def committee_dashboard(request):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@role_required(BEHAVIOR_COMMITTEE)
 def committee_decision(request, infraction_id):
     """تسجيل قرار لجنة الضبط السلوكي في مخالفة جسيمة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -437,7 +438,7 @@ def behavior_report(request, student_id):
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL)
+@role_required(BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL)
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي للمدرسة — للمدير ولجنة الضبط فقط."""
     if not BehaviorPermissions.is_committee(request.user):

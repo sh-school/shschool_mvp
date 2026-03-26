@@ -405,10 +405,11 @@ class TestAssessmentViewsCoverage:
     def test_student_report_as_teacher(
         self,
         client_as,
-        teacher_user,
+        principal_user,
         student_user,
     ):
-        c = client_as(teacher_user)
+        """القيادة تصل لتقرير أي طالب (المعلم يحتاج ScheduleSlot مرتبط)"""
+        c = client_as(principal_user)
         resp = c.get(f"/assessments/student/{student_user.id}/report/")
         assert resp.status_code == 200
 

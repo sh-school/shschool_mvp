@@ -210,14 +210,15 @@ class TestMarkNotificationReadHtmx:
 @pytest.mark.django_db
 class TestBehaviorQuickLog:
     @pytest.fixture
-    def specialist(self, db, school):
-        role = RoleFactory(school=school, name="specialist")
-        user = UserFactory(full_name="أخصائي")
+    def behavior_recorder(self, db, school):
+        """مستخدم بدور social_worker — ضمن BEHAVIOR_RECORD"""
+        role = RoleFactory(school=school, name="social_worker")
+        user = UserFactory(full_name="أخصائي اجتماعي")
         MembershipFactory(user=user, school=school, role=role)
         return user
 
-    def test_get_returns_partial_form(self, client_as, specialist):
-        client = client_as(specialist)
+    def test_get_returns_partial_form(self, client_as, behavior_recorder):
+        client = client_as(behavior_recorder)
         response = client.get("/behavior/quick-log/", **HTMX_HEADERS)
         assert response.status_code in (200, 302)
         if response.status_code == 200:
@@ -225,9 +226,9 @@ class TestBehaviorQuickLog:
             # يُعيد partial — لا full page
             assert "<html" not in content
 
-    def test_post_invalid_returns_form(self, client_as, specialist):
+    def test_post_invalid_returns_form(self, client_as, behavior_recorder):
         """POST بدون بيانات → يعيد النموذج مع خطأ."""
-        client = client_as(specialist)
+        client = client_as(behavior_recorder)
         response = client.post(
             "/behavior/quick-log/",
             data={},
@@ -235,6 +236,15 @@ class TestBehaviorQuickLog:
         )
         # إما 200 (عرض النموذج مرة أخرى) أو 422
         assert response.status_code in (200, 422, 400)
+
+    def test_specialist_cannot_quick_log(self, client_as, db, school):
+        """الأخصائي ليس ضمن BEHAVIOR_RECORD — لا يسجل مخالفات مباشرة"""
+        role = RoleFactory(school=school, name="specialist")
+        user = UserFactory(full_name="أخصائي")
+        MembershipFactory(user=user, school=school, role=role)
+        client = client_as(user)
+        response = client.get("/behavior/quick-log/", **HTMX_HEADERS)
+        assert response.status_code == 403
 
     def test_unauthenticated_redirected(self, client):
         response = client.get("/behavior/quick-log/")
