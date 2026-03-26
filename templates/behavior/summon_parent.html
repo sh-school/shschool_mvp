@@ -43,12 +43,14 @@
 
   {# ── بطاقة أولياء الأمور ── #}
   {% if parents_info %}
-  <div class="card">
-    <div class="card-header">
-      <span>👨‍👩‍👧 أولياء الأمور — سيستلمون الإشعار</span>
+  <div class="table-wrap">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface-alt);">
+      <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">👨‍👩‍👧</div>
+      <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">أولياء الأمور — سيستلمون الإشعار</h3>
+      <span class="status-badge status-maroon" style="margin-inline-start:auto;">{{ parents_info|length }}</span>
     </div>
     <div style="overflow-x:auto;">
-      <table class="data-table" style="width:100%;">
+      <table style="width:100%;">
         <thead>
           <tr>
             <th>الاسم</th>
@@ -64,7 +66,7 @@
             <td>{{ p.relationship }}</td>
             <td>
               {% if p.phone %}
-              <a href="tel:{{ p.phone }}" style="color:var(--maroon);font-family:monospace;text-decoration:none;" dir="ltr">{{ p.phone }}</a>
+              <a href="tel:{{ p.phone }}" class="link-maroon" style="font-family:monospace;text-decoration:none;" dir="ltr">{{ p.phone }}</a>
               {% else %}
               <span style="color:var(--text-muted);">—</span>
               {% endif %}
@@ -73,7 +75,7 @@
               {% if p.is_primary %}
               <span class="status-badge status-success">أساسي</span>
               {% else %}
-              <span class="status-badge status-muted">ثانوي</span>
+              <span class="status-badge status-gray">ثانوي</span>
               {% endif %}
             </td>
           </tr>
@@ -83,8 +85,8 @@
     </div>
   </div>
   {% else %}
-  <div style="background:var(--bg-danger-subtle,#fef2f2);border:1px solid var(--border-danger,#fecaca);border-radius:var(--radius);padding:12px 16px;">
-    <p style="color:var(--text-danger,#dc2626);font-size:13px;">⚠️ لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
+  <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:var(--radius);padding:12px 16px;">
+    <p style="color:#dc2626;font-size:13px;">⚠️ لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
   </div>
   {% endif %}
   {% endif %}
@@ -95,11 +97,15 @@
     {# العمود الرئيسي — الفورم #}
     <div class="lg:col-span-2">
       <div class="form-card">
+        <div class="card-header">
+          <div class="card-header-icon">📩</div>
+          <h3 class="card-header-title">بيانات الاستدعاء</h3>
+        </div>
         <form method="post">
           {% csrf_token %}
 
           {# الطالب #}
-          <div style="margin-bottom:16px;">
+          <div class="form-group">
             <label class="form-label">الطالب <span class="required">*</span></label>
             <select name="student_id" required class="form-control">
               <option value="">— اختر الطالب —</option>
@@ -110,18 +116,18 @@
               {% endfor %}
             </select>
             {% if not selected_student %}
-            <p style="font-size:12px;color:var(--text-muted);margin-top:4px;">اختر الطالب ثم اضغط "تحميل البيانات" لعرض بيانات أولياء الأمور</p>
+            <p class="form-hint">اختر الطالب ثم اضغط "تحميل البيانات" لعرض بيانات أولياء الأمور</p>
             {% endif %}
           </div>
 
           {% if not selected_student %}
-          <div style="margin-bottom:16px;">
+          <div class="form-group">
             <button type="button" id="loadStudentBtn" class="btn-secondary" style="font-size:12.5px;">تحميل بيانات الطالب</button>
           </div>
           {% endif %}
 
           {# التصنيف + الاستعجال #}
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" style="margin-bottom:16px;">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 form-group">
             <div>
               <label class="form-label">تصنيف الاستدعاء <span class="required">*</span></label>
               <select name="category" required class="form-control">
@@ -134,8 +140,9 @@
               <label class="form-label">درجة الاستعجال</label>
               <div style="display:flex;gap:8px;margin-top:4px;">
                 {% for val, label in urgency_levels %}
-                <label style="display:flex;align-items:center;gap:4px;border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;cursor:pointer;font-size:13px;">
-                  <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}>
+                <label style="display:flex;align-items:center;gap:5px;border:1.5px solid var(--border-strong);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;background:var(--surface-alt);transition:border-color .12s,background .12s;">
+                  <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}
+                         style="accent-color:var(--maroon);">
                   {{ label }}
                 </label>
                 {% endfor %}
@@ -144,7 +151,7 @@
           </div>
 
           {# سبب الاستدعاء #}
-          <div style="margin-bottom:16px;">
+          <div class="form-group">
             <label class="form-label">سبب الاستدعاء <span class="required">*</span></label>
             <textarea name="reason" required rows="4" maxlength="1000"
                       placeholder="اكتب سبب استدعاء ولي الأمر بالتفصيل..."
@@ -152,7 +159,7 @@
           </div>
 
           {# الموعد + الوقت + المكان #}
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom:16px;">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 form-group">
             <div>
               <label class="form-label">تاريخ الحضور</label>
               <input type="date" name="summon_date" class="form-control">
@@ -176,7 +183,7 @@
                  class="form-control">
 
           {# تنبيه #}
-          <div style="background:var(--maroon-bg);border:1px solid var(--maroon-border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--text-primary);">
+          <div class="status-badge status-maroon" style="display:flex;align-items:flex-start;gap:8px;padding:12px 16px;border-radius:var(--radius);font-size:13px;white-space:normal;margin-bottom:20px;">
             ⚠️ سيتم إرسال إشعار فوري لولي الأمر عبر: <strong>المنصة</strong>، <strong>الرسائل النصية</strong>، <strong>البريد الإلكتروني</strong>.
           </div>
 
@@ -194,20 +201,28 @@
     {# العمود الجانبي — معلومات سريعة #}
     <div>
       {# مرسل الاستدعاء #}
-      <div class="form-card" style="margin-bottom:16px;">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">مرسل الاستدعاء</div>
+      <div class="card-qatar" style="margin-bottom:16px;">
+        <div class="card-header">
+          <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">👤</div>
+          <h3 class="card-header-title" style="font-size:13px;">مرسل الاستدعاء</h3>
+        </div>
         <div style="font-size:14px;font-weight:600;color:var(--text-primary);">{{ sender.full_name }}</div>
         {% if sender.get_role_display %}
-        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">{{ sender.get_role_display }}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+          <span class="status-badge status-maroon">{{ sender.get_role_display }}</span>
+        </div>
         {% endif %}
         {% if sender.phone %}
-        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;font-family:monospace;" dir="ltr">{{ sender.phone }}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:6px;font-family:monospace;" dir="ltr">{{ sender.phone }}</div>
         {% endif %}
       </div>
 
       {# ملاحظات #}
-      <div class="form-card">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">ملاحظات</div>
+      <div class="card-qatar">
+        <div class="card-header">
+          <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">💡</div>
+          <h3 class="card-header-title" style="font-size:13px;">ملاحظات</h3>
+        </div>
         <ul style="font-size:12px;color:var(--text-secondary);padding-right:16px;margin:0;line-height:1.8;">
           <li>الاستدعاء يُرسل لجميع أولياء الأمور المربوطين</li>
           <li>الحالات الطارئة تُعطى أولوية عالية</li>
