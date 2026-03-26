@@ -8,6 +8,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # ── السنة الدراسية الحالية — غيّرها هنا فقط ──────────────────
 CURRENT_ACADEMIC_YEAR: str = "2025-2026"
 
+# ── إصدار المنصة — يظهر في الفوتر ─────────────────────────────
+PLATFORM_VERSION: str = "5.1"
+
 INSTALLED_APPS = [
     # ✅ v5.1: daphne يجب أن يكون أول app لتفعيل ASGI بشكل صحيح
     "daphne",

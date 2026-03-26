@@ -21,7 +21,7 @@
 
   {# ── CSS ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=106">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=114">
 
   {# Login styles — defined in custom.css section 15 #}
 </head>
@@ -103,8 +103,12 @@
 
     {# ── Footer note ── #}
     <div class="login-footer">
+      <p class="login-help-title">نسيت كلمة المرور؟</p>
       <p class="login-help-text">
-        للمساعدة تواصل مع مدير النظام
+        تواصل مع مسؤول النظام في المدرسة لإعادة تعيينها
+        {% if current_school.phone %}
+        <br><span class="login-help-phone" dir="ltr">📞 {{ current_school.phone }}</span>
+        {% endif %}
       </p>
     </div>
 

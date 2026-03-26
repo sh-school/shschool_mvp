@@ -100,6 +100,16 @@ class SchoolPermissionMiddleware:
                 )
             return redirect(reverse("login"))
 
+        # ── حساب معطّل — تسجيل خروج فوري ──
+        if not request.user.is_active:
+            from django.contrib.auth import logout
+            logout(request)
+            if path.startswith("/api/"):
+                return JsonResponse(
+                    {"error": "الحساب معطّل", "code": "account_disabled"}, status=403
+                )
+            return redirect(reverse("login"))
+
         if request.user.is_superuser:
             return self.get_response(request)
 

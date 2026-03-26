@@ -480,6 +480,14 @@ div#header h1 a {
   line-height: 1.7;
   margin: 0;
 }
+.site-footer-version {
+  text-align: center;
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin: 4px 0 0;
+  font-family: 'IBM Plex Mono', 'Tajawal', monospace;
+  letter-spacing: 0.03em;
+}
 
 /* ── PWA Install Banner ──────────────────────────────────── */
 .pwa-banner {
@@ -2886,7 +2894,15 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 .login-submit-wrap { padding-top: 4px; }
 .login-footer { margin-top: 24px; text-align: center; }
-.login-help-text { font-size: 11px; color: #9ca3af; margin: 0; }
+.login-help-title {
+  font-size: 12px; font-weight: 700; color: var(--text-secondary, #4b5563);
+  margin: 0 0 4px;
+}
+.login-help-text { font-size: 11px; color: #9ca3af; margin: 0; line-height: 1.7; }
+.login-help-phone {
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  color: var(--maroon, #8A1538); font-weight: 600;
+}
 .login-input {
   width: 100%; padding: 13px 16px;
   border: 1.5px solid #d1d5db;
@@ -3298,7 +3314,9 @@ html.dark .login-input:focus {
   background: #1e293b;
 }
 html.dark .login-input::placeholder { color: #64748b; }
+html.dark .login-help-title { color: #94a3b8; }
 html.dark .login-help-text { color: #64748b; }
+html.dark .login-help-phone { color: #f9a8c9; }
 
 /* ── 11. Modals ─────────────────────────────────────────────────── */
 html.dark .modal-overlay { background: rgba(0,0,0,.65); }
@@ -3409,6 +3427,7 @@ html.dark .site-footer {
   border-top-color: #334155;
   color: var(--text-muted);
 }
+html.dark .site-footer-version { color: #475569; }
 
 /* ── 18. Pagination ─────────────────────────────────────────────── */
 html.dark .pagination a,

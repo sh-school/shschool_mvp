@@ -1,4 +1,6 @@
 def school_context(request):
+    from django.conf import settings
+
     from core.models import School
 
     if request.user.is_authenticated:
@@ -13,6 +15,7 @@ def school_context(request):
         "current_school": school,
         "current_role": role,
         "current_department": department,
+        "platform_version": getattr(settings, "PLATFORM_VERSION", "5.1"),
     }
 
 
@@ -26,6 +29,7 @@ def permissions_context(request):
     return {
         "accessible_modules": get_accessible_modules(request.user),
         "is_leadership": request.user.is_leadership(),
+        "is_admin_role": request.user.is_admin_or_principal(),
         "is_staff_member": request.user.is_staff_member(),
     }
 

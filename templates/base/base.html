@@ -29,7 +29,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=7">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=113">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=114">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -67,7 +67,7 @@
 
     {# ── Role-based nav ── #}
     <div class="nb-bar">
-    {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
+    {% if is_admin_role %}
       <a href="/dashboard/" class="nb">🏠 الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic">📚 الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality">📋 الجودة <span class="chv">▼</span></button>
@@ -188,7 +188,7 @@
 </nav>
 
 {# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
-{% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "admin" %}
+{% if is_admin_role %}
 
 <div class="sd-menu" id="m-academic">
   <div class="sd-label">الدراسة والتقييم</div>
@@ -215,7 +215,7 @@
   <div class="sd-label">اللجان</div>
   <a href="/quality/executor-committee/">⚙️ لجنة منفذي الخطة</a>
   <a href="/quality/committee/">🔍 لجنة المراجعة الذاتية</a>
-  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "vice_academic" %}
+  {% if is_leadership %}
   <hr>
   <div class="sd-label">تقييم الأداء</div>
   <a href="/quality/evaluations/">📋 تقييم الموظفين</a>
@@ -281,10 +281,10 @@
   <a href="#" id="theme-toggle-menu" onclick="document.getElementById('theme-toggle').click();return false;">
     <span id="theme-menu-icon">🌙</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
-  {% if request.user.is_superuser or role == "principal" or role == "vice_admin" or role == "admin" %}
+  {% if is_admin_role %}
   <a href="/admin/">⚙️ لوحة الإدارة</a>
   {% endif %}
-  {% if role in "principal,vice_admin,vice_academic,admin" or request.user.is_superuser %}
+  {% if is_admin_role %}
   <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
     🔐 المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
   </a>
@@ -351,10 +351,14 @@
 
 
 {# ════════════════ FOOTER ════════════════════════════════════════════════ #}
+{% load tz %}
 <footer class="site-footer">
   <p class="site-footer-text">
     {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
     &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
+  </p>
+  <p class="site-footer-version">
+    SchoolOS v{{ platform_version }} &ensp;·&ensp; &copy; {% now "Y" %}
   </p>
 </footer>
 
@@ -410,7 +414,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">🔔</span><span>الإشعارات</span>
     </a>
-    {% if role == 'principal' or role == 'vice_academic' or role == 'vice_admin' or role == 'admin' or request.user.is_superuser %}
+    {% if is_admin_role %}
     <a href="/analytics/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">📊</span><span>التحليلات</span>
     </a>
