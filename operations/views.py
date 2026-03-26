@@ -178,7 +178,35 @@ def mark_all_present(request, session_id):
         return HttpResponse("غير مسموح", status=403)
 
     count = AttendanceService.bulk_mark_all_present(session, marked_by=request.user)
-    return redirect("attendance", session_id=session_id)
+
+    # HTMX expects partial HTML — re-render all student rows
+    students_data = []
+    enrollments = StudentEnrollment.objects.filter(
+        class_group=session.class_group, is_active=True
+    ).select_related("student").order_by("student__full_name")
+
+    existing = {
+        a.student_id: a
+        for a in StudentAttendance.objects.filter(session=session).select_related("student")
+    }
+
+    for enrollment in enrollments:
+        att = existing.get(enrollment.student_id)
+        students_data.append(
+            {
+                "student": enrollment.student,
+                "attendance": att,
+                "status": att.status if att else "unmarked",
+            }
+        )
+
+    summary = AttendanceService.get_session_summary(session)
+
+    return render(
+        request,
+        "teacher/partials/students_list.html",
+        {"students_data": students_data, "session": session, "summary": summary},
+    )
 
 
 @login_required
