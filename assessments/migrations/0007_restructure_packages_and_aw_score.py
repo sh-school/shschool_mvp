@@ -20,36 +20,41 @@ from django.db import migrations, models
 
 
 def migrate_package_types_forward(apps, schema_editor):
-    """إعادة تسمية package_type لتطابق الهيكل الجديد."""
+    """إعادة تسمية package_type لتطابق الهيكل الجديد.
+
+    الترتيب مهم — يجب تحويل P1/P2 القديمة إلى AW أولاً
+    قبل استخدام P1/P2 كأسماء جديدة للباقات.
+    """
     AssessmentPackage = apps.get_model("assessments", "AssessmentPackage")
 
-    # P3 + S1 → P1  (midterm S1)
+    # الخطوة 1: P1 القديمة (أعمال مستمرة) → AW  أولاً لتحرير الاسم P1
+    AssessmentPackage.objects.filter(package_type="P1").update(package_type="AW")
+
+    # الخطوة 2: P2 القديمة (اختبارات قصيرة) → AW  (دمج)
+    AssessmentPackage.objects.filter(package_type="P2").update(package_type="AW")
+
+    # الخطوة 3: الآن P1 و P2 متحررتان — نُعيد تسمية الباقات الدراسية
+    # P3 + S1 → P1  (منتصف الفصل الأول)
     AssessmentPackage.objects.filter(package_type="P3", semester="S1").update(
         package_type="P1", weight=Decimal("37.50")
     )
 
-    # P4 + S1 → P2  (final S1)
+    # P4 + S1 → P2  (نهاية الفصل الأول)
     AssessmentPackage.objects.filter(package_type="P4", semester="S1").update(
         package_type="P2", weight=Decimal("50.00")
     )
 
-    # P3 + S2 stays P3, fix weight
+    # P3 + S2 تبقى P3، نصحح الوزن
     AssessmentPackage.objects.filter(package_type="P3", semester="S2").update(
         weight=Decimal("25.00")
     )
 
-    # P4 + S2 stays P4, fix weight
+    # P4 + S2 تبقى P4، نصحح الوزن
     AssessmentPackage.objects.filter(package_type="P4", semester="S2").update(
         weight=Decimal("66.67")
     )
 
-    # P1 (old ongoing) → AW
-    AssessmentPackage.objects.filter(package_type="P1").update(package_type="AW")
-
-    # P2 (old short tests) → AW  (merge)
-    AssessmentPackage.objects.filter(package_type="P2").update(package_type="AW")
-
-    # Fix AW weights per semester
+    # الخطوة 4: تصحيح أوزان AW لكل فصل
     AssessmentPackage.objects.filter(package_type="AW", semester="S1").update(
         weight=Decimal("12.50")
     )
