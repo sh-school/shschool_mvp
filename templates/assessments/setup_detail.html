@@ -32,7 +32,7 @@
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}"
          class="px-4 py-1.5 rounded-full text-sm font-medium transition
-           {% if semester == val %}bg-[#1A4F8A] text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+           {% if semester == val %}bg-skyline text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
         {{ label }}
       </a>
       {% endfor %}
@@ -40,7 +40,7 @@
     <!-- ملخص الفصل -->
     <div class="px-6 py-4 grid grid-cols-4 gap-4 text-center text-sm">
       <div>
-        <p class="text-2xl font-bold text-[#1A4F8A]">{{ student_count }}</p>
+        <p class="text-2xl font-bold text-skyline">{{ student_count }}</p>
         <p class="text-xs text-gray-500">طالب</p>
       </div>
       <div>
@@ -99,7 +99,7 @@
               {{ assessment.get_status_display }}
             </span>
             <a href="{% url 'grade_entry' assessment.id %}"
-               class="text-xs px-2 py-1 bg-[#1A4F8A] text-white rounded hover:bg-maroon">
+               class="text-xs px-2 py-1 bg-skyline text-white rounded hover:bg-maroon">
               إدخال الدرجات
             </a>
           </div>
@@ -133,7 +133,7 @@
                    placeholder="الدرجة القصوى" class="w-24 border rounded px-2 py-1.5 text-sm">
           </div>
           <div class="flex gap-2">
-            <button type="submit" class="px-4 py-1.5 bg-[#1A4F8A] text-white rounded text-sm hover:bg-maroon">حفظ</button>
+            <button type="submit" class="px-4 py-1.5 bg-skyline text-white rounded text-sm hover:bg-maroon">حفظ</button>
             <button type="button" onclick="document.getElementById('form-{{ pkg.id }}').classList.add('hidden')"
                     class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm">إلغاء</button>
           </div>

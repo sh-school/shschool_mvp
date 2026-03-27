@@ -193,6 +193,12 @@ html[lang="ar"] {
 .focus\:ring-maroon:focus { --tw-ring-color: var(--maroon); }
 .focus\:border-maroon:focus { border-color: var(--maroon); }
 
+/* ── Skyline (أزرق داكن) utility classes ──────────────────── */
+.bg-skyline { background-color: var(--skyline); }
+.text-skyline { color: var(--skyline); }
+.border-skyline { border-color: var(--skyline); }
+.hover\:bg-skyline:hover { background-color: var(--skyline); }
+
 /* ── WCAG AA Contrast Fixes ────────────────────────────────── */
 /* green-600 (#16A34A) = 3.30:1 on white — FAILS WCAG AA
    green-700 (#15803D) = 4.58:1 on white — PASSES WCAG AA   */

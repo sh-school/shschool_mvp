@@ -20,7 +20,7 @@
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}"
          class="px-3 py-1.5 rounded-full text-sm font-medium transition
-           {% if semester == val %}bg-[#1A4F8A] text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+           {% if semester == val %}bg-skyline text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
         {{ label }}
       </a>
       {% endfor %}
@@ -60,7 +60,7 @@
   <!-- ملخص -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
     <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
-      <p class="text-2xl font-bold text-[#1A4F8A]">{{ summary.total }}</p>
+      <p class="text-2xl font-bold text-skyline">{{ summary.total }}</p>
       <p class="text-xs text-gray-500">إجمالي</p>
     </div>
     <div class="bg-white rounded-xl border p-4 text-center shadow-sm">

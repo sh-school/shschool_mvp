@@ -32,7 +32,7 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       {% for name, count in summary %}
       <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
-        <p class="text-2xl font-bold text-[#1A4F8A]">{{ count }}</p>
+        <p class="text-2xl font-bold text-skyline">{{ count }}</p>
         <p class="text-xs text-gray-600 mt-1">{{ name }}</p>
       </div>
       {% endfor %}
@@ -63,7 +63,7 @@
           <td class="px-4 py-3 text-gray-600">{{ a.slot.subject|default:"—" }}</td>
           <td class="px-4 py-3 text-gray-600">{{ a.slot.class_group }}</td>
           <td class="px-4 py-3 text-center">{{ a.slot.period_number }}</td>
-          <td class="px-4 py-3 font-semibold text-[#1A4F8A]">{{ a.substitute.full_name }}</td>
+          <td class="px-4 py-3 font-semibold text-skyline">{{ a.substitute.full_name }}</td>
           <td class="px-4 py-3">
             <span class="px-2 py-0.5 rounded-full text-xs
               {% if a.status == 'confirmed' %}bg-green-100 text-green-700
