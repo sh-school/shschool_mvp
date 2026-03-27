@@ -20,19 +20,19 @@
 .swap-side-info { font-size: .78rem; color: #6b7280; line-height: 1.6; }
 .swap-side-info strong { color: #374151; }
 .swap-arrow-col { font-size: 1.6rem; color: var(--maroon, #8A1538); font-weight: 900; }
-.swap-reason { background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 8px; padding: 10px 14px; font-size: .8rem; color: #92400E; margin-bottom: 16px; }
+.swap-reason { background: var(--status-warning-bg, #FEF3C7); border: 1px solid var(--status-warning-border, #F59E0B); border-radius: 8px; padding: 10px 14px; font-size: .8rem; color: var(--status-warning-dark, #92400E); margin-bottom: 16px; }
 .swap-reason strong { display: block; margin-bottom: 2px; }
 .respond-actions { display: flex; gap: 10px; margin-top: 20px; }
 .respond-actions form { flex: 1; }
 .btn-respond { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .2s; }
 .btn-respond:hover { opacity: .85; }
-.btn-accept { background: #059669; color: #fff; }
-.btn-decline { background: #DC2626; color: #fff; }
+.btn-accept { background: var(--status-success, #059669); color: #fff; }
+.btn-decline { background: var(--status-danger, #DC2626); color: #fff; }
 .reject-reason { margin-top: 12px; }
-.reject-reason textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: .8rem; font-family: inherit; resize: vertical; min-height: 60px; }
-.reject-reason label { font-size: .78rem; font-weight: 600; color: #374151; display: block; margin-bottom: 4px; }
-.back-link { display: inline-block; margin-bottom: 12px; font-size: .8rem; color: #6b7280; text-decoration: none; }
-.back-link:hover { color: #1f2937; }
+.reject-reason textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border-strong, #d1d5db); border-radius: 8px; font-size: .8rem; font-family: inherit; resize: vertical; min-height: 60px; }
+.reject-reason label { font-size: .78rem; font-weight: 600; color: var(--text-primary, #374151); display: block; margin-bottom: 4px; }
+.back-link { display: inline-block; margin-bottom: 12px; font-size: .8rem; color: var(--text-muted, #6b7280); text-decoration: none; }
+.back-link:hover { color: var(--text-primary, #1f2937); }
 </style>
 {% endblock %}
 

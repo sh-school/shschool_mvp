@@ -45,11 +45,19 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class UserBriefSerializer(serializers.ModelSerializer):
-    """تمثيل مختصر للمستخدم — للقوائم والروابط"""
+    """تمثيل مختصر للمستخدم — للقوائم والروابط (للمعلم/المدير)"""
 
     class Meta:
         model = CustomUser
         fields = ["id", "full_name", "national_id", "email", "phone"]
+
+
+class UserSafeSerializer(serializers.ModelSerializer):
+    """تمثيل آمن بدون national_id — لبوابة ولي الأمر"""
+
+    class Meta:
+        model = CustomUser
+        fields = ["id", "full_name"]
 
 
 class MeSerializer(serializers.ModelSerializer):

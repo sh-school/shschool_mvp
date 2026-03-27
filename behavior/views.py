@@ -31,6 +31,7 @@ _VALID_LEVELS = {1, 2, 3, 4}
 _MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
 
+from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
 from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
 
@@ -104,86 +105,72 @@ def report_infraction(request):
     }
 
     if request.method == "POST":
-        student_id = request.POST.get("student_id", "").strip()
-        violation_cat_id = request.POST.get("violation_category", "").strip()
-        description = request.POST.get("description", "").strip()
-        action = request.POST.get("action_taken", "").strip()
-
-        try:
-            level = int(request.POST.get("level", 1))
-            points = int(request.POST.get("points_deducted", 0))
-        except (ValueError, TypeError):
-            messages.error(request, "قيم غير صحيحة — يرجى مراجعة الحقول.")
-            level, points = 1, 0
-
-        # ── Validation ──────────────────────────────────────────
-        errors = []
-        if not student_id:
-            errors.append("يرجى اختيار الطالب.")
-        if not description:
-            errors.append("يرجى كتابة وصف المخالفة.")
-        elif len(description) > _MAX_DESC_LEN:
-            errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
-        if level not in _VALID_LEVELS:
-            errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")
-        if not (0 <= points <= _MAX_POINTS):
-            errors.append(f"نقاط الخصم يجب أن تكون بين 0 و {_MAX_POINTS}.")
-
-        # جلب فئة المخالفة إن وُجدت
-        violation_cat = None
-        if violation_cat_id:
-            try:
-                violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
-                level = violation_cat.degree
-                if not points:
-                    points = violation_cat.points
-            except ViolationCategory.DoesNotExist:
-                errors.append("فئة المخالفة غير موجودة.")
-
-        if errors:
-            for err in errors:
-                messages.error(request, err)
+        form = InfractionForm(request.POST)
+        if not form.is_valid():
+            for field, errs in form.errors.items():
+                for err in errs:
+                    messages.error(request, err)
         else:
-            student = get_object_or_404(CustomUser, id=student_id)
+            student_id = form.cleaned_data["student_id"]
+            violation_cat_id = form.cleaned_data.get("violation_category")
+            description = form.cleaned_data["description"]
+            action = form.cleaned_data["action_taken"]
+            level = form.cleaned_data["level"]
+            points = form.cleaned_data["points_deducted"]
 
-            # حساب خطوة التصعيد المقترحة
-            escalation_step = BehaviorService.suggest_escalation_step(
-                student, school, level, violation_cat,
-            )
+            # جلب فئة المخالفة إن وُجدت
+            violation_cat = None
+            if violation_cat_id:
+                try:
+                    violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
+                    level = violation_cat.degree
+                    if not points:
+                        points = violation_cat.points
+                except ViolationCategory.DoesNotExist:
+                    messages.error(request, "فئة المخالفة غير موجودة.")
+                    violation_cat = "INVALID"
 
-            with transaction.atomic():
-                infraction = BehaviorInfraction.objects.create(
-                    school=school,
-                    student=student,
-                    reported_by=request.user,
-                    violation_category=violation_cat,
-                    level=level,
-                    escalation_step=escalation_step,
-                    description=description,
-                    action_taken=action,
-                    points_deducted=points,
+            if violation_cat != "INVALID":
+                student = get_object_or_404(CustomUser, id=student_id)
+
+                # حساب خطوة التصعيد المقترحة
+                escalation_step = BehaviorService.suggest_escalation_step(
+                    student, school, level, violation_cat,
                 )
-            messages.success(
-                request, f"✅ تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
-            )
-            # إشعار غير متزامن عبر Celery
-            try:
-                from notifications.tasks import notify_behavior_task
 
-                notify_behavior_task.delay(
-                    infraction_id=str(infraction.id),
-                    reporter_id=str(request.user.id),
+                with transaction.atomic():
+                    infraction = BehaviorInfraction.objects.create(
+                        school=school,
+                        student=student,
+                        reported_by=request.user,
+                        violation_category=violation_cat,
+                        level=level,
+                        escalation_step=escalation_step,
+                        description=description,
+                        action_taken=action,
+                        points_deducted=points,
+                    )
+                messages.success(
+                    request, f"تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
                 )
-            except (ImportError, OSError, RuntimeError) as e:
-                logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
-                BehaviorService.notify_parents(infraction, school, request.user)
+                # إشعار غير متزامن عبر Celery
+                try:
+                    from notifications.tasks import notify_behavior_task
 
-            if level >= 3:
-                messages.warning(
-                    request, f"⚠️ تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
-                )
-                return redirect("behavior:committee")
-            return redirect("behavior:student_profile", student_id=student.id)
+                    notify_behavior_task.delay(
+                        infraction_id=str(infraction.id),
+                        reporter_id=str(request.user.id),
+                    )
+                except (ImportError, OSError, RuntimeError) as e:
+                    logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
+                    BehaviorService.notify_parents(infraction, school, request.user)
+
+                if level >= 3:
+                    messages.warning(
+                        request, f"تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
+                    )
+                    return redirect("behavior:committee")
+                return redirect("behavior:student_profile", student_id=student.id)
 
     students = _get_scoped_students(request.user, school)
     return render(

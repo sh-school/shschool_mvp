@@ -77,6 +77,7 @@ from .serializers import (
     StudentGradeSummarySerializer,
     UserBriefSerializer,
     UserNotificationPreferenceSerializer,
+    UserSafeSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -667,7 +668,7 @@ def parent_children(request):
         enr = child.get("enrollment")
         result.append(
             {
-                "student": UserBriefSerializer(child["student"]).data,
+                "student": UserSafeSerializer(child["student"]).data,
                 "class_name": str(enr.class_group) if enr else None,
                 "total_subj": child["total_subj"],
                 "passed": child["passed"],
@@ -718,7 +719,7 @@ def parent_child_grades(request, student_id):
 
     return Response(
         {
-            "student": UserBriefSerializer(student).data,
+            "student": UserSafeSerializer(student).data,
             "year": year,
             "total": data["total"],
             "passed": data["passed"],
@@ -762,7 +763,7 @@ def parent_child_attendance(request, student_id):
     data = ParentService.get_student_attendance(student, school, days)
     return Response(
         {
-            "student": UserBriefSerializer(student).data,
+            "student": UserSafeSerializer(student).data,
             "since": data["since"],
             "days": days,
             "total": data["total"],

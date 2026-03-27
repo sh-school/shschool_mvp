@@ -51,6 +51,13 @@
   transition: box-shadow .15s;
 }
 .kpi-mini:hover { box-shadow: 0 3px 8px rgba(0,0,0,.1); }
+.kpi-maroon { --kc: var(--maroon, #8A1538); }
+.kpi-green  { --kc: #16a34a; }
+.kpi-blue   { --kc: #2563eb; }
+.kpi-teal   { --kc: #0d9488; }
+.kpi-red    { --kc: #dc2626; }
+.kpi-orange { --kc: #ea580c; }
+.kpi-purple { --kc: #7c3aed; }
 .kpi-mini-label { font-size: .6rem; color: #6b7280; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi-mini-value { font-size: 1.3rem; font-weight: 700; color: var(--kc, #8A1538); line-height: 1.1; }
 .kpi-mini-sub { font-size: .55rem; color: #9ca3af; margin-top: 1px; }
@@ -184,22 +191,22 @@
 
   {# ── KPI Strip — Miller's Law: max 4 primary KPIs ── #}
   <div class="kpi-strip">
-    <div class="kpi-mini" style="--kc:var(--maroon);">
+    <div class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">إجمالي الطلاب</div>
       <div class="kpi-mini-value">{{ kpis.total_students }}</div>
       <div class="kpi-mini-sub">{{ year }}</div>
     </div>
-    <div class="kpi-mini" style="--kc:#16a34a;">
+    <div class="kpi-mini kpi-green">
       <div class="kpi-mini-label">حضور اليوم</div>
       <div class="kpi-mini-value">{{ kpis.att_pct_today }}%</div>
       <div class="kpi-mini-sub">{{ kpis.present_today }} حاضر</div>
     </div>
-    <div class="kpi-mini" style="--kc:#2563eb;">
+    <div class="kpi-mini kpi-blue">
       <div class="kpi-mini-label">المعلمون</div>
       <div class="kpi-mini-value">{{ kpis.total_teachers }}</div>
       <div class="kpi-mini-sub">من 126 موظف</div>
     </div>
-    <div class="kpi-mini" style="--kc:#0d9488;">
+    <div class="kpi-mini kpi-teal">
       <div class="kpi-mini-label">إنجاز الخطة</div>
       <div class="kpi-mini-value">{{ kpis.plan_pct }}%</div>
       <div class="kpi-mini-sub">{{ kpis.completed_procs }}/{{ kpis.total_procs }}</div>
@@ -215,24 +222,24 @@
       {% endif %}
     </summary>
     <div class="kpi-strip mt-3">
-      <a href="/clinic/" class="kpi-mini" style="--kc:#dc2626;">
+      <a href="/clinic/" class="kpi-mini kpi-red">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} العيادة</div>
         <div class="kpi-mini-value">{{ kpis.clinic_today }}</div>
         {% if kpis.chronic_cases > 0 %}<div class="kpi-mini-alert">{{ kpis.chronic_cases }} مزمنة</div>
         {% else %}<div class="kpi-mini-sub">0 حالة مزمنة</div>{% endif %}
       </a>
-      <a href="/behavior/dashboard/" class="kpi-mini" style="--kc:#ea580c;">
+      <a href="/behavior/dashboard/" class="kpi-mini kpi-orange">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="scale" %} السلوك</div>
         <div class="kpi-mini-value">{{ kpis.behavior_month }}</div>
         {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} {{ kpis.critical_issues }} جسيمة</div>
         {% else %}<div class="kpi-mini-sub">{% include "components/icon.html" with name="check-circle" %} لا جسيمة</div>{% endif %}
       </a>
-      <a href="/transport/" class="kpi-mini" style="--kc:#2563eb;">
+      <a href="/transport/" class="kpi-mini kpi-blue">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="bus" %} النقل</div>
         <div class="kpi-mini-value">{{ kpis.bus_students }}</div>
         <div class="kpi-mini-sub">{{ kpis.total_buses }} حافلة</div>
       </a>
-      <a href="/library/" class="kpi-mini" style="--kc:#7c3aed;">
+      <a href="/library/" class="kpi-mini kpi-purple">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} المكتبة</div>
         <div class="kpi-mini-value">{{ kpis.active_loans }}</div>
         {% if kpis.overdue_books > 0 %}<div class="kpi-mini-alert">{{ kpis.overdue_books }} متأخرة</div>

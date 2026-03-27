@@ -7,6 +7,7 @@ from django.contrib import messages
 
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,6 +25,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
+from .forms import CreateAssessmentForm
 from .services import GradeService
 
 # ── لوحة تحكم التقييمات ────────────────────────────────────
@@ -171,22 +173,22 @@ def create_assessment(request, package_id):
     if not request.user.is_admin() and package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
 
-    title = request.POST.get("title", "").strip()
-    atype = request.POST.get("assessment_type", "exam")
-    date = request.POST.get("date") or None
-    max_g = request.POST.get("max_grade", "100")
-    weight = request.POST.get("weight_in_package", "100")
-    desc = request.POST.get("description", "")
+    form = CreateAssessmentForm(request.POST)
+    if not form.is_valid():
+        for field, errs in form.errors.items():
+            for e in errs:
+                messages.error(request, e)
+        return redirect("setup_detail", setup_id=package.setup.id)
 
     try:
         assessment = GradeService.create_assessment(
             package=package,
-            title=title,
-            assessment_type=atype,
-            date=date,
-            max_grade=Decimal(max_g),
-            weight_in_package=Decimal(weight),
-            description=desc,
+            title=form.cleaned_data["title"],
+            assessment_type=form.cleaned_data["assessment_type"],
+            date=form.cleaned_data["date"],
+            max_grade=form.cleaned_data["max_grade"],
+            weight_in_package=form.cleaned_data["weight_in_package"],
+            description=form.cleaned_data["description"],
             created_by=request.user,
         )
         messages.success(request, f"تم إنشاء التقييم: {assessment.title}")
@@ -666,11 +668,16 @@ def failing_students(request):
             by_student[sid] = {"student": r.student, "subjects": []}
         by_student[sid]["subjects"].append(r)
 
+    student_list = list(by_student.values())
+    paginator = Paginator(student_list, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     return render(
         request,
         "assessments/failing_students.html",
         {
-            "by_student": list(by_student.values()),
+            "by_student": page_obj,
+            "page_obj": page_obj,
             "semester": semester,
             "year": year,
             "total": len(by_student),
