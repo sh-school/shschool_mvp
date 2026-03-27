@@ -19,12 +19,9 @@ _phone_validator = RegexValidator(
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    # TODO S-09 (PDPPL Article 8): national_id is still stored as plaintext
-    # because it serves as USERNAME_FIELD for authentication. Phase-2 plan:
-    #   1. Switch USERNAME_FIELD to national_id_hmac (deterministic, searchable).
-    #   2. Drop the plaintext column; use national_id_encrypted for display.
-    #   3. Until then, encryption at-rest is handled by national_id_encrypted
-    #      and national_id_hmac (populated automatically in save()).
+    # PDPPL Article 8: national_id plaintext kept as USERNAME_FIELD (Django requirement).
+    # Auth uses HMACAuthBackend (HMAC lookup). Fernet encryption + HMAC populated on save().
+    # get_by_natural_key() overridden in CustomUserManager to use HMAC-first lookup.
     national_id = models.CharField(
         max_length=20,
         unique=True,
@@ -34,13 +31,24 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
     full_name = models.CharField(max_length=200, verbose_name="الاسم الكامل", db_index=True)
     email = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
-    # TODO S-09 (PDPPL Article 8): phone is PII — consider encrypting
-    # with Fernet (same pattern as national_id_encrypted) in Phase-2.
     phone = models.CharField(
         max_length=20,
         blank=True,
         verbose_name="الجوال",
         validators=[_phone_validator],
+    )
+    # ── v7: PDPPL Article 8 — تشفير رقم الهاتف ───────────────────
+    phone_encrypted = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="الجوال (مشفّر)",
+    )
+    phone_hmac = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="HMAC الجوال",
     )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -105,6 +113,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             new_enc = encrypt_field(self.national_id)
             if new_enc and new_enc != self.national_id_encrypted:
                 self.national_id_encrypted = new_enc
+        if self.phone:
+            new_hmac = hmac_field(self.phone)
+            if new_hmac != self.phone_hmac:
+                self.phone_hmac = new_hmac
+            new_enc = encrypt_field(self.phone)
+            if new_enc and new_enc != self.phone_encrypted:
+                self.phone_encrypted = new_enc
         super().save(*args, **kwargs)
 
     def get_national_id_decrypted(self):
@@ -114,6 +129,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             if decrypted and decrypted != self.national_id_encrypted:
                 return decrypted
         return self.national_id
+
+    def get_phone_decrypted(self):
+        """فك تشفير رقم الهاتف — fallback إلى الحقل العادي."""
+        if self.phone_encrypted:
+            decrypted = decrypt_field(self.phone_encrypted)
+            if decrypted and decrypted != self.phone_encrypted:
+                return decrypted
+        return self.phone
 
     @property
     def active_membership(self):

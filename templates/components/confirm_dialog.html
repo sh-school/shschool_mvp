@@ -29,21 +29,21 @@
   <div class="modal-box modal-sm" role="document">
 
     <div class="modal-header">
-      <span id="confirm-title-{{ confirm_id }}" style="color:#dc2626">
+      <span id="confirm-title-{{ confirm_id }}" class="confirm-dialog-title">
         {% include "components/icon.html" with name="alert-triangle" %} {{ title|default:"تأكيد الإجراء" }}
       </span>
       <button class="modal-close-btn" data-modal-close="{{ confirm_id }}" aria-label="إغلاق">×</button>
     </div>
 
     <div class="modal-body">
-      <p id="confirm-msg-{{ confirm_id }}" style="color:var(--text-secondary);line-height:1.7">
+      <p id="confirm-msg-{{ confirm_id }}" class="confirm-dialog-message">
         {{ message|default:"هل أنت متأكد من تنفيذ هذا الإجراء؟" }}
       </p>
     </div>
 
     <div class="modal-footer">
       <button class="btn-secondary" data-modal-close="{{ confirm_id }}">إلغاء</button>
-      <form method="post" action="{{ action_url }}" style="display:inline">
+      <form method="post" action="{{ action_url }}" class="confirm-dialog-form">
         {% csrf_token %}
         {% if extra_fields %}{{ extra_fields|safe }}{% endif %}
         <button type="submit" class="btn-danger">

@@ -16,10 +16,10 @@
 {# ── KPI Grid ── #}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4" aria-hidden="true">
   {% for i in "1234"|make_list|slice:count %}
-  <div class="kpi-card" style="padding:20px">
-    <div class="skeleton-pulse skeleton-text" style="width:40%;margin-bottom:12px"></div>
-    <div class="skeleton-pulse" style="height:36px;width:70%;margin-bottom:8px;border-radius:8px"></div>
-    <div class="skeleton-pulse skeleton-text" style="width:55%"></div>
+  <div class="kpi-card skeleton-kpi-card">
+    <div class="skeleton-pulse skeleton-text w-2/5 mb-3"></div>
+    <div class="skeleton-pulse skeleton-title w-3/4 mb-2"></div>
+    <div class="skeleton-pulse skeleton-text w-1/2"></div>
   </div>
   {% endfor %}
 </div>
@@ -27,7 +27,7 @@
 {% elif type == "table" %}
 {# ── Table Rows ── #}
 <div aria-hidden="true">
-  <div class="skeleton-pulse" style="height:40px;margin-bottom:4px;border-radius:8px;opacity:.5"></div>
+  <div class="skeleton-pulse skeleton-header mb-1"></div>
   {% for i in "12345"|make_list|slice:rows %}
   <div class="skeleton-pulse skeleton-row"></div>
   {% endfor %}
@@ -40,8 +40,8 @@
   <div class="card-qatar p-4">
     <div class="skeleton-pulse skeleton-title"></div>
     <div class="skeleton-pulse skeleton-text"></div>
-    <div class="skeleton-pulse skeleton-text" style="width:80%"></div>
-    <div class="skeleton-pulse skeleton-text" style="width:60%"></div>
+    <div class="skeleton-pulse skeleton-text w-4/5"></div>
+    <div class="skeleton-pulse skeleton-text w-3/5"></div>
   </div>
   {% endfor %}
 </div>
@@ -50,11 +50,11 @@
 {# ── List Items ── #}
 <div aria-hidden="true">
   {% for i in "12345"|make_list %}
-  <div style="display:flex;gap:12px;padding:12px;border-bottom:1px solid var(--border)">
-    <div class="skeleton-pulse" style="width:40px;height:40px;border-radius:50%;flex-shrink:0"></div>
-    <div style="flex:1">
-      <div class="skeleton-pulse skeleton-text" style="width:50%"></div>
-      <div class="skeleton-pulse skeleton-text" style="width:80%"></div>
+  <div class="skeleton-list-item">
+    <div class="skeleton-pulse skeleton-list-avatar"></div>
+    <div class="skeleton-list-body">
+      <div class="skeleton-pulse skeleton-text w-1/2"></div>
+      <div class="skeleton-pulse skeleton-text w-4/5"></div>
     </div>
   </div>
   {% endfor %}
@@ -65,6 +65,6 @@
 <div aria-hidden="true">
   <div class="skeleton-pulse skeleton-title"></div>
   <div class="skeleton-pulse skeleton-text"></div>
-  <div class="skeleton-pulse skeleton-text" style="width:75%"></div>
+  <div class="skeleton-pulse skeleton-text w-3/4"></div>
 </div>
 {% endif %}

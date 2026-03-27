@@ -19,6 +19,21 @@ class CustomUserManager(BaseUserManager):
 
         return UserQuerySet(self.model, using=self._db)
 
+    def get_by_natural_key(self, username):
+        """
+        PDPPL: يبحث عبر HMAC أولاً (مفهرس + مشفّر)، ثم fallback إلى plaintext.
+        هذا يُستخدم داخلياً من Django (admin, authenticate, etc.).
+        """
+        from .models._crypto import hmac_field
+
+        hashed = hmac_field(username)
+        if hashed and hashed != username:
+            try:
+                return self.get(national_id_hmac=hashed)
+            except self.model.DoesNotExist:
+                pass
+        return self.get(**{self.model.USERNAME_FIELD: username})
+
     # ── البحث الذكي (مباشرة على المانجر) ─────────────────────────────────
 
     def search(self, query: str):

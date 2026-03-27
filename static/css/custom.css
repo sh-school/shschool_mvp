@@ -17,10 +17,10 @@
  */
 
 /* ═══ CSS Layer Order Declaration ═══ */
-/* @layer reset, base, tokens, layout, components, modules, utilities; */
-/* NOTE: @layer declaration prepared but not activated yet to avoid
-   cascade changes. Will be activated in Phase 2 after components
-   are unified. All new CSS should be written inside @layer blocks. */
+@layer tailwind, reset, base, tokens, layout, components, modules, utilities;
+
+
+@layer base {
 
 /* ── SVG Icon System — Lucide ───────────────────────────────── */
 .icon {
@@ -204,8 +204,8 @@ html[lang="ar"] {
 /* ── WCAG AA Contrast Fixes ────────────────────────────────── */
 /* green-600 (#16A34A) = 3.30:1 on white — FAILS WCAG AA
    green-700 (#15803D) = 4.58:1 on white — PASSES WCAG AA   */
-.text-green-600 { color: #15803D !important; }
-.text-green-500 { color: #15803D !important; }
+.text-green-600 { color: #15803D; }
+.text-green-500 { color: #15803D; }
 
 /* (variables merged into :root above) */
 
@@ -273,8 +273,13 @@ html[lang="ar"] {
 body {
   font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
   line-height: 1.6;
-  background: var(--page-bg) !important;
+  background: var(--page-bg);
 }
+
+
+} /* end @layer base */
+
+@layer components {
 
 /* ══════════════════════════════════════════════════════════
    شريط التنقل الرئيسي — Navigation Bar
@@ -406,9 +411,9 @@ body {
   color-scheme: light;
 }
 .sd-menu.sd-measure {
-  display: block !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+  display: block;
+  visibility: hidden;
+  pointer-events: none;
   top: 0; left: 0;
 }
 .sd-menu.open {
@@ -514,11 +519,11 @@ a:focus-visible {
 /* Style tag overrides via CSS attribute selectors — catch inline style="color:#8A1538" */
 [style*="color:#8A1538"],
 [style*="color: #8A1538"] {
-  color: var(--maroon) !important;
+  color: var(--maroon);
 }
 [style*="border-color:#8A1538"],
 [style*="border-color: #8A1538"] {
-  border-color: var(--maroon) !important;
+  border-color: var(--maroon);
 }
 
 /* ── جداول البيانات ─────────────────────────────────────────── */
@@ -633,16 +638,16 @@ html.dark .section-header { background: var(--maroon-dark); }
 }
 
 /* ── Django Admin — تعريب اللون الرئيسي ───────────────────── */
-/* Django Admin header — !important مطلوب لتجاوز admin CSS */
+/* Django Admin header — مطلوب لتجاوز admin CSS */
 #header {
-  background: var(--maroon) !important;
+  background: var(--maroon);
 }
 #header a:link,
 #header a:visited {
-  color: #ffe0e9 !important;
+  color: #ffe0e9;
 }
 div#header h1 a {
-  color: #fff !important;
+  color: #fff;
 }
 
 
@@ -1371,11 +1376,12 @@ textarea:focus-visible {
   animation: skeletonShimmer 1.4s ease-in-out infinite;
   border-radius: 6px;
 }
-.skeleton-text  { height: 14px; margin-bottom: 8px; }
-.skeleton-title { height: 20px; width: 60%; margin-bottom: 12px; }
-.skeleton-kpi   { height: 80px; border-radius: 12px; }
-.skeleton-row   { height: 44px; margin-bottom: 4px; border-radius: 6px; }
-.skeleton-card  { height: 140px; border-radius: 12px; }
+.skeleton-text   { height: 14px; margin-bottom: 8px; }
+.skeleton-title  { height: 20px; width: 60%; margin-bottom: 12px; }
+.skeleton-header { height: 40px; margin-bottom: 4px; border-radius: 8px; opacity: .5; }
+.skeleton-kpi    { height: 80px; border-radius: 12px; }
+.skeleton-row    { height: 44px; margin-bottom: 4px; border-radius: 6px; }
+.skeleton-card   { height: 140px; border-radius: 12px; }
 
 /* ── Toast / Notification Animations ──────────────────────── */
 @keyframes toastIn {
@@ -1897,6 +1903,65 @@ body { padding-bottom: 72px; }
   background: #eef6fa;
   color: var(--skyline);
 }
+
+
+/* ── Dropzone ── */
+.dropzone-wrap {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-base), background var(--transition-base);
+  background: var(--surface-alt);
+}
+.dropzone-wrap:hover,
+.dropzone-wrap.drag-over {
+  border-color: var(--maroon);
+  background: var(--maroon-bg);
+}
+.dropzone-icon { font-size: 2.5rem; margin-bottom: var(--sp-3); }
+.dropzone-label { font-weight: 700; color: var(--text-primary); margin-bottom: var(--sp-1); }
+.dropzone-hint { color: var(--text-muted); font-size: var(--text-xs); margin-top: var(--sp-2); }
+.dropzone-preview { display: none; margin-top: var(--sp-4); text-align: right; }
+.dropzone-preview-inner {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2); background: #fff;
+  border-radius: var(--radius); border: 1px solid var(--border);
+}
+.dropzone-preview-meta { flex: 1; min-width: 0; }
+.dropzone-preview-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dropzone-preview-size { font-size: var(--text-xs); color: var(--text-muted); }
+.dropzone-preview-img-wrap { margin-top: var(--sp-2); display: none; }
+.dropzone-preview-img-wrap img { max-width: 100%; max-height: 200px; border-radius: var(--radius); object-fit: contain; }
+html.dark .dropzone-preview-inner { background: #1f2937; }
+
+/* ── Search Input ── */
+.search-wrap { position: relative; display: flex; align-items: center; }
+.search-wrap .search-icon {
+  position: absolute; right: 12px;
+  color: var(--text-muted); pointer-events: none; font-size: 1rem;
+}
+html[dir="rtl"] .search-wrap .search-icon { right: 12px; left: auto; }
+.search-wrap input[type="search"] { padding-right: 38px; }
+html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding-left: var(--sp-2); }
+.search-wrap .htmx-indicator { position: absolute; left: 12px; }
+html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
+
+/* ── Confirm Dialog ── */
+.confirm-dialog-title { color: var(--status-danger); }
+.confirm-dialog-message { color: var(--text-secondary); line-height: 1.7; }
+.confirm-dialog-form { display: inline; }
+
+/* ── Skeleton ── */
+.skeleton-list-item { display: flex; gap: var(--sp-3); padding: var(--sp-3); border-bottom: 1px solid var(--border); }
+.skeleton-list-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-list-body { flex: 1; }
+.skeleton-kpi-card { padding: 20px; }
+
+} /* end @layer components */
+
+@layer modules {
 
 /* ═══════════════════════════════════════════════════════════════
    QUALITY MODULE — Central Design System
@@ -2942,7 +3007,9 @@ body { padding-bottom: 72px; }
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
-.btn-sm { font-size: var(--text-xs); padding: 6px 14px; }
+.btn-sm  { font-size: var(--text-xs); padding: 6px 14px; }
+.btn-xs  { font-size: var(--text-xs); padding: 4px 10px; }
+.text-sm { font-size: var(--text-sm); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* KPI card color variants */
@@ -3431,6 +3498,9 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 
 
+
+} /* end @layer modules */
+
 /* ═══════════════════════════════════════════════════════════════════
    DARK MODE — الثيم الليلي الشامل
    يُفعَّل بإضافة class="dark" على <html>
@@ -3461,12 +3531,12 @@ html.dark {
 
 /* ── 2. Body & Global ───────────────────────────────────────────── */
 html.dark body {
-  background: #0f172a !important;
-  color: var(--text-primary) !important;
+  background: #0f172a;
+  color: var(--text-primary);
 }
 
 /* Tailwind bg-gray-50 override */
-html.dark .bg-gray-50 { background: #0f172a !important; }
+html.dark .bg-gray-50 { background: #0f172a; }
 
 /* ── 3. Navigation Bar ──────────────────────────────────────────── */
 html.dark .site-nav {
@@ -3665,10 +3735,10 @@ html.dark .q-modal-footer .btn-cancel {
 html.dark .q-modal-footer .btn-cancel:hover { background: #475569; }
 
 /* ── 12. Flash Messages ─────────────────────────────────────────── */
-html.dark .bg-green-50  { background: #052e16 !important; border-color: #166534 !important; color: #86efac !important; }
-html.dark .bg-red-50    { background: #350a0a !important; border-color: #991b1b !important; color: #fca5a5 !important; }
-html.dark .bg-amber-50  { background: #351c05 !important; border-color: #92400e !important; color: #fcd34d !important; }
-html.dark .bg-blue-50   { background: #0c1a35 !important; border-color: #1e40af !important; color: #93c5fd !important; }
+html.dark .bg-green-50  { background: #052e16; border-color: #166534; color: #86efac; }
+html.dark .bg-red-50    { background: #350a0a; border-color: #991b1b; color: #fca5a5; }
+html.dark .bg-amber-50  { background: #351c05; border-color: #92400e; color: #fcd34d; }
+html.dark .bg-blue-50   { background: #0c1a35; border-color: #1e40af; color: #93c5fd; }
 
 html.dark .msg-success { background: #052e16; border-color: #166534; color: #86efac; }
 html.dark .msg-error   { background: #350a0a; border-color: #991b1b; color: #fca5a5; }
@@ -3879,134 +3949,134 @@ html.dark .bulk-action-bar { background: #0f172a; }
 html.dark .emergency-banner { background: #4a1530; }
 
 /* ── 31. Tailwind Overrides for Dark ────────────────────────────── */
-html.dark .text-gray-500 { color: #94a3b8 !important; }
-html.dark .text-gray-600 { color: #94a3b8 !important; }
-html.dark .text-gray-700 { color: #cbd5e1 !important; }
-html.dark .text-gray-800 { color: #e2e8f0 !important; }
-html.dark .text-gray-900 { color: #f1f5f9 !important; }
-html.dark .bg-white { background: #1e293b !important; }
-html.dark .bg-gray-100 { background: #162032 !important; }
-html.dark .border-gray-200 { border-color: #334155 !important; }
-html.dark .border-gray-300 { border-color: #475569 !important; }
-html.dark .divide-gray-200 > * + * { border-color: #334155 !important; }
-html.dark .text-black { color: #f1f5f9 !important; }
-html.dark .bg-gray-50  { background: #162032 !important; }
-html.dark .bg-gray-200 { background: #1e293b !important; }
+html.dark .text-gray-500 { color: #94a3b8; }
+html.dark .text-gray-600 { color: #94a3b8; }
+html.dark .text-gray-700 { color: #cbd5e1; }
+html.dark .text-gray-800 { color: #e2e8f0; }
+html.dark .text-gray-900 { color: #f1f5f9; }
+html.dark .bg-white { background: #1e293b; }
+html.dark .bg-gray-100 { background: #162032; }
+html.dark .border-gray-200 { border-color: #334155; }
+html.dark .border-gray-300 { border-color: #475569; }
+html.dark .divide-gray-200 > * + * { border-color: #334155; }
+html.dark .text-black { color: #f1f5f9; }
+html.dark .bg-gray-50  { background: #162032; }
+html.dark .bg-gray-200 { background: #1e293b; }
 
 /* ── 31a. Status Colors — Green (success/positive) ─────────────── */
-html.dark .text-green-500 { color: #4ade80 !important; }
-html.dark .text-green-600 { color: #4ade80 !important; }
-html.dark .text-green-700 { color: #86efac !important; }
-html.dark .text-green-800 { color: #86efac !important; }
-html.dark .bg-green-50   { background: #052e16 !important; }
-html.dark .bg-green-100  { background: #052e16 !important; }
-html.dark .bg-green-200  { background: #064e3b !important; }
-html.dark .bg-green-500  { background: #16a34a !important; }
-html.dark .bg-green-600  { background: #15803d !important; }
-html.dark .border-green-200 { border-color: #166534 !important; }
-html.dark .border-green-300 { border-color: #166534 !important; }
-html.dark .border-green-400 { border-color: #16a34a !important; }
-html.dark .border-green-500 { border-color: #16a34a !important; }
-html.dark .divide-green-200 > * + * { border-color: #166534 !important; }
+html.dark .text-green-500 { color: #4ade80; }
+html.dark .text-green-600 { color: #4ade80; }
+html.dark .text-green-700 { color: #86efac; }
+html.dark .text-green-800 { color: #86efac; }
+html.dark .bg-green-50   { background: #052e16; }
+html.dark .bg-green-100  { background: #052e16; }
+html.dark .bg-green-200  { background: #064e3b; }
+html.dark .bg-green-500  { background: #16a34a; }
+html.dark .bg-green-600  { background: #15803d; }
+html.dark .border-green-200 { border-color: #166534; }
+html.dark .border-green-300 { border-color: #166534; }
+html.dark .border-green-400 { border-color: #16a34a; }
+html.dark .border-green-500 { border-color: #16a34a; }
+html.dark .divide-green-200 > * + * { border-color: #166534; }
 
 /* ── 31b. Status Colors — Red (danger/negative) ────────────────── */
-html.dark .text-red-500 { color: #f87171 !important; }
-html.dark .text-red-600 { color: #fca5a5 !important; }
-html.dark .text-red-700 { color: #fca5a5 !important; }
-html.dark .text-red-800 { color: #f87171 !important; }
-html.dark .bg-red-50    { background: #1a0a0a !important; }
-html.dark .bg-red-100   { background: #1f0c0c !important; }
-html.dark .bg-red-200   { background: #450a0a !important; }
-html.dark .bg-red-500   { background: #dc2626 !important; }
-html.dark .bg-red-600   { background: #b91c1c !important; }
-html.dark .border-red-200 { border-color: #991b1b !important; }
-html.dark .border-red-300 { border-color: #991b1b !important; }
-html.dark .border-red-400 { border-color: #dc2626 !important; }
-html.dark .border-red-500 { border-color: #dc2626 !important; }
+html.dark .text-red-500 { color: #f87171; }
+html.dark .text-red-600 { color: #fca5a5; }
+html.dark .text-red-700 { color: #fca5a5; }
+html.dark .text-red-800 { color: #f87171; }
+html.dark .bg-red-50    { background: #1a0a0a; }
+html.dark .bg-red-100   { background: #1f0c0c; }
+html.dark .bg-red-200   { background: #450a0a; }
+html.dark .bg-red-500   { background: #dc2626; }
+html.dark .bg-red-600   { background: #b91c1c; }
+html.dark .border-red-200 { border-color: #991b1b; }
+html.dark .border-red-300 { border-color: #991b1b; }
+html.dark .border-red-400 { border-color: #dc2626; }
+html.dark .border-red-500 { border-color: #dc2626; }
 
 /* ── 31c. Status Colors — Blue (info) ──────────────────────────── */
-html.dark .text-blue-500 { color: #60a5fa !important; }
-html.dark .text-blue-600 { color: #93c5fd !important; }
-html.dark .text-blue-700 { color: #93c5fd !important; }
-html.dark .text-blue-800 { color: #60a5fa !important; }
-html.dark .bg-blue-50   { background: #0c1a35 !important; }
-html.dark .bg-blue-100  { background: #0c1a35 !important; }
-html.dark .bg-blue-500  { background: #3b82f6 !important; }
-html.dark .bg-blue-600  { background: #2563eb !important; }
-html.dark .border-blue-200 { border-color: #1e40af !important; }
-html.dark .border-blue-300 { border-color: #1e40af !important; }
-html.dark .border-blue-500 { border-color: #3b82f6 !important; }
+html.dark .text-blue-500 { color: #60a5fa; }
+html.dark .text-blue-600 { color: #93c5fd; }
+html.dark .text-blue-700 { color: #93c5fd; }
+html.dark .text-blue-800 { color: #60a5fa; }
+html.dark .bg-blue-50   { background: #0c1a35; }
+html.dark .bg-blue-100  { background: #0c1a35; }
+html.dark .bg-blue-500  { background: #3b82f6; }
+html.dark .bg-blue-600  { background: #2563eb; }
+html.dark .border-blue-200 { border-color: #1e40af; }
+html.dark .border-blue-300 { border-color: #1e40af; }
+html.dark .border-blue-500 { border-color: #3b82f6; }
 
 /* ── 31d. Status Colors — Amber (warning) ──────────────────────── */
-html.dark .text-amber-500 { color: #f59e0b !important; }
-html.dark .text-amber-600 { color: #fcd34d !important; }
-html.dark .text-amber-700 { color: #fcd34d !important; }
-html.dark .text-amber-800 { color: #f59e0b !important; }
-html.dark .bg-amber-50   { background: #1c1305 !important; }
-html.dark .bg-amber-100  { background: #1c1305 !important; }
-html.dark .bg-amber-500  { background: #d97706 !important; }
-html.dark .bg-amber-600  { background: #b45309 !important; }
-html.dark .border-amber-200 { border-color: #92400e !important; }
-html.dark .border-amber-300 { border-color: #92400e !important; }
+html.dark .text-amber-500 { color: #f59e0b; }
+html.dark .text-amber-600 { color: #fcd34d; }
+html.dark .text-amber-700 { color: #fcd34d; }
+html.dark .text-amber-800 { color: #f59e0b; }
+html.dark .bg-amber-50   { background: #1c1305; }
+html.dark .bg-amber-100  { background: #1c1305; }
+html.dark .bg-amber-500  { background: #d97706; }
+html.dark .bg-amber-600  { background: #b45309; }
+html.dark .border-amber-200 { border-color: #92400e; }
+html.dark .border-amber-300 { border-color: #92400e; }
 
 /* ── 31e. Status Colors — Orange ───────────────────────────────── */
-html.dark .text-orange-500 { color: #fb923c !important; }
-html.dark .text-orange-600 { color: #fdba74 !important; }
-html.dark .text-orange-700 { color: #fdba74 !important; }
-html.dark .text-orange-800 { color: #fb923c !important; }
-html.dark .bg-orange-50   { background: #1c0f05 !important; }
-html.dark .bg-orange-100  { background: #1c0f05 !important; }
-html.dark .bg-orange-500  { background: #ea580c !important; }
-html.dark .border-orange-200 { border-color: #9a3412 !important; }
+html.dark .text-orange-500 { color: #fb923c; }
+html.dark .text-orange-600 { color: #fdba74; }
+html.dark .text-orange-700 { color: #fdba74; }
+html.dark .text-orange-800 { color: #fb923c; }
+html.dark .bg-orange-50   { background: #1c0f05; }
+html.dark .bg-orange-100  { background: #1c0f05; }
+html.dark .bg-orange-500  { background: #ea580c; }
+html.dark .border-orange-200 { border-color: #9a3412; }
 
 /* ── 31f. Status Colors — Yellow ───────────────────────────────── */
-html.dark .text-yellow-500 { color: #facc15 !important; }
-html.dark .text-yellow-600 { color: #fde047 !important; }
-html.dark .text-yellow-700 { color: #fde047 !important; }
-html.dark .bg-yellow-50   { background: #1c1805 !important; }
-html.dark .bg-yellow-100  { background: #1c1805 !important; }
-html.dark .bg-yellow-200  { background: #422006 !important; }
-html.dark .bg-yellow-500  { background: #ca8a04 !important; }
-html.dark .text-yellow-800 { color: #fde047 !important; }
-html.dark .border-yellow-200 { border-color: #854d0e !important; }
-html.dark .border-yellow-400 { border-color: #ca8a04 !important; }
+html.dark .text-yellow-500 { color: #facc15; }
+html.dark .text-yellow-600 { color: #fde047; }
+html.dark .text-yellow-700 { color: #fde047; }
+html.dark .bg-yellow-50   { background: #1c1805; }
+html.dark .bg-yellow-100  { background: #1c1805; }
+html.dark .bg-yellow-200  { background: #422006; }
+html.dark .bg-yellow-500  { background: #ca8a04; }
+html.dark .text-yellow-800 { color: #fde047; }
+html.dark .border-yellow-200 { border-color: #854d0e; }
+html.dark .border-yellow-400 { border-color: #ca8a04; }
 
 /* ── 31g. Status Colors — Purple/Indigo ────────────────────────── */
-html.dark .text-purple-600 { color: #c4b5fd !important; }
-html.dark .text-purple-700 { color: #c4b5fd !important; }
-html.dark .text-purple-800 { color: #c4b5fd !important; }
-html.dark .bg-purple-50   { background: #1a0c2e !important; }
-html.dark .bg-purple-100  { background: #1a0c2e !important; }
-html.dark .bg-purple-200  { background: #2e1065 !important; }
-html.dark .bg-purple-600  { background: #7c3aed !important; }
-html.dark .border-purple-200 { border-color: #581c87 !important; }
-html.dark .border-purple-400 { border-color: #7c3aed !important; }
-html.dark .text-indigo-600 { color: #a5b4fc !important; }
-html.dark .text-indigo-700 { color: #a5b4fc !important; }
-html.dark .bg-indigo-50   { background: #0c0c35 !important; }
-html.dark .bg-indigo-100  { background: #0c0c35 !important; }
+html.dark .text-purple-600 { color: #c4b5fd; }
+html.dark .text-purple-700 { color: #c4b5fd; }
+html.dark .text-purple-800 { color: #c4b5fd; }
+html.dark .bg-purple-50   { background: #1a0c2e; }
+html.dark .bg-purple-100  { background: #1a0c2e; }
+html.dark .bg-purple-200  { background: #2e1065; }
+html.dark .bg-purple-600  { background: #7c3aed; }
+html.dark .border-purple-200 { border-color: #581c87; }
+html.dark .border-purple-400 { border-color: #7c3aed; }
+html.dark .text-indigo-600 { color: #a5b4fc; }
+html.dark .text-indigo-700 { color: #a5b4fc; }
+html.dark .bg-indigo-50   { background: #0c0c35; }
+html.dark .bg-indigo-100  { background: #0c0c35; }
 
 /* ── 31h. Common dark overrides — misc ─────────────────────────── */
-html.dark .bg-white\/80   { background: rgba(30,41,59,0.8) !important; }
-html.dark .bg-gray-50\/80 { background: rgba(22,32,50,0.8) !important; }
-html.dark .ring-gray-300  { --tw-ring-color: #475569 !important; }
-html.dark .placeholder-gray-400::placeholder { color: #64748b !important; }
-html.dark .hover\:bg-gray-50:hover  { background: #162032 !important; }
-html.dark .hover\:bg-gray-100:hover { background: #1e293b !important; }
-html.dark .hover\:bg-gray-200:hover { background: #283548 !important; }
-html.dark .hover\:bg-gray-700:hover { background: #334155 !important; }
-html.dark .focus\:ring-gray-300:focus { --tw-ring-color: #475569 !important; }
-html.dark .divide-gray-100 > * + * { border-color: #1e293b !important; }
-html.dark .divide-gray-300 > * + * { border-color: #475569 !important; }
+html.dark .bg-white\/80   { background: rgba(30,41,59,0.8); }
+html.dark .bg-gray-50\/80 { background: rgba(22,32,50,0.8); }
+html.dark .ring-gray-300  { --tw-ring-color: #475569; }
+html.dark .placeholder-gray-400::placeholder { color: #64748b; }
+html.dark .hover\:bg-gray-50:hover  { background: #162032; }
+html.dark .hover\:bg-gray-100:hover { background: #1e293b; }
+html.dark .hover\:bg-gray-200:hover { background: #283548; }
+html.dark .hover\:bg-gray-700:hover { background: #334155; }
+html.dark .focus\:ring-gray-300:focus { --tw-ring-color: #475569; }
+html.dark .divide-gray-100 > * + * { border-color: #1e293b; }
+html.dark .divide-gray-300 > * + * { border-color: #475569; }
 
 /* ── 31i. Tailwind compound variants — has/hover/checked ───────── */
-html.dark .has-\[\:checked\]\:bg-red-50:has(:checked)     { background: #1a0a0a !important; }
-html.dark .has-\[\:checked\]\:bg-green-50:has(:checked)   { background: #052e16 !important; }
-html.dark .has-\[\:checked\]\:bg-blue-50:has(:checked)    { background: #0c1a35 !important; }
-html.dark .has-\[\:checked\]\:bg-amber-50:has(:checked)   { background: #1c1305 !important; }
-html.dark .has-\[\:checked\]\:border-red-500:has(:checked)   { border-color: #dc2626 !important; }
-html.dark .has-\[\:checked\]\:border-green-500:has(:checked) { border-color: #16a34a !important; }
-html.dark .has-\[\:checked\]\:border-blue-500:has(:checked)  { border-color: #3b82f6 !important; }
+html.dark .has-\[\:checked\]\:bg-red-50:has(:checked)     { background: #1a0a0a; }
+html.dark .has-\[\:checked\]\:bg-green-50:has(:checked)   { background: #052e16; }
+html.dark .has-\[\:checked\]\:bg-blue-50:has(:checked)    { background: #0c1a35; }
+html.dark .has-\[\:checked\]\:bg-amber-50:has(:checked)   { background: #1c1305; }
+html.dark .has-\[\:checked\]\:border-red-500:has(:checked)   { border-color: #dc2626; }
+html.dark .has-\[\:checked\]\:border-green-500:has(:checked) { border-color: #16a34a; }
+html.dark .has-\[\:checked\]\:border-blue-500:has(:checked)  { border-color: #3b82f6; }
 
 /* ── 32. Dark Mode Toggle Button ────────────────────────────────── */
 .theme-toggle {
@@ -4068,20 +4138,20 @@ html.dark input[type="tel"],
 html.dark input[type="url"],
 html.dark select,
 html.dark textarea {
-  background: #1e293b !important;
-  border-color: #475569 !important;
-  color: #e2e8f0 !important;
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
 }
 html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
-  background: #1e293b !important;
-  border-color: #8A1538 !important;
-  box-shadow: 0 0 0 2px rgba(138,21,56,.25) !important;
+  background: #1e293b;
+  border-color: #8A1538;
+  box-shadow: 0 0 0 2px rgba(138,21,56,.25);
 }
 html.dark input::placeholder,
 html.dark textarea::placeholder {
-  color: #64748b !important;
+  color: #64748b;
 }
 /* Select option dropdown */
 html.dark select option {
@@ -4091,34 +4161,34 @@ html.dark select option {
 
 /* ── 35b. ALL Tables — مركزي ──────────────────────────────────── */
 html.dark table {
-  border-color: #334155 !important;
+  border-color: #334155;
 }
 html.dark table thead th,
 html.dark table thead td {
-  background: #1e293b !important;
-  color: #e2e8f0 !important;
-  border-color: #475569 !important;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
 }
 html.dark table tbody tr {
-  background: #0f172a !important;
-  color: #cbd5e1 !important;
-  border-color: #1e293b !important;
+  background: #0f172a;
+  color: #cbd5e1;
+  border-color: #1e293b;
 }
 html.dark table tbody tr:nth-child(even) {
-  background: #1a1f35 !important;
+  background: #1a1f35;
 }
 html.dark table tbody tr:hover {
-  background: #1e293b !important;
+  background: #1e293b;
 }
 html.dark table tbody td {
-  border-color: #1e293b !important;
-  color: #cbd5e1 !important;
+  border-color: #1e293b;
+  color: #cbd5e1;
 }
 html.dark table tfoot td,
 html.dark table tfoot th {
-  background: #1e293b !important;
-  color: #e2e8f0 !important;
-  border-color: #334155 !important;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
 }
 
 /* ── 35c. Charts & Canvas — خلفية داكنة ──────────────────────── */
@@ -4128,8 +4198,8 @@ html.dark canvas {
 html.dark .chart-container,
 html.dark .chart-wrap,
 html.dark [class*="chart"] {
-  background: #0f172a !important;
-  border-color: #334155 !important;
+  background: #0f172a;
+  border-color: #334155;
   border-radius: 12px;
 }
 
@@ -4138,108 +4208,108 @@ html.dark .btn-outline,
 html.dark .btn-light,
 html.dark button[class*="outline"],
 html.dark a.btn-light {
-  background: #1e293b !important;
-  border-color: #475569 !important;
-  color: #e2e8f0 !important;
+  background: #1e293b;
+  border-color: #475569;
+  color: #e2e8f0;
 }
 html.dark .btn-outline:hover,
 html.dark .btn-light:hover,
 html.dark button[class*="outline"]:hover {
-  background: #334155 !important;
+  background: #334155;
 }
 
 /* ── 35e. Cards — بطاقات بخلفية بيضاء ────────────────────────── */
 html.dark .card,
 html.dark [class*="card"]:not(.stat-card):not(.q-domain-card):not(.dash-card):not(.login-card) {
-  background: var(--surface, #1e293b) !important;
-  border-color: var(--border, #334155) !important;
-  color: var(--text-primary, #e2e8f0) !important;
+  background: var(--surface, #1e293b);
+  border-color: var(--border, #334155);
+  color: var(--text-primary, #e2e8f0);
 }
 
 /* ── 35f. Badges & Tags ──────────────────────────────────────── */
 html.dark .badge-light,
 html.dark .tag-light {
-  background: #334155 !important;
-  color: #e2e8f0 !important;
+  background: #334155;
+  color: #e2e8f0;
 }
 
 /* ── 35g. Pagination ─────────────────────────────────────────── */
 html.dark .pagination a,
 html.dark .pagination span {
-  background: #1e293b !important;
-  border-color: #475569 !important;
-  color: #cbd5e1 !important;
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
 }
 html.dark .pagination .active,
 html.dark .pagination .current {
-  background: #8A1538 !important;
-  color: #fff !important;
+  background: #8A1538;
+  color: #fff;
 }
 
 /* ── 35h. Breadcrumbs ────────────────────────────────────────── */
 html.dark .breadcrumb,
 html.dark nav[aria-label="breadcrumb"] {
-  color: #94a3b8 !important;
+  color: #94a3b8;
 }
 html.dark .breadcrumb a {
-  color: #cbd5e1 !important;
+  color: #cbd5e1;
 }
 
 /* ── 35i. Alerts & Messages ──────────────────────────────────── */
 html.dark .alert,
 html.dark .msg-bar {
-  border-color: #334155 !important;
+  border-color: #334155;
 }
-html.dark .alert-info { background: #0c2d48 !important; color: #7dd3fc !important; }
-html.dark .alert-success { background: #052e16 !important; color: #86efac !important; }
-html.dark .alert-warning { background: #451a03 !important; color: #fcd34d !important; }
-html.dark .alert-danger { background: #450a0a !important; color: #fca5a5 !important; }
+html.dark .alert-info { background: #0c2d48; color: #7dd3fc; }
+html.dark .alert-success { background: #052e16; color: #86efac; }
+html.dark .alert-warning { background: #451a03; color: #fcd34d; }
+html.dark .alert-danger { background: #450a0a; color: #fca5a5; }
 
 /* ── 35j. Tooltips & Popovers ────────────────────────────────── */
 html.dark .tooltip-inner,
 html.dark [role="tooltip"] {
-  background: #334155 !important;
-  color: #f1f5f9 !important;
+  background: #334155;
+  color: #f1f5f9;
 }
 
 /* ── 35k. White background overrides — أي عنصر bg-white/bg-gray ─ */
 html.dark .bg-white,
 html.dark .bg-gray-50,
 html.dark .bg-gray-100 {
-  background: #0f172a !important;
+  background: #0f172a;
 }
-html.dark .bg-gray-200 { background: #1e293b !important; }
+html.dark .bg-gray-200 { background: #1e293b; }
 
 /* ── 35l. Text color overrides ───────────────────────────────── */
-html.dark .text-gray-500 { color: #94a3b8 !important; }
-html.dark .text-gray-600 { color: #94a3b8 !important; }
-html.dark .text-gray-700 { color: #cbd5e1 !important; }
-html.dark .text-gray-800 { color: #e2e8f0 !important; }
-html.dark .text-gray-900 { color: #f1f5f9 !important; }
-html.dark .text-black { color: #f1f5f9 !important; }
+html.dark .text-gray-500 { color: #94a3b8; }
+html.dark .text-gray-600 { color: #94a3b8; }
+html.dark .text-gray-700 { color: #cbd5e1; }
+html.dark .text-gray-800 { color: #e2e8f0; }
+html.dark .text-gray-900 { color: #f1f5f9; }
+html.dark .text-black { color: #f1f5f9; }
 
 /* ── 35m. Borders ────────────────────────────────────────────── */
 html.dark .border,
 html.dark .border-b,
 html.dark .border-t,
 html.dark [class*="border-gray"] {
-  border-color: #334155 !important;
+  border-color: #334155;
 }
-html.dark hr { border-color: #334155 !important; }
+html.dark hr { border-color: #334155; }
 
 /* ── 35n. Shadows — تخفيف الظلال في الداكن ───────────────────── */
 html.dark .shadow,
 html.dark .shadow-md,
 html.dark .shadow-lg {
-  box-shadow: 0 4px 12px rgba(0,0,0,.3) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
 }
 
 /* ── 35o. Reports page selects ───────────────────────────────── */
 html.dark .report-filters select,
 html.dark .report-filters input {
-  background: #0f172a !important;
-  border-color: #475569 !important;
-  color: #e2e8f0 !important;
+  background: #0f172a;
+  border-color: #475569;
+  color: #e2e8f0;
 }
 
 /* ── 35p. Analytics charts white area fix ────────────────────── */
@@ -4253,7 +4323,7 @@ html.dark div[style*="background-color:#fff"],
 html.dark div[style*="background-color: #fff"],
 html.dark div[style*="background-color:white"],
 html.dark div[style*="background-color: white"] {
-  background: #0f172a !important;
+  background: #0f172a;
 }
 
 /* ── 35q. Scrollbar in dark mode ─────────────────────────────── */
@@ -4263,66 +4333,66 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
 /* ── 35r. Code blocks & pre ──────────────────────────────────── */
 html.dark pre, html.dark code {
-  background: #0f172a !important;
-  color: #e2e8f0 !important;
+  background: #0f172a;
+  color: #e2e8f0;
 }
 
 /* ── 35s. Empty states ───────────────────────────────────────── */
 html.dark .empty-state,
 html.dark .no-data {
-  color: #64748b !important;
+  color: #64748b;
 }
 
 /* ── 35t. Analytics quick-links & exec-date ───────────────────── */
 html.dark .ql-item {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
+  background: #1e293b;
+  border-color: #334155;
+  color: #e2e8f0;
 }
 html.dark .ql-item:hover {
-  background: #334155 !important;
+  background: #334155;
 }
 html.dark .exec-date {
-  background: #1e293b !important;
-  color: #cbd5e1 !important;
-  border-color: #475569 !important;
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #475569;
 }
 
 /* ── 35u. Quality-specific white elements ─────────────────────── */
 html.dark .quality-filters {
-  background: #1e293b !important;
-  border-color: #334155 !important;
+  background: #1e293b;
+  border-color: #334155;
 }
 html.dark .quality-btn-clear {
-  background: #334155 !important;
-  color: #e2e8f0 !important;
-  border-color: #475569 !important;
+  background: #334155;
+  color: #e2e8f0;
+  border-color: #475569;
 }
 html.dark .quality-table-wrap {
-  background: #0f172a !important;
-  border-color: #334155 !important;
+  background: #0f172a;
+  border-color: #334155;
 }
 html.dark .page-info {
-  background: #1e293b !important;
-  color: #cbd5e1 !important;
+  background: #1e293b;
+  color: #cbd5e1;
 }
 html.dark .page-link {
-  background: #1e293b !important;
-  border-color: #475569 !important;
-  color: #cbd5e1 !important;
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
 }
 html.dark .page-link:hover {
-  background: #334155 !important;
+  background: #334155;
 }
 html.dark .page-link.active,
 html.dark .page-item.active .page-link {
-  background: #8A1538 !important;
-  color: #fff !important;
+  background: #8A1538;
+  color: #fff;
 }
 html.dark .pwa-install-btn {
-  background: #1e293b !important;
-  color: #e2e8f0 !important;
-  border-color: #475569 !important;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
 }
 
 /* ── 34. Login Page Dark Mode ───────────────────────────────────── */
@@ -4333,6 +4403,9 @@ html.dark .login-page::before {
   background-image: radial-gradient(circle at 20% 20%, rgba(138,21,56,.15) 0%, transparent 50%),
                     radial-gradient(circle at 80% 80%, rgba(13,66,97,.1) 0%, transparent 50%);
 }
+
+
+@layer utilities {
 
 /* ══════════════════════════════════════════════════════════════════
    35. Dark-Mode-Aware Utility Classes
@@ -4368,9 +4441,9 @@ html.dark .bg-status-danger  { background: var(--status-danger-bg, #450a0a); }
 html.dark .bg-status-success { background: #22c55e; }
 
 /* ── Border Status Colors ────────────────────────────────────────── */
-.border-status-danger  { border-color: var(--status-danger-border) !important; }
-.border-status-warning { border-color: var(--status-warning-border, #f59e0b) !important; }
-html.dark .border-status-warning { border-color: #92400e !important; }
+.border-status-danger  { border-color: var(--status-danger-border); }
+.border-status-warning { border-color: var(--status-warning-border, #f59e0b); }
+html.dark .border-status-warning { border-color: #92400e; }
 
 .text-status-warning-dark { color: var(--status-warning-dark, #92400e); }
 html.dark .text-status-warning-dark { color: #fbbf24; }
@@ -4396,7 +4469,7 @@ html.dark .radio-pill {
 }
 
 /* ── Shadow Utilities ────────────────────────────────────────────── */
-.shadow-none { box-shadow: none !important; }
+.shadow-none { box-shadow: none; }
 
 /* ── Surface Backgrounds ─────────────────────────────────────────── */
 .bg-surface     { background: #fff; }
@@ -4619,3 +4692,6 @@ html.dark .notif-time-input { border-color: var(--border); }
 .beh-recent-meta {
   font-size: 11.5px; color: var(--text-muted); margin: 0;
 }
+
+
+} /* end @layer utilities */
