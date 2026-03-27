@@ -3,91 +3,91 @@
 {% block title %}تفضيلات الإشعارات{% endblock %}
 
 {% block content %}
-<div style="max-width:600px;margin:0 auto;padding:20px;">
+<div class="notif-pref-container">
 
-  <h1 style="font-size:22px;font-weight:700;margin-bottom:8px;">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
-  <p style="color:#666;font-size:14px;margin-bottom:24px;">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
+  <h1 class="notif-pref-title">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
+  <p class="notif-pref-subtitle">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
 
   <form method="post">
     {% csrf_token %}
 
     <!-- القنوات -->
-    <div class="card-qatar" style="margin-bottom:20px;">
-      <h2 style="font-size:16px;font-weight:600;margin:0 0 16px;color:var(--maroon);">قنوات الإشعارات</h2>
+    <div class="card-qatar mb-5">
+      <h2 class="notif-section-title">قنوات الإشعارات</h2>
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+      <label class="notif-channel-row">
         <div>
-          <span style="font-weight:500;">{% include "components/icon.html" with name="bell" %} إشعارات المنصة</span>
-          <p style="color:#666;font-size:12px;margin:2px 0 0;">الجرس داخل التطبيق — مجاني ودائماً</p>
+          <span class="notif-channel-name">{% include "components/icon.html" with name="bell" %} إشعارات المنصة</span>
+          <p class="notif-channel-desc">الجرس داخل التطبيق — مجاني ودائماً</p>
         </div>
         <input type="checkbox" name="in_app_enabled" {% if prefs.in_app_enabled %}checked{% endif %}
-               style="width:20px;height:20px;">
+               class="notif-channel-check">
       </label>
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+      <label class="notif-channel-row">
         <div>
-          <span style="font-weight:500;">{% include "components/icon.html" with name="bell" %} Push Notifications</span>
-          <p style="color:#666;font-size:12px;margin:2px 0 0;">إشعارات المتصفح حتى لو التطبيق مغلق</p>
+          <span class="notif-channel-name">{% include "components/icon.html" with name="bell" %} Push Notifications</span>
+          <p class="notif-channel-desc">إشعارات المتصفح حتى لو التطبيق مغلق</p>
         </div>
         <input type="checkbox" name="push_enabled" {% if prefs.push_enabled %}checked{% endif %}
-               style="width:20px;height:20px;">
+               class="notif-channel-check">
       </label>
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+      <label class="notif-channel-row">
         <div>
-          <span style="font-weight:500;">{% include "components/icon.html" with name="phone" %} WhatsApp</span>
-          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل WhatsApp على رقم الجوال المسجل</p>
+          <span class="notif-channel-name">{% include "components/icon.html" with name="phone" %} WhatsApp</span>
+          <p class="notif-channel-desc">رسائل WhatsApp على رقم الجوال المسجل</p>
         </div>
         <input type="checkbox" name="whatsapp_enabled" {% if prefs.whatsapp_enabled %}checked{% endif %}
-               style="width:20px;height:20px;">
+               class="notif-channel-check">
       </label>
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9;">
+      <label class="notif-channel-row">
         <div>
-          <span style="font-weight:500;">{% include "components/icon.html" with name="mail" %} البريد الإلكتروني</span>
-          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل تفصيلية على البريد</p>
+          <span class="notif-channel-name">{% include "components/icon.html" with name="mail" %} البريد الإلكتروني</span>
+          <p class="notif-channel-desc">رسائل تفصيلية على البريد</p>
         </div>
         <input type="checkbox" name="email_enabled" {% if prefs.email_enabled %}checked{% endif %}
-               style="width:20px;height:20px;">
+               class="notif-channel-check">
       </label>
 
-      <label style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;">
+      <label class="notif-channel-row">
         <div>
-          <span style="font-weight:500;">{% include "components/icon.html" with name="phone" %} SMS</span>
-          <p style="color:#666;font-size:12px;margin:2px 0 0;">رسائل نصية قصيرة — للحالات العاجلة</p>
+          <span class="notif-channel-name">{% include "components/icon.html" with name="phone" %} SMS</span>
+          <p class="notif-channel-desc">رسائل نصية قصيرة — للحالات العاجلة</p>
         </div>
         <input type="checkbox" name="sms_enabled" {% if prefs.sms_enabled %}checked{% endif %}
-               style="width:20px;height:20px;">
+               class="notif-channel-check">
       </label>
     </div>
 
     <!-- ساعات الهدوء -->
-    <div class="card-qatar" style="margin-bottom:20px;">
-      <h2 style="font-size:16px;font-weight:600;margin:0 0 8px;color:var(--maroon);">ساعات الهدوء</h2>
-      <p style="color:#666;font-size:13px;margin-bottom:16px;">لا تُرسل إشعارات خارجية (SMS/WhatsApp/Email) في هذه الفترة</p>
+    <div class="card-qatar mb-5">
+      <h2 class="notif-section-subtitle">ساعات الهدوء</h2>
+      <p class="notif-quiet-desc">لا تُرسل إشعارات خارجية (SMS/WhatsApp/Email) في هذه الفترة</p>
 
-      <div style="display:flex;gap:16px;align-items:center;">
+      <div class="notif-time-row">
         <div>
-          <label style="font-size:13px;color:#666;">من</label>
+          <label class="notif-time-label">من</label>
           <input type="time" name="quiet_hours_start"
                  value="{% if prefs.quiet_hours_start %}{{ prefs.quiet_hours_start|time:'H:i' }}{% endif %}"
-                 style="padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+                 class="notif-time-input">
         </div>
         <div>
-          <label style="font-size:13px;color:#666;">إلى</label>
+          <label class="notif-time-label">إلى</label>
           <input type="time" name="quiet_hours_end"
                  value="{% if prefs.quiet_hours_end %}{{ prefs.quiet_hours_end|time:'H:i' }}{% endif %}"
-                 style="padding:8px;border:1px solid #d1d5db;border-radius:8px;">
+                 class="notif-time-input">
         </div>
       </div>
     </div>
 
-    <button type="submit" class="btn-primary" style="width:100%;padding:12px 32px;font-size:15px;">
+    <button type="submit" class="btn-primary w-full py-3 text-base">
       حفظ التفضيلات
     </button>
   </form>
 
-  <a href="{% url 'notification_inbox' %}" style="display:block;text-align:center;margin-top:16px;color:var(--maroon);font-size:14px;">
+  <a href="{% url 'notification_inbox' %}" class="notif-back-link">
     ← العودة لصندوق الإشعارات
   </a>
 </div>

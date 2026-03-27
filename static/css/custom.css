@@ -4295,6 +4295,23 @@ html.dark .text-status-info    { color: #93c5fd; }
 html.dark .text-status-muted   { color: #9ca3af; }
 html.dark .text-status-maroon  { color: #f9a8d4; }
 
+/* ── Status Background Colors (solid, for dots/badges) ────────────── */
+.bg-status-info    { background: #2563eb; }
+.bg-status-warning { background: #d97706; }
+.bg-status-danger  { background: var(--status-danger-bg, #fef2f2); }
+.bg-status-success { background: #16a34a; }
+
+html.dark .bg-status-info    { background: #3b82f6; }
+html.dark .bg-status-warning { background: #f59e0b; }
+html.dark .bg-status-danger  { background: var(--status-danger-bg, #450a0a); }
+html.dark .bg-status-success { background: #22c55e; }
+
+/* ── Border Status Colors ────────────────────────────────────────── */
+.border-status-danger { border-color: var(--status-danger-border) !important; }
+
+/* ── Shadow Utilities ────────────────────────────────────────────── */
+.shadow-none { box-shadow: none !important; }
+
 /* ── Surface Backgrounds ─────────────────────────────────────────── */
 .bg-surface     { background: #fff; }
 .bg-surface-alt { background: #f8fafc; }
@@ -4341,3 +4358,150 @@ html.dark .stroke-warning { stroke: #fbbf24; }
 /* ── Link Accent (for inline links with specific colors) ─────────── */
 .link-maroon { color: var(--maroon, #8A1538); font-weight: 600; }
 html.dark .link-maroon { color: #f9a8d4; }
+
+/* ── Parent Dashboard — Child Card Components ────────────────────── */
+.child-action-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 8px 16px; font-size: 12.5px; font-weight: 700;
+  border-radius: 10px; text-decoration: none; transition: background .12s;
+}
+.child-action-btn--solid {
+  background: rgba(255,255,255,.95); color: var(--maroon);
+}
+.child-action-btn--solid:hover { background: #fff; }
+.child-action-btn--ghost {
+  background: rgba(255,255,255,.18); color: #fff;
+  border: 1px solid rgba(255,255,255,.3);
+}
+.child-action-btn--ghost:hover { background: rgba(255,255,255,.28); }
+
+/* ── Parent Dashboard — Stats Strip ──────────────────────────────── */
+.stat-cell { border-left: 1px solid var(--border); }
+.stat-value {
+  font-size: 26px; font-weight: 800;
+}
+.stat-label {
+  font-size: 11px; color: var(--text-muted); margin-top: 3px;
+}
+.stat-sub {
+  font-size: 10px; color: var(--text-muted); margin-top: 3px;
+}
+
+html.dark .stat-cell { border-color: var(--border); }
+
+/* ── Parent Dashboard — Alert Bar ────────────────────────────────── */
+.child-alert-bar {
+  padding: 11px 20px;
+  background: var(--status-danger-bg);
+  border-top: 1px solid var(--status-danger-border);
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--status-danger-dark);
+}
+
+/* ── Extra Utility Classes ───────────────────────────────────────── */
+.text-status-success-dark { color: var(--status-success-dark, #16a34a); }
+html.dark .text-status-success-dark { color: #86efac; }
+
+.bg-warning-light { background: #fff7ed; }
+html.dark .bg-warning-light { background: #451a03; }
+
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+
+/* ── Notification Preferences — Form Components ──────────────────── */
+.notif-pref-container { max-width: 600px; margin: 0 auto; padding: 20px; }
+.notif-pref-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.notif-pref-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+
+.notif-channel-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.notif-channel-row:last-child { border-bottom: none; }
+.notif-channel-name { font-weight: 500; }
+.notif-channel-desc { color: var(--text-secondary); font-size: 12px; margin: 2px 0 0; }
+.notif-channel-check { width: 20px; height: 20px; }
+
+.notif-section-title { font-size: 16px; font-weight: 600; margin: 0 0 16px; color: var(--maroon); }
+.notif-section-subtitle { font-size: 16px; font-weight: 600; margin: 0 0 8px; color: var(--maroon); }
+.notif-quiet-desc { color: var(--text-secondary); font-size: 13px; margin-bottom: 16px; }
+
+.notif-time-row { display: flex; gap: 16px; align-items: center; }
+.notif-time-label { font-size: 13px; color: var(--text-secondary); }
+.notif-time-input {
+  padding: 8px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-primary);
+}
+
+.notif-back-link {
+  display: block; text-align: center; margin-top: 16px;
+  color: var(--maroon); font-size: 14px;
+}
+
+html.dark .notif-time-input { border-color: var(--border); }
+
+/* ── Behavior Dashboard — Components ─────────────────────────────── */
+.beh-critical-box {
+  border: 1px solid var(--status-danger-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+.beh-critical-list {
+  display: flex; flex-direction: column; gap: 7px;
+}
+.beh-critical-row {
+  padding: 11px 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.beh-critical-name {
+  font-weight: 600; font-size: 13.5px; margin: 0 0 3px;
+}
+.beh-critical-desc {
+  font-size: 12px; color: var(--text-secondary); margin: 0;
+}
+
+.beh-dist-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.beh-dist-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.beh-dist-left {
+  display: flex; align-items: center; gap: 10px;
+}
+.beh-dist-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.beh-dist-label {
+  font-size: 13px; color: var(--text-primary);
+}
+.beh-dist-count {
+  font-size: 14px; font-weight: 700;
+}
+
+.beh-recent-header {
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface-alt);
+}
+.beh-recent-title {
+  font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0;
+}
+.beh-recent-scroll {
+  max-height: 260px; overflow-y: auto;
+}
+.beh-recent-row {
+  padding: 11px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border); transition: background .1s;
+}
+.beh-recent-name {
+  font-size: 13.5px; font-weight: 600; margin: 0 0 2px;
+  color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.beh-recent-meta {
+  font-size: 11.5px; color: var(--text-muted); margin: 0;
+}
