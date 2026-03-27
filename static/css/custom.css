@@ -2880,7 +2880,7 @@ textarea:focus-visible {
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
-.btn-sm { font-size: 12.5px; }
+.btn-sm { font-size: var(--text-xs); padding: 6px 14px; }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* KPI card color variants */

@@ -30,7 +30,7 @@
         </span>
         {% if book.available_qty > 0 %}
         <a href="{% url 'library:borrow_book' %}?book={{ book.id }}"
-           class="text-xs bg-maroon text-white px-2 py-1 rounded hover:opacity-90 transition-opacity">إعارة</a>
+           class="btn-primary btn-sm">إعارة</a>
         {% endif %}
       </div>
     </div>

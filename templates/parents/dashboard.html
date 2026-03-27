@@ -48,11 +48,11 @@
               style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"
               title="متصل"></span>
       </div>
-      <a href="{% url 'parent_consent' %}" class="btn-secondary" style="font-size:12px;text-decoration:none;">
+      <a href="{% url 'parent_consent' %}" class="btn-secondary text-xs">
         {% include "components/icon.html" with name="lock" %} إعدادات الخصوصية
       </a>
       <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
-         class="btn-primary" style="font-size:12px;text-decoration:none;">
+         class="btn-primary text-xs">
         {% include "components/icon.html" with name="printer" %} لائحة السلوك
       </a>
     </div>
@@ -62,10 +62,10 @@
   {% if not children %}
   <div class="card-qatar text-center py-10">
     <p style="font-size:40px;margin-bottom:12px;">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
-    <h2 style="font-size:16px;font-weight:700;color:var(--text-primary);margin:0 0 6px;">
+    <h2 class="text-base font-bold text-primary m-0 mb-1">
       لم يتم ربط حسابك بأي طالب بعد
     </h2>
-    <p style="font-size:13px;color:var(--text-secondary);margin:0;">
+    <p class="text-sm text-secondary m-0">
       تواصل مع إدارة المدرسة لربط حسابك بأبنائك.
     </p>
   </div>
@@ -99,17 +99,13 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         {% if child.link.can_view_grades %}
         <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}"
-           style="padding:8px 16px;background:rgba(255,255,255,.95);color:var(--maroon);
-                  font-size:12.5px;font-weight:700;border-radius:10px;text-decoration:none;
-                  transition:background .12s;">
+           class="child-action-btn child-action-btn--solid">
           {% include "components/icon.html" with name="bar-chart" %} الدرجات
         </a>
         {% endif %}
         {% if child.link.can_view_attendance %}
         <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}"
-           style="padding:8px 16px;background:rgba(255,255,255,.18);color:#fff;
-                  font-size:12.5px;font-weight:700;border-radius:10px;text-decoration:none;
-                  border:1px solid rgba(255,255,255,.3);transition:background .12s;">
+           class="child-action-btn child-action-btn--ghost">
           {% include "components/icon.html" with name="calendar" %} الغياب
         </a>
         {% endif %}
@@ -120,36 +116,35 @@
     <div class="grid grid-cols-2 sm:grid-cols-4"
          style="border-top:1px solid var(--border);">
 
-      <div class="p-4 text-center" style="border-left:1px solid var(--border);">
-        <div style="font-size:26px;font-weight:800;color:var(--maroon);">{{ child.total_subj }}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">إجمالي المواد</div>
+      <div class="p-4 text-center stat-cell">
+        <div class="stat-value text-maroon">{{ child.total_subj }}</div>
+        <div class="stat-label">إجمالي المواد</div>
       </div>
 
-      <div class="p-4 text-center" style="border-left:1px solid var(--border);">
-        <div style="font-size:26px;font-weight:800;color:var(--status-success-dark);">{{ child.passed }}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">ناجح</div>
+      <div class="p-4 text-center stat-cell">
+        <div class="stat-value text-status-success-dark">{{ child.passed }}</div>
+        <div class="stat-label">ناجح</div>
       </div>
 
-      <div class="p-4 text-center" style="border-left:1px solid var(--border);{% if child.failed %}background:var(--status-danger-bg);{% endif %}">
-        <div style="font-size:26px;font-weight:800;color:{% if child.failed %}#dc2626{% else %}var(--text-muted){% endif %};">
+      <div class="p-4 text-center stat-cell {% if child.failed %}bg-status-danger{% endif %}">
+        <div class="stat-value {% if child.failed %}text-red-600{% else %}text-muted{% endif %}">
           {{ child.failed }}
         </div>
-        <div style="font-size:11px;color:{% if child.failed %}#dc2626{% else %}var(--text-muted){% endif %};margin-top:3px;">
+        <div class="stat-label {% if child.failed %}text-red-600{% endif %}">
           راسب
         </div>
         {% if child.failed %}
-        <div style="font-size:10px;color:var(--status-danger);margin-top:3px;font-weight:600;">{% include "components/icon.html" with name="alert-triangle" %} يحتاج متابعة</div>
+        <div class="stat-sub font-semibold text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} يحتاج متابعة</div>
         {% endif %}
       </div>
 
-      <div class="p-4 text-center" style="{% if child.absent_30 >= 5 %}background:#fff7ed;{% endif %}">
-        <div style="font-size:26px;font-weight:800;
-                    color:{% if child.absent_30 >= 5 %}#d97706{% elif child.absent_30 > 0 %}var(--status-warning){% else %}var(--text-muted){% endif %};">
+      <div class="p-4 text-center {% if child.absent_30 >= 5 %}bg-warning-light{% endif %}">
+        <div class="stat-value {% if child.absent_30 >= 5 %}text-amber-600{% elif child.absent_30 > 0 %}text-status-warning{% else %}text-muted{% endif %}">
           {{ child.absent_30 }}
         </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">غياب (30 يوم)</div>
+        <div class="stat-label">غياب (30 يوم)</div>
         {% if child.late_30 %}
-        <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">{{ child.late_30 }} تأخر</div>
+        <div class="stat-sub">{{ child.late_30 }} تأخر</div>
         {% endif %}
       </div>
 
@@ -157,8 +152,7 @@
 
     {# ── Alert bar ── #}
     {% if child.failed or child.absent_30 >= 5 %}
-    <div style="padding:11px 20px;background:var(--status-danger-bg);border-top:1px solid var(--status-danger-border);
-                display:flex;align-items:center;gap:8px;font-size:13px;color:var(--status-danger-dark);">
+    <div class="child-alert-bar">
       <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
       <span>
         {% if child.failed %}يوجد {{ child.failed }} مادة راسب فيها.{% endif %}

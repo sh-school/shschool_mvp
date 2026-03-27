@@ -93,7 +93,7 @@
                 </a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}"
-                   class="text-xs px-3 py-1 bg-maroon text-white rounded-lg hover:bg-maroon-dark">
+                   class="btn-primary btn-sm">
                   تقييم
                 </a>
               {% endif %}
@@ -110,7 +110,7 @@
                 </a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}"
-                   class="text-xs px-3 py-1 bg-maroon text-white rounded-lg hover:bg-maroon-dark">
+                   class="btn-primary btn-sm">
                   تقييم
                 </a>
               {% endif %}
