@@ -4427,7 +4427,7 @@ html.dark .bg-warning-light { background: #451a03; }
 
 /* ── Notification Preferences — Form Components ──────────────────── */
 .notif-pref-container { max-width: 600px; margin: 0 auto; padding: 20px; }
-.notif-pref-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+
 .notif-pref-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
 
 .notif-channel-row {
