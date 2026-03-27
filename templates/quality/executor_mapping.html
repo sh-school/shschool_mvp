@@ -82,13 +82,13 @@
             <td class="px-4 py-3 text-gray-600">
               {% if row.user %}
                 <span class="text-green-700 font-medium">{{ row.user.full_name }}</span>
-                <span class="text-gray-400 text-xs me-1">({{ row.user.national_id }})</span>
+                <span class="text-gray-400 text-xs me-1" dir="ltr">({{ row.user.national_id }})</span>
               {% else %}
                 <span class="text-gray-400 text-xs italic">غير مربوط</span>
                 {% if row.suggested_user %}
                   <div class="mt-1 text-xs text-blue-700">
                     <span>مقترح: {{ row.suggested_user.full_name }}</span>
-                    <span class="text-gray-400">({{ row.suggested_user.national_id }})</span>
+                    <span class="text-gray-400" dir="ltr">({{ row.suggested_user.national_id }})</span>
                   </div>
                 {% endif %}
               {% endif %}

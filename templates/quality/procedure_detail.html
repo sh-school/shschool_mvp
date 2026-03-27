@@ -12,13 +12,13 @@
   <div class="text-sm text-gray-500 flex gap-2">
     <a href="{% url 'quality_dashboard' %}" class="hover:text-blue-600">الخطة</a> /
     <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="hover:text-blue-600">{{ procedure.indicator.target.domain.name }}</a> /
-    <span class="text-gray-800">إجراء {{ procedure.number }}</span>
+    <span class="text-gray-800">إجراء <span dir="ltr">{{ procedure.number }}</span></span>
   </div>
 
   <!-- الإجراء -->
   <div class="card-qatar overflow-hidden">
     <div class="bg-maroon px-6 py-4">
-      <p class="text-blue-200 text-xs font-mono">{{ procedure.number }}</p>
+      <p class="text-blue-200 text-xs font-mono" dir="ltr">{{ procedure.number }}</p>
       <p class="text-white font-bold mt-1 text-lg leading-relaxed">{{ procedure.text }}</p>
     </div>
     <div class="p-6 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -59,7 +59,7 @@
       </div>
       <div>
         <p class="text-gray-500 text-xs mb-1">المؤشر</p>
-        <p class="text-xs text-gray-600 font-mono">{{ procedure.indicator.number }}</p>
+        <p class="text-xs text-gray-600 font-mono" dir="ltr">{{ procedure.indicator.number }}</p>
       </div>
       <div id="status-badge">
         {% include "quality/partials/procedure_status_badge.html" %}

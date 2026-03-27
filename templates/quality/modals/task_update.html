@@ -9,7 +9,7 @@
         <div class="header-icon">{% include "components/icon.html" with name="pen-square" %}</div>
         <div>
           <h3>تحديث بيانات التنفيذ</h3>
-          <p class="sub">رقم الإجراء: {{ task.number }}</p>
+          <p class="sub">رقم الإجراء: <span dir="ltr">{{ task.number }}</span></p>
         </div>
       </div>
       <button class="close-btn" onclick="closeModal();this.closest('.q-modal-overlay').remove()">

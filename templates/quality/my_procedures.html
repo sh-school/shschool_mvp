@@ -60,7 +60,7 @@
     {% for proc in procedures %}
     <a href="{% url 'procedure_detail' proc.id %}" class="flex items-start justify-between px-5 py-4 hover:bg-gray-50 transition">
       <div class="flex-1">
-        <p class="text-xs text-gray-400 font-mono mb-0.5">{{ proc.number }} · {{ proc.indicator.target.domain.name }}</p>
+        <p class="text-xs text-gray-400 font-mono mb-0.5"><span dir="ltr">{{ proc.number }}</span> · {{ proc.indicator.target.domain.name }}</p>
         <p class="text-sm font-medium text-gray-800">{{ proc.text|truncatechars:100 }}</p>
         <p class="text-xs text-gray-500 mt-1">{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
           {% if proc.deadline %}

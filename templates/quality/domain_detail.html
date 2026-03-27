@@ -54,13 +54,13 @@
   {% for target in targets %}
   <div class="card-qatar overflow-hidden">
     <div class="bg-gray-100 border-b px-5 py-3">
-      <p class="text-xs text-blue-600 font-mono">{{ target.number }}</p>
+      <p class="text-xs text-blue-600 font-mono" dir="ltr">{{ target.number }}</p>
       <p class="font-bold text-maroon mt-0.5">{{ target.text|truncatechars:120 }}</p>
     </div>
     {% for indicator in target.indicators.all %}
     <div class="border-b last:border-0">
       <div class="px-5 py-2 bg-gray-50 flex items-center gap-2">
-        <span class="text-xs font-mono text-gray-500">{{ indicator.number }}</span>
+        <span class="text-xs font-mono text-gray-500" dir="ltr">{{ indicator.number }}</span>
         <span class="text-sm text-gray-700">{{ indicator.text|truncatechars:100 }}</span>
       </div>
       <div class="divide-y">

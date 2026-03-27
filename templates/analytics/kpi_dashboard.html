@@ -79,6 +79,11 @@ async function loadKPIs(year) {
     const r = await fetch(`/analytics/api/kpis/?year=${year}`);
     const data = await r.json();
     const kpis = data.kpis;
+    if (!kpis || Object.keys(kpis).length === 0) {
+      document.getElementById('kpiGrid').innerHTML =
+        '<div class="col-12"><div class="empty-state-v2"><div class="es-icon">bar-chart</div><div class="es-title">لا توجد مؤشرات أداء</div><div class="es-sub">لم يتم تسجيل أي مؤشرات أداء لهذه السنة بعد</div></div></div>';
+      return;
+    }
     let html = '';
     for (const [k, v] of Object.entries(kpis)) html += renderKPI(k, v);
     document.getElementById('kpiGrid').innerHTML = html;

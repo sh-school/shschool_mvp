@@ -131,7 +131,7 @@
         <tbody>
           {% for item in overdue_procedures %}
           <tr>
-            <td style="font-family:monospace;font-size:12px;font-weight:600;">{{ item.procedure.number }}</td>
+            <td style="font-family:monospace;font-size:12px;font-weight:600;" dir="ltr">{{ item.procedure.number }}</td>
             <td>{{ item.procedure.text|truncatewords:8 }}</td>
             <td style="color:var(--text-secondary);font-size:12px;">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
             <td style="color:var(--text-secondary);font-size:12px;">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
@@ -165,7 +165,7 @@
         <tbody>
           {% for proc in evidence_requests %}
           <tr>
-            <td style="font-family:monospace;font-size:12px;font-weight:600;">{{ proc.number }}</td>
+            <td style="font-family:monospace;font-size:12px;font-weight:600;" dir="ltr">{{ proc.number }}</td>
             <td>{{ proc.text|truncatewords:8 }}</td>
             <td style="color:var(--text-secondary);font-size:12px;">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
             <td style="color:var(--text-secondary);font-size:12px;">{{ proc.indicator.target.domain.name|default:"—" }}</td>
