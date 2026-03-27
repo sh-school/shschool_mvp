@@ -8,6 +8,7 @@ Views نحيفة — كل Business Logic في behavior/services.py
 import logging
 
 from django.conf import settings
+from django.utils import timezone as _tz
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -758,6 +759,51 @@ def summon_parent(request, student_id=None):
         "sender": request.user,
         **student_context,
     })
+
+
+@login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL)
+def student_behavior_pdf(request, student_id):
+    """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
+    school = request.user.get_school()
+    student = get_object_or_404(CustomUser, id=student_id)
+
+    # تقييد الوصول: المعلم/المنسق يرى طلابه فقط
+    if not teacher_can_access_student(request.user, student.id):
+        return HttpResponseForbidden(
+            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
+            "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي.</h2>"
+        )
+
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    period = request.GET.get("period", "full")
+
+    report = BehaviorService.get_student_report_data(student, school, period, year)
+
+    # جلب بيانات الفصل الدراسي
+    from core.models import StudentEnrollment
+    try:
+        enrollment = (
+            StudentEnrollment.objects.filter(
+                student=student, class_group__school=school, is_active=True
+            )
+            .select_related("class_group")
+            .first()
+        )
+        class_name = enrollment.class_group.name if enrollment else None
+    except Exception:
+        class_name = None
+
+    ctx = {
+        "student": student,
+        "school": school,
+        "class_name": class_name,
+        "academic_year": year,
+        "generated_at": _tz.now(),
+        **report,
+    }
+    filename = f"behavior_report_{student.username}_{year}.pdf"
+    return _render_behavior_pdf("behavior/pdf/student_report.html", ctx, filename)
 
 
 @login_required

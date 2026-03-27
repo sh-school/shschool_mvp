@@ -5,7 +5,7 @@ assessments/services.py
 الفصل الأول  = 40 درجة من 100
 الفصل الثاني = 60 درجة من 100
 المجموع السنوي = S1 + S2 (من 100)
-النجاح = 50 فأكثر
+النجاح = 60 فأكثر
 """
 
 from __future__ import annotations
@@ -257,7 +257,7 @@ class GradeService:
 
             if s1_total is None or s2_total is None:
                 status = "incomplete"
-            elif annual_total >= Decimal("50"):
+            elif annual_total >= Decimal("60"):
                 status = "pass"
             else:
                 status = "fail"

@@ -50,6 +50,12 @@ urlpatterns = [
     # استدعاء ولي أمر
     path("summon/", views.summon_parent, name="summon_parent"),
     path("summon/<uuid:student_id>/", views.summon_parent, name="summon_parent_student"),
+    # ✅ v7: تقرير سلوكي شامل للطالب — A4 للطباعة
+    path(
+        "student/<uuid:student_id>/pdf/",
+        views.student_behavior_pdf,
+        name="student_behavior_pdf",
+    ),
     # ✅ v5: لائحة السلوك PDF — للموظفين + أولياء الأمور
     path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
 ]

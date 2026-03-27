@@ -19,9 +19,9 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
-  {# ── CSS ── #}
-  <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=123">
+  {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
+  <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=124">
 
   {# Login styles — defined in custom.css section 15 #}
 </head>

@@ -63,9 +63,9 @@ def grade_color_class(value):
         t = float(value)
         if t >= 80:
             return "text-green-700"
-        if t >= 60:
+        if t >= 65:
             return "text-blue-700"
-        if t >= 50:
+        if t >= 60:
             return "text-amber-600"
         return "text-red-600"
     except (TypeError, ValueError):

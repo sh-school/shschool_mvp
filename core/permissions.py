@@ -188,6 +188,9 @@ def role_required(*roles):
     if len(roles) == 1 and isinstance(roles[0], (set, frozenset, list, tuple)):
         roles = tuple(roles[0])
 
+    # توسيع الأدوار لتشمل الأدوار الوارثة (coordinator ← teacher، إلخ)
+    expanded_roles = expand_roles(set(roles))
+
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
@@ -196,14 +199,14 @@ def role_required(*roles):
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)
             user_role = request.user.get_role()
-            if user_role not in roles:
+            if user_role not in expanded_roles:
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
                 )
             return view_func(request, *args, **kwargs)
 
-        wrapper._required_roles = roles
+        wrapper._required_roles = tuple(expanded_roles)
         return wrapper
 
     return decorator

@@ -1,0 +1,191 @@
+{% extends "behavior/pdf/base_form.html" %}
+{% block content %}
+
+<!-- الهيدر الرئيسي -->
+<div class="header">
+  <div class="report-header">
+    <h1>{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</h1>
+  </div>
+  <div class="form-title">التقرير السلوكي للطالب</div>
+  <div class="date-line">تاريخ الإصدار: {{ generated_at|date:"Y/m/d" }} &nbsp;|&nbsp; العام الدراسي: {{ academic_year }}</div>
+</div>
+
+<!-- بيانات الطالب -->
+<div class="section">
+  <div class="section-title">بيانات الطالب</div>
+  <div class="field-row">
+    <span class="field-label">الاسم الكامل:</span>
+    <span class="field-value">{{ student.full_name }}</span>
+    <span class="field-label">الرقم الشخصي:</span>
+    <span class="field-value">{{ student.username }}</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">الصف / الفصل:</span>
+    <span class="field-value">{{ class_name|default:"_____________" }}</span>
+    <span class="field-label">الرقم المدرسي:</span>
+    <span class="field-value">{{ student.school_id|default:"_____________" }}</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">الفترة الزمنية:</span>
+    <span class="field-value">{{ period_label }} ({{ date_from|date:"Y/m/d" }} — {{ date_to|date:"Y/m/d" }})</span>
+  </div>
+</div>
+
+<!-- ملخص النقاط السلوكية -->
+<div class="section">
+  <div class="section-title">ملخص النقاط السلوكية</div>
+  <div class="report-title">النقاط السلوكية — {{ rating }}</div>
+  <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;">
+    <tr>
+      <td style="padding:5px 8px; font-weight:bold; width:40%;">مجموع النقاط المخصومة:</td>
+      <td style="padding:5px 8px; color:#B91C1C;">{{ total_deducted }} نقطة</td>
+      <td style="padding:5px 8px; font-weight:bold; width:30%;">النقاط المستعادة:</td>
+      <td style="padding:5px 8px; color:#15803D;">{{ total_restored }} نقطة</td>
+    </tr>
+    <tr>
+      <td style="padding:5px 8px; font-weight:bold;">النقاط الصافية:</td>
+      <td style="padding:5px 8px; font-weight:bold; font-size:15px;
+        color:{% if net_score >= 90 %}#15803D{% elif net_score >= 75 %}#1D4ED8{% elif net_score >= 60 %}#D97706{% else %}#B91C1C{% endif %};">
+        {{ net_score }} / 100
+      </td>
+      <td style="padding:5px 8px; font-weight:bold;">التقدير:</td>
+      <td style="padding:5px 8px; font-weight:bold;
+        color:{% if net_score >= 90 %}#15803D{% elif net_score >= 75 %}#1D4ED8{% elif net_score >= 60 %}#D97706{% else %}#B91C1C{% endif %};">
+        {{ rating }}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- توزيع المخالفات حسب الدرجة -->
+<div class="section">
+  <div class="section-title">توزيع المخالفات حسب الدرجة</div>
+  <table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;">
+    <thead>
+      <tr style="background:#8A1538; color:#fff;">
+        <th style="padding:6px 10px; text-align:right;">الدرجة</th>
+        <th style="padding:6px 10px; text-align:center;">الوصف</th>
+        <th style="padding:6px 10px; text-align:center;">عدد المخالفات</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="background:#fff;">
+        <td style="padding:5px 10px; font-weight:bold; color:#D97706;">الدرجة الأولى</td>
+        <td style="padding:5px 10px; text-align:center; color:#555;">تنبيه شفهي</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.1|default:"0" }}</td>
+      </tr>
+      <tr style="background:#fdf2f5;">
+        <td style="padding:5px 10px; font-weight:bold; color:#EA580C;">الدرجة الثانية</td>
+        <td style="padding:5px 10px; text-align:center; color:#555;">إنذار رسمي</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.2|default:"0" }}</td>
+      </tr>
+      <tr style="background:#fff;">
+        <td style="padding:5px 10px; font-weight:bold; color:#DC2626;">الدرجة الثالثة</td>
+        <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة جسيمة</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.3|default:"0" }}</td>
+      </tr>
+      <tr style="background:#fdf2f5;">
+        <td style="padding:5px 10px; font-weight:bold; color:#7F1D1D;">الدرجة الرابعة</td>
+        <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة خطيرة</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.4|default:"0" }}</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr style="background:#8A1538; color:#fff;">
+        <td style="padding:6px 10px; font-weight:bold;" colspan="2">المجموع الكلي</td>
+        <td style="padding:6px 10px; text-align:center; font-weight:bold;">{{ infractions|length }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- جدول المخالفات التفصيلي -->
+{% if infractions %}
+<div class="section" style="margin-top:14px;">
+  <div class="section-title">سجل المخالفات التفصيلي</div>
+  <table style="width:100%; border-collapse:collapse; font-size:11px; margin-top:8px;">
+    <thead>
+      <tr style="background:#8A1538; color:#fff;">
+        <th style="padding:5px 6px; text-align:center; width:5%;">#</th>
+        <th style="padding:5px 6px; text-align:right; width:12%;">التاريخ</th>
+        <th style="padding:5px 6px; text-align:right; width:22%;">فئة المخالفة</th>
+        <th style="padding:5px 6px; text-align:center; width:10%;">الدرجة</th>
+        <th style="padding:5px 6px; text-align:center; width:8%;">النقاط</th>
+        <th style="padding:5px 6px; text-align:center; width:10%;">الحالة</th>
+        <th style="padding:5px 6px; text-align:right;">الوصف / الإجراء</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inf in infractions %}
+      <tr style="background:{% cycle '#fff' '#fdf2f5' %}; vertical-align:top;">
+        <td style="padding:5px 6px; text-align:center;">{{ forloop.counter }}</td>
+        <td style="padding:5px 6px; white-space:nowrap;">{{ inf.date|date:"Y/m/d" }}</td>
+        <td style="padding:5px 6px;">
+          {% if inf.violation_category %}
+            <span style="font-size:10px; background:#f3f4f6; padding:1px 5px; border-radius:10px;">{{ inf.violation_category.code }}</span>
+            {{ inf.violation_category.name_ar }}
+          {% else %}
+            {{ inf.get_level_display }}
+          {% endif %}
+        </td>
+        <td style="padding:5px 6px; text-align:center; font-weight:bold;
+          color:{% if inf.level == 1 %}#D97706{% elif inf.level == 2 %}#EA580C{% elif inf.level == 3 %}#DC2626{% else %}#7F1D1D{% endif %};">
+          {{ inf.level }}
+        </td>
+        <td style="padding:5px 6px; text-align:center; color:#B91C1C;">{{ inf.points_deducted }}</td>
+        <td style="padding:5px 6px; text-align:center;">
+          {% if inf.is_resolved %}
+            <span style="color:#15803D; font-size:10px;">محلولة</span>
+          {% else %}
+            <span style="color:#B91C1C; font-size:10px;">قائمة</span>
+          {% endif %}
+        </td>
+        <td style="padding:5px 6px; font-size:10px; line-height:1.5;">
+          {{ inf.description|truncatechars:80 }}
+          {% if inf.action_taken %}
+            <br><span style="color:#555;">الإجراء: {{ inf.action_taken|truncatechars:60 }}</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="section" style="text-align:center; padding:20px;">
+  <p style="color:#555;">لا توجد مخالفات مسجّلة في هذه الفترة</p>
+</div>
+{% endif %}
+
+<!-- التوقيعات -->
+<div class="sig-section">
+  <div class="sig-grid">
+    <div class="sig-box">
+      <div class="sig-line">توقيع مدير المدرسة</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">توقيع الأخصائي الاجتماعي</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">توقيع ولي الأمر واستلامه</div>
+    </div>
+  </div>
+  <div class="sig-grid" style="margin-top:24px;">
+    <div class="sig-box">
+      <div class="sig-line">الاسم: ___________________</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">التاريخ: ___________________</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">الختم الرسمي للمدرسة</div>
+    </div>
+  </div>
+</div>
+
+<div class="notice">
+  هذا التقرير سري ويخص الطالب المذكور أعلاه فقط — يُعتمد وفق أنظمة وزارة التربية والتعليم والتعليم العالي.
+  أُنشئ بواسطة SchoolOS v6 | {{ generated_at|date:"Y/m/d H:i" }}
+</div>
+
+{% endblock %}

@@ -6,7 +6,6 @@
       "runtimeExecutable": "D:/shschool_mvp/.venv/Scripts/python.exe",
       "runtimeArgs": ["D:/shschool_mvp/manage.py", "runserver", "8000"],
       "port": 8000,
-      "cwd": "D:/shschool_mvp",
       "env": {
         "DJANGO_SETTINGS_MODULE": "shschool.settings.development"
       }

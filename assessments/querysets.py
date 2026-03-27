@@ -85,8 +85,8 @@ class AnnualResultQuerySet(QuerySet):
             "C+": (75, 80),
             "C": (70, 75),
             "D+": (65, 70),
-            "D": (50, 65),
-            "F": (0, 50),
+            "D": (60, 65),
+            "F": (0, 60),
         }
         if grade not in thresholds:
             return self.none()

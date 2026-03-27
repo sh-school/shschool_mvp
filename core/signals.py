@@ -167,6 +167,31 @@ def audit_membership(sender, instance, created, **kwargs):
             "school": str(instance.school),
         },
     )
+    # ── PermissionAuditLog — سجل صلاحيات تفصيلي ─────────────────
+    try:
+        from core.middleware import get_current_request, get_current_user
+        from core.models import PermissionAuditLog
+
+        actor = get_current_user()
+        request = get_current_request()
+        action = "role_assigned" if created else (
+            "account_disabled" if not instance.is_active else "role_assigned"
+        )
+        if actor and instance.school_id:
+            PermissionAuditLog.log(
+                actor=actor,
+                target=instance.user,
+                action=action,
+                school=instance.school,
+                details={
+                    "role": str(instance.role),
+                    "department": instance.department_name,
+                    "is_active": instance.is_active,
+                },
+                request=request,
+            )
+    except Exception as e:
+        logger.warning("PermissionAuditLog membership failed: %s", e)
 
 
 @receiver(pre_delete, sender="core.Membership")
@@ -178,6 +203,23 @@ def audit_membership_delete(sender, instance, **kwargs):
         instance,
         changes={"user": str(instance.user), "role": str(instance.role)},
     )
+    try:
+        from core.middleware import get_current_request, get_current_user
+        from core.models import PermissionAuditLog
+
+        actor = get_current_user()
+        request = get_current_request()
+        if actor and instance.school_id:
+            PermissionAuditLog.log(
+                actor=actor,
+                target=instance.user,
+                action="role_removed",
+                school=instance.school,
+                details={"role": str(instance.role)},
+                request=request,
+            )
+    except Exception as e:
+        logger.warning("PermissionAuditLog membership_delete failed: %s", e)
 
 
 # ── [مهمة 9] تعديل بيانات المستخدم ────────────────────────────────────
