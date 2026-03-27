@@ -66,7 +66,7 @@ def update_package_weights(apps, schema_editor):
             )
             updated += count
 
-    print(f"  ✓ تم تحديث {updated} باقة تقييمية بالأوزان الصحيحة.")
+    print(f"  [OK] updated {updated} AssessmentPackage rows to correct weights.")
 
 
 def update_pass_grades(apps, schema_editor):
@@ -79,7 +79,7 @@ def update_pass_grades(apps, schema_editor):
         pass_grade=Decimal("60"),
     )
 
-    print(f"  ✓ تم تحديث {count} نتيجة سنوية: pass_grade 50 → 60.")
+    print(f"  [OK] updated {count} AnnualSubjectResult rows: pass_grade 50 -> 60.")
 
 
 def reverse_package_weights(apps, schema_editor):
