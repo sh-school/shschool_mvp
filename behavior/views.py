@@ -492,15 +492,30 @@ def behavior_report(request, student_id):
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
+_STATS_TEACHER_ROLES = {"teacher", "coordinator", "ese_teacher"}
+_STATS_ALLOWED_ROLES = (
+    BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | _STATS_TEACHER_ROLES
+)
+
+
 @login_required
-@role_required(BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL)
+@role_required(_STATS_ALLOWED_ROLES)
 def behavior_statistics(request):
-    """التقرير الإحصائي السلوكي للمدرسة — للمدير ولجنة الضبط فقط."""
-    if not BehaviorPermissions.is_committee(request.user):
-        return HttpResponseForbidden("للمدير ونائبيه فقط.")
+    """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
+    role = request.user.get_role()
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
-    stats = BehaviorService.get_statistics(school)
+
+    # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
+    if role in _STATS_TEACHER_ROLES:
+        student_ids = get_teacher_student_ids(request.user)
+        stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
+    else:
+        # القيادة ولجنة الضبط → كل طلاب المدرسة
+        if not BehaviorPermissions.is_committee(request.user):
+            return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
+        stats = BehaviorService.get_statistics(school)
+
     stats["year"] = year
     return render(request, "behavior/statistics.html", stats)
 

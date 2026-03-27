@@ -324,6 +324,69 @@ class BehaviorService:
         except Exception:
             logger.exception("Failed to auto-summon parent for infraction %s", infraction.pk)
 
+    # ── إحصائيات مقيّدة (للمعلم/المنسق) ───────────────────
+    @staticmethod
+    def get_statistics_scoped(
+        school: School,
+        student_ids,
+        date_from: date | None = None,
+        date_to: date | None = None,
+    ) -> dict:
+        """
+        إحصائيات سلوكية مقيّدة بمجموعة طلاب محددة (للمعلم/المنسق).
+        student_ids: مجموعة IDs أو قائمة — لا يجوز None هنا.
+        """
+        if not date_from or not date_to:
+            today = timezone.now().date()
+            start_year = today.year if today.month >= 9 else today.year - 1
+            if not date_from:
+                date_from = date(start_year, 9, 1)
+            if not date_to:
+                date_to = date(start_year + 1, 6, 30)
+
+        all_inf = BehaviorInfraction.objects.filter(
+            school=school,
+            date__gte=date_from,
+            date__lte=date_to,
+            student_id__in=student_ids,
+        )
+        total = all_inf.count()
+
+        by_level = {lvl: all_inf.filter(level=lvl).count() for lvl in [1, 2, 3, 4]}
+
+        top_students = (
+            all_inf.values("student__full_name", "student__id")
+            .annotate(count=Count("id"), pts=Sum("points_deducted"))
+            .order_by("-count")[:10]
+        )
+
+        monthly = (
+            all_inf.annotate(month=TruncMonth("date"))
+            .values("month")
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+
+        top_classes = (
+            all_inf.values(
+                "student__enrollments__class_group__grade",
+                "student__enrollments__class_group__section",
+            )
+            .annotate(count=Count("id"))
+            .order_by("-count")[:5]
+        )
+
+        resolved_pct = round(all_inf.filter(is_resolved=True).count() / total * 100) if total else 0
+
+        return {
+            "by_level": by_level,
+            "total": total,
+            "top_students": top_students,
+            "monthly": monthly,
+            "top_classes": top_classes,
+            "resolved_pct": resolved_pct,
+        }
+
     # ── إحصائيات شاملة (تقرير المدير) ──────────────────────
     @staticmethod
     def get_statistics(
