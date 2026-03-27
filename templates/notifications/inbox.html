@@ -16,7 +16,7 @@
       <h1 class="page-title">{% include "components/icon.html" with name="bell" %} الإشعارات</h1>
       <p class="page-subtitle" id="inbox-subtitle">
         {% if unread_count %}
-          <span id="inbox-unread-text" style="color:var(--maroon);font-weight:700;">{{ unread_count }}</span> إشعار غير مقروء
+          <span id="inbox-unread-text" class="text-maroon font-bold">{{ unread_count }}</span> إشعار غير مقروء
         {% else %}
           جميع الإشعارات مقروءة
         {% endif %}
@@ -77,7 +77,7 @@
   </p>
 
   {# ── قائمة الإشعارات ── #}
-  <div id="notif-list" style="display:flex;flex-direction:column;gap:6px;">
+  <div id="notif-list" class="flex flex-col gap-1.5">
     {% for notif in notifications %}
     {% include "notifications/partials/notif_item.html" with notif=notif %}
     {% empty %}
