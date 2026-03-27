@@ -26,8 +26,8 @@ window.sd = function(id, btn) {
   if (!m) return;
   var isOpen = m.classList.contains('open');
   document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open'); });
-  document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); });
-  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); }
+  document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
+  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true'); }
 };
 
 /* ── Event delegation: all interactive buttons ── */
@@ -48,7 +48,7 @@ document.addEventListener('click', function(e) {
   if (pwaDismiss && typeof dismissBanner === 'function') { dismissBanner(); return; }
   if (!e.target.closest('.sd-menu') && !e.target.closest('[data-sd]')) {
     document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open'); });
-    document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); });
+    document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
   }
 });
 
@@ -245,6 +245,14 @@ document.body.addEventListener('showToast', function(e) {
   if (e.detail) window.showToast(e.detail.msg, e.detail.type);
 });
 
+/* ── HTMX CSRF Token — يُرسَل تلقائياً مع كل طلب ────────── */
+document.addEventListener('htmx:configRequest', function(e) {
+  var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+  if (csrf) { e.detail.headers['X-CSRFToken'] = csrf.value; return; }
+  var cookie = document.cookie.split('; ').find(function(c) { return c.startsWith('csrftoken='); });
+  if (cookie) e.detail.headers['X-CSRFToken'] = cookie.split('=')[1];
+});
+
 /* ── HTMX Global Loading Bar ─────────────────────────────── */
 (function() {
   var bar = document.getElementById('htmx-loading-bar');
@@ -285,28 +293,60 @@ document.addEventListener('htmx:afterSwap', function() {
 });
 
 
-/* ── Modal Manager ────────────────────────────────────────── */
+/* ── Modal Manager (with Focus Trap — WCAG 2.4.3) ────────── */
 window.modalManager = {
   _stack: [],
+  _trapHandler: null,
+
   open: function(id) {
     var overlay = document.getElementById('modal-' + id);
     if (!overlay) return;
     this._stack.push({ id: id, trigger: document.activeElement });
     overlay.style.display = 'flex';
     overlay.removeAttribute('hidden');
-    var focusable = overlay.querySelector(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    document.body.style.overflow = 'hidden';
+
+    // Focus first focusable element
+    var focusable = overlay.querySelectorAll(
+      'button, [href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    if (focusable) setTimeout(function() { focusable.focus(); }, 50);
+    if (focusable.length) setTimeout(function() { focusable[0].focus(); }, 50);
+
+    // Focus Trap — Tab stays inside modal
+    var self = this;
+    this._trapHandler = function(e) {
+      if (e.key !== 'Tab' || !self._stack.length) return;
+      var current = self._stack[self._stack.length - 1];
+      var el = document.getElementById('modal-' + current.id);
+      if (!el) return;
+      var nodes = el.querySelectorAll(
+        'button:not([disabled]), [href], input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!nodes.length) return;
+      var first = nodes[0], last = nodes[nodes.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault(); first.focus();
+      }
+    };
+    document.addEventListener('keydown', this._trapHandler);
   },
+
   close: function(id) {
     var overlay = document.getElementById('modal-' + id);
     if (!overlay) return;
     overlay.style.display = 'none';
     overlay.setAttribute('hidden', '');
+    if (this._trapHandler) {
+      document.removeEventListener('keydown', this._trapHandler);
+      this._trapHandler = null;
+    }
     var prev = this._stack.pop();
+    if (!this._stack.length) document.body.style.overflow = '';
     if (prev && prev.trigger) prev.trigger.focus();
   },
+
   closeTop: function() {
     if (this._stack.length) this.close(this._stack[this._stack.length - 1].id);
   }
@@ -316,6 +356,54 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') window.modalManager.closeTop();
 });
 
+
+/* ── Custom Confirm Dialog (replaces browser confirm()) ──── */
+(function() {
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    var msg = form.getAttribute('data-confirm');
+    if (!msg) return; // no data-confirm → normal submit
+    if (form._confirmed) { form._confirmed = false; return; } // already confirmed
+    e.preventDefault();
+
+    // Build confirm overlay
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.display = 'flex';
+    overlay.innerHTML =
+      '<div class="modal-box modal-sm" role="document">' +
+      '  <div class="modal-header"><span style="color:#dc2626">' +
+      '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
+      '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
+      '    <button class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
+      '  </div>' +
+      '  <div class="modal-body"><p style="color:var(--text-secondary);line-height:1.7">' + msg + '</p></div>' +
+      '  <div class="modal-footer">' +
+      '    <button class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
+      '    <button class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
+      '  </div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-action="confirm"]').focus();
+
+    overlay.addEventListener('click', function(ev) {
+      var action = ev.target.getAttribute('data-action');
+      if (action === 'confirm') {
+        overlay.remove();
+        form._confirmed = true;
+        form.submit();
+      } else if (action === 'cancel' || ev.target === overlay) {
+        overlay.remove();
+      }
+    });
+    overlay.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Escape') overlay.remove();
+    });
+  });
+})();
 
 /* ── Active nav link (aria-current) ──────────────────────── */
 (function() {

@@ -78,10 +78,10 @@
     <div class="nb-bar">
     {% if is_admin_role %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
@@ -161,10 +161,10 @@
     {% else %}
       {# platform_developer أو أي دور آخر — نفس المدير #}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
 
     {% endif %}
     </div>
@@ -377,7 +377,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=102" defer></script>
+<script src="{% static 'js/base.js' %}?v=103" defer></script>
 <script src="{% static 'js/app.js' %}?v=100" defer></script>
 
 {% block extra_js %}{% endblock %}

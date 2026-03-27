@@ -140,7 +140,7 @@
             </td>
             <td class="cell-center">
               <form method="post" action="{% url 'remove_committee_member' ms.member.id %}"
-                    onsubmit="return confirm('حذف {{ ms.member.job_title }}؟')">
+                    data-confirm="حذف {{ ms.member.job_title }}؟">
                 {% csrf_token %}
                 <button type="submit" class="q-btn q-btn-outline q-btn-delete">
                   {% include "components/icon.html" with name="trash" %} حذف

@@ -45,7 +45,7 @@
       الجدول القديم سيُعطَّل تلقائياً ويُنشأ جدول جديد.
     </p>
     <form method="post" action="{% url 'smart_generate' %}"
-          onsubmit="return confirm('هل تريد توليد جدول جديد؟ سيحل محل الجدول الحالي.')">
+          data-confirm="هل تريد توليد جدول جديد؟ سيحل محل الجدول الحالي.">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
       <button type="submit" class="btn-primary" style="padding:12px 32px;font-size:14px;">

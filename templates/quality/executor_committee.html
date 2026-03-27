@@ -178,7 +178,7 @@
               {% endif %}
               {% if request.user.is_admin %}
               <form class="form-inline" method="post" action="{% url 'remove_executor_member' stat.member.id %}"
-                    onsubmit="return confirm('هل تريد إزالة هذا العضو من اللجنة؟')">
+                    data-confirm="هل تريد إزالة هذا العضو من اللجنة؟">
                 {% csrf_token %}
                 <button type="submit" class="q-btn q-btn-outline q-btn-delete">حذف</button>
               </form>

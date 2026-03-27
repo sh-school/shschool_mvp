@@ -25,15 +25,15 @@
     <div class="px-6 py-4 grid grid-cols-3 gap-4 text-sm">
       <div>
         <span class="text-gray-500">السبب:</span>
-        <span class="font-medium mr-1">{{ absence.get_reason_display }}</span>
+        <span class="font-medium me-1">{{ absence.get_reason_display }}</span>
       </div>
       <div>
         <span class="text-gray-500">عدد الحصص:</span>
-        <span class="font-medium mr-1">{{ slots_data|length }}</span>
+        <span class="font-medium me-1">{{ slots_data|length }}</span>
       </div>
       <div>
         <span class="text-gray-500">مُغطَّى:</span>
-        <span class="font-medium mr-1">{% for s in slots_data %}{% if s.assignment %}1{% endif %}{% endfor %}</span>
+        <span class="font-medium me-1">{% for s in slots_data %}{% if s.assignment %}1{% endif %}{% endfor %}</span>
       </div>
     </div>
     {% if absence.reason_notes %}

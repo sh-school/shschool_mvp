@@ -51,7 +51,7 @@
           <span class="text-sm font-medium text-gray-600">المجموع الحالي</span>
           <span class="text-xl font-bold {% if obj.rating == 'excellent' %}text-green-700{% elif obj.rating == 'needs_dev' %}text-red-600{% else %}text-amber-600{% endif %}">
             {{ obj.total_score }} / 100
-            <span class="text-sm font-normal text-gray-500 mr-2">{{ obj.get_rating_display }}</span>
+            <span class="text-sm font-normal text-gray-500 me-2">{{ obj.get_rating_display }}</span>
           </span>
         </div>
         {% endif %}

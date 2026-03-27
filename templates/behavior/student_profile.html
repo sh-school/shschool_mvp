@@ -79,7 +79,7 @@
  {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">{% include "components/icon.html" with name="check" %} استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
  <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
  </div>
- <div class="flex flex-col gap-1 shrink-0 mr-2">
+ <div class="flex flex-col gap-1 shrink-0 me-2">
  {% if is_committee and not inf.is_resolved and not inf.recovery %}
  <a href="{% url 'behavior:point_recovery' inf.id %}"
  class="btn-success text-xs text-white px-3 py-1.5 rounded-lg">

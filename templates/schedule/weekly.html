@@ -304,7 +304,7 @@ td:has(.slot-empty) {
               <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
               {% if request.user.is_admin %}
               <form method="post" action="{% url 'slot_delete' slot.id %}"
-                    onsubmit="return confirm('حذف هذه الحصة؟')">
+                    data-confirm="حذف هذه الحصة؟">
                 {% csrf_token %}
                 <button type="submit" class="slot-delete" title="حذف">×</button>
               </form>

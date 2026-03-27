@@ -48,7 +48,7 @@
           </td>
           <td data-label="حذف" class="text-center">
             <form method="post" action="{% url 'remove_parent_link' lnk.id %}"
-                  onsubmit="return confirm('هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }}؟')">
+                  data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }}؟">
               {% csrf_token %}
               <button type="submit" class="btn-danger btn-sm" style="padding:4px 10px;font-size:11px;">
                 حذف

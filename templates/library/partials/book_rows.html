@@ -12,7 +12,7 @@
         <p class="font-medium text-gray-800 text-sm leading-snug">{{ book.title }}</p>
         <p class="text-xs text-gray-500 mt-0.5 truncate">{{ book.author }}</p>
       </div>
-      <span class="text-xs px-2 py-0.5 rounded-full mr-2 shrink-0
+      <span class="text-xs px-2 py-0.5 rounded-full me-2 shrink-0
         {% if book.book_type == 'PRINT' %}bg-blue-100 text-blue-700
         {% elif book.book_type == 'DIGITAL' %}bg-purple-100 text-purple-700
         {% else %}bg-gray-100 text-gray-700{% endif %}">
@@ -24,7 +24,7 @@
         {% if book.isbn %}<span class="block truncate">ISBN: {{ book.isbn }}</span>{% endif %}
         {% if book.category %}<span class="text-gray-400">{{ book.category }}</span>{% endif %}
       </div>
-      <div class="flex items-center gap-2 shrink-0 mr-2">
+      <div class="flex items-center gap-2 shrink-0 me-2">
         <span class="text-xs font-medium {% if book.available_qty > 0 %}text-green-600{% else %}text-red-600{% endif %}">
           {{ book.available_qty }}/{{ book.quantity }} متوفر
         </span>

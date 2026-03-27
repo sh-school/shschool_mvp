@@ -96,7 +96,8 @@
 
   function showFile(file) {
     if (file.size > maxMB * 1024 * 1024) {
-      alert('حجم الملف يتجاوز ' + maxMB + ' MB');
+      if (window.showToast) showToast('حجم الملف يتجاوز ' + maxMB + ' MB', 'danger');
+      else alert('حجم الملف يتجاوز ' + maxMB + ' MB');
       input.value = '';
       return;
     }

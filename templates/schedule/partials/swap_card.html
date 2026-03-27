@@ -44,14 +44,14 @@
   {# زر الإلغاء — حسب المرحلة (القوانين 12-14) #}
   {% if swap.status == "pending_b" and request.user == swap.teacher_a %}
   <div class="swap-actions">
-    <form method="post" action="{% url 'swap_cancel' swap.pk %}" onsubmit="return confirm('هل تريد إلغاء هذا الطلب؟')">{% csrf_token %}
+    <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد إلغاء هذا الطلب؟">{% csrf_token %}
       <button class="btn-sm btn-reject">إلغاء الطلب</button>
     </form>
   </div>
   {% elif swap.status in "accepted_b,pending_coordinator,pending_vp" %}
     {% if request.user == swap.teacher_a or request.user == swap.teacher_b %}
     <div class="swap-actions">
-      <form method="post" action="{% url 'swap_cancel' swap.pk %}" onsubmit="return confirm('هل تريد سحب هذا الطلب؟')">{% csrf_token %}
+      <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد سحب هذا الطلب؟">{% csrf_token %}
         <button class="btn-sm btn-reject">سحب الطلب</button>
       </form>
     </div>
@@ -59,7 +59,7 @@
   {% elif swap.status == "approved" %}
     {% if current_role == "coordinator" or current_role == "principal" or current_role == "vice_academic" or current_role == "vice_admin" %}
     <div class="swap-actions">
-      <form method="post" action="{% url 'swap_cancel' swap.pk %}" onsubmit="return confirm('هل تريد إلغاء هذا التبديل المعتمد؟')">{% csrf_token %}
+      <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد إلغاء هذا التبديل المعتمد؟">{% csrf_token %}
         <button class="btn-sm btn-reject">إلغاء التبديل</button>
       </form>
     </div>
