@@ -1,0 +1,441 @@
+{% extends "reports/base_report.html" %}
+{% block report_subtitle %}كشف النتائج السنوي{% endblock %}
+
+{% block extra_styles %}
+/* ════════════════════════════════════════
+   بطاقة معلومات الطالب
+════════════════════════════════════════ */
+.student-info-card {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 12px;
+  border: 1.5px solid #8A1538;
+  border-radius: 4px;
+}
+.student-info-card td {
+  padding: 6px 12px;
+  font-size: 10.5px;
+  border: 1px solid #E8D0D8;
+  background: #FDF8F9;
+  text-align: right;
+  vertical-align: middle;
+}
+.student-info-card .lbl {
+  font-weight: 600;
+  color: #8A1538;
+  white-space: nowrap;
+  width: 1%;
+}
+.student-info-card .val {
+  font-weight: 700;
+  color: #111;
+}
+
+/* ════════════════════════════════════════
+   جدول الدرجات — رأس مزدوج
+════════════════════════════════════════ */
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 10px;
+}
+.results-table thead tr.header-top th {
+  background: #8A1538;
+  color: #fff;
+  padding: 7px 5px;
+  text-align: center;
+  border: 1px solid #6B1029;
+  font-size: 10.5px;
+  font-weight: 700;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.results-table thead tr.header-sub th {
+  background: #F5EEF1;
+  color: #5a1029;
+  padding: 4px 4px;
+  text-align: center;
+  border: 1px solid #DBC5CC;
+  font-size: 9px;
+  font-weight: 600;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.results-table tbody td {
+  padding: 5px 5px;
+  border: 1px solid #E8E8E8;
+  text-align: center;
+  vertical-align: middle;
+  font-size: 10px;
+}
+.results-table tbody tr:nth-child(even) td {
+  background: #FDF8F9;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.results-table .subject-name {
+  text-align: right;
+  font-weight: 600;
+  font-size: 10px;
+  padding-right: 8px;
+  white-space: nowrap;
+}
+.results-table .bold-grade {
+  font-weight: 700;
+}
+.results-table .pkg-scores {
+  font-size: 8.5px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* ════════════════════════════════════════
+   صف ملخص النتائج (أسفل الجدول)
+════════════════════════════════════════ */
+.summary-row td {
+  background: #F5EEF1 !important;
+  font-weight: 700;
+  border-top: 2px solid #8A1538;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ════════════════════════════════════════
+   قسم القرار (انتقل / أعيد / دور ثانٍ)
+════════════════════════════════════════ */
+.decision-section {
+  margin-top: 14px;
+  border: 2px solid #8A1538;
+  border-radius: 4px;
+  padding: 10px 14px;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.decision-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8A1538;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #C8A0B0;
+  padding-bottom: 5px;
+}
+.decision-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.decision-table td {
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  font-size: 10.5px;
+  vertical-align: middle;
+}
+.decision-checkbox {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #8A1538;
+  border-radius: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.decision-checkbox.checked {
+  background: #8A1538;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.decision-label {
+  font-weight: 600;
+  color: #333;
+}
+.decision-note {
+  font-size: 9.5px;
+  color: #777;
+  margin-top: 6px;
+}
+
+/* ════════════════════════════════════════
+   إحصائيات ملخصة
+════════════════════════════════════════ */
+.stats-bar {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 5px;
+  margin: 10px 0 8px;
+}
+.stats-bar td {
+  background: #fff;
+  border: 1px solid #E8D0D8;
+  border-top: 3px solid #8A1538;
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.stats-bar .sv {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stats-bar .sl {
+  font-size: 8.5px;
+  color: #777;
+  margin-top: 2px;
+}
+
+/* ألوان الدرجات */
+.grade-a   { color: #15803d; }
+.grade-b   { color: #1d4ed8; }
+.grade-c   { color: #d97706; }
+.grade-f   { color: #dc2626; }
+.grade-na  { color: #999; }
+{% endblock %}
+
+{% block report_title_bar %}
+<div class="report-title">
+  كشف النتائج السنوي — العام الدراسي {{ year }}
+</div>
+{% endblock %}
+
+{% block report_meta %}
+{# ── بطاقة معلومات الطالب ── #}
+<table class="student-info-card">
+  <tr>
+    <td class="lbl">اسم الطالب</td>
+    <td class="val">{{ student.full_name }}</td>
+    <td class="lbl">الرقم الوطني</td>
+    <td class="val">{{ student.national_id|default:"—" }}</td>
+    {% if enrollment %}
+    <td class="lbl">الفصل الدراسي</td>
+    <td class="val">{{ enrollment.class_group }}</td>
+    {% endif %}
+  </tr>
+  <tr>
+    <td class="lbl">العام الدراسي</td>
+    <td class="val">{{ year }}</td>
+    <td class="lbl">المدرسة</td>
+    <td class="val" colspan="3">{{ school.name }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+{# ── إحصائيات ملخصة ── #}
+<table class="stats-bar">
+  <tr>
+    <td>
+      <div class="sv" style="color:#8A1538">{{ total }}</div>
+      <div class="sl">إجمالي المواد</div>
+    </td>
+    <td>
+      <div class="sv grade-a">{{ passed }}</div>
+      <div class="sl">مواد ناجح</div>
+    </td>
+    <td>
+      <div class="sv grade-f">{{ failed }}</div>
+      <div class="sl">مواد راسب</div>
+    </td>
+    <td>
+      <div class="sv" style="color:#8A1538">{{ avg|default:"—" }}</div>
+      <div class="sl">المعدل السنوي / 100</div>
+    </td>
+    <td>
+      <div class="sv" style="color:#d97706">{{ absent_total }}</div>
+      <div class="sl">أيام الغياب</div>
+    </td>
+    <td>
+      <div class="sv" style="color:#555">{{ late_total }}</div>
+      <div class="sl">حالات التأخر</div>
+    </td>
+  </tr>
+</table>
+
+{# ── جدول الدرجات التفصيلي ── #}
+<table class="results-table">
+  <thead>
+    <tr class="header-top">
+      <th scope="col" rowspan="2" style="width:17%;text-align:right;padding-right:8px">المادة</th>
+      <th scope="col" colspan="3">الفصل الأول (من 40)</th>
+      <th scope="col" colspan="3">الفصل الثاني (من 60)</th>
+      <th scope="col" rowspan="2" style="width:8%">المجموع<br>/100</th>
+      <th scope="col" rowspan="2" style="width:6%">التقدير</th>
+      <th scope="col" rowspan="2" style="width:8%">النتيجة</th>
+    </tr>
+    <tr class="header-sub">
+      <th scope="col" style="width:8%">أعمال<br>مستمرة</th>
+      <th scope="col" style="width:8%">منتصف<br>الفصل</th>
+      <th scope="col" style="width:7%">نهاية<br>الفصل</th>
+      <th scope="col" style="width:8%">أعمال<br>مستمرة</th>
+      <th scope="col" style="width:8%">منتصف<br>الفصل</th>
+      <th scope="col" style="width:8%">نهاية<br>العام</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      {# اسم المادة #}
+      <td class="subject-name">{{ row.subject }}</td>
+
+      {# ─── الفصل الأول: أعمال مستمرة (P1) ─── #}
+      <td class="pkg-scores">
+        {% if row.s1 and row.s1.p1_score is not None %}
+          {{ row.s1.p1_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# الفصل الأول: اختبار منتصف الفصل (P3) #}
+      <td class="pkg-scores">
+        {% if row.s1 and row.s1.p3_score is not None %}
+          {{ row.s1.p3_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# الفصل الأول: اختبار نهاية الفصل (P4) → إجمالي ف1 #}
+      <td class="bold-grade">
+        {% if row.s1 and row.s1.p4_score is not None %}
+          {{ row.s1.p4_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# ─── الفصل الثاني: أعمال مستمرة (P1) ─── #}
+      <td class="pkg-scores">
+        {% if row.s2 and row.s2.p1_score is not None %}
+          {{ row.s2.p1_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# الفصل الثاني: اختبار منتصف الفصل (P3) #}
+      <td class="pkg-scores">
+        {% if row.s2 and row.s2.p3_score is not None %}
+          {{ row.s2.p3_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# الفصل الثاني: اختبار نهاية العام (P4) #}
+      <td class="pkg-scores">
+        {% if row.s2 and row.s2.p4_score is not None %}
+          {{ row.s2.p4_score }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# المجموع السنوي #}
+      <td class="bold-grade" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 60 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
+        {% if row.annual and row.annual.annual_total %}
+          {{ row.annual.annual_total }}
+        {% else %}—{% endif %}
+      </td>
+
+      {# التقدير الحرفي #}
+      <td class="bold-grade">
+        {% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}
+      </td>
+
+      {# النتيجة #}
+      <td>
+        {% if row.annual %}
+          {% if row.annual.status == "pass" %}<span class="badge-pass">ناجح</span>
+          {% elif row.annual.status == "fail" %}<span class="badge-fail">راسب</span>
+          {% elif row.annual.status == "second_round" %}<span class="badge-warn">دور ثانٍ</span>
+          {% else %}<span class="badge-warn">غير مكتمل</span>
+          {% endif %}
+        {% else %}—{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="10" style="text-align:center;color:#aaa;padding:16px">
+        لا توجد درجات مسجّلة لهذا الطالب
+      </td>
+    </tr>
+    {% endfor %}
+
+    {# ── صف المجاميع ── #}
+    {% if rows %}
+    <tr class="summary-row">
+      <td class="subject-name" style="color:#8A1538">المجموع والمعدل</td>
+      <td colspan="6" style="font-size:9.5px;color:#666;text-align:center">
+        إجمالي المواد: {{ total }} &nbsp;|&nbsp;
+        ناجح: {{ passed }} &nbsp;|&nbsp;
+        راسب: {{ failed }}
+      </td>
+      <td class="bold-grade" style="color:#8A1538;font-size:12px">
+        {{ avg|default:"—" }}
+      </td>
+      <td colspan="2" style="color:#555;font-size:9px;text-align:center">
+        المعدل<br>من 100
+      </td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+
+{# ── قسم القرار ── #}
+<div class="decision-section">
+  <div class="decision-title">قرار مجلس المعلمين</div>
+  <table class="decision-table">
+    <tr>
+      {# انتقل #}
+      <td style="width:33%">
+        {% if failed == 0 and passed > 0 %}
+          <span class="decision-checkbox checked"></span>
+        {% else %}
+          <span class="decision-checkbox"></span>
+        {% endif %}
+        <span class="decision-label">انتقل إلى الصف التالي</span>
+      </td>
+      {# أعيد #}
+      <td style="width:33%">
+        {% if failed > 0 %}
+          <span class="decision-checkbox checked"></span>
+        {% else %}
+          <span class="decision-checkbox"></span>
+        {% endif %}
+        <span class="decision-label">أعيد في نفس الصف</span>
+      </td>
+      {# دور ثانٍ #}
+      <td style="width:33%">
+        <span class="decision-checkbox"></span>
+        <span class="decision-label">دور ثانٍ</span>
+      </td>
+    </tr>
+  </table>
+  <div class="decision-note">
+    * درجة النجاح 60 من 100 في كل مادة &nbsp;—&nbsp;
+    صدر هذا الكشف بتاريخ: {{ print_date }}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block signatures %}
+<div class="signature-section">
+  <table class="signature-table">
+    <tr>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">مدير المدرسة</div>
+          <div class="line"></div>
+          <div class="sig-name">الاسم: ___________________</div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">المعلم المشرف / وكيل المدرسة</div>
+          <div class="line"></div>
+          <div class="sig-name">الاسم: ___________________</div>
+        </div>
+      </td>
+      <td>
+        <div class="signature-box">
+          <div class="sig-title">ولي الأمر</div>
+          <div class="line"></div>
+          <div class="sig-name">الاسم: ___________________</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

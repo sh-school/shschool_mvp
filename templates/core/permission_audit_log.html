@@ -1,0 +1,135 @@
+{% extends "base/base.html" %}
+{% block title %}سجل تغييرات الصلاحيات{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="سجل الصلاحيات" %}
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6" dir="rtl">
+
+  {# ── Page Header ── #}
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="page-title">
+        {% include "components/icon.html" with name="lock" %}
+        سجل تغييرات الصلاحيات
+      </h1>
+      <p class="text-gray-500 text-sm mt-1">
+        آخر 200 تغيير في الأدوار والصلاحيات — سجل غير قابل للتعديل
+      </p>
+    </div>
+    <span class="px-3 py-1.5 bg-maroon text-white text-xs rounded-full font-medium">
+      {{ total_count }} سجل
+    </span>
+  </div>
+
+  {# ── Filter Bar ── #}
+  <form method="get"
+        id="audit-filter-form"
+        class="card-qatar"
+        hx-get="{% url 'permission_audit_log' %}"
+        hx-target="#audit-table-wrap"
+        hx-trigger="change from:select, change from:input[type=date]"
+        hx-push-url="true"
+        hx-indicator="#audit-loading">
+    <div class="flex flex-wrap gap-4 items-end">
+
+      {# البحث بالاسم #}
+      <div class="flex-1 min-w-48">
+        <label for="q" class="block text-xs text-gray-500 mb-1">بحث بالاسم</label>
+        <input type="text"
+               id="q"
+               name="q"
+               value="{{ search }}"
+               placeholder="اسم المنفّذ أو المستهدف..."
+               class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon"
+               hx-get="{% url 'permission_audit_log' %}"
+               hx-target="#audit-table-wrap"
+               hx-trigger="input changed delay:400ms"
+               hx-include="#audit-filter-form"
+               hx-push-url="true">
+      </div>
+
+      {# نوع الإجراء #}
+      <div class="min-w-52">
+        <label for="action" class="block text-xs text-gray-500 mb-1">نوع الإجراء</label>
+        <select id="action"
+                name="action"
+                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon bg-white">
+          <option value="">— الكل —</option>
+          {% for val, label in actions %}
+          <option value="{{ val }}" {% if val == selected_action %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# من تاريخ #}
+      <div>
+        <label for="date_from" class="block text-xs text-gray-500 mb-1">من تاريخ</label>
+        <input type="date"
+               id="date_from"
+               name="date_from"
+               value="{{ date_from }}"
+               class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon">
+      </div>
+
+      {# إلى تاريخ #}
+      <div>
+        <label for="date_to" class="block text-xs text-gray-500 mb-1">إلى تاريخ</label>
+        <input type="date"
+               id="date_to"
+               name="date_to"
+               value="{{ date_to }}"
+               class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon">
+      </div>
+
+      {# أزرار #}
+      <div class="flex gap-2">
+        <button type="submit"
+                class="px-4 py-2 bg-maroon text-white rounded-lg text-sm hover:bg-skyline transition-colors">
+          تصفية
+        </button>
+        <a href="{% url 'permission_audit_log' %}"
+           class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+          إعادة تعيين
+        </a>
+      </div>
+
+    </div>
+
+    {# مؤشر التحميل HTMX #}
+    <div id="audit-loading"
+         class="htmx-indicator mt-2 text-xs text-gray-400 flex items-center gap-2"
+         aria-live="polite">
+      <svg class="animate-spin h-4 w-4 text-maroon" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      جارٍ التحديث...
+    </div>
+  </form>
+
+  {# ── Legend — مفتاح الألوان ── #}
+  <div class="flex flex-wrap gap-2 text-xs">
+    <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700">تعيين دور</span>
+    <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-600">إزالة دور</span>
+    <span class="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">تعطيل حساب</span>
+    <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">تفعيل حساب</span>
+    <span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">تغييرات القسم</span>
+    <span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">تعيين بديل</span>
+    <span class="px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">موافقة تبديل/تعويض</span>
+  </div>
+
+  {# ── Table Wrapper — هدف HTMX ── #}
+  <div class="card-qatar overflow-hidden" id="audit-table-wrap">
+    {% include "core/partials/audit_log_table.html" %}
+  </div>
+
+  {# ── Security Notice ── #}
+  <p class="text-xs text-gray-400 text-center">
+    هذا السجل غير قابل للتعديل أو الحذف — Immutable Audit Trail
+  </p>
+
+</div>
+{% endblock %}

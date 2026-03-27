@@ -239,6 +239,11 @@
   <a href="/notifications/">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
   <hr>
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
+  {% if is_leadership %}
+  <hr>
+  <div class="sd-label">الأمان والصلاحيات</div>
+  <a href="/core/permission-audit/">{% include "components/icon.html" with name="lock" %} سجل تغييرات الصلاحيات</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">

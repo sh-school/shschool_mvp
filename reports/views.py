@@ -226,6 +226,29 @@ def student_result_pdf(request, student_id):
 
 
 @login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
+def student_annual_result_pdf(request, student_id):
+    """كشف نتائج الطالب السنوي — PDF للطباعة الرسمية"""
+    school = request.user.get_school()
+    student = get_object_or_404(CustomUser, id=student_id)
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    preview = request.GET.get("preview") == "1"
+
+    if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
+        if not _has_parent_access(request, student, school):
+            return HttpResponse("غير مسموح", status=403)
+
+    ctx = ReportDataService.get_student_report(student, school, year)
+    _set_final_status(ctx)
+
+    if preview:
+        return render(request, "reports/student_result_pdf.html", ctx)
+
+    html = render_to_string("reports/student_result_pdf.html", ctx, request=request)
+    return render_pdf(html, f"كشف_نتائج_{student.full_name}_{year}.pdf")
+
+
+@login_required
 @leadership_required
 def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""

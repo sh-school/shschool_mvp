@@ -17,6 +17,11 @@ urlpatterns = [
     ),
     path("student/<uuid:student_id>/result/", views.student_result_pdf, name="student_result_pdf"),
     path(
+        "student/<uuid:student_id>/annual-result/",
+        views.student_annual_result_pdf,
+        name="student_annual_result_pdf",
+    ),
+    path(
         "student/<uuid:student_id>/certificate/",
         views.student_certificate_pdf,
         name="student_certificate_pdf",
