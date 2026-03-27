@@ -25,7 +25,7 @@
           {{ member.display_name|first }}
         </div>
         <div>
-          <h1 class="text-xl font-bold text-maroon">{% include "components/icon.html" with name="user" %} {{ member.display_name }}</h1>
+          <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ member.display_name }}</h1>
           <p class="text-sm text-gray-500">{{ member.job_title }}</p>
           <span class="mt-1 inline-block px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">
             {{ member.responsibility }}

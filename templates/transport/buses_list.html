@@ -3,7 +3,7 @@
 {% block content %}
 <div dir="rtl">
   <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
-    <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="bus" %} الحافلات المدرسية</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="bus" %} الحافلات المدرسية</h1>
     <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
   <form method="get" class="bg-white rounded-xl shadow-sm p-4 mb-4 flex gap-3">

@@ -3,7 +3,7 @@
 {% block content %}
 <div dir="rtl">
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold text-gray-800">{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
     <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
