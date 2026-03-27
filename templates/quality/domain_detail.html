@@ -18,7 +18,7 @@
   <!-- Header + Stats -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <div class="bg-[#8A1538] px-6 py-4">
-      <h1 class="text-2xl font-bold text-white">{{ domain.name }}</h1>
+      <h1 class="text-2xl font-bold text-white">{% include "components/icon.html" with name="layers" %} {{ domain.name }}</h1>
       <p class="text-blue-200 text-sm mt-1">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف · {{ domain.completion_pct }}% إنجاز</p>
     </div>
     <div class="h-2 bg-gray-100">

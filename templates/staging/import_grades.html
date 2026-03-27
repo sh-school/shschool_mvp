@@ -45,7 +45,7 @@
   <!-- التقييمات المتاحة -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <div class="bg-[#8A1538] px-6 py-4">
-      <h2 class="text-white font-bold">التقييمات المتاحة للاستيراد</h2>
+      <h2 class="text-white font-bold">{% include "components/icon.html" with name="list-checks" %} التقييمات المتاحة للاستيراد</h2>
       <p class="text-blue-200 text-xs mt-1">العام الدراسي {{ year }}</p>
     </div>
 
@@ -141,7 +141,7 @@
   {% if logs %}
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <div class="px-6 py-4 border-b flex items-center justify-between">
-      <h2 class="font-bold text-gray-900">آخر عمليات الاستيراد</h2>
+      <h2 class="font-bold text-gray-900">{% include "components/icon.html" with name="clock" %} آخر عمليات الاستيراد</h2>
       <a href="{% url 'import_log_list' %}" class="text-xs text-blue-600 hover:underline">عرض الكل</a>
     </div>
     <div class="divide-y">
