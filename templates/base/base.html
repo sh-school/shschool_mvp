@@ -105,7 +105,7 @@
 
     {% elif role == "coordinator" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
+      <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
@@ -116,7 +116,7 @@
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
+      <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
       <a href="/assessments/" class="nb">التقييمات</a>
       <a href="/reports/" class="nb">التقارير</a>
       <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
@@ -187,7 +187,7 @@
     </a>
 
     {# ── User Menu ── #}
-    <button class="nb nav-user-btn" id="btn-user" data-sd="m-user">
+    <button class="nb nav-user-btn" id="btn-user" data-sd="m-user" aria-expanded="false" aria-controls="m-user" aria-label="قائمة المستخدم">
       <span class="nav-user-avatar" aria-hidden="true">{{ request.user.full_name|slice:":1" }}</span>
       <span class="nav-user-name">{{ request.user.full_name|truncatechars:12 }}</span>
       <span class="chv">▼</span>
@@ -199,7 +199,7 @@
 {# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
 {% if is_admin_role %}
 
-<div class="sd-menu" id="m-academic">
+<div class="sd-menu" id="m-academic" role="menu" aria-label="الأكاديمية">
   <div class="sd-label">الدراسة والتقييم</div>
   <a href="/assessments/">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
   <a href="/reports/">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
@@ -214,7 +214,7 @@
   <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
 </div>
 
-<div class="sd-menu" id="m-quality">
+<div class="sd-menu" id="m-quality" role="menu" aria-label="الجودة">
   <div class="sd-label">الخطة التشغيلية</div>
   <a href="/quality/">{% include "components/icon.html" with name="bar-chart" %} لوحة الخطة</a>
   <a href="/quality/execution/">{% include "components/icon.html" with name="rocket" %} تنفيذ الخطة</a>
@@ -233,7 +233,7 @@
   <a href="/quality/my-procedures/">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 </div>
 
-<div class="sd-menu" id="m-admin">
+<div class="sd-menu" id="m-admin" role="menu" aria-label="الإدارة">
   <div class="sd-label">إدارة المدرسة</div>
   <a href="/parents/admin/links/">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
   <a href="/notifications/">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
@@ -241,7 +241,7 @@
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
 </div>
 
-<div class="sd-menu" id="m-services">
+<div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
   <div class="sd-label">الخدمات الطلابية</div>
   <a href="/clinic/">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</a>
   <a href="/transport/">{% include "components/icon.html" with name="bus" %} النقل المدرسي</a>
@@ -254,7 +254,7 @@
 
 {# ── Coordinator Schedule Dropdown ── #}
 {% if role == "coordinator" %}
-<div class="sd-menu" id="m-coord-schedule">
+<div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
   <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
@@ -268,7 +268,7 @@
 
 {# ── Teacher Schedule Dropdown ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
-<div class="sd-menu" id="m-teacher-schedule">
+<div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
@@ -277,7 +277,7 @@
 </div>
 {% endif %}
 
-<div class="sd-menu" id="m-user">
+<div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
     <p class="sd-user-nid">{{ request.user.national_id }}</p>
