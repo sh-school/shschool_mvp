@@ -23,13 +23,12 @@
             padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.22);
             z-index:9999;max-width:360px;margin:0 auto;
             flex-direction:row;align-items:center;gap:12px;">
-  <span style="font-size:28px;flex-shrink:0;">{% include "components/icon.html" with name="download" %}</span>
-  <div style="flex:1;">
-    <p style="font-weight:700;font-size:13px;margin:0 0 2px;">ثبّت تطبيق المدرسة</p>
-    <p style="font-size:11px;color:rgba(255,255,255,.75);margin:0;">وصول سريع بدون متصفح</p>
+  <span class="text-3xl flex-shrink-0">{% include "components/icon.html" with name="download" %}</span>
+  <div class="flex-1">
+    <p class="font-bold text-sm m-0 mb-0.5">ثبّت تطبيق المدرسة</p>
+    <p class="text-xs m-0" style="color:rgba(255,255,255,.75);">وصول سريع بدون متصفح</p>
   </div>
-  <button onclick="installPWA()" class="btn-secondary"
-          style="font-size:12px;padding:6px 12px;flex-shrink:0;">تثبيت</button>
+  <button onclick="installPWA()" class="btn-secondary text-xs px-3 py-1 flex-shrink-0">تثبيت</button>
   <button onclick="document.getElementById('pwa-banner').style.display='none'"
           style="background:none;border:none;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px;">{% include "components/icon.html" with name="x-circle" %}</button>
 </div>
@@ -61,7 +60,7 @@
   {# ── No children linked ── #}
   {% if not children %}
   <div class="card-qatar text-center py-10">
-    <p style="font-size:40px;margin-bottom:12px;">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
+    <p class="text-4xl mb-3">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
     <h2 class="text-base font-bold text-primary m-0 mb-1">
       لم يتم ربط حسابك بأي طالب بعد
     </h2>
@@ -74,7 +73,7 @@
 
   {# ── Child cards ── #}
   {% for child in children %}
-  <div class="card-qatar" style="padding:0;overflow:hidden;">
+  <div class="card-qatar p-0 overflow-hidden">
 
     {# Card header — gradient maroon → maroon-dark #}
     <div style="background:linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);

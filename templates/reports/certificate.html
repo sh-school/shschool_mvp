@@ -114,7 +114,7 @@
         {% else %}#999{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
-      <td style="font-weight:700">{% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}</td>
+      <td class="font-bold">{% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}</td>
       <td>
         {% if row.annual %}
           {% if row.annual.status == "pass" %}<span class="badge-pass">ناجح</span>

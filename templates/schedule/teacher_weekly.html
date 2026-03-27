@@ -27,7 +27,7 @@
   <div class="tw-header">
     <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} جدول {{ teacher.full_name }}</h1>
     <p class="tw-sub">
-      <a href="{% url 'teacher_free_slots' teacher.pk %}" style="color:var(--maroon,#8A1538)">عرض الحصص الحرة</a>
+      <a href="{% url 'teacher_free_slots' teacher.pk %}" class="text-maroon">عرض الحصص الحرة</a>
     </p>
   </div>
 
@@ -43,7 +43,7 @@
     <tbody>
       {% for p in periods %}
       <tr>
-        <td style="font-weight:700;background:#f9fafb">ح{{ p }}</td>
+        <td class="font-bold bg-gray-50">ح{{ p }}</td>
         {% for d_num, d_name in days %}
         <td class="{% if grid|default_if_none:"" %}{% with day_data=grid|default_if_none:"" %}{% endwith %}{% endif %}">
           {% with slot=grid|dictkey:d_num|dictkey:p %}
@@ -51,7 +51,7 @@
               <span class="slot-subject">{{ slot.subject|default:"—" }}</span>
               <span class="slot-class">{{ slot.class_group }}</span>
             {% else %}
-              <span style="color:#059669;font-size:.7rem">حرة</span>
+              <span class="text-xs" style="color:#059669">حرة</span>
             {% endif %}
           {% endwith %}
         </td>

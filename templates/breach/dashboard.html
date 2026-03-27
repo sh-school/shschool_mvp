@@ -15,7 +15,7 @@
       <p class="page-subtitle">PDPPL م.11 — إشعار NCSA خلال 72 ساعة</p>
     </div>
     <div class="page-actions">
-      <a href="{% url 'breach:create' %}" class="btn-danger" style="text-decoration:none;font-size:12.5px;">+ تسجيل خرق</a>
+      <a href="{% url 'breach:create' %}" class="btn-danger no-underline text-xs">+ تسجيل خرق</a>
     </div>
   </div>
 
@@ -42,7 +42,7 @@
   {# ── جدول التقارير ── #}
   <div class="table-wrap">
     <div class="card-bar">جدول التقارير</div>
-    <div style="overflow-x:auto;">
+    <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
@@ -58,7 +58,7 @@
         <tbody>
           {% for b in reports %}
           <tr>
-            <td style="font-weight:600;">{{ b.title }}</td>
+            <td class="font-semibold">{{ b.title }}</td>
             <td>
               <span class="status-badge
                 {% if b.severity == 'critical' %}status-danger
@@ -68,14 +68,14 @@
                 {{ b.get_severity_display }}
               </span>
             </td>
-            <td style="font-size:12px;">{{ b.get_data_type_affected_display }}</td>
-            <td style="font-size:12px;">{{ b.discovered_at|date:"m/d H:i" }}</td>
+            <td class="text-xs">{{ b.get_data_type_affected_display }}</td>
+            <td class="text-xs">{{ b.discovered_at|date:"m/d H:i" }}</td>
             <td>
               {% if b.hours_remaining != None %}
                 {% if b.is_overdue %}
-                  <span class="text-status-danger" style="font-weight:700;">تجاوز</span>
+                  <span class="text-status-danger font-bold">تجاوز</span>
                 {% elif b.hours_remaining <= 12 %}
-                  <span class="text-status-warning" style="font-weight:700;">{{ b.hours_remaining }}س</span>
+                  <span class="text-status-warning font-bold">{{ b.hours_remaining }}س</span>
                 {% else %}
                   <span class="text-status-success">{{ b.hours_remaining }}س</span>
                 {% endif %}
@@ -96,7 +96,7 @@
           </tr>
           {% empty %}
           <tr><td colspan="7">
-            <div class="empty-state" style="padding:24px;">
+            <div class="empty-state p-6">
               <p class="empty-sub">لا توجد تقارير خرق مسجلة</p>
             </div>
           </td></tr>

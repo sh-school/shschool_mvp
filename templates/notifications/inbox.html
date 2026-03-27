@@ -39,14 +39,14 @@
   </div>
 
   {# ── Filter chips — HTMX ── #}
-  <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;">
+  <div class="flex gap-2 flex-wrap mb-4">
     <a href="{% url 'notification_inbox' %}"
        class="status-badge {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"
-       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">الكل</a>
+       class="no-underline px-3 py-1 text-xs">الكل</a>
     {% for code, label in event_types %}
     <a href="{% url 'notification_inbox' %}?type={{ code }}"
        class="status-badge {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"
-       style="text-decoration:none;padding:5px 14px;font-size:12.5px;">{{ label }}</a>
+       class="no-underline px-3 py-1 text-xs">{{ label }}</a>
     {% endfor %}
   </div>
 
@@ -54,12 +54,12 @@
   {% with urgent_list=notifications|dictsort:"priority" %}
   {% for notif in notifications %}{% if notif.priority == "urgent" and not notif.is_read %}
     {% if forloop.first %}
-    <div style="margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:13px;font-weight:700;color:var(--status-danger);">{% include "components/icon.html" with name="alert-triangle" %} إشعارات عاجلة</span>
-        <div style="flex:1;height:1px;background:var(--status-danger-border);"></div>
+    <div class="mb-4">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-sm font-bold text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} إشعارات عاجلة</span>
+        <div class="flex-1 h-px" style="background:var(--status-danger-border);"></div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;" id="urgent-section">
+      <div class="flex flex-col gap-1" id="urgent-section">
     {% endif %}
         {% include "notifications/partials/notif_item.html" with notif=notif %}
     {% if forloop.last %}
@@ -70,7 +70,7 @@
   {% endwith %}
 
   {# ── Keyboard shortcut hint ── #}
-  <p style="font-size:11.5px;color:var(--text-muted);margin-bottom:12px;text-align:left;">
+  <p class="text-xs text-muted mb-3 text-left">
     {% include "components/icon.html" with name="lightbulb" %} اختصارات: <kbd>j</kbd>/<kbd>k</kbd> للتنقل &nbsp;·&nbsp;
     <kbd>m</kbd> للتحديد كمقروء &nbsp;·&nbsp;
     <kbd>Enter</kbd> لفتح الرابط

@@ -39,14 +39,14 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
     {# ── آخر الكتب المضافة ── #}
-    <div class="card-qatar" style="padding:0;overflow:hidden;">
-      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">آخر الكتب المضافة</div>
+    <div class="card-qatar p-0 overflow-hidden">
+      <div class="card-bar m-0 rounded-t-xl">آخر الكتب المضافة</div>
       {% if recent_books %}
       <div>
         {% for book in recent_books %}
-        <div style="padding:12px 18px;border-bottom:1px solid var(--border);">
-          <p style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:0 0 3px;">{{ book.title }}</p>
-          <p style="font-size:12px;color:var(--text-secondary);margin:0 0 6px;">{{ book.author }} — {{ book.category }}</p>
+        <div class="px-4 py-3" style="border-bottom:1px solid var(--border);">
+          <p class="text-sm font-semibold m-0 mb-1" style="color:var(--text-primary);">{{ book.title }}</p>
+          <p class="text-xs text-secondary m-0 mb-1">{{ book.author }} — {{ book.category }}</p>
           <span class="status-badge {% if book.available_copies > 0 %}status-success{% else %}status-danger{% endif %}">
             {{ book.available_copies }} نسخة متاحة
           </span>
@@ -54,22 +54,22 @@
         {% endfor %}
       </div>
       {% else %}
-      <div class="empty-state" style="padding:32px;">
+      <div class="empty-state p-8">
         <p class="empty-sub">لا توجد كتب</p>
       </div>
       {% endif %}
     </div>
 
     {# ── آخر الإعارات ── #}
-    <div class="card-qatar" style="padding:0;overflow:hidden;">
-      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">آخر الإعارات</div>
+    <div class="card-qatar p-0 overflow-hidden">
+      <div class="card-bar m-0 rounded-t-xl">آخر الإعارات</div>
       {% if recent_borrowings %}
       <div>
         {% for b in recent_borrowings %}
-        <div style="padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
           <div>
-            <p style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:0 0 2px;">{{ b.user.full_name }}</p>
-            <p style="font-size:12px;color:var(--text-secondary);margin:0;">{{ b.book.title|truncatechars:30 }}</p>
+            <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ b.user.full_name }}</p>
+            <p class="text-xs text-secondary m-0">{{ b.book.title|truncatechars:30 }}</p>
           </div>
           <span class="status-badge
             {% if b.status == 'BORROWED' %}status-info
@@ -81,7 +81,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <div class="empty-state" style="padding:32px;">
+      <div class="empty-state p-8">
         <p class="empty-sub">لا توجد إعارات</p>
       </div>
       {% endif %}

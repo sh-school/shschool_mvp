@@ -81,7 +81,7 @@
           {% if row.s1.p3_score is not None %}ب٣:{{ row.s1.p3_score }}{% endif %}
         {% else %}—{% endif %}
       </td>
-      <td style="font-weight:700">
+      <td class="font-bold">
         {% if row.s1 and row.s1.total %}{{ row.s1.total }}/{{ row.s1.semester_max }}{% else %}—{% endif %}
       </td>
       <td class="pkg">
@@ -91,7 +91,7 @@
           {% if row.s2.p3_score is not None %}ب٣:{{ row.s2.p3_score }}{% endif %}
         {% else %}—{% endif %}
       </td>
-      <td style="font-weight:700">
+      <td class="font-bold">
         {% if row.s2 and row.s2.total %}{{ row.s2.total }}/{{ row.s2.semester_max }}{% else %}—{% endif %}
       </td>
       <td style="font-size:14px;font-weight:700;
@@ -103,7 +103,7 @@
         {% else %}#999{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
-      <td style="font-weight:700">
+      <td class="font-bold">
         {% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}
       </td>
       <td>

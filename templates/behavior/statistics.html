@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6" style="max-width:960px;margin:0 auto;">
+<div class="space-y-6 max-w-4xl mx-auto">
 
   {# ── Page Header ── #}
   <div class="page-header">
@@ -39,41 +39,41 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
     {# ── أكثر الطلاب مخالفة ── #}
-    <div class="card-qatar" style="padding:0;overflow:hidden;">
-      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">أكثر الطلاب مخالفة</div>
+    <div class="card-qatar p-0 overflow-hidden">
+      <div class="card-bar m-0 rounded-t-xl">أكثر الطلاب مخالفة</div>
       {% for s in top_students %}
-      <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+      <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
         <div>
-          <p style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:0 0 2px;">{{ s.student__full_name }}</p>
-          <p style="font-size:12px;color:var(--status-danger);margin:0;">-{{ s.pts }} نقطة</p>
+          <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ s.student__full_name }}</p>
+          <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:14px;font-weight:700;color:var(--text-primary);">{{ s.count }}</span>
-          <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon" style="font-size:12px;text-decoration:none;">تقرير</a>
+        <div class="flex items-center gap-2">
+          <span class="text-sm font-bold" style="color:var(--text-primary);">{{ s.count }}</span>
+          <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
         </div>
       </div>
       {% empty %}
-      <div class="empty-state" style="padding:32px;">
+      <div class="empty-state p-8">
         <p class="empty-sub">لا توجد بيانات</p>
       </div>
       {% endfor %}
     </div>
 
     {# ── التوزيع الشهري ── #}
-    <div class="card-qatar" style="padding:0;overflow:hidden;">
-      <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">التوزيع الشهري</div>
+    <div class="card-qatar p-0 overflow-hidden">
+      <div class="card-bar m-0 rounded-t-xl">التوزيع الشهري</div>
       {% for m in monthly %}
-      <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
-        <p style="font-size:13px;color:var(--text-primary);margin:0;">{{ m.month|date:"F Y" }}</p>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="progress-qatar" style="width:80px;">
+      <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
+        <p class="text-sm m-0" style="color:var(--text-primary);">{{ m.month|date:"F Y" }}</p>
+        <div class="flex items-center gap-2">
+          <div class="progress-qatar w-20">
             <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
           </div>
-          <span style="font-size:13px;font-weight:600;color:var(--text-primary);min-width:24px;text-align:left;">{{ m.count }}</span>
+          <span class="text-sm font-semibold text-left" style="color:var(--text-primary);min-width:24px;">{{ m.count }}</span>
         </div>
       </div>
       {% empty %}
-      <div class="empty-state" style="padding:32px;">
+      <div class="empty-state p-8">
         <p class="empty-sub">لا توجد بيانات</p>
       </div>
       {% endfor %}
@@ -83,8 +83,8 @@
 
   {# ── نسبة الحل ── #}
   <div class="card-qatar">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <span style="font-size:14px;font-weight:600;color:var(--text-primary);">نسبة حل المخالفات الجسيمة</span>
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm font-semibold" style="color:var(--text-primary);">نسبة حل المخالفات الجسيمة</span>
       <span style="font-size:20px;font-weight:800;
         {% if resolved_pct >= 80 %}color:var(--status-success);
         {% elif resolved_pct >= 50 %}color:var(--status-warning);

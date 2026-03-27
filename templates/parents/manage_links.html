@@ -38,15 +38,15 @@
 <details class="card-qatar mb-6">
   <summary class="card-header" style="cursor:pointer;list-style:none;user-select:none;">
     <div class="card-header-icon">+</div>
-    <h2 class="card-header-title" style="flex:1;margin:0;">إضافة ربط جديد</h2>
-    <span style="color:var(--text-muted);font-size:12px;" aria-hidden="true">▼</span>
+    <h2 class="card-header-title flex-1 m-0">إضافة ربط جديد</h2>
+    <span class="text-muted text-xs" aria-hidden="true">▼</span>
   </summary>
 
   <form method="post" action="{% url 'add_parent_link' %}" class="p-5">
     {% csrf_token %}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-      <div class="form-group" style="margin-bottom:0;">
+      <div class="form-group mb-0">
         <label class="form-label" for="parent-select">
           ولي الأمر <span class="text-red-500">*</span>
         </label>
@@ -64,7 +64,7 @@
         {% endif %}
       </div>
 
-      <div class="form-group" style="margin-bottom:0;">
+      <div class="form-group mb-0">
         <label class="form-label" for="student-select">
           الطالب <span class="text-red-500">*</span>
         </label>
@@ -76,7 +76,7 @@
         </select>
       </div>
 
-      <div class="form-group" style="margin-bottom:0;">
+      <div class="form-group mb-0">
         <label class="form-label" for="rel-select">صلة القرابة</label>
         <select name="relationship" id="rel-select" class="form-control">
           {% for val, label in RELATIONSHIP %}
@@ -86,7 +86,7 @@
       </div>
 
     </div>
-    <div style="margin-top:16px;">
+    <div class="mt-4">
       <button type="submit" class="btn-primary">
         + إضافة الربط
       </button>
@@ -99,7 +99,7 @@
      id="links-filters">
 
   {# بحث نصي — HTMX live #}
-  <div style="flex:1;min-width:200px;">
+  <div class="flex-1" style="min-width:200px;">
     <input type="text" name="q" id="links-search"
            value="{{ search }}"
            placeholder="بحث باسم الطالب أو ولي الأمر أو الرقم الوطني..."

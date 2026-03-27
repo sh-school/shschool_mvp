@@ -41,7 +41,7 @@
   {# ── جدول الحافلات ── #}
   <div class="table-wrap">
     <div class="card-bar">تفاصيل الحافلات</div>
-    <div style="overflow-x:auto;">
+    <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
@@ -54,12 +54,12 @@
         <tbody>
           {% for bus in buses %}
           <tr>
-            <td style="font-weight:600;">
-              <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon" style="text-decoration:none;">{{ bus.bus_number }}</a>
+            <td class="font-semibold">
+              <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon no-underline">{{ bus.bus_number }}</a>
             </td>
             <td>{{ bus.driver_name }}</td>
             <td>{{ bus.capacity }} مقعد</td>
-            <td style="font-size:12px;color:var(--text-muted);">{{ bus.karwa_id|default:"—" }}</td>
+            <td class="text-xs text-muted">{{ bus.karwa_id|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>

@@ -37,24 +37,24 @@
       <span class="pr-ring-label">الإنجاز الكلي</span>
     </div>
     <div class="pr-hero__kpis">
-      <div class="kpi-card" style="text-align:center;padding:14px 10px;">
-        <div class="kpi-value" style="color:var(--maroon);">{{ total_all }}</div>
+      <div class="kpi-card text-center" style="padding:14px 10px;">
+        <div class="kpi-value text-maroon">{{ total_all }}</div>
         <div class="kpi-label">إجمالي الإجراءات</div>
       </div>
-      <div class="kpi-card" style="text-align:center;padding:14px 10px;">
-        <div class="kpi-value" style="color:#15803d;">{{ completed_all }}</div>
+      <div class="kpi-card text-center" style="padding:14px 10px;">
+        <div class="kpi-value text-green-700">{{ completed_all }}</div>
         <div class="kpi-label">مكتمل</div>
       </div>
-      <div class="kpi-card" style="text-align:center;padding:14px 10px;">
-        <div class="kpi-value" style="color:var(--skyline);">{{ in_progress_all }}</div>
+      <div class="kpi-card text-center" style="padding:14px 10px;">
+        <div class="kpi-value text-skyline">{{ in_progress_all }}</div>
         <div class="kpi-label">قيد التنفيذ</div>
       </div>
-      <div class="kpi-card" style="text-align:center;padding:14px 10px;">
-        <div class="kpi-value" style="color:var(--skyline);">{{ pending_review_all }}</div>
+      <div class="kpi-card text-center" style="padding:14px 10px;">
+        <div class="kpi-value text-skyline">{{ pending_review_all }}</div>
         <div class="kpi-label">بانتظار المراجعة</div>
       </div>
-      <div class="kpi-card" style="text-align:center;padding:14px 10px;">
-        <div class="kpi-value" style="color:var(--maroon);">{{ overdue_count }}</div>
+      <div class="kpi-card text-center" style="padding:14px 10px;">
+        <div class="kpi-value text-maroon">{{ overdue_count }}</div>
         <div class="kpi-label">متأخرة</div>
       </div>
     </div>
@@ -104,7 +104,7 @@
           <span class="pr-exec__name">{{ ex.executor_norm }}</span>
           {% if ex.user_name %}<span class="pr-exec__user">{{ ex.user_name }}</span>{% endif %}
           <span class="pr-exec__meta">
-            <strong style="color:#15803d;">{{ ex.completed }}</strong> مكتمل من <strong>{{ ex.total }}</strong>
+            <strong class="text-green-700">{{ ex.completed }}</strong> مكتمل من <strong>{{ ex.total }}</strong>
           </span>
         </div>
       </div>
@@ -124,20 +124,20 @@
             <th scope="col">الإجراء</th>
             <th scope="col">المنفذ</th>
             <th scope="col">المجال</th>
-            <th scope="col" style="text-align:center;">الموعد</th>
-            <th scope="col" style="text-align:center;">التأخير</th>
+            <th scope="col" class="text-center">الموعد</th>
+            <th scope="col" class="text-center">التأخير</th>
           </tr>
         </thead>
         <tbody>
           {% for item in overdue_procedures %}
           <tr>
-            <td style="font-family:monospace;font-size:12px;font-weight:600;" dir="ltr">{{ item.procedure.number }}</td>
+            <td class="font-mono text-xs font-semibold" dir="ltr">{{ item.procedure.number }}</td>
             <td>{{ item.procedure.text|truncatewords:8 }}</td>
-            <td style="color:var(--text-secondary);font-size:12px;">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
-            <td style="color:var(--text-secondary);font-size:12px;">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
-            <td style="text-align:center;color:var(--text-secondary);font-size:12px;">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
-            <td style="text-align:center;">
-              <span class="status-badge" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-size:11px;">{{ item.days_overdue }} يوم</span>
+            <td class="text-xs text-secondary">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
+            <td class="text-xs text-secondary">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
+            <td class="text-center text-xs text-secondary">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
+            <td class="text-center">
+              <span class="status-badge text-xs" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">{{ item.days_overdue }} يوم</span>
             </td>
           </tr>
           {% endfor %}
@@ -159,18 +159,18 @@
             <th scope="col">الإجراء</th>
             <th scope="col">المنفذ</th>
             <th scope="col">المجال</th>
-            <th scope="col" style="text-align:center;">الحالة</th>
+            <th scope="col" class="text-center">الحالة</th>
           </tr>
         </thead>
         <tbody>
           {% for proc in evidence_requests %}
           <tr>
-            <td style="font-family:monospace;font-size:12px;font-weight:600;" dir="ltr">{{ proc.number }}</td>
+            <td class="font-mono text-xs font-semibold" dir="ltr">{{ proc.number }}</td>
             <td>{{ proc.text|truncatewords:8 }}</td>
-            <td style="color:var(--text-secondary);font-size:12px;">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
-            <td style="color:var(--text-secondary);font-size:12px;">{{ proc.indicator.target.domain.name|default:"—" }}</td>
-            <td style="text-align:center;">
-              <span class="status-badge status-maroon" style="font-size:11px;">{{ proc.get_status_display }}</span>
+            <td class="text-xs text-secondary">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
+            <td class="text-xs text-secondary">{{ proc.indicator.target.domain.name|default:"—" }}</td>
+            <td class="text-center">
+              <span class="status-badge status-maroon text-xs">{{ proc.get_status_display }}</span>
             </td>
           </tr>
           {% endfor %}

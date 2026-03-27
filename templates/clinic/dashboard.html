@@ -15,10 +15,8 @@
       <p class="page-subtitle">متابعة زيارات الطلاب والسجلات الصحية</p>
     </div>
     <div class="page-actions">
-      <a href="{% url 'clinic:visits_list' %}" class="btn-secondary"
-         style="font-size:12.5px;text-decoration:none;">كل الزيارات</a>
-      <a href="{% url 'clinic:record_visit' %}" class="btn-primary"
-         style="font-size:12.5px;text-decoration:none;">+ تسجيل زيارة</a>
+      <a href="{% url 'clinic:visits_list' %}" class="btn-secondary text-xs no-underline">كل الزيارات</a>
+      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-xs no-underline">+ تسجيل زيارة</a>
     </div>
   </div>
 
@@ -39,7 +37,7 @@
     </div>
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:var(--skyline);">{{ recent_visits|length }}</div>
+      <div class="kpi-value text-skyline">{{ recent_visits|length }}</div>
       <div class="kpi-label">آخر الزيارات</div>
       <div class="kpi-sub">آخر 10 زيارات مسجّلة</div>
     </div>
@@ -48,24 +46,22 @@
 
   {# ── Students sent home today ── #}
   {% if follow_up_visits %}
-  <div class="bg-status-warning-light" style="border:1px solid var(--status-warning-border);border-radius:var(--radius-lg);padding:18px 20px;">
+  <div class="bg-status-warning-light rounded-xl p-5" style="border:1px solid var(--status-warning-border);">
     <div class="card-header" style="border-color:var(--status-warning-border);">
       <div class="card-header-icon" style="background:var(--status-warning-bg);color:var(--status-warning-dark);">{% include "components/icon.html" with name="alert-triangle" %}</div>
       <h2 class="card-header-title" style="color:var(--status-warning-dark);">طلاب أُرسلوا للمنزل اليوم</h2>
       <span class="status-badge status-warning">{{ follow_up_visits|length }}</span>
     </div>
-    <div style="display:flex;flex-direction:column;gap:7px;">
+    <div class="flex flex-col gap-2">
       {% for visit in follow_up_visits %}
-      <div class="bg-surface" style="border:1px solid var(--status-warning-border);border-radius:10px;
-                  padding:11px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div class="bg-surface flex items-center justify-between gap-2 rounded-lg px-4 py-3" style="border:1px solid var(--status-warning-border);">
         <div>
-          <p style="font-weight:600;font-size:13.5px;margin:0 0 3px;color:var(--text-primary);">
+          <p class="font-semibold text-sm m-0 mb-1" style="color:var(--text-primary);">
             {{ visit.student.full_name }}
           </p>
-          <p style="font-size:12px;color:var(--text-secondary);margin:0;">{{ visit.reason }}</p>
+          <p class="text-xs text-secondary m-0">{{ visit.reason }}</p>
         </div>
-        <span class="status-badge {% if visit.parent_notified %}status-success{% else %}status-warning{% endif %}"
-              style="flex-shrink:0;font-size:11px;">
+        <span class="status-badge flex-shrink-0 text-xs {% if visit.parent_notified %}status-success{% else %}status-warning{% endif %}">
           {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
         </span>
       </div>
@@ -76,22 +72,20 @@
 
   {# ── Recent visits ── #}
   <div class="table-wrap">
-    <div style="padding:12px 18px;border-bottom:1px solid var(--border);
-                display:flex;align-items:center;justify-content:space-between;background:var(--maroon);">
-      <h2 style="color:#fff;font-size:14px;font-weight:700;margin:0;">آخر الزيارات</h2>
+    <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);background:var(--maroon);">
+      <h2 class="text-sm font-bold m-0" style="color:#fff;">آخر الزيارات</h2>
       <a href="{% url 'clinic:visits_list' %}"
-         style="font-size:12px;color:rgba(255,255,255,.8);text-decoration:none;">عرض الكل →</a>
+         class="text-xs no-underline" style="color:rgba(255,255,255,.8);">عرض الكل →</a>
     </div>
     {% if recent_visits %}
     <div>
       {% for visit in recent_visits %}
-      <div style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;
-                  border-bottom:1px solid var(--border);gap:10px;">
-        <div style="min-width:0;">
-          <p style="font-size:13.5px;font-weight:600;margin:0 0 3px;color:var(--text-primary);">
+      <div class="flex items-center justify-between gap-2 px-4 py-3" style="border-bottom:1px solid var(--border);">
+        <div class="min-w-0">
+          <p class="text-sm font-semibold m-0 mb-1" style="color:var(--text-primary);">
             {{ visit.student.full_name }}
           </p>
-          <p style="font-size:12px;color:var(--text-secondary);margin:0;">
+          <p class="text-xs text-secondary m-0">
             {{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}
           </p>
         </div>

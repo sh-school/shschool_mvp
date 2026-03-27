@@ -37,9 +37,9 @@
 <div class="swap-page">
   <div class="swap-header">
     <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</h1>
-    <div style="display:flex;gap:6px">
+    <div class="flex gap-1">
       {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
-      <a href="{% url 'swap_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تبديل</a>
+      <a href="{% url 'swap_request' %}" class="btn-primary no-underline px-4 py-2 text-xs">+ طلب تبديل</a>
       {% endif %}
       <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
         <button type="submit" class="btn-secondary">بناء سجل الحصص الحرة</button>
@@ -62,7 +62,7 @@
   {% include "schedule/partials/swap_card.html" with swap=swap %}
   {% empty %}
   <div class="empty-state">
-    <p style="font-size:2rem;margin-bottom:8px">{% include "components/icon.html" with name="refresh" size="icon-2xl" %}</p>
+    <p class="text-3xl mb-2">{% include "components/icon.html" with name="refresh" size="icon-2xl" %}</p>
     <p>لا توجد طلبات تبديل</p>
   </div>
   {% endfor %}

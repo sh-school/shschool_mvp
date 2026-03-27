@@ -26,9 +26,9 @@
 
   {# ── Semester filter ── #}
   <div class="filter-bar">
-    <label style="font-size:13px;font-weight:600;color:var(--text-primary);">الفصل الدراسي:</label>
-    <form method="get" style="display:flex;align-items:center;gap:8px;">
-      <select name="semester" onchange="this.form.submit()" style="padding:7px 12px;border:1px solid var(--border-strong);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface-alt);">
+    <label class="text-sm font-semibold">الفصل الدراسي:</label>
+    <form method="get" class="flex items-center gap-2">
+      <select name="semester" onchange="this.form.submit()" class="form-control text-sm">
         {% for val, label in SEMESTERS %}
         <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
@@ -41,7 +41,7 @@
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
 
     <div class="kpi-card">
-      <div class="kpi-value" style="color:var(--skyline);">{{ total_results }}</div>
+      <div class="kpi-value text-skyline">{{ total_results }}</div>
       <div class="kpi-label">نتيجة مرصودة</div>
     </div>
 
@@ -64,21 +64,19 @@
 
   {# Failing students alert #}
   {% if failing_list %}
-  <div class="bg-status-danger-light" style="border:1px solid var(--status-danger-border);border-radius:var(--radius-lg);padding:16px 18px;">
-    <div class="card-header" style="border-color:var(--status-danger-border);margin-bottom:12px;">
+  <div class="bg-status-danger-light rounded-xl p-4" style="border:1px solid var(--status-danger-border);">
+    <div class="card-header mb-3" style="border-color:var(--status-danger-border);">
       <div class="card-header-icon" style="background:var(--status-danger-bg);color:var(--status-danger-dark);">{% include "components/icon.html" with name="alert-triangle" %}</div>
       <h3 class="card-header-title" style="color:var(--status-danger-dark);">آخر الطلاب الراسبين</h3>
-      <a href="{% url 'failing_students' %}" class="link-maroon"
-         style="font-size:12px;text-decoration:none;font-weight:600;margin-right:auto;">
+      <a href="{% url 'failing_students' %}" class="link-maroon text-xs font-semibold ms-auto">
         عرض الكل →
       </a>
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:7px;">
+    <div class="flex flex-wrap gap-2">
       {% for r in failing_list %}
       <a href="{% url 'student_report' r.student.id %}?semester={{ semester }}"
-         class="bg-surface"
-         style="padding:5px 12px;border:1px solid var(--status-danger-border);border-radius:20px;
-                font-size:12px;color:var(--status-danger-dark);text-decoration:none;transition:background .1s;">
+         class="bg-surface text-xs no-underline rounded-full px-3 py-1"
+         style="border:1px solid var(--status-danger-border);color:var(--status-danger-dark);transition:background .1s;">
         {{ r.student.full_name }} — {{ r.setup.subject.name_ar }}
       </a>
       {% endfor %}
@@ -95,32 +93,30 @@
 
     {% regroup setups by class_group as grouped %}
     {% for group in grouped %}
-    <div style="margin-bottom:22px;">
-      <p style="font-size:13px;font-weight:700;color:var(--text-secondary);margin:0 0 10px;padding-right:4px;">
+    <div class="mb-5">
+      <p class="text-sm font-bold text-secondary mb-2 pe-1">
         {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {% for setup in group.list %}
         <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}"
-           class="card-qatar" style="text-decoration:none;display:block;padding:16px 18px;">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-            <div style="min-width:0;">
-              <p class="text-status-maroon" style="font-weight:700;font-size:14px;margin:0 0 4px;
-                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+           class="card-qatar block no-underline p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-status-maroon font-bold text-sm mb-1 truncate">
                 {{ setup.subject.name_ar }}
               </p>
-              <p style="font-size:12px;color:var(--text-secondary);margin:0;">
+              <p class="text-xs text-secondary m-0">
                 {{ setup.teacher.full_name }}
               </p>
             </div>
-            <span class="status-badge status-info" style="flex-shrink:0;font-size:11px;">
+            <span class="status-badge status-info flex-shrink-0 text-xs">
               {{ setup.packages.count }} باقة
             </span>
           </div>
-          <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <div class="mt-3 pt-2" style="border-top:1px solid var(--border);">
             <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
-               class="status-badge status-gray"
-               style="font-size:11.5px;text-decoration:none;"
+               class="status-badge status-gray text-xs no-underline"
                onclick="event.stopPropagation();">
               كشف الدرجات
             </a>
@@ -136,8 +132,7 @@
       <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
       <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'setup_subject' %}" class="btn-primary"
-         style="margin-top:14px;display:inline-block;text-decoration:none;font-size:13px;">
+      <a href="{% url 'setup_subject' %}" class="btn-primary mt-3 inline-block no-underline text-sm">
         + ربط مادة بفصل
       </a>
       {% endif %}

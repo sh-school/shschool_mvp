@@ -149,6 +149,19 @@
   .charts-grid { grid-template-columns: 1fr; }
   .quick-links { grid-template-columns: repeat(2, 1fr); }
 }
+/* ── Miller's Law: collapsible secondary KPIs ── */
+.exec-details { margin-bottom: 16px; }
+.exec-details-summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: var(--text-sm); font-weight: 600;
+  color: var(--text-secondary); padding: 6px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-alt); transition: background .15s;
+  list-style: none;
+}
+.exec-details-summary::-webkit-details-marker { display: none; }
+.exec-details-summary:hover { background: var(--surface); }
+.exec-details[open] .exec-details-summary { color: var(--maroon); border-color: var(--maroon); }
 </style>
 {% endblock %}
 
@@ -172,9 +185,9 @@
     </div>
   </div>
 
-  {# ── KPI Strip (8 in 1 row) ── #}
+  {# ── KPI Strip — Miller's Law: max 4 primary KPIs ── #}
   <div class="kpi-strip">
-    <div class="kpi-mini" style="--kc:#8A1538;">
+    <div class="kpi-mini" style="--kc:var(--maroon);">
       <div class="kpi-mini-label">إجمالي الطلاب</div>
       <div class="kpi-mini-value">{{ kpis.total_students }}</div>
       <div class="kpi-mini-sub">{{ year }}</div>
@@ -194,30 +207,42 @@
       <div class="kpi-mini-value">{{ kpis.plan_pct }}%</div>
       <div class="kpi-mini-sub">{{ kpis.completed_procs }}/{{ kpis.total_procs }}</div>
     </div>
-    <a href="/clinic/" class="kpi-mini" style="--kc:#dc2626;">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} العيادة</div>
-      <div class="kpi-mini-value">{{ kpis.clinic_today }}</div>
-      {% if kpis.chronic_cases > 0 %}<div class="kpi-mini-alert">{{ kpis.chronic_cases }} مزمنة</div>
-      {% else %}<div class="kpi-mini-sub">0 حالة مزمنة</div>{% endif %}
-    </a>
-    <a href="/behavior/dashboard/" class="kpi-mini" style="--kc:#ea580c;">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="scale" %} السلوك</div>
-      <div class="kpi-mini-value">{{ kpis.behavior_month }}</div>
-      {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} {{ kpis.critical_issues }} جسيمة</div>
-      {% else %}<div class="kpi-mini-sub">{% include "components/icon.html" with name="check-circle" %} لا جسيمة</div>{% endif %}
-    </a>
-    <a href="/transport/" class="kpi-mini" style="--kc:#2563eb;">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="bus" %} النقل</div>
-      <div class="kpi-mini-value">{{ kpis.bus_students }}</div>
-      <div class="kpi-mini-sub">{{ kpis.total_buses }} حافلة</div>
-    </a>
-    <a href="/library/" class="kpi-mini" style="--kc:#7c3aed;">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} المكتبة</div>
-      <div class="kpi-mini-value">{{ kpis.active_loans }}</div>
-      {% if kpis.overdue_books > 0 %}<div class="kpi-mini-alert">{{ kpis.overdue_books }} متأخرة</div>
-      {% else %}<div class="kpi-mini-sub">إعارة نشطة</div>{% endif %}
-    </a>
   </div>
+
+  {# ── Secondary KPI Strip — خدمات فرعية (قابلة للتوسيع) ── #}
+  <details class="exec-details mb-4">
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="layers" %} الخدمات الفرعية
+      {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 or kpis.overdue_books > 0 %}
+      <span class="kpi-mini-alert" style="margin-inline-start:8px;">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات</span>
+      {% endif %}
+    </summary>
+    <div class="kpi-strip mt-3">
+      <a href="/clinic/" class="kpi-mini" style="--kc:#dc2626;">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} العيادة</div>
+        <div class="kpi-mini-value">{{ kpis.clinic_today }}</div>
+        {% if kpis.chronic_cases > 0 %}<div class="kpi-mini-alert">{{ kpis.chronic_cases }} مزمنة</div>
+        {% else %}<div class="kpi-mini-sub">0 حالة مزمنة</div>{% endif %}
+      </a>
+      <a href="/behavior/dashboard/" class="kpi-mini" style="--kc:#ea580c;">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="scale" %} السلوك</div>
+        <div class="kpi-mini-value">{{ kpis.behavior_month }}</div>
+        {% if kpis.critical_issues > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} {{ kpis.critical_issues }} جسيمة</div>
+        {% else %}<div class="kpi-mini-sub">{% include "components/icon.html" with name="check-circle" %} لا جسيمة</div>{% endif %}
+      </a>
+      <a href="/transport/" class="kpi-mini" style="--kc:#2563eb;">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="bus" %} النقل</div>
+        <div class="kpi-mini-value">{{ kpis.bus_students }}</div>
+        <div class="kpi-mini-sub">{{ kpis.total_buses }} حافلة</div>
+      </a>
+      <a href="/library/" class="kpi-mini" style="--kc:#7c3aed;">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} المكتبة</div>
+        <div class="kpi-mini-value">{{ kpis.active_loans }}</div>
+        {% if kpis.overdue_books > 0 %}<div class="kpi-mini-alert">{{ kpis.overdue_books }} متأخرة</div>
+        {% else %}<div class="kpi-mini-sub">إعارة نشطة</div>{% endif %}
+      </a>
+    </div>
+  </details>
 
   {# ── Alert strip (conditional) ── #}
   {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 or kpis.overdue_books > 0 %}

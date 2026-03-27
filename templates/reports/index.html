@@ -22,7 +22,7 @@
         <div class="flex gap-2 mb-2">
           <input type="text" id="student-search-input"
                  placeholder="ابحث باسم الطالب أو الرقم الوطني..."
-                 class="form-control" style="flex:1;"
+                 class="form-control flex-1"
                  autocomplete="off">
           <button type="button" id="student-search-btn" class="btn-primary btn-sm">بحث</button>
         </div>
@@ -90,8 +90,8 @@
     <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
       {% include "components/icon.html" with name="scale" %} كشف المخالفات السلوكية
     </div>
-    <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:13px;color:var(--text-secondary);">تصدير كامل بيانات السلوك للعام {{ year }}</span>
+    <div class="flex items-center justify-between p-5">
+      <span class="text-sm text-secondary">تصدير كامل بيانات السلوك للعام {{ year }}</span>
       <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success">
         {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>

@@ -67,9 +67,14 @@
 
 </div>
 
-{# ── KPIs: التقييمات ── #}
+{# ── Miller's Law: مؤشرات ثانوية مطوية ── #}
+{% if total_annual or pending_swaps or pending_comp or absent_teachers_today %}
+<details class="mb-4" open>
+  <summary class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 cursor-pointer hover:text-maroon list-none">
+    {% include "components/icon.html" with name="layers" size="icon-sm" %} مؤشرات إضافية ▾
+  </summary>
 {% if total_annual %}
-<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">التقييمات السنوية — {{ year }}</p>
+<p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 mt-3">التقييمات السنوية — {{ year }}</p>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
   <div class="kpi-card">
@@ -140,6 +145,8 @@
   </div>
 </div>
 {% endif %}
+</details>
+{% endif %}
 
 {# ── إجراءات سريعة ── #}
 <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">إجراءات سريعة</p>
@@ -184,7 +191,7 @@
 <details class="card-qatar" open>
   <summary class="collapsible-header" role="button">
     <div class="card-header-icon">{% include "components/icon.html" with name="alert-triangle" %}</div>
-    <h2 class="card-header-title" style="flex:1;margin:0;">تنبيهات الغياب المتكرر</h2>
+    <h2 class="card-header-title flex-1 m-0">تنبيهات الغياب المتكرر</h2>
     <span class="status-badge status-danger">{{ alerts|length }} تنبيه</span>
     <span class="text-muted text-xs" aria-hidden="true">▼</span>
   </summary>
@@ -223,12 +230,12 @@
 
 {# ── تنبيه طلبات تبديل معلقة ── #}
 {% if my_pending_swaps %}
-<div class="card-qatar mb-4" style="border-right:4px solid var(--color-amber-500);padding:12px 16px;">
+<div class="card-qatar mb-4 px-4 py-3" style="border-right:4px solid var(--color-amber-500);">
   <div class="flex items-center justify-between">
     <div>
       <strong>{% include "components/icon.html" with name="refresh" %} لديك {{ my_pending_swaps }} طلب تبديل ينتظر ردك</strong>
     </div>
-    <a href="/teacher/schedule/swaps/" class="btn-primary btn-sm" style="text-decoration:none">عرض الطلبات</a>
+    <a href="/teacher/schedule/swaps/" class="btn-primary btn-sm no-underline">عرض الطلبات</a>
   </div>
 </div>
 {% endif %}
@@ -241,7 +248,7 @@
     {% for s in sessions %}
     <a href="/teacher/attendance/{{ s.id }}/" class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition
       {% if s == next_session %}bg-amber-50{% endif %}"
-      style="text-decoration:none;color:inherit;display:flex;">
+      class="no-underline text-inherit flex">
       <div class="flex items-center gap-4">
         <div class="text-center session-time">
           <div class="text-sm font-bold text-gray-800">{{ s.start_time|time:"H:i" }}</div>
@@ -272,7 +279,7 @@
     <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
     <p class="empty-title">لا توجد حصص اليوم</p>
     <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
-    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3" style="text-decoration:none;display:inline-block;">عرض الجدول</a>
+    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
   </div>
   {% endif %}
 </div>
@@ -284,12 +291,12 @@
   {% for setup in my_setups %}
   <a href="/assessments/setup/{{ setup.id }}/" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
-    <div class="action-card-body" style="flex:1;">
+    <div class="action-card-body flex-1">
       <p class="action-title">{{ setup.subject.name_ar }}</p>
       <p class="action-desc">{{ setup.class_group }} — {{ setup.academic_year }}</p>
     </div>
     <svg width="16" height="16" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"
-         class="flex-shrink-0" style="transform:rotate(180deg);" aria-hidden="true">
+         class="flex-shrink-0 rotate-180" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
     </svg>
   </a>
@@ -387,7 +394,7 @@
     {% for s in sessions %}
     <a href="/teacher/attendance/{{ s.id }}/" class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition
       {% if s == next_session %}bg-amber-50{% endif %}"
-      style="text-decoration:none;color:inherit;display:flex;">
+      class="no-underline text-inherit flex">
       <div class="flex items-center gap-4">
         <div class="text-center session-time">
           <div class="text-sm font-bold text-gray-800">{{ s.start_time|time:"H:i" }}</div>
@@ -418,7 +425,7 @@
     <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
     <p class="empty-title">لا توجد حصص اليوم</p>
     <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
-    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3" style="text-decoration:none;display:inline-block;">عرض الجدول</a>
+    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
   </div>
   {% endif %}
 </div>

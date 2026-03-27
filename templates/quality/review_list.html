@@ -43,7 +43,7 @@
 
   {# ══ Member Domain Notice ════════════════════════════════ #}
   {% if member_domain %}
-  <div class="quality-notice" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border);border-radius:0.75rem;padding:0.75rem 1rem;display:flex;align-items:center;gap:0.5rem;font-size:0.875rem;color:var(--status-warning-dark)">
+  <div class="quality-notice flex items-center gap-2 rounded-xl px-4 py-3 text-sm" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border);color:var(--status-warning-dark)">
     {% include "components/icon.html" with name="filter" %}
     <span>أنت مسؤول عن مجال <strong>{{ member_domain.name }}</strong> — يتم عرض إجراءات هذا المجال فقط.</span>
   </div>
@@ -63,7 +63,7 @@
         <div class="quality-filter-field">
           <label>المجال</label>
           {% if member_domain %}
-          <select name="field" disabled style="opacity:.7;cursor:not-allowed">
+          <select name="field" disabled class="opacity-70 cursor-not-allowed">
             <option value="{{ member_domain.id }}" selected>{{ member_domain.name }}</option>
           </select>
           {% else %}

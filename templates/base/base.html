@@ -256,7 +256,7 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule">
   <div class="sd-label">جدولي</div>
-  <a href="/teacher/schedule/" style="font-weight:600;">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
@@ -269,7 +269,7 @@
 {# ── Teacher Schedule Dropdown ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
 <div class="sd-menu" id="m-teacher-schedule">
-  <a href="/teacher/schedule/" style="font-weight:600;">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
   <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>

@@ -36,7 +36,7 @@
       <div class="kpi-label">أولياء أمور مربوطين</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-value" style="font-size:1rem;line-height:1.4;">{{ selected_student.full_name }}</div>
+      <div class="kpi-value text-base leading-snug">{{ selected_student.full_name }}</div>
       <div class="kpi-label">الطالب المحدد</div>
     </div>
   </div>
@@ -44,13 +44,13 @@
   {# ── بطاقة أولياء الأمور ── #}
   {% if parents_info %}
   <div class="table-wrap">
-    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface-alt);">
-      <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">{% include "components/icon.html" with name="waypoints" %}</div>
-      <h3 style="font-size:14px;font-weight:700;color:var(--text-primary);margin:0;">أولياء الأمور — سيستلمون الإشعار</h3>
-      <span class="status-badge status-maroon" style="margin-inline-start:auto;">{{ parents_info|length }}</span>
+    <div class="flex items-center gap-2 px-4 py-3" style="border-bottom:1px solid var(--border);background:var(--surface-alt);">
+      <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="waypoints" %}</div>
+      <h3 class="text-sm font-bold m-0" style="color:var(--text-primary);">أولياء الأمور — سيستلمون الإشعار</h3>
+      <span class="status-badge status-maroon ms-auto">{{ parents_info|length }}</span>
     </div>
-    <div style="overflow-x:auto;">
-      <table style="width:100%;">
+    <div class="overflow-x-auto">
+      <table class="w-full">
         <thead>
           <tr>
             <th>الاسم</th>
@@ -62,13 +62,13 @@
         <tbody>
           {% for p in parents_info %}
           <tr>
-            <td style="font-weight:600;">{{ p.name }}</td>
+            <td class="font-semibold">{{ p.name }}</td>
             <td>{{ p.relationship }}</td>
             <td>
               {% if p.phone %}
-              <a href="tel:{{ p.phone }}" class="link-maroon" style="font-family:monospace;text-decoration:none;" dir="ltr">{{ p.phone }}</a>
+              <a href="tel:{{ p.phone }}" class="link-maroon font-mono no-underline" dir="ltr">{{ p.phone }}</a>
               {% else %}
-              <span style="color:var(--text-muted);">—</span>
+              <span class="text-muted">—</span>
               {% endif %}
             </td>
             <td>
@@ -85,8 +85,8 @@
     </div>
   </div>
   {% else %}
-  <div style="background:var(--status-danger-bg);border:1px solid var(--status-danger-border);border-radius:var(--radius);padding:12px 16px;">
-    <p style="color:var(--status-danger);font-size:13px;">{% include "components/icon.html" with name="alert-triangle" %} لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
+  <div class="rounded-lg p-3" style="background:var(--status-danger-bg);border:1px solid var(--status-danger-border);">
+    <p class="text-sm text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
   </div>
   {% endif %}
   {% endif %}
@@ -138,9 +138,9 @@
             </div>
             <div>
               <label class="form-label">درجة الاستعجال</label>
-              <div style="display:flex;gap:8px;margin-top:4px;">
+              <div class="flex gap-2 mt-1">
                 {% for val, label in urgency_levels %}
-                <label style="display:flex;align-items:center;gap:5px;border:1.5px solid var(--border-strong);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:13px;background:var(--surface-alt);transition:border-color .12s,background .12s;">
+                <label class="flex items-center gap-1 rounded-lg px-3 py-2 cursor-pointer text-sm" style="border:1.5px solid var(--border-strong);background:var(--surface-alt);transition:border-color .12s,background .12s;">
                   <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}
                          style="accent-color:var(--maroon);">
                   {{ label }}
@@ -155,7 +155,7 @@
             <label class="form-label">سبب الاستدعاء <span class="required">*</span></label>
             <textarea name="reason" required rows="4" maxlength="1000"
                       placeholder="اكتب سبب استدعاء ولي الأمر بالتفصيل..."
-                      class="form-control" style="resize:vertical;"></textarea>
+                      class="form-control resize-y"></textarea>
           </div>
 
           {# الموعد + الوقت + المكان #}
@@ -183,16 +183,16 @@
                  class="form-control">
 
           {# تنبيه #}
-          <div class="status-badge status-maroon" style="display:flex;align-items:flex-start;gap:8px;padding:12px 16px;border-radius:var(--radius);font-size:13px;white-space:normal;margin-bottom:20px;">
+          <div class="status-badge status-maroon flex items-start gap-2 p-3 rounded-lg text-sm mb-5" style="white-space:normal;">
             {% include "components/icon.html" with name="alert-triangle" %} سيتم إرسال إشعار فوري لولي الأمر عبر: <strong>المنصة</strong>، <strong>الرسائل النصية</strong>، <strong>البريد الإلكتروني</strong>.
           </div>
 
           {# أزرار #}
           <div class="form-footer">
-            <button type="submit" class="btn-primary" style="flex:1;padding:12px;font-size:14px;font-weight:700;">
+            <button type="submit" class="btn-primary flex-1 p-3 text-sm font-bold">
               {% include "components/icon.html" with name="mail" %} إرسال الاستدعاء
             </button>
-            <a href="{% url 'behavior:dashboard' %}" class="btn-secondary" style="padding:12px 24px;text-decoration:none;">إلغاء</a>
+            <a href="{% url 'behavior:dashboard' %}" class="btn-secondary px-6 py-3 no-underline">إلغاء</a>
           </div>
         </form>
       </div>
@@ -201,29 +201,29 @@
     {# العمود الجانبي — معلومات سريعة #}
     <div>
       {# مرسل الاستدعاء #}
-      <div class="card-qatar" style="margin-bottom:16px;">
+      <div class="card-qatar mb-4">
         <div class="card-header">
-          <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">{% include "components/icon.html" with name="user" %}</div>
-          <h3 class="card-header-title" style="font-size:13px;">مرسل الاستدعاء</h3>
+          <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="user" %}</div>
+          <h3 class="card-header-title text-sm">مرسل الاستدعاء</h3>
         </div>
-        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">{{ sender.full_name }}</div>
+        <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ sender.full_name }}</div>
         {% if sender.get_role_display %}
-        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+        <div class="text-xs text-secondary mt-1">
           <span class="status-badge status-maroon">{{ sender.get_role_display }}</span>
         </div>
         {% endif %}
         {% if sender.phone %}
-        <div style="font-size:12px;color:var(--text-muted);margin-top:6px;font-family:monospace;" dir="ltr">{{ sender.phone }}</div>
+        <div class="text-xs text-muted mt-1 font-mono" dir="ltr">{{ sender.phone }}</div>
         {% endif %}
       </div>
 
       {# ملاحظات #}
       <div class="card-qatar">
         <div class="card-header">
-          <div class="card-header-icon" style="width:32px;height:32px;font-size:15px;">{% include "components/icon.html" with name="lightbulb" %}</div>
-          <h3 class="card-header-title" style="font-size:13px;">ملاحظات</h3>
+          <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="lightbulb" %}</div>
+          <h3 class="card-header-title text-sm">ملاحظات</h3>
         </div>
-        <ul style="font-size:12px;color:var(--text-secondary);padding-right:16px;margin:0;line-height:1.8;">
+        <ul class="text-xs text-secondary pe-4 m-0 leading-relaxed">
           <li>الاستدعاء يُرسل لجميع أولياء الأمور المربوطين</li>
           <li>الحالات الطارئة تُعطى أولوية عالية</li>
           <li>يُفضّل تحديد الموعد والمكان</li>

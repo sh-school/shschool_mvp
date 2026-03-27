@@ -22,8 +22,8 @@
 
     {# ── العمود الأيسر — بيانات الحافلة ── #}
     <div>
-      <div class="form-card" style="margin-bottom:16px;">
-        <div class="card-bar" style="margin:-24px -28px 20px;">بيانات الحافلة</div>
+      <div class="form-card mb-4">
+        <div class="card-bar" style="margin:-24px -28px 20px">بيانات الحافلة</div>
         <form method="post" hx-post="" hx-target="#bus-info">
           {% csrf_token %}
           <div class="form-group">
@@ -50,22 +50,22 @@
             <label class="form-label">رابط GPS</label>
             <input name="gps_link" value="{{ bus.gps_link }}" class="form-control" placeholder="https://...">
           </div>
-          <button class="btn-primary" style="width:100%;padding:10px;">{% include "components/icon.html" with name="save" %} حفظ</button>
+          <button class="btn-primary w-full p-2">{% include "components/icon.html" with name="save" %} حفظ</button>
         </form>
       </div>
 
       <div class="card-qatar">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <span style="font-size:14px;font-weight:700;color:var(--text-primary);">إجمالي الطلاب</span>
-          <span style="font-size:26px;font-weight:800;color:var(--maroon);">{{ students.count }}</span>
+        <div class="flex justify-between items-center mb-3">
+          <span class="text-sm font-bold" style="color:var(--text-primary);">إجمالي الطلاب</span>
+          <span class="text-2xl font-extrabold text-maroon">{{ students.count }}</span>
         </div>
         <div class="progress-qatar">
           <div class="progress-qatar-fill" style="width:{{ occupancy_rate }}%"></div>
         </div>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:6px;">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
+        <p class="text-xs text-muted mt-1">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
         {% if bus.gps_link %}
         <a href="{% url 'transport:tracking_map' bus.id %}"
-           class="btn-primary" style="display:block;text-align:center;margin-top:12px;text-decoration:none;padding:10px;">
+           class="btn-primary block text-center mt-3 no-underline p-2">
           {% include "components/icon.html" with name="bus" %} تتبع الحافلة
         </a>
         {% endif %}
@@ -76,44 +76,44 @@
     <div class="lg:col-span-2 space-y-4">
 
       {# خطوط السير #}
-      <div class="card-qatar" style="padding:0;overflow:hidden;">
-        <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;justify-content:space-between;align-items:center;">
+      <div class="card-qatar p-0 overflow-hidden">
+        <div class="card-bar m-0 rounded-t-xl flex justify-between items-center">
           <span>خطوط السير</span>
           <a href="{% url 'transport:create_route' bus.id %}"
-             style="font-size:11px;background:rgba(255,255,255,.2);color:#fff;padding:4px 12px;border-radius:8px;text-decoration:none;font-weight:600;">+ خط جديد</a>
+             class="text-xs font-semibold no-underline rounded-lg px-3 py-1" style="background:rgba(255,255,255,.2);color:#fff;">+ خط جديد</a>
         </div>
         {% if routes %}
-        <div style="padding:0;">
+        <div class="p-0">
           {% for route in routes %}
-          <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+          <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
             <div>
-              <p style="font-size:13.5px;font-weight:600;color:var(--text-primary);margin:0 0 2px;">{{ route.area_name }}</p>
-              <p style="font-size:12px;color:var(--text-muted);margin:0;">{{ route.students.count }} طالب</p>
+              <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ route.area_name }}</p>
+              <p class="text-xs text-muted m-0">{{ route.students.count }} طالب</p>
             </div>
-            <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon" style="font-size:12px;text-decoration:none;">تعديل</a>
+            <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon text-xs no-underline">تعديل</a>
           </div>
           {% endfor %}
         </div>
         {% else %}
-        <div class="empty-state" style="padding:32px;">
+        <div class="empty-state p-8">
           <p class="empty-sub">لا توجد خطوط سير</p>
         </div>
         {% endif %}
       </div>
 
       {# الطلاب المسجلون #}
-      <div class="card-qatar" style="padding:0;overflow:hidden;">
-        <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;">الطلاب المسجلون</div>
+      <div class="card-qatar p-0 overflow-hidden">
+        <div class="card-bar m-0 rounded-t-xl">الطلاب المسجلون</div>
         {% if students %}
-        <div style="max-height:280px;overflow-y:auto;">
+        <div class="max-h-72 overflow-y-auto">
           {% for st in students %}
-          <div style="padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);font-size:13px;">
+          <div class="flex items-center justify-between px-4 py-2 text-sm" style="border-bottom:1px solid var(--border);">
             <span style="color:var(--text-primary);">{{ st.full_name }}</span>
           </div>
           {% endfor %}
         </div>
         {% else %}
-        <div class="empty-state" style="padding:32px;">
+        <div class="empty-state p-8">
           <p class="empty-sub">لا يوجد طلاب مسجلون</p>
         </div>
         {% endif %}

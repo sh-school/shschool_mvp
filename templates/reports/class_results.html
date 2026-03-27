@@ -77,7 +77,7 @@
         {% else %}—{% endif %}
       </td>
       {% endfor %}
-      <td style="font-weight:700">{{ row.avg|default:"—" }}</td>
+      <td class="font-bold">{{ row.avg|default:"—" }}</td>
       <td>
         {% if row.status == "ناجح" %}<span class="badge-pass">{{ row.status }}</span>
         {% elif row.status == "راسب" %}<span class="badge-fail">{{ row.status }}</span>

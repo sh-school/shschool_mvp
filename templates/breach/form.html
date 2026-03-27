@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6" style="max-width:760px;margin:0 auto;">
+<div class="space-y-6 max-w-3xl mx-auto">
 
   {# ── Page Header ── #}
   <div class="page-header">
@@ -19,8 +19,8 @@
   <form method="post" data-validate>{% csrf_token %}
 
     {# ── البيانات الأساسية ── #}
-    <div class="form-card" style="margin-bottom:16px;">
-      <div class="card-bar" style="margin:-24px -28px 20px;">عنوان الخرق والتصنيف</div>
+    <div class="form-card mb-4">
+      <div class="card-bar" style="margin:-24px -28px 20px">عنوان الخرق والتصنيف</div>
 
       <div class="form-group">
         <label class="form-label">عنوان الخرق <span class="required">*</span></label>
@@ -60,44 +60,44 @@
     </div>
 
     {# ── التفاصيل ── #}
-    <div class="form-card" style="margin-bottom:16px;">
-      <div class="card-bar" style="margin:-24px -28px 20px;">وصف الخرق والإجراءات</div>
+    <div class="form-card mb-4">
+      <div class="card-bar" style="margin:-24px -28px 20px">وصف الخرق والإجراءات</div>
 
       <div class="form-group">
         <label class="form-label">وصف الخرق التفصيلي <span class="required">*</span></label>
         <textarea name="description" class="form-control" rows="3" required
-          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟" style="resize:vertical;"></textarea>
+          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟" class="resize-y"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">الإجراء الفوري المتخذ</label>
         <textarea name="immediate_action" class="form-control" rows="2"
-          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..." style="resize:vertical;"></textarea>
+          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..." class="resize-y"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">إجراءات الاحتواء</label>
-        <textarea name="containment_action" class="form-control" rows="2" style="resize:vertical;"></textarea>
+        <textarea name="containment_action" class="form-control" rows="2" class="resize-y"></textarea>
       </div>
     </div>
 
     {# ── إشعار NCSA ── #}
-    <div class="form-card" style="margin-bottom:16px;">
-      <div class="card-bar" style="margin:-24px -28px 20px;">إشعار NCSA</div>
+    <div class="form-card mb-4">
+      <div class="card-bar" style="margin:-24px -28px 20px">إشعار NCSA</div>
       <div class="form-group">
         <label class="form-label">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
         <textarea name="notification_text" class="form-control" rows="4"
-          placeholder="وفق نموذج NCSA الرسمي..." style="resize:vertical;">{{ ncsa_template }}</textarea>
+          placeholder="وفق نموذج NCSA الرسمي..." class="resize-y">{{ ncsa_template }}</textarea>
       </div>
     </div>
 
     {# ── تنبيه ── #}
-    <div class="status-badge status-warning" style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius);font-size:13px;white-space:normal;margin-bottom:20px;width:100%;">
+    <div class="status-badge status-warning flex items-center gap-2 p-3 rounded-lg text-sm w-full mb-5" style="white-space:normal;">
       {% include "components/icon.html" with name="clock" %} بعد الحفظ سيظهر countdown لـ 72 ساعة وستصل تنبيهات تلقائية للمسؤول
     </div>
 
     {# ── أزرار ── #}
-    <div style="display:flex;gap:10px;">
-      <button type="submit" class="btn-danger" style="flex:1;padding:12px;font-size:14px;font-weight:700;">تسجيل الخرق</button>
-      <a href="{% url 'breach:dashboard' %}" class="btn-secondary" style="padding:12px 24px;text-decoration:none;">إلغاء</a>
+    <div class="flex gap-2">
+      <button type="submit" class="btn-danger flex-1 p-3 text-sm font-bold">تسجيل الخرق</button>
+      <a href="{% url 'breach:dashboard' %}" class="btn-secondary px-6 py-3 no-underline">إلغاء</a>
     </div>
   </form>
 

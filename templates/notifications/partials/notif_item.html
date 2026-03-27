@@ -17,17 +17,17 @@
          border-radius:12px;padding:14px 18px;
          transition:box-shadow .14s, opacity .2s;">
 
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
-    <div style="flex:1;min-width:0;">
+  <div class="flex justify-between items-start gap-2">
+    <div class="flex-1 min-w-0">
 
       {# Priority badge #}
-      <div style="margin-bottom:5px;">
+      <div class="mb-1">
         {% if notif.priority == "urgent" %}
-          <span class="status-badge status-danger" style="font-size:11px;">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
+          <span class="status-badge status-danger" class="text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
         {% elif notif.priority == "high" %}
-          <span class="status-badge status-warning" style="font-size:11px;">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
+          <span class="status-badge status-warning" class="text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
         {% elif not notif.is_read %}
-          <span class="status-badge status-maroon" style="font-size:11px;">جديد</span>
+          <span class="status-badge status-maroon" class="text-xs">جديد</span>
         {% endif %}
       </div>
 
@@ -43,13 +43,13 @@
 
       {# Body #}
       {% if notif.body %}
-      <p style="color:var(--text-secondary);font-size:13px;margin:0 0 8px;line-height:1.5;">
+      <p class="text-sm text-secondary m-0 mb-2 leading-normal">
         {{ notif.body|truncatechars:160 }}
       </p>
       {% endif %}
 
       {# Meta #}
-      <div style="display:flex;gap:14px;font-size:11.5px;color:var(--text-muted);">
+      <div class="flex gap-3 text-xs text-muted">
         <span>{{ notif.get_event_type_display }}</span>
         <span>{{ notif.created_at|timesince }} مضت</span>
       </div>
@@ -70,7 +70,7 @@
              transition:background .12s;flex-shrink:0;min-width:36px;min-height:36px;"
     >{% include "components/icon.html" with name="check" %}</button>
     {% else %}
-    <span style="color:var(--text-muted);font-size:13px;padding:5px 10px;flex-shrink:0;">{% include "components/icon.html" with name="check" %}</span>
+    <span class="text-muted text-sm flex-shrink-0 px-2 py-1">{% include "components/icon.html" with name="check" %}</span>
     {% endif %}
 
   </div>
