@@ -130,6 +130,7 @@ class RoleAdmin(admin.ModelAdmin):
 class MembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "school", "role", "is_active", "joined_at")
     list_filter = ("is_active", "school", "role__name")
+    list_select_related = ("user", "school", "role")
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 
@@ -146,6 +147,7 @@ class ClassGroupAdmin(admin.ModelAdmin):
 class StudentEnrollmentAdmin(admin.ModelAdmin):
     list_display = ("student", "class_group", "is_active", "enrolled_at")
     list_filter = ("is_active", "class_group__grade")
+    list_select_related = ("student", "class_group__school")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "class_group")
 
@@ -166,6 +168,7 @@ class ParentStudentLinkAdmin(admin.ModelAdmin):
         "can_view_attendance",
     )
     list_filter = ("school", "relationship", "can_view_grades", "can_view_attendance")
+    list_select_related = ("student", "parent", "school")
     search_fields = (
         "parent__full_name",
         "parent__national_id",
@@ -191,6 +194,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         "school",
     )
     list_filter = ("action", "model_name", "school")
+    list_select_related = ("user", "school")
     search_fields = ("user__full_name", "object_repr", "ip_address")
     readonly_fields = (
         "id",

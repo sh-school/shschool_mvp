@@ -14,6 +14,7 @@ from .models import (
 class SubjectClassSetupAdmin(admin.ModelAdmin):
     list_display = ("subject", "class_group", "teacher", "academic_year", "is_active")
     list_filter = ("school", "academic_year", "is_active")
+    list_select_related = ("subject", "class_group", "teacher", "school")
     search_fields = ("subject__name_ar", "teacher__full_name", "class_group__section")
     autocomplete_fields = ("subject", "class_group", "teacher")
 
@@ -37,6 +38,7 @@ class AssessmentPackageAdmin(admin.ModelAdmin):
         "is_active",
     )
     list_filter = ("package_type", "semester", "school", "is_active")
+    list_select_related = ("setup__subject", "setup__class_group", "school")
     search_fields = ("setup__subject__name_ar",)
     autocomplete_fields = ("setup",)
     inlines = [AssessmentInline]
@@ -64,6 +66,7 @@ class AssessmentAdmin(admin.ModelAdmin):
         "max_grade",
     )
     list_filter = ("assessment_type", "status", "school", "package__semester")
+    list_select_related = ("package__setup__subject", "package__setup__class_group", "school")
     search_fields = ("title", "package__setup__subject__name_ar")
     autocomplete_fields = ("package", "created_by")
 
@@ -85,6 +88,7 @@ class AssessmentAdmin(admin.ModelAdmin):
 class StudentAssessmentGradeAdmin(admin.ModelAdmin):
     list_display = ("student", "assessment", "grade", "is_absent", "is_excused", "entered_at")
     list_filter = ("is_absent", "school", "assessment__package__semester")
+    list_select_related = ("student", "assessment__package__setup__subject", "school")
     search_fields = ("student__full_name", "student__national_id", "assessment__title")
     autocomplete_fields = ("student", "assessment", "entered_by")
 
@@ -104,6 +108,7 @@ class StudentSubjectResultAdmin(admin.ModelAdmin):
         "semester_max",
     )
     list_filter = ("semester", "school")
+    list_select_related = ("student", "setup__subject", "setup__class_group", "school")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "setup")
 
@@ -131,6 +136,7 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
         "letter_grade",
     )
     list_filter = ("status", "school", "academic_year")
+    list_select_related = ("student", "setup__subject", "setup__class_group", "school")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "setup")
 

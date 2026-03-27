@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}لوحة تحكم المدير - التحليلات المتقدمة{% endblock %}
 
@@ -73,6 +74,67 @@
         </div>
     </div>
 
+    <!-- ══ Charts Section ══ -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+      {# 1. الحضور — آخر 30 يوم #}
+      <div id="wrap-chart-attendance" class="chart-card lg:col-span-2">
+        <h3 class="chart-card-title">الحضور — آخر 30 يوم</h3>
+        <div class="chart-body"><canvas id="chart-attendance"></canvas></div>
+        <p class="chart-empty hidden">لا توجد بيانات حضور</p>
+      </div>
+
+      {# 2. توزيع الدرجات #}
+      <div id="wrap-chart-grades" class="chart-card">
+        <h3 class="chart-card-title">توزيع الدرجات</h3>
+        <div class="chart-body"><canvas id="chart-grades"></canvas></div>
+        <p class="chart-empty hidden">لا توجد درجات مرصودة</p>
+      </div>
+
+      {# 3. مقارنة الفصول #}
+      <div id="wrap-chart-classes" class="chart-card">
+        <h3 class="chart-card-title">مقارنة الفصول — متوسط الدرجات</h3>
+        <div class="chart-body"><canvas id="chart-classes"></canvas></div>
+        <p class="chart-empty hidden">لا توجد بيانات</p>
+      </div>
+
+      {# 4. مقارنة المواد (مزدوج) #}
+      <div id="wrap-chart-subjects" class="chart-card lg:col-span-2">
+        <h3 class="chart-card-title">المواد — متوسط الدرجة ونسبة الرسوب</h3>
+        <div class="chart-body chart-body-tall"><canvas id="chart-subjects"></canvas></div>
+        <p class="chart-empty hidden">لا توجد بيانات</p>
+      </div>
+
+      {# 5. إنجاز الخطة #}
+      <div id="wrap-chart-plan" class="chart-card">
+        <h3 class="chart-card-title">إنجاز الخطة التشغيلية — حسب المجال</h3>
+        <div class="chart-body"><canvas id="chart-plan"></canvas></div>
+        <p class="chart-empty hidden">لا توجد بيانات</p>
+      </div>
+
+      {# 6. السلوك — آخر 6 أشهر #}
+      <div id="wrap-chart-behavior" class="chart-card">
+        <h3 class="chart-card-title">مخالفات السلوك — آخر 6 أشهر</h3>
+        <div class="chart-body"><canvas id="chart-behavior"></canvas></div>
+        <p class="chart-empty hidden">لا توجد مخالفات</p>
+      </div>
+
+      {# 7. الراسبون حسب الفصل #}
+      <div id="wrap-chart-failing" class="chart-card">
+        <h3 class="chart-card-title">الطلاب الراسبون — حسب الفصل</h3>
+        <div class="chart-body"><canvas id="chart-failing"></canvas></div>
+        <p class="chart-empty hidden">لا يوجد راسبون</p>
+      </div>
+
+      {# 8. العيادة #}
+      <div id="wrap-chart-clinic" class="chart-card">
+        <h3 class="chart-card-title">زيارات العيادة — آخر 30 يوم</h3>
+        <div class="chart-body"><canvas id="chart-clinic"></canvas></div>
+        <p class="chart-empty hidden">لا توجد زيارات</p>
+      </div>
+
+    </div>
+
     <!-- Alert Section -->
     {% if kpis.critical_issues > 0 or kpis.chronic_cases > 0 %}
     <div class="bg-red-50 border-l-4 border-red-500 p-6 rounded-xl mb-8">
@@ -115,4 +177,9 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4/dist/chart.umd.min.js" defer></script>
+<script src="{% static 'js/analytics.js' %}?v=100" defer></script>
 {% endblock %}

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Avg, Count, Q, QuerySet
 
 from core.models import StudentEnrollment
 
@@ -97,6 +97,94 @@ class GradeService:
         GradeService.recalculate_annual_result(student, setup)
 
         return obj, created
+
+    # ── حساب درجات الباقات دفعة واحدة (Batch) ──────────────
+
+    @staticmethod
+    def calc_package_scores_batch(
+        student_ids: list,
+        packages: list[AssessmentPackage],
+    ) -> dict:
+        """
+        يحسب درجات كل الطلاب في كل الباقات بـ استعلام واحد بدل N×M.
+
+        Returns: {(student_id, package_type): Decimal | None}
+        """
+        if not student_ids or not packages:
+            return {}
+
+        # 1. جمع كل التقييمات المنشورة لكل الباقات
+        pkg_assessments: dict[str, list] = {}  # package_type → [Assessment]
+        all_assessment_ids = []
+        for pkg in packages:
+            assessments = list(
+                pkg.assessments.filter(status__in=["published", "graded", "closed"])
+            )
+            pkg_assessments[pkg.package_type] = assessments
+            all_assessment_ids.extend(a.id for a in assessments)
+
+        if not all_assessment_ids:
+            return {}
+
+        # 2. استعلام واحد لكل الدرجات
+        all_grades = StudentAssessmentGrade.objects.filter(
+            assessment_id__in=all_assessment_ids,
+            student_id__in=student_ids,
+        ).values_list("student_id", "assessment_id", "grade", "is_absent")
+
+        # index: (student_id, assessment_id) → (grade, is_absent)
+        grades_index: dict = {}
+        for sid, aid, grade, is_abs in all_grades:
+            grades_index[(sid, aid)] = (grade, is_abs)
+
+        # 3. حساب الدرجة لكل طالب × باقة
+        results: dict = {}
+        for pkg in packages:
+            assessments = pkg_assessments.get(pkg.package_type, [])
+            if not assessments or pkg.weight == 0:
+                for sid in student_ids:
+                    results[(sid, pkg.package_type)] = (
+                        Decimal("0") if pkg.weight == 0 else None
+                    )
+                continue
+
+            total_weight = sum(float(a.weight_in_package) for a in assessments)
+            if total_weight == 0:
+                for sid in student_ids:
+                    results[(sid, pkg.package_type)] = None
+                continue
+
+            for sid in student_ids:
+                weighted_pct = Decimal("0")
+                has_grade = False
+
+                for asmnt in assessments:
+                    entry = grades_index.get((sid, asmnt.id))
+                    if entry is None:
+                        continue
+
+                    grade, is_abs = entry
+                    has_grade = True
+                    if is_abs or grade is None:
+                        pct = Decimal("0")
+                    else:
+                        pct = Decimal(str(grade)) / asmnt.max_grade * Decimal("100")
+
+                    w = Decimal(str(asmnt.weight_in_package)) / Decimal(str(total_weight))
+                    weighted_pct += pct * w
+
+                if not has_grade:
+                    results[(sid, pkg.package_type)] = None
+                else:
+                    actual = (
+                        weighted_pct * pkg.weight * pkg.semester_max_grade
+                        / Decimal("10000")
+                    )
+                    results[(sid, pkg.package_type)] = actual.quantize(
+                        Decimal("0.01"), rounding=ROUND_HALF_UP
+                    )
+
+        return results
 
     # ── حساب درجة الباقة الواحدة ───────────────────────────
 
@@ -301,6 +389,39 @@ class GradeService:
 
     # ── إحصائيات ───────────────────────────────────────────
 
+    # ── إنشاء تقييم جديد ──────────────────────────────────
+
+    @staticmethod
+    @transaction.atomic
+    def create_assessment(
+        package: AssessmentPackage,
+        title: str,
+        assessment_type: str = "exam",
+        date=None,
+        max_grade: Decimal = Decimal("100"),
+        weight_in_package: Decimal = Decimal("100"),
+        description: str = "",
+        created_by=None,
+    ) -> Assessment:
+        """إنشاء تقييم جديد في باقة مع validation."""
+        if not title or not title.strip():
+            raise ValueError("عنوان التقييم مطلوب")
+
+        return Assessment.objects.create(
+            package=package,
+            school=package.school,
+            title=title.strip(),
+            assessment_type=assessment_type,
+            date=date,
+            max_grade=max_grade,
+            weight_in_package=weight_in_package,
+            description=description,
+            status="published",
+            created_by=created_by,
+        )
+
+    # ── إحصائيات ───────────────────────────────────────────
+
     @staticmethod
     def get_assessment_stats(assessment: Assessment) -> dict:
         """إحصائيات تقييم: متوسط، أعلى، أدنى، نسبة النجاح"""
@@ -343,21 +464,25 @@ class GradeService:
     def get_class_results_summary(
         setup: SubjectClassSetup, year: str = settings.CURRENT_ACADEMIC_YEAR
     ) -> dict:
-        """ملخص النتائج السنوية للفصل في مادة"""
-        results = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year)
-        total = results.count()
-        passed = results.filter(status="pass").count()
-        failed = results.filter(status="fail").count()
-        incomp = results.filter(status="incomplete").count()
-
-        grades = [float(r.annual_total) for r in results if r.annual_total is not None]
-        avg = round(sum(grades) / len(grades), 2) if grades else None
+        """ملخص النتائج السنوية للفصل في مادة — استعلام واحد"""
+        stats = AnnualSubjectResult.objects.filter(
+            setup=setup, academic_year=year
+        ).aggregate(
+            total=Count("id"),
+            passed=Count("id", filter=Q(status="pass")),
+            failed=Count("id", filter=Q(status="fail")),
+            incomplete=Count("id", filter=Q(status="incomplete")),
+            avg=Avg("annual_total"),
+        )
+        total = stats["total"]
+        passed = stats["passed"]
+        avg = round(float(stats["avg"]), 2) if stats["avg"] is not None else None
 
         return {
             "total": total,
             "passed": passed,
-            "failed": failed,
-            "incomplete": incomp,
+            "failed": stats["failed"],
+            "incomplete": stats["incomplete"],
             "pass_pct": round(passed / total * 100) if total else 0,
             "avg": avg,
         }

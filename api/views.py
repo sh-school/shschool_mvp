@@ -117,55 +117,59 @@ def me_view(request):
 # ══════════════════════════════════════════════════════════════════════
 
 
-@extend_schema(
-    summary="قائمة الطلاب",
-    parameters=[
-        OpenApiParameter("year", str, description="السنة الدراسية (مثال: 2025-2026)"),
-        OpenApiParameter("class_id", str, description="معرّف الفصل (UUID)"),
-        OpenApiParameter("search", str, description="بحث بالاسم أو الرقم الوطني"),
-        OpenApiParameter(
-            "ordering", str, description="ترتيب: first_name | -first_name | national_id"
-        ),
-    ],
-    tags=["students"],
-)
-@api_view(["GET"])
-@permission_classes([IsTeacherOrAdmin])
-def student_list(request):
-    school = _school(request)
-    year = _year(request)
+class StudentListView(generics.ListAPIView):
+    """
+    GET /api/v1/students/
 
-    enrollments = StudentEnrollment.objects.filter(
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).select_related("student", "class_group")
+    الفلترة:
+      ?year=2025-2026
+      ?class_id=<uuid>
+      ?search=اسم أو رقم وطني
 
-    # ── الفلترة حسب الفصل ─────────────────────────────────────────────
-    if class_id := request.query_params.get("class_id"):
-        enrollments = enrollments.filter(class_group_id=class_id)
+    الفرز:
+      ?ordering=name | -name | national_id | class | -class
+    """
 
-    # ── البحث الذكي ────────────────────────────────────────────────────
-    q = request.query_params.get("search", "").strip()[:100]
-    if q:
-        enrollments = enrollments.filter(
-            Q(student__full_name__icontains=q) | Q(student__national_id__icontains=q)
-        )
+    serializer_class = StudentEnrollmentSerializer
+    permission_classes = [IsTeacherOrAdmin]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["student__full_name", "student__national_id"]
+    ordering_fields = [
+        "student__full_name",
+        "student__national_id",
+        "class_group__grade",
+    ]
+    ordering = ["student__full_name"]
 
-    # ── الفرز الاحترافي ────────────────────────────────────────────────
-    ordering_map = {
-        "name": "student__full_name",
-        "-name": "-student__full_name",
-        "national_id": "student__national_id",
-        "-national_id": "-student__national_id",
-        "class": "class_group__grade",
-        "-class": "-class_group__grade",
-    }
-    ordering = request.query_params.get("ordering", "name")
-    db_ordering = ordering_map.get(ordering, "student__full_name")
-    enrollments = enrollments.order_by(db_ordering)
+    @extend_schema(
+        summary="قائمة الطلاب",
+        parameters=[
+            OpenApiParameter("year", str, description="السنة الدراسية (مثال: 2025-2026)"),
+            OpenApiParameter("class_id", str, description="معرّف الفصل (UUID)"),
+        ],
+        tags=["students"],
+    )
+    def get(self, *args, **kwargs):
+        return super().get(*args, **kwargs)
 
-    return Response(StudentEnrollmentSerializer(enrollments, many=True).data)
+    def get_queryset(self):
+        school = _school(self.request)
+        year = _year(self.request)
+
+        qs = StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        ).select_related("student", "class_group")
+
+        if class_id := self.request.query_params.get("class_id"):
+            qs = qs.filter(class_group_id=class_id)
+
+        return qs
+
+
+# Backward-compatible function alias
+student_list = StudentListView.as_view()
 
 
 @extend_schema(

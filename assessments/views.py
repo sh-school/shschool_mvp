@@ -7,6 +7,7 @@ from django.contrib import messages
 
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
@@ -44,16 +45,18 @@ def assessments_dashboard(request):
             .order_by("class_group__grade", "class_group__section", "subject__name_ar")
         )
 
-        # إحصائيات عامة
+        # إحصائيات عامة — استعلام واحد بدل 3
         total_results = StudentSubjectResult.objects.filter(
             school=school, semester=semester
         ).count()
-        passed = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="pass"
-        ).count()
-        failed = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="fail"
-        ).count()
+        annual_stats = AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year
+        ).aggregate(
+            passed=Count("id", filter=Q(status="pass")),
+            failed=Count("id", filter=Q(status="fail")),
+        )
+        passed = annual_stats["passed"]
+        failed = annual_stats["failed"]
         failing_list = GradeService.get_failing_students(school, year)[:10]
 
     else:
@@ -175,20 +178,15 @@ def create_assessment(request, package_id):
     weight = request.POST.get("weight_in_package", "100")
     desc = request.POST.get("description", "")
 
-    if not title:
-        messages.error(request, "عنوان التقييم مطلوب")
-        return redirect("setup_detail", setup_id=package.setup.id)
-
     try:
-        assessment = Assessment.objects.create(
+        assessment = GradeService.create_assessment(
             package=package,
-            school=school,
             title=title,
             assessment_type=atype,
             date=date,
             max_grade=Decimal(max_g),
             weight_in_package=Decimal(weight),
-            status="published",
+            description=desc,
             created_by=request.user,
         )
         messages.success(request, f"تم إنشاء التقييم: {assessment.title}")
@@ -400,15 +398,23 @@ def class_gradebook(request, setup_id):
         )
     }
 
+    # ── Batch-fetch package scores to avoid N+1 queries ──
+    pkg_list = list(packages)
+    if not show_annual and pkg_list:
+        batch_scores = GradeService.calc_package_scores_batch(student_ids, pkg_list)
+    else:
+        batch_scores = {}
+
     rows = []
     for enr in enrollments:
         student = enr.student
         pkg_scores = {}
 
         if not show_annual:
-            for pkg in packages:
-                score = GradeService.calc_package_score(student, pkg)
-                pkg_scores[pkg.package_type] = score
+            for pkg in pkg_list:
+                pkg_scores[pkg.package_type] = batch_scores.get(
+                    (student.id, pkg.package_type)
+                )
 
         rows.append(
             {
@@ -518,7 +524,7 @@ def export_gradebook(request, setup_id):
 
     ws.row_dimensions[2].height = 22
 
-    # ── Pre-fetch semester results to avoid N+1 queries ──
+    # ── Pre-fetch semester results + package scores to avoid N+1 queries ──
     student_ids = [enr.student_id for enr in enrollments]
     sem_results_map = {
         r.student_id: r
@@ -526,6 +532,7 @@ def export_gradebook(request, setup_id):
             student_id__in=student_ids, setup=setup, semester=semester
         )
     }
+    batch_scores = GradeService.calc_package_scores_batch(student_ids, pkg_list)
 
     # ── البيانات ────────────────────────────────────────────
     for row_idx, enr in enumerate(enrollments, start=1):
@@ -533,7 +540,7 @@ def export_gradebook(request, setup_id):
         excel_row = row_idx + 2
         fill = ALT_FILL if row_idx % 2 == 0 else None
 
-        pkg_scores = {p.package_type: GradeService.calc_package_score(student, p) for p in pkg_list}
+        pkg_scores = {p.package_type: batch_scores.get((student.id, p.package_type)) for p in pkg_list}
 
         sem_result = sem_results_map.get(student.id)
         if sem_result:
@@ -614,9 +621,14 @@ def student_report(request, student_id):
         return HttpResponse("غير مسموح — هذا الطالب ليس من طلابك", status=403)
 
     results = GradeService.get_student_annual_report(student, school, year)
-    total_subjects = results.count()
-    passed = results.filter(status="pass").count()
-    failed = results.filter(status="fail").count()
+    stats = results.aggregate(
+        total_subjects=Count("id"),
+        passed=Count("id", filter=Q(status="pass")),
+        failed=Count("id", filter=Q(status="fail")),
+    )
+    total_subjects = stats["total_subjects"]
+    passed = stats["passed"]
+    failed = stats["failed"]
 
     return render(
         request,

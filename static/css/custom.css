@@ -20,6 +20,13 @@
 @layer tailwind, reset, base, tokens, layout, components, modules, utilities;
 
 
+/* ═══ @layer reset — CSS Reset & Box Model ═══ */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  img, svg { display: block; max-width: 100%; }
+}
+
 @layer base {
 
 /* ── SVG Icon System — Lucide ───────────────────────────────── */
@@ -278,6 +285,19 @@ body {
 
 
 } /* end @layer base */
+
+/* ═══ @layer tokens — Design Tokens live in :root inside @layer base ═══ */
+/* Note: :root variables are defined in @layer base (lines 54–170)
+   They are globally available regardless of layer placement.
+   This empty layer preserves the declared cascade order. */
+@layer tokens {}
+
+/* ═══ @layer layout — Page-level structural patterns ═══ */
+@layer layout {
+  .container       { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: var(--sp-4); }
+  .page-content    { padding: var(--sp-4); }
+  .flex-toolbar    { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+}
 
 @layer components {
 
@@ -1741,7 +1761,7 @@ body { padding-bottom: 72px; }
 .table-sticky thead th {
   position: sticky;
   top: 54px;  /* ارتفاع شريط التنقل */
-  z-index: 10;
+  z-index: var(--z-raised);
   background: var(--maroon);
   box-shadow: 0 2px 4px rgba(0,0,0,.1);
 }
@@ -2180,7 +2200,7 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .plans-table thead th {
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: var(--z-raised);
   padding: 0.75rem 0.6rem;
   text-align: right;
   font-weight: 700;
@@ -3221,7 +3241,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   box-shadow: 0 20px 60px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
   padding: 0 0 32px;
   width: 100%; max-width: 420px;
-  position: relative; z-index: 1;
+  position: relative; z-index: var(--z-base);
   border: 1px solid rgba(255,255,255,.8);
   overflow: hidden;
 }
@@ -3489,7 +3509,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   box-shadow: 0 8px 24px rgba(0,0,0,.12);
   padding: 12px;
   width: 340px;
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 /* Mobile-First: dropdown full-width on mobile */
 .report-student-dropdown { position: fixed; inset-inline: 8px; width: auto; top: auto; }
@@ -3498,6 +3518,38 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 
 
+
+/* ── Analytics Charts ───────────────────────────────────── */
+.chart-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+.chart-card-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--sp-3);
+}
+.chart-body {
+  position: relative;
+  height: 280px;
+}
+.chart-body-tall {
+  height: 340px;
+}
+.chart-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--sp-8) 0;
+  font-size: var(--text-sm);
+}
+html.dark .chart-card {
+  background: #1e293b;
+  border-color: #334155;
+}
 
 } /* end @layer modules */
 
