@@ -212,9 +212,9 @@ if USE_S3:
                     },
                 },
             },
-            # الملفات الثابتة → محلي (مُجمَّعة ومصرَّفة مسبقاً)
+            # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
             "staticfiles": {
-                "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
+                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
             },
         }
         # MEDIA_URL → روابط S3 (أو CDN)

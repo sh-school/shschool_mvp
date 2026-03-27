@@ -11,7 +11,7 @@
 
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات السنوي</h1>
+      <h1 class="text-2xl font-bold text-maroon">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات السنوي</h1>
       <p class="text-sm text-gray-500 mt-1">{{ student.full_name }} | {{ student.national_id }}</p>
     </div>
     <a href="?year={{ year }}" class="text-sm text-blue-600 hover:underline">{{ year }}</a>
@@ -35,7 +35,7 @@
 
   <!-- جدول النتائج السنوية -->
   <div class="bg-white rounded-xl border shadow-sm overflow-x-auto">
-    <div class="bg-[#8A1538] px-5 py-3">
+    <div class="bg-maroon px-5 py-3">
       <h2 class="text-white font-bold">{% include "components/icon.html" with name="bar-chart" %} النتائج السنوية — {{ year }}</h2>
     </div>
     <table class="w-full text-sm">
@@ -101,7 +101,7 @@
           </td>
 
           <!-- التقدير الحرفي -->
-          <td class="px-4 py-3 text-center font-bold text-xl text-[#8A1538]">
+          <td class="px-4 py-3 text-center font-bold text-xl text-maroon">
             {{ result.letter_grade }}
           </td>
 

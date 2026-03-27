@@ -25,7 +25,7 @@
   {% if avg_score %}
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="bg-white border rounded-xl p-4 text-center">
-      <p class="text-3xl font-bold text-[#8A1538]">{{ avg_score }}</p>
+      <p class="text-3xl font-bold text-maroon">{{ avg_score }}</p>
       <p class="text-sm text-gray-500 mt-1">متوسط الدرجات</p>
     </div>
     <div class="bg-white border rounded-xl p-4 text-center">
@@ -93,7 +93,7 @@
                 </a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}"
-                   class="text-xs px-3 py-1 bg-[#8A1538] text-white rounded-lg hover:bg-[#6d1030]">
+                   class="text-xs px-3 py-1 bg-maroon text-white rounded-lg hover:bg-[#6d1030]">
                   تقييم
                 </a>
               {% endif %}
@@ -110,7 +110,7 @@
                 </a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}"
-                   class="text-xs px-3 py-1 bg-[#8A1538] text-white rounded-lg hover:bg-[#6d1030]">
+                   class="text-xs px-3 py-1 bg-maroon text-white rounded-lg hover:bg-[#6d1030]">
                   تقييم
                 </a>
               {% endif %}

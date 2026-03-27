@@ -17,7 +17,7 @@
 
   <!-- Header + Stats -->
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
-    <div class="bg-[#8A1538] px-6 py-4">
+    <div class="bg-maroon px-6 py-4">
       <h1 class="text-2xl font-bold text-white">{% include "components/icon.html" with name="layers" %} {{ domain.name }}</h1>
       <p class="text-blue-200 text-sm mt-1">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف · {{ domain.completion_pct }}% إنجاز</p>
     </div>
@@ -55,7 +55,7 @@
   <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
     <div class="bg-[#EEF2F9] border-b px-5 py-3">
       <p class="text-xs text-blue-600 font-mono">{{ target.number }}</p>
-      <p class="font-bold text-[#8A1538] mt-0.5">{{ target.text|truncatechars:120 }}</p>
+      <p class="font-bold text-maroon mt-0.5">{{ target.text|truncatechars:120 }}</p>
     </div>
     {% for indicator in target.indicators.all %}
     <div class="border-b last:border-0">

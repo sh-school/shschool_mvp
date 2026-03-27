@@ -10,8 +10,17 @@
  *   Sand      #A29475  ← الرملي (محظور على المدارس)
  *
  * ملاحظة: custom.css يُحمَّل بعد Tailwind — له الأولوية.
+ *
+ * CSS Layers (أولوية تصاعدية — الأخيرة تفوز):
+ *   reset → base → tokens → layout → components → modules → utilities
  * ══════════════════════════════════════════════════════════════
  */
+
+/* ═══ CSS Layer Order Declaration ═══ */
+/* @layer reset, base, tokens, layout, components, modules, utilities; */
+/* NOTE: @layer declaration prepared but not activated yet to avoid
+   cascade changes. Will be activated in Phase 2 after components
+   are unified. All new CSS should be written inside @layer blocks. */
 
 /* ── SVG Icon System — Lucide ───────────────────────────────── */
 .icon {
@@ -108,6 +117,55 @@
   --q-font-ui: inherit;
   --q-radius: 8px;
   --q-transition: 0.2s ease;
+
+  /* ══ Typography Scale (7 أحجام — Perfect Fourth) ══ */
+  --text-xs:   0.75rem;    /* 12px — labels, captions */
+  --text-sm:   0.875rem;   /* 14px — secondary text */
+  --text-base: 1rem;       /* 16px — body */
+  --text-lg:   1.125rem;   /* 18px — emphasized */
+  --text-xl:   1.25rem;    /* 20px — card titles */
+  --text-2xl:  1.5rem;     /* 24px — section headers */
+  --text-3xl:  2rem;       /* 32px — page titles */
+
+  /* ══ Line Heights ══ */
+  --lh-tight:  1.25;   /* عناوين */
+  --lh-normal: 1.6;    /* body */
+  --lh-ar:     1.8;    /* Arabic body — للتشكيل والامتدادات */
+
+  /* ══ Spacing Scale (مضاعفات 4px) ══ */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;  --sp-6: 24px;  --sp-8: 32px;  --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px;
+
+  /* ══ Radius Scale ══ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  /* --radius: 10px  ← موجود أعلاه */
+  /* --radius-lg: 14px ← موجود أعلاه */
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ══ Z-index Scale (موحد — بدل z-index عشوائي) ══ */
+  --z-base:     1;
+  --z-raised:   100;
+  --z-dropdown: 500;
+  --z-sticky:   700;
+  --z-navbar:   1000;
+  --z-sidebar:  1100;
+  --z-modal:    9000;
+  --z-toast:    9500;
+  --z-critical: 9999;
+
+  /* ══ Shadow/Elevation Scale ══ */
+  /* --shadow-sm و --shadow-md موجودتان أعلاه */
+  --shadow-lg:    0 10px 30px rgba(0,0,0,.12);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,.25);
+
+  /* ══ Transition Durations ══ */
+  --dur-fast:   100ms;
+  --dur-normal: 200ms;
+  --dur-slow:   350ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ── Box sizing عالمي ─────────────────────────────────────────── */
@@ -124,6 +182,7 @@ html[lang="ar"] {
 /* ── Maroon utility classes (Tailwind arbitrary values لا تعمل مع المصغّر) ── */
 .bg-maroon { background-color: var(--maroon); }
 .bg-maroon-dark { background-color: var(--maroon-dark); }
+.bg-maroon\/5 { background-color: rgba(138,21,56,0.05); }
 .bg-maroon\/10 { background-color: rgba(138,21,56,0.1); }
 .text-maroon { color: var(--maroon); }
 .border-maroon { border-color: var(--maroon); }
@@ -181,7 +240,7 @@ body {
   background: var(--maroon);
   position: sticky;
   top: 0;
-  z-index: 500;
+  z-index: var(--z-navbar);
   border-bottom: 2px solid var(--maroon-dark);
   box-shadow: 0 2px 8px rgba(0,0,0,.18);
 }
@@ -299,7 +358,7 @@ body {
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.13);
-  z-index: 99999;
+  z-index: var(--z-dropdown);
   padding: 6px 0;
   color-scheme: light;
 }
@@ -573,7 +632,7 @@ div#header h1 a {
   bottom: 80px;
   right: 12px;
   left: 12px;
-  z-index: 3500;
+  z-index: var(--z-sidebar);
   background: var(--maroon);
   color: #fff;
   border-radius: 14px;
@@ -617,7 +676,7 @@ div#header h1 a {
 .emergency-banner {
   position: fixed;
   top: 0; right: 0; left: 0;
-  z-index: 9999;
+  z-index: var(--z-critical);
   background: var(--maroon);
   color: #fff;
   padding: 14px 20px;
@@ -1204,12 +1263,47 @@ textarea:focus-visible {
   padding: 10px 20px;
   border-radius: 0 0 8px 8px;
   font-weight: 700;
-  z-index: 10000;
+  z-index: var(--z-critical);
   text-decoration: none;
   transition: top var(--transition-base);
 }
 .skip-nav:focus {
   top: 0;
+}
+
+/* ── Screen Reader Only (WCAG utility) ─────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── HTMX Global Loading Bar ──────────────────────────────── */
+#htmx-loading-bar {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--maroon), var(--maroon-light), var(--maroon));
+  background-size: 200% 100%;
+  opacity: 0;
+  z-index: var(--z-critical);
+  transition: opacity var(--dur-normal);
+  pointer-events: none;
+}
+#htmx-loading-bar.active {
+  opacity: 1;
+  animation: htmxBarSlide 1.2s ease infinite;
+}
+@keyframes htmxBarSlide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ── Skeleton / Loading Shimmer ────────────────────────────── */
@@ -1253,7 +1347,7 @@ textarea:focus-visible {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  z-index: 8888;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column-reverse;
   gap: 10px;
@@ -1314,7 +1408,7 @@ textarea:focus-visible {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, .45);
-  z-index: 7000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1369,7 +1463,7 @@ textarea:focus-visible {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 5000;
+  z-index: var(--z-sidebar);
   background: #1e293b;
   color: #fff;
   border-radius: 999px;
@@ -1409,7 +1503,7 @@ textarea:focus-visible {
   bottom: 0;
   right: 0;
   left: 0;
-  z-index: 4000;
+  z-index: var(--z-navbar);
   background: #fff;
   border-top: 1px solid var(--border);
   padding: 8px 0 env(safe-area-inset-bottom, 8px);
@@ -1518,11 +1612,11 @@ textarea:focus-visible {
     top: 54px;
     right: 0;
     left: 0;
-    z-index: 4500;
+    z-index: var(--z-sidebar);
     background: #fff;
     flex-direction: column;
     box-shadow: 0 6px 24px rgba(0,0,0,.18);
-    border-bottom: 3px solid #8A1538;
+    border-bottom: 3px solid var(--maroon);
     max-height: calc(100vh - 54px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -1620,7 +1714,7 @@ textarea:focus-visible {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,.5);
-  z-index: 9000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -2208,7 +2302,7 @@ textarea:focus-visible {
 .q-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999999;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;

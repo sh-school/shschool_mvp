@@ -245,6 +245,45 @@ document.body.addEventListener('showToast', function(e) {
   if (e.detail) window.showToast(e.detail.msg, e.detail.type);
 });
 
+/* ── HTMX Global Loading Bar ─────────────────────────────── */
+(function() {
+  var bar = document.getElementById('htmx-loading-bar');
+  if (!bar) return;
+  document.addEventListener('htmx:beforeRequest', function() { bar.classList.add('active'); });
+  document.addEventListener('htmx:afterRequest',  function() { bar.classList.remove('active'); });
+})();
+
+/* ── HTMX Global Error Handling ──────────────────────────── */
+document.addEventListener('htmx:responseError', function(e) {
+  var status = e.detail.xhr ? e.detail.xhr.status : 0;
+  var msgs = {
+    400: '\u0628\u064a\u0627\u0646\u0627\u062a \u063a\u064a\u0631 \u0635\u062d\u064a\u062d\u0629',
+    403: '\u063a\u064a\u0631 \u0645\u0635\u0631\u062d \u0644\u0643 \u0628\u0647\u0630\u0627 \u0627\u0644\u0625\u062c\u0631\u0627\u0621',
+    404: '\u0627\u0644\u0645\u0648\u0631\u062f \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f',
+    429: '\u0637\u0644\u0628\u0627\u062a \u0643\u062b\u064a\u0631\u0629 \u2014 \u0627\u0646\u062a\u0638\u0631 \u0644\u062d\u0638\u0629',
+    500: '\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u062e\u0627\u062f\u0645 \u2014 \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u062f\u0639\u0645',
+    503: '\u0627\u0644\u062e\u062f\u0645\u0629 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d\u0629 \u0645\u0624\u0642\u062a\u0627\u064b'
+  };
+  if (window.showToast) window.showToast(msgs[status] || '\u062d\u062f\u062b \u062e\u0637\u0623 (' + status + ')', 'danger');
+});
+
+document.addEventListener('htmx:timeout', function() {
+  if (window.showToast) window.showToast('\u0627\u0646\u062a\u0647\u062a \u0645\u0647\u0644\u0629 \u0627\u0644\u0627\u062a\u0635\u0627\u0644. \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629.', 'warning');
+});
+
+document.addEventListener('htmx:sendError', function() {
+  if (window.showToast) window.showToast('\u062a\u0639\u0630\u0651\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645', 'danger');
+});
+
+/* ── HTMX Screen Reader Announcements ────────────────────── */
+document.addEventListener('htmx:afterSwap', function() {
+  var sr = document.getElementById('sr-live');
+  if (sr) {
+    sr.textContent = '\u062a\u0645 \u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0645\u062d\u062a\u0648\u0649';
+    setTimeout(function() { sr.textContent = ''; }, 1500);
+  }
+});
+
 
 /* ── Modal Manager ────────────────────────────────────────── */
 window.modalManager = {

@@ -29,7 +29,7 @@
 
   {# ── CSS — مصدر واحد ── #}
   <link rel="stylesheet" href="{% static 'css/tailwind.min.css' %}?v=7">
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=121">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=122">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -43,6 +43,12 @@
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
+
+{# ✅ HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
+<div id="htmx-loading-bar" aria-hidden="true"></div>
+
+{# ✅ Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
+<div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 {# ✅ Toast Container #}
 <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
@@ -371,7 +377,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=101" defer></script>
+<script src="{% static 'js/base.js' %}?v=102" defer></script>
 <script src="{% static 'js/app.js' %}?v=100" defer></script>
 
 {% block extra_js %}{% endblock %}

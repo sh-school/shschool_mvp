@@ -52,6 +52,8 @@ MIDDLEWARE = [
     # ✅ v5.1: Prometheus يجب أن يكون أول وآخر middleware
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # ✅ WhiteNoise: static files مع Brotli/GZip + cache headers مثالية
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # ✅ CORS — يجب أن يكون قبل CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",

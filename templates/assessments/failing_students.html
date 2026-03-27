@@ -9,7 +9,7 @@
 <div class="space-y-5">
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
-      <h1 class="text-2xl font-bold text-[#8A1538]">{% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون</h1>
+      <h1 class="text-2xl font-bold text-maroon">{% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون</h1>
       <p class="text-sm text-gray-500 mt-1">{{ total }} طالب في مادة أو أكثر</p>
     </div>
     <div class="flex gap-2">
@@ -41,7 +41,7 @@
             {{ item.subjects|length }} مادة راسب
           </span>
           <a href="{% url 'student_report' item.student.id %}?semester={{ semester }}"
-             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-[#8A1538]">كشف الدرجات</a>
+             class="px-3 py-1 bg-[#1A4F8A] text-white rounded text-xs hover:bg-maroon">كشف الدرجات</a>
         </div>
       </div>
       <div class="px-5 py-3 flex flex-wrap gap-2">
