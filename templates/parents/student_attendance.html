@@ -18,7 +18,7 @@
   <div class="bg-gradient-to-l from-adaam to-skyline rounded-2xl px-6 py-5">
     <div class="flex items-center justify-between flex-wrap gap-3">
       <div>
-        <h1 class="text-xl font-bold text-white">{% include "components/icon.html" with name="list-checks" %} {{ student.full_name }}</h1>
+        <h1 class="page-title text-white">{% include "components/icon.html" with name="list-checks" %} {{ student.full_name }}</h1>
         <p class="text-blue-200 text-sm mt-1">
           {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
           آخر {{ period }} يوم (منذ {{ since }})

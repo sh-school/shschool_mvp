@@ -19,19 +19,19 @@
   <div class="card-qatar overflow-hidden">
     <div class="bg-maroon px-6 py-4 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
+        <h1 class="page-title text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
         <p class="text-blue-200 text-sm mt-1">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
       </div>
       <div class="flex gap-2">
         <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
-           class="px-3 py-1.5 bg-white/20 text-white rounded text-sm hover:bg-white/30">كشف الدرجات</a>
+           class="btn-secondary btn-sm text-white bg-white/20">كشف الدرجات</a>
       </div>
     </div>
     <!-- فلتر الفصل -->
     <div class="px-6 py-3 border-b flex items-center gap-4">
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}"
-         class="px-4 py-1.5 rounded-full text-sm font-medium transition
+         class="btn-secondary btn-sm
            {% if semester == val %}bg-skyline text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
         {{ label }}
       </a>

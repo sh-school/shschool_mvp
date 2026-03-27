@@ -16,12 +16,10 @@
     </div>
     <div class="page-actions">
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'failing_students' %}" class="btn-secondary text-status-danger bg-status-danger-light"
-         style="font-size:12.5px;text-decoration:none;border-color:#fecaca;">
+      <a href="{% url 'failing_students' %}" class="btn-secondary text-status-danger bg-status-danger-light">
         {% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون
       </a>
-      <a href="{% url 'setup_subject' %}" class="btn-primary"
-         style="font-size:12.5px;text-decoration:none;">+ ربط مادة بفصل</a>
+      <a href="{% url 'setup_subject' %}" class="btn-primary">+ ربط مادة بفصل</a>
       {% endif %}
     </div>
   </div>

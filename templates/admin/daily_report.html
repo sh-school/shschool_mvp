@@ -46,7 +46,7 @@
 </div>
 
 <!-- Progress Bar -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+<div class="card-qatar mb-6">
   <div class="flex justify-between text-sm text-gray-600 mb-2">
     <span>نسبة الحضور الكلية</span>
     <span class="font-bold {% if present_pct >= 85 %}text-green-700{% elif present_pct >= 70 %}text-yellow-700{% else %}text-red-700{% endif %}">
@@ -98,7 +98,7 @@
   </table>
 </div>
 {% else %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 py-16 text-center">
+<div class="card-qatar text-center">
   <div class="text-5xl mb-4">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</div>
   <p class="font-medium text-gray-700">لا غيابات مسجلة في هذا اليوم</p>
 </div>

@@ -153,12 +153,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" dir="rtl">
+<div class="exec-dash">
 
   {# ── Header ── #}
   <div class="exec-header">
     <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="bar-chart" %} لوحة تحكم المدير</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} لوحة تحكم المدير</h1>
       <p class="exec-subtitle">نظرة شاملة على أداء {{ current_school.name|default:"مدرسة الشحانية" }}</p>
     </div>
     <div class="exec-meta">

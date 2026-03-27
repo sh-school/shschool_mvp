@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% block title %}إحالة أمنية{% endblock %}
 {% block content %}
-<div dir="rtl" class="max-w-xl mx-auto">
+<div class="max-w-xl mx-auto">
  <div class="flex justify-between items-center mb-6">
  <h1 class="page-title">{% include "components/icon.html" with name="lock" %} تسجيل إحالة أمنية</h1>
  <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">&larr; رجوع</a>

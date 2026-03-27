@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% block title %}إعارة كتاب{% endblock %}
 {% block content %}
-<div dir="rtl" class="max-w-xl mx-auto">
+<div class="max-w-xl mx-auto">
   <div class="flex justify-between items-center mb-6">
     <h1 class="page-title">{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
     <a href="{% url 'library:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
