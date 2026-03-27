@@ -894,12 +894,18 @@ tr.active {
 }
 
 /* ── الجوال ─────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .login-card { padding: 24px 18px; }
-  thead { display: none; }
-  tbody tr { display: block; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; padding: 12px; }
-  tbody td { display: flex; justify-content: space-between; padding: 4px 0; font-size: var(--text-sm); }
-  tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-secondary); }
+/* ── Mobile-First: responsive table stacking (default=mobile) ── */
+.login-card { padding: 24px 18px; }
+.resp-table thead { display: none; }
+.resp-table tbody tr { display: block; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; padding: 12px; }
+.resp-table tbody td { display: flex; justify-content: space-between; padding: 4px 0; font-size: var(--text-sm); }
+.resp-table tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-secondary); }
+@media (min-width: 769px) {
+  .login-card { padding: 32px; }
+  .resp-table thead { display: table-header-group; }
+  .resp-table tbody tr { display: table-row; border: none; border-radius: 0; margin-bottom: 0; padding: 0; }
+  .resp-table tbody td { display: table-cell; padding: 11px 14px; font-size: inherit; }
+  .resp-table tbody td::before { content: none; }
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -1540,21 +1546,16 @@ textarea:focus-visible {
 .mobile-nav-item:hover,
 .mobile-nav-item.active { color: var(--maroon); }
 .mobile-nav-icon { font-size: 1.3rem; }
-@media (max-width: 640px) {
-  .mobile-bottom-nav { display: block; }
-  body { padding-bottom: 72px; }
-}
-
-/* ── Mobile Tap Targets (44px minimum per WCAG) ────────────── */
-@media (max-width: 640px) {
-  .btn-primary,
-  .btn-secondary,
-  .btn-danger {
-    min-height: 44px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-  .form-control { min-height: 44px; font-size: 16px; }  /* منع zoom على iOS */
+/* ── Mobile-First: bottom nav + tap targets (default=mobile) ── */
+.mobile-bottom-nav { display: block; }
+body { padding-bottom: 72px; }
+.btn-primary, .btn-secondary, .btn-danger { min-height: 44px; }
+.form-control { min-height: 44px; font-size: 16px; }  /* منع zoom على iOS */
+@media (min-width: 641px) {
+  .mobile-bottom-nav { display: none; }
+  body { padding-bottom: 0; }
+  .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
+  .form-control { min-height: auto; font-size: inherit; }
 }
 
 /* ── Progress Ring (SVG) for Quality ──────────────────────── */
@@ -1603,65 +1604,81 @@ textarea:focus-visible {
   gap: 2px;
 }
 
-@media (max-width: 640px) {
-  /* إظهار زر الهامبرغر */
-  #mob-menu-btn {
-    display: inline-flex;
-    align-items: center;
+/* ── Mobile-First: mobile nav is default ────────────────────── */
+#mob-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.nb-bar {
+  display: none;
+  position: fixed;
+  top: 54px;
+  inset-inline: 0;
+  z-index: var(--z-sidebar);
+  background: #fff;
+  flex-direction: column;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  border-bottom: 3px solid var(--maroon);
+  max-height: calc(100vh - 54px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.nb-bar.open { display: flex; }
+.nb-bar .nb {
+  width: 100%;
+  text-align: start;
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 48px;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 0;
+  white-space: normal;
+  justify-content: flex-start;
+}
+.nb-bar .nb:hover, .nb-bar .nb:active { background: var(--maroon-bg); color: var(--maroon); }
+.nb-bar .chv { display: none; }
+
+@media (min-width: 641px) {
+  #mob-menu-btn { display: none; }
+  .nb-bar {
+    display: flex;
+    position: static;
+    flex-direction: row;
+    background: transparent;
+    box-shadow: none;
+    border-bottom: none;
+    max-height: none;
+    overflow: visible;
+  }
+  .nb-bar .nb {
+    width: auto;
+    padding: 4px 10px;
+    border-bottom: none;
+    min-height: auto;
+    color: rgba(255,255,255,.85);
+    font-size: var(--text-sm);
+    border-radius: 8px;
+    white-space: nowrap;
     justify-content: center;
   }
-
-  /* القائمة الجانبية المنسدلة */
-  .nb-bar {
-    display: none;
-    position: fixed;
-    top: 54px;
-    right: 0;
-    left: 0;
-    z-index: var(--z-sidebar);
-    background: #fff;
-    flex-direction: column;
-    box-shadow: 0 6px 24px rgba(0,0,0,.18);
-    border-bottom: 3px solid var(--maroon);
-    max-height: calc(100vh - 54px);
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .nb-bar.open { display: flex; }
-
-  /* كل زر في القائمة */
-  .nb-bar .nb {
-    width: 100%;
-    text-align: right;
-    padding: 13px 20px;
-    border-bottom: 1px solid #f1f5f9;
-    min-height: 48px;
-    color: #1e293b;
-    font-size: 15px;
-    font-weight: 500;
-    border-radius: 0;
-    white-space: normal;
-    justify-content: flex-start;
-  }
-  .nb-bar .nb:hover,
-  .nb-bar .nb:active {
-    background: #fdf2f5;
-    color: #8A1538;
-  }
-  /* إخفاء السهم على الجوال */
-  .nb-bar .chv { display: none; }
+  .nb-bar .nb:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .nb-bar .chv { display: inline; }
 }
 
 /* ══ Horizontal scroll helpers ══════════════════════════════ */
+/* Mobile-First: scroll hint visible by default on mobile */
 .scroll-x-hint {
-  display: none;
+  display: block;
   font-size: var(--text-xs);
   color: var(--text-muted);
   text-align: center;
   margin-bottom: 6px;
 }
-@media (max-width: 640px) {
-  .scroll-x-hint { display: block; }
+@media (min-width: 641px) {
+  .scroll-x-hint { display: none; }
 }
 
 .tbl-wrap-mobile {
@@ -1684,8 +1701,10 @@ textarea:focus-visible {
   background: var(--maroon);
   box-shadow: 0 2px 4px rgba(0,0,0,.1);
 }
-@media (max-width: 640px) {
-  .table-sticky thead th { top: 54px; }
+/* Mobile-First: sticky header accounts for navbar height */
+.table-sticky thead th { top: 54px; }
+@media (min-width: 641px) {
+  .table-sticky thead th { top: 0; }
 }
 
 /* ── Breadcrumbs ──────────────────────────────────────────── */
@@ -3170,19 +3189,24 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   background: #fdf2f5; color: #8A1538; border: 1px solid #e8b4c3;
 }
 
-/* ── 16. Responsive ──────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .quality-page { width: 100%; padding: 0.5rem; }
-  .quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
-  .quality-filter-field { min-width: 0; }
-  .q-modal-form-grid { grid-template-columns: 1fr; }
-  .q-modal-info .info-grid { grid-template-columns: 1fr; }
-  .q-modal { max-width: 95vw; }
-  .q-add-form-grid { grid-template-columns: 1fr 1fr; }
-  .q-progress-bar .progress-stats { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
-  .q-domain-grid { grid-template-columns: 1fr; }
-  .login-card-header { padding: 24px 20px 22px; }
-  .login-card-body   { padding: 22px 20px 0; }
+/* ── 16. Responsive — Mobile-First ───────────────────────────── */
+.quality-page { width: 100%; padding: 0.5rem; }
+.quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
+.q-modal-form-grid { grid-template-columns: 1fr; }
+.q-modal-info .info-grid { grid-template-columns: 1fr; }
+.q-modal { max-width: 95vw; }
+.q-add-form-grid { grid-template-columns: 1fr 1fr; }
+.q-progress-bar .progress-stats { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.q-domain-grid { grid-template-columns: 1fr; }
+@media (min-width: 769px) {
+  .quality-page { width: auto; padding: 1rem; }
+  .quality-filters-grid { grid-template-columns: repeat(4, 1fr); }
+  .q-modal-form-grid { grid-template-columns: 1fr 1fr; }
+  .q-modal-info .info-grid { grid-template-columns: 1fr 1fr; }
+  .q-modal { max-width: 600px; }
+  .q-add-form-grid { grid-template-columns: repeat(4, 1fr); }
+  .q-progress-bar .progress-stats { grid-template-columns: repeat(5, 1fr); }
+  .q-domain-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── Pagination ──────────────────────────────── */
@@ -3357,14 +3381,10 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   width: 340px;
   z-index: 50;
 }
-@media (max-width: 640px) {
-  .report-student-dropdown {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    width: auto;
-    top: auto;
-  }
+/* Mobile-First: dropdown full-width on mobile */
+.report-student-dropdown { position: fixed; inset-inline: 8px; width: auto; top: auto; }
+@media (min-width: 641px) {
+  .report-student-dropdown { position: absolute; inset-inline: auto; width: 340px; }
 }
 
 
@@ -3428,22 +3448,18 @@ html.dark .sd-user-fullname { color: #f1f5f9; }
 html.dark .sd-user-nid { color: #94a3b8; }
 html.dark .sd-logout-btn { color: #f87171; }
 
-/* ── 5. Mobile Hamburger Menu ───────────────────────────────────── */
-@media (max-width: 640px) {
-  html.dark .nb-bar {
-    background: #1e293b;
-    border-bottom-color: var(--maroon);
-    box-shadow: 0 6px 24px rgba(0,0,0,.4);
-  }
-  html.dark .nb-bar .nb {
-    color: #e2e8f0;
-    border-bottom-color: #334155;
-  }
-  html.dark .nb-bar .nb:hover,
-  html.dark .nb-bar .nb:active {
-    background: var(--maroon-bg);
-    color: #f9a8c9;
-  }
+/* ── 5. Mobile Hamburger Menu (dark) — Mobile-First ────────────── */
+html.dark .nb-bar {
+  background: #1e293b;
+  border-bottom-color: var(--maroon);
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+}
+html.dark .nb-bar .nb { color: #e2e8f0; border-bottom-color: #334155; }
+html.dark .nb-bar .nb:hover, html.dark .nb-bar .nb:active { background: var(--maroon-bg); color: #f9a8c9; }
+@media (min-width: 641px) {
+  html.dark .nb-bar { background: transparent; box-shadow: none; border-bottom: none; }
+  html.dark .nb-bar .nb { color: rgba(255,255,255,.85); border-bottom: none; }
+  html.dark .nb-bar .nb:hover { background: rgba(255,255,255,.12); color: #fff; }
 }
 
 /* ── 6. Mobile Bottom Navigation ────────────────────────────────── */
