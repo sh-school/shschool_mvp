@@ -1111,6 +1111,32 @@ tr.active {
 .status-gray    { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 .status-maroon  { background: var(--maroon-bg); color: var(--maroon); border: 1px solid var(--maroon-border); }
 
+/* ── ألوان الدرجات والحضور (تستبدل inline hex) ── */
+.grade-excellent { color: #15803d; }   /* ≥90 */
+.grade-good      { color: #1d4ed8; }   /* ≥75 */
+.grade-pass      { color: #d97706; }   /* ≥60 */
+.grade-fail      { color: #dc2626; }   /* <60 */
+.grade-na        { color: #9ca3af; }   /* لا توجد درجة */
+.attend-high     { color: var(--status-success); }   /* ≥95% */
+.attend-medium   { color: var(--status-warning); }   /* ≥80% */
+.attend-low      { color: var(--status-danger);  }   /* <80%  */
+
+/* ── فري سلوتس / شبكة الحصص ── */
+.free-slots-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
+html.dark .free-slots-card { background: var(--surface-2); border-color: var(--border); }
+.free-slots-title { font-size: .9rem; font-weight: 700; color: var(--maroon); margin-bottom: 10px; }
+.free-slots-th { background: #f3f4f6; padding: 6px 8px; font-weight: 700; text-align: center; border: 1px solid #e5e7eb; }
+html.dark .free-slots-th { background: var(--surface-3); border-color: var(--border); }
+.free-slots-td { padding: 6px 8px; text-align: center; border: 1px solid #e5e7eb; vertical-align: top; }
+html.dark .free-slots-td { border-color: var(--border); }
+.free-slot-badge { display: inline-block; background: #D1FAE5; color: #065F46; padding: 1px 8px; border-radius: 99px; margin: 1px; font-size: .7rem; font-weight: 600; }
+html.dark .free-slot-badge { background: #052e16; color: #86efac; }
+.free-slot-none { color: #d1d5db; font-size: .7rem; }
+
+/* ── نقطة الحالة (status dot) ── */
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot-online { background: #22c55e; }
+
 /* ── حقول النماذج ── */
 .form-group { margin-bottom: 18px; }
 .form-label {
@@ -3796,6 +3822,13 @@ html.dark .msg-success { background: #052e16; border-color: #166534; color: #86e
 html.dark .msg-error   { background: #350a0a; border-color: #991b1b; color: #fca5a5; }
 html.dark .msg-warning { background: #351c05; border-color: #92400e; color: #fcd34d; }
 html.dark .msg-info    { background: #0c1a35; border-color: #1e40af; color: #93c5fd; }
+
+/* dark: grade colors */
+html.dark .grade-excellent { color: #86efac; }
+html.dark .grade-good      { color: #93c5fd; }
+html.dark .grade-pass      { color: #fcd34d; }
+html.dark .grade-fail      { color: #fca5a5; }
+html.dark .grade-na        { color: #6b7280; }
 
 /* ── 13. Status Badges ──────────────────────────────────────────── */
 html.dark .status-success { background: #052e16; color: #86efac; border-color: #166534; }

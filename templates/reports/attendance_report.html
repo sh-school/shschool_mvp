@@ -74,7 +74,7 @@
                         {% else %}#dc2626{% endif %}">
             </div>
           </div>
-          <span class="font-bold text-xs" style="color:{% if row.attendance_pct >= 95 %}#16a34a{% elif row.attendance_pct >= 80 %}#d97706{% else %}#dc2626{% endif %}">
+          <span class="font-bold text-xs {% if row.attendance_pct >= 95 %}attend-high{% elif row.attendance_pct >= 80 %}attend-medium{% else %}attend-low{% endif %}">
             {{ row.attendance_pct }}%
           </span>
         </div>

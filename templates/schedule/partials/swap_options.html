@@ -10,7 +10,7 @@
     {% endfor %}
   </select>
   {% if not options %}
-  <p class="hint" style="color:#DC2626">لا يوجد معلمون متاحون للتبديل مع هذه الحصة</p>
+  <p class="hint icon-danger">لا يوجد معلمون متاحون للتبديل مع هذه الحصة</p>
   {% else %}
   <p class="hint">{{ options|length }} خيار متاح — التبديل مع معلمي نفس الفصل فقط</p>
   {% endif %}

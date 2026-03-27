@@ -290,6 +290,7 @@ class GradeService:
             "p2_score": scores.get("P2"),
             "p3_score": scores.get("P3"),
             "p4_score": scores.get("P4"),
+            "p_aw_score": scores.get("AW"),
             "total": total if has_score else None,
             "semester_max": semester_max,
         }

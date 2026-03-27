@@ -94,7 +94,7 @@
       <td class="font-bold">
         {% if row.s2 and row.s2.total %}{{ row.s2.total }}/{{ row.s2.semester_max }}{% else %}—{% endif %}
       </td>
-      <td class="text-sm font-bold" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 50 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
+      <td class="text-sm font-bold {% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}grade-excellent{% elif row.annual.annual_total >= 75 %}grade-good{% elif row.annual.annual_total >= 50 %}grade-pass{% else %}grade-fail{% endif %}{% else %}grade-na{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
       <td class="font-bold">

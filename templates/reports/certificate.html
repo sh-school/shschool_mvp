@@ -105,7 +105,7 @@
       <td class="text-right font-semibold">{{ row.subject }}</td>
       <td>{% if row.annual and row.annual.s1_total %}{{ row.annual.s1_total }}{% else %}—{% endif %}</td>
       <td>{% if row.annual and row.annual.s2_total %}{{ row.annual.s2_total }}{% else %}—{% endif %}</td>
-      <td class="font-bold" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 50 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
+      <td class="font-bold {% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}grade-excellent{% elif row.annual.annual_total >= 75 %}grade-good{% elif row.annual.annual_total >= 50 %}grade-pass{% else %}grade-fail{% endif %}{% else %}grade-na{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
       <td class="font-bold">{% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}</td>

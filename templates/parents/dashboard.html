@@ -43,9 +43,7 @@
     </div>
     <div class="page-actions">
       <div class="flex items-center gap-1.5">
-        <span id="online-indicator"
-              style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"
-              title="متصل"></span>
+        <span id="online-indicator" class="status-dot status-dot-online" title="متصل"></span>
       </div>
       <a href="{% url 'parent_consent' %}" class="btn-secondary text-xs">
         {% include "components/icon.html" with name="lock" %} إعدادات الخصوصية

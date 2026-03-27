@@ -104,6 +104,7 @@ class StudentSubjectResultAdmin(admin.ModelAdmin):
         "p2_score",
         "p3_score",
         "p4_score",
+        "p_aw_score",
         "total",
         "semester_max",
     )
