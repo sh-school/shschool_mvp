@@ -209,6 +209,58 @@ def audit_user_change(sender, instance, created, **kwargs):
 
 
 # ── تسجيل الدخول والخروج ───────────────────────────────────────────────
+# ── [S-07] تغيير الأدوار والمجموعات (Group) ─────────────────────────
+@receiver(post_save, sender="auth.Group")
+def audit_group_change(sender, instance, created, **kwargs):
+    """S-07: Log every Group (permission group) creation or update."""
+    _log(
+        "other",
+        "create" if created else "update",
+        instance,
+        changes={"group_name": instance.name},
+    )
+
+
+@receiver(pre_delete, sender="auth.Group")
+def audit_group_delete(sender, instance, **kwargs):
+    """S-07: Log every Group deletion."""
+    _log(
+        "other",
+        "delete",
+        instance,
+        changes={"group_name": instance.name},
+    )
+
+
+@receiver(post_save, sender="core.Role")
+def audit_role_change(sender, instance, created, **kwargs):
+    """S-07: Log every Role creation or update."""
+    _log(
+        "other",
+        "create" if created else "update",
+        instance,
+        changes={
+            "role_name": instance.name,
+            "school": str(instance.school) if instance.school_id else "",
+        },
+    )
+
+
+@receiver(pre_delete, sender="core.Role")
+def audit_role_delete(sender, instance, **kwargs):
+    """S-07: Log every Role deletion."""
+    _log(
+        "other",
+        "delete",
+        instance,
+        changes={
+            "role_name": instance.name,
+            "school": str(instance.school) if instance.school_id else "",
+        },
+    )
+
+
+# ── تسجيل الدخول والخروج ───────────────────────────────────────────────
 @receiver(user_logged_in)
 def audit_login(sender, request, user, **kwargs):
     try:

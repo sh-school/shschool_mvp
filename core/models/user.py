@@ -19,6 +19,12 @@ _phone_validator = RegexValidator(
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    # TODO S-09 (PDPPL Article 8): national_id is still stored as plaintext
+    # because it serves as USERNAME_FIELD for authentication. Phase-2 plan:
+    #   1. Switch USERNAME_FIELD to national_id_hmac (deterministic, searchable).
+    #   2. Drop the plaintext column; use national_id_encrypted for display.
+    #   3. Until then, encryption at-rest is handled by national_id_encrypted
+    #      and national_id_hmac (populated automatically in save()).
     national_id = models.CharField(
         max_length=20,
         unique=True,
@@ -28,6 +34,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
     full_name = models.CharField(max_length=200, verbose_name="الاسم الكامل", db_index=True)
     email = models.EmailField(blank=True, verbose_name="البريد الإلكتروني")
+    # TODO S-09 (PDPPL Article 8): phone is PII — consider encrypting
+    # with Fernet (same pattern as national_id_encrypted) in Phase-2.
     phone = models.CharField(
         max_length=20,
         blank=True,

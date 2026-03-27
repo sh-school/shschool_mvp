@@ -6,6 +6,51 @@ from .school import School, _uuid
 from .user import CustomUser
 
 
+class AcademicYear(models.Model):
+    """
+    العام الدراسي — يُستخدم لتحديد السنة الأكاديمية النشطة لكل مدرسة.
+
+    UniqueConstraint يمنع وجود أكثر من عام دراسي حالي لنفس المدرسة.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="academic_years",
+        verbose_name="المدرسة",
+    )
+    name = models.CharField(
+        max_length=9,
+        verbose_name="العام الدراسي",
+        help_text="مثال: 2025-2026",
+    )
+    start_date = models.DateField(verbose_name="تاريخ البداية")
+    end_date = models.DateField(verbose_name="تاريخ النهاية")
+    is_current = models.BooleanField(default=False, verbose_name="العام الحالي")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+
+    class Meta:
+        verbose_name = "عام دراسي"
+        verbose_name_plural = "الأعوام الدراسية"
+        ordering = ["-start_date"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "name"],
+                name="unique_academic_year_per_school",
+            ),
+            models.UniqueConstraint(
+                fields=["school"],
+                condition=models.Q(is_current=True),
+                name="unique_current_academic_year_per_school",
+            ),
+        ]
+
+    def __str__(self):
+        current = " ✓" if self.is_current else ""
+        return f"{self.name}{current} — {self.school.name}"
+
+
 class ClassGroup(models.Model):
     GRADES = [
         ("G7", "الصف السابع"),

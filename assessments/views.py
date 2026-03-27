@@ -381,6 +381,25 @@ def class_gradebook(request, setup_id):
         .order_by("package_type")
     )
 
+    # ── Pre-fetch semester & annual results to avoid N+1 queries ──
+    student_ids = [enr.student_id for enr in enrollments]
+    sem_results_map = {
+        r.student_id: r
+        for r in StudentSubjectResult.objects.filter(
+            student_id__in=student_ids,
+            setup=setup,
+            semester=semester if not show_annual else "S1",
+        )
+    }
+    annual_results_map = {
+        r.student_id: r
+        for r in AnnualSubjectResult.objects.filter(
+            student_id__in=student_ids,
+            setup=setup,
+            academic_year=setup.academic_year,
+        )
+    }
+
     rows = []
     for enr in enrollments:
         student = enr.student
@@ -391,28 +410,12 @@ def class_gradebook(request, setup_id):
                 score = GradeService.calc_package_score(student, pkg)
                 pkg_scores[pkg.package_type] = score
 
-        # نتيجة الفصل
-        try:
-            sem_result = StudentSubjectResult.objects.get(
-                student=student, setup=setup, semester=semester if not show_annual else "S1"
-            )
-        except StudentSubjectResult.DoesNotExist:
-            sem_result = None
-
-        # النتيجة السنوية
-        try:
-            annual_result = AnnualSubjectResult.objects.get(
-                student=student, setup=setup, academic_year=setup.academic_year
-            )
-        except AnnualSubjectResult.DoesNotExist:
-            annual_result = None
-
         rows.append(
             {
                 "student": student,
                 "pkg_scores": pkg_scores,
-                "semester_result": sem_result,
-                "annual_result": annual_result,
+                "semester_result": sem_results_map.get(student.id),
+                "annual_result": annual_results_map.get(student.id),
             }
         )
 
@@ -515,6 +518,15 @@ def export_gradebook(request, setup_id):
 
     ws.row_dimensions[2].height = 22
 
+    # ── Pre-fetch semester results to avoid N+1 queries ──
+    student_ids = [enr.student_id for enr in enrollments]
+    sem_results_map = {
+        r.student_id: r
+        for r in StudentSubjectResult.objects.filter(
+            student_id__in=student_ids, setup=setup, semester=semester
+        )
+    }
+
     # ── البيانات ────────────────────────────────────────────
     for row_idx, enr in enumerate(enrollments, start=1):
         student = enr.student
@@ -523,17 +535,15 @@ def export_gradebook(request, setup_id):
 
         pkg_scores = {p.package_type: GradeService.calc_package_score(student, p) for p in pkg_list}
 
-        try:
-            sem_result = StudentSubjectResult.objects.get(
-                student=student, setup=setup, semester=semester
-            )
+        sem_result = sem_results_map.get(student.id)
+        if sem_result:
             total = float(sem_result.total) if sem_result.total is not None else ""
             status = (
                 "ناجح ✓"
                 if (sem_result.total or 0) >= (sem_result.semester_max * Decimal("0.5"))
                 else "راسب ✗"
             )
-        except StudentSubjectResult.DoesNotExist:
+        else:
             total, status = "", "—"
 
         row_data = (

@@ -50,23 +50,43 @@ class GradeService:
         حفظ درجة طالب، ثم:
         1. إعادة حساب نتيجة الفصل
         2. إعادة حساب النتيجة السنوية
+
+        Uses select_for_update() to prevent race conditions when two
+        teachers attempt to record the same student's grade simultaneously.
         """
         if grade is not None:
             grade = Decimal(str(grade))
             grade = max(Decimal("0"), min(grade, assessment.max_grade))
 
-        obj, created = StudentAssessmentGrade.objects.update_or_create(
-            assessment=assessment,
-            student=student,
-            defaults={
-                "school": assessment.school,
-                "grade": grade,
-                "is_absent": is_absent,
-                "is_excused": is_excused,
-                "notes": notes,
-                "entered_by": entered_by,
-            },
+        # Lock existing row (if any) to prevent concurrent writes
+        existing = (
+            StudentAssessmentGrade.objects
+            .select_for_update()
+            .filter(assessment=assessment, student=student)
+            .first()
         )
+
+        if existing:
+            existing.school = assessment.school
+            existing.grade = grade
+            existing.is_absent = is_absent
+            existing.is_excused = is_excused
+            existing.notes = notes
+            existing.entered_by = entered_by
+            existing.save()
+            obj, created = existing, False
+        else:
+            obj = StudentAssessmentGrade.objects.create(
+                assessment=assessment,
+                student=student,
+                school=assessment.school,
+                grade=grade,
+                is_absent=is_absent,
+                is_excused=is_excused,
+                notes=notes,
+                entered_by=entered_by,
+            )
+            created = True
 
         setup = assessment.package.setup
         semester = assessment.package.semester
@@ -105,14 +125,22 @@ class GradeService:
         if total_weight == 0:
             return None
 
+        # ── Batch-fetch student grades to avoid N+1 queries ──
+        assessment_ids = [a.id for a in assessments]
+        grades_map = {
+            g.assessment_id: g
+            for g in StudentAssessmentGrade.objects.filter(
+                assessment_id__in=assessment_ids, student=student
+            )
+        }
+
         # حساب أداء الطالب % في هذه الباقة
         weighted_pct = Decimal("0")
         has_grade = False
 
         for asmnt in assessments:
-            try:
-                g = asmnt.grades.get(student=student)
-            except StudentAssessmentGrade.DoesNotExist:
+            g = grades_map.get(asmnt.id)
+            if g is None:
                 continue
 
             has_grade = True
@@ -161,20 +189,31 @@ class GradeService:
                 # semester_max من أول باقة لها بيانات
                 semester_max = pkg.semester_max_grade
 
-        result, _ = StudentSubjectResult.objects.update_or_create(
-            student=student,
-            setup=setup,
-            semester=semester,
-            defaults={
-                "school": setup.school,
-                "p1_score": scores.get("P1"),
-                "p2_score": scores.get("P2"),
-                "p3_score": scores.get("P3"),
-                "p4_score": scores.get("P4"),
-                "total": total if has_score else None,
-                "semester_max": semester_max,
-            },
+        # Lock existing row to prevent concurrent recalculation races
+        existing = (
+            StudentSubjectResult.objects
+            .select_for_update()
+            .filter(student=student, setup=setup, semester=semester)
+            .first()
         )
+        defaults = {
+            "school": setup.school,
+            "p1_score": scores.get("P1"),
+            "p2_score": scores.get("P2"),
+            "p3_score": scores.get("P3"),
+            "p4_score": scores.get("P4"),
+            "total": total if has_score else None,
+            "semester_max": semester_max,
+        }
+        if existing:
+            for attr, val in defaults.items():
+                setattr(existing, attr, val)
+            existing.save()
+            result = existing
+        else:
+            result = StudentSubjectResult.objects.create(
+                student=student, setup=setup, semester=semester, **defaults
+            )
         return result
 
     # ── النتيجة السنوية ─────────────────────────────────────
@@ -223,18 +262,29 @@ class GradeService:
             else:
                 status = "fail"
 
-        annual, _ = AnnualSubjectResult.objects.update_or_create(
-            student=student,
-            setup=setup,
-            academic_year=year,
-            defaults={
-                "school": setup.school,
-                "s1_total": s1_total,
-                "s2_total": s2_total,
-                "annual_total": annual_total,
-                "status": status,
-            },
+        # Lock existing row to prevent concurrent recalculation races
+        existing = (
+            AnnualSubjectResult.objects
+            .select_for_update()
+            .filter(student=student, setup=setup, academic_year=year)
+            .first()
         )
+        defaults = {
+            "school": setup.school,
+            "s1_total": s1_total,
+            "s2_total": s2_total,
+            "annual_total": annual_total,
+            "status": status,
+        }
+        if existing:
+            for attr, val in defaults.items():
+                setattr(existing, attr, val)
+            existing.save()
+            annual = existing
+        else:
+            annual = AnnualSubjectResult.objects.create(
+                student=student, setup=setup, academic_year=year, **defaults
+            )
         return annual
 
     @staticmethod
@@ -254,14 +304,15 @@ class GradeService:
     @staticmethod
     def get_assessment_stats(assessment: Assessment) -> dict:
         """إحصائيات تقييم: متوسط، أعلى، أدنى، نسبة النجاح"""
-        grades = StudentAssessmentGrade.objects.filter(
-            assessment=assessment, is_absent=False, grade__isnull=False
+        # Single query — fetch all grades for this assessment
+        all_grades = list(
+            StudentAssessmentGrade.objects.filter(assessment=assessment)
+            .values_list("grade", "is_absent")
         )
-        total = StudentAssessmentGrade.objects.filter(assessment=assessment).count()
-        absent = StudentAssessmentGrade.objects.filter(
-            assessment=assessment, is_absent=True
-        ).count()
-        entered = grades.count()
+        total = len(all_grades)
+        absent = sum(1 for _, is_abs in all_grades if is_abs)
+        vals = [float(g) for g, is_abs in all_grades if not is_abs and g is not None]
+        entered = len(vals)
 
         if not entered:
             return {
@@ -274,7 +325,6 @@ class GradeService:
                 "pass_pct": None,
             }
 
-        vals = [float(g.grade) for g in grades]
         avg = round(sum(vals) / len(vals), 2)
         pass_th = float(assessment.max_grade) * 0.5
         pass_pct = round(sum(1 for v in vals if v >= pass_th) / len(vals) * 100)

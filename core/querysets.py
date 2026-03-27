@@ -91,7 +91,9 @@ class UserQuerySet(models.QuerySet):
 
     def staff(self, school=None) -> UserQuerySet:
         qs = self.filter(
-            memberships__role__name__in=["teacher", "principal", "vice_principal", "coordinator"]
+            memberships__role__name__in=[
+                "teacher", "principal", "vice_admin", "vice_academic", "coordinator",
+            ]
         )
         if school:
             qs = qs.filter(memberships__school=school)

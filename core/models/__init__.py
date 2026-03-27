@@ -11,7 +11,7 @@ from library.models import BookBorrowing, LibraryActivity, LibraryBook  # noqa: 
 from transport.models import BusRoute, SchoolBus  # noqa: F401,E402
 
 from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
-from .academic import ClassGroup, ParentStudentLink, StudentEnrollment  # noqa: F401
+from .academic import AcademicYear, ClassGroup, ParentStudentLink, StudentEnrollment  # noqa: F401
 from .access import (  # noqa: F401
     ACADEMIC_ROLES,
     ADMIN_ROLES,
@@ -60,6 +60,7 @@ __all__ = [
     "Profile",
     "Role",
     "Membership",
+    "AcademicYear",
     "ClassGroup",
     "StudentEnrollment",
     "ParentStudentLink",
