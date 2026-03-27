@@ -538,7 +538,7 @@ def upload_evidence(request, proc_id):
             messages.error(request, e.message)
             return redirect("procedure_detail", proc_id=proc_id)
 
-    ProcedureEvidence.objects.create(
+    QualityService.upload_evidence(
         procedure=procedure,
         title=title,
         description=request.POST.get("description", "").strip(),
@@ -654,54 +654,19 @@ def review_list(request):
 
 
 def _process_task_update(request, procedure):
-    """معالجة POST لتحديث بيانات الإجراء — Clean Code: SRP"""
-    old_status = procedure.status
-
-    new_status = request.POST.get("status", "").strip()
-    if new_status and new_status in dict(OperationalProcedure.STATUS):
-        procedure.status = new_status
-
-    evidence_type = request.POST.get("evidence_type", "").strip()
-    if evidence_type in dict(OperationalProcedure.EVIDENCE_TYPE):
-        procedure.evidence_type = evidence_type
-
-    procedure.evidence_source_file = request.POST.get("evidence_source_file", "").strip()
-
-    comments = request.POST.get("comments", "").strip()
-    procedure.comments = comments
-
-    follow_up = request.POST.get("follow_up", "").strip()
-    if follow_up in dict(OperationalProcedure.FOLLOW_UP_CHOICES) or follow_up == "":
-        procedure.follow_up = follow_up
-
-    procedure.save(
-        update_fields=[
-            "status",
-            "evidence_type",
-            "evidence_source_file",
-            "comments",
-            "follow_up",
-            "updated_at",
-        ]
-    )
-
+    """معالجة POST لتحديث بيانات الإجراء — يفوّض لـ QualityService"""
     uploaded_file = request.FILES.get("evidence_file")
-    if uploaded_file:
-        ProcedureEvidence.objects.create(
-            procedure=procedure,
-            title=request.POST.get("evidence_title", "").strip() or uploaded_file.name,
-            file=uploaded_file,
-            uploaded_by=request.user,
-        )
-
-    if old_status != procedure.status:
-        ProcedureStatusLog.objects.create(
-            procedure=procedure,
-            old_status=old_status,
-            new_status=procedure.status,
-            changed_by=request.user,
-            note=comments,
-        )
+    QualityService.update_procedure_status(
+        procedure,
+        status=request.POST.get("status", "").strip(),
+        evidence_type=request.POST.get("evidence_type", "").strip(),
+        evidence_source_file=request.POST.get("evidence_source_file", "").strip(),
+        comments=request.POST.get("comments", "").strip(),
+        follow_up=request.POST.get("follow_up", "").strip(),
+        changed_by=request.user,
+        file=uploaded_file,
+        file_title=request.POST.get("evidence_title", "").strip(),
+    )
 
 
 @login_required
@@ -750,49 +715,16 @@ def task_update_modal(request, proc_id):
 
 
 def _process_review_evaluate(request, procedure):
-    """معالجة POST لتقييم المراجعة — Clean Code: SRP"""
-    old_status = procedure.status
-
-    evidence_req = request.POST.get("evidence_request_status", "").strip()
-    if evidence_req in dict(OperationalProcedure.EVIDENCE_REQUEST_STATUS):
-        procedure.evidence_request_status = evidence_req
-
-    procedure.evidence_request_note = request.POST.get("evidence_request_note", "").strip()
-
-    quality_rating = request.POST.get("quality_rating", "").strip()
-    if quality_rating in dict(OperationalProcedure.QUALITY_RATING) or quality_rating == "":
-        procedure.quality_rating = quality_rating
-
-    new_status = request.POST.get("status", "").strip()
-    if new_status and new_status in dict(OperationalProcedure.STATUS):
-        procedure.status = new_status
-
-    review_note = request.POST.get("review_note", "").strip()
-    procedure.review_note = review_note
-    procedure.reviewed_by = request.user
-    procedure.reviewed_at = timezone.now()
-
-    procedure.save(
-        update_fields=[
-            "evidence_request_status",
-            "evidence_request_note",
-            "quality_rating",
-            "status",
-            "review_note",
-            "reviewed_by",
-            "reviewed_at",
-            "updated_at",
-        ]
+    """معالجة POST لتقييم المراجعة — يفوّض لـ QualityService"""
+    QualityService.review_evaluate(
+        procedure,
+        evidence_request_status=request.POST.get("evidence_request_status", "").strip(),
+        evidence_request_note=request.POST.get("evidence_request_note", "").strip(),
+        quality_rating=request.POST.get("quality_rating", "").strip(),
+        new_status=request.POST.get("status", "").strip(),
+        review_note=request.POST.get("review_note", "").strip(),
+        reviewed_by=request.user,
     )
-
-    if old_status != procedure.status:
-        ProcedureStatusLog.objects.create(
-            procedure=procedure,
-            old_status=old_status,
-            new_status=procedure.status,
-            changed_by=request.user,
-            note=review_note,
-        )
 
 
 @login_required

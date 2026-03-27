@@ -158,10 +158,15 @@ class BehaviorService:
             recovery_qs.aggregate(Sum("points_restored"))["points_restored__sum"] or 0
         )
 
-        recent = base.select_related("student", "reported_by").order_by("-date")[:15]
+        recent = (
+            base.select_related("student", "reported_by", "violation_category")
+            .order_by("-date")[:15]
+        )
 
-        critical_unresolved = base.filter(level__in=[3, 4], is_resolved=False).select_related(
-            "student"
+        critical_unresolved = (
+            base.filter(level__in=[3, 4], is_resolved=False)
+            .select_related("student", "violation_category")
+            .prefetch_related("recovery")
         )
 
         return {
@@ -209,7 +214,7 @@ class BehaviorService:
         """بيانات لوحة لجنة الضبط السلوكي"""
         open_cases = (
             BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=False)
-            .select_related("student", "reported_by")
+            .select_related("student", "reported_by", "violation_category")
             .order_by("-date")
         )
 

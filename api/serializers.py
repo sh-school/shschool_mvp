@@ -152,7 +152,6 @@ class SessionSerializer(serializers.ModelSerializer):
 class AttendanceSerializer(serializers.ModelSerializer):
     student_id = serializers.UUIDField(source="student.id", read_only=True)
     student_name = serializers.CharField(source="student.full_name", read_only=True)
-    national_id = serializers.CharField(source="student.national_id", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
@@ -161,7 +160,6 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "id",
             "student_id",
             "student_name",
-            "national_id",
             "status",
             "status_display",
             "excuse_type",
@@ -257,7 +255,7 @@ class StudentGradeSummarySerializer(serializers.Serializer):
 
 class BehaviorInfractionSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
-    national_id = serializers.CharField(source="student.national_id", read_only=True)
+    student_id = serializers.UUIDField(source="student.id", read_only=True)
     reported_by = serializers.CharField(source="reported_by.full_name", read_only=True)
     level_label = serializers.SerializerMethodField()
 
@@ -265,8 +263,8 @@ class BehaviorInfractionSerializer(serializers.ModelSerializer):
         model = BehaviorInfraction
         fields = [
             "id",
+            "student_id",
             "student_name",
-            "national_id",
             "level",
             "level_label",
             "description",
@@ -329,7 +327,7 @@ class UserNotificationPreferenceSerializer(serializers.ModelSerializer):
 
 
 class ParentStudentLinkSerializer(serializers.ModelSerializer):
-    student = UserBriefSerializer(read_only=True)
+    student = UserSafeSerializer(read_only=True)
     relationship_label = serializers.CharField(source="get_relationship_display", read_only=True)
     class_name = serializers.SerializerMethodField()
 
@@ -357,7 +355,7 @@ class ParentStudentLinkSerializer(serializers.ModelSerializer):
 class ChildSummarySerializer(serializers.Serializer):
     """ملخص الطالب في بوابة ولي الأمر"""
 
-    student = UserBriefSerializer()
+    student = UserSafeSerializer()
     class_name = serializers.CharField(allow_null=True)
     total_subj = serializers.IntegerField()
     passed = serializers.IntegerField()

@@ -61,6 +61,7 @@ from .filters import (
     InfractionFilter,
     SessionFilter,
 )
+from .pagination import StandardPagination
 from .permissions import IsParentOrAdmin, IsSchoolAdmin, IsTeacherOrAdmin
 from .serializers import (
     AnnualSubjectResultSerializer,
@@ -411,6 +412,7 @@ class SessionListView(generics.ListAPIView):
 
     serializer_class = SessionSerializer
     permission_classes = [IsTeacherOrAdmin]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = SessionFilter
     ordering_fields = ["date", "start_time", "status", "class_group__grade"]
@@ -454,6 +456,7 @@ class AttendanceListView(generics.ListAPIView):
 
     serializer_class = AttendanceSerializer
     permission_classes = [IsTeacherOrAdmin]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = AttendanceFilter
     ordering_fields = ["session__date", "student__full_name", "status"]
@@ -499,6 +502,7 @@ class BehaviorListView(generics.ListAPIView):
 
     serializer_class = BehaviorInfractionSerializer
     permission_classes = [IsTeacherOrAdmin]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = InfractionFilter
     ordering_fields = ["date", "level", "points_deducted", "student__full_name"]
@@ -796,6 +800,7 @@ class LibraryBookListView(generics.ListAPIView):
 
     serializer_class = LibraryBookSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = BookFilter
     search_fields = ["title", "author", "isbn", "category"]
@@ -829,6 +834,7 @@ class BorrowingListView(generics.ListAPIView):
 
     serializer_class = BookBorrowingSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = BorrowingFilter
     ordering_fields = ["borrow_date", "due_date", "status"]
@@ -867,6 +873,7 @@ class ClinicVisitListView(generics.ListAPIView):
 
     serializer_class = ClinicVisitSerializer
     permission_classes = [IsSchoolAdmin]
+    pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = ClinicVisitFilter
     ordering_fields = ["visit_date", "student__full_name", "is_sent_home"]

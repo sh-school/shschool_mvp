@@ -290,3 +290,129 @@ class QualityService:
             "by_domain": by_domain,
             **stats,
         }
+
+    # ── رفع الدليل ──────────────────────────────────────────
+    @staticmethod
+    def upload_evidence(
+        procedure: "OperationalProcedure",
+        title: str,
+        description: str = "",
+        file=None,
+        uploaded_by: "CustomUser | None" = None,
+    ) -> "ProcedureEvidence":
+        """
+        إنشاء دليل جديد للإجراء.
+        يجب التحقق من نوع الملف في الـ view قبل استدعاء هذه الدالة.
+        """
+        from .models import ProcedureEvidence
+
+        return ProcedureEvidence.objects.create(
+            procedure=procedure,
+            title=title,
+            description=description,
+            file=file,
+            uploaded_by=uploaded_by,
+        )
+
+    # ── تحديث حالة الإجراء + تسجيل التغيير ─────────────────
+    @staticmethod
+    def update_procedure_status(
+        procedure: "OperationalProcedure",
+        *,
+        status: str,
+        evidence_type: str = "",
+        evidence_source_file=None,
+        comments: str = "",
+        follow_up: str = "",
+        changed_by: "CustomUser",
+        file=None,
+        file_title: str = "",
+    ) -> None:
+        """
+        تحديث الإجراء + تسجيل log التغيير + رفع دليل اختياري.
+        يُستدعى من view task_update_modal.
+        """
+        from .models import ProcedureEvidence, ProcedureStatusLog
+
+        old_status = procedure.status
+        if status and status in dict(OperationalProcedure.STATUS):
+            procedure.status = status
+        if evidence_type in dict(OperationalProcedure.EVIDENCE_TYPE):
+            procedure.evidence_type = evidence_type
+        if evidence_source_file:
+            procedure.evidence_source_file = evidence_source_file
+        procedure.comments = comments
+        if follow_up in dict(OperationalProcedure.FOLLOW_UP_CHOICES):
+            procedure.follow_up = follow_up
+
+        procedure.save(update_fields=[
+            "status", "evidence_type", "evidence_source_file",
+            "comments", "follow_up", "updated_at",
+        ])
+
+        if file:
+            ProcedureEvidence.objects.create(
+                procedure=procedure,
+                title=file_title or file.name,
+                file=file,
+                uploaded_by=changed_by,
+            )
+
+        if old_status != procedure.status:
+            ProcedureStatusLog.objects.create(
+                procedure=procedure,
+                old_status=old_status,
+                new_status=procedure.status,
+                changed_by=changed_by,
+                note=comments,
+            )
+
+    # ── تقييم المراجعة + تسجيل التغيير ─────────────────────
+    @staticmethod
+    def review_evaluate(
+        procedure: "OperationalProcedure",
+        *,
+        evidence_request_status: str = "",
+        evidence_request_note: str = "",
+        quality_rating: str = "",
+        new_status: str = "",
+        review_note: str = "",
+        reviewed_by: "CustomUser",
+    ) -> None:
+        """
+        حفظ تقييم المراجعة + تسجيل log التغيير.
+        يُستدعى من view review_evaluate_modal.
+        """
+        from django.utils import timezone as _tz
+
+        from .models import ProcedureStatusLog
+
+        old_status = procedure.status
+
+        if evidence_request_status in dict(OperationalProcedure.EVIDENCE_REQUEST_STATUS):
+            procedure.evidence_request_status = evidence_request_status
+        procedure.evidence_request_note = evidence_request_note
+
+        if quality_rating in dict(OperationalProcedure.QUALITY_RATING) or quality_rating == "":
+            procedure.quality_rating = quality_rating
+
+        if new_status and new_status in dict(OperationalProcedure.STATUS):
+            procedure.status = new_status
+
+        procedure.review_note = review_note
+        procedure.reviewed_by = reviewed_by
+        procedure.reviewed_at = _tz.now()
+
+        procedure.save(update_fields=[
+            "evidence_request_status", "evidence_request_note", "quality_rating",
+            "status", "review_note", "reviewed_by", "reviewed_at", "updated_at",
+        ])
+
+        if old_status != procedure.status:
+            ProcedureStatusLog.objects.create(
+                procedure=procedure,
+                old_status=old_status,
+                new_status=procedure.status,
+                changed_by=reviewed_by,
+                note=review_note,
+            )
