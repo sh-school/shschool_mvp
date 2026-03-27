@@ -40,7 +40,7 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
     <!-- إرسال تنبيهات الغياب -->
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="card-qatar overflow-hidden">
       <div class="bg-amber-600 px-5 py-4">
         <h2 class="text-white font-bold">{% include "components/icon.html" with name="calendar" %} تنبيهات الغياب المتكرر</h2>
         <p class="text-amber-100 text-xs mt-0.5">إرسال لأولياء الأمور بغياب أبنائهم</p>
@@ -61,7 +61,7 @@
     </div>
 
     <!-- إرسال تنبيهات الرسوب -->
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="card-qatar overflow-hidden">
       <div class="bg-red-700 px-5 py-4">
         <h2 class="text-white font-bold">{% include "components/icon.html" with name="bar-chart" %} إشعارات الرسوب السنوي</h2>
         <p class="text-red-100 text-xs mt-0.5">إبلاغ أولياء الأمور بنتائج الرسوب</p>
@@ -85,7 +85,7 @@
   </div>
 
   <!-- الإعدادات -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+  <div class="card-qatar overflow-hidden">
     <button onclick="document.getElementById('settings-panel').classList.toggle('hidden')"
             class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
       <h2 class="font-bold text-gray-900">{% include "components/icon.html" with name="settings" %} إعدادات الإشعارات</h2>
@@ -195,7 +195,7 @@
   </div>
 
   <!-- سجل الإشعارات -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+  <div class="card-qatar overflow-hidden">
     <div class="px-6 py-4 border-b">
       <h2 class="font-bold text-gray-900">سجل الإشعارات الأخيرة</h2>
     </div>

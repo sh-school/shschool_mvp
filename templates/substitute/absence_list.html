@@ -35,7 +35,7 @@
   {% if absences %}
   <div class="space-y-4">
     {% for absence in absences %}
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="card-qatar overflow-hidden">
       <div class="flex items-center justify-between px-5 py-3 border-b
         {% if absence.status == 'covered' %}bg-green-50{% elif absence.status == 'uncovered' %}bg-red-50{% else %}bg-amber-50{% endif %}">
         <div class="flex items-center gap-3">

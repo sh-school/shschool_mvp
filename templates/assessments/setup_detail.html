@@ -16,7 +16,7 @@
   </div>
 
   <!-- Header -->
-  <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+  <div class="card-qatar overflow-hidden">
     <div class="bg-maroon px-6 py-4 flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
@@ -61,7 +61,7 @@
   <!-- الباقات الأربع -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
     {% for pkg in packages %}
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div class="card-qatar overflow-hidden">
       <!-- عنوان الباقة -->
       <div class="px-5 py-3 border-b flex items-center justify-between
         {% if pkg.package_type == 'P1' %}bg-blue-50{% elif pkg.package_type == 'P2' %}bg-amber-50{% elif pkg.package_type == 'P3' %}bg-purple-50{% else %}bg-green-50{% endif %}">

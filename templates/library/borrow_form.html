@@ -6,7 +6,7 @@
     <h1 class="page-title">{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
     <a href="{% url 'library:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
-  <div class="bg-white rounded-xl shadow-sm p-6">
+  <div class="card-qatar">
     <form method="post">
       {% csrf_token %}
       <div class="space-y-4">

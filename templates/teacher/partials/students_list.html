@@ -1,4 +1,4 @@
-<div id="students-list" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+<div id="students-list" class="card-qatar overflow-hidden">
   <div class="divide-y divide-gray-100">
     {% for item in students_data %}
     {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status session=session only %}

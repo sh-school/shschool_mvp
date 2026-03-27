@@ -11,7 +11,7 @@
  <p class="font-medium text-orange-800">المخالفة: {{ infraction.description }}</p>
  <p class="text-sm text-orange-600 mt-1">{{ infraction.student.full_name }} — الدرجة {{ infraction.level }} — خُصم {{ infraction.points_deducted }} نقطة</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-6">
+ <div class="card-qatar">
  <form method="post">
  {% csrf_token %}
  <div class="space-y-4">

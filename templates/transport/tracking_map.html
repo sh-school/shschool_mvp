@@ -7,7 +7,7 @@
     <a href="{% url 'transport:bus_detail' bus.id %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
   {% if has_karwa or has_gps %}
-  <div class="bg-white rounded-xl shadow-sm p-6">
+  <div class="card-qatar">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       {% if has_karwa %}
       <div class="bg-blue-50 rounded-lg p-4">

@@ -71,17 +71,17 @@
   </table>
 </div>
 
-<h4>الوصف التفصيلي</h4>
+<h3>الوصف التفصيلي</h3>
 <div class="section"><p>{{ breach.description }}</p></div>
 
-<h4>الإجراء الفوري</h4>
+<h3>الإجراء الفوري</h3>
 <div class="section"><p>{{ breach.immediate_action|default:"—" }}</p></div>
 
-<h4>إجراءات الاحتواء</h4>
+<h3>إجراءات الاحتواء</h3>
 <div class="section"><p>{{ breach.containment_action|default:"—" }}</p></div>
 
 {% if breach.notification_text %}
-<h4>نص الإشعار لـ NCSA</h4>
+<h3>نص الإشعار لـ NCSA</h3>
 <pre>{{ breach.notification_text }}</pre>
 {% endif %}
 
