@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}رد على طلب تبديل{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/schedule/swaps/" parent_label="طلبات التبديل" current="الرد على طلب" %}
+{% endblock %}
+
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
 .respond-page { max-width: 680px; margin: 0 auto; padding: 24px 16px; }
@@ -38,7 +42,7 @@
 
   <div class="respond-card">
     <div class="respond-header">
-      <h1>{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h1>
       <p>من {{ swap.teacher_a.full_name }} &mdash; {{ swap.created_at|date:"Y/m/d H:i" }}</p>
     </div>
 

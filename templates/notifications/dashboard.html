@@ -18,19 +18,19 @@
 
   <!-- KPIs -->
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+    <div class="card-qatar text-center">
       <div class="text-2xl font-bold text-skyline">{{ total }}</div>
       <div class="text-xs text-gray-500 mt-1">إجمالي المُرسَل</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center">
+    <div class="card-qatar text-center">
       <div class="text-2xl font-bold text-green-700">{{ sent }}</div>
       <div class="text-xs text-gray-500 mt-1">نجح</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center {% if failed %}bg-red-50 border-red-100{% endif %}">
+    <div class="card-qatar text-center {% if failed %}bg-red-50 border-red-100{% endif %}">
       <div class="text-2xl font-bold text-red-600">{{ failed }}</div>
       <div class="text-xs text-gray-500 mt-1">فشل</div>
     </div>
-    <div class="bg-white rounded-xl border p-5 shadow-sm text-center {% if pending_absence %}bg-amber-50 border-amber-100{% endif %}">
+    <div class="card-qatar text-center {% if pending_absence %}bg-amber-50 border-amber-100{% endif %}">
       <div class="text-2xl font-bold text-amber-600">{{ pending_absence }}</div>
       <div class="text-xs text-gray-500 mt-1">تنبيه غياب معلّق</div>
     </div>

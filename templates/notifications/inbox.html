@@ -29,12 +29,12 @@
         hx-target="#notif-list"
         hx-swap="innerHTML"
         hx-include="[name=csrfmiddlewaretoken]"
-        class="btn-secondary" style="font-size:12.5px;">
+        class="btn-secondary">
         {% include "components/icon.html" with name="check-circle" %} تحديد الكل كمقروء
       </button>
       {% endif %}
       <a href="{% url 'notification_preferences' %}" class="btn-secondary"
-         style="font-size:12.5px;text-decoration:none;">{% include "components/icon.html" with name="settings" %} التفضيلات</a>
+        >{% include "components/icon.html" with name="settings" %} التفضيلات</a>
     </div>
   </div>
 

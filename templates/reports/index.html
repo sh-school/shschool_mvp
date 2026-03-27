@@ -92,7 +92,7 @@
     </div>
     <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;">
       <span style="font-size:13px;color:var(--text-secondary);">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success" style="font-size:12.5px;text-decoration:none;">
+      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success">
         {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>
     </div>
@@ -186,8 +186,8 @@ async function searchStudent() {
       return '<div class="flex items-center justify-between border rounded-lg px-3 py-2 bg-gray-50">'
         + '<span class="font-medium text-gray-800 text-xs">' + s.full_name + '</span>'
         + '<div class="flex gap-1">'
-        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}" class="btn-primary btn-sm" style="font-size:11px;padding:3px 8px;">تقرير</a>'
-        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}" class="btn-secondary btn-sm" style="font-size:11px;padding:3px 8px;">شهادة</a>'
+        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}" class="btn-primary btn-sm">تقرير</a>'
+        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}" class="btn-secondary btn-sm">شهادة</a>'
         + '</div></div>';
     }).join('');
   } catch(e) {

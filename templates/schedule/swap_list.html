@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}طلبات التبديل{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول" current="طلبات التبديل" %}
+{% endblock %}
+
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
 .swap-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
@@ -32,13 +36,13 @@
 {% block content %}
 <div class="swap-page">
   <div class="swap-header">
-    <h1 class="swap-title">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</h1>
     <div style="display:flex;gap:6px">
       {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
       <a href="{% url 'swap_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تبديل</a>
       {% endif %}
       <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
-        <button type="submit" class="btn-secondary" style="font-size:12.5px;">بناء سجل الحصص الحرة</button>
+        <button type="submit" class="btn-secondary">بناء سجل الحصص الحرة</button>
       </form>
     </div>
   </div>

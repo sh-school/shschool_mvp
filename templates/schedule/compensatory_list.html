@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}الحصص التعويضية{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول" current="الحصص التعويضية" %}
+{% endblock %}
+
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
 .comp-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
@@ -24,7 +28,7 @@
 {% block content %}
 <div class="comp-page">
   <div class="comp-header">
-    <h1 class="comp-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
     <a href="{% url 'compensatory_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تعويض</a>
     {% endif %}

@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}إدارة خط السير{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/transport/" parent_label="النقل المدرسي" current="إدارة المسار" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-xl mx-auto">
   <div class="flex justify-between items-center mb-6">

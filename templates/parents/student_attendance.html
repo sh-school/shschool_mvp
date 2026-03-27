@@ -95,7 +95,7 @@
   {% if days_list %}
   <div class="space-y-3">
     {% for day in days_list %}
-    <div class="bg-white rounded-xl border shadow-sm overflow-hidden
+    <div class="card-qatar overflow-hidden
       {% if day.has_absent %}border-red-200{% elif day.has_late %}border-amber-200{% endif %}">
       <!-- تاريخ اليوم -->
       <div class="flex items-center justify-between px-5 py-3 border-b
@@ -136,7 +136,7 @@
   </div>
 
   {% else %}
-  <div class="bg-white rounded-xl border p-12 text-center text-gray-400">
+  <div class="card-qatar text-center">
     <p class="text-4xl mb-3">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
     <p>لا توجد سجلات حضور في هذه الفترة</p>
   </div>

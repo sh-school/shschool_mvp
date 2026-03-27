@@ -12,7 +12,7 @@
 <div class="flex flex-wrap items-center gap-3 mb-5">
   <a href="{% url 'teacher_schedule' %}" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
   <span class="text-gray-300">/</span>
-  <h1 class="text-xl font-bold text-gray-900">
+  <h1 class="page-title">
     {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
   </h1>
   <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>

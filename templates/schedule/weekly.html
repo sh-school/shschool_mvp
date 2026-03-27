@@ -222,7 +222,7 @@ td:has(.slot-empty) {
   {# ── Header ── #}
   <div class="sched-header">
     <div>
-      <h1 class="sched-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</h1>
       <span class="sched-year">{{ academic_year }}
         {% if target_teacher %} — {{ target_teacher.full_name }}{% endif %}
         {% if target_class %} — {{ target_class }}{% endif %}

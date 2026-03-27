@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}استعادة النقاط{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="الضبط السلوكي" current="نموذج تعافي" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-xl mx-auto">
  <div class="flex justify-between items-center mb-6">

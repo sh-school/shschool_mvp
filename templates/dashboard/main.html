@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}لوحة التحكم — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="الرئيسية" %}
+{% endblock %}
+
 {% block content %}
 
 <!-- ═══ DIRECTOR / ADMIN DASHBOARD ═══ -->

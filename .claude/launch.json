@@ -30,6 +30,12 @@
       "port": 6379
     },
     {
+      "name": "Icon Preview",
+      "runtimeExecutable": "D:/shschool_mvp/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "http.server", "8099", "--directory", "D:/shschool_mvp/staticfiles"],
+      "port": 8099
+    },
+    {
       "name": "Celery Beat",
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "celery", "-A", "shschool", "beat", "-l", "info"],

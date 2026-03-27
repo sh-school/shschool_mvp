@@ -29,15 +29,15 @@
 
   <!-- إحصائيات -->
   <div class="grid grid-cols-3 gap-4">
-    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+    <div class="card-qatar text-center">
       <p class="text-2xl font-bold text-skyline">{{ total }}</p>
       <p class="text-xs text-gray-500 mt-1">إجمالي</p>
     </div>
-    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+    <div class="card-qatar text-center">
       <p class="text-2xl font-bold text-green-600">{{ completed }}</p>
       <p class="text-xs text-gray-500 mt-1">مكتمل</p>
     </div>
-    <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+    <div class="card-qatar text-center">
       <p class="text-2xl font-bold text-skyline">{{ pct }}%</p>
       <p class="text-xs text-gray-500 mt-1">نسبة الإنجاز</p>
     </div>
@@ -56,7 +56,7 @@
   </form>
 
   <!-- الإجراءات -->
-  <div class="bg-white rounded-xl border shadow-sm divide-y">
+  <div class="card-qatar divide-y">
     {% for proc in procedures %}
     <a href="{% url 'procedure_detail' proc.id %}" class="flex items-start justify-between px-5 py-4 hover:bg-gray-50 transition">
       <div class="flex-1">

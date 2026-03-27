@@ -2,6 +2,10 @@
 
 {% block title %}لجنة الضبط السلوكي{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="الضبط السلوكي" current="لجنة الضبط" %}
+{% endblock %}
+
 {% block content %}
 <div>
 
@@ -19,19 +23,19 @@
 
  <!-- Stats -->
  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-600">
+ <div class="card-qatar border-r-4 border-red-600">
  <p class="text-xs text-gray-500">قضايا مفتوحة</p>
  <p class="text-3xl font-bold text-red-600">{{ stats.open_count }}</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-500">
+ <div class="card-qatar border-r-4 border-green-500">
  <p class="text-xs text-gray-500">محلولة</p>
  <p class="text-3xl font-bold text-green-600">{{ stats.resolved_count }}</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-orange-500">
+ <div class="card-qatar border-r-4 border-orange-500">
  <p class="text-xs text-gray-500">درجة ثالثة (جسيمة)</p>
  <p class="text-3xl font-bold text-orange-600">{{ stats.level3 }}</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-800">
+ <div class="card-qatar border-r-4 border-red-800">
  <p class="text-xs text-gray-500">درجة رابعة (شديدة)</p>
  <p class="text-3xl font-bold text-red-800">{{ stats.level4 }}</p>
  </div>
@@ -39,7 +43,7 @@
 
  <!-- Open Cases -->
  {% if open_cases %}
- <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
+ <div class="card-qatar overflow-hidden mb-6">
  <div class="flex justify-between items-center px-6 py-4 border-b bg-red-50">
  <h2 class="font-bold text-red-800">{% include "components/icon.html" with name="alert-critical" %} القضايا المفتوحة تحتاج قرار اللجنة</h2>
  <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">{{ stats.open_count }}</span>

@@ -34,28 +34,28 @@
       {% if errors %}
       <div class="bg-amber-500 px-6 py-5">
         <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
-        <h1 class="text-xl font-bold text-white">معاينة — يوجد {{ errors|length }} خطأ</h1>
+        <h1 class="page-title text-white">معاينة — يوجد {{ errors|length }} خطأ</h1>
       </div>
       {% else %}
       <div class="bg-blue-600 px-6 py-5">
         <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
-        <h1 class="text-xl font-bold text-white">معاينة — الملف جاهز للاستيراد</h1>
+        <h1 class="page-title text-white">معاينة — الملف جاهز للاستيراد</h1>
       </div>
       {% endif %}
     {% elif imported > 0 and not errors %}
     <div class="bg-green-600 px-6 py-5">
       <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</div>
-      <h1 class="text-xl font-bold text-white">اكتمل الاستيراد بنجاح</h1>
+      <h1 class="page-title text-white">اكتمل الاستيراد بنجاح</h1>
     </div>
     {% elif imported > 0 %}
     <div class="bg-amber-500 px-6 py-5">
       <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="alert-triangle" size="icon-2xl" %}</div>
-      <h1 class="text-xl font-bold text-white">اكتمل الاستيراد مع تحذيرات</h1>
+      <h1 class="page-title text-white">اكتمل الاستيراد مع تحذيرات</h1>
     </div>
     {% else %}
     <div class="bg-red-600 px-6 py-5">
       <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="x-circle" size="icon-2xl" %}</div>
-      <h1 class="text-xl font-bold text-white">فشل الاستيراد</h1>
+      <h1 class="page-title text-white">فشل الاستيراد</h1>
     </div>
     {% endif %}
 

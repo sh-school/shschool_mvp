@@ -131,7 +131,7 @@
             <td class="cell-center">
               {% if ms.member.domain %}
                 <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}"
-                   class="q-btn q-btn-maroon" style="font-size:0.75rem;padding:0.25rem 0.75rem">
+                   class="q-btn q-btn-maroon" btn-sm>
                   {% include "components/icon.html" with name="gavel" %} مراجعة
                 </a>
               {% else %}

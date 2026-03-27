@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}إعداد المصادقة الثنائية{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="إعداد المصادقة الثنائية" %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-lg mx-auto py-10 px-4">
 

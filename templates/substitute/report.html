@@ -13,7 +13,7 @@
   </div>
 
   <!-- Date Filter -->
-  <form method="get" class="bg-white rounded-xl border p-4 flex flex-wrap gap-4 items-end">
+  <form method="get" class="card-qatar flex flex-wrap gap-4 items-end">
     <div>
       <label class="block text-xs text-gray-500 mb-1">من</label>
       <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="border rounded-lg px-3 py-2 text-sm">
@@ -31,7 +31,7 @@
     <h2 class="text-sm font-semibold text-gray-600 mb-3">ملخص: حصص لكل معلم بديل</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
       {% for name, count in summary %}
-      <div class="bg-white rounded-xl border p-4 text-center shadow-sm">
+      <div class="card-qatar text-center">
         <p class="text-2xl font-bold text-skyline">{{ count }}</p>
         <p class="text-xs text-gray-600 mt-1">{{ name }}</p>
       </div>
@@ -78,7 +78,7 @@
     </table>
   </div>
   {% else %}
-  <div class="bg-white rounded-xl border p-10 text-center text-gray-400">
+  <div class="card-qatar text-center">
     لا توجد حصص بديلة في هذه الفترة
   </div>
   {% endif %}

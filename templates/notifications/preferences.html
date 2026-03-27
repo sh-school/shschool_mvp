@@ -2,10 +2,14 @@
 
 {% block title %}تفضيلات الإشعارات{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/notifications/" parent_label="الإشعارات" current="تفضيلات الإشعارات" %}
+{% endblock %}
+
 {% block content %}
 <div class="notif-pref-container">
 
-  <h1 class="notif-pref-title">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
+  <h1 class="page-title">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
   <p class="notif-pref-subtitle">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
 
   <form method="post">

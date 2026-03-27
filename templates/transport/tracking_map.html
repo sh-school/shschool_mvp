@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}تتبع الحافلة — {{ bus.bus_number }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/transport/" parent_label="النقل المدرسي" current="خريطة التتبع" %}
+{% endblock %}
+
 {% block content %}
 <div>
   <div class="flex justify-between items-center mb-6">
@@ -34,7 +39,7 @@
     </div>
   </div>
   {% else %}
-  <div class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
+  <div class="card-qatar text-center">
     <p class="text-4xl mb-2">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</p>
     <p>لم يتم إعداد بيانات التتبع لهذه الحافلة</p>
     <a href="{% url 'transport:bus_detail' bus.id %}" class="mt-3 inline-block text-sm text-blue-600 hover:underline">

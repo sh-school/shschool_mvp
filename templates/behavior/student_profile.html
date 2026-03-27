@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}الملف السلوكي — {{ student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="الضبط السلوكي" current="ملف الطالب" %}
+{% endblock %}
+
 {% block content %}
 <div>
  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
@@ -19,22 +24,22 @@
  </div>
  <!-- Score -->
  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4
+ <div class="card-qatar border-r-4
  {% if status_color == 'green' %}border-green-500{% elif status_color == 'yellow' %}border-yellow-500{% else %}border-red-500{% endif %}">
  <p class="text-xs text-gray-500">رصيد النقاط الحالي</p>
  <p class="text-3xl font-bold {% if status_color == 'green' %}text-green-600{% elif status_color == 'yellow' %}text-yellow-600{% else %}text-red-600{% endif %}">
  {{ net_score }}<span class="text-base font-normal text-gray-400">/100</span>
  </p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-red-400">
+ <div class="card-qatar border-r-4 border-red-400">
  <p class="text-xs text-gray-500">نقاط مخصومة</p>
  <p class="text-3xl font-bold text-red-600">-{{ total_deducted }}</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-green-400">
+ <div class="card-qatar border-r-4 border-green-400">
  <p class="text-xs text-gray-500">نقاط مستردة</p>
  <p class="text-3xl font-bold text-green-600">+{{ total_restored }}</p>
  </div>
- <div class="bg-white rounded-xl shadow-sm p-5 border-r-4 border-gray-400">
+ <div class="card-qatar border-r-4 border-gray-400">
  <p class="text-xs text-gray-500">إجمالي المخالفات</p>
  <p class="text-3xl font-bold text-gray-700">{{ infractions.count }}</p>
  </div>

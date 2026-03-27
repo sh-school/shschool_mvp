@@ -6,7 +6,7 @@
 {% if books %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="books-grid">
   {% for book in books %}
-  <div class="bg-white rounded-xl shadow-sm p-4 border hover:shadow-md transition-shadow">
+  <div class="card-qatar hover:shadow-md transition-shadow">
     <div class="flex justify-between items-start mb-2">
       <div class="flex-1 min-w-0">
         <p class="font-medium text-gray-800 text-sm leading-snug">{{ book.title }}</p>

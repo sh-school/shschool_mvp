@@ -1,5 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/clinic/" parent_label="العيادة" current="السجل الصحي" %}
+{% endblock %}
+
 {% block content %}
 <div>
   <div class="flex items-center justify-between mb-6">

@@ -25,7 +25,7 @@
 {% block content %}
 <div class="tw-page">
   <div class="tw-header">
-    <h1 class="tw-title">{% include "components/icon.html" with name="calendar" %} جدول {{ teacher.full_name }}</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} جدول {{ teacher.full_name }}</h1>
     <p class="tw-sub">
       <a href="{% url 'teacher_free_slots' teacher.pk %}" style="color:var(--maroon,#8A1538)">عرض الحصص الحرة</a>
     </p>
