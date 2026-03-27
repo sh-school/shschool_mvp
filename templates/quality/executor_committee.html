@@ -165,7 +165,7 @@
               <div class="mini-progress-wrap">
                 <div class="mini-progress-track">
                   <div class="mini-progress-fill {% if stat.pct >= 70 %}green{% elif stat.pct >= 40 %}amber{% else %}red{% endif %}"
-                       style="width:{{ stat.pct }}%"></div>
+                       style="--progress-w:{{ stat.pct }}%"></div>
                 </div>
                 <span class="mini-progress-pct">{{ stat.pct }}%</span>
               </div>

@@ -68,10 +68,8 @@
       <td>
         <div class="flex items-center gap-1">
           <div class="bar-bg">
-            <div class="bar-fill" style="width:{{ row.attendance_pct }}%;
-              background:{% if row.attendance_pct >= 95 %}#16a34a
-                        {% elif row.attendance_pct >= 80 %}#d97706
-                        {% else %}#dc2626{% endif %}">
+            <div class="bar-fill {% if row.attendance_pct >= 95 %}pf-success{% elif row.attendance_pct >= 80 %}pf-warning{% else %}pf-danger{% endif %}"
+                 style="--progress-w:{{ row.attendance_pct }}%">
             </div>
           </div>
           <span class="font-bold text-xs {% if row.attendance_pct >= 95 %}attend-high{% elif row.attendance_pct >= 80 %}attend-medium{% else %}attend-low{% endif %}">

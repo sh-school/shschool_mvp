@@ -187,7 +187,7 @@
         </div>
         <div class="domain-bar">
           <div class="domain-bar-fill {% if domain.completion_pct >= 80 %}green{% elif domain.completion_pct >= 50 %}amber{% else %}red{% endif %}"
-               style="width:{{ domain.completion_pct }}%"></div>
+               style="--progress-w:{{ domain.completion_pct }}%"></div>
         </div>
       </div>
       {% endwith %}

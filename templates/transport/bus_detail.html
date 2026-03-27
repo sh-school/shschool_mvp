@@ -60,7 +60,7 @@
           <span class="text-2xl font-extrabold text-maroon">{{ students.count }}</span>
         </div>
         <div class="progress-qatar">
-          <div class="progress-qatar-fill" style="width:{{ occupancy_rate }}%"></div>
+          <div class="progress-qatar-fill" style="--progress-w:{{ occupancy_rate }}%"></div>
         </div>
         <p class="text-xs text-muted mt-1">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
         {% if bus.gps_link %}

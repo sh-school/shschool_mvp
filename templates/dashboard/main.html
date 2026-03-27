@@ -39,7 +39,7 @@
     </span>
     {% endif %}
     <div class="progress-qatar mt-3">
-      <div class="progress-qatar-fill progress-fill-green" style="width:{{ attendance_pct }}%;"></div>
+      <div class="progress-qatar-fill progress-fill-green" style="--progress-w:{{ attendance_pct }}%"></div>
     </div>
   </div>
 
@@ -90,7 +90,7 @@
         {% if pass_pct >= 80 %}progress-fill-green
         {% elif pass_pct >= 60 %}progress-fill-amber
         {% else %}progress-fill-red{% endif %}"
-        style="width:{{ pass_pct }}%;">
+        style="--progress-w:{{ pass_pct }}%">
       </div>
     </div>
   </div>
@@ -509,7 +509,7 @@
     <div class="kpi-value kpi-color-green">{{ student_att_pct }}<span class="pct-unit">%</span></div>
     <div class="kpi-label">نسبة الحضور</div>
     <div class="progress-qatar mt-3">
-      <div class="progress-qatar-fill progress-fill-green" style="width:{{ student_att_pct }}%;"></div>
+      <div class="progress-qatar-fill progress-fill-green" style="--progress-w:{{ student_att_pct }}%"></div>
     </div>
   </div>
   <div class="kpi-card">

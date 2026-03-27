@@ -60,10 +60,8 @@
             <td>
               <div class="flex items-center gap-2">
                 <div class="progress-qatar flex-1">
-                  <div class="progress-qatar-fill" style="width:{{ item.occupancy_rate|floatformat:0 }}%;
-                    {% if item.occupancy_rate >= 90 %}background:var(--status-danger);
-                    {% elif item.occupancy_rate >= 70 %}background:var(--status-warning);
-                    {% else %}background:var(--status-success);{% endif %}"></div>
+                  <div class="progress-qatar-fill {% if item.occupancy_rate >= 90 %}pf-danger{% elif item.occupancy_rate >= 70 %}pf-warning{% else %}pf-success{% endif %}"
+                       style="--progress-w:{{ item.occupancy_rate|floatformat:0 }}%"></div>
                 </div>
                 <span class="text-xs font-semibold min-w-8">{{ item.occupancy_rate|floatformat:0 }}%</span>
               </div>

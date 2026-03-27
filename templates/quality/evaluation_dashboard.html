@@ -54,7 +54,7 @@
     </div>
     <div class="w-full bg-gray-100 rounded-full h-2">
       <div class="h-2 rounded-full {% if cs.completion_rate == 100 %}bg-green-500{% elif cs.completion_rate >= 50 %}bg-amber-400{% else %}bg-red-400{% endif %}"
-           style="width:{{ cs.completion_rate }}%"></div>
+           style="--progress-w:{{ cs.completion_rate }}%"></div>
     </div>
     <p class="text-xs text-gray-400 mt-1">الموعد النهائي: {{ cs.cycle.deadline }}</p>
   </div>

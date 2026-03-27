@@ -91,10 +91,8 @@
         {% else %}text-status-danger{% endif %}">{{ resolved_pct }}%</span>
     </div>
     <div class="progress-qatar h-2.5">
-      <div class="progress-qatar-fill" style="width:{{ resolved_pct }}%;
-        {% if resolved_pct >= 80 %}background:var(--status-success);
-        {% elif resolved_pct >= 50 %}background:var(--status-warning);
-        {% else %}background:var(--status-danger);{% endif %}"></div>
+      <div class="progress-qatar-fill {% if resolved_pct >= 80 %}pf-success{% elif resolved_pct >= 50 %}pf-warning{% else %}pf-danger{% endif %}"
+           style="--progress-w:{{ resolved_pct }}%"></div>
     </div>
   </div>
 

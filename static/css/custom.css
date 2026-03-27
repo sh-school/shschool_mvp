@@ -652,6 +652,18 @@ html.dark .section-header { background: var(--maroon-dark); }
 
 .progress-qatar-fill {
   height: 100%;
+  width: var(--progress-w, 0%);   /* CSS custom property — بديل inline style */
+  background: linear-gradient(90deg, var(--maroon-dark), var(--maroon-light));
+  border-radius: 4px;
+  transition: width .4s ease;
+}
+.progress-qatar-fill.pf-success { background: var(--status-success); }
+.progress-qatar-fill.pf-warning { background: var(--status-warning); }
+.progress-qatar-fill.pf-danger  { background: var(--status-danger);  }
+/* bar-fill — نفس النمط للتقارير */
+.bar-fill {
+  height: 100%;
+  width: var(--progress-w, 0%);
   background: linear-gradient(90deg, var(--maroon-dark), var(--maroon-light));
   border-radius: 4px;
   transition: width .4s ease;
@@ -3027,9 +3039,12 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 }
 .q-domain-card .domain-bar-fill {
   height: 100%;
+  width: var(--progress-w, 0%);
   border-radius: 99px;
   transition: width 0.4s;
 }
+/* generic utility for any dynamic bar using --progress-w */
+.w-dynamic { width: var(--progress-w, 0%); }
 .q-domain-card .domain-bar-fill.green { background: #16a34a; }
 .q-domain-card .domain-bar-fill.amber { background: #d97706; }
 .q-domain-card .domain-bar-fill.red   { background: #dc2626; }
@@ -3224,10 +3239,13 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 /* شريط تقدم مصغّر داخل الجدول */
 .mini-progress-wrap  { display: flex; align-items: center; gap: 0.5rem; }
 .mini-progress-track { flex: 1; height: 6px; background: #f3f4f6; border-radius: 99px; overflow: hidden; }
-.mini-progress-fill  { height: 100%; border-radius: 99px; }
+.mini-progress-fill  { height: 100%; width: var(--progress-w, 0%); border-radius: 99px; }
 .mini-progress-fill.green { background: #16a34a; }
 .mini-progress-fill.amber { background: #d97706; }
 .mini-progress-fill.red   { background: #dc2626; }
+.bar-fill.pf-success { background: var(--status-success); }
+.bar-fill.pf-warning { background: var(--status-warning); }
+.bar-fill.pf-danger  { background: var(--status-danger);  }
 .mini-progress-pct   { font-size: 0.72rem; font-weight: 700; min-width: 2rem; text-align: left; }
 
 /* زر الحذف */

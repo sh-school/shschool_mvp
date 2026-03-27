@@ -22,7 +22,7 @@
       <p class="text-blue-200 text-sm mt-1">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف · {{ domain.completion_pct }}% إنجاز</p>
     </div>
     <div class="h-2 bg-gray-100">
-      <div class="h-2 bg-blue-500" style="width:{{ domain.completion_pct }}%"></div>
+      <div class="h-2 bg-blue-500 w-dynamic" style="--progress-w:{{ domain.completion_pct }}%"></div>
     </div>
   </div>
 

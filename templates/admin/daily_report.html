@@ -55,7 +55,7 @@
   </div>
   <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
     <div class="h-full rounded-full transition-all {% if present_pct >= 85 %}bg-green-500{% elif present_pct >= 70 %}bg-yellow-500{% else %}bg-red-500{% endif %}"
-         style="width:{{ present_pct }}%"></div>
+         style="--progress-w:{{ present_pct }}%"></div>
   </div>
 </div>
 
