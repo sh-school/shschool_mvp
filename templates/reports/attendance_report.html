@@ -28,7 +28,7 @@
     <div class="label">إجمالي الطلاب</div>
   </div>
   <div class="stat-card">
-    <div class="value" style="color:#16a34a">
+    <div class="value text-green-600">
       {{ student_rows|length }}
     </div>
     <div class="label">طلاب لديهم بيانات</div>
@@ -39,7 +39,7 @@
   <thead>
     <tr>
       <th scope="col" style="width:4%">#</th>
-      <th scope="col" style="width:26%; text-align:right">اسم الطالب</th>
+      <th scope="col" style="width:26%" class="text-right">اسم الطالب</th>
       <th scope="col">الرقم الوطني</th>
       <th scope="col">إجمالي الحصص</th>
       <th scope="col">حاضر</th>
@@ -54,19 +54,19 @@
     {% for row in student_rows %}
     <tr>
       <td>{{ forloop.counter }}</td>
-      <td style="text-align:right; font-weight:600">{{ row.student.full_name }}</td>
+      <td class="text-right font-semibold">{{ row.student.full_name }}</td>
       <td>{{ row.student.national_id|default:"—" }}</td>
       <td>{{ row.total_sessions }}</td>
       <td>{{ row.present }}</td>
       <td>
-        <span {% if row.absent > 10 %}style="color:#dc2626;font-weight:700"{% endif %}>
+        <span {% if row.absent > 10 %}class="text-red-600 font-bold"{% endif %}>
           {{ row.absent }}
         </span>
       </td>
       <td>{{ row.late }}</td>
       <td>{{ row.excused }}</td>
       <td>
-        <div style="display:flex;align-items:center;gap:5px">
+        <div class="flex items-center gap-1">
           <div class="bar-bg">
             <div class="bar-fill" style="width:{{ row.attendance_pct }}%;
               background:{% if row.attendance_pct >= 95 %}#16a34a
@@ -74,10 +74,7 @@
                         {% else %}#dc2626{% endif %}">
             </div>
           </div>
-          <span style="font-weight:700;font-size:11px;
-            color:{% if row.attendance_pct >= 95 %}#16a34a
-                  {% elif row.attendance_pct >= 80 %}#d97706
-                  {% else %}#dc2626{% endif %}">
+          <span class="font-bold text-xs" style="color:{% if row.attendance_pct >= 95 %}#16a34a{% elif row.attendance_pct >= 80 %}#d97706{% else %}#dc2626{% endif %}">
             {{ row.attendance_pct }}%
           </span>
         </div>
@@ -93,7 +90,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="10" style="text-align:center;color:#888">لا توجد بيانات</td></tr>
+    <tr><td colspan="10" class="text-center text-gray-400">لا توجد بيانات</td></tr>
     {% endfor %}
   </tbody>
 </table>

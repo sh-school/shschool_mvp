@@ -101,7 +101,7 @@
 
           {# Section 3: رفع الدليل #}
           {% if task.evidence_request_status == 'requested' %}
-          <div class="q-view-only-notice" style="background:rgba(220,38,38,0.08);border-color:rgba(220,38,38,0.3);color:var(--status-danger-dark);">
+          <div class="q-view-only-notice q-view-only-notice--danger">
             {% include "components/icon.html" with name="alert-triangle" %}
             مطلوب رفع دليل من لجنة المراجعة
             {% if task.evidence_request_note %}
@@ -125,7 +125,7 @@
           {% endif %}
 
           {# Upload area #}
-          <label class="q-upload-area" for="evidence-file-input" role="button" tabindex="0" style="cursor:pointer">
+          <label class="q-upload-area cursor-pointer" for="evidence-file-input" role="button" tabindex="0">
             <input type="file" name="evidence_file" id="evidence-file-input" class="hidden"
                    onchange="document.getElementById('file-name-display').textContent = this.files[0] ? this.files[0].name : 'PDF, Word, Images (Max 10MB)'">
             <input type="text" name="evidence_title" placeholder="عنوان الدليل (اختياري)"

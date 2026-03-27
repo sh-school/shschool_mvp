@@ -44,8 +44,8 @@
       {% if recent_books %}
       <div>
         {% for book in recent_books %}
-        <div class="px-4 py-3" style="border-bottom:1px solid var(--border);">
-          <p class="text-sm font-semibold m-0 mb-1" style="color:var(--text-primary);">{{ book.title }}</p>
+        <div class="px-4 py-3 border-b">
+          <p class="text-sm font-semibold m-0 mb-1 text-primary">{{ book.title }}</p>
           <p class="text-xs text-secondary m-0 mb-1">{{ book.author }} — {{ book.category }}</p>
           <span class="status-badge {% if book.available_copies > 0 %}status-success{% else %}status-danger{% endif %}">
             {{ book.available_copies }} نسخة متاحة
@@ -66,9 +66,9 @@
       {% if recent_borrowings %}
       <div>
         {% for b in recent_borrowings %}
-        <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
+        <div class="flex items-center justify-between px-4 py-3 border-b">
           <div>
-            <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ b.user.full_name }}</p>
+            <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ b.user.full_name }}</p>
             <p class="text-xs text-secondary m-0">{{ b.book.title|truncatechars:30 }}</p>
           </div>
           <span class="status-badge

@@ -65,7 +65,7 @@
                     {% elif item.occupancy_rate >= 70 %}background:var(--status-warning);
                     {% else %}background:var(--status-success);{% endif %}"></div>
                 </div>
-                <span class="text-xs font-semibold" style="min-width:32px;">{{ item.occupancy_rate|floatformat:0 }}%</span>
+                <span class="text-xs font-semibold min-w-8">{{ item.occupancy_rate|floatformat:0 }}%</span>
               </div>
             </td>
             <td class="text-center">

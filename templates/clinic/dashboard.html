@@ -46,17 +46,17 @@
 
   {# ── Students sent home today ── #}
   {% if follow_up_visits %}
-  <div class="bg-status-warning-light rounded-xl p-5" style="border:1px solid var(--status-warning-border);">
-    <div class="card-header" style="border-color:var(--status-warning-border);">
-      <div class="card-header-icon" style="background:var(--status-warning-bg);color:var(--status-warning-dark);">{% include "components/icon.html" with name="alert-triangle" %}</div>
-      <h2 class="card-header-title" style="color:var(--status-warning-dark);">طلاب أُرسلوا للمنزل اليوم</h2>
+  <div class="bg-status-warning-light rounded-xl p-5 border border-status-warning">
+    <div class="card-header border-status-warning">
+      <div class="card-header-icon bg-status-warning-light text-status-warning-dark">{% include "components/icon.html" with name="alert-triangle" %}</div>
+      <h2 class="card-header-title text-status-warning-dark">طلاب أُرسلوا للمنزل اليوم</h2>
       <span class="status-badge status-warning">{{ follow_up_visits|length }}</span>
     </div>
     <div class="flex flex-col gap-2">
       {% for visit in follow_up_visits %}
-      <div class="bg-surface flex items-center justify-between gap-2 rounded-lg px-4 py-3" style="border:1px solid var(--status-warning-border);">
+      <div class="bg-surface flex items-center justify-between gap-2 rounded-lg px-4 py-3 border border-status-warning">
         <div>
-          <p class="font-semibold text-sm m-0 mb-1" style="color:var(--text-primary);">
+          <p class="font-semibold text-sm m-0 mb-1 text-primary">
             {{ visit.student.full_name }}
           </p>
           <p class="text-xs text-secondary m-0">{{ visit.reason }}</p>
@@ -72,17 +72,17 @@
 
   {# ── Recent visits ── #}
   <div class="table-wrap">
-    <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);background:var(--maroon);">
-      <h2 class="text-sm font-bold m-0" style="color:#fff;">آخر الزيارات</h2>
+    <div class="card-bar m-0 flex items-center justify-between">
+      <h2 class="text-sm font-bold m-0 text-white">آخر الزيارات</h2>
       <a href="{% url 'clinic:visits_list' %}"
-         class="text-xs no-underline" style="color:rgba(255,255,255,.8);">عرض الكل →</a>
+         class="text-xs no-underline text-white/80">عرض الكل →</a>
     </div>
     {% if recent_visits %}
     <div>
       {% for visit in recent_visits %}
-      <div class="flex items-center justify-between gap-2 px-4 py-3" style="border-bottom:1px solid var(--border);">
+      <div class="flex items-center justify-between gap-2 px-4 py-3 border-b">
         <div class="min-w-0">
-          <p class="text-sm font-semibold m-0 mb-1" style="color:var(--text-primary);">
+          <p class="text-sm font-semibold m-0 mb-1 text-primary">
             {{ visit.student.full_name }}
           </p>
           <p class="text-xs text-secondary m-0">

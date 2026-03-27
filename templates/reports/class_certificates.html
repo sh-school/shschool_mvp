@@ -44,12 +44,12 @@
 
       <div class="cert-header">
         <div class="school-name">{{ ctx.school.name }}</div>
-        <div style="font-size:12px;color:#64748b;">دولة قطر — وزارة التربية والتعليم والتعليم العالي</div>
+        <div class="text-xs text-slate-500">دولة قطر — وزارة التربية والتعليم والتعليم العالي</div>
       </div>
 
       <div class="cert-title">شهادة نتيجة دراسية</div>
 
-      <div class="cert-body" style="text-align:right;">
+      <div class="cert-body text-right">
         يُشهد بأن الطالب/ة:
         <span class="cert-student">{{ ctx.student.full_name }}</span>
         &nbsp;—&nbsp;
@@ -65,7 +65,7 @@
       <div class="cert-avg">{{ ctx.avg|default:"—" }}</div>
       <div class="cert-avg-label">المعدل السنوي (من 100)</div>
 
-      <div style="text-align:center;margin-bottom:10px;">
+      <div class="text-center mb-2.5">
         <span class="cert-status" style="background:{{ ctx.status_color }}20;color:{{ ctx.status_color }};border:1.5px solid {{ ctx.status_color }};">
           {{ ctx.final_status }}
         </span>
@@ -86,15 +86,15 @@
         <tbody>
           {% for r in ctx.rows %}
           <tr>
-            <td style="text-align:right;font-weight:600;">{{ r.subject_name }}</td>
+            <td class="text-right font-semibold">{{ r.subject_name }}</td>
             <td>{{ r.s1_total|default:"—" }}</td>
             <td>{{ r.s2_total|default:"—" }}</td>
             <td class="font-bold">{{ r.annual_total|default:"—" }}</td>
             <td>{{ r.letter_grade|default:"—" }}</td>
             <td>
-              {% if r.status == "pass" %}<span style="color:#15803d;font-weight:700;">ناجح</span>
-              {% elif r.status == "fail" %}<span style="color:#dc2626;font-weight:700;">راسب</span>
-              {% else %}<span style="color:#d97706;">—</span>{% endif %}
+              {% if r.status == "pass" %}<span class="text-green-700 font-bold">ناجح</span>
+              {% elif r.status == "fail" %}<span class="text-red-600 font-bold">راسب</span>
+              {% else %}<span class="text-amber-600">—</span>{% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -103,20 +103,20 @@
       {% endif %}
 
       {# التوقيعات — table بدل flex #}
-      <div style="margin-top:24px;">
-        <table style="width:100%;border:none;">
+      <div class="mt-6">
+        <table class="w-full border-none">
           <tr>
-            <td style="text-align:center;padding:0 16px;border:none;background:transparent;">
-              <div style="border-top:1.5px solid #334155;margin-bottom:5px;"></div>
-              <div style="font-size:11px;color:#475569;">ولي الأمر</div>
+            <td class="text-center px-4 border-none bg-transparent">
+              <div class="border-t-2 border-slate-700 mb-1"></div>
+              <div class="text-xs text-slate-600">ولي الأمر</div>
             </td>
-            <td style="text-align:center;padding:0 16px;border:none;background:transparent;">
-              <div style="border-top:1.5px solid #334155;margin-bottom:5px;"></div>
-              <div style="font-size:11px;color:#475569;">مدير المدرسة</div>
+            <td class="text-center px-4 border-none bg-transparent">
+              <div class="border-t-2 border-slate-700 mb-1"></div>
+              <div class="text-xs text-slate-600">مدير المدرسة</div>
             </td>
-            <td style="text-align:center;padding:0 16px;border:none;background:transparent;">
-              <div style="border-top:1.5px solid #334155;margin-bottom:5px;"></div>
-              <div style="font-size:11px;color:#475569;">وكيل شؤون التعليم</div>
+            <td class="text-center px-4 border-none bg-transparent">
+              <div class="border-t-2 border-slate-700 mb-1"></div>
+              <div class="text-xs text-slate-600">وكيل شؤون التعليم</div>
             </td>
           </tr>
         </table>
@@ -126,7 +126,7 @@
   </div>
 </div>
 {% empty %}
-<p style="text-align:center;color:#888;">لا توجد بيانات طلاب</p>
+<p class="text-center text-gray-400">لا توجد بيانات طلاب</p>
 {% endfor %}
 {% endblock %}
 

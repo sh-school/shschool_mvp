@@ -37,23 +37,23 @@
       <span class="pr-ring-label">الإنجاز الكلي</span>
     </div>
     <div class="pr-hero__kpis">
-      <div class="kpi-card text-center" style="padding:14px 10px;">
+      <div class="kpi-card text-center px-2.5 py-3.5">
         <div class="kpi-value text-maroon">{{ total_all }}</div>
         <div class="kpi-label">إجمالي الإجراءات</div>
       </div>
-      <div class="kpi-card text-center" style="padding:14px 10px;">
+      <div class="kpi-card text-center px-2.5 py-3.5">
         <div class="kpi-value text-green-700">{{ completed_all }}</div>
         <div class="kpi-label">مكتمل</div>
       </div>
-      <div class="kpi-card text-center" style="padding:14px 10px;">
+      <div class="kpi-card text-center px-2.5 py-3.5">
         <div class="kpi-value text-skyline">{{ in_progress_all }}</div>
         <div class="kpi-label">قيد التنفيذ</div>
       </div>
-      <div class="kpi-card text-center" style="padding:14px 10px;">
+      <div class="kpi-card text-center px-2.5 py-3.5">
         <div class="kpi-value text-skyline">{{ pending_review_all }}</div>
         <div class="kpi-label">بانتظار المراجعة</div>
       </div>
-      <div class="kpi-card text-center" style="padding:14px 10px;">
+      <div class="kpi-card text-center px-2.5 py-3.5">
         <div class="kpi-value text-maroon">{{ overdue_count }}</div>
         <div class="kpi-label">متأخرة</div>
       </div>
@@ -137,7 +137,7 @@
             <td class="text-xs text-secondary">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
             <td class="text-center text-xs text-secondary">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
             <td class="text-center">
-              <span class="status-badge text-xs" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;">{{ item.days_overdue }} يوم</span>
+              <span class="status-badge text-xs bg-red-100 text-red-800 border border-red-200">{{ item.days_overdue }} يوم</span>
             </td>
           </tr>
           {% endfor %}

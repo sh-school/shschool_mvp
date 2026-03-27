@@ -26,11 +26,11 @@
   <span class="text-3xl flex-shrink-0">{% include "components/icon.html" with name="download" %}</span>
   <div class="flex-1">
     <p class="font-bold text-sm m-0 mb-0.5">ثبّت تطبيق المدرسة</p>
-    <p class="text-xs m-0" style="color:rgba(255,255,255,.75);">وصول سريع بدون متصفح</p>
+    <p class="text-xs m-0 pwa-subtitle">وصول سريع بدون متصفح</p>
   </div>
   <button onclick="installPWA()" class="btn-secondary text-xs px-3 py-1 flex-shrink-0">تثبيت</button>
   <button onclick="document.getElementById('pwa-banner').style.display='none'"
-          style="background:none;border:none;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 4px;">{% include "components/icon.html" with name="x-circle" %}</button>
+          class="pwa-close-btn">{% include "components/icon.html" with name="x-circle" %}</button>
 </div>
 
 <div class="space-y-6">
@@ -42,7 +42,7 @@
       <p class="page-subtitle">{{ school.name }} — العام الدراسي {{ year }}</p>
     </div>
     <div class="page-actions">
-      <div style="display:flex;align-items:center;gap:6px;">
+      <div class="flex items-center gap-1.5">
         <span id="online-indicator"
               style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"
               title="متصل"></span>
@@ -76,26 +76,22 @@
   <div class="card-qatar p-0 overflow-hidden">
 
     {# Card header — gradient maroon → maroon-dark #}
-    <div style="background:linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
-                padding:20px 22px;display:flex;align-items:center;
-                justify-content:space-between;flex-wrap:wrap;gap:12px;">
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.18);
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:20px;font-weight:700;color:#fff;flex-shrink:0;">
+    <div class="child-card-header">
+      <div class="flex items-center gap-3.5">
+        <div class="child-avatar">
           {{ child.student.full_name|slice:":1" }}
         </div>
         <div>
-          <h2 style="color:#fff;font-size:17px;font-weight:700;margin:0 0 3px;">
+          <h2 class="child-name">
             {{ child.student.full_name }}
           </h2>
-          <p style="color:rgba(255,255,255,.75);font-size:12px;margin:0;">
+          <p class="child-meta">
             {% if child.enrollment %}{{ child.enrollment.class_group }}{% endif %}
             · {{ child.link.get_relationship_display }}
           </p>
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="flex gap-2 flex-wrap">
         {% if child.link.can_view_grades %}
         <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}"
            class="child-action-btn child-action-btn--solid">
@@ -112,8 +108,7 @@
     </div>
 
     {# ── Stats strip — 2 عمود على الجوال، 4 على الشاشات الأكبر ── #}
-    <div class="grid grid-cols-2 sm:grid-cols-4"
-         style="border-top:1px solid var(--border);">
+    <div class="grid grid-cols-2 sm:grid-cols-4 border-t border-[var(--border)]">
 
       <div class="p-4 text-center stat-cell">
         <div class="stat-value text-maroon">{{ child.total_subj }}</div>

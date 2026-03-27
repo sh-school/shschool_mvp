@@ -30,19 +30,19 @@
       <div class="label">المواد</div>
     </td>
     <td>
-      <div class="value" style="color:#16a34a">{{ passed }}</div>
+      <div class="value text-green-600">{{ passed }}</div>
       <div class="label">ناجح</div>
     </td>
     <td>
-      <div class="value" style="color:#dc2626">{{ failed }}</div>
+      <div class="value text-red-600">{{ failed }}</div>
       <div class="label">راسب</div>
     </td>
     <td>
-      <div class="value" style="color:#8A1538">{{ avg|default:"—" }}</div>
+      <div class="value text-maroon">{{ avg|default:"—" }}</div>
       <div class="label">المتوسط / 100</div>
     </td>
     <td>
-      <div class="value" style="color:#d97706">{{ absent_total }}</div>
+      <div class="value text-amber-600">{{ absent_total }}</div>
       <div class="label">غياب</div>
     </td>
     <td>
@@ -56,14 +56,14 @@
 <table>
   <thead>
     <tr>
-      <th scope="col" style="text-align:right;width:18%">المادة</th>
+      <th scope="col" style="width:18%" class="text-right">المادة</th>
       <th scope="col" colspan="2">الفصل الأول (من 40)</th>
       <th scope="col" colspan="2">الفصل الثاني (من 60)</th>
       <th scope="col">المجموع / 100</th>
       <th scope="col">التقدير</th>
       <th scope="col">الحالة</th>
     </tr>
-    <tr style="font-size:9px;background:#f8f0f3">
+    <tr class="text-[9px] bg-[#f8f0f3]">
       <th scope="col"></th>
       <th scope="col">الباقات</th><th scope="col">الإجمالي</th>
       <th scope="col">الباقات</th><th scope="col">الإجمالي</th>
@@ -73,7 +73,7 @@
   <tbody>
     {% for row in rows %}
     <tr>
-      <td style="text-align:right;font-weight:600">{{ row.subject }}</td>
+      <td class="text-right font-semibold">{{ row.subject }}</td>
       <td class="pkg">
         {% if row.s1 %}
           {% if row.s1.p1_score is not None %}ب١:{{ row.s1.p1_score }} {% endif %}
@@ -94,13 +94,7 @@
       <td class="font-bold">
         {% if row.s2 and row.s2.total %}{{ row.s2.total }}/{{ row.s2.semester_max }}{% else %}—{% endif %}
       </td>
-      <td style="font-size:14px;font-weight:700;
-        color:{% if row.annual and row.annual.annual_total %}
-          {% if row.annual.annual_total >= 90 %}#15803d
-          {% elif row.annual.annual_total >= 75 %}#1d4ed8
-          {% elif row.annual.annual_total >= 50 %}#d97706
-          {% else %}#dc2626{% endif %}
-        {% else %}#999{% endif %}">
+      <td class="text-sm font-bold" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 50 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
       <td class="font-bold">
@@ -116,7 +110,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="8" style="text-align:center;color:#888">لا توجد درجات</td></tr>
+    <tr><td colspan="8" class="text-center text-gray-400">لا توجد درجات</td></tr>
     {% endfor %}
   </tbody>
 </table>

@@ -269,7 +269,7 @@ td:has(.slot-empty) {
 
   {# ── Conflicts ── #}
   {% if conflicts %}
-  <div class="alert-strip" style="background:#fef2f2;border-color:#fecaca">
+  <div class="alert-strip bg-red-50 border-red-200">
     <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
     <strong>{{ conflicts|length }} تعارض:</strong>
     {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
@@ -324,9 +324,9 @@ td:has(.slot-empty) {
 
   {# ── Legend ── #}
   <div class="sched-legend">
-    <span><span class="legend-dot" style="background:#EEF2F9;border:1px solid #93c5fd;"></span> حصة مجدولة</span>
-    <span><span class="legend-dot" style="border:2px dashed #d1d5db;background:transparent;"></span> فارغ</span>
-    {% if conflicts %}<span class="font-semibold" style="color:#dc2626;">{% include "components/icon.html" with name="alert-triangle" %} تعارضات — راجع أعلاه</span>{% endif %}
+    <span><span class="legend-dot bg-blue-50 border border-blue-300"></span> حصة مجدولة</span>
+    <span><span class="legend-dot border-2 border-dashed border-gray-300 bg-transparent"></span> فارغ</span>
+    {% if conflicts %}<span class="font-semibold text-red-600">{% include "components/icon.html" with name="alert-triangle" %} تعارضات — راجع أعلاه</span>{% endif %}
   </div>
 
 </div>

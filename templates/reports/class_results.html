@@ -36,11 +36,11 @@
       <div class="label">إجمالي الطلاب</div>
     </td>
     <td>
-      <div class="value" style="color:#16a34a">{{ total_passed }}</div>
+      <div class="value text-green-600">{{ total_passed }}</div>
       <div class="label">ناجحون</div>
     </td>
     <td>
-      <div class="value" style="color:#dc2626">{{ total_failed }}</div>
+      <div class="value text-red-600">{{ total_failed }}</div>
       <div class="label">راسبون</div>
     </td>
     <td>
@@ -57,8 +57,8 @@
   <thead>
     <tr>
       <th scope="col" style="width:5%">ترتيب</th>
-      <th scope="col" style="width:22%;text-align:right">اسم الطالب</th>
-      {% for subj in subjects %}<th scope="col" style="font-size:9px">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
+      <th scope="col" style="width:22%" class="text-right">اسم الطالب</th>
+      {% for subj in subjects %}<th scope="col" class="text-[9px]">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
       <th scope="col">المتوسط</th>
       <th scope="col">الحالة</th>
     </tr>
@@ -67,7 +67,7 @@
     {% for row in student_rows %}
     <tr>
       <td><span class="rank-badge">{{ row.rank }}</span></td>
-      <td style="text-align:right;font-weight:600">{{ row.student.full_name }}</td>
+      <td class="text-right font-semibold">{{ row.student.full_name }}</td>
       {% for ann in row.grades_list %}
       <td>
         {% if ann and ann.annual_total %}
@@ -85,7 +85,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="20" style="text-align:center;color:#888">لا توجد بيانات</td></tr>
+    <tr><td colspan="20" class="text-center text-gray-400">لا توجد بيانات</td></tr>
     {% endfor %}
   </tbody>
 </table>

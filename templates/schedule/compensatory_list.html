@@ -30,13 +30,13 @@
   <div class="comp-header">
     <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-primary" style="text-decoration:none;padding:7px 16px;font-size:12.5px;">+ طلب تعويض</a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary no-underline px-4 py-2 text-xs">+ طلب تعويض</a>
     {% endif %}
   </div>
 
-  <div style="margin-bottom:12px">
-    <form method="get" style="display:inline">
-      <select name="status" onchange="this.form.submit()" style="padding:6px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:.8rem;font-family:inherit">
+  <div class="mb-3">
+    <form method="get" class="inline">
+      <select name="status" onchange="this.form.submit()" class="form-control px-2.5 py-1.5 rounded-md text-sm">
         <option value="">كل الحالات</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
@@ -48,7 +48,7 @@
   {% for comp in compensatory_sessions %}
   <div class="comp-card">
     <div class="comp-row">
-      <strong style="font-size:.9rem">{{ comp.teacher.full_name }}</strong>
+      <strong class="text-sm">{{ comp.teacher.full_name }}</strong>
       <span class="comp-badge {% if comp.status == 'completed' or comp.status == 'approved' %}approved{% elif comp.status == 'cancelled' or comp.status == 'expired' %}cancelled{% else %}pending{% endif %}">
         {{ comp.get_status_display }}
       </span>
@@ -78,7 +78,7 @@
   </div>
   {% empty %}
   <div class="empty-state">
-    <p style="font-size:2rem;margin-bottom:8px">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
+    <p class="text-3xl mb-2">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
     <p>لا توجد حصص تعويضية</p>
   </div>
   {% endfor %}

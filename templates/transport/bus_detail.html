@@ -56,7 +56,7 @@
 
       <div class="card-qatar">
         <div class="flex justify-between items-center mb-3">
-          <span class="text-sm font-bold" style="color:var(--text-primary);">إجمالي الطلاب</span>
+          <span class="text-sm font-bold text-primary">إجمالي الطلاب</span>
           <span class="text-2xl font-extrabold text-maroon">{{ students.count }}</span>
         </div>
         <div class="progress-qatar">
@@ -80,14 +80,14 @@
         <div class="card-bar m-0 rounded-t-xl flex justify-between items-center">
           <span>خطوط السير</span>
           <a href="{% url 'transport:create_route' bus.id %}"
-             class="text-xs font-semibold no-underline rounded-lg px-3 py-1" style="background:rgba(255,255,255,.2);color:#fff;">+ خط جديد</a>
+             class="text-xs font-semibold no-underline rounded-lg px-3 py-1 bg-white/20 text-white">+ خط جديد</a>
         </div>
         {% if routes %}
         <div class="p-0">
           {% for route in routes %}
-          <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
+          <div class="flex items-center justify-between px-4 py-3 border-b">
             <div>
-              <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ route.area_name }}</p>
+              <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ route.area_name }}</p>
               <p class="text-xs text-muted m-0">{{ route.students.count }} طالب</p>
             </div>
             <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon text-xs no-underline">تعديل</a>
@@ -107,8 +107,8 @@
         {% if students %}
         <div class="max-h-72 overflow-y-auto">
           {% for st in students %}
-          <div class="flex items-center justify-between px-4 py-2 text-sm" style="border-bottom:1px solid var(--border);">
-            <span style="color:var(--text-primary);">{{ st.full_name }}</span>
+          <div class="flex items-center justify-between px-4 py-2 text-sm border-b">
+            <span class="text-primary">{{ st.full_name }}</span>
           </div>
           {% endfor %}
         </div>

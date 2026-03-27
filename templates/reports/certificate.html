@@ -57,19 +57,19 @@
 <div class="cert-watermark">SchoolOS</div>
 
 <div class="cert-frame">
-  <p style="font-size:13px;color:#555;margin-bottom:14px">
+  <p class="text-sm text-gray-500 mb-3">
     تُشهد {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }} بأن الطالب:
   </p>
 
-  <div style="font-size:24px;font-weight:700;color:#1a1a1a;margin:10px 0">
+  <div class="text-2xl font-bold text-gray-900 my-2.5">
     {{ student.full_name }}
   </div>
-  <div style="font-size:12px;color:#666;margin-bottom:16px">
+  <div class="text-xs text-gray-500 mb-4">
     الرقم الوطني: {{ student.national_id|default:"—" }}
     {% if enrollment %} &nbsp;|&nbsp; الفصل: {{ enrollment.class_group }}{% endif %}
   </div>
 
-  <div style="border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb;padding:16px;margin:14px 0">
+  <div class="border-t border-b border-gray-200 p-4 my-3.5">
     <div class="cert-avg">{{ avg|default:"—" }}</div>
     <div class="cert-avg-lbl">المعدل السنوي من 100</div>
   </div>
@@ -80,7 +80,7 @@
     {{ final_status }}
   </div>
 
-  <p style="font-size:11px;color:#555;margin-top:14px">
+  <p class="text-xs text-gray-500 mt-3">
     اجتاز الطالب العام الدراسي {{ year }} بنتيجة
     <strong style="color:{{ status_color }}">{{ final_status }}</strong>
     في {{ total }} مادة دراسية، نجح في {{ passed }} منها.
@@ -88,10 +88,10 @@
 </div>
 
 {# ملخص المواد #}
-<table style="margin-top:14px">
+<table class="mt-3">
   <thead>
     <tr>
-      <th scope="col" style="text-align:right">المادة</th>
+      <th scope="col" class="text-right">المادة</th>
       <th scope="col">الفصل الأول / 40</th>
       <th scope="col">الفصل الثاني / 60</th>
       <th scope="col">المجموع / 100</th>
@@ -102,16 +102,10 @@
   <tbody>
     {% for row in rows %}
     <tr>
-      <td style="text-align:right;font-weight:600">{{ row.subject }}</td>
+      <td class="text-right font-semibold">{{ row.subject }}</td>
       <td>{% if row.annual and row.annual.s1_total %}{{ row.annual.s1_total }}{% else %}—{% endif %}</td>
       <td>{% if row.annual and row.annual.s2_total %}{{ row.annual.s2_total }}{% else %}—{% endif %}</td>
-      <td style="font-weight:700;
-        color:{% if row.annual and row.annual.annual_total %}
-          {% if row.annual.annual_total >= 90 %}#15803d
-          {% elif row.annual.annual_total >= 75 %}#1d4ed8
-          {% elif row.annual.annual_total >= 50 %}#d97706
-          {% else %}#dc2626{% endif %}
-        {% else %}#999{% endif %}">
+      <td class="font-bold" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 50 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
         {% if row.annual and row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}
       </td>
       <td class="font-bold">{% if row.annual %}{{ row.annual.letter_grade }}{% else %}—{% endif %}</td>

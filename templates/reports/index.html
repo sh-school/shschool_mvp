@@ -15,7 +15,7 @@
   </div>
   <div class="page-actions">
     <details class="report-student-search">
-      <summary class="btn-secondary btn-sm" style="cursor:pointer;list-style:none;">
+      <summary class="btn-secondary btn-sm cursor-pointer list-none">
         {% include "components/icon.html" with name="user" %} بحث طالب فردي
       </summary>
       <div class="report-student-dropdown">
@@ -57,7 +57,7 @@
 {# ── الفلاتر ── #}
 {% if tab != "behavior" %}
 <div class="filter-bar mb-4">
-  <select name="level" class="form-control" style="width:auto;min-width:140px;margin:0;"
+  <select name="level" class="form-control w-auto min-w-[140px] m-0"
           onchange="applyFilter('level', this.value)">
     <option value="">كل المراحل</option>
     {% for val, label in LEVELS %}
@@ -65,7 +65,7 @@
     {% endfor %}
   </select>
 
-  <select name="grade" class="form-control" style="width:auto;min-width:150px;margin:0;"
+  <select name="grade" class="form-control w-auto min-w-[150px] m-0"
           onchange="applyFilter('grade', this.value)">
     <option value="">كل الصفوف</option>
     {% for val, label in GRADES %}
@@ -86,8 +86,8 @@
 {# ── بطاقات الفصول ── #}
 {% if tab == "behavior" %}
   {# ── السلوك: بطاقة واحدة فقط ── #}
-  <div class="card-qatar" style="padding:0;overflow:hidden;">
-    <div class="card-bar" style="margin:0;border-radius:var(--radius-lg) var(--radius-lg) 0 0;font-size:15px;padding:14px 20px;">
+  <div class="card-qatar p-0 overflow-hidden">
+    <div class="card-bar m-0 rounded-t-lg text-[15px] py-3.5 px-5">
       {% include "components/icon.html" with name="scale" %} كشف المخالفات السلوكية
     </div>
     <div class="flex items-center justify-between p-5">

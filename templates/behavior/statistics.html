@@ -42,13 +42,13 @@
     <div class="card-qatar p-0 overflow-hidden">
       <div class="card-bar m-0 rounded-t-xl">أكثر الطلاب مخالفة</div>
       {% for s in top_students %}
-      <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
+      <div class="flex items-center justify-between px-4 py-3 border-b">
         <div>
-          <p class="text-sm font-semibold m-0 mb-0.5" style="color:var(--text-primary);">{{ s.student__full_name }}</p>
+          <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
           <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-sm font-bold" style="color:var(--text-primary);">{{ s.count }}</span>
+          <span class="text-sm font-bold text-primary">{{ s.count }}</span>
           <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
         </div>
       </div>
@@ -63,13 +63,13 @@
     <div class="card-qatar p-0 overflow-hidden">
       <div class="card-bar m-0 rounded-t-xl">التوزيع الشهري</div>
       {% for m in monthly %}
-      <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid var(--border);">
-        <p class="text-sm m-0" style="color:var(--text-primary);">{{ m.month|date:"F Y" }}</p>
+      <div class="flex items-center justify-between px-4 py-3 border-b">
+        <p class="text-sm m-0 text-primary">{{ m.month|date:"F Y" }}</p>
         <div class="flex items-center gap-2">
           <div class="progress-qatar w-20">
             <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
           </div>
-          <span class="text-sm font-semibold text-left" style="color:var(--text-primary);min-width:24px;">{{ m.count }}</span>
+          <span class="text-sm font-semibold text-left text-primary min-w-6">{{ m.count }}</span>
         </div>
       </div>
       {% empty %}
@@ -84,13 +84,13 @@
   {# ── نسبة الحل ── #}
   <div class="card-qatar">
     <div class="flex items-center justify-between mb-2">
-      <span class="text-sm font-semibold" style="color:var(--text-primary);">نسبة حل المخالفات الجسيمة</span>
-      <span style="font-size:20px;font-weight:800;
-        {% if resolved_pct >= 80 %}color:var(--status-success);
-        {% elif resolved_pct >= 50 %}color:var(--status-warning);
-        {% else %}color:var(--status-danger);{% endif %}">{{ resolved_pct }}%</span>
+      <span class="text-sm font-semibold text-primary">نسبة حل المخالفات الجسيمة</span>
+      <span class="text-xl font-extrabold
+        {% if resolved_pct >= 80 %}text-status-success
+        {% elif resolved_pct >= 50 %}text-status-warning
+        {% else %}text-status-danger{% endif %}">{{ resolved_pct }}%</span>
     </div>
-    <div class="progress-qatar" style="height:10px;">
+    <div class="progress-qatar h-2.5">
       <div class="progress-qatar-fill" style="width:{{ resolved_pct }}%;
         {% if resolved_pct >= 80 %}background:var(--status-success);
         {% elif resolved_pct >= 50 %}background:var(--status-warning);

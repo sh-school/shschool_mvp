@@ -44,9 +44,9 @@
   {# ── بطاقة أولياء الأمور ── #}
   {% if parents_info %}
   <div class="table-wrap">
-    <div class="flex items-center gap-2 px-4 py-3" style="border-bottom:1px solid var(--border);background:var(--surface-alt);">
+    <div class="flex items-center gap-2 px-4 py-3 border-b bg-surface-alt">
       <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="waypoints" %}</div>
-      <h3 class="text-sm font-bold m-0" style="color:var(--text-primary);">أولياء الأمور — سيستلمون الإشعار</h3>
+      <h3 class="text-sm font-bold m-0 text-primary">أولياء الأمور — سيستلمون الإشعار</h3>
       <span class="status-badge status-maroon ms-auto">{{ parents_info|length }}</span>
     </div>
     <div class="overflow-x-auto">
@@ -85,7 +85,7 @@
     </div>
   </div>
   {% else %}
-  <div class="rounded-lg p-3" style="background:var(--status-danger-bg);border:1px solid var(--status-danger-border);">
+  <div class="rounded-lg p-3 alert-danger-box">
     <p class="text-sm text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} لا يوجد أولياء أمور مربوطين بهذا الطالب — لن يتم إرسال إشعار.</p>
   </div>
   {% endif %}
@@ -140,7 +140,7 @@
               <label class="form-label">درجة الاستعجال</label>
               <div class="flex gap-2 mt-1">
                 {% for val, label in urgency_levels %}
-                <label class="flex items-center gap-1 rounded-lg px-3 py-2 cursor-pointer text-sm" style="border:1.5px solid var(--border-strong);background:var(--surface-alt);transition:border-color .12s,background .12s;">
+                <label class="radio-pill flex items-center gap-1 rounded-lg px-3 py-2 cursor-pointer text-sm">
                   <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}
                          style="accent-color:var(--maroon);">
                   {{ label }}
@@ -179,11 +179,11 @@
             </div>
           </div>
           <input type="text" name="meeting_place_other" id="meetingPlaceOther"
-                 placeholder="حدد المكان..." style="display:none;margin-bottom:16px;"
-                 class="form-control">
+                 placeholder="حدد المكان..." style="display:none;"
+                 class="form-control mb-4">
 
           {# تنبيه #}
-          <div class="status-badge status-maroon flex items-start gap-2 p-3 rounded-lg text-sm mb-5" style="white-space:normal;">
+          <div class="status-badge status-maroon flex items-start gap-2 p-3 rounded-lg text-sm mb-5 whitespace-normal">
             {% include "components/icon.html" with name="alert-triangle" %} سيتم إرسال إشعار فوري لولي الأمر عبر: <strong>المنصة</strong>، <strong>الرسائل النصية</strong>، <strong>البريد الإلكتروني</strong>.
           </div>
 
@@ -206,7 +206,7 @@
           <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="user" %}</div>
           <h3 class="card-header-title text-sm">مرسل الاستدعاء</h3>
         </div>
-        <div class="text-sm font-semibold" style="color:var(--text-primary);">{{ sender.full_name }}</div>
+        <div class="text-sm font-semibold text-primary">{{ sender.full_name }}</div>
         {% if sender.get_role_display %}
         <div class="text-xs text-secondary mt-1">
           <span class="status-badge status-maroon">{{ sender.get_role_display }}</span>

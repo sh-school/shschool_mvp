@@ -93,10 +93,10 @@
             </span>
           </td>
           <td class="text-center">
-            <span style="font-weight:700;
-              {% if g.quality_score >= 80 %}color:var(--status-success);
-              {% elif g.quality_score >= 60 %}color:var(--status-warning);
-              {% else %}color:var(--status-danger);{% endif %}">
+            <span class="font-bold
+              {% if g.quality_score >= 80 %}text-[var(--status-success)]
+              {% elif g.quality_score >= 60 %}text-[var(--status-warning)]
+              {% else %}text-[var(--status-danger)]{% endif %}">
               {{ g.quality_score|floatformat:0 }}%
             </span>
           </td>

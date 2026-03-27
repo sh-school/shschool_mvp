@@ -20,23 +20,23 @@
 
 {# ── KPI Cards ── #}
 <div class="grid grid-cols-3 gap-3 mb-6">
-  <div class="kpi-card" style="--kpi-color:var(--maroon);">
-    <div class="kpi-value" style="color:var(--maroon);">{{ total_count }}</div>
+  <div class="kpi-card">
+    <div class="kpi-value text-maroon">{{ total_count }}</div>
     <div class="kpi-label">إجمالي الارتباطات</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" style="color:var(--skyline);">{{ parent_count }}</div>
+    <div class="kpi-value text-skyline">{{ parent_count }}</div>
     <div class="kpi-label">أولياء أمور مرتبطون</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value" style="color:var(--palm);">{{ student_count }}</div>
+    <div class="kpi-value text-palm">{{ student_count }}</div>
     <div class="kpi-label">طلاب مرتبطون</div>
   </div>
 </div>
 
 {# ── إضافة ربط جديد (قابل للطي) ── #}
 <details class="card-qatar mb-6">
-  <summary class="card-header" style="cursor:pointer;list-style:none;user-select:none;">
+  <summary class="card-header cursor-pointer list-none select-none">
     <div class="card-header-icon">+</div>
     <h2 class="card-header-title flex-1 m-0">إضافة ربط جديد</h2>
     <span class="text-muted text-xs" aria-hidden="true">▼</span>
@@ -57,9 +57,9 @@
           {% endfor %}
         </select>
         {% if not parents %}
-        <p class="form-hint" style="color:#d97706;">
+        <p class="form-hint text-amber-600">
           لا يوجد مستخدمون بدور "ولي أمر".
-          <a href="/admin/core/customuser/" style="color:var(--maroon);text-decoration:underline;">أضف من لوحة الإدارة</a>
+          <a href="/admin/core/customuser/" class="text-maroon underline">أضف من لوحة الإدارة</a>
         </p>
         {% endif %}
       </div>
@@ -99,12 +99,11 @@
      id="links-filters">
 
   {# بحث نصي — HTMX live #}
-  <div class="flex-1" style="min-width:200px;">
+  <div class="flex-1 min-w-[200px]">
     <input type="text" name="q" id="links-search"
            value="{{ search }}"
            placeholder="بحث باسم الطالب أو ولي الأمر أو الرقم الوطني..."
-           class="form-control"
-           style="width:100%;margin:0;"
+           class="form-control w-full m-0"
            hx-get="{{ request.path }}"
            hx-trigger="input changed delay:300ms, search"
            hx-target="#links-container"
@@ -116,7 +115,7 @@
 
   {# فلتر صلة القرابة #}
   <select name="rel" id="rel-filter"
-          class="form-control" style="width:auto;min-width:140px;margin:0;"
+          class="form-control w-auto min-w-[140px] m-0"
           hx-get="{{ request.path }}"
           hx-trigger="change"
           hx-target="#links-container"
