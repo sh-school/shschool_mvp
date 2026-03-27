@@ -1,4 +1,11 @@
 {
+  "name": "schoolos-frontend",
+  "private": true,
+  "scripts": {
+    "tw:watch": "tailwindcss -c tailwind.config.js -i static/css/tailwind_input.css -o static/css/tailwind.min.css --watch",
+    "tw:build": "tailwindcss -c tailwind.config.js -i static/css/tailwind_input.css -o static/css/tailwind.min.css --minify",
+    "postinstall": "npm run tw:build"
+  },
   "devDependencies": {
     "tailwindcss": "^3.4.19"
   }
