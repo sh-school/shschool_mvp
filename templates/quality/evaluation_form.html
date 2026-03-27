@@ -36,7 +36,7 @@
           <div class="flex items-center gap-3">
             <input type="range" name="{{ field_name }}" min="0" max="{{ max_val }}"
                    value="{% if field_name == 'axis_professional' %}{{ obj.axis_professional }}{% elif field_name == 'axis_commitment' %}{{ obj.axis_commitment }}{% elif field_name == 'axis_teamwork' %}{{ obj.axis_teamwork }}{% elif field_name == 'axis_development' %}{{ obj.axis_development }}{% else %}0{% endif %}"
-                   class="flex-1 accent-[#8A1538]"
+                   class="flex-1 accent-adaam"
                    oninput="this.nextElementSibling.textContent=this.value">
             <span class="text-lg font-bold text-maroon w-8 text-center">
               {% if field_name == 'axis_professional' %}{{ obj.axis_professional }}{% elif field_name == 'axis_commitment' %}{{ obj.axis_commitment }}{% elif field_name == 'axis_teamwork' %}{{ obj.axis_teamwork }}{% elif field_name == 'axis_development' %}{{ obj.axis_development }}{% else %}0{% endif %}
@@ -78,15 +78,15 @@
       {# ── الملاحظات النصية ── #}
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">نقاط القوة</label>
-        <textarea name="strengths" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8A1538]">{{ obj.strengths }}</textarea>
+        <textarea name="strengths" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-maroon">{{ obj.strengths }}</textarea>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">مجالات التطوير</label>
-        <textarea name="improvements" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8A1538]">{{ obj.improvements }}</textarea>
+        <textarea name="improvements" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-maroon">{{ obj.improvements }}</textarea>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">أهداف الفترة القادمة</label>
-        <textarea name="goals_next" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8A1538]">{{ obj.goals_next }}</textarea>
+        <textarea name="goals_next" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-maroon">{{ obj.goals_next }}</textarea>
       </div>
 
       {# ── تعليق الموظف (قراءة فقط إذا أقرّ) ── #}
