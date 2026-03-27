@@ -1435,6 +1435,7 @@ textarea:focus-visible {
 /* ── HTMX States ───────────────────────────────────────────── */
 .htmx-indicator          { display: none; }
 .htmx-request            .htmx-indicator  { display: inline-block; }
+.htmx-request.htmx-indicator             { display: inline-block; }
 .htmx-swapping           { opacity: 0; transition: opacity var(--transition-base); }
 .htmx-added              { animation: fadeInUp .2s ease; }
 .htmx-request            { position: relative; }
