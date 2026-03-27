@@ -208,7 +208,7 @@ def student_grades(request, student_id):
 
     semester_results = StudentSubjectResult.objects.filter(
         student=student, setup__in=[a.setup_id for a in annual]
-    )
+    ).select_related("setup__subject")  # تجنب N+1 عند الوصول لاسم المادة
     semester_map = {(r.student_id, r.setup_id, r.semester): r for r in semester_results}
 
     grades = [float(a.annual_total) for a in annual if a.annual_total]
@@ -709,7 +709,7 @@ def parent_child_grades(request, student_id):
 
     semester_results = StudentSubjectResult.objects.filter(
         student=student, setup__in=[a.setup_id for a in annual]
-    )
+    ).select_related("setup__subject")  # تجنب N+1 عند الوصول لاسم المادة
     semester_map = {(r.student_id, r.setup_id, r.semester): r for r in semester_results}
 
     return Response(

@@ -8,6 +8,7 @@ api/permissions.py
 from rest_framework.permissions import BasePermission
 
 from core.models.access import ADMIN_ROLES, ALL_STAFF_ROLES, LEADERSHIP
+from core.models import ParentStudentLink
 
 
 class IsSchoolAdmin(BasePermission):
@@ -73,6 +74,26 @@ class IsParentOrAdmin(BasePermission):
             or request.user.is_superuser
             or request.user.has_role("parent")
         )
+
+    def has_object_permission(self, request, view, obj):
+        """
+        دفاع عميق (defense-in-depth):
+        المدير/superuser يمر مباشرة.
+        ولي الأمر يجب أن يملك رابط ParentStudentLink نشط مع الطالب.
+        الكائن obj يجب أن يكون طالب (CustomUser) أو يملك خاصية student.
+        """
+        # ── المدير يمر بدون قيد ──
+        if request.user.is_superuser or request.user.is_admin():
+            return True
+
+        # ── تحديد الطالب من الكائن ──
+        student = getattr(obj, "student", obj)
+
+        # ── التحقق من وجود رابط ولي أمر نشط ──
+        return ParentStudentLink.objects.filter(
+            parent=request.user,
+            student=student,
+        ).exists()
 
 
 class IsSameDepartment(BasePermission):

@@ -49,6 +49,20 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         null=True, blank=True, verbose_name="تاريخ إعطاء الموافقة"
     )
 
+    # ── v6: الرخصة المهنية — نظام الرخص المهنية (قطر) ──────────────
+    professional_license_number = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="رقم الرخصة المهنية",
+        help_text="رقم الرخصة الصادرة من وزارة التعليم والتعليم العالي",
+    )
+    professional_license_expiry = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="تاريخ انتهاء الرخصة المهنية",
+    )
+
     # ── v5.1.1: HMAC + Fernet encryption for national_id (PDPPL) ──
     national_id_encrypted = models.TextField(
         blank=True,

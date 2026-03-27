@@ -43,6 +43,7 @@ class AuditLog(models.Model):
         ("BookBorrowing", "إعارة كتاب"),
         ("ConsentRecord", "سجل موافقة"),
         ("StudentAssessmentGrade", "درجة تقييم"),
+        ("StaffEvaluation", "تقييم أداء موظف"),
         ("other", "أخرى"),
     ]
 

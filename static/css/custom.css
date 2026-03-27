@@ -209,7 +209,11 @@ html[lang="ar"] {
 
 /* (variables merged into :root above) */
 
-/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ───── */
+/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ─────
+ * unicode-range يمنع تحميل الخط إلا عند الحاجة الفعلية
+ * Arabic: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF
+ * Latin:  U+0000-007F (Basic Latin — أرقام + حروف إنجليزية)
+ * ────────────────────────────────────────────────────────── */
 @font-face {
   font-family: 'Tajawal';
   src: url('../fonts/Tajawal-Regular.woff2') format('woff2'),
@@ -217,6 +221,8 @@ html[lang="ar"] {
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 @font-face {
   font-family: 'Tajawal';
@@ -225,6 +231,8 @@ html[lang="ar"] {
   font-weight: 500;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 @font-face {
   font-family: 'Tajawal';
@@ -233,6 +241,33 @@ html[lang="ar"] {
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+
+/* ── خط Amiri — للجداول فقط (var(--q-font-data)) ──────────
+ * يُحمَّل فقط عند عرض عنصر يستخدم font-family: Amiri فعلاً
+ * unicode-range يقلل الحجم من 759KB إلى ~120KB
+ * ────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Amiri';
+  src: url('../fonts/Amiri-Regular.woff2') format('woff2'),
+       url('../fonts/Amiri-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Amiri';
+  src: url('../fonts/Amiri-Bold.woff2') format('woff2'),
+       url('../fonts/Amiri-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 
 body {

@@ -721,3 +721,187 @@ class FreeSlotRegistry(models.Model):
         day = dict(ScheduleSlot.DAYS).get(self.day_of_week, "")
         avail = "متاح" if self.is_available else "محجوز"
         return f"{self.teacher.full_name} | {day} ح{self.period_number} | {avail}"
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تقييم أداء الموظفين — قرار مجلس الوزراء 32/2019 المادة 15
+# التقييم السنوي للأداء الوظيفي وفق المعايير الخمسة المعتمدة
+# ═════════════════════════════════════════════════════════════════════
+
+
+class StaffEvaluation(models.Model):
+    """
+    تقييم الأداء السنوي للموظف — قرار مجلس الوزراء 32/2019 م.15
+
+    المعايير الخمسة (كل منها 1-5):
+        1. المعرفة المهنية
+        2. فاعلية التدريس
+        3. تقييم الطلاب
+        4. التطوير المهني
+        5. المجتمع المدرسي
+
+    الدرجة الكلية = متوسط المعايير الخمسة (محسوبة تلقائياً)
+    """
+
+    RECOMMENDATION_CHOICES = [
+        ("excellent", "ممتاز"),
+        ("very_good", "جيد جداً"),
+        ("good", "جيد"),
+        ("acceptable", "مقبول"),
+        ("needs_improvement", "يحتاج تحسين"),
+        ("unsatisfactory", "غير مُرضٍ"),
+    ]
+    STATUS_CHOICES = [
+        ("draft", "مسودة"),
+        ("submitted", "مُقدَّم"),
+        ("approved", "معتمد"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+
+    # ── الأطراف ────────────────────────────────────────────────────
+    staff = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="evaluations_as_staff",
+        verbose_name="الموظف",
+    )
+    evaluator = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="evaluations_as_evaluator",
+        verbose_name="المقيّم",
+    )
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="staff_evaluations",
+        verbose_name="المدرسة",
+    )
+
+    # ── الفترة ─────────────────────────────────────────────────────
+    academic_year = models.CharField(
+        max_length=9,
+        default=settings.CURRENT_ACADEMIC_YEAR,
+        verbose_name="العام الأكاديمي",
+        db_index=True,
+    )
+    evaluation_date = models.DateField(verbose_name="تاريخ التقييم")
+
+    # ── المعايير الخمسة (1-5) ──────────────────────────────────────
+    professional_knowledge = models.PositiveSmallIntegerField(
+        verbose_name="المعرفة المهنية",
+        help_text="1 = ضعيف، 5 = ممتاز",
+    )
+    teaching_effectiveness = models.PositiveSmallIntegerField(
+        verbose_name="فاعلية التدريس",
+        help_text="1 = ضعيف، 5 = ممتاز",
+    )
+    student_assessment = models.PositiveSmallIntegerField(
+        verbose_name="تقييم الطلاب",
+        help_text="1 = ضعيف، 5 = ممتاز",
+    )
+    professional_development = models.PositiveSmallIntegerField(
+        verbose_name="التطوير المهني",
+        help_text="1 = ضعيف، 5 = ممتاز",
+    )
+    school_community = models.PositiveSmallIntegerField(
+        verbose_name="المجتمع المدرسي",
+        help_text="1 = ضعيف، 5 = ممتاز",
+    )
+
+    # ── النتيجة ────────────────────────────────────────────────────
+    overall_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        verbose_name="الدرجة الكلية",
+        help_text="متوسط المعايير الخمسة — يُحسب تلقائياً عند الحفظ",
+        editable=False,
+    )
+    recommendation = models.CharField(
+        max_length=20,
+        choices=RECOMMENDATION_CHOICES,
+        verbose_name="التوصية",
+    )
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+
+    # ── الحالة ─────────────────────────────────────────────────────
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="draft",
+        verbose_name="الحالة",
+        db_index=True,
+    )
+
+    # ── الطوابع الزمنية ───────────────────────────────────────────
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
+
+    class Meta:
+        verbose_name = "تقييم أداء موظف"
+        verbose_name_plural = "تقييمات أداء الموظفين"
+        ordering = ["-evaluation_date"]
+        indexes = [
+            models.Index(fields=["school", "academic_year"]),
+            models.Index(fields=["staff", "academic_year"]),
+            models.Index(fields=["evaluator", "academic_year"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["staff", "academic_year", "school"],
+                name="unique_staff_evaluation_per_year",
+            ),
+            # كل معيار بين 1 و 5
+            models.CheckConstraint(
+                check=models.Q(professional_knowledge__gte=1, professional_knowledge__lte=5),
+                name="eval_knowledge_range_1_5",
+            ),
+            models.CheckConstraint(
+                check=models.Q(teaching_effectiveness__gte=1, teaching_effectiveness__lte=5),
+                name="eval_teaching_range_1_5",
+            ),
+            models.CheckConstraint(
+                check=models.Q(student_assessment__gte=1, student_assessment__lte=5),
+                name="eval_assessment_range_1_5",
+            ),
+            models.CheckConstraint(
+                check=models.Q(professional_development__gte=1, professional_development__lte=5),
+                name="eval_development_range_1_5",
+            ),
+            models.CheckConstraint(
+                check=models.Q(school_community__gte=1, school_community__lte=5),
+                name="eval_community_range_1_5",
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"تقييم: {self.staff.full_name} | {self.academic_year} "
+            f"| {self.get_recommendation_display()} ({self.overall_score})"
+        )
+
+    def save(self, *args, **kwargs):
+        """حساب الدرجة الكلية تلقائياً قبل الحفظ."""
+        from decimal import Decimal
+
+        criteria = [
+            self.professional_knowledge,
+            self.teaching_effectiveness,
+            self.student_assessment,
+            self.professional_development,
+            self.school_community,
+        ]
+        self.overall_score = Decimal(str(round(sum(criteria) / len(criteria), 2)))
+        super().save(*args, **kwargs)
+
+    @property
+    def criteria_dict(self):
+        """يُعيد المعايير كقاموس — مفيد للعرض والتقارير."""
+        return {
+            "المعرفة المهنية": self.professional_knowledge,
+            "فاعلية التدريس": self.teaching_effectiveness,
+            "تقييم الطلاب": self.student_assessment,
+            "التطوير المهني": self.professional_development,
+            "المجتمع المدرسي": self.school_community,
+        }
