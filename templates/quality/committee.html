@@ -25,10 +25,10 @@
 
   {# ══ Add Member Form ═══════════════════════════════════════ #}
   <div class="q-add-form">
-    <div class="q-add-form-header" onclick="toggleForm()">
+    <button type="button" class="q-add-form-header" onclick="toggleForm()">
       <span>{% include "components/icon.html" with name="plus" %} إضافة عضو جديد للجنة</span>
       <span id="form-toggle-icon" class="toggle-icon">＋</span>
-    </div>
+    </button>
     <div id="add-form" class="q-add-form-body" style="display:none">
       <form method="post" action="{% url 'add_committee_member' %}">
         {% csrf_token %}

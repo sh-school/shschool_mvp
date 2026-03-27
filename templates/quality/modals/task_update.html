@@ -125,7 +125,7 @@
           {% endif %}
 
           {# Upload area #}
-          <div class="q-upload-area" onclick="document.getElementById('evidence-file-input').click()">
+          <label class="q-upload-area" for="evidence-file-input" role="button" tabindex="0" style="cursor:pointer">
             <input type="file" name="evidence_file" id="evidence-file-input" class="hidden"
                    onchange="document.getElementById('file-name-display').textContent = this.files[0] ? this.files[0].name : 'PDF, Word, Images (Max 10MB)'">
             <input type="text" name="evidence_title" placeholder="عنوان الدليل (اختياري)"
@@ -136,7 +136,7 @@
             </div>
             <p class="info-value">اضغط لرفع الدليل</p>
             <p class="info-label" id="file-name-display">PDF, Word, Images (Max 10MB)</p>
-          </div>
+          </label>
         </div>
 
         {# ═══ Footer ═══ #}

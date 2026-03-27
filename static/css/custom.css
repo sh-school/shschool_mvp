@@ -1052,7 +1052,7 @@ tr.active {
   color: var(--text-primary);
   margin-bottom: 6px;
 }
-.form-label .required { color: #dc2626; margin-right: 3px; }
+.form-label .required { color: #dc2626; margin-inline-end: 3px; }
 .form-control {
   width: 100%;
   padding: 10px 14px;
@@ -2948,7 +2948,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   text-overflow: ellipsis;
 }
 .domain-card-meta  { font-size: 12.5px; color: var(--text-secondary); margin: 0; }
-.domain-card-stats { text-align: center; margin-right: 20px; flex-shrink: 0; }
+.domain-card-stats { text-align: center; margin-inline-end: 20px; flex-shrink: 0; }
 .domain-card-pct   { font-size: 24px; font-weight: 800; margin: 0; }
 .domain-card-sub   { font-size: 11px; color: var(--text-muted); margin: 0; }
 .domain-card-bar   { height: 4px; background: #f1f5f9; }
@@ -2984,7 +2984,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .proc-list-meta   { font-size: 11.5px; color: var(--text-muted); margin: 0; }
 .proc-badge-overdue {
   display: inline-block;
-  margin-right: 6px;
+  margin-inline-end: 6px;
   padding: 1px 7px;
   background: #fef2f2;
   color: #dc2626;
@@ -3026,7 +3026,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 
 /* status badge inline */
-.status-badge--inline { flex-shrink: 0; margin-right: 12px; }
+.status-badge--inline { flex-shrink: 0; margin-inline-end: 12px; }
 
 /* ── 14. Committee & table helpers ──────────────────────────── */
 
