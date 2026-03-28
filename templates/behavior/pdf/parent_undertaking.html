@@ -24,8 +24,10 @@
       <td class="fv">{{ infraction.student.national_id }}</td>
     </tr>
     <tr>
-      <td class="fl">الصف / الفصل:</td>
-      <td class="fv" colspan="3">{{ class_name|default:"_____________" }}</td>
+      <td class="fl">الصف:</td>
+      <td class="fv">{{ student_grade|default:"—" }}</td>
+      <td class="fl">الشعبة:</td>
+      <td class="fv">{{ student_section|default:"—" }}</td>
     </tr>
   </table>
 </div>

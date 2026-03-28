@@ -517,18 +517,15 @@ class BehaviorService:
         school = infraction.school
         student = infraction.student
 
-        try:
-            enrollment = (
-                StudentEnrollment.objects.filter(
-                    student=student, class_group__school=school, is_active=True
-                )
-                .select_related("class_group")
-                .first()
+        enrollment = (
+            StudentEnrollment.objects.filter(
+                student=student, class_group__school=school, is_active=True
             )
-            class_name = enrollment.class_group.name if enrollment else None
-        except (ValueError, TypeError, AttributeError) as e:
-            logger.warning("get_infraction_context: enrollment query failed: %s", e)
-            class_name = None
+            .select_related("class_group")
+            .first()
+        )
+        cg = enrollment.class_group if enrollment else None
+        class_name = str(cg) if cg else None
 
         try:
             link = (
@@ -545,11 +542,13 @@ class BehaviorService:
             "infraction": infraction,
             "school": school,
             "class_name": class_name,
+            "student_grade": cg.get_grade_display() if cg else None,
+            "student_section": cg.section if cg else None,
             "infraction_count": infraction_count,
             "academic_year": settings.CURRENT_ACADEMIC_YEAR,
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
-            "parent_id": parent.username if parent else None,
+            "parent_id": parent.national_id if parent else None,
             "parent_phone": getattr(parent, "phone", None) if parent else None,
             "parent_email": parent.email if parent else None,
         }

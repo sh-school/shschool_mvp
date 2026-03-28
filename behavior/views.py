@@ -499,8 +499,9 @@ def behavior_statistics(request):
         student_ids = get_teacher_student_ids(request.user)
         stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
     else:
-        # القيادة ولجنة الضبط → كل طلاب المدرسة
-        if not BehaviorPermissions.is_committee(request.user):
+        # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
+        _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
+        if role not in _full_access and not request.user.is_superuser:
             return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
         stats = BehaviorService.get_statistics(school)
 
@@ -749,7 +750,7 @@ def summon_parent(request, student_id=None):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL)
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_RECORD)
 def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
     school = request.user.get_school()
@@ -769,27 +770,26 @@ def student_behavior_pdf(request, student_id):
 
     # جلب بيانات الفصل الدراسي
     from core.models import StudentEnrollment
-    try:
-        enrollment = (
-            StudentEnrollment.objects.filter(
-                student=student, class_group__school=school, is_active=True
-            )
-            .select_related("class_group")
-            .first()
+    enrollment = (
+        StudentEnrollment.objects.filter(
+            student=student, class_group__school=school, is_active=True
         )
-        class_name = enrollment.class_group.name if enrollment else None
-    except Exception:
-        class_name = None
+        .select_related("class_group")
+        .first()
+    )
+    cg = enrollment.class_group if enrollment else None
 
     ctx = {
         "student": student,
         "school": school,
-        "class_name": class_name,
+        "class_name": str(cg) if cg else None,
+        "student_grade": cg.get_grade_display() if cg else None,
+        "student_section": cg.section if cg else None,
         "academic_year": year,
         "generated_at": _tz.now(),
         **report,
     }
-    filename = f"behavior_report_{student.username}_{year}.pdf"
+    filename = f"behavior_report_{student.national_id}_{year}.pdf"
     return _render_behavior_pdf("behavior/pdf/student_report.html", ctx, filename)
 
 
