@@ -56,37 +56,16 @@
 
 <!-- التوقيعات -->
 <div class="sig-section">
+  <div class="sig-section-title">التوقيعات والاعتماد</div>
   <div class="sig-grid">
-    <div class="sig-box">
-      <div class="sig-line">توقيع ولي الأمر</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">
-        رقم الجوال<br>
-        {{ parent_phone|default:"_______________" }}
-      </div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">
-        البريد الإلكتروني<br>
-        {{ parent_email|default:"_______________" }}
-      </div>
-    </div>
+    <div class="sig-box"><div class="sig-line">ولي الأمر</div></div>
+    <div class="sig-box"><div class="sig-line">رقم الجوال<br>{{ parent_phone|default:"_______________" }}</div></div>
+    <div class="sig-box"><div class="sig-line">البريد الإلكتروني<br>{{ parent_email|default:"_______________" }}</div></div>
   </div>
-  <div class="sig-grid" style="margin-top:24px">
-    <div class="sig-box">
-      <div class="sig-line">اسم المستلم بالمدرسة<br>{{ received_by }}</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">توقيع المستلم</div>
-    </div>
-    <div class="sig-box">
-      <div class="sig-line">التاريخ<br>{{ infraction.date|date:"Y/m/d" }}</div>
-    </div>
+  <div class="sig-grid" style="margin-top:20px">
+    <div class="sig-box"><div class="sig-line">المستلم بالمدرسة<br>{{ received_by }}</div></div>
+    <div class="sig-box"><div class="sig-line">توقيع المستلم</div></div>
+    <div class="sig-box"><div class="sig-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div></div>
   </div>
-</div>
-
-<div class="notice">
-  أُنشئ بواسطة SchoolOS v5 | {{ generated_at|date:"Y/m/d H:i" }}
 </div>
 {% endblock %}
