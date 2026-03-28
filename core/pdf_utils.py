@@ -99,6 +99,9 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
     2. div running header في body
     (لا يؤثر على xhtml2pdf لأن هذا الكود يُنفَّذ فقط في مسار WeasyPrint)
     """
+    # القوالب التي لديها هيدر/فوتر خاص بها لا تحتاج حقن إضافي
+    if "doc-header" in html_str:
+        return html_str
     today_str = timezone.now().strftime("%Y/%m/%d")
     title_part = f" — {title}" if title else ""
 

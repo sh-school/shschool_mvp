@@ -4,14 +4,16 @@
 <meta charset="UTF-8">
 <style>
   @page { size: A4; margin: 1.8cm 2cm 2cm 2cm; }
-  * { box-sizing: border-box; }
-  html { direction: rtl; }
+  * { box-sizing: border-box; direction: rtl; }
+  html, body, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {
+    direction: rtl !important;
+    text-align: right;
+    unicode-bidi: embed;
+  }
   body {
     font-family: 'Tajawal', 'Amiri', Tahoma, Arial, sans-serif;
     font-size: 13px;
     color: #1a1a1a;
-    direction: rtl;
-    text-align: right;
     margin: 0;
     padding: 0;
     background: #fff;
@@ -21,7 +23,7 @@
     width: 100%;
     padding-bottom: 12px;
     margin-bottom: 16px;
-    text-align: center;
+    text-align: center !important;
   }
   .doc-header-logo {
     width: 60px;
@@ -62,8 +64,8 @@
     margin-bottom: 8px;
   }
   .report-title { font-size: 13px; font-weight: 700; color: #8A1538; margin-bottom: 6px; }
-  .form-title { font-size: 15px; font-weight: 900; color: #8A1538; text-align: center; margin: 6px 0 2px 0; }
-  .date-line { font-size: 11px; color: #555; text-align: center; margin-bottom: 8px; }
+  .form-title { font-size: 15px; font-weight: 900; color: #8A1538; text-align: center !important; margin: 6px 0 2px 0; }
+  .date-line { font-size: 11px; color: #555; text-align: center !important; margin-bottom: 8px; }
 
   /* ===== RTL for all tables ===== */
   table { direction: rtl; border-collapse: collapse; width: 100%; }
@@ -109,7 +111,7 @@
   .sig-table { width: 100%; border-collapse: collapse; direction: rtl; }
   .sig-table td {
     width: 33.33%;
-    text-align: center;
+    text-align: center !important;
     padding: 0 10px;
     vertical-align: bottom;
     height: 60px;
@@ -119,12 +121,13 @@
     padding-top: 6px;
     font-size: 11px;
     color: #333;
+    text-align: center !important;
   }
 
   /* ===== SEAL ===== */
   .doc-seal-section {
     margin-top: 30px;
-    text-align: center;
+    text-align: center !important;
     page-break-inside: avoid;
   }
   .doc-seal {
@@ -163,7 +166,7 @@
     margin-top: 18px;
     font-size: 10px;
     color: #888;
-    text-align: center;
+    text-align: center !important;
     border-top: 1px solid #eee;
     padding-top: 6px;
     page-break-inside: avoid;
