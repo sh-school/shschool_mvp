@@ -17,7 +17,7 @@
     <span class="field-label">الاسم الكامل:</span>
     <span class="field-value">{{ student.full_name }}</span>
     <span class="field-label">الرقم الشخصي:</span>
-    <span class="field-value">{{ student.username }}</span>
+    <span class="field-value">{{ student.national_id }}</span>
   </div>
   <div class="field-row">
     <span class="field-label">الصف / الفصل:</span>
@@ -72,22 +72,22 @@
       <tr style="background:#fff;">
         <td style="padding:5px 10px; font-weight:bold; color:#D97706;">الدرجة الأولى</td>
         <td style="padding:5px 10px; text-align:center; color:#555;">تنبيه شفهي</td>
-        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.1|default:"0" }}</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.1|length }}</td>
       </tr>
       <tr style="background:#fdf2f5;">
         <td style="padding:5px 10px; font-weight:bold; color:#EA580C;">الدرجة الثانية</td>
         <td style="padding:5px 10px; text-align:center; color:#555;">إنذار رسمي</td>
-        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.2|default:"0" }}</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.2|length }}</td>
       </tr>
       <tr style="background:#fff;">
         <td style="padding:5px 10px; font-weight:bold; color:#DC2626;">الدرجة الثالثة</td>
         <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة جسيمة</td>
-        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.3|default:"0" }}</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.3|length }}</td>
       </tr>
       <tr style="background:#fdf2f5;">
         <td style="padding:5px 10px; font-weight:bold; color:#7F1D1D;">الدرجة الرابعة</td>
         <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة خطيرة</td>
-        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.4|default:"0" }}</td>
+        <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.4|length }}</td>
       </tr>
     </tbody>
     <tfoot>
