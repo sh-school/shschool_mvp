@@ -11,11 +11,15 @@
   .pdf-body{padding:20px 2.5cm 14px 2.5cm;min-height:640px;}
   .pdf-footer{width:100%;display:block;}
   .pdf-footer img{width:100%;height:auto;display:block;}
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'FreeSans', 'Arial', sans-serif;
-    font-size: 13px; color: #111; direction: rtl; text-align: right;
+  * { box-sizing: border-box; margin: 0; padding: 0; direction: rtl !important; }
+  html, body, div, p, span, td, th, li, h1, h2, h3, h4 {
+    direction: rtl !important; text-align: right; unicode-bidi: embed;
   }
+  body {
+    font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
+    font-size: 13px; color: #111;
+  }
+  table { direction: rtl !important; border-collapse: collapse; }
   .pdf-header { width: 100%; display: block; }
   .pdf-header img { width: 100%; height: auto; display: block; }
   .pdf-body { padding: 16px 2.5cm 10px 2.5cm; min-height: 640px; }

@@ -81,7 +81,9 @@ def _font_face_css_weasyprint() -> str:
 
 
 def _inject_fonts(html_str: str) -> str:
-    if "@font-face" in html_str or "@import" in html_str:
+    # تخطّي فقط إذا Tajawal/Amiri محلّي موجود فعلاً — لا تتخطى بسبب @import خارجي
+    lower = html_str.lower()
+    if "@font-face" in lower and ("tajawal" in lower or "amiri" in lower):
         return html_str
     font_css = _font_face_css_weasyprint()
     if "</style>" in html_str:
@@ -106,24 +108,35 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
     title_part = f" — {title}" if title else ""
 
     css = f"""
+/* ── RTL جذري لجميع العناصر ──────────────────── */
+html, body {{ direction: rtl !important; }}
+*, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {{
+    direction: rtl !important;
+    text-align: right;
+    unicode-bidi: embed;
+}}
+table {{ direction: rtl !important; border-collapse: collapse; }}
+
 /* ── WeasyPrint: هيدر/فوتر على كل صفحة ──────────────────── */
 .wp-page-header {{
     position:     running(wp-header);
+    direction:    rtl;
     font-family:  'Tajawal', 'Amiri', Arial, sans-serif;
     font-size:    9.5px;
     font-weight:  700;
     color:        #8A1538;
-    text-align:   center;
+    text-align:   center !important;
     padding:      3px 0 5px;
     border-bottom: 1.5px solid #8A1538;
     width:        100%;
 }}
 .wp-page-footer {{
     position:     running(wp-footer);
+    direction:    rtl;
     font-family:  'Tajawal', Arial, sans-serif;
     font-size:    8px;
     color:        #888;
-    text-align:   center;
+    text-align:   center !important;
     padding:      4px 0 0;
     border-top:   1px solid #e5e5e5;
     width:        100%;
@@ -139,9 +152,9 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
         padding-bottom:  6px;
     }}
 
-    @bottom-left {{
+    @bottom-right {{
         content:      "SchoolOS v6";
-        font-family:  Arial, sans-serif;
+        font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8px;
         color:        #bbb;
         vertical-align: top;
@@ -155,9 +168,9 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
         vertical-align: top;
         padding-top:  5px;
     }}
-    @bottom-right {{
+    @bottom-left {{
         content:      "{today_str}";
-        font-family:  Arial, sans-serif;
+        font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8px;
         color:        #aaa;
         vertical-align: top;
@@ -445,7 +458,7 @@ def _playwright_header_template(school: str, title: str) -> str:
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 .ph {{
-    font-family: Arial, 'Arial Unicode MS', Tahoma, sans-serif;
+    font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
     direction:   rtl;
     width:       100%;
     padding:     5px 26px 5px 26px;
@@ -487,7 +500,7 @@ def _playwright_footer_template(today: str) -> str:
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 .pf {{
-    font-family: Arial, 'Arial Unicode MS', Tahoma, sans-serif;
+    font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
     direction:   rtl;
     width:       100%;
     padding:     5px 26px;

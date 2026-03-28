@@ -15,14 +15,17 @@
     /* WeasyPrint يستبدل هذه القيم بـ 3.2cm/2.8cm عند حقن header CSS */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; direction: rtl !important; }
+  html, body, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {
+    direction: rtl !important; text-align: right; unicode-bidi: embed;
+  }
+  table { direction: rtl !important; border-collapse: collapse; }
 
   body {
     font-family: 'Tajawal', 'Amiri', Arial, sans-serif;
     font-size: 11.5px;
     line-height: 1.65;
     color: #1a1a1a;
-    direction: rtl;
     background: #fff;
   }
 
