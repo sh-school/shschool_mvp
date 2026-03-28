@@ -10,18 +10,20 @@
 <!-- بيانات الطالب -->
 <div class="section">
   <div class="section-title">بيانات الطالب</div>
-  <div class="field-row">
-    <span class="field-label">اسم الطالب:</span>
-    <span class="field-value">{{ infraction.student.full_name }}</span>
-    <span class="field-label">الرقم الشخصي:</span>
-    <span class="field-value">{{ infraction.student.national_id }}</span>
-  </div>
-  <div class="field-row">
-    <span class="field-label">الصف / الفصل:</span>
-    <span class="field-value">{{ class_name|default:"_____________" }}</span>
-    <span class="field-label">الرقم المدرسي:</span>
-    <span class="field-value">{{ infraction.student.school_id|default:"_____________" }}</span>
-  </div>
+  <table class="data-table">
+    <tr>
+      <td class="fl">اسم الطالب:</td>
+      <td class="fv">{{ infraction.student.full_name }}</td>
+      <td class="fl">الرقم الشخصي:</td>
+      <td class="fv">{{ infraction.student.national_id }}</td>
+    </tr>
+    <tr>
+      <td class="fl">الصف / الفصل:</td>
+      <td class="fv">{{ class_name|default:"_____________" }}</td>
+      <td class="fl">الرقم المدرسي:</td>
+      <td class="fv">{{ infraction.student.school_id|default:"_____________" }}</td>
+    </tr>
+  </table>
 </div>
 
 <!-- سبب التعهد -->
@@ -49,15 +51,17 @@
 <!-- التوقيعات -->
 <div class="sig-section">
   <div class="sig-section-title">التوقيعات والاعتماد</div>
-  <div class="sig-grid">
-    <div class="sig-box"><div class="sig-line">الطالب</div></div>
-    <div class="sig-box"><div class="sig-line">ولي الأمر</div></div>
-    <div class="sig-box"><div class="sig-line">المرشد / منسق السلوك<br>{{ received_by }}</div></div>
-  </div>
-  <div class="sig-grid" style="margin-top:20px">
-    <div class="sig-box"><div class="sig-line">المدير / الوكيل</div></div>
-    <div class="sig-box"><div class="sig-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div></div>
-    <div class="sig-box"></div>
-  </div>
+  <table class="sig-table">
+    <tr>
+      <td><div class="sig-line">الطالب</div></td>
+      <td><div class="sig-line">ولي الأمر</div></td>
+      <td><div class="sig-line">المرشد / منسق السلوك<br>{{ received_by }}</div></td>
+    </tr>
+    <tr>
+      <td><div class="sig-line">المدير / الوكيل</div></td>
+      <td><div class="sig-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div></td>
+      <td></td>
+    </tr>
+  </table>
 </div>
 {% endblock %}

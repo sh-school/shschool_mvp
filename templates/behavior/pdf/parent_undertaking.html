@@ -10,22 +10,24 @@
 <!-- بيانات ولي الأمر والطالب -->
 <div class="section">
   <div class="section-title">بيانات ولي الأمر والطالب</div>
-  <div class="field-row">
-    <span class="field-label">اسم ولي الأمر:</span>
-    <span class="field-value">{{ parent_name|default:"_______________________________" }}</span>
-    <span class="field-label">الرقم الشخصي:</span>
-    <span class="field-value">{{ parent_id|default:"______________" }}</span>
-  </div>
-  <div class="field-row">
-    <span class="field-label">اسم الطالب:</span>
-    <span class="field-value">{{ infraction.student.full_name }}</span>
-    <span class="field-label">الرقم الشخصي:</span>
-    <span class="field-value">{{ infraction.student.national_id }}</span>
-  </div>
-  <div class="field-row">
-    <span class="field-label">الصف / الفصل:</span>
-    <span class="field-value">{{ class_name|default:"_____________" }}</span>
-  </div>
+  <table class="data-table">
+    <tr>
+      <td class="fl">اسم ولي الأمر:</td>
+      <td class="fv">{{ parent_name|default:"_______________________________" }}</td>
+      <td class="fl">الرقم الشخصي:</td>
+      <td class="fv">{{ parent_id|default:"______________" }}</td>
+    </tr>
+    <tr>
+      <td class="fl">اسم الطالب:</td>
+      <td class="fv">{{ infraction.student.full_name }}</td>
+      <td class="fl">الرقم الشخصي:</td>
+      <td class="fv">{{ infraction.student.national_id }}</td>
+    </tr>
+    <tr>
+      <td class="fl">الصف / الفصل:</td>
+      <td class="fv" colspan="3">{{ class_name|default:"_____________" }}</td>
+    </tr>
+  </table>
 </div>
 
 <!-- سبب التعهد -->
@@ -48,24 +50,28 @@
     تنفيذ أي خطط علاجية أو تقويمية لازمة. وأتحمل مسؤولية أي مخالفة لاحقة
     وفق اللوائح المعتمدة.
   </p>
-  <div class="field-row" style="margin-top:10px">
-    <span class="field-label">مدة التعهد:</span>
-    <span class="field-value">من تاريخ التوقيع حتى نهاية العام الدراسي {{ academic_year }}</span>
-  </div>
+  <table class="data-table" style="margin-top:10px">
+    <tr>
+      <td class="fl">مدة التعهد:</td>
+      <td class="fv">من تاريخ التوقيع حتى نهاية العام الدراسي {{ academic_year }}</td>
+    </tr>
+  </table>
 </div>
 
 <!-- التوقيعات -->
 <div class="sig-section">
   <div class="sig-section-title">التوقيعات والاعتماد</div>
-  <div class="sig-grid">
-    <div class="sig-box"><div class="sig-line">ولي الأمر</div></div>
-    <div class="sig-box"><div class="sig-line">رقم الجوال<br>{{ parent_phone|default:"_______________" }}</div></div>
-    <div class="sig-box"><div class="sig-line">البريد الإلكتروني<br>{{ parent_email|default:"_______________" }}</div></div>
-  </div>
-  <div class="sig-grid" style="margin-top:20px">
-    <div class="sig-box"><div class="sig-line">المستلم بالمدرسة<br>{{ received_by }}</div></div>
-    <div class="sig-box"><div class="sig-line">توقيع المستلم</div></div>
-    <div class="sig-box"><div class="sig-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div></div>
-  </div>
+  <table class="sig-table">
+    <tr>
+      <td><div class="sig-line">ولي الأمر</div></td>
+      <td><div class="sig-line">رقم الجوال<br>{{ parent_phone|default:"_______________" }}</div></td>
+      <td><div class="sig-line">البريد الإلكتروني<br>{{ parent_email|default:"_______________" }}</div></td>
+    </tr>
+    <tr>
+      <td><div class="sig-line">المستلم بالمدرسة<br>{{ received_by }}</div></td>
+      <td><div class="sig-line">توقيع المستلم</div></td>
+      <td><div class="sig-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div></td>
+    </tr>
+  </table>
 </div>
 {% endblock %}

@@ -19,7 +19,6 @@
   /* ===== HEADER ===== */
   .doc-header {
     width: 100%;
-    border-bottom: 3px solid #8A1538;
     padding-bottom: 12px;
     margin-bottom: 16px;
     text-align: center;
@@ -29,6 +28,7 @@
     height: 60px;
     margin: 0 auto 6px auto;
     display: block;
+    object-fit: contain;
   }
   .doc-header-ministry {
     font-size: 10px;
@@ -66,31 +66,14 @@
   .date-line { font-size: 11px; color: #555; text-align: center; margin-bottom: 8px; }
 
   /* ===== RTL for all tables ===== */
-  table, .field-row, .sig-grid, .doc-footer { direction: rtl; }
+  table { direction: rtl; border-collapse: collapse; width: 100%; }
   td, th { text-align: right; }
 
-  /* ===== FIELDS ===== */
-  .field-row {
-    display: table;
-    width: 100%;
-    margin-bottom: 6px;
-    border-bottom: 1px dotted #ddd;
-    padding-bottom: 4px;
-  }
-  .field-label {
-    display: table-cell;
-    font-weight: 700;
-    font-size: 12px;
-    color: #444;
-    width: 22%;
-    white-space: nowrap;
-  }
-  .field-value {
-    display: table-cell;
-    font-size: 12px;
-    color: #1a1a1a;
-    padding-right: 10px;
-  }
+  /* ===== DATA TABLE (field rows) ===== */
+  .data-table { margin-bottom: 8px; font-size: 12px; }
+  .data-table td { padding: 5px 8px; border-bottom: 1px dotted #ddd; }
+  .data-table .fl { font-weight: 700; color: #444; white-space: nowrap; width: 18%; }
+  .data-table .fv { color: #1a1a1a; }
   .body-text { font-size: 12px; line-height: 1.7; color: #222; margin: 4px 0; }
 
   /* ===== CHECKBOXES ===== */
@@ -116,17 +99,27 @@
   /* ===== SIGNATURES ===== */
   .sig-section { margin-top: 30px; page-break-inside: avoid; }
   .sig-section-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #8A1538;
     border-bottom: 1px solid #ddd;
     padding-bottom: 4px;
-    margin-bottom: 16px;
+    margin-bottom: 6px;
   }
-  .sig-grid { display: table; width: 100%; direction: rtl; }
-  .sig-box { display: table-cell; width: 33.33%; text-align: center; padding: 0 10px; vertical-align: bottom; }
-  .sig-line { border-top: 1.5px solid #555; padding-top: 6px; font-size: 11px; color: #333; margin-top: 44px; }
-  .sig-label { font-size: 10px; color: #888; margin-top: 2px; }
+  .sig-table { width: 100%; border-collapse: collapse; direction: rtl; }
+  .sig-table td {
+    width: 33.33%;
+    text-align: center;
+    padding: 0 10px;
+    vertical-align: bottom;
+    height: 60px;
+  }
+  .sig-table .sig-line {
+    border-top: 1.5px solid #555;
+    padding-top: 6px;
+    font-size: 11px;
+    color: #333;
+  }
 
   /* ===== SEAL ===== */
   .doc-seal-section {
@@ -186,7 +179,7 @@
 
 <!-- ===== DOCUMENT HEADER ===== -->
 <div class="doc-header">
-  <img src="static/brand/logowhite.png" class="doc-header-logo" alt="شعار المدرسة">
+  <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="شعار المدرسة">
   <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
   <div class="doc-header-school">{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
 </div>
