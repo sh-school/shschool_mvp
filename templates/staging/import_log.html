@@ -8,21 +8,40 @@
 {% block content %}
 <div class="space-y-5">
 
-  <div class="flex items-center justify-between">
+  {# ── Header ── #}
+  <div class="page-header">
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="file-text" %} سجل عمليات الاستيراد</h1>
-      <p class="text-gray-500 text-sm mt-1">آخر 50 عملية استيراد</p>
+      <p class="page-subtitle">آخر 50 عملية استيراد</p>
     </div>
-    <a href="{% url 'import_grades_select' %}"
-       class="px-4 py-2 bg-maroon text-white text-sm rounded-lg hover:bg-skyline">
-      + استيراد جديد
-    </a>
+    <div class="page-actions">
+      <a href="{% url 'import_grades_select' %}" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="plus" %} استيراد جديد
+      </a>
+    </div>
   </div>
+
+  {# ── Filter / Search Bar ── #}
+  {% if logs %}
+  <div class="filter-bar mb-4">
+    <input type="text" id="log-search-input"
+           placeholder="بحث باسم الملف أو المستخدم..."
+           class="form-control w-auto min-w-[220px] m-0"
+           autocomplete="off">
+    <select id="log-status-filter" class="form-control w-auto min-w-[140px] m-0">
+      <option value="">كل الحالات</option>
+      <option value="completed">مكتمل</option>
+      <option value="failed">فشل</option>
+      <option value="other">أخرى</option>
+    </select>
+    <span class="pagination-info" id="log-count-display">{{ logs|length }} عملية</span>
+  </div>
+  {% endif %}
 
   <div class="card-qatar overflow-hidden">
     {% if logs %}
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full text-sm" id="import-log-table">
         <thead class="bg-gray-50 border-b">
           <tr>
             <th scope="col" class="px-4 py-3 text-right">الملف</th>
@@ -36,7 +55,7 @@
         </thead>
         <tbody class="divide-y divide-gray-100">
           {% for log in logs %}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50" data-status="{{ log.status }}">
             <td class="px-4 py-3 font-medium text-gray-800 max-w-xs truncate">{{ log.file_name }}</td>
             <td class="px-4 py-3 text-gray-600">{{ log.uploaded_by.full_name|default:"—" }}</td>
             <td class="px-4 py-3 text-center text-gray-500 text-xs">{{ log.started_at|date:"d/m/Y H:i" }}</td>
@@ -64,12 +83,48 @@
       </table>
     </div>
     {% else %}
-    <div class="px-6 py-16 text-center text-gray-400">
-      <p class="text-4xl mb-3">📂</p>
-      <p>لا توجد عمليات استيراد سابقة</p>
-    </div>
+      {% include "components/empty_state.html" with
+         icon="folder-open"
+         title="لا توجد عمليات استيراد"
+         subtitle="لم يتم تنفيذ أي عمليات استيراد بعد."
+         compact=True
+      %}
     {% endif %}
   </div>
 
 </div>
+
+{% if logs %}
+<script nonce="{{ request.csp_nonce }}">
+(function() {
+  var searchInput = document.getElementById('log-search-input');
+  var statusFilter = document.getElementById('log-status-filter');
+  var table = document.getElementById('import-log-table');
+  var countDisplay = document.getElementById('log-count-display');
+  var rows = table ? Array.from(table.querySelectorAll('tbody tr')) : [];
+  var total = rows.length;
+
+  function filterRows() {
+    var q = searchInput.value.trim().toLowerCase();
+    var status = statusFilter.value;
+    var visible = 0;
+    rows.forEach(function(row) {
+      var text = row.textContent.toLowerCase();
+      var rowStatus = row.getAttribute('data-status') || '';
+      var matchText = !q || text.indexOf(q) !== -1;
+      var matchStatus = !status
+        || (status === 'other' && rowStatus !== 'completed' && rowStatus !== 'failed')
+        || rowStatus === status;
+      var show = matchText && matchStatus;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    countDisplay.textContent = visible + ' من ' + total + ' عملية';
+  }
+
+  searchInput.addEventListener('input', filterRows);
+  statusFilter.addEventListener('change', filterRows);
+})();
+</script>
+{% endif %}
 {% endblock %}

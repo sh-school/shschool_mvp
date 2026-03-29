@@ -2,99 +2,250 @@
 {% block title %}{{ domain.name }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تفاصيل المجال" %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current=domain.name %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="qdom">
 
-  <!-- Breadcrumb -->
-  <div class="flex items-center gap-2 text-sm text-gray-500">
-    <a href="{% url 'quality_dashboard' %}" class="hover:text-blue-600">الخطة التشغيلية</a>
-    <span>/</span>
-    <span class="text-gray-800 font-medium">{{ domain.name }}</span>
-  </div>
-
-  <!-- Header + Stats -->
-  <div class="card-qatar overflow-hidden">
-    <div class="bg-maroon px-6 py-4">
-      <h1 class="page-title text-white">{% include "components/icon.html" with name="layers" %} {{ domain.name }}</h1>
-      <p class="text-blue-200 text-sm mt-1">{{ domain.total_procedures }} إجراء · {{ domain.targets.count }} هدف · {{ domain.completion_pct }}% إنجاز</p>
+  {# ── Header card with progress bar ── #}
+  <div class="card-qatar qdom-header">
+    <div class="card-bar">
+      {% include "components/icon.html" with name="layers" %} {{ domain.name }}
     </div>
-    <div class="h-2 bg-gray-100">
-      <div class="h-2 bg-blue-500 w-dynamic" style="--progress-w:{{ domain.completion_pct }}%"></div>
+    <div class="qdom-header__meta">
+      {{ domain.total_procedures }} إجراء &middot; {{ domain.targets.count }} هدف &middot; {{ domain.completion_pct }}% إنجاز
+    </div>
+    <div class="qdom-progress">
+      <div class="qdom-progress__fill" style="--progress-w:{{ domain.completion_pct }}%"></div>
     </div>
   </div>
 
-  <!-- Filters -->
-  <form method="get" class="card-qatar flex flex-wrap gap-3 items-end">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">الحالة</label>
-      <select name="status" class="border rounded-lg px-3 py-2 text-sm">
+  {# ── Filters ── #}
+  <form method="get" class="card-qatar qdom-filters">
+    <div class="qdom-filters__field">
+      <label class="qdom-filters__label">الحالة</label>
+      <select name="status" class="qdom-filters__select">
         <option value="">— الكل —</option>
         {% for val, label in STATUS_CHOICES %}
         <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">المنفذ</label>
-      <select name="executor" class="border rounded-lg px-3 py-2 text-sm">
+    <div class="qdom-filters__field">
+      <label class="qdom-filters__label">المنفذ</label>
+      <select name="executor" class="qdom-filters__select">
         <option value="">— الكل —</option>
         {% for ex in executors %}
         <option value="{{ ex }}" {% if executor_filter == ex %}selected{% endif %}>{{ ex }}</option>
         {% endfor %}
       </select>
     </div>
-    <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">فلترة</button>
-    <a href="{% url 'domain_detail' domain.id %}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm">إعادة ضبط</a>
+    <div class="qdom-filters__field">
+      <label class="qdom-filters__label">بحث نص</label>
+      <input type="text" id="qdom-search" placeholder="ابحث في الإجراءات..."
+             class="qdom-filters__select" oninput="filterDomainProcs()">
+    </div>
+    <div class="qdom-filters__actions">
+      <button type="submit" class="btn-primary btn-sm">فلترة</button>
+      <a href="{% url 'domain_detail' domain.id %}" class="btn-secondary btn-sm">إعادة ضبط</a>
+    </div>
   </form>
 
-  <!-- Targets > Indicators > Procedures -->
+  {# ── Targets > Indicators > Procedures ── #}
   {% for target in targets %}
-  <div class="card-qatar overflow-hidden">
-    <div class="bg-gray-100 border-b px-5 py-3">
-      <p class="text-xs text-blue-600 font-mono" dir="ltr">{{ target.number }}</p>
-      <p class="font-bold text-maroon mt-0.5">{{ target.text|truncatechars:120 }}</p>
+  <div class="card-qatar qdom-target">
+    <div class="qdom-target__head">
+      <span class="qdom-target__num" dir="ltr">{{ target.number }}</span>
+      <span class="qdom-target__text">{{ target.text|truncatechars:120 }}</span>
     </div>
     {% for indicator in target.indicators.all %}
-    <div class="border-b last:border-0">
-      <div class="px-5 py-2 bg-gray-50 flex items-center gap-2">
-        <span class="text-xs font-mono text-gray-500" dir="ltr">{{ indicator.number }}</span>
-        <span class="text-sm text-gray-700">{{ indicator.text|truncatechars:100 }}</span>
+    <div class="qdom-indicator">
+      <div class="qdom-indicator__head">
+        <span class="qdom-indicator__num" dir="ltr">{{ indicator.number }}</span>
+        <span class="qdom-indicator__text">{{ indicator.text|truncatechars:100 }}</span>
       </div>
-      <div class="divide-y">
-        {% for proc in indicator.procedures.all %}
-        {% if not status_filter or proc.status == status_filter %}
-        {% if not executor_filter or executor_filter in proc.executor_norm %}
-        <div class="flex items-start justify-between px-5 py-3 hover:bg-gray-50 transition gap-4">
-          <div class="flex-1">
-            <p class="text-sm text-gray-800">{{ proc.text|truncatechars:100 }}</p>
-            <div class="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
-              <span>{% include "components/icon.html" with name="target" %} {{ proc.executor_norm }}</span>
-              <span>{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}</span>
-              {% if proc.evidence_type %}<span>{% include "components/icon.html" with name="file-text" %} {{ proc.evidence_type }}</span>{% endif %}
-            </div>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="px-2 py-0.5 rounded-full text-xs
-              {% if proc.status == 'Completed' %}bg-green-100 text-green-700
-              {% elif proc.status == 'In Progress' %}bg-amber-100 text-amber-700
-              {% else %}bg-gray-100 text-gray-600{% endif %}">
-              {{ proc.get_status_display }}
-            </span>
-            <a href="{% url 'procedure_detail' proc.id %}"
-               class="text-xs text-blue-600 hover:underline whitespace-nowrap">تفاصيل</a>
+      {% for proc in indicator.procedures.all %}
+      {% if not status_filter or proc.status == status_filter %}
+      {% if not executor_filter or executor_filter in proc.executor_norm %}
+      <div class="qdom-proc" data-text="{{ proc.text|lower }}">
+        <div class="qdom-proc__body">
+          <p class="qdom-proc__text">{{ proc.text|truncatechars:100 }}</p>
+          <div class="qdom-proc__meta">
+            <span>{% include "components/icon.html" with name="target" %} {{ proc.executor_norm }}</span>
+            <span>{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}</span>
+            {% if proc.evidence_type %}<span>{% include "components/icon.html" with name="file-text" %} {{ proc.evidence_type }}</span>{% endif %}
           </div>
         </div>
-        {% endif %}
-        {% endif %}
-        {% endfor %}
+        <div class="qdom-proc__actions">
+          <span class="qdom-badge {% if proc.status == 'Completed' %}qdom-badge--success{% elif proc.status == 'In Progress' %}qdom-badge--warning{% elif proc.status == 'Pending Review' %}qdom-badge--blue{% else %}qdom-badge--gray{% endif %}">
+            {{ proc.get_status_display }}
+          </span>
+          <a href="{% url 'procedure_detail' proc.id %}" class="qdom-proc__link">تفاصيل</a>
+        </div>
       </div>
+      {% endif %}
+      {% endif %}
+      {% endfor %}
     </div>
     {% endfor %}
+  </div>
+  {% empty %}
+  <div class="card-qatar" style="padding:40px;text-align:center;">
+    <p style="color:var(--text-secondary);font-size:0.85rem;">لا توجد أهداف لهذا المجال</p>
   </div>
   {% endfor %}
 
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ═══════════════════════════════════════════════════
+   Domain Detail — dark-mode safe, CSS-variable based
+   ═══════════════════════════════════════════════════ */
+.qdom { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Header ── */
+.qdom-header { overflow: hidden; }
+.qdom-header__meta {
+  padding: 6px 20px 10px;
+  font-size: 0.8rem; color: var(--text-secondary);
+}
+.qdom-progress {
+  height: 6px; background: var(--border);
+}
+.qdom-progress__fill {
+  height: 100%; width: var(--progress-w, 0%);
+  background: var(--maroon);
+  border-radius: 0 3px 3px 0;
+  transition: width .6s ease;
+}
+
+/* ── Filters ── */
+.qdom-filters {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  align-items: flex-end; padding: 14px 16px;
+}
+.qdom-filters__field { display: flex; flex-direction: column; gap: 4px; }
+.qdom-filters__label {
+  font-size: 0.7rem; color: var(--text-secondary); font-weight: 600;
+}
+.qdom-filters__select {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 6px 12px; font-size: 0.8rem;
+  background: var(--surface); color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+.qdom-filters__select:focus {
+  outline: none; border-color: var(--maroon-border);
+  box-shadow: var(--focus-ring);
+}
+.qdom-filters__actions {
+  display: flex; gap: 6px; align-items: center;
+  margin-inline-start: auto;
+}
+
+/* ── Target card ── */
+.qdom-target { overflow: hidden; }
+.qdom-target__head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface-alt); border-bottom: 1px solid var(--border);
+}
+.qdom-target__num {
+  font-size: 0.7rem; font-family: monospace;
+  color: var(--maroon); white-space: nowrap;
+}
+html.dark .qdom-target__num { color: #f9a8c0; }
+.qdom-target__text {
+  font-size: 0.85rem; font-weight: 700; color: var(--maroon);
+  line-height: 1.5;
+}
+html.dark .qdom-target__text { color: #f9a8c0; }
+
+/* ── Indicator row ── */
+.qdom-indicator { border-bottom: 1px solid var(--border); }
+.qdom-indicator:last-child { border-bottom: none; }
+.qdom-indicator__head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface-alt);
+}
+.qdom-indicator__num {
+  font-size: 0.68rem; font-family: monospace;
+  color: var(--text-secondary); white-space: nowrap;
+}
+.qdom-indicator__text {
+  font-size: 0.8rem; color: var(--text-primary);
+}
+
+/* ── Procedure row ── */
+.qdom-proc {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; padding: 10px 16px;
+  transition: background var(--transition-fast);
+}
+.qdom-proc:hover { background: var(--surface-alt); }
+.qdom-proc__body { flex: 1; min-width: 0; }
+.qdom-proc__text {
+  font-size: 0.82rem; color: var(--text-primary); line-height: 1.5;
+}
+.qdom-proc__meta {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 4px; font-size: 0.7rem; color: var(--text-secondary);
+}
+.qdom-proc__actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.qdom-proc__link {
+  font-size: 0.72rem; color: var(--maroon); text-decoration: none;
+  font-weight: 600; white-space: nowrap;
+}
+.qdom-proc__link:hover { text-decoration: underline; }
+html.dark .qdom-proc__link { color: #f9a8c0; }
+
+/* ── Status badges ── */
+.qdom-badge {
+  padding: 2px 10px; border-radius: 6px;
+  font-size: 0.68rem; font-weight: 600; white-space: nowrap;
+}
+.qdom-badge--success { background: var(--status-success-bg); color: var(--status-success-dark); }
+.qdom-badge--warning { background: var(--status-warning-bg); color: var(--status-warning-dark); }
+.qdom-badge--blue    { background: var(--status-info-bg); color: var(--status-info-dark); }
+.qdom-badge--gray    { background: #f1f5f9; color: #64748b; }
+
+html.dark .qdom-badge--success { background: rgba(22,163,74,.15); color: #86efac; }
+html.dark .qdom-badge--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
+html.dark .qdom-badge--blue    { background: rgba(37,99,235,.15); color: #93c5fd; }
+html.dark .qdom-badge--gray    { background: rgba(100,116,139,.15); color: #94a3b8; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .qdom-proc { flex-direction: column; gap: 6px; }
+  .qdom-proc__actions { align-self: flex-end; }
+  .qdom-filters { flex-direction: column; }
+  .qdom-filters__actions { margin-inline-start: 0; }
+}
+
+/* ── Print ── */
+@media print {
+  .qdom-filters { display: none; }
+  .qdom-proc:hover { background: none; }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+/* ── Client-side text search filter for procedures ── */
+function filterDomainProcs() {
+  var q = (document.getElementById('qdom-search').value || '').toLowerCase();
+  var items = document.querySelectorAll('.qdom-proc[data-text]');
+  items.forEach(function(el) {
+    var text = el.getAttribute('data-text') || '';
+    el.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+</script>
 {% endblock %}

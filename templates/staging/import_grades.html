@@ -12,7 +12,7 @@
   <div class="flex items-center justify-between flex-wrap gap-3">
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="download" %} استيراد الدرجات</h1>
-      <p class="text-gray-500 text-sm mt-1">رفع ملف Excel لتعبئة الدرجات دفعةً واحدة</p>
+      <p class="page-subtitle">رفع ملف Excel لتعبئة الدرجات دفعةً واحدة</p>
     </div>
     <a href="{% url 'import_log_list' %}"
        class="text-sm text-blue-600 hover:underline">سجل العمليات السابقة ←</a>
@@ -26,27 +26,27 @@
   </div>
   {% endif %}
 
-  <!-- الخطوات -->
+  {# ── الخطوات ── #}
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-      <div class="text-blue-700 font-bold mb-1">① اختر التقييم</div>
-      <p class="text-sm text-blue-600">حدد المادة والفصل والاختبار المراد تعبئة درجاته.</p>
+    <div class="import-step-card bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="import-step-num text-blue-700 font-bold mb-1">① اختر التقييم</div>
+      <p class="import-step-desc text-sm text-blue-600">حدد المادة والفصل والاختبار المراد تعبئة درجاته.</p>
     </div>
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-      <div class="text-blue-700 font-bold mb-1">② حمّل القالب</div>
-      <p class="text-sm text-blue-600">حمّل ملف Excel المُعبَّأ بأسماء الطلاب مسبقاً.</p>
+    <div class="import-step-card bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="import-step-num text-blue-700 font-bold mb-1">② حمّل القالب</div>
+      <p class="import-step-desc text-sm text-blue-600">حمّل ملف Excel المُعبَّأ بأسماء الطلاب مسبقاً.</p>
     </div>
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-      <div class="text-blue-700 font-bold mb-1">③ ارفع الملف المكتمل</div>
-      <p class="text-sm text-blue-600">بعد تعبئة الدرجات ارفع الملف وسيتم الاستيراد فوراً.</p>
+    <div class="import-step-card bg-blue-50 border border-blue-200 rounded-xl p-4">
+      <div class="import-step-num text-blue-700 font-bold mb-1">③ ارفع الملف المكتمل</div>
+      <p class="import-step-desc text-sm text-blue-600">بعد تعبئة الدرجات ارفع الملف وسيتم الاستيراد فوراً.</p>
     </div>
   </div>
 
   <!-- التقييمات المتاحة -->
   <div class="card-qatar overflow-hidden">
-    <div class="bg-maroon px-6 py-4">
+    <div class="card-bar px-6 py-4">
       <h2 class="text-white font-bold">{% include "components/icon.html" with name="list-checks" %} التقييمات المتاحة للاستيراد</h2>
-      <p class="text-blue-200 text-xs mt-1">العام الدراسي {{ year }}</p>
+      <p class="text-white/70 text-xs mt-1">العام الدراسي {{ year }}</p>
     </div>
 
     {% if assessments %}

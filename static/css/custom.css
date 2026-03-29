@@ -4150,6 +4150,41 @@ html.dark .report-student-dropdown {
   border-color: #334155;
   box-shadow: 0 8px 24px rgba(0,0,0,.4);
 }
+html.dark .student-search-result {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+/* ── 28a. Report Tabs & Cards (dark) ───────────────────────────── */
+html.dark .report-tabs { border-bottom-color: #334155; }
+html.dark .report-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .report-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  border-color: var(--maroon-border);
+}
+html.dark .report-card-header {
+  background: linear-gradient(135deg, #4a1530, #3b1125);
+}
+html.dark .report-btn-preview {
+  background: #162032;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+html.dark .report-btn-preview:hover {
+  background: var(--maroon-bg);
+  color: #f9a8c9;
+}
+
+/* ── 28b. Import Steps Cards (dark) ────────────────────────────── */
+html.dark .import-step-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+html.dark .import-step-card .import-step-num { color: #f9a8c9; }
+html.dark .import-step-card .import-step-desc { color: var(--text-secondary); }
 
 /* ── 29. Bulk Action Bar ────────────────────────────────────────── */
 html.dark .bulk-action-bar { background: #0f172a; }
