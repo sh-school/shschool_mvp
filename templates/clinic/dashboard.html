@@ -114,7 +114,7 @@
           <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
           <span style="font-size:.65rem;color:var(--muted);display:block">{{ visit.reason }}</span>
         </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}#16a34a{% else %}#dc2626{% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}var(--status-success){% else %}var(--status-danger){% endif %}">
           {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
         </span>
       </div>
@@ -136,7 +136,7 @@
           <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
           <span style="font-size:.6rem;color:var(--muted);display:block">{{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}</span>
         </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}#dc2626{% else %}#16a34a{% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}var(--status-danger){% else %}var(--status-success){% endif %}">
           {% if visit.is_sent_home %}أُرسل للمنزل{% else %}عولج{% endif %}
         </span>
       </div>
@@ -188,8 +188,8 @@ async function fc(url,chartId){
   new Chart(document.getElementById('chartClinic'),{
     type:'line',
     data:{labels:d.labels,datasets:[
-      {label:'الزيارات',data:d.visits,borderColor:'#0D4261',backgroundColor:'rgba(13,66,97,0.1)',fill:true,tension:0.3,borderWidth:1.5,pointRadius:1.5},
-      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:'#dc2626',backgroundColor:'transparent',tension:0.3,borderDash:[5,5],borderWidth:1.5,pointRadius:1}
+      {label:'الزيارات',data:d.visits,borderColor:'#1A3A5C',backgroundColor:'rgba(26,58,92,0.1)',fill:true,tension:0.3,borderWidth:1.5,pointRadius:1.5}, /* chart-3 */
+      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:'#dc2626',backgroundColor:'transparent',tension:0.3,borderDash:[5,5],borderWidth:1.5,pointRadius:1} /* status-danger */
     ]},
     options:{...OPTS,
       scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}}},
