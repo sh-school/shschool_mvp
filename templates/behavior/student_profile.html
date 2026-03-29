@@ -12,10 +12,15 @@
  <h1 class="page-title">{% include "components/icon.html" with name="scale" %} الملف السلوكي</h1>
  <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
  </div>
- <div class="flex gap-2">
+ <div class="flex gap-2 flex-wrap">
  {% if can_summon %}
  <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
  {% endif %}
+ <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank"
+    class="bg-maroon hover:bg-maroon-dark text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1"
+    title="طباعة التقرير السلوكي الشامل للطالب A4">
+   {% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل
+ </a>
  {% if can_report %}
  <a href="{% url 'behavior:report_infraction' %}" class="btn-danger text-white px-4 py-2 rounded-lg text-sm">➕ مخالفة جديدة</a>
  {% endif %}

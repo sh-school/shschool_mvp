@@ -11,13 +11,19 @@
     <h1 class="page-title">{% include "components/icon.html" with name="users" %} إسناد الطلاب للحافلات</h1>
     <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
   </div>
+
+  {# ── شريط البحث ── #}
+  <div class="filter-bar mb-4">
+    <input type="text" id="student-search" class="form-control" placeholder="بحث باسم الطالب..." autocomplete="off">
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="card-qatar">
       <h2 class="font-bold text-red-700 mb-4">{% include "components/icon.html" with name="x-circle" %} طلاب غير مسندون ({{ unassigned_students.count }})</h2>
       {% if unassigned_students %}
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in unassigned_students %}
-        <div class="flex justify-between items-center py-2 border-b last:border-0 text-sm">
+        <div class="flex justify-between items-center py-2 border-b last:border-0 text-sm" data-filter-item data-name="{{ st.full_name }}">
           <span>{{ st.full_name }}</span>
           <a href="{% url 'transport:buses_list' %}" class="text-xs text-blue-600 hover:underline">اختر حافلة</a>
         </div>
@@ -31,10 +37,28 @@
       <h2 class="font-bold text-green-700 mb-4">{% include "components/icon.html" with name="check-circle" %} طلاب مسندون ({{ assigned_students.count }})</h2>
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in assigned_students %}
-        <div class="py-2 border-b last:border-0 text-sm text-gray-700">{{ st.full_name }}</div>
+        <div class="py-2 border-b last:border-0 text-sm text-gray-700" data-filter-item data-name="{{ st.full_name }}">{{ st.full_name }}</div>
         {% endfor %}
       </div>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+  var input = document.getElementById('student-search');
+  if (!input) return;
+  input.addEventListener('input', function () {
+    var q = this.value.trim().toLowerCase();
+    var items = document.querySelectorAll('[data-filter-item]');
+    for (var i = 0; i < items.length; i++) {
+      var name = (items[i].getAttribute('data-name') || '').toLowerCase();
+      items[i].style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
+    }
+  });
+})();
+</script>
 {% endblock %}

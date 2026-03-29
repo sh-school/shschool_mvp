@@ -23,9 +23,27 @@
     </div>
   </div>
 
-  <div class="space-y-3">
+  {# ── Filter bar ── #}
+  <div class="filter-bar">
+    <div class="flex flex-wrap items-center gap-3">
+      <div class="flex-1 min-w-[200px]">
+        <input type="text" id="searchInput" class="form-control text-sm w-full"
+               placeholder="بحث باسم الطالب..." autocomplete="off">
+      </div>
+      <div class="min-w-[160px]">
+        <select id="gradeFilter" class="form-control text-sm">
+          <option value="">كل الصفوف</option>
+        </select>
+      </div>
+      <span id="filterCount" class="text-xs text-gray-500 hidden"></span>
+    </div>
+  </div>
+
+  <div id="studentCards" class="space-y-3">
     {% for item in by_student %}
-    <div class="card-qatar overflow-hidden">
+    <div class="card-qatar overflow-hidden js-student-card"
+         data-name="{{ item.student.full_name }}"
+         data-grade="{% with first_subj=item.subjects.0 %}{{ first_subj.class_group.get_grade_display }}{% endwith %}">
       <div class="flex items-center justify-between px-5 py-3 bg-red-50 border-b">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
@@ -37,6 +55,9 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+            {% with first_subj=item.subjects.0 %}{{ first_subj.class_group.get_grade_display }}{% endwith %}
+          </span>
           <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
             {{ item.subjects|length }} مادة راسب
           </span>
@@ -53,11 +74,62 @@
       </div>
     </div>
     {% empty %}
-    <div class="card-qatar text-center text-gray-400">
+    <div class="card-qatar text-center text-gray-400 js-empty-state">
       <p class="text-3xl mb-3">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</p>
       <p>لا يوجد طلاب راسبون في هذا الفصل</p>
     </div>
     {% endfor %}
   </div>
+  <div id="noResults" class="card-qatar text-center text-gray-400 hidden">
+    <p class="text-3xl mb-3">{% include "components/icon.html" with name="search" size="icon-2xl" %}</p>
+    <p>لا توجد نتائج مطابقة للبحث</p>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  var search = document.getElementById('searchInput');
+  var gradeSelect = document.getElementById('gradeFilter');
+  var cards = document.querySelectorAll('.js-student-card');
+  var countEl = document.getElementById('filterCount');
+  var noResults = document.getElementById('noResults');
+
+  // Build grade options from cards
+  var grades = {};
+  cards.forEach(function(c){
+    var g = c.dataset.grade;
+    if(g && !grades[g]) grades[g] = true;
+  });
+  Object.keys(grades).sort().forEach(function(g){
+    var opt = document.createElement('option');
+    opt.value = g; opt.textContent = g;
+    gradeSelect.appendChild(opt);
+  });
+
+  function filterCards(){
+    var q = search.value.trim().toLowerCase();
+    var grade = gradeSelect.value;
+    var visible = 0;
+    cards.forEach(function(c){
+      var nameMatch = !q || c.dataset.name.toLowerCase().indexOf(q) !== -1;
+      var gradeMatch = !grade || c.dataset.grade === grade;
+      var show = nameMatch && gradeMatch;
+      c.style.display = show ? '' : 'none';
+      if(show) visible++;
+    });
+    if(q || grade){
+      countEl.textContent = visible + ' من ' + cards.length;
+      countEl.classList.remove('hidden');
+    } else {
+      countEl.classList.add('hidden');
+    }
+    noResults.classList.toggle('hidden', visible > 0 || cards.length === 0);
+  }
+
+  search.addEventListener('input', filterCards);
+  gradeSelect.addEventListener('change', filterCards);
+})();
+</script>
 {% endblock %}

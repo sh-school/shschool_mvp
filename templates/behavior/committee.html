@@ -41,16 +41,34 @@
  </div>
  </div>
 
+ {# ── شريط الفلترة ── #}
+ <div class="filter-bar" id="committee-filters">
+ <input type="text" id="filter-student" placeholder="بحث باسم الطالب..." class="form-control text-sm flex-1 min-w-[160px]">
+ <select id="filter-status" class="form-control text-sm">
+ <option value="">الكل</option>
+ <option value="open">مفتوحة</option>
+ <option value="resolved">محلولة</option>
+ </select>
+ <select id="filter-level" class="form-control text-sm">
+ <option value="">كل الدرجات</option>
+ <option value="3">درجة 3</option>
+ <option value="4">درجة 4</option>
+ </select>
+ <input type="date" id="filter-date-from" title="من تاريخ" class="form-control text-sm">
+ <input type="date" id="filter-date-to" title="إلى تاريخ" class="form-control text-sm">
+ <button type="button" id="btn-reset-filters" class="text-xs text-gray-500 hover:text-maroon transition" title="إعادة تعيين">مسح</button>
+ </div>
+
  <!-- Open Cases -->
  {% if open_cases %}
- <div class="card-qatar overflow-hidden mb-6">
+ <div class="card-qatar overflow-hidden mb-6" id="open-cases-card" data-section="open">
  <div class="flex justify-between items-center px-6 py-4 border-b bg-red-50">
  <h2 class="font-bold text-red-800">{% include "components/icon.html" with name="alert-critical" %} القضايا المفتوحة تحتاج قرار اللجنة</h2>
  <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">{{ stats.open_count }}</span>
  </div>
  <div class="divide-y">
  {% for inf in open_cases %}
- <div class="px-6 py-4 hover:bg-gray-50 transition">
+ <div class="px-6 py-4 hover:bg-gray-50 transition" data-filter-row data-status="open" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
  <div class="flex flex-wrap justify-between items-start gap-3">
  <div class="flex-1">
  <div class="flex items-center gap-2 mb-1">
@@ -121,7 +139,7 @@
 
  <!-- Resolved Cases -->
  {% if resolved_cases %}
- <div class="card-qatar overflow-hidden">
+ <div class="card-qatar overflow-hidden" id="resolved-cases-card" data-section="resolved">
  <div class="px-6 py-4 border-b bg-gray-50">
  <h2 class="font-bold text-gray-700">{% include "components/icon.html" with name="list-checks" %} القضايا المحلولة (آخر 20)</h2>
  </div>
@@ -138,7 +156,7 @@
  </thead>
  <tbody class="divide-y">
  {% for inf in resolved_cases %}
- <tr class="hover:bg-gray-50">
+ <tr class="hover:bg-gray-50" data-filter-row data-status="resolved" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
  <td class="px-4 py-3 font-medium">
  <a href="{% url 'behavior:student_profile' inf.student.id %}" class="text-red-700 hover:underline">
  {{ inf.student.full_name }}
@@ -163,4 +181,72 @@
  {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  var studentInput = document.getElementById('filter-student');
+  var statusSel    = document.getElementById('filter-status');
+  var levelSel     = document.getElementById('filter-level');
+  var dateFrom     = document.getElementById('filter-date-from');
+  var dateTo       = document.getElementById('filter-date-to');
+  var resetBtn     = document.getElementById('btn-reset-filters');
+  if (!studentInput) return;
+
+  var rows     = document.querySelectorAll('[data-filter-row]');
+  var openCard = document.getElementById('open-cases-card');
+  var resCard  = document.getElementById('resolved-cases-card');
+
+  function applyFilters(){
+    var q      = (studentInput.value || '').trim().toLowerCase();
+    var status = statusSel.value || '';
+    var level  = levelSel.value  || '';
+    var from   = dateFrom.value  || '';
+    var to     = dateTo.value    || '';
+
+    var openVisible = 0, resVisible = 0;
+
+    rows.forEach(function(row){
+      var name = (row.getAttribute('data-student') || '').toLowerCase();
+      var st   = row.getAttribute('data-status') || '';
+      var dt   = row.getAttribute('data-date')   || '';
+      var lvl  = row.getAttribute('data-level')  || '';
+      var show = true;
+
+      if (q && name.indexOf(q) === -1) show = false;
+      if (status && st !== status) show = false;
+      if (level && lvl !== level) show = false;
+      if (from && dt < from) show = false;
+      if (to   && dt > to)   show = false;
+
+      row.style.display = show ? '' : 'none';
+      if (show) {
+        if (st === 'open') openVisible++;
+        else resVisible++;
+      }
+    });
+
+    /* Hide entire section cards when all their rows are hidden */
+    if (openCard) openCard.style.display = (status === 'resolved' || openVisible === 0) && status ? 'none' : '';
+    if (resCard)  resCard.style.display  = (status === 'open' || resVisible === 0) && status ? 'none' : '';
+  }
+
+  studentInput.addEventListener('input', applyFilters);
+  statusSel.addEventListener('change', applyFilters);
+  levelSel.addEventListener('change', applyFilters);
+  dateFrom.addEventListener('change', applyFilters);
+  dateTo.addEventListener('change', applyFilters);
+  resetBtn.addEventListener('click', function(){
+    studentInput.value = '';
+    statusSel.value    = '';
+    levelSel.value     = '';
+    dateFrom.value     = '';
+    dateTo.value       = '';
+    applyFilters();
+    if (openCard) openCard.style.display = '';
+    if (resCard)  resCard.style.display  = '';
+  });
+})();
+</script>
 {% endblock %}

@@ -57,15 +57,31 @@
  <div class="bg-gray-50 px-4 py-3 border-b">
  <p class="font-semibold text-gray-700 text-sm">تفاصيل المخالفات</p>
  </div>
+
+ {# ── فلتر بحث المخالفات ── #}
+ <div class="filter-bar" id="infraction-filters">
+ <input type="text" id="filter-description" placeholder="بحث في الوصف..." class="form-control text-sm flex-1 min-w-[160px]">
+ <input type="date" id="filter-date-from" title="من تاريخ" class="form-control text-sm">
+ <input type="date" id="filter-date-to" title="إلى تاريخ" class="form-control text-sm">
+ <select id="filter-level" class="form-control text-sm">
+ <option value="">كل الدرجات</option>
+ <option value="1">درجة 1</option>
+ <option value="2">درجة 2</option>
+ <option value="3">درجة 3</option>
+ <option value="4">درجة 4</option>
+ </select>
+ <button type="button" id="btn-reset-filters" class="text-xs text-gray-500 hover:text-maroon transition" title="إعادة تعيين">مسح</button>
+ </div>
+
  {% for lvl in "1234" %}
  {% with lvl_int=lvl|add:0 %}
  {% if by_level|dictsort:"0" %}
  {% endif %}
  {% endwith %}
  {% endfor %}
- <div class="divide-y">
+ <div class="divide-y" id="infractions-list">
  {% for inf in infractions %}
- <div class="px-4 py-3 flex items-start justify-between">
+ <div class="px-4 py-3 flex items-start justify-between" data-filter-row data-description="{{ inf.description }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
  <div class="flex-1">
  <div class="flex items-center gap-2 mb-1">
  <span class="text-xs px-2 py-0.5 rounded-full font-medium
@@ -85,6 +101,7 @@
  </div>
  {% endfor %}
  </div>
+ <p id="no-results-msg" class="text-center text-sm text-gray-400 py-4 hidden">لا توجد نتائج مطابقة</p>
  </div>
  {% else %}
  <div class="card-qatar text-center text-gray-400">
@@ -117,4 +134,55 @@
  {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  const descInput  = document.getElementById('filter-description');
+  const dateFrom   = document.getElementById('filter-date-from');
+  const dateTo     = document.getElementById('filter-date-to');
+  const levelSel   = document.getElementById('filter-level');
+  const resetBtn   = document.getElementById('btn-reset-filters');
+  const noMsg      = document.getElementById('no-results-msg');
+  const list       = document.getElementById('infractions-list');
+  if (!list) return;
+  const rows = list.querySelectorAll('[data-filter-row]');
+
+  function applyFilters(){
+    const q     = (descInput.value || '').trim().toLowerCase();
+    const from  = dateFrom.value || '';
+    const to    = dateTo.value   || '';
+    const level = levelSel.value || '';
+    let visible = 0;
+
+    rows.forEach(function(row){
+      const desc = (row.getAttribute('data-description') || '').toLowerCase();
+      const date = row.getAttribute('data-date') || '';
+      const lvl  = row.getAttribute('data-level') || '';
+      let show = true;
+      if (q && desc.indexOf(q) === -1) show = false;
+      if (from && date < from) show = false;
+      if (to   && date > to)   show = false;
+      if (level && lvl !== level) show = false;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    if (noMsg) noMsg.classList.toggle('hidden', visible > 0);
+  }
+
+  descInput.addEventListener('input', applyFilters);
+  dateFrom.addEventListener('change', applyFilters);
+  dateTo.addEventListener('change', applyFilters);
+  levelSel.addEventListener('change', applyFilters);
+  resetBtn.addEventListener('click', function(){
+    descInput.value = '';
+    dateFrom.value  = '';
+    dateTo.value    = '';
+    levelSel.value  = '';
+    applyFilters();
+  });
+})();
+</script>
 {% endblock %}

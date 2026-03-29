@@ -5,8 +5,11 @@
 <div
   id="notif-{{ notif.id }}"
   class="notif-item"
+  data-filter-item
   data-id="{{ notif.id }}"
   data-url="{{ notif.related_url|default:'' }}"
+  data-title="{{ notif.title }}"
+  data-body="{{ notif.body|default:'' }}"
   tabindex="0"
   role="article"
   aria-label="{{ notif.title }}"

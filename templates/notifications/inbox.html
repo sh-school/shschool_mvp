@@ -38,6 +38,11 @@
     </div>
   </div>
 
+  {# ── شريط البحث ── #}
+  <div class="filter-bar mb-4">
+    <input type="text" id="notif-search" class="form-control" placeholder="بحث في الإشعارات..." autocomplete="off">
+  </div>
+
   {# ── Filter chips — HTMX ── #}
   <div class="flex gap-2 flex-wrap mb-4">
     <a href="{% url 'notification_inbox' %}"
@@ -93,6 +98,32 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function () {
+  'use strict';
+
+  /* ── بحث فوري في الإشعارات ── */
+  var searchInput = document.getElementById('notif-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function () {
+      var q = this.value.trim().toLowerCase();
+      var items = document.querySelectorAll('#notif-list [data-filter-item]');
+      for (var i = 0; i < items.length; i++) {
+        var title = (items[i].getAttribute('data-title') || '').toLowerCase();
+        var body = (items[i].getAttribute('data-body') || '').toLowerCase();
+        items[i].style.display = (!q || title.indexOf(q) !== -1 || body.indexOf(q) !== -1) ? '' : 'none';
+      }
+      /* إخفاء/إظهار الإشعارات العاجلة أيضاً */
+      var urgentItems = document.querySelectorAll('#urgent-section [data-filter-item]');
+      for (var j = 0; j < urgentItems.length; j++) {
+        var uTitle = (urgentItems[j].getAttribute('data-title') || '').toLowerCase();
+        var uBody = (urgentItems[j].getAttribute('data-body') || '').toLowerCase();
+        urgentItems[j].style.display = (!q || uTitle.indexOf(q) !== -1 || uBody.indexOf(q) !== -1) ? '' : 'none';
+      }
+    });
+  }
+})();
+</script>
 <script nonce="{{ request.csp_nonce }}">
 (function () {
   'use strict';
