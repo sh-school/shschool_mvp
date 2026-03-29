@@ -1,0 +1,174 @@
+{% extends "base/base.html" %}
+
+{% block title %}ملف الموظف — {{ staff_user.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/list/" parent_label="سجل الموظفين" current=staff_user.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ staff_user.full_name }}</h1>
+      <p class="exec-subtitle">
+        {% if membership %}{{ role_labels|default_if_none:"" }}{% for k, v in role_labels.items %}{% if k == membership.role.name %}{{ v }}{% endif %}{% endfor %}{% endif %}
+        {% if membership.department_obj %} — {{ membership.department_obj.name }}{% endif %}
+      </p>
+    </div>
+    <div class="exec-meta" style="gap:6px">
+      <a href="/teacher/schedule/teacher/{{ staff_user.id }}/weekly/" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي
+      </a>
+    </div>
+  </div>
+
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">حصص أسبوعية</div>
+      <div class="kpi-mini-value">{{ weekly_slots }}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">أيام غياب</div>
+      <div class="kpi-mini-value">{{ absence_count }}</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">تبديلات</div>
+      <div class="kpi-mini-value">{{ swaps_count }}</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">تعويضات</div>
+      <div class="kpi-mini-value">{{ compensatory_count }}</div>
+    </div>
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">تقييمات</div>
+      <div class="kpi-mini-value">{{ evaluations|length }}</div>
+    </div>
+  </div>
+
+  <div class="charts-grid-2">
+
+    {# ── البيانات الشخصية ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
+      <div class="dash-list">
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الاسم:</span> <strong>{{ staff_user.full_name }}</strong></div>
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الرقم الوطني:</span> <span dir="ltr">{{ staff_user.national_id }}</span></div>
+        {% if membership %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الدور:</span> {% for k, v in role_labels.items %}{% if k == membership.role.name %}{{ v }}{% endif %}{% endfor %}</div>
+        {% if membership.department_obj %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">القسم:</span> {{ membership.department_obj.name }}</div>
+        {% endif %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">تاريخ الانضمام:</span> {{ membership.joined_at|date:"d/m/Y" }}</div>
+        {% endif %}
+        {% if staff_user.phone %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الجوال:</span> <span dir="ltr">{{ staff_user.phone }}</span></div>
+        {% endif %}
+        {% if staff_user.email %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">البريد:</span> <span dir="ltr">{{ staff_user.email }}</span></div>
+        {% endif %}
+      </div>
+
+      {# الرخصة المهنية #}
+      <div class="dash-chart-title" style="margin-top:12px">{% include "components/icon.html" with name="lock" %} الرخصة المهنية</div>
+      <div class="dash-list">
+        {% if staff_user.professional_license_number %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">رقم الرخصة:</span> {{ staff_user.professional_license_number }}</div>
+        <div class="dash-list-item">
+          <span style="color:var(--muted);min-width:110px">تنتهي:</span>
+          {% if staff_user.professional_license_expiry %}
+          <span class="text-xs px-2 py-0.5 rounded-full
+            {% if staff_user.professional_license_expiry < today %}bg-red-100 text-red-800
+            {% else %}bg-green-100 text-green-800{% endif %}">
+            {{ staff_user.professional_license_expiry|date:"d/m/Y" }}
+          </span>
+          {% else %}—{% endif %}
+        </div>
+        {% else %}
+        <div class="dash-list-item" style="color:var(--status-warning);font-size:.8rem">لا توجد رخصة مهنية مسجّلة</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── سجل الغياب ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="ban" %} سجل الغياب ({{ absence_count }} يوم)</div>
+      {% if absences_recent %}
+      <div class="dash-list">
+        {% for a in absences_recent %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <span style="font-size:.8rem">{{ a.get_reason_display }}</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ a.date|date:"d/m/Y" }}</span>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded-full
+            {% if a.status == "covered" %}bg-green-100 text-green-800
+            {% elif a.status == "uncovered" %}bg-red-100 text-red-800
+            {% else %}bg-yellow-100 text-yellow-800{% endif %}">{{ a.get_status_display }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا غيابات مسجّلة" %}
+      {% endif %}
+    </div>
+
+    {# ── التقييمات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</div>
+      {% if evaluations %}
+      <div class="dash-list">
+        {% for ev in evaluations %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <span style="font-weight:600;font-size:.8rem">{{ ev.academic_year }}</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ ev.get_recommendation_display }}</span>
+          </div>
+          <span style="font-weight:700;font-size:.9rem;color:{% if ev.overall_score >= 4 %}var(--status-success){% elif ev.overall_score >= 3 %}var(--status-warning){% else %}var(--status-danger){% endif %}">
+            {{ ev.overall_score|floatformat:1 }}/5
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا تقييمات مسجّلة" %}
+      {% endif %}
+    </div>
+
+    {# ── الإجازات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} الإجازات</div>
+      {% if leave_balances %}
+      <div style="margin-bottom:8px;font-size:.7rem;font-weight:600;color:var(--muted)">أرصدة {{ year }}:</div>
+      <div class="dash-list">
+        {% for b in leave_balances %}
+        <div class="dash-list-item">
+          <span style="font-size:.8rem">{{ b.get_leave_type_display }}</span>
+          <span style="font-size:.8rem;font-weight:600">{{ b.remaining_days }}/{{ b.total_days }} يوم</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if leaves %}
+      <div style="margin-top:8px;font-size:.7rem;font-weight:600;color:var(--muted)">آخر الطلبات:</div>
+      {% for l in leaves %}
+      <div class="dash-list-item" style="font-size:.8rem">
+        <span>{{ l.get_leave_type_display }} ({{ l.days_count }} يوم)</span>
+        <span class="text-xs px-2 py-0.5 rounded-full
+          {% if l.status == "approved" %}bg-green-100 text-green-800
+          {% elif l.status == "rejected" %}bg-red-100 text-red-800
+          {% elif l.status == "pending" %}bg-yellow-100 text-yellow-800
+          {% else %}bg-gray-100 text-gray-600{% endif %}">{{ l.get_status_display }}</span>
+      </div>
+      {% endfor %}
+      {% elif not leave_balances %}
+      {% include "components/empty_state.html" with message="لا إجازات مسجّلة" %}
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

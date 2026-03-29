@@ -1,0 +1,51 @@
+{% extends "base/base.html" %}
+{% block title %}تفاصيل الإجازة — {{ leave.staff.full_name }}{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/leave/" parent_label="الإجازات" current=leave.staff.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} تفاصيل طلب الإجازة</h1>
+      <p class="exec-subtitle">{{ leave.staff.full_name }} — {{ leave.get_leave_type_display }}</p>
+    </div>
+    <span class="text-xs font-medium px-3 py-1 rounded-full {% if leave.status == "approved" %}bg-green-100 text-green-800{% elif leave.status == "rejected" %}bg-red-100 text-red-800{% elif leave.status == "pending" %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-600{% endif %}" style="font-size:.8rem">{{ leave.get_status_display }}</span>
+  </div>
+
+  <div class="card-qatar" style="padding:20px">
+    <div class="dash-list">
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الموظف:</span> <strong>{{ leave.staff.full_name }}</strong></div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">النوع:</span> {{ leave.get_leave_type_display }}</div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">من:</span> {{ leave.start_date|date:"d/m/Y" }}</div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">إلى:</span> {{ leave.end_date|date:"d/m/Y" }}</div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الأيام:</span> <strong>{{ leave.days_count }}</strong></div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">السبب:</span> {{ leave.reason }}</div>
+      {% if leave.rejection_reason %}<div class="dash-list-item"><span style="color:var(--status-danger);min-width:100px">سبب الرفض:</span> {{ leave.rejection_reason }}</div>{% endif %}
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">تاريخ الطلب:</span> {{ leave.created_at|date:"d/m/Y H:i" }}</div>
+      {% if leave.reviewed_by %}<div class="dash-list-item"><span style="color:var(--muted);min-width:100px">راجعها:</span> {{ leave.reviewed_by.full_name }} — {{ leave.reviewed_at|date:"d/m/Y H:i" }}</div>{% endif %}
+    </div>
+  </div>
+
+  {% if leave.status == "pending" %}
+  <div class="card-qatar" style="padding:20px">
+    <div class="dash-chart-title" style="margin-bottom:12px">{% include "components/icon.html" with name="list-checks" %} مراجعة الطلب</div>
+    <form method="post" action="{% url 'staff_affairs:leave_review' leave.pk %}">{% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label class="form-label">القرار</label>
+          <select name="action" class="form-control" required>
+            <option value="approved">موافقة</option>
+            <option value="rejected">رفض</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">سبب الرفض <span style="font-size:.65rem;color:var(--muted)">(مطلوب عند الرفض)</span></label>
+          <input type="text" name="rejection_reason" class="form-control" placeholder="سبب الرفض..."></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

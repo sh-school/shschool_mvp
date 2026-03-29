@@ -1,0 +1,79 @@
+{% extends "base/base.html" %}
+{% block title %}الرخص المهنية{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="الرخص المهنية" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="lock" %} الرخص المهنية</h1>
+      <p class="exec-subtitle">تتبع رخص المعلمين — rukhsa.edu.gov.qa</p>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">منتهية</div>
+      <div class="kpi-mini-value">{{ expired|length }}</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">تنتهي خلال 90 يوم</div>
+      <div class="kpi-mini-value">{{ expiring_soon|length }}</div>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">سارية</div>
+      <div class="kpi-mini-value">{{ valid|length }}</div>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">بدون رخصة</div>
+      <div class="kpi-mini-value">{{ no_license|length }}</div>
+    </div>
+  </div>
+
+  <div class="charts-grid-2">
+    {% if expired %}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title" style="color:var(--status-danger)">{% include "components/icon.html" with name="x-circle" %} رخص منتهية</div>
+      <div class="dash-list">
+        {% for u in expired %}
+        <div class="dash-list-item">
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if expiring_soon %}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title" style="color:var(--status-warning)">{% include "components/icon.html" with name="alert-triangle" %} تنتهي قريباً</div>
+      <div class="dash-list">
+        {% for u in expiring_soon %}
+        <div class="dash-list-item">
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if no_license %}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} معلمون بدون رخصة مهنية</div>
+      <div class="dash-list">
+        {% for m in no_license %}
+        <div class="dash-list-item">
+          <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ m.user.full_name }}</a>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">غير مسجّلة</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

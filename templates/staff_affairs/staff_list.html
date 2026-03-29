@@ -1,0 +1,65 @@
+{% extends "base/base.html" %}
+
+{% block title %}سجل الموظفين{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="سجل الموظفين" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</h1>
+      <p class="exec-subtitle">{{ total }} موظف</p>
+    </div>
+  </div>
+
+  <div class="card-qatar" style="padding:12px 16px">
+    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div style="flex:2;min-width:200px">
+        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">بحث</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="اسم الموظف أو الرقم الوطني..."
+               class="form-control form-control-sm"
+               hx-get="{% url 'staff_affairs:staff_list' %}"
+               hx-trigger="input changed delay:400ms, search"
+               hx-target="#staff-table-container" hx-swap="innerHTML"
+               hx-include="[name='role'],[name='dept']" autocomplete="off">
+      </div>
+      <div style="min-width:120px">
+        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الدور</label>
+        <select name="role" class="form-control form-control-sm"
+                hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
+                hx-target="#staff-table-container" hx-swap="innerHTML"
+                hx-include="[name='q'],[name='dept']">
+          <option value="">— الكل —</option>
+          {% for val, label in roles %}
+          <option value="{{ val }}" {% if role_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="min-width:120px">
+        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">القسم</label>
+        <select name="dept" class="form-control form-control-sm"
+                hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
+                hx-target="#staff-table-container" hx-swap="innerHTML"
+                hx-include="[name='q'],[name='role']">
+          <option value="">— الكل —</option>
+          {% for d in departments %}
+          <option value="{{ d.id }}" {% if dept_filter == d.id|slugify %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <a href="{% url 'staff_affairs:staff_list' %}" class="btn-secondary btn-sm" style="align-self:end">
+        {% include "components/icon.html" with name="refresh" %} إعادة ضبط
+      </a>
+    </form>
+  </div>
+
+  <div class="card-qatar" style="padding:0" id="staff-table-container">
+    {% include "staff_affairs/_staff_table.html" %}
+  </div>
+
+</div>
+{% endblock %}

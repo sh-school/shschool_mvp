@@ -1,0 +1,63 @@
+{% extends "base/base.html" %}
+{% block title %}طلبات الإجازات{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="طلبات الإجازات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div><h1 class="page-title">{% include "components/icon.html" with name="calendar" %} طلبات الإجازات</h1></div>
+    <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب إجازة جديد</a>
+  </div>
+
+  <div class="card-qatar" style="padding:12px 16px">
+    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div><label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
+        <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+          <option value="">— الكل —</option>
+          {% for val, label in status_choices %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <div><label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">النوع</label>
+        <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
+          <option value="">— الكل —</option>
+          {% for val, label in type_choices %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    </form>
+  </div>
+
+  <div class="card-qatar" style="padding:0">
+    {% if leaves %}
+    <div class="table-wrap-scroll" style="font-size:.8rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
+          <th style="padding:8px;text-align:right">الموظف</th>
+          <th style="padding:8px;text-align:center">النوع</th>
+          <th style="padding:8px;text-align:center">من</th>
+          <th style="padding:8px;text-align:center">إلى</th>
+          <th style="padding:8px;text-align:center">الأيام</th>
+          <th style="padding:8px;text-align:center">الحالة</th>
+          <th style="padding:8px;text-align:center">تفاصيل</th>
+        </tr></thead>
+        <tbody>
+          {% for l in leaves %}
+          <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
+            <td style="padding:8px"><strong>{{ l.staff.full_name }}</strong></td>
+            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.get_leave_type_display }}</td>
+            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.start_date|date:"d/m" }}</td>
+            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.end_date|date:"d/m" }}</td>
+            <td style="padding:8px;text-align:center;font-weight:600">{{ l.days_count }}</td>
+            <td style="padding:8px;text-align:center">
+              <span class="text-xs px-2 py-0.5 rounded-full {% if l.status == "approved" %}bg-green-100 text-green-800{% elif l.status == "rejected" %}bg-red-100 text-red-800{% elif l.status == "pending" %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-600{% endif %}">{{ l.get_status_display }}</span>
+            </td>
+            <td style="padding:8px;text-align:center"><a href="{% url 'staff_affairs:leave_detail' l.pk %}" class="btn-secondary btn-xs">عرض</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}{% include "components/empty_state.html" with message="لا طلبات إجازات" %}{% endif %}
+  </div>
+</div>
+{% endblock %}

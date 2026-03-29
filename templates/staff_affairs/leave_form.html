@@ -1,0 +1,42 @@
+{% extends "base/base.html" %}
+{% block title %}طلب إجازة جديد{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/leave/" parent_label="الإجازات" current="طلب جديد" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+  <div class="exec-header"><h1 class="page-title">{% include "components/icon.html" with name="calendar" %} طلب إجازة جديد</h1></div>
+
+  <div class="card-qatar" style="padding:20px 24px">
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      {% if form.non_field_errors %}<div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">{% for err in form.non_field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}</div>{% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">الموظف <span style="color:red">*</span></label>
+          <select name="staff_id" class="form-control" required>
+            <option value="">— اختر الموظف —</option>
+            {% for m in staff_members %}<option value="{{ m.user_id }}">{{ m.user.full_name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">نوع الإجازة <span style="color:red">*</span></label>
+          <select name="leave_type" class="form-control" required>
+            {% for val, label in form.fields.leave_type.choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">مرفق</label><input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
+        <div class="form-group"><label class="form-label">من <span style="color:red">*</span></label><input type="date" name="start_date" class="form-control" required></div>
+        <div class="form-group"><label class="form-label">إلى <span style="color:red">*</span></label><input type="date" name="end_date" class="form-control" required></div>
+        <div class="form-group" style="grid-column:span 2"><label class="form-label">السبب <span style="color:red">*</span></label><textarea name="reason" rows="3" class="form-control" required placeholder="سبب الإجازة..."></textarea></div>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">إلغاء</a>
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تقديم الطلب</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

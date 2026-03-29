@@ -1,0 +1,53 @@
+<div class="table-wrap-scroll" style="font-size:.8rem;max-height:500px">
+  {% if staff %}
+  <table style="width:100%;border-collapse:collapse">
+    <thead style="position:sticky;top:0;z-index:1;background:var(--surface)">
+      <tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
+        <th style="padding:8px 6px;text-align:right">الاسم</th>
+        <th style="padding:8px 6px;text-align:center">الدور</th>
+        <th style="padding:8px 6px;text-align:center">القسم</th>
+        <th style="padding:8px 6px;text-align:center">الجوال</th>
+        <th style="padding:8px 6px;text-align:center">الرخصة</th>
+        <th style="padding:8px 6px;text-align:center">ملف</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in staff %}
+      <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
+        <td style="padding:8px 6px">
+          <a href="{% url 'staff_affairs:staff_profile' s.id %}"
+             style="font-weight:600;color:var(--maroon);text-decoration:none" class="hover:underline">
+            {{ s.full_name }}
+          </a>
+        </td>
+        <td style="padding:8px 6px;text-align:center">
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{{ s.role_display }}</span>
+        </td>
+        <td style="padding:8px 6px;text-align:center;font-size:.75rem">{{ s.department }}</td>
+        <td style="padding:8px 6px;text-align:center;font-size:.75rem;direction:ltr">{{ s.phone|default:"—" }}</td>
+        <td style="padding:8px 6px;text-align:center">
+          {% if s.license_expiry %}
+            {% load tz %}
+            <span class="text-xs px-2 py-0.5 rounded-full
+              {% if s.license_expiry < today %}bg-red-100 text-red-800
+              {% else %}bg-green-100 text-green-800{% endif %}">
+              {{ s.license_expiry|date:"d/m/Y" }}
+            </span>
+          {% else %}
+            <span style="font-size:.7rem;color:var(--muted)">—</span>
+          {% endif %}
+        </td>
+        <td style="padding:8px 6px;text-align:center">
+          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="btn-secondary btn-xs">
+            {% include "components/icon.html" with name="user" %}
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div style="padding:8px;font-size:.7rem;color:var(--muted);text-align:center">{{ total }} موظف</div>
+  {% else %}
+  {% include "components/empty_state.html" with message="لا يوجد موظفون مطابقون" %}
+  {% endif %}
+</div>
