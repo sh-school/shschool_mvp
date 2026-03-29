@@ -6,30 +6,32 @@
 {% endblock %}
 
 {% block content %}
-<div>
+<div class="space-y-6">
 
-  {# ── Header ── #}
-  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
-    <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
-    <div class="flex gap-2">
-      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-sm">+ زيارة جديدة</a>
-      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary text-sm">← رجوع</a>
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm no-underline">+ زيارة جديدة</a>
+      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
     </div>
   </div>
 
   {# ── فلاتر HTMX (تاريخ + بحث نصي) ── #}
-  <div class="card-qatar mb-4">
+  <div class="filter-bar">
     <div class="flex flex-wrap gap-3 items-end">
 
       {# فلتر التاريخ #}
       <div class="flex flex-col gap-1">
-        <label class="text-xs text-gray-500 font-medium">التاريخ</label>
+        <label class="form-label" style="margin-bottom:0">التاريخ</label>
         <input
           type="date"
           name="date"
           id="date-filter"
           value="{{ date_filter }}"
-          class="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300"
+          class="form-control"
           hx-get="{{ request.path }}"
           hx-trigger="change"
           hx-target="#visits-container"
@@ -42,7 +44,7 @@
 
       {# بحث بالاسم #}
       <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
-        <label class="text-xs text-gray-500 font-medium">اسم الطالب</label>
+        <label class="form-label" style="margin-bottom:0">اسم الطالب</label>
         <div class="relative">
           <input
             type="text"
@@ -50,7 +52,8 @@
             id="student-filter"
             value="{{ student_filter }}"
             placeholder="ابحث باسم الطالب..."
-            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 pl-8"
+            class="form-control"
+            style="padding-inline-start:2rem"
             hx-get="{{ request.path }}"
             hx-trigger="input changed delay:400ms, search"
             hx-target="#visits-container"
@@ -59,9 +62,9 @@
             hx-indicator="#visits-skeleton"
             hx-push-url="false"
           >
-          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">{% include "components/icon.html" with name="search" %}</span>
+          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style="color:var(--text-secondary)">{% include "components/icon.html" with name="search" %}</span>
           <span class="htmx-indicator absolute left-8 top-1/2 -translate-y-1/2">
-            <svg class="animate-spin h-4 w-4 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg class="animate-spin h-4 w-4" style="color:var(--maroon)" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
             </svg>
@@ -73,7 +76,7 @@
       {% if date_filter or student_filter %}
       <a
         href="{% url 'clinic:visits_list' %}"
-        class="btn-secondary text-sm self-end"
+        class="btn-secondary btn-sm self-end no-underline"
         hx-get="{{ request.path }}"
         hx-target="#visits-container"
         hx-swap="innerHTML"

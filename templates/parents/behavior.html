@@ -17,14 +17,14 @@
   </div>
 
   {% if not children_behavior %}
-  <div class="card text-center py-12">
-    <p class="text-gray-500 text-lg">لا يوجد أبناء مربوطين بحسابك حالياً</p>
-    <p class="text-sm text-gray-400 mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك</p>
+  <div class="card-qatar text-center py-12">
+    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين بحسابك حالياً</p>
+    <p class="text-sm text-[var(--muted)] mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك</p>
   </div>
   {% endif %}
 
   {% for child in children_behavior %}
-  <div class="card">
+  <div class="card-qatar">
     {# Header #}
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>

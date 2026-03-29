@@ -8,53 +8,48 @@
 {% block content %}
 <div class="max-w-lg mx-auto py-10 px-4">
 
-  <div class="mb-6">
-    <h1 class="page-title">{% include "components/icon.html" with name="lock" %} إعداد المصادقة الثنائية (2FA)</h1>
-    <p class="text-gray-500 text-sm mt-1">
-      حماية إضافية لحسابك — مطلوبة للحسابات الإدارية
-    </p>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="lock" %} إعداد المصادقة الثنائية (2FA)</h1>
+      <p class="page-subtitle">حماية إضافية لحسابك — مطلوبة للحسابات الإدارية</p>
+    </div>
   </div>
 
   {% if messages %}
     {% for msg in messages %}
-    <div class="mb-4 px-4 py-3 rounded-lg text-sm
-      {% if msg.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
-      {% else %}bg-green-50 text-green-700 border border-green-200{% endif %}">
-      {{ msg }}
+    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300{% else %}bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300{% endif %}">
+      <span>{{ msg }}</span>
     </div>
     {% endfor %}
   {% endif %}
 
   {% if totp_enabled %}
   <!-- 2FA مفعّل بالفعل -->
-  <div class="bg-green-50 border border-green-200 rounded-2xl p-6 mb-6 flex items-start gap-4">
+  <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-2xl p-6 mb-6 flex items-start gap-4">
     <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-      <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-      </svg>
+      {% include "components/icon.html" with name="check" class="text-white" %}
     </div>
     <div>
-      <p class="font-semibold text-green-800">المصادقة الثنائية مفعّلة</p>
-      <p class="text-green-600 text-sm mt-1">حسابك محمي. يمكنك إيقافها إذا لزم.</p>
+      <p class="font-semibold text-green-800 dark:text-green-300">المصادقة الثنائية مفعّلة</p>
+      <p class="text-green-600 dark:text-green-400 text-sm mt-1">حسابك محمي. يمكنك إيقافها إذا لزم.</p>
     </div>
   </div>
-  <a href="{% url 'disable_2fa' %}"
-     class="btn-danger inline-block text-white px-5 py-2.5 rounded-xl text-sm font-medium transition">
+  <a href="{% url 'disable_2fa' %}" class="btn-danger">
     إيقاف المصادقة الثنائية
   </a>
 
   {% else %}
   <!-- خطوات الإعداد -->
-  <div class="card-qatar mb-6">
+  <div class="form-card mb-6">
 
-    <h2 class="font-semibold text-gray-800 mb-4">الخطوة 1 — امسح رمز QR</h2>
-    <p class="text-sm text-gray-500 mb-4">
+    <h2 class="font-semibold text-[var(--text)] mb-4">الخطوة 1 — امسح رمز QR</h2>
+    <p class="text-sm text-[var(--muted)] mb-4">
       افتح <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>
       واضغط "إضافة حساب" ثم امسح الرمز أدناه.
     </p>
 
     <div class="flex justify-center mb-5">
-      <div class="p-3 bg-white border-2 border-gray-200 rounded-xl inline-block">
+      <div class="p-3 bg-white border-2 border-[var(--border)] rounded-xl inline-block">
         <img src="data:image/png;base64,{{ qr_b64 }}"
              alt="QR Code للمصادقة الثنائية"
              class="w-44 h-44">
@@ -63,17 +58,17 @@
 
     <!-- المفتاح اليدوي -->
     <details class="mb-6">
-      <summary class="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+      <summary class="text-sm text-[var(--muted)] cursor-pointer hover:text-[var(--text)]">
         لا يمكنك مسح الرمز؟ أدخله يدوياً
       </summary>
-      <div class="mt-3 bg-gray-50 rounded-lg px-4 py-3 flex items-center justify-between gap-2">
-        <code class="text-sm font-mono text-gray-700 tracking-wider select-all">{{ secret }}</code>
+      <div class="mt-3 bg-[var(--surface-alt)] rounded-lg px-4 py-3 flex items-center justify-between gap-2">
+        <code class="text-sm font-mono text-[var(--text)] tracking-wider select-all">{{ secret }}</code>
         <button onclick="navigator.clipboard.writeText('{{ secret }}')"
-                class="text-xs text-maroon hover:underline flex-shrink-0">نسخ</button>
+                class="text-xs text-maroon dark:text-maroon-light hover:underline flex-shrink-0">نسخ</button>
       </div>
     </details>
 
-    <h2 class="font-semibold text-gray-800 mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
+    <h2 class="font-semibold text-[var(--text)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
     <form method="post">
       {% csrf_token %}
       <div class="mb-4">
@@ -84,13 +79,9 @@
                pattern="[0-9]{6}"
                autofocus
                placeholder="أدخل الرمز المكوّن من 6 أرقام"
-               class="w-full text-center text-xl font-mono tracking-widest px-4 py-3
-                      border border-gray-300 rounded-xl focus:outline-none
-                      focus:ring-2 focus:ring-maroon focus:border-transparent">
+               class="form-control text-center text-xl font-mono tracking-widest">
       </div>
-      <button type="submit"
-              class="w-full bg-maroon hover:bg-maroon-dark text-white font-semibold
-                     py-3 rounded-xl transition duration-200">
+      <button type="submit" class="btn-primary w-full py-3">
         تفعيل المصادقة الثنائية
       </button>
     </form>
@@ -98,6 +89,6 @@
 
   {% endif %}
 
-  <a href="{% url 'dashboard' %}" class="text-sm text-gray-400 hover:text-gray-600">← العودة للوحة التحكم</a>
+  <a href="{% url 'dashboard' %}" class="text-sm text-[var(--muted)] hover:text-[var(--text)]">← العودة للوحة التحكم</a>
 </div>
 {% endblock %}

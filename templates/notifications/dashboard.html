@@ -9,10 +9,10 @@
 <div class="space-y-6">
 
   <!-- Header -->
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  <div class="page-header">
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="bell" %} الإشعارات التلقائية</h1>
-      <p class="text-gray-500 text-sm mt-1">إشعارات البريد الإلكتروني و SMS لأولياء الأمور</p>
+      <p class="page-subtitle">إشعارات البريد الإلكتروني و SMS لأولياء الأمور</p>
     </div>
   </div>
 
@@ -20,19 +20,19 @@
   <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div class="card-qatar text-center">
       <div class="text-2xl font-bold text-skyline">{{ total }}</div>
-      <div class="text-xs text-gray-500 mt-1">إجمالي المُرسَل</div>
+      <div class="text-xs text-[var(--muted)] mt-1">إجمالي المُرسَل</div>
     </div>
     <div class="card-qatar text-center">
       <div class="text-2xl font-bold text-green-700">{{ sent }}</div>
-      <div class="text-xs text-gray-500 mt-1">نجح</div>
+      <div class="text-xs text-[var(--muted)] mt-1">نجح</div>
     </div>
     <div class="card-qatar text-center {% if failed %}bg-red-50 border-red-100{% endif %}">
       <div class="text-2xl font-bold text-red-600">{{ failed }}</div>
-      <div class="text-xs text-gray-500 mt-1">فشل</div>
+      <div class="text-xs text-[var(--muted)] mt-1">فشل</div>
     </div>
     <div class="card-qatar text-center {% if pending_absence %}bg-amber-50 border-amber-100{% endif %}">
       <div class="text-2xl font-bold text-amber-600">{{ pending_absence }}</div>
-      <div class="text-xs text-gray-500 mt-1">تنبيه غياب معلّق</div>
+      <div class="text-xs text-[var(--muted)] mt-1">تنبيه غياب معلّق</div>
     </div>
   </div>
 
@@ -46,7 +46,7 @@
         <p class="text-amber-100 text-xs mt-0.5">إرسال لأولياء الأمور بغياب أبنائهم</p>
       </div>
       <div class="p-5">
-        <p class="text-sm text-gray-600 mb-4">
+        <p class="text-sm text-[var(--muted)] mb-4">
           يوجد <strong class="text-amber-700">{{ pending_absence }}</strong> تنبيه غياب معلق لم يُرسَل بعد.
         </p>
         <form method="post" action="{% url 'send_absence_alerts' %}">
@@ -67,7 +67,7 @@
         <p class="text-red-100 text-xs mt-0.5">إبلاغ أولياء الأمور بنتائج الرسوب</p>
       </div>
       <div class="p-5">
-        <p class="text-sm text-gray-600 mb-4">
+        <p class="text-sm text-[var(--muted)] mb-4">
           يوجد <strong class="text-red-700">{{ failing_students }}</strong> طالب راسب في مادة أو أكثر للعام {{ year }}.
         </p>
         <form method="post" action="{% url 'send_fail_alerts' %}">
@@ -87,8 +87,8 @@
   <!-- الإعدادات -->
   <div class="card-qatar overflow-hidden">
     <button onclick="document.getElementById('settings-panel').classList.toggle('hidden')"
-            class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition">
-      <h2 class="font-bold text-gray-900">{% include "components/icon.html" with name="settings" %} إعدادات الإشعارات</h2>
+            class="w-full flex items-center justify-between px-6 py-4 hover:bg-[var(--surface-alt)] transition">
+      <h2 class="font-bold text-[var(--text)]">{% include "components/icon.html" with name="settings" %} إعدادات الإشعارات</h2>
       <span class="text-gray-400 text-sm">▼</span>
     </button>
 
@@ -197,12 +197,12 @@
   <!-- سجل الإشعارات -->
   <div class="card-qatar overflow-hidden">
     <div class="px-6 py-4 border-b">
-      <h2 class="font-bold text-gray-900">سجل الإشعارات الأخيرة</h2>
+      <h2 class="font-bold text-[var(--text)]">سجل الإشعارات الأخيرة</h2>
     </div>
     {% if logs %}
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
+        <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]">
           <tr>
             <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
             <th scope="col" class="px-4 py-3 text-right">الطالب</th>
@@ -213,9 +213,9 @@
             <th scope="col" class="px-4 py-3 text-center">إعادة</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-[var(--border)]">
           {% for log in logs %}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-[var(--surface-alt)]">
             <td class="px-4 py-3 text-xs text-gray-500">{{ log.sent_at|date:"d/m/Y H:i" }}</td>
             <td class="px-4 py-3 font-medium text-gray-800">{{ log.student.full_name|default:"—" }}</td>
             <td class="px-4 py-3 text-gray-600 text-xs truncate max-w-xs">{{ log.recipient }}</td>

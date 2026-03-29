@@ -6,28 +6,38 @@
 {% endblock %}
 
 {% block content %}
-<div>
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
-    <a href="{% url 'clinic:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
-  </div>
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-    <div class="card-qatar border-r-4 border-red-500">
-      <p class="text-xs text-gray-500">إجمالي الزيارات</p>
-      <p class="text-3xl font-bold text-red-600">{{ visits_count }}</p>
+<div class="space-y-6">
+
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
+      <p class="page-subtitle">ملخّص بيانات العيادة والسجلات الصحية</p>
     </div>
-    <div class="card-qatar border-r-4 border-orange-500">
-      <p class="text-xs text-gray-500">زيارات هذا الشهر</p>
-      <p class="text-3xl font-bold text-orange-600">{{ visits_this_month }}</p>
-    </div>
-    <div class="card-qatar border-r-4 border-yellow-500">
-      <p class="text-xs text-gray-500">طلاب بأمراض مزمنة</p>
-      <p class="text-3xl font-bold text-yellow-600">{{ health_records_count }}</p>
-    </div>
-    <div class="card-qatar border-r-4 border-blue-500">
-      <p class="text-xs text-gray-500">طلاب لديهم حساسية</p>
-      <p class="text-3xl font-bold text-blue-600">{{ allergies_count }}</p>
+    <div class="page-actions">
+      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
     </div>
   </div>
+
+  {# ── KPIs ── #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="kpi-card">
+      <div class="kpi-value text-status-danger">{{ visits_count }}</div>
+      <div class="kpi-label">إجمالي الزيارات</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-warning">{{ visits_this_month }}</div>
+      <div class="kpi-label">زيارات هذا الشهر</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ health_records_count }}</div>
+      <div class="kpi-label">طلاب بأمراض مزمنة</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-skyline">{{ allergies_count }}</div>
+      <div class="kpi-label">طلاب لديهم حساسية</div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

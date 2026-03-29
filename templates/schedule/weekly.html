@@ -22,7 +22,7 @@
   flex-wrap: wrap; gap: 8px;
 }
 
-.sched-year { font-size: .75rem; color: #6b7280; }
+.sched-year { font-size: .75rem; color: var(--text-secondary, #6b7280); }
 
 /* Filters */
 .sched-filters {
@@ -61,8 +61,8 @@
 }
 .sched-table tbody td {
   padding: 3px;
-  border-bottom: 1px solid #f3f4f6;
-  border-left: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border, #f3f4f6);
+  border-left: 1px solid var(--border, #f3f4f6);
   vertical-align: top;
   height: 80px;
 }
@@ -98,22 +98,22 @@
 .slot-subject {
   font-weight: 700;
   font-size: .72rem;
-  color: #1e293b;
+  color: var(--text-primary, #1e293b);
   line-height: 1.2;
   margin-bottom: 2px;
 }
 .slot-class {
   font-size: .65rem;
-  color: #475569;
+  color: var(--text-secondary, #475569);
 }
 .slot-teacher {
   font-size: .6rem;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin-top: 1px;
 }
 .slot-time {
   font-size: .55rem;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   margin-top: 2px;
   direction: ltr;
   text-align: right;
@@ -158,7 +158,7 @@ td:has(.slot-empty) {
 
 /* Legend */
 .sched-legend {
-  display: flex; gap: 12px; font-size: .65rem; color: #6b7280;
+  display: flex; gap: 12px; font-size: .65rem; color: var(--text-secondary, #6b7280);
   align-items: center; flex-wrap: wrap;
   padding: 2px 0;
 }
@@ -203,10 +203,6 @@ td:has(.slot-empty) {
   border: 2px dashed #334155 !important;
 }
 .dark .slot-empty { color: #475569; }
-/* Legend dark */
-.dark .sched-legend { color: #94a3b8; }
-
-.dark .sched-year { color: #94a3b8; }
 
 /* Mobile */
 @media (max-width: 768px) {

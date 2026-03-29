@@ -6,46 +6,66 @@
 {% endblock %}
 
 {% block content %}
-<div>
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="page-title">{% include "components/icon.html" with name="bus" %} تتبع حافلة {{ bus.bus_number }}</h1>
-    <a href="{% url 'transport:bus_detail' bus.id %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+<div class="space-y-6">
+
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} تتبع حافلة {{ bus.bus_number }}</h1>
+      <p class="page-subtitle">معلومات التتبع والموقع</p>
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary">← رجوع</a>
+    </div>
   </div>
+
   {% if has_karwa or has_gps %}
-  <div class="card-qatar">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      {% if has_karwa %}
-      <div class="bg-blue-50 rounded-lg p-4">
-        <p class="font-medium text-blue-800">{% include "components/icon.html" with name="file-text" %} رقم كروة</p>
-        <p class="text-lg font-bold text-blue-900 mt-1">{{ bus.karwa_id }}</p>
-        <a href="https://www.karwa.com.qa" target="_blank"
-           class="mt-2 inline-block text-sm text-blue-600 hover:underline">→ فتح بوابة كروة</a>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% if has_karwa %}
+    <div class="card-qatar">
+      <div class="flex items-center gap-2 mb-2">
+        {% include "components/icon.html" with name="file-text" %}
+        <span class="font-semibold text-primary">رقم كروة</span>
       </div>
-      {% endif %}
-      {% if has_gps %}
-      <div class="bg-green-50 rounded-lg p-4">
-        <p class="font-medium text-green-800">{% include "components/icon.html" with name="target" %} تتبع GPS</p>
-        <a href="{{ bus.gps_link }}" target="_blank"
-           class="btn-success mt-2 inline-block text-white px-4 py-2 rounded-lg text-sm">
-          {% include "components/icon.html" with name="bus" %} فتح الخريطة
-        </a>
-      </div>
-      {% endif %}
+      <p class="text-lg font-bold text-status-info mt-1">{{ bus.karwa_id }}</p>
+      <a href="https://www.karwa.com.qa" target="_blank"
+         class="link-maroon mt-2 inline-block text-sm no-underline">→ فتح بوابة كروة</a>
     </div>
-    <div class="bg-gray-100 rounded-lg p-8 text-center text-gray-500">
-      <p class="text-4xl mb-2">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</p>
-      <p class="font-medium">التكامل الكامل مع كروة يتطلب API رسمي</p>
-      <p class="text-sm mt-1">استخدم الروابط أعلاه للوصول للتتبع المباشر</p>
+    {% endif %}
+    {% if has_gps %}
+    <div class="card-qatar">
+      <div class="flex items-center gap-2 mb-2">
+        {% include "components/icon.html" with name="target" %}
+        <span class="font-semibold text-primary">تتبع GPS</span>
+      </div>
+      <a href="{{ bus.gps_link }}" target="_blank" class="btn-success mt-2 inline-block">
+        {% include "components/icon.html" with name="bus" %} فتح الخريطة
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card-qatar">
+    <div class="empty-state p-8">
+      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
+      <p class="empty-title">التكامل الكامل مع كروة يتطلب API رسمي</p>
+      <p class="empty-sub">استخدم الروابط أعلاه للوصول للتتبع المباشر</p>
     </div>
   </div>
+
   {% else %}
-  <div class="card-qatar text-center">
-    <p class="text-4xl mb-2">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</p>
-    <p>لم يتم إعداد بيانات التتبع لهذه الحافلة</p>
-    <a href="{% url 'transport:bus_detail' bus.id %}" class="mt-3 inline-block text-sm text-blue-600 hover:underline">
-      أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة
-    </a>
+  <div class="card-qatar">
+    <div class="empty-state p-8">
+      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
+      <p class="empty-title">لم يتم إعداد بيانات التتبع لهذه الحافلة</p>
+      <p class="empty-sub">
+        <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon no-underline">
+          أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة
+        </a>
+      </p>
+    </div>
   </div>
   {% endif %}
+
 </div>
 {% endblock %}
