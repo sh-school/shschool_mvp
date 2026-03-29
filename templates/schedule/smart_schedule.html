@@ -151,11 +151,8 @@
 </div>
 {% endif %}
 
-{% endblock %}
-
-{% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
-(function(){
+<script>
+document.addEventListener('DOMContentLoaded', function(){
   var input = document.getElementById('assign-search');
   if (!input) return;
   var rows = document.querySelectorAll('#assign-tbody tr[data-filter-row]');
@@ -170,6 +167,7 @@
     });
     if (counter) counter.textContent = shown;
   });
-})();
+});
 </script>
+
 {% endblock %}
