@@ -90,9 +90,16 @@
       <h2>{% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}</h2>
     </div>
 
+    {# ── Search filter ── #}
+    <div class="filter-bar mb-4">
+      <input type="text" id="subject-search" class="form-control"
+             placeholder="بحث بالمادة أو المعلم أو الفصل...">
+    </div>
+
+    <div id="subjects-container">
     {% regroup setups by class_group as grouped %}
     {% for group in grouped %}
-    <div class="mb-5">
+    <div class="mb-5 subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
       <p class="text-sm font-bold text-secondary mb-2 pe-1">
         {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
       </p>
@@ -137,7 +144,18 @@
       {% endif %}
     </div>
     {% endfor %}
+    </div>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('subject-search', '[data-filter-row]', { textAttr: 'data-text', parent: '#subjects-container' });
+  }
+});
+</script>
 {% endblock %}

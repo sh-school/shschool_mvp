@@ -40,6 +40,13 @@
   <div class="table-wrap">
     <div class="card-bar">الحافلات المدرسية</div>
     {% if bus_data %}
+    <div class="filter-bar px-4 py-3">
+      <input type="text"
+             id="bus-search"
+             class="form-control form-control-sm w-full md:w-1/2"
+             placeholder="بحث برقم الحافلة أو اسم السائق..."
+             autocomplete="off">
+    </div>
     <div class="overflow-x-auto">
       <table>
         <thead>
@@ -51,9 +58,10 @@
             <th scope="col" class="text-center">إجراءات</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="bus-tbody">
           {% for item in bus_data %}
-          <tr>
+          <tr class="filterable-row"
+              data-text="{{ item.bus.bus_number|lower }} {{ item.bus.driver_name|lower }}">
             <td class="font-semibold">{{ item.bus.bus_number }}</td>
             <td>{{ item.bus.driver_name }}</td>
             <td class="text-center">{{ item.students_count }} / {{ item.bus.capacity }}</td>
@@ -83,4 +91,12 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  window.smartFilter('bus-search', '#bus-tbody .filterable-row', { textAttr: 'data-text' });
+});
+</script>
 {% endblock %}

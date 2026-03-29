@@ -79,7 +79,7 @@
       </div>
 
       <!-- قائمة التقييمات -->
-      <div class="divide-y">
+      <div class="divide-y" style="max-height:320px;overflow-y:auto">
         {% for assessment in pkg.assessments.all %}
         <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
           <div>

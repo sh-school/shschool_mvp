@@ -129,6 +129,9 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   window.smartFilter('visit-search', '#visit-list .visit-row');

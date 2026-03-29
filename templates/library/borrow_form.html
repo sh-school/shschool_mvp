@@ -25,7 +25,8 @@
       <div class="space-y-4">
         <div>
           <label class="form-label">الكتاب <span class="required">*</span></label>
-          <select name="book_id" required class="form-control">
+          <input type="text" id="book-filter" class="form-control mb-2" placeholder="ابحث عن كتاب..." autocomplete="off">
+          <select name="book_id" id="book-select" required class="form-control" size="6">
             <option value="">— اختر الكتاب —</option>
             {% for book in books %}
             {% if book.available_qty > 0 %}
@@ -36,7 +37,8 @@
         </div>
         <div>
           <label class="form-label">المستعير <span class="required">*</span></label>
-          <select name="user_id" required class="form-control">
+          <input type="text" id="user-filter" class="form-control mb-2" placeholder="ابحث عن طالب أو موظف..." autocomplete="off">
+          <select name="user_id" id="user-select" required class="form-control" size="6">
             <option value="">— اختر الطالب أو الموظف —</option>
             {% for u in borrowers %}
             <option value="{{ u.id }}">{{ u.full_name }}</option>
@@ -57,4 +59,29 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  /* فلتر خيارات <select> — يخفي الخيارات غير المطابقة */
+  function filterSelect(inputId, selectId){
+    var input = document.getElementById(inputId);
+    var select = document.getElementById(selectId);
+    if (!input || !select) return;
+    var options = Array.prototype.slice.call(select.options);
+    input.addEventListener('input', function(){
+      var q = this.value;
+      options.forEach(function(opt){
+        if (!opt.value){ opt.style.display = ''; return; }
+        var ok = window.smartMatch(q, opt.textContent);
+        opt.style.display = ok ? '' : 'none';
+        if (!ok && opt.selected) opt.selected = false;
+      });
+    });
+  }
+  filterSelect('book-filter', 'book-select');
+  filterSelect('user-filter', 'user-select');
+});
+</script>
 {% endblock %}

@@ -19,8 +19,8 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="buses-grid">
     {% for bus in buses %}
     <a href="{% url 'transport:bus_detail' bus.id %}"
-       class="card-qatar hover:shadow-md transition hover:border-red-200"
-       data-filter-item data-bus="{{ bus.bus_number }}" data-driver="{{ bus.driver_name }}">
+       class="card-qatar hover:shadow-md transition hover:border-red-200 filterable-row"
+       data-filter-item data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }}">
       <div class="flex justify-between items-start mb-3">
         <div>
           <p class="font-bold text-gray-800 text-lg">{% include "components/icon.html" with name="bus" %} {{ bus.bus_number }}</p>
@@ -44,16 +44,8 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-document.addEventListener('DOMContentLoaded', function () {
-  var input = document.getElementById('bus-search');
-  if (!input) return;
-  input.addEventListener('input', function () {
-    var q = this.value;
-    document.querySelectorAll('[data-filter-item]').forEach(function (el) {
-      var text = (el.getAttribute('data-bus') || '') + ' ' + (el.getAttribute('data-driver') || '');
-      el.style.display = window.smartMatch(q, text) ? '' : 'none';
-    });
-  });
+document.addEventListener('DOMContentLoaded', function(){
+  window.smartFilter('bus-search', '#buses-grid .filterable-row', { textAttr: 'data-text' });
 });
 </script>
 {% endblock %}

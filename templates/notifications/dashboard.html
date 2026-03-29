@@ -196,13 +196,19 @@
 
   <!-- سجل الإشعارات -->
   <div class="card-qatar overflow-hidden">
-    <div class="px-6 py-4 border-b">
+    <div class="px-6 py-4 border-b flex items-center justify-between gap-4 flex-wrap">
       <h2 class="font-bold text-[var(--text)]">سجل الإشعارات الأخيرة</h2>
+      {% if logs %}
+      <div class="filter-bar m-0 p-0 border-0 bg-transparent">
+        <input type="text" id="notif-log-search" class="form-control"
+               placeholder="بحث بالطالب أو المستلم أو النوع...">
+      </div>
+      {% endif %}
     </div>
     {% if logs %}
-    <div class="overflow-x-auto">
+    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
       <table class="w-full text-sm">
-        <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]">
+        <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]" style="position:sticky;top:0;z-index:1">
           <tr>
             <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
             <th scope="col" class="px-4 py-3 text-right">الطالب</th>
@@ -213,9 +219,10 @@
             <th scope="col" class="px-4 py-3 text-center">إعادة</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[var(--border)]">
+        <tbody id="notif-log-tbody" class="divide-y divide-[var(--border)]">
           {% for log in logs %}
-          <tr class="hover:bg-[var(--surface-alt)]">
+          <tr class="hover:bg-[var(--surface-alt)]" data-filter-row
+              data-text="{{ log.student.full_name|default:'' }} {{ log.recipient }} {{ log.get_channel_display }} {{ log.get_notif_type_display }} {{ log.get_status_display }}">
             <td class="px-4 py-3 text-xs text-gray-500">{{ log.sent_at|date:"d/m/Y H:i" }}</td>
             <td class="px-4 py-3 font-medium text-gray-800">{{ log.student.full_name|default:"—" }}</td>
             <td class="px-4 py-3 text-gray-600 text-xs truncate max-w-xs">{{ log.recipient }}</td>
@@ -261,4 +268,14 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('notif-log-search', '#notif-log-tbody tr[data-filter-row]', { textAttr: 'data-text' });
+  }
+});
+</script>
 {% endblock %}
