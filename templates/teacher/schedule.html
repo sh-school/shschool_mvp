@@ -56,6 +56,13 @@
         {% endfor %}
       </select>
     </div>
+    <div style="min-width:80px">
+      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحصة</label>
+      <select name="period" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        {% for p in "1234567" %}<option value="{{ p }}" {% if period_filter == p %}selected{% endif %}>الحصة {{ p }}</option>{% endfor %}
+      </select>
+    </div>
     <div style="min-width:100px">
       <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
       <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">

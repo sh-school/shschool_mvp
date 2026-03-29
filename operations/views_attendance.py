@@ -48,19 +48,22 @@ def schedule(request):
         teacher_filter = request.GET.get("teacher", "")
         class_filter = request.GET.get("class", "")
         status_filter = request.GET.get("status", "")
+        period_filter = request.GET.get("period", "")
         if teacher_filter:
             sessions = sessions.filter(teacher_id=teacher_filter)
         if class_filter:
             sessions = sessions.filter(class_group_id=class_filter)
         if status_filter:
             sessions = sessions.filter(status=status_filter)
+        if period_filter:
+            sessions = sessions.filter(period_number=period_filter)
     else:
         sessions = (
             Session.objects.filter(school=school, teacher=request.user, date=selected_date)
             .select_related("class_group", "subject")
             .order_by("start_time")
         )
-        teacher_filter = class_filter = status_filter = ""
+        teacher_filter = class_filter = status_filter = period_filter = ""
 
     now = timezone.now().time()
     next_session = None
@@ -95,6 +98,7 @@ def schedule(request):
         "teacher_filter": teacher_filter,
         "class_filter": class_filter,
         "status_filter": status_filter,
+        "period_filter": period_filter,
         "filter_teachers": filter_teachers,
         "filter_classes": filter_classes,
     })
