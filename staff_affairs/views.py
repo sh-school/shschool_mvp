@@ -23,6 +23,17 @@ from .models import LeaveBalance, LeaveRequest
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
+# ترجمة الأدوار
+ROLE_LABELS = {
+    "principal": "مدير", "vice_admin": "نائب إداري", "vice_academic": "نائب أكاديمي",
+    "coordinator": "منسق", "admin_supervisor": "مشرف إداري",
+    "teacher": "معلم", "ese_teacher": "تربية خاصة", "social_worker": "أخصائي اجتماعي",
+    "psychologist": "أخصائي نفسي", "academic_advisor": "مرشد أكاديمي",
+    "nurse": "ممرض", "librarian": "أمين مكتبة", "it_technician": "فني تقنية",
+    "bus_supervisor": "مشرف نقل", "admin": "إداري", "secretary": "سكرتير",
+    "specialist": "أخصائي", "platform_developer": "مطور",
+}
+
 
 # ═══════════════════════════════════════════════════════════════════
 # الخطوة 3: لوحة شؤون الموظفين
@@ -184,17 +195,6 @@ def staff_list(request):
 
     return render(request, "staff_affairs/staff_list.html", ctx)
 
-
-# ترجمة الأدوار
-ROLE_LABELS = {
-    "principal": "مدير", "vice_admin": "نائب إداري", "vice_academic": "نائب أكاديمي",
-    "coordinator": "منسق", "admin_supervisor": "مشرف إداري",
-    "teacher": "معلم", "ese_teacher": "تربية خاصة", "social_worker": "أخصائي اجتماعي",
-    "psychologist": "أخصائي نفسي", "academic_advisor": "مرشد أكاديمي",
-    "nurse": "ممرض", "librarian": "أمين مكتبة", "it_technician": "فني تقنية",
-    "bus_supervisor": "مشرف نقل", "admin": "إداري", "secretary": "سكرتير",
-    "specialist": "أخصائي", "platform_developer": "مطور",
-}
 
 
 # ═══ الخطوة 5: ملف الموظف ═══
