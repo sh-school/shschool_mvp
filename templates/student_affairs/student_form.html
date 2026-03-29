@@ -1,0 +1,149 @@
+{% extends "base/base.html" %}
+
+{% block title %}{% if mode == "add" %}إضافة طالب{% else %}تعديل طالب{% endif %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/list/" parent_label="سجل الطلاب" current=block.super %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">
+        {% if mode == "add" %}
+          {% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد
+        {% else %}
+          {% include "components/icon.html" with name="file-pen" %} تعديل بيانات {{ student.full_name }}
+        {% endif %}
+      </h1>
+      <p class="exec-subtitle">{{ year }}</p>
+    </div>
+  </div>
+
+  {# ── النموذج ── #}
+  <div class="card-qatar" style="padding:20px 24px">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      {# ── أخطاء عامة ── #}
+      {% if form.non_field_errors %}
+      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">
+        {% for err in form.non_field_errors %}
+        <span class="msg-text">{{ err }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        {# الرقم الوطني #}
+        <div class="form-group" {% if mode == "edit" %}style="grid-column:span 2"{% endif %}>
+          <label class="form-label">الرقم الوطني <span style="color:red">*</span></label>
+          {% if mode == "add" %}
+          <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
+                 class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
+                 placeholder="مثال: 29812345678" required dir="ltr">
+          {% else %}
+          <input type="text" value="{{ student.national_id }}" class="form-control" disabled dir="ltr">
+          {% endif %}
+          {% if form.national_id.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        {# الاسم الكامل #}
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">الاسم الكامل <span style="color:red">*</span></label>
+          <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
+                 class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
+                 placeholder="الاسم الرباعي" required>
+          {% if form.full_name.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        {# الجنس #}
+        <div class="form-group">
+          <label class="form-label">الجنس</label>
+          <select name="gender" class="form-control">
+            <option value="M" {% if form.gender.value == "M" %}selected{% endif %}>ذكر</option>
+            <option value="F" {% if form.gender.value == "F" %}selected{% endif %}>أنثى</option>
+          </select>
+        </div>
+
+        {# تاريخ الميلاد #}
+        <div class="form-group">
+          <label class="form-label">تاريخ الميلاد</label>
+          <input type="date" name="birth_date" value="{{ form.birth_date.value|default:'' }}"
+                 class="form-control">
+        </div>
+
+        {# الصف #}
+        <div class="form-group">
+          <label class="form-label">الصف <span style="color:red">*</span></label>
+          <select name="grade" class="form-control" required>
+            <option value="">— اختر الصف —</option>
+            {% for val, label in grades %}
+            <option value="{{ val }}" {% if form.grade.value == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          {% if form.grade.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.grade.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        {# الشعبة #}
+        <div class="form-group">
+          <label class="form-label">الشعبة <span style="color:red">*</span></label>
+          <input type="text" name="section" value="{{ form.section.value|default:'' }}"
+                 class="form-control {% if form.section.errors %}border-red-400{% endif %}"
+                 placeholder="مثال: أ" required>
+          {% if form.section.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.section.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        {# الجوال #}
+        <div class="form-group">
+          <label class="form-label">الجوال</label>
+          <input type="text" name="phone" value="{{ form.phone.value|default:'' }}"
+                 class="form-control" placeholder="مثال: 55001234" dir="ltr">
+        </div>
+
+        {# البريد #}
+        <div class="form-group">
+          <label class="form-label">البريد الإلكتروني</label>
+          <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+                 class="form-control" placeholder="student@example.com" dir="ltr">
+        </div>
+
+        {% if mode == "edit" %}
+        {# ملاحظات — فقط في التعديل #}
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">ملاحظات</label>
+          <textarea name="notes" rows="3" class="form-control"
+                    placeholder="ملاحظات إضافية عن الطالب...">{{ form.notes.value|default:'' }}</textarea>
+        </div>
+        {% endif %}
+
+      </div>
+
+      {# ── الأزرار ── #}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">إلغاء</a>
+        <button type="submit" class="btn-primary btn-sm">
+          {% if mode == "add" %}
+            {% include "components/icon.html" with name="check-circle" %} إضافة الطالب
+          {% else %}
+            {% include "components/icon.html" with name="check-circle" %} حفظ التعديلات
+          {% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

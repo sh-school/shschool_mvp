@@ -253,8 +253,91 @@ def student_table_partial(request):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_add(request):
-    """إضافة طالب جديد — ينشئ 4 سجلات ذرّياً."""
-    return HttpResponse("<h1 dir='rtl'>إضافة طالب — قيد البناء</h1>", status=200)
+    """إضافة طالب جديد — ينشئ 4 سجلات ذرّياً (User + Profile + Membership + Enrollment)."""
+    school = request.user.get_school()
+    year = settings.CURRENT_ACADEMIC_YEAR
+
+    from .forms import StudentAddForm
+
+    if request.method == "POST":
+        form = StudentAddForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            # ── التحقق من عدم وجود طالب بنفس الرقم الوطني ──
+            if CustomUser.objects.filter(national_id=cd["national_id"]).exists():
+                messages.error(request, f"يوجد مستخدم بالرقم الوطني {cd['national_id']} مسبقاً.")
+                return render(request, "student_affairs/student_form.html", {
+                    "form": form, "mode": "add", "year": year,
+                    "grades": ClassGroup.GRADES, "school": school,
+                })
+
+            # ── التحقق من وجود الشعبة ──
+            class_group = ClassGroup.objects.filter(
+                school=school, grade=cd["grade"], section=cd["section"],
+                academic_year=year, is_active=True,
+            ).first()
+            if not class_group:
+                messages.error(
+                    request,
+                    f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}.",
+                )
+                return render(request, "student_affairs/student_form.html", {
+                    "form": form, "mode": "add", "year": year,
+                    "grades": ClassGroup.GRADES, "school": school,
+                })
+
+            # ── إنشاء 4 سجلات ذرّياً ──
+            from django.db import transaction
+
+            try:
+                with transaction.atomic():
+                    # 1. CustomUser
+                    user = CustomUser.objects.create_user(
+                        national_id=cd["national_id"],
+                        password=cd["national_id"],  # كلمة المرور = الرقم الوطني
+                        full_name=cd["full_name"],
+                        phone=cd.get("phone", ""),
+                        email=cd.get("email", ""),
+                        must_change_password=True,
+                    )
+                    # 2. Profile
+                    Profile.objects.update_or_create(
+                        user=user,
+                        defaults={
+                            "gender": cd.get("gender", ""),
+                            "birth_date": cd.get("birth_date"),
+                        },
+                    )
+                    # 3. Membership
+                    student_role, _ = Role.objects.get_or_create(
+                        school=school, name="student",
+                    )
+                    Membership.objects.create(
+                        user=user, school=school, role=student_role, is_active=True,
+                    )
+                    # 4. StudentEnrollment
+                    StudentEnrollment.objects.create(
+                        student=user, class_group=class_group, is_active=True,
+                    )
+
+                messages.success(
+                    request,
+                    f"تم إضافة الطالب {user.full_name} في {class_group.grade}/{class_group.section} بنجاح.",
+                )
+                return redirect("student_affairs:student_profile", student_id=user.id)
+
+            except Exception as e:
+                messages.error(request, f"خطأ أثناء إضافة الطالب: {e}")
+    else:
+        form = StudentAddForm()
+
+    return render(request, "student_affairs/student_form.html", {
+        "form": form,
+        "mode": "add",
+        "year": year,
+        "grades": ClassGroup.GRADES,
+        "school": school,
+    })
 
 
 @login_required
