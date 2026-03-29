@@ -1,25 +1,31 @@
 {% extends "base/base.html" %}
-{% block title %}جدول حصصي{% endblock %}
+{% block title %}{% if is_leadership %}حصص المدرسة{% else %}جدول حصصي{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
+{% if is_leadership %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="تسجيل الحضور" %}
+{% else %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/" parent_label="الأكاديمية" current="جدول حصصي" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 
-<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+<div class="exec-dash">
+
+{# ── Header ── #}
+<div class="exec-header">
   <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} جدول حصصي</h1>
-    <p class="text-gray-500 text-sm mt-1">{{ user.full_name }}</p>
+    <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} {% if is_leadership %}حصص المدرسة — تسجيل الحضور{% else %}جدول حصصي{% endif %}</h1>
+    <p class="text-gray-500 text-sm mt-1">{% if is_leadership %}{{ sessions|length }} حصة{% else %}{{ user.full_name }}{% endif %}</p>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
     <form method="get" class="flex items-center gap-2">
       <input type="date" name="date" value="{{ selected_date }}"
         class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <button type="submit" class="btn-primary btn-sm">
-        عرض
-      </button>
+      <button type="submit" class="btn-primary btn-sm">عرض</button>
     </form>
+    <span class="exec-date">{{ selected_date }}</span>
     {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
     <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
     <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
@@ -27,20 +33,62 @@
   </div>
 </div>
 
-{% if next_session %}
-<div class="bg-green-50 border-2 border-green-400 rounded-xl p-4 mb-5 flex items-center justify-between">
-  <div>
-    <div class="text-xs font-bold text-green-700 uppercase tracking-wide mb-1">الحصة القادمة</div>
-    <div class="text-lg font-bold text-gray-900">{{ next_session.subject.name_ar|default:"حصة" }}</div>
-    <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
-  </div>
-  <a href="/teacher/attendance/{{ next_session.id }}/"
-     class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
-    ابدأ الحضور ←
-  </a>
+{# ── فلاتر ذكية للقيادة ── #}
+{% if is_leader %}
+<div class="card-qatar" style="padding:10px 16px">
+  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+    <input type="hidden" name="date" value="{{ selected_date }}">
+    <div style="min-width:160px">
+      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">المعلم</label>
+      <select name="teacher" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— كل المعلمين —</option>
+        {% for m in filter_teachers %}
+        <option value="{{ m.user_id }}" {% if teacher_filter == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:120px">
+      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الفصل</label>
+      <select name="class" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— كل الفصول —</option>
+        {% for cg in filter_classes %}
+        <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:100px">
+      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
+      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>لم يُسجَّل</option>
+        <option value="in_progress" {% if status_filter == "in_progress" %}selected{% endif %}>جارٍ</option>
+        <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>مكتمل</option>
+      </select>
+    </div>
+    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs" style="align-self:end">إعادة ضبط</a>
+    <span style="font-size:.7rem;color:var(--muted);align-self:end">{{ sessions|length }} حصة</span>
+  </form>
 </div>
 {% endif %}
 
+{# ── Next Session Alert ── #}
+{% if next_session %}
+<div class="alert-strip" style="--alert-bg: var(--green-50, #f0fdf4); --alert-border: var(--green-400, #4ade80); border-color: #4ade80; background: #f0fdf4;">
+  <div class="flex items-center justify-between w-full flex-wrap gap-3">
+    <div>
+      <div class="text-xs font-bold text-green-700 uppercase tracking-wide mb-1">الحصة القادمة</div>
+      <div class="text-lg font-bold text-gray-900">{{ next_session.subject.name_ar|default:"حصة" }}</div>
+      <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
+    </div>
+    <a href="/teacher/attendance/{{ next_session.id }}/"
+       class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
+      ابدأ الحضور ←
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ── Sessions Table ── #}
 <p class="scroll-x-hint mb-2">← مرّر يميناً لرؤية الجدول كاملاً</p>
 <div class="card-qatar overflow-hidden">
   {% if sessions %}
@@ -49,6 +97,7 @@
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
+        {% if is_leadership %}<th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المعلم</th>{% endif %}
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الفصل</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
@@ -62,6 +111,7 @@
         <td class="px-4 py-3">
           <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
         </td>
+        {% if is_leadership %}<td class="px-4 py-3 text-sm text-gray-600">{{ session.teacher.full_name }}</td>{% endif %}
         <td class="px-4 py-3 text-sm text-gray-600">{{ session.class_group }}</td>
         <td class="px-4 py-3 text-sm text-gray-600 font-mono">
           {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
@@ -99,4 +149,6 @@
   </div>
   {% endif %}
 </div>
+
+</div>{# end .exec-dash #}
 {% endblock %}

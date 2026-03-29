@@ -14,7 +14,7 @@ from core.models import StudentEnrollment
 from core.permissions import role_required
 
 from .models import Session, StudentAttendance
-from .services import AttendanceService
+from .services import AttendanceService, ScheduleService
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,34 @@ def schedule(request):
     except ValueError:
         selected_date = timezone.now().date()
 
-    sessions = (
-        Session.objects.filter(school=school, teacher=request.user, date=selected_date)
-        .select_related("class_group", "subject")
-        .order_by("start_time")
-    )
+    # ── تأكد من وجود حصص للتاريخ المختار (أي تاريخ) ──
+    ScheduleService.ensure_sessions_for_date(school, selected_date)
+
+    # ── القيادة (مدير/نائب) تشاهد كل حصص المدرسة — المعلم يشاهد حصصه فقط ──
+    is_leader = request.user.is_leadership()
+    if is_leader:
+        sessions = (
+            Session.objects.filter(school=school, date=selected_date)
+            .select_related("class_group", "subject", "teacher")
+            .order_by("start_time")
+        )
+        # ── فلاتر ذكية للقيادة ──
+        teacher_filter = request.GET.get("teacher", "")
+        class_filter = request.GET.get("class", "")
+        status_filter = request.GET.get("status", "")
+        if teacher_filter:
+            sessions = sessions.filter(teacher_id=teacher_filter)
+        if class_filter:
+            sessions = sessions.filter(class_group_id=class_filter)
+        if status_filter:
+            sessions = sessions.filter(status=status_filter)
+    else:
+        sessions = (
+            Session.objects.filter(school=school, teacher=request.user, date=selected_date)
+            .select_related("class_group", "subject")
+            .order_by("start_time")
+        )
+        teacher_filter = class_filter = status_filter = ""
 
     now = timezone.now().time()
     next_session = None
@@ -46,12 +69,34 @@ def schedule(request):
             next_session = s
             break
 
+    # ── بيانات الفلاتر (للقيادة فقط) ──
+    filter_teachers = []
+    filter_classes = []
+    if is_leader:
+        from core.models.access import Membership
+        filter_teachers = (
+            Membership.objects.filter(
+                school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher"),
+            ).select_related("user").order_by("user__full_name")
+        )
+        from core.models.academic import ClassGroup
+        filter_classes = (
+            ClassGroup.objects.filter(school=school, is_active=True)
+            .order_by("grade", "section")
+        )
+
     return render(request, "teacher/schedule.html", {
         "sessions": sessions,
         "selected_date": selected_date,
         "today": timezone.now().date(),
         "next_session": next_session,
         "user_role": request.user.get_role(),
+        "is_leader": is_leader,
+        "teacher_filter": teacher_filter,
+        "class_filter": class_filter,
+        "status_filter": status_filter,
+        "filter_teachers": filter_teachers,
+        "filter_classes": filter_classes,
     })
 
 
@@ -63,7 +108,7 @@ def attendance_view(request, session_id):
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
 
-    if request.user != session.teacher and not request.user.is_admin():
+    if request.user != session.teacher and not request.user.is_admin() and not request.user.is_leadership():
         return HttpResponse("<p dir='rtl'>غير مسموح — هذه الحصة ليست لك.</p>", status=403)
 
     enrollments = (
@@ -206,6 +251,9 @@ def daily_report(request):
         report_date = date.fromisoformat(selected)
     except ValueError:
         report_date = timezone.now().date()
+
+    # ── تأكد من وجود حصص لتاريخ التقرير ──
+    ScheduleService.ensure_sessions_for_date(school, report_date)
 
     absences = (
         StudentAttendance.objects.filter(
