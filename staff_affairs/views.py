@@ -62,13 +62,17 @@ def staff_dashboard(request):
     ).count()
 
     # ── توزيع الموظفين حسب الدور ──
-    role_distribution = (
+    role_distribution_raw = (
         Membership.objects.filter(school=school, is_active=True)
         .exclude(role__name__in=("student", "parent"))
         .values("role__name")
         .annotate(count=Count("id"))
         .order_by("-count")
     )
+    role_distribution = [
+        {"role_name": r["role__name"], "role_display": ROLE_LABELS.get(r["role__name"], r["role__name"]), "count": r["count"]}
+        for r in role_distribution_raw
+    ]
 
     # ── آخر الغيابات ──
     recent_absences = (
@@ -251,11 +255,14 @@ def staff_profile(request, user_id):
         teacher=user, school=school, is_active=True,
     ).count()
 
+    role_display = ROLE_LABELS.get(membership.role.name, membership.role.name) if membership and membership.role else "—"
+
     return render(request, "staff_affairs/staff_profile.html", {
         "staff_user": user,
         "membership": membership,
         "profile": profile,
         "year": year,
+        "role_display": role_display,
         "absence_count": absence_count,
         "absences_recent": absences_recent,
         "swaps_count": swaps,
@@ -264,7 +271,7 @@ def staff_profile(request, user_id):
         "leaves": leaves,
         "leave_balances": leave_balances,
         "weekly_slots": weekly_slots,
-        "role_labels": ROLE_LABELS,
+        "today": timezone.localdate(),
     })
 
 

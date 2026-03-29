@@ -98,7 +98,7 @@
         <tbody>
           {% for r in role_distribution %}
           <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px">{{ role_labels|default_if_none:"" }}{% for key, val in role_labels.items %}{% if key == r.role__name %}{{ val }}{% endif %}{% endfor %}</td>
+            <td style="padding:8px">{{ r.role_display }}</td>
             <td style="padding:8px;text-align:center;font-weight:600">{{ r.count }}</td>
             <td style="padding:8px">
               {% if total_staff > 0 %}

@@ -13,7 +13,7 @@
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ staff_user.full_name }}</h1>
       <p class="exec-subtitle">
-        {% if membership %}{{ role_labels|default_if_none:"" }}{% for k, v in role_labels.items %}{% if k == membership.role.name %}{{ v }}{% endif %}{% endfor %}{% endif %}
+        {% if membership %}{{ role_display }}{% endif %}
         {% if membership.department_obj %} — {{ membership.department_obj.name }}{% endif %}
       </p>
     </div>
@@ -57,7 +57,7 @@
         <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الاسم:</span> <strong>{{ staff_user.full_name }}</strong></div>
         <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الرقم الوطني:</span> <span dir="ltr">{{ staff_user.national_id }}</span></div>
         {% if membership %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الدور:</span> {% for k, v in role_labels.items %}{% if k == membership.role.name %}{{ v }}{% endif %}{% endfor %}</div>
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الدور:</span> {{ role_display }}</div>
         {% if membership.department_obj %}
         <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">القسم:</span> {{ membership.department_obj.name }}</div>
         {% endif %}
