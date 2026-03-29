@@ -79,10 +79,11 @@
     {% if is_admin_role %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
@@ -163,10 +164,11 @@
       {# platform_developer أو أي دور آخر — نفس المدير #}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الأكاديمية <span class="chv">▼</span></button>
-      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
-      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
 
     {% endif %}
     </div>
@@ -201,19 +203,29 @@
 {# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
 {% if is_admin_role %}
 
-<div class="sd-menu" id="m-academic" role="menu" aria-label="الأكاديمية">
+<div class="sd-menu" id="m-academic" role="menu" aria-label="الشؤون الأكاديمية">
   <div class="sd-label">الدراسة والتقييم</div>
   <a href="/assessments/">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
   <a href="/reports/">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
   <a href="/analytics/">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
+  <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
   <hr>
   <div class="sd-label">الجدول الدراسي</div>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <a href="/teacher/smart-schedule/">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
+</div>
+
+<div class="sd-menu" id="m-staff-affairs" role="menu" aria-label="شؤون الموظفين">
+  <div class="sd-label">الحضور والإجازات</div>
+  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
   <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
   <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
-  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
-  <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
+  <hr>
+  <div class="sd-label">التقييم والتطوير</div>
+  {% if is_leadership %}
+  <a href="/quality/evaluations/">{% include "components/icon.html" with name="bar-chart" %} تقييم أداء الموظفين</a>
+  {% endif %}
+  <a href="/teacher/reports/teacher-load/">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</a>
 </div>
 
 <div class="sd-menu" id="m-quality" role="menu" aria-label="الجودة">
@@ -226,11 +238,6 @@
   <div class="sd-label">اللجان</div>
   <a href="/quality/executor-committee/">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة</a>
   <a href="/quality/committee/">{% include "components/icon.html" with name="search" %} لجنة المراجعة الذاتية</a>
-  {% if is_leadership %}
-  <hr>
-  <div class="sd-label">تقييم الأداء</div>
-  <a href="/quality/evaluations/">{% include "components/icon.html" with name="list-checks" %} تقييم الموظفين</a>
-  {% endif %}
   <hr>
   <a href="/quality/my-procedures/">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 </div>
