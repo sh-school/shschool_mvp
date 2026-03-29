@@ -434,9 +434,6 @@ body {
 }
 .nav-user-name {
   font-size: 12px;
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
