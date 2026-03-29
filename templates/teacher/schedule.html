@@ -33,8 +33,24 @@
   </div>
 </div>
 
-{# ── فلاتر ذكية للقيادة ── #}
+{# ── ملخص سريع للقيادة ── #}
 {% if is_leader %}
+<div class="kpi-strip">
+  <div class="kpi-mini kpi-maroon">
+    <div class="kpi-mini-label">إجمالي الحصص</div>
+    <div class="kpi-mini-value">{{ all_count }}</div>
+  </div>
+  <div class="kpi-mini kpi-green">
+    <div class="kpi-mini-label">مكتملة</div>
+    <div class="kpi-mini-value">{{ completed_count }}</div>
+  </div>
+  <div class="kpi-mini kpi-orange">
+    <div class="kpi-mini-label">تحتاج تسجيل</div>
+    <div class="kpi-mini-value">{{ sessions|length }}</div>
+  </div>
+</div>
+
+{# ── فلاتر ذكية ── #}
 <div class="card-qatar" style="padding:10px 16px">
   <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
     <input type="hidden" name="date" value="{{ selected_date }}">
@@ -73,7 +89,9 @@
       </select>
     </div>
     <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs" style="align-self:end">إعادة ضبط</a>
-    <span style="font-size:.7rem;color:var(--muted);align-self:end">{{ sessions|length }} حصة</span>
+    {% if not show_all %}
+    <a href="/teacher/schedule/?date={{ selected_date }}&all=1" class="btn-secondary btn-xs" style="align-self:end">عرض الكل ({{ all_count }})</a>
+    {% endif %}
   </form>
 </div>
 {% endif %}

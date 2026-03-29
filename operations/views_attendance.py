@@ -42,21 +42,28 @@ def schedule(request):
         sessions = (
             Session.objects.filter(school=school, date=selected_date)
             .select_related("class_group", "subject", "teacher")
-            .order_by("start_time")
+            .order_by("period_number", "start_time")
         )
         # ── فلاتر ذكية للقيادة ──
         teacher_filter = request.GET.get("teacher", "")
         class_filter = request.GET.get("class", "")
         status_filter = request.GET.get("status", "")
         period_filter = request.GET.get("period", "")
+        show_all = request.GET.get("all", "")
         if teacher_filter:
             sessions = sessions.filter(teacher_id=teacher_filter)
         if class_filter:
             sessions = sessions.filter(class_group_id=class_filter)
         if status_filter:
             sessions = sessions.filter(status=status_filter)
+        elif not show_all and not teacher_filter and not class_filter:
+            # ── افتراضياً: فقط الحصص التي تحتاج تسجيل حضور ──
+            sessions = sessions.exclude(status="completed")
         if period_filter:
             sessions = sessions.filter(period_number=period_filter)
+        # إحصائيات سريعة
+        all_count = Session.objects.filter(school=school, date=selected_date).count()
+        completed_count = Session.objects.filter(school=school, date=selected_date, status="completed").count()
     else:
         sessions = (
             Session.objects.filter(school=school, teacher=request.user, date=selected_date)
@@ -99,6 +106,9 @@ def schedule(request):
         "class_filter": class_filter,
         "status_filter": status_filter,
         "period_filter": period_filter,
+        "show_all": show_all,
+        "all_count": all_count if is_leader else 0,
+        "completed_count": completed_count if is_leader else 0,
         "filter_teachers": filter_teachers,
         "filter_classes": filter_classes,
     })
