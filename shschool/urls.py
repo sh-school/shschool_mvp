@@ -39,6 +39,8 @@ urlpatterns = [
     path("exam-control/", include("exam_control.urls", namespace="exam_control")),
     # ✅ v5: خرق البيانات PDPPL 72h
     path("breach/", include("breach.urls", namespace="breach")),
+    # ✅ v7: شؤون الطلاب
+    path("student-affairs/", include("student_affairs.urls", namespace="student_affairs")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",

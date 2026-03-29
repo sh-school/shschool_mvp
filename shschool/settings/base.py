@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "exam_control.apps.ExamControlConfig",
     # ✅ v5: خرق البيانات PDPPL
     "breach.apps.BreachConfig",
+    # ✅ v7: شؤون الطلاب
+    "student_affairs.apps.StudentAffairsConfig",
     # ✅ فلترة احترافية
     "django_filters",
 ]
@@ -65,6 +67,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "core.middleware_rls.RLSMiddleware",  # ✅ v5.2: PostgreSQL RLS — defense-in-depth
     "csp.middleware.CSPMiddleware",
     "core.middleware.ParentConsentMiddleware",
