@@ -116,12 +116,19 @@
 {% endif %}
 
 {# ── Sessions Table ── #}
-<p class="scroll-x-hint mb-2">← مرّر يميناً لرؤية الجدول كاملاً</p>
 <div class="card-qatar overflow-hidden">
+  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between" style="padding:8px 16px">
+    <span style="font-size:.8rem;font-weight:600">{% include "components/icon.html" with name="list-checks" %} الحصص (<span id="shown-count">{{ sessions|length }}</span> / {{ sessions|length }})</span>
+  </div>
+  {% if is_leader %}
+  <div class="filter-bar" style="border-top:0;border-radius:0;margin-bottom:0;padding:8px 16px">
+    <input type="text" id="session-search" class="form-control form-control-sm" placeholder="بحث بالمادة أو المعلم أو الفصل..." style="flex:1;min-width:200px">
+  </div>
+  {% endif %}
   {% if sessions %}
-  <div class="tbl-wrap-mobile">
+  <div class="table-wrap-scroll" style="max-height:420px">
   <table class="w-full min-w-[480px]">
-    <thead class="bg-gray-50 border-b border-gray-200">
+    <thead class="bg-gray-50 border-b border-gray-200" style="position:sticky;top:0;z-index:1">
       <tr>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
         {% if is_leadership %}<th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المعلم</th>{% endif %}
@@ -131,10 +138,11 @@
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-100">
+    <tbody class="divide-y divide-gray-100" id="sessions-tbody">
       {% for session in sessions %}
       <tr class="hover:bg-gray-50 transition
-        {% if next_session and session.id == next_session.id %}bg-green-50{% endif %}">
+        {% if next_session and session.id == next_session.id %}bg-green-50{% endif %}"
+        data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group }}">
         <td class="px-4 py-3">
           <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
         </td>
@@ -178,4 +186,17 @@
 </div>
 
 </div>{# end .exec-dash #}
+
+{% if is_leader %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('session-search', '#sessions-tbody tr[data-filter-row]', {
+      textAttr: 'data-text',
+      countEl: '#shown-count'
+    });
+  }
+});
+</script>
+{% endif %}
 {% endblock %}
