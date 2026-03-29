@@ -41,22 +41,29 @@
     {# ── أكثر الطلاب مخالفة ── #}
     <div class="card-qatar p-0 overflow-hidden">
       <div class="card-bar m-0 rounded-t-xl">أكثر الطلاب مخالفة</div>
-      {% for s in top_students %}
-      <div class="flex items-center justify-between px-4 py-3 border-b">
-        <div>
-          <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
-          <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm font-bold text-primary">{{ s.count }}</span>
-          <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
-        </div>
+      <div class="filter-bar px-4 py-2 border-b">
+        <input type="text" id="topStudentsSearch" class="form-control form-control-sm"
+               placeholder="بحث بالاسم..." autocomplete="off">
       </div>
-      {% empty %}
-      <div class="empty-state p-8">
-        <p class="empty-sub">لا توجد بيانات</p>
+      <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
+        {% for s in top_students %}
+        <div class="flex items-center justify-between px-4 py-3 border-b filterable-row"
+             data-text="{{ s.student__full_name }}">
+          <div>
+            <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
+            <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-primary">{{ s.count }}</span>
+            <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
+          </div>
+        </div>
+        {% empty %}
+        <div class="empty-state p-8">
+          <p class="empty-sub">لا توجد بيانات</p>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
 
     {# ── التوزيع الشهري ── #}
@@ -97,4 +104,17 @@
   </div>
 
 </div>
+
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var inp=document.getElementById('topStudentsSearch');
+  if(!inp)return;
+  inp.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    document.querySelectorAll('.filterable-row').forEach(function(r){
+      r.style.display=!q||r.getAttribute('data-text').toLowerCase().indexOf(q)>-1?'':'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

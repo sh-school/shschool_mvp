@@ -103,11 +103,18 @@
 
       {# الطلاب المسجلون #}
       <div class="card-qatar p-0 overflow-hidden">
-        <div class="card-bar m-0 rounded-t-xl">الطلاب المسجلون</div>
+        <div class="card-bar m-0 rounded-t-xl">الطلاب المسجلون ({{ students.count }})</div>
         {% if students %}
-        <div class="max-h-72 overflow-y-auto">
+        <div class="filter-bar px-4 py-2 border-b">
+          <input type="text"
+                 id="student-search"
+                 class="form-control form-control-sm w-full"
+                 placeholder="بحث عن طالب...">
+        </div>
+        <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
           {% for st in students %}
-          <div class="flex items-center justify-between px-4 py-2 text-sm border-b">
+          <div class="flex items-center justify-between px-4 py-2 text-sm border-b filterable-row"
+               data-text="{{ st.full_name|lower }}">
             <span class="text-primary">{{ st.full_name }}</span>
           </div>
           {% endfor %}
@@ -123,4 +130,20 @@
   </div>
 
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  const input = document.getElementById('student-search');
+  if(!input) return;
+  input.addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.filterable-row').forEach(function(row){
+      row.style.display = row.getAttribute('data-text').includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

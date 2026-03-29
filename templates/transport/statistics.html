@@ -41,7 +41,13 @@
   {# ── جدول الحافلات ── #}
   <div class="table-wrap">
     <div class="card-bar">تفاصيل الحافلات</div>
-    <div class="overflow-x-auto">
+    <div class="filter-bar px-4 py-3">
+      <input type="text"
+             id="bus-search"
+             class="form-control form-control-sm w-full md:w-1/2"
+             placeholder="بحث برقم الحافلة أو اسم السائق...">
+    </div>
+    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
       <table>
         <thead>
           <tr>
@@ -51,9 +57,10 @@
             <th scope="col">كروة</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="bus-tbody">
           {% for bus in buses %}
-          <tr>
+          <tr class="filterable-row"
+              data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }} {{ bus.karwa_id|default:'—'|lower }}">
             <td class="font-semibold">
               <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon no-underline">{{ bus.bus_number }}</a>
             </td>
@@ -68,4 +75,19 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  const input = document.getElementById('bus-search');
+  if(!input) return;
+  input.addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#bus-tbody .filterable-row').forEach(function(row){
+      row.style.display = row.getAttribute('data-text').includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

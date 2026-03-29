@@ -62,13 +62,20 @@
 
   {# ── قائمة الموظفين القابلين للتقييم ── #}
   {% if staff_list %}
+  <div class="filter-bar mb-2">
+    <input type="text" id="eval-staff-search"
+           placeholder="بحث باسم الموظف أو الدور..."
+           class="form-control w-full m-0"
+           aria-label="بحث في الموظفين">
+  </div>
   <div class="card-qatar overflow-hidden">
     <div class="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-      <p class="font-semibold text-gray-700">الموظفون القابلون للتقييم ({{ staff_list|length }})</p>
+      <p class="font-semibold text-gray-700">الموظفون القابلون للتقييم (<span id="eval-staff-count">{{ staff_list|length }}</span>)</p>
     </div>
+    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 text-gray-500 text-xs">
+        <thead class="bg-gray-50 text-gray-500 text-xs" style="position:sticky;top:0;z-index:2">
           <tr>
             <th class="text-right px-4 py-2">الموظف</th>
             <th class="text-right px-4 py-2">الدور</th>
@@ -76,9 +83,9 @@
             <th class="text-center px-4 py-2">نهاية العام (S2)</th>
           </tr>
         </thead>
-        <tbody class="divide-y">
+        <tbody class="divide-y" id="eval-staff-tbody">
           {% for s in staff_list %}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50" data-text="{{ s.user.full_name }} {{ s.role_display }}">
             <td class="px-4 py-3 font-medium text-gray-800">{{ s.user.full_name }}</td>
             <td class="px-4 py-3 text-gray-500">{{ s.role_display }}</td>
             <td class="px-4 py-3 text-center">
@@ -120,6 +127,7 @@
         </tbody>
       </table>
     </div>
+    </div>{# end table-wrap-scroll #}
   </div>
   {% endif %}
 
@@ -128,9 +136,9 @@
     <div class="bg-gray-50 px-4 py-3 border-b">
       <p class="font-semibold text-gray-700">التقييمات الأخيرة</p>
     </div>
-    <div class="divide-y">
+    <div class="divide-y" id="eval-recent-list" style="max-height:420px;overflow-y:auto">
       {% for ev in recent_evals %}
-      <div class="flex items-center justify-between px-4 py-3">
+      <div class="flex items-center justify-between px-4 py-3" data-text="{{ ev.employee.full_name }} {{ ev.get_period_display }}">
         <div>
           <p class="font-medium text-gray-800 text-sm">{{ ev.employee.full_name }}</p>
           <p class="text-xs text-gray-400">{{ ev.get_period_display }} · {{ ev.academic_year }} · المقيِّم: {{ ev.evaluator.full_name }}</p>
@@ -155,6 +163,27 @@
       {% endfor %}
     </div>
   </div>
+
+  <script nonce="{{ request.csp_nonce }}">
+  (function(){
+    var input=document.getElementById('eval-staff-search');
+    var tbody=document.getElementById('eval-staff-tbody');
+    var countEl=document.getElementById('eval-staff-count');
+    if(!input||!tbody)return;
+    var rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
+    var total=rows.length;
+    input.addEventListener('input',function(){
+      var q=this.value.trim().toLowerCase();
+      var shown=0;
+      rows.forEach(function(r){
+        var match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
+        r.style.display=match?'':'none';
+        if(match)shown++;
+      });
+      if(countEl)countEl.textContent=shown;
+    });
+  })();
+  </script>
 
 </div>
 {% endblock %}

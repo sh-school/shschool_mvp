@@ -53,9 +53,14 @@
  <div class="card-qatar overflow-hidden">
  <div class="px-5 py-4 border-b"><h2 class="font-bold text-gray-700">{% include "components/icon.html" with name="file-text" %} سجل المخالفات</h2></div>
  {% if infractions %}
- <div class="divide-y">
+ <div class="filter-bar px-4 py-2 border-b">
+   <input type="text" id="infractionsSearch" class="form-control form-control-sm"
+          placeholder="بحث في المخالفات..." autocomplete="off">
+ </div>
+ <div class="table-wrap-scroll divide-y" style="max-height:420px;overflow-y:auto">
  {% for inf in infractions %}
- <div class="px-5 py-4 hover:bg-gray-50">
+ <div class="px-5 py-4 hover:bg-gray-50 filterable-row"
+      data-text="{{ inf.description }} {{ inf.violation_category.name_ar|default:'' }} {{ inf.date }} {{ inf.level }}">
  <div class="flex justify-between items-start">
  <div class="flex-1">
  <div class="flex items-center gap-2 mb-1 flex-wrap">
@@ -132,4 +137,17 @@
  {% endif %}
  </div>
 </div>
+
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var inp=document.getElementById('infractionsSearch');
+  if(!inp)return;
+  inp.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    document.querySelectorAll('.filterable-row').forEach(function(r){
+      r.style.display=!q||r.getAttribute('data-text').toLowerCase().indexOf(q)>-1?'':'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

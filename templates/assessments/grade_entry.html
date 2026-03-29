@@ -34,10 +34,14 @@
     </div>
 
     <!-- جدول الدرجات -->
+    <div class="filter-bar px-4 py-2 border-b">
+      <input type="text" id="gradeSearch" class="form-control form-control-sm"
+             placeholder="بحث باسم الطالب..." autocomplete="off">
+    </div>
     <p class="scroll-x-hint px-4 pt-3">← مرّر يميناً لرؤية كل الأعمدة</p>
-    <div class="overflow-x-auto">
+    <div class="table-wrap-scroll overflow-x-auto" style="max-height:420px;overflow-y:auto">
       <table class="w-full text-sm min-w-[560px]" id="grades-table">
-        <thead class="bg-gray-50 border-b">
+        <thead class="bg-gray-50 border-b sticky top-0 z-10">
           <tr>
             <th scope="col" class="px-4 py-3 text-right">#</th>
             <th scope="col" class="px-4 py-3 text-right">اسم الطالب</th>
@@ -85,6 +89,18 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var inp=document.getElementById('gradeSearch');
+  if(!inp)return;
+  inp.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    document.querySelectorAll('#grades-body tr[data-text]').forEach(function(r){
+      r.style.display=!q||r.getAttribute('data-text').toLowerCase().indexOf(q)>-1?'':'none';
+    });
+  });
+})();
+</script>
 <script nonce="{{ request.csp_nonce }}">
 (function () {
   'use strict';

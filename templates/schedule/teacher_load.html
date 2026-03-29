@@ -19,6 +19,13 @@
 </div>
 
 <div class="table-wrap">
+  <div class="filter-bar px-4 py-3">
+    <input type="text"
+           id="teacher-search"
+           class="form-control form-control-sm w-full md:w-1/2"
+           placeholder="بحث باسم المعلم...">
+  </div>
+  <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
   <table class="w-full text-sm">
     <thead>
       <tr>
@@ -35,9 +42,9 @@
         <th class="text-center">بدائل/شهر</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="teacher-tbody">
       {% for d in teacher_data %}
-      <tr>
+      <tr class="filterable-row" data-text="{{ d.teacher.full_name|lower }}">
         <td class="text-gray-400">{{ forloop.counter }}</td>
         <td class="font-medium text-maroon">{{ d.teacher.full_name }}</td>
         <td class="text-center font-bold
@@ -64,6 +71,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 
 <div class="flex gap-4 text-xs text-gray-500 mt-4 flex-wrap">
@@ -72,4 +80,19 @@
   <span><span class="text-green-600">أخضر</span> = يوم فارغ (تفريغ)</span>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  const input = document.getElementById('teacher-search');
+  if(!input) return;
+  input.addEventListener('input', function(){
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#teacher-tbody .filterable-row').forEach(function(row){
+      row.style.display = row.getAttribute('data-text').includes(q) ? '' : 'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

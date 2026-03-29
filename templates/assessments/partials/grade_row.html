@@ -1,4 +1,4 @@
-<tr id="row-{{ student.id }}" class="hover:bg-gray-50 transition
+<tr id="row-{{ student.id }}" data-text="{{ student.full_name }}" class="hover:bg-gray-50 transition
   {% if grade_obj %}{% if grade_obj.is_absent %}bg-red-50{% elif grade_obj.grade is not None %}bg-green-50/30{% endif %}{% endif %}">
 
   <td class="px-4 py-2 text-gray-400 text-xs">{{ forloop.counter|default:"·" }}</td>

@@ -84,18 +84,27 @@
     {# Days List #}
     {% if child.days_list %}
     <h3 class="font-semibold text-sm mb-2 text-gray-600">سجل الحضور</h3>
+    <div class="filter-bar mb-2">
+      <input type="text"
+             placeholder="بحث بالتاريخ أو الحالة..."
+             class="form-control w-full m-0 att-day-search"
+             aria-label="بحث في سجل الحضور"
+             data-target="att-days-{{ forloop.counter }}">
+    </div>
+    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b dark:border-gray-700">
+        <thead style="position:sticky;top:0;z-index:2">
+          <tr class="border-b dark:border-gray-700 bg-white dark:bg-gray-900">
             <th class="text-right py-2 px-2">التاريخ</th>
             <th class="text-center py-2 px-2">الحصص</th>
             <th class="text-center py-2 px-2">الحالة</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="att-days-{{ forloop.counter }}">
           {% for day in child.days_list %}
-          <tr class="border-b dark:border-gray-700/50 {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}">
+          <tr class="border-b dark:border-gray-700/50 {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}"
+              data-text="{{ day.date|date:'m/d D' }} {% if day.has_absent %}غياب{% elif day.has_late %}تأخر{% else %}حاضر{% endif %}">
             <td class="py-2 px-2 whitespace-nowrap">{{ day.date|date:"m/d D" }}</td>
             <td class="py-2 px-2 text-center">{{ day.records|length }}</td>
             <td class="py-2 px-2 text-center">
@@ -112,6 +121,7 @@
         </tbody>
       </table>
     </div>
+    </div>{# end table-wrap-scroll #}
     {% else %}
     <div class="text-center py-6 text-gray-400">
       لا توجد بيانات حضور مسجلة في هذه الفترة
@@ -119,6 +129,24 @@
     {% endif %}
   </div>
   {% endfor %}
+
+  <script nonce="{{ request.csp_nonce }}">
+  (function(){
+    document.querySelectorAll('.att-day-search').forEach(function(input){
+      var tbodyId=input.getAttribute('data-target');
+      var tbody=document.getElementById(tbodyId);
+      if(!tbody)return;
+      var rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
+      input.addEventListener('input',function(){
+        var q=this.value.trim().toLowerCase();
+        rows.forEach(function(r){
+          var match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
+          r.style.display=match?'':'none';
+        });
+      });
+    });
+  })();
+  </script>
 
 </div>
 {% endblock %}

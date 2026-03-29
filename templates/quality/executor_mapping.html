@@ -52,16 +52,25 @@
   </div>
   {% endif %}
 
+  <!-- بحث سريع في الجدول -->
+  <div class="filter-bar mb-4">
+    <input type="text" id="executor-search"
+           placeholder="بحث بالمسمى الوظيفي أو اسم الموظف..."
+           class="form-control w-full m-0"
+           aria-label="بحث في المنفذين">
+  </div>
+
   <!-- الجدول -->
   <div class="card-qatar overflow-hidden">
     <div class="bg-maroon px-6 py-4 flex items-center justify-between">
       <h2 class="text-white font-bold">قائمة المنفذين — {{ year }}</h2>
-      <span class="text-blue-200 text-xs">{{ total }} مسمى وظيفي</span>
+      <span class="text-blue-200 text-xs" id="executor-count">{{ total }} مسمى وظيفي</span>
     </div>
 
+    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
     <div class="overflow-x-auto">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
+        <thead class="bg-gray-50 border-b" style="position:sticky;top:0;z-index:2">
           <tr>
             <th scope="col" class="px-4 py-3 text-right">المسمى الوظيفي</th>
             <th scope="col" class="px-4 py-3 text-center w-16">الإجراءات</th>
@@ -70,9 +79,9 @@
             <th scope="col" class="px-4 py-3 text-center w-24">الحالة</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100">
+        <tbody class="divide-y divide-gray-100" id="executor-tbody">
           {% for row in executor_rows %}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50" data-text="{{ row.executor_norm }} {% if row.user %}{{ row.user.full_name }}{% endif %}">
             <td class="px-4 py-3 font-medium text-gray-900">{{ row.executor_norm }}</td>
             <td class="px-4 py-3 text-center">
               <span class="px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700">
@@ -127,7 +136,29 @@
         </tbody>
       </table>
     </div>
+    </div>{# end table-wrap-scroll #}
   </div>
+
+  <script nonce="{{ request.csp_nonce }}">
+  (function(){
+    const input=document.getElementById('executor-search');
+    const tbody=document.getElementById('executor-tbody');
+    const countEl=document.getElementById('executor-count');
+    if(!input||!tbody)return;
+    const rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
+    const total=rows.length;
+    input.addEventListener('input',function(){
+      const q=this.value.trim().toLowerCase();
+      let shown=0;
+      rows.forEach(function(r){
+        const match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
+        r.style.display=match?'':'none';
+        if(match)shown++;
+      });
+      if(countEl)countEl.textContent=shown+' / '+total+' مسمى وظيفي';
+    });
+  })();
+  </script>
 
   <!-- إضافة إشعار تفاعلي عند الحفظ -->
   {% if messages %}
