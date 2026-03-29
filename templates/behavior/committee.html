@@ -3,42 +3,39 @@
 {% block title %}لجنة الضبط السلوكي{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="الضبط السلوكي" current="لجنة الضبط" %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="لجنة الضبط" %}
 {% endblock %}
 
 {% block content %}
-<div>
+<div class="exec-dash">
 
- <!-- Header -->
- <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
- <div>
- <h1 class="page-title">{% include "components/icon.html" with name="scale" %} لجنة الضبط السلوكي</h1>
- <p class="text-sm text-gray-500 mt-0.5">المخالفات من الدرجة الثالثة والرابعة — اتخاذ القرار الجماعي</p>
- </div>
- <a href="{% url 'behavior:dashboard' %}"
- class="text-sm text-red-700 border border-red-200 bg-red-50 px-4 py-2 rounded-lg hover:bg-red-100 transition">
- → لوحة السلوك
- </a>
+ {# ── Exec Header ── #}
+ <div class="exec-header">
+   <div>
+     <h1>{% include "components/icon.html" with name="scale" %} لجنة الضبط السلوكي</h1>
+     <p style="font-size:.85rem;opacity:.75;margin:.25rem 0 0">المخالفات من الدرجة الثالثة والرابعة — اتخاذ القرار الجماعي</p>
+   </div>
+   <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm no-underline">← لوحة السلوك</a>
  </div>
 
- <!-- Stats -->
- <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
- <div class="card-qatar border-r-4 border-red-600">
- <p class="text-xs text-gray-500">قضايا مفتوحة</p>
- <p class="text-3xl font-bold text-red-600">{{ stats.open_count }}</p>
- </div>
- <div class="card-qatar border-r-4 border-green-500">
- <p class="text-xs text-gray-500">محلولة</p>
- <p class="text-3xl font-bold text-green-600">{{ stats.resolved_count }}</p>
- </div>
- <div class="card-qatar border-r-4 border-orange-500">
- <p class="text-xs text-gray-500">درجة ثالثة (جسيمة)</p>
- <p class="text-3xl font-bold text-orange-600">{{ stats.level3 }}</p>
- </div>
- <div class="card-qatar border-r-4 border-red-800">
- <p class="text-xs text-gray-500">درجة رابعة (شديدة)</p>
- <p class="text-3xl font-bold text-red-800">{{ stats.level4 }}</p>
- </div>
+ {# ── KPI Strip ── #}
+ <div class="kpi-strip">
+   <div class="kpi-mini kpi-red">
+     <span class="kpi-mini-value">{{ stats.open_count }}</span>
+     <span class="kpi-mini-label">قضايا مفتوحة</span>
+   </div>
+   <div class="kpi-mini kpi-green">
+     <span class="kpi-mini-value">{{ stats.resolved_count }}</span>
+     <span class="kpi-mini-label">محلولة</span>
+   </div>
+   <div class="kpi-mini kpi-orange">
+     <span class="kpi-mini-value">{{ stats.level3 }}</span>
+     <span class="kpi-mini-label">درجة ثالثة (جسيمة)</span>
+   </div>
+   <div class="kpi-mini kpi-maroon">
+     <span class="kpi-mini-value">{{ stats.level4 }}</span>
+     <span class="kpi-mini-label">درجة رابعة (شديدة)</span>
+   </div>
  </div>
 
  {# ── شريط الفلترة ── #}

@@ -2,56 +2,55 @@
 {% block title %}الملف السلوكي — {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="الضبط السلوكي" current="ملف الطالب" %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="ملف الطالب" %}
 {% endblock %}
 
 {% block content %}
-<div>
- <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
- <div>
- <h1 class="page-title">{% include "components/icon.html" with name="scale" %} الملف السلوكي</h1>
- <p class="text-sm text-gray-500">{{ student.full_name }} — {{ student.national_id }}</p>
+<div class="exec-dash">
+ {# ── Exec Header ── #}
+ <div class="exec-header">
+   <div>
+     <h1>{% include "components/icon.html" with name="scale" %} الملف السلوكي</h1>
+     <span class="exec-date">{{ student.full_name }} — {{ student.national_id }}</span>
+   </div>
+   <div class="flex gap-2 flex-wrap">
+     {% if can_summon %}
+     <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-primary btn-sm no-underline">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
+     {% endif %}
+     <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank"
+        class="btn-danger btn-sm no-underline flex items-center gap-1"
+        title="طباعة التقرير السلوكي الشامل للطالب A4">
+       {% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل
+     </a>
+     {% if can_report %}
+     <a href="{% url 'behavior:report_infraction' %}" class="btn-danger btn-sm no-underline">+ مخالفة جديدة</a>
+     {% endif %}
+     <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
+   </div>
  </div>
- <div class="flex gap-2 flex-wrap">
- {% if can_summon %}
- <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
- {% endif %}
- <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank"
-    class="bg-maroon hover:bg-maroon-dark text-white px-4 py-2 rounded-lg text-sm flex items-center gap-1"
-    title="طباعة التقرير السلوكي الشامل للطالب A4">
-   {% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل
- </a>
- {% if can_report %}
- <a href="{% url 'behavior:report_infraction' %}" class="btn-danger text-white px-4 py-2 rounded-lg text-sm">➕ مخالفة جديدة</a>
- {% endif %}
- <a href="{% url 'behavior:dashboard' %}" class="text-sm border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 text-gray-700">← رجوع</a>
+
+ {# ── KPI Strip ── #}
+ <div class="kpi-strip">
+   <div class="kpi-mini {% if status_color == 'green' %}kpi-green{% elif status_color == 'yellow' %}kpi-orange{% else %}kpi-red{% endif %}">
+     <span class="kpi-mini-value">{{ net_score }}<small>/100</small></span>
+     <span class="kpi-mini-label">رصيد النقاط الحالي</span>
+   </div>
+   <div class="kpi-mini kpi-red">
+     <span class="kpi-mini-value">-{{ total_deducted }}</span>
+     <span class="kpi-mini-label">نقاط مخصومة</span>
+   </div>
+   <div class="kpi-mini kpi-green">
+     <span class="kpi-mini-value">+{{ total_restored }}</span>
+     <span class="kpi-mini-label">نقاط مستردة</span>
+   </div>
+   <div class="kpi-mini kpi-maroon">
+     <span class="kpi-mini-value">{{ infractions.count }}</span>
+     <span class="kpi-mini-label">إجمالي المخالفات</span>
+   </div>
  </div>
- </div>
- <!-- Score -->
- <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
- <div class="card-qatar border-r-4
- {% if status_color == 'green' %}border-green-500{% elif status_color == 'yellow' %}border-yellow-500{% else %}border-red-500{% endif %}">
- <p class="text-xs text-gray-500">رصيد النقاط الحالي</p>
- <p class="text-3xl font-bold {% if status_color == 'green' %}text-green-600{% elif status_color == 'yellow' %}text-yellow-600{% else %}text-red-600{% endif %}">
- {{ net_score }}<span class="text-base font-normal text-gray-400">/100</span>
- </p>
- </div>
- <div class="card-qatar border-r-4 border-red-400">
- <p class="text-xs text-gray-500">نقاط مخصومة</p>
- <p class="text-3xl font-bold text-red-600">-{{ total_deducted }}</p>
- </div>
- <div class="card-qatar border-r-4 border-green-400">
- <p class="text-xs text-gray-500">نقاط مستردة</p>
- <p class="text-3xl font-bold text-green-600">+{{ total_restored }}</p>
- </div>
- <div class="card-qatar border-r-4 border-gray-400">
- <p class="text-xs text-gray-500">إجمالي المخالفات</p>
- <p class="text-3xl font-bold text-gray-700">{{ infractions.count }}</p>
- </div>
- </div>
- <!-- Infractions -->
- <div class="card-qatar overflow-hidden">
- <div class="px-5 py-4 border-b"><h2 class="font-bold text-gray-700">{% include "components/icon.html" with name="file-text" %} سجل المخالفات</h2></div>
+ {# ── Infractions ── #}
+ <div class="dash-chart-card">
+ <div class="dash-chart-title">{% include "components/icon.html" with name="file-text" %} سجل المخالفات</div>
  {% if infractions %}
  <div class="filter-bar px-4 py-2 border-b">
    <input type="text" id="infractionsSearch" class="form-control form-control-sm"

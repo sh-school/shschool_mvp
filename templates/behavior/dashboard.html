@@ -1,168 +1,178 @@
 {% extends "base/base.html" %}
-{% block title %}السلوك المدرسي — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
+{% load i18n %}
+{% block title %}لوحة السلوك{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="السلوك المدرسي" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} السلوك المدرسي</h1>
-      <p class="page-subtitle">متابعة المخالفات السلوكية وسجلات الطلاب</p>
-    </div>
-    <div class="page-actions">
-      {% if is_committee %}
-      <a href="{% url 'behavior:statistics' %}" class="btn-secondary text-xs">{% include "components/icon.html" with name="bar-chart" %} الإحصاءات</a>
-      <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
-         class="btn-secondary text-xs">{% include "components/icon.html" with name="printer" %} لائحة السلوك</a>
-      {% endif %}
-      {% if can_report %}
-      <a href="{% url 'behavior:report_infraction' %}"
-         class="btn-primary text-xs">+ تسجيل مخالفة</a>
-      {% endif %}
-      {% if is_committee %}
-      <a href="{% url 'behavior:committee' %}" class="btn-secondary text-xs">لجنة الضبط</a>
-      {% endif %}
-      {% if can_summon %}
-      <a href="{% url 'behavior:summon_parent' %}" class="btn-secondary text-xs">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
-      {% endif %}
-    </div>
+  {# ── Header ── #}
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="scale" %} لوحة السلوك</h1>
+    <span class="exec-date">{{ today|default:"" }}</span>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-danger">{{ total_deducted }}</div>
-      <div class="kpi-label">نقاط مخصومة</div>
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">نقاط مخصومة</div>
+      <div class="kpi-mini-value">{{ total_deducted }}</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-success">{{ total_restored }}</div>
-      <div class="kpi-label">نقاط مستردة</div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">صافي الخصم</div>
+      <div class="kpi-mini-value">{{ net_deducted }}</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ net_deducted }}</div>
-      <div class="kpi-label">صافي الخصم</div>
-    </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ critical_unresolved|length }}</div>
-      <div class="kpi-label">مخالفات جسيمة معلّقة</div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">مخالفات جسيمة معلّقة</div>
+      <div class="kpi-mini-value">{{ critical_unresolved|length }}</div>
       {% if critical_unresolved %}
-      <div class="kpi-sub">
-        <a href="{% url 'behavior:committee' %}" class="link-maroon text-xs">
-          عرض القائمة ←
-        </a>
-      </div>
+      <div class="kpi-mini-alert">تحتاج قرار لجنة</div>
       {% endif %}
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">نقاط مستردة</div>
+      <div class="kpi-mini-value">{{ total_restored }}</div>
+    </div>
+  </div>
+
+  {# ── Alert Strip ── #}
+  {% if critical_unresolved %}
+  <div class="alert-strip">
+    {% include "components/icon.html" with name="alert-critical" %}
+    يوجد {{ critical_unresolved|length }} مخالفة جسيمة (درجة 3-4) بدون قرار لجنة —
+    <a href="{% url 'behavior:committee' %}" style="color:inherit;text-decoration:underline">عرض اللجنة</a>
+  </div>
+  {% endif %}
+
+  {# ── Charts Grid ── #}
+  <div class="charts-grid-2">
+
+    {# Chart 1: Monthly Trend Line #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">الاتجاه الشهري — آخر 6 أشهر</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartBehaviorTrend"></canvas>
+      </div>
+    </div>
+
+    {# Chart 2: Level Distribution Doughnut #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">توزيع المخالفات حسب الدرجة</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartLevelDist"></canvas>
+      </div>
     </div>
 
   </div>
 
-  {# ── Critical pending infractions ── #}
-  {% if critical_unresolved %}
-  <div class="bg-status-danger-light beh-critical-box">
-    <div class="card-header border-status-danger">
-      <div class="card-header-icon bg-status-danger-light text-status-danger">{% include "components/icon.html" with name="alert-critical" %}</div>
-      <h2 class="card-header-title text-status-danger">مخالفات جسيمة تحتاج قرار لجنة</h2>
-      <span class="status-badge status-danger">{{ critical_unresolved|length }}</span>
-    </div>
-    <div class="beh-critical-list">
-      {% for inf in critical_unresolved %}
-      <div class="table-wrap shadow-none">
-        <div class="beh-critical-row">
-          <div>
-            <p class="beh-critical-name">{{ inf.student.full_name }}</p>
-            <p class="beh-critical-desc">{{ inf.description|truncatechars:70 }}</p>
-          </div>
-          <span class="status-badge status-danger flex-shrink-0">درجة {{ inf.level }}</span>
-        </div>
+  {# ── Top Violations List ── #}
+  {% if top_violations %}
+  <div class="dash-chart-card">
+    <div class="dash-chart-title">أكثر المخالفات شيوعاً هذا العام</div>
+    <div class="dash-list">
+      {% for v in top_violations %}
+      <div class="dash-list-item">
+        <span>{{ v.violation_category__name_ar }}</span>
+        <span class="font-semibold" style="color:var(--maroon)">{{ v.count }}</span>
       </div>
       {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  {# ── Two-column section ── #}
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-    {# توزيع المخالفات #}
-    <div class="card-qatar">
-      <div class="card-header">
-        <div class="card-header-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
-        <h3 class="card-header-title">توزيع المخالفات حسب الدرجة</h3>
-      </div>
-      {% if stats %}
-      <div class="beh-dist-list">
-        {% for stat in stats %}
-        <div class="beh-dist-row">
-          <div class="beh-dist-left">
-            <span class="beh-dist-dot
-              {% if stat.level == 1 %}bg-status-info
-              {% elif stat.level == 2 %}bg-status-warning
-              {% elif stat.level == 3 %}bg-status-warning
-              {% else %}bg-status-danger{% endif %}">
-            </span>
-            <span class="beh-dist-label">درجة {{ stat.level }}</span>
-          </div>
-          <span class="beh-dist-count
-            {% if stat.level == 1 %}text-status-info
-            {% elif stat.level == 2 %}text-status-warning
-            {% elif stat.level == 3 %}text-status-warning
-            {% else %}text-status-danger{% endif %}">
-            {{ stat.count }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state p-6">
-        <p class="empty-sub">لا توجد مخالفات مسجّلة</p>
-      </div>
-      {% endif %}
-    </div>
-
-    {# آخر المخالفات #}
-    <div class="table-wrap">
-      <div class="beh-recent-header">
-        <div class="card-header-icon w-8 h-8 text-base">{% include "components/icon.html" with name="clock" %}</div>
-        <h3 class="beh-recent-title">آخر المخالفات</h3>
-      </div>
-      {% if recent_infractions %}
-      <div class="beh-recent-scroll">
-        {% for inf in recent_infractions %}
-        <div class="beh-recent-row">
-          <div class="min-w-0">
-            <p class="beh-recent-name">
-              {{ inf.student.full_name }}
-            </p>
-            <p class="beh-recent-meta">
-              {{ inf.date|date:"d/m/Y" }} — {{ inf.reported_by.full_name }}
-            </p>
-          </div>
-          <span class="status-badge flex-shrink-0 me-2
-            {% if inf.level == 1 %}status-info
-            {% elif inf.level == 2 %}status-warning
-            {% else %}status-danger{% endif %}">
-            درجة {{ inf.level }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="empty-state p-8">
-        <p class="empty-sub">لا توجد مخالفات مسجّلة</p>
-      </div>
-      {% endif %}
-    </div>
-
+  {# ── Quick Links ── #}
+  <div class="quick-links">
+    {% if can_report %}
+    <a href="{% url 'behavior:report_infraction' %}" class="ql-item">{% include "components/icon.html" with name="plus" %} تسجيل مخالفة</a>
+    {% endif %}
+    {% if is_committee %}
+    <a href="{% url 'behavior:committee' %}" class="ql-item">{% include "components/icon.html" with name="scale" %} لجنة الضبط</a>
+    <a href="{% url 'behavior:statistics' %}" class="ql-item">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
+    {% endif %}
+    {% if can_summon %}
+    <a href="{% url 'behavior:summon_parent' %}" class="ql-item">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
+    {% endif %}
   </div>
 
+  {# ── Collapsible: Critical Cases ── #}
+  {% if critical_unresolved %}
+  <details class="exec-details">
+    <summary class="exec-details-summary">تفاصيل المخالفات الجسيمة المعلّقة ({{ critical_unresolved|length }})</summary>
+    <div class="dash-list" style="margin-top:.5rem">
+      {% for inf in critical_unresolved %}
+      <div class="dash-list-item">
+        <span>{{ inf.student.full_name }} — {{ inf.description|truncatechars:50 }}</span>
+        <span style="color:var(--color-danger);font-weight:600">درجة {{ inf.level }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  Chart.defaults.font.family='Tajawal,sans-serif';
+  Chart.defaults.font.size=11;
+
+  // ── Monthly Trend ──
+  var monthLabels = [{% for m in monthly_trend %}'{{ m.month|date:"m/Y" }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var monthData   = [{% for m in monthly_trend %}{{ m.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+  var el1 = document.getElementById('chartBehaviorTrend');
+  if(el1 && monthLabels.length){
+    new Chart(el1, {
+      type:'line',
+      data:{
+        labels: monthLabels,
+        datasets:[{
+          label:'المخالفات',
+          data: monthData,
+          borderColor:'#8A1538',
+          backgroundColor:'rgba(138,21,56,0.1)',
+          fill:true,
+          tension:0.3
+        }]
+      },
+      options:{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins:{ legend:{ display:false } },
+        scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } }
+      }
+    });
+  }
+
+  // ── Level Distribution ──
+  var levelLabels = [{% for l in level_dist %}'الدرجة {{ l.level }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var levelData   = [{% for l in level_dist %}{{ l.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var levelColors = ['#eab308','#f97316','#dc2626','#7f1d1d'];
+
+  var el2 = document.getElementById('chartLevelDist');
+  if(el2 && levelLabels.length){
+    new Chart(el2, {
+      type:'doughnut',
+      data:{
+        labels: levelLabels,
+        datasets:[{
+          data: levelData,
+          backgroundColor: levelColors.slice(0, levelData.length)
+        }]
+      },
+      options:{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins:{ legend:{ position:'bottom', labels:{ font:{ size:10 } } } }
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

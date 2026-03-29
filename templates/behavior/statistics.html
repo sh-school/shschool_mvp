@@ -2,94 +2,97 @@
 {% block title %}إحصاءات السلوك{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/behavior/" parent_label="السلوك" current="إحصاءات السلوك" %}
+{% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="إحصاءات السلوك" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6 max-w-4xl mx-auto">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصاءات السلوك المدرسي</h1>
-    </div>
-    <span class="status-badge status-warning">{{ year }} · QNSA المعيار 2</span>
+  {# ── Exec Header ── #}
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="bar-chart" %} إحصاءات السلوك المدرسي</h1>
+    <span class="exec-date">{{ year }} · QNSA المعيار 2</span>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ total }}</div>
-      <div class="kpi-label">إجمالي المخالفات</div>
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ total }}</span>
+      <span class="kpi-mini-label">إجمالي المخالفات</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-info">{{ by_level.1 }}</div>
-      <div class="kpi-label">درجة أولى</div>
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ by_level.1 }}</span>
+      <span class="kpi-mini-label">درجة أولى</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ by_level.2 }}</div>
-      <div class="kpi-label">درجة ثانية</div>
+    <div class="kpi-mini kpi-orange">
+      <span class="kpi-mini-value">{{ by_level.2 }}</span>
+      <span class="kpi-mini-label">درجة ثانية</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-danger">{{ by_level.3|add:by_level.4 }}</div>
-      <div class="kpi-label">درجة 3 و4</div>
+    <div class="kpi-mini kpi-red">
+      <span class="kpi-mini-value">{{ by_level.3|add:by_level.4 }}</span>
+      <span class="kpi-mini-label">درجة 3 و4</span>
     </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
     {# ── أكثر الطلاب مخالفة ── #}
-    <div class="card-qatar p-0 overflow-hidden">
-      <div class="card-bar m-0 rounded-t-xl">أكثر الطلاب مخالفة</div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">أكثر الطلاب مخالفة</div>
       <div class="filter-bar px-4 py-2 border-b">
         <input type="text" id="topStudentsSearch" class="form-control form-control-sm"
                placeholder="بحث بالاسم..." autocomplete="off">
       </div>
-      <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
-        {% for s in top_students %}
-        <div class="flex items-center justify-between px-4 py-3 border-b filterable-row"
-             data-text="{{ s.student__full_name }}">
-          <div>
-            <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
-            <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
+      <div class="dash-chart-wrap" style="max-height:420px;overflow-y:auto">
+        <div class="dash-list">
+          {% for s in top_students %}
+          <div class="dash-list-item filterable-row" data-text="{{ s.student__full_name }}">
+            <div>
+              <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
+              <p class="text-xs text-status-danger m-0">-{{ s.pts }} نقطة</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-bold text-primary">{{ s.count }}</span>
+              <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-primary">{{ s.count }}</span>
-            <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
+          {% empty %}
+          <div class="empty-state p-8">
+            <p class="empty-sub">لا توجد بيانات</p>
           </div>
+          {% endfor %}
         </div>
-        {% empty %}
-        <div class="empty-state p-8">
-          <p class="empty-sub">لا توجد بيانات</p>
-        </div>
-        {% endfor %}
       </div>
     </div>
 
     {# ── التوزيع الشهري ── #}
-    <div class="card-qatar p-0 overflow-hidden">
-      <div class="card-bar m-0 rounded-t-xl">التوزيع الشهري</div>
-      {% for m in monthly %}
-      <div class="flex items-center justify-between px-4 py-3 border-b">
-        <p class="text-sm m-0 text-primary">{{ m.month|date:"F Y" }}</p>
-        <div class="flex items-center gap-2">
-          <div class="progress-qatar w-20">
-            <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">التوزيع الشهري</div>
+      <div class="dash-chart-wrap" style="max-height:420px;overflow-y:auto">
+        <div class="dash-list">
+          {% for m in monthly %}
+          <div class="dash-list-item">
+            <p class="text-sm m-0 text-primary">{{ m.month|date:"F Y" }}</p>
+            <div class="flex items-center gap-2">
+              <div class="progress-qatar w-20">
+                <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
+              </div>
+              <span class="text-sm font-semibold text-left text-primary min-w-6">{{ m.count }}</span>
+            </div>
           </div>
-          <span class="text-sm font-semibold text-left text-primary min-w-6">{{ m.count }}</span>
+          {% empty %}
+          <div class="empty-state p-8">
+            <p class="empty-sub">لا توجد بيانات</p>
+          </div>
+          {% endfor %}
         </div>
       </div>
-      {% empty %}
-      <div class="empty-state p-8">
-        <p class="empty-sub">لا توجد بيانات</p>
-      </div>
-      {% endfor %}
     </div>
 
   </div>
 
   {# ── نسبة الحل ── #}
-  <div class="card-qatar">
+  <div class="alert-strip">
     <div class="flex items-center justify-between mb-2">
       <span class="text-sm font-semibold text-primary">نسبة حل المخالفات الجسيمة</span>
       <span class="text-xl font-extrabold
