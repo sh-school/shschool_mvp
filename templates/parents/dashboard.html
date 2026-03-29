@@ -178,7 +178,7 @@
 function updateOnlineStatus() {
   var el = document.getElementById('online-indicator');
   if (!el) return;
-  el.style.background = navigator.onLine ? '#22c55e' : '#ef4444';
+  el.style.background = navigator.onLine ? '#16a34a' : '#dc2626'; /* status-success / status-danger */
   el.title = navigator.onLine ? 'متصل' : 'غير متصل';
   if (!navigator.onLine) el.style.animation = 'pulse 1s infinite';
 }

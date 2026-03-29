@@ -185,7 +185,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     type:'bar',
     data:{labels:d.grade_distribution.labels,datasets:[{
       label:'عدد الطلاب',data:d.grade_distribution.data,
-      backgroundColor:['#dc2626','#f97316','#eab308','#84cc16','#22c55e','#16a34a']
+      backgroundColor:['#dc2626','#d97706','#D4A843','#0D7B6A','#16a34a','#16a34a'] /* danger,warning,chart-4,chart-2,success */
     }]},
     options:{...OPTS,plugins:{legend:{display:false}},
       scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}},x:{ticks:{font:{size:9}}}}}
@@ -196,7 +196,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
       type:'bar',
       data:{labels:d.class_comparison.labels,datasets:[{
         label:'المعدل',data:d.class_comparison.data,
-        backgroundColor:'#8A1538'
+        backgroundColor:'#8A1538' /* chart-1 */
       }]},
       options:{...OPTS,indexAxis:'y',plugins:{legend:{display:false}},
         scales:{x:{min:0,max:100,ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}
@@ -207,9 +207,9 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     new Chart(document.getElementById('chartSubjects'),{
       type:'bar',
       data:{labels:d.subject_comparison.labels,datasets:[
-        {label:'المعدل',data:d.subject_comparison.avgs,backgroundColor:'#0D4261',order:2},
+        {label:'المعدل',data:d.subject_comparison.avgs,backgroundColor:'#1A3A5C',order:2}, /* chart-3 */
         {label:'نسبة الرسوب %',data:d.subject_comparison.fail_rates,type:'line',
-         borderColor:'#dc2626',backgroundColor:'transparent',yAxisID:'y1',order:1,borderWidth:1.5,pointRadius:2}
+         borderColor:'#dc2626',backgroundColor:'transparent',yAxisID:'y1',order:1,borderWidth:1.5,pointRadius:2} /* status-danger */
       ]},
       options:{...OPTS,
         scales:{y:{beginAtZero:true,max:100,ticks:{font:{size:9}}},y1:{position:'left',beginAtZero:true,max:100,display:false},x:{ticks:{font:{size:9}}}},
