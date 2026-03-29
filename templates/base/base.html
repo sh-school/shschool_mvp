@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=131">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=132">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -82,6 +82,7 @@
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} الطلاب <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
       <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
@@ -165,6 +166,7 @@
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="settings" %} الإدارة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} الطلاب <span class="chv">▼</span></button>
 
     {% endif %}
     </div>
@@ -253,6 +255,24 @@
   <a href="/behavior/dashboard/">{% include "components/icon.html" with name="scale" %} السلوك الطلابي</a>
   <a href="/behavior/summon/">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
   <a href="/library/">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+</div>
+
+<div class="sd-menu" id="m-student-affairs" role="menu" aria-label="شؤون الطلاب">
+  <div class="sd-label">نظرة عامة</div>
+  <a href="/student-affairs/">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
+  <a href="/student-affairs/list/">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
+  <a href="/student-affairs/add/">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
+  <hr>
+  <div class="sd-label">المتابعة</div>
+  <a href="/student-affairs/transfers/">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
+  <a href="/student-affairs/attendance/">{% include "components/icon.html" with name="calendar" %} الحضور والغياب</a>
+  <a href="/student-affairs/behavior/">{% include "components/icon.html" with name="scale" %} السلوك</a>
+  <hr>
+  <div class="sd-label">الأنشطة</div>
+  <a href="/student-affairs/activities/">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</a>
+  <hr>
+  <a href="/core/students/import-export/">{% include "components/icon.html" with name="download" %} استيراد / تصدير Excel</a>
+  <a href="/parents/admin/links/">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
 </div>
 
 {% endif %}
