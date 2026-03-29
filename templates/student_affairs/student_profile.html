@@ -1,0 +1,261 @@
+{% extends "base/base.html" %}
+
+{% block title %}ملف الطالب — {{ student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/list/" parent_label="سجل الطلاب" current=student.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ student.full_name }}</h1>
+      <p class="exec-subtitle">
+        {{ student.national_id }}
+        {% if enrollment %} — {{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}{% endif %}
+        {% if profile and profile.gender %} — {% if profile.gender == "M" %}ذكر{% else %}أنثى{% endif %}{% endif %}
+      </p>
+    </div>
+    <div class="exec-meta" style="gap:6px">
+      <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="file-pen" %} تعديل
+      </a>
+      <a href="/behavior/student/{{ student.id }}/" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="scale" %} الملف السلوكي
+      </a>
+      <a href="/reports/student/{{ student.id }}/" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="bar-chart" %} كشف الدرجات
+      </a>
+    </div>
+  </div>
+
+  {# ── KPI Strip — ملخص سريع ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-{% if attendance.pct >= 90 %}green{% elif attendance.pct >= 75 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">نسبة الحضور</div>
+      <div class="kpi-mini-value">{{ attendance.pct }}%</div>
+      <div class="kpi-mini-sub">{{ attendance.present }}/{{ attendance.total }} حصة</div>
+    </div>
+    <div class="kpi-mini kpi-{% if behavior.net_score >= 80 %}green{% elif behavior.net_score >= 50 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">رصيد السلوك</div>
+      <div class="kpi-mini-value">{{ behavior.net_score }}<small>/100</small></div>
+      <div class="kpi-mini-sub">-{{ behavior.total_deducted }} +{{ behavior.total_restored }}</div>
+    </div>
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">المواد</div>
+      <div class="kpi-mini-value">{{ grades_summary.total_subjects|default:0 }}</div>
+      <div class="kpi-mini-sub">ناجح: {{ grades_summary.passed|default:0 }}</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">زيارات العيادة</div>
+      <div class="kpi-mini-value">{{ clinic_visits|length }}</div>
+    </div>
+    <div class="kpi-mini kpi-purple">
+      <div class="kpi-mini-label">الأنشطة</div>
+      <div class="kpi-mini-value">{{ activities|length }}</div>
+    </div>
+  </div>
+
+  {# ════════════ الأقسام ════════════ #}
+  <div class="charts-grid-2">
+
+    {# ── البيانات الشخصية + ولي الأمر ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
+      <div class="dash-list">
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الاسم:</span> <strong>{{ student.full_name }}</strong></div>
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الرقم الوطني:</span> <span dir="ltr">{{ student.national_id }}</span></div>
+        {% if enrollment %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الصف / الشعبة:</span> {{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}</div>
+        {% endif %}
+        {% if profile and profile.birth_date %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">تاريخ الميلاد:</span> {{ profile.birth_date|date:"d/m/Y" }}</div>
+        {% endif %}
+        {% if student.phone %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">الجوال:</span> <span dir="ltr">{{ student.phone }}</span></div>
+        {% endif %}
+        {% if student.email %}
+        <div class="dash-list-item"><span style="color:var(--muted);min-width:100px">البريد:</span> <span dir="ltr">{{ student.email }}</span></div>
+        {% endif %}
+      </div>
+
+      {# أولياء الأمور #}
+      {% if parent_links %}
+      <div class="dash-chart-title" style="margin-top:12px">{% include "components/icon.html" with name="waypoints" %} أولياء الأمور</div>
+      <div class="dash-list">
+        {% for link in parent_links %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <strong>{{ link.parent.full_name }}</strong>
+            <span style="font-size:.65rem;color:var(--muted)"> — {{ link.get_relationship_display }}</span>
+          </div>
+          <span style="font-size:.7rem;direction:ltr">{{ link.parent.phone|default:"—" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {# ── الحضور ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} الحضور ({{ year }})</div>
+      <div class="dash-list">
+        <div class="dash-list-item">
+          <span style="color:var(--muted)">حاضر</span>
+          <strong style="color:var(--status-success)">{{ attendance.present }}</strong>
+        </div>
+        <div class="dash-list-item">
+          <span style="color:var(--muted)">غائب</span>
+          <strong style="color:var(--status-danger)">{{ attendance.absent }}</strong>
+        </div>
+        <div class="dash-list-item">
+          <span style="color:var(--muted)">متأخر</span>
+          <strong style="color:var(--status-warning)">{{ attendance.late }}</strong>
+        </div>
+        <div class="dash-list-item">
+          <span style="color:var(--muted)">بعذر</span>
+          <strong>{{ attendance.excused }}</strong>
+        </div>
+      </div>
+      {% if attendance.total > 0 %}
+      <div style="margin-top:8px;height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:{{ attendance.pct }}%;background:{% if attendance.pct >= 90 %}var(--status-success){% elif attendance.pct >= 75 %}var(--status-warning){% else %}var(--status-danger){% endif %};border-radius:4px"></div>
+      </div>
+      <div style="text-align:center;font-size:.7rem;color:var(--muted);margin-top:4px">{{ attendance.pct }}% حضور</div>
+      {% endif %}
+    </div>
+
+    {# ── الدرجات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} الدرجات ({{ year }})</div>
+      {% if grades %}
+      <div class="table-wrap-scroll" style="font-size:.75rem">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="padding:6px;text-align:right">المادة</th>
+              <th style="padding:6px;text-align:center">ف1</th>
+              <th style="padding:6px;text-align:center">ف2</th>
+              <th style="padding:6px;text-align:center">المجموع</th>
+              <th style="padding:6px;text-align:center">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in grades %}
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:6px">{{ g.subject.name_ar }}</td>
+              <td style="padding:6px;text-align:center">{{ g.s1_total|default:"—" }}</td>
+              <td style="padding:6px;text-align:center">{{ g.s2_total|default:"—" }}</td>
+              <td style="padding:6px;text-align:center;font-weight:600">{{ g.annual_total|default:"—" }}</td>
+              <td style="padding:6px;text-align:center">
+                {% if g.status == "pass" %}
+                <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800">ناجح</span>
+                {% elif g.status == "fail" %}
+                <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">راسب</span>
+                {% else %}
+                <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا توجد نتائج لهذا العام" %}
+      {% endif %}
+    </div>
+
+    {# ── السلوك ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="scale" %} السلوك</div>
+      <div class="dash-list">
+        <div class="dash-list-item"><span style="color:var(--muted)">إجمالي المخالفات</span> <strong>{{ behavior.total }}</strong></div>
+        <div class="dash-list-item"><span style="color:var(--muted)">د1 (بسيطة)</span> <span>{{ behavior.by_level.1 }}</span></div>
+        <div class="dash-list-item"><span style="color:var(--muted)">د2 (متوسطة)</span> <span>{{ behavior.by_level.2 }}</span></div>
+        <div class="dash-list-item"><span style="color:var(--muted)">د3 (خطيرة)</span> <span style="{% if behavior.by_level.3 %}color:var(--status-warning){% endif %}">{{ behavior.by_level.3 }}</span></div>
+        <div class="dash-list-item"><span style="color:var(--muted)">د4 (جسيمة)</span> <span style="{% if behavior.by_level.4 %}color:var(--status-danger);font-weight:700{% endif %}">{{ behavior.by_level.4 }}</span></div>
+      </div>
+      {% if behavior.recent %}
+      <div style="margin-top:8px;font-size:.7rem;color:var(--muted);font-weight:600">آخر المخالفات:</div>
+      {% for inf in behavior.recent %}
+      <div class="dash-list-item" style="font-size:.75rem">
+        <span>{{ inf.description|truncatechars:50 }}</span>
+        <span style="font-size:.65rem;color:var(--muted)">{{ inf.date|date:"d/m" }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+
+    {# ── العيادة ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="hospital" %} العيادة</div>
+      {% if health_record %}
+      <div class="dash-list" style="font-size:.8rem">
+        {% if health_record.blood_type %}
+        <div class="dash-list-item"><span style="color:var(--muted)">فصيلة الدم</span> <strong>{{ health_record.blood_type }}</strong></div>
+        {% endif %}
+      </div>
+      {% endif %}
+      {% if clinic_visits %}
+      <div style="margin-top:8px;font-size:.7rem;color:var(--muted);font-weight:600">آخر الزيارات:</div>
+      {% for v in clinic_visits %}
+      <div class="dash-list-item" style="font-size:.75rem">
+        <span>{{ v.reason|truncatechars:40 }}</span>
+        <div style="display:flex;gap:4px;align-items:center">
+          {% if v.is_sent_home %}<span class="text-xs px-1 rounded bg-red-100 text-red-700">أُرسل للمنزل</span>{% endif %}
+          <span style="font-size:.65rem;color:var(--muted)">{{ v.visit_date|date:"d/m" }}</span>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      {% include "components/empty_state.html" with message="لا زيارات عيادة" %}
+      {% endif %}
+    </div>
+
+    {# ── الأنشطة والإنجازات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</div>
+      {% if activities %}
+      {% for act in activities %}
+      <div class="dash-list-item" style="font-size:.8rem">
+        <div style="flex:1">
+          <strong>{{ act.title }}</strong>
+          <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ act.get_activity_type_display }}</span>
+        </div>
+        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{{ act.get_scope_display }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      {% include "components/empty_state.html" with message="لا أنشطة مسجّلة" %}
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ── الانتقالات ── #}
+  {% if transfers %}
+  <div class="dash-chart-card">
+    <div class="dash-chart-title">{% include "components/icon.html" with name="refresh" %} سجل الانتقالات</div>
+    {% for tr in transfers %}
+    <div class="dash-list-item">
+      <div style="flex:1">
+        <span style="font-size:.8rem">{% if tr.direction == "in" %}← وارد من{% else %}→ صادر إلى{% endif %} {{ tr.other_school_name }}</span>
+        <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ tr.transfer_date|date:"d/m/Y" }}</span>
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded-full
+        {% if tr.status == "completed" %}bg-green-100 text-green-800
+        {% elif tr.status == "pending" %}bg-yellow-100 text-yellow-800
+        {% else %}bg-gray-100 text-gray-600{% endif %}">
+        {{ tr.get_status_display }}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

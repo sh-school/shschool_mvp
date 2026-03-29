@@ -363,7 +363,133 @@ def student_deactivate(request, student_id):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_profile(request, student_id):
     """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
-    return HttpResponse("<h1 dir='rtl'>ملف الطالب — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    # ── 1. البيانات الشخصية (core) ──
+    profile = getattr(student, "profile", None)
+    enrollment = (
+        StudentEnrollment.objects.filter(
+            student=student, class_group__academic_year=year, is_active=True,
+        )
+        .select_related("class_group")
+        .first()
+    )
+    parent_links = ParentStudentLink.objects.filter(
+        student=student, school=school,
+    ).select_related("parent")
+
+    # ── 2. الحضور (operations) ──
+    attendance_qs = StudentAttendance.objects.filter(
+        student=student, school=school, session__date__year=timezone.localdate().year,
+    )
+    attendance_summary = {
+        "present": attendance_qs.filter(status="present").count(),
+        "absent": attendance_qs.filter(status="absent").count(),
+        "late": attendance_qs.filter(status="late").count(),
+        "excused": attendance_qs.filter(status="excused").count(),
+        "total": attendance_qs.count(),
+    }
+    if attendance_summary["total"] > 0:
+        attendance_summary["pct"] = round(
+            attendance_summary["present"] / attendance_summary["total"] * 100, 1
+        )
+    else:
+        attendance_summary["pct"] = 0
+
+    # ── 3. السلوك (behavior) ──
+    infractions = (
+        BehaviorInfraction.objects.filter(student=student, school=school)
+        .select_related("violation_category")
+        .order_by("-date")
+    )
+    behavior_summary = {
+        "total": infractions.count(),
+        "by_level": {
+            lvl: infractions.filter(level=lvl).count() for lvl in range(1, 5)
+        },
+        "recent": infractions[:5],
+    }
+    # نقاط السلوك
+    from django.db.models import Sum
+    from behavior.models import BehaviorPointRecovery
+
+    total_deducted = infractions.aggregate(s=Sum("points_deducted"))["s"] or 0
+    total_restored = (
+        BehaviorPointRecovery.objects.filter(
+            infraction__student=student, infraction__school=school,
+        ).aggregate(s=Sum("points_restored"))["s"] or 0
+    )
+    behavior_summary["net_score"] = max(0, 100 - total_deducted + total_restored)
+    behavior_summary["total_deducted"] = total_deducted
+    behavior_summary["total_restored"] = total_restored
+
+    # ── 4. العيادة (clinic) ──
+    from clinic.models import HealthRecord
+
+    clinic_visits = (
+        ClinicVisit.objects.filter(student=student, school=school)
+        .order_by("-visit_date")[:5]
+    )
+    health_record = HealthRecord.objects.filter(student=student).first()
+
+    # ── 5. الدرجات (assessments) ──
+    from assessments.models import AnnualSubjectResult
+
+    grades = (
+        AnnualSubjectResult.objects.filter(
+            student=student, school=school, academic_year=year,
+        )
+        .select_related("subject", "class_group")
+        .order_by("subject__name_ar")
+    )
+    grades_summary = grades.aggregate(
+        total_subjects=Count("id"),
+        passed=Count("id", filter=Q(status="pass")),
+        failed=Count("id", filter=Q(status="fail")),
+    )
+
+    # ── 6. المكتبة (library) ──
+    from library.models import BookBorrowing
+
+    borrowings = (
+        BookBorrowing.objects.filter(user=student)
+        .select_related("book")
+        .order_by("-borrow_date")[:5]
+    )
+
+    # ── 7. الأنشطة (student_affairs) ──
+    activities = (
+        StudentActivity.objects.filter(student=student, school=school)
+        .order_by("-date")[:10]
+    )
+
+    # ── الانتقالات ──
+    transfers = (
+        StudentTransfer.objects.filter(student=student, school=school)
+        .order_by("-created_at")[:5]
+    )
+
+    return render(request, "student_affairs/student_profile.html", {
+        "student": student,
+        "profile": profile,
+        "enrollment": enrollment,
+        "parent_links": parent_links,
+        "attendance": attendance_summary,
+        "behavior": behavior_summary,
+        "clinic_visits": clinic_visits,
+        "health_record": health_record,
+        "grades": grades,
+        "grades_summary": grades_summary,
+        "borrowings": borrowings,
+        "activities": activities,
+        "transfers": transfers,
+        "year": year,
+    })
 
 
 # ═════════════════════════════════════════════════════════════════════
