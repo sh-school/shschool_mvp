@@ -6,18 +6,18 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} حضور الأبناء</h1>
-      <p class="page-subtitle">{{ school.name }} — آخر {{ period }} يوم</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="list-checks" %} حضور الأبناء</h1>
+      <p class="exec-subtitle">{{ school.name }} — آخر {{ period }} يوم</p>
     </div>
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap gap-2">
       {% for d in period_choices %}
       <a href="?period={{ d }}"
-         class="px-3 py-1.5 rounded-lg text-sm font-medium transition
-                {% if period == d %}bg-[var(--maroon)] text-white{% else %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200{% endif %}">
+         class="status-badge {% if period == d %}status-maroon{% else %}status-gray{% endif %}">
         {{ d }} يوم
       </a>
       {% endfor %}
@@ -25,18 +25,18 @@
   </div>
 
   {% if not children_attendance %}
-  <div class="card text-center py-12">
-    <p class="text-gray-500 text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
+  <div class="card-qatar text-center py-12">
+    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
   </div>
   {% endif %}
 
   {% for child in children_attendance %}
-  <div class="card">
+  <div class="card-qatar">
     {# Header #}
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-[var(--muted)]">
           {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
           منذ {{ child.since|date:"Y/m/d" }}
         </p>
@@ -45,36 +45,36 @@
         <div class="text-2xl font-bold {% if child.att_pct >= 90 %}text-green-600{% elif child.att_pct >= 75 %}text-yellow-600{% else %}text-red-600{% endif %}">
           {{ child.att_pct }}%
         </div>
-        <div class="text-xs text-gray-500">نسبة الحضور</div>
+        <div class="text-xs text-[var(--muted)]">نسبة الحضور</div>
       </div>
     </div>
 
     {# KPI Row #}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-green-600">{{ child.present }}</div>
-        <div class="text-xs text-gray-500">حاضر</div>
+    <div class="kpi-strip" style="margin:0 0 1rem">
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-value">{{ child.present }}</div>
+        <div class="kpi-mini-label">حاضر</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-red-600">{{ child.absent }}</div>
-        <div class="text-xs text-gray-500">غائب</div>
+      <div class="kpi-mini kpi-red">
+        <div class="kpi-mini-value">{{ child.absent }}</div>
+        <div class="kpi-mini-label">غائب</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-orange-600">{{ child.late }}</div>
-        <div class="text-xs text-gray-500">متأخر</div>
+      <div class="kpi-mini kpi-orange">
+        <div class="kpi-mini-value">{{ child.late }}</div>
+        <div class="kpi-mini-label">متأخر</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold">{{ child.total }}</div>
-        <div class="text-xs text-gray-500">إجمالي الحصص</div>
+      <div class="kpi-mini kpi-blue">
+        <div class="kpi-mini-value">{{ child.total }}</div>
+        <div class="kpi-mini-label">إجمالي الحصص</div>
       </div>
     </div>
 
     {# Alerts #}
     {% if child.alerts %}
     <div class="mb-4">
-      <h3 class="font-semibold text-sm mb-2 text-red-600">تنبيهات الغياب</h3>
+      <h3 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب</h3>
       {% for alert in child.alerts %}
-      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2 mb-2 text-sm">
+      <div class="alert-strip mb-2" style="--alert-color: var(--status-danger); padding:.5rem .75rem;">
         {{ alert.message|default:"تنبيه غياب متكرر" }} — {{ alert.created_at|date:"Y/m/d" }}
       </div>
       {% endfor %}
@@ -83,7 +83,7 @@
 
     {# Days List #}
     {% if child.days_list %}
-    <h3 class="font-semibold text-sm mb-2 text-gray-600">سجل الحضور</h3>
+    <h3 class="font-semibold text-sm mb-2 text-[var(--muted)]">سجل الحضور</h3>
     <div class="filter-bar mb-2">
       <input type="text"
              placeholder="بحث بالتاريخ أو الحالة..."
@@ -91,11 +91,10 @@
              aria-label="بحث في سجل الحضور"
              data-target="att-days-{{ forloop.counter }}">
     </div>
-    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
-    <div class="overflow-x-auto">
+    <div class="table-wrap" style="max-height:420px;overflow-y:auto">
       <table class="w-full text-sm">
         <thead style="position:sticky;top:0;z-index:2">
-          <tr class="border-b dark:border-gray-700 bg-white dark:bg-gray-900">
+          <tr class="border-b border-[var(--border)] bg-[var(--surface)] dark:bg-[var(--surface)]">
             <th class="text-right py-2 px-2">التاريخ</th>
             <th class="text-center py-2 px-2">الحصص</th>
             <th class="text-center py-2 px-2">الحالة</th>
@@ -103,17 +102,17 @@
         </thead>
         <tbody id="att-days-{{ forloop.counter }}">
           {% for day in child.days_list %}
-          <tr class="border-b dark:border-gray-700/50 {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}"
+          <tr class="border-b border-[var(--border)] {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}"
               data-text="{{ day.date|date:'m/d D' }} {% if day.has_absent %}غياب{% elif day.has_late %}تأخر{% else %}حاضر{% endif %}">
             <td class="py-2 px-2 whitespace-nowrap">{{ day.date|date:"m/d D" }}</td>
             <td class="py-2 px-2 text-center">{{ day.records|length }}</td>
             <td class="py-2 px-2 text-center">
               {% if day.has_absent %}
-              <span class="text-red-600 text-xs font-bold">غياب</span>
+              <span class="status-badge status-red">غياب</span>
               {% elif day.has_late %}
-              <span class="text-orange-600 text-xs font-bold">تأخر</span>
+              <span class="status-badge status-orange">تأخر</span>
               {% else %}
-              <span class="text-green-600 text-xs font-bold">حاضر</span>
+              <span class="status-badge status-green">حاضر</span>
               {% endif %}
             </td>
           </tr>
@@ -121,9 +120,8 @@
         </tbody>
       </table>
     </div>
-    </div>{# end table-wrap-scroll #}
     {% else %}
-    <div class="text-center py-6 text-gray-400">
+    <div class="text-center py-6 text-[var(--muted)]">
       لا توجد بيانات حضور مسجلة في هذه الفترة
     </div>
     {% endif %}
@@ -135,7 +133,6 @@
     document.querySelectorAll('.att-day-search').forEach(function(input){
       var tbodyId = input.getAttribute('data-target');
       if (!tbodyId) return;
-      /* smartFilter يحتاج inputId فريد — نولّده ديناميكياً */
       if (!input.id) input.id = 'att-search-' + tbodyId;
       window.smartFilter(input.id, '#' + tbodyId + ' tr[data-text]', { textAttr: 'data-text' });
     });

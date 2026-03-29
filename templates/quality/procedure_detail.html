@@ -8,6 +8,35 @@
 {% block content %}
 <div class="qproc">
 
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1>{% include "components/icon.html" with name="clipboard-check" %} تفاصيل الإجراء</h1>
+      <p class="exec-date" dir="ltr">{{ procedure.number }}</p>
+    </div>
+    <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="btn-secondary btn-sm">← المجال</a>
+  </div>
+
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ procedure.indicator.target.domain.name|truncatechars:15 }}</span>
+      <span class="kpi-mini-label">المجال</span>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ procedure.get_status_display }}</span>
+      <span class="kpi-mini-label">الحالة</span>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <span class="kpi-mini-value">{{ procedure.executor_norm|truncatechars:15 }}</span>
+      <span class="kpi-mini-label">المنفذ</span>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <span class="kpi-mini-value">{{ evidences.count }}</span>
+      <span class="kpi-mini-label">أدلة</span>
+    </div>
+  </div>
+
   {# ── Procedure main card ── #}
   <div class="card-qatar qproc-main">
     <div class="card-bar">

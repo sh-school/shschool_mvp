@@ -1,16 +1,24 @@
-<div class="kpi-card">
-  <div class="kpi-value text-status-success">{{ summary.present|default:0 }}</div>
-  <div class="kpi-label">حاضر</div>
+<div class="kpi-mini kpi-blue">
+  <div class="kpi-mini-value">{{ summary.total|default:0 }}</div>
+  <div class="kpi-mini-label">إجمالي الطلاب</div>
 </div>
-<div class="kpi-card">
-  <div class="kpi-value text-status-danger">{{ summary.absent|default:0 }}</div>
-  <div class="kpi-label">غائب</div>
+<div class="kpi-mini kpi-teal">
+  <div class="kpi-mini-value">{{ summary.marked|default:0 }}</div>
+  <div class="kpi-mini-label">تم التسجيل</div>
 </div>
-<div class="kpi-card">
-  <div class="kpi-value text-status-warning">{{ summary.late|default:0 }}</div>
-  <div class="kpi-label">متأخر</div>
+<div class="kpi-mini kpi-green">
+  <div class="kpi-mini-value">{{ summary.present|default:0 }}</div>
+  <div class="kpi-mini-label">حاضر</div>
 </div>
-<div class="kpi-card">
-  <div class="kpi-value text-skyline">{{ summary.percentage|default:0 }}%</div>
-  <div class="kpi-label">نسبة الحضور</div>
+<div class="kpi-mini kpi-red">
+  <div class="kpi-mini-value">{{ summary.absent|default:0 }}</div>
+  <div class="kpi-mini-label">غائب</div>
+</div>
+<div class="kpi-mini kpi-orange">
+  <div class="kpi-mini-value">{{ summary.late|default:0 }}</div>
+  <div class="kpi-mini-label">متأخر</div>
+</div>
+<div class="kpi-mini kpi-maroon">
+  <div class="kpi-mini-value">{{ summary.percentage|default:0 }}%</div>
+  <div class="kpi-mini-label">نسبة الحضور</div>
 </div>

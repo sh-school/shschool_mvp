@@ -6,139 +6,146 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} التقييمات والاختبارات</h1>
-      <p class="page-subtitle">الباقات الأربع — {{ year }}</p>
+      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} لوحة التقييمات</h1>
+      <p class="exec-subtitle">الباقات الأربع — {{ year }}</p>
     </div>
-    <div class="page-actions">
+    <div class="exec-meta">
+      <form method="get">
+        <select name="semester" onchange="this.form.submit()" class="exec-year-select">
+          {% for val, label in SEMESTERS %}
+          <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </form>
       {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'failing_students' %}" class="btn-secondary text-status-danger bg-status-danger-light">
-        {% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون
-      </a>
-      <a href="{% url 'setup_subject' %}" class="btn-primary">+ ربط مادة بفصل</a>
+      <a href="{% url 'setup_subject' %}" class="btn-primary btn-sm no-underline">+ ربط مادة بفصل</a>
       {% endif %}
     </div>
   </div>
 
-  {# ── Semester filter ── #}
-  <div class="filter-bar">
-    <label class="text-sm font-semibold">الفصل الدراسي:</label>
-    <form method="get" class="flex items-center gap-2">
-      <select name="semester" onchange="this.form.submit()" class="form-control text-sm">
-        {% for val, label in SEMESTERS %}
-        <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </form>
-  </div>
-
-  {# ── Admin KPIs ── #}
+  {# ── KPI Strip ── #}
   {% if request.user.is_admin or request.user.is_superuser %}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-    <div class="kpi-card">
-      <div class="kpi-value text-skyline">{{ total_results }}</div>
-      <div class="kpi-label">نتيجة مرصودة</div>
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">نسبة النجاح</div>
+      <div class="kpi-mini-value">{{ pass_pct|default:"0" }}%</div>
+      <div class="kpi-mini-sub">من إجمالي النتائج</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-success">{{ passed }}</div>
-      <div class="kpi-label">ناجح</div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">ناجح</div>
+      <div class="kpi-mini-value">{{ passed }}</div>
+      <div class="kpi-mini-sub">طالب</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-danger">{{ failed }}</div>
-      <div class="kpi-label">راسب</div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">راسب</div>
+      <div class="kpi-mini-value">{{ failed }}</div>
+      <div class="kpi-mini-sub">طالب</div>
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ setups|length }}</div>
-      <div class="kpi-label">مادة × فصل</div>
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">مادة × فصل</div>
+      <div class="kpi-mini-value">{{ setups|length }}</div>
+      <div class="kpi-mini-sub">إعداد تقييم</div>
     </div>
-
   </div>
 
-  {# Failing students alert #}
+  {# ── Failing Students Alert ── #}
   {% if failing_list %}
-  <div class="bg-status-danger-light rounded-xl p-4 border border-status-danger">
-    <div class="card-header mb-3 border-status-danger">
-      <div class="card-header-icon bg-status-danger text-status-danger-dark">{% include "components/icon.html" with name="alert-triangle" %}</div>
-      <h3 class="card-header-title text-status-danger-dark">آخر الطلاب الراسبين</h3>
-      <a href="{% url 'failing_students' %}" class="link-maroon text-xs font-semibold ms-auto">
-        عرض الكل →
-      </a>
+  <div class="alert-strip">
+    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
+    <span>{{ failing_list|length }} طالب راسب</span>
+    <a href="{% url 'failing_students' %}">عرض الكل</a>
+    {% for r in failing_list|slice:":5" %}
+    <span style="font-size:.6rem">{{ r.student.full_name }} — {{ r.setup.subject.name_ar }}</span>{% if not forloop.last %} · {% endif %}
+    {% endfor %}
+    {% if failing_list|length > 5 %}<span style="font-size:.6rem">و {{ failing_list|length|add:"-5" }} آخرين</span>{% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# ── Charts Grid (3 columns) ── #}
+  {% if request.user.is_admin or request.user.is_superuser %}
+  <div class="charts-grid">
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} توزيع الدرجات</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartGradeDist"></canvas>
+      </div>
     </div>
-    <div class="flex flex-wrap gap-2">
-      {% for r in failing_list %}
-      <a href="{% url 'student_report' r.student.id %}?semester={{ semester }}"
-         class="bg-surface text-xs no-underline rounded-full px-3 py-1 border border-status-danger text-status-danger-dark transition-colors">
-        {{ r.student.full_name }} — {{ r.setup.subject.name_ar }}
-      </a>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="building" %} مقارنة الفصول</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartClassComp"></canvas>
+      </div>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} أداء المواد</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartSubjects"></canvas>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+{# ── Subjects grouped by class ── #}
+<div class="mt-4">
+  <div class="section-header">
+    <h2>{% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}</h2>
+  </div>
+
+  {# ── Search filter ── #}
+  <div class="filter-bar mb-4">
+    <input type="text" id="subject-search" class="form-control"
+           placeholder="بحث بالمادة أو المعلم أو الفصل...">
+  </div>
+
+  <div id="subjects-container" style="max-height:600px;overflow-y:auto;padding:4px">
+  {% regroup setups by class_group as grouped %}
+  {% for group in grouped %}
+  <div class="mb-5 subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
+    <p class="text-sm font-bold text-secondary mb-2 pe-1">
+      {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for setup in group.list %}
+      <div class="card-qatar p-4">
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="min-w-0">
+            <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="text-maroon font-bold text-sm no-underline hover:underline block truncate">
+              {{ setup.subject.name_ar }}
+            </a>
+            <p class="text-xs text-secondary m-0 mt-1">{{ setup.teacher.full_name }}</p>
+          </div>
+          <span class="status-badge status-info flex-shrink-0 text-xs">{{ setup.packages.count }} باقة</span>
+        </div>
+        <div class="pt-2 border-t flex gap-2">
+          <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">تفاصيل المادة</a>
+          <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">كشف الدرجات</a>
+        </div>
+      </div>
       {% endfor %}
     </div>
   </div>
-  {% endif %}
-  {% endif %}
 
-  {# ── Subjects grouped by class ── #}
-  <div>
-    <div class="section-header">
-      <h2>{% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}</h2>
-    </div>
-
-    {# ── Search filter ── #}
-    <div class="filter-bar mb-4">
-      <input type="text" id="subject-search" class="form-control"
-             placeholder="بحث بالمادة أو المعلم أو الفصل...">
-    </div>
-
-    <div id="subjects-container" style="max-height:600px;overflow-y:auto;padding:4px">
-    {% regroup setups by class_group as grouped %}
-    {% for group in grouped %}
-    <div class="mb-5 subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
-      <p class="text-sm font-bold text-secondary mb-2 pe-1">
-        {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {% for setup in group.list %}
-        <div class="card-qatar p-4">
-          <div class="flex items-start justify-between gap-2 mb-2">
-            <div class="min-w-0">
-              <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="text-maroon font-bold text-sm no-underline hover:underline block truncate">
-                {{ setup.subject.name_ar }}
-              </a>
-              <p class="text-xs text-secondary m-0 mt-1">{{ setup.teacher.full_name }}</p>
-            </div>
-            <span class="status-badge status-info flex-shrink-0 text-xs">{{ setup.packages.count }} باقة</span>
-          </div>
-          <div class="pt-2 border-t flex gap-2">
-            <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">تفاصيل المادة</a>
-            <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">كشف الدرجات</a>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    {% empty %}
-    <div class="empty-state card-qatar">
-      <span class="empty-icon">{% include "components/icon.html" with name="book-open" size="icon-2xl" %}</span>
-      <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
-      <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
-      {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'setup_subject' %}" class="btn-primary mt-3 inline-block no-underline text-sm">
-        + ربط مادة بفصل
-      </a>
-      {% endif %}
-    </div>
-    {% endfor %}
-    </div>
+  {% empty %}
+  <div class="empty-state card-qatar">
+    <span class="empty-icon">{% include "components/icon.html" with name="book-open" size="icon-2xl" %}</span>
+    <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
+    <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
+    {% if request.user.is_admin or request.user.is_superuser %}
+    <a href="{% url 'setup_subject' %}" class="btn-primary mt-3 inline-block no-underline text-sm">
+      + ربط مادة بفصل
+    </a>
+    {% endif %}
   </div>
-
+  {% endfor %}
+  </div>
 </div>
 
 <script>
@@ -159,4 +166,56 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family='Tajawal,sans-serif';
+Chart.defaults.font.size=10;
+
+const OPTS={responsive:true,maintainAspectRatio:false};
+
+async function fc(u){try{return await(await fetch(u)).json()}catch(e){return null}}
+(async()=>{
+  const d=await fc('/assessments/api/charts/');
+  if(!d)return;
+  // Grade Distribution - Bar
+  new Chart(document.getElementById('chartGradeDist'),{
+    type:'bar',
+    data:{labels:d.grade_distribution.labels,datasets:[{
+      label:'عدد الطلاب',data:d.grade_distribution.data,
+      backgroundColor:['#dc2626','#f97316','#eab308','#84cc16','#22c55e','#16a34a']
+    }]},
+    options:{...OPTS,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}},x:{ticks:{font:{size:9}}}}}
+  });
+  // Class Comparison - Horizontal Bar
+  if(d.class_comparison.labels.length){
+    new Chart(document.getElementById('chartClassComp'),{
+      type:'bar',
+      data:{labels:d.class_comparison.labels,datasets:[{
+        label:'المعدل',data:d.class_comparison.data,
+        backgroundColor:'#8A1538'
+      }]},
+      options:{...OPTS,indexAxis:'y',plugins:{legend:{display:false}},
+        scales:{x:{min:0,max:100,ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}
+    });
+  }
+  // Subject Performance - Bar + Line
+  if(d.subject_comparison.labels.length){
+    new Chart(document.getElementById('chartSubjects'),{
+      type:'bar',
+      data:{labels:d.subject_comparison.labels,datasets:[
+        {label:'المعدل',data:d.subject_comparison.avgs,backgroundColor:'#0D4261',order:2},
+        {label:'نسبة الرسوب %',data:d.subject_comparison.fail_rates,type:'line',
+         borderColor:'#dc2626',backgroundColor:'transparent',yAxisID:'y1',order:1,borderWidth:1.5,pointRadius:2}
+      ]},
+      options:{...OPTS,
+        scales:{y:{beginAtZero:true,max:100,ticks:{font:{size:9}}},y1:{position:'left',beginAtZero:true,max:100,display:false},x:{ticks:{font:{size:9}}}},
+        plugins:{legend:{position:'bottom',labels:{padding:6,font:{size:9}}}}}
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -6,31 +6,30 @@
 {% endblock %}
 
 {% block content %}
+<div class="exec-dash">
 
 {# ── Header ── #}
-<div class="page-header">
+<div class="exec-header">
   <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</h1>
-    <p class="page-subtitle">إدارة ارتباطات ولي الأمر بأبنائه — {{ year }}</p>
+    <h1 class="exec-title">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</h1>
+    <p class="exec-subtitle">إدارة ارتباطات ولي الأمر بأبنائه — {{ year }}</p>
   </div>
-  <div class="page-actions">
-    <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
-  </div>
+  <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
 </div>
 
-{# ── KPI Cards ── #}
-<div class="grid grid-cols-3 gap-3 mb-6">
-  <div class="kpi-card">
-    <div class="kpi-value text-maroon">{{ total_count }}</div>
-    <div class="kpi-label">إجمالي الارتباطات</div>
+{# ── KPI Strip ── #}
+<div class="kpi-strip">
+  <div class="kpi-mini kpi-maroon">
+    <div class="kpi-mini-value">{{ total_count }}</div>
+    <div class="kpi-mini-label">إجمالي الارتباطات</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value text-skyline">{{ parent_count }}</div>
-    <div class="kpi-label">أولياء أمور مرتبطون</div>
+  <div class="kpi-mini kpi-blue">
+    <div class="kpi-mini-value">{{ parent_count }}</div>
+    <div class="kpi-mini-label">أولياء أمور مرتبطون</div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value text-palm">{{ student_count }}</div>
-    <div class="kpi-label">طلاب مرتبطون</div>
+  <div class="kpi-mini kpi-green">
+    <div class="kpi-mini-value">{{ student_count }}</div>
+    <div class="kpi-mini-label">طلاب مرتبطون</div>
   </div>
 </div>
 
@@ -142,4 +141,5 @@
   {% include "parents/partials/links_table.html" %}
 </div>
 
+</div>{# end exec-dash #}
 {% endblock %}

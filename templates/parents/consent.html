@@ -6,14 +6,16 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="exec-dash max-w-2xl mx-auto">
 
   <div class="card-qatar overflow-hidden">
-    <div class="bg-maroon px-6 py-5">
-      <h1 class="page-title text-white">{% include "components/icon.html" with name="lock" %} الموافقة على معالجة البيانات</h1>
-      <p class="text-maroon-light text-sm mt-1">
-        بموجب قانون حماية البيانات الشخصية القطري (PDPPL)، يحق لك التحكم في أنواع البيانات التي تعالجها المدرسة.
-      </p>
+    <div class="exec-header" style="border-radius:var(--radius) var(--radius) 0 0;">
+      <div>
+        <h1 class="exec-title">{% include "components/icon.html" with name="lock" %} الموافقة على معالجة البيانات</h1>
+        <p class="exec-subtitle">
+          بموجب قانون حماية البيانات الشخصية القطري (PDPPL)، يحق لك التحكم في أنواع البيانات التي تعالجها المدرسة.
+        </p>
+      </div>
     </div>
 
     <form method="post" class="p-6 space-y-6">

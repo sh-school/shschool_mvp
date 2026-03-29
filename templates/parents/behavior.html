@@ -6,12 +6,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} سلوك الأبناء</h1>
-      <p class="page-subtitle">{{ school.name }}</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="scale" %} سلوك الأبناء</h1>
+      <p class="exec-subtitle">{{ school.name }}</p>
     </div>
     <a href="{% url 'parent_dashboard' %}" class="btn-secondary">العودة للبوابة</a>
   </div>
@@ -29,46 +30,43 @@
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-gray-500">إجمالي المخالفات: {{ child.total_infractions }}</p>
+        <p class="text-sm text-[var(--muted)]">إجمالي المخالفات: {{ child.total_infractions }}</p>
       </div>
-      <div class="flex items-center gap-3">
-        {# Behavior Score Badge #}
-        <div class="text-center">
-          <div class="text-2xl font-bold {% if child.behavior_score >= 80 %}text-green-600{% elif child.behavior_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
-            {{ child.behavior_score }}%
-          </div>
-          <div class="text-xs text-gray-500">مؤشر السلوك</div>
+      <div class="text-center">
+        <div class="text-2xl font-bold {% if child.behavior_score >= 80 %}text-green-600{% elif child.behavior_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+          {{ child.behavior_score }}%
         </div>
+        <div class="text-xs text-[var(--muted)]">مؤشر السلوك</div>
       </div>
     </div>
 
     {# KPI Row #}
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-red-600">{{ child.total_points_deducted }}</div>
-        <div class="text-xs text-gray-500">نقاط مخصومة</div>
+    <div class="kpi-strip" style="margin:0 0 1rem">
+      <div class="kpi-mini kpi-red">
+        <div class="kpi-mini-value">{{ child.total_points_deducted }}</div>
+        <div class="kpi-mini-label">نقاط مخصومة</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-green-600">{{ child.recovered_points }}</div>
-        <div class="text-xs text-gray-500">نقاط مُستعادة</div>
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-value">{{ child.recovered_points }}</div>
+        <div class="kpi-mini-label">نقاط مُستعادة</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-orange-600">{{ child.unresolved }}</div>
-        <div class="text-xs text-gray-500">غير محلولة</div>
+      <div class="kpi-mini kpi-orange">
+        <div class="kpi-mini-value">{{ child.unresolved }}</div>
+        <div class="kpi-mini-label">غير محلولة</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold">{{ child.total_infractions }}</div>
-        <div class="text-xs text-gray-500">إجمالي</div>
+      <div class="kpi-mini kpi-purple">
+        <div class="kpi-mini-value">{{ child.total_infractions }}</div>
+        <div class="kpi-mini-label">إجمالي</div>
       </div>
     </div>
 
     {# Recent Infractions #}
     {% if child.infractions %}
-    <h3 class="font-semibold text-sm mb-2 text-gray-600">آخر المخالفات</h3>
-    <div class="overflow-x-auto">
+    <h3 class="font-semibold text-sm mb-2 text-[var(--muted)]">آخر المخالفات</h3>
+    <div class="table-wrap">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b dark:border-gray-700">
+          <tr class="border-b border-[var(--border)]">
             <th class="text-right py-2 px-2">التاريخ</th>
             <th class="text-right py-2 px-2">الفئة</th>
             <th class="text-right py-2 px-2">الوصف</th>
@@ -78,28 +76,28 @@
         </thead>
         <tbody>
           {% for inf in child.infractions %}
-          <tr class="border-b dark:border-gray-700/50">
+          <tr class="border-b border-[var(--border)]">
             <td class="py-2 px-2 whitespace-nowrap">{{ inf.date|date:"m/d" }}</td>
             <td class="py-2 px-2">
               {% if inf.violation_category %}
-              <span class="inline-block px-2 py-0.5 rounded text-xs font-bold
-                {% if inf.violation_category.category == 'A' %}bg-yellow-100 text-yellow-800
-                {% elif inf.violation_category.category == 'B' %}bg-orange-100 text-orange-800
-                {% elif inf.violation_category.category == 'C' %}bg-red-100 text-red-800
-                {% else %}bg-red-200 text-red-900{% endif %}">
+              <span class="status-badge
+                {% if inf.violation_category.category == 'A' %}status-orange
+                {% elif inf.violation_category.category == 'B' %}status-red
+                {% elif inf.violation_category.category == 'C' %}status-red
+                {% else %}status-red{% endif %}">
                 {{ inf.violation_category.code }}
               </span>
               {% else %}
-              <span class="text-gray-400">—</span>
+              <span class="text-[var(--muted)]">—</span>
               {% endif %}
             </td>
             <td class="py-2 px-2">{{ inf.description|truncatewords:10 }}</td>
             <td class="py-2 px-2 text-center font-bold text-red-600">-{{ inf.points_deducted }}</td>
             <td class="py-2 px-2 text-center">
               {% if inf.is_resolved %}
-              <span class="text-green-600 text-xs font-bold">محلولة</span>
+              <span class="status-badge status-green">محلولة</span>
               {% else %}
-              <span class="text-orange-600 text-xs font-bold">قائمة</span>
+              <span class="status-badge status-orange">قائمة</span>
               {% endif %}
             </td>
           </tr>
@@ -108,7 +106,7 @@
       </table>
     </div>
     {% else %}
-    <div class="text-center py-6 text-gray-400">
+    <div class="text-center py-6 text-[var(--muted)]">
       لا توجد مخالفات مسجلة — ممتاز!
     </div>
     {% endif %}

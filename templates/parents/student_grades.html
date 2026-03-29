@@ -6,41 +6,46 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <!-- Header -->
-  <div class="bg-gradient-to-l from-adaam to-skyline rounded-2xl px-6 py-5">
-    <h1 class="page-title text-white">{% include "components/icon.html" with name="bar-chart" %} {{ student.full_name }}</h1>
-    <p class="text-blue-200 text-sm mt-1">
-      {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
-      العام الدراسي {{ year }}
-    </p>
-    <div class="flex gap-6 mt-4">
-      <div class="text-center">
-        <div class="text-2xl font-bold text-white">{{ total }}</div>
-        <div class="text-xs text-blue-200">مادة</div>
-      </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold text-green-300">{{ passed }}</div>
-        <div class="text-xs text-blue-200">ناجح</div>
-      </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold {% if failed %}text-red-300{% else %}text-blue-200{% endif %}">{{ failed }}</div>
-        <div class="text-xs text-blue-200">راسب</div>
-      </div>
-      {% if avg %}
-      <div class="text-center">
-        <div class="text-2xl font-bold text-yellow-200">{{ avg }}</div>
-        <div class="text-xs text-blue-200">متوسط</div>
-      </div>
-      {% endif %}
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="exec-title">{% include "components/icon.html" with name="bar-chart" %} درجات {{ student.full_name }}</h1>
+      <p class="exec-subtitle">
+        {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
+        العام الدراسي {{ year }}
+      </p>
     </div>
+    <span class="exec-date">{{ year }}</span>
   </div>
 
-  <!-- جدول الدرجات -->
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-value">{{ total }}</div>
+      <div class="kpi-mini-label">مادة</div>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-value">{{ passed }}</div>
+      <div class="kpi-mini-label">ناجح</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-value">{{ failed }}</div>
+      <div class="kpi-mini-label">راسب</div>
+    </div>
+    {% if avg %}
+    <div class="kpi-mini kpi-amber">
+      <div class="kpi-mini-value">{{ avg }}</div>
+      <div class="kpi-mini-label">متوسط</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── جدول الدرجات ── #}
   {% if rows %}
   <div class="card-qatar overflow-hidden">
-    <div class="overflow-x-auto">
+    <div class="table-wrap">
       <table class="w-full text-sm">
         <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]">
           <tr>
@@ -57,7 +62,6 @@
           <tr class="hover:bg-[var(--surface-alt)] {% if row.annual.status == 'fail' %}bg-red-50 dark:bg-red-900/10{% endif %}">
             <td class="px-4 py-3 font-medium text-[var(--text)]">{{ row.subject }}</td>
 
-            <!-- الفصل الأول -->
             <td class="px-4 py-3 text-center">
               {% if row.s1 and row.s1.total is not None %}
                 <span class="font-mono">{{ row.s1.total }}</span>
@@ -66,7 +70,6 @@
               {% endif %}
             </td>
 
-            <!-- الفصل الثاني -->
             <td class="px-4 py-3 text-center">
               {% if row.s2 and row.s2.total is not None %}
                 <span class="font-mono">{{ row.s2.total }}</span>
@@ -75,7 +78,6 @@
               {% endif %}
             </td>
 
-            <!-- المجموع السنوي -->
             <td class="px-4 py-3 text-center">
               {% if row.annual.annual_total is not None %}
                 <span class="font-bold font-mono text-lg
@@ -90,7 +92,6 @@
               {% endif %}
             </td>
 
-            <!-- التقدير -->
             <td class="px-4 py-3 text-center">
               {% if row.annual %}
               <span class="font-bold text-sm
@@ -102,15 +103,14 @@
               {% endif %}
             </td>
 
-            <!-- الحالة -->
             <td class="px-4 py-3 text-center">
               {% if row.annual %}
                 {% if row.annual.status == "pass" %}
-                  <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">ناجح</span>
+                  <span class="status-badge status-green">ناجح</span>
                 {% elif row.annual.status == "fail" %}
-                  <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">راسب</span>
+                  <span class="status-badge status-red">راسب</span>
                 {% else %}
-                  <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">جارٍ</span>
+                  <span class="status-badge status-gray">جارٍ</span>
                 {% endif %}
               {% endif %}
             </td>
@@ -121,13 +121,13 @@
     </div>
   </div>
 
-  <!-- تنبيه الرسوب -->
+  {# ── تنبيه الرسوب ── #}
   {% if failed %}
-  <div class="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+  <div class="alert-strip" style="--alert-color: var(--status-danger);">
     <span class="text-2xl">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
-      <p class="font-bold text-red-800">{{ student.full_name }} راسب في {{ failed }} مادة</p>
-      <p class="text-red-700 text-sm mt-1">
+      <p class="font-bold text-red-800 dark:text-red-300">{{ student.full_name }} راسب في {{ failed }} مادة</p>
+      <p class="text-red-700 dark:text-red-400 text-sm mt-1">
         يُرجى التواصل مع المدرسة ومتابعة مستوى الطالب في المواد المشار إليها.
       </p>
     </div>
@@ -135,9 +135,9 @@
   {% endif %}
 
   {% else %}
-  <div class="card-qatar text-center">
+  <div class="card-qatar text-center py-12">
     <p class="text-4xl mb-3">{% include "components/icon.html" with name="bar-chart" size="icon-2xl" %}</p>
-    <p>لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
+    <p class="text-[var(--muted)]">لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
   </div>
   {% endif %}
 

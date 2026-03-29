@@ -15,7 +15,7 @@
       <p class="page-subtitle">PDPPL م.11 — إشعار NCSA خلال 72 ساعة</p>
     </div>
     <div class="page-actions">
-      <a href="{% url 'breach:create' %}" class="btn-danger no-underline text-xs">+ تسجيل خرق</a>
+      <a href="{% url 'breach:create' %}" class="btn-danger no-underline text-xs" aria-label="تسجيل خرق بيانات جديد">+ تسجيل خرق</a>
     </div>
   </div>
 
@@ -52,7 +52,7 @@
             <th scope="col">الاكتشاف</th>
             <th scope="col">المهلة (NCSA)</th>
             <th scope="col">الحالة</th>
-            <th scope="col"></th>
+            <th scope="col"><span class="sr-only">إجراءات</span></th>
           </tr>
         </thead>
         <tbody>
@@ -69,7 +69,7 @@
               </span>
             </td>
             <td class="text-xs">{{ b.get_data_type_affected_display }}</td>
-            <td class="text-xs">{{ b.discovered_at|date:"m/d H:i" }}</td>
+            <td class="text-xs">{{ b.discovered_at|date:"d/m H:i" }}</td>
             <td>
               {% if b.hours_remaining != None %}
                 {% if b.is_overdue %}

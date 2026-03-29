@@ -8,33 +8,31 @@
 {% block content %}
 <div class="space-y-6">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات النقل المدرسي</h1>
+      <h1>{% include "components/icon.html" with name="bar-chart" %} إحصائيات النقل المدرسي</h1>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'transport:dashboard' %}" class="btn-secondary">← رجوع</a>
-    </div>
+    <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="kpi-card">
-      <div class="kpi-value text-status-info">{{ total_buses }}</div>
-      <div class="kpi-label">عدد الحافلات</div>
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ total_buses }}</span>
+      <span class="kpi-mini-label">عدد الحافلات</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-success">{{ total_capacity }}</div>
-      <div class="kpi-label">الطاقة الإجمالية</div>
+    <div class="kpi-mini kpi-green">
+      <span class="kpi-mini-value">{{ total_capacity }}</span>
+      <span class="kpi-mini-label">الطاقة الإجمالية</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ students_count }}</div>
-      <div class="kpi-label">الطلاب المسجلون</div>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ students_count }}</span>
+      <span class="kpi-mini-label">الطلاب المسجلون</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ utilization_rate|floatformat:0 }}%</div>
-      <div class="kpi-label">نسبة الإشغال</div>
+    <div class="kpi-mini kpi-orange">
+      <span class="kpi-mini-value">{{ utilization_rate|floatformat:0 }}%</span>
+      <span class="kpi-mini-label">نسبة الإشغال</span>
     </div>
   </div>
 

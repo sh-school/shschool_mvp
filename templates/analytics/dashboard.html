@@ -24,53 +24,21 @@
   flex-wrap: wrap;
 }
 .exec-title { font-size: 1.25rem; font-weight: 700; color: var(--maroon, #8A1538); margin: 0; }
-.exec-subtitle { font-size: .7rem; color: #6b7280; margin: 0; }
+.exec-subtitle { font-size: .7rem; color: var(--muted); margin: 0; }
 .exec-meta { display: flex; align-items: center; gap: 8px; }
 .exec-year-select {
   font-size: .75rem; border: 1px solid var(--border); border-radius: 6px;
   padding: 4px 8px; background: var(--surface);
 }
 .exec-date {
-  font-size: .7rem; background: #fef2f2; color: #991b1b;
-  border: 1px solid #fecaca; padding: 4px 10px; border-radius: 6px; font-weight: 500;
+  font-size: .7rem; background: var(--status-danger-light, #fef2f2); color: var(--maroon, #991b1b);
+  border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-weight: 500;
 }
 
-/* ── KPI Strip ── */
-.kpi-strip {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
-}
-.kpi-mini {
-  background: var(--surface);
-  border-radius: 8px;
-  padding: 8px 10px;
-  border-right: 3px solid var(--kc, #8A1538);
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
-  text-decoration: none;
-  transition: box-shadow .15s;
-}
-.kpi-mini:hover { box-shadow: 0 3px 8px rgba(0,0,0,.1); }
-.kpi-maroon { --kc: var(--maroon, #8A1538); }
-.kpi-green  { --kc: #16a34a; }
-.kpi-blue   { --kc: #2563eb; }
-.kpi-teal   { --kc: #0d9488; }
-.kpi-red    { --kc: #dc2626; }
-.kpi-orange { --kc: #ea580c; }
-.kpi-purple { --kc: #7c3aed; }
-.kpi-mini-label { font-size: .6rem; color: #6b7280; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi-mini-value { font-size: 1.3rem; font-weight: 700; color: var(--kc, #8A1538); line-height: 1.1; }
-.kpi-mini-sub { font-size: .55rem; color: #9ca3af; margin-top: 1px; }
-.kpi-mini-alert { font-size: .55rem; color: #dc2626; font-weight: 600; }
+/* ── KPI Strip — uses global from custom.css, only overrides here ── */
 
-/* ── Charts Grid ── */
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: 1fr 1fr;
-  gap: 8px;
-  min-height: 0;
-}
+/* ── Charts/Alert/Quick Links — all from custom.css now ── */
+/* chart-card kept here for analytics-specific overrides */
 .chart-card {
   background: var(--surface);
   border-radius: 8px;
@@ -80,11 +48,12 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid var(--border);
 }
 .chart-title {
   font-size: .7rem;
   font-weight: 700;
-  color: #374151;
+  color: var(--text);
   margin-bottom: 4px;
   flex-shrink: 0;
 }
@@ -98,46 +67,25 @@
   width: 100% !important;
   height: 100% !important;
 }
-
-/* ── Alert strip ── */
-.alert-strip {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: .65rem;
-  color: #991b1b;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.alert-strip a { color: #991b1b; text-decoration: underline; }
-
-/* ── Quick Links ── */
-.quick-links {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
-}
 .ql-item {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 6px;
   padding: 6px 4px;
   font-size: .65rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text);
   text-decoration: none;
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
-  border: 1px solid #f3f4f6;
+  border: 1px solid var(--border);
   transition: background .15s;
   white-space: nowrap;
   overflow: hidden;
 }
-.ql-item:hover { background: #f9fafb; }
+.ql-item:hover { background: var(--surface-alt); }
 .ql-icon { font-size: .9rem; flex-shrink: 0; }
 
 /* ── Mobile fallback ── */
@@ -166,6 +114,19 @@
 .exec-details-summary::-webkit-details-marker { display: none; }
 .exec-details-summary:hover { background: var(--surface); }
 .exec-details[open] .exec-details-summary { color: var(--maroon); border-color: var(--maroon); }
+
+/* ── Chart Loading / Error States ── */
+.chart-loading, .chart-error {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; color: var(--muted); z-index: 2; background: var(--surface);
+}
+.chart-error { color: var(--status-danger, #dc2626); }
+.chart-loading.hidden, .chart-error.hidden { display: none; }
+
+/* ── prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .kpi-mini, .ql-item, .chart-card, .exec-details-summary { transition: none !important; }
+}
 </style>
 {% endblock %}
 
@@ -262,27 +223,45 @@
   <div class="charts-grid">
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="activity" %} الحضور — آخر 30 يوم</div>
-      <div class="chart-canvas-wrap"><canvas id="chartAttendance"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartAttendance" aria-label="جاري تحميل بيانات الحضور">⏳ جاري التحميل...</div>
+        <canvas id="chartAttendance" aria-label="رسم بياني: اتجاه الحضور آخر 30 يوم" role="img"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="target" %} توزيع الدرجات السنوية</div>
-      <div class="chart-canvas-wrap"><canvas id="chartGrades"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartGrades" aria-label="جاري تحميل توزيع الدرجات">⏳ جاري التحميل...</div>
+        <canvas id="chartGrades" aria-label="رسم بياني: توزيع الدرجات السنوية" role="img"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="list-checks" %} إنجاز الخطة — حسب المجال</div>
-      <div class="chart-canvas-wrap"><canvas id="chartPlan"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartPlan" aria-label="جاري تحميل بيانات الخطة">⏳ جاري التحميل...</div>
+        <canvas id="chartPlan" aria-label="رسم بياني: إنجاز الخطة حسب المجال" role="img"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="book-open" %} المواد — متوسط ونسبة رسوب</div>
-      <div class="chart-canvas-wrap"><canvas id="chartSubjects"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartSubjects" aria-label="جاري تحميل بيانات المواد">⏳ جاري التحميل...</div>
+        <canvas id="chartSubjects" aria-label="رسم بياني: مقارنة المواد الدراسية" role="img"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="scale" %} السلوك — آخر 6 أشهر</div>
-      <div class="chart-canvas-wrap"><canvas id="chartBehavior"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartBehavior" aria-label="جاري تحميل بيانات السلوك">⏳ جاري التحميل...</div>
+        <canvas id="chartBehavior" aria-label="رسم بياني: اتجاه السلوك آخر 6 أشهر" role="img"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">{% include "components/icon.html" with name="building" %} الأداء — حسب الفصل</div>
-      <div class="chart-canvas-wrap"><canvas id="chartClasses"></canvas></div>
+      <div class="chart-canvas-wrap">
+        <div class="chart-loading" id="loading-chartClasses" aria-label="جاري تحميل بيانات الفصول">⏳ جاري التحميل...</div>
+        <canvas id="chartClasses" aria-label="رسم بياني: أداء الفصول الدراسية" role="img"></canvas>
+      </div>
     </div>
   </div>
 
@@ -312,16 +291,24 @@ Chart.defaults.plugins.legend.labels.boxWidth = 8;
 Chart.defaults.plugins.legend.labels.padding = 6;
 Chart.defaults.plugins.legend.labels.font = { size: 9 };
 
-async function fc(url) {
-  try { return await (await fetch(url)).json(); }
-  catch(e) { console.error("Chart:", url, e); return null; }
+async function fc(url, chartId) {
+  var loadEl = document.getElementById('loading-' + chartId);
+  try {
+    var data = await (await fetch(url)).json();
+    if (loadEl) loadEl.classList.add('hidden');
+    return data;
+  } catch(e) {
+    console.error("Chart:", url, e);
+    if (loadEl) { loadEl.className = 'chart-error'; loadEl.textContent = '⚠ فشل تحميل البيانات'; }
+    return null;
+  }
 }
 
 const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 1: الحضور
 (async () => {
-  const d = await fc("/analytics/api/attendance-trend/?days=30");
+  const d = await fc("/analytics/api/attendance-trend/?days=30", "chartAttendance");
   if (!d) return;
   new Chart(document.getElementById("chartAttendance"), {
     type: "line", data: d,
@@ -334,7 +321,7 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 2: الدرجات
 (async () => {
-  const d = await fc(`/analytics/api/grades-distribution/?year=${YEAR}`);
+  const d = await fc(`/analytics/api/grades-distribution/?year=${YEAR}`, "chartGrades");
   if (!d) return;
   new Chart(document.getElementById("chartGrades"), {
     type: "doughnut", data: d,
@@ -346,7 +333,7 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 3: الخطة
 (async () => {
-  const d = await fc(`/analytics/api/plan-progress/?year=${YEAR}`);
+  const d = await fc(`/analytics/api/plan-progress/?year=${YEAR}`, "chartPlan");
   if (!d) return;
   new Chart(document.getElementById("chartPlan"), {
     type: "bar", data: d,
@@ -358,7 +345,7 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 4: المواد
 (async () => {
-  const d = await fc(`/analytics/api/subject-comparison/?year=${YEAR}`);
+  const d = await fc(`/analytics/api/subject-comparison/?year=${YEAR}`, "chartSubjects");
   if (!d) return;
   new Chart(document.getElementById("chartSubjects"), {
     type: "bar", data: d,
@@ -373,7 +360,7 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 5: السلوك
 (async () => {
-  const d = await fc("/analytics/api/behavior-trend/");
+  const d = await fc("/analytics/api/behavior-trend/", "chartBehavior");
   if (!d) return;
   new Chart(document.getElementById("chartBehavior"), {
     type: "bar", data: d,
@@ -385,7 +372,7 @@ const OPTS = { responsive: true, maintainAspectRatio: false };
 
 // Chart 6: الفصول
 (async () => {
-  const d = await fc(`/analytics/api/class-comparison/?year=${YEAR}`);
+  const d = await fc(`/analytics/api/class-comparison/?year=${YEAR}`, "chartClasses");
   if (!d) return;
   new Chart(document.getElementById("chartClasses"), {
     type: "bar", data: d,

@@ -21,4 +21,5 @@ urlpatterns = [
     ),
     path("student/<uuid:student_id>/report/", views.student_report, name="student_report"),
     path("failing/", views.failing_students, name="failing_students"),
+    path("api/charts/", views.api_assessment_charts, name="api_assessment_charts"),
 ]

@@ -11,15 +11,15 @@
 <div class="quality-page">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="page-header">
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="clipboard-check" %} لجنة المراجعة الذاتية</h1>
-      <p class="page-subtitle">
+      <h1>{% include "components/icon.html" with name="clipboard-check" %} لجنة المراجعة الذاتية</h1>
+      <p class="exec-date">
         الإجراءات: {{ page_obj.paginator.count }}
         {% if member_domain %} · مجالك: <strong>{{ member_domain.name }}</strong>{% endif %}
       </p>
     </div>
-    <div class="page-actions">
+    <div class="flex flex-wrap gap-2 items-center">
       <form method="GET" class="quality-per-page">
         {% for key, val in request.GET.items %}
           {% if key != 'per_page' and key != 'page' %}

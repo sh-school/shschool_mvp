@@ -1,7 +1,10 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
+from django.db.models.functions import ExtractHour, TruncDate
+from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
 from django.shortcuts import get_object_or_404, redirect, render
@@ -16,10 +19,13 @@ from core.permissions import nurse_required
 @nurse_required
 def clinic_dashboard(request):
     """لوحة تحكم العيادة المدرسية"""
-    school = request.user.school
+    school = request.user.get_school()
 
     today = timezone.now().date()
     visits_today = ClinicVisit.objects.filter(school=school, visit_date__date=today).count()
+    sent_home_today = ClinicVisit.objects.filter(
+        school=school, visit_date__date=today, is_sent_home=True
+    ).count()
 
     recent_visits = (
         ClinicVisit.objects.filter(school=school)
@@ -31,10 +37,48 @@ def clinic_dashboard(request):
         school=school, is_sent_home=True, visit_date__date=today
     ).select_related("student")
 
+    # ── Weekly trend (last 7 days) ──
+    week_ago = today - timedelta(days=7)
+    weekly_visits = (
+        ClinicVisit.objects.filter(school=school, visit_date__date__gte=week_ago)
+        .values(day=TruncDate("visit_date"))
+        .annotate(total=Count("id"), sent_home=Count("id", filter=Q(is_sent_home=True)))
+        .order_by("day")
+    )
+
+    # ── Peak hours ──
+    peak_hours = (
+        ClinicVisit.objects.filter(school=school, visit_date__date__gte=week_ago)
+        .values(hour=ExtractHour("visit_date"))
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+
+    # ── Frequent visitors (3+ visits this month) ──
+    frequent = (
+        ClinicVisit.objects.filter(
+            school=school, visit_date__month=today.month, visit_date__year=today.year
+        )
+        .values("student__id", "student__full_name")
+        .annotate(visit_count=Count("id"))
+        .filter(visit_count__gte=3)
+        .order_by("-visit_count")[:10]
+    )
+
+    # ── Monthly total ──
+    month_total = ClinicVisit.objects.filter(
+        school=school, visit_date__month=today.month, visit_date__year=today.year
+    ).count()
+
     context = {
         "visits_today": visits_today,
+        "sent_home_today": sent_home_today,
         "recent_visits": recent_visits,
         "follow_up_visits": follow_up_visits,
+        "weekly_visits": weekly_visits,
+        "peak_hours": peak_hours,
+        "frequent": frequent,
+        "month_total": month_total,
     }
     return render(request, "clinic/dashboard.html", context)
 
@@ -44,7 +88,7 @@ def clinic_dashboard(request):
 @require_http_methods(["GET", "POST"])
 def student_health_record(request, student_id):
     """عرض وتعديل السجل الصحي للطالب — مع فك تشفير البيانات الحساسة"""
-    school = request.user.school
+    school = request.user.get_school()
     student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
 
     try:
@@ -90,7 +134,7 @@ def student_health_record(request, student_id):
 @require_http_methods(["GET", "POST"])
 def record_visit(request, student_id=None):
     """تسجيل زيارة جديدة للعيادة"""
-    school = request.user.school
+    school = request.user.get_school()
     nurse = request.user
 
     if request.method == "POST":
@@ -161,7 +205,7 @@ def record_visit(request, student_id=None):
 @nurse_required
 def visits_list(request):
     """قائمة الزيارات بالعيادة"""
-    school = request.user.school
+    school = request.user.get_school()
     visits = (
         ClinicVisit.objects.filter(school=school).select_related("student").order_by("-visit_date")
     )
@@ -195,7 +239,7 @@ def visits_list(request):
 @nurse_required
 def health_statistics(request):
     """إحصائيات صحية للمدرسة"""
-    school = request.user.school
+    school = request.user.get_school()
 
     health_records = (
         HealthRecord.objects.filter(student__memberships__school=school)
@@ -221,3 +265,26 @@ def health_statistics(request):
         "visits_this_month": visits_this_month,
     }
     return render(request, "clinic/statistics.html", context)
+
+
+@login_required
+@nurse_required
+def api_clinic_charts(request):
+    """API: بيانات الرسوم البيانية للعيادة — آخر 30 يوم"""
+    school = request.user.get_school()
+    today = timezone.now().date()
+
+    days = []
+    for i in range(29, -1, -1):
+        d = today - timedelta(days=i)
+        count = ClinicVisit.objects.filter(school=school, visit_date__date=d).count()
+        sent = ClinicVisit.objects.filter(school=school, visit_date__date=d, is_sent_home=True).count()
+        days.append({"date": d.strftime("%d/%m"), "visits": count, "sent_home": sent})
+
+    return JsonResponse(
+        {
+            "labels": [d["date"] for d in days],
+            "visits": [d["visits"] for d in days],
+            "sent_home": [d["sent_home"] for d in days],
+        }
+    )

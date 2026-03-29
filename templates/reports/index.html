@@ -99,42 +99,41 @@
   </div>
 
 {% elif classes %}
-  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for cls in classes %}
-    <div class="report-card">
-      <div class="report-card-header">
-        <span class="report-card-grade">{{ cls.get_grade_display }}</span>
-        <span class="report-card-section">{{ cls.section }}</span>
+    <div class="card-qatar p-4">
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div class="min-w-0">
+          <span class="text-maroon font-bold text-sm block truncate">
+            {{ cls.get_grade_display }}
+          </span>
+          <p class="text-xs text-secondary m-0 mt-1">الشعبة {{ cls.section }}</p>
+        </div>
+        <span class="status-badge status-info flex-shrink-0 text-xs">{{ cls.students_count|default:"—" }} طالب</span>
       </div>
-      <div class="report-card-body">
+      <div class="pt-2 border-t flex gap-2 flex-wrap">
 
         {% if tab == "results" %}
           <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <div class="report-card-actions">
-            <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
-               class="report-card-btn report-btn-pdf">PDF</a>
-            <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}"
-               class="report-card-btn report-btn-excel">Excel</a>
-          </div>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
+             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
+          <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}"
+             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
 
         {% elif tab == "certificates" %}
           <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <div class="report-card-actions">
-            <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
-               class="report-card-btn report-btn-pdf">PDF</a>
-          </div>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
+             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
 
         {% elif tab == "attendance" %}
           <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="report-card-btn report-btn-preview">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <div class="report-card-actions">
-            <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
-               class="report-card-btn report-btn-pdf">PDF</a>
-            <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}"
-               class="report-card-btn report-btn-excel">Excel</a>
-          </div>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
+             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
+          <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}"
+             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
         {% endif %}
 
       </div>

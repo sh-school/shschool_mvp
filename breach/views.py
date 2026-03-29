@@ -43,13 +43,19 @@ NCSA_TEMPLATE = """إلى: المركز الوطني للأمن السيبران
 def dashboard(request):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
+    from django.db.models import Count, Q
+
     school = request.user.get_school()
     reports = BreachReport.objects.filter(school=school).order_by("-discovered_at")
+    db_stats = reports.aggregate(
+        active=Count("id", filter=Q(status__in=["discovered", "assessing"])),
+        notified=Count("id", filter=Q(status="notified")),
+        resolved=Count("id", filter=Q(status="resolved")),
+    )
+    # is_overdue is a property — must evaluate in Python but reports is typically small
     stats = {
         "overdue": sum(1 for r in reports if r.is_overdue),
-        "active": reports.filter(status__in=["discovered", "assessing"]).count(),
-        "notified": reports.filter(status="notified").count(),
-        "resolved": reports.filter(status="resolved").count(),
+        **db_stats,
     }
     return render(request, "breach/dashboard.html", {"reports": reports, "stats": stats})
 

@@ -7,10 +7,14 @@
 {% endblock %}
 
 {% block content %}
-<div class="notif-pref-container">
+<div class="exec-dash notif-pref-container">
 
-  <h1 class="page-title">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
-  <p class="notif-pref-subtitle">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
+  <div class="exec-header">
+    <div>
+      <h1 class="exec-title">{% include "components/icon.html" with name="bell" %} تفضيلات الإشعارات</h1>
+      <p class="exec-subtitle">تحكّم بأي قناة تريد استقبال الإشعارات عبرها</p>
+    </div>
+  </div>
 
   <form method="post">
     {% csrf_token %}

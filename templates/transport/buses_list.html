@@ -6,16 +6,23 @@
 {% endblock %}
 
 {% block content %}
-<div>
-  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
-    <h1 class="page-title">{% include "components/icon.html" with name="bus" %} الحافلات المدرسية</h1>
-    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+<div class="exec-dash">
+
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1>{% include "components/icon.html" with name="bus" %} الحافلات المدرسية</h1>
+      <p class="exec-date">{{ buses|length }} حافلة مسجلة</p>
+    </div>
+    <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   </div>
-  {# ── شريط البحث الفوري ── #}
+
+  {# ── Search ── #}
   <div class="filter-bar mb-4">
     <input type="text" id="bus-search" class="form-control" placeholder="بحث برقم الحافلة أو اسم السائق..." autocomplete="off" value="{{ search }}">
   </div>
 
+  {# ── Bus cards grid ── #}
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="buses-grid">
     {% for bus in buses %}
     <a href="{% url 'transport:bus_detail' bus.id %}"
@@ -23,12 +30,12 @@
        data-filter-item data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }}">
       <div class="flex justify-between items-start mb-3">
         <div>
-          <p class="font-bold text-gray-800 text-lg">{% include "components/icon.html" with name="bus" %} {{ bus.bus_number }}</p>
-          <p class="text-sm text-gray-500 mt-0.5">{{ bus.driver_name }}</p>
+          <p class="font-bold text-lg" style="color:var(--text-primary)">{% include "components/icon.html" with name="bus" %} {{ bus.bus_number }}</p>
+          <p class="text-sm mt-0.5" style="color:var(--text-secondary)">{{ bus.driver_name }}</p>
         </div>
-        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{{ bus.capacity }} مقعد</span>
+        <span class="status-badge status-info text-xs">{{ bus.capacity }} مقعد</span>
       </div>
-      <div class="text-xs text-gray-400 space-y-1">
+      <div class="text-xs space-y-1" style="color:var(--text-secondary)">
         <p>{% include "components/icon.html" with name="phone" %} {{ bus.driver_phone }}</p>
         {% if bus.karwa_id %}<p>{% include "components/icon.html" with name="file-text" %} {{ bus.karwa_id }}</p>{% endif %}
       </div>
@@ -39,6 +46,7 @@
     </div>
     {% endfor %}
   </div>
+
 </div>
 {% endblock %}
 

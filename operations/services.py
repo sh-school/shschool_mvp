@@ -296,6 +296,163 @@ class ScheduleService:
                 created += 1
         return created
 
+    # ──────────────────────────────────────────────────────────
+    # نظام التوليد التلقائي — يعمل بدون Celery
+    # ──────────────────────────────────────────────────────────
+
+    # تحويل يوم Python → يوم المدرسة القطرية (0=أحد … 4=خميس)
+    _PY_TO_QATAR = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}  # Sun=6→0, Mon=0→1 …
+
+    @staticmethod
+    def _get_week_bounds(target_date: date) -> tuple[date, date]:
+        """
+        حساب حدود الأسبوع المدرسي (أحد → خميس) الذي يحتوي التاريخ.
+
+        إذا التاريخ يوم جمعة أو سبت → يرجع الأسبوع القادم.
+        """
+        from datetime import timedelta
+
+        wd = target_date.weekday()  # Mon=0 … Sun=6
+
+        if wd == 4:  # Friday → الأسبوع القادم (الأحد)
+            sunday = target_date + timedelta(days=2)
+        elif wd == 5:  # Saturday → الأسبوع القادم (الأحد)
+            sunday = target_date + timedelta(days=1)
+        else:
+            # نحسب كم يوم للرجوع إلى الأحد
+            # Sun=6→0, Mon=0→1, Tue=1→2, Wed=2→3, Thu=3→4
+            days_since_sun = (wd - 6) % 7  # Sun=0, Mon=1, Tue=2 …
+            sunday = target_date - timedelta(days=days_since_sun)
+
+        thursday = sunday + timedelta(days=4)
+        return sunday, thursday
+
+    @staticmethod
+    def ensure_sessions_for_date(
+        school: School,
+        target_date: date,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> int:
+        """
+        تأكد من وجود حصص لأسبوع التاريخ المطلوب — ولّدها إن لم تكن موجودة.
+
+        - تولّد الأسبوع كامل (أحد → خميس) دفعة واحدة
+        - تستخدم bulk_create(ignore_conflicts=True) للأداء
+        - idempotent: آمنة للاستدعاء المتكرر بدون تكرار
+        - لا تعتمد على Celery — تعمل عند الطلب
+
+        Returns: عدد الحصص المُنشأة (0 إذا كانت موجودة مسبقاً).
+        """
+        from datetime import timedelta
+
+        week_sun, week_thu = ScheduleService._get_week_bounds(target_date)
+
+        # ── فحص سريع: أي أيام في هذا الأسبوع لديها حصص؟ ──
+        existing_days = set(
+            Session.objects.filter(
+                school=school,
+                date__range=(week_sun, week_thu),
+            )
+            .values_list("date", flat=True)
+            .distinct()
+        )
+
+        # حساب الأيام الناقصة (أحد=0 … خميس=4)
+        all_days = [week_sun + timedelta(days=i) for i in range(5)]
+        missing_days = [d for d in all_days if d not in existing_days]
+
+        if not missing_days:
+            return 0  # الأسبوع كامل — لا شيء للفعل
+
+        # ── جلب ScheduleSlots لكل الأيام الناقصة ──
+        missing_qatar_days = []
+        day_map = {}  # qatar_day → actual_date
+        for d in missing_days:
+            qatar_day = ScheduleService._PY_TO_QATAR.get(d.weekday(), -1)
+            if qatar_day >= 0:
+                missing_qatar_days.append(qatar_day)
+                day_map[qatar_day] = d
+
+        if not missing_qatar_days:
+            return 0
+
+        slots = ScheduleSlot.objects.filter(
+            school=school,
+            day_of_week__in=missing_qatar_days,
+            academic_year=academic_year,
+            is_active=True,
+        ).select_related("teacher", "class_group", "subject")
+
+        # ── بناء Session objects دفعة واحدة ──
+        sessions_to_create = []
+        for slot in slots:
+            actual_date = day_map.get(slot.day_of_week)
+            if not actual_date:
+                continue
+            sessions_to_create.append(
+                Session(
+                    school=school,
+                    teacher=slot.teacher,
+                    class_group=slot.class_group,
+                    subject=slot.subject,
+                    date=actual_date,
+                    start_time=slot.start_time,
+                    end_time=slot.end_time,
+                    status="scheduled",
+                )
+            )
+
+        if not sessions_to_create:
+            return 0
+
+        # bulk_create مع ignore_conflicts — يتجاهل أي تكرار بسبب UniqueConstraint
+        created = Session.objects.bulk_create(
+            sessions_to_create, ignore_conflicts=True
+        )
+        count = len(created)
+
+        if count > 0:
+            logger.info(
+                "ensure_sessions: generated %d sessions for %s (week %s → %s)",
+                count,
+                school.name,
+                week_sun,
+                week_thu,
+            )
+        return count
+
+    @staticmethod
+    def ensure_sessions_for_range(
+        school: School,
+        start_date: date,
+        end_date: date,
+    ) -> int:
+        """
+        تأكد من وجود حصص لكل الأسابيع في النطاق المحدد.
+        مفيد للتقارير الشهرية والتحليلات.
+        """
+        from datetime import timedelta
+
+        total = 0
+        seen_weeks: set[date] = set()
+        current = start_date
+
+        while current <= end_date:
+            week_sun, _ = ScheduleService._get_week_bounds(current)
+            if week_sun not in seen_weeks:
+                total += ScheduleService.ensure_sessions_for_date(school, current)
+                seen_weeks.add(week_sun)
+            current += timedelta(days=7)
+
+        return total
+
+    # Alias للتوافق مع الكود القديم
+    @staticmethod
+    def ensure_today_sessions(school: School) -> int:
+        """Alias — يستدعي ensure_sessions_for_date لتاريخ اليوم."""
+        from django.utils import timezone
+        return ScheduleService.ensure_sessions_for_date(school, timezone.localdate())
+
 
 class SubstituteService:
     @staticmethod

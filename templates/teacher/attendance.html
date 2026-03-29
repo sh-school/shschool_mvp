@@ -6,28 +6,29 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="exec-dash">
 
-{# ── Page Header ── #}
-<div class="page-header">
+{# ── Header ── #}
+<div class="exec-header">
   <div>
     <h1 class="page-title">
       {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
     </h1>
-    <p class="page-subtitle">{{ session.date }} · {{ session.start_time|time:"H:i" }}</p>
+    <p class="text-gray-500 text-sm mt-1">{{ session.date }} · {{ session.start_time|time:"H:i" }}</p>
   </div>
-  <div class="page-actions">
+  <div class="flex items-center gap-2 flex-wrap">
+    <span class="exec-date">{{ session.date }}</span>
     <span class="btn-primary text-xs px-3 py-1.5 cursor-default">{% include "components/icon.html" with name="list-checks" %} قائمة</span>
     <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">{% include "components/icon.html" with name="bar-chart" %} شبكة</a>
   </div>
 </div>
 
-{# ── Summary KPIs (HTMX updates) ── #}
+{# ── KPI Strip (HTMX updates) ── #}
 <div id="summary-widget"
      hx-get="/teacher/attendance/{{ session.id }}/summary/"
      hx-trigger="refresh from:body"
      hx-swap="innerHTML transition:false"
-     class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+     class="kpi-strip">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
 
@@ -81,7 +82,7 @@
   </div>
 </div>
 
-</div>{# end .space-y-5 #}
+</div>{# end .exec-dash #}
 {% endblock %}
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">

@@ -1,0 +1,41 @@
+{# ── حصص اليوم — partial مشترك بين المعلم والمنسق ── #}
+{% if sessions %}
+<div class="divide-y">
+  {% for s in sessions %}
+  <a href="/teacher/attendance/{{ s.id }}/"
+     class="flex items-center justify-between px-5 py-4 hover:bg-[var(--surface-alt)] transition no-underline text-inherit
+       {% if s == next_session %}bg-status-warning-light{% endif %}"
+     aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group }} — {{ s.start_time|time:'H:i' }}">
+    <div class="flex items-center gap-4">
+      <div class="text-center session-time">
+        <div class="text-sm font-bold text-[var(--text)]">{{ s.start_time|time:"H:i" }}</div>
+        <div class="text-xs text-[var(--muted)]">{{ s.end_time|time:"H:i" }}</div>
+      </div>
+      <div>
+        <div class="font-semibold text-[var(--text)] text-sm">{{ s.subject.name_ar }}</div>
+        <div class="text-xs text-[var(--muted)] mt-0.5">{{ s.class_group }}</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      {% if s == next_session %}
+        <span class="status-badge next-session-badge">{% include "components/icon.html" with name="clock" %} التالية</span>
+      {% endif %}
+      {% if s.status == 'completed' %}
+        <span class="status-badge status-success">{{ s.get_status_display }}</span>
+      {% elif s.status == 'in_progress' %}
+        <span class="status-badge status-warning">{{ s.get_status_display }}</span>
+      {% else %}
+        <span class="status-badge status-gray">تسجيل حضور ←</span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
+  <p class="empty-title">لا توجد حصص اليوم</p>
+  <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
+  <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
+</div>
+{% endif %}

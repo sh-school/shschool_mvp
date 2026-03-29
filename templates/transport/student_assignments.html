@@ -6,20 +6,36 @@
 {% endblock %}
 
 {% block content %}
-<div>
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="page-title">{% include "components/icon.html" with name="users" %} إسناد الطلاب للحافلات</h1>
-    <a href="{% url 'transport:dashboard' %}" class="text-sm border px-4 py-2 rounded-lg hover:bg-gray-50">← رجوع</a>
+<div class="exec-dash">
+
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1>{% include "components/icon.html" with name="users" %} إسناد الطلاب للحافلات</h1>
+    </div>
+    <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   </div>
 
-  {# ── شريط البحث ── #}
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <span class="kpi-mini-value">{{ unassigned_students.count }}</span>
+      <span class="kpi-mini-label">غير مسندون</span>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <span class="kpi-mini-value">{{ assigned_students.count }}</span>
+      <span class="kpi-mini-label">مسندون</span>
+    </div>
+  </div>
+
+  {# ── Search ── #}
   <div class="filter-bar mb-4">
     <input type="text" id="student-search" class="form-control" placeholder="بحث باسم الطالب..." autocomplete="off">
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="card-qatar">
-      <h2 class="font-bold text-red-700 mb-4">{% include "components/icon.html" with name="x-circle" %} طلاب غير مسندون ({{ unassigned_students.count }})</h2>
+      <h2 class="font-bold mb-4" style="color:var(--status-danger)">{% include "components/icon.html" with name="x-circle" %} طلاب غير مسندون ({{ unassigned_students.count }})</h2>
       {% if unassigned_students %}
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in unassigned_students %}
@@ -34,7 +50,7 @@
       {% endif %}
     </div>
     <div class="card-qatar">
-      <h2 class="font-bold text-green-700 mb-4">{% include "components/icon.html" with name="check-circle" %} طلاب مسندون ({{ assigned_students.count }})</h2>
+      <h2 class="font-bold mb-4" style="color:var(--status-success)">{% include "components/icon.html" with name="check-circle" %} طلاب مسندون ({{ assigned_students.count }})</h2>
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in assigned_students %}
         <div class="py-2 border-b last:border-0 text-sm text-gray-700" data-filter-item data-name="{{ st.full_name }}">{{ st.full_name }}</div>
@@ -42,6 +58,7 @@
       </div>
     </div>
   </div>
+
 </div>
 {% endblock %}
 

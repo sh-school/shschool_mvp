@@ -6,20 +6,18 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-xl mx-auto">
+<div class="exec-dash" style="max-width:36rem;margin-inline:auto">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Exec Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
-      <p class="page-subtitle">تسجيل إعارة كتاب لطالب أو موظف</p>
+      <h1>{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
+      <span class="exec-date">تسجيل إعارة كتاب لطالب أو موظف</span>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'library:dashboard' %}" class="btn-secondary">← رجوع</a>
-    </div>
+    <a href="{% url 'library:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
   </div>
 
-  <div class="card-qatar">
+  <div class="form-card">
     <form method="post">
       {% csrf_token %}
       <div class="space-y-4">

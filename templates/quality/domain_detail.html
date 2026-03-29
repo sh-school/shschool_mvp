@@ -8,14 +8,33 @@
 {% block content %}
 <div class="qdom">
 
-  {# ── Header card with progress bar ── #}
-  <div class="card-qatar qdom-header">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="layers" %} {{ domain.name }}
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1>{% include "components/icon.html" with name="layers" %} {{ domain.name }}</h1>
+      <p class="exec-date">{{ domain.completion_pct }}% إنجاز</p>
     </div>
-    <div class="qdom-header__meta">
-      {{ domain.total_procedures }} إجراء &middot; {{ domain.targets.count }} هدف &middot; {{ domain.completion_pct }}% إنجاز
+    <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
+  </div>
+
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ domain.total_procedures }}</span>
+      <span class="kpi-mini-label">إجراء</span>
     </div>
+    <div class="kpi-mini kpi-teal">
+      <span class="kpi-mini-value">{{ domain.targets.count }}</span>
+      <span class="kpi-mini-label">هدف</span>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ domain.completion_pct }}%</span>
+      <span class="kpi-mini-label">إنجاز</span>
+    </div>
+  </div>
+
+  {# ── Progress bar ── #}
+  <div class="card-qatar qdom-header" style="overflow:hidden;padding:0">
     <div class="qdom-progress">
       <div class="qdom-progress__fill" style="--progress-w:{{ domain.completion_pct }}%"></div>
     </div>

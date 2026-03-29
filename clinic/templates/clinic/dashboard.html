@@ -8,159 +8,166 @@
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-maroon-50 to-maroon-100">
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-maroon-700 to-maroon-900 text-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <h1 class="text-3xl font-bold">🏥 لوحة تحكم العيادة المدرسية</h1>
-            <p class="text-maroon-100 mt-2">إدارة الصحة والسجلات الطبية للطلاب</p>
-        </div>
+<div class="space-y-6">
+
+  {# ── Page Header ── #}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="activity" %} لوحة تحكم العيادة المدرسية</h1>
+      <p class="page-subtitle">إدارة الصحة والسجلات الطبية للطلاب</p>
     </div>
-
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Statistics Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Card 1: Visits Today -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-maroon-600">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm">الزيارات اليوم</p>
-                        <p class="text-3xl font-bold text-maroon-700">{{ visits_today }}</p>
-                    </div>
-                    <div class="text-4xl text-maroon-200">👥</div>
-                </div>
-            </div>
-
-            <!-- Card 2: Follow-up Cases -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-orange-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm">حالات متابعة</p>
-                        <p class="text-3xl font-bold text-orange-600">{{ follow_up_visits.count }}</p>
-                    </div>
-                    <div class="text-4xl text-orange-200">⚠️</div>
-                </div>
-            </div>
-
-            <!-- Card 3: Quick Actions -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-blue-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm">الإجراءات السريعة</p>
-                        <a href="{% url 'clinic:record_visit' %}" class="text-blue-600 hover:text-blue-800 font-semibold mt-2 inline-block">
-                            + تسجيل زيارة جديدة
-                        </a>
-                    </div>
-                    <div class="text-4xl text-blue-200">⚡</div>
-                </div>
-            </div>
-
-            <!-- Card 4: Health Statistics -->
-            <div class="bg-white rounded-lg shadow-md p-6 border-t-4 border-green-500">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm">الإحصائيات</p>
-                        <a href="{% url 'clinic:statistics' %}" class="text-green-600 hover:text-green-800 font-semibold mt-2 inline-block">
-                            عرض التقارير
-                        </a>
-                    </div>
-                    <div class="text-4xl text-green-200">📊</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Visits -->
-        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-xl font-bold text-maroon-700 mb-4">الزيارات الأخيرة</h2>
-            {% if recent_visits %}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-maroon-50 border-b-2 border-maroon-200">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-right">الطالب</th>
-                                <th scope="col" class="px-4 py-3 text-right">التاريخ والوقت</th>
-                                <th scope="col" class="px-4 py-3 text-right">السبب</th>
-                                <th scope="col" class="px-4 py-3 text-right">الحالة</th>
-                                <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for visit in recent_visits %}
-                            <tr class="border-b hover:bg-gray-50">
-                                <td class="px-4 py-3">{{ visit.student.full_name }}</td>
-                                <td class="px-4 py-3">{{ visit.visit_date|date:"d/m/Y H:i" }}</td>
-                                <td class="px-4 py-3">{{ visit.reason|truncatewords:5 }}</td>
-                                <td class="px-4 py-3">
-                                    {% if visit.is_sent_home %}
-                                        <span class="inline-block bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-semibold">
-                                            أُرسل للمنزل
-                                        </span>
-                                    {% else %}
-                                        <span class="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold">
-                                            متابعة عادية
-                                        </span>
-                                    {% endif %}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <a href="{% url 'clinic:health_record' visit.student.id %}" class="text-maroon-600 hover:text-maroon-800 font-semibold">
-                                        عرض الملف
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 text-center">
-                    <a href="{% url 'clinic:visits_list' %}" class="text-maroon-600 hover:text-maroon-800 font-semibold">
-                        عرض جميع الزيارات →
-                    </a>
-                </div>
-            {% else %}
-                <p class="text-gray-500 text-center py-8">لا توجد زيارات مسجلة حتى الآن</p>
-            {% endif %}
-        </div>
-
-        <!-- Follow-up Cases -->
-        {% if follow_up_visits %}
-        <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-6">
-            <h2 class="text-xl font-bold text-orange-700 mb-4">⚠️ حالات بحاجة متابعة</h2>
-            <div class="space-y-3">
-                {% for visit in follow_up_visits %}
-                <div class="bg-white p-4 rounded-lg border-l-4 border-orange-500">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <p class="font-semibold text-gray-800">{{ visit.student.full_name }}</p>
-                            <p class="text-sm text-gray-600">{{ visit.reason }}</p>
-                        </div>
-                        <a href="{% url 'clinic:health_record' visit.student.id %}" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold">
-                            متابعة
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
+    <div class="page-actions">
+      <a href="{% url 'clinic:record_visit' %}" class="btn-primary">+ تسجيل زيارة جديدة</a>
+      <a href="{% url 'clinic:visits_list' %}" class="btn-secondary">جميع الزيارات</a>
     </div>
+  </div>
+
+  {# ── KPI Cards ── #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="kpi-card">
+      <div class="kpi-value text-status-maroon">{{ visits_today }}</div>
+      <div class="kpi-label">الزيارات اليوم</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value {% if sent_home_today > 0 %}text-status-danger{% else %}text-status-success{% endif %}">{{ sent_home_today }}</div>
+      <div class="kpi-label">أُرسلوا للمنزل اليوم</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-status-info">{{ month_total }}</div>
+      <div class="kpi-label">إجمالي زيارات الشهر</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value {% if frequent|length > 0 %}text-status-warning{% else %}text-status-success{% endif %}">{{ frequent|length }}</div>
+      <div class="kpi-label">زوار متكررون (3+ زيارات)</div>
+    </div>
+  </div>
+
+  {# ── Charts + Frequent Visitors ── #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="chart-card">
+      <h3 class="chart-title">اتجاه الزيارات — آخر 30 يوم</h3>
+      <canvas id="chartClinic" height="200"></canvas>
+    </div>
+    <div class="card-qatar p-4">
+      <h3 class="text-sm font-semibold text-[var(--text)] mb-3">{% include "components/icon.html" with name="users" %} الزوار المتكررون هذا الشهر</h3>
+      {% if frequent %}
+      <div class="space-y-2">
+        {% for f in frequent %}
+        <div class="flex items-center justify-between p-2 rounded bg-[var(--bg-secondary)]">
+          <span class="text-sm text-[var(--text)]">{{ f.student__first_name }} {{ f.student__last_name }}</span>
+          <span class="status-badge status-warning">{{ f.visit_count }} زيارة</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-sm text-[var(--muted)]">لا يوجد زوار متكررون هذا الشهر</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Peak Hours ── #}
+  {% if peak_hours %}
+  <div class="card-qatar p-4">
+    <h3 class="text-sm font-semibold text-[var(--text)] mb-3">{% include "components/icon.html" with name="clock" %} ساعات الذروة (آخر 7 أيام)</h3>
+    <div class="flex flex-wrap gap-2">
+      {% for ph in peak_hours %}
+      <span class="status-badge status-info">{{ ph.hour }}:00 — {{ ph.count }} زيارة</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Recent Visits Table ── #}
+  <div class="card-qatar p-0 overflow-hidden">
+    <div class="card-bar m-0 rounded-t-xl">الزيارات الأخيرة</div>
+    {% if recent_visits %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-[var(--bg-secondary)]">
+          <tr>
+            <th scope="col" class="px-4 py-3 text-right text-[var(--text)]">الطالب</th>
+            <th scope="col" class="px-4 py-3 text-right text-[var(--text)]">التاريخ والوقت</th>
+            <th scope="col" class="px-4 py-3 text-right text-[var(--text)]">السبب</th>
+            <th scope="col" class="px-4 py-3 text-right text-[var(--text)]">الحالة</th>
+            <th scope="col" class="px-4 py-3 text-right text-[var(--text)]">الإجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for visit in recent_visits %}
+          <tr class="border-b border-[var(--border)] hover:bg-[var(--bg-secondary)]">
+            <td class="px-4 py-3 text-[var(--text)]">{{ visit.student.full_name }}</td>
+            <td class="px-4 py-3 text-[var(--muted)]">{{ visit.visit_date|date:"d/m/Y H:i" }}</td>
+            <td class="px-4 py-3 text-[var(--text)]">{{ visit.reason|truncatewords:5 }}</td>
+            <td class="px-4 py-3">
+              {% if visit.is_sent_home %}
+                <span class="status-badge status-danger">أُرسل للمنزل</span>
+              {% else %}
+                <span class="status-badge status-success">متابعة عادية</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <a href="{% url 'clinic:health_record' visit.student.id %}" class="text-[var(--maroon)] hover:underline font-semibold">
+                عرض الملف
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="p-3 text-center">
+      <a href="{% url 'clinic:visits_list' %}" class="text-[var(--maroon)] hover:underline font-semibold text-sm">
+        عرض جميع الزيارات &larr;
+      </a>
+    </div>
+    {% else %}
+    <div class="empty-state p-8">
+      <p class="empty-sub">لا توجد زيارات مسجلة حتى الآن</p>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Follow-up Cases ── #}
+  {% if follow_up_visits %}
+  <div class="card-qatar p-4" style="border-right:4px solid var(--color-amber-500, #f59e0b)">
+    <h3 class="text-sm font-semibold mb-3 text-[var(--text)]">{% include "components/icon.html" with name="alert-triangle" %} حالات بحاجة متابعة</h3>
+    <div class="space-y-2">
+      {% for visit in follow_up_visits %}
+      <div class="flex items-center justify-between p-2 rounded bg-[var(--bg-secondary)]">
+        <div>
+          <span class="text-sm font-medium text-[var(--text)]">{{ visit.student.full_name }}</span>
+          <span class="text-xs text-[var(--muted)]">— {{ visit.reason|truncatewords:8 }}</span>
+        </div>
+        <a href="{% url 'clinic:health_record' visit.student.id %}" class="btn-primary text-xs px-3 py-1">
+          متابعة
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+{% endblock %}
 
-<!-- Maroon Color Scheme -->
-<style>
-    .bg-maroon-50 { background-color: #f9f5f5; }
-    .bg-maroon-100 { background-color: #f3ebeb; }
-    .bg-maroon-200 { background-color: #e8d7d7; }
-    .bg-maroon-600 { background-color: #8a1538; }
-    .bg-maroon-700 { background-color: #6b0f2a; }
-    .bg-maroon-900 { background-color: #4a0a1a; }
-    .text-maroon-50 { color: #f9f5f5; }
-    .text-maroon-100 { color: #f3ebeb; }
-    .text-maroon-200 { color: #e8d7d7; }
-    .text-maroon-600 { color: #8a1538; }
-    .text-maroon-700 { color: #6b0f2a; }
-    .text-maroon-900 { color: #4a0a1a; }
-    .border-maroon-200 { border-color: #e8d7d7; }
-    .border-maroon-600 { border-color: #8a1538; }
-</style>
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family='Tajawal,sans-serif';
+async function fc(u){try{return await(await fetch(u)).json()}catch(e){return null}}
+(async()=>{
+  const d=await fc('{% url "clinic:api_clinic_charts" %}');
+  if(!d)return;
+  const el=document.getElementById('chartClinic');
+  if(!el)return;
+  new Chart(el,{
+    type:'line',
+    data:{labels:d.labels,datasets:[
+      {label:'الزيارات',data:d.visits,borderColor:'#0D4261',backgroundColor:'rgba(13,66,97,0.1)',fill:true,tension:0.3},
+      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:'#dc2626',backgroundColor:'transparent',tension:0.3,borderDash:[5,5]}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}
+  });
+})();
+</script>
 {% endblock %}

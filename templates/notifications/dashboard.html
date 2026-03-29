@@ -6,198 +6,179 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <!-- Header -->
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bell" %} الإشعارات التلقائية</h1>
-      <p class="page-subtitle">إشعارات البريد الإلكتروني و SMS لأولياء الأمور</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="bell" %} لوحة الإشعارات</h1>
+      <p class="exec-subtitle">إشعارات البريد الإلكتروني و SMS لأولياء الأمور</p>
+    </div>
+    <span class="exec-date">{{ year }}</span>
+  </div>
+
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">أُرسلت بنجاح</div>
+      <div class="kpi-mini-value">{{ total_sent|default:"0" }}</div>
+      <div class="kpi-mini-sub">إجمالي الناجحة</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">فشل الإرسال</div>
+      <div class="kpi-mini-value">{{ total_failed|default:"0" }}</div>
+      {% if total_failed %}<div class="kpi-mini-alert">يحتاج مراجعة</div>{% endif %}
+    </div>
+    <div class="kpi-mini kpi-amber">
+      <div class="kpi-mini-label">في الانتظار</div>
+      <div class="kpi-mini-value">{{ total_pending|default:"0" }}</div>
+      <div class="kpi-mini-sub">لم تُرسل بعد</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">تنبيهات غياب معلقة</div>
+      <div class="kpi-mini-value">{{ pending_absence_count|default:"0" }}</div>
+      {% if pending_absence_count %}<div class="kpi-mini-alert">{{ pending_absence_count }} تنبيه</div>{% endif %}
     </div>
   </div>
 
-  <!-- KPIs -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="card-qatar text-center">
-      <div class="text-2xl font-bold text-skyline">{{ total }}</div>
-      <div class="text-xs text-[var(--muted)] mt-1">إجمالي المُرسَل</div>
+  {# ── Charts ── #}
+  <div class="charts-grid-2">
+    {# Chart 1: 14-day trend #}
+    <div class="dash-chart-card">
+      <h3 class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} حركة الإرسال — آخر 14 يوم</h3>
+      <div class="dash-chart-wrap">
+        <canvas id="chartNotifTrend"></canvas>
+      </div>
     </div>
-    <div class="card-qatar text-center">
-      <div class="text-2xl font-bold text-green-700">{{ sent }}</div>
-      <div class="text-xs text-[var(--muted)] mt-1">نجح</div>
-    </div>
-    <div class="card-qatar text-center {% if failed %}bg-red-50 border-red-100{% endif %}">
-      <div class="text-2xl font-bold text-red-600">{{ failed }}</div>
-      <div class="text-xs text-[var(--muted)] mt-1">فشل</div>
-    </div>
-    <div class="card-qatar text-center {% if pending_absence %}bg-amber-50 border-amber-100{% endif %}">
-      <div class="text-2xl font-bold text-amber-600">{{ pending_absence }}</div>
-      <div class="text-xs text-[var(--muted)] mt-1">تنبيه غياب معلّق</div>
+    {# Chart 2: Channel distribution #}
+    <div class="dash-chart-card">
+      <h3 class="dash-chart-title">{% include "components/icon.html" with name="pie-chart" %} التوزيع حسب القناة</h3>
+      <div class="dash-chart-wrap">
+        <canvas id="chartChannels"></canvas>
+      </div>
     </div>
   </div>
 
-  <!-- إجراءات الإرسال -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-    <!-- إرسال تنبيهات الغياب -->
-    <div class="card-qatar overflow-hidden">
-      <div class="bg-amber-600 px-5 py-4">
-        <h2 class="text-white font-bold">{% include "components/icon.html" with name="calendar" %} تنبيهات الغياب المتكرر</h2>
-        <p class="text-amber-100 text-xs mt-0.5">إرسال لأولياء الأمور بغياب أبنائهم</p>
-      </div>
-      <div class="p-5">
-        <p class="text-sm text-[var(--muted)] mb-4">
-          يوجد <strong class="text-amber-700">{{ pending_absence }}</strong> تنبيه غياب معلق لم يُرسَل بعد.
-        </p>
-        <form method="post" action="{% url 'send_absence_alerts' %}">
-          {% csrf_token %}
-          <button type="submit"
-                  {% if not pending_absence %}disabled{% endif %}
-                  class="w-full py-2.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            إرسال {{ pending_absence }} تنبيه الآن
-          </button>
-        </form>
-      </div>
-    </div>
-
-    <!-- إرسال تنبيهات الرسوب -->
-    <div class="card-qatar overflow-hidden">
-      <div class="bg-red-700 px-5 py-4">
-        <h2 class="text-white font-bold">{% include "components/icon.html" with name="bar-chart" %} إشعارات الرسوب السنوي</h2>
-        <p class="text-red-100 text-xs mt-0.5">إبلاغ أولياء الأمور بنتائج الرسوب</p>
-      </div>
-      <div class="p-5">
-        <p class="text-sm text-[var(--muted)] mb-4">
-          يوجد <strong class="text-red-700">{{ failing_students }}</strong> طالب راسب في مادة أو أكثر للعام {{ year }}.
-        </p>
-        <form method="post" action="{% url 'send_fail_alerts' %}">
-          {% csrf_token %}
-          <input type="hidden" name="year" value="{{ year }}">
-          <button type="submit"
-                  {% if not failing_students %}disabled{% endif %}
-                  class="btn-danger w-full py-2.5 text-white text-sm font-medium rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-            إرسال إشعارات {{ failing_students }} طالب
-          </button>
-        </form>
-      </div>
-    </div>
-
+  {# ── Quick Links ── #}
+  <div class="quick-links">
+    <form method="post" action="{% url 'send_absence_alerts' %}" class="ql-item">
+      {% csrf_token %}
+      <button type="submit" {% if not pending_absence %}disabled{% endif %}>
+        {% include "components/icon.html" with name="calendar" %}
+        إرسال تنبيهات الغياب ({{ pending_absence|default:"0" }})
+      </button>
+    </form>
+    <form method="post" action="{% url 'send_fail_alerts' %}" class="ql-item">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      <button type="submit" {% if not failing_students %}disabled{% endif %}>
+        {% include "components/icon.html" with name="alert-triangle" %}
+        إرسال إشعارات الرسوب ({{ failing_students|default:"0" }})
+      </button>
+    </form>
+    <a href="{% url 'notification_inbox' %}" class="ql-item">
+      {% include "components/icon.html" with name="mail" %} صندوق الإشعارات
+    </a>
+    <a href="{% url 'notification_preferences' %}" class="ql-item">
+      {% include "components/icon.html" with name="settings" %} تفضيلات الإشعارات
+    </a>
   </div>
 
-  <!-- الإعدادات -->
-  <div class="card-qatar overflow-hidden">
-    <button onclick="document.getElementById('settings-panel').classList.toggle('hidden')"
-            class="w-full flex items-center justify-between px-6 py-4 hover:bg-[var(--surface-alt)] transition">
-      <h2 class="font-bold text-[var(--text)]">{% include "components/icon.html" with name="settings" %} إعدادات الإشعارات</h2>
-      <span class="text-gray-400 text-sm">▼</span>
-    </button>
+  {# ── Settings (collapsible) ── #}
+  <details class="exec-details">
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="settings" %} إعدادات الإشعارات
+    </summary>
+    <form method="post" action="{% url 'save_notif_settings' %}" class="p-5 space-y-5">
+      {% csrf_token %}
 
-    <div id="settings-panel" class="hidden border-t">
-      <form method="post" action="{% url 'save_notif_settings' %}" class="p-6 space-y-5">
-        {% csrf_token %}
-
-        <!-- البريد الإلكتروني -->
+      {# البريد الإلكتروني #}
+      <h3 class="text-sm font-semibold text-[var(--text)] mb-2">البريد الإلكتروني</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="email_enabled" {% if cfg.email_enabled %}checked{% endif %}
+                 class="w-4 h-4 rounded border-[var(--border)]">
+          تفعيل البريد الإلكتروني
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="absence_email_enabled" {% if cfg.absence_email_enabled %}checked{% endif %}
+                 class="w-4 h-4 rounded border-[var(--border)]">
+          إشعارات الغياب
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="fail_email_enabled" {% if cfg.fail_email_enabled %}checked{% endif %}
+                 class="w-4 h-4 rounded border-[var(--border)]">
+          إشعارات الرسوب
+        </label>
         <div>
-          <h3 class="font-semibold text-gray-800 mb-3 text-sm">البريد الإلكتروني</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            <div class="flex items-center gap-3">
-              <input type="checkbox" name="email_enabled" id="email_enabled"
-                     {% if cfg.email_enabled %}checked{% endif %}
-                     class="w-4 h-4 rounded border-gray-300">
-              <label for="email_enabled" class="text-sm text-gray-700">تفعيل البريد الإلكتروني</label>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" name="absence_email_enabled" id="abs_email"
-                     {% if cfg.absence_email_enabled %}checked{% endif %}
-                     class="w-4 h-4 rounded border-gray-300">
-              <label for="abs_email" class="text-sm text-gray-700">إشعارات الغياب</label>
-            </div>
-            <div class="flex items-center gap-3">
-              <input type="checkbox" name="fail_email_enabled" id="fail_email"
-                     {% if cfg.fail_email_enabled %}checked{% endif %}
-                     class="w-4 h-4 rounded border-gray-300">
-              <label for="fail_email" class="text-sm text-gray-700">إشعارات الرسوب</label>
-            </div>
-
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">اسم المُرسِل</label>
-              <input type="text" name="from_name" value="{{ cfg.from_name }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">بريد للرد عليه (اختياري)</label>
-              <input type="email" name="reply_to" value="{{ cfg.reply_to }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">حد الغياب (عدد الحصص)</label>
-              <input type="number" name="absence_threshold" value="{{ cfg.absence_threshold }}" min="1" max="20"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-            </div>
-          </div>
-
-          <div class="mt-3 space-y-2">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">موضوع رسالة الغياب</label>
-              <input type="text" name="absence_email_subject" value="{{ cfg.absence_email_subject }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-              <p class="text-xs text-gray-400 mt-0.5">متغيرات: {student_name} {absence_count}</p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">موضوع رسالة الرسوب</label>
-              <input type="text" name="fail_email_subject" value="{{ cfg.fail_email_subject }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-              <p class="text-xs text-gray-400 mt-0.5">متغيرات: {student_name} {fail_count}</p>
-            </div>
-          </div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">اسم المُرسِل</label>
+          <input type="text" name="from_name" value="{{ cfg.from_name }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
         </div>
-
-        <!-- SMS -->
-        <div class="border-t pt-4">
-          <h3 class="font-semibold text-gray-800 mb-3 text-sm">SMS (Twilio)</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="flex items-center gap-3">
-              <input type="checkbox" name="sms_enabled" id="sms_enabled"
-                     {% if cfg.sms_enabled %}checked{% endif %}
-                     class="w-4 h-4 rounded border-gray-300">
-              <label for="sms_enabled" class="text-sm text-gray-700">تفعيل SMS</label>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">رقم المُرسِل (Twilio)</label>
-              <input type="text" name="sms_from_number" value="{{ cfg.sms_from_number }}"
-                     placeholder="+974XXXXXXXX"
-                     class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Account SID</label>
-              <input type="text" name="twilio_account_sid" value="{{ cfg.twilio_account_sid }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-blue-400">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Auth Token</label>
-              <input type="password" name="twilio_auth_token" value="{{ cfg.twilio_auth_token }}"
-                     class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-blue-400">
-            </div>
-          </div>
-          <p class="text-xs text-gray-400 mt-2">
-            لتفعيل SMS تحتاج إلى حساب Twilio (<a href="https://twilio.com" target="_blank" class="text-blue-500 hover:underline">twilio.com</a>)
-            وتثبيت: <code class="bg-gray-100 px-1 rounded">pip install twilio</code>
-          </p>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">بريد للرد عليه</label>
+          <input type="email" name="reply_to" value="{{ cfg.reply_to }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
         </div>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">حد الغياب (عدد الحصص)</label>
+          <input type="number" name="absence_threshold" value="{{ cfg.absence_threshold }}" min="1" max="20"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+        </div>
+      </div>
+      <div class="mt-3 space-y-2">
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">موضوع رسالة الغياب</label>
+          <input type="text" name="absence_email_subject" value="{{ cfg.absence_email_subject }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+          <p class="text-xs text-[var(--muted)] mt-0.5">متغيرات: {student_name} {absence_count}</p>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">موضوع رسالة الرسوب</label>
+          <input type="text" name="fail_email_subject" value="{{ cfg.fail_email_subject }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+          <p class="text-xs text-[var(--muted)] mt-0.5">متغيرات: {student_name} {fail_count}</p>
+        </div>
+      </div>
 
-        <button type="submit"
-                class="px-6 py-2.5 bg-skyline-dark text-white text-sm rounded-lg hover:bg-skyline transition">
-          حفظ الإعدادات
-        </button>
-      </form>
-    </div>
-  </div>
+      {# SMS #}
+      <h3 class="text-sm font-semibold text-[var(--text)] mt-4 mb-2 pt-4 border-t">SMS (Twilio)</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="sms_enabled" {% if cfg.sms_enabled %}checked{% endif %}
+                 class="w-4 h-4 rounded border-[var(--border)]">
+          تفعيل SMS
+        </label>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">رقم المُرسِل (Twilio)</label>
+          <input type="text" name="sms_from_number" value="{{ cfg.sms_from_number }}" placeholder="+974XXXXXXXX"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-blue-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Account SID</label>
+          <input type="text" name="twilio_account_sid" value="{{ cfg.twilio_account_sid }}"
+                 class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:ring-1 focus:ring-blue-400">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-[var(--text-secondary)] mb-1">Auth Token</label>
+          <input type="password" name="twilio_auth_token"
+                 placeholder="{% if cfg.twilio_auth_token %}--------{% else %}أدخل Auth Token{% endif %}"
+                 class="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm font-mono bg-[var(--surface)] text-[var(--text)] focus:ring-1 focus:ring-blue-400">
+          <p class="text-xs text-[var(--muted)] mt-0.5">اتركه فارغاً للإبقاء على القيمة الحالية</p>
+        </div>
+      </div>
 
-  <!-- سجل الإشعارات -->
-  <div class="card-qatar overflow-hidden">
-    <div class="px-6 py-4 border-b flex items-center justify-between gap-4 flex-wrap">
-      <h2 class="font-bold text-[var(--text)]">سجل الإشعارات الأخيرة</h2>
+      <button type="submit"
+              class="px-6 py-2.5 bg-skyline-dark text-white text-sm rounded-lg hover:bg-skyline transition mt-4">
+        حفظ الإعدادات
+      </button>
+    </form>
+  </details>
+
+  {# ── Notification Log Table ── #}
+  <div class="dash-chart-card">
+    <div class="flex items-center justify-between gap-4 flex-wrap mb-3">
+      <h3 class="dash-chart-title m-0">سجل الإشعارات الأخيرة</h3>
       {% if logs %}
       <div class="filter-bar m-0 p-0 border-0 bg-transparent">
         <input type="text" id="notif-log-search" class="form-control"
@@ -205,50 +186,50 @@
       </div>
       {% endif %}
     </div>
+
     {% if logs %}
-    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
+    <div class="table-wrap-scroll" style="max-height:400px;overflow-y:auto">
       <table class="w-full text-sm">
         <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]" style="position:sticky;top:0;z-index:1">
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
-            <th scope="col" class="px-4 py-3 text-right">الطالب</th>
-            <th scope="col" class="px-4 py-3 text-right">المستلم</th>
-            <th scope="col" class="px-4 py-3 text-center">القناة</th>
-            <th scope="col" class="px-4 py-3 text-center">النوع</th>
-            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
-            <th scope="col" class="px-4 py-3 text-center">إعادة</th>
+            <th scope="col" class="px-3 py-2 text-right text-xs">التاريخ</th>
+            <th scope="col" class="px-3 py-2 text-right text-xs">الطالب</th>
+            <th scope="col" class="px-3 py-2 text-right text-xs">المستلم</th>
+            <th scope="col" class="px-3 py-2 text-center text-xs">القناة</th>
+            <th scope="col" class="px-3 py-2 text-center text-xs">النوع</th>
+            <th scope="col" class="px-3 py-2 text-center text-xs">الحالة</th>
+            <th scope="col" class="px-3 py-2 text-center text-xs">إعادة</th>
           </tr>
         </thead>
         <tbody id="notif-log-tbody" class="divide-y divide-[var(--border)]">
           {% for log in logs %}
           <tr class="hover:bg-[var(--surface-alt)]" data-filter-row
               data-text="{{ log.student.full_name|default:'' }} {{ log.recipient }} {{ log.get_channel_display }} {{ log.get_notif_type_display }} {{ log.get_status_display }}">
-            <td class="px-4 py-3 text-xs text-gray-500">{{ log.sent_at|date:"d/m/Y H:i" }}</td>
-            <td class="px-4 py-3 font-medium text-gray-800">{{ log.student.full_name|default:"—" }}</td>
-            <td class="px-4 py-3 text-gray-600 text-xs truncate max-w-xs">{{ log.recipient }}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="px-2 py-0.5 rounded-full text-xs
+            <td class="px-3 py-2 text-xs text-[var(--muted)]">{{ log.sent_at|date:"d/m H:i" }}</td>
+            <td class="px-3 py-2 text-xs font-medium text-[var(--text)]">{{ log.student.full_name|default:"—" }}</td>
+            <td class="px-3 py-2 text-xs text-[var(--muted)] truncate max-w-[120px]">{{ log.recipient }}</td>
+            <td class="px-3 py-2 text-center">
+              <span class="px-2 py-0.5 rounded-full text-[10px]
                 {% if log.channel == 'email' %}bg-blue-100 text-blue-700{% else %}bg-green-100 text-green-700{% endif %}">
                 {{ log.get_channel_display }}
               </span>
             </td>
-            <td class="px-4 py-3 text-center text-xs text-gray-600">{{ log.get_notif_type_display }}</td>
-            <td class="px-4 py-3 text-center">
+            <td class="px-3 py-2 text-center text-xs text-[var(--muted)]">{{ log.get_notif_type_display }}</td>
+            <td class="px-3 py-2 text-center">
               {% if log.status == "sent" %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">{% include "components/icon.html" with name="check" %} أُرسل</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] bg-green-100 text-green-700">أُرسل</span>
               {% elif log.status == "failed" %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700"
-                      title="{{ log.error_msg }}">{% include "components/icon.html" with name="x-circle" %} فشل</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] bg-red-100 text-red-700"
+                      title="{{ log.error_msg }}">فشل</span>
               {% else %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">معلّق</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] bg-[var(--surface-alt)] text-[var(--muted)]">معلّق</span>
               {% endif %}
             </td>
-            <td class="px-4 py-3 text-center">
+            <td class="px-3 py-2 text-center">
               {% if log.status == "failed" %}
               <form method="post" action="{% url 'resend_notification' log.id %}">
                 {% csrf_token %}
-                <button type="submit"
-                        class="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">
+                <button type="submit" class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">
                   إعادة
                 </button>
               </form>
@@ -259,10 +240,28 @@
         </tbody>
       </table>
     </div>
+
+    {# Pagination #}
+    {% if logs_page.has_other_pages %}
+    <div class="flex items-center justify-center gap-2 px-4 py-3 border-t border-[var(--border)]">
+      {% if logs_page.has_previous %}
+      <a href="?page={{ logs_page.previous_page_number }}"
+         class="btn-secondary btn-sm text-xs" aria-label="الصفحة السابقة">&rarr; السابقة</a>
+      {% endif %}
+      <span class="text-xs text-[var(--muted)]">
+        صفحة {{ logs_page.number }} من {{ logs_page.paginator.num_pages }}
+      </span>
+      {% if logs_page.has_next %}
+      <a href="?page={{ logs_page.next_page_number }}"
+         class="btn-secondary btn-sm text-xs" aria-label="الصفحة التالية">التالية &larr;</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% else %}
-    <div class="py-16 text-center text-gray-400">
-      <p class="text-4xl mb-3">{% include "components/icon.html" with name="mail" size="icon-2xl" %}</p>
-      <p>لا توجد إشعارات مُرسَلة بعد</p>
+    <div class="py-12 text-center text-[var(--muted)]">
+      <p class="text-3xl mb-2">{% include "components/icon.html" with name="mail" size="icon-2xl" %}</p>
+      <p class="text-sm">لا توجد إشعارات مُرسَلة بعد</p>
     </div>
     {% endif %}
   </div>
@@ -271,10 +270,65 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
+  /* smartFilter for log search */
   if (typeof window.smartFilter === 'function') {
     window.smartFilter('notif-log-search', '#notif-log-tbody tr[data-filter-row]', { textAttr: 'data-text' });
+  }
+
+  /* Chart defaults */
+  Chart.defaults.font.family = 'Tajawal, sans-serif';
+  Chart.defaults.font.size = 11;
+
+  /* ── 14-day trend (stacked bar) ── */
+  var trendLabels = [{% for d in daily_notifs %}'{{ d.day|date:"d/m" }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var trendSuccess = [{% for d in daily_notifs %}{{ d.success }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var trendFailed = [{% for d in daily_notifs %}{{ d.failed }}{% if not forloop.last %},{% endif %}{% endfor %}];
+
+  var el1 = document.getElementById('chartNotifTrend');
+  if (el1 && trendLabels.length) {
+    new Chart(el1, {
+      type: 'bar',
+      data: {
+        labels: trendLabels,
+        datasets: [
+          { label: 'ناجح', data: trendSuccess, backgroundColor: '#16a34a' },
+          { label: 'فاشل', data: trendFailed, backgroundColor: '#dc2626' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { stacked: true, ticks: { font: { size: 10 } } },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+        },
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+      }
+    });
+  }
+
+  /* ── Channel distribution (doughnut) ── */
+  var chLabels = [{% for c in channel_stats %}'{{ c.channel }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var chData = [{% for c in channel_stats %}{{ c.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var chColors = ['#8A1538', '#0D4261', '#129B82', '#4194B3', '#eab308'];
+
+  var el2 = document.getElementById('chartChannels');
+  if (el2 && chLabels.length) {
+    new Chart(el2, {
+      type: 'doughnut',
+      data: {
+        labels: chLabels,
+        datasets: [{ data: chData, backgroundColor: chColors.slice(0, chData.length) }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+      }
+    });
   }
 });
 </script>

@@ -2,12 +2,18 @@ import datetime
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import cache_page
 
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
+from behavior.models import BehaviorInfraction
+from clinic.models import ClinicVisit
+from core.permissions import role_required
+from core.models.access import ALL_STAFF_ROLES
+from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -17,9 +23,11 @@ from operations.models import (
     TeacherAbsence,
     TeacherSwap,
 )
+from operations.services import ScheduleService
 
 
 @login_required
+@role_required(ALL_STAFF_ROLES | {"student", "parent"})
 def dashboard(request):
     """لوحة التحكم الرئيسية — تعرض إحصائيات مختلفة حسب دور المستخدم."""
     user = request.user
@@ -32,6 +40,9 @@ def dashboard(request):
     today = timezone.now().date()
     ctx = {"today": today, "school": school}
 
+    # ── التوليد التلقائي: Middleware يضمن حصص الأسبوع ──
+    # (لا حاجة لاستدعاء يدوي — الـ middleware يغطي هذا تلقائياً)
+
     # ولي الأمر → بوابته مباشرة
     if role == "parent":
         return redirect("parent_dashboard")
@@ -40,10 +51,16 @@ def dashboard(request):
     if role == "student":
         year = settings.CURRENT_ACADEMIC_YEAR
         # حضور الطالب
-        att_qs = StudentAttendance.objects.filter(school=school, student=user)
-        student_present = att_qs.filter(status="present").count()
-        student_absent = att_qs.filter(status="absent").count()
-        student_late = att_qs.filter(status="late").count()
+        student_att_stats = StudentAttendance.objects.filter(
+            school=school, student=user
+        ).aggregate(
+            present=Count("id", filter=Q(status="present")),
+            absent=Count("id", filter=Q(status="absent")),
+            late=Count("id", filter=Q(status="late")),
+        )
+        student_present = student_att_stats["present"]
+        student_absent = student_att_stats["absent"]
+        student_late = student_att_stats["late"]
         student_total = student_present + student_absent + student_late
         student_att_pct = round(student_present / student_total * 100) if student_total else 100
         # حصص اليوم
@@ -56,6 +73,14 @@ def dashboard(request):
                 .select_related("subject", "teacher")
                 .order_by("start_time")
             )
+        # نتائج الطالب السنوية
+        student_results = AnnualSubjectResult.objects.filter(
+            student=user, school=school, academic_year=year
+        )
+        student_subjects_total = student_results.count()
+        student_passed = student_results.filter(status='pass').count()
+        student_failed = student_results.filter(status='fail').count()
+
         ctx.update({
             "view_type": "student",
             "student_att_pct": student_att_pct,
@@ -64,6 +89,9 @@ def dashboard(request):
             "student_late": student_late,
             "student_sessions": student_sessions,
             "class_group": enrollment.class_group if enrollment else None,
+            "student_subjects_total": student_subjects_total,
+            "student_passed": student_passed,
+            "student_failed": student_failed,
         })
         return render(request, "dashboard/main.html", ctx)
 
@@ -75,10 +103,16 @@ def dashboard(request):
         completed = sessions_today.filter(status="completed").count()
         in_progress = sessions_today.filter(status="in_progress").count()
 
-        att = StudentAttendance.objects.filter(school=school, session__date=today)
-        present = att.filter(status="present").count()
-        absent = att.filter(status="absent").count()
-        late = att.filter(status="late").count()
+        att_stats = StudentAttendance.objects.filter(
+            school=school, session__date=today
+        ).aggregate(
+            present=Count("id", filter=Q(status="present")),
+            absent=Count("id", filter=Q(status="absent")),
+            late=Count("id", filter=Q(status="late")),
+        )
+        present = att_stats["present"]
+        absent = att_stats["absent"]
+        late = att_stats["late"]
         total_att = present + absent + late
         att_pct = round(present / total_att * 100) if total_att else 0
 
@@ -98,14 +132,17 @@ def dashboard(request):
             .order_by("-created_at")[:5]
         )
 
-        # إحصائيات التقييمات
-        total_annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).count()
-        passed_annual = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="pass"
-        ).count()
-        failed_annual = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="fail"
-        ).count()
+        # إحصائيات التقييمات — aggregate واحد بدل 4 queries
+        annual_stats = AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year
+        ).aggregate(
+            total=Count("id"),
+            passed=Count("id", filter=Q(status="pass")),
+            failed=Count("id", filter=Q(status="fail")),
+        )
+        total_annual = annual_stats["total"]
+        passed_annual = annual_stats["passed"]
+        failed_annual = annual_stats["failed"]
         pass_pct = round(passed_annual / total_annual * 100) if total_annual else 0
         failing_count = (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
@@ -113,6 +150,37 @@ def dashboard(request):
             .distinct()
             .count()
         )
+
+        # مواد غير مكتملة (بدون حزم تقييم)
+        incomplete_setups = SubjectClassSetup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).exclude(
+            packages__isnull=False
+        ).count()
+
+        # مؤشرات السلوك
+        behavior_monthly = BehaviorInfraction.objects.filter(
+            school=school,
+            date__month=today.month,
+            date__year=today.year,
+        ).count()
+        behavior_critical = BehaviorInfraction.objects.filter(
+            school=school,
+            level__gte=3,
+        ).count()
+
+        # مؤشرات العيادة
+        clinic_today = ClinicVisit.objects.filter(
+            school=school, visit_date__date=today
+        ).count()
+        clinic_sent_home = ClinicVisit.objects.filter(
+            school=school, visit_date__date=today, is_sent_home=True
+        ).count()
+
+        # مؤشرات المكتبة
+        library_overdue = BookBorrowing.objects.filter(
+            book__school=school, status='OVERDUE'
+        ).count()
 
         # طلبات التبديل والتعويض المعلقة
         pending_swaps = TeacherSwap.objects.filter(
@@ -149,6 +217,12 @@ def dashboard(request):
                 "pending_swaps": pending_swaps,
                 "pending_comp": pending_comp,
                 "absent_teachers_today": absent_teachers_today,
+                "incomplete_setups": incomplete_setups,
+                "behavior_monthly": behavior_monthly,
+                "behavior_critical": behavior_critical,
+                "clinic_today": clinic_today,
+                "clinic_sent_home": clinic_sent_home,
+                "library_overdue": library_overdue,
             }
         )
 

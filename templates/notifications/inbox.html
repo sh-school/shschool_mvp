@@ -8,13 +8,13 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="max-w-3xl mx-auto">
+<div class="exec-dash max-w-3xl mx-auto">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bell" %} الإشعارات</h1>
-      <p class="page-subtitle" id="inbox-subtitle">
+      <h1 class="exec-title">{% include "components/icon.html" with name="bell" %} صندوق الإشعارات</h1>
+      <p class="exec-subtitle" id="inbox-subtitle">
         {% if unread_count %}
           <span id="inbox-unread-text" class="text-maroon font-bold">{{ unread_count }}</span> إشعار غير مقروء
         {% else %}
@@ -22,7 +22,7 @@
         {% endif %}
       </p>
     </div>
-    <div class="page-actions">
+    <div class="flex flex-wrap gap-2">
       {% if unread_count %}
       <button
         hx-post="{% url 'mark_all_read' %}"
@@ -35,6 +35,18 @@
       {% endif %}
       <a href="{% url 'notification_preferences' %}" class="btn-secondary"
         >{% include "components/icon.html" with name="settings" %} التفضيلات</a>
+    </div>
+  </div>
+
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-value">{{ unread_count|default:"0" }}</div>
+      <div class="kpi-mini-label">غير مقروء</div>
+    </div>
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-value">{{ notifications|length }}</div>
+      <div class="kpi-mini-label">إجمالي</div>
     </div>
   </div>
 

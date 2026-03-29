@@ -11,4 +11,5 @@ urlpatterns = [
     path("visit/new/<uuid:student_id>/", views.record_visit, name="record_visit_student"),
     path("visits/", views.visits_list, name="visits_list"),
     path("statistics/", views.health_statistics, name="statistics"),
+    path("api/charts/", views.api_clinic_charts, name="api_clinic_charts"),
 ]

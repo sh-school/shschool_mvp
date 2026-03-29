@@ -10,207 +10,175 @@
 <!-- ═══ DIRECTOR / ADMIN DASHBOARD ═══ -->
 {% if view_type == "director" %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="home" %} لوحة تحكم المدير</h1>
-    <p class="page-subtitle">{{ today }} — {{ school.name }}</p>
-  </div>
-  <div class="page-actions">
-    <button type="button" class="btn-secondary btn-sm js-print-btn">
-      {% include "components/icon.html" with name="printer" %} طباعة
-    </button>
-    <a href="/teacher/reports/daily/" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-text" %} تقرير الغياب اليومي
-    </a>
-  </div>
-</div>
+<div class="exec-dash">
 
-{# ── KPIs: الحضور ── #}
-<p class="section-label">الحضور اليوم</p>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-
-  <div class="kpi-card kpi-color-green">
-    <div class="kpi-value kpi-color-green">{{ attendance_pct }}<span class="pct-unit">%</span></div>
-    <div class="kpi-label">نسبة الحضور</div>
-    {% if att_delta is not None %}
-    <span class="kpi-delta {% if att_delta > 0 %}up{% elif att_delta < 0 %}down{% else %}flat{% endif %}">
-      {% if att_delta > 0 %}↑{% elif att_delta < 0 %}↓{% else %}={% endif %}
-      {{ att_delta }}% عن أمس
-    </span>
-    {% endif %}
-    <div class="progress-qatar mt-3">
-      <div class="progress-qatar-fill progress-fill-green" style="--progress-w:{{ attendance_pct }}%"></div>
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="home" %} لوحة تحكم المدير</h1>
+      <p class="exec-subtitle">{{ school.name }}</p>
+    </div>
+    <div class="exec-meta">
+      <span class="exec-date">{{ today }}</span>
+      <button type="button" class="btn-secondary btn-sm js-print-btn">
+        {% include "components/icon.html" with name="printer" %} طباعة
+      </button>
+      <a href="/teacher/reports/daily/" class="btn-primary btn-sm no-underline">
+        {% include "components/icon.html" with name="file-text" %} تقرير الغياب
+      </a>
     </div>
   </div>
 
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-teal">{{ present }}</div>
-    <div class="kpi-label">طلاب حاضرون</div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-red">{{ absent }}</div>
-    <div class="kpi-label">طلاب غائبون</div>
-    {% if absent_delta is not None %}
-    <span class="kpi-delta {% if absent_delta > 0 %}down{% elif absent_delta < 0 %}up{% else %}flat{% endif %}">
-      {% if absent_delta > 0 %}↑{% elif absent_delta < 0 %}↓{% else %}={% endif %}
-      {{ absent_delta }} عن أمس
-    </span>
-    {% endif %}
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-maroon">{{ sessions_today }}</div>
-    <div class="kpi-label">حصص اليوم</div>
-    <div class="kpi-sub">{{ completed }} مكتملة &bull; {{ in_progress }} جارية</div>
-  </div>
-
-</div>
-
-{# ── Miller's Law: مؤشرات ثانوية مطوية ── #}
-{% if total_annual or pending_swaps or pending_comp or absent_teachers_today %}
-<details class="mb-4" open>
-  <summary class="section-label cursor-pointer hover:text-maroon list-none">
-    {% include "components/icon.html" with name="layers" size="icon-sm" %} مؤشرات إضافية ▾
-  </summary>
-{% if total_annual %}
-<p class="section-label mt-3">التقييمات السنوية — {{ year }}</p>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-
-  <div class="kpi-card">
-    <div class="kpi-value
-      {% if pass_pct >= 80 %}text-green-700
-      {% elif pass_pct >= 60 %}text-amber-600
-      {% else %}text-red-600{% endif %}">
-      {{ pass_pct }}<span class="pct-unit">%</span>
+  {# ── Primary KPI Strip — الحضور اليوم ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">نسبة الحضور</div>
+      <div class="kpi-mini-value">{{ attendance_pct }}%</div>
+      {% if att_delta is not None %}
+      <div class="kpi-mini-sub">{% if att_delta > 0 %}↑{% elif att_delta < 0 %}↓{% else %}={% endif %} {{ att_delta }}% عن أمس</div>
+      {% endif %}
     </div>
-    <div class="kpi-label">نسبة النجاح السنوي</div>
-    <div class="progress-qatar mt-3">
-      <div class="progress-qatar-fill
-        {% if pass_pct >= 80 %}progress-fill-green
-        {% elif pass_pct >= 60 %}progress-fill-amber
-        {% else %}progress-fill-red{% endif %}"
-        style="--progress-w:{{ pass_pct }}%">
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">طلاب حاضرون</div>
+      <div class="kpi-mini-value">{{ present }}</div>
+      <div class="kpi-mini-sub">من إجمالي الطلاب</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">طلاب غائبون</div>
+      <div class="kpi-mini-value">{{ absent }}</div>
+      {% if absent_delta is not None %}
+      <div class="kpi-mini-sub">{% if absent_delta > 0 %}↑{% elif absent_delta < 0 %}↓{% else %}={% endif %} {{ absent_delta }} عن أمس</div>
+      {% endif %}
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">حصص اليوم</div>
+      <div class="kpi-mini-value">{{ sessions_today }}</div>
+      <div class="kpi-mini-sub">{{ completed }} مكتملة &bull; {{ in_progress }} جارية</div>
+    </div>
+  </div>
+
+  {# ── Collapsible Secondary KPIs (Miller's Law) ── #}
+  {% if total_annual or pending_swaps or pending_comp or absent_teachers_today or behavior_monthly or clinic_today or library_overdue %}
+  <details class="exec-details">
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="layers" %} مؤشرات إضافية
+      {% if behavior_critical or clinic_sent_home %}
+      <span class="kpi-mini-alert ms-2">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات</span>
+      {% endif %}
+    </summary>
+
+    {# ── التقييمات السنوية ── #}
+    {% if total_annual %}
+    <div class="kpi-strip mt-3">
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-label">نسبة النجاح السنوي</div>
+        <div class="kpi-mini-value">{{ pass_pct }}%</div>
+        <div class="kpi-mini-sub">{{ year }}</div>
+      </div>
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-label">ناجح سنوياً</div>
+        <div class="kpi-mini-value">{{ passed_annual }}</div>
+        <div class="kpi-mini-sub">طالب</div>
+      </div>
+      <div class="kpi-mini kpi-red">
+        <div class="kpi-mini-label">طلاب راسبون</div>
+        <div class="kpi-mini-value">{{ failing_count }}</div>
+        {% if failing_count %}
+        <div class="kpi-mini-alert"><a href="/assessments/failing/" style="color:inherit;text-decoration:underline">عرض القائمة</a></div>
+        {% endif %}
+      </div>
+      <div class="kpi-mini kpi-orange">
+        <div class="kpi-mini-label">مواد غير مكتملة</div>
+        <div class="kpi-mini-value">{{ incomplete_setups }}</div>
+        <div class="kpi-mini-sub">مادة × فصل</div>
       </div>
     </div>
-  </div>
+    {% endif %}
 
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-green">{{ passed_annual }}</div>
-    <div class="kpi-label">ناجح سنوياً</div>
-  </div>
-
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-red">{{ failing_count }}</div>
-    <div class="kpi-label">طلاب راسبون</div>
-    {% if failing_count %}
-    <div class="kpi-sub">
-      <a href="/assessments/failing/" class="kpi-link">عرض القائمة ←</a>
+    {# ── الجدول والتبديلات ── #}
+    {% if pending_swaps or pending_comp or absent_teachers_today %}
+    <div class="kpi-strip mt-3">
+      <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-orange">
+        <div class="kpi-mini-label">تبديلات معلقة</div>
+        <div class="kpi-mini-value">{{ pending_swaps }}</div>
+        {% if pending_swaps %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
+      </a>
+      <a href="/teacher/schedule/compensatory/" class="kpi-mini kpi-teal">
+        <div class="kpi-mini-label">تعويضات معلقة</div>
+        <div class="kpi-mini-value">{{ pending_comp }}</div>
+        {% if pending_comp %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
+      </a>
+      <a href="/teacher/absences/" class="kpi-mini kpi-red">
+        <div class="kpi-mini-label">معلمون غائبون اليوم</div>
+        <div class="kpi-mini-value">{{ absent_teachers_today }}</div>
+        {% if absent_teachers_today %}<div class="kpi-mini-alert">التفاصيل</div>{% endif %}
+      </a>
     </div>
     {% endif %}
-  </div>
 
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-amber">{{ incomplete_setups }}</div>
-    <div class="kpi-label">مواد غير مكتملة</div>
-  </div>
-
-</div>
-{% endif %}
-
-{# ── KPIs: الجدول والتبديلات ── #}
-{% if pending_swaps or pending_comp or absent_teachers_today %}
-<p class="section-label">الجدول والتبديلات</p>
-<div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-amber">{{ pending_swaps }}</div>
-    <div class="kpi-label">تبديلات معلقة</div>
-    {% if pending_swaps %}
-    <div class="kpi-sub"><a href="/teacher/schedule/swaps/" class="kpi-link">مراجعة ←</a></div>
-    {% endif %}
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-teal">{{ pending_comp }}</div>
-    <div class="kpi-label">تعويضات معلقة</div>
-    {% if pending_comp %}
-    <div class="kpi-sub"><a href="/teacher/schedule/compensatory/" class="kpi-link">مراجعة ←</a></div>
-    {% endif %}
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-red">{{ absent_teachers_today }}</div>
-    <div class="kpi-label">معلمون غائبون اليوم</div>
-    {% if absent_teachers_today %}
-    <div class="kpi-sub"><a href="/teacher/absences/" class="kpi-link">التفاصيل ←</a></div>
-    {% endif %}
-  </div>
-</div>
-{% endif %}
-</details>
-{% endif %}
-
-{# ── إجراءات سريعة ── #}
-<p class="section-label">إجراءات سريعة</p>
-<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-
-  <a href="/teacher/reports/daily/" class="action-card action-primary">
-    <div class="action-card-icon">{% include "components/icon.html" with name="file-text" %}</div>
-    <div class="action-card-body">
-      <p class="action-title">تقرير الغياب</p>
-      <p class="action-desc">الغائبون والمتأخرون اليوم</p>
+    {# ── نبض المدرسة ── #}
+    <div class="kpi-strip mt-3">
+      <a href="/behavior/" class="kpi-mini kpi-red">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="shield" %} مخالفات الشهر</div>
+        <div class="kpi-mini-value">{{ behavior_monthly|default:"0" }}</div>
+        {% if behavior_critical %}<div class="kpi-mini-alert">{{ behavior_critical }} حرجة</div>
+        {% else %}<div class="kpi-mini-sub">لا حرجة</div>{% endif %}
+      </a>
+      <a href="/clinic/" class="kpi-mini kpi-blue">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} زيارات العيادة</div>
+        <div class="kpi-mini-value">{{ clinic_today|default:"0" }}</div>
+        {% if clinic_sent_home %}<div class="kpi-mini-alert">{{ clinic_sent_home }} أُرسلوا للمنزل</div>
+        {% else %}<div class="kpi-mini-sub">اليوم</div>{% endif %}
+      </a>
+      <a href="/library/" class="kpi-mini kpi-purple">
+        <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} إعارات متأخرة</div>
+        <div class="kpi-mini-value">{{ library_overdue|default:"0" }}</div>
+        <div class="kpi-mini-sub">كتاب</div>
+      </a>
     </div>
-  </a>
+  </details>
+  {% endif %}
 
-  <a href="/assessments/" class="action-card">
-    <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
-    <div class="action-card-body">
-      <p class="action-title">التقييمات</p>
-      <p class="action-desc">كشوف الدرجات والنتائج</p>
-    </div>
-  </a>
-
-  <a href="/import/" class="action-card">
-    <div class="action-card-icon">{% include "components/icon.html" with name="download" %}</div>
-    <div class="action-card-body">
-      <p class="action-title">استيراد الدرجات</p>
-      <p class="action-desc">رفع ملف Excel</p>
-    </div>
-  </a>
-
-  <a href="/admin/core/customuser/" class="action-card">
-    <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
-    <div class="action-card-body">
-      <p class="action-title">إدارة المستخدمين</p>
-      <p class="action-desc">موظفون وطلاب وأولياء</p>
-    </div>
-  </a>
-
-</div>
-
-{# ── تنبيهات الغياب المتكرر (قابل للطي) ── #}
-{% if alerts %}
-<details class="card-qatar" open>
-  <summary class="collapsible-header" role="button">
-    <div class="card-header-icon">{% include "components/icon.html" with name="alert-triangle" %}</div>
-    <h2 class="card-header-title flex-1 m-0">تنبيهات الغياب المتكرر</h2>
-    <span class="status-badge status-danger">{{ alerts|length }} تنبيه</span>
-    <span class="text-muted text-xs" aria-hidden="true">▼</span>
-  </summary>
-  <div class="space-y-2 collapsible-body">
+  {# ── Alert Strip ── #}
+  {% if alerts %}
+  <div class="alert-strip">
+    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
+    <span>{{ alerts|length }} تنبيه غياب متكرر</span>
     {% for alert in alerts %}
-    <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100">
-      <div>
-        <div class="font-semibold text-gray-900 text-sm">{{ alert.student.full_name }}</div>
-        <div class="text-xs text-gray-500 mt-0.5">{{ alert.absence_count }} يوم غياب</div>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-xs text-gray-400">{{ alert.created_at|date:"d/m/Y" }}</span>
-        <span class="status-badge status-danger">{{ alert.get_status_display }}</span>
-      </div>
-    </div>
+    <span>{{ alert.student.full_name }} ({{ alert.absence_count }} يوم)</span>{% if not forloop.last %} · {% endif %}
     {% endfor %}
   </div>
-</details>
-{% endif %}
+  {% endif %}
+
+  {# ── Charts Grid (2 col) ── #}
+  <div class="charts-grid-2">
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} اتجاه الحضور — آخر 7 أيام</div>
+      <div class="dash-chart-wrap">
+        <canvas id="miniAttendance"></canvas>
+      </div>
+    </div>
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="target" %} توزيع الدرجات السنوية</div>
+      <div class="dash-chart-wrap">
+        <canvas id="miniGrades"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {# ── Quick Links ── #}
+  <div class="quick-links">
+    <a href="/analytics/dashboard/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> التحليلات</a>
+    <a href="/behavior/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="shield" %}</span> السلوك</a>
+    <a href="/clinic/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="hospital" %}</span> العيادة</a>
+    <a href="/library/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> المكتبة</a>
+    <a href="/transport/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bus" %}</span> النقل</a>
+    <a href="/quality/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="check-circle" %}</span> الجودة</a>
+    <a href="/notifications/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bell" %}</span> الإشعارات</a>
+    <a href="/exam-control/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="clipboard" %}</span> الاختبارات</a>
+  </div>
+
+</div>
 
 
 <!-- ═══ TEACHER DASHBOARD ═══ -->
@@ -230,58 +198,17 @@
 
 {# ── تنبيه طلبات تبديل معلقة ── #}
 {% if my_pending_swaps %}
-<div class="card-qatar mb-4 px-4 py-3" style="border-right:4px solid var(--color-amber-500);">
-  <div class="flex items-center justify-between">
-    <div>
-      <strong>{% include "components/icon.html" with name="refresh" %} لديك {{ my_pending_swaps }} طلب تبديل ينتظر ردك</strong>
-    </div>
-    <a href="/teacher/schedule/swaps/" class="btn-primary btn-sm no-underline">عرض الطلبات</a>
-  </div>
+<div class="alert-strip" style="background:var(--status-warning-light,#fffbeb);color:var(--status-warning,#92400e);border-color:var(--border);">
+  <span>{% include "components/icon.html" with name="refresh" %}</span>
+  <strong>لديك {{ my_pending_swaps }} طلب تبديل ينتظر ردك</strong>
+  <a href="/teacher/schedule/swaps/" style="color:inherit;margin-inline-start:auto;">عرض الطلبات</a>
 </div>
 {% endif %}
 
 {# ── حصص اليوم ── #}
 <p class="section-label">حصصي اليوم</p>
 <div class="table-wrap mb-6">
-  {% if sessions %}
-  <div class="divide-y">
-    {% for s in sessions %}
-    <a href="/teacher/attendance/{{ s.id }}/" class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition
-      {% if s == next_session %}bg-amber-50{% endif %}"
-      class="no-underline text-inherit flex">
-      <div class="flex items-center gap-4">
-        <div class="text-center session-time">
-          <div class="text-sm font-bold text-gray-800">{{ s.start_time|time:"H:i" }}</div>
-          <div class="text-xs text-gray-400">{{ s.end_time|time:"H:i" }}</div>
-        </div>
-        <div>
-          <div class="font-semibold text-gray-900 text-sm">{{ s.subject.name_ar }}</div>
-          <div class="text-xs text-gray-500 mt-0.5">{{ s.class_group }}</div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        {% if s == next_session %}
-          <span class="status-badge next-session-badge">{% include "components/icon.html" with name="clock" %} التالية</span>
-        {% endif %}
-        {% if s.status == 'completed' %}
-          <span class="status-badge status-success">{{ s.get_status_display }}</span>
-        {% elif s.status == 'in_progress' %}
-          <span class="status-badge status-warning">{{ s.get_status_display }}</span>
-        {% else %}
-          <span class="status-badge status-gray">تسجيل حضور ←</span>
-        {% endif %}
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-state">
-    <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
-    <p class="empty-title">لا توجد حصص اليوم</p>
-    <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
-    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
-  </div>
-  {% endif %}
+  {% include "dashboard/partials/_sessions_list.html" %}
 </div>
 
 {# ── مواد التقييم ── #}
@@ -341,93 +268,52 @@
 <!-- ═══ COORDINATOR DASHBOARD ═══ -->
 {% elif view_type == "coordinator" %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="home" %} مرحباً، {{ request.user.full_name }}</h1>
-    <p class="page-subtitle">{{ today }} — {{ school.name }} — منسق</p>
-  </div>
-  <div class="page-actions">
-    <a href="/assessments/" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} التقييمات
-    </a>
-  </div>
-</div>
+<div class="exec-dash">
 
-{# ── KPIs المنسق ── #}
-<p class="section-label">ملخص التخصص</p>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-amber">{{ coord_pending_swaps }}</div>
-    <div class="kpi-label">تبديلات تنتظر اعتمادك</div>
-    {% if coord_pending_swaps %}
-    <div class="kpi-sub"><a href="/teacher/schedule/swaps/" class="kpi-link">مراجعة ←</a></div>
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="home" %} مرحباً، {{ request.user.full_name }}</h1>
+      <p class="exec-subtitle">{{ today }} — {{ school.name }} — منسق</p>
+    </div>
+    <div class="exec-meta">
+      <a href="/assessments/" class="btn-primary btn-sm no-underline">
+        {% include "components/icon.html" with name="file-pen" %} التقييمات
+      </a>
+    </div>
+  </div>
+
+  {# ── KPIs المنسق ── #}
+  <div class="kpi-strip">
+    <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">تبديلات تنتظر اعتمادك</div>
+      <div class="kpi-mini-value">{{ coord_pending_swaps }}</div>
+      {% if coord_pending_swaps %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
+    </a>
+    <a href="/teacher/schedule/compensatory/" class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">تعويضات معلقة</div>
+      <div class="kpi-mini-value">{{ coord_pending_comp }}</div>
+      {% if coord_pending_comp %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
+    </a>
+    <a href="/teacher/absences/" class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">معلمون غائبون اليوم</div>
+      <div class="kpi-mini-value">{{ coord_absent_today }}</div>
+      {% if coord_absent_today %}<div class="kpi-mini-alert">التفاصيل</div>{% endif %}
+    </a>
+    {% if my_pending_swaps %}
+    <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">تبديلات تنتظر ردك</div>
+      <div class="kpi-mini-value">{{ my_pending_swaps }}</div>
+      <div class="kpi-mini-alert">عرض</div>
+    </a>
     {% endif %}
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-teal">{{ coord_pending_comp }}</div>
-    <div class="kpi-label">تعويضات معلقة</div>
-    {% if coord_pending_comp %}
-    <div class="kpi-sub"><a href="/teacher/schedule/compensatory/" class="kpi-link">مراجعة ←</a></div>
-    {% endif %}
-  </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-red">{{ coord_absent_today }}</div>
-    <div class="kpi-label">معلمون غائبون اليوم</div>
-    {% if coord_absent_today %}
-    <div class="kpi-sub"><a href="/teacher/absences/" class="kpi-link">التفاصيل ←</a></div>
-    {% endif %}
-  </div>
-  {% if my_pending_swaps %}
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-maroon">{{ my_pending_swaps }}</div>
-    <div class="kpi-label">تبديلات تنتظر ردك</div>
-    <div class="kpi-sub"><a href="/teacher/schedule/swaps/" class="kpi-link">عرض ←</a></div>
-  </div>
-  {% endif %}
+
 </div>
 
 {# ── حصصي اليوم ── #}
 <p class="section-label">حصصي اليوم</p>
 <div class="table-wrap mb-6">
-  {% if sessions %}
-  <div class="divide-y">
-    {% for s in sessions %}
-    <a href="/teacher/attendance/{{ s.id }}/" class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition
-      {% if s == next_session %}bg-amber-50{% endif %}"
-      class="no-underline text-inherit flex">
-      <div class="flex items-center gap-4">
-        <div class="text-center session-time">
-          <div class="text-sm font-bold text-gray-800">{{ s.start_time|time:"H:i" }}</div>
-          <div class="text-xs text-gray-400">{{ s.end_time|time:"H:i" }}</div>
-        </div>
-        <div>
-          <div class="font-semibold text-gray-900 text-sm">{{ s.subject.name_ar }}</div>
-          <div class="text-xs text-gray-500 mt-0.5">{{ s.class_group }}</div>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        {% if s == next_session %}
-          <span class="status-badge next-session-badge">{% include "components/icon.html" with name="clock" %} التالية</span>
-        {% endif %}
-        {% if s.status == 'completed' %}
-          <span class="status-badge status-success">{{ s.get_status_display }}</span>
-        {% elif s.status == 'in_progress' %}
-          <span class="status-badge status-warning">{{ s.get_status_display }}</span>
-        {% else %}
-          <span class="status-badge status-gray">تسجيل حضور ←</span>
-        {% endif %}
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty-state">
-    <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
-    <p class="empty-title">لا توجد حصص اليوم</p>
-    <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
-    <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>
-  </div>
-  {% endif %}
+  {% include "dashboard/partials/_sessions_list.html" %}
 </div>
 
 {# ── إجراءات سريعة للمنسق ── #}
@@ -495,35 +381,60 @@
 <!-- ═══ STUDENT DASHBOARD ═══ -->
 {% elif view_type == "student" %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="home" %} مرحباً، {{ request.user.full_name }}</h1>
-    <p class="page-subtitle">{{ today }} — {{ school.name }}{% if class_group %} — {{ class_group }}{% endif %}</p>
-  </div>
-</div>
+<div class="exec-dash">
 
-{# ── KPIs الحضور ── #}
-<p class="section-label">سجل حضوري</p>
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-  <div class="kpi-card kpi-color-green">
-    <div class="kpi-value kpi-color-green">{{ student_att_pct }}<span class="pct-unit">%</span></div>
-    <div class="kpi-label">نسبة الحضور</div>
-    <div class="progress-qatar mt-3">
-      <div class="progress-qatar-fill progress-fill-green" style="--progress-w:{{ student_att_pct }}%"></div>
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="home" %} مرحباً، {{ request.user.full_name }}</h1>
+      <p class="exec-subtitle">{{ today }} — {{ school.name }}{% if class_group %} — {{ class_group }}{% endif %}</p>
     </div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-teal">{{ student_present }}</div>
-    <div class="kpi-label">أيام حضور</div>
+
+  {# ── KPIs الحضور ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">نسبة الحضور</div>
+      <div class="kpi-mini-value">{{ student_att_pct }}%</div>
+      <div class="kpi-mini-sub">خلال العام</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">أيام حضور</div>
+      <div class="kpi-mini-value">{{ student_present }}</div>
+      <div class="kpi-mini-sub">يوم</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">أيام غياب</div>
+      <div class="kpi-mini-value">{{ student_absent }}</div>
+      <div class="kpi-mini-sub">يوم</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">أيام تأخر</div>
+      <div class="kpi-mini-value">{{ student_late }}</div>
+      <div class="kpi-mini-sub">يوم</div>
+    </div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-red">{{ student_absent }}</div>
-    <div class="kpi-label">أيام غياب</div>
+
+  {# ── درجاتي ── #}
+  {% if student_subjects_total %}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">مواد ناجح فيها</div>
+      <div class="kpi-mini-value">{{ student_passed }}</div>
+      <div class="kpi-mini-sub">مادة</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">مواد راسب فيها</div>
+      <div class="kpi-mini-value">{{ student_failed }}</div>
+      <div class="kpi-mini-sub">مادة</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">إجمالي المواد</div>
+      <div class="kpi-mini-value">{{ student_subjects_total }}</div>
+      <div class="kpi-mini-sub">مادة</div>
+    </div>
   </div>
-  <div class="kpi-card">
-    <div class="kpi-value kpi-color-amber">{{ student_late }}</div>
-    <div class="kpi-label">أيام تأخر</div>
-  </div>
+  {% endif %}
+
 </div>
 
 {# ── حصص اليوم ── #}
@@ -535,12 +446,12 @@
     <div class="flex items-center justify-between px-5 py-4">
       <div class="flex items-center gap-4">
         <div class="text-center session-time">
-          <div class="text-sm font-bold text-gray-800">{{ s.start_time|time:"H:i" }}</div>
-          <div class="text-xs text-gray-400">{{ s.end_time|time:"H:i" }}</div>
+          <div class="text-sm font-bold text-[var(--text)]">{{ s.start_time|time:"H:i" }}</div>
+          <div class="text-xs text-[var(--muted)]">{{ s.end_time|time:"H:i" }}</div>
         </div>
         <div>
-          <div class="font-semibold text-gray-900 text-sm">{{ s.subject.name_ar }}</div>
-          <div class="text-xs text-gray-500 mt-0.5">{{ s.teacher.full_name }}</div>
+          <div class="font-semibold text-[var(--text)] text-sm">{{ s.subject.name_ar }}</div>
+          <div class="text-xs text-[var(--muted)] mt-0.5">{{ s.teacher.full_name }}</div>
         </div>
       </div>
     </div>
@@ -665,9 +576,9 @@
   </a>
 
   {% else %}
-  <div class="card-qatar text-center py-8 col-span-3 text-gray-400">
+  <div class="card-qatar text-center py-8 col-span-3 text-[var(--muted)]">
     <span class="emoji-icon-lg">{% include "components/icon.html" with name="building" size="icon-2xl" %}</span>
-    <p class="mt-3 font-medium text-gray-600">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية" }}</p>
+    <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية" }}</p>
     <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
   </div>
   {% endif %}
@@ -686,12 +597,57 @@
   </div>
 </div>
 
-<div class="card-qatar text-center py-8 text-gray-400">
+<div class="card-qatar text-center py-8 text-[var(--muted)]">
   <span class="emoji-icon-lg">{% include "components/icon.html" with name="building" size="icon-2xl" %}</span>
-  <p class="mt-3 font-medium text-gray-600">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+  <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
   <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
 </div>
 
+{% endif %}
+
+{% if view_type == "director" %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = 'Tajawal, sans-serif';
+Chart.defaults.font.size = 10;
+
+const OPTS = { responsive: true, maintainAspectRatio: false };
+
+async function fc(u){try{return await(await fetch(u)).json()}catch(e){return null}}
+
+// Mini Attendance Chart
+(async()=>{
+  const d = await fc('/analytics/api/attendance-trend/');
+  if(!d) return;
+  new Chart(document.getElementById('miniAttendance'),{
+    type:'line',
+    data:{labels:d.labels.slice(-7), datasets:[{
+      label:'نسبة الحضور %',
+      data:d.datasets[0].data.slice(-7),
+      borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.1)',
+      fill:true,tension:0.4,pointRadius:2,borderWidth:1.5
+    }]},
+    options:{...OPTS,plugins:{legend:{display:false}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:9}}},x:{ticks:{font:{size:9}}}}}
+  });
+})();
+
+// Mini Grades Distribution
+(async()=>{
+  const d = await fc('/analytics/api/grades-distribution/');
+  if(!d) return;
+  new Chart(document.getElementById('miniGrades'),{
+    type:'doughnut',
+    data:{labels:d.labels, datasets:[{
+      data:d.datasets[0].data,
+      backgroundColor:['#16a34a','#22c55e','#84cc16','#eab308','#f97316','#dc2626']
+    }]},
+    options:{...OPTS,plugins:{legend:{position:'bottom',labels:{padding:6,font:{size:9}}}},cutout:'55%'}
+  });
+})();
+</script>
+{% endblock %}
 {% endif %}
 
 {% endblock %}

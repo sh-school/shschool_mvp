@@ -38,6 +38,7 @@ from .services import KPIService
 # ── لوحة القيادة الرئيسية ────────────────────────────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def analytics_dashboard(request):
     """لوحة الإحصاءات المتقدمة للمدير"""
     school = request.user.get_school()
@@ -131,6 +132,7 @@ def analytics_dashboard(request):
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def api_attendance_trend(request):
     school = request.user.get_school()
     days = int(request.GET.get("days", 30))
@@ -185,6 +187,7 @@ def api_attendance_trend(request):
 # ── API 2: توزيع الدرجات ────────────────────────────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def api_grades_distribution(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -317,6 +320,7 @@ def api_subject_comparison(request):
 # ── API 5: تقدم الخطة التشغيلية (حسب المجال) ───────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def api_plan_progress(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -356,6 +360,7 @@ def api_plan_progress(request):
 # ── API 6: مخالفات السلوك (آخر 6 أشهر) ─────────────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def api_behavior_trend(request):
     school = request.user.get_school()
     today = timezone.now().date()
@@ -455,6 +460,7 @@ def api_failing_by_class(request):
 # ── API 8: إحصائيات العيادة (آخر 30 يوم) ────────────────────
 @login_required
 @leadership_required
+@cache_page(300)
 def api_clinic_stats(request):
     school = request.user.get_school()
     since = timezone.now().date() - timedelta(days=30)

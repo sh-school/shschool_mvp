@@ -6,20 +6,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-5">
-  <div class="flex items-center justify-between flex-wrap gap-3">
+<div class="exec-dash">
+
+  <!-- Header -->
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون</h1>
-      <p class="text-sm text-gray-500 mt-1">{{ total }} طالب في مادة أو أكثر</p>
+      <h1 class="page-title text-white">{% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون</h1>
+      <p class="exec-date">{{ total }} طالب في مادة أو أكثر</p>
     </div>
     <div class="flex gap-2">
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}&year={{ year }}"
-         class="px-3 py-1.5 rounded-full text-sm transition
-           {% if semester == val %}bg-red-700 text-white{% else %}bg-gray-100 text-gray-600{% endif %}">
+         class="btn-secondary btn-sm
+           {% if semester == val %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
         {{ label }}
       </a>
       {% endfor %}
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">إجمالي الراسبين</div>
+      <div class="kpi-mini-value">{{ total }}</div>
     </div>
   </div>
 
@@ -84,7 +94,7 @@
     <p class="text-3xl mb-3">{% include "components/icon.html" with name="search" size="icon-2xl" %}</p>
     <p>لا توجد نتائج مطابقة للبحث</p>
   </div>
-</div>
+</div><!-- /exec-dash -->
 {% endblock %}
 
 {% block extra_js %}

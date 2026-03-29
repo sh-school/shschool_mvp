@@ -6,29 +6,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} درجات الأبناء</h1>
-      <p class="page-subtitle">{{ school.name }} — العام الدراسي {{ year }}</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="bar-chart" %} درجات الأبناء</h1>
+      <p class="exec-subtitle">{{ school.name }} — العام الدراسي {{ year }}</p>
     </div>
     <a href="{% url 'parent_dashboard' %}" class="btn-secondary">العودة للبوابة</a>
   </div>
 
   {% if not children_grades %}
-  <div class="card text-center py-12">
-    <p class="text-gray-500 text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الدرجات</p>
+  <div class="card-qatar text-center py-12">
+    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الدرجات</p>
   </div>
   {% endif %}
 
   {% for child in children_grades %}
-  <div class="card">
+  <div class="card-qatar">
     {# Header #}
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-[var(--muted)]">
           {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
           {{ child.total }} مادة
         </p>
@@ -38,33 +39,33 @@
         <div class="text-2xl font-bold {% if child.avg >= 80 %}text-green-600{% elif child.avg >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
           {{ child.avg }}%
         </div>
-        <div class="text-xs text-gray-500">المعدل العام</div>
+        <div class="text-xs text-[var(--muted)]">المعدل العام</div>
       </div>
       {% endif %}
     </div>
 
     {# KPI Row #}
-    <div class="grid grid-cols-3 gap-3 mb-4">
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-green-600">{{ child.passed }}</div>
-        <div class="text-xs text-gray-500">ناجح</div>
+    <div class="kpi-strip" style="margin:0 0 1rem">
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-value">{{ child.passed }}</div>
+        <div class="kpi-mini-label">ناجح</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold text-red-600">{{ child.failed }}</div>
-        <div class="text-xs text-gray-500">راسب</div>
+      <div class="kpi-mini kpi-red">
+        <div class="kpi-mini-value">{{ child.failed }}</div>
+        <div class="kpi-mini-label">راسب</div>
       </div>
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
-        <div class="text-xl font-bold">{{ child.total }}</div>
-        <div class="text-xs text-gray-500">إجمالي</div>
+      <div class="kpi-mini kpi-blue">
+        <div class="kpi-mini-value">{{ child.total }}</div>
+        <div class="kpi-mini-label">إجمالي</div>
       </div>
     </div>
 
     {# Grades Table #}
     {% if child.rows %}
-    <div class="overflow-x-auto">
+    <div class="table-wrap">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b dark:border-gray-700">
+          <tr class="border-b border-[var(--border)]">
             <th class="text-right py-2 px-2">المادة</th>
             <th class="text-center py-2 px-2">الفصل الأول</th>
             <th class="text-center py-2 px-2">الفصل الثاني</th>
@@ -74,18 +75,18 @@
         </thead>
         <tbody>
           {% for row in child.rows %}
-          <tr class="border-b dark:border-gray-700/50">
+          <tr class="border-b border-[var(--border)]">
             <td class="py-2 px-2 font-medium">{{ row.subject }}</td>
             <td class="py-2 px-2 text-center">{% if row.s1 %}{{ row.s1.total|floatformat:0 }}{% else %}—{% endif %}</td>
             <td class="py-2 px-2 text-center">{% if row.s2 %}{{ row.s2.total|floatformat:0 }}{% else %}—{% endif %}</td>
             <td class="py-2 px-2 text-center font-bold">{% if row.annual.annual_total %}{{ row.annual.annual_total|floatformat:0 }}{% else %}—{% endif %}</td>
             <td class="py-2 px-2 text-center">
               {% if row.annual.status == "pass" %}
-              <span class="text-green-600 text-xs font-bold">ناجح</span>
+              <span class="status-badge status-green">ناجح</span>
               {% elif row.annual.status == "fail" %}
-              <span class="text-red-600 text-xs font-bold">راسب</span>
+              <span class="status-badge status-red">راسب</span>
               {% else %}
-              <span class="text-gray-400 text-xs">—</span>
+              <span class="text-[var(--muted)] text-xs">—</span>
               {% endif %}
             </td>
           </tr>
@@ -94,7 +95,7 @@
       </table>
     </div>
     {% else %}
-    <div class="text-center py-6 text-gray-400">
+    <div class="text-center py-6 text-[var(--muted)]">
       لم تُدخل الدرجات بعد لهذا العام الدراسي
     </div>
     {% endif %}

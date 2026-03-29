@@ -11,12 +11,12 @@
 <div class="quality-page">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="page-header">
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="clipboard-check" %} {{ committee_label }}</h1>
-      <p class="page-subtitle">{{ year }} — {{ members|length }} عضو</p>
+      <h1>{% include "components/icon.html" with name="clipboard-check" %} {{ committee_label }}</h1>
+      <p class="exec-date">{{ year }} — {{ members|length }} عضو</p>
     </div>
-    <div class="page-actions">
+    <div class="flex flex-wrap gap-2 items-center">
       <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المنفذين</a>
       <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
       <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>

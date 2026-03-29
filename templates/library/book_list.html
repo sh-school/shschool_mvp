@@ -6,19 +6,19 @@
 {% endblock %}
 
 {% block content %}
-<div>
+<div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="flex flex-wrap justify-between items-center mb-6 gap-3">
-    <h1 class="page-title">{% include "components/icon.html" with name="book-open" %} قائمة الكتب والمصادر</h1>
-    <div class="flex gap-2">
-      <a href="{% url 'library:borrow_book' %}" class="btn-primary text-sm">+ إعارة جديدة</a>
-      <a href="{% url 'library:dashboard' %}" class="btn-secondary text-sm">← رجوع</a>
+  {# ── Exec Header ── #}
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="book-open" %} قائمة الكتب والمصادر</h1>
+    <div class="flex gap-2 flex-wrap">
+      <a href="{% url 'library:borrow_book' %}" class="btn-primary btn-sm no-underline">+ إعارة جديدة</a>
+      <a href="{% url 'library:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
     </div>
   </div>
 
   {# ── HTMX Live Search ── #}
-  <div class="card-qatar mb-4">
+  <div class="filter-bar">
     {% include "components/search_input.html" with
        search_url=request.path
        target="#books-container"

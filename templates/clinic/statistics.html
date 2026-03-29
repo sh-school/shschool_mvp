@@ -6,36 +6,34 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Exec Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
-      <p class="page-subtitle">ملخّص بيانات العيادة والسجلات الصحية</p>
+      <h1>{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
+      <span class="exec-date">ملخّص بيانات العيادة والسجلات الصحية</span>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-    </div>
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="kpi-card">
-      <div class="kpi-value text-status-danger">{{ visits_count }}</div>
-      <div class="kpi-label">إجمالي الزيارات</div>
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <span class="kpi-mini-value">{{ visits_count }}</span>
+      <span class="kpi-mini-label">إجمالي الزيارات</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ visits_this_month }}</div>
-      <div class="kpi-label">زيارات هذا الشهر</div>
+    <div class="kpi-mini kpi-orange">
+      <span class="kpi-mini-value">{{ visits_this_month }}</span>
+      <span class="kpi-mini-label">زيارات هذا الشهر</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ health_records_count }}</div>
-      <div class="kpi-label">طلاب بأمراض مزمنة</div>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ health_records_count }}</span>
+      <span class="kpi-mini-label">طلاب بأمراض مزمنة</span>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-skyline">{{ allergies_count }}</div>
-      <div class="kpi-label">طلاب لديهم حساسية</div>
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ allergies_count }}</span>
+      <span class="kpi-mini-label">طلاب لديهم حساسية</span>
     </div>
   </div>
 

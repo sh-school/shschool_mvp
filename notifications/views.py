@@ -27,17 +27,65 @@ def notifications_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    # آخر الإشعارات
-    logs = (
+    # آخر الإشعارات — paginated
+    from django.core.paginator import Paginator
+
+    page_num = request.GET.get("page", 1)
+    logs_qs = (
         NotificationLog.objects.filter(school=school)
         .select_related("student", "sent_by")
-        .order_by("-sent_at")[:50]
+        .order_by("-sent_at")
+    )
+    paginator = Paginator(logs_qs, 25)
+    logs_page = paginator.get_page(page_num)
+
+    # إحصائيات — aggregate واحد بدل 3 queries
+    from datetime import timedelta
+
+    from django.db.models import Count, Q
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
+
+    today = timezone.now().date()
+
+    notif_stats = NotificationLog.objects.filter(school=school).aggregate(
+        total=Count("id"),
+        sent=Count("id", filter=Q(status="sent")),
+        failed=Count("id", filter=Q(status="failed")),
+    )
+    total = notif_stats["total"]
+    sent = notif_stats["sent"]
+    failed = notif_stats["failed"]
+
+    # Summary stats (including pending)
+    total_sent = sent
+    total_failed = failed
+    total_pending = NotificationLog.objects.filter(school=school, status="pending").count()
+
+    # Channel breakdown
+    channel_stats = (
+        NotificationLog.objects.filter(school=school)
+        .values("channel")
+        .annotate(
+            total=Count("id"),
+            success=Count("id", filter=Q(status="sent")),
+            failed=Count("id", filter=Q(status="failed")),
+        )
+        .order_by("-total")
     )
 
-    # إحصائيات
-    total = NotificationLog.objects.filter(school=school).count()
-    sent = NotificationLog.objects.filter(school=school, status="sent").count()
-    failed = NotificationLog.objects.filter(school=school, status="failed").count()
+    # Daily trend (last 14 days)
+    two_weeks_ago = today - timedelta(days=14)
+    daily_notifs = (
+        NotificationLog.objects.filter(school=school, sent_at__date__gte=two_weeks_ago)
+        .values(day=TruncDate("sent_at"))
+        .annotate(
+            total=Count("id"),
+            success=Count("id", filter=Q(status="sent")),
+            failed=Count("id", filter=Q(status="failed")),
+        )
+        .order_by("day")
+    )
 
     # تنبيهات الغياب المعلقة
     pending_absence = (
@@ -63,14 +111,21 @@ def notifications_dashboard(request):
         request,
         "notifications/dashboard.html",
         {
-            "logs": logs,
+            "logs": logs_page,
+            "logs_page": logs_page,
             "total": total,
             "sent": sent,
             "failed": failed,
             "pending_absence": pending_absence,
+            "pending_absence_count": pending_absence,
             "failing_students": failing_students,
             "cfg": cfg,
             "year": year,
+            "total_sent": total_sent,
+            "total_failed": total_failed,
+            "total_pending": total_pending,
+            "channel_stats": channel_stats,
+            "daily_notifs": daily_notifs,
         },
     )
 
@@ -160,7 +215,10 @@ def save_settings(request):
     cfg.reply_to = request.POST.get("reply_to", "")
     cfg.sms_from_number = request.POST.get("sms_from_number", "")
     cfg.twilio_account_sid = request.POST.get("twilio_account_sid", "")
-    cfg.twilio_auth_token = request.POST.get("twilio_auth_token", "")
+    # Auth Token: only update if a new value was provided (empty = keep existing)
+    new_token = request.POST.get("twilio_auth_token", "").strip()
+    if new_token:
+        cfg.twilio_auth_token = new_token
     cfg.absence_email_subject = request.POST.get("absence_email_subject", cfg.absence_email_subject)
     cfg.fail_email_subject = request.POST.get("fail_email_subject", cfg.fail_email_subject)
     cfg.save()

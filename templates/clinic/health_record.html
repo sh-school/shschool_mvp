@@ -6,15 +6,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Exec Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} السجل الصحي</h1>
-      <p class="page-subtitle">{{ student.full_name }} — {{ student.national_id }}</p>
+      <h1>{% include "components/icon.html" with name="hospital" %} السجل الصحي</h1>
+      <span class="exec-date">{{ student.full_name }} — {{ student.national_id }}</span>
     </div>
-    <div class="page-actions">
+    <div class="flex gap-2 flex-wrap">
       <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-danger btn-sm no-underline">+ تسجيل زيارة جديدة</a>
       <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
     </div>
@@ -78,10 +78,8 @@
 
     {# ── سجل الزيارات ── #}
     <div class="lg:col-span-2">
-      <div class="table-wrap overflow-hidden">
-        <div class="card-bar m-0 flex items-center justify-between">
-          <h2 class="text-sm font-bold m-0 text-white">{% include "components/icon.html" with name="calendar" %} سجل الزيارات ({{ visits.count }} زيارة)</h2>
-        </div>
+      <div class="dash-chart-card">
+        <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} سجل الزيارات ({{ visits.count }} زيارة)</div>
 
         {% if visits %}
         {# ── فلتر بحث ── #}

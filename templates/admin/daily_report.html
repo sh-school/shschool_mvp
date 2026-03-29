@@ -7,41 +7,45 @@
 
 {% block content %}
 
-<div class="flex items-center justify-between mb-6">
+<div class="exec-dash">
+
+{# ── Header ── #}
+<div class="exec-header">
   <div>
     <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} تقرير الغياب اليومي</h1>
     <p class="text-gray-500 text-sm mt-1">{{ school.name }}</p>
   </div>
-  <form method="get" class="flex items-center gap-2">
-    <input type="date" name="date" value="{{ report_date }}"
-      class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-    <button type="submit" class="btn-primary btn-sm">
-      عرض
-    </button>
-  </form>
+  <div class="flex items-center gap-2 flex-wrap">
+    <form method="get" class="flex items-center gap-2">
+      <input type="date" name="date" value="{{ report_date }}"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <button type="submit" class="btn-primary btn-sm">عرض</button>
+    </form>
+    <span class="exec-date">{{ report_date }}</span>
+  </div>
 </div>
 
-<!-- KPI Cards -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-  <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-    <div class="text-2xl font-bold text-blue-700">{{ total }}</div>
-    <div class="text-xs text-blue-600">الإجمالي</div>
+{# ── KPI Strip ── #}
+<div class="kpi-strip">
+  <div class="kpi-mini kpi-blue">
+    <div class="kpi-mini-value">{{ total }}</div>
+    <div class="kpi-mini-label">الإجمالي</div>
   </div>
-  <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-    <div class="text-2xl font-bold text-green-700">{{ stats.present|default:0 }}</div>
-    <div class="text-xs text-green-600">حاضر</div>
+  <div class="kpi-mini kpi-green">
+    <div class="kpi-mini-value">{{ stats.present|default:0 }}</div>
+    <div class="kpi-mini-label">حاضر</div>
   </div>
-  <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
-    <div class="text-2xl font-bold text-red-700">{{ stats.absent|default:0 }}</div>
-    <div class="text-xs text-red-600">غائب</div>
+  <div class="kpi-mini kpi-red">
+    <div class="kpi-mini-value">{{ stats.absent|default:0 }}</div>
+    <div class="kpi-mini-label">غائب</div>
   </div>
-  <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-center">
-    <div class="text-2xl font-bold text-yellow-700">{{ stats.late|default:0 }}</div>
-    <div class="text-xs text-yellow-600">متأخر</div>
+  <div class="kpi-mini kpi-orange">
+    <div class="kpi-mini-value">{{ stats.late|default:0 }}</div>
+    <div class="kpi-mini-label">متأخر</div>
   </div>
-  <div class="bg-maroon/5 border border-maroon/20 rounded-xl p-4 text-center">
-    <div class="text-2xl font-bold text-maroon">{{ present_pct }}%</div>
-    <div class="text-xs text-gray-600">نسبة الحضور</div>
+  <div class="kpi-mini kpi-maroon">
+    <div class="kpi-mini-value">{{ present_pct }}%</div>
+    <div class="kpi-mini-label">نسبة الحضور</div>
   </div>
 </div>
 
@@ -104,4 +108,5 @@
 </div>
 {% endif %}
 
+</div>{# end .exec-dash #}
 {% endblock %}

@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -11,36 +11,57 @@ from core.permissions import bus_supervisor_required
 @bus_supervisor_required
 def transport_dashboard(request):
     """لوحة تحكم النقل والمواصلات"""
-    school = request.user.school
+    school = request.user.get_school()
 
-    # إحصائيات الحافلات
+    # إحصائيات الحافلات — annotate بدل loop (إصلاح N+1)
     buses = (
         SchoolBus.objects.filter(school=school)
         .select_related("supervisor")
-        .prefetch_related("routes__students")
+        .annotate(students_count=Count("routes__students", distinct=True))
     )
-    total_buses = buses.count()
-    total_capacity = sum(bus.capacity for bus in buses)
+
+    totals = buses.aggregate(
+        total_buses=Count("id"),
+        total_capacity=Sum("capacity"),
+    )
+    total_buses = totals["total_buses"] or 0
+    total_capacity = totals["total_capacity"] or 0
 
     # عدد الطلاب المسجلين
     total_students = CustomUser.objects.filter(bus_routes__bus__school=school).distinct().count()
 
-    # الحافلات والطلاب
-    bus_data = []
-    for bus in buses:
-        students_count = bus.routes.values_list("students", flat=True).distinct().count()
-        bus_data.append(
-            {
-                "bus": bus,
-                "students_count": students_count,
-                "occupancy_rate": (students_count / bus.capacity * 100) if bus.capacity > 0 else 0,
-            }
-        )
+    # الحافلات والطلاب — بدون loop queries
+    bus_data = [
+        {
+            "bus": bus,
+            "students_count": bus.students_count,
+            "occupancy_rate": round(bus.students_count / bus.capacity * 100) if bus.capacity > 0 else 0,
+        }
+        for bus in buses
+    ]
+
+    # ── Analytics: occupancy stats ──
+    total_assigned = sum(b["students_count"] for b in bus_data)
+    overall_occupancy = round(total_assigned / total_capacity * 100) if total_capacity else 0
+
+    # Overcapacity buses
+    overcapacity_count = sum(1 for b in bus_data if b["occupancy_rate"] > 100)
+
+    # Buses without supervisors
+    no_supervisor = buses.filter(supervisor__isnull=True).count()
+
+    # Buses without Karwa ID
+    no_karwa = buses.filter(Q(karwa_id="") | Q(karwa_id__isnull=True)).count()
 
     context = {
         "total_buses": total_buses,
         "total_capacity": total_capacity,
         "total_students": total_students,
+        "total_assigned": total_assigned,
+        "overall_occupancy": overall_occupancy,
+        "overcapacity_count": overcapacity_count,
+        "no_supervisor": no_supervisor,
+        "no_karwa": no_karwa,
         "bus_data": bus_data,
     }
     return render(request, "transport/dashboard.html", context)
@@ -50,7 +71,7 @@ def transport_dashboard(request):
 @bus_supervisor_required
 def buses_list(request):
     """قائمة الحافلات المدرسية"""
-    school = request.user.school
+    school = request.user.get_school()
     buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
 
     # تصفية حسب رقم الحافلة
@@ -70,7 +91,7 @@ def buses_list(request):
 @require_http_methods(["GET", "POST"])
 def bus_detail(request, bus_id):
     """تفاصيل الحافلة وإدارة الطلاب"""
-    school = request.user.school
+    school = request.user.get_school()
     bus = get_object_or_404(SchoolBus, id=bus_id, school=school)
 
     if request.method == "POST":
@@ -106,7 +127,7 @@ def bus_detail(request, bus_id):
 @require_http_methods(["GET", "POST"])
 def manage_route(request, bus_id, route_id=None):
     """إدارة خطوط السير"""
-    school = request.user.school
+    school = request.user.get_school()
     bus = get_object_or_404(SchoolBus, id=bus_id, school=school)
 
     if route_id:
@@ -149,7 +170,7 @@ def manage_route(request, bus_id, route_id=None):
 @bus_supervisor_required
 def tracking_map(request, bus_id):
     """خريطة تتبع الحافلة (تكامل كروة و GPS)"""
-    school = request.user.school
+    school = request.user.get_school()
     bus = get_object_or_404(SchoolBus, id=bus_id, school=school)
 
     context = {
@@ -164,7 +185,7 @@ def tracking_map(request, bus_id):
 @bus_supervisor_required
 def student_assignments(request):
     """إسناد الطلاب للحافلات"""
-    school = request.user.school
+    school = request.user.get_school()
 
     # الطلاب غير المسندين
     unassigned_students = (
@@ -191,7 +212,7 @@ def student_assignments(request):
 @bus_supervisor_required
 def transport_statistics(request):
     """إحصائيات النقل والمواصلات"""
-    school = request.user.school
+    school = request.user.get_school()
 
     buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
     total_buses = buses.count()

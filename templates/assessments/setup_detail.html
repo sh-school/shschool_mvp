@@ -6,55 +6,44 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-
-  <!-- Breadcrumb -->
-  <div class="flex items-center gap-2 text-sm text-gray-500">
-    <a href="{% url 'assessments_dashboard' %}" class="hover:text-blue-600">التقييمات</a>
-    <span>/</span>
-    <span class="text-gray-800 font-medium">{{ setup.subject.name_ar }} | {{ setup.class_group }}</span>
-  </div>
+<div class="exec-dash">
 
   <!-- Header -->
-  <div class="card-qatar overflow-hidden">
-    <div class="bg-maroon px-6 py-4 flex items-center justify-between">
-      <div>
-        <h1 class="page-title text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
-        <p class="text-blue-200 text-sm mt-1">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
-      </div>
-      <div class="flex gap-2">
-        <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
-           class="btn-secondary btn-sm text-white bg-white/20">كشف الدرجات</a>
-      </div>
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
+      <p class="exec-date">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
     </div>
-    <!-- فلتر الفصل -->
-    <div class="px-6 py-3 border-b flex items-center gap-4">
+    <div class="flex items-center gap-2 flex-wrap">
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}"
          class="btn-secondary btn-sm
-           {% if semester == val %}bg-skyline text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+           {% if semester == val %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
         {{ label }}
       </a>
       {% endfor %}
+      <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
+         class="btn-secondary btn-sm bg-white/20 text-white hover:bg-white/30">كشف الدرجات</a>
     </div>
-    <!-- ملخص الفصل -->
-    <div class="px-6 py-4 grid grid-cols-4 gap-4 text-center text-sm">
-      <div>
-        <p class="text-2xl font-bold text-skyline">{{ student_count }}</p>
-        <p class="text-xs text-gray-500">طالب</p>
-      </div>
-      <div>
-        <p class="text-2xl font-bold text-green-600">{{ summary.passed }}</p>
-        <p class="text-xs text-gray-500">ناجح</p>
-      </div>
-      <div>
-        <p class="text-2xl font-bold text-red-600">{{ summary.failed }}</p>
-        <p class="text-xs text-gray-500">راسب</p>
-      </div>
-      <div>
-        <p class="text-2xl font-bold text-amber-600">{{ summary.avg|default:"—" }}</p>
-        <p class="text-xs text-gray-500">متوسط</p>
-      </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">طالب</div>
+      <div class="kpi-mini-value">{{ student_count }}</div>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">ناجح</div>
+      <div class="kpi-mini-value">{{ summary.passed }}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">راسب</div>
+      <div class="kpi-mini-value">{{ summary.failed }}</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">متوسط</div>
+      <div class="kpi-mini-value">{{ summary.avg|default:"—" }}</div>
     </div>
   </div>
 
@@ -143,5 +132,5 @@
     {% endfor %}
   </div>
 
-</div>
+</div><!-- /exec-dash -->
 {% endblock %}

@@ -7,37 +7,35 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="exec-dash">
 
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  <!-- Header -->
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات السنوي</h1>
-      <p class="text-sm text-gray-500 mt-1">{{ student.full_name }} | {{ student.national_id }}</p>
+      <h1 class="page-title text-white">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات السنوي</h1>
+      <p class="exec-date">{{ student.full_name }} | {{ student.national_id }}</p>
     </div>
-    <a href="?year={{ year }}" class="text-sm text-blue-600 hover:underline">{{ year }}</a>
+    <a href="?year={{ year }}" class="btn-secondary btn-sm bg-white/20 text-white hover:bg-white/30">{{ year }}</a>
   </div>
 
-  <!-- ملخص سنوي -->
-  <div class="grid grid-cols-3 gap-4">
-    <div class="card-qatar text-center">
-      <p class="text-3xl font-bold text-skyline">{{ total_subjects }}</p>
-      <p class="text-xs text-gray-500 mt-1">مادة</p>
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">مادة</div>
+      <div class="kpi-mini-value">{{ total_subjects }}</div>
     </div>
-    <div class="card-qatar text-center">
-      <p class="text-3xl font-bold text-green-600">{{ passed }}</p>
-      <p class="text-xs text-gray-500 mt-1">ناجح</p>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">ناجح</div>
+      <div class="kpi-mini-value">{{ passed }}</div>
     </div>
-    <div class="card-qatar text-center">
-      <p class="text-3xl font-bold text-red-600">{{ failed }}</p>
-      <p class="text-xs text-gray-500 mt-1">راسب</p>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">راسب</div>
+      <div class="kpi-mini-value">{{ failed }}</div>
     </div>
   </div>
 
   <!-- جدول النتائج السنوية -->
   <div class="card-qatar overflow-x-auto">
-    <div class="bg-maroon px-5 py-3">
-      <h2 class="text-white font-bold">{% include "components/icon.html" with name="bar-chart" %} النتائج السنوية — {{ year }}</h2>
-    </div>
     <table class="w-full text-sm">
       <thead class="bg-gray-50 border-b">
         <tr>
@@ -126,11 +124,11 @@
   </div>
 
   <!-- توضيح المعادلة -->
-  <div class="bg-blue-50 rounded-xl border border-blue-200 p-4 text-sm text-blue-800">
+  <div class="alert-strip" style="--alert-bg: var(--blue-50, #eff6ff); --alert-border: var(--blue-200, #bfdbfe); --alert-text: var(--blue-800, #1e40af);">
     <p class="font-bold mb-1">{% include "components/icon.html" with name="calculator" %} معادلة احتساب المجموع السنوي</p>
     <p>المجموع السنوي = درجة الفصل الأول (من 40) + درجة الفصل الثاني (من 60)</p>
     <p class="mt-1">درجة النجاح: <strong>50 من 100</strong></p>
   </div>
 
-</div>
+</div><!-- /exec-dash -->
 {% endblock %}

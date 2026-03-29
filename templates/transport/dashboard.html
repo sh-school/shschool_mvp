@@ -1,115 +1,139 @@
 {% extends "base/base.html" %}
-{% block title %}لوحة النقل{% endblock %}
+{% load i18n %}
+{% block title %}لوحة النقل المدرسي{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/transport/" parent_label="النقل المدرسي" current="لوحة النقل" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} لوحة تحكم النقل المدرسي</h1>
-      <p class="page-subtitle">إدارة الحافلات والمسارات</p>
-    </div>
-    <div class="page-actions">
-      <a href="{% url 'transport:buses_list' %}" class="btn-primary">قائمة الحافلات</a>
-      <a href="{% url 'transport:student_assignments' %}" class="btn-secondary">إسناد الطلاب</a>
-    </div>
+  {# ── Header ── #}
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="bus" %} لوحة النقل المدرسي</h1>
+    <span class="exec-date">{{ today|default:"" }}</span>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ total_buses }}</div>
-      <div class="kpi-label">إجمالي الحافلات</div>
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">إجمالي الحافلات</div>
+      <div class="kpi-mini-value">{{ total_buses }}</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-info">{{ total_capacity }}</div>
-      <div class="kpi-label">الطاقة الاستيعابية</div>
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">الطاقة الاستيعابية</div>
+      <div class="kpi-mini-value">{{ total_capacity }}</div>
     </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-success">{{ total_students }}</div>
-      <div class="kpi-label">طلاب مسجلون</div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">طلاب مسجلون</div>
+      <div class="kpi-mini-value">{{ total_assigned|default:"0" }}</div>
     </div>
-  </div>
-
-  {# ── جدول الحافلات ── #}
-  <div class="table-wrap">
-    <div class="card-bar">الحافلات المدرسية</div>
-    {% if bus_data %}
-    <div class="filter-bar px-4 py-3">
-      <input type="text"
-             id="bus-search"
-             class="form-control form-control-sm w-full md:w-1/2"
-             placeholder="بحث برقم الحافلة أو اسم السائق..."
-             autocomplete="off">
+    <div class="kpi-mini {% if overall_occupancy > 90 %}kpi-red{% else %}kpi-teal{% endif %}">
+      <div class="kpi-mini-label">نسبة الإشغال</div>
+      <div class="kpi-mini-value">{{ overall_occupancy }}%</div>
+      {% if overall_occupancy > 90 %}
+      <div class="kpi-mini-alert">تحذير: إشغال مرتفع</div>
+      {% endif %}
     </div>
-    <div class="overflow-x-auto">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">رقم الحافلة</th>
-            <th scope="col">السائق</th>
-            <th scope="col" class="text-center">الطلاب</th>
-            <th scope="col" class="text-center">نسبة الإشغال</th>
-            <th scope="col" class="text-center">إجراءات</th>
-          </tr>
-        </thead>
-        <tbody id="bus-tbody">
-          {% for item in bus_data %}
-          <tr class="filterable-row"
-              data-text="{{ item.bus.bus_number|lower }} {{ item.bus.driver_name|lower }}">
-            <td class="font-semibold">{{ item.bus.bus_number }}</td>
-            <td>{{ item.bus.driver_name }}</td>
-            <td class="text-center">{{ item.students_count }} / {{ item.bus.capacity }}</td>
-            <td>
-              <div class="flex items-center gap-2">
-                <div class="progress-qatar flex-1">
-                  <div class="progress-qatar-fill {% if item.occupancy_rate >= 90 %}pf-danger{% elif item.occupancy_rate >= 70 %}pf-warning{% else %}pf-success{% endif %}"
-                       style="--progress-w:{{ item.occupancy_rate|floatformat:0 }}%"></div>
-                </div>
-                <span class="text-xs font-semibold min-w-8">{{ item.occupancy_rate|floatformat:0 }}%</span>
-              </div>
-            </td>
-            <td class="text-center">
-              <a href="{% url 'transport:bus_detail' item.bus.id %}" class="link-maroon text-xs no-underline">التفاصيل</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="empty-state">
-      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
-      <p class="empty-title">لا توجد حافلات مسجلة</p>
+    {% if overcapacity_count %}
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">تجاوز السعة</div>
+      <div class="kpi-mini-value">{{ overcapacity_count }}</div>
+      <div class="kpi-mini-alert">حافلات فوق الطاقة!</div>
     </div>
     {% endif %}
+    {% if no_supervisor %}
+    <div class="kpi-mini kpi-amber">
+      <div class="kpi-mini-label">بدون مشرف</div>
+      <div class="kpi-mini-value">{{ no_supervisor }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Alert Strip ── #}
+  {% if overcapacity_count %}
+  <div class="alert-strip">
+    {% include "components/icon.html" with name="alert-critical" %}
+    يوجد {{ overcapacity_count }} حافلة تجاوزت طاقتها الاستيعابية — يُرجى مراجعة التوزيع فوراً.
+  </div>
+  {% endif %}
+
+  {# ── Charts Grid ── #}
+  <div class="charts-grid-2">
+
+    {# Chart 1: Bus Occupancy Bar Chart #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">نسبة إشغال كل حافلة</div>
+      <div class="dash-chart-wrap">
+        <canvas id="chartBusOccupancy"></canvas>
+      </div>
+    </div>
+
+    {# Card 2: Bus List #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">قائمة الحافلات</div>
+      {% if bus_data %}
+      <div class="dash-list">
+        {% for item in bus_data %}
+        <a href="{% url 'transport:bus_detail' item.bus.id %}" class="dash-list-item">
+          <span>{{ item.bus.bus_number }}</span>
+          <span class="{% if item.occupancy_rate > 100 %}text-red-600{% elif item.occupancy_rate > 80 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+            {{ item.occupancy_rate|floatformat:0 }}%
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="padding:1rem;text-align:center;color:var(--text-muted)">لا توجد حافلات</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ── Quick Links ── #}
+  <div class="quick-links">
+    <a href="{% url 'transport:buses_list' %}" class="ql-item">{% include "components/icon.html" with name="bus" %} قائمة الحافلات</a>
+    <a href="{% url 'transport:student_assignments' %}" class="ql-item">{% include "components/icon.html" with name="users" %} إسناد الطلاب</a>
+    <a href="{% url 'transport:statistics' %}" class="ql-item">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
   </div>
 
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  if (typeof window.smartFilter === 'function') {
-    window.smartFilter('bus-search', '#bus-tbody .filterable-row', { textAttr: 'data-text' });
-  } else {
-    var inp = document.getElementById('bus-search');
-    if (inp) {
-      inp.addEventListener('input', function(){
-        var q = this.value.toLowerCase();
-        document.querySelectorAll('#bus-tbody .filterable-row').forEach(function(row){
-          var text = (row.getAttribute('data-text') || '').toLowerCase();
-          var ok = !q || text.indexOf(q) !== -1;
-          row.style.display = ok ? '' : 'none';
-        });
-      });
-    }
+  Chart.defaults.font.family='Tajawal,sans-serif';
+  Chart.defaults.font.size=11;
+
+  var busLabels = [{% for b in bus_data %}'{{ b.bus.bus_number }}'{% if not forloop.last %},{% endif %}{% endfor %}];
+  var busOccupancy = [{% for b in bus_data %}{{ b.occupancy_rate|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
+  var busColors = busOccupancy.map(function(v){ return v > 100 ? '#dc2626' : v > 80 ? '#f97316' : '#16a34a'; });
+
+  var el = document.getElementById('chartBusOccupancy');
+  if(el && busLabels.length){
+    new Chart(el, {
+      type:'bar',
+      data:{
+        labels: busLabels,
+        datasets:[{
+          label:'الإشغال %',
+          data: busOccupancy,
+          backgroundColor: busColors
+        }]
+      },
+      options:{
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          y:{ min:0, max: Math.max(120, Math.max.apply(null, busOccupancy)+10), ticks:{ callback:function(v){return v+'%';} } },
+          x:{ ticks:{ font:{ size:9 } } }
+        }
+      }
+    });
   }
 });
 </script>

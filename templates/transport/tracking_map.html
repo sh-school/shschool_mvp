@@ -8,15 +8,13 @@
 {% block content %}
 <div class="space-y-6">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} تتبع حافلة {{ bus.bus_number }}</h1>
-      <p class="page-subtitle">معلومات التتبع والموقع</p>
+      <h1>{% include "components/icon.html" with name="bus" %} تتبع حافلة {{ bus.bus_number }}</h1>
+      <p class="exec-date">معلومات التتبع والموقع</p>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary">← رجوع</a>
-    </div>
+    <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
   </div>
 
   {% if has_karwa or has_gps %}

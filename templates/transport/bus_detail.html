@@ -8,13 +8,28 @@
 {% block content %}
 <div class="space-y-6">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} حافلة {{ bus.bus_number }}</h1>
+      <h1>{% include "components/icon.html" with name="bus" %} حافلة {{ bus.bus_number }}</h1>
+      <p class="exec-date">{{ bus.driver_name }}</p>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'transport:buses_list' %}" class="btn-secondary">← رجوع</a>
+    <a href="{% url 'transport:buses_list' %}" class="btn-secondary btn-sm">← رجوع</a>
+  </div>
+
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ bus.capacity }}</span>
+      <span class="kpi-mini-label">الطاقة الاستيعابية</span>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <span class="kpi-mini-value">{{ students.count }}</span>
+      <span class="kpi-mini-label">طلاب مسجلون</span>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ occupancy_rate|floatformat:0 }}%</span>
+      <span class="kpi-mini-label">نسبة الإشغال</span>
     </div>
   </div>
 

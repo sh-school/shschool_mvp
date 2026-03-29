@@ -6,14 +6,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
-    </div>
-    <div class="page-actions">
+  {# ── Exec Header ── #}
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
+    <div class="flex gap-2 flex-wrap">
       <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm no-underline">+ زيارة جديدة</a>
       <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
     </div>

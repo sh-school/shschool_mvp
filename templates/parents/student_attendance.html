@@ -6,120 +6,103 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  <!-- Header -->
-  <div class="bg-gradient-to-l from-adaam to-skyline rounded-2xl px-6 py-5">
-    <div class="flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <h1 class="page-title text-white">{% include "components/icon.html" with name="list-checks" %} {{ student.full_name }}</h1>
-        <p class="text-blue-200 text-sm mt-1">
-          {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
-          آخر {{ period }} يوم (منذ {{ since }})
-        </p>
-      </div>
-      <!-- فلتر الفترة — يلتف على الجوال -->
-      <div class="flex flex-wrap gap-2">
-        {% for d in period_choices %}
-        <a href="?period={{ d }}"
-           class="px-3 py-1.5 rounded-full text-sm transition min-h-[36px] flex items-center
-             {% if period == d %}bg-white text-maroon font-bold{% else %}bg-white/20 text-white hover:bg-white/30{% endif %}">
-          {{ d }} يوم
-        </a>
-        {% endfor %}
-      </div>
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="exec-title">{% include "components/icon.html" with name="list-checks" %} حضور {{ student.full_name }}</h1>
+      <p class="exec-subtitle">
+        {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
+        آخر {{ period }} يوم (منذ {{ since }})
+      </p>
     </div>
-
-    <!-- KPIs — 2 عمود على الجوال، 4 على الشاشات الأكبر -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-      <div class="bg-white/10 rounded-xl p-3 text-center">
-        <div class="text-2xl font-bold text-white">{{ total }}</div>
-        <div class="text-xs text-blue-200 mt-0.5">إجمالي الحصص</div>
-      </div>
-      <div class="bg-white/10 rounded-xl p-3 text-center">
-        <div class="text-2xl font-bold text-green-300">{{ present }}</div>
-        <div class="text-xs text-blue-200 mt-0.5">حاضر</div>
-      </div>
-      <div class="bg-white/10 rounded-xl p-3 text-center">
-        <div class="text-2xl font-bold {% if absent >= 5 %}text-red-300{% else %}text-white{% endif %}">{{ absent }}</div>
-        <div class="text-xs text-blue-200 mt-0.5">غائب</div>
-      </div>
-      <div class="bg-white/10 rounded-xl p-3 text-center">
-        <div class="text-2xl font-bold text-amber-300">{{ late }}</div>
-        <div class="text-xs text-blue-200 mt-0.5">متأخر</div>
-      </div>
-    </div>
-
-    <!-- شريط نسبة الحضور -->
-    <div class="mt-4">
-      <div class="flex justify-between text-xs text-blue-200 mb-1">
-        <span>نسبة الحضور</span>
-        <span class="font-bold text-white">{{ att_pct }}%</span>
-      </div>
-      <div class="h-2 bg-white/20 rounded-full">
-        <div class="h-2 rounded-full transition-all
-          {% if att_pct >= 90 %}bg-green-400{% elif att_pct >= 75 %}bg-amber-400{% else %}bg-red-400{% endif %}"
-          style="--progress-w:{{ att_pct }}%"></div>
-      </div>
+    <div class="flex flex-wrap gap-2">
+      {% for d in period_choices %}
+      <a href="?period={{ d }}"
+         class="status-badge {% if period == d %}status-maroon{% else %}status-gray{% endif %}">
+        {{ d }} يوم
+      </a>
+      {% endfor %}
     </div>
   </div>
 
-  <!-- تنبيهات الغياب المتكرر -->
-  {% if alerts %}
-  <div class="bg-red-50 border border-red-200 rounded-xl overflow-hidden">
-    <div class="px-5 py-3 bg-red-100 border-b border-red-200">
-      <h2 class="font-bold text-red-800 text-sm">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب المتكرر</h2>
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-value">{{ total }}</div>
+      <div class="kpi-mini-label">إجمالي الحصص</div>
     </div>
-    <div class="divide-y divide-red-100">
-      {% for alert in alerts %}
-      <div class="px-5 py-3 flex items-center justify-between text-sm">
-        <span class="text-red-800">{{ alert.absence_count }} غياب خلال {{ alert.period_start }} — {{ alert.period_end }}</span>
-        <span class="px-2 py-0.5 rounded-full text-xs
-          {% if alert.status == 'resolved' %}bg-green-100 text-green-700
-          {% else %}bg-red-100 text-red-700{% endif %}">
-          {{ alert.get_status_display }}
-        </span>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-value">{{ present }}</div>
+      <div class="kpi-mini-label">حاضر</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-value">{{ absent }}</div>
+      <div class="kpi-mini-label">غائب</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-value">{{ late }}</div>
+      <div class="kpi-mini-label">متأخر</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-value">{{ att_pct }}%</div>
+      <div class="kpi-mini-label">نسبة الحضور</div>
+    </div>
+  </div>
+
+  {# ── تنبيهات الغياب المتكرر ── #}
+  {% if alerts %}
+  <div class="alert-strip" style="--alert-color: var(--status-danger);">
+    <div class="w-full">
+      <h2 class="font-bold text-red-800 dark:text-red-300 text-sm mb-2">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب المتكرر</h2>
+      <div class="dash-list">
+        {% for alert in alerts %}
+        <div class="dash-list-item">
+          <span>{{ alert.absence_count }} غياب خلال {{ alert.period_start }} — {{ alert.period_end }}</span>
+          <span class="status-badge {% if alert.status == 'resolved' %}status-green{% else %}status-red{% endif %}">
+            {{ alert.get_status_display }}
+          </span>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
   </div>
   {% endif %}
 
-  <!-- سجل الغياب اليومي -->
+  {# ── سجل الغياب اليومي ── #}
   {% if days_list %}
   <div class="space-y-3">
     {% for day in days_list %}
     <div class="card-qatar overflow-hidden
       {% if day.has_absent %}border-red-200{% elif day.has_late %}border-amber-200{% endif %}">
-      <!-- تاريخ اليوم -->
-      <div class="flex items-center justify-between px-5 py-3 border-b
-        {% if day.has_absent %}bg-red-50{% elif day.has_late %}bg-amber-50{% else %}bg-gray-50{% endif %}">
-        <span class="font-medium text-sm text-gray-800">{{ day.date|date:"l، d/m/Y" }}</span>
+      <div class="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]
+        {% if day.has_absent %}bg-red-50 dark:bg-red-900/10{% elif day.has_late %}bg-amber-50 dark:bg-amber-900/10{% else %}bg-[var(--surface-alt)]{% endif %}">
+        <span class="font-medium text-sm">{{ day.date|date:"l، d/m/Y" }}</span>
         <div class="flex gap-1">
           {% if day.has_absent %}
-          <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">غائب</span>
+          <span class="status-badge status-red">غائب</span>
           {% endif %}
           {% if day.has_late %}
-          <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">تأخر</span>
+          <span class="status-badge status-orange">تأخر</span>
           {% endif %}
           {% if not day.has_absent and not day.has_late %}
-          <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">منتظم</span>
+          <span class="status-badge status-green">منتظم</span>
           {% endif %}
         </div>
       </div>
-      <!-- الحصص -->
-      <div class="divide-y divide-gray-50">
+      <div class="divide-y divide-[var(--border)]">
         {% for rec in day.records %}
         <div class="flex items-center justify-between px-5 py-2.5 text-sm">
           <div class="flex items-center gap-3">
-            <span class="text-gray-400 text-xs w-10">{{ rec.session.start_time|time:"H:i" }}</span>
-            <span class="text-gray-700">{{ rec.session.subject.name_ar|default:"—" }}</span>
+            <span class="text-[var(--muted)] text-xs w-10">{{ rec.session.start_time|time:"H:i" }}</span>
+            <span>{{ rec.session.subject.name_ar|default:"—" }}</span>
           </div>
-          <span class="px-2 py-0.5 rounded-full text-xs
-            {% if rec.status == 'present' %}bg-green-100 text-green-700
-            {% elif rec.status == 'absent' %}bg-red-100 text-red-700
-            {% elif rec.status == 'late' %}bg-amber-100 text-amber-700
-            {% else %}bg-blue-100 text-blue-700{% endif %}">
+          <span class="status-badge
+            {% if rec.status == 'present' %}status-green
+            {% elif rec.status == 'absent' %}status-red
+            {% elif rec.status == 'late' %}status-orange
+            {% else %}status-blue{% endif %}">
             {{ rec.get_status_display }}
           </span>
         </div>
@@ -130,9 +113,9 @@
   </div>
 
   {% else %}
-  <div class="card-qatar text-center">
+  <div class="card-qatar text-center py-12">
     <p class="text-4xl mb-3">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
-    <p>لا توجد سجلات حضور في هذه الفترة</p>
+    <p class="text-[var(--muted)]">لا توجد سجلات حضور في هذه الفترة</p>
   </div>
   {% endif %}
 

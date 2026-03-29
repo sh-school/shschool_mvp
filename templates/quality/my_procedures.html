@@ -8,17 +8,17 @@
 {% block content %}
 <div class="qmy">
 
-  {# ── Page header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="clipboard-check" %} إجراءاتي في الخطة التشغيلية</h1>
+      <h1>{% include "components/icon.html" with name="clipboard-check" %} إجراءاتي في الخطة التشغيلية</h1>
     </div>
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
   </div>
 
   {# ── Unmapped alert ── #}
   {% if not mapping_exists %}
-  <div class="qmy-alert">
+  <div class="alert-strip" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border)">
     <span class="qmy-alert__icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
       <p class="qmy-alert__title">حسابك غير مربوط بالخطة التشغيلية</p>
@@ -31,19 +31,19 @@
   </div>
   {% endif %}
 
-  {# ── KPI cards ── #}
-  <div class="qmy-kpis">
-    <div class="card-qatar qmy-kpi">
-      <span class="qmy-kpi__val qmy-kpi__val--primary">{{ total }}</span>
-      <span class="qmy-kpi__lbl">إجمالي</span>
+  {# ── KPI strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <span class="kpi-mini-value">{{ total }}</span>
+      <span class="kpi-mini-label">إجمالي</span>
     </div>
-    <div class="card-qatar qmy-kpi">
-      <span class="qmy-kpi__val qmy-kpi__val--success">{{ completed }}</span>
-      <span class="qmy-kpi__lbl">مكتمل</span>
+    <div class="kpi-mini kpi-green">
+      <span class="kpi-mini-value">{{ completed }}</span>
+      <span class="kpi-mini-label">مكتمل</span>
     </div>
-    <div class="card-qatar qmy-kpi">
-      <span class="qmy-kpi__val qmy-kpi__val--primary">{{ pct }}%</span>
-      <span class="qmy-kpi__lbl">نسبة الإنجاز</span>
+    <div class="kpi-mini kpi-maroon">
+      <span class="kpi-mini-value">{{ pct }}%</span>
+      <span class="kpi-mini-label">نسبة الإنجاز</span>
     </div>
   </div>
 

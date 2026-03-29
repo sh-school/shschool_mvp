@@ -15,7 +15,7 @@ assessments/models.py
   الباقة AW — أعمال مستمرة ف2    :  5 درجات  (5%  من ال100 = 8.33%  من ال60)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 المجموع السنوي = 15+20+5 (ف1) + 15+40+5 (ف2) = 100
-درجة النجاح السنوية = 60 من 100
+درجة النجاح السنوية = 50 من 100
 """
 
 import uuid
@@ -435,7 +435,7 @@ class AnnualSubjectResult(models.Model):
     النتيجة السنوية النهائية للطالب في مادة.
 
     annual_total = s1_total + s2_total
-    النجاح: annual_total >= 60 من 100
+    النجاح: annual_total >= 50 من 100
     """
 
     objects = AnnualResultQuerySet.as_manager()
@@ -478,7 +478,7 @@ class AnnualSubjectResult(models.Model):
         verbose_name="المجموع السنوي (من 100)",
     )
     pass_grade = models.DecimalField(
-        max_digits=5, decimal_places=2, default=Decimal("60"), verbose_name="درجة النجاح"
+        max_digits=5, decimal_places=2, default=Decimal("50"), verbose_name="درجة النجاح"
     )
     status = models.CharField(max_length=12, choices=STATUS, default="incomplete", db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -529,7 +529,7 @@ class AnnualSubjectResult(models.Model):
             return "C"
         if t >= 65:
             return "D+"
-        if t >= 60:
+        if t >= 50:
             return "D"
         return "F"
 
@@ -542,6 +542,6 @@ class AnnualSubjectResult(models.Model):
             return "text-green-700"
         if t >= 65:
             return "text-blue-700"
-        if t >= 60:
+        if t >= 50:
             return "text-amber-600"
         return "text-red-600"

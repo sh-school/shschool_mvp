@@ -33,129 +33,140 @@
           class="pwa-close-btn">{% include "components/icon.html" with name="x-circle" %}</button>
 </div>
 
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} أهلاً، {{ request.user.full_name }}</h1>
-      <p class="page-subtitle">{{ school.name }} — العام الدراسي {{ year }}</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="waypoints" %} بوابة ولي الأمر</h1>
+      <p class="exec-subtitle">{{ request.user.full_name }} — {{ school.name }} — {{ year }}</p>
     </div>
-    <div class="page-actions">
-      <div class="flex items-center gap-1.5">
-        <span id="online-indicator" class="status-dot status-dot-online" title="متصل"></span>
-      </div>
-      <a href="{% url 'parent_consent' %}" class="btn-secondary text-xs">
-        {% include "components/icon.html" with name="lock" %} إعدادات الخصوصية
-      </a>
-      <a href="{% url 'behavior:policy_pdf' %}" target="_blank"
-         class="btn-primary text-xs">
-        {% include "components/icon.html" with name="printer" %} لائحة السلوك
-      </a>
+    <div class="flex items-center gap-2">
+      <span id="online-indicator" class="status-dot status-dot-online" title="متصل"></span>
+      <span class="exec-date">{{ year }}</span>
     </div>
   </div>
 
   {# ── No children linked ── #}
   {% if not children %}
-  <div class="card-qatar text-center py-10">
-    <p class="text-4xl mb-3">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
-    <h2 class="text-base font-bold text-primary m-0 mb-1">
-      لم يتم ربط حسابك بأي طالب بعد
-    </h2>
-    <p class="text-sm text-secondary m-0">
-      تواصل مع إدارة المدرسة لربط حسابك بأبنائك.
-    </p>
+  <div class="dash-chart-card text-center py-10">
+    <p class="text-3xl mb-2">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
+    <h2 class="text-base font-bold text-[var(--text)] m-0 mb-1">لم يتم ربط حسابك بأي طالب بعد</h2>
+    <p class="text-sm text-[var(--muted)] m-0">تواصل مع إدارة المدرسة لربط حسابك بأبنائك.</p>
   </div>
 
   {% else %}
 
-  {# ── Child cards ── #}
+  {# ── Per-child sections ── #}
   {% for child in children %}
-  <div class="card-qatar p-0 overflow-hidden">
+  <div class="space-y-3">
 
-    {# Card header — gradient maroon → maroon-dark #}
-    <div class="child-card-header">
-      <div class="flex items-center gap-3.5">
-        <div class="child-avatar">
-          {{ child.student.full_name|slice:":1" }}
-        </div>
+    {# Child name header #}
+    <div class="exec-header" style="padding-block:.75rem">
+      <div class="flex items-center gap-3">
+        <div class="child-avatar">{{ child.student.full_name|slice:":1" }}</div>
         <div>
-          <h2 class="child-name">
-            {{ child.student.full_name }}
-          </h2>
-          <p class="child-meta">
+          <h2 class="exec-title" style="font-size:1rem">{{ child.student.full_name }}</h2>
+          <p class="exec-subtitle" style="font-size:.75rem">
             {% if child.enrollment %}{{ child.enrollment.class_group }}{% endif %}
             · {{ child.link.get_relationship_display }}
           </p>
         </div>
       </div>
-      <div class="flex gap-2 flex-wrap">
-        {% if child.link.can_view_grades %}
-        <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}"
-           class="child-action-btn child-action-btn--solid">
-          {% include "components/icon.html" with name="bar-chart" %} الدرجات
-        </a>
-        {% endif %}
-        {% if child.link.can_view_attendance %}
-        <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}"
-           class="child-action-btn child-action-btn--ghost">
-          {% include "components/icon.html" with name="calendar" %} الغياب
-        </a>
-        {% endif %}
-      </div>
     </div>
 
-    {# ── Stats strip — 2 عمود على الجوال، 4 على الشاشات الأكبر ── #}
-    <div class="grid grid-cols-2 sm:grid-cols-4 border-t border-[var(--border)]">
-
-      <div class="p-4 text-center stat-cell">
-        <div class="stat-value text-maroon">{{ child.total_subj }}</div>
-        <div class="stat-label">إجمالي المواد</div>
+    {# KPI strip for this child #}
+    <div class="kpi-strip">
+      {# Attendance % #}
+      <div class="kpi-mini {% if child.attendance_pct == None %}kpi-blue{% elif child.attendance_pct >= 90 %}kpi-green{% elif child.attendance_pct >= 75 %}kpi-amber{% else %}kpi-red{% endif %}">
+        <div class="kpi-mini-label">نسبة الحضور</div>
+        <div class="kpi-mini-value">{% if child.attendance_pct != None %}{{ child.attendance_pct }}%{% else %}&mdash;{% endif %}</div>
+        <div class="kpi-mini-sub">آخر 30 يوم</div>
+        {% if child.attendance_pct != None and child.attendance_pct < 75 %}
+        <div class="kpi-mini-alert">حضور منخفض</div>
+        {% endif %}
       </div>
 
-      <div class="p-4 text-center stat-cell">
-        <div class="stat-value text-status-success-dark">{{ child.passed }}</div>
-        <div class="stat-label">ناجح</div>
+      {# Behavior score #}
+      <div class="kpi-mini {% if child.behavior_score >= 80 %}kpi-green{% elif child.behavior_score >= 60 %}kpi-amber{% else %}kpi-red{% endif %}">
+        <div class="kpi-mini-label">درجة السلوك</div>
+        <div class="kpi-mini-value">{{ child.behavior_score|default:"100" }}</div>
+        <div class="kpi-mini-sub">من 100</div>
+        {% if child.behavior_score < 60 %}
+        <div class="kpi-mini-alert">يحتاج متابعة</div>
+        {% endif %}
       </div>
 
-      <div class="p-4 text-center stat-cell {% if child.failed %}bg-status-danger{% endif %}">
-        <div class="stat-value {% if child.failed %}text-red-600{% else %}text-muted{% endif %}">
-          {{ child.failed }}
-        </div>
-        <div class="stat-label {% if child.failed %}text-red-600{% endif %}">
-          راسب
-        </div>
+      {# Subjects count #}
+      <div class="kpi-mini kpi-blue">
+        <div class="kpi-mini-label">المواد الدراسية</div>
+        <div class="kpi-mini-value">{{ child.subjects_count|default:"0" }}</div>
+        <div class="kpi-mini-sub">ناجح {{ child.passed|default:"0" }} · راسب {{ child.failed|default:"0" }}</div>
         {% if child.failed %}
-        <div class="stat-sub font-semibold text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} يحتاج متابعة</div>
+        <div class="kpi-mini-alert">{{ child.failed }} مادة راسب</div>
         {% endif %}
       </div>
 
-      <div class="p-4 text-center {% if child.absent_30 >= 5 %}bg-warning-light{% endif %}">
-        <div class="stat-value {% if child.absent_30 >= 5 %}text-amber-600{% elif child.absent_30 > 0 %}text-status-warning{% else %}text-muted{% endif %}">
-          {{ child.absent_30 }}
-        </div>
-        <div class="stat-label">غياب (30 يوم)</div>
-        {% if child.late_30 %}
-        <div class="stat-sub">{{ child.late_30 }} تأخر</div>
+      {# Absences #}
+      <div class="kpi-mini {% if child.absent_30 >= 5 %}kpi-red{% elif child.absent_30 > 0 %}kpi-amber{% else %}kpi-green{% endif %}">
+        <div class="kpi-mini-label">الغياب (30 يوم)</div>
+        <div class="kpi-mini-value">{{ child.absent_30|default:"0" }}</div>
+        {% if child.late_30 %}<div class="kpi-mini-sub">{{ child.late_30 }} تأخر</div>{% endif %}
+        {% if child.absent_30 >= 5 %}
+        <div class="kpi-mini-alert">غياب مرتفع</div>
         {% endif %}
       </div>
-
     </div>
 
-    {# ── Alert bar ── #}
+    {# Alert strip #}
     {% if child.failed or child.absent_30 >= 5 %}
-    <div class="child-alert-bar">
-      <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
-      <span>
-        {% if child.failed %}يوجد {{ child.failed }} مادة راسب فيها.{% endif %}
-        {% if child.absent_30 >= 5 %}غياب مرتفع ({{ child.absent_30 }} غياب في آخر 30 يوم).{% endif %}
-        يُرجى التواصل مع المدرسة للمتابعة.
-      </span>
+    <div class="alert-strip">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      {% if child.failed %}يوجد {{ child.failed }} مادة راسب فيها.{% endif %}
+      {% if child.absent_30 >= 5 %}غياب مرتفع ({{ child.absent_30 }} غياب في آخر 30 يوم).{% endif %}
+      يُرجى التواصل مع المدرسة للمتابعة.
     </div>
     {% endif %}
 
+    {# Quick links per child #}
+    <div class="quick-links">
+      {% if child.link.can_view_grades %}
+      <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}" class="ql-item">
+        {% include "components/icon.html" with name="bar-chart" %} الدرجات
+      </a>
+      {% endif %}
+      {% if child.link.can_view_attendance %}
+      <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}" class="ql-item">
+        {% include "components/icon.html" with name="calendar" %} الحضور
+      </a>
+      {% endif %}
+      <a href="{% url 'parent_behavior' %}" class="ql-item">
+        {% include "components/icon.html" with name="shield" %} السلوك
+      </a>
+    </div>
+
   </div>
   {% endfor %}
+
+  {# ── General Quick Links ── #}
+  <div class="quick-links">
+    <a href="{% url 'parent_all_grades' %}?year={{ year }}" class="ql-item">
+      {% include "components/icon.html" with name="bar-chart" %} كل الدرجات
+    </a>
+    <a href="{% url 'parent_all_attendance' %}" class="ql-item">
+      {% include "components/icon.html" with name="calendar" %} كل الحضور
+    </a>
+    <a href="{% url 'notification_inbox' %}" class="ql-item">
+      {% include "components/icon.html" with name="bell" %} الإشعارات
+    </a>
+    <a href="{% url 'parent_consent' %}" class="ql-item">
+      {% include "components/icon.html" with name="lock" %} إعدادات الخصوصية
+    </a>
+    <a href="{% url 'behavior:policy_pdf' %}" target="_blank" class="ql-item">
+      {% include "components/icon.html" with name="printer" %} لائحة السلوك
+    </a>
+  </div>
+
   {% endif %}
 
 </div>

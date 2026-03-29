@@ -6,104 +6,197 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
+  {# ── Header ── #}
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</h1>
-      <p class="page-subtitle">متابعة زيارات الطلاب والسجلات الصحية</p>
+      <h1 class="exec-title">{% include "components/icon.html" with name="hospital" %} لوحة العيادة</h1>
+      <p class="exec-subtitle">متابعة زيارات الطلاب والسجلات الصحية</p>
     </div>
-    <div class="page-actions">
-      <a href="{% url 'clinic:visits_list' %}" class="btn-secondary text-xs no-underline">كل الزيارات</a>
-      <a href="{% url 'clinic:record_visit' %}" class="btn-primary text-xs no-underline">+ تسجيل زيارة</a>
+    <div class="exec-meta">
+      <span class="exec-date">{{ today|date:"D، d M Y"|default:"اليوم" }}</span>
     </div>
   </div>
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">زيارات اليوم</div>
+      <div class="kpi-mini-value">{{ visits_today }}</div>
+      <div class="kpi-mini-sub">{% now "d/m/Y" %}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">أُرسلوا للمنزل</div>
+      <div class="kpi-mini-value">{{ sent_home_today }}</div>
+      {% if sent_home_today > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} تنبيه</div>
+      {% else %}<div class="kpi-mini-sub">لا يوجد</div>{% endif %}
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">إجمالي الشهر</div>
+      <div class="kpi-mini-value">{{ month_total }}</div>
+      <div class="kpi-mini-sub">زيارة هذا الشهر</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">زوار متكررون (3+)</div>
+      <div class="kpi-mini-value">{{ frequent|length }}</div>
+      {% if frequent|length > 0 %}<div class="kpi-mini-alert">يحتاج متابعة</div>
+      {% else %}<div class="kpi-mini-sub">لا يوجد</div>{% endif %}
+    </div>
+  </div>
 
-    <div class="kpi-card">
-      <div class="kpi-value text-status-maroon">{{ visits_today }}</div>
-      <div class="kpi-label">زيارات اليوم</div>
+  {# ── Alert Strip ── #}
+  {% if follow_up_visits %}
+  <div class="alert-strip">
+    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
+    <a href="{% url 'clinic:visits_list' %}">{{ follow_up_visits|length }} طالب أُرسل للمنزل اليوم</a>
+  </div>
+  {% endif %}
+
+  {# ── Charts Grid ── #}
+  <div class="charts-grid-2">
+    {# Chart 1: 30-day visits trend #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} اتجاه الزيارات — آخر 30 يوم</div>
+      <div class="dash-chart-wrap">
+        <div class="chart-loading" id="loading-chartClinic">جاري التحميل...</div>
+        <canvas id="chartClinic" role="img" aria-label="رسم بياني: اتجاه الزيارات آخر 30 يوم"></canvas>
+      </div>
     </div>
 
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ follow_up_visits|length }}</div>
-      <div class="kpi-label">أُرسلوا للمنزل اليوم</div>
-      {% if follow_up_visits %}
-      <div class="kpi-sub">يحتاجون متابعة ولي الأمر</div>
+    {# Card 2: Frequent visitors list #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="users" %} الزوار المتكررون هذا الشهر</div>
+      {% if frequent %}
+      <div class="dash-list" style="max-height:220px;overflow-y:auto">
+        {% for f in frequent %}
+        <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between">
+          <span>{{ f.student__full_name }}</span>
+          <span class="kpi-mini-alert">{{ f.visit_count }} زيارة</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="font-size:.75rem;color:var(--muted);padding:8px 10px">لا يوجد زوار متكررون هذا الشهر</p>
       {% endif %}
     </div>
-
-    <div class="kpi-card">
-      <div class="kpi-value text-skyline">{{ recent_visits|length }}</div>
-      <div class="kpi-label">آخر الزيارات</div>
-      <div class="kpi-sub">آخر 10 زيارات مسجّلة</div>
-    </div>
-
   </div>
 
-  {# ── Students sent home today ── #}
-  {% if follow_up_visits %}
-  <div class="bg-status-warning-light rounded-xl p-5 border border-status-warning">
-    <div class="card-header border-status-warning">
-      <div class="card-header-icon bg-status-warning-light text-status-warning-dark">{% include "components/icon.html" with name="alert-triangle" %}</div>
-      <h2 class="card-header-title text-status-warning-dark">طلاب أُرسلوا للمنزل اليوم</h2>
-      <span class="status-badge status-warning">{{ follow_up_visits|length }}</span>
+  {# ── Peak Hours (collapsible) ── #}
+  {% if peak_hours %}
+  <details class="exec-details">
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="clock" %} ساعات الذروة (آخر 7 أيام)
+    </summary>
+    <div class="kpi-strip mt-3" style="grid-template-columns:repeat(auto-fill,minmax(100px,1fr))">
+      {% for ph in peak_hours %}
+      <div class="kpi-mini kpi-blue">
+        <div class="kpi-mini-label">{{ ph.hour }}:00</div>
+        <div class="kpi-mini-value">{{ ph.count }}</div>
+        <div class="kpi-mini-sub">زيارة</div>
+      </div>
+      {% endfor %}
     </div>
-    <div class="flex flex-col gap-2" style="max-height:400px;overflow-y:auto">
+  </details>
+  {% endif %}
+
+  {# ── Students sent home today (collapsible) ── #}
+  {% if follow_up_visits %}
+  <details class="exec-details" open>
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="alert-triangle" %} طلاب أُرسلوا للمنزل اليوم
+      <span class="kpi-mini-alert ms-2">{{ follow_up_visits|length }}</span>
+    </summary>
+    <div class="dash-list mt-3">
       {% for visit in follow_up_visits %}
-      <div class="bg-surface flex items-center justify-between gap-2 rounded-lg px-4 py-3 border border-status-warning">
+      <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div>
-          <p class="font-semibold text-sm m-0 mb-1 text-primary">
-            {{ visit.student.full_name }}
-          </p>
-          <p class="text-xs text-secondary m-0">{{ visit.reason }}</p>
+          <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
+          <span style="font-size:.65rem;color:var(--muted);display:block">{{ visit.reason }}</span>
         </div>
-        <span class="status-badge flex-shrink-0 text-xs {% if visit.parent_notified %}status-success{% else %}status-warning{% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}#16a34a{% else %}#dc2626{% endif %}">
           {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
         </span>
       </div>
       {% endfor %}
     </div>
-  </div>
+  </details>
   {% endif %}
 
   {# ── Recent visits ── #}
-  <div class="table-wrap">
-    <div class="card-bar m-0 flex items-center justify-between">
-      <h2 class="text-sm font-bold m-0 text-white">آخر الزيارات</h2>
-      <a href="{% url 'clinic:visits_list' %}"
-         class="text-xs no-underline text-white/80">عرض الكل →</a>
-    </div>
+  <details class="exec-details" open>
+    <summary class="exec-details-summary">
+      {% include "components/icon.html" with name="list" %} آخر الزيارات
+    </summary>
     {% if recent_visits %}
-    <div style="max-height:500px;overflow-y:auto">
+    <div class="dash-list mt-3" style="max-height:300px;overflow-y:auto">
       {% for visit in recent_visits %}
-      <div class="flex items-center justify-between gap-2 px-4 py-3 border-b">
-        <div class="min-w-0">
-          <p class="text-sm font-semibold m-0 mb-1 text-primary">
-            {{ visit.student.full_name }}
-          </p>
-          <p class="text-xs text-secondary m-0">
-            {{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}
-          </p>
+      <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
+          <span style="font-size:.6rem;color:var(--muted);display:block">{{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}</span>
         </div>
-        <span class="status-badge flex-shrink-0
-          {% if visit.is_sent_home %}status-danger{% else %}status-success{% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}#dc2626{% else %}#16a34a{% endif %}">
           {% if visit.is_sent_home %}أُرسل للمنزل{% else %}عولج{% endif %}
         </span>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">
-      <span class="empty-icon">{% include "components/icon.html" with name="hospital" size="icon-2xl" %}</span>
-      <p class="empty-title">لا توجد زيارات مسجّلة</p>
-      <p class="empty-sub">ستظهر هنا زيارات الطلاب بعد تسجيلها</p>
-    </div>
+    <p style="font-size:.75rem;color:var(--muted);padding:12px 10px">لا توجد زيارات مسجّلة</p>
     {% endif %}
+  </details>
+
+  {# ── Quick Links ── #}
+  <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+    <a href="{% url 'clinic:record_visit' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="plus-circle" %}</span> تسجيل زيارة</a>
+    <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> الإحصائيات</a>
+    <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="clipboard" %}</span> السجلات الصحية</a>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family="'Tajawal','Segoe UI',Tahoma,sans-serif";
+Chart.defaults.font.size=10;
+Chart.defaults.plugins.legend.position='bottom';
+Chart.defaults.plugins.legend.labels.boxWidth=8;
+Chart.defaults.plugins.legend.labels.padding=6;
+Chart.defaults.plugins.legend.labels.font={size:9};
+
+const OPTS={responsive:true,maintainAspectRatio:false};
+
+async function fc(url,chartId){
+  var loadEl=document.getElementById('loading-'+chartId);
+  try{
+    var data=await(await fetch(url)).json();
+    if(loadEl)loadEl.classList.add('hidden');
+    return data;
+  }catch(e){
+    console.error("Chart:",url,e);
+    if(loadEl){loadEl.className='chart-error';loadEl.textContent='فشل تحميل البيانات';}
+    return null;
+  }
+}
+
+(async()=>{
+  const d=await fc('{% url "clinic:api_clinic_charts" %}','chartClinic');
+  if(!d)return;
+  new Chart(document.getElementById('chartClinic'),{
+    type:'line',
+    data:{labels:d.labels,datasets:[
+      {label:'الزيارات',data:d.visits,borderColor:'#0D4261',backgroundColor:'rgba(13,66,97,0.1)',fill:true,tension:0.3,borderWidth:1.5,pointRadius:1.5},
+      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:'#dc2626',backgroundColor:'transparent',tension:0.3,borderDash:[5,5],borderWidth:1.5,pointRadius:1}
+    ]},
+    options:{...OPTS,
+      scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}}},
+      plugins:{legend:{display:true}},
+      elements:{point:{radius:1.5},line:{borderWidth:1.5}}
+    }
+  });
+})();
+</script>
 {% endblock %}

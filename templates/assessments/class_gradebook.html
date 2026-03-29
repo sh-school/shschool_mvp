@@ -7,73 +7,59 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="exec-dash">
 
-  <div class="flex items-center justify-between flex-wrap gap-3">
+  <!-- Header -->
+  <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</h1>
-      <p class="text-sm text-gray-500 mt-1">
-        {{ setup.subject.name_ar }} | {{ setup.class_group }} | {{ setup.academic_year }}
-      </p>
+      <h1 class="page-title text-white">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</h1>
+      <p class="exec-date">{{ setup.subject.name_ar }} | {{ setup.class_group }} | {{ setup.academic_year }}</p>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
       {% for val, label in SEMESTERS %}
       <a href="?semester={{ val }}"
-         class="px-3 py-1.5 rounded-full text-sm font-medium transition
-           {% if semester == val %}bg-skyline text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+         class="btn-secondary btn-sm
+           {% if semester == val %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
         {{ label }}
       </a>
       {% endfor %}
       <a href="?semester=annual"
-         class="px-3 py-1.5 rounded-full text-sm font-medium transition
-           {% if semester == 'annual' %}bg-green-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">
+         class="btn-secondary btn-sm
+           {% if semester == 'annual' %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
         السنوي (100)
       </a>
-
-      <!-- ── أزرار التصدير وإعادة الحساب ── -->
-      <div class="border-r border-gray-200 h-5 mx-1"></div>
-
       <a href="{% url 'export_gradebook' setup.id %}"
-         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-green-300 text-green-700 text-sm hover:bg-green-50 transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
-        </svg>
-        تصدير Excel
+         class="btn-secondary btn-sm bg-white/20 text-white hover:bg-white/30">
+        {% include "components/icon.html" with name="download" %} تصدير Excel
       </a>
-
       <form method="post" action="{% url 'recalculate_class' setup.id %}"
-            data-confirm="إعادة حساب جميع الدرجات؟">
+            data-confirm="إعادة حساب جميع الدرجات؟" class="inline">
         {% csrf_token %}
         <button type="submit"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 text-sm hover:bg-amber-50 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 4v5h5M20 20v-5h-5M4 9a9 9 0 0114.6-3.6M20 15a9 9 0 01-14.6 3.6"/>
-          </svg>
-          إعادة الحساب
+                class="btn-secondary btn-sm bg-white/10 text-white/90 hover:bg-white/20">
+          {% include "components/icon.html" with name="refresh-cw" %} إعادة الحساب
         </button>
       </form>
     </div>
   </div>
 
-  <!-- ملخص -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="card-qatar text-center">
-      <p class="text-2xl font-bold text-skyline">{{ summary.total }}</p>
-      <p class="text-xs text-gray-500">إجمالي</p>
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">إجمالي</div>
+      <div class="kpi-mini-value">{{ summary.total }}</div>
     </div>
-    <div class="card-qatar text-center">
-      <p class="text-2xl font-bold text-green-600">{{ summary.passed }}</p>
-      <p class="text-xs text-gray-500">ناجح</p>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">ناجح</div>
+      <div class="kpi-mini-value">{{ summary.passed }}</div>
     </div>
-    <div class="card-qatar text-center">
-      <p class="text-2xl font-bold text-red-600">{{ summary.failed }}</p>
-      <p class="text-xs text-gray-500">راسب</p>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">راسب</div>
+      <div class="kpi-mini-value">{{ summary.failed }}</div>
     </div>
-    <div class="card-qatar text-center">
-      <p class="text-2xl font-bold text-amber-600">{{ summary.avg|default:"—" }}</p>
-      <p class="text-xs text-gray-500">المتوسط</p>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">المتوسط</div>
+      <div class="kpi-mini-value">{{ summary.avg|default:"—" }}</div>
     </div>
   </div>
 
@@ -192,7 +178,7 @@
    </div>
   </div>
 
-</div>
+</div><!-- /exec-dash -->
 {% endblock %}
 
 {% block extra_js %}
