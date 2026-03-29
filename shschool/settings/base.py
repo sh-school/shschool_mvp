@@ -46,6 +46,8 @@ INSTALLED_APPS = [
     "breach.apps.BreachConfig",
     # ✅ v7: شؤون الطلاب
     "student_affairs.apps.StudentAffairsConfig",
+    # ✅ v7: شؤون الموظفين
+    "staff_affairs.apps.StaffAffairsConfig",
     # ✅ فلترة احترافية
     "django_filters",
 ]

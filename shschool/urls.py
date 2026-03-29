@@ -41,6 +41,8 @@ urlpatterns = [
     path("breach/", include("breach.urls", namespace="breach")),
     # ✅ v7: شؤون الطلاب
     path("student-affairs/", include("student_affairs.urls", namespace="student_affairs")),
+    # ✅ v7: شؤون الموظفين
+    path("staff-affairs/", include("staff_affairs.urls", namespace="staff_affairs")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",
