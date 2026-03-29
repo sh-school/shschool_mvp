@@ -5,10 +5,189 @@
 {% include "components/breadcrumbs.html" with parent_url="/analytics/" parent_label="التحليلات" current="مؤشرات الأداء" %}
 {% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+/* ══ KPI Dashboard — MTG-2026-002-REV Layout ══ */
+
+.kpi-top-bar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.kpi-top-bar .kpi-count {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600;
+}
+.kpi-count__dot {
+  width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+}
+
+/* Main 2-column: radar + donuts */
+.kpi-main-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.kpi-radar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.kpi-radar-card canvas { max-height: 230px; }
+.kpi-radar-title {
+  font-size: 11px; font-weight: 700; color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+/* Donuts: fixed 4+3 grid */
+.kpi-donut-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.kpi-donut-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 6px 6px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+  transition: box-shadow .2s, transform .2s;
+}
+.kpi-donut-card:hover {
+  box-shadow: var(--shadow-md); transform: translateY(-1px);
+}
+.kpi-donut-ring {
+  position: relative; width: 58px; height: 58px;
+}
+.kpi-donut-ring svg {
+  width: 100%; height: 100%; transform: rotate(-90deg);
+}
+.kpi-donut-ring .donut-track {
+  fill: none; stroke: var(--border); stroke-width: 5;
+}
+.kpi-donut-ring .donut-fill {
+  fill: none; stroke-width: 5; stroke-linecap: round;
+  transition: stroke-dashoffset .8s ease;
+}
+.kpi-donut-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1.1;
+}
+.kpi-donut-val { font-size: 13px; font-weight: 800; }
+.kpi-donut-unit { font-size: 8px; color: var(--text-muted); }
+.kpi-donut-label {
+  font-size: 9px; font-weight: 600; color: var(--text-primary);
+  text-align: center; line-height: 1.2;
+}
+.kpi-donut-meta {
+  font-size: 8px; color: var(--text-muted); text-align: center;
+}
+.kpi-donut-meta b { color: var(--text-secondary); font-weight: 600; }
+.kpi-donut-badge {
+  font-size: 8px; font-weight: 600;
+  padding: 1px 5px; border-radius: 9999px; white-space: nowrap;
+}
+
+/* Details table (collapsible) */
+.kpi-details-wrap {
+  margin-top: 8px;
+}
+.kpi-details-summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 11px; font-weight: 600;
+  color: var(--text-secondary); padding: 4px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; user-select: none;
+}
+.kpi-details-summary:hover { background: var(--surface-alt); }
+.kpi-details-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 10px; margin-top: 6px;
+}
+.kpi-details-table th {
+  background: var(--surface-alt);
+  font-weight: 600; color: var(--text-secondary);
+  padding: 5px 8px; text-align: right;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+}
+.kpi-details-table td {
+  padding: 4px 8px; border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.kpi-details-table tr:hover td { background: var(--surface-alt); }
+.kpi-status-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; vertical-align: middle;
+}
+
+/* Unavailable strip */
+.kpi-unavailable-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.kpi-unavail-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px;
+  border-inline-start: 3px solid var(--border-strong);
+}
+.kpi-unavail-icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--surface-alt);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); flex-shrink: 0;
+}
+.kpi-unavail-icon .icon { width: 14px; height: 14px; }
+.kpi-unavail-info { flex: 1; min-width: 0; }
+.kpi-unavail-name {
+  font-size: 10px; font-weight: 600; color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kpi-unavail-detail { font-size: 9px; color: var(--text-muted); }
+.kpi-unavail-tag {
+  font-size: 8px; font-weight: 600; color: var(--text-muted);
+  background: var(--surface-alt); padding: 1px 6px;
+  border-radius: 9999px;
+}
+.kpi-section-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.kpi-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Dark */
+html.dark .kpi-donut-card,
+html.dark .kpi-radar-card { background: #1e293b; border-color: #334155; }
+html.dark .kpi-donut-ring .donut-track { stroke: #334155; }
+html.dark .kpi-unavail-item { background: #1e293b; border-color: #334155; }
+html.dark .kpi-unavail-icon { background: #0f172a; }
+html.dark .kpi-details-summary { background: #1e293b; border-color: #334155; }
+html.dark .kpi-details-table th { background: #0f172a; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .kpi-main-grid { grid-template-columns: 1fr; }
+  .kpi-donut-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 640px) {
+  .kpi-donut-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-unavailable-strip { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
   <div class="exec-header">
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} مؤشرات الأداء الرئيسية</h1>
@@ -25,89 +204,212 @@
     </div>
   </div>
 
-  {# ── KPIs Grid — يُحمَّل بالـ JS ── #}
   <div id="kpiGrid">
-    <div style="text-align:center;padding:40px;color:var(--muted)">
-      جاري تحميل المؤشرات...
-    </div>
+    <div style="text-align:center;padding:30px;color:var(--text-muted)">جاري تحميل المؤشرات...</div>
   </div>
 
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script nonce="{{ request.csp_nonce }}">
-const COLOR = { green:'var(--status-success,#16a34a)', yellow:'var(--status-warning,#d97706)', red:'var(--status-danger,#dc2626)', grey:'var(--muted,#9ca3af)' };
-const DOT   = { green:'bg-green-100 text-green-800', yellow:'bg-yellow-100 text-yellow-800', red:'bg-red-100 text-red-800', grey:'bg-gray-100 text-gray-600' };
-const LABEL = { green:'ممتاز', yellow:'تحذير', red:'خطر', grey:'غير متوفر' };
+const TC = { green:'#16a34a', yellow:'#d97706', red:'#dc2626', grey:'#9ca3af' };
+const TL = { green:'ممتاز', yellow:'تحذير', red:'خطر', grey:'غير متوفر' };
+const TB = {
+  green:  'background:#dcfce7;color:#166534',
+  yellow: 'background:#fef3c7;color:#92400e',
+  red:    'background:#fef2f2;color:#991b1b',
+  grey:   'background:var(--surface-alt);color:var(--text-muted)'
+};
+const KPI_ICONS = {
+  student_attendance_pct:'users', infractions_per_100:'alert-triangle',
+  grading_on_time_pct:'check-circle', exam_clean_days_pct:'clipboard-check',
+  teacher_unexcused_abs_pct:'user', transport_incidents_rate:'bus',
+  library_borrows_per_student:'book-open', canteen_health_compliance_pct:'heart',
+  evacuation_plan_pct:'flag', professional_dev_hours:'graduation'
+};
+/* أسماء مختصرة للرادار — قرار MTG-2026-002-REV */
+const RADAR_LABELS = {
+  student_attendance_pct:'الحضور', infractions_per_100:'المخالفات',
+  grading_on_time_pct:'الدرجات', exam_clean_days_pct:'الاختبارات',
+  teacher_unexcused_abs_pct:'غياب المعلمين', transport_incidents_rate:'النقل',
+  library_borrows_per_student:'المكتبة'
+};
+
+function iconSVG(n,s){s=s||14;return `<svg class="icon" style="width:${s}px;height:${s}px" aria-hidden="true"><use href="#icon-${n}"></use></svg>`;}
+
+function normKPI(d) {
+  if (d.value === null) return 0;
+  const u = d.unit || '';
+  if (u === '%' || u === '٪') return Math.min(100, Math.max(0, d.value));
+  if (!d.target) return 0;
+  const higher = d.direction !== 'lower_better';
+  if (higher) return Math.min(100, d.value / d.target * 100);
+  return Math.max(0, Math.min(100, (1 - d.value / (d.target * 2)) * 100));
+}
 
 function renderKPIs(kpis) {
   const entries = Object.entries(kpis);
-  if (!entries.length) {
-    return '<div style="text-align:center;padding:40px;color:var(--muted)">لا توجد مؤشرات أداء لهذه السنة</div>';
-  }
+  if (!entries.length) return '<div style="text-align:center;padding:30px;color:var(--text-muted)">لا توجد مؤشرات</div>';
 
-  // ── KPI Strip (ملخص سريع) ──
-  let stripHTML = '<div class="kpi-strip">';
-  for (const [k, d] of entries) {
-    const val = d.value !== null ? d.value : '—';
-    const unit = d.unit || '';
-    const cls = d.traffic === 'green' ? 'kpi-green' : d.traffic === 'yellow' ? 'kpi-orange' : d.traffic === 'red' ? 'kpi-red' : 'kpi-blue';
-    stripHTML += `
-      <div class="kpi-mini ${cls}">
-        <div class="kpi-mini-label">${d.label}</div>
-        <div class="kpi-mini-value">${val}<small>${unit}</small></div>
-        <div class="kpi-mini-sub">الهدف: ${d.target}${unit}</div>
+  const active = entries.filter(([,d]) => d.value !== null);
+  const unavail = entries.filter(([,d]) => d.value === null);
+  const cnt = { green:0, yellow:0, red:0, grey:0 };
+  for (const [,d] of entries) cnt[d.traffic] = (cnt[d.traffic]||0) + 1;
+
+  let html = '';
+
+  /* ══ Zone 1: Summary ══ */
+  html += `<div class="kpi-top-bar" style="margin-bottom:10px">
+    <div class="kpi-count"><span class="kpi-count__dot" style="background:#16a34a"></span> ${cnt.green} ممتاز</div>
+    <div class="kpi-count"><span class="kpi-count__dot" style="background:#d97706"></span> ${cnt.yellow} تحذير</div>
+    <div class="kpi-count"><span class="kpi-count__dot" style="background:#dc2626"></span> ${cnt.red} خطر</div>
+    <div class="kpi-count"><span class="kpi-count__dot" style="background:#9ca3af"></span> ${cnt.grey} غير متوفر</div>
+  </div>`;
+
+  /* ══ Zone 2: Radar + Donuts (4+3) ══ */
+  html += '<div class="kpi-main-grid">';
+
+  /* Radar */
+  html += `<div class="kpi-radar-card">
+    <div class="kpi-radar-title">بصمة أداء المدرسة</div>
+    <canvas id="radarChart"></canvas>
+  </div>`;
+
+  /* Donuts — fixed 4+3 */
+  html += '<div class="kpi-donut-grid">';
+  for (const [key, d] of active) {
+    const val = d.value, unit = d.unit || '';
+    const color = TC[d.traffic] || TC.grey;
+    const badge = TB[d.traffic] || TB.grey;
+    let pct = Math.round(normKPI(d));
+    const C = 150.8;
+    const offset = C - (C * pct / 100);
+
+    html += `
+      <div class="kpi-donut-card">
+        <span class="kpi-donut-badge" style="${badge}">${TL[d.traffic]||'—'}</span>
+        <div class="kpi-donut-ring">
+          <svg viewBox="0 0 56 56">
+            <circle class="donut-track" cx="28" cy="28" r="24"/>
+            <circle class="donut-fill" cx="28" cy="28" r="24"
+              stroke="${color}" stroke-dasharray="${C}" stroke-dashoffset="${offset}"/>
+          </svg>
+          <div class="kpi-donut-center">
+            <div class="kpi-donut-val" style="color:${color}">${val}</div>
+            <div class="kpi-donut-unit">${unit}</div>
+          </div>
+        </div>
+        <div class="kpi-donut-label">${d.label}</div>
+        <div class="kpi-donut-meta">هدف: <b>${d.target}${unit}</b></div>
       </div>`;
   }
-  stripHTML += '</div>';
+  html += '</div></div>';
 
-  // ── بطاقات تفصيلية (شبكة 2 أعمدة) ──
-  let cardsHTML = '<div class="charts-grid-2" style="margin-top:12px">';
-  for (const [k, d] of entries) {
+  /* ══ Zone 3: Collapsible details table ══ */
+  html += `<details class="kpi-details-wrap">
+    <summary class="kpi-details-summary">
+      ${iconSVG('list-checks', 14)} تفاصيل المؤشرات
+    </summary>
+    <table class="kpi-details-table">
+      <thead><tr>
+        <th>الحالة</th><th>المؤشر</th><th>الفعلي</th><th>الهدف</th><th>التحذير</th><th>التكرار</th>
+      </tr></thead><tbody>`;
+  for (const [key, d] of entries) {
     const val = d.value !== null ? d.value : '—';
     const unit = d.unit || '';
-    const color = COLOR[d.traffic] || COLOR.grey;
-    const dotCls = DOT[d.traffic] || DOT.grey;
-    const statusLabel = LABEL[d.traffic] || '—';
-    const higher = d.direction !== 'lower_better';
-    const pct = d.value !== null
-      ? Math.min(100, higher ? (d.value / d.target * 100) : (d.target ? ((1 - d.value / d.target) * 100 + 50) : 50))
-      : 0;
-
-    cardsHTML += `
-      <div class="dash-chart-card">
-        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
-          <div class="dash-chart-title" style="margin:0">${d.label}</div>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full ${dotCls}">${statusLabel}</span>
-        </div>
-        <div style="font-size:2rem;font-weight:700;color:${color};line-height:1.2">
-          ${val}<span style="font-size:.9rem;font-weight:400"> ${unit}</span>
-        </div>
-        <div style="height:6px;background:var(--border);border-radius:3px;margin:10px 0 8px">
-          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .6s"></div>
-        </div>
-        <div style="font-size:.7rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap">
-          <span>الهدف: <b>${d.target}${unit}</b></span>
-          <span>التحذير: <b>${d.warning}${unit}</b></span>
-          <span>${d.frequency}</span>
-        </div>
-        ${d.note ? `<div style="font-size:.65rem;color:var(--muted);margin-top:4px;opacity:.7">${d.note}</div>` : ''}
-      </div>`;
+    const color = TC[d.traffic] || TC.grey;
+    html += `<tr>
+      <td><span class="kpi-status-dot" style="background:${color}"></span></td>
+      <td>${d.label}</td>
+      <td style="font-weight:700;color:${color}">${val}${unit}</td>
+      <td>${d.target}${unit}</td>
+      <td>${d.warning}${unit}</td>
+      <td style="color:var(--text-muted)">${d.frequency}</td>
+    </tr>`;
   }
-  cardsHTML += '</div>';
+  html += '</tbody></table></details>';
 
-  return stripHTML + cardsHTML;
+  /* ══ Zone 4: Unavailable ══ */
+  if (unavail.length) {
+    html += `<div class="kpi-section-label" style="margin-top:8px;margin-bottom:4px">
+      مؤشرات تحتاج إدخال يدوي (${unavail.length})
+    </div>`;
+    html += '<div class="kpi-unavailable-strip">';
+    for (const [key, d] of unavail) {
+      const unit = d.unit || '';
+      html += `
+        <div class="kpi-unavail-item">
+          <div class="kpi-unavail-icon">${iconSVG(KPI_ICONS[key]||'activity',14)}</div>
+          <div class="kpi-unavail-info">
+            <div class="kpi-unavail-name">${d.label}</div>
+            <div class="kpi-unavail-detail">الهدف: ${d.target}${unit} · ${d.frequency}</div>
+          </div>
+          <span class="kpi-unavail-tag">يدوي</span>
+        </div>`;
+    }
+    html += '</div>';
+  }
+
+  return html;
+}
+
+function buildCharts(kpis) {
+  const active = Object.entries(kpis).filter(([,d]) => d.value !== null);
+  if (!active.length) return;
+
+  const labels = active.map(([k]) => RADAR_LABELS[k] || k);
+  const values = active.map(([,d]) => Math.round(normKPI(d)));
+  const colors = active.map(([,d]) => TC[d.traffic] || TC.grey);
+
+  const isDark = document.documentElement.classList.contains('dark');
+  const gridColor = isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)';
+  const textColor = isDark ? '#cbd5e1' : '#4b5563';
+
+  const radarCtx = document.getElementById('radarChart');
+  if (radarCtx) {
+    new Chart(radarCtx, {
+      type: 'radar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: 'rgba(138,21,56,.12)',
+          borderColor: '#8A1538',
+          borderWidth: 2,
+          pointBackgroundColor: colors,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1,
+          pointRadius: 4,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { stepSize: 25, font: { size: 9 }, color: textColor, backdropColor: 'transparent' },
+            grid: { color: gridColor },
+            angleLines: { color: gridColor },
+            pointLabels: { font: { size: 10, family: 'Tajawal', weight: '600' }, color: textColor }
+          }
+        }
+      }
+    });
+  }
 }
 
 async function loadKPIs(year) {
-  document.getElementById('kpiGrid').innerHTML =
-    '<div style="text-align:center;padding:40px;color:var(--muted)">جاري تحميل المؤشرات...</div>';
+  document.getElementById('kpiGrid').innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted)">جاري تحميل...</div>';
   try {
     const r = await fetch(`/analytics/api/kpis/?year=${year}`);
     const data = await r.json();
     document.getElementById('kpiGrid').innerHTML = renderKPIs(data.kpis || {});
+    buildCharts(data.kpis || {});
   } catch(e) {
-    document.getElementById('kpiGrid').innerHTML =
-      '<div class="card-qatar" style="padding:20px;text-align:center;color:var(--status-danger)">خطأ في تحميل البيانات</div>';
+    document.getElementById('kpiGrid').innerHTML = '<div style="text-align:center;padding:20px;color:var(--status-danger)">خطأ في تحميل البيانات</div>';
   }
 }
 

@@ -112,6 +112,21 @@
   --status-info-bg:      #dbeafe;
   --status-info-border:  #93c5fd;
 
+  /* ══ Chart Palette — 6 ألوان إلزامية بترتيب ثابت ══ */
+  --chart-1: #8A1538;   /* الماروني — دائماً الأول */
+  --chart-2: #0D7B6A;   /* التيل المكمل */
+  --chart-3: #1A3A5C;   /* الأزرق الداكن */
+  --chart-4: #D4A843;   /* الذهبي */
+  --chart-5: #4194B3;   /* الأزرق الفاتح */
+  --chart-6: #6B7280;   /* الرمادي (أخرى) */
+
+  --chart-1-light: #FDF2F5;
+  --chart-2-light: #ECFDF5;
+  --chart-3-light: #EFF6FF;
+  --chart-4-light: #FFFBF0;
+  --chart-5-light: #F0F9FF;
+  --chart-6-light: #F9FAFB;
+
   /* Quality module tokens */
   --q-maroon: #8d1b3d;
   --q-maroon-dark: #6b142e;
@@ -3766,6 +3781,190 @@ html.dark .chart-card {
 .kpi-mini-value { font-size: 1.5rem; font-weight: 700; color: var(--kc, #8A1538); line-height: 1.2; }
 .kpi-mini-sub { font-size: .65rem; color: var(--text-muted); margin-top: 2px; }
 .kpi-mini-alert { font-size: .65rem; color: #dc2626; font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════════════
+   Q-KPI — نظام البطاقات الموحد (الدستور البصري MTG-2026-001)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Q-KPI Strip Grid ── */
+.q-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-4, 16px);
+}
+
+/* ── Q-KPI Card (النوع الموحد) ── */
+.q-kpi {
+  --_accent: var(--chart-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  border-inline-start: 4px solid var(--_accent);
+  padding: var(--sp-5, 20px);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+  position: relative;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 8px);
+}
+.q-kpi:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+
+/* ── Accent Colors (6 ألوان من الدستور) ── */
+.q-kpi--primary { --_accent: var(--chart-1); }
+.q-kpi--teal    { --_accent: var(--chart-2); }
+.q-kpi--navy    { --_accent: var(--chart-3); }
+.q-kpi--gold    { --_accent: var(--chart-4); }
+.q-kpi--sky     { --_accent: var(--chart-5); }
+.q-kpi--muted   { --_accent: var(--chart-6); }
+
+/* ── Inner Elements ── */
+.q-kpi__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--sp-2, 8px);
+}
+.q-kpi__icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  background: var(--chart-1-light, #FDF2F5);
+  color: var(--_accent);
+}
+.q-kpi__icon .icon { width: 20px; height: 20px; }
+
+.q-kpi__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 16px;
+}
+.q-kpi__value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--_accent);
+  line-height: 40px;
+  letter-spacing: -0.02em;
+}
+.q-kpi__value small {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-inline-start: 2px;
+}
+.q-kpi__meta {
+  display: flex;
+  gap: var(--sp-3, 12px);
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.q-kpi__meta b {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Progress Bar ── */
+.q-kpi__progress {
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.q-kpi__progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--_accent);
+  transition: width .6s ease;
+}
+
+/* ── Status Badge ── */
+.q-kpi__status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.q-kpi__status--green  { background: var(--status-success-bg); color: var(--status-success-dark, #166534); }
+.q-kpi__status--yellow { background: var(--status-warning-bg); color: var(--status-warning-dark, #92400e); }
+.q-kpi__status--red    { background: var(--status-danger-bg, #fef2f2); color: var(--status-danger-dark, #991b1b); }
+.q-kpi__status--grey   { background: var(--surface-alt); color: var(--text-muted); }
+
+/* ── Note ── */
+.q-kpi__note {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: .8;
+  line-height: 14px;
+}
+
+/* ── Q-KPI Detail Grid (2 columns) ── */
+.q-kpi-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-4, 16px);
+}
+
+/* ── Summary Strip (green/yellow/red/grey counts) ── */
+.q-kpi-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3, 12px);
+}
+.q-kpi-summary__item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: var(--sp-3, 12px) var(--sp-4, 16px);
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.q-kpi-summary__count {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 36px;
+}
+.q-kpi-summary__label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* ── Dark Mode — Q-KPI ── */
+html.dark .q-kpi {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+html.dark .q-kpi:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  border-color: #475569;
+}
+html.dark .q-kpi__icon { background: rgba(138,21,56,.15); }
+html.dark .q-kpi-summary__item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+/* ── Responsive — Q-KPI ── */
+@media (max-width: 1024px) {
+  .q-kpi-strip { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .q-kpi-detail-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .q-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .q-kpi-detail-grid { grid-template-columns: 1fr; }
+  .q-kpi-summary { grid-template-columns: repeat(2, 1fr); }
+  .q-kpi__value { font-size: 24px; line-height: 32px; }
+}
 
 /* ── Charts Grid (3×2 responsive) ── */
 .charts-grid {
