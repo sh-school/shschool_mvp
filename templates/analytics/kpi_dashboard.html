@@ -1,96 +1,113 @@
 {% extends "base/base.html" %}
-{% block title %}لوحة KPIs{% endblock %}
+{% block title %}مؤشرات الأداء{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/analytics/" parent_label="التحليلات" current="مؤشرات الأداء" %}
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-3">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="fw-bold text-maroon text-xl">{% include "components/icon.html" with name="bar-chart" %} مؤشرات الأداء الرئيسية — {{ year }}</h2>
-    <select id="yearSelect" class="form-select form-select-sm w-40">
-      <option value="2025-2026" {% if year == "2025-2026" %}selected{% endif %}>2025-2026</option>
-      <option value="2024-2025" {% if year == "2024-2025" %}selected{% endif %}>2024-2025</option>
-    </select>
-  </div>
+<div class="exec-dash">
 
-  <div id="kpiGrid" class="row g-3">
-    <div class="col-12 text-center text-muted py-5">
-      <div class="spinner-border text-maroon"></div>
-      <p class="mt-2">جاري تحميل المؤشرات...</p>
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} مؤشرات الأداء الرئيسية</h1>
+      <p class="exec-subtitle">{{ current_school.name|default:"مدرسة الشحانية" }} — {{ year }}</p>
+    </div>
+    <div class="exec-meta" style="gap:6px">
+      <select id="yearSelect" class="form-control form-control-sm" style="width:120px">
+        <option value="2025-2026" {% if year == "2025-2026" %}selected{% endif %}>2025-2026</option>
+        <option value="2024-2025" {% if year == "2024-2025" %}selected{% endif %}>2024-2025</option>
+      </select>
+      <a href="/analytics/kpis/report/pdf/?year={{ year }}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="download" %} تقرير PDF
+      </a>
     </div>
   </div>
+
+  {# ── KPIs Grid — يُحمَّل بالـ JS ── #}
+  <div id="kpiGrid">
+    <div style="text-align:center;padding:40px;color:var(--muted)">
+      جاري تحميل المؤشرات...
+    </div>
+  </div>
+
 </div>
 
-<style>
-.kpi-card { border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); background:var(--surface); }
-.kpi-val  { font-size:2.2rem; font-weight:700; line-height:1; }
-.kpi-lbl  { font-size:.85rem; color:#555; margin-top:4px; }
-.kpi-meta { font-size:.75rem; color:#888; margin-top:6px; }
-.kpi-bar  { height:6px; border-radius:3px; margin-top:10px; background:#e5e7eb; }
-.kpi-bar-fill { height:100%; border-radius:3px; transition:width .6s; }
-.kpi-inline-icon { width:14px; height:14px; vertical-align:-2px; }
-.dot-green  { background:#16a34a; }
-.dot-yellow { background:#d97706; }
-.dot-red    { background:#dc2626; }
-.dot-grey   { background:#9ca3af; }
-.traffic-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
-</style>
-
 <script nonce="{{ request.csp_nonce }}">
-const COLOR = { green:'#16a34a', yellow:'#d97706', red:'#dc2626', grey:'#9ca3af' };
+const COLOR = { green:'var(--status-success,#16a34a)', yellow:'var(--status-warning,#d97706)', red:'var(--status-danger,#dc2626)', grey:'var(--muted,#9ca3af)' };
+const DOT   = { green:'bg-green-100 text-green-800', yellow:'bg-yellow-100 text-yellow-800', red:'bg-red-100 text-red-800', grey:'bg-gray-100 text-gray-600' };
+const LABEL = { green:'ممتاز', yellow:'تحذير', red:'خطر', grey:'غير متوفر' };
 
-function renderKPI(key, d) {
-  const val    = d.value !== null ? d.value : '—';
-  const unit   = d.unit || '';
-  const color  = COLOR[d.traffic] || COLOR.grey;
-  const higher = d.direction !== 'lower_better';
-  const pct    = d.value !== null
-    ? Math.min(100, (higher ? d.value/d.target : (d.target ? (1-(d.value/d.target))*100+50 : 50)))
-    : 0;
+function renderKPIs(kpis) {
+  const entries = Object.entries(kpis);
+  if (!entries.length) {
+    return '<div style="text-align:center;padding:40px;color:var(--muted)">لا توجد مؤشرات أداء لهذه السنة</div>';
+  }
 
-  return `
-  <div class="col-12 col-sm-6 col-xl-4">
-    <div class="kpi-card">
-      <div class="d-flex justify-content-between align-items-start">
-        <div class="kpi-lbl fw-semibold">${d.label}</div>
-        <span class="traffic-dot dot-${d.traffic}" title="${d.traffic}"></span>
-      </div>
-      <div class="kpi-val mt-2" style="color:${color}">
-        ${val !== null && val !== undefined ? val : '—'}<span class="text-base font-normal"> ${unit}</span>
-      </div>
-      <div class="kpi-bar">
-        <div class="kpi-bar-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
-      <div class="kpi-meta">
-        <svg class="icon kpi-inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> الهدف: <b>${d.target}${unit}</b> &nbsp;|&nbsp;
-        <svg class="icon kpi-inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> التحذير: <b>${d.warning}${unit}</b> &nbsp;|&nbsp;
-        <svg class="icon kpi-inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> ${d.frequency}
-        ${d.note ? `<br><span class="text-gray-500"><svg class="icon kpi-inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg> ${d.note}</span>` : ''}
-      </div>
-    </div>
-  </div>`;
+  // ── KPI Strip (ملخص سريع) ──
+  let stripHTML = '<div class="kpi-strip">';
+  for (const [k, d] of entries) {
+    const val = d.value !== null ? d.value : '—';
+    const unit = d.unit || '';
+    const cls = d.traffic === 'green' ? 'kpi-green' : d.traffic === 'yellow' ? 'kpi-orange' : d.traffic === 'red' ? 'kpi-red' : 'kpi-blue';
+    stripHTML += `
+      <div class="kpi-mini ${cls}">
+        <div class="kpi-mini-label">${d.label}</div>
+        <div class="kpi-mini-value">${val}<small>${unit}</small></div>
+        <div class="kpi-mini-sub">الهدف: ${d.target}${unit}</div>
+      </div>`;
+  }
+  stripHTML += '</div>';
+
+  // ── بطاقات تفصيلية (شبكة 2 أعمدة) ──
+  let cardsHTML = '<div class="charts-grid-2" style="margin-top:12px">';
+  for (const [k, d] of entries) {
+    const val = d.value !== null ? d.value : '—';
+    const unit = d.unit || '';
+    const color = COLOR[d.traffic] || COLOR.grey;
+    const dotCls = DOT[d.traffic] || DOT.grey;
+    const statusLabel = LABEL[d.traffic] || '—';
+    const higher = d.direction !== 'lower_better';
+    const pct = d.value !== null
+      ? Math.min(100, higher ? (d.value / d.target * 100) : (d.target ? ((1 - d.value / d.target) * 100 + 50) : 50))
+      : 0;
+
+    cardsHTML += `
+      <div class="dash-chart-card">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+          <div class="dash-chart-title" style="margin:0">${d.label}</div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full ${dotCls}">${statusLabel}</span>
+        </div>
+        <div style="font-size:2rem;font-weight:700;color:${color};line-height:1.2">
+          ${val}<span style="font-size:.9rem;font-weight:400"> ${unit}</span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;margin:10px 0 8px">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .6s"></div>
+        </div>
+        <div style="font-size:.7rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap">
+          <span>الهدف: <b>${d.target}${unit}</b></span>
+          <span>التحذير: <b>${d.warning}${unit}</b></span>
+          <span>${d.frequency}</span>
+        </div>
+        ${d.note ? `<div style="font-size:.65rem;color:var(--muted);margin-top:4px;opacity:.7">${d.note}</div>` : ''}
+      </div>`;
+  }
+  cardsHTML += '</div>';
+
+  return stripHTML + cardsHTML;
 }
 
 async function loadKPIs(year) {
   document.getElementById('kpiGrid').innerHTML =
-    '<div class="col-12 text-center py-5"><div class="spinner-border text-maroon"></div></div>';
+    '<div style="text-align:center;padding:40px;color:var(--muted)">جاري تحميل المؤشرات...</div>';
   try {
     const r = await fetch(`/analytics/api/kpis/?year=${year}`);
     const data = await r.json();
-    const kpis = data.kpis;
-    if (!kpis || Object.keys(kpis).length === 0) {
-      document.getElementById('kpiGrid').innerHTML =
-        '<div class="col-12"><div class="empty-state-v2"><div class="es-icon">bar-chart</div><div class="es-title">لا توجد مؤشرات أداء</div><div class="es-sub">لم يتم تسجيل أي مؤشرات أداء لهذه السنة بعد</div></div></div>';
-      return;
-    }
-    let html = '';
-    for (const [k, v] of Object.entries(kpis)) html += renderKPI(k, v);
-    document.getElementById('kpiGrid').innerHTML = html;
+    document.getElementById('kpiGrid').innerHTML = renderKPIs(data.kpis || {});
   } catch(e) {
     document.getElementById('kpiGrid').innerHTML =
-      '<div class="col-12"><div class="alert alert-danger">خطأ في تحميل البيانات</div></div>';
+      '<div class="card-qatar" style="padding:20px;text-align:center;color:var(--status-danger)">خطأ في تحميل البيانات</div>';
   }
 }
 
