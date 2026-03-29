@@ -89,7 +89,7 @@
 
 {% block extra_js %}
 <script>
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
   var search = document.getElementById('searchInput');
   var gradeSelect = document.getElementById('gradeFilter');
   var cards = document.querySelectorAll('.js-student-card');
@@ -109,11 +109,13 @@
   });
 
   function filterCards(){
-    var q = search.value.trim().toLowerCase();
+    var q = search.value.trim();
     var grade = gradeSelect.value;
     var visible = 0;
     cards.forEach(function(c){
-      var nameMatch = !q || c.dataset.name.toLowerCase().indexOf(q) !== -1;
+      var nameMatch = typeof window.smartMatch === 'function'
+        ? window.smartMatch(q, c.dataset.name)
+        : (!q || c.dataset.name.toLowerCase().indexOf(q.toLowerCase()) !== -1);
       var gradeMatch = !grade || c.dataset.grade === grade;
       var show = nameMatch && gradeMatch;
       c.style.display = show ? '' : 'none';
@@ -130,6 +132,6 @@
 
   search.addEventListener('input', filterCards);
   gradeSelect.addEventListener('change', filterCards);
-})();
+});
 </script>
 {% endblock %}

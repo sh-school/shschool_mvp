@@ -165,24 +165,12 @@
   </div>
 
   <script nonce="{{ request.csp_nonce }}">
-  (function(){
-    var input=document.getElementById('eval-staff-search');
-    var tbody=document.getElementById('eval-staff-tbody');
-    var countEl=document.getElementById('eval-staff-count');
-    if(!input||!tbody)return;
-    var rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
-    var total=rows.length;
-    input.addEventListener('input',function(){
-      var q=this.value.trim().toLowerCase();
-      var shown=0;
-      rows.forEach(function(r){
-        var match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
-        r.style.display=match?'':'none';
-        if(match)shown++;
-      });
-      if(countEl)countEl.textContent=shown;
+  document.addEventListener('DOMContentLoaded', function(){
+    window.smartFilter('eval-staff-search', '#eval-staff-tbody tr[data-text]', {
+      textAttr: 'data-text',
+      countEl: '#eval-staff-count'
     });
-  })();
+  });
   </script>
 
 </div>

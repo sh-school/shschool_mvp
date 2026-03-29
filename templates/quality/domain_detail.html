@@ -44,7 +44,7 @@
     <div class="qdom-filters__field">
       <label class="qdom-filters__label">بحث نص</label>
       <input type="text" id="qdom-search" placeholder="ابحث في الإجراءات..."
-             class="qdom-filters__select" oninput="filterDomainProcs()">
+             class="qdom-filters__select">
     </div>
     <div class="qdom-filters__actions">
       <button type="submit" class="btn-primary btn-sm">فلترة</button>
@@ -238,14 +238,8 @@ html.dark .qdom-badge--gray    { background: rgba(100,116,139,.15); color: #94a3
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-/* ── Client-side text search filter for procedures ── */
-function filterDomainProcs() {
-  var q = (document.getElementById('qdom-search').value || '').toLowerCase();
-  var items = document.querySelectorAll('.qdom-proc[data-text]');
-  items.forEach(function(el) {
-    var text = el.getAttribute('data-text') || '';
-    el.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
-  });
-}
+document.addEventListener('DOMContentLoaded', function(){
+  window.smartFilter('qdom-search', '.qdom-proc[data-text]', { textAttr: 'data-text' });
+});
 </script>
 {% endblock %}

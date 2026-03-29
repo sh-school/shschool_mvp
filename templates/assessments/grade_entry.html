@@ -90,16 +90,11 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.csp_nonce }}">
-(function(){
-  var inp=document.getElementById('gradeSearch');
-  if(!inp)return;
-  inp.addEventListener('input',function(){
-    var q=this.value.trim().toLowerCase();
-    document.querySelectorAll('#grades-body tr[data-text]').forEach(function(r){
-      r.style.display=!q||r.getAttribute('data-text').toLowerCase().indexOf(q)>-1?'':'none';
-    });
-  });
-})();
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('gradeSearch', '#grades-body tr[data-text]', { textAttr: 'data-text' });
+  }
+});
 </script>
 <script nonce="{{ request.csp_nonce }}">
 (function () {

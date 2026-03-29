@@ -1,9 +1,90 @@
 /**
  * base.js — SchoolOS v6
- * الوظائف الأساسية للمنصة: Dropdown · Notifications · PWA · Modal · Toast
+ * الوظائف الأساسية للمنصة: Dropdown · Notifications · PWA · Modal · Toast · Smart Search
  * يُحمَّل عبر <script src> — لا يحتاج nonce (CSP 'self' يسمح بالملفات الخارجية)
  */
 'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   البحث الذكي العربي — Smart Arabic Search
+   ══════════════════════════════════════════════════════════════
+   window.smartNorm(text)   — تطبيع النص (تشكيل + همزات + حالة)
+   window.smartMatch(q,text) — هل النص يطابق الاستعلام؟ (كل كلمة AND)
+   window.smartFilter(inputId, selector, opts) — ربط بحث فوري بعناصر
+   ────────────────────────────────────────────────────────────── */
+(function(){
+  /* حذف التشكيل العربي (الفتحة، الضمة، الكسرة، السكون، الشدة، التنوين) */
+  var TASHKEEL = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g;
+
+  /* توحيد الهمزات: أ إ آ ؤ ئ ء → ا */
+  var HAMZA_MAP = {'\u0623':'ا','\u0625':'ا','\u0622':'ا','\u0624':'و','\u0626':'ي','\u0621':'ا'};
+  var HAMZA_RE = /[\u0621-\u0626]/g;
+
+  /* تاء مربوطة → هاء */
+  var TAA_RE = /\u0629/g;
+
+  function norm(t) {
+    if (!t) return '';
+    return t
+      .replace(TASHKEEL, '')
+      .replace(HAMZA_RE, function(c){ return HAMZA_MAP[c] || c; })
+      .replace(TAA_RE, 'ه')
+      .toLowerCase()
+      .trim();
+  }
+
+  /**
+   * هل كل كلمات الاستعلام موجودة في النص؟
+   * smartMatch("سابع احمد", "الصف السابع أحمد محمد") → true
+   */
+  function match(query, text) {
+    if (!query) return true;
+    var nq = norm(query);
+    var nt = norm(text);
+    var words = nq.split(/\s+/);
+    for (var i = 0; i < words.length; i++) {
+      if (words[i] && nt.indexOf(words[i]) === -1) return false;
+    }
+    return true;
+  }
+
+  /**
+   * ربط بحث فوري بحقل input وعناصر DOM
+   * smartFilter('search-id', '[data-filter-row]', {
+   *   textAttr: 'data-text',  // اختياري — يأخذ textContent لو غير موجود
+   *   countEl: '#count',      // اختياري — عداد النتائج
+   *   noResults: '#no-msg',   // اختياري — رسالة لا نتائج
+   *   parent: '#container'    // اختياري — حاوية البحث
+   * })
+   */
+  function filter(inputId, selector, opts) {
+    var input = document.getElementById(inputId);
+    if (!input) return;
+    opts = opts || {};
+    var parent = opts.parent ? document.querySelector(opts.parent) : document;
+    var rows = parent.querySelectorAll(selector);
+    var countEl = opts.countEl ? document.querySelector(opts.countEl) : null;
+    var noEl = opts.noResults ? document.querySelector(opts.noResults) : null;
+
+    input.addEventListener('input', function(){
+      var q = this.value;
+      var shown = 0;
+      rows.forEach(function(r){
+        var text = opts.textAttr ? r.getAttribute(opts.textAttr) : r.textContent;
+        var ok = match(q, text || '');
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      if (countEl) countEl.textContent = shown;
+      if (noEl) noEl.style.display = (shown === 0 && q) ? '' : 'none';
+    });
+  }
+
+  /* تصدير عام */
+  window.smartNorm = norm;
+  window.smartMatch = match;
+  window.smartFilter = filter;
+})();
 
 /* ── Dropdown positioning ────────────────────────────────── */
 function sdPos(m, btn) {

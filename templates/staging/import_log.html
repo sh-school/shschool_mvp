@@ -96,7 +96,7 @@
 
 {% if logs %}
 <script nonce="{{ request.csp_nonce }}">
-(function() {
+document.addEventListener('DOMContentLoaded', function () {
   var searchInput = document.getElementById('log-search-input');
   var statusFilter = document.getElementById('log-status-filter');
   var table = document.getElementById('import-log-table');
@@ -105,13 +105,13 @@
   var total = rows.length;
 
   function filterRows() {
-    var q = searchInput.value.trim().toLowerCase();
+    var q = searchInput.value;
     var status = statusFilter.value;
     var visible = 0;
     rows.forEach(function(row) {
-      var text = row.textContent.toLowerCase();
+      var text = row.textContent;
       var rowStatus = row.getAttribute('data-status') || '';
-      var matchText = !q || text.indexOf(q) !== -1;
+      var matchText = window.smartMatch(q, text);
       var matchStatus = !status
         || (status === 'other' && rowStatus !== 'completed' && rowStatus !== 'failed')
         || rowStatus === status;
@@ -124,7 +124,7 @@
 
   searchInput.addEventListener('input', filterRows);
   statusFilter.addEventListener('change', filterRows);
-})();
+});
 </script>
 {% endif %}
 {% endblock %}

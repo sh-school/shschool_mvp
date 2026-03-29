@@ -47,18 +47,8 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-(function () {
-  'use strict';
-  var input = document.getElementById('student-search');
-  if (!input) return;
-  input.addEventListener('input', function () {
-    var q = this.value.trim().toLowerCase();
-    var items = document.querySelectorAll('[data-filter-item]');
-    for (var i = 0; i < items.length; i++) {
-      var name = (items[i].getAttribute('data-name') || '').toLowerCase();
-      items[i].style.display = (!q || name.indexOf(q) !== -1) ? '' : 'none';
-    }
-  });
-})();
+document.addEventListener('DOMContentLoaded', function () {
+  window.smartFilter('student-search', '[data-filter-item]', { textAttr: 'data-name' });
+});
 </script>
 {% endblock %}

@@ -197,15 +197,10 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-(function(){
-  var input=document.getElementById('gradebook-search');
-  if(!input)return;
-  input.addEventListener('input',function(){
-    var q=this.value.trim().toLowerCase();
-    document.querySelectorAll('[data-filter-row]').forEach(function(tr){
-      tr.style.display=(q===''||tr.getAttribute('data-text').toLowerCase().indexOf(q)!==-1)?'':'none';
-    });
-  });
-})();
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('gradebook-search', '[data-filter-row]', { textAttr: 'data-text' });
+  }
+});
 </script>
 {% endblock %}

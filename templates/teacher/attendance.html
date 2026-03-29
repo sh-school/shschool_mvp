@@ -85,18 +85,19 @@
 {% endblock %}
 {% block extra_scripts %}
 <script nonce="{{ request.csp_nonce }}">
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
+  /* ── Client-side student search (smart Arabic) ── */
   var searchEl = document.getElementById('search-input');
   if (!searchEl) return;
 
-  /* ── Client-side student search ── */
+  var rows = document.querySelectorAll('#students-list > div > div[id^="student-"]');
   searchEl.addEventListener('input', function(){
-    var q = this.value.trim().toLowerCase();
-    var rows = document.querySelectorAll('#students-list > div > div[id^="student-"]');
+    var q = this.value;
     rows.forEach(function(row){
       var name = (row.querySelector('.font-medium') || {}).textContent || '';
       var nid  = (row.querySelector('.font-mono') || {}).textContent || '';
-      row.style.display = (!q || name.toLowerCase().indexOf(q) !== -1 || nid.indexOf(q) !== -1) ? '' : 'none';
+      var ok = window.smartMatch(q, name + ' ' + nid);
+      row.style.display = ok ? '' : 'none';
     });
   });
 
@@ -107,6 +108,6 @@
       searchEl.focus();
     }
   });
-})();
+});
 </script>
 {% endblock %}

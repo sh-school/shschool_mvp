@@ -140,24 +140,23 @@
   </div>
 
   <script nonce="{{ request.csp_nonce }}">
-  (function(){
-    const input=document.getElementById('executor-search');
-    const tbody=document.getElementById('executor-tbody');
-    const countEl=document.getElementById('executor-count');
-    if(!input||!tbody)return;
-    const rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
-    const total=rows.length;
-    input.addEventListener('input',function(){
-      const q=this.value.trim().toLowerCase();
-      let shown=0;
+  document.addEventListener('DOMContentLoaded', function(){
+    var input = document.getElementById('executor-search');
+    var countEl = document.getElementById('executor-count');
+    if (!input) return;
+    var rows = document.querySelectorAll('#executor-tbody tr[data-text]');
+    var total = rows.length;
+    input.addEventListener('input', function(){
+      var q = this.value;
+      var shown = 0;
       rows.forEach(function(r){
-        const match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
-        r.style.display=match?'':'none';
-        if(match)shown++;
+        var ok = window.smartMatch(q, r.getAttribute('data-text') || '');
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
       });
-      if(countEl)countEl.textContent=shown+' / '+total+' مسمى وظيفي';
+      if (countEl) countEl.textContent = shown + ' / ' + total + ' مسمى وظيفي';
     });
-  })();
+  });
   </script>
 
   <!-- إضافة إشعار تفاعلي عند الحفظ -->

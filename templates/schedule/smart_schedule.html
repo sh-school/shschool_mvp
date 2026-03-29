@@ -153,20 +153,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  var input = document.getElementById('assign-search');
-  if (!input) return;
-  var rows = document.querySelectorAll('#assign-tbody tr[data-filter-row]');
-  var counter = document.getElementById('shown-count');
-  input.addEventListener('input', function(){
-    var q = this.value.trim().toLowerCase();
-    var shown = 0;
-    rows.forEach(function(r){
-      var match = !q || r.getAttribute('data-text').toLowerCase().indexOf(q) !== -1;
-      r.style.display = match ? '' : 'none';
-      if (match) shown++;
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('assign-search', '#assign-tbody tr[data-filter-row]', {
+      textAttr: 'data-text',
+      countEl: '#shown-count'
     });
-    if (counter) counter.textContent = shown;
-  });
+  }
 });
 </script>
 

@@ -70,11 +70,22 @@
 
   function doSearch(q) {
     if (q.length < 2) { if (cmdResults) cmdResults.innerHTML = ''; return; }
+    /* تطبيع البحث: إزالة التشكيل + توحيد الهمزات قبل الإرسال */
+    var normQ = (typeof window.smartNorm === 'function') ? window.smartNorm(q) : q;
     fetch('/search/?q=' + encodeURIComponent(q), {
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(function (r) { return r.json(); })
-    .then(function (d) { renderResults(d.results || []); })
+    .then(function (d) {
+      var results = d.results || [];
+      /* فلترة ذكية على النتائج — بحث متعدد الكلمات */
+      if (typeof window.smartMatch === 'function' && normQ) {
+        results = results.filter(function(r) {
+          return window.smartMatch(q, (r.title || '') + ' ' + (r.sub || ''));
+        });
+      }
+      renderResults(results);
+    })
     .catch(function () {
       if (typeof window.showToast === 'function') {
         window.showToast('\u062e\u0637\u0623 \u0641\u064a \u0627\u0644\u0628\u062d\u062b \u2014 \u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0627\u062a\u0635\u0627\u0644', 'danger');

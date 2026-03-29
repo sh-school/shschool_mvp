@@ -44,19 +44,16 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-(function () {
-  'use strict';
+document.addEventListener('DOMContentLoaded', function () {
   var input = document.getElementById('bus-search');
   if (!input) return;
   input.addEventListener('input', function () {
-    var q = this.value.trim().toLowerCase();
-    var items = document.querySelectorAll('[data-filter-item]');
-    for (var i = 0; i < items.length; i++) {
-      var bus = (items[i].getAttribute('data-bus') || '').toLowerCase();
-      var driver = (items[i].getAttribute('data-driver') || '').toLowerCase();
-      items[i].style.display = (!q || bus.indexOf(q) !== -1 || driver.indexOf(q) !== -1) ? '' : 'none';
-    }
+    var q = this.value;
+    document.querySelectorAll('[data-filter-item]').forEach(function (el) {
+      var text = (el.getAttribute('data-bus') || '') + ' ' + (el.getAttribute('data-driver') || '');
+      el.style.display = window.smartMatch(q, text) ? '' : 'none';
+    });
   });
-})();
+});
 </script>
 {% endblock %}

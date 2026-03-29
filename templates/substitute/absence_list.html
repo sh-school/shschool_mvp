@@ -90,15 +90,8 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-(function(){
-  var input=document.getElementById('absence-search');
-  if(!input)return;
-  input.addEventListener('input',function(){
-    var q=this.value.trim().toLowerCase();
-    document.querySelectorAll('[data-filter-row]').forEach(function(el){
-      el.style.display=(q===''||el.getAttribute('data-text').toLowerCase().indexOf(q)!==-1)?'':'none';
-    });
-  });
-})();
+document.addEventListener('DOMContentLoaded', function(){
+  window.smartFilter('absence-search', '[data-filter-row]', { textAttr: 'data-text' });
+});
 </script>
 {% endblock %}

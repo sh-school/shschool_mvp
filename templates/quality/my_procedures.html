@@ -55,8 +55,7 @@
       <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
-    <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات..." class="qmy-filters__select qmy-filters__search"
-           oninput="filterMyProcs()">
+    <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات..." class="qmy-filters__select qmy-filters__search">
     <button type="submit" class="btn-primary btn-sm">فلترة</button>
     <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
   </form>
@@ -209,14 +208,8 @@ html.dark .qdom-badge--gray    { background: rgba(100,116,139,.15); color: #94a3
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-/* ── Client-side text search filter ── */
-function filterMyProcs() {
-  var q = (document.getElementById('qmy-search').value || '').toLowerCase();
-  var items = document.querySelectorAll('#qmy-list .qmy-item');
-  items.forEach(function(el) {
-    var text = el.getAttribute('data-text') || '';
-    el.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
-  });
-}
+document.addEventListener('DOMContentLoaded', function(){
+  window.smartFilter('qmy-search', '#qmy-list .qmy-item', { textAttr: 'data-text' });
+});
 </script>
 {% endblock %}

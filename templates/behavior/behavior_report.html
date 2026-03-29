@@ -138,33 +138,37 @@
 
 {% block extra_js %}
 <script>
-(function(){
-  const descInput  = document.getElementById('filter-description');
-  const dateFrom   = document.getElementById('filter-date-from');
-  const dateTo     = document.getElementById('filter-date-to');
-  const levelSel   = document.getElementById('filter-level');
-  const resetBtn   = document.getElementById('btn-reset-filters');
-  const noMsg      = document.getElementById('no-results-msg');
-  const list       = document.getElementById('infractions-list');
+document.addEventListener('DOMContentLoaded', function(){
+  var descInput  = document.getElementById('filter-description');
+  var dateFrom   = document.getElementById('filter-date-from');
+  var dateTo     = document.getElementById('filter-date-to');
+  var levelSel   = document.getElementById('filter-level');
+  var resetBtn   = document.getElementById('btn-reset-filters');
+  var noMsg      = document.getElementById('no-results-msg');
+  var list       = document.getElementById('infractions-list');
   if (!list) return;
-  const rows = list.querySelectorAll('[data-filter-row]');
+  var rows = list.querySelectorAll('[data-filter-row]');
 
   function applyFilters(){
-    const q     = (descInput.value || '').trim().toLowerCase();
-    const from  = dateFrom.value || '';
-    const to    = dateTo.value   || '';
-    const level = levelSel.value || '';
-    let visible = 0;
+    var q     = (descInput.value || '').trim();
+    var from  = dateFrom.value || '';
+    var to    = dateTo.value   || '';
+    var level = levelSel.value || '';
+    var visible = 0;
 
     rows.forEach(function(row){
-      const desc = (row.getAttribute('data-description') || '').toLowerCase();
-      const date = row.getAttribute('data-date') || '';
-      const lvl  = row.getAttribute('data-level') || '';
-      let show = true;
-      if (q && desc.indexOf(q) === -1) show = false;
-      if (from && date < from) show = false;
-      if (to   && date > to)   show = false;
-      if (level && lvl !== level) show = false;
+      var desc = row.getAttribute('data-description') || '';
+      var date = row.getAttribute('data-date') || '';
+      var lvl  = row.getAttribute('data-level') || '';
+      var show = true;
+      if (q) {
+        show = typeof window.smartMatch === 'function'
+          ? window.smartMatch(q, desc)
+          : desc.toLowerCase().indexOf(q.toLowerCase()) !== -1;
+      }
+      if (show && from && date < from) show = false;
+      if (show && to   && date > to)   show = false;
+      if (show && level && lvl !== level) show = false;
       row.style.display = show ? '' : 'none';
       if (show) visible++;
     });
@@ -183,6 +187,6 @@
     levelSel.value  = '';
     applyFilters();
   });
-})();
+});
 </script>
 {% endblock %}

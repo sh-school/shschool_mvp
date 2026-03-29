@@ -185,7 +185,7 @@
 
 {% block extra_js %}
 <script>
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
   var studentInput = document.getElementById('filter-student');
   var statusSel    = document.getElementById('filter-status');
   var levelSel     = document.getElementById('filter-level');
@@ -199,7 +199,7 @@
   var resCard  = document.getElementById('resolved-cases-card');
 
   function applyFilters(){
-    var q      = (studentInput.value || '').trim().toLowerCase();
+    var q      = (studentInput.value || '').trim();
     var status = statusSel.value || '';
     var level  = levelSel.value  || '';
     var from   = dateFrom.value  || '';
@@ -208,17 +208,21 @@
     var openVisible = 0, resVisible = 0;
 
     rows.forEach(function(row){
-      var name = (row.getAttribute('data-student') || '').toLowerCase();
+      var name = row.getAttribute('data-student') || '';
       var st   = row.getAttribute('data-status') || '';
       var dt   = row.getAttribute('data-date')   || '';
       var lvl  = row.getAttribute('data-level')  || '';
       var show = true;
 
-      if (q && name.indexOf(q) === -1) show = false;
-      if (status && st !== status) show = false;
-      if (level && lvl !== level) show = false;
-      if (from && dt < from) show = false;
-      if (to   && dt > to)   show = false;
+      if (q) {
+        show = typeof window.smartMatch === 'function'
+          ? window.smartMatch(q, name)
+          : name.toLowerCase().indexOf(q.toLowerCase()) !== -1;
+      }
+      if (show && status && st !== status) show = false;
+      if (show && level && lvl !== level) show = false;
+      if (show && from && dt < from) show = false;
+      if (show && to   && dt > to)   show = false;
 
       row.style.display = show ? '' : 'none';
       if (show) {
@@ -247,6 +251,6 @@
     if (openCard) openCard.style.display = '';
     if (resCard)  resCard.style.display  = '';
   });
-})();
+});
 </script>
 {% endblock %}

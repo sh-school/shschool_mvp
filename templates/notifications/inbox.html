@@ -106,20 +106,17 @@
   var searchInput = document.getElementById('notif-search');
   if (searchInput) {
     searchInput.addEventListener('input', function () {
-      var q = this.value.trim().toLowerCase();
-      var items = document.querySelectorAll('#notif-list [data-filter-item]');
-      for (var i = 0; i < items.length; i++) {
-        var title = (items[i].getAttribute('data-title') || '').toLowerCase();
-        var body = (items[i].getAttribute('data-body') || '').toLowerCase();
-        items[i].style.display = (!q || title.indexOf(q) !== -1 || body.indexOf(q) !== -1) ? '' : 'none';
-      }
+      var q = this.value;
+      /* بحث في القائمة الرئيسية */
+      document.querySelectorAll('#notif-list [data-filter-item]').forEach(function (el) {
+        var text = (el.getAttribute('data-title') || '') + ' ' + (el.getAttribute('data-body') || '');
+        el.style.display = window.smartMatch(q, text) ? '' : 'none';
+      });
       /* إخفاء/إظهار الإشعارات العاجلة أيضاً */
-      var urgentItems = document.querySelectorAll('#urgent-section [data-filter-item]');
-      for (var j = 0; j < urgentItems.length; j++) {
-        var uTitle = (urgentItems[j].getAttribute('data-title') || '').toLowerCase();
-        var uBody = (urgentItems[j].getAttribute('data-body') || '').toLowerCase();
-        urgentItems[j].style.display = (!q || uTitle.indexOf(q) !== -1 || uBody.indexOf(q) !== -1) ? '' : 'none';
-      }
+      document.querySelectorAll('#urgent-section [data-filter-item]').forEach(function (el) {
+        var text = (el.getAttribute('data-title') || '') + ' ' + (el.getAttribute('data-body') || '');
+        el.style.display = window.smartMatch(q, text) ? '' : 'none';
+      });
     });
   }
 })();

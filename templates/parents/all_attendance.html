@@ -131,21 +131,15 @@
   {% endfor %}
 
   <script nonce="{{ request.csp_nonce }}">
-  (function(){
+  document.addEventListener('DOMContentLoaded', function(){
     document.querySelectorAll('.att-day-search').forEach(function(input){
-      var tbodyId=input.getAttribute('data-target');
-      var tbody=document.getElementById(tbodyId);
-      if(!tbody)return;
-      var rows=Array.from(tbody.querySelectorAll('tr[data-text]'));
-      input.addEventListener('input',function(){
-        var q=this.value.trim().toLowerCase();
-        rows.forEach(function(r){
-          var match=!q||r.getAttribute('data-text').toLowerCase().includes(q);
-          r.style.display=match?'':'none';
-        });
-      });
+      var tbodyId = input.getAttribute('data-target');
+      if (!tbodyId) return;
+      /* smartFilter يحتاج inputId فريد — نولّده ديناميكياً */
+      if (!input.id) input.id = 'att-search-' + tbodyId;
+      window.smartFilter(input.id, '#' + tbodyId + ' tr[data-text]', { textAttr: 'data-text' });
     });
-  })();
+  });
   </script>
 
 </div>

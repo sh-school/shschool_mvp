@@ -79,15 +79,8 @@
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
-(function(){
-  const input = document.getElementById('bus-search');
-  if(!input) return;
-  input.addEventListener('input', function(){
-    const q = this.value.toLowerCase();
-    document.querySelectorAll('#bus-tbody .filterable-row').forEach(function(row){
-      row.style.display = row.getAttribute('data-text').includes(q) ? '' : 'none';
-    });
-  });
-})();
+document.addEventListener('DOMContentLoaded', function () {
+  window.smartFilter('bus-search', '#bus-tbody .filterable-row', { textAttr: 'data-text' });
+});
 </script>
 {% endblock %}
