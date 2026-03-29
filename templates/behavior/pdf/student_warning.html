@@ -68,7 +68,7 @@
 <div class="section">
   <div class="section-title">الإجراء المتخذ وفق اللوائح</div>
   <p class="body-text">
-    {{ infraction.action_taken|default:infraction.violation_category.default_action|default:"_______________________________" }}
+    {% firstof infraction.action_taken infraction.violation_category.default_action "_______________________________" %}
   </p>
 </div>
 
