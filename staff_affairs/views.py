@@ -99,16 +99,6 @@ def staff_dashboard(request):
         .order_by("-created_at")[:5]
     )
 
-    # ── ترجمة أسماء الأدوار ──
-    ROLE_LABELS = {
-        "principal": "مدير", "vice_admin": "نائب إداري", "vice_academic": "نائب أكاديمي",
-        "coordinator": "منسق", "admin_supervisor": "مشرف إداري",
-        "teacher": "معلم", "ese_teacher": "تربية خاصة", "social_worker": "أخصائي اجتماعي",
-        "psychologist": "أخصائي نفسي", "academic_advisor": "مرشد أكاديمي",
-        "nurse": "ممرض", "librarian": "أمين مكتبة", "it_technician": "فني تقنية",
-        "bus_supervisor": "مشرف نقل", "admin": "إداري", "secretary": "سكرتير",
-    }
-
     return render(request, "staff_affairs/dashboard.html", {
         "today": today,
         "year": year,
@@ -119,7 +109,6 @@ def staff_dashboard(request):
         "pending_evals": pending_evals,
         "expiring_licenses": expiring_licenses,
         "role_distribution": role_distribution,
-        "role_labels": ROLE_LABELS,
         "recent_absences": recent_absences,
         "recent_leaves": recent_leaves,
     })
