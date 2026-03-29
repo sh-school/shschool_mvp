@@ -383,8 +383,8 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=103" defer></script>
-<script src="{% static 'js/app.js' %}?v=100" defer></script>
+<script src="{% static 'js/base.js' %}?v=104" defer></script>
+<script src="{% static 'js/app.js' %}?v=101" defer></script>
 
 {% block extra_js %}{% endblock %}
 
