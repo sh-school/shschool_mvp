@@ -42,7 +42,7 @@ def schedule(request):
         sessions = (
             Session.objects.filter(school=school, date=selected_date)
             .select_related("class_group", "subject", "teacher")
-            .order_by("period_number", "start_time")
+            .order_by("start_time")
         )
         # ── فلاتر ذكية للقيادة ──
         teacher_filter = request.GET.get("teacher", "")
@@ -60,7 +60,14 @@ def schedule(request):
             # ── افتراضياً: فقط الحصص التي تحتاج تسجيل حضور ──
             sessions = sessions.exclude(status="completed")
         if period_filter:
-            sessions = sessions.filter(period_number=period_filter)
+            # Session ليس فيه period_number — نفلتر بوقت البداية عبر ScheduleSlot
+            from operations.models import ScheduleSlot
+            slot_times = (
+                ScheduleSlot.objects.filter(school=school, period_number=int(period_filter))
+                .values_list("start_time", flat=True).distinct()
+            )
+            if slot_times:
+                sessions = sessions.filter(start_time__in=list(slot_times))
         # إحصائيات سريعة
         all_count = Session.objects.filter(school=school, date=selected_date).count()
         completed_count = Session.objects.filter(school=school, date=selected_date, status="completed").count()
