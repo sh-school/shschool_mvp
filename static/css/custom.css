@@ -127,6 +127,14 @@
   --chart-5-light: #F0F9FF;
   --chart-6-light: #F9FAFB;
 
+  /* ══ Role Colors — ألوان وظيفية للأدوار (MTG-2026-003-TEC) ══ */
+  --role-reviewer: #5b21b6;
+  --role-reviewer-bg: #f5f3ff;
+  --role-reviewer-border: #c4b5fd;
+  --role-executor: #1e40af;
+  --role-executor-bg: #eff6ff;
+  --role-executor-border: #93c5fd;
+
   /* Quality module tokens */
   --q-maroon: #8d1b3d;
   --q-maroon-dark: #6b142e;
