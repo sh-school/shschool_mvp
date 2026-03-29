@@ -1,0 +1,117 @@
+{% extends "base/base.html" %}
+
+{% block title %}السلوك — شؤون الطلاب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="السلوك" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} ملخص السلوك الطلابي</h1>
+      <p class="exec-subtitle">{{ today|date:"F Y" }}</p>
+    </div>
+    <a href="/behavior/dashboard/" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="scale" %} لوحة السلوك التفصيلية
+    </a>
+  </div>
+
+  {# ── KPI Strip ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">مخالفات الشهر</div>
+      <div class="kpi-mini-value">{{ month_summary.total }}</div>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">د1 — بسيطة</div>
+      <div class="kpi-mini-value">{{ month_summary.by_level.1 }}</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">د2 — متوسطة</div>
+      <div class="kpi-mini-value">{{ month_summary.by_level.2 }}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">د3 — خطيرة</div>
+      <div class="kpi-mini-value">{{ month_summary.by_level.3 }}</div>
+    </div>
+    <div class="kpi-mini kpi-purple">
+      <div class="kpi-mini-label">د4 — جسيمة</div>
+      <div class="kpi-mini-value">{{ month_summary.by_level.4 }}</div>
+    </div>
+  </div>
+
+  {# ── ملخص الحل ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">تم حلها</div>
+      <div class="kpi-mini-value">{{ month_summary.resolved }}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">لم تُحل بعد</div>
+      <div class="kpi-mini-value">{{ month_summary.unresolved }}</div>
+    </div>
+  </div>
+
+  <div class="charts-grid-2">
+
+    {# ── أكثر الطلاب مخالفات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب مخالفات (هذا العام)</div>
+      {% if top_offenders %}
+      <div class="dash-list">
+        {% for s in top_offenders %}
+        <div class="dash-list-item">
+          <a href="{% url 'student_affairs:student_profile' s.student__id %}"
+             style="flex:1;color:var(--maroon);text-decoration:none;font-weight:600;font-size:.8rem" class="hover:underline">
+            {{ s.student__full_name }}
+          </a>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+            {{ s.infraction_count }} مخالفة
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا مخالفات هذا العام" %}
+      {% endif %}
+    </div>
+
+    {# ── آخر المخالفات ── #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="list-checks" %} آخر المخالفات</div>
+      {% if recent %}
+      <div class="dash-list">
+        {% for inf in recent %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <a href="/behavior/student/{{ inf.student_id }}/"
+               style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
+              {{ inf.student.full_name }}
+            </a>
+            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ inf.date|date:"d/m" }}</span>
+            {% if inf.violation_category %}
+            <span style="font-size:.6rem;color:var(--muted)">— {{ inf.violation_category.name_ar|truncatechars:40 }}</span>
+            {% endif %}
+          </div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full
+            {% if inf.level == 1 %}bg-green-100 text-green-800
+            {% elif inf.level == 2 %}bg-yellow-100 text-yellow-800
+            {% elif inf.level == 3 %}bg-orange-100 text-orange-800
+            {% else %}bg-red-100 text-red-800{% endif %}">
+            د{{ inf.level }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا مخالفات مسجّلة" %}
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

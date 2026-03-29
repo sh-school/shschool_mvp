@@ -714,14 +714,96 @@ def transfer_review(request, pk):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def attendance_overview(request):
     """ملخص الحضور والغياب — يقرأ من operations."""
-    return HttpResponse("<h1 dir='rtl'>ملخص الحضور — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    today = timezone.localdate()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    # ── إحصائيات اليوم ──
+    today_qs = StudentAttendance.objects.filter(school=school, session__date=today)
+    today_summary = {
+        "present": today_qs.filter(status="present").count(),
+        "absent": today_qs.filter(status="absent").count(),
+        "late": today_qs.filter(status="late").count(),
+        "excused": today_qs.filter(status="excused").count(),
+        "total": today_qs.count(),
+    }
+    if today_summary["total"] > 0:
+        today_summary["pct"] = round(today_summary["present"] / today_summary["total"] * 100, 1)
+    else:
+        today_summary["pct"] = 0
+
+    # ── أكثر الطلاب غياباً (top 10) ──
+    from django.db.models import Sum
+
+    top_absent = (
+        StudentAttendance.objects.filter(
+            school=school, status="absent",
+            session__date__year=today.year,
+        )
+        .values("student__id", "student__full_name")
+        .annotate(absent_count=Count("id"))
+        .order_by("-absent_count")[:10]
+    )
+
+    # ── تنبيهات الغياب المتكرر ──
+    from operations.models import AbsenceAlert
+
+    active_alerts = (
+        AbsenceAlert.objects.filter(school=school, status__in=["pending", "notified"])
+        .select_related("student")
+        .order_by("-created_at")[:10]
+    )
+
+    return render(request, "student_affairs/attendance_overview.html", {
+        "today": today,
+        "year": year,
+        "summary": today_summary,
+        "top_absent": top_absent,
+        "active_alerts": active_alerts,
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def behavior_overview(request):
     """ملخص السلوك — يقرأ من behavior."""
-    return HttpResponse("<h1 dir='rtl'>ملخص السلوك — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    today = timezone.localdate()
+
+    # ── إحصائيات الشهر ──
+    month_qs = BehaviorInfraction.objects.filter(
+        school=school, date__year=today.year, date__month=today.month,
+    )
+    month_summary = {
+        "total": month_qs.count(),
+        "by_level": {lvl: month_qs.filter(level=lvl).count() for lvl in range(1, 5)},
+        "resolved": month_qs.filter(is_resolved=True).count(),
+        "unresolved": month_qs.filter(is_resolved=False).count(),
+    }
+
+    # ── أكثر الطلاب مخالفات (top 10) ──
+    top_offenders = (
+        BehaviorInfraction.objects.filter(
+            school=school, date__year=today.year,
+        )
+        .values("student__id", "student__full_name")
+        .annotate(infraction_count=Count("id"))
+        .order_by("-infraction_count")[:10]
+    )
+
+    # ── آخر المخالفات (10) ──
+    recent = (
+        BehaviorInfraction.objects.filter(school=school)
+        .select_related("student", "violation_category")
+        .order_by("-date")[:10]
+    )
+
+    return render(request, "student_affairs/behavior_overview.html", {
+        "today": today,
+        "month_summary": month_summary,
+        "top_offenders": top_offenders,
+        "recent": recent,
+    })
 
 
 # ═════════════════════════════════════════════════════════════════════
