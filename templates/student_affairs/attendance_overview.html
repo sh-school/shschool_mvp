@@ -14,6 +14,14 @@
       <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الحضور والغياب</h1>
       <p class="exec-subtitle">ملخص حضور الطلاب — {{ today|date:"D، d M Y" }}</p>
     </div>
+    <div class="exec-meta" style="gap:6px">
+      <a href="/teacher/schedule/" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="list-checks" %} تسجيل الحضور
+      </a>
+      <a href="/teacher/reports/daily/" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="bar-chart" %} التقرير اليومي
+      </a>
+    </div>
   </div>
 
   {# ── KPI Strip — إحصائيات اليوم ── #}
