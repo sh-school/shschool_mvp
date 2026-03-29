@@ -210,11 +210,18 @@
 <div class="sd-menu" id="m-academic" role="menu" aria-label="الشؤون الأكاديمية">
   <div class="sd-label">الدراسة والتقييم</div>
   <a href="/assessments/">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
+  <a href="/assessments/failing/">{% include "components/icon.html" with name="alert-triangle" %} قائمة الراسبين</a>
   <a href="/reports/">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
   <a href="/analytics/">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
+  <a href="/analytics/kpis/">{% include "components/icon.html" with name="list-checks" %} مؤشرات الأداء (KPIs)</a>
   <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
   <hr>
-  <div class="sd-label">الجدول الدراسي</div>
+  <div class="sd-label">الاختبارات</div>
+  <a href="/exam-control/">{% include "components/icon.html" with name="lock" %} كنترول الاختبارات</a>
+  <hr>
+  <div class="sd-label">الجدول والحضور</div>
+  <a href="/teacher/schedule/">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="/teacher/reports/daily/">{% include "components/icon.html" with name="bar-chart" %} التقرير اليومي</a>
   <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <a href="/teacher/smart-schedule/">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
 </div>
