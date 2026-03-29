@@ -67,11 +67,12 @@
   {% endif %}
 
 {% else %}
-  {% include "components/empty_state.html" with
-     icon="waypoints"
-     title="لا توجد ارتباطات"
-     subtitle=search|yesno:"لا توجد نتائج تطابق البحث. جرّب كلمات أخرى.,لم يتم ربط أي ولي أمر بطالب بعد. أضف ربطاً جديداً من النموذج أعلاه."
-     compact=True
-  %}
+  <div class="empty-state-v2 py-8">
+    <div class="es-icon">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</div>
+    <div class="es-title">لا توجد ارتباطات</div>
+    <div class="es-sub">
+      {% if search %}لا توجد نتائج تطابق البحث. جرّب كلمات أخرى.{% else %}لم يتم ربط أي ولي أمر بطالب بعد. أضف ربطاً جديداً من النموذج أعلاه.{% endif %}
+    </div>
+  </div>
 {% endif %}
 </div>

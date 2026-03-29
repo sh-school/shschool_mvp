@@ -104,7 +104,9 @@
   </div>
 
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
@@ -112,4 +114,4 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 </script>
-{% endblock %}
+{% endblock extra_js %}
