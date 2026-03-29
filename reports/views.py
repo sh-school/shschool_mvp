@@ -209,7 +209,10 @@ def attendance_report_pdf(request, class_id):
 def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
@@ -230,7 +233,10 @@ def student_result_pdf(request, student_id):
 def student_annual_result_pdf(request, student_id):
     """كشف نتائج الطالب السنوي — PDF للطباعة الرسمية"""
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 
@@ -253,7 +259,10 @@ def student_annual_result_pdf(request, student_id):
 def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
 

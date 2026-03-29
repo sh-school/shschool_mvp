@@ -8,8 +8,8 @@ from django.contrib import messages
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
-from django.http import HttpResponse
+from django.db.models import Avg, Count, Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -87,6 +87,82 @@ def assessments_dashboard(request):
             "SEMESTERS": AssessmentPackage.SEMESTER,
         },
     )
+
+
+@login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+def api_assessment_charts(request):
+    """بيانات الرسوم البيانية للتقييمات"""
+    school = request.user.get_school()
+    year = settings.CURRENT_ACADEMIC_YEAR
+
+    # Grade distribution
+    results = AnnualSubjectResult.objects.filter(school=school, academic_year=year)
+
+    bands = [0] * 6  # <50, 50-59, 60-69, 70-79, 80-89, 90-100
+    for r in results.values_list('annual_total', flat=True):
+        if r is None:
+            continue
+        t = float(r)
+        if t >= 90:
+            bands[5] += 1
+        elif t >= 80:
+            bands[4] += 1
+        elif t >= 70:
+            bands[3] += 1
+        elif t >= 60:
+            bands[2] += 1
+        elif t >= 50:
+            bands[1] += 1
+        else:
+            bands[0] += 1
+
+    # Class comparison
+    class_avgs = []
+    class_labels = []
+    classes = ClassGroup.objects.filter(school=school, academic_year=year).order_by('grade', 'section')
+    for cg in classes[:15]:
+        enrollments = StudentEnrollment.objects.filter(
+            class_group=cg, is_active=True
+        ).values_list('student_id', flat=True)
+        avg = AnnualSubjectResult.objects.filter(
+            student_id__in=enrollments, school=school, academic_year=year
+        ).aggregate(avg=Avg('annual_total'))['avg']
+        if avg:
+            class_labels.append(str(cg))
+            class_avgs.append(round(float(avg), 1))
+
+    # Subject comparison
+    subj_data = AnnualSubjectResult.objects.filter(
+        school=school, academic_year=year
+    ).values('subject__name_ar').annotate(
+        avg=Avg('annual_total'),
+        fail_count=Count('id', filter=Q(status='fail')),
+        total=Count('id')
+    ).order_by('-avg')[:10]
+
+    subj_labels = [s['subject__name_ar'] for s in subj_data]
+    subj_avgs = [round(float(s['avg']), 1) if s['avg'] else 0 for s in subj_data]
+    subj_fail_rates = [
+        round(s['fail_count'] / s['total'] * 100, 1) if s['total'] else 0
+        for s in subj_data
+    ]
+
+    return JsonResponse({
+        'grade_distribution': {
+            'labels': ['\u0623\u0642\u0644 \u0645\u0646 50', '50-59', '60-69', '70-79', '80-89', '90-100'],
+            'data': bands,
+        },
+        'class_comparison': {
+            'labels': class_labels,
+            'data': class_avgs,
+        },
+        'subject_comparison': {
+            'labels': subj_labels,
+            'avgs': subj_avgs,
+            'fail_rates': subj_fail_rates,
+        },
+    })
 
 
 # ── إدارة الباقات والتقييمات ───────────────────────────────
@@ -615,7 +691,10 @@ def recalculate_class(request, setup_id):
 def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──

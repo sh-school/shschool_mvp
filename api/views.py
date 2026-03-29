@@ -451,7 +451,7 @@ class AttendanceListView(generics.ListAPIView):
       ?session_id=<uuid>
 
     الفرز:
-      ?ordering=-session__date | student__first_name | status
+      ?ordering=-session__date | student__full_name | status
     """
 
     serializer_class = AttendanceSerializer
@@ -497,7 +497,7 @@ class BehaviorListView(generics.ListAPIView):
       ?class_id=<uuid>
 
     الفرز:
-      ?ordering=-date | level | -points_deducted | student__first_name
+      ?ordering=-date | level | -points_deducted | student__full_name
     """
 
     serializer_class = BehaviorInfractionSerializer
@@ -868,7 +868,7 @@ class ClinicVisitListView(generics.ListAPIView):
       ?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD
 
     الفرز:
-      ?ordering=-visit_date | student__first_name
+      ?ordering=-visit_date | student__full_name
     """
 
     serializer_class = ClinicVisitSerializer

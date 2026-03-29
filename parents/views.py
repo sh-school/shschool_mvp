@@ -47,12 +47,68 @@ def _get_parent_school(request):
 @role_required(_PARENT_ROLES)
 def parent_dashboard(request):
     """لوحة تحكم ولي الأمر — بيانات أبنائه من درجات وغياب."""
+    from datetime import timedelta
+
+    from django.db.models import Count
+
+    from operations.models import StudentAttendance
+
     school = _get_parent_school(request)
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    today = timezone.now().date()
     children = ParentService.get_children_data(request.user, school, year)
+
+    # Enrich each child with behavior score + attendance % + week trend
+    for child_data in children:
+        student = child_data.get("student")
+        if not student:
+            continue
+
+        # Behavior score
+        from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+
+        infractions = BehaviorInfraction.objects.filter(
+            school=school, student=student
+        )
+        total_points = sum(i.points_deducted for i in infractions)
+        recovered_points = sum(
+            r.points_restored
+            for r in BehaviorPointRecovery.objects.filter(
+                infraction__school=school, infraction__student=student
+            )
+        )
+        child_data["behavior_score"] = min(100, max(0, 100 - total_points + recovered_points))
+        child_data["subjects_count"] = child_data.get("total_subj", 0)
+
+        # Attendance percentage (last 30 days)
+        att_total = StudentAttendance.objects.filter(
+            student=student, session__school=school,
+            session__date__gte=today - timedelta(days=30),
+        ).count()
+        att_present = StudentAttendance.objects.filter(
+            student=student, session__school=school,
+            session__date__gte=today - timedelta(days=30),
+            status="present",
+        ).count()
+        child_data["attendance_pct"] = round(att_present * 100 / att_total) if att_total else None
+
+        # Last 7 days attendance trend
+        week_att = (
+            StudentAttendance.objects.filter(
+                student=student, session__school=school,
+                session__date__gte=today - timedelta(days=7),
+            )
+            .values("session__date")
+            .annotate(
+                present=Count("id", filter=Q(status="present")),
+                absent=Count("id", filter=Q(status="absent")),
+            )
+            .order_by("session__date")
+        )
+        child_data["week_attendance"] = list(week_att)
 
     return render(
         request,
@@ -73,7 +129,10 @@ def parent_dashboard(request):
 def student_grades(request, student_id):
     """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
     school = _get_parent_school(request) or request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     link = ParentStudentLink.objects.filter(
@@ -112,7 +171,10 @@ def student_grades(request, student_id):
 def student_attendance(request, student_id):
     """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
     school = _get_parent_school(request) or request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     link = ParentStudentLink.objects.filter(

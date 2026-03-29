@@ -217,7 +217,7 @@ def send_pending_absence_alerts_task():
     from notifications.services import NotificationService
 
     total_sent = total_failed = 0
-    for school in School.objects.filter(is_active=True):
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
         sent, failed = NotificationService.send_pending_absence_alerts(school)
         total_sent += sent
         total_failed += failed

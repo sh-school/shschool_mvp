@@ -49,7 +49,10 @@ def weekly_schedule(request):
 
     target_teacher = None
     if teacher_id:
-        target_teacher = get_object_or_404(CustomUser, id=teacher_id)
+        target_teacher = get_object_or_404(
+            CustomUser, id=teacher_id,
+            memberships__school=school, memberships__is_active=True,
+        )
     elif user.is_teacher() and not user.is_admin():
         target_teacher = user
 

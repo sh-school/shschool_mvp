@@ -322,7 +322,10 @@ def teacher_free_slots(request, teacher_id):
     from core.models import CustomUser
 
     school = request.user.get_school()
-    teacher = get_object_or_404(CustomUser, pk=teacher_id)
+    teacher = get_object_or_404(
+        CustomUser, pk=teacher_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     free = FreeSlotService.get_teacher_free_slots(teacher, school)
 
     grid = {d: [] for d in range(5)}
@@ -354,7 +357,10 @@ def teacher_weekly_view(request, teacher_id):
     from .services import ScheduleService
 
     school = request.user.get_school()
-    teacher = get_object_or_404(CustomUser, pk=teacher_id)
+    teacher = get_object_or_404(
+        CustomUser, pk=teacher_id,
+        memberships__school=school, memberships__is_active=True,
+    )
     grid = ScheduleService.get_weekly_schedule(school, teacher=teacher)
     days = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     periods = range(1, 8)

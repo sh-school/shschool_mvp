@@ -52,6 +52,8 @@ app.conf.task_default_retry_delay = 60  # تأخير بين المحاولات (
 app.conf.task_max_retries = 3  # أقصى 3 محاولات
 app.conf.task_soft_time_limit = 300  # 5 دقائق (تحذير)
 app.conf.task_time_limit = 600  # 10 دقائق (حد أقصى)
+app.conf.worker_max_tasks_per_child = 1000  # إعادة تشغيل العامل كل 1000 مهمة (منع تسريب الذاكرة)
+app.conf.worker_max_memory_per_child = 300_000  # 300MB حد أقصى لكل عامل
 
 
 @app.task(bind=True, ignore_result=True)

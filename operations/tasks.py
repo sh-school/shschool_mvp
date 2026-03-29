@@ -4,17 +4,23 @@ operations/tasks.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 المهام:
-    1. توليد الحصص اليومية (أحد–خميس 6:00 صباحاً)
+    1. توليد الحصص اليومية (أحد–خميس 6:00 صباحاً) — BACKUP فقط
     2. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
+
+⚠️ ملاحظة مهمة:
+    توليد الحصص لم يعد يعتمد على Celery كمسار أساسي.
+    النظام الأساسي هو SessionAutoGenerateMiddleware + ensure_sessions_for_date()
+    الذي يولّد الحصص تلقائياً عند أول طلب من أي مستخدم.
+
+    مهمة Celery هنا تبقى كـ backup اختياري:
+    - إذا Celery يعمل → يولّد الحصص مسبقاً 6:00 صباحاً (جيد)
+    - إذا Celery لا يعمل → الـ middleware يتكفل بالتوليد (المنصة تعمل عادي)
 
 الاستخدام:
     # يدوي (من shell أو view):
     generate_daily_sessions_task.delay()                  # كل المدارس
     generate_daily_sessions_task.delay(school_id="...")    # مدرسة واحدة
     check_license_expiry_task.delay()                     # فحص كل الرخص
-
-    # تلقائي (Celery Beat):
-    يعمل يومياً — مُعرَّف في celery.py
 """
 
 import logging
@@ -111,7 +117,7 @@ def check_license_expiry_task():
     )
 
     alerted = 0
-    for user in expiring:
+    for user in expiring.iterator(chunk_size=200):
         days_left = (user.professional_license_expiry - today).days
 
         # العثور على المدرسة والمدير

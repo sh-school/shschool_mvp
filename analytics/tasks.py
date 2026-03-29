@@ -38,7 +38,7 @@ def send_monthly_kpi_report(self, school_id=None):
         schools = (
             [School.objects.get(id=school_id)]
             if school_id
-            else School.objects.filter(is_active=True)
+            else list(School.objects.filter(is_active=True).iterator(chunk_size=100))
         )
 
         for school in schools:

@@ -84,6 +84,57 @@ def behavior_dashboard(request):
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
+
+    # ── Chart data ──
+    from datetime import timedelta
+    from django.db.models import Count
+    from django.db.models.functions import TruncMonth, TruncDate
+
+    today = _tz.localdate()
+
+    # Monthly trend (last 6 months)
+    six_months_ago = today - timedelta(days=180)
+    base_qs = BehaviorInfraction.objects.filter(school=school)
+    if student_ids is not None:
+        base_qs = base_qs.filter(student_id__in=student_ids)
+
+    monthly_trend = (
+        base_qs.filter(created_at__date__gte=six_months_ago)
+        .values(month=TruncMonth("created_at"))
+        .annotate(count=Count("id"))
+        .order_by("month")
+    )
+
+    # Level distribution (current year)
+    level_dist = (
+        base_qs.filter(created_at__year=today.year)
+        .values("level")
+        .annotate(count=Count("id"))
+        .order_by("level")
+    )
+
+    # Weekly trend (last 7 days)
+    week_ago = today - timedelta(days=7)
+    daily_trend = (
+        base_qs.filter(created_at__date__gte=week_ago)
+        .values(day=TruncDate("created_at"))
+        .annotate(count=Count("id"))
+        .order_by("day")
+    )
+
+    # Top violation categories (current year)
+    top_violations = (
+        base_qs.filter(created_at__year=today.year)
+        .values("violation_category__name_ar")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+
+    context["monthly_trend"] = monthly_trend
+    context["level_dist"] = level_dist
+    context["daily_trend"] = daily_trend
+    context["top_violations"] = top_violations
+
     return render(request, "behavior/dashboard.html", context)
 
 
@@ -311,7 +362,11 @@ def _quick_log_context(user, school, preselected_student_id=""):
 @role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
-    student = get_object_or_404(CustomUser, id=student_id)
+    school = request.user.get_school()
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id):
@@ -337,7 +392,8 @@ def point_recovery_request(request, infraction_id):
         messages.error(request, "استعادة النقاط مقتصرة على أعضاء لجنة الضبط السلوكي.")
         return redirect("behavior:dashboard")
 
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id)
+    school = request.user.get_school()
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
     if hasattr(infraction, "recovery"):
         messages.warning(request, "تم معالجة هذه المخالفة مسبقاً.")
         return redirect("behavior:student_profile", student_id=infraction.student.id)
@@ -387,7 +443,8 @@ def committee_decision(request, infraction_id):
         messages.error(request, "غير مسموح.")
         return redirect("behavior:committee")
 
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level__in=[3, 4])
+    school = request.user.get_school()
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school)
     if request.method == "POST":
         msg, level = BehaviorService.apply_committee_decision(
             infraction=infraction,
@@ -418,7 +475,10 @@ def behavior_report(request, student_id):
         return HttpResponseForbidden("ليس لديك صلاحية.")
 
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id):
@@ -516,7 +576,8 @@ def escalate_infraction(request, infraction_id):
     """تصعيد المخالفة إلى الخطوة التالية."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("غير مسموح.")
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id)
+    school = request.user.get_school()
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
     if request.method == "POST":
         notes = request.POST.get("notes", "").strip()
         success, msg = BehaviorService.escalate_infraction(
@@ -537,7 +598,8 @@ def security_referral(request, infraction_id):
     """تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("غير مسموح.")
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4)
+    school = request.user.get_school()
+    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4, school=school)
 
     if request.method == "POST":
         agency = request.POST.get("security_agency", "")
@@ -754,7 +816,10 @@ def summon_parent(request, student_id=None):
 def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
     school = request.user.get_school()
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
 
     # تقييد الوصول: المعلم/المنسق يرى طلابه فقط
     if not teacher_can_access_student(request.user, student.id):
