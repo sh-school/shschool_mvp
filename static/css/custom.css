@@ -602,12 +602,13 @@ h1.text-3xl {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: 18px 20px;
-  transition: box-shadow .15s, border-color .15s;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
 }
 
 .card-qatar:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
+  transform: translateY(-1px);
 }
 
 /* ── خط عُلوي مميز بلون الهوية ──────────────────────────────── */
@@ -1014,6 +1015,67 @@ tr.active {
   flex-shrink: 0;
 }
 
+/* ── قسم صفحة موحد ── */
+.page-section {
+  margin-bottom: var(--sp-6);
+}
+.page-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 2px solid var(--maroon);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.page-section-title .icon { color: var(--maroon); width: 18px; height: 18px; }
+html.dark .page-section-title { border-bottom-color: var(--maroon-dark); }
+
+/* ── صف إحصائيات ── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4) var(--sp-5);
+  text-align: center;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--maroon-border);
+  transform: translateY(-2px);
+}
+.stat-card-value {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--maroon);
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.stat-card-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.stat-card-trend {
+  font-size: var(--text-xs);
+  margin-top: 6px;
+  font-weight: 600;
+}
+.stat-card-trend.up { color: var(--status-success); }
+.stat-card-trend.down { color: var(--status-danger); }
+html.dark .stat-card { background: var(--surface); border-color: var(--border); }
+html.dark .stat-card:hover { border-color: var(--maroon-border); }
+html.dark .stat-card-value { color: #e8b4c3; }
+
 /* ── بطاقة KPI ── */
 .kpi-card {
   background: var(--surface);
@@ -1093,12 +1155,22 @@ tr.active {
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
+.table-wrap-scroll {
+  max-height: 70vh;
+  overflow-y: auto;
+}
 .table-wrap table {
   font-size: var(--text-sm);
 }
 .table-wrap thead th {
   font-size: 12px;
   padding: 11px 14px;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-raised);
+}
+.table-wrap tbody tr {
+  transition: background var(--transition-fast);
 }
 .table-wrap tbody td {
   padding: 11px 14px;
