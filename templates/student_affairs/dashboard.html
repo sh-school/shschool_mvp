@@ -1,0 +1,195 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}شؤون الطلاب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="شؤون الطلاب" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {# ── Header ── #}
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="users" %} شؤون الطلاب</h1>
+      <p class="exec-subtitle">نظرة شاملة على بيانات الطلاب — {{ current_school.name|default:"مدرسة الشحانية" }}</p>
+    </div>
+    <div class="exec-meta">
+      <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
+    </div>
+  </div>
+
+  {# ── KPI Strip — 5 بطاقات أساسية ── #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">إجمالي الطلاب</div>
+      <div class="kpi-mini-value">{{ total_students }}</div>
+      <div class="kpi-mini-sub">{{ year }}</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">غائبون اليوم</div>
+      <div class="kpi-mini-value">{{ absent_today }}</div>
+      <div class="kpi-mini-sub">متأخرون: {{ late_today }}</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">مخالفات الشهر</div>
+      <div class="kpi-mini-value">{{ behavior_month }}</div>
+      <div class="kpi-mini-sub">{{ today|date:"F Y" }}</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">زيارات العيادة</div>
+      <div class="kpi-mini-value">{{ clinic_today }}</div>
+      <div class="kpi-mini-sub">اليوم</div>
+    </div>
+    <div class="kpi-mini kpi-blue">
+      <div class="kpi-mini-label">انتقالات معلقة</div>
+      <div class="kpi-mini-value">{{ pending_transfers }}</div>
+      <div class="kpi-mini-sub">قيد المراجعة</div>
+    </div>
+  </div>
+
+  {# ── KPIs ثانوية (قابلة للطي) ── #}
+  <details class="exec-details">
+    <summary class="exec-details-summary">{% include "components/icon.html" with name="bar-chart" %} إحصائيات إضافية</summary>
+    <div class="kpi-strip" style="margin-top:8px">
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-label">حاضرون اليوم</div>
+        <div class="kpi-mini-value">{{ present_today }}</div>
+      </div>
+      <div class="kpi-mini kpi-purple">
+        <div class="kpi-mini-label">أولياء أمور مرتبطون</div>
+        <div class="kpi-mini-value">{{ linked_parents }}</div>
+      </div>
+      <div class="kpi-mini kpi-sky">
+        <div class="kpi-mini-label">أنشطة العام</div>
+        <div class="kpi-mini-value">{{ activities_year }}</div>
+      </div>
+    </div>
+  </details>
+
+  {# ── الروابط السريعة ── #}
+  <div class="quick-links">
+    <a href="{% url 'student_affairs:student_list' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="list-checks" %}</span> سجل الطلاب
+    </a>
+    <a href="{% url 'student_affairs:student_add' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="file-pen" %}</span> إضافة طالب
+    </a>
+    <a href="{% url 'student_affairs:transfer_list' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="refresh" %}</span> الانتقالات
+    </a>
+    <a href="{% url 'student_affairs:attendance_overview' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="calendar" %}</span> الحضور
+    </a>
+    <a href="{% url 'student_affairs:behavior_overview' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="scale" %}</span> السلوك
+    </a>
+    <a href="{% url 'student_affairs:activity_list' %}" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="activity" %}</span> الأنشطة
+    </a>
+    <a href="/core/students/import-export/" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="download" %}</span> استيراد/تصدير
+    </a>
+    <a href="/parents/admin/links/" class="ql-item">
+      <span class="ql-icon">{% include "components/icon.html" with name="waypoints" %}</span> ربط الأولياء
+    </a>
+  </div>
+
+  {# ── توزيع الطلاب حسب الصف ── #}
+  {% if grade_distribution %}
+  <div class="dash-chart-card">
+    <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} توزيع الطلاب حسب الصف</div>
+    <div class="table-wrap-scroll">
+      <table style="width:100%;font-size:.8rem;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border)">
+            <th style="padding:8px;text-align:right;font-weight:600">الصف</th>
+            <th style="padding:8px;text-align:center;font-weight:600">العدد</th>
+            <th style="padding:8px;text-align:right;font-weight:600">النسبة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grade_distribution %}
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px">{{ g.class_group__grade }}</td>
+            <td style="padding:8px;text-align:center;font-weight:600">{{ g.count }}</td>
+            <td style="padding:8px">
+              {% if total_students > 0 %}
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="height:6px;background:var(--maroon,#8A1538);border-radius:3px;width:{% widthratio g.count total_students 100 %}%"></div>
+                <span style="font-size:.7rem;color:var(--muted)">{% widthratio g.count total_students 100 %}%</span>
+              </div>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── صفّين: آخر المخالفات + آخر الانتقالات ── #}
+  <div class="charts-grid-2">
+
+    {# آخر المخالفات السلوكية #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="scale" %} آخر المخالفات السلوكية</div>
+      {% if recent_infractions %}
+      <div class="dash-list">
+        {% for inf in recent_infractions %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <span style="font-weight:600;font-size:.8rem">{{ inf.student.full_name }}</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ inf.date|date:"d/m" }}</span>
+          </div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full
+            {% if inf.level == 1 %}bg-green-100 text-green-800
+            {% elif inf.level == 2 %}bg-yellow-100 text-yellow-800
+            {% elif inf.level == 3 %}bg-orange-100 text-orange-800
+            {% else %}bg-red-100 text-red-800{% endif %}">
+            د{{ inf.level }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا توجد مخالفات هذا الشهر" %}
+      {% endif %}
+    </div>
+
+    {# آخر الانتقالات #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="refresh" %} آخر الانتقالات</div>
+      {% if recent_transfers %}
+      <div class="dash-list">
+        {% for tr in recent_transfers %}
+        <div class="dash-list-item">
+          <div style="flex:1">
+            <span style="font-weight:600;font-size:.8rem">{{ tr.student.full_name }}</span>
+            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">
+              {% if tr.direction == "in" %}← وارد{% else %}→ صادر{% endif %}
+            </span>
+          </div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full
+            {% if tr.status == "pending" %}bg-yellow-100 text-yellow-800
+            {% elif tr.status == "approved" %}bg-blue-100 text-blue-800
+            {% elif tr.status == "completed" %}bg-green-100 text-green-800
+            {% elif tr.status == "rejected" %}bg-red-100 text-red-800
+            {% else %}bg-gray-100 text-gray-800{% endif %}">
+            {{ tr.get_status_display }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      {% include "components/empty_state.html" with message="لا توجد انتقالات" %}
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

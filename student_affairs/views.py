@@ -1,14 +1,26 @@
 """
 student_affairs/views.py — شؤون الطلاب
 16 view — يتبع أنماط المشروع الموجودة بالضبط.
-الخطوات 3-10 ستملأ هذه الـ views تدريجياً.
 """
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
-from django.shortcuts import render
+from django.db.models import Count, Q
+from django.http import HttpResponse, HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
+from behavior.models import BehaviorInfraction
+from clinic.models import ClinicVisit
+from core.models.access import Membership, Role
+from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
+from core.models.user import CustomUser, Profile
 from core.permissions import role_required
+from operations.models import StudentAttendance
+
+from .models import StudentActivity, StudentTransfer
 
 # الأدوار المسموح لها بالوصول لشؤون الطلاب
 STUDENT_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
@@ -23,8 +35,92 @@ STUDENT_DEACTIVATE = {"principal", "vice_admin", "platform_developer"}
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_dashboard(request):
-    """لوحة شؤون الطلاب — KPIs + روابط سريعة."""
-    return HttpResponse("<h1 dir='rtl'>شؤون الطلاب — قيد البناء</h1>", status=200)
+    """لوحة شؤون الطلاب — KPIs + روابط سريعة + ملخصات."""
+    school = request.user.get_school()
+    today = timezone.localdate()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    # ── KPIs الأساسية ──
+    total_students = Membership.objects.filter(
+        school=school, role__name="student", is_active=True,
+    ).count()
+
+    # حضور اليوم
+    today_sessions = StudentAttendance.objects.filter(
+        school=school, session__date=today,
+    )
+    absent_today = today_sessions.filter(status="absent").count()
+    late_today = today_sessions.filter(status="late").count()
+    present_today = today_sessions.filter(status="present").count()
+
+    # سلوك الشهر
+    behavior_month = BehaviorInfraction.objects.filter(
+        school=school,
+        date__year=today.year,
+        date__month=today.month,
+    ).count()
+
+    # عيادة اليوم
+    clinic_today = ClinicVisit.objects.filter(
+        school=school, visit_date__date=today,
+    ).count()
+
+    # انتقالات معلقة
+    pending_transfers = StudentTransfer.objects.filter(
+        school=school, status="pending",
+    ).count()
+
+    # ── KPIs ثانوية ──
+    # توزيع الطلاب حسب الصف
+    grade_distribution = (
+        StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+        .values("class_group__grade")
+        .annotate(count=Count("id"))
+        .order_by("class_group__grade")
+    )
+
+    # أولياء أمور مرتبطون
+    linked_parents = ParentStudentLink.objects.filter(school=school).count()
+
+    # أنشطة هذا العام
+    activities_year = StudentActivity.objects.filter(
+        school=school, academic_year=year,
+    ).count()
+
+    # ── آخر المخالفات (5) ──
+    recent_infractions = (
+        BehaviorInfraction.objects.filter(school=school)
+        .select_related("student", "violation_category")
+        .order_by("-date")[:5]
+    )
+
+    # ── آخر الانتقالات (5) ──
+    recent_transfers = (
+        StudentTransfer.objects.filter(school=school)
+        .select_related("student")
+        .order_by("-created_at")[:5]
+    )
+
+    return render(request, "student_affairs/dashboard.html", {
+        "today": today,
+        "year": year,
+        "total_students": total_students,
+        "absent_today": absent_today,
+        "late_today": late_today,
+        "present_today": present_today,
+        "behavior_month": behavior_month,
+        "clinic_today": clinic_today,
+        "pending_transfers": pending_transfers,
+        "grade_distribution": grade_distribution,
+        "linked_parents": linked_parents,
+        "activities_year": activities_year,
+        "recent_infractions": recent_infractions,
+        "recent_transfers": recent_transfers,
+    })
 
 
 # ═════════════════════════════════════════════════════════════════════
