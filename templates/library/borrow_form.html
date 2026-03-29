@@ -62,7 +62,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.addEventListener('DOMContentLoaded', function(){
   /* فلتر خيارات <select> — يخفي الخيارات غير المطابقة */
   function filterSelect(inputId, selectId){
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function(){
       var q = this.value;
       options.forEach(function(opt){
         if (!opt.value){ opt.style.display = ''; return; }
-        var ok = window.smartMatch(q, opt.textContent);
+        var ok = !q || (typeof window.smartMatch === 'function' ? window.smartMatch(q, opt.textContent) : opt.textContent.toLowerCase().indexOf(q.toLowerCase()) !== -1);
         opt.style.display = ok ? '' : 'none';
         if (!ok && opt.selected) opt.selected = false;
       });

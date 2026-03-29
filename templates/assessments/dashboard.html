@@ -96,7 +96,7 @@
              placeholder="بحث بالمادة أو المعلم أو الفصل...">
     </div>
 
-    <div id="subjects-container">
+    <div id="subjects-container" style="max-height:600px;overflow-y:auto;padding-left:4px">
     {% regroup setups by class_group as grouped %}
     {% for group in grouped %}
     <div class="mb-5 subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
@@ -148,14 +148,23 @@
   </div>
 
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.addEventListener('DOMContentLoaded', function(){
-  if (typeof window.smartFilter === 'function') {
-    window.smartFilter('subject-search', '[data-filter-row]', { textAttr: 'data-text', parent: '#subjects-container' });
-  }
+  var input = document.getElementById('subject-search');
+  if (!input) return;
+  var items = document.querySelectorAll('#subjects-container [data-filter-row]');
+  input.addEventListener('input', function(){
+    var q = this.value;
+    var count = 0;
+    items.forEach(function(el){
+      var text = el.getAttribute('data-text') || '';
+      var ok = !q || (typeof window.smartMatch === 'function' ? window.smartMatch(q, text) : text.toLowerCase().indexOf(q.toLowerCase()) !== -1);
+      el.style.display = ok ? '' : 'none';
+      if (ok) count++;
+    });
+  });
 });
 </script>
+
 {% endblock %}

@@ -43,9 +43,23 @@
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.addEventListener('DOMContentLoaded', function(){
-  window.smartFilter('bus-search', '#buses-grid .filterable-row', { textAttr: 'data-text' });
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('bus-search', '#buses-grid .filterable-row', { textAttr: 'data-text' });
+  } else {
+    var inp = document.getElementById('bus-search');
+    if (inp) {
+      inp.addEventListener('input', function(){
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('#buses-grid .filterable-row').forEach(function(row){
+          var text = (row.getAttribute('data-text') || '').toLowerCase();
+          var ok = !q || text.indexOf(q) !== -1;
+          row.style.display = ok ? '' : 'none';
+        });
+      });
+    }
+  }
 });
 </script>
 {% endblock %}

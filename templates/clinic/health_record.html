@@ -132,9 +132,23 @@
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.addEventListener('DOMContentLoaded', function(){
-  window.smartFilter('visit-search', '#visit-list .visit-row');
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('visit-search', '#visit-list .visit-row');
+  } else {
+    var input = document.getElementById('visit-search');
+    if (!input) return;
+    var items = document.querySelectorAll('#visit-list .visit-row');
+    input.addEventListener('input', function(){
+      var q = this.value;
+      items.forEach(function(el){
+        var text = el.textContent || '';
+        var ok = !q || (typeof window.smartMatch === 'function' ? window.smartMatch(q, text) : text.toLowerCase().indexOf(q.toLowerCase()) !== -1);
+        el.style.display = ok ? '' : 'none';
+      });
+    });
+  }
 });
 </script>
 {% endblock %}

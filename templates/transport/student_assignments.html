@@ -46,9 +46,23 @@
 {% endblock %}
 
 {% block extra_js %}
-<script nonce="{{ request.csp_nonce }}">
+<script>
 document.addEventListener('DOMContentLoaded', function () {
-  window.smartFilter('student-search', '[data-filter-item]', { textAttr: 'data-name' });
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('student-search', '[data-filter-item]', { textAttr: 'data-name' });
+  } else {
+    var inp = document.getElementById('student-search');
+    if (inp) {
+      inp.addEventListener('input', function(){
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('[data-filter-item]').forEach(function(row){
+          var text = (row.getAttribute('data-name') || '').toLowerCase();
+          var ok = !q || text.indexOf(q) !== -1;
+          row.style.display = ok ? '' : 'none';
+        });
+      });
+    }
+  }
 });
 </script>
 {% endblock %}
