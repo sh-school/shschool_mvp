@@ -89,7 +89,9 @@
       </select>
     </div>
     <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs" style="align-self:end">إعادة ضبط</a>
-    {% if not show_all %}
+    {% if show_all %}
+    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-primary btn-xs" style="align-self:end">إخفاء المكتملة</a>
+    {% else %}
     <a href="/teacher/schedule/?date={{ selected_date }}&all=1" class="btn-secondary btn-xs" style="align-self:end">عرض الكل ({{ all_count }})</a>
     {% endif %}
   </form>

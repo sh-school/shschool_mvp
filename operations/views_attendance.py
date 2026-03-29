@@ -56,7 +56,7 @@ def schedule(request):
             sessions = sessions.filter(class_group_id=class_filter)
         if status_filter:
             sessions = sessions.filter(status=status_filter)
-        elif not show_all and not teacher_filter and not class_filter:
+        elif not show_all:
             # ── افتراضياً: فقط الحصص التي تحتاج تسجيل حضور ──
             sessions = sessions.exclude(status="completed")
         if period_filter:
