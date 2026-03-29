@@ -539,8 +539,8 @@ def student_profile(request, student_id):
         AnnualSubjectResult.objects.filter(
             student=student, school=school, academic_year=year,
         )
-        .select_related("subject", "class_group")
-        .order_by("subject__name_ar")
+        .select_related("setup__subject", "setup__class_group")
+        .order_by("setup__subject__name_ar")
     )
     grades_summary = grades.aggregate(
         total_subjects=Count("id"),

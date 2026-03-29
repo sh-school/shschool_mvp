@@ -146,7 +146,7 @@
           <tbody>
             {% for g in grades %}
             <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:6px">{{ g.subject.name_ar }}</td>
+              <td style="padding:6px">{{ g.setup.subject.name_ar }}</td>
               <td style="padding:6px;text-align:center">{{ g.s1_total|default:"—" }}</td>
               <td style="padding:6px;text-align:center">{{ g.s2_total|default:"—" }}</td>
               <td style="padding:6px;text-align:center;font-weight:600">{{ g.annual_total|default:"—" }}</td>
