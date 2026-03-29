@@ -116,7 +116,7 @@ def record_visit(request, student_id=None):
                     student=visit.student,
                     title=f"🏠 تم إرسال ابنكم إلى المنزل — {visit.student.full_name}",
                     body=(
-                        f"أفادت الممرضة بأن ابنكم تم إرساله من العيادة المدرسية "
+                        f"أفاد الممرض بأن ابنكم تم إرساله من العيادة المدرسية "
                         f"بسبب: {visit.reason}.\n"
                         f"يُرجى التواصل مع المدرسة للاستفسار."
                     ),

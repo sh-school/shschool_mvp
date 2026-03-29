@@ -51,7 +51,7 @@ class Role(models.Model):
         ("psychologist", "أخصائي نفسي"),
         ("academic_advisor", "مرشد أكاديمي"),
         ("ese_teacher", "معلم تربية خاصة"),
-        ("nurse", "ممرض/ة"),
+        ("nurse", "ممرض"),
         ("librarian", "أمين مصادر التعلم"),
         ("it_technician", "فني تقنية معلومات"),
         ("bus_supervisor", "مشرف نقل مدرسي"),
