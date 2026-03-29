@@ -2,11 +2,7 @@
 {% block title %}السلوك المدرسي — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
 
 {% block breadcrumbs %}
-<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
-  <a href="/dashboard/">الرئيسية</a>
-  <span class="bc-sep">◂</span>
-  <span class="bc-current">السلوك المدرسي</span>
-</nav>
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="السلوك المدرسي" %}
 {% endblock %}
 
 {% block content %}

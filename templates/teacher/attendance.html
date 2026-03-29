@@ -6,33 +6,47 @@
 {% endblock %}
 
 {% block content %}
+<div class="space-y-5">
 
-<div class="flex items-center gap-3 mb-5">
-  <a href="/teacher/schedule/" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
-  <span class="text-gray-300">/</span>
-  <h1 class="page-title">
-    {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
-  </h1>
-  <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
-
-  {# تبديل العرض #}
-  <div class="mr-auto flex items-center gap-2">
+{# ── Page Header ── #}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
+    </h1>
+    <p class="page-subtitle">{{ session.date }} · {{ session.start_time|time:"H:i" }}</p>
+  </div>
+  <div class="page-actions">
     <span class="btn-primary text-xs px-3 py-1.5 cursor-default">{% include "components/icon.html" with name="list-checks" %} قائمة</span>
     <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">{% include "components/icon.html" with name="bar-chart" %} شبكة</a>
   </div>
 </div>
 
-<!-- Summary Widget (HTMX updates) -->
+{# ── Summary KPIs (HTMX updates) ── #}
 <div id="summary-widget"
      hx-get="/teacher/attendance/{{ session.id }}/summary/"
      hx-trigger="refresh from:body"
      hx-swap="innerHTML transition:false"
-     class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+     class="grid grid-cols-2 sm:grid-cols-4 gap-4">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
 
-<!-- Bulk Actions -->
-<div class="flex flex-wrap items-center gap-2 mb-4">
+{# ── Search & Bulk Actions ── #}
+<div class="filter-bar">
+  <div class="flex flex-wrap items-center gap-3 w-full">
+    <div class="relative flex-1 min-w-[180px] max-w-xs">
+      <input type="text" id="search-input" placeholder="بحث عن طالب..."
+             class="form-control text-sm w-full pe-9"
+             autocomplete="off" />
+      <span class="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+        {% include "components/icon.html" with name="search" %}
+      </span>
+    </div>
+    <span class="text-sm text-secondary">{{ students_data|length }} طالب</span>
+  </div>
+</div>
+
+<div class="flex flex-wrap items-center gap-2">
   <form method="post" action="/teacher/attendance/{{ session.id }}/mark-all/"
         hx-post="/teacher/attendance/{{ session.id }}/mark-all/"
         hx-target="#students-list"
@@ -44,8 +58,6 @@
     </button>
   </form>
 
-  <span class="text-sm text-gray-500">{{ students_data|length }} طالب</span>
-
   {% if session.status != 'completed' %}
   <form method="post" action="/teacher/attendance/{{ session.id }}/complete/"
         class="mr-auto">
@@ -56,28 +68,45 @@
     </button>
   </form>
   {% else %}
-  <span class="mr-auto text-sm bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
+  <span class="mr-auto status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
 </div>
 
-<!-- Students List -->
+{# ── Students List ── #}
 <div id="students-list" class="card-qatar overflow-hidden">
-  <div class="divide-y divide-gray-100">
+  <div class="divide-y divide-gray-100 dark:divide-slate-700">
     {% for item in students_data %}
     {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
     {% endfor %}
   </div>
 </div>
 
+</div>{# end .space-y-5 #}
 {% endblock %}
 {% block extra_scripts %}
 <script nonce="{{ request.csp_nonce }}">
-  // Keyboard shortcut: focus search
-  document.addEventListener('keydown', e => {
+(function(){
+  var searchEl = document.getElementById('search-input');
+  if (!searchEl) return;
+
+  /* ── Client-side student search ── */
+  searchEl.addEventListener('input', function(){
+    var q = this.value.trim().toLowerCase();
+    var rows = document.querySelectorAll('#students-list > div > div[id^="student-"]');
+    rows.forEach(function(row){
+      var name = (row.querySelector('.font-medium') || {}).textContent || '';
+      var nid  = (row.querySelector('.font-mono') || {}).textContent || '';
+      row.style.display = (!q || name.toLowerCase().indexOf(q) !== -1 || nid.indexOf(q) !== -1) ? '' : 'none';
+    });
+  });
+
+  /* ── Keyboard shortcut: "/" focuses search ── */
+  document.addEventListener('keydown', function(e){
     if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
       e.preventDefault();
-      document.getElementById('search-input')?.focus();
+      searchEl.focus();
     }
   });
+})();
 </script>
 {% endblock %}
