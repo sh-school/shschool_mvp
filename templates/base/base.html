@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=132">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=133">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -56,19 +56,47 @@
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
 
-{# ═══════════════════════ NAVIGATION BAR ════════════════════════════════ #}
-<nav class="site-nav" role="navigation" aria-label="التنقل الرئيسي">
+{# ═══════════════════════ NAVIGATION — السطر العلوي (الهوية + المستخدم) ═══ #}
+<header class="site-header" role="banner">
   <div class="nav-inner">
 
-    {# ── Logo ── #}
+    {# ── Logo + اسم المدرسة ── #}
     <a href="/dashboard/" class="nb nav-logo">
       <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
            alt="مدرسة الشحانية" class="nav-logo-img">
-      <span class="hidden sm:inline nav-logo-text">{{ current_school.name|default:"مدرسة الشحانية الإعدادية" }}</span>
-      <span class="sm:hidden nav-logo-text">{{ current_school.city|default:"الشحانية" }}</span>
+      <span class="nav-logo-text">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</span>
     </a>
 
-    <div class="nav-divider" aria-hidden="true"></div>
+    <div class="nav-spacer"></div>
+
+    {# ── Dark Mode Toggle ── #}
+    <button class="theme-toggle" id="theme-toggle" title="تبديل الثيم" aria-label="تبديل الثيم الليلي">
+      <span id="theme-icon">{% include "components/icon.html" with name="moon" %}</span>
+    </button>
+
+    {# ── Notification Bell ── #}
+    <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
+           viewBox="0 0 24 24" class="nav-bell-icon" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+      </svg>
+      <span id="notif-badge" class="notif-badge" aria-label="عدد الإشعارات غير المقروءة"></span>
+    </a>
+
+    {# ── User Menu ── #}
+    <button class="nb nav-user-btn" id="btn-user" data-sd="m-user" aria-expanded="false" aria-controls="m-user" aria-label="قائمة المستخدم">
+      <span class="nav-user-avatar" aria-hidden="true">{{ request.user.full_name|slice:":1" }}</span>
+      <span class="nav-user-name">{{ request.user.full_name }}</span>
+      <span class="chv">▼</span>
+    </button>
+
+  </div>
+</header>
+
+{# ═══════════════════════ NAVIGATION — السطر السفلي (القوائم) ═══════════ #}
+<nav class="site-nav" role="navigation" aria-label="التنقل الرئيسي">
+  <div class="nav-inner">
 
     {# ── Hamburger (mobile) ── #}
     <button id="mob-menu-btn" class="nav-hamburger"
@@ -172,30 +200,6 @@
 
     {% endif %}
     </div>
-
-    <div class="nav-spacer"></div>
-
-    {# ── Dark Mode Toggle ── #}
-    <button class="theme-toggle" id="theme-toggle" title="تبديل الثيم" aria-label="تبديل الثيم الليلي">
-      <span id="theme-icon">{% include "components/icon.html" with name="moon" %}</span>
-    </button>
-
-    {# ── Notification Bell ── #}
-    <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
-      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
-           viewBox="0 0 24 24" class="nav-bell-icon" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round"
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-      </svg>
-      <span id="notif-badge" class="notif-badge" aria-label="عدد الإشعارات غير المقروءة"></span>
-    </a>
-
-    {# ── User Menu ── #}
-    <button class="nb nav-user-btn" id="btn-user" data-sd="m-user" aria-expanded="false" aria-controls="m-user" aria-label="قائمة المستخدم">
-      <span class="nav-user-avatar" aria-hidden="true">{{ request.user.full_name|slice:":1" }}</span>
-      <span class="nav-user-name">{{ request.user.full_name|truncatechars:12 }}</span>
-      <span class="chv">▼</span>
-    </button>
 
   </div>
 </nav>

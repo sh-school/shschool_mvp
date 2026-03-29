@@ -302,12 +302,32 @@ body {
 @layer components {
 
 /* ══════════════════════════════════════════════════════════
-   شريط التنقل الرئيسي — Navigation Bar
+   الهيدر العلوي — الشعار + المستخدم + الأيقونات
+   ══════════════════════════════════════════════════════════ */
+.site-header {
+  background: var(--maroon);
+  position: sticky;
+  top: 0;
+  z-index: calc(var(--z-navbar) + 1);
+  border-bottom: 1px solid var(--maroon-dark);
+}
+.site-header .nav-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  gap: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════
+   شريط التنقل — القوائم (السطر الثاني)
    ══════════════════════════════════════════════════════════ */
 .site-nav {
   background: var(--maroon);
   position: sticky;
-  top: 0;
+  top: 48px;
   z-index: var(--z-navbar);
   border-bottom: 2px solid var(--maroon-dark);
   box-shadow: 0 2px 8px rgba(0,0,0,.18);
@@ -318,8 +338,11 @@ body {
   padding: 0 16px;
   display: flex;
   align-items: center;
-  height: 54px;
+  height: 42px;
   gap: 2px;
+}
+.site-nav .nav-inner {
+  justify-content: center;
 }
 /* زر Nav الأساسي — مشترك بين الروابط والأزرار */
 .nb {
@@ -3693,6 +3716,192 @@ html.dark .chart-card {
   border-color: #334155;
 }
 
+/* ── Unified Dashboard System ─────────────────────────────
+   نظام لوحات موحد — نفس حجم analytics/dashboard
+   يُستخدم في: main, assessments, clinic, transport,
+   library, behavior, notifications, parents
+   ──────────────────────────────────────────────────────── */
+.exec-dash {
+  display: grid;
+  grid-template-rows: auto auto auto auto;
+  gap: 8px;
+}
+.exec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.exec-subtitle { font-size: .7rem; color: var(--text-muted); margin: 0; }
+.exec-meta { display: flex; align-items: center; gap: 8px; }
+.exec-date {
+  font-size: .7rem; background: var(--status-danger-light, #fef2f2); color: var(--maroon, #991b1b);
+  border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-weight: 500;
+}
+
+/* ── KPI Strip (auto-fit: 4-5 cards per row, readable) ── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+.kpi-mini {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border-right: 4px solid var(--kc, #8A1538);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  text-decoration: none;
+  transition: box-shadow .15s;
+}
+.kpi-mini:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.kpi-maroon { --kc: var(--maroon, #8A1538); }
+.kpi-green  { --kc: #16a34a; }
+.kpi-blue   { --kc: #2563eb; }
+.kpi-teal   { --kc: #0d9488; }
+.kpi-red    { --kc: #dc2626; }
+.kpi-orange { --kc: #ea580c; }
+.kpi-purple { --kc: #7c3aed; }
+.kpi-amber  { --kc: #d97706; }
+.kpi-sky    { --kc: #0284c7; }
+.kpi-mini-label { font-size: .75rem; color: var(--text-muted); margin-bottom: 3px; }
+.kpi-mini-value { font-size: 1.5rem; font-weight: 700; color: var(--kc, #8A1538); line-height: 1.2; }
+.kpi-mini-sub { font-size: .65rem; color: var(--text-muted); margin-top: 2px; }
+.kpi-mini-alert { font-size: .65rem; color: #dc2626; font-weight: 600; }
+
+/* ── Charts Grid (3×2 responsive) ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: 8px;
+  min-height: 0;
+}
+.charts-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  min-height: 0;
+}
+.dash-chart-card {
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.dash-chart-title {
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+.dash-chart-wrap {
+  position: relative;
+  height: 220px;
+}
+.dash-chart-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ── Alert Strip ── */
+.alert-strip {
+  background: var(--status-danger-light, #fef2f2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: .65rem;
+  color: var(--status-danger, #991b1b);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.alert-strip a { color: var(--status-danger); text-decoration: underline; }
+
+/* ── Quick Links ── */
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.ql-item {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: var(--surface); border-radius: 6px; padding: 6px 4px;
+  font-size: .65rem; font-weight: 500; color: var(--text-primary);
+  text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  border: 1px solid var(--border); transition: background .15s;
+  white-space: nowrap; overflow: hidden;
+}
+.ql-item:hover { background: var(--surface-alt); }
+.ql-icon { font-size: .9rem; flex-shrink: 0; }
+
+/* ── Collapsible secondary KPIs (Miller's Law) ── */
+.exec-details { margin-bottom: 8px; }
+.exec-details-summary {
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: var(--text-sm); font-weight: 600;
+  color: var(--text-secondary); padding: 6px 14px;
+  border: 1px solid var(--border); border-radius: var(--radius, 6px);
+  background: var(--surface-alt); transition: background .15s;
+  list-style: none;
+}
+.exec-details-summary::-webkit-details-marker { display: none; }
+.exec-details-summary:hover { background: var(--surface); }
+.exec-details[open] .exec-details-summary { color: var(--maroon); border-color: var(--maroon); }
+
+/* ── Data List (for top items) ── */
+.dash-list { list-style: none; margin: 0; padding: 0; }
+.dash-list-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 8px; font-size: .7rem; border-bottom: 1px solid var(--border);
+}
+.dash-list-item:last-child { border-bottom: none; }
+
+/* ── Chart Loading / Error ── */
+.chart-loading, .chart-error {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; color: var(--text-muted); z-index: 2; background: var(--surface);
+}
+.chart-error { color: var(--status-danger, #dc2626); }
+.chart-loading.hidden, .chart-error.hidden { display: none; }
+
+/* ── Mobile: dashboards ── */
+@media (max-width: 1024px) {
+  .exec-dash { height: auto; overflow: auto; }
+  .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .charts-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid-2 { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(4, 1fr); }
+  .dash-chart-wrap { min-height: 180px; }
+}
+@media (max-width: 640px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .quick-links { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Dark mode: dashboards ── */
+html.dark .kpi-mini { background: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+html.dark .dash-chart-card { background: #1e293b; border-color: #334155; }
+html.dark .ql-item { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+html.dark .alert-strip { background: rgba(220,38,38,.1); border-color: #334155; }
+html.dark .dash-list-item { border-color: #334155; }
+html.dark .exec-details-summary { background: #1e293b; border-color: #334155; color: #cbd5e1; }
+
+/* ── prefers-reduced-motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .kpi-mini, .ql-item, .dash-chart-card, .exec-details-summary { transition: none !important; }
+}
+
 } /* end @layer modules */
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3732,9 +3941,13 @@ html.dark body {
 /* Tailwind bg-gray-50 override */
 html.dark .bg-gray-50 { background: #0f172a; }
 
-/* ── 3. Navigation Bar ──────────────────────────────────────────── */
-html.dark .site-nav {
+/* ── 3. Header + Navigation Bar ─────────────────────────────────── */
+html.dark .site-header {
   background: #1a0a12;
+  border-bottom-color: #4a1530;
+}
+html.dark .site-nav {
+  background: #120813;
   border-bottom-color: #4a1530;
   box-shadow: 0 2px 8px rgba(0,0,0,.4);
 }
