@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   var busLabels = [{% for b in bus_data %}'{{ b.bus.bus_number }}'{% if not forloop.last %},{% endif %}{% endfor %}];
   var busOccupancy = [{% for b in bus_data %}{{ b.occupancy_rate|default:0 }}{% if not forloop.last %},{% endif %}{% endfor %}];
-  var busColors = busOccupancy.map(function(v){ return v > 100 ? '#dc2626' : v > 80 ? '#f97316' : '#16a34a'; });
+  var busColors = busOccupancy.map(function(v){ return v > 100 ? '#dc2626' : v > 80 ? '#d97706' : '#0D7B6A'; }); /* danger, warning, chart-2 */
 
   var el = document.getElementById('chartBusOccupancy');
   if(el && busLabels.length){
