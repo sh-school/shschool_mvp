@@ -1,0 +1,73 @@
+{% extends "base/base.html" %}
+
+{% block title %}تفاصيل الانتقال — {{ transfer.student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/transfers/" parent_label="الانتقالات" current=transfer.student.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} تفاصيل الانتقال</h1>
+      <p class="exec-subtitle">{{ transfer.student.full_name }} — {{ transfer.get_direction_display }}</p>
+    </div>
+    <span class="text-xs font-medium px-3 py-1 rounded-full
+      {% if transfer.status == "pending" %}bg-yellow-100 text-yellow-800
+      {% elif transfer.status == "approved" %}bg-blue-100 text-blue-800
+      {% elif transfer.status == "completed" %}bg-green-100 text-green-800
+      {% elif transfer.status == "rejected" %}bg-red-100 text-red-800
+      {% else %}bg-gray-100 text-gray-600{% endif %}" style="font-size:.8rem">
+      {{ transfer.get_status_display }}
+    </span>
+  </div>
+
+  <div class="card-qatar" style="padding:20px">
+    <div class="dash-list">
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:120px">الطالب:</span> <strong>{{ transfer.student.full_name }}</strong></div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:120px">الاتجاه:</span> {% if transfer.direction == "in" %}← وارد{% else %}→ صادر{% endif %}</div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:120px">المدرسة الأخرى:</span> {{ transfer.other_school_name }}</div>
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:120px">تاريخ الانتقال:</span> {{ transfer.transfer_date|date:"d/m/Y" }}</div>
+      {% if transfer.from_grade %}<div class="dash-list-item"><span style="color:var(--muted);min-width:120px">الصف (من):</span> {{ transfer.from_grade }}</div>{% endif %}
+      {% if transfer.to_grade %}<div class="dash-list-item"><span style="color:var(--muted);min-width:120px">الصف (إلى):</span> {{ transfer.to_grade }}</div>{% endif %}
+      {% if transfer.reason %}<div class="dash-list-item"><span style="color:var(--muted);min-width:120px">السبب:</span> {{ transfer.reason }}</div>{% endif %}
+      {% if transfer.notes %}<div class="dash-list-item"><span style="color:var(--muted);min-width:120px">ملاحظات:</span> {{ transfer.notes }}</div>{% endif %}
+      <div class="dash-list-item"><span style="color:var(--muted);min-width:120px">تاريخ التسجيل:</span> {{ transfer.created_at|date:"d/m/Y H:i" }}</div>
+    </div>
+  </div>
+
+  {# نموذج المراجعة — يظهر فقط إذا الحالة ليست مكتملة أو ملغاة #}
+  {% if transfer.status == "pending" or transfer.status == "approved" %}
+  <div class="card-qatar" style="padding:20px">
+    <div class="dash-chart-title" style="margin-bottom:12px">{% include "components/icon.html" with name="list-checks" %} مراجعة الطلب</div>
+    <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label">القرار</label>
+          <select name="action" class="form-control" required>
+            {% if transfer.status == "pending" %}
+            <option value="approved">موافقة</option>
+            <option value="rejected">رفض</option>
+            {% endif %}
+            {% if transfer.status == "approved" or transfer.status == "pending" %}
+            <option value="completed">مكتمل (تم الانتقال فعلياً)</option>
+            {% endif %}
+            <option value="cancelled">إلغاء</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ملاحظات {% if transfer.status == "pending" %}<span style="font-size:.65rem;color:var(--muted)">(مطلوبة عند الرفض)</span>{% endif %}</label>
+          <input type="text" name="notes" class="form-control" placeholder="ملاحظات المراجعة...">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

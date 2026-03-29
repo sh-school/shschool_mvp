@@ -343,15 +343,110 @@ def student_add(request):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_edit(request, student_id):
-    """تعديل بيانات طالب."""
-    return HttpResponse("<h1 dir='rtl'>تعديل طالب — قيد البناء</h1>", status=200)
+    """تعديل بيانات طالب موجود."""
+    school = request.user.get_school()
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
+    year = settings.CURRENT_ACADEMIC_YEAR
+    profile = getattr(student, "profile", None)
+    enrollment = (
+        StudentEnrollment.objects.filter(
+            student=student, class_group__academic_year=year, is_active=True,
+        ).select_related("class_group").first()
+    )
+
+    from .forms import StudentEditForm
+
+    if request.method == "POST":
+        form = StudentEditForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            # ── تحديث CustomUser ──
+            student.full_name = cd["full_name"]
+            student.phone = cd.get("phone", "")
+            student.email = cd.get("email", "")
+            student.save()
+
+            # ── تحديث Profile ──
+            Profile.objects.update_or_create(
+                user=student,
+                defaults={
+                    "birth_date": cd.get("birth_date"),
+                    "notes": cd.get("notes", ""),
+                },
+            )
+
+            # ── تحديث التسجيل (إذا تغيّر الصف/الشعبة) ──
+            new_grade = cd["grade"]
+            new_section = cd["section"]
+            needs_reenroll = (
+                not enrollment
+                or enrollment.class_group.grade != new_grade
+                or enrollment.class_group.section != new_section
+            )
+            if needs_reenroll:
+                new_class = ClassGroup.objects.filter(
+                    school=school, grade=new_grade, section=new_section,
+                    academic_year=year, is_active=True,
+                ).first()
+                if new_class:
+                    if enrollment:
+                        enrollment.is_active = False
+                        enrollment.save()
+                    StudentEnrollment.objects.create(
+                        student=student, class_group=new_class, is_active=True,
+                    )
+                else:
+                    messages.warning(request, f"لا توجد شعبة {new_section} في الصف {new_grade}.")
+
+            messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
+            return redirect("student_affairs:student_profile", student_id=student.id)
+    else:
+        form = StudentEditForm(initial={
+            "full_name": student.full_name,
+            "phone": student.phone,
+            "email": student.email,
+            "grade": enrollment.class_group.grade if enrollment else "",
+            "section": enrollment.class_group.section if enrollment else "",
+            "birth_date": profile.birth_date if profile else None,
+            "notes": profile.notes if profile else "",
+        })
+
+    return render(request, "student_affairs/student_form.html", {
+        "form": form,
+        "mode": "edit",
+        "student": student,
+        "year": year,
+        "grades": ClassGroup.GRADES,
+        "school": school,
+    })
 
 
 @login_required
 @role_required(STUDENT_DEACTIVATE)
+@require_POST
 def student_deactivate(request, student_id):
-    """تعطيل طالب — is_active=False فقط، لا حذف."""
-    return HttpResponse("<h1 dir='rtl'>تعطيل طالب — قيد البناء</h1>", status=200)
+    """تعطيل طالب — is_active=False فقط، لا حذف فيزيائي."""
+    school = request.user.get_school()
+    student = get_object_or_404(
+        CustomUser, id=student_id,
+        memberships__school=school, memberships__is_active=True,
+    )
+
+    # تعطيل العضوية
+    Membership.objects.filter(
+        user=student, school=school, role__name="student", is_active=True,
+    ).update(is_active=False)
+
+    # تعطيل التسجيل
+    StudentEnrollment.objects.filter(
+        student=student, is_active=True,
+    ).update(is_active=False)
+
+    messages.success(request, f"تم تعطيل الطالب {student.full_name}. البيانات محفوظة ولم تُحذف.")
+    return redirect("student_affairs:student_list")
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -500,29 +595,114 @@ def student_profile(request, student_id):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def transfer_list(request):
-    """قائمة الانتقالات."""
-    return HttpResponse("<h1 dir='rtl'>الانتقالات — قيد البناء</h1>", status=200)
+    """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
+    school = request.user.get_school()
+    transfers = StudentTransfer.objects.filter(school=school).select_related("student").order_by("-created_at")
+
+    status_filter = request.GET.get("status", "")
+    direction_filter = request.GET.get("direction", "")
+    if status_filter:
+        transfers = transfers.filter(status=status_filter)
+    if direction_filter:
+        transfers = transfers.filter(direction=direction_filter)
+
+    return render(request, "student_affairs/transfer_list.html", {
+        "transfers": transfers[:100],
+        "status_filter": status_filter,
+        "direction_filter": direction_filter,
+        "status_choices": StudentTransfer.STATUS_CHOICES,
+        "direction_choices": StudentTransfer.DIRECTION_CHOICES,
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
-    return HttpResponse("<h1 dir='rtl'>طلب انتقال — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+
+    from .forms import TransferForm
+
+    if request.method == "POST":
+        form = TransferForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            student = get_object_or_404(
+                CustomUser, id=cd["student_id"],
+                memberships__school=school, memberships__is_active=True,
+            )
+            StudentTransfer.objects.create(
+                school=school,
+                student=student,
+                direction=cd["direction"],
+                other_school_name=cd["other_school_name"],
+                from_grade=cd.get("from_grade", ""),
+                to_grade=cd.get("to_grade", ""),
+                transfer_date=cd["transfer_date"],
+                reason=cd.get("reason", ""),
+                academic_year=settings.CURRENT_ACADEMIC_YEAR,
+                created_by=request.user,
+                updated_by=request.user,
+            )
+            messages.success(request, f"تم تسجيل طلب انتقال {student.full_name} بنجاح.")
+            return redirect("student_affairs:transfer_list")
+    else:
+        form = TransferForm()
+
+    # قائمة الطلاب للاختيار
+    students = (
+        Membership.objects.filter(school=school, role__name="student", is_active=True)
+        .select_related("user")
+        .order_by("user__full_name")
+    )
+    return render(request, "student_affairs/transfer_form.html", {
+        "form": form,
+        "students": students,
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
-    return HttpResponse("<h1 dir='rtl'>تفاصيل الانتقال — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
+    return render(request, "student_affairs/transfer_detail.html", {"transfer": transfer})
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
+@require_POST
 def transfer_review(request, pk):
-    """مراجعة طلب انتقال — موافقة أو رفض."""
-    return HttpResponse("<h1 dir='rtl'>مراجعة الانتقال — قيد البناء</h1>", status=200)
+    """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
+    school = request.user.get_school()
+    transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
+
+    from .forms import TransferReviewForm
+
+    form = TransferReviewForm(request.POST)
+    if form.is_valid():
+        action = form.cleaned_data["action"]
+        notes = form.cleaned_data.get("notes", "")
+
+        transfer.status = action
+        transfer.notes = notes
+        transfer.updated_by = request.user
+        transfer.save()
+
+        # إذا اكتمل الانتقال الصادر → تعطيل الطالب
+        if action == "completed" and transfer.direction == "out":
+            Membership.objects.filter(
+                user=transfer.student, school=school, role__name="student", is_active=True,
+            ).update(is_active=False)
+            StudentEnrollment.objects.filter(
+                student=transfer.student, is_active=True,
+            ).update(is_active=False)
+
+        status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
+        messages.success(request, f"تم تحديث حالة الانتقال إلى: {status_label}")
+
+    return redirect("student_affairs:transfer_detail", pk=pk)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -552,26 +732,124 @@ def behavior_overview(request):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def activity_list(request):
-    """قائمة الأنشطة والإنجازات."""
-    return HttpResponse("<h1 dir='rtl'>الأنشطة — قيد البناء</h1>", status=200)
+    """قائمة الأنشطة والإنجازات مع فلتر."""
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    activities = (
+        StudentActivity.objects.filter(school=school, academic_year=year)
+        .select_related("student")
+        .order_by("-date")
+    )
+
+    type_filter = request.GET.get("type", "")
+    scope_filter = request.GET.get("scope", "")
+    if type_filter:
+        activities = activities.filter(activity_type=type_filter)
+    if scope_filter:
+        activities = activities.filter(scope=scope_filter)
+
+    return render(request, "student_affairs/activity_list.html", {
+        "activities": activities[:200],
+        "type_filter": type_filter,
+        "scope_filter": scope_filter,
+        "type_choices": StudentActivity.TYPE_CHOICES,
+        "scope_choices": StudentActivity.SCOPE_CHOICES,
+        "year": year,
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def activity_add(request):
     """تسجيل نشاط أو إنجاز جديد."""
-    return HttpResponse("<h1 dir='rtl'>إضافة نشاط — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+
+    from .forms import ActivityForm
+
+    if request.method == "POST":
+        form = ActivityForm(request.POST, request.FILES)
+        if form.is_valid():
+            cd = form.cleaned_data
+            student = get_object_or_404(
+                CustomUser, id=cd["student_id"],
+                memberships__school=school, memberships__is_active=True,
+            )
+            StudentActivity.objects.create(
+                school=school,
+                student=student,
+                activity_type=cd["activity_type"],
+                title=cd["title"],
+                description=cd.get("description", ""),
+                scope=cd["scope"],
+                date=cd["date"],
+                academic_year=settings.CURRENT_ACADEMIC_YEAR,
+                recorded_by=request.user,
+                attachment=cd.get("attachment"),
+            )
+            messages.success(request, f"تم تسجيل النشاط «{cd['title']}» للطالب {student.full_name}.")
+            return redirect("student_affairs:activity_list")
+    else:
+        form = ActivityForm()
+
+    students = (
+        Membership.objects.filter(school=school, role__name="student", is_active=True)
+        .select_related("user").order_by("user__full_name")
+    )
+    return render(request, "student_affairs/activity_form.html", {
+        "form": form, "students": students, "mode": "add",
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def activity_edit(request, pk):
     """تعديل نشاط."""
-    return HttpResponse("<h1 dir='rtl'>تعديل نشاط — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    activity = get_object_or_404(StudentActivity, pk=pk, school=school)
+
+    from .forms import ActivityForm
+
+    if request.method == "POST":
+        form = ActivityForm(request.POST, request.FILES)
+        if form.is_valid():
+            cd = form.cleaned_data
+            activity.activity_type = cd["activity_type"]
+            activity.title = cd["title"]
+            activity.description = cd.get("description", "")
+            activity.scope = cd["scope"]
+            activity.date = cd["date"]
+            if cd.get("attachment"):
+                activity.attachment = cd["attachment"]
+            activity.save()
+            messages.success(request, f"تم تحديث النشاط «{activity.title}».")
+            return redirect("student_affairs:activity_list")
+    else:
+        form = ActivityForm(initial={
+            "student_id": activity.student_id,
+            "activity_type": activity.activity_type,
+            "title": activity.title,
+            "description": activity.description,
+            "scope": activity.scope,
+            "date": activity.date,
+        })
+
+    students = (
+        Membership.objects.filter(school=school, role__name="student", is_active=True)
+        .select_related("user").order_by("user__full_name")
+    )
+    return render(request, "student_affairs/activity_form.html", {
+        "form": form, "students": students, "mode": "edit", "activity": activity,
+    })
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
+@require_POST
 def activity_delete(request, pk):
     """حذف نشاط."""
-    return HttpResponse("<h1 dir='rtl'>حذف نشاط — قيد البناء</h1>", status=200)
+    school = request.user.get_school()
+    activity = get_object_or_404(StudentActivity, pk=pk, school=school)
+    title = activity.title
+    activity.delete()
+    messages.success(request, f"تم حذف النشاط «{title}».")
+    return redirect("student_affairs:activity_list")

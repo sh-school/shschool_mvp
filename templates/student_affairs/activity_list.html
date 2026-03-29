@@ -1,0 +1,102 @@
+{% extends "base/base.html" %}
+
+{% block title %}الأنشطة والإنجازات{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="الأنشطة والإنجازات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</h1>
+      <p class="exec-subtitle">{{ year }}</p>
+    </div>
+    <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد
+    </a>
+  </div>
+
+  {# فلتر #}
+  <div class="card-qatar" style="padding:12px 16px">
+    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      <div>
+        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">النوع</label>
+        <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
+          <option value="">— الكل —</option>
+          {% for val, label in type_choices %}
+          <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">النطاق</label>
+        <select name="scope" class="form-control form-control-sm" onchange="this.form.submit()">
+          <option value="">— الكل —</option>
+          {% for val, label in scope_choices %}
+          <option value="{{ val }}" {% if scope_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    </form>
+  </div>
+
+  {# الجدول #}
+  <div class="card-qatar" style="padding:0">
+    {% if activities %}
+    <div class="table-wrap-scroll" style="font-size:.8rem">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
+            <th style="padding:8px;text-align:right">الطالب</th>
+            <th style="padding:8px;text-align:right">النشاط</th>
+            <th style="padding:8px;text-align:center">النوع</th>
+            <th style="padding:8px;text-align:center">النطاق</th>
+            <th style="padding:8px;text-align:center">التاريخ</th>
+            <th style="padding:8px;text-align:center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for act in activities %}
+          <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
+            <td style="padding:8px">
+              <a href="{% url 'student_affairs:student_profile' act.student_id %}" style="color:var(--maroon);text-decoration:none;font-weight:600" class="hover:underline">
+                {{ act.student.full_name }}
+              </a>
+            </td>
+            <td style="padding:8px">{{ act.title }}</td>
+            <td style="padding:8px;text-align:center">
+              <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{{ act.get_activity_type_display }}</span>
+            </td>
+            <td style="padding:8px;text-align:center">
+              <span class="text-xs px-2 py-0.5 rounded-full
+                {% if act.scope == "international" %}bg-purple-100 text-purple-800
+                {% elif act.scope == "national" %}bg-green-100 text-green-800
+                {% elif act.scope == "district" %}bg-orange-100 text-orange-800
+                {% else %}bg-gray-100 text-gray-600{% endif %}">
+                {{ act.get_scope_display }}
+              </span>
+            </td>
+            <td style="padding:8px;text-align:center;font-size:.75rem">{{ act.date|date:"d/m/Y" }}</td>
+            <td style="padding:8px;text-align:center">
+              <div style="display:flex;gap:4px;justify-content:center">
+                <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% include "components/icon.html" with name="file-pen" %}</a>
+                <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" onsubmit="return confirm('حذف النشاط «{{ act.title }}»؟')">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with message="لا أنشطة مسجّلة لهذا العام" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

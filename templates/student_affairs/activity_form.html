@@ -1,0 +1,100 @@
+{% extends "base/base.html" %}
+
+{% block title %}{% if mode == "add" %}تسجيل نشاط{% else %}تعديل نشاط{% endif %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/activities/" parent_label="الأنشطة" current=block.super %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+  <div class="exec-header">
+    <h1 class="page-title">
+      {% include "components/icon.html" with name="activity" %}
+      {% if mode == "add" %}تسجيل نشاط / إنجاز{% else %}تعديل «{{ activity.title }}»{% endif %}
+    </h1>
+  </div>
+
+  <div class="card-qatar" style="padding:20px 24px">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">
+        {% for err in form.non_field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}
+      </div>
+      {% endif %}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">الطالب <span style="color:red">*</span></label>
+          <select name="student_id" class="form-control" required {% if mode == "edit" %}disabled{% endif %}>
+            <option value="">— اختر الطالب —</option>
+            {% for m in students %}
+            <option value="{{ m.user_id }}"
+              {% if form.student_id.value|slugify == m.user_id|slugify %}selected{% endif %}
+              {% if mode == "edit" and activity.student_id == m.user_id %}selected{% endif %}>
+              {{ m.user.full_name }}
+            </option>
+            {% endfor %}
+          </select>
+          {% if mode == "edit" %}
+          <input type="hidden" name="student_id" value="{{ activity.student_id }}">
+          {% endif %}
+        </div>
+
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">العنوان <span style="color:red">*</span></label>
+          <input type="text" name="title" value="{{ form.title.value|default:'' }}" class="form-control" placeholder="مثال: المركز الأول في مسابقة الرياضيات" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">نوع النشاط <span style="color:red">*</span></label>
+          <select name="activity_type" class="form-control" required>
+            {% for val, label in form.fields.activity_type.choices %}
+            <option value="{{ val }}" {% if form.activity_type.value == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">النطاق <span style="color:red">*</span></label>
+          <select name="scope" class="form-control" required>
+            {% for val, label in form.fields.scope.choices %}
+            <option value="{{ val }}" {% if form.scope.value == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">التاريخ <span style="color:red">*</span></label>
+          <input type="date" name="date" value="{{ form.date.value|default:'' }}" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">مرفق</label>
+          <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+          {% if mode == "edit" and activity.attachment %}
+          <span style="font-size:.7rem;color:var(--muted);margin-top:4px;display:block">مرفق حالي: {{ activity.attachment.name|cut:"student_activities/" }}</span>
+          {% endif %}
+        </div>
+
+        <div class="form-group" style="grid-column:span 2">
+          <label class="form-label">الوصف</label>
+          <textarea name="description" rows="3" class="form-control" placeholder="وصف النشاط أو الإنجاز...">{{ form.description.value|default:'' }}</textarea>
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">إلغاء</a>
+        <button type="submit" class="btn-primary btn-sm">
+          {% include "components/icon.html" with name="check-circle" %}
+          {% if mode == "add" %}تسجيل النشاط{% else %}حفظ التعديلات{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
