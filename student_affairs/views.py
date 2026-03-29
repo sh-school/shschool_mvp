@@ -131,15 +131,118 @@ def student_dashboard(request):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_list(request):
-    """قائمة الطلاب مع بحث وفلتر."""
-    return HttpResponse("<h1 dir='rtl'>سجل الطلاب — قيد البناء</h1>", status=200)
+    """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
+    students = (
+        Membership.objects.filter(
+            school=school, role__name="student", is_active=True,
+        )
+        .select_related("user", "user__profile")
+        .order_by("user__full_name")
+    )
+
+    # ── إرفاق بيانات التسجيل (الصف + الشعبة) ──
+    # نبني dict سريع: user_id → enrollment
+    student_ids = list(students.values_list("user_id", flat=True))
+    enrollments = {
+        e["student_id"]: e
+        for e in StudentEnrollment.objects.filter(
+            student_id__in=student_ids,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+        .select_related("class_group")
+        .values(
+            "student_id",
+            "class_group__grade",
+            "class_group__section",
+            "class_group_id",
+        )
+    }
+
+    # ── الفلاتر ──
+    q = request.GET.get("q", "").strip()
+    grade_filter = request.GET.get("grade", "")
+    section_filter = request.GET.get("section", "")
+
+    if q:
+        students = students.filter(
+            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
+        )
+
+    if grade_filter:
+        enrolled_ids = StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            class_group__grade=grade_filter,
+            is_active=True,
+        ).values_list("student_id", flat=True)
+        students = students.filter(user_id__in=enrolled_ids)
+
+    if section_filter:
+        enrolled_ids = StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            class_group__section=section_filter,
+            is_active=True,
+        ).values_list("student_id", flat=True)
+        students = students.filter(user_id__in=enrolled_ids)
+
+    # ── بناء القائمة مع بيانات التسجيل ──
+    student_rows = []
+    for m in students[:200]:
+        enr = enrollments.get(m.user_id, {})
+        student_rows.append({
+            "id": m.user_id,
+            "full_name": m.user.full_name,
+            "national_id": m.user.national_id,
+            "phone": m.user.phone,
+            "email": m.user.email,
+            "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
+            "grade": enr.get("class_group__grade", "—"),
+            "section": enr.get("class_group__section", "—"),
+        })
+
+    # ── خيارات الفلتر ──
+    available_grades = (
+        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+        .values_list("grade", flat=True)
+        .distinct()
+        .order_by("grade")
+    )
+    available_sections = (
+        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+        .values_list("section", flat=True)
+        .distinct()
+        .order_by("section")
+    )
+
+    ctx = {
+        "students": student_rows,
+        "total": len(student_rows),
+        "q": q,
+        "grade_filter": grade_filter,
+        "section_filter": section_filter,
+        "grades": available_grades,
+        "sections": available_sections,
+        "year": year,
+    }
+
+    # HTMX: إرجاع الجدول فقط
+    if request.headers.get("HX-Request"):
+        return render(request, "student_affairs/_student_table.html", ctx)
+
+    return render(request, "student_affairs/student_list.html", ctx)
 
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_table_partial(request):
-    """HTMX partial — جدول الطلاب للبحث المباشر."""
-    return HttpResponse("", status=200)
+    """HTMX partial — يُعيد التوجيه لـ student_list مع نفس المعاملات."""
+    return student_list(request)
 
 
 # ═════════════════════════════════════════════════════════════════════
