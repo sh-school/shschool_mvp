@@ -1,5 +1,5 @@
 {# HTMX partial — بطاقة طلب تبديل واحدة (قابلة لإعادة الاستخدام) #}
-<div class="swap-card" id="swap-{{ swap.pk }}">
+<div class="swap-card" id="swap-{{ swap.pk }}" data-filter-row data-text="{{ swap.teacher_a.full_name }} {{ swap.teacher_b.full_name }}">
   <div class="swap-row">
     <span class="swap-teacher">{{ swap.teacher_a.full_name }}</span>
     <span class="swap-arrow">&harr;</span>

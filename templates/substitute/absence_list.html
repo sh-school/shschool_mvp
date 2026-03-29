@@ -21,21 +21,28 @@
     </div>
   </div>
 
-  <!-- Date Filter -->
-  <form method="get" class="flex gap-3 items-end">
+  <!-- Date Filter + Search -->
+  <div class="flex flex-wrap gap-3 items-end">
+    <form method="get" class="flex gap-3 items-end">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">التاريخ</label>
+        <input type="date" name="date" value="{{ abs_date|date:'Y-m-d' }}"
+               class="border rounded-lg px-3 py-2 text-sm">
+      </div>
+      <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">عرض</button>
+    </form>
     <div>
-      <label class="block text-xs text-gray-500 mb-1">التاريخ</label>
-      <input type="date" name="date" value="{{ abs_date|date:'Y-m-d' }}"
-             class="border rounded-lg px-3 py-2 text-sm">
+      <label class="block text-xs text-gray-500 mb-1">بحث بالاسم</label>
+      <input type="text" id="absence-search" class="form-control" style="max-width:260px"
+             placeholder="ابحث باسم المعلم..." autocomplete="off">
     </div>
-    <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">عرض</button>
-  </form>
+  </div>
 
   <!-- Absences -->
   {% if absences %}
-  <div class="space-y-4">
+  <div class="table-wrap-scroll space-y-4" style="max-height:420px" id="absence-cards">
     {% for absence in absences %}
-    <div class="card-qatar overflow-hidden">
+    <div class="card-qatar overflow-hidden" data-filter-row data-text="{{ absence.teacher.full_name }}">
       <div class="flex items-center justify-between px-5 py-3 border-b
         {% if absence.status == 'covered' %}bg-green-50{% elif absence.status == 'uncovered' %}bg-red-50{% else %}bg-amber-50{% endif %}">
         <div class="flex items-center gap-3">
@@ -79,4 +86,19 @@
   {% include "components/empty_state.html" with icon="check-circle" title="لا توجد غيابات" subtitle="لا توجد غيابات مسجّلة في هذا التاريخ" %}
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var input=document.getElementById('absence-search');
+  if(!input)return;
+  input.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    document.querySelectorAll('[data-filter-row]').forEach(function(el){
+      el.style.display=(q===''||el.getAttribute('data-text').toLowerCase().indexOf(q)!==-1)?'':'none';
+    });
+  });
+})();
+</script>
 {% endblock %}

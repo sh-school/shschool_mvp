@@ -114,8 +114,13 @@
 {# ── جدول التوزيعات ── #}
 {% if assignments %}
 <div class="table-wrap">
-  <div class="card-bar m-0 rounded-t-xl">{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الفصول ({{ assignments|length }})</div>
-  <div class="overflow-x-auto">
+  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between">
+    <span>{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الفصول (<span id="shown-count">{{ assignments|length }}</span> / {{ assignments|length }})</span>
+  </div>
+  <div class="filter-bar" style="border-top:0;border-radius:0;margin-bottom:0">
+    <input type="text" id="assign-search" class="form-control" placeholder="بحث بالفصل أو المادة أو المعلم..." style="flex:1;min-width:200px">
+  </div>
+  <div class="table-wrap-scroll" style="max-height:420px">
     <table>
       <thead>
         <tr>
@@ -126,9 +131,9 @@
           <th scope="col" class="text-center">معمل</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="assign-tbody">
         {% for a in assignments %}
-        <tr>
+        <tr data-filter-row data-text="{{ a.class_group }} {{ a.subject.name_ar }} {{ a.teacher.full_name }}">
           <td class="font-semibold">{{ a.class_group }}</td>
           <td>{{ a.subject.name_ar }}</td>
           <td class="text-maroon">{{ a.teacher.full_name }}</td>
@@ -146,4 +151,25 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var input = document.getElementById('assign-search');
+  if (!input) return;
+  var rows = document.querySelectorAll('#assign-tbody tr[data-filter-row]');
+  var counter = document.getElementById('shown-count');
+  input.addEventListener('input', function(){
+    var q = this.value.trim().toLowerCase();
+    var shown = 0;
+    rows.forEach(function(r){
+      var match = !q || r.getAttribute('data-text').toLowerCase().indexOf(q) !== -1;
+      r.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+    if (counter) counter.textContent = shown;
+  });
+})();
+</script>
 {% endblock %}

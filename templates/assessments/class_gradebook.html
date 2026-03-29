@@ -77,10 +77,17 @@
     </div>
   </div>
 
+  <!-- بحث بالاسم -->
+  <div class="filter-bar mb-3">
+    <input type="text" id="gradebook-search" class="form-control"
+           placeholder="ابحث باسم الطالب..." autocomplete="off">
+  </div>
+
   <!-- جدول الدرجات -->
   <div class="card-qatar overflow-x-auto">
+   <div class="table-wrap-scroll" style="max-height:420px">
     <table class="w-full text-sm">
-      <thead class="bg-maroon text-white">
+      <thead class="bg-maroon text-white sticky top-0 z-10">
         <tr>
           <th scope="col" class="px-4 py-3 text-right">الطالب</th>
           {% if semester != 'annual' %}
@@ -111,7 +118,7 @@
       </thead>
       <tbody class="divide-y">
         {% for row in rows %}
-        <tr class="hover:bg-gray-50 transition">
+        <tr class="hover:bg-gray-50 transition" data-filter-row data-text="{{ row.student.full_name }}">
           <td class="px-4 py-3 font-medium text-gray-800">
             <a href="{% url 'student_report' row.student.id %}?year={{ setup.academic_year }}"
                class="hover:text-blue-600 hover:underline">{{ row.student.full_name }}</a>
@@ -182,7 +189,23 @@
         {% endfor %}
       </tbody>
     </table>
+   </div>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+(function(){
+  var input=document.getElementById('gradebook-search');
+  if(!input)return;
+  input.addEventListener('input',function(){
+    var q=this.value.trim().toLowerCase();
+    document.querySelectorAll('[data-filter-row]').forEach(function(tr){
+      tr.style.display=(q===''||tr.getAttribute('data-text').toLowerCase().indexOf(q)!==-1)?'':'none';
+    });
+  });
+})();
+</script>
 {% endblock %}
