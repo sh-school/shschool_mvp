@@ -1396,6 +1396,14 @@ html.dark .table-wrap thead th {
   text-align: center;
   white-space: nowrap;
 }
+.col-actions .btn-xs {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  min-width: 32px;
+  min-height: 32px;
+}
 .table-empty {
   text-align: center;
   padding: var(--sp-8) var(--sp-4);
