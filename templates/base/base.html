@@ -136,6 +136,7 @@
     {% elif role == "coordinator" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
+      <a href="{% url 'student_affairs:student_list' %}" class="nb">{% include "components/icon.html" with name="users" %} طلاب قسمي</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -157,7 +158,8 @@
 
     {% elif role == "social_worker" or role == "psychologist" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <button class="nb" id="btn-sw-behavior" data-sd="m-sw-behavior" aria-expanded="false" aria-controls="m-sw-behavior">{% include "components/icon.html" with name="scale" %} السلوك <span class="chv">▼</span></button>
+      <button class="nb" id="btn-sw-students" data-sd="m-sw-students" aria-expanded="false" aria-controls="m-sw-students">{% include "components/icon.html" with name="users" %} متابعة الطلاب <span class="chv">▼</span></button>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
@@ -361,6 +363,23 @@
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
   {% endif %}
+</div>
+{% endif %}
+
+{# ── Social Worker / Psychologist Dropdowns — v7 MTG-2026-008 ── #}
+{% if role == "social_worker" or role == "psychologist" %}
+<div class="sd-menu" id="m-sw-behavior" role="menu" aria-label="السلوك">
+  <div class="sd-label">السلوك الطلابي</div>
+  <a href="{% url 'behavior:dashboard' %}">{% include "components/icon.html" with name="scale" %} لوحة السلوك</a>
+  <a href="{% url 'behavior:report_infraction' %}">{% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة</a>
+  <a href="{% url 'behavior:statistics' %}">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
+  <hr>
+  <a href="{% url 'behavior:summon_parent' %}">{% include "components/icon.html" with name="phone" %} استدعاء ولي أمر</a>
+</div>
+<div class="sd-menu" id="m-sw-students" role="menu" aria-label="متابعة الطلاب">
+  <div class="sd-label">متابعة الطلاب</div>
+  <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="users" %} قائمة الطلاب</a>
+  <a href="{% url 'failing_students' %}">{% include "components/icon.html" with name="alert-triangle" %} الطلاب المتعثرون</a>
 </div>
 {% endif %}
 

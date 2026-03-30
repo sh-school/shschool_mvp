@@ -433,6 +433,16 @@ def _get_service_ctx(user, school, today, role):
             borrow_date=today,
         ).count()
 
+    elif role == "it_technician":
+        from core.models.user import CustomUser
+
+        ctx["active_users"] = CustomUser.objects.filter(
+            is_active=True, memberships__school=school,
+        ).distinct().count()
+        ctx["total_users"] = CustomUser.objects.filter(
+            memberships__school=school,
+        ).distinct().count()
+
     return ctx
 
 

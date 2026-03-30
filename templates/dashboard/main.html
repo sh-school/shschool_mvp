@@ -804,6 +804,39 @@
     </a>
   </div>
 
+  {% elif service_role == "it_technician" %}
+  {# ── IT Technician Dashboard — MTG-2026-008 ── #}
+  <div class="exec-dash" style="margin-top:1rem">
+    <div class="exec-kpi-grid">
+      <div class="exec-kpi-card exec-kpi-card--info">
+        <div class="exec-kpi-icon">{% include "components/icon.html" with name="users" %}</div>
+        <div class="exec-kpi-num">{{ active_users|default:"0" }}</div>
+        <div class="exec-kpi-label">مستخدمون نشطون</div>
+      </div>
+      <div class="exec-kpi-card">
+        <div class="exec-kpi-icon">{% include "components/icon.html" with name="user-plus" %}</div>
+        <div class="exec-kpi-num">{{ total_users|default:"0" }}</div>
+        <div class="exec-kpi-label">إجمالي المستخدمين</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-label mt-4">{% include "components/icon.html" with name="wrench" %} الأدوات التقنية</h2>
+  <div class="quick-action-grid">
+    <a href="/admin/" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="settings" %}</div>
+      <div class="action-card-body"><p class="action-title">لوحة الإدارة التقنية</p><p class="action-desc">إدارة النظام والإعدادات</p></div>
+    </a>
+    <a href="/admin/core/customuser/" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
+      <div class="action-card-body"><p class="action-title">إدارة المستخدمين</p><p class="action-desc">حسابات المعلمين والموظفين</p></div>
+    </a>
+    <a href="/admin/admin/logentry/" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
+      <div class="action-card-body"><p class="action-title">سجل النشاطات</p><p class="action-desc">آخر العمليات على النظام</p></div>
+    </a>
+  </div>
+
   {% else %}
   <div class="card-qatar text-center py-8 mt-4">
     <p class="text-[var(--text-muted)]">تواصل مع مدير النظام لتفعيل لوحة التحكم الخاصة بك</p>
