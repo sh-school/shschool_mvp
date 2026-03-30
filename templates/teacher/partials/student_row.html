@@ -29,7 +29,7 @@
     {% endfor %}
 
     <button
-      hx-post="/teacher/attendance/{{ session.id }}/mark-single/"
+      hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "present"}'
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
@@ -40,7 +40,7 @@
     </button>
 
     <button
-      hx-post="/teacher/attendance/{{ session.id }}/mark-single/"
+      hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "absent"}'
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
@@ -51,7 +51,7 @@
     </button>
 
     <button
-      hx-post="/teacher/attendance/{{ session.id }}/mark-single/"
+      hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "late"}'
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
@@ -62,7 +62,7 @@
     </button>
 
     <button
-      hx-post="/teacher/attendance/{{ session.id }}/mark-single/"
+      hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "excused"}'
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"

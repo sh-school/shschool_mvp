@@ -61,7 +61,7 @@
   <div class="nav-inner">
 
     {# ── Logo + اسم المدرسة ── #}
-    <a href="/dashboard/" class="nb nav-logo">
+    <a href="{% url 'dashboard' %}" class="nb nav-logo">
       <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
            alt="مدرسة الشحانية" class="nav-logo-img">
       <span class="nav-logo-text">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</span>
@@ -75,7 +75,7 @@
     </button>
 
     {# ── Notification Bell ── #}
-    <a href="/notifications/inbox/" class="nb nav-bell" title="الإشعارات" id="notif-bell">
+    <a href="{% url 'notification_inbox' %}" class="nb nav-bell" title="الإشعارات" id="notif-bell">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
            viewBox="0 0 24 24" class="nav-bell-icon" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round"
@@ -105,7 +105,7 @@
     {# ── Role-based nav ── #}
     <div class="nb-bar">
     {% if is_admin_role %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
@@ -114,83 +114,83 @@
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/clinic/" class="nb">{% include "components/icon.html" with name="hospital" %} العيادة</a>
-      <a href="/clinic/visits/" class="nb">سجل الزيارات</a>
-      <a href="/clinic/record/" class="nb">تسجيل زيارة</a>
-      <a href="/clinic/statistics/" class="nb">الإحصائيات</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'clinic:dashboard' %}" class="nb">{% include "components/icon.html" with name="hospital" %} العيادة</a>
+      <a href="{% url 'clinic:visits_list' %}" class="nb">سجل الزيارات</a>
+      <a href="{% url 'clinic:record_visit' %}" class="nb">تسجيل زيارة</a>
+      <a href="{% url 'clinic:statistics' %}" class="nb">الإحصائيات</a>
 
     {% elif role == "bus_supervisor" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/transport/" class="nb">{% include "components/icon.html" with name="bus" %} النقل</a>
-      <a href="/transport/buses/" class="nb">الحافلات</a>
-      <a href="/transport/assignments/" class="nb">إسناد الطلاب</a>
-      <a href="/transport/statistics/" class="nb">الإحصائيات</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'transport:dashboard' %}" class="nb">{% include "components/icon.html" with name="bus" %} النقل</a>
+      <a href="{% url 'transport:buses_list' %}" class="nb">الحافلات</a>
+      <a href="{% url 'transport:student_assignments' %}" class="nb">إسناد الطلاب</a>
+      <a href="{% url 'transport:statistics' %}" class="nb">الإحصائيات</a>
 
     {% elif role == "librarian" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/library/" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
-      <a href="/library/books/" class="nb">الكتب</a>
-      <a href="/library/borrow/" class="nb">إعارة جديدة</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'library:dashboard' %}" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+      <a href="{% url 'library:book_list' %}" class="nb">الكتب</a>
+      <a href="{% url 'library:borrow_book' %}" class="nb">إعارة جديدة</a>
 
     {% elif role == "coordinator" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
-      <a href="/assessments/" class="nb">التقييمات</a>
-      <a href="/reports/" class="nb">التقارير</a>
-      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
       {% if is_quality_reviewer %}
-      <a href="/quality/review/" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
+      <a href="{% url 'review_list' %}" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
-      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
-      <a href="/assessments/" class="nb">التقييمات</a>
-      <a href="/reports/" class="nb">التقارير</a>
-      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
       {% if is_quality_reviewer %}
-      <a href="/quality/review/" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
+      <a href="{% url 'review_list' %}" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
-      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% elif role == "social_worker" or role == "psychologist" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/behavior/dashboard/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
-      <a href="/reports/" class="nb">التقارير</a>
-      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "academic_advisor" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/assessments/" class="nb">التقييمات</a>
-      <a href="/reports/" class="nb">التقارير</a>
-      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/reports/" class="nb">التقارير</a>
-      <a href="/notifications/" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
-      <a href="/quality/my-procedures/" class="nb">إجراءاتي</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "it_technician" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="/admin/" class="nb">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة</a>
 
     {% elif role == "student" %}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="/reports/" class="nb">{% include "components/icon.html" with name="bar-chart" %} درجاتي</a>
-      <a href="/library/" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} درجاتي</a>
+      <a href="{% url 'library:dashboard' %}" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
 
     {% elif role == "parent" %}
-      <a href="/parents/" class="nb">{% include "components/icon.html" with name="home" %} بوابتي</a>
-      <a href="/parents/grades/" class="nb">{% include "components/icon.html" with name="bar-chart" %} الدرجات</a>
-      <a href="/parents/attendance/" class="nb">{% include "components/icon.html" with name="list-checks" %} الحضور</a>
-      <a href="/parents/behavior/" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <a href="{% url 'parent_dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} بوابتي</a>
+      <a href="{% url 'parent_all_grades' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} الدرجات</a>
+      <a href="{% url 'parent_all_attendance' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} الحضور</a>
+      <a href="{% url 'parent_behavior' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
     {% else %}
       {# platform_developer أو أي دور آخر — نفس المدير #}
-      <a href="/dashboard/" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
@@ -209,92 +209,92 @@
 
 <div class="sd-menu" id="m-academic" role="menu" aria-label="الشؤون الأكاديمية">
   <div class="sd-label">الدراسة والتقييم</div>
-  <a href="/assessments/">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
-  <a href="/assessments/failing/">{% include "components/icon.html" with name="alert-triangle" %} قائمة الراسبين</a>
-  <a href="/reports/">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
-  <a href="/analytics/">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
-  <a href="/analytics/kpis/">{% include "components/icon.html" with name="list-checks" %} مؤشرات الأداء (KPIs)</a>
+  <a href="{% url 'assessments_dashboard' %}">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
+  <a href="{% url 'failing_students' %}">{% include "components/icon.html" with name="alert-triangle" %} قائمة الراسبين</a>
+  <a href="{% url 'reports_index' %}">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
+  <a href="{% url 'analytics_dashboard' %}">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
+  <a href="{% url 'kpi_dashboard' %}">{% include "components/icon.html" with name="list-checks" %} مؤشرات الأداء (KPIs)</a>
   <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
   <hr>
   <div class="sd-label">الاختبارات</div>
   <a href="/exam-control/">{% include "components/icon.html" with name="lock" %} كنترول الاختبارات</a>
   <hr>
   <div class="sd-label">الجدول والحضور</div>
-  <a href="/teacher/schedule/">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="/teacher/reports/daily/">{% include "components/icon.html" with name="bar-chart" %} التقرير اليومي</a>
-  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
-  <a href="/teacher/smart-schedule/">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
+  <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="bar-chart" %} التقرير اليومي</a>
+  <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="{% url 'smart_schedule' %}">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
 </div>
 
 <div class="sd-menu" id="m-staff-affairs" role="menu" aria-label="شؤون الموظفين">
   <div class="sd-label">نظرة عامة</div>
-  <a href="/staff-affairs/">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الموظفين</a>
-  <a href="/staff-affairs/list/">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
+  <a href="{% url 'staff_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الموظفين</a>
+  <a href="{% url 'staff_affairs:staff_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
   <hr>
   <div class="sd-label">الحضور والإجازات</div>
-  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
-  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
-  <a href="/staff-affairs/leave/">{% include "components/icon.html" with name="calendar" %} طلبات الإجازات</a>
+  <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
+  <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  <a href="{% url 'staff_affairs:leave_list' %}">{% include "components/icon.html" with name="calendar" %} طلبات الإجازات</a>
   <hr>
   <div class="sd-label">التقييم والتطوير</div>
   {% if is_leadership %}
-  <a href="/quality/evaluations/">{% include "components/icon.html" with name="bar-chart" %} تقييم أداء الموظفين</a>
+  <a href="{% url 'evaluation_dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} تقييم أداء الموظفين</a>
   {% endif %}
-  <a href="/staff-affairs/licensing/">{% include "components/icon.html" with name="lock" %} الرخص المهنية</a>
-  <a href="/teacher/reports/teacher-load/">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</a>
+  <a href="{% url 'staff_affairs:licensing' %}">{% include "components/icon.html" with name="lock" %} الرخص المهنية</a>
+  <a href="{% url 'teacher_load_report' %}">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</a>
 </div>
 
 <div class="sd-menu" id="m-quality" role="menu" aria-label="الجودة">
   <div class="sd-label">الخطة التشغيلية</div>
-  <a href="/quality/">{% include "components/icon.html" with name="bar-chart" %} لوحة الخطة</a>
-  <a href="/quality/execution/">{% include "components/icon.html" with name="rocket" %} تنفيذ الخطة</a>
-  <a href="/quality/review/">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
-  <a href="/quality/report/">{% include "components/icon.html" with name="activity" %} تقرير التقدم</a>
+  <a href="{% url 'quality_dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة الخطة</a>
+  <a href="{% url 'execution_list' %}">{% include "components/icon.html" with name="rocket" %} تنفيذ الخطة</a>
+  <a href="{% url 'review_list' %}">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
+  <a href="{% url 'quality_report' %}">{% include "components/icon.html" with name="activity" %} تقرير التقدم</a>
   <hr>
   <div class="sd-label">اللجان</div>
-  <a href="/quality/executor-committee/">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة</a>
-  <a href="/quality/committee/">{% include "components/icon.html" with name="search" %} لجنة المراجعة الذاتية</a>
+  <a href="{% url 'executor_committee' %}">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة</a>
+  <a href="{% url 'quality_committee' %}">{% include "components/icon.html" with name="search" %} لجنة المراجعة الذاتية</a>
   <hr>
-  <a href="/quality/my-procedures/">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+  <a href="{% url 'my_procedures' %}">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 </div>
 
 <div class="sd-menu" id="m-admin" role="menu" aria-label="الإدارة">
   <div class="sd-label">إدارة المدرسة</div>
-  <a href="/notifications/">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
+  <a href="{% url 'notifications_dashboard' %}">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
   <hr>
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
   {% if is_leadership %}
   <hr>
   <div class="sd-label">الأمان والصلاحيات</div>
-  <a href="/core/permission-audit/">{% include "components/icon.html" with name="lock" %} سجل تغييرات الصلاحيات</a>
+  <a href="{% url 'permission_audit_log' %}">{% include "components/icon.html" with name="lock" %} سجل تغييرات الصلاحيات</a>
   {% endif %}
 </div>
 
 <div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
   <div class="sd-label">الخدمات المساندة</div>
-  <a href="/clinic/">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</a>
-  <a href="/transport/">{% include "components/icon.html" with name="bus" %} النقل المدرسي</a>
-  <a href="/library/">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+  <a href="{% url 'clinic:dashboard' %}">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</a>
+  <a href="{% url 'transport:dashboard' %}">{% include "components/icon.html" with name="bus" %} النقل المدرسي</a>
+  <a href="{% url 'library:dashboard' %}">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
 </div>
 
 <div class="sd-menu" id="m-student-affairs" role="menu" aria-label="شؤون الطلاب">
   <div class="sd-label">نظرة عامة</div>
-  <a href="/student-affairs/">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
-  <a href="/student-affairs/list/">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
-  <a href="/student-affairs/add/">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
+  <a href="{% url 'student_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
+  <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
+  <a href="{% url 'student_affairs:student_add' %}">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
   <hr>
   <div class="sd-label">المتابعة والسلوك</div>
-  <a href="/teacher/schedule/">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="/student-affairs/attendance/">{% include "components/icon.html" with name="calendar" %} ملخص الحضور والغياب</a>
-  <a href="/behavior/dashboard/">{% include "components/icon.html" with name="scale" %} السلوك الطلابي</a>
-  <a href="/behavior/summon/">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
-  <a href="/student-affairs/transfers/">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
+  <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="calendar" %} ملخص الحضور والغياب</a>
+  <a href="{% url 'behavior:dashboard' %}">{% include "components/icon.html" with name="scale" %} السلوك الطلابي</a>
+  <a href="{% url 'behavior:summon_parent' %}">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
+  <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
   <hr>
   <div class="sd-label">الأنشطة والبيانات</div>
-  <a href="/student-affairs/activities/">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</a>
-  <a href="/parents/admin/links/">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
-  <a href="/core/students/import-export/">{% include "components/icon.html" with name="download" %} استيراد / تصدير Excel</a>
+  <a href="{% url 'student_affairs:activity_list' %}">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</a>
+  <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
+  <a href="{% url 'student_import_export' %}">{% include "components/icon.html" with name="download" %} استيراد / تصدير Excel</a>
 </div>
 
 {% endif %}
@@ -303,24 +303,24 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
-  <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
-  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
-  <a href="/teacher/absences/">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
+  <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
 </div>
 {% endif %}
 
 {# ── Teacher Schedule Dropdown ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
-  <a href="/teacher/schedule/" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="/teacher/weekly-schedule/">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
-  <a href="/teacher/schedule/swaps/">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
-  <a href="/teacher/schedule/compensatory/">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
 </div>
 {% endif %}
 
@@ -333,7 +333,7 @@
   {% if request.user.memberships.count > 1 %}
   <a href="/auth/choose-role/">{% include "components/icon.html" with name="refresh" %} تبديل الدور</a>
   {% endif %}
-  <a href="/notifications/inbox/">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+  <a href="{% url 'notification_inbox' %}">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
   <a href="#" id="theme-toggle-menu" onclick="document.getElementById('theme-toggle').click();return false;">
     <span id="theme-menu-icon">{% include "components/icon.html" with name="moon" %}</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
@@ -346,7 +346,7 @@
   </a>
   {% endif %}
   <hr>
-  <form method="post" action="/auth/logout/" class="sd-logout-form">
+  <form method="post" action="{% url 'logout' %}" class="sd-logout-form">
     {% csrf_token %}
     <button type="submit" class="sd-logout-btn">{% include "components/icon.html" with name="log-out" %} تسجيل الخروج</button>
   </form>
@@ -450,32 +450,32 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 {% with role=request.user.get_role %}
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">
   <div class="mobile-bottom-nav-inner">
-    <a href="/dashboard/" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
+    <a href="{% url 'dashboard' %}" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="home" %}</span><span>الرئيسية</span>
     </a>
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
-    <a href="/teacher/schedule/" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
+    <a href="{% url 'teacher_schedule' %}" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>الحضور</span>
     </a>
-    <a href="/teacher/weekly-schedule/" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
+    <a href="{% url 'weekly_schedule' %}" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="calendar" %}</span><span>جدولي</span>
     </a>
     {% endif %}
     {% if role == 'parent' %}
-    <a href="/parents/" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
+    <a href="{% url 'parent_dashboard' %}" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="waypoints" %}</span><span>أبنائي</span>
     </a>
     {% endif %}
     {% if role == 'student' %}
-    <a href="/reports/" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
+    <a href="{% url 'reports_index' %}" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>درجاتي</span>
     </a>
     {% endif %}
-    <a href="/notifications/inbox/" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
+    <a href="{% url 'notification_inbox' %}" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bell" %}</span><span>الإشعارات</span>
     </a>
     {% if is_admin_role %}
-    <a href="/analytics/" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
+    <a href="{% url 'analytics_dashboard' %}" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>التحليلات</span>
     </a>
     {% endif %}

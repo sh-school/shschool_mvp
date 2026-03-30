@@ -2,7 +2,7 @@
 {% block title %}تسجيل حضور — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/" parent_label="الأكاديمية" current="تسجيل الحضور" %}
+{% include "components/breadcrumbs.html" with parent_url="{% url 'teacher_schedule' %}" parent_label="الأكاديمية" current="تسجيل الحضور" %}
 {% endblock %}
 
 {% block content %}
@@ -25,7 +25,7 @@
 
 {# ── KPI Strip (HTMX updates) ── #}
 <div id="summary-widget"
-     hx-get="/teacher/attendance/{{ session.id }}/summary/"
+     hx-get="{% url 'session_summary' session.id %}"
      hx-trigger="refresh from:body"
      hx-swap="innerHTML transition:false"
      class="kpi-strip">
@@ -48,8 +48,8 @@
 </div>
 
 <div class="flex flex-wrap items-center gap-2">
-  <form method="post" action="/teacher/attendance/{{ session.id }}/mark-all/"
-        hx-post="/teacher/attendance/{{ session.id }}/mark-all/"
+  <form method="post" action="{% url 'mark_all_present' session.id %}"
+        hx-post="{% url 'mark_all_present' session.id %}"
         hx-target="#students-list"
         hx-swap="outerHTML">
     {% csrf_token %}
@@ -60,7 +60,7 @@
   </form>
 
   {% if session.status != 'completed' %}
-  <form method="post" action="/teacher/attendance/{{ session.id }}/complete/"
+  <form method="post" action="{% url 'complete_session' session.id %}"
         class="mr-auto">
     {% csrf_token %}
     <button type="submit"

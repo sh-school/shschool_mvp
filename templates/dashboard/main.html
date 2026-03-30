@@ -23,7 +23,7 @@
       <button type="button" class="btn-secondary btn-sm js-print-btn">
         {% include "components/icon.html" with name="printer" %} طباعة
       </button>
-      <a href="/teacher/reports/daily/" class="btn-primary btn-sm no-underline">
+      <a href="{% url 'daily_report' %}" class="btn-primary btn-sm no-underline">
         {% include "components/icon.html" with name="file-text" %} تقرير الغياب
       </a>
     </div>
@@ -84,7 +84,7 @@
         <div class="kpi-mini-label">طلاب راسبون</div>
         <div class="kpi-mini-value">{{ failing_count }}</div>
         {% if failing_count %}
-        <div class="kpi-mini-alert"><a href="/assessments/failing/" style="color:inherit;text-decoration:underline">عرض القائمة</a></div>
+        <div class="kpi-mini-alert"><a href="{% url 'failing_students' %}" style="color:inherit;text-decoration:underline">عرض القائمة</a></div>
         {% endif %}
       </div>
       <div class="kpi-mini kpi-orange">
@@ -98,17 +98,17 @@
     {# ── الجدول والتبديلات ── #}
     {% if pending_swaps or pending_comp or absent_teachers_today %}
     <div class="kpi-strip mt-3">
-      <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-orange">
+      <a href="{% url 'swap_list' %}" class="kpi-mini kpi-orange">
         <div class="kpi-mini-label">تبديلات معلقة</div>
         <div class="kpi-mini-value">{{ pending_swaps }}</div>
         {% if pending_swaps %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
       </a>
-      <a href="/teacher/schedule/compensatory/" class="kpi-mini kpi-teal">
+      <a href="{% url 'compensatory_list' %}" class="kpi-mini kpi-teal">
         <div class="kpi-mini-label">تعويضات معلقة</div>
         <div class="kpi-mini-value">{{ pending_comp }}</div>
         {% if pending_comp %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
       </a>
-      <a href="/teacher/absences/" class="kpi-mini kpi-red">
+      <a href="{% url 'absence_list' %}" class="kpi-mini kpi-red">
         <div class="kpi-mini-label">معلمون غائبون اليوم</div>
         <div class="kpi-mini-value">{{ absent_teachers_today }}</div>
         {% if absent_teachers_today %}<div class="kpi-mini-alert">التفاصيل</div>{% endif %}
@@ -118,19 +118,19 @@
 
     {# ── نبض المدرسة ── #}
     <div class="kpi-strip mt-3">
-      <a href="/behavior/" class="kpi-mini kpi-red">
+      <a href="{% url 'behavior:dashboard' %}" class="kpi-mini kpi-red">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="shield" %} مخالفات الشهر</div>
         <div class="kpi-mini-value">{{ behavior_monthly|default:"0" }}</div>
         {% if behavior_critical %}<div class="kpi-mini-alert">{{ behavior_critical }} حرجة</div>
         {% else %}<div class="kpi-mini-sub">لا حرجة</div>{% endif %}
       </a>
-      <a href="/clinic/" class="kpi-mini kpi-blue">
+      <a href="{% url 'clinic:dashboard' %}" class="kpi-mini kpi-blue">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="hospital" %} زيارات العيادة</div>
         <div class="kpi-mini-value">{{ clinic_today|default:"0" }}</div>
         {% if clinic_sent_home %}<div class="kpi-mini-alert">{{ clinic_sent_home }} أُرسلوا للمنزل</div>
         {% else %}<div class="kpi-mini-sub">اليوم</div>{% endif %}
       </a>
-      <a href="/library/" class="kpi-mini kpi-purple">
+      <a href="{% url 'library:dashboard' %}" class="kpi-mini kpi-purple">
         <div class="kpi-mini-label">{% include "components/icon.html" with name="book-open" %} إعارات متأخرة</div>
         <div class="kpi-mini-value">{{ library_overdue|default:"0" }}</div>
         <div class="kpi-mini-sub">كتاب</div>
@@ -168,13 +168,13 @@
 
   {# ── Quick Links ── #}
   <div class="quick-links">
-    <a href="/analytics/dashboard/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> التحليلات</a>
-    <a href="/behavior/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="shield" %}</span> السلوك</a>
-    <a href="/clinic/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="hospital" %}</span> العيادة</a>
-    <a href="/library/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> المكتبة</a>
-    <a href="/transport/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bus" %}</span> النقل</a>
-    <a href="/quality/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="check-circle" %}</span> الجودة</a>
-    <a href="/notifications/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bell" %}</span> الإشعارات</a>
+    <a href="{% url 'analytics_dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> التحليلات</a>
+    <a href="{% url 'behavior:dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="shield" %}</span> السلوك</a>
+    <a href="{% url 'clinic:dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="hospital" %}</span> العيادة</a>
+    <a href="{% url 'library:dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> المكتبة</a>
+    <a href="{% url 'transport:dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bus" %}</span> النقل</a>
+    <a href="{% url 'quality_dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="check-circle" %}</span> الجودة</a>
+    <a href="{% url 'notifications_dashboard' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bell" %}</span> الإشعارات</a>
     <a href="/exam-control/" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="clipboard" %}</span> الاختبارات</a>
   </div>
 
@@ -190,7 +190,7 @@
     <p class="page-subtitle">{{ today }} — {{ school.name }}</p>
   </div>
   <div class="page-actions">
-    <a href="/assessments/" class="btn-primary btn-sm">
+    <a href="{% url 'assessments_dashboard' %}" class="btn-primary btn-sm">
       {% include "components/icon.html" with name="file-pen" %} التقييمات
     </a>
   </div>
@@ -201,7 +201,7 @@
 <div class="alert-strip" style="background:var(--status-warning-light,#fffbeb);color:var(--status-warning,#92400e);border-color:var(--border);">
   <span>{% include "components/icon.html" with name="refresh" %}</span>
   <strong>لديك {{ my_pending_swaps }} طلب تبديل ينتظر ردك</strong>
-  <a href="/teacher/schedule/swaps/" style="color:inherit;margin-inline-start:auto;">عرض الطلبات</a>
+  <a href="{% url 'swap_list' %}" style="color:inherit;margin-inline-start:auto;">عرض الطلبات</a>
 </div>
 {% endif %}
 
@@ -216,7 +216,7 @@
 <p class="section-label">مواد التقييم</p>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
   {% for setup in my_setups %}
-  <a href="/assessments/setup/{{ setup.id }}/" class="action-card">
+  <a href="{% url 'setup_detail' setup.id %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
     <div class="action-card-body flex-1">
       <p class="action-title">{{ setup.subject.name_ar }}</p>
@@ -234,28 +234,28 @@
 {# ── إجراءات سريعة للمعلم ── #}
 <p class="section-label">إجراءات سريعة</p>
 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-  <a href="/teacher/schedule/" class="action-card action-primary">
+  <a href="{% url 'teacher_schedule' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="list-checks" %}</div>
     <div class="action-card-body">
       <p class="action-title">تسجيل الحضور</p>
       <p class="action-desc">حصص اليوم والحضور</p>
     </div>
   </a>
-  <a href="/teacher/weekly-schedule/" class="action-card">
+  <a href="{% url 'weekly_schedule' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="calendar" %}</div>
     <div class="action-card-body">
       <p class="action-title">الجدول الأسبوعي</p>
       <p class="action-desc">حصصي هذا الأسبوع</p>
     </div>
   </a>
-  <a href="/assessments/" class="action-card">
+  <a href="{% url 'assessments_dashboard' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
     <div class="action-card-body">
       <p class="action-title">التقييمات</p>
       <p class="action-desc">إدخال الدرجات</p>
     </div>
   </a>
-  <a href="/teacher/schedule/swap/request/" class="action-card">
+  <a href="{% url 'swap_request' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="refresh" %}</div>
     <div class="action-card-body">
       <p class="action-title">طلب تبديل</p>
@@ -276,7 +276,7 @@
       <p class="exec-subtitle">{{ today }} — {{ school.name }} — منسق</p>
     </div>
     <div class="exec-meta">
-      <a href="/assessments/" class="btn-primary btn-sm no-underline">
+      <a href="{% url 'assessments_dashboard' %}" class="btn-primary btn-sm no-underline">
         {% include "components/icon.html" with name="file-pen" %} التقييمات
       </a>
     </div>
@@ -284,23 +284,23 @@
 
   {# ── KPIs المنسق ── #}
   <div class="kpi-strip">
-    <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-orange">
+    <a href="{% url 'swap_list' %}" class="kpi-mini kpi-orange">
       <div class="kpi-mini-label">تبديلات تنتظر اعتمادك</div>
       <div class="kpi-mini-value">{{ coord_pending_swaps }}</div>
       {% if coord_pending_swaps %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
     </a>
-    <a href="/teacher/schedule/compensatory/" class="kpi-mini kpi-teal">
+    <a href="{% url 'compensatory_list' %}" class="kpi-mini kpi-teal">
       <div class="kpi-mini-label">تعويضات معلقة</div>
       <div class="kpi-mini-value">{{ coord_pending_comp }}</div>
       {% if coord_pending_comp %}<div class="kpi-mini-alert">مراجعة</div>{% endif %}
     </a>
-    <a href="/teacher/absences/" class="kpi-mini kpi-red">
+    <a href="{% url 'absence_list' %}" class="kpi-mini kpi-red">
       <div class="kpi-mini-label">معلمون غائبون اليوم</div>
       <div class="kpi-mini-value">{{ coord_absent_today }}</div>
       {% if coord_absent_today %}<div class="kpi-mini-alert">التفاصيل</div>{% endif %}
     </a>
     {% if my_pending_swaps %}
-    <a href="/teacher/schedule/swaps/" class="kpi-mini kpi-maroon">
+    <a href="{% url 'swap_list' %}" class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">تبديلات تنتظر ردك</div>
       <div class="kpi-mini-value">{{ my_pending_swaps }}</div>
       <div class="kpi-mini-alert">عرض</div>
@@ -319,21 +319,21 @@
 {# ── إجراءات سريعة للمنسق ── #}
 <p class="section-label">إجراءات سريعة</p>
 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-  <a href="/teacher/schedule/swaps/" class="action-card action-primary">
+  <a href="{% url 'swap_list' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="refresh" %}</div>
     <div class="action-card-body">
       <p class="action-title">طلبات التبديل</p>
       <p class="action-desc">مراجعة واعتماد</p>
     </div>
   </a>
-  <a href="/teacher/absences/" class="action-card">
+  <a href="{% url 'absence_list' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="ban" %}</div>
     <div class="action-card-body">
       <p class="action-title">غياب المعلمين</p>
       <p class="action-desc">تعيين البدلاء</p>
     </div>
   </a>
-  <a href="/assessments/" class="action-card">
+  <a href="{% url 'assessments_dashboard' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
     <div class="action-card-body">
       <p class="action-title">التقييمات</p>
@@ -354,21 +354,21 @@
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-  <a href="/parents/attendance/" class="action-card action-primary">
+  <a href="{% url 'parent_all_attendance' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="list-checks" %}</div>
     <div class="action-card-body">
       <p class="action-title">متابعة الحضور</p>
       <p class="action-desc">غيابات وتأخيرات أبنائك</p>
     </div>
   </a>
-  <a href="/parents/grades/" class="action-card">
+  <a href="{% url 'parent_all_grades' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
     <div class="action-card-body">
       <p class="action-title">الدرجات والنتائج</p>
       <p class="action-desc">نتائج الفصلين والتقييمات</p>
     </div>
   </a>
-  <a href="/notifications/inbox/" class="action-card">
+  <a href="{% url 'notification_inbox' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="bell" %}</div>
     <div class="action-card-body">
       <p class="action-title">الإشعارات</p>
@@ -469,21 +469,21 @@
 {# ── إجراءات سريعة ── #}
 <p class="section-label">إجراءات سريعة</p>
 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-  <a href="/reports/" class="action-card action-primary">
+  <a href="{% url 'reports_index' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
     <div class="action-card-body">
       <p class="action-title">درجاتي</p>
       <p class="action-desc">النتائج والشهادات</p>
     </div>
   </a>
-  <a href="/library/" class="action-card">
+  <a href="{% url 'library:dashboard' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
     <div class="action-card-body">
       <p class="action-title">المكتبة</p>
       <p class="action-desc">الكتب والإعارة</p>
     </div>
   </a>
-  <a href="/notifications/inbox/" class="action-card">
+  <a href="{% url 'notification_inbox' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="bell" %}</div>
     <div class="action-card-body">
       <p class="action-title">الإشعارات</p>
@@ -507,21 +507,21 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
 
   {% if r == "nurse" %}
-  <a href="/clinic/" class="action-card action-primary">
+  <a href="{% url 'clinic:dashboard' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="hospital" %}</div>
     <div class="action-card-body">
       <p class="action-title">لوحة العيادة</p>
       <p class="action-desc">الزيارات وسجلات الطلاب الصحية</p>
     </div>
   </a>
-  <a href="/clinic/visit/new/" class="action-card">
+  <a href="{% url 'clinic:record_visit' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
     <div class="action-card-body">
       <p class="action-title">تسجيل زيارة</p>
       <p class="action-desc">إضافة زيارة عيادة جديدة</p>
     </div>
   </a>
-  <a href="/clinic/statistics/" class="action-card">
+  <a href="{% url 'clinic:statistics' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
     <div class="action-card-body">
       <p class="action-title">الإحصائيات</p>
@@ -530,21 +530,21 @@
   </a>
 
   {% elif r == "bus_supervisor" %}
-  <a href="/transport/" class="action-card action-primary">
+  <a href="{% url 'transport:dashboard' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="bus" %}</div>
     <div class="action-card-body">
       <p class="action-title">لوحة النقل</p>
       <p class="action-desc">الحافلات والمسارات اليومية</p>
     </div>
   </a>
-  <a href="/transport/buses/" class="action-card">
+  <a href="{% url 'transport:buses_list' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="bus" %}</div>
     <div class="action-card-body">
       <p class="action-title">الحافلات</p>
       <p class="action-desc">إدارة وتتبع الأسطول</p>
     </div>
   </a>
-  <a href="/transport/statistics/" class="action-card">
+  <a href="{% url 'transport:statistics' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="activity" %}</div>
     <div class="action-card-body">
       <p class="action-title">الإحصائيات</p>
@@ -553,21 +553,21 @@
   </a>
 
   {% elif r == "librarian" %}
-  <a href="/library/" class="action-card action-primary">
+  <a href="{% url 'library:dashboard' %}" class="action-card action-primary">
     <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
     <div class="action-card-body">
       <p class="action-title">لوحة المكتبة</p>
       <p class="action-desc">الكتب والإعارة والإعادة</p>
     </div>
   </a>
-  <a href="/library/borrow/" class="action-card">
+  <a href="{% url 'library:borrow_book' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
     <div class="action-card-body">
       <p class="action-title">إعارة جديدة</p>
       <p class="action-desc">تسجيل استعارة كتاب</p>
     </div>
   </a>
-  <a href="/library/books/" class="action-card">
+  <a href="{% url 'library:book_list' %}" class="action-card">
     <div class="action-card-icon">{% include "components/icon.html" with name="search" %}</div>
     <div class="action-card-body">
       <p class="action-title">فهرس الكتب</p>

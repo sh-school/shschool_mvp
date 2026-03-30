@@ -88,11 +88,11 @@
     </select>
   </div>
   <div class="filter-actions">
-    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
     {% if show_all %}
-    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-primary btn-xs">إخفاء المكتملة</a>
+    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}" class="btn-primary btn-xs">إخفاء المكتملة</a>
     {% else %}
-    <a href="/teacher/schedule/?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل ({{ all_count }})</a>
+    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل ({{ all_count }})</a>
     {% endif %}
   </div>
 </form>
@@ -107,7 +107,7 @@
       <div class="text-lg font-bold text-gray-900">{{ next_session.subject.name_ar|default:"حصة" }}</div>
       <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
     </div>
-    <a href="/teacher/attendance/{{ next_session.id }}/"
+    <a href="{% url 'attendance' next_session.id %}"
        class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
       ابدأ الحضور ←
     </a>
@@ -162,12 +162,12 @@
         </td>
         <td class="px-4 py-3">
           {% if session.status != 'completed' and session.status != 'cancelled' %}
-          <a href="/teacher/attendance/{{ session.id }}/"
+          <a href="{% url 'attendance' session.id %}"
              class="btn-primary btn-sm">
             تسجيل حضور
           </a>
           {% else %}
-          <a href="/teacher/attendance/{{ session.id }}/"
+          <a href="{% url 'attendance' session.id %}"
              class="text-sm text-gray-500 hover:text-gray-700">عرض</a>
           {% endif %}
         </td>
