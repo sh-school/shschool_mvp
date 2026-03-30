@@ -70,8 +70,8 @@
  <div class="flex-1">
  <div class="flex items-center gap-2 mb-1">
  <span class="font-bold text-gray-800">{{ inf.student.full_name }}</span>
- <span class="text-xs px-2 py-0.5 rounded-full font-medium
- {% if inf.level == 4 %}bg-red-100 text-red-800{% else %}bg-orange-100 text-orange-800{% endif %}">
+ <span class="status-badge
+ {% if inf.level == 4 %}status-danger{% else %}status-warning{% endif %}">
  الدرجة {{ inf.level }} — {{ inf.get_level_display }}
  </span>
  <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
@@ -160,7 +160,7 @@
  </a>
  </td>
  <td class="px-4 py-3">
- <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">الدرجة {{ inf.level }}</span>
+ <span class="status-badge status-gray">الدرجة {{ inf.level }}</span>
  </td>
  <td class="px-4 py-3 text-gray-500">{{ inf.date }}</td>
  <td class="px-4 py-3 text-red-600 font-bold">-{{ inf.points_deducted }}</td>

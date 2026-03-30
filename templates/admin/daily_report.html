@@ -87,10 +87,10 @@
         <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id }}</td>
         <td class="px-4 py-3 text-sm text-gray-600">{{ record.session.class_group }}</td>
         <td class="px-4 py-3">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-            {% if record.status == 'absent' %}bg-red-100 text-red-800
-            {% elif record.status == 'late' %}bg-yellow-100 text-yellow-800
-            {% else %}bg-purple-100 text-purple-800{% endif %}">
+          <span class="status-badge
+            {% if record.status == 'absent' %}status-danger
+            {% elif record.status == 'late' %}status-warning
+            {% else %}status-purple{% endif %}">
             {{ record.get_status_display }}
           </span>
         </td>

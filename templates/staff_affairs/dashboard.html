@@ -128,10 +128,10 @@
             <span style="font-weight:600;font-size:.8rem">{{ a.teacher.full_name }}</span>
             <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ a.date|date:"d/m" }}</span>
           </div>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full
-            {% if a.status == "covered" %}bg-green-100 text-green-800
-            {% elif a.status == "uncovered" %}bg-red-100 text-red-800
-            {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+          <span class="status-badge
+            {% if a.status == "covered" %}status-success
+            {% elif a.status == "uncovered" %}status-danger
+            {% else %}status-warning{% endif %}">
             {{ a.get_status_display }}
           </span>
         </div>
@@ -152,11 +152,11 @@
             <span style="font-weight:600;font-size:.8rem">{{ l.staff.full_name }}</span>
             <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ l.get_leave_type_display }}</span>
           </div>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full
-            {% if l.status == "approved" %}bg-green-100 text-green-800
-            {% elif l.status == "rejected" %}bg-red-100 text-red-800
-            {% elif l.status == "pending" %}bg-yellow-100 text-yellow-800
-            {% else %}bg-gray-100 text-gray-600{% endif %}">
+          <span class="status-badge
+            {% if l.status == "approved" %}status-success
+            {% elif l.status == "rejected" %}status-danger
+            {% elif l.status == "pending" %}status-warning
+            {% else %}status-gray{% endif %}">
             {{ l.get_status_display }}
           </span>
         </div>

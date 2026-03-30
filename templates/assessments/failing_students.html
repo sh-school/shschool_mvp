@@ -65,10 +65,10 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span class="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+          <span class="status-badge status-gray">
             {% with first_subj=item.subjects.0 %}{{ first_subj.class_group.get_grade_display }}{% endwith %}
           </span>
-          <span class="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          <span class="status-badge status-danger">
             {{ item.subjects|length }} مادة راسب
           </span>
           <a href="{% url 'student_report' item.student.id %}?semester={{ semester }}"

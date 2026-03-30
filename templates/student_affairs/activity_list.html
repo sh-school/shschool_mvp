@@ -68,14 +68,14 @@
             </td>
             <td style="padding:8px">{{ act.title }}</td>
             <td style="padding:8px;text-align:center">
-              <span class="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{{ act.get_activity_type_display }}</span>
+              <span class="status-badge status-info">{{ act.get_activity_type_display }}</span>
             </td>
             <td style="padding:8px;text-align:center">
-              <span class="text-xs px-2 py-0.5 rounded-full
-                {% if act.scope == "international" %}bg-purple-100 text-purple-800
-                {% elif act.scope == "national" %}bg-green-100 text-green-800
-                {% elif act.scope == "district" %}bg-orange-100 text-orange-800
-                {% else %}bg-gray-100 text-gray-600{% endif %}">
+              <span class="status-badge
+                {% if act.scope == "international" %}status-purple
+                {% elif act.scope == "national" %}status-success
+                {% elif act.scope == "district" %}status-warning
+                {% else %}status-gray{% endif %}">
                 {{ act.get_scope_display }}
               </span>
             </td>

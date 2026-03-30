@@ -80,11 +80,11 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-xs px-2 py-0.5 rounded-full
-              {% if assessment.status == 'graded' %}bg-green-100 text-green-700
-              {% elif assessment.status == 'published' %}bg-blue-100 text-blue-700
-              {% elif assessment.status == 'closed' %}bg-gray-100 text-gray-600
-              {% else %}bg-amber-100 text-amber-700{% endif %}">
+            <span class="status-badge
+              {% if assessment.status == 'graded' %}status-success
+              {% elif assessment.status == 'published' %}status-info
+              {% elif assessment.status == 'closed' %}status-gray
+              {% else %}status-warning{% endif %}">
               {{ assessment.get_status_display }}
             </span>
             <a href="{% url 'grade_entry' assessment.id %}"

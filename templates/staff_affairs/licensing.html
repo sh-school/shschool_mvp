@@ -40,7 +40,7 @@
         {% for u in expired %}
         <div class="dash-list-item">
           <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
+          <span class="status-badge status-danger">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
         </div>
         {% endfor %}
       </div>
@@ -54,7 +54,7 @@
         {% for u in expiring_soon %}
         <div class="dash-list-item">
           <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
+          <span class="status-badge status-warning">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
         </div>
         {% endfor %}
       </div>
@@ -68,7 +68,7 @@
         {% for m in no_license %}
         <div class="dash-list-item">
           <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ m.user.full_name }}</a>
-          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">غير مسجّلة</span>
+          <span class="status-badge status-gray">غير مسجّلة</span>
         </div>
         {% endfor %}
       </div>

@@ -53,7 +53,7 @@
             <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.end_date|date:"d/m" }}</td>
             <td style="padding:8px;text-align:center;font-weight:600">{{ l.days_count }}</td>
             <td style="padding:8px;text-align:center">
-              <span class="text-xs px-2 py-0.5 rounded-full {% if l.status == "approved" %}bg-green-100 text-green-800{% elif l.status == "rejected" %}bg-red-100 text-red-800{% elif l.status == "pending" %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-600{% endif %}">{{ l.get_status_display }}</span>
+              <span class="status-badge {% if l.status == "approved" %}status-success{% elif l.status == "rejected" %}status-danger{% elif l.status == "pending" %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
             </td>
             <td style="padding:8px;text-align:center"><a href="{% url 'staff_affairs:leave_detail' l.pk %}" class="btn-secondary btn-xs">عرض</a></td>
           </tr>

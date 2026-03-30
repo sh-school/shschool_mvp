@@ -68,7 +68,7 @@
              style="flex:1;color:var(--maroon);text-decoration:none;font-weight:600;font-size:.8rem" class="hover:underline">
             {{ s.student__full_name }}
           </a>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-800">
+          <span class="status-badge status-danger">
             {{ s.infraction_count }} مخالفة
           </span>
         </div>
@@ -96,11 +96,11 @@
             <span style="font-size:.6rem;color:var(--muted)">— {{ inf.violation_category.name_ar|truncatechars:40 }}</span>
             {% endif %}
           </div>
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full
-            {% if inf.level == 1 %}bg-green-100 text-green-800
-            {% elif inf.level == 2 %}bg-yellow-100 text-yellow-800
-            {% elif inf.level == 3 %}bg-orange-100 text-orange-800
-            {% else %}bg-red-100 text-red-800{% endif %}">
+          <span class="status-badge
+            {% if inf.level == 1 %}status-success
+            {% elif inf.level == 2 %}status-warning
+            {% elif inf.level == 3 %}status-warning
+            {% else %}status-danger{% endif %}">
             د{{ inf.level }}
           </span>
         </div>

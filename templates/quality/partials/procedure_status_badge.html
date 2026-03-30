@@ -1,11 +1,11 @@
 <div>
   <p class="text-gray-500 text-xs mb-1">الحالة</p>
-  <span class="px-3 py-1 rounded-full text-xs font-medium
-    {% if procedure.status == 'Completed' %}bg-green-100 text-green-700
-    {% elif procedure.status == 'InProgress' %}bg-amber-100 text-amber-700
-    {% elif procedure.status == 'PendingReview' %}bg-blue-100 text-blue-700
-    {% elif procedure.status == 'Cancelled' %}bg-gray-100 text-gray-400 line-through
-    {% else %}bg-gray-100 text-gray-600{% endif %}">
+  <span class="status-badge
+    {% if procedure.status == 'Completed' %}status-success
+    {% elif procedure.status == 'InProgress' %}status-warning
+    {% elif procedure.status == 'PendingReview' %}status-info
+    {% elif procedure.status == 'Cancelled' %}status-gray line-through
+    {% else %}status-gray{% endif %}">
     {{ procedure.get_status_display }}
   </span>
 </div>

@@ -91,11 +91,11 @@
             <td class="px-4 py-3 text-center">
               {% if s.s1 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}"
-                   class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full
-                   {% if s.s1.status == 'acknowledged' %}bg-green-100 text-green-800
-                   {% elif s.s1.status == 'approved' %}bg-blue-100 text-blue-800
-                   {% elif s.s1.status == 'submitted' %}bg-amber-100 text-amber-800
-                   {% else %}bg-gray-100 text-gray-600{% endif %}">
+                   class="inline-flex items-center gap-1 status-badge
+                   {% if s.s1.status == 'acknowledged' %}status-success
+                   {% elif s.s1.status == 'approved' %}status-info
+                   {% elif s.s1.status == 'submitted' %}status-warning
+                   {% else %}status-gray{% endif %}">
                   {{ s.s1.total_score }} · {{ s.s1.get_status_display }}
                 </a>
               {% else %}
@@ -108,11 +108,11 @@
             <td class="px-4 py-3 text-center">
               {% if s.s2 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}"
-                   class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full
-                   {% if s.s2.status == 'acknowledged' %}bg-green-100 text-green-800
-                   {% elif s.s2.status == 'approved' %}bg-blue-100 text-blue-800
-                   {% elif s.s2.status == 'submitted' %}bg-amber-100 text-amber-800
-                   {% else %}bg-gray-100 text-gray-600{% endif %}">
+                   class="inline-flex items-center gap-1 status-badge
+                   {% if s.s2.status == 'acknowledged' %}status-success
+                   {% elif s.s2.status == 'approved' %}status-info
+                   {% elif s.s2.status == 'submitted' %}status-warning
+                   {% else %}status-gray{% endif %}">
                   {{ s.s2.total_score }} · {{ s.s2.get_status_display }}
                 </a>
               {% else %}
@@ -147,11 +147,11 @@
           <span class="text-lg font-bold {% if ev.rating == 'excellent' %}text-green-700{% elif ev.rating == 'needs_dev' %}text-red-600{% else %}text-amber-600{% endif %}">
             {{ ev.total_score }}
           </span>
-          <span class="text-xs px-2 py-1 rounded-full
-            {% if ev.status == 'acknowledged' %}bg-green-100 text-green-800
-            {% elif ev.status == 'approved' %}bg-blue-100 text-blue-800
-            {% elif ev.status == 'submitted' %}bg-amber-100 text-amber-800
-            {% else %}bg-gray-100 text-gray-600{% endif %}">
+          <span class="status-badge
+            {% if ev.status == 'acknowledged' %}status-success
+            {% elif ev.status == 'approved' %}status-info
+            {% elif ev.status == 'submitted' %}status-warning
+            {% else %}status-gray{% endif %}">
             {{ ev.get_status_display }}
           </span>
         </div>

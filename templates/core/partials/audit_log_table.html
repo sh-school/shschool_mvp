@@ -34,16 +34,16 @@
 
         {# ── الإجراء — لون مُرمَّز ── #}
         <td class="px-4 py-3">
-          <span class="px-2 py-0.5 rounded-full text-xs font-medium
-            {% if log.action == 'role_assigned' %}bg-green-100 text-green-700
-            {% elif log.action == 'role_removed' %}bg-red-100 text-red-600
-            {% elif log.action == 'account_disabled' %}bg-orange-100 text-orange-700
-            {% elif log.action == 'account_enabled' %}bg-emerald-100 text-emerald-700
-            {% elif log.action == 'dept_changed' or log.action == 'dept_head_set' or log.action == 'dept_head_removed' %}bg-blue-100 text-blue-700
-            {% elif log.action == 'substitute_assigned' %}bg-purple-100 text-purple-700
-            {% elif log.action == 'swap_approved' or log.action == 'compensatory_approved' %}bg-teal-100 text-teal-700
-            {% elif log.action == 'swap_rejected' %}bg-red-50 text-red-500
-            {% else %}bg-gray-100 text-gray-600
+          <span class="status-badge
+            {% if log.action == 'role_assigned' %}status-success
+            {% elif log.action == 'role_removed' %}status-danger
+            {% elif log.action == 'account_disabled' %}status-warning
+            {% elif log.action == 'account_enabled' %}status-success
+            {% elif log.action == 'dept_changed' or log.action == 'dept_head_set' or log.action == 'dept_head_removed' %}status-info
+            {% elif log.action == 'substitute_assigned' %}status-purple
+            {% elif log.action == 'swap_approved' or log.action == 'compensatory_approved' %}status-teal
+            {% elif log.action == 'swap_rejected' %}status-danger
+            {% else %}status-gray
             {% endif %}">
             {{ log.get_action_display }}
           </span>
