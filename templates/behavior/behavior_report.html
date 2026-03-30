@@ -116,7 +116,7 @@
  <p class="text-sm font-medium text-gray-700 mb-3">إرسال التقرير لولي الأمر</p>
  <div class="flex flex-wrap gap-2 mb-3">
  {% for link in parent_links %}
- <span class="text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full">
+ <span class="status-badge status-gray">
  {{ link.parent.full_name }}
  {% if link.parent.email %}✓{% else %}(لا يوجد بريد){% endif %}
  </span>
