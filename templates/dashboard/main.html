@@ -578,6 +578,18 @@
       <div class="kpi-mini-sub">{{ next_session.class_group }}</div>
     </div>
     {% endif %}
+    <div class="kpi-mini kpi-info">
+      <div class="kpi-mini-label">جلسات الأسبوع</div>
+      <div class="kpi-mini-value">{{ week_completed }}/{{ week_total }}</div>
+      <div class="kpi-mini-sub">مكتملة من المجدولة</div>
+    </div>
+    {% if unique_groups_today %}
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">شُعب اليوم</div>
+      <div class="kpi-mini-value">{{ unique_groups_today }}</div>
+      <div class="kpi-mini-sub">شعبة مختلفة</div>
+    </div>
+    {% endif %}
   </div>
 
   {% if sessions_today %}
@@ -622,6 +634,16 @@
       <div class="kpi-mini-label">فعاليات اليوم</div>
       <div class="kpi-mini-value">{{ sessions_today.count }}</div>
       <div class="kpi-mini-sub">نشاط مجدول</div>
+    </div>
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">أنشطة هذا الشهر</div>
+      <div class="kpi-mini-value">{{ activities_this_month }}</div>
+      <div class="kpi-mini-sub">من أصل {{ activities_total }} هذا العام</div>
+    </div>
+    <div class="kpi-mini kpi-info">
+      <div class="kpi-mini-label">طلاب مشاركون</div>
+      <div class="kpi-mini-value">{{ students_participating }}</div>
+      <div class="kpi-mini-sub">هذا العام الدراسي</div>
     </div>
     <div class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">مخالفات سلوكية</div>

@@ -316,7 +316,7 @@ def _get_specialist_social_ctx(user, school, today):
 def _get_therapist_ctx(user, school, today):
     """
     سياق المعالجين: أخصائي النطق + أخصائي العلاج الوظائفي.
-    يُركّز على: جلسات اليوم + الطلاب المحالين.
+    يُركّز على: جلسات اليوم + الطلاب المحالين + إحصائيات الأسبوع.
     """
     sessions_today = (
         Session.objects.filter(school=school, teacher=user, date=today)
@@ -331,12 +331,27 @@ def _get_therapist_ctx(user, school, today):
     total_today = sessions_today.count()
     completed_today = sessions_today.filter(status="completed").count()
 
+    # إحصائيات الأسبوع — مفيدة لمتابعة التقدم
+    week_start = today - datetime.timedelta(days=today.weekday())
+    week_sessions = Session.objects.filter(
+        school=school, teacher=user,
+        date__gte=week_start, date__lte=today,
+    )
+    week_total = week_sessions.count()
+    week_completed = week_sessions.filter(status="completed").count()
+
+    # عدد الفصول/الشُّعب الفريدة التي يعمل معها المعالج
+    unique_groups = sessions_today.values("class_group").distinct().count()
+
     return {
         "view_type": "therapist",
         "sessions_today": sessions_today,
         "next_session": next_session,
         "total_sessions_today": total_today,
         "completed_sessions_today": completed_today,
+        "week_total": week_total,
+        "week_completed": week_completed,
+        "unique_groups_today": unique_groups,
     }
 
 
@@ -345,7 +360,10 @@ def _get_activities_ctx(user, school, today):
     سياق منسق الأنشطة.
     يُركّز على: الأنشطة الجارية + مشاركة الطلاب + السلوك.
     """
+    from student_affairs.models import StudentActivity
+
     month_start = today.replace(day=1)
+    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026")
 
     behavior_monthly = BehaviorInfraction.objects.filter(
         school=school,
@@ -359,10 +377,21 @@ def _get_activities_ctx(user, school, today):
         .order_by("start_time")
     )
 
+    # أنشطة هذا العام الدراسي
+    activities_year = StudentActivity.objects.filter(
+        school=school, academic_year=year,
+    )
+    activities_total = activities_year.count()
+    activities_this_month = activities_year.filter(date__gte=month_start).count()
+    students_participating = activities_year.values("student").distinct().count()
+
     return {
         "view_type": "activities",
         "sessions_today": sessions_today,
         "behavior_monthly": behavior_monthly,
+        "activities_total": activities_total,
+        "activities_this_month": activities_this_month,
+        "students_participating": students_participating,
     }
 
 
