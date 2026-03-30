@@ -17,6 +17,9 @@ class ReportsConfig(AppConfig):
             allowed_roles={
                 "principal", "vice_academic", "vice_admin",
                 "coordinator", "teacher", "ese_teacher",
+                # v7
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "speech_therapist", "occupational_therapist",
             },
             sort_order=35,
         )

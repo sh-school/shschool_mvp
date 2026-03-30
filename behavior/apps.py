@@ -19,6 +19,8 @@ class BehaviorConfig(AppConfig):
                 "coordinator", "teacher", "ese_teacher",
                 "specialist", "social_worker", "psychologist",
                 "admin_supervisor",
+                # v7 — مساعدون + منسق أنشطة يبلّغون عن مخالفات
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
             },
             sidebar_roles={
                 "principal", "vice_admin", "vice_academic",

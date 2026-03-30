@@ -234,6 +234,123 @@ def specialist_user(db, school):
 
 
 @pytest.fixture
+def activities_coordinator_user(db, school):
+    """منسق الأنشطة المدرسية — v7"""
+    role = RoleFactory(school=school, name="activities_coordinator")
+    user = UserFactory(full_name="منسق الأنشطة")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def teacher_assistant_user(db, school):
+    """مساعد المعلم — v7"""
+    role = RoleFactory(school=school, name="teacher_assistant")
+    user = UserFactory(full_name="مساعد المعلم")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def ese_assistant_user(db, school):
+    """مساعد معلم تربية خاصة — v7"""
+    role = RoleFactory(school=school, name="ese_assistant")
+    user = UserFactory(full_name="مساعد التربية الخاصة")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def speech_therapist_user(db, school):
+    """أخصائي النطق — v7"""
+    role = RoleFactory(school=school, name="speech_therapist")
+    user = UserFactory(full_name="أخصائي النطق")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def occupational_therapist_user(db, school):
+    """أخصائي العلاج الوظائفي — v7"""
+    role = RoleFactory(school=school, name="occupational_therapist")
+    user = UserFactory(full_name="أخصائي العلاج الوظائفي")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def receptionist_user(db, school):
+    """موظف استقبال — v7"""
+    role = RoleFactory(school=school, name="receptionist")
+    user = UserFactory(full_name="موظف الاستقبال")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def transport_officer_user(db, school):
+    """مسؤول النقل — v7"""
+    role = RoleFactory(school=school, name="transport_officer")
+    user = UserFactory(full_name="مسؤول النقل")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def social_worker_user(db, school):
+    """أخصائي اجتماعي"""
+    role = RoleFactory(school=school, name="social_worker")
+    user = UserFactory(full_name="الأخصائي الاجتماعي")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def psychologist_user(db, school):
+    """أخصائي نفسي"""
+    role = RoleFactory(school=school, name="psychologist")
+    user = UserFactory(full_name="الأخصائي النفسي")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def coordinator_user(db, school):
+    """منسق أكاديمي"""
+    role = RoleFactory(school=school, name="coordinator")
+    user = UserFactory(full_name="المنسق الأكاديمي")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def ese_teacher_user(db, school):
+    """معلم تربية خاصة"""
+    role = RoleFactory(school=school, name="ese_teacher")
+    user = UserFactory(full_name="معلم التربية الخاصة")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def it_technician_user(db, school):
+    """فني تقنية معلومات"""
+    role = RoleFactory(school=school, name="it_technician")
+    user = UserFactory(full_name="فني التقنية")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
+def admin_supervisor_user(db, school):
+    """مشرف إداري"""
+    role = RoleFactory(school=school, name="admin_supervisor")
+    user = UserFactory(full_name="المشرف الإداري")
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@pytest.fixture
 def student_user(db, school):
     """طالب"""
     role = RoleFactory(school=school, name="student")

@@ -21,6 +21,10 @@ class NotificationsConfig(AppConfig):
                 "academic_advisor", "admin_supervisor",
                 "nurse", "librarian", "bus_supervisor",
                 "admin", "secretary", "it_technician",
+                # v7
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "speech_therapist", "occupational_therapist",
+                "receptionist", "transport_officer",
             },
             sort_order=80,
         )

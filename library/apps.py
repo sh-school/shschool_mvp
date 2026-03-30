@@ -18,6 +18,8 @@ class LibraryConfig(AppConfig):
                 "principal", "vice_admin", "librarian",
                 "teacher", "coordinator", "ese_teacher",
                 "specialist", "social_worker", "student",
+                # v7 — مساعدون + منسق أنشطة يستعيرون كتباً
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
             },
             sort_order=55,
         )

@@ -19,6 +19,10 @@ class OperationsConfig(AppConfig):
                 "coordinator", "teacher", "ese_teacher",
                 "academic_advisor", "admin_supervisor",
                 "student", "parent",
+                # v7 — لديهم حصص في الجدول
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "speech_therapist", "occupational_therapist",
+                "receptionist",
             },
             sort_order=5,
         )
@@ -32,6 +36,10 @@ class OperationsConfig(AppConfig):
                 "coordinator", "teacher", "ese_teacher",
                 "academic_advisor", "admin_supervisor",
                 "parent", "student",
+                # v7
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "speech_therapist", "occupational_therapist",
+                "receptionist",
             },
             sort_order=6,
         )

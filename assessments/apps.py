@@ -18,6 +18,8 @@ class AssessmentsConfig(AppConfig):
                 "principal", "vice_academic", "vice_admin",
                 "coordinator", "teacher", "ese_teacher",
                 "admin", "academic_advisor",
+                # v7 — مساعدون يدعمون إدخال الدرجات
+                "teacher_assistant", "ese_assistant",
             },
             sidebar_roles={
                 "principal", "vice_academic", "vice_admin",

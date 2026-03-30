@@ -21,6 +21,10 @@ class QualityConfig(AppConfig):
                 "specialist", "social_worker", "psychologist", "academic_advisor",
                 "nurse", "librarian", "bus_supervisor", "admin_supervisor",
                 "admin", "secretary", "it_technician",
+                # v7 — كل الموظفين يُقيَّمون
+                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "speech_therapist", "occupational_therapist",
+                "receptionist", "transport_officer",
             },
             sort_order=21,
             parent="quality",
