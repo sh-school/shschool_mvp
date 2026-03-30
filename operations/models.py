@@ -554,7 +554,7 @@ class TeacherSwap(models.Model):
         constraints = [
             # لا يمكن أن يكون نفس المعلم طرفي التبديل
             models.CheckConstraint(
-                check=~models.Q(teacher_a=models.F("teacher_b")),
+                condition=~models.Q(teacher_a=models.F("teacher_b")),
                 name="swap_different_teachers",
             ),
         ]
@@ -664,7 +664,7 @@ class CompensatorySession(models.Model):
             ),
             # week_offset بين 0 و 1 فقط
             models.CheckConstraint(
-                check=models.Q(week_offset__lte=1),
+                condition=models.Q(week_offset__lte=1),
                 name="compensatory_max_one_week",
             ),
         ]
@@ -854,23 +854,23 @@ class StaffEvaluation(models.Model):
             ),
             # كل معيار بين 1 و 5
             models.CheckConstraint(
-                check=models.Q(professional_knowledge__gte=1, professional_knowledge__lte=5),
+                condition=models.Q(professional_knowledge__gte=1, professional_knowledge__lte=5),
                 name="eval_knowledge_range_1_5",
             ),
             models.CheckConstraint(
-                check=models.Q(teaching_effectiveness__gte=1, teaching_effectiveness__lte=5),
+                condition=models.Q(teaching_effectiveness__gte=1, teaching_effectiveness__lte=5),
                 name="eval_teaching_range_1_5",
             ),
             models.CheckConstraint(
-                check=models.Q(student_assessment__gte=1, student_assessment__lte=5),
+                condition=models.Q(student_assessment__gte=1, student_assessment__lte=5),
                 name="eval_assessment_range_1_5",
             ),
             models.CheckConstraint(
-                check=models.Q(professional_development__gte=1, professional_development__lte=5),
+                condition=models.Q(professional_development__gte=1, professional_development__lte=5),
                 name="eval_development_range_1_5",
             ),
             models.CheckConstraint(
-                check=models.Q(school_community__gte=1, school_community__lte=5),
+                condition=models.Q(school_community__gte=1, school_community__lte=5),
                 name="eval_community_range_1_5",
             ),
         ]
