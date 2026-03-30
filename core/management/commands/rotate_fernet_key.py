@@ -10,6 +10,7 @@ rotate_fernet_key — إعادة تشفير البيانات بالمفتاح ا
 
 import logging
 
+from cryptography.fernet import InvalidToken
 from django.core.management.base import BaseCommand
 
 from core.models._crypto import decrypt_field, encrypt_field
@@ -38,7 +39,7 @@ class Command(BaseCommand):
                     user.national_id_encrypted = encrypt_field(plain)
                     user.save(update_fields=["national_id_encrypted"])
                     total += 1
-            except Exception as e:
+            except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
                 self.stderr.write(f"  خطأ في المستخدم {user.id}: {e}")
 
@@ -52,7 +53,7 @@ class Command(BaseCommand):
                     user.totp_secret = encrypt_field(plain)
                     user.save(update_fields=["totp_secret"])
                     total += 1
-            except Exception as e:
+            except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
                 self.stderr.write(f"  خطأ TOTP في المستخدم {user.id}: {e}")
 
@@ -69,7 +70,7 @@ class Command(BaseCommand):
                             setattr(ns, field, encrypt_field(plain))
                 ns.save()
                 total += 1
-            except Exception as e:
+            except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
                 self.stderr.write(f"  خطأ في NotificationSettings {ns.id}: {e}")
 
@@ -89,7 +90,7 @@ class Command(BaseCommand):
                 if changed:
                     hr.save()
                     total += 1
-            except Exception as e:
+            except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
                 self.stderr.write(f"  خطأ في HealthRecord {hr.id}: {e}")
 

@@ -3,6 +3,7 @@ import logging
 import os
 
 from django.core.management.base import BaseCommand
+from django.db import IntegrityError
 
 logger = logging.getLogger(__name__)
 from django.db import transaction
@@ -137,9 +138,8 @@ class Command(BaseCommand):
                                 class_group=class_group,
                                 defaults={"is_active": True},
                             )
-                    except Exception:
-                        logger.exception("فشل ربط الطالب بالفصل الدراسي")
-                        pass
+                    except (IntegrityError, ValueError) as e:
+                        logger.warning("فشل ربط الطالب بالفصل الدراسي: %s", e)
 
                 if not parent_nid:
                     stats["errors"].append(f"سطر {i}: رقم ولي الأمر فارغ — الطالب {student_nid}")

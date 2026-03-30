@@ -96,7 +96,7 @@ def weekly_risk_check(self, school_id=None):
                         channels=["in_app"],
                     )
 
-            except (ImportError, Exception) as e:
+            except Exception as e:
                 logger.warning(
                     "weekly_risk_check: notification failed for school %s: %s",
                     school.name,

@@ -257,9 +257,9 @@ def student_import_export(request):
     try:
         result = _process_import(uploaded_file, school, year)
         ctx["import_result"] = result
-    except Exception as exc:
+    except (IOError, OSError, ValueError, KeyError, TypeError) as exc:
         logger.exception("فشل استيراد الطلاب")
-        ctx["import_error"] = f"خطأ غير متوقع: {exc}"
+        ctx["import_error"] = f"خطأ في قراءة الملف: {exc}"
 
     return render(request, "core/student_import_export.html", ctx)
 

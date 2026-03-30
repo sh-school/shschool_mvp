@@ -176,7 +176,7 @@ def check_license_expiry_task():
 
             alerted += 1
 
-        except (ImportError, Exception) as e:
+        except Exception as e:
             logger.warning(
                 "license_expiry alert failed for %s: %s",
                 user.full_name,

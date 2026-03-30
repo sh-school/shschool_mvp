@@ -7,6 +7,7 @@ PostgreSQL Row-Level Security Middleware.
 
 import logging
 
+import django.db
 from django.db import connection
 
 logger = logging.getLogger("core")
@@ -44,7 +45,7 @@ class RLSMiddleware:
                 school = user.get_school()
                 if school:
                     return str(school.pk)
-            except Exception:
+            except AttributeError:
                 pass
         return None
 
@@ -56,5 +57,5 @@ class RLSMiddleware:
                     "SELECT set_config('app.current_school_id', %s, true)",
                     [school_id],
                 )
-        except Exception as e:
+        except (django.db.OperationalError, django.db.DatabaseError) as e:
             logger.warning("RLS context set failed: %s", e)

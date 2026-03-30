@@ -73,7 +73,7 @@ class SessionAutoGenerateMiddleware:
         try:
             if cache.get(cache_key):
                 return  # تم التوليد — لا شيء للفعل
-        except Exception:
+        except (OSError, ConnectionError):
             # إذا Redis غير متاح — نستخدم request attribute
             if getattr(request, "_sessions_ensured", False):
                 return
@@ -87,7 +87,7 @@ class SessionAutoGenerateMiddleware:
             # حفظ في cache لمدة 4 ساعات
             try:
                 cache.set(cache_key, True, timeout=14400)
-            except Exception:
+            except (OSError, ConnectionError):
                 pass
 
             request._sessions_ensured = True
