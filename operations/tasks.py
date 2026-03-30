@@ -30,6 +30,55 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+# ═════════════════════════════════════════════════════════════════════
+# إلغاء الصلاحيات المؤقتة المنتهية — يعمل كل دقيقة عبر Celery Beat
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.revoke_expired_temp_permissions")
+def revoke_expired_temp_permissions():
+    """
+    مهمة مُجدوَلة — تُشغَّل كل دقيقة من Celery Beat.
+
+    تُلغي كل صلاحية مؤقتة (TemporaryPermission) انتهت صلاحيتها
+    (valid_until < now) وحالتها "active".
+
+    تُسجّل كل إلغاء في PermissionAuditLog.
+    """
+    from django.utils import timezone
+
+    from operations.models import PermissionAuditLog, TemporaryPermission
+
+    now = timezone.now()
+
+    expired = TemporaryPermission.objects.filter(
+        status="active",
+        valid_until__lt=now,
+    ).select_related("teacher", "class_group")
+
+    count = 0
+    for perm in expired.iterator(chunk_size=100):
+        perm.status = "expired"
+        perm.revoked_at = now
+        perm.save(update_fields=["status", "revoked_at"])
+
+        PermissionAuditLog.objects.create(
+            temp_permission=perm,
+            action="auto_revoked",
+            notes=f"انتهت صلاحية الإذن تلقائياً عند {now.strftime('%H:%M')}",
+        )
+        count += 1
+
+    if count:
+        logger.info(
+            "revoke_expired_temp_permissions: %d permissions auto-revoked at %s",
+            count,
+            now.strftime("%Y-%m-%d %H:%M"),
+        )
+
+    return {"revoked": count, "checked_at": str(now)}
+
+
 @shared_task(
     name="operations.generate_daily_sessions",
     bind=True,

@@ -41,6 +41,11 @@ app.conf.beat_schedule = {
         "task": "operations.generate_daily_sessions",
         "schedule": crontab(hour=6, minute=0, day_of_week="0-4"),  # Sun=0 .. Thu=4
     },
+    # ✅ v7: إلغاء الصلاحيات المؤقتة المنتهية — كل دقيقة
+    "revoke-expired-temp-permissions": {
+        "task": "operations.revoke_expired_temp_permissions",
+        "schedule": crontab(),  # كل دقيقة
+    },
 }
 
 app.conf.timezone = "Asia/Qatar"

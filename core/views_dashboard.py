@@ -21,6 +21,7 @@ from operations.models import (
     TeacherAbsence,
     TeacherSwap,
 )
+from transport.models import BusRoute, SchoolBus
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -248,11 +249,220 @@ def _get_teacher_ctx(user, school, today, role):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# Context builders — v7 roles
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _get_specialist_social_ctx(user, school, today):
+    """
+    سياق الأخصائيين الاجتماعيين والنفسيين والمرشدين الأكاديميين.
+    يُركّز على: الغياب المتكرر + مخالفات السلوك + حالات الطلاب.
+    """
+    from core.models import StudentEnrollment
+
+    year = settings.CURRENT_ACADEMIC_YEAR
+
+    # طلاب الغياب المتكرر (أكثر من 3 أيام هذا الشهر)
+    month_start = today.replace(day=1)
+    chronic_absent = (
+        StudentAttendance.objects.filter(
+            school=school,
+            status="absent",
+            session__date__gte=month_start,
+        )
+        .values("student_id")
+        .annotate(absent_count=Count("id"))
+        .filter(absent_count__gte=3)
+        .count()
+    )
+
+    # آخر 5 تنبيهات غياب
+    recent_alerts = (
+        AbsenceAlert.objects.filter(school=school, status="pending")
+        .select_related("student")
+        .order_by("-created_at")[:5]
+    )
+
+    # مخالفات سلوكية هذا الشهر
+    behavior_monthly = BehaviorInfraction.objects.filter(
+        school=school,
+        date__gte=month_start,
+    ).count()
+
+    # مخالفات خطرة (مستوى 3+)
+    behavior_critical = BehaviorInfraction.objects.filter(
+        school=school, level__gte=3
+    ).count()
+
+    # نتائج الطلاب — راسبون
+    failing_students = (
+        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+        .values("student")
+        .distinct()
+        .count()
+    )
+
+    return {
+        "view_type": "specialist_social",
+        "chronic_absent": chronic_absent,
+        "recent_alerts": recent_alerts,
+        "behavior_monthly": behavior_monthly,
+        "behavior_critical": behavior_critical,
+        "failing_students": failing_students,
+        "year": year,
+    }
+
+
+def _get_therapist_ctx(user, school, today):
+    """
+    سياق المعالجين: أخصائي النطق + أخصائي العلاج الوظائفي.
+    يُركّز على: جلسات اليوم + الطلاب المحالين.
+    """
+    sessions_today = (
+        Session.objects.filter(school=school, teacher=user, date=today)
+        .select_related("class_group", "subject")
+        .order_by("start_time")
+    )
+    now = timezone.now().time()
+    next_session = next(
+        (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
+        None,
+    )
+    total_today = sessions_today.count()
+    completed_today = sessions_today.filter(status="completed").count()
+
+    return {
+        "view_type": "therapist",
+        "sessions_today": sessions_today,
+        "next_session": next_session,
+        "total_sessions_today": total_today,
+        "completed_sessions_today": completed_today,
+    }
+
+
+def _get_activities_ctx(user, school, today):
+    """
+    سياق منسق الأنشطة.
+    يُركّز على: الأنشطة الجارية + مشاركة الطلاب + السلوك.
+    """
+    month_start = today.replace(day=1)
+
+    behavior_monthly = BehaviorInfraction.objects.filter(
+        school=school,
+        date__gte=month_start,
+    ).count()
+
+    # حصص اليوم لمنسق الأنشطة (إذا كانت مُعيَّنة)
+    sessions_today = (
+        Session.objects.filter(school=school, teacher=user, date=today)
+        .select_related("class_group", "subject")
+        .order_by("start_time")
+    )
+
+    return {
+        "view_type": "activities",
+        "sessions_today": sessions_today,
+        "behavior_monthly": behavior_monthly,
+    }
+
+
+def _get_admin_ops_ctx(user, school, today, role):
+    """
+    سياق الإداريين: admin + admin_supervisor + secretary + receptionist.
+    يُركّز على: المهام الإدارية + الإشعارات + حضور الموظفين.
+    """
+    absent_teachers = TeacherAbsence.objects.filter(school=school, date=today).count()
+
+    pending_swaps = TeacherSwap.objects.filter(
+        school=school, status__in=["pending_b", "accepted_b", "pending_coordinator"]
+    ).count()
+    pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
+
+    recent_alerts = (
+        AbsenceAlert.objects.filter(school=school, status="pending")
+        .select_related("student")
+        .order_by("-created_at")[:5]
+    )
+
+    return {
+        "view_type": "admin_ops",
+        "admin_role": role,
+        "absent_teachers_today": absent_teachers,
+        "pending_swaps": pending_swaps,
+        "pending_comp": pending_comp,
+        "recent_alerts": recent_alerts,
+    }
+
+
+def _get_transport_ctx(user, school, today):
+    """
+    سياق مسؤول النقل + مشرف الحافلة.
+    يُركّز على: الحافلات النشطة + المسارات.
+    """
+    active_buses = SchoolBus.objects.filter(school=school, is_active=True).count()
+    total_routes = BusRoute.objects.filter(school=school).count()
+
+    return {
+        "view_type": "transport_mgmt",
+        "active_buses": active_buses,
+        "total_routes": total_routes,
+    }
+
+
+def _get_service_ctx(user, school, today, role):
+    """
+    سياق أدوار الخدمة الداعمة: nurse + librarian + it_technician.
+    يجلب البيانات المناسبة لكل دور.
+    """
+    ctx = {"view_type": "service", "service_role": role}
+
+    if role == "nurse":
+        clinic = ClinicVisit.objects.filter(school=school, visit_date__date=today).aggregate(
+            total=Count("id"),
+            sent_home=Count("id", filter=Q(is_sent_home=True)),
+        )
+        ctx["clinic_today"] = clinic["total"]
+        ctx["clinic_sent_home"] = clinic["sent_home"]
+
+    elif role == "librarian":
+        ctx["library_overdue"] = BookBorrowing.objects.filter(
+            book__school=school, status="OVERDUE"
+        ).count()
+        ctx["library_today"] = BookBorrowing.objects.filter(
+            book__school=school,
+            borrow_date=today,
+        ).count()
+
+    return ctx
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Main view — clean dispatcher
 # ─────────────────────────────────────────────────────────────────────
 
-_DIRECTOR_ROLES = {"principal", "vice_admin", "vice_academic", "admin"}
-_TEACHER_ROLES = {"teacher", "coordinator", "ese_teacher", "specialist", "social_worker"}
+# قيادة المدرسة — لوحة KPI الشاملة
+_DIRECTOR_ROLES = {"principal", "vice_admin", "vice_academic"}
+
+# معلمون وكوادر تدريسية — حصص اليوم + طلبات التبديل
+_TEACHER_ROLES = {
+    "teacher", "coordinator", "ese_teacher", "specialist",
+    "teacher_assistant", "ese_assistant",
+}
+
+# أخصائيون اجتماعيون ونفسيون ومرشدون أكاديميون
+_SPECIALIST_SOCIAL_ROLES = {"social_worker", "psychologist", "academic_advisor"}
+
+# معالجو النطق والعلاج الوظائفي
+_THERAPIST_ROLES = {"speech_therapist", "occupational_therapist"}
+
+# إداريون تشغيليون (بصلاحيات مقيّدة)
+_ADMIN_OPS_ROLES = {"admin", "admin_supervisor", "secretary", "receptionist"}
+
+# خدمات الدعم (عيادة + مكتبة + تقنية)
+_SERVICE_ROLES = {"nurse", "librarian", "it_technician"}
+
+# النقل المدرسي
+_TRANSPORT_ROLES = {"transport_officer", "bus_supervisor"}
 
 
 @login_required
@@ -279,8 +489,19 @@ def dashboard(request):
         ctx.update(_get_director_ctx(school, today))
     elif role in _TEACHER_ROLES:
         ctx.update(_get_teacher_ctx(user, school, today, role))
+    elif role in _SPECIALIST_SOCIAL_ROLES:
+        ctx.update(_get_specialist_social_ctx(user, school, today))
+    elif role in _THERAPIST_ROLES:
+        ctx.update(_get_therapist_ctx(user, school, today))
+    elif role == "activities_coordinator":
+        ctx.update(_get_activities_ctx(user, school, today))
+    elif role in _ADMIN_OPS_ROLES:
+        ctx.update(_get_admin_ops_ctx(user, school, today, role))
+    elif role in _TRANSPORT_ROLES:
+        ctx.update(_get_transport_ctx(user, school, today))
+    elif role in _SERVICE_ROLES:
+        ctx.update(_get_service_ctx(user, school, today, role))
     else:
-        # nurse / bus_supervisor / librarian → fallback عام
         ctx["view_type"] = "other"
 
     return render(request, "dashboard/main.html", ctx)

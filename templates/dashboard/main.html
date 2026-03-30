@@ -493,7 +493,325 @@
 </div>
 
 
-<!-- ═══ ROLE-SPECIFIC SHORTCUTS (nurse / bus_supervisor / librarian) ═══ -->
+<!-- ═══ SPECIALIST SOCIAL (social_worker / psychologist / academic_advisor) ═══ -->
+{% elif view_type == "specialist_social" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="users" %} لوحة الأخصائي الاجتماعي والنفسي</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  {# KPI Cards #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">غياب متكرر (هذا الشهر)</div>
+      <div class="kpi-mini-value">{{ chronic_absent }}</div>
+      <div class="kpi-mini-sub">أكثر من 3 أيام</div>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">مخالفات سلوكية</div>
+      <div class="kpi-mini-value">{{ behavior_monthly }}</div>
+      <div class="kpi-mini-sub">
+        {% if behavior_critical %}<span class="kpi-mini-alert">{{ behavior_critical }} خطرة</span>{% else %}هذا الشهر{% endif %}
+      </div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">طلاب راسبون</div>
+      <div class="kpi-mini-value">{{ failing_students }}</div>
+      <div class="kpi-mini-sub">{{ year }}</div>
+    </div>
+  </div>
+
+  {# تنبيهات الغياب #}
+  {% if recent_alerts %}
+  <div class="exec-details mt-4">
+    <p class="section-label mb-2">{% include "components/icon.html" with name="alert-circle" %} تنبيهات الغياب المعلقة</p>
+    <div class="alert-strip">
+      {% for alert in recent_alerts %}
+      <span>{{ alert.student.full_name }}</span>{% if not forloop.last %} · {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# روابط سريعة #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'behavior:report_infraction' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="alert-triangle" %}</div>
+      <div class="action-card-body"><p class="action-title">المخالفات السلوكية</p><p class="action-desc">عرض وتسجيل المخالفات</p></div>
+    </a>
+    <a href="{% url 'student_affairs:student_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
+      <div class="action-card-body"><p class="action-title">قائمة الطلاب</p><p class="action-desc">البحث في ملفات الطلاب</p></div>
+    </a>
+    <a href="{% url 'operations:absence_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="bell" %}</div>
+      <div class="action-card-body"><p class="action-title">غياب المعلمين</p><p class="action-desc">متابعة حالات الغياب</p></div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ THERAPIST (speech_therapist / occupational_therapist) ═══ -->
+{% elif view_type == "therapist" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="activity" %} لوحة جلسات العلاج</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">جلسات اليوم</div>
+      <div class="kpi-mini-value">{{ total_sessions_today }}</div>
+      <div class="kpi-mini-sub">{{ completed_sessions_today }} مكتملة</div>
+    </div>
+    {% if next_session %}
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">الجلسة القادمة</div>
+      <div class="kpi-mini-value">{{ next_session.start_time|time:"H:i" }}</div>
+      <div class="kpi-mini-sub">{{ next_session.class_group }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if sessions_today %}
+  <div class="card-qatar mt-4">
+    <p class="section-label mb-3">{% include "components/icon.html" with name="calendar" %} جدول جلسات اليوم</p>
+    <div class="resp-table-wrap">
+      <table class="resp-table">
+        <thead><tr><th>الوقت</th><th>الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
+        <tbody>
+          {% for s in sessions_today %}
+          <tr>
+            <td>{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
+            <td>{{ s.class_group }}</td>
+            <td>{{ s.subject|default:"جلسة" }}</td>
+            <td><span class="badge-status {{ s.status }}">{{ s.get_status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card-qatar text-center py-8 mt-4">
+    <p class="text-[var(--text-muted)]">لا جلسات مجدولة لهذا اليوم</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ ACTIVITIES COORDINATOR ═══ -->
+{% elif view_type == "activities" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="star" %} لوحة منسق الأنشطة</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">فعاليات اليوم</div>
+      <div class="kpi-mini-value">{{ sessions_today.count }}</div>
+      <div class="kpi-mini-sub">نشاط مجدول</div>
+    </div>
+    <div class="kpi-mini kpi-maroon">
+      <div class="kpi-mini-label">مخالفات سلوكية</div>
+      <div class="kpi-mini-value">{{ behavior_monthly }}</div>
+      <div class="kpi-mini-sub">هذا الشهر</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'behavior:report_infraction' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="shield" %}</div>
+      <div class="action-card-body"><p class="action-title">السلوك</p><p class="action-desc">تسجيل ومتابعة المخالفات</p></div>
+    </a>
+    <a href="{% url 'student_affairs:student_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
+      <div class="action-card-body"><p class="action-title">قائمة الطلاب</p><p class="action-desc">مشاركة الطلاب في الأنشطة</p></div>
+    </a>
+    <a href="{% url 'analytics:analytics_dashboard' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart-2" %}</div>
+      <div class="action-card-body"><p class="action-title">التقارير</p><p class="action-desc">إحصائيات وتقارير الأنشطة</p></div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ ADMIN OPS (admin / admin_supervisor / secretary / receptionist) ═══ -->
+{% elif view_type == "admin_ops" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="briefcase" %} اللوحة الإدارية</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">معلمون غائبون اليوم</div>
+      <div class="kpi-mini-value">{{ absent_teachers_today }}</div>
+      <div class="kpi-mini-sub">غياب موظفين</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">طلبات تبديل معلّقة</div>
+      <div class="kpi-mini-value">{{ pending_swaps }}</div>
+      <div class="kpi-mini-sub">{% if pending_swaps %}<span class="kpi-mini-alert">تحتاج إجراء</span>{% else %}لا طلبات{% endif %}</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">حصص تعويضية معلّقة</div>
+      <div class="kpi-mini-value">{{ pending_comp }}</div>
+      <div class="kpi-mini-sub">{% if pending_comp %}<span class="kpi-mini-alert">مراجعة</span>{% else %}لا حصص{% endif %}</div>
+    </div>
+  </div>
+
+  {% if recent_alerts %}
+  <div class="exec-details mt-4">
+    <p class="section-label mb-2">{% include "components/icon.html" with name="bell" %} تنبيهات الغياب المعلقة</p>
+    <div class="alert-strip">
+      {% for alert in recent_alerts %}
+      <span>{{ alert.student.full_name }}</span>{% if not forloop.last %} · {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'staff_affairs:dashboard' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
+      <div class="action-card-body"><p class="action-title">شؤون الموظفين</p><p class="action-desc">الحضور والغياب والإجازات</p></div>
+    </a>
+    <a href="{% url 'student_affairs:student_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="user" %}</div>
+      <div class="action-card-body"><p class="action-title">شؤون الطلاب</p><p class="action-desc">بيانات وملفات الطلاب</p></div>
+    </a>
+    <a href="{% url 'operations:weekly_schedule' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="calendar" %}</div>
+      <div class="action-card-body"><p class="action-title">الجدول الدراسي</p><p class="action-desc">جدول الحصص والمعلمين</p></div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ TRANSPORT MANAGEMENT (transport_officer / bus_supervisor) ═══ -->
+{% elif view_type == "transport_mgmt" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="bus" %} لوحة النقل المدرسي</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">حافلات نشطة</div>
+      <div class="kpi-mini-value">{{ active_buses }}</div>
+      <div class="kpi-mini-sub">جاهزة للتشغيل</div>
+    </div>
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">مسارات مُعرَّفة</div>
+      <div class="kpi-mini-value">{{ total_routes }}</div>
+      <div class="kpi-mini-sub">مسار نقل</div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'transport:dashboard' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="map" %}</div>
+      <div class="action-card-body"><p class="action-title">لوحة النقل</p><p class="action-desc">إدارة الحافلات والمسارات</p></div>
+    </a>
+    <a href="{% url 'transport:buses_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="bus" %}</div>
+      <div class="action-card-body"><p class="action-title">الأسطول</p><p class="action-desc">قائمة الحافلات</p></div>
+    </a>
+    <a href="{% url 'transport:statistics' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
+      <div class="action-card-body"><p class="action-title">التقارير</p><p class="action-desc">إحصائيات النقل</p></div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ SERVICE ROLES (nurse / librarian / it_technician) ═══ -->
+{% elif view_type == "service" %}
+
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="home" %} مرحباً، {{ request.user.full_name }}</h1>
+      <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
+    </div>
+  </div>
+
+  {% if service_role == "nurse" %}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-green">
+      <div class="kpi-mini-label">زيارات العيادة اليوم</div>
+      <div class="kpi-mini-value">{{ clinic_today }}</div>
+      <div class="kpi-mini-sub">{% if clinic_sent_home %}{{ clinic_sent_home }} أُرسلوا للمنزل{% else %}لا إرسال{% endif %}</div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'clinic:dashboard' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="hospital" %}</div>
+      <div class="action-card-body"><p class="action-title">لوحة العيادة</p><p class="action-desc">الزيارات وسجلات الطلاب الصحية</p></div>
+    </a>
+    <a href="{% url 'clinic:record_visit' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="file-pen" %}</div>
+      <div class="action-card-body"><p class="action-title">تسجيل زيارة</p><p class="action-desc">إضافة زيارة عيادة جديدة</p></div>
+    </a>
+    <a href="{% url 'clinic:statistics' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
+      <div class="action-card-body"><p class="action-title">الإحصائيات</p><p class="action-desc">تقارير العيادة</p></div>
+    </a>
+  </div>
+
+  {% elif service_role == "librarian" %}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-teal">
+      <div class="kpi-mini-label">إعارات اليوم</div>
+      <div class="kpi-mini-value">{{ library_today }}</div>
+      <div class="kpi-mini-sub">كتاب معار اليوم</div>
+    </div>
+    <div class="kpi-mini kpi-red">
+      <div class="kpi-mini-label">كتب متأخرة الإعادة</div>
+      <div class="kpi-mini-value">{{ library_overdue }}</div>
+      <div class="kpi-mini-sub">{% if library_overdue %}<span class="kpi-mini-alert">تحتاج متابعة</span>{% else %}لا متأخرات{% endif %}</div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+    <a href="{% url 'library:dashboard' %}" class="action-card action-primary">
+      <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
+      <div class="action-card-body"><p class="action-title">لوحة المكتبة</p><p class="action-desc">الكتب والإعارة والإعادة</p></div>
+    </a>
+    <a href="{% url 'library:borrow_book' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="book-open" %}</div>
+      <div class="action-card-body"><p class="action-title">إعارة جديدة</p><p class="action-desc">تسجيل استعارة كتاب</p></div>
+    </a>
+    <a href="{% url 'library:book_list' %}" class="action-card">
+      <div class="action-card-icon">{% include "components/icon.html" with name="search" %}</div>
+      <div class="action-card-body"><p class="action-title">فهرس الكتب</p><p class="action-desc">البحث في مقتنيات المكتبة</p></div>
+    </a>
+  </div>
+
+  {% else %}
+  <div class="card-qatar text-center py-8 mt-4">
+    <p class="text-[var(--text-muted)]">تواصل مع مدير النظام لتفعيل لوحة التحكم الخاصة بك</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ ROLE-SPECIFIC SHORTCUTS (fallback) ═══ -->
 {% elif view_type == "other" %}
 
 <div class="page-header">
