@@ -12,7 +12,7 @@
     <form method="post" enctype="multipart/form-data">{% csrf_token %}
       {% if form.non_field_errors %}<div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">{% for err in form.non_field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}</div>{% endif %}
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-row">
         <div class="form-group" style="grid-column:span 2">
           <label class="form-label">الموظف <span style="color:red">*</span></label>
           <select name="staff_id" class="form-control" required>
@@ -32,7 +32,7 @@
         <div class="form-group" style="grid-column:span 2"><label class="form-label">السبب <span style="color:red">*</span></label><textarea name="reason" rows="3" class="form-control" required placeholder="سبب الإجازة..."></textarea></div>
       </div>
 
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="form-footer">
         <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">إلغاء</a>
         <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تقديم الطلب</button>
       </div>

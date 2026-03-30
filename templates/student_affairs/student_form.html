@@ -37,7 +37,7 @@
       </div>
       {% endif %}
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="form-row">
 
         {# الرقم الوطني #}
         <div class="form-group" {% if mode == "edit" %}style="grid-column:span 2"{% endif %}>
@@ -132,7 +132,7 @@
       </div>
 
       {# ── الأزرار ── #}
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="form-footer">
         <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">إلغاء</a>
         <button type="submit" class="btn-primary btn-sm">
           {% if mode == "add" %}

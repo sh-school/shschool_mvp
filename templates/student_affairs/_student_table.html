@@ -1,47 +1,41 @@
 {# HTMX partial — جدول الطلاب (يُحمّل مباشرة أو عبر HTMX) #}
 
-<div class="table-wrap-scroll" style="font-size:.8rem">
+<div class="table-wrap-scroll">
   {% if students %}
-  <table style="width:100%;border-collapse:collapse">
+  <table>
     <thead>
-      <tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
-        <th style="padding:8px 6px;text-align:right">الاسم</th>
-        <th style="padding:8px 6px;text-align:center">الرقم الوطني</th>
-        <th style="padding:8px 6px;text-align:center">الصف</th>
-        <th style="padding:8px 6px;text-align:center">الشعبة</th>
-        <th style="padding:8px 6px;text-align:center">الجوال</th>
-        <th style="padding:8px 6px;text-align:center">الإجراءات</th>
+      <tr>
+        <th>الاسم</th>
+        <th class="col-center">الرقم الوطني</th>
+        <th class="col-center">الصف</th>
+        <th class="col-center">الشعبة</th>
+        <th class="col-center">الجوال</th>
+        <th class="col-actions">الإجراءات</th>
       </tr>
     </thead>
     <tbody>
       {% for s in students %}
-      <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
-        <td style="padding:8px 6px">
-          <a href="{% url 'student_affairs:student_profile' s.id %}"
-             style="font-weight:600;color:var(--maroon);text-decoration:none"
-             class="hover:underline">
+      <tr>
+        <td>
+          <a href="{% url 'student_affairs:student_profile' s.id %}" class="font-semibold text-maroon hover:underline" style="text-decoration:none;color:var(--maroon)">
             {{ s.full_name }}
           </a>
           {% if s.gender %}
-          <span style="font-size:.6rem;color:var(--muted);margin-right:4px">
-            {% if s.gender == "M" %}ذ{% else %}أ{% endif %}
-          </span>
+          <span class="text-xs text-muted" style="margin-inline-start:4px">{% if s.gender == "M" %}ذ{% else %}أ{% endif %}</span>
           {% endif %}
         </td>
-        <td style="padding:8px 6px;text-align:center;font-family:monospace;font-size:.75rem">{{ s.national_id }}</td>
-        <td style="padding:8px 6px;text-align:center">
-          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{{ s.grade }}</span>
+        <td class="col-num col-center" style="font-family:monospace;font-size:var(--text-xs)">{{ s.national_id }}</td>
+        <td class="col-center">
+          <span class="status-badge status-info">{{ s.grade }}</span>
         </td>
-        <td style="padding:8px 6px;text-align:center">{{ s.section }}</td>
-        <td style="padding:8px 6px;text-align:center;font-size:.75rem;direction:ltr">{{ s.phone|default:"—" }}</td>
-        <td style="padding:8px 6px;text-align:center">
+        <td class="col-center">{{ s.section }}</td>
+        <td class="col-num col-center" style="font-size:var(--text-xs)">{{ s.phone|default:"—" }}</td>
+        <td class="col-actions">
           <div style="display:flex;gap:4px;justify-content:center">
-            <a href="{% url 'student_affairs:student_profile' s.id %}"
-               class="btn-secondary btn-xs" title="الملف الشامل">
+            <a href="{% url 'student_affairs:student_profile' s.id %}" class="btn-secondary btn-xs" title="الملف الشامل">
               {% include "components/icon.html" with name="user" %}
             </a>
-            <a href="{% url 'student_affairs:student_edit' s.id %}"
-               class="btn-secondary btn-xs" title="تعديل">
+            <a href="{% url 'student_affairs:student_edit' s.id %}" class="btn-secondary btn-xs" title="تعديل">
               {% include "components/icon.html" with name="file-pen" %}
             </a>
           </div>
@@ -50,9 +44,7 @@
       {% endfor %}
     </tbody>
   </table>
-  <div style="padding:8px;font-size:.7rem;color:var(--muted);text-align:center">
-    عرض {{ total }} طالب
-  </div>
+  <div class="table-empty" style="padding:8px">عرض {{ total }} طالب</div>
   {% else %}
   {% include "components/empty_state.html" with message="لا يوجد طلاب مطابقون للبحث" %}
   {% endif %}
