@@ -51,7 +51,7 @@ def global_search(request):
                 "type": "student",
                 "icon": "🎓",
                 "title": s["full_name"],
-                "sub": s["national_id"] or "",
+                "sub": f"***{s['national_id'][-4:]}" if s["national_id"] else "",
                 "url": f"/behavior/student/{s['id']}/",
             }
         )
@@ -78,7 +78,7 @@ def global_search(request):
                     "icon": "👨‍🏫",
                     "title": t["full_name"],
                     "sub": t["email"] or "",
-                    "url": f"/admin/core/customuser/{t['id']}/change/",
+                    "url": f"/staff-affairs/profile/{t['id']}/",
                 }
             )
 

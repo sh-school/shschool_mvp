@@ -95,7 +95,7 @@ class SchoolPermissionMiddleware:
                             {"error": "ليس لديك صلاحية للوصول", "code": "forbidden"}, status=403
                         )
                     return HttpResponseForbidden(
-                        f"<h2 dir='rtl'>ليس لديك صلاحية الوصول. دورك الحالي: {user_role or 'غير محدد'}</h2>"
+                        "<h2 dir='rtl'>ليس لديك صلاحية الوصول لهذه الصفحة</h2>"
                     )
                 break
 

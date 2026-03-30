@@ -110,6 +110,10 @@ class StudentEnrollment(models.Model):
                 name="unique_active_enrollment",
             )
         ]
+        indexes = [
+            models.Index(fields=["class_group", "is_active"], name="idx_enrollment_class_active"),
+            models.Index(fields=["student", "is_active"], name="idx_enrollment_student_active"),
+        ]
 
     def __str__(self):
         return f"{self.student.full_name} → {self.class_group}"

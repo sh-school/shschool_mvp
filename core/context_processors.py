@@ -58,20 +58,14 @@ def quality_nav_context(request):
         return {}
 
     year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026")
-    is_reviewer = QualityCommitteeMember.objects.filter(
-        school=school,
-        user=request.user,
-        committee_type=QualityCommitteeMember.REVIEW,
-        is_active=True,
-    ).exists()
-    is_executor_member = QualityCommitteeMember.objects.filter(
-        school=school,
-        user=request.user,
-        committee_type=QualityCommitteeMember.EXECUTOR,
-        is_active=True,
-    ).exists()
+    # MTG-2026-005: merged 2 queries into 1
+    member_types = set(
+        QualityCommitteeMember.objects.filter(
+            school=school, user=request.user, is_active=True,
+        ).values_list("committee_type", flat=True)
+    )
 
     return {
-        "is_quality_reviewer": is_reviewer,
-        "is_quality_executor": is_executor_member,
+        "is_quality_reviewer": QualityCommitteeMember.REVIEW in member_types,
+        "is_quality_executor": QualityCommitteeMember.EXECUTOR in member_types,
     }

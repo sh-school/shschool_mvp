@@ -72,6 +72,9 @@ class SubjectClassSetup(models.Model):
                 name="unique_subject_class_year",
             )
         ]
+        indexes = [
+            models.Index(fields=["school", "teacher", "academic_year"], name="idx_setup_school_teacher_year"),
+        ]
 
     def __str__(self):
         return f"{self.subject.name_ar} | {self.class_group} | {self.teacher.full_name}"

@@ -340,6 +340,10 @@ class BehaviorInfraction(models.Model):
         verbose_name_plural = "المخالفات السلوكية"
         ordering = ["-date", "-created_at"]
         db_table = "core_behaviorinfraction"
+        indexes = [
+            models.Index(fields=["school", "date"], name="idx_infraction_school_date"),
+            models.Index(fields=["school", "level", "is_resolved"], name="idx_infraction_level_resolved"),
+        ]
 
     def __str__(self):
         cat = f" [{self.violation_category.code}]" if self.violation_category else ""
