@@ -264,6 +264,135 @@ def student_import_export(request):
     return render(request, "core/student_import_export.html", ctx)
 
 
+# ── ثوابت الاستيراد ──────────────────────────────────────────────────
+
+_IMPORT_RELATION_MAP = {
+    "father": "father", "mother": "mother",
+    "guardian": "guardian", "other": "other",
+    "أب": "father", "والد": "father",
+    "أم": "mother", "ام": "mother", "والدة": "mother",
+    "وصي": "guardian", "وصية": "guardian",
+}
+
+_IMPORT_GRADE_NORMALIZE = {
+    "7": "G7", "8": "G8", "9": "G9",
+    "10": "G10", "11": "G11", "12": "G12",
+    "g7": "G7", "g8": "G8", "g9": "G9",
+    "g10": "G10", "g11": "G11", "g12": "G12",
+    "G7": "G7", "G8": "G8", "G9": "G9",
+    "G10": "G10", "G11": "G11", "G12": "G12",
+}
+
+
+# ── مساعدات الاستيراد ─────────────────────────────────────────────────
+
+
+def _parse_import_row(row):
+    """يحوّل tuple الصف الخام إلى قاموس بأسماء واضحة."""
+    def _cell(pos, default=""):
+        return str(row[pos]).strip() if len(row) > pos and row[pos] else default
+
+    return {
+        "student_nid": _cell(0),
+        "full_name": _cell(1),
+        "grade_raw": _cell(2),
+        "section": _cell(3),
+        "phone": _cell(4),
+        "email": _cell(5),
+        "parent_nid": _cell(6),
+        "parent_name": _cell(7),
+        "parent_phone": _cell(8),
+        "parent_email": _cell(9),
+        "relation_raw": _cell(10, "father"),
+    }
+
+
+def _upsert_user(nid, full_name, phone="", email=""):
+    """
+    get_or_create مستخدم بالرقم الوطني.
+    إذا أُنشئ: يضع كلمة المرور ويملأ phone/email.
+    إذا كان موجوداً: يُكمل الحقول الفارغة فقط.
+    يُعيد (user, created).
+    """
+    from core.models import CustomUser
+
+    user, created = CustomUser.objects.get_or_create(
+        national_id=nid,
+        defaults={"full_name": full_name or nid, "is_active": True},
+    )
+    if created:
+        user.set_password(nid)
+        if phone:
+            user.phone = phone
+        if email:
+            user.email = email
+        user.save()
+    else:
+        changed = False
+        if not user.full_name and full_name:
+            user.full_name = full_name
+            changed = True
+        if not user.phone and phone:
+            user.phone = phone
+            changed = True
+        if not user.email and email:
+            user.email = email
+            changed = True
+        if changed:
+            user.save()
+    return user, created
+
+
+def _enroll_student_in_class(student, school, grade_raw, section, stats, row_num):
+    """
+    يبحث عن الفصل ويسجّل الطالب فيه.
+    يُضيف خطأ إلى stats إذا لم يُعثر على الفصل.
+    يُعيد True إذا أُنشئ تسجيل جديد.
+    """
+    from core.models import ClassGroup, StudentEnrollment
+
+    grade = _IMPORT_GRADE_NORMALIZE.get(grade_raw, "")
+    if not (grade and section):
+        return False
+
+    class_group = ClassGroup.objects.filter(
+        school=school, grade=grade, section=section, is_active=True
+    ).first()
+
+    if not class_group:
+        stats["errors"].append(
+            f"سطر {row_num}: الفصل {grade}/{section} غير موجود — تم إنشاء الطالب بدون تسجيل"
+        )
+        return False
+
+    _, created = StudentEnrollment.objects.get_or_create(
+        student=student, class_group=class_group, defaults={"is_active": True}
+    )
+    return created
+
+
+def _link_parent_to_student(parent, student, school, relation_raw, stats):
+    """
+    يُنشئ ParentStudentLink إذا لم يكن موجوداً.
+    يُعيد True إذا أُنشئ رابط جديد.
+    """
+    from core.models import ParentStudentLink
+
+    relation = _IMPORT_RELATION_MAP.get(relation_raw, "father")
+    _, created = ParentStudentLink.objects.get_or_create(
+        parent=parent,
+        student=student,
+        school=school,
+        defaults={
+            "relationship": relation,
+            "is_primary": True,
+            "can_view_grades": True,
+            "can_view_attendance": True,
+        },
+    )
+    return created
+
+
 def _process_import(uploaded_file, school, year):
     """
     يقرأ ملف Excel ويستورد الطلاب + أولياء الأمور.
@@ -271,34 +400,7 @@ def _process_import(uploaded_file, school, year):
     """
     import openpyxl
 
-    from core.models import (
-        ClassGroup,
-        CustomUser,
-        Membership,
-        ParentStudentLink,
-        Role,
-        StudentEnrollment,
-    )
-
-    RELATION_MAP = {
-        "father": "father", "mother": "mother",
-        "guardian": "guardian", "other": "other",
-        "أب": "father", "والد": "father",
-        "أم": "mother", "ام": "mother", "والدة": "mother",
-        "وصي": "guardian", "وصية": "guardian",
-    }
-
-    GRADE_NORMALIZE = {
-        "7": "G7", "8": "G8", "9": "G9",
-        "10": "G10", "11": "G11", "12": "G12",
-        "g7": "G7", "g8": "G8", "g9": "G9",
-        "g10": "G10", "g11": "G11", "g12": "G12",
-        "G7": "G7", "G8": "G8", "G9": "G9",
-        "G10": "G10", "G11": "G11", "G12": "G12",
-    }
-
-    wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
-    ws = wb.active
+    from core.models import Membership, Role
 
     roles = {r.name: r for r in Role.objects.all()}
     student_role = roles.get("student")
@@ -310,162 +412,74 @@ def _process_import(uploaded_file, school, year):
             "errors": ["الأدوار الأساسية (student/parent) غير موجودة — شغّل seed_data أولاً."],
         }
 
-    stats = {
-        "students_created": 0,
-        "students_existed": 0,
-        "parents_created": 0,
-        "parents_existed": 0,
-        "enrollments_created": 0,
-        "links_created": 0,
-        "errors": [],
-    }
+    wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
+    ws = wb.active
 
-    rows = list(ws.iter_rows(min_row=2, values_only=True))
-    # تخطّي صفوف الرأس الزائدة (إذا كانت أول خلية فارغة أو نصًا)
+    # فلترة صفوف البيانات الصالحة (تجاوز الرأس والتعليقات)
     data_rows = []
-    for row in rows:
+    for row in ws.iter_rows(min_row=2, values_only=True):
         if not row or not row[0]:
             continue
         first = str(row[0]).strip()
-        # تخطّي صفوف التعليقات/الرأس
         if first.startswith("#") or not first[0].isdigit():
             continue
         data_rows.append(row)
 
-    with transaction.atomic():
-        for i, row in enumerate(data_rows, start=2):
-            # الأعمدة: national_id | full_name | grade | section | phone | email |
-            #          parent_nid | parent_name | parent_phone | parent_email | relation
-            student_nid = str(row[0]).strip() if row[0] else ""
-            full_name = str(row[1]).strip() if len(row) > 1 and row[1] else ""
-            grade_raw = str(row[2]).strip() if len(row) > 2 and row[2] else ""
-            section = str(row[3]).strip() if len(row) > 3 and row[3] else ""
-            phone = str(row[4]).strip() if len(row) > 4 and row[4] else ""
-            email = str(row[5]).strip() if len(row) > 5 and row[5] else ""
-            parent_nid = str(row[6]).strip() if len(row) > 6 and row[6] else ""
-            parent_name = str(row[7]).strip() if len(row) > 7 and row[7] else ""
-            parent_phone = str(row[8]).strip() if len(row) > 8 and row[8] else ""
-            parent_email = str(row[9]).strip() if len(row) > 9 and row[9] else ""
-            relation_raw = str(row[10]).strip() if len(row) > 10 and row[10] else "father"
+    stats = {
+        "students_created": 0, "students_existed": 0,
+        "parents_created": 0, "parents_existed": 0,
+        "enrollments_created": 0, "links_created": 0,
+        "errors": [],
+    }
 
-            if not student_nid:
+    with transaction.atomic():
+        for i, raw_row in enumerate(data_rows, start=2):
+            fields = _parse_import_row(raw_row)
+
+            if not fields["student_nid"]:
                 stats["errors"].append(f"سطر {i}: الرقم الوطني فارغ — تجاوز")
                 continue
-
-            if not full_name:
-                stats["errors"].append(f"سطر {i}: اسم الطالب {student_nid} فارغ — تجاوز")
+            if not fields["full_name"]:
+                stats["errors"].append(
+                    f"سطر {i}: اسم الطالب {fields['student_nid']} فارغ — تجاوز"
+                )
                 continue
 
-            # ── إنشاء/تحديث الطالب ──────────────────────────────────
-            student, s_created = CustomUser.objects.get_or_create(
-                national_id=student_nid,
-                defaults={"full_name": full_name, "is_active": True},
+            # ── الطالب ──────────────────────────────────────────────
+            student, s_created = _upsert_user(
+                fields["student_nid"], fields["full_name"],
+                fields["phone"], fields["email"],
             )
-            if s_created:
-                student.set_password(student_nid)
-                if phone:
-                    student.phone = phone
-                if email:
-                    student.email = email
-                student.save()
-                stats["students_created"] += 1
-            else:
-                stats["students_existed"] += 1
-                changed = False
-                if not student.full_name and full_name:
-                    student.full_name = full_name
-                    changed = True
-                if not student.phone and phone:
-                    student.phone = phone
-                    changed = True
-                if not student.email and email:
-                    student.email = email
-                    changed = True
-                if changed:
-                    student.save()
+            stats["students_created" if s_created else "students_existed"] += 1
 
-            # ── عضوية الطالب ────────────────────────────────────────
             if school:
                 Membership.objects.get_or_create(
-                    user=student,
-                    school=school,
-                    role=student_role,
+                    user=student, school=school, role=student_role,
                     defaults={"is_active": True},
                 )
-
-            # ── تسجيل الطالب في الفصل ───────────────────────────────
-            grade = GRADE_NORMALIZE.get(grade_raw, "")
-            if grade and section and school:
-                class_group = ClassGroup.objects.filter(
-                    school=school, grade=grade, section=section, is_active=True
-                ).first()
-                if class_group:
-                    _, enr_created = StudentEnrollment.objects.get_or_create(
-                        student=student,
-                        class_group=class_group,
-                        defaults={"is_active": True},
-                    )
-                    if enr_created:
-                        stats["enrollments_created"] += 1
-                else:
-                    stats["errors"].append(
-                        f"سطر {i}: الفصل {grade}/{section} غير موجود — تم إنشاء الطالب بدون تسجيل"
-                    )
+                if _enroll_student_in_class(
+                    student, school, fields["grade_raw"], fields["section"], stats, i
+                ):
+                    stats["enrollments_created"] += 1
 
             # ── ولي الأمر (اختياري) ──────────────────────────────────
-            if not parent_nid:
+            if not fields["parent_nid"]:
                 continue
 
-            parent, p_created = CustomUser.objects.get_or_create(
-                national_id=parent_nid,
-                defaults={
-                    "full_name": parent_name or parent_nid,
-                    "phone": parent_phone,
-                    "email": parent_email,
-                    "is_active": True,
-                },
+            parent, p_created = _upsert_user(
+                fields["parent_nid"], fields["parent_name"],
+                fields["parent_phone"], fields["parent_email"],
             )
-            if p_created:
-                parent.set_password(parent_nid)
-                parent.save()
-                stats["parents_created"] += 1
-            else:
-                stats["parents_existed"] += 1
-                changed = False
-                if not parent.full_name and parent_name:
-                    parent.full_name = parent_name
-                    changed = True
-                if not parent.phone and parent_phone:
-                    parent.phone = parent_phone
-                    changed = True
-                if not parent.email and parent_email:
-                    parent.email = parent_email
-                    changed = True
-                if changed:
-                    parent.save()
+            stats["parents_created" if p_created else "parents_existed"] += 1
 
             if school:
                 Membership.objects.get_or_create(
-                    user=parent,
-                    school=school,
-                    role=parent_role,
+                    user=parent, school=school, role=parent_role,
                     defaults={"is_active": True},
                 )
-
-            relation = RELATION_MAP.get(relation_raw, "father")
-            if school:
-                _, l_created = ParentStudentLink.objects.get_or_create(
-                    parent=parent,
-                    student=student,
-                    school=school,
-                    defaults={
-                        "relationship": relation,
-                        "is_primary": True,
-                        "can_view_grades": True,
-                        "can_view_attendance": True,
-                    },
-                )
-                if l_created:
+                if _link_parent_to_student(
+                    parent, student, school, fields["relation_raw"], stats
+                ):
                     stats["links_created"] += 1
 
     return {
