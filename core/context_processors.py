@@ -39,7 +39,7 @@ def permissions_context(request):
         "accessible_modules": get_accessible_modules(request.user),
         "registry_modules": get_accessible_modules_from_registry(request.user),
         "is_leadership": request.user.is_leadership(),
-        "is_admin_role": request.user.is_admin_or_principal(),
+        "is_admin_role": request.user.is_leadership(),
         "is_staff_member": request.user.is_staff_member(),
     }
 

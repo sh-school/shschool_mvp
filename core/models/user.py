@@ -204,16 +204,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """مدير أو superuser — صلاحيات إدارية كاملة."""
         return self.is_superuser or self.get_role() == "principal"
 
-    def is_admin_or_principal(self):
-        """
-        القيادة العليا (T1-T2) فقط — مدير المدرسة ونوابه.
-        لا يشمل دور admin (الإداري العادي T4).
-        ملاحظة: الاسم القديم محفوظ للتوافقية — يُستدعى من context_processors.
-        """
-        return self.is_superuser or self.get_role() in (
-            "principal", "vice_admin", "vice_academic",
-        )
-
     def is_teacher(self):
         return self.get_role() in ("teacher", "coordinator", "ese_teacher")
 

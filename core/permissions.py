@@ -392,10 +392,6 @@ def is_leadership(user):
     return user.get_role() in ("principal", "vice_admin", "vice_academic")
 
 
-# ── Backward-compatible alias (مرجع قديم — سيُزال لاحقاً) ──
-is_admin_or_principal = is_leadership
-
-
 def can_manage_department(user, department):
     """
     يتحقق إذا كان المستخدم يستطيع إدارة قسم معيّن.

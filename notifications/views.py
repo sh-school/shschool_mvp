@@ -386,9 +386,9 @@ def emergency_broadcast(request):
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
 
-    from core.permissions import is_admin_or_principal
+    from core.permissions import is_leadership
 
-    if not is_admin_or_principal(request.user):
+    if not is_leadership(request.user):
         return JsonResponse({"error": "غير مصرح"}, status=403)
 
     message = request.POST.get("message", "").strip()
