@@ -21,6 +21,6 @@ class Migration(migrations.Migration):
         # 2. ثانياً: نزيل العمود نفسه
         migrations.RemoveField(
             model_name="membership",
-            field_name="department",
+            name="department",
         ),
     ]

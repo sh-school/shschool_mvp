@@ -144,7 +144,7 @@
       {% endif %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
-    {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" %}
+    {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
@@ -176,6 +176,37 @@
     {% elif role == "it_technician" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="/admin/" class="nb">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة</a>
+
+    {# ── الأدوار الجديدة v7 ── #}
+
+    {% elif role == "speech_therapist" or role == "occupational_therapist" %}
+      {# أخصائي النطق + أخصائي العلاج الوظائفي — يعملون مع طلاب محددين #}
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+
+    {% elif role == "activities_coordinator" %}
+      {# منسق الأنشطة المدرسية — يُدير الأنشطة اللاصفية ومشاركة الطلاب #}
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_affairs:activity_list' %}" class="nb">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+      <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
+      <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+
+    {% elif role == "receptionist" %}
+      {# موظف الاستقبال — استقبال الزوار والتواصل الإداري #}
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+
+    {% elif role == "transport_officer" %}
+      {# مسؤول النقل — إدارة منظومة النقل المدرسي بالكامل #}
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'transport:dashboard' %}" class="nb">{% include "components/icon.html" with name="bus" %} إدارة النقل</a>
+      <a href="{% url 'transport:buses_list' %}" class="nb">الحافلات</a>
+      <a href="{% url 'transport:student_assignments' %}" class="nb">إسناد الطلاب</a>
+      <a href="{% url 'transport:statistics' %}" class="nb">الإحصائيات</a>
+      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
 
     {% elif role == "student" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
@@ -313,14 +344,16 @@
 </div>
 {% endif %}
 
-{# ── Teacher Schedule Dropdown ── #}
-{% if role == "teacher" or role == "specialist" or role == "ese_teacher" %}
+{# ── Teacher Schedule Dropdown — يشمل مساعدي المعلم v7 ── #}
+{% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <hr>
+  {% if role != "teacher_assistant" and role != "ese_assistant" %}
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  {% endif %}
 </div>
 {% endif %}
 
