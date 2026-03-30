@@ -436,20 +436,11 @@ def get_teacher_student_ids(user):
     # ── 2) المنسق: فصول كل معلمي قسمه ──
     dept_class_ids = set()
     if role == "coordinator" and school:
-        dept_obj = user.department_obj  # ✅ v6: FK أولاً
+        dept_obj = user.department_obj
         if dept_obj:
             dept_teacher_ids = dept_obj.get_teacher_ids()
         else:
-            # fallback: اسم القسم النصي → department_obj__name
-            dept_name = user.department
-            dept_teacher_ids = set(
-                Membership.objects.filter(
-                    school=school,
-                    department_obj__name=dept_name,
-                    is_active=True,
-                    role__name__in=("teacher", "ese_teacher", "coordinator"),
-                ).values_list("user_id", flat=True)
-            ) if dept_name else set()
+            dept_teacher_ids = set()
 
         if dept_teacher_ids:
             dept_class_ids = set(
@@ -525,22 +516,7 @@ def get_department_teacher_ids(user):
     dept_obj = user.department_obj
     if dept_obj:
         return dept_obj.get_teacher_ids()
-
-    # fallback: اسم القسم النصي → department_obj__name
-    dept_name = user.department
-    if not dept_name:
-        return set()
-
-    from core.models import Membership
-
-    return set(
-        Membership.objects.filter(
-            school=school,
-            department_obj__name=dept_name,
-            is_active=True,
-            role__name__in=("teacher", "ese_teacher", "coordinator"),
-        ).values_list("user_id", flat=True)
-    )
+    return set()
 
 
 def get_accessible_modules(user):

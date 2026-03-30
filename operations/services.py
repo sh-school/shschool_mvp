@@ -1266,12 +1266,6 @@ class CompensatoryService:
                 coordinators = dept_obj.memberships.filter(
                     is_active=True, role__name="coordinator",
                 ).values_list("user_id", flat=True)
-            elif teacher.department:
-                # fallback: CharField
-                coordinators = Membership.objects.filter(
-                    school=school, is_active=True,
-                    role__name="coordinator", department_obj__name=teacher.department,
-                ).values_list("user_id", flat=True)
             else:
                 coordinators = []
             if coordinators:

@@ -112,17 +112,7 @@ class Membership(models.Model):
     is_active = models.BooleanField(default=True)
     joined_at = models.DateField(default=timezone.now)
 
-    # ── القسم/التخصص — مهم للمنسقين والمعلمين ────────────────────
-    # ❌ القديم: CharField — يبقى مؤقتاً كـ fallback حتى اكتمال الترحيل
-    department = models.CharField(
-        max_length=60,
-        blank=True,
-        default="",
-        verbose_name="القسم / التخصص (نص — قديم)",
-        help_text="⚠ حقل قديم — سيُحذف بعد اكتمال الترحيل إلى department_obj",
-        db_index=True,
-    )
-    # ✅ الجديد: FK إلى Department model
+    # ── القسم/التخصص — FK إلى Department model ──────────────────
     department_obj = models.ForeignKey(
         "core.Department",
         null=True,
@@ -138,7 +128,6 @@ class Membership(models.Model):
         verbose_name_plural = "العضويات"
         indexes = [
             models.Index(fields=["school", "role"]),
-            models.Index(fields=["department"], condition=models.Q(is_active=True), name="idx_active_dept"),
         ]
         constraints = [
             models.UniqueConstraint(
@@ -150,10 +139,10 @@ class Membership(models.Model):
 
     @property
     def department_name(self):
-        """يُعيد اسم القسم — من FK أولاً، ثم من CharField كـ fallback."""
+        """يُعيد اسم القسم من FK."""
         if self.department_obj_id:
             return self.department_obj.name
-        return self.department
+        return ""
 
     def __str__(self):
         dept = f" [{self.department_name}]" if self.department_name else ""

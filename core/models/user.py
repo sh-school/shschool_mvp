@@ -187,13 +187,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     @property
     def department(self):
-        """يُعيد اسم قسم/تخصص المستخدم — من FK (v6)."""
+        """يُعيد اسم قسم/تخصص المستخدم من FK."""
         m = self.active_membership
-        if not m:
-            return ""
-        if m.department_obj_id:
-            return m.department_obj.name
-        return ""
+        return m.department_obj.name if m and m.department_obj_id else ""
 
     @property
     def department_obj(self):
@@ -230,17 +226,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def is_same_department(self, other_department):
         """
-        يتحقق إذا كان المستخدم من نفس القسم/التخصص.
-        يقبل: اسم نصي أو كائن Department.
+        يتحقق إذا كان المستخدم من نفس القسم.
+        يقبل: كائن Department أو اسم نصي.
         """
         from .department import Department
 
+        my_dept = self.department_obj
+        if my_dept is None:
+            return False
         if isinstance(other_department, Department):
-            my_dept = self.department_obj
-            return my_dept is not None and my_dept.pk == other_department.pk
-        # مقارنة نصية — يقرأ من FK
-        my_dept_name = self.department
-        return bool(my_dept_name) and my_dept_name == other_department
+            return my_dept.pk == other_department.pk
+        return my_dept.name == other_department
 
 
 class Profile(models.Model):

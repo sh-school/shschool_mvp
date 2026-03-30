@@ -65,12 +65,12 @@ class Command(BaseCommand):
         dept_map = {}  # name_ar -> Department object
 
         for code, name_ar, sort_order in DEPARTMENTS:
-            # Find coordinator from Membership
+            # Find coordinator via existing department_obj FK
             coord_membership = (
                 Membership.objects.filter(
                     school=school,
                     is_active=True,
-                    department=name_ar,
+                    department_obj__code=code,
                     role__name="coordinator",
                 )
                 .select_related("user")
@@ -115,29 +115,14 @@ class Command(BaseCommand):
         not_found_count = 0
 
         memberships_with_dept = Membership.objects.filter(
-            school=school, is_active=True
-        ).exclude(department="")
+            school=school, is_active=True, department_obj__isnull=False
+        )
 
         for m in memberships_with_dept:
-            if m.department_obj_id:
-                skipped_count += 1
-                continue
+            skipped_count += 1
+            log(f"  OK: {m.user.full_name} -> {m.department_obj.name}")
 
-            dept = dept_map.get(m.department)
-            if dept:
-                m.department_obj = dept
-                m.save(update_fields=["department_obj"])
-                linked_count += 1
-            else:
-                not_found_count += 1
-                log(
-                    f"  WARNING: No department for '{m.department}' "
-                    f"-> {m.user.full_name}"
-                )
-
-        log(f"\nMemberships linked: {linked_count}")
-        log(f"Already linked (skipped): {skipped_count}")
-        log(f"Not found: {not_found_count}")
+        log(f"\nMemberships with department FK: {skipped_count}")
         log("=" * 60)
 
         # ══════════════════════════════════════════════════════════
@@ -153,13 +138,12 @@ class Command(BaseCommand):
         total_linked = Membership.objects.filter(
             school=school, is_active=True, department_obj__isnull=False
         ).count()
-        total_with_dept = (
-            Membership.objects.filter(school=school, is_active=True)
-            .exclude(department="")
-            .count()
-        )
+        total_staff = Membership.objects.filter(
+            school=school, is_active=True,
+            role__name__in=("teacher", "coordinator", "ese_teacher", "specialist", "social_worker"),
+        ).count()
 
-        log(f"\nTotal linked to FK: {total_linked} / {total_with_dept}")
+        log(f"\nTotal linked to FK: {total_linked} / {total_staff} staff")
         log("DONE!")
         out.close()
         self.stdout.write(self.style.SUCCESS("Migration complete!"))
