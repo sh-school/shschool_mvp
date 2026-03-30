@@ -11,21 +11,25 @@
     <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب إجازة جديد</a>
   </div>
 
-  <div class="card-qatar" style="padding:12px 16px">
-    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-      <div><label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
-        <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
-          <option value="">— الكل —</option>
-          {% for val, label in status_choices %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
-        </select></div>
-      <div><label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">النوع</label>
-        <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
-          <option value="">— الكل —</option>
-          {% for val, label in type_choices %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
-        </select></div>
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label">الحالة</label>
+      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        {% for val, label in status_choices %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="filter-label">النوع</label>
+      <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        {% for val, label in type_choices %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
       <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
-    </form>
-  </div>
+    </div>
+  </form>
 
   <div class="card-qatar" style="padding:0">
     {% if leaves %}

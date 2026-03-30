@@ -18,29 +18,29 @@
   </div>
 
   {# فلتر #}
-  <div class="card-qatar" style="padding:12px 16px">
-    <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-      <div>
-        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
-        <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
-          <option value="">— الكل —</option>
-          {% for val, label in status_choices %}
-          <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div>
-        <label style="font-size:.7rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الاتجاه</label>
-        <select name="direction" class="form-control form-control-sm" onchange="this.form.submit()">
-          <option value="">— الكل —</option>
-          {% for val, label in direction_choices %}
-          <option value="{{ val }}" {% if direction_filter == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </div>
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label">الحالة</label>
+      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="filter-label">الاتجاه</label>
+      <select name="direction" class="form-control form-control-sm" onchange="this.form.submit()">
+        <option value="">— الكل —</option>
+        {% for val, label in direction_choices %}
+        <option value="{{ val }}" {% if direction_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
       <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
-    </form>
-  </div>
+    </div>
+  </form>
 
   {# الجدول #}
   <div class="card-qatar" style="padding:0">

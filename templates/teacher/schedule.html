@@ -51,51 +51,51 @@
 </div>
 
 {# ── فلاتر ذكية ── #}
-<div class="card-qatar" style="padding:10px 16px">
-  <form method="get" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-    <input type="hidden" name="date" value="{{ selected_date }}">
-    <div style="min-width:160px">
-      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">المعلم</label>
-      <select name="teacher" class="form-control form-control-sm" onchange="this.form.submit()">
-        <option value="">— كل المعلمين —</option>
-        {% for m in filter_teachers %}
-        <option value="{{ m.user_id }}" {% if teacher_filter == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div style="min-width:120px">
-      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الفصل</label>
-      <select name="class" class="form-control form-control-sm" onchange="this.form.submit()">
-        <option value="">— كل الفصول —</option>
-        {% for cg in filter_classes %}
-        <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div style="min-width:80px">
-      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحصة</label>
-      <select name="period" class="form-control form-control-sm" onchange="this.form.submit()">
-        <option value="">— الكل —</option>
-        {% for p in "1234567" %}<option value="{{ p }}" {% if period_filter == p %}selected{% endif %}>الحصة {{ p }}</option>{% endfor %}
-      </select>
-    </div>
-    <div style="min-width:100px">
-      <label style="font-size:.65rem;font-weight:600;color:var(--muted);display:block;margin-bottom:2px">الحالة</label>
-      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
-        <option value="">— الكل —</option>
-        <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>لم يُسجَّل</option>
-        <option value="in_progress" {% if status_filter == "in_progress" %}selected{% endif %}>جارٍ</option>
-        <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>مكتمل</option>
-      </select>
-    </div>
-    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs" style="align-self:end">إعادة ضبط</a>
+<form method="get" class="filter-bar">
+  <input type="hidden" name="date" value="{{ selected_date }}">
+  <div class="filter-field">
+    <label class="filter-label">المعلم</label>
+    <select name="teacher" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">— كل المعلمين —</option>
+      {% for m in filter_teachers %}
+      <option value="{{ m.user_id }}" {% if teacher_filter == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-field">
+    <label class="filter-label">الفصل</label>
+    <select name="class" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">— كل الفصول —</option>
+      {% for cg in filter_classes %}
+      <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-field">
+    <label class="filter-label">الحصة</label>
+    <select name="period" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">— الكل —</option>
+      {% for p in "1234567" %}<option value="{{ p }}" {% if period_filter == p %}selected{% endif %}>الحصة {{ p }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="filter-field">
+    <label class="filter-label">الحالة</label>
+    <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">— الكل —</option>
+      <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>لم يُسجَّل</option>
+      <option value="in_progress" {% if status_filter == "in_progress" %}selected{% endif %}>جارٍ</option>
+      <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>مكتمل</option>
+    </select>
+  </div>
+  <div class="filter-actions">
+    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
     {% if show_all %}
-    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-primary btn-xs" style="align-self:end">إخفاء المكتملة</a>
+    <a href="/teacher/schedule/?date={{ selected_date }}" class="btn-primary btn-xs">إخفاء المكتملة</a>
     {% else %}
-    <a href="/teacher/schedule/?date={{ selected_date }}&all=1" class="btn-secondary btn-xs" style="align-self:end">عرض الكل ({{ all_count }})</a>
+    <a href="/teacher/schedule/?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل ({{ all_count }})</a>
     {% endif %}
-  </form>
-</div>
+  </div>
+</form>
 {% endif %}
 
 {# ── Next Session Alert ── #}
