@@ -77,7 +77,7 @@ class SchoolPermissionMiddleware:
         if request.user.is_superuser:
             return self.get_response(request)
 
-        if not request.user.memberships.filter(is_active=True).exists():
+        if not request.user.active_membership:
             if path.startswith("/api/"):
                 return JsonResponse(
                     {"error": "لا توجد عضوية نشطة", "code": "no_membership"}, status=403

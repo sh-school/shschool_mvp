@@ -117,20 +117,42 @@ def api_assessment_charts(request):
         else:
             bands[0] += 1
 
-    # Class comparison
-    class_avgs = []
+    # Class comparison — 3 queries بدل N+1 (2 × عدد الفصول)
+    from collections import defaultdict
+
+    classes = list(
+        ClassGroup.objects.filter(school=school, academic_year=year).order_by('grade', 'section')[:15]
+    )
+    class_ids = [cg.pk for cg in classes]
+
+    # (1) student → class_group map (query واحدة)
+    student_to_class: dict = {}
+    for enr in StudentEnrollment.objects.filter(
+        class_group_id__in=class_ids, is_active=True
+    ).values_list('student_id', 'class_group_id'):
+        student_to_class[enr[0]] = enr[1]
+
+    # (2) نتائج كل الطلاب المعنيين (query واحدة)
+    class_sums: dict = defaultdict(lambda: [0.0, 0])  # class_id → [sum, count]
+    for student_id, annual_total in AnnualSubjectResult.objects.filter(
+        student_id__in=student_to_class.keys(),
+        school=school,
+        academic_year=year,
+        annual_total__isnull=False,
+    ).values_list('student_id', 'annual_total'):
+        cg_id = student_to_class.get(student_id)
+        if cg_id:
+            class_sums[cg_id][0] += float(annual_total)
+            class_sums[cg_id][1] += 1
+
+    # (3) بناء القوائم من البيانات المجمّعة
     class_labels = []
-    classes = ClassGroup.objects.filter(school=school, academic_year=year).order_by('grade', 'section')
-    for cg in classes[:15]:
-        enrollments = StudentEnrollment.objects.filter(
-            class_group=cg, is_active=True
-        ).values_list('student_id', flat=True)
-        avg = AnnualSubjectResult.objects.filter(
-            student_id__in=enrollments, school=school, academic_year=year
-        ).aggregate(avg=Avg('annual_total'))['avg']
-        if avg:
+    class_avgs = []
+    for cg in classes:
+        data = class_sums.get(cg.pk)
+        if data and data[1] > 0:
             class_labels.append(str(cg))
-            class_avgs.append(round(float(avg), 1))
+            class_avgs.append(round(data[0] / data[1], 1))
 
     # Subject comparison
     subj_data = AnnualSubjectResult.objects.filter(

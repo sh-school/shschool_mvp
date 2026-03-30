@@ -61,54 +61,78 @@ def parent_dashboard(request):
     today = timezone.now().date()
     children = ParentService.get_children_data(request.user, school, year)
 
-    # Enrich each child with behavior score + attendance % + week trend
+    # ── Batch: enrich all children in 4 queries instead of 5-7 per child ──
+    from collections import defaultdict
+
+    from django.db.models import Sum
+
+    student_ids = [cd["student"].pk for cd in children if cd.get("student")]
+
+    # (1) Batch: نقاط الخصم السلوكية لكل طالب
+    deducted_map = dict(
+        BehaviorInfraction.objects.filter(
+            school=school, student_id__in=student_ids
+        )
+        .values("student_id")
+        .annotate(total=Sum("points_deducted"))
+        .values_list("student_id", "total")
+    )
+
+    # (2) Batch: نقاط الاسترداد السلوكية لكل طالب
+    recovered_map = dict(
+        BehaviorPointRecovery.objects.filter(
+            infraction__school=school, infraction__student_id__in=student_ids
+        )
+        .values("infraction__student_id")
+        .annotate(total=Sum("points_restored"))
+        .values_list("infraction__student_id", "total")
+    )
+
+    # (3) Batch: نسبة الحضور خلال 30 يومًا لكل طالب
+    att_stats: dict = {}
+    for row in StudentAttendance.objects.filter(
+        student_id__in=student_ids,
+        session__school=school,
+        session__date__gte=today - timedelta(days=30),
+    ).values("student_id").annotate(
+        total=Count("id"),
+        present=Count("id", filter=Q(status="present")),
+    ):
+        att_stats[row["student_id"]] = row
+
+    # (4) Batch: اتجاه الحضور آخر 7 أيام لكل طالب
+    week_att_map: dict = defaultdict(list)
+    for row in (
+        StudentAttendance.objects.filter(
+            student_id__in=student_ids,
+            session__school=school,
+            session__date__gte=today - timedelta(days=7),
+        )
+        .values("student_id", "session__date")
+        .annotate(
+            present=Count("id", filter=Q(status="present")),
+            absent=Count("id", filter=Q(status="absent")),
+        )
+        .order_by("student_id", "session__date")
+    ):
+        week_att_map[row["student_id"]].append(row)
+
+    # Enrich each child from pre-fetched maps
     for child_data in children:
         student = child_data.get("student")
         if not student:
             continue
-
-        # Behavior score
-        from behavior.models import BehaviorInfraction, BehaviorPointRecovery
-
-        infractions = BehaviorInfraction.objects.filter(
-            school=school, student=student
-        )
-        total_points = sum(i.points_deducted for i in infractions)
-        recovered_points = sum(
-            r.points_restored
-            for r in BehaviorPointRecovery.objects.filter(
-                infraction__school=school, infraction__student=student
-            )
-        )
-        child_data["behavior_score"] = min(100, max(0, 100 - total_points + recovered_points))
+        sid = student.pk
+        deducted = deducted_map.get(sid) or 0
+        recovered = recovered_map.get(sid) or 0
+        child_data["behavior_score"] = min(100, max(0, 100 - deducted + recovered))
         child_data["subjects_count"] = child_data.get("total_subj", 0)
 
-        # Attendance percentage (last 30 days)
-        att_total = StudentAttendance.objects.filter(
-            student=student, session__school=school,
-            session__date__gte=today - timedelta(days=30),
-        ).count()
-        att_present = StudentAttendance.objects.filter(
-            student=student, session__school=school,
-            session__date__gte=today - timedelta(days=30),
-            status="present",
-        ).count()
+        att = att_stats.get(sid, {})
+        att_total = att.get("total", 0)
+        att_present = att.get("present", 0)
         child_data["attendance_pct"] = round(att_present * 100 / att_total) if att_total else None
-
-        # Last 7 days attendance trend
-        week_att = (
-            StudentAttendance.objects.filter(
-                student=student, session__school=school,
-                session__date__gte=today - timedelta(days=7),
-            )
-            .values("session__date")
-            .annotate(
-                present=Count("id", filter=Q(status="present")),
-                absent=Count("id", filter=Q(status="absent")),
-            )
-            .order_by("session__date")
-        )
-        child_data["week_attendance"] = list(week_att)
+        child_data["week_attendance"] = week_att_map.get(sid, [])
 
     return render(
         request,

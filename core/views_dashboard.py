@@ -99,9 +99,15 @@ def dashboard(request):
         year = settings.CURRENT_ACADEMIC_YEAR
 
         sessions_today = Session.objects.filter(school=school, date=today).select_related("teacher")
-        total_sessions = sessions_today.count()
-        completed = sessions_today.filter(status="completed").count()
-        in_progress = sessions_today.filter(status="in_progress").count()
+        # دمج 3 queries في واحدة
+        session_stats = sessions_today.aggregate(
+            total=Count("id"),
+            completed=Count("id", filter=Q(status="completed")),
+            in_progress=Count("id", filter=Q(status="in_progress")),
+        )
+        total_sessions = session_stats["total"]
+        completed = session_stats["completed"]
+        in_progress = session_stats["in_progress"]
 
         att_stats = StudentAttendance.objects.filter(
             school=school, session__date=today
@@ -116,12 +122,18 @@ def dashboard(request):
         total_att = present + absent + late
         att_pct = round(present / total_att * 100) if total_att else 0
 
-        # بيانات الأمس للمقارنة (delta)
+        # بيانات الأمس للمقارنة (delta) — query واحدة بدل 3
         yesterday = today - datetime.timedelta(days=1)
-        att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday)
-        present_y = att_y.filter(status="present").count()
-        absent_y = att_y.filter(status="absent").count()
-        total_y = present_y + absent_y + att_y.filter(status="late").count()
+        att_y_stats = StudentAttendance.objects.filter(
+            school=school, session__date=yesterday
+        ).aggregate(
+            present_y=Count("id", filter=Q(status="present")),
+            absent_y=Count("id", filter=Q(status="absent")),
+            late_y=Count("id", filter=Q(status="late")),
+        )
+        present_y = att_y_stats["present_y"]
+        absent_y = att_y_stats["absent_y"]
+        total_y = present_y + absent_y + att_y_stats["late_y"]
         att_pct_y = round(present_y / total_y * 100) if total_y else None
         att_delta = att_pct - att_pct_y if att_pct_y is not None else None
         absent_delta = absent - absent_y if total_y else None
@@ -158,24 +170,23 @@ def dashboard(request):
             packages__isnull=False
         ).count()
 
-        # مؤشرات السلوك
-        behavior_monthly = BehaviorInfraction.objects.filter(
-            school=school,
-            date__month=today.month,
-            date__year=today.year,
-        ).count()
-        behavior_critical = BehaviorInfraction.objects.filter(
-            school=school,
-            level__gte=3,
-        ).count()
+        # مؤشرات السلوك — query واحدة بدل 2
+        behavior_stats = BehaviorInfraction.objects.filter(school=school).aggregate(
+            monthly=Count("id", filter=Q(date__month=today.month, date__year=today.year)),
+            critical=Count("id", filter=Q(level__gte=3)),
+        )
+        behavior_monthly = behavior_stats["monthly"]
+        behavior_critical = behavior_stats["critical"]
 
-        # مؤشرات العيادة
-        clinic_today = ClinicVisit.objects.filter(
+        # مؤشرات العيادة — query واحدة بدل 2
+        clinic_stats = ClinicVisit.objects.filter(
             school=school, visit_date__date=today
-        ).count()
-        clinic_sent_home = ClinicVisit.objects.filter(
-            school=school, visit_date__date=today, is_sent_home=True
-        ).count()
+        ).aggregate(
+            total=Count("id"),
+            sent_home=Count("id", filter=Q(is_sent_home=True)),
+        )
+        clinic_today = clinic_stats["total"]
+        clinic_sent_home = clinic_stats["sent_home"]
 
         # مؤشرات المكتبة
         library_overdue = BookBorrowing.objects.filter(
