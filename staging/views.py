@@ -39,9 +39,6 @@ except ImportError:
 @role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin", "secretary")
 def import_grades_select(request):
     """اختيار التقييم المراد استيراد درجاته"""
-    if not request.user.is_admin() and not request.user.is_teacher():
-        return HttpResponse("غير مسموح", status=403)
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 

@@ -77,7 +77,7 @@ def schedule(request):
             .select_related("class_group", "subject")
             .order_by("start_time")
         )
-        teacher_filter = class_filter = status_filter = period_filter = ""
+        teacher_filter = class_filter = status_filter = period_filter = show_all = ""
 
     now = timezone.now().time()
     next_session = None

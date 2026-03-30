@@ -30,7 +30,7 @@ from .conftest import (
 @pytest.fixture
 def api_admin(db, school):
     """مدير مع API client (force_login لتجاوز SchoolPermissionMiddleware)"""
-    role = RoleFactory(school=school, name="admin")
+    role = RoleFactory(school=school, name="principal")
     user = UserFactory(full_name="مدير المحو")
     MembershipFactory(user=user, school=school, role=role)
     client = APIClient()

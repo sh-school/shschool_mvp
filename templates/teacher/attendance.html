@@ -2,7 +2,8 @@
 {% block title %}تسجيل حضور — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="{% url 'teacher_schedule' %}" parent_label="الأكاديمية" current="تسجيل الحضور" %}
+{% url 'teacher_schedule' as schedule_url %}
+{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="الأكاديمية" current="تسجيل الحضور" %}
 {% endblock %}
 
 {% block content %}

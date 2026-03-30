@@ -30,7 +30,7 @@ from tests.conftest import (
 
 
 def make_admin(db, school):
-    role = RoleFactory(school=school, name="admin")
+    role = RoleFactory(school=school, name="principal")
     user = UserFactory(full_name="مدير النظام")
     MembershipFactory(user=user, school=school, role=role)
     return user

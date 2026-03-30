@@ -14,8 +14,10 @@ from core.models import (
 
 from .conftest import (
     BehaviorInfractionFactory,
+    ClassGroupFactory,
     MembershipFactory,
     RoleFactory,
+    StudentEnrollmentFactory,
     UserFactory,
 )
 
@@ -46,6 +48,21 @@ def superuser(db, school):
     role = RoleFactory(school=school, name="admin")
     MembershipFactory(user=user, school=school, role=role)
     return user
+
+
+@pytest.fixture
+def teacher_student_link(db, school, teacher_user, student_user):
+    """ربط المعلم بالطالب عبر ScheduleSlot + StudentEnrollment"""
+    from datetime import time
+    from operations.models import ScheduleSlot
+    cg = ClassGroupFactory(school=school)
+    StudentEnrollmentFactory(student=student_user, class_group=cg)
+    ScheduleSlot.objects.create(
+        school=school, teacher=teacher_user, class_group=cg,
+        day_of_week=0, period_number=1,
+        start_time=time(7, 30), end_time=time(8, 15),
+    )
+    return cg
 
 
 @pytest.fixture
@@ -120,13 +137,13 @@ class TestBehaviorDashboardExtended:
         resp = client.get("/behavior/dashboard/")
         assert resp.context["is_committee"] is False
 
-    def test_dashboard_with_infractions(self, client_as, teacher_user, school, behavior_infraction):
+    def test_dashboard_with_infractions(self, client_as, teacher_user, school, behavior_infraction, teacher_student_link):
         client = client_as(teacher_user)
         resp = client.get("/behavior/dashboard/")
         assert resp.context["total_deducted"] > 0
 
     def test_dashboard_with_recovery(
-        self, client_as, teacher_user, school, behavior_infraction, principal_user
+        self, client_as, teacher_user, school, behavior_infraction, principal_user, teacher_student_link
     ):
         BehaviorPointRecovery.objects.create(
             infraction=behavior_infraction,
@@ -798,10 +815,11 @@ class TestBehaviorReport:
 
 @pytest.mark.django_db
 class TestBehaviorStatistics:
-    def test_teacher_cannot_access_statistics(self, client_as, teacher_user):
+    def test_teacher_can_access_statistics(self, client_as, teacher_user):
+        """المعلم يرى إحصائيات طلابه فقط (commit a7c3334)."""
         client = client_as(teacher_user)
         resp = client.get("/behavior/statistics/")
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_student_cannot_access_statistics(self, client_as, student_user):
         client = client_as(student_user)
