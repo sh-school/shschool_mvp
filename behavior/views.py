@@ -84,6 +84,7 @@ def behavior_dashboard(request):
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
+    context["can_stats"] = BehaviorPermissions.can_view_stats(request.user)
 
     # ── Chart data ──
     from datetime import timedelta
@@ -558,12 +559,14 @@ def behavior_statistics(request):
     if role in _STATS_TEACHER_ROLES:
         student_ids = get_teacher_student_ids(request.user)
         stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
+        stats["is_scoped"] = True
     else:
         # القيادة ولجنة الضبط والأخصائيون → كل طلاب المدرسة
         _full_access = BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_COMMITTEE
         if role not in _full_access and not request.user.is_superuser:
             return HttpResponseForbidden("للمدير ونائبيه واللجنة فقط.")
         stats = BehaviorService.get_statistics(school)
+        stats["is_scoped"] = False
 
     stats["year"] = year
     return render(request, "behavior/statistics.html", stats)

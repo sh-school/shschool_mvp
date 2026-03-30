@@ -14,6 +14,13 @@
     <span class="exec-date">{{ year }} · QNSA المعيار 2</span>
   </div>
 
+  {% if is_scoped %}
+  <div class="alert alert-info" style="margin-bottom:1rem;padding:10px 16px;background:var(--info-bg,#eff6ff);border:1px solid var(--info-border,#bfdbfe);border-radius:8px;font-size:var(--text-sm);color:#1e40af">
+    {% include "components/icon.html" with name="info" %}
+    تعرض هذه الإحصائيات بيانات طلابك فقط وفق جدولك الدراسي.
+  </div>
+  {% endif %}
+
   {# ── KPI Strip ── #}
   <div class="kpi-strip">
     <div class="kpi-mini kpi-maroon">

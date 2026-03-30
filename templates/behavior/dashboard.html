@@ -90,6 +90,8 @@
     {% endif %}
     {% if is_committee %}
     <a href="{% url 'behavior:committee' %}" class="ql-item">{% include "components/icon.html" with name="scale" %} لجنة الضبط</a>
+    {% endif %}
+    {% if can_stats %}
     <a href="{% url 'behavior:statistics' %}" class="ql-item">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
     {% endif %}
     {% if can_summon %}

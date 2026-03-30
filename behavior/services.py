@@ -68,6 +68,13 @@ class BehaviorPermissions:
     }
     COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}
+    STATS_ROLES = {
+        # لجنة الضبط والقيادة
+        "principal", "vice_admin", "vice_academic", "social_worker", "specialist",
+        "psychologist",
+        # المعلمون — يرون إحصائيات طلابهم فقط
+        "teacher", "coordinator", "ese_teacher",
+    }
 
     @staticmethod
     def can_report(user: CustomUser) -> bool:
@@ -80,6 +87,11 @@ class BehaviorPermissions:
     @staticmethod
     def can_summon(user: CustomUser) -> bool:
         return user.get_role() in BehaviorPermissions.SUMMON_ROLES or user.is_superuser
+
+    @staticmethod
+    def can_view_stats(user: CustomUser) -> bool:
+        """يُعيد True إذا كان المستخدم مسموحاً له برؤية صفحة الإحصائيات."""
+        return user.get_role() in BehaviorPermissions.STATS_ROLES or user.is_superuser
 
 
 class BehaviorService:
