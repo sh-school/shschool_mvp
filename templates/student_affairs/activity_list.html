@@ -44,43 +44,43 @@
   </form>
 
   {# الجدول #}
-  <div class="card-qatar" style="padding:0">
+  <div class="table-wrap">
     {% if activities %}
-    <div class="table-wrap-scroll" style="font-size:.8rem">
-      <table style="width:100%;border-collapse:collapse">
+    <div class="table-wrap-scroll">
+      <table>
         <thead>
-          <tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
-            <th style="padding:8px;text-align:right">الطالب</th>
-            <th style="padding:8px;text-align:right">النشاط</th>
-            <th style="padding:8px;text-align:center">النوع</th>
-            <th style="padding:8px;text-align:center">النطاق</th>
-            <th style="padding:8px;text-align:center">التاريخ</th>
-            <th style="padding:8px;text-align:center">إجراءات</th>
+          <tr>
+            <th>الطالب</th>
+            <th>النشاط</th>
+            <th class="col-center">النوع</th>
+            <th class="col-center">النطاق</th>
+            <th class="col-center">التاريخ</th>
+            <th class="col-actions">إجراءات</th>
           </tr>
         </thead>
         <tbody>
           {% for act in activities %}
-          <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
-            <td style="padding:8px">
+          <tr>
+            <td>
               <a href="{% url 'student_affairs:student_profile' act.student_id %}" style="color:var(--maroon);text-decoration:none;font-weight:600" class="hover:underline">
                 {{ act.student.full_name }}
               </a>
             </td>
-            <td style="padding:8px">{{ act.title }}</td>
-            <td style="padding:8px;text-align:center">
+            <td>{{ act.title }}</td>
+            <td class="col-center">
               <span class="status-badge status-info">{{ act.get_activity_type_display }}</span>
             </td>
-            <td style="padding:8px;text-align:center">
+            <td class="col-center">
               <span class="status-badge
-                {% if act.scope == "international" %}status-purple
-                {% elif act.scope == "national" %}status-success
-                {% elif act.scope == "district" %}status-warning
+                {% if act.scope == 'international' %}status-maroon
+                {% elif act.scope == 'national' %}status-success
+                {% elif act.scope == 'district' %}status-warning
                 {% else %}status-gray{% endif %}">
                 {{ act.get_scope_display }}
               </span>
             </td>
-            <td style="padding:8px;text-align:center;font-size:.75rem">{{ act.date|date:"d/m/Y" }}</td>
-            <td style="padding:8px;text-align:center">
+            <td class="col-center" style="font-size:var(--text-xs)">{{ act.date|date:"d/m/Y" }}</td>
+            <td class="col-actions">
               <div style="display:flex;gap:4px;justify-content:center">
                 <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% include "components/icon.html" with name="file-pen" %}</a>
                 <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" onsubmit="return confirm('حذف النشاط «{{ act.title }}»؟')">

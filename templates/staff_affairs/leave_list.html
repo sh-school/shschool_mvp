@@ -31,31 +31,33 @@
     </div>
   </form>
 
-  <div class="card-qatar" style="padding:0">
+  <div class="table-wrap">
     {% if leaves %}
-    <div class="table-wrap-scroll" style="font-size:.8rem">
-      <table style="width:100%;border-collapse:collapse">
-        <thead><tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
-          <th style="padding:8px;text-align:right">الموظف</th>
-          <th style="padding:8px;text-align:center">النوع</th>
-          <th style="padding:8px;text-align:center">من</th>
-          <th style="padding:8px;text-align:center">إلى</th>
-          <th style="padding:8px;text-align:center">الأيام</th>
-          <th style="padding:8px;text-align:center">الحالة</th>
-          <th style="padding:8px;text-align:center">تفاصيل</th>
-        </tr></thead>
+    <div class="table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="col-center">النوع</th>
+            <th class="col-center">من</th>
+            <th class="col-center">إلى</th>
+            <th class="col-center">الأيام</th>
+            <th class="col-center">الحالة</th>
+            <th class="col-actions">تفاصيل</th>
+          </tr>
+        </thead>
         <tbody>
           {% for l in leaves %}
-          <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
-            <td style="padding:8px"><strong>{{ l.staff.full_name }}</strong></td>
-            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.get_leave_type_display }}</td>
-            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.start_date|date:"d/m" }}</td>
-            <td style="padding:8px;text-align:center;font-size:.75rem">{{ l.end_date|date:"d/m" }}</td>
-            <td style="padding:8px;text-align:center;font-weight:600">{{ l.days_count }}</td>
-            <td style="padding:8px;text-align:center">
-              <span class="status-badge {% if l.status == "approved" %}status-success{% elif l.status == "rejected" %}status-danger{% elif l.status == "pending" %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
+          <tr>
+            <td><strong>{{ l.staff.full_name }}</strong></td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ l.get_leave_type_display }}</td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ l.start_date|date:"d/m" }}</td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ l.end_date|date:"d/m" }}</td>
+            <td class="col-center" style="font-weight:600">{{ l.days_count }}</td>
+            <td class="col-center">
+              <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
             </td>
-            <td style="padding:8px;text-align:center"><a href="{% url 'staff_affairs:leave_detail' l.pk %}" class="btn-secondary btn-xs">عرض</a></td>
+            <td class="col-actions"><a href="{% url 'staff_affairs:leave_detail' l.pk %}" class="btn-secondary btn-xs">عرض</a></td>
           </tr>
           {% endfor %}
         </tbody>

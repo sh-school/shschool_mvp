@@ -43,44 +43,44 @@
   </form>
 
   {# الجدول #}
-  <div class="card-qatar" style="padding:0">
+  <div class="table-wrap">
     {% if transfers %}
-    <div class="table-wrap-scroll" style="font-size:.8rem">
-      <table style="width:100%;border-collapse:collapse">
+    <div class="table-wrap-scroll">
+      <table>
         <thead>
-          <tr style="border-bottom:2px solid var(--border);font-size:.7rem;color:var(--muted)">
-            <th style="padding:8px;text-align:right">الطالب</th>
-            <th style="padding:8px;text-align:center">الاتجاه</th>
-            <th style="padding:8px;text-align:right">المدرسة الأخرى</th>
-            <th style="padding:8px;text-align:center">التاريخ</th>
-            <th style="padding:8px;text-align:center">الحالة</th>
-            <th style="padding:8px;text-align:center">تفاصيل</th>
+          <tr>
+            <th>الطالب</th>
+            <th class="col-center">الاتجاه</th>
+            <th>المدرسة الأخرى</th>
+            <th class="col-center">التاريخ</th>
+            <th class="col-center">الحالة</th>
+            <th class="col-actions">تفاصيل</th>
           </tr>
         </thead>
         <tbody>
           {% for tr in transfers %}
-          <tr style="border-bottom:1px solid var(--border)" class="hover:bg-gray-50 dark:hover:bg-white/5">
-            <td style="padding:8px"><strong>{{ tr.student.full_name }}</strong></td>
-            <td style="padding:8px;text-align:center">
+          <tr>
+            <td><strong>{{ tr.student.full_name }}</strong></td>
+            <td class="col-center">
               {% if tr.direction == "in" %}
               <span class="status-badge status-success">← وارد</span>
               {% else %}
               <span class="status-badge status-warning">→ صادر</span>
               {% endif %}
             </td>
-            <td style="padding:8px">{{ tr.other_school_name }}</td>
-            <td style="padding:8px;text-align:center">{{ tr.transfer_date|date:"d/m/Y" }}</td>
-            <td style="padding:8px;text-align:center">
+            <td>{{ tr.other_school_name }}</td>
+            <td class="col-center">{{ tr.transfer_date|date:"d/m/Y" }}</td>
+            <td class="col-center">
               <span class="status-badge
-                {% if tr.status == "pending" %}status-warning
-                {% elif tr.status == "approved" %}status-info
-                {% elif tr.status == "completed" %}status-success
-                {% elif tr.status == "rejected" %}status-danger
+                {% if tr.status == 'pending' %}status-warning
+                {% elif tr.status == 'approved' %}status-info
+                {% elif tr.status == 'completed' %}status-success
+                {% elif tr.status == 'rejected' %}status-danger
                 {% else %}status-gray{% endif %}">
                 {{ tr.get_status_display }}
               </span>
             </td>
-            <td style="padding:8px;text-align:center">
+            <td class="col-actions">
               <a href="{% url 'student_affairs:transfer_detail' tr.pk %}" class="btn-secondary btn-xs">عرض</a>
             </td>
           </tr>
