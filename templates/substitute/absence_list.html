@@ -55,10 +55,10 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <span class="px-2 py-0.5 rounded-full text-xs font-medium
-            {% if absence.status == 'covered' %}bg-green-100 text-green-700
-            {% elif absence.status == 'uncovered' %}bg-red-100 text-red-700
-            {% else %}bg-amber-100 text-amber-700{% endif %}">
+          <span class="status-badge
+            {% if absence.status == 'covered' %}status-success
+            {% elif absence.status == 'uncovered' %}status-danger
+            {% else %}status-warning{% endif %}">
             {{ absence.get_status_display }}
           </span>
           <a href="{% url 'absence_detail' absence.id %}"

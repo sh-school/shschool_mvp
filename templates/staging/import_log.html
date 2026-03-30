@@ -70,11 +70,11 @@
             </td>
             <td class="px-4 py-3 text-center">
               {% if log.status == "completed" %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">مكتمل</span>
+                <span class="status-badge status-success">مكتمل</span>
               {% elif log.status == "failed" %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">فشل</span>
+                <span class="status-badge status-danger">فشل</span>
               {% else %}
-                <span class="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700">{{ log.get_status_display }}</span>
+                <span class="status-badge status-warning">{{ log.get_status_display }}</span>
               {% endif %}
             </td>
           </tr>

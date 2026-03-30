@@ -155,10 +155,10 @@
           <!-- الحالة -->
           <td class="px-4 py-3 text-center">
             {% if semester == 'annual' and row.annual_result %}
-              <span class="px-2 py-0.5 rounded-full text-xs
-                {% if row.annual_result.status == 'pass' %}bg-green-100 text-green-700
-                {% elif row.annual_result.status == 'fail' %}bg-red-100 text-red-700
-                {% else %}bg-amber-100 text-amber-700{% endif %}">
+              <span class="status-badge
+                {% if row.annual_result.status == 'pass' %}status-success
+                {% elif row.annual_result.status == 'fail' %}status-danger
+                {% else %}status-warning{% endif %}">
                 {{ row.annual_result.get_status_display }}
               </span>
             {% elif row.semester_result and row.semester_result.total is not None %}

@@ -12,10 +12,10 @@
         <p class="font-medium text-gray-800 text-sm leading-snug">{{ book.title }}</p>
         <p class="text-xs text-gray-500 mt-0.5 truncate">{{ book.author }}</p>
       </div>
-      <span class="text-xs px-2 py-0.5 rounded-full me-2 shrink-0
-        {% if book.book_type == 'PRINT' %}bg-blue-100 text-blue-700
-        {% elif book.book_type == 'DIGITAL' %}bg-purple-100 text-purple-700
-        {% else %}bg-gray-100 text-gray-700{% endif %}">
+      <span class="status-badge me-2 shrink-0
+        {% if book.book_type == 'PRINT' %}status-info
+        {% elif book.book_type == 'DIGITAL' %}status-maroon
+        {% else %}status-gray{% endif %}">
         {{ book.get_book_type_display }}
       </span>
     </div>
