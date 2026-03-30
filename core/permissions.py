@@ -167,7 +167,7 @@ QUALITY_EVALUATE = ALL_STAFF_ROLES  # الجميع يُقيَّم
 NOTIFICATION_BROADCAST = {"principal", "vice_admin", "vice_academic"}
 
 # ── الخطة التشغيلية ─────────────────────────────────────────────
-STAGING_MANAGE = {"principal", "vice_academic", "vice_admin", "admin"}
+STAGING_MANAGE = {"principal", "vice_academic", "vice_admin"}
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -372,16 +372,21 @@ def schedule_view_required(view_func):
 # 5. UTILITY FUNCTIONS — دوال مساعدة
 # ══════════════════════════════════════════════════════════════════════
 
-def is_admin_or_principal(user):
+def is_leadership(user):
     """
-    يتحقق إذا كان المستخدم مديراً أو نائباً — دالة مساعدة (ليست ديكوريتور).
-    تُستخدم في الـ views مباشرة: if not is_admin_or_principal(request.user)
+    يتحقق إذا كان المستخدم من القيادة العليا (T1-T2) — مدير أو نائب.
+    لا يشمل دور admin (الإداري العادي T4).
+    تُستخدم في الـ views مباشرة: if not is_leadership(request.user)
     """
     if not user or not user.is_authenticated:
         return False
     if user.is_superuser:
         return True
-    return user.get_role() in ("principal", "vice_admin", "vice_academic", "admin")
+    return user.get_role() in ("principal", "vice_admin", "vice_academic")
+
+
+# ── Backward-compatible alias (مرجع قديم — سيُزال لاحقاً) ──
+is_admin_or_principal = is_leadership
 
 
 def can_manage_department(user, department):
@@ -458,7 +463,7 @@ def get_teacher_student_ids(user):
     ALL_STUDENTS_ROLES = {
         "principal", "vice_admin", "vice_academic",
         "social_worker", "psychologist", "academic_advisor",
-        "admin_supervisor", "nurse", "admin",
+        "admin_supervisor", "nurse",
         # v7 — الأدوار الجديدة التي تحتاج رؤية كل الطلاب:
         "speech_therapist", "occupational_therapist",  # يُحال إليهم طلاب من مختلف الفصول
         "transport_officer",   # يحتاج كل طلاب النقل لإسناد الحافلات
@@ -546,7 +551,7 @@ def get_department_teacher_ids(user):
 
     role = user.get_role()
     ALL_TEACHERS_ROLES = {
-        "principal", "vice_admin", "vice_academic", "admin",
+        "principal", "vice_admin", "vice_academic", "admin_supervisor",
     }
     if role in ALL_TEACHERS_ROLES:
         return None

@@ -167,6 +167,13 @@
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
+    {% elif role == "admin" %}
+      {# الإداري (T4) — قوائم مقيّدة: لا يحصل على قوائم المدير الكاملة #}
+      <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
+      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+
     {% elif role == "secretary" or role == "admin_supervisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
