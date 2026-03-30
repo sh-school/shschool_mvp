@@ -53,15 +53,18 @@ from django.db.models import Q
 from django.http import JsonResponse
 
 from core.models import CustomUser, StudentEnrollment
+from core.permissions import ALL_STAFF_ROLES, role_required
 
 
 @login_required
+@role_required(ALL_STAFF_ROLES)
 @ratelimit(key="user", rate="30/m", method="GET", block=True)
 def student_search_api(request):
     """
     بحث سريع عن الطلاب للتقارير والتكميل التلقائي
     [مهمة 7] محدود بـ 30 طلب/دقيقة لكل مستخدم
     النتائج محدودة بـ 10 — لا يمكن استخراج قائمة كاملة
+    Staff-only: الطلاب وأولياء الأمور لا يحتاجون بحث طلاب.
     """
     school = request.user.get_school()
     q = request.GET.get("q", "").strip()
