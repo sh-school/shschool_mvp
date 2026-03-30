@@ -7,11 +7,12 @@
 
 {% block content %}
 <div class="exec-dash">
- {# ── Exec Header ── #}
- <div class="exec-header">
-   <div>
-     <h1>{% include "components/icon.html" with name="scale" %} الملف السلوكي</h1>
-     <span class="exec-date">{{ student.full_name }} — {{ student.national_id }}</span>
+ {# ── Profile Header ── #}
+ <div class="profile-header">
+   <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
+   <div class="profile-info">
+     <div class="profile-name">{% include "components/icon.html" with name="scale" %} الملف السلوكي</div>
+     <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id }}</span></div>
    </div>
    <div class="flex gap-2 flex-wrap">
      {% if can_summon %}

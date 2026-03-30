@@ -9,13 +9,15 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ staff_user.full_name }}</h1>
-      <p class="exec-subtitle">
-        {% if membership %}{{ role_display }}{% endif %}
-        {% if membership.department_obj %} — {{ membership.department_obj.name }}{% endif %}
-      </p>
+  {# ── Profile Header ── #}
+  <div class="profile-header">
+    <div class="profile-avatar">{{ staff_user.full_name|truncatechars:1 }}</div>
+    <div class="profile-info">
+      <div class="profile-name">{{ staff_user.full_name }}</div>
+      <div class="profile-meta">
+        {% if membership %}<span>{{ role_display }}</span>{% endif %}
+        {% if membership.department_obj %}<span>{{ membership.department_obj.name }}</span>{% endif %}
+      </div>
     </div>
     <div class="exec-meta" style="gap:6px">
       <a href="/teacher/schedule/teacher/{{ staff_user.id }}/weekly/" class="btn-secondary btn-sm">
@@ -51,62 +53,57 @@
   <div class="charts-grid-2">
 
     {# ── البيانات الشخصية ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
-      <div class="dash-list">
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الاسم:</span> <strong>{{ staff_user.full_name }}</strong></div>
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الرقم الوطني:</span> <span dir="ltr">{{ staff_user.national_id }}</span></div>
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
+      <dl class="detail-dl">
+        <dt>الاسم</dt><dd>{{ staff_user.full_name }}</dd>
+        <dt>الرقم الوطني</dt><dd dir="ltr">{{ staff_user.national_id }}</dd>
         {% if membership %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الدور:</span> {{ role_display }}</div>
+        <dt>الدور</dt><dd>{{ role_display }}</dd>
         {% if membership.department_obj %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">القسم:</span> {{ membership.department_obj.name }}</div>
+        <dt>القسم</dt><dd>{{ membership.department_obj.name }}</dd>
         {% endif %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">تاريخ الانضمام:</span> {{ membership.joined_at|date:"d/m/Y" }}</div>
+        <dt>تاريخ الانضمام</dt><dd>{{ membership.joined_at|date:"d/m/Y" }}</dd>
         {% endif %}
         {% if staff_user.phone %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">الجوال:</span> <span dir="ltr">{{ staff_user.phone }}</span></div>
+        <dt>الجوال</dt><dd dir="ltr">{{ staff_user.phone }}</dd>
         {% endif %}
         {% if staff_user.email %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">البريد:</span> <span dir="ltr">{{ staff_user.email }}</span></div>
+        <dt>البريد</dt><dd dir="ltr">{{ staff_user.email }}</dd>
         {% endif %}
-      </div>
+      </dl>
 
       {# الرخصة المهنية #}
-      <div class="dash-chart-title" style="margin-top:12px">{% include "components/icon.html" with name="lock" %} الرخصة المهنية</div>
-      <div class="dash-list">
+      <div class="detail-section-title" style="margin-top:12px;padding-top:12px">{% include "components/icon.html" with name="lock" %} الرخصة المهنية</div>
+      <dl class="detail-dl">
         {% if staff_user.professional_license_number %}
-        <div class="dash-list-item"><span style="color:var(--muted);min-width:110px">رقم الرخصة:</span> {{ staff_user.professional_license_number }}</div>
-        <div class="dash-list-item">
-          <span style="color:var(--muted);min-width:110px">تنتهي:</span>
+        <dt>رقم الرخصة</dt><dd>{{ staff_user.professional_license_number }}</dd>
+        <dt>تنتهي</dt>
+        <dd>
           {% if staff_user.professional_license_expiry %}
-          <span class="text-xs px-2 py-0.5 rounded-full
-            {% if staff_user.professional_license_expiry < today %}bg-red-100 text-red-800
-            {% else %}bg-green-100 text-green-800{% endif %}">
+          <span class="status-badge {% if staff_user.professional_license_expiry < today %}status-danger{% else %}status-success{% endif %}">
             {{ staff_user.professional_license_expiry|date:"d/m/Y" }}
           </span>
           {% else %}—{% endif %}
-        </div>
+        </dd>
         {% else %}
-        <div class="dash-list-item" style="color:var(--status-warning);font-size:.8rem">لا توجد رخصة مهنية مسجّلة</div>
+        <dt>الحالة</dt><dd style="color:var(--status-warning)">لا توجد رخصة مهنية مسجّلة</dd>
         {% endif %}
-      </div>
+      </dl>
     </div>
 
     {# ── سجل الغياب ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="ban" %} سجل الغياب ({{ absence_count }} يوم)</div>
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="ban" %} سجل الغياب ({{ absence_count }} يوم)</div>
       {% if absences_recent %}
       <div class="dash-list">
         {% for a in absences_recent %}
         <div class="dash-list-item">
           <div style="flex:1">
-            <span style="font-size:.8rem">{{ a.get_reason_display }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ a.date|date:"d/m/Y" }}</span>
+            <span>{{ a.get_reason_display }}</span>
+            <span class="text-xs text-muted" style="margin-inline-start:4px">{{ a.date|date:"d/m/Y" }}</span>
           </div>
-          <span class="text-xs px-2 py-0.5 rounded-full
-            {% if a.status == "covered" %}bg-green-100 text-green-800
-            {% elif a.status == "uncovered" %}bg-red-100 text-red-800
-            {% else %}bg-yellow-100 text-yellow-800{% endif %}">{{ a.get_status_display }}</span>
+          <span class="status-badge {% if a.status == 'covered' %}status-success{% elif a.status == 'uncovered' %}status-danger{% else %}status-warning{% endif %}">{{ a.get_status_display }}</span>
         </div>
         {% endfor %}
       </div>
@@ -116,15 +113,15 @@
     </div>
 
     {# ── التقييمات ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</div>
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</div>
       {% if evaluations %}
       <div class="dash-list">
         {% for ev in evaluations %}
         <div class="dash-list-item">
           <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ ev.academic_year }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ ev.get_recommendation_display }}</span>
+            <strong>{{ ev.academic_year }}</strong>
+            <span class="text-xs text-muted" style="margin-inline-start:4px">{{ ev.get_recommendation_display }}</span>
           </div>
           <span style="font-weight:700;font-size:.9rem;color:{% if ev.overall_score >= 4 %}var(--status-success){% elif ev.overall_score >= 3 %}var(--status-warning){% else %}var(--status-danger){% endif %}">
             {{ ev.overall_score|floatformat:1 }}/5
@@ -138,29 +135,25 @@
     </div>
 
     {# ── الإجازات ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} الإجازات</div>
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="calendar" %} الإجازات</div>
       {% if leave_balances %}
-      <div style="margin-bottom:8px;font-size:.7rem;font-weight:600;color:var(--muted)">أرصدة {{ year }}:</div>
+      <div class="detail-section-title" style="font-size:var(--text-xs);border:none;padding:0;margin-bottom:8px">أرصدة {{ year }}:</div>
       <div class="dash-list">
         {% for b in leave_balances %}
         <div class="dash-list-item">
-          <span style="font-size:.8rem">{{ b.get_leave_type_display }}</span>
-          <span style="font-size:.8rem;font-weight:600">{{ b.remaining_days }}/{{ b.total_days }} يوم</span>
+          <span>{{ b.get_leave_type_display }}</span>
+          <span style="font-weight:600">{{ b.remaining_days }}/{{ b.total_days }} يوم</span>
         </div>
         {% endfor %}
       </div>
       {% endif %}
       {% if leaves %}
-      <div style="margin-top:8px;font-size:.7rem;font-weight:600;color:var(--muted)">آخر الطلبات:</div>
+      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs);border:none;padding:0;margin-bottom:4px">آخر الطلبات:</div>
       {% for l in leaves %}
-      <div class="dash-list-item" style="font-size:.8rem">
+      <div class="dash-list-item">
         <span>{{ l.get_leave_type_display }} ({{ l.days_count }} يوم)</span>
-        <span class="text-xs px-2 py-0.5 rounded-full
-          {% if l.status == "approved" %}bg-green-100 text-green-800
-          {% elif l.status == "rejected" %}bg-red-100 text-red-800
-          {% elif l.status == "pending" %}bg-yellow-100 text-yellow-800
-          {% else %}bg-gray-100 text-gray-600{% endif %}">{{ l.get_status_display }}</span>
+        <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
       </div>
       {% endfor %}
       {% elif not leave_balances %}
