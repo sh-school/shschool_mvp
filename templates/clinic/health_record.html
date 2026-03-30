@@ -8,11 +8,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="hospital" %} السجل الصحي</h1>
-      <span class="exec-date">{{ student.full_name }} — {{ student.national_id }}</span>
+  {# ── Profile Header ── #}
+  <div class="profile-header">
+    <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
+    <div class="profile-info">
+      <div class="profile-name">{% include "components/icon.html" with name="hospital" %} السجل الصحي</div>
+      <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id }}</span></div>
     </div>
     <div class="flex gap-2 flex-wrap">
       <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-danger btn-sm no-underline">+ تسجيل زيارة جديدة</a>
