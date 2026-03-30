@@ -39,6 +39,11 @@ ROLE_INHERITS = {
     "vice_academic": "coordinator",     # النائب الأكاديمي يرث المنسق
     "vice_admin": "admin_supervisor",   # النائب الإداري يرث المشرف الإداري
     "principal": "vice_academic",       # المدير يرث النائب الأكاديمي
+    # v7 — مساعدون يرثون من أساتذتهم
+    "teacher_assistant": "teacher",     # مساعد المعلم يرث المعلم (جدول + حضور)
+    "ese_assistant": "ese_teacher",     # مساعد ESE يرث معلم ESE
+    "activities_coordinator": "coordinator",  # منسق أنشطة يرث المنسق
+    "transport_officer": "bus_supervisor",    # مسؤول نقل يرث مشرف النقل
 }
 
 
@@ -263,6 +268,8 @@ def department_scoped(*roles):
     if len(roles) == 1 and isinstance(roles[0], (set, frozenset, list, tuple)):
         roles = tuple(roles[0])
 
+    expanded = expand_roles(set(roles))
+
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
@@ -276,7 +283,7 @@ def department_scoped(*roles):
             if user_role in LEADERSHIP:
                 return view_func(request, *args, user_department=None, **kwargs)
 
-            if user_role not in roles:
+            if user_role not in expanded:
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
@@ -291,7 +298,7 @@ def department_scoped(*roles):
             kwargs["user_department"] = dept
             return view_func(request, *args, **kwargs)
 
-        wrapper._required_roles = roles
+        wrapper._required_roles = tuple(expanded)
         wrapper._department_scoped = True
         return wrapper
 

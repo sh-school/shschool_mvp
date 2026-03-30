@@ -82,7 +82,51 @@ class TestTierClassification:
 
 
 # ══════════════════════════════════════════════════════════
-#  3. PERMISSION SETS — مجموعات الصلاحيات
+#  3. ROLE INHERITANCE — وراثة الأدوار
+# ══════════════════════════════════════════════════════════
+
+class TestRoleInheritance:
+    """التأكد من أن سلسلة الوراثة صحيحة للأدوار v7."""
+
+    def test_teacher_assistant_inherits_teacher(self):
+        from core.permissions import expand_roles
+        expanded = expand_roles({"teacher"})
+        assert "teacher_assistant" in expanded
+
+    def test_ese_assistant_inherits_ese_teacher(self):
+        from core.permissions import expand_roles
+        expanded = expand_roles({"ese_teacher"})
+        assert "ese_assistant" in expanded
+
+    def test_activities_coordinator_inherits_coordinator(self):
+        from core.permissions import expand_roles
+        expanded = expand_roles({"coordinator"})
+        assert "activities_coordinator" in expanded
+
+    def test_transport_officer_inherits_bus_supervisor(self):
+        from core.permissions import expand_roles
+        expanded = expand_roles({"bus_supervisor"})
+        assert "transport_officer" in expanded
+
+    def test_full_chain_teacher_to_principal(self):
+        from core.permissions import expand_roles
+        expanded = expand_roles({"teacher"})
+        assert "principal" in expanded
+        assert "teacher_assistant" in expanded
+        assert "ese_assistant" in expanded
+        assert "activities_coordinator" in expanded
+
+    def test_role_required_expands_teacher(self):
+        """@role_required({"teacher"}) should also allow teacher_assistant."""
+        from core.permissions import expand_roles
+        expanded = expand_roles({"teacher"})
+        assert "teacher_assistant" in expanded
+        assert "ese_teacher" in expanded
+        assert "coordinator" in expanded
+
+
+# ══════════════════════════════════════════════════════════
+#  4. PERMISSION SETS — مجموعات الصلاحيات
 # ══════════════════════════════════════════════════════════
 
 @pytest.mark.django_db
