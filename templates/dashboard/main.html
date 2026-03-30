@@ -625,7 +625,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     data:{labels:d.labels.slice(-7), datasets:[{
       label:'نسبة الحضور %',
       data:d.datasets[0].data.slice(-7),
-      borderColor:'#16a34a',backgroundColor:'rgba(22,163,74,0.1)',
+      borderColor:'#0D7B6A',backgroundColor:'rgba(13,123,106,0.1)', /* chart-2 */
       fill:true,tension:0.4,pointRadius:2,borderWidth:1.5
     }]},
     options:{...OPTS,plugins:{legend:{display:false}},
@@ -641,7 +641,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     type:'doughnut',
     data:{labels:d.labels, datasets:[{
       data:d.datasets[0].data,
-      backgroundColor:['#16a34a','#22c55e','#84cc16','#eab308','#f97316','#dc2626']
+      backgroundColor:['#16a34a','#0D7B6A','#D4A843','#d97706','#dc2626','#8A1538'] /* success,chart-2,chart-4,warning,danger,chart-1 */
     }]},
     options:{...OPTS,plugins:{legend:{position:'bottom',labels:{padding:6,font:{size:9}}}},cutout:'55%'}
   });
