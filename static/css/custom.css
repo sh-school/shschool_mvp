@@ -1768,6 +1768,21 @@ textarea:focus-visible {
   }
 }
 
+/* ── High Contrast — WCAG 2.2 (prefers-contrast) ──────────── */
+@media (prefers-contrast: more) {
+  :root {
+    --border: #999;
+    --border-strong: #666;
+    --text-muted: #555;
+    --text-secondary: #333;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
+    --focus-ring: 0 0 0 4px rgba(138,21,56,.4);
+  }
+  .kpi-mini, .q-kpi, .card-qatar, .table-wrap, .filter-bar, .detail-section {
+    border-width: 2px;
+  }
+}
+
 /* ── Skip Navigation ───────────────────────────────────────── */
 .skip-nav {
   position: absolute;

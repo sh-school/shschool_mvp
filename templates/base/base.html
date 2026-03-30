@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=137">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=138">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -100,7 +100,7 @@
 
     {# ── Hamburger (mobile) ── #}
     <button id="mob-menu-btn" class="nav-hamburger"
-            aria-label="القائمة" aria-expanded="false">☰</button>
+            aria-label="القائمة" aria-expanded="false"><span aria-hidden="true">☰</span></button>
 
     {# ── Role-based nav ── #}
     <div class="nb-bar">
@@ -409,7 +409,7 @@
 
 {# ════════════════ FOOTER ════════════════════════════════════════════════ #}
 {% load tz %}
-<footer class="site-footer">
+<footer class="site-footer" role="contentinfo">
   <p class="site-footer-text">
     {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
     &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
@@ -425,7 +425,7 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
-<script src="{% static 'js/base.js' %}?v=104" defer></script>
+<script src="{% static 'js/base.js' %}?v=105" defer></script>
 <script src="{% static 'js/app.js' %}?v=101" defer></script>
 
 {% block extra_js %}{% endblock %}

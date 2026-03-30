@@ -269,6 +269,10 @@ if ('serviceWorker' in navigator && !location.pathname.startsWith('/parents/')) 
 }
 
 
+/* ── WCAG 2.2: menu role propagation ──────────────────────── */
+document.querySelectorAll('[role="menu"] a').forEach(function(a) { a.setAttribute('role', 'menuitem'); });
+document.querySelectorAll('[role="menu"] .sd-label').forEach(function(l) { l.setAttribute('role', 'none'); });
+
 /* ── Auto-dismiss flash messages after 7s ─────────────────── */
 setTimeout(function() {
   document.querySelectorAll('.msg-bar').forEach(function(el) {
