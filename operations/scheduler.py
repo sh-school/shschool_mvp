@@ -485,6 +485,34 @@ def generate_schedule(
             "errors": ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."],
         }
 
+    # ── 2c. تحقق من سعة الفصول ──
+    from .scheduler_constraints import get_max_periods_for_day
+
+    class_demand = defaultdict(int)
+    class_names = {}
+    class_levels = {}
+    for task in tasks:
+        class_demand[task.class_id] += 1
+        class_names[task.class_id] = task.class_name
+        class_levels[task.class_id] = task.level_type
+
+    capacity_warnings = []
+    for cid, demand in class_demand.items():
+        level = class_levels.get(cid, "")
+        # Weekly capacity: Sun-Wed = 7 periods each, Thu = 6 (prep) or 7 (sec)
+        thu_max = get_max_periods_for_day(4, level)
+        weekly_capacity = 4 * 7 + thu_max  # Sun-Wed (4 days × 7) + Thu
+        if demand > weekly_capacity:
+            overflow = demand - weekly_capacity
+            capacity_warnings.append(
+                f"⚠️ {class_names[cid]}: مطلوب {demand} حصة لكن السعة {weekly_capacity} فقط "
+                f"(فائض {overflow} — يجب تقليل {overflow} حصة)"
+            )
+
+    if capacity_warnings:
+        for w in capacity_warnings:
+            errors.append(w)
+
     # ── 2. تحميل التفضيلات ──
     prefs_qs = TeacherPreference.objects.filter(school=school, academic_year=academic_year)
     preferences = {}

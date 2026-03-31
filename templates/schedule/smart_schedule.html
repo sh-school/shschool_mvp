@@ -32,7 +32,34 @@
     <div class="kpi-value text-status-info">{{ classes_count }} فصل / {{ teachers_count }} معلم</div>
     <div class="kpi-label">فصول ومعلمون مشاركون</div>
   </div>
+  {% if overcapacity_classes %}
+  <div class="kpi-card" style="border-color:var(--status-danger)">
+    <div class="kpi-value text-status-danger">{{ overcapacity_classes|length }}</div>
+    <div class="kpi-label">فصول فوق السعة</div>
+  </div>
+  {% endif %}
 </div>
+
+{% if overcapacity_classes %}
+<div class="card-qatar mb-6 p-0 overflow-hidden" style="border:2px solid var(--status-danger)">
+  <div class="card-bar m-0 rounded-t-xl text-base px-5 py-3" style="background:var(--status-danger);color:#fff">
+    {% include "components/icon.html" with name="alert-triangle" %} تحذير: فصول تتجاوز السعة الأسبوعية
+  </div>
+  <div class="p-5">
+    <p class="text-sm text-secondary mb-3">
+      الفصول التالية لديها حصص مطلوبة أكثر من الخانات المتاحة في الأسبوع.
+      <strong>يجب تقليل الحصص قبل التوليد</strong> وإلا ستفشل بعض الحصص في الجدولة.
+    </p>
+    <ul class="list-disc pr-6 text-sm space-y-1">
+      {% for oc in overcapacity_classes %}
+      <li class="text-status-danger font-semibold">
+        مطلوب {{ oc.demand }} حصة — السعة {{ oc.capacity }} فقط — فائض {{ oc.overflow }} حصة
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
 
 {# ── زر التوليد ── #}
 {% if assignments %}

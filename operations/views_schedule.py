@@ -393,6 +393,10 @@ def substitute_report(request):
 @role_required(_ADMIN_SCHEDULE_ROLES)
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
+    from collections import defaultdict
+
+    from .scheduler_constraints import get_max_periods_for_day
+
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -404,6 +408,33 @@ def smart_schedule_view(request):
     generations = ScheduleGeneration.objects.filter(school=school, academic_year=year)[:5]
     total_weekly = sum(a.weekly_periods for a in assignments)
 
+    # ── Pre-validation: capacity check per class ──
+    class_demand = defaultdict(int)
+    class_levels = {}
+    for a in assignments:
+        cid = str(a.class_group_id)
+        class_demand[cid] += a.weekly_periods
+        grade = a.class_group.grade
+        if grade in (7, 8, 9):
+            class_levels[cid] = "prep"
+        elif grade in (10, 11, 12):
+            class_levels[cid] = "sec"
+        else:
+            class_levels.setdefault(cid, "")
+
+    overcapacity_classes = []
+    for cid, demand in class_demand.items():
+        level = class_levels.get(cid, "")
+        thu_max = get_max_periods_for_day(4, level)
+        weekly_capacity = 4 * 7 + thu_max
+        if demand > weekly_capacity:
+            overcapacity_classes.append({
+                "class_id": cid,
+                "demand": demand,
+                "capacity": weekly_capacity,
+                "overflow": demand - weekly_capacity,
+            })
+
     return render(request, "schedule/smart_schedule.html", {
         "assignments": assignments,
         "generations": generations,
@@ -411,6 +442,7 @@ def smart_schedule_view(request):
         "total_weekly": total_weekly,
         "classes_count": assignments.values("class_group").distinct().count(),
         "teachers_count": assignments.values("teacher").distinct().count(),
+        "overcapacity_classes": overcapacity_classes,
     })
 
 
@@ -444,7 +476,14 @@ def smart_generate(request):
         )
     else:
         failed = ps.get("failed", len(result["errors"]))
-        for err in result["errors"][:5]:
+        # Show capacity warnings as error-level messages first
+        capacity_errors = [e for e in result.get("errors", []) if e.startswith("⚠️")]
+        other_errors = [e for e in result.get("errors", []) if not e.startswith("⚠️")]
+
+        for ce in capacity_errors:
+            messages.error(request, ce)
+
+        for err in other_errors[:5]:
             messages.warning(request, err)
         if total_placed > 0:
             messages.info(
