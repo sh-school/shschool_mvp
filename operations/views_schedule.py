@@ -431,22 +431,30 @@ def smart_generate(request):
         messages.error(request, f"خطأ في التوليد: {exc}")
         return redirect("smart_schedule")
 
+    ps = result.get("phase_stats", {})
+    total_placed = ps.get("phase1", 0) + ps.get("phase2", 0) + ps.get("phase3", 0)
+    total_tasks = result.get("total_tasks", 0)
+
     if result["success"]:
         messages.success(
             request,
-            f"تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
-            f"{result['quality']['total_slots']} حصة في {result['elapsed_ms']}ms",
+            f"✅ تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
+            f"{total_placed}/{total_tasks} حصة في {result['elapsed_ms']}ms "
+            f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
         )
     else:
+        failed = ps.get("failed", len(result["errors"]))
         for err in result["errors"][:5]:
             messages.warning(request, err)
-        quality = result.get("quality")
-        if quality and quality.get("total_slots", 0) > 0:
+        if total_placed > 0:
             messages.info(
                 request,
-                f"تم توليد {quality['total_slots']} حصة (جودة: {quality['score']}%) "
-                f"مع {len(result['errors'])} تعذّر",
+                f"تم توليد {total_placed}/{total_tasks} حصة (جودة: {result['quality']['score']}%) "
+                f"— {failed} تعذّر "
+                f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
             )
+        if len(result["errors"]) > 5:
+            messages.warning(request, f"... و{len(result['errors']) - 5} أخطاء أخرى")
 
     return redirect("smart_schedule")
 
