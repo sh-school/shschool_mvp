@@ -16,6 +16,7 @@ from operations.models import (
     ScheduleSlot,
     Session,
     StudentAttendance,
+    SubjectClassAssignment,
     SubstituteAssignment,
     TeacherAbsence,
     TeacherSwap,
@@ -151,6 +152,39 @@ class AttendanceService:
                 except Exception as exc:
                     logger.warning(
                         "check_absence_threshold: Hub dispatch failed [student=%s]: %s",
+                        student.pk,
+                        exc,
+                    )
+
+                # ── إشعار الأخصائي الاجتماعي ──
+                try:
+                    from core.models import Membership
+                    from notifications.models import InAppNotification
+
+                    sw_user_ids = list(
+                        Membership.objects.filter(
+                            school=school,
+                            is_active=True,
+                            role__name="social_worker",
+                        ).values_list("user_id", flat=True)
+                    )
+                    for sw_id in sw_user_ids:
+                        InAppNotification.objects.create(
+                            user_id=sw_id,
+                            school=school,
+                            title=f"تنبيه غياب متكرر: {student.full_name}",
+                            body=(
+                                f"الطالب {student.full_name} تجاوز عتبة الغياب "
+                                f"({unexcused_absent} يوماً من أصل {threshold_days} مسموح). "
+                                f"يرجى المتابعة."
+                            ),
+                            event_type="absence",
+                            priority="high",
+                            related_url=f"/student-affairs/student/{student.pk}/",
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "check_absence_threshold: social worker notify failed [student=%s]: %s",
                         student.pk,
                         exc,
                     )
@@ -462,12 +496,16 @@ class SubstituteService:
         day_of_week: int,
         period_number: int,
         exclude_teacher: CustomUser | None = None,
+        subject_id: int | None = None,
     ) -> QuerySet:
         """
         إيجاد معلمين متاحين للبدل:
         - لديهم membership نشطة في المدرسة
         - ليس لديهم حصة في نفس اليوم والحصة
         - لم يُسجَّل غيابهم في نفس اليوم
+
+        إذا تم تمرير subject_id، يُرتَّب المعلمون بحيث يظهر
+        معلمو نفس المادة أولاً ثم البقية.
         """
         from core.models import Membership
 
@@ -493,7 +531,30 @@ class SubstituteService:
 
         from core.models import CustomUser
 
-        return CustomUser.objects.filter(id__in=available_ids).order_by("full_name")
+        qs = CustomUser.objects.filter(id__in=available_ids)
+
+        if subject_id:
+            from django.db.models import Case, When, Value, IntegerField
+
+            same_subject_ids = set(
+                SubjectClassAssignment.objects.filter(
+                    school=school,
+                    subject_id=subject_id,
+                    is_active=True,
+                    teacher_id__in=available_ids,
+                ).values_list("teacher_id", flat=True)
+            )
+            qs = qs.annotate(
+                same_subject=Case(
+                    When(id__in=same_subject_ids, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by("same_subject", "full_name")
+        else:
+            qs = qs.order_by("full_name")
+
+        return qs
 
     @staticmethod
     @transaction.atomic

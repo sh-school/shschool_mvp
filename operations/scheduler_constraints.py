@@ -145,9 +145,10 @@ def evaluate_soft_constraints(
 
     # ── SC3: توزيع المادة — لا حصتين نفس المادة نفس اليوم للفصل ──
     same_subject_today = grid.subject_on_day(task.class_id, task.subject_id, day)
-    # SC7 (جديد): مكافأة الحصة المزدوجة لـ ART و TECH
-    if task.subject_code in DOUBLE_PERIOD_CODES:
-        # ART/TECH: حصتان بنفس اليوم مرغوبة — لا عقوبة على الأولى
+    # SC7: مكافأة الحصة المزدوجة — من إعدادات المادة أو الكود
+    is_double = getattr(task, "requires_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
+    if is_double:
+        # حصتان بنفس اليوم مرغوبة — لا عقوبة على الأولى
         penalty.add("subject_spread", 6, same_subject_today > 1)
     else:
         penalty.add("subject_spread", 6, same_subject_today > 0)
@@ -167,8 +168,8 @@ def evaluate_soft_constraints(
     is_pe = task.subject_code == "PE"
     penalty.add("pe_after_break", 2, is_pe and period not in (4, 5))
 
-    # ── SC7 (جديد): مكافأة الحصة المزدوجة لـ ART و TECH ──
-    if task.subject_code in DOUBLE_PERIOD_CODES and same_subject_today == 1:
+    # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
+    if is_double and same_subject_today == 1:
         # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
         prev_task = grid.get_task_at(day, period - 1)
         if prev_task and prev_task.subject_id == task.subject_id and prev_task.class_id == task.class_id:

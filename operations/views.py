@@ -23,9 +23,14 @@ from .views_attendance import (
 # ── Schedule & Substitute ───────────────────────────────────────
 from .views_schedule import (
     absence_detail,
+    add_exemption,
+    approve_schedule,
     assign_substitute,
     generate_sessions,
     register_teacher_absence,
+    remove_exemption,
+    schedule_print,
+    schedule_settings,
     schedule_slot_create,
     schedule_slot_delete,
     smart_generate,
@@ -33,6 +38,8 @@ from .views_schedule import (
     substitute_report,
     teacher_absence_list,
     teacher_load_report,
+    teacher_preferences,
+    toggle_double_period,
     weekly_schedule,
 )
 
@@ -57,10 +64,10 @@ __all__ = [
     "schedule", "attendance_view", "mark_single", "mark_all_present",
     "complete_session", "session_summary", "daily_report",
     # schedule
-    "weekly_schedule", "schedule_slot_create", "schedule_slot_delete",
+    "weekly_schedule", "schedule_print", "schedule_slot_create", "schedule_slot_delete",
     "generate_sessions", "teacher_absence_list", "register_teacher_absence",
     "absence_detail", "assign_substitute", "substitute_report",
-    "smart_schedule_view", "smart_generate", "teacher_load_report",
+    "smart_schedule_view", "smart_generate", "approve_schedule", "teacher_load_report",
     # swap
     "swap_list", "swap_request", "swap_options_htmx", "swap_respond",
     "swap_approve", "swap_cancel", "compensatory_list", "compensatory_request",

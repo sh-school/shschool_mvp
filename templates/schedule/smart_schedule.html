@@ -13,6 +13,7 @@
     <p class="page-subtitle">توليد تلقائي للجدول الأسبوعي — {{ year }}</p>
   </div>
   <div class="page-actions">
+    <a href="{% url 'schedule_settings' %}" class="btn-secondary">{% include "components/icon.html" with name="settings-2" %} الإعدادات</a>
     <a href="{% url 'weekly_schedule' %}" class="btn-secondary">عرض الجدول الحالي</a>
   </div>
 </div>
@@ -81,6 +82,7 @@
           <th scope="col" class="text-center">الحصص</th>
           <th scope="col" class="text-center">الزمن</th>
           <th scope="col">بواسطة</th>
+          <th scope="col" class="text-center">إجراءات</th>
         </tr>
       </thead>
       <tbody>
@@ -103,6 +105,14 @@
           <td class="text-center">{{ g.total_slots_created }}</td>
           <td class="text-center text-muted">{{ g.generation_time_ms }}ms</td>
           <td>{{ g.generated_by.full_name|default:"—" }}</td>
+          <td class="text-center">
+            {% if g.status == "draft" %}
+            <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="هل تريد اعتماد هذا الجدول وإشعار المعلمين؟" style="display:inline">
+              {% csrf_token %}
+              <button type="submit" class="btn-primary text-xs px-3 py-1">اعتماد</button>
+            </form>
+            {% else %}—{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>

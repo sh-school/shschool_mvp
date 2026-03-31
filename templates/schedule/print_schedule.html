@@ -1,0 +1,261 @@
+{% load static dict_filters %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} — {{ year }}</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Tajawal', 'Segoe UI', sans-serif;
+    color: #1e293b;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ── Print Controls — hidden when printing ── */
+  .print-controls {
+    padding: 14px 24px;
+    background: #f8f5f6;
+    border-bottom: 2px solid #8A1538;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-family: 'Tajawal', sans-serif;
+  }
+  .print-controls .print-label {
+    font-weight: 700;
+    color: #8A1538;
+    font-size: 15px;
+  }
+  .print-controls select,
+  .print-controls button {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-family: inherit;
+    font-size: 13px;
+    background: #fff;
+  }
+  .print-controls button {
+    background: #8A1538;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 20px;
+  }
+  .print-controls button:hover { background: #6b1030; }
+  .print-controls a {
+    color: #8A1538;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .print-controls a:hover { text-decoration: underline; }
+
+  /* ── Schedule Container ── */
+  .schedule-print {
+    padding: 24px;
+  }
+
+  /* ── Header ── */
+  .schedule-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .schedule-header .ministry {
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .schedule-header .school-name {
+    font-size: 22px;
+    font-weight: 700;
+    color: #8A1538;
+    margin: 6px 0;
+  }
+  .schedule-header .title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+  }
+  .schedule-header .year {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+  }
+
+  /* ── Schedule Grid Table ── */
+  .schedule-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+  }
+  .schedule-grid th {
+    background: #8A1538;
+    color: #fff;
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid #6b1030;
+  }
+  .schedule-grid th:first-child {
+    width: 54px;
+  }
+  .schedule-grid td {
+    padding: 5px 4px;
+    text-align: center;
+    border: 1px solid #ddd;
+    vertical-align: top;
+    height: 54px;
+  }
+  .schedule-grid .period-cell {
+    background: #f0e6e9;
+    font-weight: 800;
+    color: #8A1538;
+    font-size: 15px;
+    vertical-align: middle;
+    width: 54px;
+  }
+  .schedule-grid tr:nth-child(even) td:not(.period-cell) {
+    background: #fdf8f9;
+  }
+
+  /* ── Slot Content ── */
+  .slot-subject {
+    font-weight: 700;
+    color: #8A1538;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .slot-teacher {
+    font-size: 10px;
+    color: #555;
+    margin-top: 1px;
+  }
+  .slot-class {
+    font-size: 10px;
+    color: #888;
+    margin-top: 1px;
+  }
+  .slot-empty {
+    color: #ccc;
+    font-size: 11px;
+  }
+
+  /* ── Footer ── */
+  .schedule-footer {
+    text-align: center;
+    margin-top: 16px;
+    font-size: 11px;
+    color: #888;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+  }
+
+  /* ── A3 Landscape Adjustments ── */
+  .paper-a3 .schedule-grid { font-size: 11px; }
+  .paper-a3 .schedule-grid td { padding: 4px 3px; height: 48px; }
+  .paper-a3 .schedule-grid th { font-size: 12px; padding: 6px 4px; }
+
+  /* ── Print Styles ── */
+  @media print {
+    .print-controls { display: none !important; }
+    body { margin: 0; padding: 0; }
+    .schedule-print { padding: 8mm; }
+
+    @page {
+      margin: 12mm;
+    }
+  }
+</style>
+<!-- Tajawal font for Arabic -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="{% if paper == 'a3' %}paper-a3{% endif %}">
+
+{# ── Print Controls (hidden in print) ── #}
+<div class="print-controls">
+  <span class="print-label">طباعة الجدول</span>
+
+  <select onchange="location.href=this.value" title="نوع العرض">
+    <option value="?view=school&paper={{ paper }}&year={{ year }}"
+      {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
+    <option disabled>── معلم ──</option>
+    {% for t in teachers %}
+    <option value="?view=teacher&teacher={{ t.id }}&paper={{ paper }}&year={{ year }}"
+      {% if target_teacher and target_teacher.id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
+    {% endfor %}
+    <option disabled>── فصل ──</option>
+    {% for c in classes %}
+    <option value="?view=class&class={{ c.id }}&paper={{ paper }}&year={{ year }}"
+      {% if target_class and target_class.id == c.id %}selected{% endif %}>{{ c }}</option>
+    {% endfor %}
+  </select>
+
+  <select onchange="location.href='?view={{ view_type }}{% if target_teacher %}&teacher={{ target_teacher.id }}{% endif %}{% if target_class %}&class={{ target_class.id }}{% endif %}&paper=' + this.value + '&year={{ year }}'" title="حجم الورق">
+    <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4 عمودي</option>
+    <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>
+  </select>
+
+  <button onclick="window.print()">طباعة</button>
+  <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
+</div>
+
+{# ── Printable Content ── #}
+<div class="schedule-print">
+  <div class="schedule-header">
+    <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    <div class="school-name">{{ school.name }}</div>
+    <div class="title">{{ title }}</div>
+    <div class="year">العام الدراسي {{ year }}</div>
+  </div>
+
+  <table class="schedule-grid">
+    <thead>
+      <tr>
+        <th>الحصة</th>
+        {% for day_num, day_name in days %}
+        <th>{{ day_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for period in periods %}
+      <tr>
+        <td class="period-cell">{{ period }}</td>
+        {% for day_num, day_name in days %}
+        {% with slot=grid|get_item:day_num|get_item:period %}
+        <td>
+          {% if slot %}
+          <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
+          {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
+          {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
+          {% else %}
+          <div class="slot-empty">—</div>
+          {% endif %}
+        </td>
+        {% endwith %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="schedule-footer">
+    وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp;
+    {{ school.name }} &nbsp;|&nbsp;
+    تاريخ الطباعة: {% now "Y/m/d" %}
+  </div>
+</div>
+
+</body>
+</html>

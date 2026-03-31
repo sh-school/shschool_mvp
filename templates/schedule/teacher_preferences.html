@@ -1,0 +1,63 @@
+{% extends "base/base.html" %}
+{% block title %}تفضيلاتي للجدولة — {{ year }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="تفضيلات الجدولة" %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة الذكية</h1>
+    <p class="page-subtitle">حدد تفضيلاتك ليأخذها النظام بعين الاعتبار عند توليد الجدول — {{ year }}</p>
+  </div>
+</div>
+
+<div class="card-qatar max-w-2xl">
+  <div class="card-bar">{% include "components/icon.html" with name="sliders-horizontal" %} تفضيلات الجدول</div>
+  <form method="post" class="p-5 space-y-5">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label class="form-label" for="max_daily">أقصى عدد حصص يومية</label>
+      <select name="max_daily_periods" id="max_daily" class="form-control">
+        {% for v in "3456" %}<option value="{{ v }}" {% if pref.max_daily_periods == v|add:"0" %}selected{% endif %}>{{ v }} حصص</option>{% endfor %}
+        <option value="7" {% if pref.max_daily_periods == 7 %}selected{% endif %}>7 حصص (بدون حد)</option>
+      </select>
+      <p class="form-hint">الحد المفضل لعدد حصصك في اليوم الواحد</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
+      <select name="max_consecutive" id="max_consecutive" class="form-control">
+        <option value="2" {% if pref.max_consecutive == 2 %}selected{% endif %}>2 حصص</option>
+        <option value="3" {% if pref.max_consecutive == 3 %}selected{% endif %}>3 حصص (الافتراضي)</option>
+      </select>
+      <p class="form-hint">الحد الأقصى المقبول للحصص المتتالية بدون استراحة</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="free_day">يوم التفريغ المفضل</label>
+      <select name="free_day" id="free_day" class="form-control">
+        <option value="">— بدون تفضيل —</option>
+        {% for val, label in days %}
+        <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="form-hint">اليوم الذي تفضل عدم وجود حصص فيه (إذا أمكن)</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="notes">ملاحظات إضافية</label>
+      <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="مثال: أفضل الحصص الأولى في الأسبوع...">{{ pref.notes }}</textarea>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="btn-primary">حفظ التفضيلات</button>
+      <a href="/dashboard/" class="btn-secondary">رجوع</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

@@ -16,6 +16,11 @@ class Subject(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")
     name_ar = models.CharField(max_length=100, verbose_name="اسم المادة")
     code = models.CharField(max_length=20, blank=True)
+    requires_double_period = models.BooleanField(
+        default=False,
+        verbose_name="حصة مزدوجة",
+        help_text="يتطلب حصتين متتاليتين بدون استراحة",
+    )
 
     class Meta:
         verbose_name = "مادة دراسية"
@@ -419,6 +424,50 @@ class TeacherPreference(models.Model):
 
     def __str__(self):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
+
+
+class TeacherExemption(models.Model):
+    """تفريغ معلم/منسق من حصص معينة أو يوم كامل — يُعيّنه النائب الأكاديمي"""
+
+    EXEMPTION_TYPE = [
+        ("full_day", "يوم كامل"),
+        ("specific_period", "حصة محددة"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_exemptions")
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="schedule_exemptions",
+        verbose_name="المعلم/المنسق",
+    )
+    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    exemption_type = models.CharField(
+        max_length=20, choices=EXEMPTION_TYPE, verbose_name="نوع التفريغ",
+    )
+    day_of_week = models.IntegerField(
+        choices=ScheduleSlot.DAYS, verbose_name="اليوم",
+    )
+    period_number = models.IntegerField(
+        null=True, blank=True, verbose_name="رقم الحصة (إذا حصة محددة)",
+    )
+    reason = models.CharField(max_length=200, verbose_name="السبب")
+    created_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True,
+        related_name="+", verbose_name="أنشئ بواسطة",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تفريغ معلم"
+        verbose_name_plural = "تفريغات المعلمين"
+        ordering = ["day_of_week", "period_number"]
+
+    def __str__(self):
+        day_name = dict(ScheduleSlot.DAYS).get(self.day_of_week, "")
+        if self.exemption_type == "full_day":
+            return f"تفريغ {self.teacher.full_name} — {day_name} (يوم كامل)"
+        return f"تفريغ {self.teacher.full_name} — {day_name} ح{self.period_number}"
 
 
 class ScheduleGeneration(models.Model):

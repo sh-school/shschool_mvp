@@ -1,0 +1,214 @@
+{% extends "base/base.html" %}
+{% block title %}إعدادات الجدول الذكي — {{ year }}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'smart_schedule' as smart_url %}
+{% include "components/breadcrumbs.html" with parent_url=smart_url parent_label="الجدولة الذكية" current="إعدادات الجدول" %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول الذكي</h1>
+    <p class="page-subtitle">تفريغات المعلمين + الحصص المزدوجة + تفضيلات المعلمين — {{ year }}</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'smart_schedule' %}" class="btn-secondary">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
+  </div>
+</div>
+
+{# ══ القسم 1: تفريغات المعلمين ══ #}
+<div class="card-qatar mb-6">
+  <div class="card-bar">{% include "components/icon.html" with name="user-minus" %} تفريغات المعلمين والمنسقين</div>
+  <div class="p-5">
+    <p class="text-sm text-secondary mb-4">
+      تفريغ معلم أو منسق من حصة محددة أو يوم كامل (لمهام خارجية أو إدارية).
+      النظام يتجنب جدولة حصص للمعلم في الأوقات المفرّغة.
+    </p>
+
+    {# نموذج إضافة تفريغ #}
+    <form method="post" action="{% url 'add_exemption' %}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 p-4 bg-surface-alt rounded-lg border border-border">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+
+      <div class="form-group mb-0">
+        <label class="form-label text-xs">المعلم/المنسق</label>
+        <select name="teacher" class="form-control" required>
+          <option value="">— اختر —</option>
+          {% for t in teachers %}
+          <option value="{{ t.id }}">{{ t.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label text-xs">نوع التفريغ</label>
+        <select name="exemption_type" id="exemption-type" class="form-control" onchange="document.getElementById('period-field').style.display = this.value === 'specific_period' ? '' : 'none'">
+          <option value="full_day">يوم كامل</option>
+          <option value="specific_period">حصة محددة</option>
+        </select>
+      </div>
+
+      <div class="form-group mb-0">
+        <label class="form-label text-xs">اليوم</label>
+        <select name="day_of_week" class="form-control" required>
+          {% for val, label in days %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group mb-0" id="period-field" style="display:none">
+        <label class="form-label text-xs">رقم الحصة</label>
+        <select name="period_number" class="form-control">
+          <option value="">—</option>
+          {% for p in "1234567" %}
+          <option value="{{ p }}">الحصة {{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group mb-0 sm:col-span-2 lg:col-span-3">
+        <label class="form-label text-xs">السبب</label>
+        <input type="text" name="reason" class="form-control" placeholder="مثال: مهمة وزارية خارجية" required>
+      </div>
+
+      <div class="form-group mb-0 flex items-end">
+        <button type="submit" class="btn-primary w-full">{% include "components/icon.html" with name="plus" %} إضافة تفريغ</button>
+      </div>
+    </form>
+
+    {# قائمة التفريغات الحالية #}
+    {% if exemptions %}
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>المعلم</th>
+            <th>النوع</th>
+            <th>اليوم</th>
+            <th>الحصة</th>
+            <th>السبب</th>
+            <th>بواسطة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ex in exemptions %}
+          <tr>
+            <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
+            <td>
+              {% if ex.exemption_type == "full_day" %}
+              <span class="status-badge status-warning">يوم كامل</span>
+              {% else %}
+              <span class="status-badge status-info">حصة محددة</span>
+              {% endif %}
+            </td>
+            <td>{{ ex.get_day_of_week_display }}</td>
+            <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}—{% endif %}</td>
+            <td class="text-sm">{{ ex.reason }}</td>
+            <td class="text-sm text-muted">{{ ex.created_by.full_name|default:"—" }}</td>
+            <td>
+              <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
+                {% csrf_token %}
+                <button type="submit" class="btn-ghost text-xs text-danger">{% include "components/icon.html" with name="trash-2" size="icon-sm" %}</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-muted text-center py-3">لا توجد تفريغات حالياً</p>
+    {% endif %}
+  </div>
+</div>
+
+{# ══ القسم 2: الحصص المزدوجة ══ #}
+<div class="card-qatar mb-6">
+  <div class="card-bar">{% include "components/icon.html" with name="columns-2" %} إعداد الحصص المزدوجة</div>
+  <div class="p-5">
+    <p class="text-sm text-secondary mb-4">
+      المواد التي تحتاج حصتين متتاليتين بدون استراحة أو صلاة بينهما (مثل: الفنون، التكنولوجيا، المختبرات).
+      النظام يُحاول جدولة حصتين متجاورتين لهذه المواد.
+    </p>
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>المادة</th>
+            <th>الكود</th>
+            <th class="text-center">حصة مزدوجة</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subjects %}
+          <tr>
+            <td class="font-semibold">{{ s.name_ar }}</td>
+            <td class="text-muted">{{ s.code|default:"—" }}</td>
+            <td class="text-center">
+              {% if s.requires_double_period %}
+              <span class="status-badge status-success">مفعّلة</span>
+              {% else %}
+              <span class="status-badge status-gray">معطّلة</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="post" action="{% url 'toggle_double_period' s.id %}" style="display:inline">
+                {% csrf_token %}
+                <button type="submit" class="btn-ghost text-xs">
+                  {% if s.requires_double_period %}
+                  {% include "components/icon.html" with name="toggle-right" size="icon-sm" %} تعطيل
+                  {% else %}
+                  {% include "components/icon.html" with name="toggle-left" size="icon-sm" %} تفعيل
+                  {% endif %}
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ══ القسم 3: تفضيلات المعلمين (للمراجعة) ══ #}
+<div class="card-qatar mb-6">
+  <div class="card-bar">{% include "components/icon.html" with name="users" %} تفضيلات المعلمين المسجلة</div>
+  <div class="p-5">
+    {% if teacher_prefs %}
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>المعلم</th>
+            <th class="text-center">أقصى يومي</th>
+            <th class="text-center">أقصى متتالي</th>
+            <th class="text-center">يوم التفريغ</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in teacher_prefs %}
+          <tr>
+            <td class="font-semibold text-maroon">{{ p.teacher.full_name }}</td>
+            <td class="text-center">{{ p.max_daily_periods }}</td>
+            <td class="text-center">{{ p.max_consecutive }}</td>
+            <td class="text-center">{{ p.get_free_day_display|default:"—" }}</td>
+            <td class="text-sm text-muted">{{ p.notes|truncatewords:10|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-muted text-center py-3">لم يسجل أي معلم تفضيلاته بعد</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

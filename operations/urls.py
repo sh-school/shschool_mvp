@@ -12,6 +12,7 @@ urlpatterns = [
     path("reports/daily/", views.daily_report, name="daily_report"),
     # -- المرحلة 2: الجداول الذكية --
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
+    path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
     path("weekly-schedule/add/", views.schedule_slot_create, name="slot_create"),
     path("weekly-schedule/delete/<uuid:slot_id>/", views.schedule_slot_delete, name="slot_delete"),
     path("weekly-schedule/generate/", views.generate_sessions, name="generate_sessions"),
@@ -28,7 +29,13 @@ urlpatterns = [
     # -- المرحلة 3: الجدولة الذكية --
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
+    path("smart-schedule/<uuid:generation_id>/approve/", views.approve_schedule, name="approve_schedule"),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
+    path("schedule-settings/", views.schedule_settings, name="schedule_settings"),
+    path("schedule-settings/exemption/add/", views.add_exemption, name="add_exemption"),
+    path("schedule-settings/exemption/<uuid:exemption_id>/remove/", views.remove_exemption, name="remove_exemption"),
+    path("schedule-settings/subject/<uuid:subject_id>/toggle-double/", views.toggle_double_period, name="toggle_double_period"),
+    path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
     # ══ المرحلة 6: التبديل والتعويض ══
     path("schedule/swaps/", views.swap_list, name="swap_list"),
     path("schedule/swap/request/", views.swap_request, name="swap_request"),

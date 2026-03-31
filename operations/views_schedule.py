@@ -22,6 +22,8 @@ from .models import (
     SubjectClassAssignment,
     SubstituteAssignment,
     TeacherAbsence,
+    TeacherExemption,
+    TeacherPreference,
 )
 from .services import ScheduleService, SubstituteService
 
@@ -85,6 +87,61 @@ def weekly_schedule(request):
         "classes": classes,
         "academic_year": year,
         "user_role": user.get_role(),
+    })
+
+
+@login_required
+@role_required("principal", "vice_academic", "vice_admin", "coordinator", "admin")
+def schedule_print(request):
+    """طباعة الجدول الأسبوعي — A4/A3"""
+    from core.models import ClassGroup
+
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    view_type = request.GET.get("view", "school")  # school, teacher, class
+    paper = request.GET.get("paper", "a4")  # a4, a3
+    teacher_id = request.GET.get("teacher")
+    class_id = request.GET.get("class")
+
+    target_teacher = None
+    target_class = None
+
+    if view_type == "teacher" and teacher_id:
+        target_teacher = get_object_or_404(CustomUser, id=teacher_id)
+    elif view_type == "class" and class_id:
+        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
+
+    grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
+
+    DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
+    PERIODS = range(1, 8)
+
+    # Teachers and classes for selector
+    teacher_ids_qs = Membership.objects.filter(
+        school=school, is_active=True, role__name__in=("teacher", "coordinator")
+    ).values_list("user_id", flat=True)
+    teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
+    classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+
+    title = "الجدول الدراسي العام"
+    if target_teacher:
+        title = f"جدول المعلم: {target_teacher.full_name}"
+    elif target_class:
+        title = f"جدول الفصل: {target_class}"
+
+    return render(request, "schedule/print_schedule.html", {
+        "grid": grid,
+        "days": DAYS,
+        "periods": PERIODS,
+        "paper": paper,
+        "view_type": view_type,
+        "target_teacher": target_teacher,
+        "target_class": target_class,
+        "teachers": teachers,
+        "classes": classes,
+        "title": title,
+        "school": school,
+        "year": year,
     })
 
 
@@ -258,6 +315,7 @@ def absence_detail(request, absence_id):
         available = SubstituteService.get_available_teachers(
             school, absence.date, slot.day_of_week, slot.period_number,
             exclude_teacher=absence.teacher,
+            subject_id=slot.subject_id,
         )
         slots_data.append({
             "slot": slot,
@@ -292,6 +350,7 @@ def assign_substitute(request, absence_id, slot_id):
     available = SubstituteService.get_available_teachers(
         school, absence.date, slot.day_of_week, slot.period_number,
         exclude_teacher=absence.teacher,
+        subject_id=slot.subject_id,
     )
     return render(request, "substitute/partials/slot_card.html", {
         "slot": slot, "assignment": assignment, "available": available, "absence": absence,
@@ -364,7 +423,13 @@ def smart_generate(request):
 
     school = request.user.get_school()
     year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
-    result = generate_schedule(school, year, user=request.user)
+
+    try:
+        result = generate_schedule(school, year, user=request.user)
+    except Exception as exc:
+        logger.exception("خطأ في توليد الجدول: %s", exc)
+        messages.error(request, f"خطأ في التوليد: {exc}")
+        return redirect("smart_schedule")
 
     if result["success"]:
         messages.success(
@@ -447,3 +512,173 @@ def teacher_load_report(request):
         "avg_weekly": round(avg_weekly, 1),
         "total_teachers": len(teacher_data),
     })
+
+
+# ── تفضيلات المعلم ──────────────────────────────────────────────
+
+
+@login_required
+@role_required("teacher", "ese_teacher", "coordinator", "activities_coordinator")
+def teacher_preferences(request):
+    """صفحة تفضيلات المعلم للجدولة الذكية"""
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    pref, _created = TeacherPreference.objects.get_or_create(
+        teacher=request.user, school=school, academic_year=year,
+    )
+
+    if request.method == "POST":
+        pref.max_daily_periods = int(request.POST.get("max_daily_periods", 5))
+        pref.max_consecutive = int(request.POST.get("max_consecutive", 3))
+        free_day = request.POST.get("free_day", "")
+        pref.free_day = int(free_day) if free_day else None
+        pref.notes = request.POST.get("notes", "")
+        pref.save()
+        messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
+        return redirect("teacher_preferences")
+
+    return render(request, "schedule/teacher_preferences.html", {
+        "pref": pref,
+        "days": ScheduleSlot.DAYS,
+        "year": year,
+    })
+
+
+# ── اعتماد الجدول ─────────────────────────────────────────────────
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def approve_schedule(request, generation_id):
+    """اعتماد الجدول المولّد"""
+    school = request.user.get_school()
+    gen = get_object_or_404(ScheduleGeneration, id=generation_id, school=school)
+
+    if gen.status != "draft":
+        messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
+        return redirect("smart_schedule")
+
+    # Archive any previously approved generation
+    ScheduleGeneration.objects.filter(
+        school=school, academic_year=gen.academic_year, status="approved"
+    ).update(status="archived")
+
+    gen.status = "approved"
+    gen.save(update_fields=["status"])
+
+    # Notify all teachers
+    from notifications.models import InAppNotification
+
+    teacher_ids = Membership.objects.filter(
+        school=school, is_active=True,
+        role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
+    ).values_list("user_id", flat=True)
+
+    notifs = [
+        InAppNotification(
+            user_id=tid,
+            title="تم اعتماد الجدول الدراسي",
+            body=f"تم اعتماد الجدول للعام {gen.academic_year}. راجع جدولك من صفحة الجدول الأسبوعي.",
+            event_type="general",
+            priority="normal",
+            related_url="/teacher/weekly-schedule/",
+        )
+        for tid in teacher_ids
+    ]
+    InAppNotification.objects.bulk_create(notifs)
+
+    messages.success(request, f"تم اعتماد الجدول وإشعار {len(notifs)} معلم")
+    return redirect("smart_schedule")
+
+
+# ── إعدادات الجدول — النائب الأكاديمي ───────────────────────────
+
+
+@login_required
+@role_required("principal", "vice_academic")
+def schedule_settings(request):
+    """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
+    school = request.user.get_school()
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+
+    exemptions = (
+        TeacherExemption.objects.filter(school=school, academic_year=year, is_active=True)
+        .select_related("teacher", "created_by")
+    )
+    subjects = Subject.objects.filter(school=school).order_by("name_ar")
+    teacher_prefs = (
+        TeacherPreference.objects.filter(school=school, academic_year=year)
+        .select_related("teacher")
+        .order_by("teacher__full_name")
+    )
+
+    # قائمة المعلمين لإضافة تفريغ
+    teacher_ids = Membership.objects.filter(
+        school=school, is_active=True,
+        role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
+    ).values_list("user_id", flat=True)
+    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
+
+    return render(request, "schedule/schedule_settings.html", {
+        "exemptions": exemptions,
+        "subjects": subjects,
+        "teacher_prefs": teacher_prefs,
+        "teachers": teachers,
+        "days": ScheduleSlot.DAYS,
+        "year": year,
+    })
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def add_exemption(request):
+    """إضافة تفريغ معلم — POST"""
+    school = request.user.get_school()
+    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    teacher = get_object_or_404(CustomUser, id=request.POST["teacher"])
+    exemption_type = request.POST.get("exemption_type", "full_day")
+    day_of_week = int(request.POST["day_of_week"])
+    period_number = request.POST.get("period_number")
+    reason = request.POST.get("reason", "")
+
+    TeacherExemption.objects.create(
+        school=school,
+        teacher=teacher,
+        academic_year=year,
+        exemption_type=exemption_type,
+        day_of_week=day_of_week,
+        period_number=int(period_number) if period_number else None,
+        reason=reason,
+        created_by=request.user,
+    )
+    messages.success(request, f"تم تفريغ {teacher.full_name}")
+    return redirect(f"{request.META.get('HTTP_REFERER', '/operations/schedule-settings/')}?year={year}")
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def remove_exemption(request, exemption_id):
+    """إلغاء تفريغ"""
+    school = request.user.get_school()
+    exemption = get_object_or_404(TeacherExemption, id=exemption_id, school=school)
+    exemption.is_active = False
+    exemption.save(update_fields=["is_active"])
+    messages.success(request, "تم إلغاء التفريغ")
+    return redirect(request.META.get("HTTP_REFERER", "/operations/schedule-settings/"))
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def toggle_double_period(request, subject_id):
+    """تفعيل/إلغاء الحصة المزدوجة لمادة"""
+    school = request.user.get_school()
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    subject.requires_double_period = not subject.requires_double_period
+    subject.save(update_fields=["requires_double_period"])
+    status = "مفعّلة" if subject.requires_double_period else "معطّلة"
+    messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
+    return redirect(request.META.get("HTTP_REFERER", "/operations/schedule-settings/"))
