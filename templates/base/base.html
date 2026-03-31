@@ -264,6 +264,8 @@
   <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="bar-chart" %} التقرير اليومي</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <a href="{% url 'smart_schedule' %}">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
+  <a href="{% url 'schedule_settings' %}">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول</a>
+  <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
 </div>
 
 <div class="sd-menu" id="m-staff-affairs" role="menu" aria-label="شؤون الموظفين">
@@ -345,6 +347,8 @@
   <div class="sd-label">جدولي</div>
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
+  <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
@@ -358,6 +362,8 @@
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
+  <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
   <hr>
   {% if role != "teacher_assistant" and role != "ese_assistant" %}
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>

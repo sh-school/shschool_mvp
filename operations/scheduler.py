@@ -401,6 +401,59 @@ def _try_swap_placement(
     return False
 
 
+def _try_class_swap(grid, task, blocked_slots, preferences, max_attempts=200):
+    """Phase 4: Class-Level Swap — move existing class task to free up a slot for the teacher."""
+    from .scheduler_constraints import get_max_periods_for_day
+
+    level_type = getattr(task, "level_type", "")
+    attempts = 0
+
+    for day in DAYS:
+        max_p = get_max_periods_for_day(day, level_type)
+        for period in range(1, max_p + 1):
+            if attempts >= max_attempts:
+                return False
+
+            # Teacher must be free here
+            if grid.is_teacher_busy(task.teacher_id, day, period):
+                continue
+            # Class must be busy (we need to swap something out)
+            if not grid.is_class_busy(task.class_id, day, period):
+                continue  # class is free — should have been caught in earlier phases
+
+            if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
+                continue
+
+            attempts += 1
+
+            # Find the task occupying this class slot
+            existing = grid.get_class_task_at(task.class_id, day, period)
+            if existing is None:
+                continue
+
+            # Try to move existing to a different day where:
+            # - existing's class is free
+            # - existing's teacher is free
+            grid.remove(day, period, existing)
+            alt_slots = _get_available_slots_hard_only(grid, existing, blocked_slots)
+            if alt_slots:
+                # Pick the slot on the day with fewest existing teacher periods (balance)
+                best = min(alt_slots, key=lambda dp: grid.teacher_periods_on_day(existing.teacher_id, dp[0]))
+                grid.place(best[0], best[1], existing)
+                # Now place our task
+                if not grid.is_teacher_busy(task.teacher_id, day, period) and not grid.is_class_busy(task.class_id, day, period):
+                    grid.place(day, period, task)
+                    return True
+                else:
+                    # Undo — move existing back
+                    grid.remove(best[0], best[1], existing)
+                    grid.place(day, period, existing)
+            else:
+                grid.place(day, period, existing)
+
+    return False
+
+
 # ══════════════════════════════════════════════════════════════
 # التوليد الرئيسي — Multi-Pass
 # ══════════════════════════════════════════════════════════════
@@ -418,10 +471,11 @@ def generate_schedule(
     Phase 1: Greedy مع كل القيود (صلبة + مرنة)
     Phase 2: إعادة محاولة الفاشلة مع قيود أساسية فقط
     Phase 3: Swap Search — تبديل حصص لإفساح المجال
+    Phase 4: Class-Level Swap — تبديل حصة فصل لإفساح المجال
     """
     start_time = time.time()
     errors = []
-    phase_stats = {"phase1": 0, "phase2": 0, "phase3": 0, "failed": 0}
+    phase_stats = {"phase1": 0, "phase2": 0, "phase3": 0, "phase4": 0, "failed": 0}
 
     # ── 1. بناء المهام ──
     tasks = build_tasks(school, academic_year)
@@ -521,6 +575,28 @@ def generate_schedule(
         phase_stats["phase3"], phase_stats["failed"],
     )
 
+    # ══════════════════════════════════════════════════════
+    # Phase 4: Class-Level Swap
+    # ══════════════════════════════════════════════════════
+    if final_unplaced:
+        still_failed = []
+        for task in final_unplaced:
+            if _try_class_swap(grid, task, blocked_slots, preferences):
+                phase_stats["phase4"] = phase_stats.get("phase4", 0) + 1
+                # Remove from errors
+                error_msg = f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})"
+                if error_msg in errors:
+                    errors.remove(error_msg)
+                phase_stats["failed"] -= 1
+            else:
+                still_failed.append(task)
+        final_unplaced = still_failed
+
+    logger.info(
+        "Phase 4 (class-swap): placed %d more, final failed %d",
+        phase_stats.get("phase4", 0), phase_stats["failed"],
+    )
+
     elapsed_ms = int((time.time() - start_time) * 1000)
 
     # ── حساب الجودة ──
@@ -528,7 +604,7 @@ def generate_schedule(
 
     # ── حفظ النتائج ──
     generation = None
-    total_placed = phase_stats["phase1"] + phase_stats["phase2"] + phase_stats["phase3"]
+    total_placed = phase_stats["phase1"] + phase_stats["phase2"] + phase_stats["phase3"] + phase_stats.get("phase4", 0)
 
     if total_placed > 0:
         try:
@@ -589,7 +665,12 @@ def generate_schedule(
                             is_active=True,
                         )
                     )
-                ScheduleSlot.objects.bulk_create(bulk)
+                ScheduleSlot.objects.bulk_create(bulk, ignore_conflicts=True)
+
+                # عدد الحصص الفعلي في قاعدة البيانات (بدلاً من عدد الخوارزمية)
+                actual_saved = ScheduleSlot.objects.filter(
+                    school=school, academic_year=academic_year, is_active=True
+                ).count()
 
                 generation = ScheduleGeneration.objects.create(
                     school=school,
@@ -599,13 +680,14 @@ def generate_schedule(
                     quality_score=quality["score"],
                     hard_violations=len(errors),
                     soft_violations=quality["violations"],
-                    total_slots_created=total_placed,
+                    total_slots_created=actual_saved,
                     generation_time_ms=elapsed_ms,
                     config_snapshot={
                         "total_tasks": len(tasks),
                         "phase1_placed": phase_stats["phase1"],
                         "phase2_placed": phase_stats["phase2"],
                         "phase3_placed": phase_stats["phase3"],
+                        "phase4_placed": phase_stats.get("phase4", 0),
                         "failed": phase_stats["failed"],
                         "preferences_count": len(preferences),
                         "blocked_slots_count": len(blocked_slots),

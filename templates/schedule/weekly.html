@@ -289,24 +289,65 @@ td:has(.slot-empty) {
         <tr>
           <td>{{ period }}</td>
           {% for day_num, day_name in days %}
-          {% with slot=grid|get_item:day_num|get_item:period %}
+          {% with cell=grid|get_item:day_num|get_item:period %}
           <td>
-            {% if slot %}
-            <div class="slot-card slot-p{{ period }}">
-              <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
-              <div class="slot-class">{{ slot.class_group }}</div>
-              {% if not target_teacher %}
-              <div class="slot-teacher">{{ slot.teacher.full_name }}</div>
+            {% if cell %}
+              {# School-wide view returns a list; filtered view returns a single slot #}
+              {% if cell|length > 1 %}
+                {# Multiple slots in same cell — show summary #}
+                {% for slot in cell %}
+                <div class="slot-card slot-p{{ period }}" style="margin-bottom:2px;">
+                  <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
+                  <div class="slot-class">{{ slot.class_group }}</div>
+                  {% if not target_teacher %}
+                  <div class="slot-teacher">{{ slot.teacher.full_name }}</div>
+                  {% endif %}
+                  {% if request.user.is_admin %}
+                  <form method="post" action="{% url 'slot_delete' slot.id %}"
+                        data-confirm="حذف هذه الحصة؟">
+                    {% csrf_token %}
+                    <button type="submit" class="slot-delete" title="حذف">×</button>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              {% elif cell.subject %}
+                {# Single slot object (filtered view) #}
+                <div class="slot-card slot-p{{ period }}">
+                  <div class="slot-subject">{{ cell.subject|default:"—" }}</div>
+                  <div class="slot-class">{{ cell.class_group }}</div>
+                  {% if not target_teacher %}
+                  <div class="slot-teacher">{{ cell.teacher.full_name }}</div>
+                  {% endif %}
+                  <div class="slot-time">{{ cell.start_time|time:"H:i" }} – {{ cell.end_time|time:"H:i" }}</div>
+                  {% if request.user.is_admin %}
+                  <form method="post" action="{% url 'slot_delete' cell.id %}"
+                        data-confirm="حذف هذه الحصة؟">
+                    {% csrf_token %}
+                    <button type="submit" class="slot-delete" title="حذف">×</button>
+                  </form>
+                  {% endif %}
+                </div>
+              {% else %}
+                {# List with exactly one slot #}
+                {% with slot=cell.0 %}
+                <div class="slot-card slot-p{{ period }}">
+                  <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
+                  <div class="slot-class">{{ slot.class_group }}</div>
+                  {% if not target_teacher %}
+                  <div class="slot-teacher">{{ slot.teacher.full_name }}</div>
+                  {% endif %}
+                  <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
+                  {% if request.user.is_admin %}
+                  <form method="post" action="{% url 'slot_delete' slot.id %}"
+                        data-confirm="حذف هذه الحصة؟">
+                    {% csrf_token %}
+                    <button type="submit" class="slot-delete" title="حذف">×</button>
+                  </form>
+                  {% endif %}
+                </div>
+                {% endwith %}
               {% endif %}
-              <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
-              {% if request.user.is_admin %}
-              <form method="post" action="{% url 'slot_delete' slot.id %}"
-                    data-confirm="حذف هذه الحصة؟">
-                {% csrf_token %}
-                <button type="submit" class="slot-delete" title="حذف">×</button>
-              </form>
-              {% endif %}
-            </div>
             {% else %}
             <div class="slot-empty">—</div>
             {% endif %}

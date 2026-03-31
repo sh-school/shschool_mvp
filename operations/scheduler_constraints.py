@@ -189,6 +189,15 @@ def evaluate_soft_constraints(
         )
         penalty.add("high_weekly_adjacent", 7, is_adj_same)
 
+    # ── SC9: موازنة الأيام — عقوبة أعلى لتكديس الحصص في أيام محددة ──
+    teacher_total = grid.teacher_total_periods(task.teacher_id) if hasattr(grid, 'teacher_total_periods') else 0
+    if teacher_total > 0:
+        ideal_daily = max(1, teacher_total // 5)
+        penalty.add("day_balance", 12, teacher_today > ideal_daily + 1)
+    # أيضاً: مكافأة وضع حصة في يوم فارغ للمعلم
+    if teacher_today == 0:
+        penalty.add("empty_day_bonus", -6, True)  # مكافأة سالبة
+
     return penalty
 
 
@@ -208,6 +217,8 @@ def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None)
         "pe_after_break": 0,
         "double_bonus": 0,
         "high_weekly_adjacent": 0,
+        "day_balance": 0,
+        "empty_day_bonus": 0,
     }
     total_penalty = 0.0
     total_slots = 0

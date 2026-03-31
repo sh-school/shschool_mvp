@@ -223,7 +223,11 @@ class ScheduleService:
         class_group: ClassGroup | None = None,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
     ) -> dict:
-        """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة"""
+        """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة.
+
+        - مع فلتر معلم أو فصل: {يوم: {حصة: slot}} (backward compat)
+        - بدون فلتر (school-wide): {يوم: {حصة: [slot, ...]}}
+        """
         qs = ScheduleSlot.objects.filter(
             school=school, academic_year=academic_year, is_active=True
         ).select_related("teacher", "class_group", "subject")
@@ -232,10 +236,20 @@ class ScheduleService:
         if class_group:
             qs = qs.filter(class_group=class_group)
 
-        # بناء matrix: {يوم: {رقم_حصة: slot}}
-        grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
+        # مع فلتر معلم أو فصل → single-slot dict (backward compat)
+        if teacher or class_group:
+            grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
+            for slot in qs:
+                grid[slot.day_of_week][slot.period_number] = slot
+            return grid
+
+        # School-wide: list of slots per cell (لا يكتب فوق بعض)
+        grid = {d: {} for d in range(5)}
         for slot in qs:
-            grid[slot.day_of_week][slot.period_number] = slot
+            key = slot.period_number
+            if key not in grid[slot.day_of_week]:
+                grid[slot.day_of_week][key] = []
+            grid[slot.day_of_week][key].append(slot)
         return grid
 
     @staticmethod
