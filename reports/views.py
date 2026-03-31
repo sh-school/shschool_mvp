@@ -112,8 +112,10 @@ def class_results_pdf(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     ctx = ReportDataService.get_class_results(class_grp, school, year)
+    ctx["paper_size"] = paper
 
     # ── Guard: لا توليد PDF عند عدم وجود طلاب (reportlab يفشل مع جدول فارغ) ──
     if not ctx.get("student_rows"):
@@ -132,6 +134,7 @@ def class_results_pdf(request, class_id):
     return render_pdf(
         html,
         f"نتائج_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        paper_size=paper,
     )
 
 
@@ -146,6 +149,7 @@ def class_certificates_pdf(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     enrollments = (
         StudentEnrollment.objects.filter(class_group=class_grp, is_active=True)
@@ -165,6 +169,7 @@ def class_certificates_pdf(request, class_id):
         "school": school,
         "year": year,
         "print_date": timezone.now().date(),
+        "paper_size": paper,
     }
     if preview:
         return render(request, "reports/class_certificates.html", page_ctx)
@@ -173,6 +178,7 @@ def class_certificates_pdf(request, class_id):
     return render_pdf(
         html,
         f"شهادات_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        paper_size=paper,
     )
 
 
@@ -187,8 +193,10 @@ def attendance_report_pdf(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     ctx = ReportDataService.get_attendance_report(class_grp, school, year)
+    ctx["paper_size"] = paper
     if preview:
         return render(request, "reports/attendance_report.html", ctx)
 
@@ -196,6 +204,7 @@ def attendance_report_pdf(request, class_id):
     return render_pdf(
         html,
         f"غياب_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        paper_size=paper,
     )
 
 
@@ -215,17 +224,19 @@ def student_result_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
         if not _has_parent_access(request, student, school):
             return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
+    ctx["paper_size"] = paper
     if preview:
         return render(request, "reports/student_result.html", ctx)
 
     html = render_to_string("reports/student_result.html", ctx, request=request)
-    return render_pdf(html, f"نتيجة_{student.full_name}_{year}.pdf")
+    return render_pdf(html, f"نتيجة_{student.full_name}_{year}.pdf", paper_size=paper)
 
 
 @login_required
@@ -239,6 +250,7 @@ def student_annual_result_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
         if not _has_parent_access(request, student, school):
@@ -246,12 +258,13 @@ def student_annual_result_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     _set_final_status(ctx)
+    ctx["paper_size"] = paper
 
     if preview:
         return render(request, "reports/student_result_pdf.html", ctx)
 
     html = render_to_string("reports/student_result_pdf.html", ctx, request=request)
-    return render_pdf(html, f"كشف_نتائج_{student.full_name}_{year}.pdf")
+    return render_pdf(html, f"كشف_نتائج_{student.full_name}_{year}.pdf", paper_size=paper)
 
 
 @login_required
@@ -265,6 +278,7 @@ def student_certificate_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
 
     if not (request.user.is_admin() or request.user.is_teacher()):
         if not _has_parent_access(request, student, school):
@@ -272,12 +286,13 @@ def student_certificate_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     _set_final_status(ctx)
+    ctx["paper_size"] = paper
 
     if preview:
         return render(request, "reports/certificate.html", ctx)
 
     html = render_to_string("reports/certificate.html", ctx, request=request)
-    return render_pdf(html, f"شهادة_{student.full_name}_{year}.pdf")
+    return render_pdf(html, f"شهادة_{student.full_name}_{year}.pdf", paper_size=paper)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -294,8 +309,10 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
+    paper = request.GET.get("paper", "a4")
     return ExcelService.class_results_excel(
-        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        paper=paper,
     )
 
 
@@ -308,8 +325,10 @@ def attendance_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
+    paper = request.GET.get("paper", "a4")
     return ExcelService.attendance_excel(
-        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        paper=paper,
     )
 
 
@@ -321,6 +340,8 @@ def behavior_excel(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
+    paper = request.GET.get("paper", "a4")
     return ExcelService.behavior_excel(
-        school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+        school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        paper=paper,
     )

@@ -1,5 +1,5 @@
 {% load static %}
-{# base_report.html v7 — هيدر+فوتر احترافي على كل صفحة #}
+{# base_report.html v7.1 — هيدر+فوتر احترافي مع علامة وزارة قطر #}
 {# WeasyPrint: @page running elements | Playwright: header_template/footer_template #}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -15,7 +15,13 @@
     /* WeasyPrint يستبدل هذه القيم بـ 3.2cm/2.8cm عند حقن header CSS */
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; direction: rtl !important; }
+  * {
+    box-sizing: border-box;
+    margin: 0; padding: 0;
+    direction: rtl !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
   html, body, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {
     direction: rtl !important; text-align: right; unicode-bidi: embed;
   }
@@ -30,11 +36,31 @@
   }
 
   /* ════════════════════════════════════════════════════════════════════
+     A3 landscape — يُفعّل عبر paper_size context variable
+  ════════════════════════════════════════════════════════════════════ */
+  .paper-a3 { /* marker class on body */ }
+
+  /* ════════════════════════════════════════════════════════════════════
+     علامة مائية للشهادات
+  ════════════════════════════════════════════════════════════════════ */
+  .report-watermark {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 80px;
+    color: rgba(138,21,56,0.04);
+    font-weight: 800;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
      هيدر المدرسة (يظهر في جسم الوثيقة — للصفحة الأولى في xhtml2pdf)
      WeasyPrint + Playwright يضيفان هيدراً على كل صفحة via pdf_utils
   ════════════════════════════════════════════════════════════════════ */
   .report-header {
-    padding:       14px 16px 10px;
+    padding:       14px 16px 0;
     margin-bottom: 0;
     text-align:    center;
   }
@@ -94,6 +120,47 @@
     text-align:     center;
     font-size:      9px;
     color:          #888;
+  }
+
+  /* شعار المدرسة — حجم أكبر */
+  .report-header-emblem {
+    width: 60px; height: 60px; display: block;
+    margin: 0 auto 6px; border-radius: 8px;
+  }
+
+  /* "دولة قطر" فوق اسم الوزارة */
+  .report-header .state-name {
+    font-family: 'Tajawal', 'Amiri', sans-serif;
+    font-size: 9.5px;
+    font-weight: 500;
+    color: #888;
+    margin: 0 0 2px;
+    letter-spacing: 0.5px;
+  }
+
+  /* اسم المدرسة — أكبر وأوضح */
+  .report-header h1 {
+    font-family: 'Tajawal', 'Amiri', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: #8A1538; margin: 0 0 3px;
+  }
+  .report-header h2 {
+    font-family: 'Tajawal', 'Amiri', sans-serif;
+    font-size: 11px; font-weight: 500;
+    color: #444; margin: 0 0 2px;
+  }
+  .report-header .ministry-info {
+    font-size: 9px; color: #888;
+  }
+
+  /* الخط الزخرفي المزدوج تحت الهيدر */
+  .report-header-border {
+    margin: 10px 0 8px;
+    border: none;
+    border-top: 2px solid #8A1538;
+    border-bottom: 1px solid #D4A843;
+    height: 0;
+    padding-top: 3px;
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -196,10 +263,12 @@
   thead tr {
     background: #8A1538;
   }
+  /* تكرار رأس الجدول على كل صفحة */
+  thead { display: table-header-group; }
   th {
     background:  #8A1538;
     color:       #fff;
-    padding:     8px 7px;
+    padding:     10px 7px;
     font-weight: 600;
     text-align:  center;
     font-family: 'Tajawal', 'Amiri', sans-serif;
@@ -212,11 +281,10 @@
     text-align:  center;
     vertical-align: middle;
   }
+  /* ألوان صفوف متبادلة — درجات خفيفة */
+  tbody tr:nth-child(odd) td  { background: #fff; }
   tbody tr:nth-child(even) td { background: #FDF8F9; }
   tbody tr:hover td           { background: #FAF0F3; }
-
-  /* تجميد الرأس — page-break-inside: avoid */
-  thead { display: table-header-group; }
 
   /* ════════════════════════════════════════════════════════════════════
      ألوان الحالة
@@ -254,7 +322,7 @@
   }
 
   /* ════════════════════════════════════════════════════════════════════
-     التوقيعات
+     التوقيعات — تصميم احترافي
   ════════════════════════════════════════════════════════════════════ */
   .signature-section {
     margin-top:  40px;
@@ -275,17 +343,32 @@
     font-size:      10.5px;
     color:          #333;
   }
-  .signature-box      { text-align: center; }
+  .signature-box {
+    text-align:    center;
+    background:    #fafafa;
+    padding:       12px 10px 8px;
+    border-radius: 4px;
+  }
   .signature-box .sig-title {
     font-size:   10px;
     font-weight: 700;
     color:       #333;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
+  }
+  .signature-box .sig-label {
+    font-size:   8.5px;
+    color:       #999;
+    margin-bottom: 4px;
   }
   .signature-box .line {
-    border-top: 1.5px solid #555;
-    margin:     0 auto 5px;
+    border-top: 2px solid #555;
+    margin:     0 auto 4px;
     width:      75%;
+  }
+  .signature-box .sig-name-label {
+    font-size:   8.5px;
+    color:       #999;
+    margin-top:  2px;
   }
   .signature-box .sig-name {
     font-size: 9px;
@@ -304,39 +387,35 @@
   ════════════════════════════════════════════════════════════════════ */
   .pdf-doc-footer {
     margin-top:  28px;
-    padding-top: 6px;
-    border-top:  1px solid #e5e5e5;
+    padding-top: 8px;
+    border-top:  1.5px solid #8A1538;
     text-align:  center;
     font-size:   8.5px;
+    color:       #999;
+  }
+  .pdf-doc-footer .footer-ministry {
+    font-size:   8px;
     color:       #aaa;
+    margin-top:  3px;
   }
-
-  .report-header-emblem {
-    width: 40px; height: 40px; display: block;
-    margin: 0 auto 6px; border-radius: 8px;
-  }
-  .report-header h1 {
-    font-family: 'Tajawal', 'Amiri', sans-serif;
-    font-size: 15px; font-weight: 700;
-    color: #8A1538; margin: 0 0 3px;
-  }
-  .report-header h2 {
-    font-family: 'Tajawal', 'Amiri', sans-serif;
-    font-size: 11px; font-weight: 500;
-    color: #444; margin: 0 0 2px;
-  }
-  .report-header .ministry-info {
-    font-size: 8.5px; color: #888;
+  .pdf-doc-footer .footer-version {
+    font-size:   7.5px;
+    color:       #ccc;
+    margin-top:  2px;
   }
 
   {% block extra_styles %}{% endblock %}
 </style>
+{% if paper_size == "A3" %}
+<style>@page { size: A3 landscape; margin: 1.5cm; }</style>
+{% endif %}
 </head>
-<body>
+<body{% if paper_size == "A3" %} class="paper-a3"{% endif %}>
 
 <!-- ══ هيدر المدرسة ══════════════════════ -->
 <div class="report-header">
-  <img src="/static/icons/favicon.png" class="report-header-emblem" alt="شعار مدرسة الشحانية">
+  <img src="/static/brand/logoMaroon.png" class="report-header-emblem" alt="شعار مدرسة الشحانية">
+  <div class="state-name">دولة قطر</div>
   <h1>
     {% block school_name %}{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
   </h1>
@@ -347,6 +426,8 @@
     {% block school_info %}وزارة التربية والتعليم والتعليم العالي &nbsp;—&nbsp; دولة قطر{% endblock %}
   </div>
 </div>
+<!-- خط زخرفي مزدوج تحت الهيدر -->
+<div class="report-header-border"></div>
 
 {% block report_title_bar %}{% endblock %}
 
@@ -359,6 +440,8 @@
 <!-- فوتر الوثيقة -->
 <div class="pdf-doc-footer">
   {% now "Y/m/d" %} &nbsp;|&nbsp; {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
+  <div class="footer-ministry">وزارة التربية والتعليم والتعليم العالي &mdash; دولة قطر</div>
+  <div class="footer-version">SchoolOS v7</div>
 </div>
 
 </body>

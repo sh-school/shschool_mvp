@@ -421,29 +421,50 @@ class ExcelService:
         ws.protection.sort = False  # يسمح بالفرز
 
     @classmethod
-    def _setup_print_a4_portrait(cls, ws: object, num_cols: int, num_data_rows: int) -> None:
+    def _setup_print(
+        cls,
+        ws: object,
+        num_cols: int,
+        num_data_rows: int,
+        paper: str = "a4",
+        orientation: str = "portrait",
+    ) -> None:
         """
-        إعداد الطباعة على ورق A4 عمودي (Portrait):
-        - هوامش ضيقة مناسبة
-        - تكرار صفوف الرأس في كل صفحة
-        - ملاءمة العرض في صفحة واحدة
+        إعداد الطباعة — يدعم A4/A3 بوضع عمودي أو أفقي.
+
+        Args:
+            ws: ورقة العمل
+            num_cols: عدد الأعمدة
+            num_data_rows: عدد صفوف البيانات
+            paper: "a4" (paperSize=9) أو "a3" (paperSize=8)
+            orientation: "portrait" أو "landscape"
         """
         from openpyxl.worksheet.properties import PageSetupProperties
 
-        # A4 = 9, portrait
-        ws.page_setup.paperSize = 9
-        ws.page_setup.orientation = "portrait"
+        PAPER_SIZES = {"a4": 9, "a3": 8}
+        ws.page_setup.paperSize = PAPER_SIZES.get(paper.lower(), 9)
+        ws.page_setup.orientation = orientation
+
+        # ملاءمة العرض في صفحة واحدة — ارتفاع غير محدود
         ws.page_setup.fitToWidth = 1
         ws.page_setup.fitToHeight = 0
         ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
 
-        # هوامش ضيقة (بالبوصة)
-        ws.page_margins.left = 0.4
-        ws.page_margins.right = 0.4
-        ws.page_margins.top = 0.5
-        ws.page_margins.bottom = 0.5
-        ws.page_margins.header = 0.2
-        ws.page_margins.footer = 0.2
+        # هوامش (بالبوصة) — A3 أفقي يحتاج هوامش أوسع قليلاً
+        if paper.lower() == "a3" and orientation == "landscape":
+            ws.page_margins.left = 0.5
+            ws.page_margins.right = 0.5
+            ws.page_margins.top = 0.5
+            ws.page_margins.bottom = 0.5
+            ws.page_margins.header = 0.3
+            ws.page_margins.footer = 0.3
+        else:
+            ws.page_margins.left = 0.4
+            ws.page_margins.right = 0.4
+            ws.page_margins.top = 0.5
+            ws.page_margins.bottom = 0.5
+            ws.page_margins.header = 0.2
+            ws.page_margins.footer = 0.2
 
         # تكرار أول 4 صفوف (الرأس) في كل صفحة مطبوعة
         ws.print_title_rows = "1:4"
@@ -462,6 +483,16 @@ class ExcelService:
         )
         ws.oddFooter.center.text = "&P / &N"
         ws.oddFooter.right.text = "&D"
+
+    @classmethod
+    def _setup_print_a4_portrait(cls, ws: object, num_cols: int, num_data_rows: int) -> None:
+        """إعداد الطباعة على ورق A4 عمودي — غلاف توافقي للاستدعاءات القديمة."""
+        cls._setup_print(ws, num_cols, num_data_rows, paper="a4", orientation="portrait")
+
+    @classmethod
+    def _setup_print_a3_landscape(cls, ws: object, num_cols: int, num_data_rows: int) -> None:
+        """إعداد الطباعة على ورق A3 أفقي — غلاف مختصر."""
+        cls._setup_print(ws, num_cols, num_data_rows, paper="a3", orientation="landscape")
 
     @classmethod
     def to_response(cls, wb: object, filename: str) -> HttpResponse:
@@ -484,6 +515,7 @@ class ExcelService:
         class_group: ClassGroup,
         school: School,
         year: str = settings.CURRENT_ACADEMIC_YEAR,
+        paper: str = "a4",
     ) -> HttpResponse:
         """
         Excel كشف نتائج الفصل:
@@ -509,10 +541,15 @@ class ExcelService:
             num_cols,
         )
 
+        is_a3 = paper.lower() == "a3"
         columns = (
-            [("م", 5), ("اسم الطالب", 28), ("الرقم الوطني", 16)]
-            + [(s.name_ar[:18], 11) for s in subjects]
-            + [("المتوسط", 10), ("الحالة", 10), ("الترتيب", 8)]
+            [("م", 6 if is_a3 else 5),
+             ("اسم الطالب", 38 if is_a3 else 28),
+             ("الرقم الوطني", 20 if is_a3 else 16)]
+            + [(s.name_ar[:18], 15 if is_a3 else 11) for s in subjects]
+            + [("المتوسط", 13 if is_a3 else 10),
+               ("الحالة", 13 if is_a3 else 10),
+               ("الترتيب", 10 if is_a3 else 8)]
         )
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -556,7 +593,10 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, is_alt)
 
         cls._apply_protection(ws, num_cols)
-        cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
+        if is_a3:
+            cls._setup_print_a3_landscape(ws, num_cols, len(data["student_rows"]))
+        else:
+            cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"نتائج_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
@@ -567,6 +607,7 @@ class ExcelService:
         class_group: ClassGroup,
         school: School,
         year: str = settings.CURRENT_ACADEMIC_YEAR,
+        paper: str = "a4",
     ) -> HttpResponse:
         """
         Excel تقرير الغياب:
@@ -590,15 +631,16 @@ class ExcelService:
             num_cols,
         )
 
+        is_a3 = paper.lower() == "a3"
         columns = [
-            ("م", 5),
-            ("اسم الطالب", 28),
-            ("الرقم الوطني", 16),
-            ("إجمالي الحصص", 13),
-            ("حاضر", 10),
-            ("غائب", 10),
-            ("متأخر", 10),
-            ("نسبة الحضور %", 14),
+            ("م", 6 if is_a3 else 5),
+            ("اسم الطالب", 38 if is_a3 else 28),
+            ("الرقم الوطني", 20 if is_a3 else 16),
+            ("إجمالي الحصص", 17 if is_a3 else 13),
+            ("حاضر", 13 if is_a3 else 10),
+            ("غائب", 13 if is_a3 else 10),
+            ("متأخر", 13 if is_a3 else 10),
+            ("نسبة الحضور %", 18 if is_a3 else 14),
         ]
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -631,14 +673,17 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
         cls._apply_protection(ws, num_cols)
-        cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
+        if is_a3:
+            cls._setup_print_a3_landscape(ws, num_cols, len(data["student_rows"]))
+        else:
+            cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"غياب_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod
     def behavior_excel(
-        cls, school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
+        cls, school: School, year: str = settings.CURRENT_ACADEMIC_YEAR, paper: str = "a4",
     ) -> HttpResponse:
         """
         Excel تقرير السلوك:
@@ -669,15 +714,16 @@ class ExcelService:
             num_cols,
         )
 
+        is_a3 = paper.lower() == "a3"
         columns = [
-            ("م", 5),
-            ("اسم الطالب", 28),
-            ("الرقم الوطني", 16),
-            ("التاريخ", 13),
-            ("الدرجة", 18),
-            ("النقاط المخصومة", 15),
-            ("المُبلِّغ", 20),
-            ("الوصف", 40),
+            ("م", 6 if is_a3 else 5),
+            ("اسم الطالب", 38 if is_a3 else 28),
+            ("الرقم الوطني", 20 if is_a3 else 16),
+            ("التاريخ", 17 if is_a3 else 13),
+            ("الدرجة", 22 if is_a3 else 18),
+            ("النقاط المخصومة", 18 if is_a3 else 15),
+            ("المُبلِّغ", 26 if is_a3 else 20),
+            ("الوصف", 55 if is_a3 else 40),
         ]
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -712,6 +758,9 @@ class ExcelService:
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
         cls._apply_protection(ws, num_cols)
-        cls._setup_print_a4_portrait(ws, num_cols, len(data["infractions"]))
+        if is_a3:
+            cls._setup_print_a3_landscape(ws, num_cols, len(data["infractions"]))
+        else:
+            cls._setup_print_a4_portrait(ws, num_cols, len(data["infractions"]))
 
         return cls.to_response(wb, f"سلوك_{school.name}_{year}.xlsx")

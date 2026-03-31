@@ -94,7 +94,7 @@ def _inject_fonts(html_str: str) -> str:
 # ── WeasyPrint: حقن CSS الهيدر/الفوتر على كل صفحة ───────────────────────
 
 
-def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
+def _inject_wp_page_header_css(html_str: str, school: str, title: str, paper_size: str = "A4") -> str:
     """
     يحقن:
     1. CSS — @page مع @top-center / @bottom-*
@@ -106,6 +106,14 @@ def _inject_wp_page_header_css(html_str: str, school: str, title: str) -> str:
         return html_str
     today_str = timezone.now().strftime("%Y/%m/%d")
     title_part = f" — {title}" if title else ""
+
+    # ── إعدادات الحجم والهوامش حسب paper_size ──
+    if paper_size == "A3":
+        page_size_css = "A3 landscape"
+        page_margin = "2cm 1.5cm"
+    else:
+        page_size_css = "A4"
+        page_margin = "3.2cm 1.5cm 2.8cm 1.5cm"
 
     css = f"""
 /* ── RTL جذري لجميع العناصر ──────────────────── */
@@ -143,8 +151,8 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
 }}
 
 @page {{
-    size:   A4;
-    margin: 3.2cm 1.5cm 2.8cm 1.5cm;
+    size:   {page_size_css};
+    margin: {page_margin};
 
     @top-center {{
         content:         element(wp-header);
@@ -531,11 +539,13 @@ def _playwright_footer_template(today: str) -> str:
 # ── المولّد الرئيسي ──────────────────────────────────────────────────────
 
 
-def _generate_pdf_bytes(html_str: str) -> bytes:
+def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
     """
     HTML → PDF bytes
     الأولوية: WeasyPrint → Playwright (Chromium) → xhtml2pdf
     يتذكّر الـ backend الناجح ويتخطّى الفاشلة في الطلبات اللاحقة.
+
+    paper_size: "A4" (default) أو "A3" (landscape)
     """
     global _WORKING_BACKEND, _FAILED_BACKENDS
 
@@ -549,7 +559,7 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
             from weasyprint.text.fonts import FontConfiguration
 
             wp_html = _inject_fonts(html_str)
-            wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"])
+            wp_html = _inject_wp_page_header_css(wp_html, meta["school"], meta["title"], paper_size)
 
             font_config = FontConfiguration()
             base_url = Path(settings.BASE_DIR).as_uri() + "/"
@@ -593,14 +603,16 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
                         browser = pw.chromium.launch()
                         page = browser.new_page()
                         page.set_content(chr_html, wait_until="networkidle")
+                        pw_landscape = paper_size == "A3"
+                        pw_margin = (
+                            {"top": "2cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"}
+                            if paper_size == "A3"
+                            else {"top": "2.8cm", "bottom": "2.2cm", "left": "1.5cm", "right": "1.5cm"}
+                        )
                         _pdf_result["bytes"] = page.pdf(
-                            format="A4",
-                            margin={
-                                "top": "2.8cm",
-                                "bottom": "2.2cm",
-                                "left": "1.5cm",
-                                "right": "1.5cm",
-                            },
+                            format=paper_size,
+                            landscape=pw_landscape,
+                            margin=pw_margin,
                             display_header_footer=True,
                             header_template=header,
                             footer_template=footer,
@@ -643,6 +655,17 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         _patch_xhtml2pdf_context()
         # حذف @font-face (تسبب مشكلة temp files على Windows)
         xhtml_html = _strip_font_face(html_str)
+
+        # ── حقن @page لحجم الورق (A3 landscape عند الحاجة) ──
+        if paper_size == "A3":
+            xhtml_page_css = "<style>@page { size: A3 landscape; margin: 2cm 1.5cm; }</style>\n"
+            if "<head>" in xhtml_html.lower():
+                xhtml_html = re.sub(
+                    r"(<head[^>]*>)", r"\1\n" + xhtml_page_css, xhtml_html, count=1, flags=re.IGNORECASE
+                )
+            else:
+                xhtml_html = xhtml_page_css + xhtml_html
+
         # ── معالجة النص العربي: reshaping + BiDi ──
         xhtml_html = _reshape_html_for_xhtml2pdf(xhtml_html)
         static_root = str(Path(settings.BASE_DIR) / "static")
@@ -676,10 +699,13 @@ def _generate_pdf_bytes(html_str: str) -> bytes:
         raise RuntimeError(f"فشل توليد PDF: {e}")
 
 
-def render_pdf(html_str: str, filename: str) -> HttpResponse:
-    """HTML → PDF HttpResponse — للاستخدام في Django views"""
+def render_pdf(html_str: str, filename: str, paper_size: str = "A4") -> HttpResponse:
+    """HTML → PDF HttpResponse — للاستخدام في Django views
+
+    paper_size: "A4" (default) أو "A3" (landscape)
+    """
     try:
-        pdf_bytes = _generate_pdf_bytes(html_str)
+        pdf_bytes = _generate_pdf_bytes(html_str, paper_size=paper_size)
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
         resp["Content-Disposition"] = f'inline; filename="{filename}"'
         return resp
@@ -687,6 +713,9 @@ def render_pdf(html_str: str, filename: str) -> HttpResponse:
         return HttpResponse(str(e), status=500)
 
 
-def render_pdf_bytes(html_str: str) -> bytes:
-    """HTML → PDF bytes فقط — للاستخدام في Celery tasks"""
-    return _generate_pdf_bytes(html_str)
+def render_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
+    """HTML → PDF bytes فقط — للاستخدام في Celery tasks
+
+    paper_size: "A4" (default) أو "A3" (landscape)
+    """
+    return _generate_pdf_bytes(html_str, paper_size=paper_size)

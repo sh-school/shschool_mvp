@@ -75,11 +75,23 @@
     {% endfor %}
   </select>
 
+  <select id="paper-size-select" class="form-control w-auto min-w-[100px] m-0">
+    <option value="A4" selected>A4</option>
+    <option value="A3">A3</option>
+  </select>
+
   {% if grade_filter or level_filter %}
   <a href="?tab={{ tab }}&year={{ year }}" class="btn-secondary btn-sm">مسح الفلاتر</a>
   {% endif %}
 
   <span class="pagination-info">{{ classes|length }} فصل</span>
+</div>
+{% else %}
+<div class="filter-bar mb-4">
+  <select id="paper-size-select" class="form-control w-auto min-w-[100px] m-0">
+    <option value="A4" selected>A4</option>
+    <option value="A3">A3</option>
+  </select>
 </div>
 {% endif %}
 
@@ -92,7 +104,7 @@
     </div>
     <div class="flex items-center justify-between p-5">
       <span class="text-sm text-secondary">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success">
+      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success report-export-link" data-base-href="{% url 'behavior_excel' %}?year={{ year }}">
         {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>
     </div>
@@ -115,25 +127,33 @@
 
         {% if tab == "results" %}
           <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
           <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'class_results_pdf' cls.id %}?year={{ year }}">PDF</a>
           <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
+             class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'class_results_excel' cls.id %}?year={{ year }}">Excel</a>
 
         {% elif tab == "certificates" %}
           <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
           <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}">PDF</a>
 
         {% elif tab == "attendance" %}
           <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="search" %} معاينة</a>
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
           <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline">PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}">PDF</a>
           <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
+             class="btn-secondary btn-sm text-xs no-underline report-export-link"
+             data-base-href="{% url 'attendance_excel' cls.id %}?year={{ year }}">Excel</a>
         {% endif %}
 
       </div>
@@ -159,6 +179,23 @@ function applyFilter(name, value) {
   window.location.search = params.toString();
 }
 
+/* ── حجم الورق — يُحدّث روابط التصدير ديناميكياً ── */
+var paperSelect = document.getElementById('paper-size-select');
+if (paperSelect) {
+  paperSelect.addEventListener('change', updateExportLinks);
+  updateExportLinks();  /* تطبيق القيمة المبدئية */
+}
+
+function updateExportLinks() {
+  var paper = paperSelect ? paperSelect.value : 'A4';
+  document.querySelectorAll('.report-export-link').forEach(function(link) {
+    var base = link.getAttribute('data-base-href');
+    if (!base) return;
+    var sep = base.indexOf('?') !== -1 ? '&' : '?';
+    link.href = base + sep + 'paper=' + paper;
+  });
+}
+
 /* بحث الطالب الفردي */
 var searchBtn = document.getElementById('student-search-btn');
 var searchInput = document.getElementById('student-search-input');
@@ -174,6 +211,7 @@ async function searchStudent() {
   if (!q) return;
   var res = document.getElementById('student-results');
   res.innerHTML = '<p class="text-gray-400 text-xs">جاري البحث...</p>';
+  var paper = paperSelect ? paperSelect.value : 'A4';
   try {
     var r = await fetch('/api/students/search/?q=' + encodeURIComponent(q));
     var data = await r.json();
@@ -185,8 +223,8 @@ async function searchStudent() {
       return '<div class="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result">'
         + '<span class="font-medium text-sm">' + s.full_name + '</span>'
         + '<div class="flex gap-1">'
-        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}" class="btn-primary btn-sm">تقرير</a>'
-        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}" class="btn-secondary btn-sm">شهادة</a>'
+        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}&paper=' + paper + '" class="btn-primary btn-sm">تقرير</a>'
+        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}&paper=' + paper + '" class="btn-secondary btn-sm">شهادة</a>'
         + '</div></div>';
     }).join('');
   } catch(e) {

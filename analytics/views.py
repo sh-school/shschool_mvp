@@ -545,6 +545,7 @@ def kpi_monthly_pdf(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
+    paper = request.GET.get("paper", "A4")
     data = KPIService.compute(school, year)
 
     plan_domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
@@ -553,10 +554,10 @@ def kpi_monthly_pdf(request):
     red_kpis = [
         k for k in data["kpis"].values() if k.get("traffic") == "red" and k.get("value") is not None
     ]
-    ctx = {**data, "plan_domains": plan_domains, "red_kpis": red_kpis}
+    ctx = {**data, "plan_domains": plan_domains, "red_kpis": red_kpis, "paper_size": paper}
 
     if preview:
         return render(request, "analytics/kpi_monthly_report.html", ctx)
 
     html = render_to_string("analytics/kpi_monthly_report.html", ctx, request=request)
-    return render_pdf(html, f"kpi_{school.code}_{data['month_label']}.pdf")
+    return render_pdf(html, f"kpi_{school.code}_{data['month_label']}.pdf", paper_size=paper)
