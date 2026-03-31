@@ -1,12 +1,10 @@
 """
 scheduler.py — خوارزمية التوليد الذكية للجدول الأسبوعي
-Multi-Pass Greedy + Conflict-Aware Backtracking
-مدرسة الشحانية — قطر 2025-2026
+Multi-Pass Greedy + Swap Search — v3
 ═══════════════════════════════════════════════════════════
-v2: إعادة كتابة كاملة — 3 مراحل بدلاً من 1:
-  Phase 1: Greedy مع كل القيود (صلبة + مرنة)
-  Phase 2: إعادة محاولة الفاشلة مع قيود صلبة فقط
-  Phase 3: Swap Search — تبديل حصص موضوعة لإفساح المجال
+v3: إصلاح جذري — الشبكة تدعم فصول متعددة في نفس الخانة الزمنية.
+  كل (يوم, حصة) يمكن أن يحتوي على مهمة لكل فصل (حتى 25 فصل).
+  القيود: معلم واحد لا يُدرّس فصلين في نفس الوقت.
 """
 
 from __future__ import annotations
@@ -62,115 +60,136 @@ class Task:
 
 
 class ScheduleGrid:
-    """شبكة الجدول: 5 أيام × 7 حصص"""
+    """
+    شبكة الجدول: 5 أيام × 7 حصص × N فصل.
+    كل (يوم, حصة) يمكن أن يحتوي على مهمة واحدة لكل فصل.
+    القيد الأساسي: معلم واحد لا يُدرّس فصلين في نفس الوقت.
+    """
 
     def __init__(self):
-        self._grid: dict[int, dict[int, Task | None]] = {}
-        self._teacher_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
-        self._class_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        # (day, period) → list of tasks (one per class)
+        self._cells: dict[tuple[int, int], list[Task]] = defaultdict(list)
+        # teacher_id → set of (day, period) where they're teaching
+        self._teacher_periods: dict[str, set[tuple[int, int]]] = defaultdict(set)
+        # class_id → set of (day, period) where they have a lesson
+        self._class_periods: dict[str, set[tuple[int, int]]] = defaultdict(set)
+        # (subject_id, class_id, day) → count of lessons
         self._subject_class_day: dict[tuple[str, str, int], int] = defaultdict(int)
+        # all placed entries
         self._entries: list[dict] = []
 
-        for d in DAYS:
-            self._grid[d] = {}
-            for p in range(1, 8):
-                self._grid[d][p] = None
-
     def place(self, day: int, period: int, task: Task):
-        self._grid[day][period] = task
-        self._teacher_slots[task.teacher_id].append((day, period))
-        self._class_slots[task.class_id].append((day, period))
+        """وضع حصة في الشبكة"""
+        self._cells[(day, period)].append(task)
+        self._teacher_periods[task.teacher_id].add((day, period))
+        self._class_periods[task.class_id].add((day, period))
         self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
-    def remove(self, day: int, period: int):
-        task = self._grid[day][period]
-        if task is None:
-            return
-        self._grid[day][period] = None
-        self._teacher_slots[task.teacher_id].remove((day, period))
-        self._class_slots[task.class_id].remove((day, period))
+    def remove(self, day: int, period: int, task: Task):
+        """إزالة حصة محددة (للتبديل)"""
+        cell = self._cells.get((day, period), [])
+        self._cells[(day, period)] = [t for t in cell if t is not task]
+        self._teacher_periods[task.teacher_id].discard((day, period))
+        self._class_periods[task.class_id].discard((day, period))
         key = (task.subject_id, task.class_id, day)
-        self._subject_class_day[key] -= 1
+        self._subject_class_day[key] = max(0, self._subject_class_day[key] - 1)
         self._entries = [
-            e for e in self._entries if not (e["day"] == day and e["period"] == period)
+            e for e in self._entries
+            if not (e["day"] == day and e["period"] == period and e["task"] is task)
         ]
 
-    def teacher_at(self, day: int, period: int) -> str | None:
-        t = self._grid.get(day, {}).get(period)
-        return t.teacher_id if t else None
+    def is_teacher_busy(self, teacher_id: str, day: int, period: int) -> bool:
+        """هل المعلم مشغول في (يوم, حصة)؟"""
+        return (day, period) in self._teacher_periods[teacher_id]
 
-    def class_at(self, day: int, period: int) -> str | None:
-        t = self._grid.get(day, {}).get(period)
-        return t.class_id if t else None
+    def is_class_busy(self, class_id: str, day: int, period: int) -> bool:
+        """هل الفصل مشغول في (يوم, حصة)؟"""
+        return (day, period) in self._class_periods[class_id]
 
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
-        return sum(1 for d, p in self._teacher_slots[teacher_id] if d == day)
+        """عدد حصص المعلم في يوم"""
+        return sum(1 for d, p in self._teacher_periods[teacher_id] if d == day)
 
     def class_periods_on_day(self, class_id: str, day: int) -> int:
-        return sum(1 for d, p in self._class_slots[class_id] if d == day)
+        """عدد حصص الفصل في يوم"""
+        return sum(1 for d, p in self._class_periods[class_id] if d == day)
 
     def subject_on_day(self, class_id: str, subject_id: str, day: int) -> int:
+        """عدد حصص مادة لفصل في يوم"""
         return self._subject_class_day.get((subject_id, class_id, day), 0)
 
-    def teacher_consecutive_at(self, teacher_id: str, day: int, period: int) -> int:
-        count = 0
-        for p in range(period - 1, 0, -1):
-            if self.teacher_at(day, p) == teacher_id:
-                count += 1
-            else:
-                break
-        for p in range(period + 1, 8):
-            if self.teacher_at(day, p) == teacher_id:
-                count += 1
-            else:
-                break
-        return count
-
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
+        """عدد الحصص المتتالية مع استثناء PE/SCI"""
         from .scheduler_constraints import CONSECUTIVE_RESET_CODES
 
         count = 0
         for p in range(period - 1, 0, -1):
-            task = self.get_task_at(day, p)
-            if task is None or task.teacher_id != teacher_id:
+            if not self.is_teacher_busy(teacher_id, day, p):
                 break
-            if task.subject_code in CONSECUTIVE_RESET_CODES:
+            task = self._find_teacher_task_at(teacher_id, day, p)
+            if task and task.subject_code in CONSECUTIVE_RESET_CODES:
                 break
             count += 1
         for p in range(period + 1, 8):
-            task = self.get_task_at(day, p)
-            if task is None or task.teacher_id != teacher_id:
+            if not self.is_teacher_busy(teacher_id, day, p):
                 break
-            if task.subject_code in CONSECUTIVE_RESET_CODES:
+            task = self._find_teacher_task_at(teacher_id, day, p)
+            if task and task.subject_code in CONSECUTIVE_RESET_CODES:
                 break
             count += 1
         return count
 
+    def _find_teacher_task_at(self, teacher_id: str, day: int, period: int) -> Task | None:
+        """إيجاد مهمة المعلم في (يوم, حصة)"""
+        for task in self._cells.get((day, period), []):
+            if task.teacher_id == teacher_id:
+                return task
+        return None
+
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
-        periods_today = sorted(p for d, p in self._teacher_slots[teacher_id] if d == day)
+        """هل إضافة حصة ستخلق فجوة للمعلم؟"""
+        periods_today = sorted(
+            p for d, p in self._teacher_periods[teacher_id] if d == day
+        )
         periods_today.append(period)
         periods_today.sort()
         if len(periods_today) < 2:
             return False
         for i in range(len(periods_today) - 1):
-            diff = periods_today[i + 1] - periods_today[i]
-            if diff > 2:
+            if periods_today[i + 1] - periods_today[i] > 2:
                 return True
         return False
+
+    def get_class_task_at(self, class_id: str, day: int, period: int) -> Task | None:
+        """إيجاد مهمة الفصل في (يوم, حصة)"""
+        for task in self._cells.get((day, period), []):
+            if task.class_id == class_id:
+                return task
+        return None
 
     def all_entries(self) -> list[dict]:
         return self._entries
 
-    def get_task_at(self, day: int, period: int) -> Task | None:
-        return self._grid.get(day, {}).get(period)
-
     def teacher_total_periods(self, teacher_id: str) -> int:
-        return len(self._teacher_slots[teacher_id])
+        return len(self._teacher_periods[teacher_id])
 
-    def find_teacher_slots(self, teacher_id: str) -> list[tuple[int, int]]:
-        """كل الخانات الموضوع فيها هذا المعلم"""
-        return list(self._teacher_slots[teacher_id])
+    # ── Backward-compatible aliases for scheduler_constraints.py ──
+
+    def teacher_at(self, day: int, period: int) -> str | None:
+        """مُهمَل — للتوافقية مع scheduler_constraints. يُرجع أول معلم فقط."""
+        tasks = self._cells.get((day, period), [])
+        return tasks[0].teacher_id if tasks else None
+
+    def class_at(self, day: int, period: int) -> str | None:
+        """مُهمَل — للتوافقية مع scheduler_constraints."""
+        tasks = self._cells.get((day, period), [])
+        return tasks[0].class_id if tasks else None
+
+    def get_task_at(self, day: int, period: int) -> Task | None:
+        """مُهمَل — للتوافقية. يُرجع أول مهمة فقط."""
+        tasks = self._cells.get((day, period), [])
+        return tasks[0] if tasks else None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -230,11 +249,8 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
 
 def sort_tasks(tasks: list[Task]) -> list[Task]:
     """ترتيب المهام: الأصعب أولاً (Most Constrained Variable)"""
-    # حساب عدد المعلمين الفريدين لكل مادة
     subject_teacher_count = defaultdict(set)
-    # حساب حمل كل معلم
     teacher_load = defaultdict(int)
-    # حساب حمل كل فصل
     class_load = defaultdict(int)
 
     for t in tasks:
@@ -243,47 +259,20 @@ def sort_tasks(tasks: list[Task]) -> list[Task]:
         class_load[t.class_id] += 1
 
     def priority(task: Task) -> tuple:
-        # الأكثر تقييداً أولاً:
         return (
-            len(subject_teacher_count[task.subject_id]),  # معلم وحيد أولاً
-            -teacher_load[task.teacher_id],  # المعلم الأكثر حملاً أولاً
-            -class_load[task.class_id],  # الفصل الأكثر حملاً أولاً
-            -task.weekly_periods,  # نصاب أعلى أولاً
-            -int(task.requires_lab),  # المعامل أولاً
+            len(subject_teacher_count[task.subject_id]),
+            -teacher_load[task.teacher_id],
+            -class_load[task.class_id],
+            -task.weekly_periods,
+            -int(task.requires_lab),
         )
 
     return sorted(tasks, key=priority)
 
 
 # ══════════════════════════════════════════════════════════════
-# التوليد الرئيسي — Multi-Pass
+# فحص الخانات المتاحة
 # ══════════════════════════════════════════════════════════════
-
-
-def _get_available_slots_hard_only(
-    grid: ScheduleGrid,
-    task: Task,
-    blocked_slots: set | None = None,
-) -> list[tuple[int, int]]:
-    """الخانات التي تمر القيود الصلبة الأساسية فقط (teacher + class conflict)"""
-    from .scheduler_constraints import get_max_periods_for_day
-
-    available = []
-    level_type = getattr(task, "level_type", "")
-    for day in DAYS:
-        max_p = get_max_periods_for_day(day, level_type)
-        for period in range(1, max_p + 1):
-            if grid.get_task_at(day, period) is not None:
-                continue
-            if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
-                continue
-            # القيود الصلبة الأساسية فقط: تعارض معلم + تعارض فصل
-            if grid.teacher_at(day, period) == task.teacher_id:
-                continue
-            if grid.class_at(day, period) == task.class_id:
-                continue
-            available.append((day, period))
-    return available
 
 
 def get_available_slots(
@@ -291,7 +280,7 @@ def get_available_slots(
     task: Task,
     blocked_slots: set | None = None,
 ) -> list[tuple[int, int]]:
-    """الخانات المتاحة (كل القيود الصلبة)"""
+    """الخانات المتاحة — كل القيود الصلبة"""
     from .scheduler_constraints import get_max_periods_for_day
 
     available = []
@@ -299,12 +288,40 @@ def get_available_slots(
     for day in DAYS:
         max_p = get_max_periods_for_day(day, level_type)
         for period in range(1, max_p + 1):
-            if grid.get_task_at(day, period) is not None:
+            # القيود الأساسية: المعلم غير مشغول + الفصل غير مشغول
+            if grid.is_teacher_busy(task.teacher_id, day, period):
+                continue
+            if grid.is_class_busy(task.class_id, day, period):
+                continue
+            # تفريغات المعلم
+            if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
+                continue
+            # القيود الصلبة الإضافية (متتالية + نصاب عالي)
+            if is_slot_valid(grid, day, period, task):
+                available.append((day, period))
+    return available
+
+
+def _get_available_slots_hard_only(
+    grid: ScheduleGrid,
+    task: Task,
+    blocked_slots: set | None = None,
+) -> list[tuple[int, int]]:
+    """الخانات المتاحة — القيود الأساسية فقط (معلم + فصل)"""
+    from .scheduler_constraints import get_max_periods_for_day
+
+    available = []
+    level_type = getattr(task, "level_type", "")
+    for day in DAYS:
+        max_p = get_max_periods_for_day(day, level_type)
+        for period in range(1, max_p + 1):
+            if grid.is_teacher_busy(task.teacher_id, day, period):
+                continue
+            if grid.is_class_busy(task.class_id, day, period):
                 continue
             if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
                 continue
-            if is_slot_valid(grid, day, period, task):
-                available.append((day, period))
+            available.append((day, period))
     return available
 
 
@@ -328,65 +345,65 @@ def _try_swap_placement(
     task: Task,
     blocked_slots: set | None,
     preferences: dict | None,
-    max_attempts: int = 50,
+    max_attempts: int = 100,
 ) -> bool:
     """
-    Phase 3: Swap Search — حاول تبديل حصة موضوعة لإفساح المجال.
-
-    إذا لا يوجد slot فارغ لـ task، نبحث عن حصة موضوعة لمعلم آخر
-    يمكن نقلها لمكان آخر لتحرير الخانة.
+    Phase 3: Swap Search — تبديل حصة لإفساح المجال.
+    نبحث عن مهمة موضوعة لنفس المعلم يمكن نقلها لوقت آخر.
     """
     from .scheduler_constraints import get_max_periods_for_day
 
     level_type = getattr(task, "level_type", "")
     attempts = 0
 
+    # ابحث في الأوقات التي يكون فيها الفصل فارغاً لكن المعلم مشغول
     for day in DAYS:
         max_p = get_max_periods_for_day(day, level_type)
         for period in range(1, max_p + 1):
             if attempts >= max_attempts:
                 return False
 
-            existing = grid.get_task_at(day, period)
-            if existing is None:
+            # الفصل يجب أن يكون فارغاً
+            if grid.is_class_busy(task.class_id, day, period):
                 continue
 
-            # لا يمكن نقل حصة نفس الفصل
-            if existing.class_id == task.class_id:
-                continue
-            # لا يمكن نقل حصة نفس المعلم
-            if existing.teacher_id == task.teacher_id:
-                continue
-
-            # هل يمكن وضع task في (day, period) إذا أزلنا existing؟
-            # تحقق: المعلم ليس مشغولاً + الفصل ليس مشغولاً (الفصل فارغ بعد الإزالة)
-            if grid.teacher_at(day, period) == task.teacher_id:
-                continue  # المعلم مشغول بفصل آخر في هذا الوقت
-            # الفصل: existing.class_id سيُزال، لكن هل task.class_id مشغول؟
-            if task.class_id != existing.class_id and grid.class_at(day, period) == task.class_id:
-                continue
+            # المعلم مشغول — نحتاج تبديل
+            if not grid.is_teacher_busy(task.teacher_id, day, period):
+                continue  # المعلم فارغ — لكن is_slot_valid قد يكون رافض (قيود إضافية)
 
             attempts += 1
 
-            # أزل existing مؤقتاً
-            grid.remove(day, period)
+            # إيجاد المهمة التي يُدرّسها المعلم في هذا الوقت
+            existing = grid._find_teacher_task_at(task.teacher_id, day, period)
+            if existing is None:
+                continue
 
-            # هل يمكن وضع task هنا الآن؟
-            if is_slot_valid(grid, day, period, task):
-                # هل يمكن إيجاد مكان آخر لـ existing؟
-                alt_slots = get_available_slots(grid, existing, blocked_slots)
-                if alt_slots:
-                    alt_ranked = rank_slots(grid, existing, alt_slots, preferences)
-                    alt_day, alt_period, _ = alt_ranked[0]
-                    # نجح التبديل!
-                    grid.place(day, period, task)
+            # حاول نقل existing لوقت آخر
+            grid.remove(day, period, existing)
+
+            # هل يوجد مكان بديل لـ existing؟
+            alt_slots = _get_available_slots_hard_only(grid, existing, blocked_slots)
+            if alt_slots:
+                alt_ranked = rank_slots(grid, existing, alt_slots, preferences)
+                alt_day, alt_period, _ = alt_ranked[0]
+
+                # هل يمكن وضع task هنا الآن؟
+                if not grid.is_teacher_busy(task.teacher_id, day, period):
                     grid.place(alt_day, alt_period, existing)
+                    grid.place(day, period, task)
                     return True
-
-            # أعد existing لمكانه
-            grid.place(day, period, existing)
+                else:
+                    # المعلم لا يزال مشغولاً (مهمة أخرى)
+                    grid.place(day, period, existing)  # أعد existing
+            else:
+                grid.place(day, period, existing)  # أعد existing
 
     return False
+
+
+# ══════════════════════════════════════════════════════════════
+# التوليد الرئيسي — Multi-Pass
+# ══════════════════════════════════════════════════════════════
 
 
 def generate_schedule(
@@ -399,7 +416,7 @@ def generate_schedule(
     التوليد الرئيسي — Multi-Pass Greedy
 
     Phase 1: Greedy مع كل القيود (صلبة + مرنة)
-    Phase 2: إعادة محاولة الفاشلة مع قيود صلبة فقط (بدون مرنة)
+    Phase 2: إعادة محاولة الفاشلة مع قيود أساسية فقط
     Phase 3: Swap Search — تبديل حصص لإفساح المجال
     """
     start_time = time.time()
@@ -428,7 +445,7 @@ def generate_schedule(
     exemptions_qs = TeacherExemption.objects.filter(
         school=school, academic_year=academic_year, is_active=True,
     )
-    blocked_slots: set[tuple[str, int, int | None]] = set()
+    blocked_slots: set[tuple[str, int, int]] = set()
     for ex in exemptions_qs:
         tid = str(ex.teacher_id)
         if ex.exemption_type == "full_day":
@@ -462,19 +479,15 @@ def generate_schedule(
     )
 
     # ══════════════════════════════════════════════════════
-    # Phase 2: إعادة محاولة الفاشلة — قيود صلبة أساسية فقط
-    # (بدون HC5 consecutive + HC6 high_weekly)
+    # Phase 2: إعادة محاولة — قيود أساسية فقط
     # ══════════════════════════════════════════════════════
     unplaced_phase2 = []
 
     if unplaced_phase1:
-        # ترتيب عشوائي خفيف لتنويع النتائج
         random.shuffle(unplaced_phase1)
-
         for task in unplaced_phase1:
             available = _get_available_slots_hard_only(grid, task, blocked_slots)
             if available:
-                # اختر الأقل عقوبة مرنة
                 ranked = rank_slots(grid, task, available, preferences)
                 day, period, _ = ranked[0]
                 grid.place(day, period, task)
@@ -488,13 +501,13 @@ def generate_schedule(
     )
 
     # ══════════════════════════════════════════════════════
-    # Phase 3: Swap Search — تبديل حصص لإفساح المجال
+    # Phase 3: Swap Search — تبديل حصص
     # ══════════════════════════════════════════════════════
     final_unplaced = []
 
     if unplaced_phase2:
         for task in unplaced_phase2:
-            if _try_swap_placement(grid, task, blocked_slots, preferences, max_attempts=100):
+            if _try_swap_placement(grid, task, blocked_slots, preferences):
                 phase_stats["phase3"] += 1
             else:
                 final_unplaced.append(task)
@@ -556,7 +569,6 @@ def generate_schedule(
                         return result
                     return DEFAULT_TIMES.get(period, (dt_time(7, 10), dt_time(7, 55)))
 
-                # إنشاء الحصص الجديدة
                 bulk = []
                 for entry in grid.all_entries():
                     t = entry["task"]
@@ -579,7 +591,6 @@ def generate_schedule(
                     )
                 ScheduleSlot.objects.bulk_create(bulk)
 
-                # سجل التوليد
                 generation = ScheduleGeneration.objects.create(
                     school=school,
                     academic_year=academic_year,

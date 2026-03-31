@@ -43,11 +43,15 @@ HIGH_WEEKLY_THRESHOLD = 5
 
 def check_teacher_conflict(grid: ScheduleGrid, day: int, period: int, teacher_id) -> bool:
     """HC1: المعلم لا يُدرّس فصلين في نفس الوقت"""
+    if hasattr(grid, "is_teacher_busy"):
+        return not grid.is_teacher_busy(teacher_id, day, period)
     return grid.teacher_at(day, period) != teacher_id
 
 
 def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) -> bool:
     """HC2: الفصل لا يأخذ مادتين في نفس الوقت"""
+    if hasattr(grid, "is_class_busy"):
+        return not grid.is_class_busy(class_id, day, period)
     return grid.class_at(day, period) != class_id
 
 
