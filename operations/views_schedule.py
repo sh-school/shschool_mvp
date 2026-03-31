@@ -409,18 +409,14 @@ def smart_schedule_view(request):
     total_weekly = sum(a.weekly_periods for a in assignments)
 
     # ── Pre-validation: capacity check per class ──
+    from .scheduler import _grade_to_level
+
     class_demand = defaultdict(int)
     class_levels = {}
     for a in assignments:
         cid = str(a.class_group_id)
         class_demand[cid] += a.weekly_periods
-        grade = a.class_group.grade
-        if grade in (7, 8, 9):
-            class_levels[cid] = "prep"
-        elif grade in (10, 11, 12):
-            class_levels[cid] = "sec"
-        else:
-            class_levels.setdefault(cid, "")
+        class_levels[cid] = _grade_to_level(a.class_group.grade)
 
     overcapacity_classes = []
     for cid, demand in class_demand.items():

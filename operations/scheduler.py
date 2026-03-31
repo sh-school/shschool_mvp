@@ -193,6 +193,35 @@ class ScheduleGrid:
 
 
 # ══════════════════════════════════════════════════════════════
+# أدوات مساعدة
+# ══════════════════════════════════════════════════════════════
+
+
+def _parse_grade(raw_grade) -> int:
+    """تحويل grade من أي صيغة إلى رقم صحيح.
+
+    يدعم: int, "G10", "10", "grade10", "الصف 10", إلخ.
+    """
+    if isinstance(raw_grade, int):
+        return raw_grade
+    s = str(raw_grade).strip().upper()
+    # استخراج الرقم من النص
+    import re
+    match = re.search(r"\d+", s)
+    return int(match.group()) if match else 0
+
+
+def _grade_to_level(raw_grade) -> str:
+    """تحويل grade إلى level_type (prep/sec/empty)."""
+    g = _parse_grade(raw_grade)
+    if g in (7, 8, 9):
+        return "prep"
+    if g in (10, 11, 12):
+        return "sec"
+    return ""
+
+
+# ══════════════════════════════════════════════════════════════
 # بناء المهام
 # ══════════════════════════════════════════════════════════════
 
@@ -214,13 +243,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         if not a.teacher_id or a.teacher is None:
             continue
 
-        grade = a.class_group.grade
-        if grade in (7, 8, 9):
-            level_type = "prep"
-        elif grade in (10, 11, 12):
-            level_type = "sec"
-        else:
-            level_type = ""
+        level_type = _grade_to_level(a.class_group.grade)
 
         is_double = (
             a.subject_id in double_period_subjects
