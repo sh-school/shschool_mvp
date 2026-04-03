@@ -555,6 +555,16 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
     # ── WeasyPrint ─────────────────────────────────────────────────────
     if "weasyprint" not in _FAILED_BACKENDS:
         try:
+            import importlib
+            import sys
+
+            # Hot-reload (Daphne/ASGI dev server) قد يُفسد weasyprint في
+            # sys.modules — نكشف ذلك ونعيد تحميله قبل الاستيراد
+            _wp_mod = sys.modules.get("weasyprint")
+            if _wp_mod is not None and not hasattr(_wp_mod, "HTML"):
+                logger.debug("WeasyPrint module فاسد في sys.modules — إعادة تحميل")
+                importlib.reload(_wp_mod)
+
             from weasyprint import HTML
             from weasyprint.text.fonts import FontConfiguration
 
@@ -570,7 +580,7 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
         except ImportError:
             logger.debug("WeasyPrint غير مثبت")
             _FAILED_BACKENDS.add("weasyprint")
-        except OSError as e:
+        except (OSError, KeyError, AttributeError) as e:
             logger.debug("WeasyPrint غير متاح: %s", e)
             _FAILED_BACKENDS.add("weasyprint")
 
@@ -675,6 +685,11 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                 return os.path.join(static_root, uri[8:].replace("/", os.sep))
             if uri.startswith("file:///"):
                 return uri[8:].replace("/", os.sep)
+            # مسارات نسبية مثل static/brand/logoMaroon.png
+            if not uri.startswith(("http://", "https://")):
+                candidate = os.path.join(str(Path(settings.BASE_DIR)), uri.replace("/", os.sep))
+                if os.path.exists(candidate):
+                    return candidate
             return uri
 
         buffer = BytesIO()
