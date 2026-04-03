@@ -27,7 +27,101 @@ if TYPE_CHECKING:
 
 
 class StaffService:
-    """خدمات بيانات الموظفين — ملف شامل + إحصائيات."""
+    """خدمات بيانات الموظفين — لوحة التحكم + ملف شامل."""
+
+    @staticmethod
+    def get_dashboard_stats(school, year: str, today=None) -> dict:
+        """
+        إحصائيات لوحة شؤون الموظفين — 7 KPIs في استعلامات منفصلة.
+
+        Args:
+            school: كائن المدرسة
+            year: العام الدراسي
+            today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+
+        Returns:
+            dict يحتوي: total_staff, absences_today, pending_swaps,
+                        pending_leaves, pending_evals, expiring_licenses,
+                        role_distribution, recent_absences, recent_leaves
+        """
+        from datetime import timedelta
+
+        from django.db.models import Count
+        from django.utils import timezone
+
+        from core.models.access import Membership
+        from core.models.user import CustomUser
+        from operations.models import TeacherAbsence, TeacherSwap, StaffEvaluation
+        from staff_affairs.models import LeaveRequest
+
+        today = today or timezone.localdate()
+
+        total_staff = (
+            Membership.objects
+            .filter(school=school, is_active=True)
+            .exclude(role__name__in=("student", "parent"))
+            .count()
+        )
+
+        absences_today = TeacherAbsence.objects.filter(
+            school=school, date=today,
+        ).count()
+
+        pending_swaps = TeacherSwap.objects.filter(
+            school=school,
+            status__in=["pending_b", "pending_coordinator", "pending_vp"],
+        ).count()
+
+        pending_leaves = LeaveRequest.objects.filter(
+            school=school, status="pending",
+        ).count()
+
+        pending_evals = StaffEvaluation.objects.filter(
+            school=school, status="draft", academic_year=year,
+        ).count()
+
+        expiring_licenses = CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            professional_license_expiry__isnull=False,
+            professional_license_expiry__lte=today + timedelta(days=90),
+            professional_license_expiry__gt=today,
+        ).count()
+
+        role_distribution_raw = (
+            Membership.objects
+            .filter(school=school, is_active=True)
+            .exclude(role__name__in=("student", "parent"))
+            .values("role__name")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        recent_absences = list(
+            TeacherAbsence.objects
+            .filter(school=school)
+            .select_related("teacher")
+            .order_by("-date")[:5]
+        )
+
+        recent_leaves = list(
+            LeaveRequest.objects
+            .filter(school=school)
+            .select_related("staff")
+            .order_by("-created_at")[:5]
+        )
+
+        return {
+            "total_staff": total_staff,
+            "absences_today": absences_today,
+            "pending_swaps": pending_swaps,
+            "pending_leaves": pending_leaves,
+            "pending_evals": pending_evals,
+            "expiring_licenses": expiring_licenses,
+            "role_distribution_raw": list(role_distribution_raw),
+            "recent_absences": recent_absences,
+            "recent_leaves": recent_leaves,
+        }
 
     @staticmethod
     def get_staff_profile_data(user, school, year: str) -> dict:
