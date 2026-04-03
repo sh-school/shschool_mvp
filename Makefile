@@ -1,5 +1,6 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
-        quality lint security ci test-cov pre-commit-install minify-js
+        quality lint security ci test-cov pre-commit-install minify-js \
+        axes-reset health-check ready-check test-v54 pip-audit-check
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -187,6 +188,37 @@ loadtest-headless:
 test-contracts:
 	pytest tests/test_api_contract.py -v
 
+# ══════════════════════════════════════════════════════
+#  v5.4 — أوامر جديدة
+# ══════════════════════════════════════════════════════
+
+# إعادة تعيين محاولات تسجيل الدخول الفاشلة لمستخدم (django-axes)
+# الاستخدام: make axes-reset USER=28765432101
+axes-reset:
+	python manage.py axes_reset_ip --username $(USER)
+	@echo "تم إعادة تعيين قفل المستخدم: $(USER)"
+
+# فحص الـ health endpoints محلياً
+health-check:
+	@echo "=== Liveness (/health/) ==="
+	curl -s http://localhost:8000/health/ | python -m json.tool
+	@echo ""
+	@echo "=== Readiness (/ready/) ==="
+	curl -s http://localhost:8000/ready/ | python -m json.tool
+
+ready-check:
+	curl -sf http://localhost:8000/ready/ && echo "✅ Ready" || echo "❌ Not Ready"
+
+# تشغيل اختبارات v5.4 فقط
+test-v54:
+	pytest tests/test_v54_features.py -v --no-header
+
+# فحص الثغرات الأمنية في المتطلبات
+pip-audit-check:
+	@echo "=== pip-audit Security Scan ==="
+	pip-audit -r requirements.txt --progress-spinner off
+	@echo "=== لا ثغرات معروفة ==="
+
 # ── Help ──────────────────────────────────────────────
 help:
 	@echo ""
@@ -203,4 +235,10 @@ help:
 	@echo "  make loadtest      Load Testing (Locust UI)"
 	@echo "  make loadtest-headless  Load Testing بدون واجهة"
 	@echo "  make test-contracts  API Contract Tests"
+	@echo ""
+	@echo "v5.4 الجديدة:"
+	@echo "  make axes-reset USER=<رقم_وطني>  إعادة تعيين قفل مستخدم"
+	@echo "  make health-check   فحص /health/ و /ready/ محلياً"
+	@echo "  make test-v54       اختبارات ميزات v5.4 فقط"
+	@echo "  make pip-audit-check  فحص ثغرات المتطلبات"
 	@echo ""
