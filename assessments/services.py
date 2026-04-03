@@ -530,3 +530,115 @@ class GradeService:
             "pass_pct": round(passed / len(grades) * 100) if grades else 0,
             "semester_max": s_max,
         }
+
+    @staticmethod
+    def get_chart_data(school, year: str) -> dict:
+        """
+        بيانات الرسوم البيانية للتقييمات — توزيع الدرجات + مقارنة الفصول + المواد.
+
+        ✅ v5.4: ينقل business logic من api_assessment_charts view إلى service layer.
+        يستخدم 3 استعلامات DB بدل N+1 (استعلام per فصل).
+
+        Args:
+            school: كائن المدرسة
+            year: العام الدراسي
+
+        Returns:
+            dict يحتوي: grade_distribution, class_comparison, subject_comparison
+        """
+        from collections import defaultdict
+
+        from django.db.models import Avg, Count, Q
+
+        from core.models import ClassGroup, StudentEnrollment
+
+        from .models import AnnualSubjectResult
+
+        # ── Grade distribution bands ──
+        results_values = AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year
+        ).values_list("annual_total", flat=True)
+
+        bands = [0] * 6  # <50, 50-59, 60-69, 70-79, 80-89, 90-100
+        for r in results_values:
+            if r is None:
+                continue
+            t = float(r)
+            if t >= 90:
+                bands[5] += 1
+            elif t >= 80:
+                bands[4] += 1
+            elif t >= 70:
+                bands[3] += 1
+            elif t >= 60:
+                bands[2] += 1
+            elif t >= 50:
+                bands[1] += 1
+            else:
+                bands[0] += 1
+
+        # ── Class comparison — 2 queries ──
+        classes = list(
+            ClassGroup.objects.filter(school=school, academic_year=year)
+            .order_by("grade", "section")[:15]
+        )
+        class_ids = [cg.pk for cg in classes]
+
+        student_to_class: dict = {}
+        for student_id, class_group_id in StudentEnrollment.objects.filter(
+            class_group_id__in=class_ids, is_active=True
+        ).values_list("student_id", "class_group_id"):
+            student_to_class[student_id] = class_group_id
+
+        class_sums: dict = defaultdict(lambda: [0.0, 0])
+        for student_id, annual_total in AnnualSubjectResult.objects.filter(
+            student_id__in=student_to_class.keys(),
+            school=school,
+            academic_year=year,
+            annual_total__isnull=False,
+        ).values_list("student_id", "annual_total"):
+            cg_id = student_to_class.get(student_id)
+            if cg_id:
+                class_sums[cg_id][0] += float(annual_total)
+                class_sums[cg_id][1] += 1
+
+        class_labels, class_avgs = [], []
+        for cg in classes:
+            data = class_sums.get(cg.pk)
+            if data and data[1] > 0:
+                class_labels.append(str(cg))
+                class_avgs.append(round(data[0] / data[1], 1))
+
+        # ── Subject comparison ──
+        subj_data = (
+            AnnualSubjectResult.objects.filter(school=school, academic_year=year)
+            .values("subject__name_ar")
+            .annotate(
+                avg=Avg("annual_total"),
+                fail_count=Count("id", filter=Q(status="fail")),
+                total=Count("id"),
+            )
+            .order_by("-avg")[:10]
+        )
+        subj_labels = [s["subject__name_ar"] for s in subj_data]
+        subj_avgs = [round(float(s["avg"]), 1) if s["avg"] else 0 for s in subj_data]
+        subj_fail_rates = [
+            round(s["fail_count"] / s["total"] * 100, 1) if s["total"] else 0
+            for s in subj_data
+        ]
+
+        return {
+            "grade_distribution": {
+                "labels": ["أقل من 50", "50-59", "60-69", "70-79", "80-89", "90-100"],
+                "data": bands,
+            },
+            "class_comparison": {
+                "labels": class_labels,
+                "data": class_avgs,
+            },
+            "subject_comparison": {
+                "labels": subj_labels,
+                "avgs": subj_avgs,
+                "fail_rates": subj_fail_rates,
+            },
+        }
