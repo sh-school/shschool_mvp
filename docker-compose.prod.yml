@@ -1,11 +1,21 @@
 version: "3.9"
 
 # ══════════════════════════════════════════════════════════════
-# SchoolOS v5.2 — Compose الإنتاج
+# SchoolOS v5.3 — Compose الإنتاج
 # - WAL archiving for PITR
 # - Pinned image tags
 # - Non-root containers
+# - Log rotation على كل الحاويات (SRE)
+# - Graceful shutdown 30s للـ web و celery (SRE)
+# - max-tasks-per-child=100 لمنع memory leak في Celery (P1)
 # ══════════════════════════════════════════════════════════════
+
+# ── إعداد Log Rotation المشترك ────────────────────────────────
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
 
 services:
 
@@ -18,7 +28,6 @@ services:
       POSTGRES_DB:       ${DB_NAME}
       POSTGRES_USER:     ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
-    # ✅ v5.2: WAL archiving for point-in-time recovery
     command: >
       postgres
         -c wal_level=replica
@@ -27,6 +36,8 @@ services:
         -c max_wal_senders=3
         -c log_statement=ddl
         -c log_connections=on
+        -c log_min_duration_statement=200
+        -c shared_preload_libraries=pg_stat_statements
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -35,6 +46,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
     networks:
       - internal
 
@@ -50,6 +62,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
     networks:
       - internal
 
@@ -57,6 +70,7 @@ services:
   web:
     build: .
     restart: always
+    stop_grace_period: 30s
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
@@ -84,6 +98,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    logging: *default-logging
     networks:
       - internal
       - external
@@ -92,6 +107,7 @@ services:
   celery_worker:
     build: .
     restart: always
+    stop_grace_period: 30s
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
@@ -108,7 +124,9 @@ services:
       celery -A shschool worker
         --loglevel=info
         --concurrency=2
+        --max-tasks-per-child=100
         --logfile=/app/logs/celery_worker.log
+    logging: *default-logging
     networks:
       - internal
 
@@ -131,6 +149,7 @@ services:
       celery -A shschool beat
         --loglevel=info
         --logfile=/app/logs/celery_beat.log
+    logging: *default-logging
     networks:
       - internal
 
@@ -153,6 +172,7 @@ services:
         echo '0 2 * * * sh /backup.sh >> /var/log/backup.log 2>&1' | crontab - &&
         crond -f -l 8
       "
+    logging: *default-logging
     networks:
       - internal
 
@@ -170,6 +190,7 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - web
+    logging: *default-logging
     networks:
       - external
       - internal

@@ -13,14 +13,17 @@
       <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} تفاصيل الانتقال</h1>
       <p class="exec-subtitle">{{ transfer.student.full_name }} — {{ transfer.get_direction_display }}</p>
     </div>
-    <span class="status-badge
-      {% if transfer.status == 'pending' %}status-warning
-      {% elif transfer.status == 'approved' %}status-info
-      {% elif transfer.status == 'completed' %}status-success
-      {% elif transfer.status == 'rejected' %}status-danger
-      {% else %}status-gray{% endif %}">
-      {{ transfer.get_status_display }}
-    </span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status-badge
+        {% if transfer.status == 'pending' %}status-warning
+        {% elif transfer.status == 'approved' %}status-info
+        {% elif transfer.status == 'completed' %}status-success
+        {% elif transfer.status == 'rejected' %}status-danger
+        {% else %}status-gray{% endif %}">
+        {{ transfer.get_status_display }}
+      </span>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </div>
   </div>
 
   <div class="detail-section">

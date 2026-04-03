@@ -1,9 +1,15 @@
 import os
+import sys
 from pathlib import Path
 
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+# ── GTK3/Pango لـ WeasyPrint على Windows (MSYS2) ──
+_gtk_bin = Path("C:/msys64/mingw64/bin")
+if sys.platform == "win32" and _gtk_bin.exists():
+    os.environ["PATH"] = str(_gtk_bin) + ";" + os.environ.get("PATH", "")
 
 # ── السنة الدراسية الحالية — غيّرها هنا فقط ──────────────────
 CURRENT_ACADEMIC_YEAR: str = "2025-2026"

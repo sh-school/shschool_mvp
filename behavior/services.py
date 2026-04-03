@@ -65,6 +65,7 @@ class BehaviorPermissions:
         "specialist",
         "admin_supervisor",
         "admin",
+        "platform_developer",
     }
     COMMITTEE_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
     SUMMON_ROLES = {"principal", "vice_admin", "vice_academic", "social_worker", "psychologist"}

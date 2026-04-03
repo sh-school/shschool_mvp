@@ -1,117 +1,204 @@
 {% extends "base/base.html" %}
+{% load static %}
 
-{% block title %}السلوك — شؤون الطلاب{% endblock %}
+{% block title %}ملخص سلوك الطلاب — شؤون الطلاب{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="السلوك" %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="ملخص السلوك" %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash">
 
+  {# ── Header ── #}
   <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} ملخص السلوك الطلابي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} ملخص سلوك الطلاب</h1>
       <p class="exec-subtitle">{{ today|date:"F Y" }}</p>
     </div>
-    <a href="/behavior/dashboard/" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="scale" %} لوحة السلوك التفصيلية
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة
+      </a>
+      <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="users" %} فريق السلوك
+      </a>
+      <a href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+      <a href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </div>
   </div>
 
   {# ── KPI Strip ── #}
   <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">مخالفات الشهر</div>
-      <div class="kpi-mini-value">{{ month_summary.total }}</div>
+    <div class="kpi-mini kpi-{% if infraction_pct < 10 %}green{% elif infraction_pct < 25 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">إجمالي المخالفات</div>
+      <div class="kpi-mini-value">{{ total_infractions }}</div>
     </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">د1 — بسيطة</div>
-      <div class="kpi-mini-value">{{ month_summary.by_level.1 }}</div>
+    <div class="kpi-mini kpi-{% if today_infractions == 0 %}green{% elif today_infractions < 5 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">مخالفات اليوم</div>
+      <div class="kpi-mini-value">{{ today_infractions }}</div>
     </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">د2 — متوسطة</div>
-      <div class="kpi-mini-value">{{ month_summary.by_level.2 }}</div>
+    <div class="kpi-mini kpi-{% if infraction_pct < 10 %}green{% elif infraction_pct < 25 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">نسبة الطلاب المخالفين</div>
+      <div class="kpi-mini-value">{{ infraction_pct }}%</div>
     </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">د3 — خطيرة</div>
-      <div class="kpi-mini-value">{{ month_summary.by_level.3 }}</div>
+    <div class="kpi-mini kpi-{% if unresolved == 0 %}green{% elif unresolved < 10 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">غير محلولة</div>
+      <div class="kpi-mini-value">{{ unresolved }}</div>
     </div>
-    <div class="kpi-mini kpi-purple">
-      <div class="kpi-mini-label">د4 — جسيمة</div>
-      <div class="kpi-mini-value">{{ month_summary.by_level.4 }}</div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">إجمالي الطلاب</div>
+      <div class="kpi-mini-value">{{ total_students }}</div>
     </div>
   </div>
 
-  {# ── ملخص الحل ── #}
+  {# ── توزيع المخالفات حسب الدرجة ── #}
+  <h2 style="font-size:1rem;font-weight:700;margin:24px 0 12px;color:var(--text-primary)">
+    {% include "components/icon.html" with name="list-checks" %} توزيع المخالفات حسب الدرجة
+  </h2>
   <div class="kpi-strip">
     <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">تم حلها</div>
-      <div class="kpi-mini-value">{{ month_summary.resolved }}</div>
+      <div class="kpi-mini-label">الدرجة 1 — تحذير</div>
+      <div class="kpi-mini-value">{{ degree_map.1.count|default:"0" }}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:2px">{{ degree_map.1.points|default:"0" }} نقطة</div>
+    </div>
+    <div class="kpi-mini kpi-orange">
+      <div class="kpi-mini-label">الدرجة 2 — إنذار</div>
+      <div class="kpi-mini-value">{{ degree_map.2.count|default:"0" }}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:2px">{{ degree_map.2.points|default:"0" }} نقطة</div>
     </div>
     <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">لم تُحل بعد</div>
-      <div class="kpi-mini-value">{{ month_summary.unresolved }}</div>
+      <div class="kpi-mini-label">الدرجة 3 — خطيرة</div>
+      <div class="kpi-mini-value">{{ degree_map.3.count|default:"0" }}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:2px">{{ degree_map.3.points|default:"0" }} نقطة</div>
+    </div>
+    <div class="kpi-mini" style="border-right:4px solid #7a0e2e">
+      <div class="kpi-mini-label">الدرجة 4 — جسيمة</div>
+      <div class="kpi-mini-value" style="color:#7a0e2e">{{ degree_map.4.count|default:"0" }}</div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:2px">{{ degree_map.4.points|default:"0" }} نقطة</div>
     </div>
   </div>
 
-  <div class="charts-grid-2">
-
-    {# ── أكثر الطلاب مخالفات ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب مخالفات (هذا العام)</div>
-      {% if top_offenders %}
-      <div class="dash-list">
-        {% for s in top_offenders %}
-        <div class="dash-list-item">
-          <a href="{% url 'student_affairs:student_profile' s.student__id %}"
-             style="flex:1;color:var(--maroon);text-decoration:none;font-weight:600;font-size:.8rem" class="hover:underline">
-            {{ s.student__full_name }}
-          </a>
-          <span class="status-badge status-danger">
-            {{ s.infraction_count }} مخالفة
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا مخالفات هذا العام" %}
-      {% endif %}
+  {# ── Chart — اتجاه المخالفات الشهري ── #}
+  <div class="card-qatar" style="margin-top:24px;padding:20px">
+    <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-primary)">
+      {% include "components/icon.html" with name="bar-chart" %} اتجاه المخالفات الشهري (آخر 6 أشهر)
+    </h2>
+    <div style="position:relative;height:280px">
+      <canvas id="infractions-chart"></canvas>
     </div>
+  </div>
 
-    {# ── آخر المخالفات ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="list-checks" %} آخر المخالفات</div>
-      {% if recent %}
-      <div class="dash-list">
-        {% for inf in recent %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <a href="/behavior/student/{{ inf.student_id }}/"
-               style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
-              {{ inf.student.full_name }}
-            </a>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ inf.date|date:"d/m" }}</span>
-            {% if inf.violation_category %}
-            <span style="font-size:.6rem;color:var(--muted)">— {{ inf.violation_category.name_ar|truncatechars:40 }}</span>
-            {% endif %}
-          </div>
-          <span class="status-badge
-            {% if inf.level == 1 %}status-success
-            {% elif inf.level == 2 %}status-warning
-            {% elif inf.level == 3 %}status-warning
-            {% else %}status-danger{% endif %}">
-            د{{ inf.level }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا مخالفات مسجّلة" %}
-      {% endif %}
+  {# ── أكثر 15 طالب مخالفات ── #}
+  <div class="card-qatar" style="margin-top:24px;padding:20px">
+    <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-primary)">
+      {% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب مخالفات (هذا العام)
+    </h2>
+    {% if worst_students %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:40px">#</th>
+            <th>اسم الطالب</th>
+            <th style="width:100px;text-align:center">المخالفات</th>
+            <th style="width:120px;text-align:center">النقاط المخصومة</th>
+            <th style="width:80px;text-align:center">إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in worst_students %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>
+              <a href="{% url 'student_affairs:student_profile' s.student__id %}"
+                 style="color:var(--maroon);text-decoration:none;font-weight:600">
+                {{ s.student__full_name }}
+              </a>
+            </td>
+            <td style="text-align:center">
+              <span class="status-badge status-danger">{{ s.infraction_count }}</span>
+            </td>
+            <td style="text-align:center;font-weight:600;color:var(--danger)">
+              {{ s.total_points|default:"0" }}
+            </td>
+            <td style="text-align:center">
+              <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-xs btn-secondary">
+                {% include "components/icon.html" with name="file-pen" %}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+    {% else %}
+    <div class="empty-state">
+      {% include "components/icon.html" with name="check-circle" %}
+      <p>لا مخالفات مسجّلة هذا العام</p>
+    </div>
+    {% endif %}
+  </div>
 
+  {# ── روابط سريعة ── #}
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px">
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة
+    </a>
+    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="bar-chart" %} لوحة السلوك
+    </a>
+    <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="users" %} فريق السلوك
+    </a>
+    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="lock" %} لائحة السلوك PDF
+    </a>
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  Chart.defaults.font.family = 'Tajawal, sans-serif';
+  Chart.defaults.font.size = 11;
+
+  const ctx = document.getElementById('infractions-chart');
+  if (!ctx) return;
+  new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: {{ chart_labels_json|safe }},
+      datasets: [{
+        label: 'عدد المخالفات',
+        data: {{ chart_data_json|safe }},
+        backgroundColor: '#8A1538',
+        borderRadius: 6,
+        maxBarThickness: 48,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0 },
+          grid: { color: 'rgba(0,0,0,0.06)' },
+        },
+        x: {
+          grid: { display: false },
+        }
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}

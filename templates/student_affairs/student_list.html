@@ -22,6 +22,10 @@
       <a href="/core/students/import-export/" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="download" %} استيراد Excel
       </a>
+      <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="download" %} تصدير Excel
+      </a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
@@ -38,7 +42,7 @@
              hx-trigger="input changed delay:400ms, search"
              hx-target="#student-table-container"
              hx-swap="innerHTML"
-             hx-include="[name='grade'],[name='section']"
+             hx-include="[name='grade'],[name='section'],[name='parent_status']"
              hx-indicator="#search-spinner"
              autocomplete="off">
     </div>
@@ -51,7 +55,7 @@
               hx-trigger="change"
               hx-target="#student-table-container"
               hx-swap="innerHTML"
-              hx-include="[name='q'],[name='section']">
+              hx-include="[name='q'],[name='section'],[name='parent_status']">
         <option value="">— الكل —</option>
         {% for g in grades %}
         <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
@@ -67,11 +71,26 @@
               hx-trigger="change"
               hx-target="#student-table-container"
               hx-swap="innerHTML"
-              hx-include="[name='q'],[name='grade']">
+              hx-include="[name='q'],[name='grade'],[name='parent_status']">
         <option value="">— الكل —</option>
         {% for sec in sections %}
         <option value="{{ sec }}" {% if section_filter == sec %}selected{% endif %}>{{ sec }}</option>
         {% endfor %}
+      </select>
+    </div>
+
+    {# فلتر ولي الأمر #}
+    <div class="filter-field">
+      <label class="filter-label">ولي الأمر</label>
+      <select name="parent_status" class="form-control form-control-sm"
+              hx-get="{% url 'student_affairs:student_list' %}"
+              hx-trigger="change"
+              hx-target="#student-table-container"
+              hx-swap="innerHTML"
+              hx-include="[name='q'],[name='grade'],[name='section']">
+        <option value="">— الكل —</option>
+        <option value="linked" {% if parent_status == "linked" %}selected{% endif %}>مرتبط</option>
+        <option value="unlinked" {% if parent_status == "unlinked" %}selected{% endif %}>غير مرتبط</option>
       </select>
     </div>
 

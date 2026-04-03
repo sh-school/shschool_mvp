@@ -27,7 +27,7 @@ class BusQuerySet(QuerySet):
         )
 
     def with_details(self) -> BusQuerySet:
-        return self.select_related("driver", "supervisor").prefetch_related("routes")
+        return self.select_related("supervisor").prefetch_related("routes")
 
 
 class RouteQuerySet(QuerySet):

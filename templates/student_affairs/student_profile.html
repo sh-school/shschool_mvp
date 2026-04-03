@@ -2,6 +2,31 @@
 
 {% block title %}ملف الطالب — {{ student.full_name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+.tab-btn {
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all .2s;
+}
+.tab-btn:hover { color: var(--text-primary); background: var(--bg-muted); }
+.tab-btn.active { color: #8A1538; border-bottom-color: #8A1538; font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/list/" parent_label="سجل الطلاب" current=student.full_name %}
 {% endblock %}
@@ -13,7 +38,13 @@
   <div class="profile-header">
     <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
     <div class="profile-info">
-      <div class="profile-name">{{ student.full_name }}</div>
+      <div class="profile-name">
+        {{ student.full_name }}
+        {% if enrollment %}
+        <span class="status-badge status-info" style="font-size:.75rem;margin-inline-start:8px">{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>
+        {% endif %}
+        <span class="status-badge status-success" style="font-size:.75rem;margin-inline-start:4px">نشط</span>
+      </div>
       <div class="profile-meta">
         <span dir="ltr">{{ student.national_id }}</span>
         {% if enrollment %}<span>{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>{% endif %}
@@ -30,7 +61,24 @@
       <a href="/reports/student/{{ student.id }}/result/" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="bar-chart" %} كشف الدرجات
       </a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
+  </div>
+
+  {# ── Quick Actions Bar ── #}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem">
+    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="file-pen" %} تعديل البيانات
+    </a>
+    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="mail" %} استدعاء ولي الأمر
+    </a>
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة
+    </a>
+    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">
+      {% include "components/icon.html" with name="printer" %} تصدير PDF
+    </a>
   </div>
 
   {# ── KPI Strip ── #}
@@ -60,10 +108,22 @@
     </div>
   </div>
 
-  {# ════════════ الأقسام ════════════ #}
-  <div class="charts-grid-2">
+  {# ════════════ Tab Navigation ════════════ #}
+  <div class="card-qatar" style="padding:0;margin-bottom:1.5rem;overflow:hidden">
+    <div style="display:flex;border-bottom:2px solid var(--border-color);overflow-x:auto" role="tablist">
+      <button class="tab-btn active" data-tab="personal" role="tab" aria-selected="true">{% include "components/icon.html" with name="user" %} البيانات الشخصية</button>
+      <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% include "components/icon.html" with name="calendar" %} الحضور</button>
+      <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% include "components/icon.html" with name="scale" %} السلوك</button>
+      <button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% include "components/icon.html" with name="bar-chart" %} الدرجات</button>
+      <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% include "components/icon.html" with name="hospital" %} العيادة</button>
+      <button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% include "components/icon.html" with name="activity" %} الأنشطة</button>
+    </div>
+  </div>
 
-    {# ── البيانات الشخصية + ولي الأمر ── #}
+  {# ════════════ Tab Contents ════════════ #}
+
+  {# ── البيانات الشخصية + ولي الأمر ── #}
+  <div id="tab-personal" class="tab-content active">
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
       <dl class="detail-dl">
@@ -99,8 +159,10 @@
       </div>
       {% endif %}
     </div>
+  </div>
 
-    {# ── الحضور ── #}
+  {# ── الحضور ── #}
+  <div id="tab-attendance" class="tab-content">
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="calendar" %} الحضور ({{ year }})</div>
       <dl class="detail-dl">
@@ -116,8 +178,33 @@
       <div style="text-align:center;font-size:var(--text-xs);color:var(--text-muted);margin-top:4px">{{ attendance.pct }}% حضور</div>
       {% endif %}
     </div>
+  </div>
 
-    {# ── الدرجات ── #}
+  {# ── السلوك ── #}
+  <div id="tab-behavior" class="tab-content">
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="scale" %} السلوك</div>
+      <dl class="detail-dl">
+        <dt>إجمالي المخالفات</dt><dd><strong>{{ behavior.total }}</strong></dd>
+        <dt>د1 (بسيطة)</dt><dd>{{ behavior.by_level.1 }}</dd>
+        <dt>د2 (متوسطة)</dt><dd>{{ behavior.by_level.2 }}</dd>
+        <dt>د3 (خطيرة)</dt><dd class="{% if behavior.by_level.3 %}attend-medium{% endif %}">{{ behavior.by_level.3 }}</dd>
+        <dt>د4 (جسيمة)</dt><dd class="{% if behavior.by_level.4 %}attend-low{% endif %}" style="{% if behavior.by_level.4 %}font-weight:700{% endif %}">{{ behavior.by_level.4 }}</dd>
+      </dl>
+      {% if behavior.recent %}
+      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs)">آخر المخالفات:</div>
+      {% for inf in behavior.recent %}
+      <div class="dash-list-item">
+        <span>{{ inf.description|truncatechars:50 }}</span>
+        <span class="text-xs text-muted">{{ inf.date|date:"d/m" }}</span>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── الدرجات ── #}
+  <div id="tab-grades" class="tab-content">
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="bar-chart" %} الدرجات ({{ year }})</div>
       {% if grades %}
@@ -159,29 +246,10 @@
       {% include "components/empty_state.html" with message="لا توجد نتائج لهذا العام" %}
       {% endif %}
     </div>
+  </div>
 
-    {# ── السلوك ── #}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="scale" %} السلوك</div>
-      <dl class="detail-dl">
-        <dt>إجمالي المخالفات</dt><dd><strong>{{ behavior.total }}</strong></dd>
-        <dt>د1 (بسيطة)</dt><dd>{{ behavior.by_level.1 }}</dd>
-        <dt>د2 (متوسطة)</dt><dd>{{ behavior.by_level.2 }}</dd>
-        <dt>د3 (خطيرة)</dt><dd class="{% if behavior.by_level.3 %}attend-medium{% endif %}">{{ behavior.by_level.3 }}</dd>
-        <dt>د4 (جسيمة)</dt><dd class="{% if behavior.by_level.4 %}attend-low{% endif %}" style="{% if behavior.by_level.4 %}font-weight:700{% endif %}">{{ behavior.by_level.4 }}</dd>
-      </dl>
-      {% if behavior.recent %}
-      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs)">آخر المخالفات:</div>
-      {% for inf in behavior.recent %}
-      <div class="dash-list-item">
-        <span>{{ inf.description|truncatechars:50 }}</span>
-        <span class="text-xs text-muted">{{ inf.date|date:"d/m" }}</span>
-      </div>
-      {% endfor %}
-      {% endif %}
-    </div>
-
-    {# ── العيادة ── #}
+  {# ── العيادة ── #}
+  <div id="tab-clinic" class="tab-content">
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="hospital" %} العيادة</div>
       {% if health_record %}
@@ -206,8 +274,10 @@
       {% include "components/empty_state.html" with message="لا زيارات عيادة" %}
       {% endif %}
     </div>
+  </div>
 
-    {# ── الأنشطة والإنجازات ── #}
+  {# ── الأنشطة والإنجازات ── #}
+  <div id="tab-activities" class="tab-content">
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</div>
       {% if activities %}
@@ -224,7 +294,6 @@
       {% include "components/empty_state.html" with message="لا أنشطة مسجّلة" %}
       {% endif %}
     </div>
-
   </div>
 
   {# ── الانتقالات ── #}
@@ -246,4 +315,18 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
 {% endblock %}

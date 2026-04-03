@@ -108,7 +108,7 @@
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
-      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
@@ -233,7 +233,7 @@
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
-      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
@@ -323,20 +323,22 @@
 <div class="sd-menu" id="m-student-affairs" role="menu" aria-label="شؤون الطلاب">
   <div class="sd-label">نظرة عامة</div>
   <a href="{% url 'student_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
-  <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
+  <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجلات الطلاب</a>
   <a href="{% url 'student_affairs:student_add' %}">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
+  <a href="{% url 'student_affairs:parent_add' %}">{% include "components/icon.html" with name="user-plus" %} إضافة ولي امر</a>
+  <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</a>
+  <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
   <hr>
-  <div class="sd-label">المتابعة والسلوك</div>
+  <div class="sd-label">الحضور والغياب</div>
+  <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</a>
   <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="calendar" %} ملخص الحضور والغياب</a>
-  <a href="{% url 'behavior:dashboard' %}">{% include "components/icon.html" with name="scale" %} السلوك الطلابي</a>
-  <a href="{% url 'behavior:summon_parent' %}">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
-  <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
+  <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="calendar" %} سجلات الحضور والغياب</a>
   <hr>
-  <div class="sd-label">الأنشطة والبيانات</div>
-  <a href="{% url 'student_affairs:activity_list' %}">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</a>
-  <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
-  <a href="{% url 'student_import_export' %}">{% include "components/icon.html" with name="download" %} استيراد / تصدير Excel</a>
+  <div class="sd-label">إدارة سلوك الطلبة</div>
+  <a href="{% url 'student_affairs:behavior_overview' %}">{% include "components/icon.html" with name="scale" %} ملخص سلوك الطلاب</a>
+  <a href="{% url 'student_affairs:tardiness_list' %}">{% include "components/icon.html" with name="clock" %} التأخر الصباحي</a>
+  <a href="{% url 'behavior:report_infraction' %}">{% include "components/icon.html" with name="alert-triangle" %} تسجيل سلوك</a>
+  <a href="{% url 'behavior:committee' %}">{% include "components/icon.html" with name="users" %} فريق سلوك الطلبة</a>
 </div>
 
 {% endif %}

@@ -55,6 +55,46 @@ class StudentAddForm(forms.Form):
 
 
 # ═════════════════════════════════════════════════════════════════════
+# إضافة ولي أمر جديد + ربطه بطالب
+# ═════════════════════════════════════════════════════════════════════
+
+
+class ParentAddForm(forms.Form):
+    """نموذج إضافة ولي أمر جديد وربطه بطالب في نفس الوقت."""
+
+    national_id = forms.CharField(
+        max_length=20, label="الرقم الوطني",
+        error_messages={"required": "الرقم الوطني مطلوب."},
+    )
+    full_name = forms.CharField(
+        max_length=200, label="الاسم الكامل",
+        error_messages={"required": "اسم ولي الأمر مطلوب."},
+    )
+    phone = forms.CharField(max_length=20, required=False, label="الجوال")
+    email = forms.EmailField(required=False, label="البريد الإلكتروني")
+    relationship = forms.ChoiceField(
+        choices=[("father", "الأب"), ("mother", "الأم"), ("guardian", "الوصي"), ("other", "أخرى")],
+        label="صلة القرابة",
+    )
+    student_id = forms.UUIDField(
+        label="الطالب",
+        error_messages={"required": "يرجى اختيار الطالب."},
+    )
+
+    def clean_national_id(self):
+        nid = self.cleaned_data["national_id"].strip()
+        if not re.match(r"^\d{5,20}$", nid):
+            raise forms.ValidationError("الرقم الوطني يجب أن يكون أرقاماً فقط (5-20 رقم).")
+        return nid
+
+    def clean_full_name(self):
+        name = self.cleaned_data["full_name"].strip()
+        if len(name) < 4:
+            raise forms.ValidationError("الاسم قصير جداً.")
+        return name
+
+
+# ═════════════════════════════════════════════════════════════════════
 # تعديل بيانات طالب
 # ═════════════════════════════════════════════════════════════════════
 

@@ -18,6 +18,7 @@
     </div>
     <div class="exec-meta">
       <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
@@ -190,6 +191,49 @@
     </div>
 
   </div>
+
+  {# ── Widget: طلاب بدون ولي أمر ── #}
+  {% if no_parent_count > 0 %}
+  <div class="card-qatar" style="margin-top:1.5rem;padding:16px 20px;border-right:4px solid #f59e0b">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="alert-triangle" %} طلاب بدون ولي أمر مرتبط</h3>
+        <p style="font-size:.85rem;color:var(--text-muted);margin:4px 0 0">{{ no_parent_count }} طالب بحاجة لربط ولي أمر</p>
+      </div>
+      <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Widget: التأخرات هذا الأسبوع ── #}
+  <div class="card-qatar" style="margin-top:1rem;padding:16px 20px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="clock" %} التأخر الصباحي هذا الأسبوع</h3>
+        <p style="font-size:1.3rem;font-weight:700;color:{% if weekly_tardiness == 0 %}var(--success-color){% elif weekly_tardiness <= 10 %}#f59e0b{% else %}var(--danger-color){% endif %};margin:8px 0 0">{{ weekly_tardiness }} حالة تأخر</p>
+      </div>
+      <a href="{% url 'student_affairs:tardiness_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} التفاصيل</a>
+    </div>
+  </div>
+
+  {# ── Widget: آخر الأنشطة الطلابية ── #}
+  {% if recent_activities %}
+  <div class="card-qatar" style="margin-top:1rem;padding:16px 20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="activity" %} آخر الأنشطة الطلابية</h3>
+      <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-xs">عرض الكل</a>
+    </div>
+    {% for act in recent_activities %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--border-color);{% endif %}">
+      <div>
+        <span style="font-size:.85rem;font-weight:500">{{ act.title }}</span>
+        <span style="font-size:.75rem;color:var(--text-muted);margin-right:8px">{{ act.student.full_name }}</span>
+      </div>
+      <span style="font-size:.75rem;color:var(--text-muted)">{{ act.date|date:"d/m" }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

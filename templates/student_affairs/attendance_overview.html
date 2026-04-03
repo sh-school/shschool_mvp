@@ -1,54 +1,61 @@
 {% extends "base/base.html" %}
+{% load static %}
 
-{% block title %}الحضور والغياب — شؤون الطلاب{% endblock %}
+{% block title %}إحصائيات الغياب — شؤون الطلاب{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="الحضور والغياب" %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="إحصائيات الغياب" %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash">
 
+  {# ══════════════════ Header ══════════════════ #}
   <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الحضور والغياب</h1>
-      <p class="exec-subtitle">ملخص حضور الطلاب — {{ today|date:"D، d M Y" }}</p>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</h1>
+      <p class="exec-subtitle">ملخص الحضور والغياب — {{ today|date:"D، d M Y" }}</p>
     </div>
     <div class="exec-meta" style="gap:6px">
       <a href="/teacher/schedule/" class="btn-primary btn-sm">
         {% include "components/icon.html" with name="list-checks" %} تسجيل الحضور
       </a>
       <a href="/teacher/reports/daily/" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="bar-chart" %} التقرير اليومي
+        {% include "components/icon.html" with name="calendar" %} التقرير اليومي
       </a>
+      <a href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="download" %} تصدير Excel
+      </a>
+      <a href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
-  {# ── KPI Strip — إحصائيات اليوم ── #}
+  {# ══════════════════ KPI Strip ══════════════════ #}
   <div class="kpi-strip">
-    <div class="kpi-mini kpi-{% if summary.pct >= 90 %}green{% elif summary.pct >= 75 %}orange{% else %}red{% endif %}">
+    <div class="kpi-mini kpi-{% if summary.pct >= 90 %}green{% elif summary.pct >= 75 %}orange{% else %}red{% endif %}" style="flex:1.5">
       <div class="kpi-mini-label">نسبة الحضور اليوم</div>
-      <div class="kpi-mini-value">{{ summary.pct }}%</div>
+      <div class="kpi-mini-value" style="font-size:2rem">{{ summary.pct }}%</div>
     </div>
     <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">حاضرون</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="check-circle" %} حاضرون</div>
       <div class="kpi-mini-value">{{ summary.present }}</div>
     </div>
     <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">غائبون</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="alert-triangle" %} غائبون</div>
       <div class="kpi-mini-value">{{ summary.absent }}</div>
     </div>
     <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">متأخرون</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="clock" %} متأخرون</div>
       <div class="kpi-mini-value">{{ summary.late }}</div>
     </div>
     <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">بعذر</div>
+      <div class="kpi-mini-label">{% include "components/icon.html" with name="mail" %} معذورون</div>
       <div class="kpi-mini-value">{{ summary.excused }}</div>
     </div>
   </div>
 
-  {# ── شريط الحضور ── #}
+  {# ══════════════════ شريط الحضور ══════════════════ #}
   {% if summary.total > 0 %}
   <div class="card-qatar" style="padding:12px 16px">
     <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;display:flex">
@@ -66,55 +73,205 @@
   </div>
   {% endif %}
 
+  {# ══════════════════ Chart — آخر 14 يوم ══════════════════ #}
+  <div class="card-qatar" style="padding:16px">
+    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
+      {% include "components/icon.html" with name="bar-chart" %} اتجاه الحضور والغياب — آخر 14 يوم
+    </h3>
+    <div style="position:relative;height:280px">
+      <canvas id="attendanceChart"></canvas>
+    </div>
+  </div>
+
+  {# ══════════════════ توزيع حسب الصف ══════════════════ #}
+  <div class="card-qatar" style="padding:16px">
+    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
+      {% include "components/icon.html" with name="users" %} توزيع الحضور حسب الصف — اليوم
+    </h3>
+    {% if class_breakdown %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>الصف</th>
+            <th>إجمالي</th>
+            <th>حاضرون</th>
+            <th>غائبون</th>
+            <th>متأخرون</th>
+            <th>نسبة الحضور</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in class_breakdown %}
+          <tr>
+            <td style="font-weight:600">{{ row.session__class_group__grade }}</td>
+            <td>{{ row.total }}</td>
+            <td style="color:var(--status-success)">{{ row.present_count }}</td>
+            <td style="color:var(--status-danger)">{{ row.absent_count }}</td>
+            <td style="color:var(--status-warning)">{{ row.late_count }}</td>
+            <td>
+              {% widthratio row.present_count row.total 100 as grade_pct %}
+              <span class="status-badge {% if grade_pct >= 90 %}status-success{% elif grade_pct >= 75 %}status-warning{% else %}status-danger{% endif %}">
+                {% widthratio row.present_count row.total 100 %}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with message="لا بيانات حضور لليوم" %}
+    {% endif %}
+  </div>
+
   <div class="charts-grid-2">
 
-    {# ── أكثر الطلاب غياباً ── #}
+    {# ══════════════════ أكثر الطلاب غياباً ══════════════════ #}
     <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب غياباً ({{ year }})</div>
-      {% if top_absent %}
-      <div class="dash-list">
-        {% for s in top_absent %}
-        <div class="dash-list-item">
-          <a href="{% url 'student_affairs:student_profile' s.student__id %}"
-             style="flex:1;color:var(--maroon);text-decoration:none;font-weight:600;font-size:.8rem" class="hover:underline">
-            {{ s.student__full_name }}
-          </a>
-          <span class="status-badge status-danger">
-            {{ s.absent_count }} يوم
-          </span>
-        </div>
-        {% endfor %}
+      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب غياباً (آخر 30 يوم)</div>
+      {% if worst_students %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>الطالب</th>
+              <th>أيام الغياب</th>
+              <th>الملف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in worst_students %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td style="font-weight:600">{{ s.student__full_name }}</td>
+              <td>
+                <span class="status-badge {% if s.absence_count >= 10 %}status-danger{% elif s.absence_count >= 5 %}status-warning{% else %}status-info{% endif %}">
+                  {{ s.absence_count }} يوم
+                </span>
+              </td>
+              <td>
+                <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-secondary btn-xs">
+                  {% include "components/icon.html" with name="search" %} عرض
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       {% else %}
-      {% include "components/empty_state.html" with message="لا بيانات غياب هذا العام" %}
+      {% include "components/empty_state.html" with message="لا بيانات غياب في آخر 30 يوم" %}
       {% endif %}
     </div>
 
-    {# ── تنبيهات الغياب المتكرر ── #}
+    {# ══════════════════ تنبيهات الغياب المتكرر ══════════════════ #}
     <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="bell" %} تنبيهات الغياب المتكرر</div>
-      {% if active_alerts %}
+      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب المتكرر</div>
+      {% if alerts %}
       <div class="dash-list">
-        {% for alert in active_alerts %}
+        {% for alert in alerts %}
         <div class="dash-list-item">
           <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ alert.student.full_name }}</span>
+            <a href="{% url 'student_affairs:student_profile' alert.student.id %}"
+               style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
+              {{ alert.student.full_name }}
+            </a>
             <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ alert.absence_count }} يوم غياب</span>
           </div>
-          <span class="status-badge
-            {% if alert.status == "pending" %}status-warning
-            {% else %}status-info{% endif %}">
+          <span class="status-badge status-warning">
             {{ alert.get_status_display }}
           </span>
         </div>
         {% endfor %}
       </div>
       {% else %}
-      {% include "components/empty_state.html" with message="لا تنبيهات نشطة" %}
+      {% include "components/empty_state.html" with message="لا تنبيهات معلقة" %}
       {% endif %}
     </div>
 
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  var ctx = document.getElementById('attendanceChart');
+  if (!ctx) return;
+
+  var labels = {{ chart_labels_json|safe }};
+  var presentData = {{ chart_present_json|safe }};
+  var absentData = {{ chart_absent_json|safe }};
+
+  var isDark = document.documentElement.classList.contains('dark');
+  var gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
+  var textColor = isDark ? '#ccc' : '#555';
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'نسبة الحضور %',
+          data: presentData,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.08)',
+          fill: true,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        },
+        {
+          label: 'نسبة الغياب %',
+          data: absentData,
+          borderColor: '#dc2626',
+          backgroundColor: 'rgba(220,38,38,0.08)',
+          fill: true,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: textColor, font: { family: 'Tajawal', size: 12 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + '%'; }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { family: 'Tajawal', size: 11 } }
+        },
+        y: {
+          min: 0,
+          max: 100,
+          grid: { color: gridColor },
+          ticks: {
+            color: textColor,
+            font: { family: 'Tajawal', size: 11 },
+            callback: function(v) { return v + '%'; }
+          }
+        }
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}

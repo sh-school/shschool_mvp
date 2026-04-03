@@ -13,9 +13,13 @@
       <h1 class="page-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</h1>
       <p class="exec-subtitle">{{ year }}</p>
     </div>
-    <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد
+      </a>
+      <a href="{% url 'student_affairs:activities_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </div>
   </div>
 
   {# فلتر #}

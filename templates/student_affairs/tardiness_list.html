@@ -1,0 +1,112 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}التأخر الصباحي — شؤون الطلاب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="التأخر الصباحي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="clock" %} التأخر الصباحي</h1>
+      <p class="exec-subtitle">الطلاب المتأخرون — {{ selected_date|date:"D، d M Y" }}</p>
+    </div>
+    <div class="exec-meta" style="gap:6px">
+      <form method="get" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control" style="width:155px">
+        <select name="grade" class="form-control" style="width:120px">
+          <option value="">كل الصفوف</option>
+          {% for val, label in grades %}
+          <option value="{{ val }}" {% if grade_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="section" value="{{ section_filter }}" class="form-control" style="width:80px" placeholder="الشعبة">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} بحث</button>
+      </form>
+      <a href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+      <a href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </div>
+  </div>
+
+  {# KPI Strip #}
+  <div class="kpi-strip">
+    <div class="kpi-mini kpi-{% if total_late == 0 %}green{% elif total_late <= 5 %}orange{% else %}red{% endif %}">
+      <div class="kpi-mini-label">متأخرون اليوم</div>
+      <div class="kpi-mini-value">{{ total_late }}</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">نسبة التأخر</div>
+      <div class="kpi-mini-value">{{ late_pct }}%</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">متأخرون هذا الأسبوع</div>
+      <div class="kpi-mini-value">{{ weekly_late }}</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">إجمالي طلاب اليوم</div>
+      <div class="kpi-mini-value">{{ total_students_today }}</div>
+    </div>
+  </div>
+
+  {% if class_breakdown %}
+  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
+    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب الفصل</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% for item in class_breakdown %}
+      <span style="background:var(--bg-muted);padding:4px 12px;border-radius:6px;font-size:.85rem">
+        {{ item.session__class_group__grade }}/{{ item.session__class_group__section }}: <strong>{{ item.count }}</strong>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if late_records %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>اسم الطالب</th>
+          <th>الفصل</th>
+          <th>المادة</th>
+          <th>الحصة</th>
+          <th>الإجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in late_records %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>
+            <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="link">
+              {{ rec.student.full_name }}
+            </a>
+          </td>
+          <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
+          <td>{{ rec.session.subject.name|default:"—" }}</td>
+          <td>{{ rec.session.start_time|time:"H:i"|default:"—" }}</td>
+          <td>
+            <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="btn-secondary btn-xs">
+              {% include "components/icon.html" with name="user" %} الملف
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    {% include "components/icon.html" with name="check-circle" %}
+    <p>لا يوجد طلاب متأخرون في {{ selected_date|date:"d M Y" }}</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -100,10 +100,10 @@ class RecoveryQuerySet(QuerySet):
     """QuerySet لـ BehaviorPointRecovery."""
 
     def approved(self) -> RecoveryQuerySet:
-        return self.filter(approved=True)
+        return self.filter(approved_by__isnull=False)
 
     def pending(self) -> RecoveryQuerySet:
-        return self.filter(approved=False)
+        return self.filter(approved_by__isnull=True)
 
     def for_student(self, student) -> RecoveryQuerySet:
         return self.filter(infraction__student=student)

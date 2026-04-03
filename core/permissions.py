@@ -174,6 +174,28 @@ NOTIFICATION_BROADCAST = {"principal", "vice_admin", "vice_academic"}
 # ── الخطة التشغيلية ─────────────────────────────────────────────
 STAGING_MANAGE = {"principal", "vice_academic", "vice_admin"}
 
+# ═══════════════════════════════════════════════════════════════
+# صلاحيات شؤون الطلاب — MTG-2026-012
+# ═══════════════════════════════════════════════════════════════
+
+STUDENT_AFFAIRS_MANAGE = frozenset({
+    "principal", "vice_admin", "vice_academic", "platform_developer",
+})
+STUDENT_AFFAIRS_VIEW = frozenset({
+    "principal", "vice_admin", "vice_academic", "coordinator",
+    "social_worker", "psychologist", "platform_developer",
+})
+STUDENT_DEACTIVATE = frozenset({
+    "principal", "vice_admin", "platform_developer",
+})
+PARENT_LINK_MANAGE = frozenset({
+    "principal", "vice_admin", "platform_developer",
+})
+BEHAVIOR_SUMMON = frozenset({
+    "principal", "vice_admin", "vice_academic",
+    "social_worker", "psychologist", "platform_developer",
+})
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 2. ROLE GROUPS — مجموعات جاهزة للاستخدام في الديكوريتور

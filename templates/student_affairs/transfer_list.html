@@ -12,9 +12,12 @@
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} سجل الانتقالات</h1>
     </div>
-    <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} طلب انتقال جديد
-    </a>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">
+        {% include "components/icon.html" with name="file-pen" %} طلب انتقال جديد
+      </a>
+      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </div>
   </div>
 
   {# فلتر #}

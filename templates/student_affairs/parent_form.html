@@ -1,0 +1,112 @@
+{% extends "base/base.html" %}
+
+{% block title %}إضافة ولي أمر جديد{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="إضافة ولي أمر" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash" style="max-width:700px;margin:0 auto">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="user-plus" %} إضافة ولي أمر جديد</h1>
+      <p class="exec-subtitle">إنشاء حساب ولي الأمر وربطه بالطالب</p>
+    </div>
+  </div>
+
+  <div class="card-qatar" style="padding:20px 24px">
+    <form method="post">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">
+        {% for err in form.non_field_errors %}
+        <span class="msg-text">{{ err }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="form-row">
+
+        {# الرقم الوطني #}
+        <div class="form-group">
+          <label class="form-label">الرقم الوطني <span style="color:red">*</span></label>
+          <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
+                 class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
+                 placeholder="مثال: 28001234567" required dir="ltr">
+          {% if form.national_id.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          {% endif %}
+          <span style="font-size:.7rem;color:var(--text-muted)">
+            إذا كان الرقم موجوداً مسبقاً، سيتم ربط الحساب القائم بالطالب مباشرة.
+          </span>
+        </div>
+
+        {# الاسم الكامل #}
+        <div class="form-group">
+          <label class="form-label">الاسم الكامل <span style="color:red">*</span></label>
+          <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
+                 class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
+                 placeholder="الاسم الرباعي" required>
+          {% if form.full_name.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+        {# الجوال #}
+        <div class="form-group">
+          <label class="form-label">الجوال</label>
+          <input type="text" name="phone" value="{{ form.phone.value|default:'' }}"
+                 class="form-control" placeholder="مثال: 55001234" dir="ltr">
+        </div>
+
+        {# البريد الإلكتروني #}
+        <div class="form-group">
+          <label class="form-label">البريد الإلكتروني</label>
+          <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+                 class="form-control" placeholder="parent@example.com" dir="ltr">
+        </div>
+
+        {# صلة القرابة #}
+        <div class="form-group">
+          <label class="form-label">صلة القرابة <span style="color:red">*</span></label>
+          <select name="relationship" class="form-control" required>
+            <option value="father" {% if form.relationship.value == "father" or not form.relationship.value %}selected{% endif %}>الأب</option>
+            <option value="mother" {% if form.relationship.value == "mother" %}selected{% endif %}>الأم</option>
+            <option value="guardian" {% if form.relationship.value == "guardian" %}selected{% endif %}>الوصي</option>
+            <option value="other" {% if form.relationship.value == "other" %}selected{% endif %}>أخرى</option>
+          </select>
+        </div>
+
+        {# الطالب #}
+        <div class="form-group">
+          <label class="form-label">الطالب <span style="color:red">*</span></label>
+          <select name="student_id" class="form-control {% if form.student_id.errors %}border-red-400{% endif %}" required>
+            <option value="">— اختر الطالب —</option>
+            {% for student in students %}
+            <option value="{{ student.id }}"
+              {% if form.student_id.value|stringformat:"s" == student.id|stringformat:"s" %}selected{% endif %}>
+              {{ student.full_name }}
+            </option>
+            {% endfor %}
+          </select>
+          {% if form.student_id.errors %}
+          <span style="font-size:.7rem;color:red">{{ form.student_id.errors.0 }}</span>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <div class="form-footer">
+        <a href="{% url 'student_affairs:dashboard' %}" class="btn-secondary btn-sm">إلغاء</a>
+        <button type="submit" class="btn-primary btn-sm">
+          {% include "components/icon.html" with name="check-circle" %} إضافة ولي الأمر
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
