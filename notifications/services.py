@@ -479,3 +479,88 @@ class BreachNotificationService:
             "deadline_72h": deadline,
             "logged": True,
         }
+
+    @staticmethod
+    def get_dashboard_stats(school: "School", year: str) -> dict:
+        """
+        إحصائيات لوحة الإشعارات — 5 استعلامات في service layer.
+
+        ✅ v5.4: ينقل جميع queries من notifications_dashboard view.
+
+        Args:
+            school: كائن المدرسة
+            year: العام الدراسي
+
+        Returns:
+            dict يحتوي: total, sent, failed, total_pending,
+                        channel_stats, daily_notifs,
+                        pending_absence, failing_students
+        """
+        from datetime import timedelta
+
+        from django.db.models import Count, Q
+        from django.db.models.functions import TruncDate
+        from django.utils import timezone
+
+        from assessments.models import AnnualSubjectResult
+        from operations.models import AbsenceAlert
+
+        today = timezone.now().date()
+
+        # aggregate واحد بدل 3 queries
+        notif_stats = NotificationLog.objects.filter(school=school).aggregate(
+            total=Count("id"),
+            sent=Count("id", filter=Q(status="sent")),
+            failed=Count("id", filter=Q(status="failed")),
+        )
+        total_pending = NotificationLog.objects.filter(school=school, status="pending").count()
+
+        channel_stats = list(
+            NotificationLog.objects.filter(school=school)
+            .values("channel")
+            .annotate(
+                total=Count("id"),
+                success=Count("id", filter=Q(status="sent")),
+                failed=Count("id", filter=Q(status="failed")),
+            )
+            .order_by("-total")
+        )
+
+        two_weeks_ago = today - timedelta(days=14)
+        daily_notifs = list(
+            NotificationLog.objects.filter(school=school, sent_at__date__gte=two_weeks_ago)
+            .values(day=TruncDate("sent_at"))
+            .annotate(
+                total=Count("id"),
+                success=Count("id", filter=Q(status="sent")),
+                failed=Count("id", filter=Q(status="failed")),
+            )
+            .order_by("day")
+        )
+
+        pending_absence = (
+            AbsenceAlert.objects.filter(school=school, status="pending")
+            .select_related("student")
+            .count()
+        )
+
+        failing_students = (
+            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            .values("student")
+            .distinct()
+            .count()
+        )
+
+        return {
+            "total": notif_stats["total"],
+            "sent": notif_stats["sent"],
+            "failed": notif_stats["failed"],
+            "total_sent": notif_stats["sent"],
+            "total_failed": notif_stats["failed"],
+            "total_pending": total_pending,
+            "channel_stats": channel_stats,
+            "daily_notifs": daily_notifs,
+            "pending_absence": pending_absence,
+            "pending_absence_count": pending_absence,
+            "failing_students": failing_students,
+        }

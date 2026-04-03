@@ -4,16 +4,12 @@ library/views.py
 [مهمة 8] إضافة Pagination لقائمة الكتب (25 كتاب/صفحة)
 """
 
-from datetime import timedelta
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
-from django.db.models.functions import TruncMonth
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from core.models import BookBorrowing, CustomUser, LibraryBook
 from core.permissions import LIBRARY_FULL, LIBRARY_VIEW, librarian_required, role_required
@@ -25,51 +21,10 @@ from library.services import LibraryService
 def library_dashboard(request):
     """لوحة تحكم المكتبة"""
     school = request.user.get_school()
-    today = timezone.now().date()
 
-    # ── Use service for rich stats ──
-    stats = LibraryService.get_dashboard_stats(school)
-
-    total_books = stats["total_books"]
-    active_borrowings = stats["active_borrowings"]
-    overdue_borrowings = stats["overdue"]
-
-    recent_books = LibraryBook.objects.filter(school=school).order_by("-id")[:5]
-    recent_borrowings = BookBorrowing.objects.filter(book__school=school).select_related(
-        "book", "user"
-    )[:10]
-
-    # ── Category breakdown ──
-    category_stats = (
-        LibraryBook.objects.filter(school=school)
-        .values("category")
-        .annotate(count=Count("id"))
-        .order_by("-count")[:8]
-    )
-
-    # ── Due soon (next 3 days) ──
-    due_soon = (
-        BookBorrowing.objects.filter(
-            book__school=school,
-            status="BORROWED",
-            due_date__lte=today + timedelta(days=3),
-            due_date__gte=today,
-        )
-        .select_related("book", "user")
-        .order_by("due_date")[:10]
-    )
-
-    context = {
-        "total_books": total_books,
-        "active_borrowings": active_borrowings,
-        "overdue_borrowings": overdue_borrowings,
-        "recent_books": recent_books,
-        "recent_borrowings": recent_borrowings,
-        "stats": stats,
-        "category_stats": category_stats,
-        "due_soon": due_soon,
-        "maroon_color": "#8A1538",
-    }
+    # ✅ v5.4: LibraryService.get_dashboard_context — جميع الـ queries في service layer
+    context = LibraryService.get_dashboard_context(school)
+    context["maroon_color"] = "#8A1538"
     return render(request, "library/dashboard.html", context)
 
 
@@ -178,34 +133,6 @@ def api_library_charts(request):
     """API: بيانات الرسوم البيانية للمكتبة"""
     school = request.user.get_school()
 
-    # Category distribution
-    cats = (
-        LibraryBook.objects.filter(school=school)
-        .values("category")
-        .annotate(count=Count("id"))
-        .order_by("-count")
-    )
-
-    # Monthly borrowing trend (last 6 months)
-    monthly = (
-        BookBorrowing.objects.filter(
-            book__school=school,
-            borrow_date__gte=timezone.now().date() - timedelta(days=180),
-        )
-        .values(month=TruncMonth("borrow_date"))
-        .annotate(count=Count("id"))
-        .order_by("month")
-    )
-
-    return JsonResponse(
-        {
-            "categories": {
-                "labels": [c["category"] or "غير مصنف" for c in cats],
-                "data": [c["count"] for c in cats],
-            },
-            "monthly": {
-                "labels": [m["month"].strftime("%m/%Y") for m in monthly],
-                "data": [m["count"] for m in monthly],
-            },
-        }
-    )
+    # ✅ v5.4: LibraryService.get_chart_data — queries في service layer
+    data = LibraryService.get_chart_data(school)
+    return JsonResponse(data)

@@ -15,7 +15,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.permissions import leadership_required, role_required
-from operations.models import AbsenceAlert
 
 from .models import NotificationLog, NotificationSettings
 from .services import NotificationService
@@ -39,70 +38,8 @@ def notifications_dashboard(request):
     paginator = Paginator(logs_qs, 25)
     logs_page = paginator.get_page(page_num)
 
-    # إحصائيات — aggregate واحد بدل 3 queries
-    from datetime import timedelta
-
-    from django.db.models import Count, Q
-    from django.db.models.functions import TruncDate
-    from django.utils import timezone
-
-    today = timezone.now().date()
-
-    notif_stats = NotificationLog.objects.filter(school=school).aggregate(
-        total=Count("id"),
-        sent=Count("id", filter=Q(status="sent")),
-        failed=Count("id", filter=Q(status="failed")),
-    )
-    total = notif_stats["total"]
-    sent = notif_stats["sent"]
-    failed = notif_stats["failed"]
-
-    # Summary stats (including pending)
-    total_sent = sent
-    total_failed = failed
-    total_pending = NotificationLog.objects.filter(school=school, status="pending").count()
-
-    # Channel breakdown
-    channel_stats = (
-        NotificationLog.objects.filter(school=school)
-        .values("channel")
-        .annotate(
-            total=Count("id"),
-            success=Count("id", filter=Q(status="sent")),
-            failed=Count("id", filter=Q(status="failed")),
-        )
-        .order_by("-total")
-    )
-
-    # Daily trend (last 14 days)
-    two_weeks_ago = today - timedelta(days=14)
-    daily_notifs = (
-        NotificationLog.objects.filter(school=school, sent_at__date__gte=two_weeks_ago)
-        .values(day=TruncDate("sent_at"))
-        .annotate(
-            total=Count("id"),
-            success=Count("id", filter=Q(status="sent")),
-            failed=Count("id", filter=Q(status="failed")),
-        )
-        .order_by("day")
-    )
-
-    # تنبيهات الغياب المعلقة
-    pending_absence = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .count()
-    )
-
-    # الطلاب الراسبون (لم يُرسل لهم)
-    from assessments.models import AnnualSubjectResult
-
-    failing_students = (
-        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
-        .values("student")
-        .distinct()
-        .count()
-    )
+    # ✅ v5.4: NotificationService.get_dashboard_stats — 5 queries في service layer
+    stats = NotificationService.get_dashboard_stats(school, year=year)
 
     # الإعدادات
     cfg, _ = NotificationSettings.objects.get_or_create(school=school)
@@ -113,19 +50,9 @@ def notifications_dashboard(request):
         {
             "logs": logs_page,
             "logs_page": logs_page,
-            "total": total,
-            "sent": sent,
-            "failed": failed,
-            "pending_absence": pending_absence,
-            "pending_absence_count": pending_absence,
-            "failing_students": failing_students,
             "cfg": cfg,
             "year": year,
-            "total_sent": total_sent,
-            "total_failed": total_failed,
-            "total_pending": total_pending,
-            "channel_stats": channel_stats,
-            "daily_notifs": daily_notifs,
+            **stats,
         },
     )
 

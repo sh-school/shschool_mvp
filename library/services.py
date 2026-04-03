@@ -136,6 +136,108 @@ class LibraryService:
         }
 
     @staticmethod
-    def search_books(school: School, query: str) -> models.QuerySet:
+    def get_dashboard_context(school: "School") -> dict:
+        """
+        السياق الكامل للوحة المكتبة — يجمع get_dashboard_stats + raw queries الإضافية.
+
+        ✅ v5.4: يُحوّل 4 raw queries المتبقية في library_dashboard إلى service layer.
+
+        Args:
+            school: كائن المدرسة
+
+        Returns:
+            dict يحتوي: total_books, active_borrowings, overdue_borrowings,
+                        recent_books, recent_borrowings, category_stats,
+                        due_soon, stats
+        """
+        from django.db.models import Count
+
+        today = timezone.now().date()
+        stats = LibraryService.get_dashboard_stats(school)
+
+        recent_books = list(
+            LibraryBook.objects.filter(school=school).order_by("-id")[:5]
+        )
+
+        recent_borrowings = list(
+            BookBorrowing.objects.filter(book__school=school)
+            .select_related("book", "user")[:10]
+        )
+
+        category_stats = list(
+            LibraryBook.objects.filter(school=school)
+            .values("category")
+            .annotate(count=Count("id"))
+            .order_by("-count")[:8]
+        )
+
+        due_soon = list(
+            BookBorrowing.objects.filter(
+                book__school=school,
+                status="BORROWED",
+                due_date__lte=today + timedelta(days=3),
+                due_date__gte=today,
+            )
+            .select_related("book", "user")
+            .order_by("due_date")[:10]
+        )
+
+        return {
+            "total_books": stats["total_books"],
+            "active_borrowings": stats["active_borrowings"],
+            "overdue_borrowings": stats["overdue"],
+            "recent_books": recent_books,
+            "recent_borrowings": recent_borrowings,
+            "stats": stats,
+            "category_stats": category_stats,
+            "due_soon": due_soon,
+        }
+
+    @staticmethod
+    def get_chart_data(school: "School") -> dict:
+        """
+        بيانات الرسوم البيانية للمكتبة — توزيع الفئات + اتجاه الإعارة الشهري.
+
+        ✅ v5.4: ينقل queries الـ api_library_charts إلى service layer.
+
+        Args:
+            school: كائن المدرسة
+
+        Returns:
+            dict يحتوي: categories (labels + data), monthly (labels + data)
+        """
+        from django.db.models import Count
+        from django.db.models.functions import TruncMonth
+
+        cats = list(
+            LibraryBook.objects.filter(school=school)
+            .values("category")
+            .annotate(count=Count("id"))
+            .order_by("-count")
+        )
+
+        monthly = list(
+            BookBorrowing.objects.filter(
+                book__school=school,
+                borrow_date__gte=timezone.now().date() - timedelta(days=180),
+            )
+            .values(month=TruncMonth("borrow_date"))
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+
+        return {
+            "categories": {
+                "labels": [c["category"] or "غير مصنف" for c in cats],
+                "data": [c["count"] for c in cats],
+            },
+            "monthly": {
+                "labels": [m["month"].strftime("%m/%Y") for m in monthly],
+                "data": [m["count"] for m in monthly],
+            },
+        }
+
+    @staticmethod
+    def search_books(school: "School", query: str) -> models.QuerySet:
         """بحث في كتب المدرسة."""
         return LibraryBook.objects.filter(school=school).search(query)
