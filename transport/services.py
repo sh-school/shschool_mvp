@@ -102,8 +102,7 @@ class TransportService:
         from core.models import CustomUser, SchoolBus
 
         buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
-        agg = buses.aggregate(total_buses=Sum("id", default=0), total_capacity=Sum("capacity", default=0))
-        # Count is more accurate
+        agg = buses.aggregate(total_capacity=Sum("capacity", default=0))
         total_buses = buses.count()
         total_capacity = agg["total_capacity"] or 0
 
