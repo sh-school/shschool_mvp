@@ -20,7 +20,7 @@ from core.permissions import role_required
 from operations.models import StaffEvaluation, TeacherAbsence, TeacherSwap, CompensatorySession
 
 from .models import LeaveBalance, LeaveRequest
-from .services import LeaveService
+from .services import LeaveService, StaffService
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
@@ -200,68 +200,20 @@ def staff_profile(request, user_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    membership = Membership.objects.filter(
-        user=user, school=school, is_active=True,
-    ).select_related("role", "department_obj").first()
-
-    profile = getattr(user, "profile", None)
-
-    # ── الغياب ──
-    absences = (
-        TeacherAbsence.objects.filter(teacher=user, school=school)
-        .order_by("-date")
+    # ✅ v5.4: StaffService.get_staff_profile_data — 7 نماذج في طبقة خدمة واحدة
+    profile_data = StaffService.get_staff_profile_data(user, school, year)
+    membership = profile_data["membership"]
+    role_display = (
+        ROLE_LABELS.get(membership.role.name, membership.role.name)
+        if membership and membership.role else "—"
     )
-    absence_count = absences.count()
-    absences_recent = absences[:10]
-
-    # ── التبديلات ──
-    swaps = TeacherSwap.objects.filter(
-        Q(teacher_a=user) | Q(teacher_b=user), school=school,
-    ).count()
-
-    # ── التعويضات ──
-    compensatory = CompensatorySession.objects.filter(
-        teacher=user, school=school,
-    ).count()
-
-    # ── التقييم ──
-    evaluations = (
-        StaffEvaluation.objects.filter(staff=user, school=school)
-        .order_by("-academic_year")[:5]
-    )
-
-    # ── الإجازات ──
-    leaves = (
-        LeaveRequest.objects.filter(staff=user, school=school)
-        .order_by("-created_at")[:10]
-    )
-    leave_balances = LeaveBalance.objects.filter(
-        staff=user, school=school, academic_year=year,
-    )
-
-    # ── الحصص (أعباء) ──
-    from operations.models import ScheduleSlot
-    weekly_slots = ScheduleSlot.objects.filter(
-        teacher=user, school=school, is_active=True,
-    ).count()
-
-    role_display = ROLE_LABELS.get(membership.role.name, membership.role.name) if membership and membership.role else "—"
 
     return render(request, "staff_affairs/staff_profile.html", {
         "staff_user": user,
-        "membership": membership,
-        "profile": profile,
         "year": year,
         "role_display": role_display,
-        "absence_count": absence_count,
-        "absences_recent": absences_recent,
-        "swaps_count": swaps,
-        "compensatory_count": compensatory,
-        "evaluations": evaluations,
-        "leaves": leaves,
-        "leave_balances": leave_balances,
-        "weekly_slots": weekly_slots,
         "today": timezone.localdate(),
+        **profile_data,  # membership, profile, absences, swaps, ...
     })
 
 

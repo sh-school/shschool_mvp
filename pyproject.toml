@@ -81,6 +81,9 @@ python_functions = ["test_*"]
 testpaths = ["tests"]
 # ✅ v5.4: pytest يطابق norecursedirs بأسماء المجلدات فقط (ليس المسار الكامل)
 norecursedirs = ["loadtest", "node_modules", ".venv", "staticfiles", ".claude", "e2e"]
+# ✅ v5.4: تثبيت scope دورة الحياة لتجنّب تحذير pytest-asyncio المتكرر
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
 markers = [
     "slow: اختبارات بطيئة",
     "integration: اختبارات تكامل",

@@ -26,6 +26,90 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 
+class StaffService:
+    """خدمات بيانات الموظفين — ملف شامل + إحصائيات."""
+
+    @staticmethod
+    def get_staff_profile_data(user, school, year: str) -> dict:
+        """
+        بيانات ملف الموظف الشامل من 7 نماذج — مع select_related.
+
+        Args:
+            user: كائن الموظف (CustomUser)
+            school: كائن المدرسة
+            year: العام الدراسي
+
+        Returns:
+            dict يحتوي: membership, profile, absences, swaps, compensatory,
+                        evaluations, leaves, leave_balances, weekly_slots
+        """
+        from django.db.models import Q
+
+        from core.models.access import Membership
+        from operations.models import (
+            CompensatorySession,
+            ScheduleSlot,
+            TeacherAbsence,
+            TeacherSwap,
+        )
+        from staff_affairs.models import LeaveBalance, LeaveRequest
+
+        membership = (
+            Membership.objects
+            .filter(user=user, school=school, is_active=True)
+            .select_related("role", "department_obj")
+            .first()
+        )
+
+        absences_qs = (
+            TeacherAbsence.objects
+            .filter(teacher=user, school=school)
+            .order_by("-date")
+        )
+        absence_count = absences_qs.count()
+        absences_recent = list(absences_qs[:10])
+
+        swaps_count = TeacherSwap.objects.filter(
+            Q(teacher_a=user) | Q(teacher_b=user), school=school,
+        ).count()
+
+        compensatory_count = CompensatorySession.objects.filter(
+            teacher=user, school=school,
+        ).count()
+
+        evaluations = list(
+            school.staff_evaluations.filter(staff=user)
+            .order_by("-academic_year")[:5]
+        ) if hasattr(school, "staff_evaluations") else []
+
+        leaves = list(
+            LeaveRequest.objects
+            .filter(staff=user, school=school)
+            .order_by("-created_at")[:10]
+        )
+
+        leave_balances = list(
+            LeaveBalance.objects.filter(staff=user, school=school, academic_year=year)
+        )
+
+        weekly_slots = ScheduleSlot.objects.filter(
+            teacher=user, school=school, is_active=True,
+        ).count()
+
+        return {
+            "membership": membership,
+            "profile": getattr(user, "profile", None),
+            "absence_count": absence_count,
+            "absences_recent": absences_recent,
+            "swaps_count": swaps_count,
+            "compensatory_count": compensatory_count,
+            "evaluations": evaluations,
+            "leaves": leaves,
+            "leave_balances": leave_balances,
+            "weekly_slots": weekly_slots,
+        }
+
+
 class LeaveService:
     """خدمات الإجازات — إنشاء + مراجعة + إحصائيات."""
 
