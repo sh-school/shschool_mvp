@@ -3,7 +3,6 @@ staff_affairs/views.py — شؤون الموظفين
 8 views — يتبع أنماط المشروع.
 """
 
-from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
@@ -287,28 +286,11 @@ def licensing_overview(request):
     school = request.user.get_school()
     today = timezone.localdate()
 
-    staff_with_license = (
-        CustomUser.objects.filter(
-            memberships__school=school, memberships__is_active=True,
-            professional_license_number__isnull=False,
-        ).exclude(professional_license_number="")
-        .order_by("professional_license_expiry")
-    )
-
-    expired = [u for u in staff_with_license if u.professional_license_expiry and u.professional_license_expiry < today]
-    expiring_soon = [u for u in staff_with_license if u.professional_license_expiry and today <= u.professional_license_expiry <= today + timedelta(days=90)]
-    valid = [u for u in staff_with_license if u.professional_license_expiry and u.professional_license_expiry > today + timedelta(days=90)]
-
-    no_license = (
-        Membership.objects.filter(school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher"))
-        .select_related("user")
-        .filter(Q(user__professional_license_number__isnull=True) | Q(user__professional_license_number=""))
-    )
+    # ✅ v5.4: StaffService.get_license_overview — DB filters بدل Python list comprehensions
+    # يتجنّب تحميل جميع الموظفين في الذاكرة لتصنيفهم (O(n) memory → O(1))
+    license_data = StaffService.get_license_overview(school, today=today)
 
     return render(request, "staff_affairs/licensing.html", {
-        "expired": expired,
-        "expiring_soon": expiring_soon,
-        "valid": valid,
-        "no_license": no_license,
         "today": today,
+        **license_data,
     })

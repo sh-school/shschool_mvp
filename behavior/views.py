@@ -11,7 +11,6 @@ from django.conf import settings
 from django.utils import timezone as _tz
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-# transaction moved to services.py — v5.4 refactor
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 

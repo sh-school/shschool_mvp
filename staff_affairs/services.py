@@ -204,6 +204,76 @@ class StaffService:
         }
 
 
+    @staticmethod
+    def get_license_overview(school, today=None) -> dict:
+        """
+        نظرة شاملة على الرخص المهنية — باستخدام DB filters بدل Python comprehensions.
+
+        ✅ v5.4: بدل جلب جميع الموظفين إلى Python وتصنيفهم،
+        نستخدم استعلامات منفصلة تُعيد QuerySets مباشرة (أسرع + أقل استهلاكاً للذاكرة).
+
+        Args:
+            school: كائن المدرسة
+            today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+
+        Returns:
+            dict يحتوي: expired, expiring_soon, valid, no_license
+        """
+        from datetime import timedelta
+
+        from django.db.models import Q
+        from django.utils import timezone
+
+        from core.models.access import Membership
+        from core.models.user import CustomUser
+
+        today = today or timezone.localdate()
+        ninety_days = today + timedelta(days=90)
+
+        base_qs = CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            professional_license_number__isnull=False,
+        ).exclude(professional_license_number="")
+
+        expired = base_qs.filter(
+            professional_license_expiry__isnull=False,
+            professional_license_expiry__lt=today,
+        ).order_by("professional_license_expiry")
+
+        expiring_soon = base_qs.filter(
+            professional_license_expiry__isnull=False,
+            professional_license_expiry__gte=today,
+            professional_license_expiry__lte=ninety_days,
+        ).order_by("professional_license_expiry")
+
+        valid = base_qs.filter(
+            professional_license_expiry__isnull=False,
+            professional_license_expiry__gt=ninety_days,
+        ).order_by("professional_license_expiry")
+
+        no_license = (
+            Membership.objects
+            .filter(
+                school=school,
+                is_active=True,
+                role__name__in=("teacher", "coordinator", "ese_teacher"),
+            )
+            .filter(
+                Q(user__professional_license_number__isnull=True)
+                | Q(user__professional_license_number="")
+            )
+            .select_related("user")
+        )
+
+        return {
+            "expired": expired,
+            "expiring_soon": expiring_soon,
+            "valid": valid,
+            "no_license": no_license,
+        }
+
+
 class LeaveService:
     """خدمات الإجازات — إنشاء + مراجعة + إحصائيات."""
 
