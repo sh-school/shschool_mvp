@@ -50,83 +50,36 @@ from .models import StudentActivity, StudentTransfer
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_dashboard(request):
-    """لوحة شؤون الطلاب — KPIs عبر Service Layer + بيانات العرض."""
+    """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
 
     school = request.user.get_school()
     today = timezone.localdate()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    # ── KPIs الأساسية — مُفوَّضة لـ Service Layer ──
-    stats = StudentService.get_dashboard_stats(school, year)
-    att = stats["today_attendance"]
-
-    # ── بيانات العرض الإضافية (خاصة بهذه الصفحة) ──
-    clinic_today = ClinicVisit.objects.filter(
-        school=school, visit_date__date=today,
-    ).count()
-
-    recent_infractions = (
-        BehaviorInfraction.objects.filter(school=school)
-        .select_related("student", "violation_category")
-        .order_by("-date")[:5]
-    )
-
-    recent_transfers = (
-        StudentTransfer.objects.filter(school=school)
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    )
-
-    # طلاب بدون ولي أمر — Exists subquery بدل Python set arithmetic
-    no_parent_count = (
-        StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .annotate(
-            has_parent=Exists(
-                ParentStudentLink.objects.filter(
-                    school=school, student_id=OuterRef("student_id"),
-                )
-            )
-        )
-        .filter(has_parent=False)
-        .count()
-    )
-
-    week_start = today - timedelta(days=today.weekday())
-    weekly_tardiness = StudentAttendance.objects.filter(
-        school=school, status="late",
-        session__date__gte=week_start, session__date__lte=today,
-    ).count()
-
-    recent_activities = (
-        StudentActivity.objects.filter(school=school, academic_year=year)
-        .select_related("student")
-        .order_by("-date")[:5]
-    )
+    # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
+    ctx = StudentService.get_dashboard_context(school, year, today=today)
+    att = ctx["today_attendance"]
 
     return render(request, "student_affairs/dashboard.html", {
         "today": today,
         "year": year,
         "current_school": school,
-        "total_students": stats["total_students"],
+        "total_students": ctx["total_students"],
         "absent_today": att["absent"] or 0,
         "late_today": att["late"] or 0,
         "present_today": att["present"] or 0,
-        "behavior_month": stats["behavior_month"]["total"] or 0,
-        "clinic_today": clinic_today,
-        "pending_transfers": stats["pending_transfers"],
-        "grade_distribution": stats["grade_distribution"],
-        "linked_parents": stats["parent_link_count"],
-        "activities_year": stats["activities_count"],
-        "recent_infractions": recent_infractions,
-        "recent_transfers": recent_transfers,
-        "no_parent_count": no_parent_count,
-        "weekly_tardiness": weekly_tardiness,
-        "recent_activities": recent_activities,
+        "behavior_month": ctx["behavior_month"]["total"] or 0,
+        "clinic_today": ctx["clinic_today"],
+        "pending_transfers": ctx["pending_transfers"],
+        "grade_distribution": ctx["grade_distribution"],
+        "linked_parents": ctx["parent_link_count"],
+        "activities_year": ctx["activities_count"],
+        "recent_infractions": ctx["recent_infractions"],
+        "recent_transfers": ctx["recent_transfers"],
+        "no_parent_count": ctx["no_parent_count"],
+        "weekly_tardiness": ctx["weekly_tardiness"],
+        "recent_activities": ctx["recent_activities"],
     })
 
 

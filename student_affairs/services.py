@@ -184,6 +184,97 @@ class StudentService:
             "parent_link_count": parent_link_count,
         }
 
+    @staticmethod
+    def get_dashboard_context(school, year: str, today=None) -> dict:
+        """
+        السياق الكامل للوحة شؤون الطلاب — يجمع get_dashboard_stats + queries الإضافية.
+
+        ✅ v5.4: يُحوّل 6 raw queries المتبقية في student_dashboard إلى service layer.
+
+        Args:
+            school: كائن المدرسة
+            year: العام الدراسي
+            today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+
+        Returns:
+            dict يحتوي: جميع بيانات get_dashboard_stats +
+                        clinic_today, recent_infractions, recent_transfers,
+                        no_parent_count, weekly_tardiness, recent_activities
+        """
+        from datetime import timedelta
+
+        from django.db.models import Exists, OuterRef
+
+        from core.models import ParentStudentLink
+
+        today = today or timezone.now().date()
+
+        BehaviorInfraction = _get_behavior_model()
+        ClinicVisit = _get_clinic_model()
+        StudentAttendance = _get_attendance_model()
+        StudentTransfer = _get_transfer_model()
+        StudentActivity = _get_activity_model()
+
+        stats = StudentService.get_dashboard_stats(school, year)
+
+        clinic_today = ClinicVisit.objects.filter(
+            school=school, visit_date__date=today,
+        ).count()
+
+        recent_infractions = list(
+            BehaviorInfraction.objects.filter(school=school)
+            .select_related("student", "violation_category")
+            .order_by("-date")[:5]
+        )
+
+        recent_transfers = list(
+            StudentTransfer.objects.filter(school=school)
+            .select_related("student")
+            .order_by("-created_at")[:5]
+        )
+
+        # طلاب بدون ولي أمر — Exists subquery بدل Python set arithmetic
+        no_parent_count = (
+            StudentEnrollment.objects.filter(
+                class_group__school=school,
+                class_group__academic_year=year,
+                is_active=True,
+            )
+            .annotate(
+                has_parent=Exists(
+                    ParentStudentLink.objects.filter(
+                        school=school, student_id=OuterRef("student_id"),
+                    )
+                )
+            )
+            .filter(has_parent=False)
+            .count()
+        )
+
+        week_start = today - timedelta(days=today.weekday())
+        weekly_tardiness = StudentAttendance.objects.filter(
+            school=school,
+            status="late",
+            session__date__gte=week_start,
+            session__date__lte=today,
+        ).count()
+
+        recent_activities = list(
+            StudentActivity.objects.filter(school=school, academic_year=year)
+            .select_related("student")
+            .order_by("-date")[:5]
+        )
+
+        return {
+            **stats,
+            "clinic_today": clinic_today,
+            "recent_infractions": recent_infractions,
+            "recent_transfers": recent_transfers,
+            "no_parent_count": no_parent_count,
+            "weekly_tardiness": weekly_tardiness,
+            "recent_activities": recent_activities,
+        }
+
     # ── ملف الطالب الشامل ──────────────────────────────────────────
 
     @staticmethod
