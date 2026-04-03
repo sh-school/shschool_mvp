@@ -17,6 +17,12 @@
     margin: 0;
     padding: 0;
     background: #fff;
+    border: 2px solid #8A1538;
+  }
+  .page-wrapper {
+    border-top: 2.5px solid #8A1538;
+    border-bottom: 1px solid #D4A843;
+    padding: 0;
   }
   /* ===== HEADER ===== */
   .doc-header {
@@ -34,13 +40,14 @@
   }
   .doc-header-ministry {
     font-size: 10px;
-    color: #666;
-    margin-bottom: 2px;
-    letter-spacing: 0.5px;
+    color: #555;
+    margin-bottom: 3px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
   }
   .doc-header-school {
-    font-size: 18px;
-    font-weight: 900;
+    font-size: 19px;
+    font-weight: 700;
     color: #8A1538;
     line-height: 1.4;
   }
@@ -124,44 +131,17 @@
     text-align: center !important;
   }
 
-  /* ===== SEAL ===== */
-  .doc-seal-section {
-    margin-top: 30px;
-    text-align: center !important;
-    page-break-inside: avoid;
-  }
-  .doc-seal {
-    width: 72px;
-    height: 72px;
-    border: 2.5px solid #8A1538;
-    border-radius: 50%;
-    margin: 0 auto;
-    color: #8A1538;
-    font-size: 10px;
-    font-weight: 700;
-    text-align: center;
-    line-height: 15px;
-    padding-top: 16px;
-  }
-  .doc-seal-label {
-    font-size: 10px;
-    color: #888;
-    margin-top: 6px;
-  }
-
   /* ===== FOOTER ===== */
   .doc-footer {
-    position: fixed;
-    bottom: 0.6cm;
-    left: 2cm;
-    right: 2cm;
+    margin-top: 16px;
+    padding-top: 6px;
     border-top: 1.5px solid #8A1538;
-    padding-top: 4px;
-    display: table;
-    width: 100%;
+    text-align: center;
+    font-size: 10px;
+    color: #111;
+    font-weight: 600;
+    line-height: 1.7;
   }
-  .doc-footer-right { display: table-cell; font-size: 9px; color: #888; text-align: right; }
-  .doc-footer-left  { display: table-cell; font-size: 9px; color: #888; text-align: left; }
   .notice {
     margin-top: 18px;
     font-size: 10px;
@@ -179,28 +159,24 @@
 </style>
 </head>
 <body>
+<div class="page-wrapper">
 
 <!-- ===== DOCUMENT HEADER ===== -->
 <div class="doc-header">
   <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="شعار المدرسة">
-  <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+  <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي – دولة قطر</div>
   <div class="doc-header-school">{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
 </div>
 
 <!-- ===== CHILD TEMPLATE CONTENT ===== -->
 {% block content %}{% endblock %}
 
-<!-- ===== SEAL ===== -->
-<div class="doc-seal-section">
-  <div class="doc-seal">الختم<br>الرسمي</div>
-  <div class="doc-seal-label">ختم المدرسة الرسمي</div>
-</div>
-
 <!-- ===== DOCUMENT FOOTER ===== -->
 <div class="doc-footer">
-  <div class="doc-footer-right">{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
-  <div class="doc-footer-left">SchoolOS v6 | {{ generated_at|date:"Y/m/d H:i" }}</div>
+  مدرسة الشحانية الإعدادية الثانوية للبنين · هاتف: 44994205 · ashahanyia-pb@edu.gov.qa · الشحانية، قطر
+  <div style="color:#6B1029; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — تعليم ريادي مبتكر لمجتمع واعٍ ومنتج · SchoolOS-SAMM © 2026</div>
 </div>
 
+</div>
 </body>
 </html>

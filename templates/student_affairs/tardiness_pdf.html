@@ -1,0 +1,73 @@
+{% extends "reports/base_qatar_report.html" %}
+
+{% block report_title_bar %}
+<div class="report-title-bar">{{ title|default:"تقرير التأخر الصباحي" }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>التاريخ: <strong>{{ export_datetime }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num c-orange">{{ total_late }}</span><span class="kpi-label">متأخرون اليوم</span></div>
+  <div class="kpi-item"><span class="kpi-num c-maroon">{{ late_pct }}%</span><span class="kpi-label">نسبة التأخر</span></div>
+  <div class="kpi-item"><span class="kpi-num">{{ weekly_late }}</span><span class="kpi-label">متأخرون هذا الأسبوع</span></div>
+</div>
+
+<div class="section-head">قائمة الطلاب المتأخرين</div>
+{% if late_records %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th style="width:6%">#</th>
+      <th>اسم الطالب</th>
+      <th style="width:14%">الفصل</th>
+      <th style="width:20%">المادة</th>
+      <th style="width:12%">الوقت</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for rec in late_records %}
+    <tr>
+      <td class="cell-num">{{ forloop.counter }}</td>
+      <td class="cell-name">{{ rec.student.full_name }}</td>
+      <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
+      <td class="cell-name">{{ rec.session.subject.name|default:"—" }}</td>
+      <td>{{ rec.session.start_time|time:"H:i"|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا يوجد طلاب متأخرون في هذا التاريخ</p>
+{% endif %}
+
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">صدر بواسطة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by }}</div>
+    <div class="sig-role">{{ exporter_role_ar }}</div>
+    <div class="sig-stamp">{{ export_datetime }}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

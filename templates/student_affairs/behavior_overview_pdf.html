@@ -1,0 +1,96 @@
+{% extends "reports/base_qatar_report.html" %}
+
+{% block report_title_bar %}
+<div class="report-title-bar">{{ title|default:"تقرير السلوك الطلابي" }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>التاريخ: <strong>{{ export_datetime }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num c-maroon">{{ total_infractions }}</span><span class="kpi-label">إجمالي المخالفات</span></div>
+  <div class="kpi-item"><span class="kpi-num c-orange">{{ infraction_pct }}%</span><span class="kpi-label">نسبة المخالفين</span></div>
+  <div class="kpi-item"><span class="kpi-num c-red">{{ unresolved }}</span><span class="kpi-label">غير محلولة</span></div>
+  <div class="kpi-item"><span class="kpi-num">{{ total_students }}</span><span class="kpi-label">إجمالي الطلاب</span></div>
+</div>
+
+<div class="section-head">توزيع المخالفات حسب الدرجة</div>
+<table class="report-table">
+  <thead>
+    <tr>
+      <th style="width:25%">الدرجة</th>
+      <th style="width:25%">التصنيف</th>
+      <th style="width:25%">عدد المخالفات</th>
+      <th style="width:25%">النقاط المخصومة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for deg in degree_rows %}
+    <tr>
+      <td class="cell-num">الدرجة {{ deg.degree }}</td>
+      <td>{% if deg.degree == 1 %}بسيطة{% elif deg.degree == 2 %}متوسطة{% elif deg.degree == 3 %}خطيرة{% else %}جسيمة{% endif %}</td>
+      <td class="cell-num">{{ deg.count }}</td>
+      <td class="cell-danger">{{ deg.points }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4" class="no-data">لا توجد بيانات</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="section-head mt-16">أكثر 15 طالب مخالفات</div>
+{% if worst_students %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th style="width:6%">#</th>
+      <th>اسم الطالب</th>
+      <th style="width:18%">عدد المخالفات</th>
+      <th style="width:20%">النقاط المخصومة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in worst_students %}
+    <tr>
+      <td class="cell-num">{{ forloop.counter }}</td>
+      <td class="cell-name">{{ s.student__full_name }}</td>
+      <td class="cell-num">{{ s.infraction_count }}</td>
+      <td class="cell-danger">{{ s.total_points }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا توجد بيانات</p>
+{% endif %}
+
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">صدر بواسطة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by }}</div>
+    <div class="sig-role">{{ exporter_role_ar }}</div>
+    <div class="sig-stamp">{{ export_datetime }}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

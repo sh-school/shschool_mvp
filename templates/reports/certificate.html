@@ -1,5 +1,4 @@
-{% extends "reports/base_report.html" %}
-{% block report_subtitle %}شهادة نتيجة سنوية{% endblock %}
+{% extends "reports/base_qatar_report.html" %}
 
 {% block extra_styles %}
 .cert-frame {
@@ -40,11 +39,11 @@
 {% endblock %}
 
 {% block report_title_bar %}
-<div class="report-title">شهادة نتيجة سنوية — {{ year }}</div>
+<div class="report-title-bar">شهادة نتيجة سنوية — {{ year }}</div>
 {% endblock %}
 
 {% block report_meta %}
-<table class="report-meta-table">
+<table class="report-meta">
   <tr>
     <td>السنة الدراسية: <strong>{{ year }}</strong></td>
     <td>تاريخ الإصدار: <strong>{{ print_date }}</strong></td>

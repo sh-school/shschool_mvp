@@ -1,5 +1,4 @@
-{% extends "reports/base_report.html" %}
-{% block report_subtitle %}كشف النتائج السنوية{% endblock %}
+{% extends "reports/base_qatar_report.html" %}
 
 {% block extra_styles %}
 .grade-a { color: #15803d; font-weight: 700; }
@@ -14,11 +13,11 @@
 {% endblock %}
 
 {% block report_title_bar %}
-<div class="report-title">كشف النتائج السنوية — {{ class_group }} — {{ year }}</div>
+<div class="report-title-bar">كشف النتائج السنوية — {{ class_group }} — {{ year }}</div>
 {% endblock %}
 
 {% block report_meta %}
-<table class="report-meta-table">
+<table class="report-meta">
   <tr>
     <td>الفصل: <strong>{{ class_group }}</strong></td>
     <td>السنة: <strong>{{ year }}</strong></td>
@@ -119,4 +118,12 @@
     </tr>
   </table>
 </div>
+
+{% if exported_by %}
+<div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
+  <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+  <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
+  <p style="margin:2px 0 0">{{ school_name }} — وثيقة رسمية — SchoolOS</p>
+</div>
+{% endif %}
 {% endblock %}

@@ -1,7 +1,5 @@
-{% extends "reports/base_report.html" %}
-{# تقرير KPIs الشهري — يرث من القالب الأساسي الذي يحمل هوية قطر والخطوط العربية #}
-
-{% block report_subtitle %}تقرير المؤشرات الكمية الشهري{% endblock %}
+{% extends "reports/base_qatar_report.html" %}
+{# تقرير KPIs الشهري — يرث من القالب القطري الأساسي #}
 
 {% block extra_styles %}
 /* ── ضوء المرور ─────────────────────────────── */
@@ -80,34 +78,20 @@
 .bar-fill.pct-medium { background: #d97706; }
 .bar-fill.pct-low    { background: #dc2626; }
 .bar-pct { flex: 0 0 36px; font-size: 10px; font-weight: 700; text-align: left; }
-
-/* ── جدول التوقيع ────────────────────────────── */
-.sig-row {
-  display: flex;
-  gap: 20px;
-  margin-top: 36px;
-}
-.sig-box {
-  flex: 1;
-  text-align: center;
-  font-size: 10px;
-}
-.sig-line {
-  border-top: 1px solid #555;
-  margin: 28px 10px 6px;
-}
 {% endblock %}
 
 {% block report_title_bar %}
-<div class="report-title">تقرير المؤشرات الكمية (KPIs) — {{ month_label }}</div>
+<div class="report-title-bar">تقرير المؤشرات الكمية (KPIs) — {{ month_label }}</div>
 {% endblock %}
 
 {% block report_meta %}
-<div class="report-meta">
-  <span>السنة الدراسية: <strong>{{ year }}</strong></span>
-  <span>تاريخ الإصدار: <strong>{{ generated_at }}</strong></span>
-  <span>المدرسة: <strong>{{ school.name }}</strong></span>
-</div>
+<table class="report-meta">
+  <tr>
+    <td>السنة الدراسية: <strong>{{ year }}</strong></td>
+    <td>تاريخ الإصدار: <strong>{{ generated_at }}</strong></td>
+    <td>المدرسة: <strong>{{ school.name }}</strong></td>
+  </tr>
+</table>
 {% endblock %}
 
 {% block content %}
@@ -133,7 +117,7 @@
 </div>
 
 {# ── جدول المؤشرات ──────────────────────────────────────────────── #}
-<table class="kpi-table">
+<table class="report-table kpi-table">
   <thead>
     <tr>
       <th scope="col" style="width:4%">#</th>
@@ -151,7 +135,7 @@
     {% for key, kpi in kpis.items %}
     <tr class="row-{{ kpi.traffic }}">
       <td>{{ forloop.counter }}</td>
-      <td style="text-align:right; font-weight:600">{{ kpi.label }}</td>
+      <td class="cell-name">{{ kpi.label }}</td>
       <td>
         {% if kpi.value is not None %}
           <span class="kpi-value">{{ kpi.value }}{{ kpi.unit }}</span>
@@ -163,7 +147,7 @@
       <td>{{ kpi.warning }}{{ kpi.unit }}</td>
       <td>{{ kpi.unit|default:"—" }}</td>
       <td>{{ kpi.frequency }}</td>
-      <td style="text-align:center">
+      <td>
         <span class="traffic-dot dot-{{ kpi.traffic }}"></span>
         {% if kpi.traffic == "green" %}ممتاز
         {% elif kpi.traffic == "yellow" %}متابعة
@@ -178,10 +162,8 @@
 
 {# ── تقدم الخطة التشغيلية ────────────────────────────────────────── #}
 {% if plan_domains %}
-<div style="margin-top: 24px;">
-  <div class="report-title" style="font-size:12px; margin-bottom:12px">
-    تقدم الخطة التشغيلية حسب المجال
-  </div>
+<div class="mt-20">
+  <div class="section-head">تقدم الخطة التشغيلية حسب المجال</div>
   {% for domain in plan_domains %}
   <div class="domain-bar-wrap">
     <div class="domain-name">{{ domain.name }}</div>
@@ -200,10 +182,10 @@
 
 {# ── التوصيات التلقائية ──────────────────────────────────────────── #}
 {% if red_kpis %}
-<div style="margin-top: 20px; padding: 12px; background: #fff1f2;
+<div class="mt-16" style="padding: 12px; background: #fff1f2;
             border-right: 4px solid #dc2626; border-radius: 4px;">
   <div style="font-weight:700; color:#991b1b; margin-bottom:8px">
-    ⚠ مؤشرات تستوجب تدخلاً فورياً
+    مؤشرات تستوجب تدخلاً فورياً
   </div>
   {% for kpi in red_kpis %}
   <div style="font-size:11px; margin-bottom:4px">
@@ -215,22 +197,27 @@
 </div>
 {% endif %}
 
-{# ── التوقيعات ───────────────────────────────────────────────────── #}
-<div class="sig-row">
-  <div class="sig-box">
-    <div class="sig-line"></div>
-    مدير المدرسة
-  </div>
-  <div class="sig-box">
-    <div class="sig-line"></div>
-    مسؤول الجودة
-  </div>
-  <div class="sig-box">
-    <div class="sig-line"></div>
-    وكيل شؤون التعليم
-  </div>
-</div>
-
 {% endblock %}
 
-{% block page_footer_left %}SchoolOS v6 — تقرير آلي{% endblock %}
+{% block signatures %}
+<div class="sig-block">
+  <div class="sig-item">
+    <div class="sig-title">مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">مسؤول الجودة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">وكيل شؤون التعليم</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

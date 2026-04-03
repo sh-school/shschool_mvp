@@ -1,0 +1,327 @@
+{% load static %}
+{# base_qatar_report.html v4.0 — قالب PDF حكومي قطري — WeasyPrint #}
+{# النسبة الذهبية 1:1.618 — ألوان غامقة مقروءة — أحجام متناسبة #}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 12mm 16mm 16mm 16mm;
+  @bottom-center {
+    content: element(page-footer);
+    margin-top: 3mm;
+  }
+}
+
+* {
+  direction: rtl;
+  box-sizing: border-box;
+  margin: 0; padding: 0;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+html, body, div, p, span, td, th, h1, h2, h3 {
+  direction: rtl; text-align: right; unicode-bidi: embed;
+}
+table { direction: rtl; border-collapse: collapse; }
+
+body {
+  font-family: 'Tajawal', 'Amiri', 'Arial', sans-serif;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #111;
+  background: #fff;
+}
+
+/* ══════════ الإطار ══════════ */
+.page-wrapper {
+  min-height: 100%;
+  border: 2px solid #8A1538;
+}
+
+/* ══════════ الهيدر ══════════ */
+.doc-header {
+  text-align: center !important;
+  padding: 10px 24px 10px;
+}
+.doc-header .emblem {
+  width: 58px; height: 58px;
+  margin: 0 auto 10px;
+  display: block;
+}
+.state-name {
+  font-size: 11px;
+  color: #6B1029;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-align: center !important;
+}
+.school-name {
+  font-size: 19px;
+  font-weight: 700;
+  color: #8A1538;
+  margin: 4px 0;
+  text-align: center !important;
+}
+.ministry-name {
+  font-size: 10px;
+  color: #333;
+  text-align: center !important;
+}
+
+/* خط زخرفي مزدوج */
+.ornament-hr {
+  height: 5px;
+  border: none;
+  border-top: 2.5px solid #8A1538;
+  border-bottom: 1px solid #D4A843;
+  margin: 0;
+}
+
+/* ══════════ شريط العنوان ══════════ */
+.report-title-bar {
+  background: #8A1538;
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center !important;
+  letter-spacing: 0.3px;
+}
+
+/* ══════════ المعلومات ══════════ */
+.report-meta {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #ddd;
+}
+.report-meta td {
+  padding: 7px 14px;
+  font-size: 10.5px;
+  color: #333;
+  text-align: center !important;
+  border: none;
+}
+.report-meta strong { color: #111; font-weight: 700; }
+
+/* ══════════ المحتوى ══════════ */
+.doc-body {
+  padding: 8px 24px 18px;
+}
+
+/* ══════════ KPIs — النسبة الذهبية ══════════ */
+.kpi-strip {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2.5px solid #8A1538;
+  margin-bottom: 24px;
+  padding-bottom: 10px;
+}
+.kpi-item {
+  flex: 1;
+  text-align: center !important;
+  padding: 14px 8px;
+}
+.kpi-num {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: #8A1538;
+  text-align: center !important;
+  display: block;
+}
+.kpi-label {
+  font-size: 10px;
+  color: #222;
+  margin-top: 6px;
+  text-align: center !important;
+  display: block;
+  font-weight: 600;
+}
+.c-green { color: #0a6e35 !important; }
+.c-red { color: #b91c2e !important; }
+.c-orange { color: #c45a09 !important; }
+.c-maroon { color: #8A1538 !important; }
+
+/* ══════════ عناوين الأقسام ══════════ */
+.section-head {
+  font-size: 13px;
+  font-weight: 700;
+  color: #8A1538;
+  padding-bottom: 5px;
+  border-bottom: 2px solid #8A1538;
+  margin: 22px 0 10px;
+}
+
+/* ══════════ الجداول ══════════ */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.report-table th {
+  background: #8A1538;
+  color: #fff;
+  padding: 8px 14px;
+  font-weight: 600;
+  text-align: center;
+  font-size: 10.5px;
+}
+.report-table td {
+  padding: 7px 14px;
+  border-bottom: 1px solid #e8e8e8;
+  text-align: center;
+  color: #111;
+}
+.report-table tr:nth-child(even) td {
+  background: #faf7f8;
+}
+.cell-name { text-align: right; font-weight: 600; color: #111; }
+.cell-num { text-align: center; font-weight: 700; color: #222; }
+.cell-danger { text-align: center; font-weight: 700; color: #b91c2e; }
+
+/* جدول البيانات الشخصية */
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.info-table th {
+  background: #f5f0f1;
+  color: #333;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-bottom: 1px solid #ddd;
+  text-align: right;
+  width: 20%;
+  font-size: 10.5px;
+}
+.info-table td {
+  padding: 7px 14px;
+  border-bottom: 1px solid #ddd;
+  color: #111;
+}
+
+/* Badges */
+.badge-pass { color: #0a6e35; font-weight: 700; font-size: 10px; }
+.badge-fail { color: #b91c2e; font-weight: 700; font-size: 10px; }
+
+/* ══════════ التوقيعات ══════════ */
+.sig-block {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 30px;
+  padding-top: 14px;
+  border-top: 1px dashed #999;
+}
+.sig-item {
+  text-align: center !important;
+  width: 38%;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 10px 14px 8px;
+  background: #fafafa;
+}
+.sig-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8A1538;
+  text-align: center !important;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 5px;
+  margin-bottom: 0;
+}
+.sig-space {
+  height: 24px;
+}
+.sig-line {
+  border-top: 1px solid #333;
+  width: 55%;
+  margin: 0 auto 5px;
+}
+.sig-name {
+  font-size: 9.5px;
+  color: #111;
+  font-weight: 700;
+  text-align: center !important;
+  margin-bottom: 2px;
+}
+.sig-role {
+  font-size: 8px;
+  color: #333;
+  text-align: center !important;
+}
+.sig-stamp {
+  font-size: 8.5px;
+  color: #6B1029;
+  font-weight: 700;
+  margin-top: 4px;
+  text-align: center !important;
+}
+
+/* ══════════ الفوتر المتكرر ══════════ */
+.running-footer {
+  position: running(page-footer);
+  text-align: center !important;
+  padding-top: 6px;
+  border-top: 1.5px solid #8A1538;
+  line-height: 1.7;
+}
+.running-footer div {
+  text-align: center !important;
+}
+.running-footer .ft-school {
+  font-size: 10px;
+  color: #111;
+  font-weight: 600;
+}
+.running-footer .ft-ministry {
+  color: #6B1029;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/* ══════════ مساعدات ══════════ */
+.no-break { page-break-inside: avoid; }
+.no-data { text-align: center; color: #777; padding: 18px; font-size: 11px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+
+{% block extra_styles %}{% endblock %}
+</style>
+</head>
+<body>
+
+<!-- فوتر متكرر -->
+<div class="running-footer">
+  <div class="ft-school">{{ school_name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }} · هاتف: 44994205 · ashahanyia-pb@edu.gov.qa · الشحانية، قطر</div>
+  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — تعليم ريادي مبتكر لمجتمع واعٍ ومنتج · SchoolOS-SAMM © 2026</div>
+</div>
+
+<!-- الإطار -->
+<div class="page-wrapper">
+
+  <div class="doc-header">
+    <img src="file:///{{ logo_path }}" class="emblem" alt="">
+    <div class="ministry-name">{% block ministry_line %}{{ ministry|default:"وزارة التربية والتعليم والتعليم العالي — دولة قطر" }}{% endblock %}</div>
+    <div class="school-name">{% block school_name %}{{ school_name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</div>
+  </div>
+  <div class="ornament-hr"></div>
+
+  {% block report_title_bar %}{% endblock %}
+  {% block report_meta %}{% endblock %}
+
+  <div class="doc-body">
+    {% block content %}{% endblock %}
+    {% block signatures %}{% endblock %}
+  </div>
+
+</div>
+
+</body>
+</html>

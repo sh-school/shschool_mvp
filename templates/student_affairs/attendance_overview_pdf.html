@@ -1,0 +1,89 @@
+{% extends "reports/base_qatar_report.html" %}
+
+{% block report_title_bar %}
+<div class="report-title-bar">{{ title|default:"تقرير الحضور والغياب" }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>التاريخ والوقت: <strong>{% now "d/m/Y — H:i" %}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<!-- بطاقات المؤشرات -->
+<div class="kpi-strip">
+  <div class="kpi-item">
+    <div class="kpi-num c-green">{{ summary.present }}</div>
+    <div class="kpi-label">حاضرون</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num c-red">{{ summary.absent }}</div>
+    <div class="kpi-label">غائبون</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num c-orange">{{ summary.late }}</div>
+    <div class="kpi-label">متأخرون</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num">{{ summary.excused }}</div>
+    <div class="kpi-label">معذورون</div>
+  </div>
+  <div class="kpi-item">
+    <div class="kpi-num c-maroon">{{ summary.pct }}%</div>
+    <div class="kpi-label">نسبة الحضور</div>
+  </div>
+</div>
+
+<!-- جدول الغياب -->
+<div class="section-head">أكثر الطلاب غياباً — آخر 30 يوم</div>
+
+{% if worst_students %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th style="width:7%">#</th>
+      <th>اسم الطالب</th>
+      <th style="width:18%">أيام الغياب</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in worst_students %}
+    <tr>
+      <td class="cell-num">{{ forloop.counter }}</td>
+      <td class="cell-name">{{ s.student__full_name }}</td>
+      <td class="cell-danger">{{ s.absence_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا توجد بيانات غياب في الفترة المحددة</p>
+{% endif %}
+
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">صدر بواسطة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by }}</div>
+    <div class="sig-role">{{ exporter_role_ar }}</div>
+    <div class="sig-stamp">{% now "d/m/Y — H:i" %}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

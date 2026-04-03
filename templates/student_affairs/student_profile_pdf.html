@@ -1,0 +1,178 @@
+{% extends "reports/base_qatar_report.html" %}
+
+{% block report_title_bar %}
+<div class="report-title-bar">{{ title|default:"ملف الطالب الشامل" }} — {{ student.full_name }}</div>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year|default:year }}</strong></td>
+    <td>التاريخ: <strong>{{ export_datetime|default:today|date:"d/m/Y" }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by|default:"—" }}</strong> — {{ exporter_role_ar|default:"—" }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<!-- البيانات الشخصية -->
+<div class="section-head">البيانات الشخصية</div>
+<table class="info-table">
+  <tr>
+    <th>الاسم الكامل</th>
+    <td>{{ student.full_name }}</td>
+    <th>الرقم الوطني</th>
+    <td>{{ student.national_id }}</td>
+  </tr>
+  <tr>
+    <th>الصف / الشعبة</th>
+    <td>{% if enrollment %}{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}{% else %}—{% endif %}</td>
+    <th>العام الدراسي</th>
+    <td>{{ year }}</td>
+  </tr>
+  <tr>
+    <th>الجوال</th>
+    <td>{{ student.phone|default:"—" }}</td>
+    <th>البريد الإلكتروني</th>
+    <td>{{ student.email|default:"—" }}</td>
+  </tr>
+</table>
+
+<!-- أولياء الأمور -->
+{% if parent_links %}
+<div class="section-head mt-16">أولياء الأمور</div>
+<table class="report-table">
+  <thead>
+    <tr><th>الاسم</th><th style="width:20%">صلة القرابة</th><th style="width:20%">الجوال</th></tr>
+  </thead>
+  <tbody>
+    {% for link in parent_links %}
+    <tr>
+      <td class="cell-name">{{ link.parent.full_name }}</td>
+      <td>{{ link.get_relationship_display }}</td>
+      <td>{{ link.parent.phone|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- ملخص الحضور -->
+<div class="section-head mt-16">الحضور — آخر 30 يوم</div>
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num">{{ att_summary.total }}</span><span class="kpi-label">إجمالي الحصص</span></div>
+  <div class="kpi-item"><span class="kpi-num c-green">{{ att_summary.present }}</span><span class="kpi-label">حاضر</span></div>
+  <div class="kpi-item"><span class="kpi-num c-red">{{ att_summary.absent }}</span><span class="kpi-label">غائب</span></div>
+  <div class="kpi-item"><span class="kpi-num c-orange">{{ att_summary.late }}</span><span class="kpi-label">متأخر</span></div>
+</div>
+
+<!-- السجل السلوكي -->
+<div class="section-head mt-16">السجل السلوكي ({{ infractions|length }} مخالفة — {{ total_points }} نقطة)</div>
+{% if infractions %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th style="width:5%">#</th>
+      <th style="width:12%">التاريخ</th>
+      <th>المخالفة</th>
+      <th style="width:10%">الدرجة</th>
+      <th style="width:10%">النقاط</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inf in infractions %}
+    <tr>
+      <td class="cell-num">{{ forloop.counter }}</td>
+      <td>{{ inf.date|date:"d/m" }}</td>
+      <td class="cell-name">{{ inf.violation_category.name_ar|default:inf.description|truncatewords:8 }}</td>
+      <td>{{ inf.level }}</td>
+      <td class="cell-danger">{{ inf.points_deducted }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا توجد مخالفات مسجّلة</p>
+{% endif %}
+
+<!-- الدرجات -->
+{% if grades %}
+<div class="section-head mt-16">الدرجات الحالية</div>
+<table class="report-table">
+  <thead>
+    <tr>
+      <th>المادة</th>
+      <th style="width:15%">الفصل الأول</th>
+      <th style="width:15%">الفصل الثاني</th>
+      <th style="width:15%">المجموع</th>
+      <th style="width:12%">الحالة</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in grades %}
+    <tr>
+      <td class="cell-name">{{ g.setup.subject.name }}</td>
+      <td>{{ g.s1_total|default:"—" }}</td>
+      <td>{{ g.s2_total|default:"—" }}</td>
+      <td class="cell-num">{{ g.annual_total|default:"—" }}</td>
+      <td>{% if g.status == "pass" %}<span class="badge-pass">ناجح</span>{% elif g.status == "fail" %}<span class="badge-fail">راسب</span>{% else %}{{ g.get_status_display|default:"—" }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- الأنشطة -->
+{% if activities %}
+<div class="section-head mt-16">الأنشطة والإنجازات</div>
+<table class="report-table">
+  <thead>
+    <tr>
+      <th>النشاط</th>
+      <th style="width:18%">النوع</th>
+      <th style="width:16%">النطاق</th>
+      <th style="width:14%">التاريخ</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for act in activities %}
+    <tr>
+      <td class="cell-name">{{ act.title }}</td>
+      <td>{{ act.get_activity_type_display }}</td>
+      <td>{{ act.get_scope_display }}</td>
+      <td>{{ act.date|date:"d/m/Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">صدر بواسطة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by|default:"—" }}</div>
+    <div class="sig-role">{{ exporter_role_ar|default:"—" }}</div>
+    <div class="sig-stamp">{{ export_datetime }}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">الأخصائي الاجتماعي</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

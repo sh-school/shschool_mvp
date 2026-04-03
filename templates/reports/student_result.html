@@ -1,16 +1,15 @@
-{% extends "reports/base_report.html" %}
-{% block report_subtitle %}كشف نتيجة سنوية{% endblock %}
+{% extends "reports/base_qatar_report.html" %}
 
 {% block extra_styles %}
 .pkg { font-size: 9px; color: #888; }
 {% endblock %}
 
 {% block report_title_bar %}
-<div class="report-title">كشف نتيجة سنوية — {{ student.full_name }}</div>
+<div class="report-title-bar">كشف نتيجة سنوية — {{ student.full_name }}</div>
 {% endblock %}
 
 {% block report_meta %}
-<table class="report-meta-table">
+<table class="report-meta">
   <tr>
     <td>الطالب: <strong>{{ student.full_name }}</strong></td>
     <td>الرقم الوطني: <strong>{{ student.national_id|default:"—" }}</strong></td>

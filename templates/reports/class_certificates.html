@@ -1,7 +1,5 @@
-{% extends "reports/base_report.html" %}
+{% extends "reports/base_qatar_report.html" %}
 {# شهادات الفصل — شهادة لكل طالب على صفحة منفصلة #}
-
-{% block report_subtitle %}شهادات نتائج الفصل{% endblock %}
 
 {% block extra_styles %}
 .cert-page        { page-break-after: always; padding: 20px 0; }
@@ -23,11 +21,11 @@
 {% endblock %}
 
 {% block report_title_bar %}
-<div class="report-title">شهادات نتائج الفصل — {{ class_group }} — {{ year }}</div>
+<div class="report-title-bar">شهادات نتائج الفصل — {{ class_group }} — {{ year }}</div>
 {% endblock %}
 
 {% block report_meta %}
-<table class="report-meta-table">
+<table class="report-meta">
   <tr>
     <td>الفصل: <strong>{{ class_group }}</strong></td>
     <td>السنة الدراسية: <strong>{{ year }}</strong></td>
