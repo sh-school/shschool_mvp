@@ -79,7 +79,8 @@ python_classes   = ["Test*"]
 python_functions = ["test_*"]
 # ✅ v5.2: استثناء loadtest (Locust) و e2e من الاختبارات الافتراضية
 testpaths = ["tests"]
-norecursedirs = ["tests/loadtest", "node_modules", ".venv", "staticfiles", ".claude"]
+# ✅ v5.4: pytest يطابق norecursedirs بأسماء المجلدات فقط (ليس المسار الكامل)
+norecursedirs = ["loadtest", "node_modules", ".venv", "staticfiles", ".claude", "e2e"]
 markers = [
     "slow: اختبارات بطيئة",
     "integration: اختبارات تكامل",
