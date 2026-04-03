@@ -19,6 +19,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -741,3 +742,62 @@ class BehaviorService:
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
         return min(prior + 1, max_step)
+
+    @staticmethod
+    @transaction.atomic
+    def create_infraction(
+        school: School,
+        student: CustomUser,
+        reporter: CustomUser,
+        level: int,
+        description: str,
+        action_taken: str = "",
+        points_deducted: int = 0,
+        violation_category=None,
+    ) -> "BehaviorInfraction":
+        """
+        إنشاء مخالفة سلوكية جديدة — Service Layer الصحيح.
+
+        يحسب خطوة التصعيد تلقائياً بناءً على التاريخ السلوكي،
+        ويُسجّل المخالفة في transaction ذرّي.
+
+        Args:
+            school: كائن المدرسة
+            student: الطالب المُخالَف
+            reporter: المستخدم الذي رصد المخالفة
+            level: درجة المخالفة (1-4)
+            description: وصف المخالفة
+            action_taken: الإجراء المتخذ
+            points_deducted: نقاط الخصم
+            violation_category: فئة المخالفة (اختياري)
+
+        Returns:
+            BehaviorInfraction: المخالفة المنشأة
+
+        Raises:
+            ValueError: إذا كان level خارج النطاق 1-4
+        """
+        if level not in range(1, 5):
+            raise ValueError(f"درجة المخالفة يجب أن تكون بين 1 و4 (مُعطى: {level})")
+
+        escalation_step = BehaviorService.suggest_escalation_step(
+            student, school, level, violation_category,
+        )
+
+        infraction = BehaviorInfraction.objects.create(
+            school=school,
+            student=student,
+            reported_by=reporter,
+            violation_category=violation_category,
+            level=level,
+            escalation_step=escalation_step,
+            description=description,
+            action_taken=action_taken,
+            points_deducted=points_deducted,
+        )
+
+        logger.info(
+            "مخالفة سلوكية جديدة: %s (درجة %d) للطالب %s بواسطة %s",
+            infraction.pk, level, student.full_name, reporter.full_name,
+        )
+        return infraction

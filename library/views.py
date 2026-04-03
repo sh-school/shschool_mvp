@@ -116,20 +116,21 @@ def borrow_book(request):
     if request.method == "POST":
         book_id = request.POST.get("book_id")
         user_id = request.POST.get("user_id")
-        due_date = request.POST.get("due_date")
 
         book = get_object_or_404(LibraryBook, id=book_id)
         user = get_object_or_404(CustomUser, id=user_id)
 
-        if book.available_qty > 0:
-            BookBorrowing.objects.create(
-                book=book, user=user, due_date=due_date, librarian=request.user
+        try:
+            # ✅ v5.4: LibraryService.borrow_book — select_for_update + atomic
+            # يمنع race condition عند إعارة النسخة الأخيرة من أكثر من مستخدم
+            LibraryService.borrow_book(
+                book=book,
+                user=user,
+                librarian=request.user,
             )
-            book.available_qty -= 1
-            book.save()
             messages.success(request, f"تمت إعارة كتاب '{book.title}' للطالب {user.full_name}")
-        else:
-            messages.error(request, "عذراً، الكتاب غير متوفر حالياً للإعارة.")
+        except ValueError as e:
+            messages.error(request, str(e))
 
         return redirect("library:dashboard")
 
@@ -160,16 +161,13 @@ def return_book(request, borrowing_id):
     """تسجيل إرجاع كتاب"""
     school = request.user.get_school()
     borrowing = get_object_or_404(BookBorrowing, id=borrowing_id, book__school=school)
-    if borrowing.status != "RETURNED":
-        borrowing.status = "RETURNED"
-        borrowing.return_date = timezone.now().date()
-        borrowing.save()
 
-        book = borrowing.book
-        book.available_qty += 1
-        book.save()
-
-        messages.success(request, f"تم إرجاع كتاب '{book.title}' بنجاح.")
+    try:
+        # ✅ v5.4: LibraryService.return_book — select_for_update + atomic
+        borrowing = LibraryService.return_book(borrowing)
+        messages.success(request, f"تم إرجاع كتاب '{borrowing.book.title}' بنجاح.")
+    except ValueError as e:
+        messages.error(request, str(e))
 
     return redirect("library:dashboard")
 

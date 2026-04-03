@@ -185,23 +185,22 @@ def report_infraction(request):
             if violation_cat != "INVALID":
                 student = get_object_or_404(CustomUser, id=student_id)
 
-                # حساب خطوة التصعيد المقترحة
-                escalation_step = BehaviorService.suggest_escalation_step(
-                    student, school, level, violation_cat,
-                )
-
-                with transaction.atomic():
-                    infraction = BehaviorInfraction.objects.create(
+                try:
+                    # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+                    infraction = BehaviorService.create_infraction(
                         school=school,
                         student=student,
-                        reported_by=request.user,
-                        violation_category=violation_cat,
+                        reporter=request.user,
                         level=level,
-                        escalation_step=escalation_step,
                         description=description,
                         action_taken=action,
                         points_deducted=points,
+                        violation_category=violation_cat if violation_cat else None,
                     )
+                except ValueError as e:
+                    messages.error(request, str(e))
+                    return redirect("behavior:dashboard")
+
                 messages.success(
                     request, f"تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
                 )

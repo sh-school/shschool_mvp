@@ -20,6 +20,7 @@ from core.permissions import role_required
 from operations.models import StaffEvaluation, TeacherAbsence, TeacherSwap, CompensatorySession
 
 from .models import LeaveBalance, LeaveRequest
+from .services import LeaveService
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
@@ -305,7 +306,8 @@ def leave_request_create(request):
                 CustomUser, id=cd["staff_id"],
                 memberships__school=school, memberships__is_active=True,
             )
-            LeaveRequest.objects.create(
+            # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
+            LeaveService.create_leave_request(
                 school=school,
                 staff=staff,
                 leave_type=cd["leave_type"],
@@ -314,9 +316,7 @@ def leave_request_create(request):
                 days_count=cd["days_count"],
                 reason=cd["reason"],
                 attachment=cd.get("attachment"),
-                academic_year=settings.CURRENT_ACADEMIC_YEAR,
                 created_by=request.user,
-                updated_by=request.user,
             )
             messages.success(request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم).")
             return redirect("staff_affairs:leave_list")
@@ -354,26 +354,19 @@ def leave_review(request, pk):
     form = LeaveReviewForm(request.POST)
     if form.is_valid():
         action = form.cleaned_data["action"]
-        leave.status = action
-        leave.reviewed_by = request.user
-        leave.reviewed_at = timezone.now()
-        if action == "rejected":
-            leave.rejection_reason = form.cleaned_data.get("rejection_reason", "")
-        leave.updated_by = request.user
-        leave.save()
-
-        # تحديث الرصيد عند الموافقة
-        if action == "approved":
-            balance, created = LeaveBalance.objects.get_or_create(
-                school=school, staff=leave.staff,
-                academic_year=leave.academic_year, leave_type=leave.leave_type,
-                defaults={"total_days": 30},
+        try:
+            # ✅ v5.4: LeaveService.review_leave — select_for_update على LeaveBalance
+            # يمنع race condition عند موافقة مديرين في نفس الوقت على نفس الطلب
+            LeaveService.review_leave(
+                leave=leave,
+                action=action,
+                reviewer=request.user,
+                rejection_reason=form.cleaned_data.get("rejection_reason", ""),
             )
-            balance.used_days += leave.days_count
-            balance.save()
-
-        status_label = "موافق عليها" if action == "approved" else "مرفوضة"
-        messages.success(request, f"تم تحديث طلب الإجازة إلى: {status_label}")
+            status_label = "موافق عليها" if action == "approved" else "مرفوضة"
+            messages.success(request, f"تم تحديث طلب الإجازة إلى: {status_label}")
+        except ValueError as e:
+            messages.error(request, str(e))
 
     return redirect("staff_affairs:leave_detail", pk=pk)
 
