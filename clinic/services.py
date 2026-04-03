@@ -84,6 +84,101 @@ class ClinicService:
         return visit
 
     @staticmethod
+    def get_dashboard_stats(school, today=None) -> dict:
+        """
+        إحصائيات لوحة العيادة — 7 استعلامات في service layer.
+
+        Args:
+            school: كائن المدرسة
+            today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+
+        Returns:
+            dict يحتوي: visits_today, sent_home_today, recent_visits,
+                        follow_up_visits, weekly_visits, peak_hours,
+                        frequent, month_total
+        """
+        from datetime import timedelta
+
+        from django.db.models import Count, Q
+        from django.db.models.functions import ExtractHour, TruncDate
+        from django.utils import timezone
+
+        from core.models import ClinicVisit
+
+        today = today or timezone.now().date()
+        week_ago = today - timedelta(days=7)
+
+        visits_today = ClinicVisit.objects.filter(
+            school=school, visit_date__date=today,
+        ).count()
+
+        sent_home_today = ClinicVisit.objects.filter(
+            school=school, visit_date__date=today, is_sent_home=True,
+        ).count()
+
+        recent_visits = list(
+            ClinicVisit.objects
+            .filter(school=school)
+            .select_related("student")
+            .order_by("-visit_date")[:10]
+        )
+
+        follow_up_visits = list(
+            ClinicVisit.objects
+            .filter(school=school, is_sent_home=True, visit_date__date=today)
+            .select_related("student")
+        )
+
+        weekly_visits = list(
+            ClinicVisit.objects
+            .filter(school=school, visit_date__date__gte=week_ago)
+            .values(day=TruncDate("visit_date"))
+            .annotate(
+                total=Count("id"),
+                sent_home=Count("id", filter=Q(is_sent_home=True)),
+            )
+            .order_by("day")
+        )
+
+        peak_hours = list(
+            ClinicVisit.objects
+            .filter(school=school, visit_date__date__gte=week_ago)
+            .values(hour=ExtractHour("visit_date"))
+            .annotate(count=Count("id"))
+            .order_by("-count")[:5]
+        )
+
+        frequent = list(
+            ClinicVisit.objects
+            .filter(
+                school=school,
+                visit_date__month=today.month,
+                visit_date__year=today.year,
+            )
+            .values("student__id", "student__full_name")
+            .annotate(visit_count=Count("id"))
+            .filter(visit_count__gte=3)
+            .order_by("-visit_count")[:10]
+        )
+
+        month_total = ClinicVisit.objects.filter(
+            school=school,
+            visit_date__month=today.month,
+            visit_date__year=today.year,
+        ).count()
+
+        return {
+            "visits_today": visits_today,
+            "sent_home_today": sent_home_today,
+            "recent_visits": recent_visits,
+            "follow_up_visits": follow_up_visits,
+            "weekly_visits": weekly_visits,
+            "peak_hours": peak_hours,
+            "frequent": frequent,
+            "month_total": month_total,
+        }
+
+    @staticmethod
     def _notify_parents_sent_home(visit, school, nurse) -> bool:
         """
         يُرسل إشعار لأولياء أمور الطالب عند إرساله للمنزل.
