@@ -11,7 +11,9 @@ bind = "0.0.0.0:8000"
 # ── Workers ─────────────────────────────────────────────────────
 # الصيغة الموصى بها: (2 × CPU cores) + 1
 workers = multiprocessing.cpu_count() * 2 + 1
-worker_class = "sync"
+# ✅ v5.4: uvicorn.workers.UvicornWorker للـ ASGI (Django Channels + WebSockets)
+# ملاحظة: الإنتاج يستخدم Daphne في Docker — هذا للبيئات التي تعتمد Gunicorn فقط
+worker_class = "uvicorn.workers.UvicornWorker"
 threads = 1
 
 # ── Timeouts ────────────────────────────────────────────────────

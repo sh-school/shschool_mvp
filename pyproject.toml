@@ -5,7 +5,7 @@
 # ── Ruff — يستبدل black + isort + flake8 ─────────────
 [tool.ruff]
 line-length    = 100
-target-version = "py311"
+target-version = "py312"
 exclude = [
     ".venv", "venv", "migrations", "__pycache__",
     ".git", ".claude", "staticfiles", "htmlcov",
@@ -61,9 +61,10 @@ ignore = [
 known-first-party = ["core", "operations", "assessments", "reports",
                      "notifications", "quality", "behavior", "clinic",
                      "transport", "library", "parents", "staging",
-                     "api", "shschool"]
+                     "api", "shschool", "student_affairs", "staff_affairs",
+                     "exam_control", "breach", "analytics"]
 known-third-party = ["django", "rest_framework", "drf_spectacular",
-                     "celery", "redis", "PIL", "weasyprint"]
+                     "celery", "redis", "PIL", "weasyprint", "axes"]
 
 [tool.ruff.format]
 quote-style              = "double"
@@ -129,7 +130,7 @@ skips        = ["B101", "B601"]  # assert + shell=True في مواضع مقبو�
 
 # ── mypy ─────────────────────────────────────────────
 [tool.mypy]
-python_version         = "3.11"
+python_version         = "3.12"
 ignore_missing_imports = true
 exclude                = ["migrations", ".venv", "manage.py", "scripts"]
 plugins                = ["mypy_django_plugin.main"]
