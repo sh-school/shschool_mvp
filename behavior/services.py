@@ -801,3 +801,53 @@ class BehaviorService:
             infraction.pk, level, student.full_name, reporter.full_name,
         )
         return infraction
+
+    @staticmethod
+    @transaction.atomic
+    def approve_point_recovery(
+        infraction: "BehaviorInfraction",
+        approved_by: "CustomUser",
+        reason: str,
+        points_restored: int,
+    ) -> "BehaviorPointRecovery":
+        """
+        استعادة نقاط مخصومة من مخالفة سلوكية — للجنة فقط.
+
+        يُنشئ سجل استعادة ويُغلق المخالفة في transaction ذرّي.
+
+        Args:
+            infraction: المخالفة السلوكية
+            approved_by: عضو اللجنة الذي وافق
+            reason: سبب استعادة النقاط
+            points_restored: عدد النقاط المستعادة
+
+        Returns:
+            BehaviorPointRecovery: سجل الاستعادة
+
+        Raises:
+            ValueError: إذا كانت النقاط خارج النطاق أو المخالفة محلولة مسبقاً
+        """
+        if hasattr(infraction, "recovery"):
+            raise ValueError("هذه المخالفة معالجة مسبقاً — لا يمكن تطبيق استعادة أخرى.")
+
+        if points_restored <= 0 or points_restored > infraction.points_deducted:
+            raise ValueError(
+                f"النقاط يجب أن تكون بين 1 و{infraction.points_deducted} "
+                f"(مُعطى: {points_restored})."
+            )
+
+        recovery = BehaviorPointRecovery.objects.create(
+            infraction=infraction,
+            reason=reason,
+            points_restored=points_restored,
+            approved_by=approved_by,
+        )
+        infraction.is_resolved = True
+        infraction.save(update_fields=["is_resolved"])
+
+        logger.info(
+            "استعادة نقاط: %d نقطة للطالب %s (مخالفة #%s) بواسطة %s",
+            points_restored, infraction.student.full_name,
+            infraction.pk, approved_by.full_name,
+        )
+        return recovery

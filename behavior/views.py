@@ -11,7 +11,7 @@ from django.conf import settings
 from django.utils import timezone as _tz
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+# transaction moved to services.py — v5.4 refactor
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -33,7 +33,7 @@ _MAX_DESC_LEN = 2000
 
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
-from core.models import BehaviorInfraction, BehaviorPointRecovery, CustomUser
+from core.models import BehaviorInfraction, CustomUser
 
 
 def _get_scoped_students(user, school):
@@ -301,21 +301,18 @@ def quick_log(request):
             )
 
         student = get_object_or_404(CustomUser, id=student_id)
-        escalation_step = BehaviorService.suggest_escalation_step(
-            student, school, level, violation_cat,
+
+        # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+        infraction = BehaviorService.create_infraction(
+            school=school,
+            student=student,
+            reporter=request.user,
+            level=level,
+            description=description,
+            action_taken=action,
+            points_deducted=points,
+            violation_category=violation_cat,
         )
-        with transaction.atomic():
-            infraction = BehaviorInfraction.objects.create(
-                school=school,
-                student=student,
-                reported_by=request.user,
-                violation_category=violation_cat,
-                level=level,
-                escalation_step=escalation_step,
-                description=description,
-                action_taken=action,
-                points_deducted=points,
-            )
 
         # إشعار غير متزامن
         try:
@@ -400,25 +397,26 @@ def point_recovery_request(request, infraction_id):
 
     if request.method == "POST":
         reason = request.POST.get("reason", "").strip()
-        points = int(request.POST.get("points_restored", 0))
+        points_raw = request.POST.get("points_restored", "0")
         if not reason:
             messages.error(request, "يرجى تحديد سبب استعادة النقاط.")
-        elif points <= 0 or points > infraction.points_deducted:
-            messages.error(request, f"النقاط يجب أن تكون بين 1 و {infraction.points_deducted}.")
         else:
-            with transaction.atomic():
-                BehaviorPointRecovery.objects.create(
+            try:
+                # ✅ v5.4: BehaviorService.approve_point_recovery — atomic + validation
+                recovery = BehaviorService.approve_point_recovery(
                     infraction=infraction,
-                    reason=reason,
-                    points_restored=points,
                     approved_by=request.user,
+                    reason=reason,
+                    points_restored=int(points_raw),
                 )
-                infraction.is_resolved = True
-                infraction.save()
-            messages.success(
-                request, f"✅ تمت استعادة {points} نقطة للطالب {infraction.student.full_name}"
-            )
-            return redirect("behavior:student_profile", student_id=infraction.student.id)
+                messages.success(
+                    request,
+                    f"تمت استعادة {recovery.points_restored} نقطة "
+                    f"للطالب {infraction.student.full_name}"
+                )
+                return redirect("behavior:student_profile", student_id=infraction.student.id)
+            except (ValueError, TypeError) as e:
+                messages.error(request, str(e))
 
     return render(request, "behavior/recovery_form.html", {"infraction": infraction})
 
