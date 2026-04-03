@@ -62,22 +62,44 @@ class IsStaffMember(BasePermission):
 
 
 class IsParentOrAdmin(BasePermission):
-    """ولي أمر أو مدير."""
+    """ولي أمر أو مدير.
+
+    SECURITY NOTE:
+    للـ @api_view (FBVs)، DRF لا يستدعي has_object_permission تلقائياً.
+    لذلك نُضيف فحص ملكية الطالب في has_permission نفسها عند وجود student_id.
+    هذا يُغلق ثغرة IDOR (CVSS 9.1) — تحقق من ParentStudentLink في طبقة الصلاحيات.
+    """
 
     message = "هذا الطلب لأولياء الأمور والمديرين فقط."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return (
-            request.user.is_admin()
-            or request.user.is_superuser
-            or request.user.has_role("parent")
-        )
+
+        # المدير والسوبر يوزر لا يحتاجان فحص ملكية
+        if request.user.is_admin() or request.user.is_superuser:
+            return True
+
+        if not request.user.has_role("parent"):
+            return False
+
+        # ✅ IDOR Fix (Task 2 — Meeting 2026-04-03):
+        # إذا كان الـ endpoint يتضمن student_id في الـ URL kwargs،
+        # تحقق من أن ولي الأمر يملك ParentStudentLink مع هذا الطالب.
+        # هذا يمنع Parent A من رؤية بيانات أبناء Parent B عبر تغيير الـ student_id.
+        student_id = view.kwargs.get("student_id")
+        if student_id:
+            return ParentStudentLink.objects.filter(
+                parent=request.user,
+                student_id=student_id,
+            ).exists()
+
+        # لا student_id في الـ URL → السماح (مثل قائمة الأبناء المفلترة)
+        return True
 
     def has_object_permission(self, request, view, obj):
         """
-        دفاع عميق (defense-in-depth):
+        دفاع عميق إضافي للـ CBVs:
         المدير/superuser يمر مباشرة.
         ولي الأمر يجب أن يملك رابط ParentStudentLink نشط مع الطالب.
         الكائن obj يجب أن يكون طالب (CustomUser) أو يملك خاصية student.
