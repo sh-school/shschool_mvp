@@ -501,6 +501,101 @@ class ScheduleService:
         from django.utils import timezone
         return ScheduleService.ensure_sessions_for_date(school, timezone.localdate())
 
+    @staticmethod
+    @transaction.atomic
+    def create_slot(
+        school: School,
+        teacher: CustomUser,
+        class_group_id,
+        subject_id,
+        day_of_week: int,
+        period_number: int,
+        start_time,
+        end_time,
+        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+    ) -> ScheduleSlot:
+        """
+        إنشاء حصة جديدة في الجدول الأسبوعي.
+
+        Args:
+            school: كائن المدرسة
+            teacher: المعلم
+            class_group_id: PK الفصل الدراسي
+            subject_id: PK المادة (اختياري)
+            day_of_week: رقم اليوم (0=أحد … 4=خميس)
+            period_number: رقم الحصة
+            start_time: وقت البداية
+            end_time: وقت النهاية
+            academic_year: العام الدراسي
+
+        Returns:
+            ScheduleSlot: الحصة المنشأة
+
+        Raises:
+            IntegrityError: إذا كانت هناك تعارض في الجدول
+        """
+        slot = ScheduleSlot.objects.create(
+            school=school,
+            teacher=teacher,
+            class_group_id=class_group_id,
+            subject_id=subject_id or None,
+            day_of_week=day_of_week,
+            period_number=period_number,
+            start_time=start_time,
+            end_time=end_time,
+            academic_year=academic_year,
+        )
+        logger.info(
+            "حصة جديدة في الجدول: %s — معلم=%s يوم=%d حصة=%d",
+            slot.pk, teacher.full_name, day_of_week, period_number,
+        )
+        return slot
+
+    @staticmethod
+    @transaction.atomic
+    def create_exemption(
+        school: School,
+        teacher: CustomUser,
+        academic_year: str,
+        exemption_type: str,
+        day_of_week: int,
+        period_number,
+        reason: str = "",
+        created_by: CustomUser | None = None,
+    ):
+        """
+        إضافة تفريغ معلم من حصص الجدول.
+
+        Args:
+            school: كائن المدرسة
+            teacher: المعلم المُفرَّغ
+            academic_year: العام الدراسي
+            exemption_type: نوع التفريغ (full_day / single_period)
+            day_of_week: اليوم
+            period_number: رقم الحصة (None لكامل اليوم)
+            reason: سبب التفريغ
+            created_by: المستخدم الذي أضاف التفريغ
+
+        Returns:
+            TeacherExemption: سجل التفريغ
+        """
+        exemption = TeacherExemption.objects.create(
+            school=school,
+            teacher=teacher,
+            academic_year=academic_year,
+            exemption_type=exemption_type,
+            day_of_week=day_of_week,
+            period_number=int(period_number) if period_number else None,
+            reason=reason,
+            created_by=created_by,
+        )
+        logger.info(
+            "تفريغ جديد: معلم=%s نوع=%s يوم=%d بواسطة=%s",
+            teacher.full_name, exemption_type, day_of_week,
+            created_by.full_name if created_by else "—",
+        )
+        return exemption
+
 
 class SubstituteService:
     @staticmethod

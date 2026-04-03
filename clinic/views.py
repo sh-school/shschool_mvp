@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from clinic.services import ClinicService
 from core.models import ClinicVisit, CustomUser, HealthRecord
 from core.permissions import nurse_required
 
@@ -141,49 +142,18 @@ def record_visit(request, student_id=None):
         student_id = request.POST.get("student_id")
         student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
 
-        visit = ClinicVisit.objects.create(
+        # ✅ v5.4: ClinicService.record_visit — atomic + notification منفصلة عن الإنشاء
+        # يُحلّ مشكلة double save() وإشعار مدمج في الـ view
+        visit = ClinicService.record_visit(
             school=school,
             student=student,
             nurse=nurse,
-            reason=request.POST.get("reason"),
+            reason=request.POST.get("reason", ""),
             symptoms=request.POST.get("symptoms", ""),
             temperature=request.POST.get("temperature") or None,
             treatment=request.POST.get("treatment", ""),
             is_sent_home=request.POST.get("is_sent_home") == "on",
         )
-
-        # إرسال إشعار لولي الأمر عند إرسال الطالب للمنزل
-        if visit.is_sent_home:
-            try:
-                from core.models import ParentStudentLink
-                from notifications.services import NotificationService
-
-                links = ParentStudentLink.objects.filter(
-                    student=visit.student, school=school
-                ).select_related("parent")
-                for link in links:
-                    parent = link.parent
-                    msg = (
-                        f"مدرسة الشحانية: تم إرسال ابنكم {visit.student.full_name} "
-                        f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
-                        f"يُرجى التواصل مع المدرسة للاستفسار."
-                    )
-                    if parent.email:
-                        NotificationService.send_email(
-                            school=school,
-                            recipient_email=parent.email,
-                            subject=f"إشعار: {visit.student.full_name} في العيادة",
-                            body_text=msg,
-                            student=visit.student,
-                            notif_type="custom",
-                            sent_by=nurse,
-                        )
-                visit.parent_notified = True
-                visit.save()
-            except (ImportError, OSError, RuntimeError, ValueError) as e:
-                logger.exception("فشل إرسال إشعار العيادة لولي الأمر [visit=%s]: %s", visit.pk, e)
-                visit.parent_notified = False
-                visit.save()
 
         if request.headers.get("HX-Request"):
             return render(request, "clinic/visit_card.html", {"visit": visit})

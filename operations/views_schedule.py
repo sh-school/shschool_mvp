@@ -155,11 +155,14 @@ def schedule_slot_create(request):
 
     if request.method == "POST":
         try:
-            slot = ScheduleSlot.objects.create(
+            from core.models import CustomUser as _CU
+            teacher = get_object_or_404(_CU, id=request.POST["teacher"])
+            # ✅ v5.4: ScheduleService.create_slot — atomic + logging
+            slot = ScheduleService.create_slot(
                 school=school,
-                teacher_id=request.POST["teacher"],
+                teacher=teacher,
                 class_group_id=request.POST["class_group"],
-                subject_id=request.POST.get("subject") or None,
+                subject_id=request.POST.get("subject"),
                 day_of_week=int(request.POST["day_of_week"]),
                 period_number=int(request.POST["period_number"]),
                 start_time=request.POST["start_time"],
@@ -686,13 +689,14 @@ def add_exemption(request):
     period_number = request.POST.get("period_number")
     reason = request.POST.get("reason", "")
 
-    TeacherExemption.objects.create(
+    # ✅ v5.4: ScheduleService.create_exemption — atomic + logging
+    ScheduleService.create_exemption(
         school=school,
         teacher=teacher,
         academic_year=year,
         exemption_type=exemption_type,
         day_of_week=day_of_week,
-        period_number=int(period_number) if period_number else None,
+        period_number=period_number,
         reason=reason,
         created_by=request.user,
     )
