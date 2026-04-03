@@ -233,6 +233,55 @@ class ClinicService:
         }
 
     @staticmethod
+    def get_health_statistics(school) -> dict:
+        """
+        إحصائيات صحية للمدرسة — 4 استعلامات في service layer.
+
+        Args:
+            school: كائن المدرسة
+
+        Returns:
+            dict يحتوي: health_records_count, allergies_count,
+                        visits_count, visits_this_month
+        """
+        from django.utils import timezone
+
+        from core.models import ClinicVisit, HealthRecord
+
+        now = timezone.now()
+
+        health_records_count = (
+            HealthRecord.objects
+            .filter(student__memberships__school=school)
+            .filter(chronic_diseases__isnull=False)
+            .exclude(chronic_diseases="")
+            .count()
+        )
+
+        allergies_count = (
+            HealthRecord.objects
+            .filter(student__memberships__school=school)
+            .filter(allergies__isnull=False)
+            .exclude(allergies="")
+            .count()
+        )
+
+        visits_count = ClinicVisit.objects.filter(school=school).count()
+
+        visits_this_month = ClinicVisit.objects.filter(
+            school=school,
+            visit_date__month=now.month,
+            visit_date__year=now.year,
+        ).count()
+
+        return {
+            "health_records_count": health_records_count,
+            "allergies_count": allergies_count,
+            "visits_count": visits_count,
+            "visits_this_month": visits_this_month,
+        }
+
+    @staticmethod
     def _notify_parents_sent_home(visit, school, nurse) -> bool:
         """
         يُرسل إشعار لأولياء أمور الطالب عند إرساله للمنزل.

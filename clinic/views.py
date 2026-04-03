@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.http import JsonResponse
 
 logger = logging.getLogger(__name__)
@@ -154,29 +153,8 @@ def health_statistics(request):
     """إحصائيات صحية للمدرسة"""
     school = request.user.get_school()
 
-    health_records = (
-        HealthRecord.objects.filter(student__memberships__school=school)
-        .filter(chronic_diseases__isnull=False)
-        .exclude(chronic_diseases="")
-    )
-
-    allergies = (
-        HealthRecord.objects.filter(student__memberships__school=school)
-        .filter(allergies__isnull=False)
-        .exclude(allergies="")
-    )
-
-    visits_count = ClinicVisit.objects.filter(school=school).count()
-    visits_this_month = ClinicVisit.objects.filter(
-        school=school, visit_date__month=timezone.now().month, visit_date__year=timezone.now().year
-    ).count()
-
-    context = {
-        "health_records_count": health_records.count(),
-        "allergies_count": allergies.count(),
-        "visits_count": visits_count,
-        "visits_this_month": visits_this_month,
-    }
+    # ✅ v5.4: ClinicService.get_health_statistics — 4 استعلامات في service layer
+    context = ClinicService.get_health_statistics(school)
     return render(request, "clinic/statistics.html", context)
 
 
