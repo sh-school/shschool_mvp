@@ -495,3 +495,104 @@ class TestStaffService:
         assert data["swaps_count"] == 0
         assert data["weekly_slots"] == 0
         assert data["leaves"] == []
+
+
+# ══════════════════════════════════════════════
+#  ClinicService — get_health_statistics
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestClinicServiceHealthStats:
+    """اختبارات ClinicService.get_health_statistics."""
+
+    def test_get_health_statistics_returns_dict(self):
+        """get_health_statistics يُعيد dict بالمفاتيح المطلوبة."""
+        from clinic.services import ClinicService
+
+        school = SchoolFactory()
+        data = ClinicService.get_health_statistics(school)
+
+        expected_keys = {
+            "health_records_count", "allergies_count",
+            "visits_count", "visits_this_month",
+        }
+        assert expected_keys == set(data.keys())
+
+    def test_get_health_statistics_zero_for_empty_school(self):
+        """مدرسة بلا بيانات → جميع الأعداد صفر."""
+        from clinic.services import ClinicService
+
+        school = SchoolFactory()
+        data = ClinicService.get_health_statistics(school)
+
+        assert data["visits_count"] == 0
+        assert data["visits_this_month"] == 0
+
+
+# ══════════════════════════════════════════════
+#  LibraryService — get_chart_data
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestLibraryServiceCharts:
+    """اختبارات LibraryService.get_chart_data."""
+
+    def test_get_chart_data_structure(self):
+        """get_chart_data يُعيد dict بـ categories و monthly."""
+        from library.services import LibraryService
+
+        school = SchoolFactory()
+        data = LibraryService.get_chart_data(school)
+
+        assert "categories" in data
+        assert "monthly" in data
+        assert "labels" in data["categories"]
+        assert "data" in data["categories"]
+        assert "labels" in data["monthly"]
+        assert "data" in data["monthly"]
+
+    def test_get_chart_data_empty_school(self):
+        """مدرسة بلا كتب → lists فارغة."""
+        from library.services import LibraryService
+
+        school = SchoolFactory()
+        data = LibraryService.get_chart_data(school)
+
+        assert data["categories"]["labels"] == []
+        assert data["categories"]["data"] == []
+        assert data["monthly"]["labels"] == []
+        assert data["monthly"]["data"] == []
+
+
+# ══════════════════════════════════════════════
+#  GradeService — get_chart_data
+# ══════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestGradeServiceCharts:
+    """اختبارات GradeService.get_chart_data."""
+
+    def test_get_chart_data_returns_expected_keys(self):
+        """get_chart_data يُعيد dict بـ 3 مقاطع رئيسية."""
+        from assessments.services import GradeService
+
+        school = SchoolFactory()
+        data = GradeService.get_chart_data(school, "2025-2026")
+
+        assert "grade_distribution" in data
+        assert "class_comparison" in data
+        assert "subject_comparison" in data
+
+    def test_get_chart_data_grade_distribution_has_6_bands(self):
+        """grade_distribution يحتوي دائماً على 6 bands."""
+        from assessments.services import GradeService
+
+        school = SchoolFactory()
+        data = GradeService.get_chart_data(school, "2025-2026")
+
+        assert len(data["grade_distribution"]["labels"]) == 6
+        assert len(data["grade_distribution"]["data"]) == 6
+        assert all(v == 0 for v in data["grade_distribution"]["data"])
