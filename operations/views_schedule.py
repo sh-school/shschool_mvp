@@ -501,8 +501,6 @@ def smart_generate(request):
 @role_required(_REPORT_ROLES)
 def teacher_load_report(request):
     """تقرير أحمال المعلمين"""
-    from collections import Counter
-
     from core.permissions import get_department_teacher_ids
 
     school = request.user.get_school()
@@ -517,46 +515,13 @@ def teacher_load_report(request):
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
-    slot_counts = Counter(
-        ScheduleSlot.objects.filter(school=school, academic_year=year, is_active=True)
-        .values_list("teacher_id", flat=True)
-    )
-    month_start = date.today().replace(day=1)
-    sub_counts = Counter(
-        SubstituteAssignment.objects.filter(
-            school=school, absence__date__gte=month_start
-        ).values_list("substitute_id", flat=True)
-    )
-
-    daily_counts = {}
-    for slot in ScheduleSlot.objects.filter(school=school, academic_year=year, is_active=True):
-        key = (str(slot.teacher_id), slot.day_of_week)
-        daily_counts[key] = daily_counts.get(key, 0) + 1
-
-    teacher_data = []
-    for t in teachers:
-        tid = str(t.id)
-        weekly = slot_counts.get(t.id, 0)
-        subs = sub_counts.get(t.id, 0)
-        days = [daily_counts.get((tid, d), 0) for d in range(5)]
-        teacher_data.append({
-            "teacher": t,
-            "weekly": weekly,
-            "subs": subs,
-            "max_daily": max(days) if days else 0,
-            "min_daily": min(d for d in days if d > 0) if any(d > 0 for d in days) else 0,
-            "free_days": sum(1 for d in days if d == 0),
-            "days": days,
-        })
-
-    teacher_data.sort(key=lambda x: -x["weekly"])
-    avg_weekly = sum(d["weekly"] for d in teacher_data) / len(teacher_data) if teacher_data else 0
+    # ✅ v5.4: TeacherLoadService.get_teacher_load_data — business logic في service layer
+    from operations.services import TeacherLoadService
+    data = TeacherLoadService.get_teacher_load_data(school, year, teachers)
 
     return render(request, "schedule/teacher_load.html", {
-        "teacher_data": teacher_data,
         "year": year,
-        "avg_weekly": round(avg_weekly, 1),
-        "total_teachers": len(teacher_data),
+        **data,
     })
 
 
