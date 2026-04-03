@@ -1558,6 +1558,49 @@ class CompensatoryService:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+class CapacityCheckService:
+    """خدمة فحص طاقة الجداول — Pre-validation قبل التوليد الذكي."""
+
+    @staticmethod
+    def get_overcapacity_classes(assignments) -> list[dict]:
+        """
+        يكتشف الفصول التي يتجاوز طلبها الأسبوعي طاقتها الاستيعابية.
+
+        ✅ v5.4: ينقل capacity check من smart_schedule_view إلى service layer.
+
+        Args:
+            assignments: QuerySet من SubjectClassAssignment (يجب أن يكون محدَّداً مسبقاً)
+
+        Returns:
+            list of dict: كل عنصر يحتوي class_id, demand, capacity, overflow
+        """
+        from collections import defaultdict
+
+        from operations.scheduler import _grade_to_level
+        from operations.scheduler_constraints import get_max_periods_for_day
+
+        class_demand: dict = defaultdict(int)
+        class_levels: dict = {}
+        for a in assignments:
+            cid = str(a.class_group_id)
+            class_demand[cid] += a.weekly_periods
+            class_levels[cid] = _grade_to_level(a.class_group.grade)
+
+        overcapacity = []
+        for cid, demand in class_demand.items():
+            level = class_levels.get(cid, "")
+            thu_max = get_max_periods_for_day(4, level)
+            weekly_capacity = 4 * 7 + thu_max
+            if demand > weekly_capacity:
+                overcapacity.append({
+                    "class_id": cid,
+                    "demand": demand,
+                    "capacity": weekly_capacity,
+                    "overflow": demand - weekly_capacity,
+                })
+        return overcapacity
+
+
 class TeacherLoadService:
     """خدمات تقرير أحمال المعلمين — ينقل business logic من teacher_load_report view."""
 

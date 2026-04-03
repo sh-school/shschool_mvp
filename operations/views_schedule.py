@@ -396,10 +396,6 @@ def substitute_report(request):
 @role_required(_ADMIN_SCHEDULE_ROLES)
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
-    from collections import defaultdict
-
-    from .scheduler_constraints import get_max_periods_for_day
-
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -411,28 +407,9 @@ def smart_schedule_view(request):
     generations = ScheduleGeneration.objects.filter(school=school, academic_year=year)[:5]
     total_weekly = sum(a.weekly_periods for a in assignments)
 
-    # ── Pre-validation: capacity check per class ──
-    from .scheduler import _grade_to_level
-
-    class_demand = defaultdict(int)
-    class_levels = {}
-    for a in assignments:
-        cid = str(a.class_group_id)
-        class_demand[cid] += a.weekly_periods
-        class_levels[cid] = _grade_to_level(a.class_group.grade)
-
-    overcapacity_classes = []
-    for cid, demand in class_demand.items():
-        level = class_levels.get(cid, "")
-        thu_max = get_max_periods_for_day(4, level)
-        weekly_capacity = 4 * 7 + thu_max
-        if demand > weekly_capacity:
-            overcapacity_classes.append({
-                "class_id": cid,
-                "demand": demand,
-                "capacity": weekly_capacity,
-                "overflow": demand - weekly_capacity,
-            })
+    # ✅ v5.4: CapacityCheckService.get_overcapacity_classes — validation في service layer
+    from operations.services import CapacityCheckService
+    overcapacity_classes = CapacityCheckService.get_overcapacity_classes(assignments)
 
     return render(request, "schedule/smart_schedule.html", {
         "assignments": assignments,
