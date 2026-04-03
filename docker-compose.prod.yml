@@ -40,6 +40,9 @@ services:
         -c log_connections=on
         -c log_min_duration_statement=200
         -c shared_preload_libraries=pg_stat_statements
+        -c shared_buffers=1536MB
+        -c effective_cache_size=4608MB
+        -c work_mem=16MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
@@ -139,6 +142,7 @@ services:
   celery_beat:
     build: .
     restart: always
+    stop_grace_period: 30s
     env_file: .env
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.production

@@ -37,7 +37,7 @@ class RouteQuerySet(QuerySet):
         return self.filter(school=school)
 
     def for_area(self, area: str) -> RouteQuerySet:
-        return self.filter(area__icontains=area)
+        return self.filter(area_name__icontains=area)
 
     def with_students(self) -> RouteQuerySet:
         return self.prefetch_related("students")
