@@ -73,3 +73,8 @@ FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0="
 
 # Rate Limiting disabled in tests
 RATELIMIT_ENABLE = False
+
+# ── django-axes — معطّل في الاختبارات ─────────────────────────
+# يمنع قفل حسابات الاختبار بعد 5 محاولات فاشلة
+# ✅ v5.4: AXES_ENABLED=False يُعطّل كل منطق axes أثناء pytest
+AXES_ENABLED = False

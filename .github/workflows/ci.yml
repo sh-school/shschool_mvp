@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت ruff
@@ -45,7 +45,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت bandit
@@ -113,7 +113,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
@@ -185,7 +185,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت mypy + stubs
@@ -211,18 +211,15 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت pip-audit
         run: pip install pip-audit==2.7.3
 
-      - name: فحص الثغرات (يفشل على HIGH/CRITICAL)
-        run: |
-          pip-audit -r requirements.txt \
-            --desc \
-            --fix --dry-run \
-            || echo "⚠️ ثغرات مكتشفة — راجع التقرير أعلاه"
+      - name: فحص الثغرات (يفشل عند وجود CVEs)
+        # ✅ v5.4: بدون --dry-run — يفشل CI فعلياً عند وجود ثغرات معروفة
+        run: pip-audit -r requirements.txt --desc --progress-spinner off
 
   # ══════════════════════════════════════════════════════
   #  ملخص نهائي — يظهر في كل PR
