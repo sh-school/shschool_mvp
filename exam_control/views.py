@@ -5,7 +5,6 @@ exam_control/views.py  ·  SchoolOS v5
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -20,6 +19,7 @@ from .models import (
     ExamSession,
     ExamSupervisor,
 )
+from .services import ExamControlService
 
 # ── الأدوار المسموح لها بالوصول لنظام الكنترول ──
 EXAM_CONTROL_ROLES = {
@@ -41,16 +41,8 @@ def _can_access(user):
 def dashboard(request):
     """لوحة القيادة — ملخص كل دورات الاختبار"""
     school = request.user.get_school()
-    sessions = (
-        ExamSession.objects.filter(school=school)
-        .annotate(
-            incident_count=Count("incidents"),
-            pending_sheets=Count(
-                "schedules__grade_sheets", filter=Q(schedules__grade_sheets__status="pending")
-            ),
-        )
-        .order_by("-start_date")
-    )
+    # ✅ v5.4: ExamControlService.get_dashboard_sessions — annotate في service layer
+    sessions = ExamControlService.get_dashboard_sessions(school)
     return render(request, "exam_control/dashboard.html", {"sessions": sessions, "school": school})
 
 
@@ -60,7 +52,8 @@ def session_create(request):
     """إنشاء دورة اختبار جديدة"""
     if request.method == "POST":
         school = request.user.get_school()
-        session = ExamSession.objects.create(
+        # ✅ v5.4: ExamControlService.create_session — atomic في service layer
+        session = ExamControlService.create_session(
             school=school,
             name=request.POST["name"],
             session_type=request.POST.get("session_type", "final"),
@@ -140,7 +133,8 @@ def schedule(request, pk):
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
         room = get_object_or_404(ExamRoom, id=request.POST["room_id"], session=session)
-        sched = ExamSchedule.objects.create(
+        # ✅ v5.4: ExamControlService.create_exam_schedule — atomic + ورقة رصد تلقائية
+        ExamControlService.create_exam_schedule(
             session=session,
             room=room,
             subject=request.POST["subject"],
@@ -148,10 +142,8 @@ def schedule(request, pk):
             exam_date=request.POST["exam_date"],
             start_time=request.POST["start_time"],
             end_time=request.POST["end_time"],
-            students_count=request.POST.get("students_count", 0),
+            students_count=int(request.POST.get("students_count", 0)),
         )
-        # إنشاء ورقة رصد تلقائياً
-        ExamGradeSheet.objects.create(schedule=sched, papers_count=sched.students_count)
         return redirect("exam_control:schedule", pk=pk)
 
     context = {
@@ -187,36 +179,23 @@ def incident_add(request, pk):
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         room_id = request.POST.get("room_id") or None
         room = session.rooms.filter(id=room_id).first()
-        incident = ExamIncident.objects.create(
+
+        # ✅ v5.4: ExamControlService.add_incident — cross-domain logic في service layer
+        # يشمل: ExamIncident + BehaviorInfraction للغش (atomic transaction)
+        incident = ExamControlService.add_incident(
             session=session,
-            room=room,
-            student=student,
+            school=school,
             reported_by=request.user,
             incident_type=request.POST.get("incident_type", "other"),
             severity=request.POST.get("severity", 1),
             description=request.POST["description"],
+            student=student,
+            room=room,
             injuries=request.POST.get("injuries", ""),
             action_taken=request.POST.get("action_taken", ""),
             attachments=request.POST.get("attachments", ""),
             recommendations=request.POST.get("recommendations", ""),
         )
-        # إذا كانت الحادثة غشاً → ربط بسلوك الطالب تلقائياً
-        if incident.incident_type == "cheating" and student:
-            from behavior.models import BehaviorInfraction, ViolationCategory
-
-            cat = ViolationCategory.objects.filter(code="D4").first()
-            infraction = BehaviorInfraction.objects.create(
-                school=school,
-                student=student,
-                reported_by=request.user,
-                violation_category=cat,
-                level=4,
-                description=f"غش في اختبار: {incident.description[:200]}",
-                action_taken=incident.action_taken,
-            )
-            incident.behavior_link = infraction
-            incident.save(update_fields=["behavior_link"])
-
         return redirect("exam_control:incident_pdf", pk=incident.pk)
 
     from core.models import StudentEnrollment
@@ -265,10 +244,8 @@ def grade_sheets(request, pk):
         new_status = request.POST.get("status")
         if sheet_id and new_status:
             sheet = get_object_or_404(ExamGradeSheet, id=sheet_id, schedule__session=session)
-            sheet.status = new_status
-            if new_status == "submitted":
-                sheet.submitted_at = timezone.now()
-            sheet.save(update_fields=["status", "submitted_at"])
+            # ✅ v5.4: ExamControlService.update_grade_sheet_status
+            ExamControlService.update_grade_sheet_status(sheet, new_status)
         return redirect("exam_control:grade_sheets", pk=pk)
 
     sheets = (
