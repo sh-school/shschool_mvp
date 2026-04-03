@@ -28,7 +28,8 @@ if SENTRY_DSN:
         traces_sample_rate=0.1,  # 10% من الطلبات للـ performance tracing
         send_default_pii=False,  # ← PDPPL: لا بيانات شخصية للطلاب
         environment="production",
-        release=config("APP_VERSION", default="v5.1"),
+        # ✅ v5.4: يستخدم PLATFORM_VERSION من base.py بدل hardcoded string
+        release=config("APP_VERSION", default=f"v{PLATFORM_VERSION}"),
     )
 
 # ── التحقق من المفاتيح الحرجة قبل تشغيل الإنتاج ──────────────
@@ -161,6 +162,8 @@ LOGGING = {
         # ✅ v5.1: Channels & WebSocket logging
         "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "daphne": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+        # ✅ v5.4: django-axes — تسجيل محاولات تسجيل الدخول الفاشلة
+        "axes": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
     },
 }
 
