@@ -609,10 +609,10 @@ class GradeService:
                 class_labels.append(str(cg))
                 class_avgs.append(round(data[0] / data[1], 1))
 
-        # ── Subject comparison ──
+        # ── Subject comparison — setup__subject بدل subject مباشرةً ──
         subj_data = (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year)
-            .values("subject__name_ar")
+            .values("setup__subject__name_ar")
             .annotate(
                 avg=Avg("annual_total"),
                 fail_count=Count("id", filter=Q(status="fail")),
@@ -620,7 +620,7 @@ class GradeService:
             )
             .order_by("-avg")[:10]
         )
-        subj_labels = [s["subject__name_ar"] for s in subj_data]
+        subj_labels = [s["setup__subject__name_ar"] or "" for s in subj_data]
         subj_avgs = [round(float(s["avg"]), 1) if s["avg"] else 0 for s in subj_data]
         subj_fail_rates = [
             round(s["fail_count"] / s["total"] * 100, 1) if s["total"] else 0
