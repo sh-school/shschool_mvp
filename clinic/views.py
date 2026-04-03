@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
@@ -187,17 +187,6 @@ def api_clinic_charts(request):
     school = request.user.get_school()
     today = timezone.now().date()
 
-    days = []
-    for i in range(29, -1, -1):
-        d = today - timedelta(days=i)
-        count = ClinicVisit.objects.filter(school=school, visit_date__date=d).count()
-        sent = ClinicVisit.objects.filter(school=school, visit_date__date=d, is_sent_home=True).count()
-        days.append({"date": d.strftime("%d/%m"), "visits": count, "sent_home": sent})
-
-    return JsonResponse(
-        {
-            "labels": [d["date"] for d in days],
-            "visits": [d["visits"] for d in days],
-            "sent_home": [d["sent_home"] for d in days],
-        }
-    )
+    # ✅ v5.4: ClinicService.get_chart_data — استعلام واحد بدل 60 (N+1 → O(1))
+    data = ClinicService.get_chart_data(school, days=30)
+    return JsonResponse(data)

@@ -179,6 +179,60 @@ class ClinicService:
         }
 
     @staticmethod
+    def get_chart_data(school, days: int = 30) -> dict:
+        """
+        بيانات الرسوم البيانية للعيادة — استعلام واحد بدل N×2 استعلامات.
+
+        ✅ v5.4: يستبدل loop يعمل 60 استعلام (2 × 30 يوم) بـ TruncDate aggregation.
+
+        Args:
+            school: كائن المدرسة
+            days: عدد الأيام (افتراضي: 30)
+
+        Returns:
+            dict يحتوي: labels (قائمة تواريخ), visits (أعداد), sent_home (أعداد)
+        """
+        from datetime import timedelta
+
+        from django.db.models import Count, Q
+        from django.db.models.functions import TruncDate
+        from django.utils import timezone
+
+        from core.models import ClinicVisit
+
+        today = timezone.now().date()
+        start_date = today - timedelta(days=days - 1)
+
+        # استعلام واحد يُجمّع كل الأيام في نفس الوقت
+        rows = (
+            ClinicVisit.objects
+            .filter(school=school, visit_date__date__gte=start_date)
+            .values(day=TruncDate("visit_date"))
+            .annotate(
+                visits=Count("id"),
+                sent_home=Count("id", filter=Q(is_sent_home=True)),
+            )
+            .order_by("day")
+        )
+
+        # بناء lookup سريع من الاستعلام الواحد
+        rows_by_date = {r["day"]: r for r in rows}
+
+        labels, visits_data, sent_home_data = [], [], []
+        for i in range(days - 1, -1, -1):
+            d = today - timedelta(days=i)
+            row = rows_by_date.get(d, {})
+            labels.append(d.strftime("%d/%m"))
+            visits_data.append(row.get("visits", 0))
+            sent_home_data.append(row.get("sent_home", 0))
+
+        return {
+            "labels": labels,
+            "visits": visits_data,
+            "sent_home": sent_home_data,
+        }
+
+    @staticmethod
     def _notify_parents_sent_home(visit, school, nurse) -> bool:
         """
         يُرسل إشعار لأولياء أمور الطالب عند إرساله للمنزل.
