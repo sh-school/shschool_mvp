@@ -385,25 +385,23 @@ def student_export_excel(request):
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_add(request):
-    """إضافة طالب جديد — ينشئ 4 سجلات ذرّياً (User + Profile + Membership + Enrollment)."""
+    """
+    إضافة طالب جديد — مُفوَّض لـ StudentService.create_student().
+    الـ View مسؤول فقط عن: قراءة الطلب + تحويل النموذج + عرض النتيجة.
+    منطق إنشاء 4 السجلات (User + Profile + Membership + Enrollment) في Service Layer.
+    """
+    from .forms import StudentAddForm
+    from .services import StudentService
+
     school = request.user.get_school()
     year = settings.CURRENT_ACADEMIC_YEAR
-
-    from .forms import StudentAddForm
 
     if request.method == "POST":
         form = StudentAddForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            # ── التحقق من عدم وجود طالب بنفس الرقم الوطني ──
-            if CustomUser.objects.filter(national_id=cd["national_id"]).exists():
-                messages.error(request, f"يوجد مستخدم بالرقم الوطني {cd['national_id']} مسبقاً.")
-                return render(request, "student_affairs/student_form.html", {
-                    "form": form, "mode": "add", "year": year,
-                    "grades": ClassGroup.GRADES, "school": school,
-                })
 
-            # ── التحقق من وجود الشعبة ──
+            # ── تحديد الشعبة (المطلوب للـ Service) ──
             class_group = ClassGroup.objects.filter(
                 school=school, grade=cd["grade"], section=cd["section"],
                 academic_year=year, is_active=True,
@@ -418,46 +416,28 @@ def student_add(request):
                     "grades": ClassGroup.GRADES, "school": school,
                 })
 
-            # ── إنشاء 4 سجلات ذرّياً ──
+            # ── تفويض الإنشاء للـ Service Layer ──
             try:
-                with transaction.atomic():
-                    # 1. CustomUser
-                    user = CustomUser.objects.create_user(
-                        national_id=cd["national_id"],
-                        password=cd["national_id"],  # كلمة المرور = الرقم الوطني
-                        full_name=cd["full_name"],
-                        phone=cd.get("phone", ""),
-                        email=cd.get("email", ""),
-                        must_change_password=True,
-                    )
-                    # 2. Profile
-                    Profile.objects.update_or_create(
-                        user=user,
-                        defaults={
-                            "gender": cd.get("gender", ""),
-                            "birth_date": cd.get("birth_date"),
-                        },
-                    )
-                    # 3. Membership
-                    student_role, _ = Role.objects.get_or_create(
-                        school=school, name="student",
-                    )
-                    Membership.objects.create(
-                        user=user, school=school, role=student_role, is_active=True,
-                    )
-                    # 4. StudentEnrollment
-                    StudentEnrollment.objects.create(
-                        student=user, class_group=class_group, is_active=True,
-                    )
-
+                user = StudentService.create_student(school, {
+                    "national_id": cd["national_id"],
+                    "full_name": cd["full_name"],
+                    "phone": cd.get("phone", ""),
+                    "email": cd.get("email", ""),
+                    "gender": cd.get("gender", ""),
+                    "birth_date": cd.get("birth_date"),
+                    "class_group_id": class_group.pk,
+                })
                 messages.success(
                     request,
-                    f"تم إضافة الطالب {user.full_name} في {class_group.grade}/{class_group.section} بنجاح.",
+                    f"تم إضافة الطالب {user.full_name} في "
+                    f"{class_group.grade}/{class_group.section} بنجاح.",
                 )
                 return redirect("student_affairs:student_profile", student_id=user.id)
 
+            except ValueError as e:
+                messages.error(request, str(e))
             except Exception as e:
-                messages.error(request, f"خطأ أثناء إضافة الطالب: {e}")
+                messages.error(request, f"خطأ غير متوقع أثناء إضافة الطالب: {e}")
     else:
         form = StudentAddForm()
 
@@ -558,22 +538,23 @@ def student_edit(request, student_id):
 @role_required(STUDENT_DEACTIVATE)
 @require_POST
 def student_deactivate(request, student_id):
-    """تعطيل طالب — is_active=False فقط، لا حذف فيزيائي."""
+    """
+    تعطيل طالب — مُفوَّض لـ StudentService.deactivate_student().
+    is_active=False فقط — لا حذف فيزيائي (PDPPL: حفظ السجل التاريخي).
+    """
+    from .services import StudentService
+
     school = request.user.get_school()
     student = get_object_or_404(
         CustomUser, id=student_id,
         memberships__school=school, memberships__is_active=True,
     )
 
-    # تعطيل العضوية
-    Membership.objects.filter(
-        user=student, school=school, role__name="student", is_active=True,
-    ).update(is_active=False)
-
-    # تعطيل التسجيل
-    StudentEnrollment.objects.filter(
-        student=student, is_active=True,
-    ).update(is_active=False)
+    StudentService.deactivate_student(
+        student=student,
+        school=school,
+        user=request.user,
+    )
 
     messages.success(request, f"تم تعطيل الطالب {student.full_name}. البيانات محفوظة ولم تُحذف.")
     return redirect("student_affairs:student_list")
