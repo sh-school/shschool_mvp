@@ -24,7 +24,8 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref:              ${{ github.sha }}
-          check-name:       "اختبار وفحص الكود"
+          # ✅ v5.4: يتطابق مع اسم job "summary" في ci.yml (ملخص CI)
+          check-name:       "ملخص CI"
           repo-token:       ${{ secrets.GITHUB_TOKEN }}
           wait-interval:    10
           allowed-conclusions: success
@@ -70,16 +71,23 @@ jobs:
             echo "▶ الانتظار حتى يعمل الـ container..."
             sleep 20
 
-            echo "▶ فحص صحة المنصة..."
-            if curl -sf http://localhost/health/ | python3 -m json.tool; then
-              echo "✅ النشر تم بنجاح! (${{ github.sha }})"
-            else
-              echo "❌ فشل فحص الصحة — تنفيذ Rollback..."
+            echo "▶ فحص الجاهزية (readiness — DB فقط)..."
+            # ✅ v5.4: /ready/ أسرع وأخف — يختبر DB فقط خلال النشر
+            if ! curl -sf http://localhost/ready/ > /dev/null 2>&1; then
+              echo "❌ فشل /ready/ — تنفيذ Rollback..."
               if [ -n "$PREV_IMAGE" ]; then
+                docker tag "$PREV_IMAGE" schoolos-web:latest 2>/dev/null || true
                 docker compose -f docker-compose.prod.yml up -d --no-deps web
                 echo "🔄 Rollback تم — الخدمة أُعيدت للحالة السابقة"
               fi
               exit 1
+            fi
+
+            echo "▶ فحص صحة كامل (liveness — DB + Redis)..."
+            if curl -sf http://localhost/health/ | python3 -m json.tool; then
+              echo "✅ النشر تم بنجاح! (${{ github.sha }})"
+            else
+              echo "⚠️ /health/ أبطأ — قد يكون Redis يُهيَّأ. النشر تم لكن راجع Redis."
             fi
 
       # ── إشعارات ────────────────────────────────
