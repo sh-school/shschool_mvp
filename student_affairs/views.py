@@ -1268,13 +1268,12 @@ def parent_add(request):
     school = request.user.get_school()
     year = settings.CURRENT_ACADEMIC_YEAR
 
-    # قائمة الطلاب المسجّلين في المدرسة — StudentEnrollment مُستورَد من أعلى الملف
-    student_ids = StudentEnrollment.objects.filter(
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).values_list("student_id", flat=True)
-    students = CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
+    # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
+    students = CustomUser.objects.filter(
+        enrollments__class_group__school=school,
+        enrollments__class_group__academic_year=year,
+        enrollments__is_active=True,
+    ).distinct().order_by("full_name")
 
     if request.method == "POST":
         form = ParentAddForm(request.POST)
