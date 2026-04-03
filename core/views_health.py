@@ -54,10 +54,13 @@ def health_check(request):
     if not all_ok:
         logger.warning("health_check degraded: %s", checks)
 
+    from django.conf import settings
+
     return JsonResponse(
         {
             "status": "ok" if all_ok else "degraded",
-            "version": "v1.0",
+            # ✅ v5.4: يسحب الإصدار من PLATFORM_VERSION بدل hardcoded string
+            "version": f"v{getattr(settings, 'PLATFORM_VERSION', '5.4')}",
             "checks": checks,
             "latency_ms": round((time.monotonic() - start) * 1000, 1),
         },
