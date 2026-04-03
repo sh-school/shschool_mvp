@@ -1,10 +1,11 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from core.models import BusRoute, CustomUser, SchoolBus
 from core.permissions import bus_supervisor_required
+from transport.services import TransportService
 
 
 @login_required
@@ -12,58 +13,8 @@ from core.permissions import bus_supervisor_required
 def transport_dashboard(request):
     """لوحة تحكم النقل والمواصلات"""
     school = request.user.get_school()
-
-    # إحصائيات الحافلات — annotate بدل loop (إصلاح N+1)
-    buses = (
-        SchoolBus.objects.filter(school=school)
-        .select_related("supervisor")
-        .annotate(students_count=Count("routes__students", distinct=True))
-    )
-
-    totals = buses.aggregate(
-        total_buses=Count("id"),
-        total_capacity=Sum("capacity"),
-    )
-    total_buses = totals["total_buses"] or 0
-    total_capacity = totals["total_capacity"] or 0
-
-    # عدد الطلاب المسجلين
-    total_students = CustomUser.objects.filter(bus_routes__bus__school=school).distinct().count()
-
-    # الحافلات والطلاب — بدون loop queries
-    bus_data = [
-        {
-            "bus": bus,
-            "students_count": bus.students_count,
-            "occupancy_rate": round(bus.students_count / bus.capacity * 100) if bus.capacity > 0 else 0,
-        }
-        for bus in buses
-    ]
-
-    # ── Analytics: occupancy stats ──
-    total_assigned = sum(b["students_count"] for b in bus_data)
-    overall_occupancy = round(total_assigned / total_capacity * 100) if total_capacity else 0
-
-    # Overcapacity buses
-    overcapacity_count = sum(1 for b in bus_data if b["occupancy_rate"] > 100)
-
-    # Buses without supervisors
-    no_supervisor = buses.filter(supervisor__isnull=True).count()
-
-    # Buses without Karwa ID
-    no_karwa = buses.filter(Q(karwa_id="") | Q(karwa_id__isnull=True)).count()
-
-    context = {
-        "total_buses": total_buses,
-        "total_capacity": total_capacity,
-        "total_students": total_students,
-        "total_assigned": total_assigned,
-        "overall_occupancy": overall_occupancy,
-        "overcapacity_count": overcapacity_count,
-        "no_supervisor": no_supervisor,
-        "no_karwa": no_karwa,
-        "bus_data": bus_data,
-    }
+    # ✅ v5.4: TransportService.get_dashboard_context — queries في service layer
+    context = TransportService.get_dashboard_context(school)
     return render(request, "transport/dashboard.html", context)
 
 
@@ -213,20 +164,6 @@ def student_assignments(request):
 def transport_statistics(request):
     """إحصائيات النقل والمواصلات"""
     school = request.user.get_school()
-
-    buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
-    total_buses = buses.count()
-    total_capacity = sum(bus.capacity for bus in buses)
-
-    students_count = CustomUser.objects.filter(bus_routes__bus__school=school).distinct().count()
-
-    utilization_rate = (students_count / total_capacity * 100) if total_capacity > 0 else 0
-
-    context = {
-        "total_buses": total_buses,
-        "total_capacity": total_capacity,
-        "students_count": students_count,
-        "utilization_rate": utilization_rate,
-        "buses": buses,
-    }
+    # ✅ v5.4: TransportService.get_statistics — DB aggregate بدل Python sum loop
+    context = TransportService.get_statistics(school)
     return render(request, "transport/statistics.html", context)
