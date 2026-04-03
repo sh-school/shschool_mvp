@@ -17,8 +17,10 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from behavior.models import BehaviorInfraction
-from clinic.models import ClinicVisit
+from assessments.models import AnnualSubjectResult
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from clinic.models import ClinicVisit, HealthRecord
+from library.models import BookBorrowing
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -33,7 +35,7 @@ from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollmen
 from core.models.user import CustomUser, Profile
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
-from operations.models import StudentAttendance
+from operations.models import AbsenceAlert, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer
 
@@ -620,10 +622,7 @@ def student_profile(request, student_id):
         },
         "recent": infractions[:5],
     }
-    # نقاط السلوك
-    from django.db.models import Sum
-    from behavior.models import BehaviorPointRecovery
-
+    # نقاط السلوك — Sum و BehaviorPointRecovery مُستورَدان من أعلى الملف
     total_deducted = infractions.aggregate(s=Sum("points_deducted"))["s"] or 0
     total_restored = (
         BehaviorPointRecovery.objects.filter(
@@ -634,18 +633,14 @@ def student_profile(request, student_id):
     behavior_summary["total_deducted"] = total_deducted
     behavior_summary["total_restored"] = total_restored
 
-    # ── 4. العيادة (clinic) ──
-    from clinic.models import HealthRecord
-
+    # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
     clinic_visits = (
         ClinicVisit.objects.filter(student=student, school=school)
         .order_by("-visit_date")[:5]
     )
     health_record = HealthRecord.objects.filter(student=student).first()
 
-    # ── 5. الدرجات (assessments) ──
-    from assessments.models import AnnualSubjectResult
-
+    # ── 5. الدرجات (assessments) — AnnualSubjectResult مُستورَد من أعلى الملف ──
     grades = (
         AnnualSubjectResult.objects.filter(
             student=student, school=school, academic_year=year,
@@ -659,9 +654,7 @@ def student_profile(request, student_id):
         failed=Count("id", filter=Q(status="fail")),
     )
 
-    # ── 6. المكتبة (library) ──
-    from library.models import BookBorrowing
-
+    # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──
     borrowings = (
         BookBorrowing.objects.filter(user=student)
         .select_related("book")
@@ -883,8 +876,7 @@ def attendance_overview(request):
         chart_present.append(round(pres * 100 / total_d) if total_d else 0)
         chart_absent.append(round(abs_d * 100 / total_d) if total_d else 0)
 
-    # ── تنبيهات الغياب المتكرر ──
-    from operations.models import AbsenceAlert
+    # ── تنبيهات الغياب المتكرر — AbsenceAlert مُستورَد من أعلى الملف ──
     alerts = (
         AbsenceAlert.objects.filter(school=school, status="pending")
         .select_related("student")
@@ -922,8 +914,7 @@ def attendance_export_excel(request):
 
     ctx = get_export_context(request, "تقرير الحضور والغياب")
 
-    # أكثر الطلاب غياباً
-    from django.db.models import Count
+    # أكثر الطلاب غياباً — Count مُستورَد من أعلى الملف
     absence_data = (
         StudentAttendance.objects.filter(
             school=school, status="absent", session__date__gte=thirty_ago,
@@ -1277,8 +1268,7 @@ def parent_add(request):
     school = request.user.get_school()
     year = settings.CURRENT_ACADEMIC_YEAR
 
-    # قائمة الطلاب المسجّلين في المدرسة
-    from core.models.academic import StudentEnrollment
+    # قائمة الطلاب المسجّلين في المدرسة — StudentEnrollment مُستورَد من أعلى الملف
     student_ids = StudentEnrollment.objects.filter(
         class_group__school=school,
         class_group__academic_year=year,
@@ -1402,9 +1392,7 @@ def student_profile_pdf(request, student_id):
     )
     total_points = sum(i.points_deducted for i in infractions)
 
-    # درجات
-    from assessments.models import AnnualSubjectResult
-
+    # درجات — AnnualSubjectResult مُستورَد من أعلى الملف
     grades = (
         AnnualSubjectResult.objects.filter(
             student=student, school=school, academic_year=year,
