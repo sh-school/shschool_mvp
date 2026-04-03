@@ -190,3 +190,98 @@ class ParentService:
             "att_pct": round(present / total * 100) if total else 0,
             "since": since,
         }
+
+    @staticmethod
+    def enrich_children_dashboard(children: list, school: "School", today=None) -> list:
+        """
+        يُثري بيانات الأبناء بـ 4 batch queries بدل N+1.
+
+        ✅ v5.4: ينقل batch enrichment من parent_dashboard view إلى service layer.
+
+        Args:
+            children: القائمة المُعادة من get_children_data()
+            school: كائن المدرسة
+            today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+
+        Returns:
+            children مع إضافة: behavior_score, subjects_count,
+                                attendance_pct, week_attendance لكل طالب
+        """
+        from collections import defaultdict
+
+        from django.db.models import Sum
+
+        from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+
+        today = today or timezone.now().date()
+        student_ids = [cd["student"].pk for cd in children if cd.get("student")]
+
+        if not student_ids:
+            return children
+
+        # (1) Batch: نقاط الخصم السلوكية لكل طالب
+        deducted_map = dict(
+            BehaviorInfraction.objects.filter(
+                school=school, student_id__in=student_ids
+            )
+            .values("student_id")
+            .annotate(total=Sum("points_deducted"))
+            .values_list("student_id", "total")
+        )
+
+        # (2) Batch: نقاط الاسترداد السلوكية لكل طالب
+        recovered_map = dict(
+            BehaviorPointRecovery.objects.filter(
+                infraction__school=school, infraction__student_id__in=student_ids
+            )
+            .values("infraction__student_id")
+            .annotate(total=Sum("points_restored"))
+            .values_list("infraction__student_id", "total")
+        )
+
+        # (3) Batch: نسبة الحضور خلال 30 يومًا لكل طالب
+        att_stats: dict = {}
+        for row in StudentAttendance.objects.filter(
+            student_id__in=student_ids,
+            session__school=school,
+            session__date__gte=today - timedelta(days=30),
+        ).values("student_id").annotate(
+            total=Count("id"),
+            present=Count("id", filter=Q(status="present")),
+        ):
+            att_stats[row["student_id"]] = row
+
+        # (4) Batch: اتجاه الحضور آخر 7 أيام لكل طالب
+        week_att_map: dict = defaultdict(list)
+        for row in (
+            StudentAttendance.objects.filter(
+                student_id__in=student_ids,
+                session__school=school,
+                session__date__gte=today - timedelta(days=7),
+            )
+            .values("student_id", "session__date")
+            .annotate(
+                present=Count("id", filter=Q(status="present")),
+                absent=Count("id", filter=Q(status="absent")),
+            )
+            .order_by("student_id", "session__date")
+        ):
+            week_att_map[row["student_id"]].append(row)
+
+        for child_data in children:
+            student = child_data.get("student")
+            if not student:
+                continue
+            sid = student.pk
+            deducted = deducted_map.get(sid) or 0
+            recovered = recovered_map.get(sid) or 0
+            child_data["behavior_score"] = min(100, max(0, 100 - deducted + recovered))
+            child_data["subjects_count"] = child_data.get("total_subj", 0)
+
+            att = att_stats.get(sid, {})
+            att_total = att.get("total", 0)
+            att_present = att.get("present", 0)
+            child_data["attendance_pct"] = round(att_present * 100 / att_total) if att_total else None
+            child_data["week_attendance"] = week_att_map.get(sid, [])
+
+        return children
