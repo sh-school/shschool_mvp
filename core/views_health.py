@@ -1,11 +1,13 @@
 """
 core/views/health.py
 ━━━━━━━━━━━━━━━━━━━
-GET /health/ — فحص صحة المنصة
-يُستخدم من:
-  - Docker healthcheck
-  - GitHub Actions (smoke test بعد النشر)
-  - أدوات المراقبة الخارجية
+GET /health/ — فحص صحة كامل (DB + Redis)
+GET /ready/  — Readiness Probe خفيف (DB فقط — لـ load balancer و Kubernetes)
+
+الفرق:
+  /health/ → Liveness: يتحقق من DB + Redis — للمراقبة والتنبيهات
+  /ready/  → Readiness: يتحقق من DB فقط — لإخبار الـ load balancer إذا كان
+              الـ container جاهزاً لاستقبال الطلبات (يُستخدم في rolling updates)
 """
 
 import logging
@@ -57,6 +59,40 @@ def health_check(request):
             "status": "ok" if all_ok else "degraded",
             "version": "v1.0",
             "checks": checks,
+            "latency_ms": round((time.monotonic() - start) * 1000, 1),
+        },
+        status=status_code,
+    )
+
+
+@require_GET
+@never_cache
+def readiness_check(request):
+    """
+    GET /ready/ — Readiness Probe خفيف للـ load balancer.
+
+    يتحقق من DB فقط (أخف وأسرع من /health/).
+    يُعيد 200 إذا كان الـ container جاهزاً، 503 إذا لم يكن.
+
+    الفرق عن /health/:
+      - لا يفحص Redis (قد يكون Redis بطيئاً مؤقتاً دون أن يمنع الخدمة)
+      - مُصمَّم للـ rolling deployments: يمنع إرسال طلبات للـ container قبل جهوزيته
+    """
+    start = time.monotonic()
+
+    try:
+        connection.ensure_connection()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        db_ok = True
+    except Exception as e:  # noqa: BLE001
+        db_ok = False
+        logger.error("readiness_check: DB فشل: %s", e)
+
+    status_code = 200 if db_ok else 503
+    return JsonResponse(
+        {
+            "ready": db_ok,
             "latency_ms": round((time.monotonic() - start) * 1000, 1),
         },
         status=status_code,

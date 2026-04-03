@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.utils.html import format_html
 
 from .models import (
     ClassGroup,
@@ -27,8 +28,14 @@ class ProfileInline(admin.StackedInline):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
+    """
+    ✅ v5.4 PDPPL م.8: الرقم الوطني مُخفًى في قائمة المستخدمين (آخر 4 أرقام فقط).
+    يظهر كاملاً في نموذج التعديل للمسؤول المعتمد فقط.
+    """
+
     model = CustomUser
-    list_display = ("national_id", "full_name", "email", "is_active", "date_joined")
+    # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
+    list_display = ("masked_national_id", "full_name", "email", "is_active", "date_joined")
     list_filter = ("is_active", "is_staff", "memberships__role__name")
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
@@ -51,6 +58,21 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
+
+    @admin.display(description="الرقم الوطني", ordering="national_id")
+    def masked_national_id(self, obj: CustomUser) -> str:
+        """
+        PDPPL م.8 — يعرض آخر 4 أرقام فقط في قائمة المستخدمين.
+        الرقم الكامل متاح في نموذج التعديل للمسؤول المعتمد.
+        """
+        nid = obj.national_id or ""
+        if len(nid) <= 4:
+            return "****"
+        suffix = nid[-4:]
+        return format_html(
+            '<span title="الرقم الوطني — مخفي (PDPPL م.8)" style="font-family:monospace">****{}</span>',
+            suffix,
+        )
 
 
 @admin.register(School)

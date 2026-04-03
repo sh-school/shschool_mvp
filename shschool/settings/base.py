@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     "staff_affairs.apps.StaffAffairsConfig",
     # ✅ فلترة احترافية
     "django_filters",
+    # ✅ v5.4: حماية من هجمات القوة الغاشمة (Brute Force)
+    "axes",
 ]
 
 MIDDLEWARE = [
@@ -70,6 +72,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
+    "axes.middleware.AxesMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -122,7 +126,11 @@ CHANNEL_LAYERS = {
 AUTH_USER_MODEL = "core.CustomUser"
 
 # ✅ v5.1.1: HMAC Authentication Backend — يبحث عبر HMAC(national_id) مع fallback
-AUTHENTICATION_BACKENDS = ["core.backends.HMACAuthBackend"]
+# ✅ v5.4: axes.backends.AxesStandaloneBackend يجب أن يكون أول backend (يمنع المقفولين)
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "core.backends.HMACAuthBackend",
+]
 
 DATABASES = {
     "default": {
@@ -374,3 +382,33 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "admin@shahaniya.edu.q
 DPO_NAME = os.environ.get("DPO_NAME", "سفيان احمد محمد مسيف")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "s.mesyef0904@education.qa")
 DPO_PHONE = os.environ.get("DPO_PHONE", "55296286")
+
+# ══════════════════════════════════════════════════════════════════════
+# ✅ v5.4: django-axes — حماية من هجمات القوة الغاشمة (Brute Force)
+# ══════════════════════════════════════════════════════════════════════
+# يقفل الحساب بعد 5 محاولات فاشلة لمدة ساعة واحدة.
+# يستخدم قاعدة البيانات لتتبع المحاولات (لا يحتاج Redis منفصلاً).
+# ─────────────────────────────────────────────────────────────────────
+# عدد المحاولات الفاشلة قبل القفل (OWASP: ≤ 10)
+AXES_FAILURE_LIMIT = config("AXES_FAILURE_LIMIT", default=5, cast=int)
+
+# مدة القفل (بالساعات) — None = يدوي فقط
+AXES_COOLOFF_TIME = config("AXES_COOLOFF_TIME", default=1, cast=int)
+
+# القفل بـ IP + اسم المستخدم معاً (أكثر دقة — يمنع lockout للمستخدمين الآخرين من نفس IP)
+AXES_LOCKOUT_PARAMETERS = ["username", "ip_address"]
+
+# إعادة تعيين العداد عند تسجيل الدخول الناجح
+AXES_RESET_ON_SUCCESS = True
+
+# لا تسجّل الـ passwords في السجلات (أمان إضافي)
+AXES_SENSITIVE_PARAMETERS = ["password"]
+
+# لا سجلات زائدة في الإنتاج
+AXES_VERBOSE = False
+
+# الحقل المستخدم كـ "username" في هذا المشروع
+AXES_USERNAME_FORM_FIELD = "national_id"
+
+# إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
+AXES_LOCKOUT_URL = None

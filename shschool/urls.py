@@ -9,12 +9,14 @@ from django.views.generic import TemplateView
 from django_prometheus.exports import ExportToDjangoView
 
 from core.permissions import internal_only
-from core.views_health import health_check
+from core.views_health import health_check, readiness_check
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
 
 urlpatterns = [
     path("health/", health_check),
+    # ✅ v5.4: Readiness Probe خفيف (DB فقط) — load balancer + rolling deployments
+    path("ready/", readiness_check, name="readiness_check"),
     path("", lambda r: redirect("dashboard/")),
     path("admin/", admin.site.urls),
     path("auth/", include("core.urls.auth")),
