@@ -1,13 +1,15 @@
 version: "3.9"
 
 # ══════════════════════════════════════════════════════════════
-# SchoolOS v5.3 — Compose الإنتاج
+# SchoolOS v5.4 — Compose الإنتاج
 # - WAL archiving for PITR
 # - Pinned image tags
 # - Non-root containers
 # - Log rotation على كل الحاويات (SRE)
 # - Graceful shutdown 30s للـ web و celery (SRE)
 # - max-tasks-per-child=100 لمنع memory leak في Celery (P1)
+# - /ready/ Readiness Probe للـ healthcheck (v5.4)
+# - django-axes brute force protection (v5.4)
 # ══════════════════════════════════════════════════════════════
 
 # ── إعداد Log Rotation المشترك ────────────────────────────────
@@ -93,7 +95,10 @@ services:
         daphne -b 0.0.0.0 -p 8000 shschool.asgi:application
       "
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ || exit 1"]
+      # ✅ v5.4: /ready/ أخف من /health/ (DB فقط بدون Redis)
+      # مناسب للـ rolling deployments والتحقق السريع من جهوزية الـ container
+      # المراقبة الكاملة (DB + Redis) عبر /health/ من أدوات خارجية
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/ready/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

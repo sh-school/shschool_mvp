@@ -4,9 +4,6 @@ from datetime import timedelta
 from io import BytesIO
 
 import django.db
-
-logger = logging.getLogger(__name__)
-
 import pyotp
 import qrcode
 from django.contrib import messages
@@ -21,6 +18,21 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from core.models import CustomUser
+
+logger = logging.getLogger(__name__)
+
+
+def _axes_reset(request, national_id: str) -> None:
+    """
+    إعادة تعيين عداد axes بعد تسجيل الدخول الناجح.
+    ✅ v5.4: يُكمّل AXES_RESET_ON_SUCCESS=True بإعادة تعيين صريحة مربوطة بـ national_id.
+    """
+    try:
+        from axes.helpers import reset_request
+
+        reset_request(request=request, username=national_id)
+    except ImportError:
+        pass  # axes غير مثبّت — لا مشكلة
 
 
 def _safe_redirect(url, request, fallback="dashboard"):
@@ -69,6 +81,8 @@ def login_view(request):
             user.failed_login_attempts = 0
             user.locked_until = None
             user.save(update_fields=["failed_login_attempts", "locked_until"])
+            # ✅ v5.4: إعادة تعيين عداد axes عند تسجيل الدخول الناجح
+            _axes_reset(request, national_id)
 
             role = user.get_role()
             if user.totp_enabled and role in ROLES_REQUIRING_2FA:

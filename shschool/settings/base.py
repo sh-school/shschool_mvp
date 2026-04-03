@@ -15,7 +15,7 @@ if sys.platform == "win32" and _gtk_bin.exists():
 CURRENT_ACADEMIC_YEAR: str = "2025-2026"
 
 # ── إصدار المنصة — يظهر في الفوتر ─────────────────────────────
-PLATFORM_VERSION: str = "5.1"
+PLATFORM_VERSION: str = "5.4"
 
 INSTALLED_APPS = [
     # ✅ v5.1: daphne يجب أن يكون أول app لتفعيل ASGI بشكل صحيح

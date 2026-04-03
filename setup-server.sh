@@ -191,7 +191,9 @@ docker compose -f docker-compose.prod.yml run --rm web python manage.py migrate 
 docker compose -f docker-compose.prod.yml run --rm web python manage.py collectstatic --noinput
 docker compose -f docker-compose.prod.yml up -d --no-deps web celery_worker celery_beat
 sleep 15
-curl -sf http://localhost/health/ && echo "✅ SchoolOS يعمل!" || echo "❌ تحقق من السجلات"
+# Readiness probe أولاً (أسرع) ثم Liveness الكامل
+curl -sf http://localhost/ready/ && echo "✅ DB جاهز" || echo "❌ DB غير جاهز — تحقق من السجلات"
+curl -sf http://localhost/health/ && echo "✅ SchoolOS يعمل!" || echo "⚠️  Health degraded — تحقق من Redis"
 DEPLOY_SCRIPT
 chmod +x /usr/local/bin/schoolos-deploy
 
@@ -209,7 +211,8 @@ docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
     $(docker compose -f docker-compose.prod.yml ps -q 2>/dev/null) 2>/dev/null || true
 echo ""
 echo "━━━ فحص الصحة ━━━"
-curl -s http://localhost/health/ | python3 -m json.tool 2>/dev/null || echo "الخدمة غير متاحة"
+echo -n "Readiness: "; curl -sf http://localhost/ready/ && echo " ✅" || echo " ❌"
+echo -n "Liveness:  "; curl -s http://localhost/health/ | python3 -m json.tool 2>/dev/null || echo "الخدمة غير متاحة"
 STATUS_SCRIPT
 chmod +x /usr/local/bin/schoolos-status
 
