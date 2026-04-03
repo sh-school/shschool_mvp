@@ -180,32 +180,43 @@ def student_list(request):
         )
 
     if grade_filter:
-        enrolled_ids = StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            class_group__grade=grade_filter,
-            is_active=True,
-        ).values_list("student_id", flat=True)
-        students = students.filter(user_id__in=enrolled_ids)
+        # ✅ subquery مباشر — لا تحميل IDs إلى Python
+        grade_enrollment_exists = Exists(
+            StudentEnrollment.objects.filter(
+                class_group__school=school,
+                class_group__academic_year=year,
+                class_group__grade=grade_filter,
+                is_active=True,
+                student_id=OuterRef("user_id"),
+            )
+        )
+        students = students.filter(grade_enrollment_exists)
 
     if section_filter:
-        enrolled_ids = StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            class_group__section=section_filter,
-            is_active=True,
-        ).values_list("student_id", flat=True)
-        students = students.filter(user_id__in=enrolled_ids)
+        section_enrollment_exists = Exists(
+            StudentEnrollment.objects.filter(
+                class_group__school=school,
+                class_group__academic_year=year,
+                class_group__section=section_filter,
+                is_active=True,
+                student_id=OuterRef("user_id"),
+            )
+        )
+        students = students.filter(section_enrollment_exists)
 
     if parent_status:
-        linked_student_ids = set(
-            ParentStudentLink.objects.filter(school=school)
-            .values_list("student_id", flat=True)
+        # ✅ Exists subquery بدل Python set arithmetic — O(1) ذاكرة
+        parent_link_exists = Exists(
+            ParentStudentLink.objects.filter(school=school, student_id=OuterRef("user_id"))
         )
         if parent_status == "linked":
-            students = students.filter(user_id__in=linked_student_ids)
+            students = students.annotate(_has_parent=parent_link_exists).filter(
+                _has_parent=True
+            )
         elif parent_status == "unlinked":
-            students = students.exclude(user_id__in=linked_student_ids)
+            students = students.annotate(_has_parent=parent_link_exists).filter(
+                _has_parent=False
+            )
 
     # ── بناء القائمة مع بيانات التسجيل ──
     student_rows = []
