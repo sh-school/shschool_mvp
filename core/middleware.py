@@ -18,6 +18,7 @@ EXEMPT = [
     "/static/",
     "/media/",
     "/health/",
+    "/ready/",   # ✅ v5.4: Readiness Probe — عام بدون مصادقة
     # ✅ PWA — يجب أن تكون عامة بدون تسجيل دخول
     "/manifest.json",
     "/sw.js",
