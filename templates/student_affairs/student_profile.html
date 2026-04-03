@@ -46,7 +46,7 @@
         <span class="status-badge status-success" style="font-size:.75rem;margin-inline-start:4px">نشط</span>
       </div>
       <div class="profile-meta">
-        <span dir="ltr">{{ student.national_id }}</span>
+        <span dir="ltr" title="الرقم الوطني — مخفي لحماية الخصوصية">****{{ student.national_id|slice:"-4:" }}</span>
         {% if enrollment %}<span>{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>{% endif %}
         {% if profile and profile.gender %}<span>{% if profile.gender == "M" %}ذكر{% else %}أنثى{% endif %}</span>{% endif %}
       </div>
@@ -55,10 +55,10 @@
       <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">
         {% include "components/icon.html" with name="file-pen" %} تعديل
       </a>
-      <a href="/behavior/student/{{ student.id }}/" class="btn-secondary btn-sm">
+      <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="scale" %} الملف السلوكي
       </a>
-      <a href="/reports/student/{{ student.id }}/result/" class="btn-secondary btn-sm">
+      <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="bar-chart" %} كشف الدرجات
       </a>
       <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>

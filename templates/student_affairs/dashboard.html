@@ -90,10 +90,10 @@
     <a href="{% url 'student_affairs:activity_list' %}" class="ql-item">
       <span class="ql-icon">{% include "components/icon.html" with name="activity" %}</span> الأنشطة
     </a>
-    <a href="/core/students/import-export/" class="ql-item">
+    <a href="{% url 'student_import_export' %}" class="ql-item">
       <span class="ql-icon">{% include "components/icon.html" with name="download" %}</span> استيراد/تصدير
     </a>
-    <a href="/parents/admin/links/" class="ql-item">
+    <a href="{% url 'manage_parent_links' %}" class="ql-item">
       <span class="ql-icon">{% include "components/icon.html" with name="waypoints" %}</span> ربط الأولياء
     </a>
   </div>

@@ -9,17 +9,29 @@ from datetime import timedelta
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum
+from django.db import transaction
+from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
+from core.export_utils import (
+    add_excel_footer,
+    add_excel_header,
+    excel_to_response,
+    generate_export_filename,
+    get_export_context,
+    get_pdf_footer_html,
+    get_pdf_header_html,
+)
 from core.models.access import Membership, Role
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.user import CustomUser, Profile
+from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
 from operations.models import StudentAttendance
 
@@ -36,93 +48,58 @@ from .models import StudentActivity, StudentTransfer
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_dashboard(request):
-    """لوحة شؤون الطلاب — KPIs + روابط سريعة + ملخصات."""
+    """لوحة شؤون الطلاب — KPIs عبر Service Layer + بيانات العرض."""
+    from .services import StudentService
+
     school = request.user.get_school()
     today = timezone.localdate()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    # ── KPIs الأساسية ──
-    total_students = Membership.objects.filter(
-        school=school, role__name="student", is_active=True,
-    ).count()
+    # ── KPIs الأساسية — مُفوَّضة لـ Service Layer ──
+    stats = StudentService.get_dashboard_stats(school, year)
+    att = stats["today_attendance"]
 
-    # حضور اليوم
-    today_sessions = StudentAttendance.objects.filter(
-        school=school, session__date=today,
-    )
-    absent_today = today_sessions.filter(status="absent").count()
-    late_today = today_sessions.filter(status="late").count()
-    present_today = today_sessions.filter(status="present").count()
-
-    # سلوك الشهر
-    behavior_month = BehaviorInfraction.objects.filter(
-        school=school,
-        date__year=today.year,
-        date__month=today.month,
-    ).count()
-
-    # عيادة اليوم
+    # ── بيانات العرض الإضافية (خاصة بهذه الصفحة) ──
     clinic_today = ClinicVisit.objects.filter(
         school=school, visit_date__date=today,
     ).count()
 
-    # انتقالات معلقة
-    pending_transfers = StudentTransfer.objects.filter(
-        school=school, status="pending",
-    ).count()
-
-    # ── KPIs ثانوية ──
-    # توزيع الطلاب حسب الصف
-    grade_distribution = (
-        StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .values("class_group__grade")
-        .annotate(count=Count("id"))
-        .order_by("class_group__grade")
-    )
-
-    # أولياء أمور مرتبطون
-    linked_parents = ParentStudentLink.objects.filter(school=school).count()
-
-    # أنشطة هذا العام
-    activities_year = StudentActivity.objects.filter(
-        school=school, academic_year=year,
-    ).count()
-
-    # ── آخر المخالفات (5) ──
     recent_infractions = (
         BehaviorInfraction.objects.filter(school=school)
         .select_related("student", "violation_category")
         .order_by("-date")[:5]
     )
 
-    # ── آخر الانتقالات (5) ──
     recent_transfers = (
         StudentTransfer.objects.filter(school=school)
         .select_related("student")
         .order_by("-created_at")[:5]
     )
 
-    # ── طلاب بدون ولي أمر مرتبط ──
-    student_ids_enrolled = StudentEnrollment.objects.filter(
-        class_group__school=school, class_group__academic_year=year, is_active=True,
-    ).values_list("student_id", flat=True)
-    students_with_parent = ParentStudentLink.objects.filter(
-        school=school, student_id__in=student_ids_enrolled,
-    ).values_list("student_id", flat=True).distinct()
-    no_parent_count = len(set(student_ids_enrolled) - set(students_with_parent))
+    # طلاب بدون ولي أمر — Exists subquery بدل Python set arithmetic
+    no_parent_count = (
+        StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+        .annotate(
+            has_parent=Exists(
+                ParentStudentLink.objects.filter(
+                    school=school, student_id=OuterRef("student_id"),
+                )
+            )
+        )
+        .filter(has_parent=False)
+        .count()
+    )
 
-    # ── التأخرات هذا الأسبوع ──
     week_start = today - timedelta(days=today.weekday())
     weekly_tardiness = StudentAttendance.objects.filter(
         school=school, status="late",
         session__date__gte=week_start, session__date__lte=today,
     ).count()
 
-    # ── آخر 5 أنشطة ──
     recent_activities = (
         StudentActivity.objects.filter(school=school, academic_year=year)
         .select_related("student")
@@ -132,16 +109,17 @@ def student_dashboard(request):
     return render(request, "student_affairs/dashboard.html", {
         "today": today,
         "year": year,
-        "total_students": total_students,
-        "absent_today": absent_today,
-        "late_today": late_today,
-        "present_today": present_today,
-        "behavior_month": behavior_month,
+        "current_school": school,
+        "total_students": stats["total_students"],
+        "absent_today": att["absent"] or 0,
+        "late_today": att["late"] or 0,
+        "present_today": att["present"] or 0,
+        "behavior_month": stats["behavior_month"]["total"] or 0,
         "clinic_today": clinic_today,
-        "pending_transfers": pending_transfers,
-        "grade_distribution": grade_distribution,
-        "linked_parents": linked_parents,
-        "activities_year": activities_year,
+        "pending_transfers": stats["pending_transfers"],
+        "grade_distribution": stats["grade_distribution"],
+        "linked_parents": stats["parent_link_count"],
+        "activities_year": stats["activities_count"],
         "recent_infractions": recent_infractions,
         "recent_transfers": recent_transfers,
         "no_parent_count": no_parent_count,
@@ -295,10 +273,6 @@ def student_export_excel(request):
     """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        add_excel_header, add_excel_footer, excel_to_response,
-    )
 
     school = request.user.get_school()
     year = settings.CURRENT_ACADEMIC_YEAR
@@ -434,8 +408,6 @@ def student_add(request):
                 })
 
             # ── إنشاء 4 سجلات ذرّياً ──
-            from django.db import transaction
-
             try:
                 with transaction.atomic():
                     # 1. CustomUser
@@ -951,10 +923,6 @@ def attendance_export_excel(request):
     """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        add_excel_header, add_excel_footer, excel_to_response,
-    )
 
     school = request.user.get_school()
     today = timezone.localdate()
@@ -1311,10 +1279,6 @@ def activity_delete(request, pk):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def parent_add(request):
     """إضافة ولي أمر جديد وربطه بطالب — ينشئ 3 سجلات ذرّياً (User + Membership + ParentStudentLink)."""
-    from django.db import transaction
-
-    from core.models.academic import ParentStudentLink
-    from core.models.user import Profile
 
     from .forms import ParentAddForm
 
@@ -1408,10 +1372,6 @@ def parent_add(request):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_profile_pdf(request, student_id):
     """ملف الطالب الشامل — PDF للطباعة (A4)."""
-    from django.template.loader import render_to_string
-
-    from core.pdf_utils import render_pdf
-
     school = request.user.get_school()
     student = get_object_or_404(
         CustomUser, id=student_id,
@@ -1472,7 +1432,6 @@ def student_profile_pdf(request, student_id):
         school=school, student=student,
     ).select_related("parent")
 
-    from core.export_utils import get_export_context
     ctx = get_export_context(request, "ملف الطالب الشامل")
 
     html_string = render_to_string("student_affairs/student_profile_pdf.html", {
@@ -1580,10 +1539,6 @@ def behavior_export_excel(request):
     """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        add_excel_header, add_excel_footer, excel_to_response,
-    )
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير السلوك الطلابي")
@@ -1648,10 +1603,6 @@ def tardiness_export_excel(request):
     """تصدير قائمة المتأخرين ليوم محدد."""
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        add_excel_header, add_excel_footer, excel_to_response,
-    )
 
     school = request.user.get_school()
 
@@ -1736,10 +1687,6 @@ def activities_export_excel(request):
     """تصدير قائمة الأنشطة والإنجازات."""
     import openpyxl
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        add_excel_header, add_excel_footer, excel_to_response,
-    )
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير الأنشطة والإنجازات")
@@ -1815,13 +1762,6 @@ def activities_export_excel(request):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def attendance_overview_pdf(request):
     """تصدير إحصائيات الحضور والغياب — PDF."""
-    from django.template.loader import render_to_string
-    from core.pdf_utils import render_pdf
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        get_pdf_header_html, get_pdf_footer_html,
-    )
-
     school = request.user.get_school()
     today = timezone.localdate()
 
@@ -1872,13 +1812,6 @@ def attendance_overview_pdf(request):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def behavior_overview_pdf(request):
     """تصدير ملخص السلوك — PDF."""
-    from django.template.loader import render_to_string
-    from core.pdf_utils import render_pdf
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        get_pdf_header_html, get_pdf_footer_html,
-    )
-
     school = request.user.get_school()
     today = timezone.localdate()
 
@@ -1951,13 +1884,6 @@ def behavior_overview_pdf(request):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def tardiness_pdf(request):
     """تصدير قائمة المتأخرين — PDF."""
-    from django.template.loader import render_to_string
-    from core.pdf_utils import render_pdf
-    from core.export_utils import (
-        generate_export_filename, get_export_context,
-        get_pdf_header_html, get_pdf_footer_html,
-    )
-
     school = request.user.get_school()
 
     date_str = request.GET.get("date")
