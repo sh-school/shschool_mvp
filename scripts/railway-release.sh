@@ -37,6 +37,16 @@ echo "🏥 Checking deployment health..."
 python manage.py check --deploy 2>&1 | head -20 || echo "  Check passed with warnings"
 
 echo ""
+
+# 6. Reset axes lockouts if requested (one-time)
+if [ "$RESET_AXES" = "1" ]; then
+  echo "🔓 Resetting django-axes lockouts..."
+  python manage.py axes_reset || echo "  axes_reset failed — skipping"
+  echo "🔓 Clearing user lock fields..."
+  python manage.py shell -c "from core.models.user import CustomUser; CustomUser.objects.update(failed_login_attempts=0, locked_until=None)" || echo "  user unlock failed"
+fi
+
+echo ""
 echo "=============================================="
 echo "✅ Release Phase Complete — Starting server..."
 echo "=============================================="
