@@ -40,3 +40,15 @@ echo ""
 echo "=============================================="
 echo "✅ Release Phase Complete — Starting server..."
 echo "=============================================="
+echo ""
+echo "🎯 Starting gunicorn on 0.0.0.0:${PORT:-8080}"
+echo "   workers=3, timeout=120, log-level=info"
+echo ""
+exec gunicorn shschool.wsgi:application \
+  --bind "0.0.0.0:${PORT:-8080}" \
+  --workers 3 \
+  --timeout 120 \
+  --access-logfile - \
+  --error-logfile - \
+  --log-level info \
+  --capture-output
