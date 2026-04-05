@@ -13,14 +13,20 @@ ENV DJANGO_SETTINGS_MODULE=shschool.settings.production
 
 WORKDIR /app
 
-# System dependencies (Cairo/Pango for PDF generation)
+# System dependencies (Cairo/Pango for PDF generation via pycairo/WeasyPrint)
+# Include -dev packages + pkg-config for building pycairo from source
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
+    pkg-config \
     libpq-dev \
     libcairo2 \
+    libcairo2-dev \
     libpango-1.0-0 \
+    libpango1.0-dev \
     libpangocairo-1.0-0 \
     libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-dev \
     libffi-dev \
     shared-mime-info \
     wget \
