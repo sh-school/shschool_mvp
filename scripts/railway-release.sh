@@ -47,6 +47,7 @@ echo ""
 exec gunicorn shschool.wsgi:application \
   --bind "0.0.0.0:${PORT:-8080}" \
   --workers 3 \
+  --worker-class sync \
   --timeout 120 \
   --access-logfile - \
   --error-logfile - \
