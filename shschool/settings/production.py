@@ -52,6 +52,9 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 # so Django knows the original request was HTTPS (container receives HTTP internally)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
+# Exempt healthcheck endpoints from SSL redirect — Railway's internal probe
+# connects directly over HTTP without X-Forwarded-Proto header
+SECURE_REDIRECT_EXEMPT = [r"^health/$", r"^ready/$"]
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
