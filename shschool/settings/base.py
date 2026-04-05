@@ -132,18 +132,32 @@ AUTHENTICATION_BACKENDS = [
     "core.backends.HMACAuthBackend",
 ]
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="shschool_db"),
-        "USER": config("DB_USER", default="shschool_user"),
-        "PASSWORD": config("DB_PASSWORD", default=""),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5432"),
-        "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=600, cast=int),
-        "CONN_HEALTH_CHECKS": True,
+# ── قاعدة البيانات ─────────────────────────────────────────
+# v5.4.1: دعم DATABASE_URL (Railway/Heroku/Render) مع fallback للمتغيرات المنفصلة
+_database_url = config("DATABASE_URL", default="")
+if _database_url:
+    import dj_database_url
+
+    DATABASES = {
+        "default": dj_database_url.parse(
+            _database_url,
+            conn_max_age=config("DB_CONN_MAX_AGE", default=600, cast=int),
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DB_NAME", default="shschool_db"),
+            "USER": config("DB_USER", default="shschool_user"),
+            "PASSWORD": config("DB_PASSWORD", default=""),
+            "HOST": config("DB_HOST", default="localhost"),
+            "PORT": config("DB_PORT", default="5432"),
+            "CONN_MAX_AGE": config("DB_CONN_MAX_AGE", default=600, cast=int),
+            "CONN_HEALTH_CHECKS": True,
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
