@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "bash scripts/railway-release.sh && gunicorn shschool.wsgi:application --bind 0.0.0.0:$PORT --workers 3 --timeout 120 --access-logfile - --error-logfile -",
+    "startCommand": "bash scripts/railway-release.sh && echo \"🎯 Starting gunicorn on PORT=${PORT:-8080}\" && exec gunicorn shschool.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers 3 --timeout 120 --access-logfile - --error-logfile - --log-level info --capture-output",
     "healthcheckPath": "/health/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
