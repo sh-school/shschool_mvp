@@ -119,7 +119,7 @@ def staff_list(request):
                 "national_id": m.user.national_id,
                 "role": m.role.name if m.role else "—",
                 "role_display": ROLE_LABELS.get(m.role.name, m.role.name) if m.role else "—",
-                "department": m.department_obj.name if m.department_obj else m.department or "—",
+                "department": m.department_name or "—",
                 "phone": m.user.phone,
                 "email": m.user.email,
                 "joined": m.joined_at,
