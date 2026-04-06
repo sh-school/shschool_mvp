@@ -209,17 +209,6 @@ def download_grade_template(request, assessment_id):
 # ── رفع وتحليل الملف ───────────────────────────────────────
 
 
-@login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
 def _find_data_start_row(ws):
     """Find the first data row after the header containing 'الرقم الوطني'."""
     for row in ws.iter_rows():
@@ -301,6 +290,17 @@ def _validate_upload_request(request):
     return uploaded, None
 
 
+@login_required
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin",
+    "secretary",
+)
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
     uploaded, error_redirect = _validate_upload_request(request)
