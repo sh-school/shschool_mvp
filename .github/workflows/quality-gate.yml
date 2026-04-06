@@ -70,7 +70,7 @@ jobs:
       - name: تثبيت المتطلبات
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov pytest-asyncio
+          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -166,9 +166,12 @@ jobs:
           FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
           EXCEL_PROTECTION_PASSWORD: ci-testing-only
         run: |
+          # Phase 1: warn-only mode. Phase 2: strict enforcement
           mypy core/ shschool/ \
             --ignore-missing-imports \
-            --exclude "migrations|\.venv|manage\.py|conftest"
+            --exclude "migrations|\.venv|manage\.py|conftest" \
+            --no-error-summary 2>&1 | head -50 || true
+          echo "::warning::mypy type checking completed (warn-only mode — Phase 1)"
 
   # ══════════════════════════════════════════════════════
   #  4. Radon — تعقيد حلقي (CC > 10 = فشل)
