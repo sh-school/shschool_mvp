@@ -23,11 +23,14 @@ from .views_attendance import (
 # ── Schedule & Substitute ───────────────────────────────────────
 from .views_schedule import (
     absence_detail,
+    add_exemption,
     approve_schedule,
     assign_substitute,
     generate_sessions,
     register_teacher_absence,
+    remove_exemption,
     schedule_print,
+    schedule_settings,
     schedule_slot_create,
     schedule_slot_delete,
     smart_generate,
@@ -35,6 +38,8 @@ from .views_schedule import (
     substitute_report,
     teacher_absence_list,
     teacher_load_report,
+    teacher_preferences,
+    toggle_double_period,
     weekly_schedule,
 )
 
@@ -78,6 +83,11 @@ __all__ = [
     "smart_generate",
     "approve_schedule",
     "teacher_load_report",
+    "schedule_settings",
+    "add_exemption",
+    "remove_exemption",
+    "toggle_double_period",
+    "teacher_preferences",
     # swap
     "swap_list",
     "swap_request",

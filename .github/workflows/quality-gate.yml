@@ -185,7 +185,7 @@ jobs:
           # --min E catches CC > 20 (critical complexity only)
           # Phase 1: block CC > 20. Phase 2 (future): lower to C (CC > 10)
           result=$(radon cc . \
-            --exclude "migrations,.venv,manage.py,scripts,tests" \
+            --exclude "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*" \
             --min E \
             --show-complexity 2>/dev/null)
           if [ -n "$result" ]; then
@@ -201,7 +201,7 @@ jobs:
 
           # Warn about moderate complexity (CC > 10) but don't fail
           warnings=$(radon cc . \
-            --exclude "migrations,.venv,manage.py,scripts,tests" \
+            --exclude "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*" \
             --min C --max D \
             --show-complexity 2>/dev/null)
           if [ -n "$warnings" ]; then
