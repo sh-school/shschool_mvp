@@ -30,3 +30,18 @@ ZZZZ.zip
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# Backup files
+*.dump
+*.bak
+*.backup
+
+# Temp/scratch scripts
+_*.py
+_*.txt
+
+# Elite config
+.elite/
+
+# Secrets scan results
+.secrets-results.json

@@ -58,6 +58,24 @@ class Command(BaseCommand):
             help="الحالة المستهدفة (افتراضي: In Progress)",
         )
 
+    def _print_console(self, by_executor):
+        """Print overdue report to console grouped by executor → domain."""
+        for executor_norm, procs in sorted(by_executor.items()):
+            user = procs[0].executor_user
+            user_str = f" ({user.full_name})" if user else " [غير مربوط]"
+            self.stdout.write(f"\n  📌 {executor_norm}{user_str} — {len(procs)} إجراء\n")
+            by_domain = defaultdict(list)
+            for p in procs:
+                domain_name = p.indicator.target.domain.name if p.indicator.target.domain else "—"
+                by_domain[domain_name].append(p)
+
+            for domain_name, domain_procs in sorted(by_domain.items()):
+                self.stdout.write(f"     [{domain_name}] ({len(domain_procs)} إجراء)")
+                for p in domain_procs[:3]:
+                    self.stdout.write(f"       - [{p.number}] {p.text[:60]}... | {p.date_range}")
+                if len(domain_procs) > 3:
+                    self.stdout.write(f"       ... و {len(domain_procs)-3} إجراء إضافي")
+
     def handle(self, *args, **options):
         school_code = options["school"]
         year = options["year"]
@@ -102,26 +120,7 @@ class Command(BaseCommand):
 
         # ── طباعة كونسول ──
         if not export:
-            for executor_norm, procs in sorted(by_executor.items()):
-                user = procs[0].executor_user
-                user_str = f" ({user.full_name})" if user else " [غير مربوط]"
-                self.stdout.write(f"\n  📌 {executor_norm}{user_str} — {len(procs)} إجراء\n")
-                # تجميع حسب المجال
-                by_domain = defaultdict(list)
-                for p in procs:
-                    domain_name = (
-                        p.indicator.target.domain.name if p.indicator.target.domain else "—"
-                    )
-                    by_domain[domain_name].append(p)
-
-                for domain_name, domain_procs in sorted(by_domain.items()):
-                    self.stdout.write(f"     [{domain_name}] ({len(domain_procs)} إجراء)")
-                    for p in domain_procs[:3]:  # أول 3 فقط
-                        self.stdout.write(
-                            f"       - [{p.number}] {p.text[:60]}... | {p.date_range}"
-                        )
-                    if len(domain_procs) > 3:
-                        self.stdout.write(f"       ... و {len(domain_procs)-3} إجراء إضافي")
+            self._print_console(by_executor)
 
         # ── تصدير CSV ──
         if export:

@@ -220,27 +220,74 @@ def download_grade_template(request, assessment_id):
     "admin",
     "secretary",
 )
-def upload_grade_file(request, assessment_id):
-    """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
+def _find_data_start_row(ws):
+    """Find the first data row after the header containing 'الرقم الوطني'."""
+    for row in ws.iter_rows():
+        for cell in row:
+            if cell.value and "الرقم الوطني" in str(cell.value):
+                return cell.row + 1
+    return 7  # default row in template
+
+
+def _parse_row(row):
+    """Extract fields from an Excel row tuple."""
+    national_id = str(row[0]).strip() if row[0] else ""
+    grade_raw = row[2] if len(row) > 2 else None
+    is_absent = bool(int(row[3])) if len(row) > 3 and row[3] is not None else False
+    notes = str(row[4]).strip() if len(row) > 4 and row[4] else ""
+    return national_id, grade_raw, is_absent, notes
+
+
+def _validate_student(national_id, assessment, row_num):
+    """Validate student exists and is enrolled. Returns (student, error)."""
+    try:
+        student = CustomUser.objects.get(national_id=national_id)
+    except CustomUser.DoesNotExist:
+        return None, f"صف {row_num}: الرقم الوطني [{national_id}] غير موجود"
+
+    enrolled = StudentEnrollment.objects.filter(
+        student=student,
+        class_group=assessment.class_group,
+        is_active=True,
+    ).exists()
+    if not enrolled:
+        return None, f"صف {row_num}: [{student.full_name}] غير مسجل في الفصل"
+
+    return student, None
+
+
+def _validate_grade(grade_raw, is_absent, max_grade, student_name, row_num):
+    """Parse and validate grade value. Returns (grade, error)."""
+    if is_absent or grade_raw is None:
+        return None, None
+    try:
+        grade = float(str(grade_raw).strip())
+    except (ValueError, TypeError):
+        return None, (
+            f"صف {row_num}: قيمة الدرجة غير صالحة [{grade_raw}] " f"للطالب [{student_name}]"
+        )
+    if grade < 0 or grade > float(max_grade):
+        return None, (
+            f"صف {row_num}: الدرجة [{grade}] خارج النطاق "
+            f"(0–{max_grade}) للطالب [{student_name}]"
+        )
+    return grade, None
+
+
+def _validate_upload_request(request):
+    """Validate the upload request. Returns (uploaded_file, error_redirect)."""
     if request.method != "POST":
-        return redirect("import_grades_select")
+        return None, redirect("import_grades_select")
 
     if not OPENPYXL_OK:
         messages.error(request, "مكتبة openpyxl غير مثبتة — شغّل: pip install openpyxl")
-        return redirect("import_grades_select")
-
-    school = request.user.get_school()
-    assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
-
-    if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
-        return HttpResponse("غير مسموح", status=403)
+        return None, redirect("import_grades_select")
 
     uploaded = request.FILES.get("grade_file")
     if not uploaded:
         messages.error(request, "لم يتم رفع أي ملف.")
-        return redirect("import_grades_select")
+        return None, redirect("import_grades_select")
 
-    # ── HIGH-002 Fix: التحقق من نوع الملف قبل المعالجة ──
     from django.core.exceptions import ValidationError as DjangoValidationError
 
     from core.validators import FileTypeValidator
@@ -249,12 +296,24 @@ def upload_grade_file(request, assessment_id):
         FileTypeValidator(allowed_types="document")(uploaded)
     except DjangoValidationError as e:
         messages.error(request, e.message)
-        return redirect("import_grades_select")
+        return None, redirect("import_grades_select")
 
-    # ── وضع المعاينة: تحقق بدون حفظ ──
+    return uploaded, None
+
+
+def upload_grade_file(request, assessment_id):
+    """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
+    uploaded, error_redirect = _validate_upload_request(request)
+    if error_redirect:
+        return error_redirect
+
+    school = request.user.get_school()
+    assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
+
+    if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
+        return HttpResponse("غير مسموح", status=403)
+
     dry_run = request.POST.get("dry_run") == "1"
-
-    # ── سجل الاستيراد (لا يُنشأ في المعاينة) ──
     log = None
     if not dry_run:
         log = ImportLog.objects.create(
@@ -266,78 +325,35 @@ def upload_grade_file(request, assessment_id):
 
     errors = []
     imported = 0
-    preview_rows = []  # [(student_name, national_id, grade, is_absent, notes), ...]
+    preview_rows = []
 
     try:
         wb = openpyxl.load_workbook(uploaded, data_only=True)
         ws = wb.active
-
-        # نبحث عن صف البداية (أول صف يحتوي "الرقم الوطني")
-        data_start = None
-        for row in ws.iter_rows():
-            for cell in row:
-                if cell.value and "الرقم الوطني" in str(cell.value):
-                    data_start = cell.row + 1
-                    break
-            if data_start:
-                break
-
-        if data_start is None:
-            data_start = 7  # الصف الافتراضي في القالب
+        data_start = _find_data_start_row(ws)
 
         total_rows = 0
         for row in ws.iter_rows(min_row=data_start, values_only=True):
-            national_id = str(row[0]).strip() if row[0] else ""
-            grade_raw = row[2] if len(row) > 2 else None
-            is_absent = bool(int(row[3])) if len(row) > 3 and row[3] is not None else False
-            notes = str(row[4]).strip() if len(row) > 4 and row[4] else ""
-
+            national_id, grade_raw, is_absent, notes = _parse_row(row)
             if not national_id:
                 continue
 
             total_rows += 1
+            row_num = total_rows + data_start - 1
 
-            # البحث عن الطالب
-            try:
-                student = CustomUser.objects.get(national_id=national_id)
-            except CustomUser.DoesNotExist:
-                errors.append(
-                    f"صف {total_rows + data_start - 1}: الرقم الوطني [{national_id}] غير موجود"
-                )
+            student, err = _validate_student(national_id, assessment, row_num)
+            if err:
+                errors.append(err)
                 continue
 
-            # التحقق من أن الطالب مسجل في الفصل
-            enrolled = StudentEnrollment.objects.filter(
-                student=student,
-                class_group=assessment.class_group,
-                is_active=True,
-            ).exists()
-            if not enrolled:
-                errors.append(
-                    f"صف {total_rows + data_start - 1}: [{student.full_name}] غير مسجل في الفصل"
-                )
+            grade, err = _validate_grade(
+                grade_raw, is_absent, assessment.max_grade, student.full_name, row_num
+            )
+            if err:
+                errors.append(err)
                 continue
-
-            # تحليل الدرجة
-            grade = None
-            if not is_absent and grade_raw is not None:
-                try:
-                    grade = float(str(grade_raw).strip())
-                    if grade < 0 or grade > float(assessment.max_grade):
-                        errors.append(
-                            f"صف {total_rows + data_start - 1}: الدرجة [{grade}] خارج النطاق "
-                            f"(0–{assessment.max_grade}) للطالب [{student.full_name}]"
-                        )
-                        continue
-                except (ValueError, TypeError):
-                    errors.append(
-                        f"صف {total_rows + data_start - 1}: قيمة الدرجة غير صالحة [{grade_raw}] "
-                        f"للطالب [{student.full_name}]"
-                    )
-                    continue
 
             if dry_run:
-                # في المعاينة: نجمع الصفوف الصحيحة بدون حفظ
                 preview_rows.append(
                     {
                         "name": student.full_name,
@@ -348,7 +364,6 @@ def upload_grade_file(request, assessment_id):
                     }
                 )
             else:
-                # الحفظ الفعلي
                 GradeService.save_grade(
                     assessment=assessment,
                     student=student,
@@ -360,11 +375,9 @@ def upload_grade_file(request, assessment_id):
             imported += 1
 
         if not dry_run:
-            # تحديث حالة التقييم
             if imported > 0:
                 assessment.status = "graded"
                 assessment.save(update_fields=["status"])
-
             log.status = "completed"
             log.total_rows = total_rows
             log.imported_rows = imported
@@ -373,7 +386,7 @@ def upload_grade_file(request, assessment_id):
             log.completed_at = timezone.now()
             log.save()
 
-    except (ValueError, TypeError, KeyError, OSError, Exception) as exc:
+    except Exception as exc:
         logger.exception("فشل استيراد الدرجات من Excel: %s", exc)
         if not dry_run and log:
             log.status = "failed"
@@ -382,7 +395,6 @@ def upload_grade_file(request, assessment_id):
         messages.error(request, f"فشل تحليل الملف: {exc}")
         return redirect("import_grades_select")
 
-    # في المعاينة: نحتاج log وهمي للـ template
     if dry_run:
         total_rows_count = imported + len(errors)
         log = type(
