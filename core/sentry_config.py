@@ -99,9 +99,7 @@ def traces_sampler(sampling_context):
         return 0.0
 
     # ── تخطي static/media ──
-    if any(
-        transaction_name.startswith(prefix) for prefix in ["/static/", "/media/"]
-    ):
+    if any(transaction_name.startswith(prefix) for prefix in ["/static/", "/media/"]):
         return 0.0
 
     # ── Celery tasks — أهمية عالية ──
@@ -200,9 +198,18 @@ def _scrub_dict(data):
     for key, value in data.items():
         # حقول حساسة بالاسم — تُخفى بالكامل
         sensitive_keys = {
-            "password", "secret", "token", "api_key", "authorization",
-            "national_id", "qid", "phone", "email", "ssn",
-            "credit_card", "card_number",
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "authorization",
+            "national_id",
+            "qid",
+            "phone",
+            "email",
+            "ssn",
+            "credit_card",
+            "card_number",
         }
         if any(sk in key.lower() for sk in sensitive_keys):
             result[key] = "[REDACTED]"

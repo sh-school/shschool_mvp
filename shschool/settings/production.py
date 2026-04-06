@@ -25,32 +25,32 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         integrations=[
             DjangoIntegration(
-                transaction_style="url",        # أسماء transactions واضحة
-                middleware_spans=True,           # قياس أداء كل middleware
-                signals_spans=True,             # قياس أداء signals
-                cache_spans=True,               # قياس أداء cache
+                transaction_style="url",  # أسماء transactions واضحة
+                middleware_spans=True,  # قياس أداء كل middleware
+                signals_spans=True,  # قياس أداء signals
+                cache_spans=True,  # قياس أداء cache
             ),
             CeleryIntegration(
-                monitor_beat_tasks=True,         # مراقبة Celery Beat
+                monitor_beat_tasks=True,  # مراقبة Celery Beat
             ),
             RedisIntegration(),
             LoggingIntegration(
-                level=None,                      # لا تُسجّل logs كـ events
-                event_level="ERROR",             # سجّل ERROR+ كـ Sentry events
+                level=None,  # لا تُسجّل logs كـ events
+                event_level="ERROR",  # سجّل ERROR+ كـ Sentry events
             ),
         ],
         # ── Performance: sampling ذكي بدل flat rate ──
-        traces_sampler=traces_sampler,           # يتخطى health/static/media
-        profiles_sample_rate=0.1,                # 10% profiling
+        traces_sampler=traces_sampler,  # يتخطى health/static/media
+        profiles_sample_rate=0.1,  # 10% profiling
         # ── Privacy: PDPPL م.13 ──
-        send_default_pii=False,                  # ← لا بيانات شخصية
-        before_send=before_send,                 # ← scrubbing + noise filter
+        send_default_pii=False,  # ← لا بيانات شخصية
+        before_send=before_send,  # ← scrubbing + noise filter
         # ── Release tracking ──
         environment=config("RAILWAY_ENVIRONMENT", default="production"),
         release=config("APP_VERSION", default=f"v{PLATFORM_VERSION}"),
         # ── Error grouping ──
-        max_breadcrumbs=50,                      # 50 فتات بدل 100 (توفير حصة)
-        attach_stacktrace=True,                  # stack trace حتى للـ messages
+        max_breadcrumbs=50,  # 50 فتات بدل 100 (توفير حصة)
+        attach_stacktrace=True,  # stack trace حتى للـ messages
         # ── Performance budgets ──
         enable_tracing=True,
     )

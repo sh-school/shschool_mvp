@@ -48,7 +48,7 @@ if SENTRY_DSN:
             LoggingIntegration(level=None, event_level="ERROR"),
         ],
         traces_sampler=traces_sampler,
-        profiles_sample_rate=0.2,           # Higher profiling in staging
+        profiles_sample_rate=0.2,  # Higher profiling in staging
         send_default_pii=False,
         before_send=before_send,
         environment="staging",
