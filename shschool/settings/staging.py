@@ -23,25 +23,39 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS", default="staging.schoolos.qa,staging-schoolos.up.railway.app"
 ).split(",")
 
-# ── Sentry: separate environment ──────────────────────────────
+# ── Sentry: v5.5 — same elite config as production, higher sampling ──
 SENTRY_DSN = config("SENTRY_DSN", default="")
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
+
+    from core.sentry_config import before_send, traces_sampler
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
+            DjangoIntegration(
+                transaction_style="url",
+                middleware_spans=True,
+                signals_spans=True,
+                cache_spans=True,
+            ),
+            CeleryIntegration(monitor_beat_tasks=True),
             RedisIntegration(),
+            LoggingIntegration(level=None, event_level="ERROR"),
         ],
-        traces_sample_rate=0.3,  # Higher sampling in staging for better debugging
-        send_default_pii=False,  # PDPPL: no student PII even in staging
+        traces_sampler=traces_sampler,
+        profiles_sample_rate=0.2,           # Higher profiling in staging
+        send_default_pii=False,
+        before_send=before_send,
         environment="staging",
         release=config("APP_VERSION", default=f"v{PLATFORM_VERSION}"),
+        max_breadcrumbs=50,
+        attach_stacktrace=True,
+        enable_tracing=True,
     )
 
 SENTRY_ENVIRONMENT = "staging"

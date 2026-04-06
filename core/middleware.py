@@ -135,6 +135,38 @@ class CurrentUserMiddleware:
             _current_request.reset(token_request)
 
 
+# ── Sentry Scope — إضافة school_id + role لكل حدث ───────
+class SentryScopeMiddleware:
+    """
+    ✅ v5.5: يُضيف context مخصص لـ Sentry على كل request.
+    يجب أن يكون بعد AuthenticationMiddleware في MIDDLEWARE.
+
+    Tags المضافة:
+    - user.role: دور المستخدم (admin, teacher, parent, student)
+    - school.id: معرف المدرسة
+    - school.name: اسم المدرسة (بالإنجليزية)
+    - user.authenticated: هل مسجّل الدخول
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        try:
+            import sentry_sdk
+
+            with sentry_sdk.configure_scope() as scope:
+                from core.sentry_config import configure_sentry_scope
+
+                configure_sentry_scope(scope, request)
+        except ImportError:
+            pass  # Sentry not installed — skip silently
+        except Exception:
+            pass  # Never block requests due to Sentry errors
+
+        return self.get_response(request)
+
+
 # ── Middleware إجبار ولي الأمر على الموافقة ───────────────
 class ParentConsentMiddleware:
     """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API)"""

@@ -79,6 +79,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
     "core.middleware.CurrentUserMiddleware",
+    "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "core.middleware_rls.RLSMiddleware",  # ✅ v5.2: PostgreSQL RLS — defense-in-depth
     "csp.middleware.CSPMiddleware",

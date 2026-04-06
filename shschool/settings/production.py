@@ -9,28 +9,50 @@ DEBUG = False
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 
 # ══════════════════════════════════════════════════════════════
-# ✅ v5.1: Sentry — مراقبة الأخطاء (PDPPL: send_default_pii=False)
+# ✅ v5.5: Sentry — مراقبة نخبوية (PDPPL + smart sampling + context)
 # ══════════════════════════════════════════════════════════════
 SENTRY_DSN = config("SENTRY_DSN", default="")
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.celery import CeleryIntegration
     from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
+
+    from core.sentry_config import before_send, traces_sampler
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
+            DjangoIntegration(
+                transaction_style="url",        # أسماء transactions واضحة
+                middleware_spans=True,           # قياس أداء كل middleware
+                signals_spans=True,             # قياس أداء signals
+                cache_spans=True,               # قياس أداء cache
+            ),
+            CeleryIntegration(
+                monitor_beat_tasks=True,         # مراقبة Celery Beat
+            ),
             RedisIntegration(),
+            LoggingIntegration(
+                level=None,                      # لا تُسجّل logs كـ events
+                event_level="ERROR",             # سجّل ERROR+ كـ Sentry events
+            ),
         ],
-        traces_sample_rate=0.1,  # 10% من الطلبات للـ performance tracing
-        profiles_sample_rate=0.1,  # 10% من الطلبات للـ profiling
-        send_default_pii=False,  # ← PDPPL: لا بيانات شخصية للطلاب
+        # ── Performance: sampling ذكي بدل flat rate ──
+        traces_sampler=traces_sampler,           # يتخطى health/static/media
+        profiles_sample_rate=0.1,                # 10% profiling
+        # ── Privacy: PDPPL م.13 ──
+        send_default_pii=False,                  # ← لا بيانات شخصية
+        before_send=before_send,                 # ← scrubbing + noise filter
+        # ── Release tracking ──
         environment=config("RAILWAY_ENVIRONMENT", default="production"),
-        # ✅ v5.4: يستخدم PLATFORM_VERSION من base.py بدل hardcoded string
         release=config("APP_VERSION", default=f"v{PLATFORM_VERSION}"),
+        # ── Error grouping ──
+        max_breadcrumbs=50,                      # 50 فتات بدل 100 (توفير حصة)
+        attach_stacktrace=True,                  # stack trace حتى للـ messages
+        # ── Performance budgets ──
+        enable_tracing=True,
     )
 
 # ── التحقق من المفاتيح الحرجة قبل تشغيل الإنتاج ──────────────
