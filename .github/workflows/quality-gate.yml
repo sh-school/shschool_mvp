@@ -68,13 +68,15 @@ jobs:
             pkg-config
 
       - name: تثبيت المتطلبات
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django pytest-cov pytest-asyncio
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
       - name: "pytest + Coverage Gate 85%"
-        run: pytest tests/ -v --junit-xml=test-results.xml
+        run: python -m pytest tests/ -v --junit-xml=test-results.xml
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v4
@@ -143,6 +145,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 
       - name: تثبيت mypy + stubs
         run: |
