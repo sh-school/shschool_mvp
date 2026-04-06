@@ -21,6 +21,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+
     steps:
       - uses: actions/checkout@v4
 
@@ -114,8 +120,6 @@ jobs:
           "
 
       - name: "Preflight: Static files dry-run (test 7)"
-        env:
-          DJANGO_SETTINGS_MODULE: shschool.settings.testing
         run: |
           python manage.py collectstatic --dry-run --noinput 2>&1 | tee /tmp/static_output.txt
           if grep -qi "error\|traceback" /tmp/static_output.txt; then
@@ -125,8 +129,6 @@ jobs:
           echo "PASS: collectstatic dry-run OK"
 
       - name: "Preflight: Migrations consistency check (test 8)"
-        env:
-          DJANGO_SETTINGS_MODULE: shschool.settings.testing
         run: python manage.py makemigrations --check --noinput
 
   # ══════════════════════════════════════════════════════
@@ -162,6 +164,9 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
       - uses: actions/checkout@v4
@@ -179,7 +184,9 @@ jobs:
             libffi-dev shared-mime-info pkg-config
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
 
       - name: Apply migrations
         run: python manage.py migrate --noinput
