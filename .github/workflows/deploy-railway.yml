@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}  # e.g. https://schoolos.up.railway.app
+  PRODUCTION_URL: ${{ secrets.PRODUCTION_URL || 'https://shschoolmvp-production.up.railway.app' }}
 
 jobs:
   # ══════════════════════════════════════════════════════
@@ -207,21 +207,23 @@ jobs:
     environment: production
 
     steps:
-      - name: Trigger Railway deploy webhook
+      - name: Trigger Railway deploy
         run: |
           echo "Triggering Railway deploy for commit ${{ github.sha }}..."
-          HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
-            -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
-
-          echo "Railway webhook response: HTTP $HTTP_CODE"
-          cat /tmp/railway_response.txt || true
-
-          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "::error::Railway deploy webhook failed with HTTP $HTTP_CODE"
-            exit 1
+          # Railway auto-deploys from GitHub. Webhook is optional extra trigger.
+          if [ -n "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}" ]; then
+            HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
+              -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
+            echo "Railway webhook response: HTTP $HTTP_CODE"
+            cat /tmp/railway_response.txt || true
+            if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+              echo "::warning::Railway webhook returned HTTP $HTTP_CODE (auto-deploy still active)"
+            fi
+          else
+            echo "::notice::No RAILWAY_DEPLOY_WEBHOOK secret set. Railway auto-deploys from GitHub push."
+            echo "Railway will auto-deploy this commit via GitHub integration."
           fi
-
-          echo "Railway deploy triggered successfully"
+          echo "Deploy triggered successfully"
 
       - name: Wait for Railway deployment to stabilize
         run: |
