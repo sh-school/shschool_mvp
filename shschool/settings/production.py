@@ -70,6 +70,12 @@ X_FRAME_OPTIONS = "DENY"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 
+# ── Permissions-Policy (set via reverse proxy or django-permissions-policy) ──
+# Recommended header for Nginx/Caddy/Cloudflare:
+#   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+# To enforce in Django: pip install django-permissions-policy, add to MIDDLEWARE,
+# then set PERMISSIONS_POLICY dict here.
+
 # ── Cache ─────────────────────────────────────────────────────
 REDIS_URL = config("REDIS_URL", default="")
 

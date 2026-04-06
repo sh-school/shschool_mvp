@@ -98,7 +98,7 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=xml:coverage.xml",
     "--cov-report=html:htmlcov",
-    "--cov-fail-under=80",
+    "--cov-fail-under=85",
     "--cov-omit=*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*,*/venv/*",
 ]
 
@@ -116,7 +116,7 @@ omit   = [
 ]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 85
 show_missing = true
 skip_covered  = false
 exclude_lines = [

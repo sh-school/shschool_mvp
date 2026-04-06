@@ -1,0 +1,267 @@
+name: Quality Gate — بوابة الجودة الإلزامية
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: quality-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ══════════════════════════════════════════════════════
+  #  1. pytest + Coverage ≥85%
+  # ══════════════════════════════════════════════════════
+  test-coverage:
+    name: pytest — تغطية ≥85%
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+
+      - name: تثبيت المتطلبات
+        run: pip install -r requirements.txt
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: "pytest + Coverage Gate 85%"
+        run: pytest tests/ -v --junit-xml=test-results.xml
+
+      - name: رفع تقارير التغطية
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            test-results.xml
+            coverage.xml
+            htmlcov/
+          retention-days: 14
+
+      - name: ملخص Coverage
+        if: always()
+        run: |
+          echo "## نتائج التغطية — Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          try:
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              rate = float(root.attrib.get('line-rate', 0)) * 100
+              status = 'PASS' if rate >= 85 else 'FAIL'
+              print(f'| التغطية | {rate:.1f}% |')
+              print(f'| الحد الأدنى | 85% |')
+              print(f'| الحالة | {status} |')
+          except Exception as e:
+              print(f'| التغطية | غير متاح ({e}) |')
+          " >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  2. Ruff — lint + format
+  # ══════════════════════════════════════════════════════
+  ruff:
+    name: Ruff — lint + format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت ruff
+        run: pip install ruff==0.4.4
+
+      - name: ruff check
+        run: ruff check . --output-format=github
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+  # ══════════════════════════════════════════════════════
+  #  3. mypy — فحص الأنواع (strict)
+  # ══════════════════════════════════════════════════════
+  mypy:
+    name: mypy — فحص الأنواع
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت mypy + stubs
+        run: |
+          pip install mypy==1.10.0 django-stubs==5.0.2 \
+            djangorestframework-stubs==3.15.0
+
+      - name: فحص الأنواع — core/ و shschool/
+        run: |
+          mypy core/ shschool/ \
+            --ignore-missing-imports \
+            --exclude "migrations|\.venv|manage\.py|conftest" \
+            --django-settings-module=shschool.settings.testing
+
+  # ══════════════════════════════════════════════════════
+  #  4. Radon — تعقيد حلقي (CC > 10 = فشل)
+  # ══════════════════════════════════════════════════════
+  complexity:
+    name: Radon — تعقيد CC ≤ 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: تثبيت radon
+        run: pip install radon==6.0.1
+
+      - name: فحص التعقيد الحلقي (CC > 10 = فشل)
+        run: |
+          # radon CC grades: A(1-5) B(6-10) C(11-15) D(16-20) E(21-25) F(26+)
+          # --min C catches anything with CC > 10
+          result=$(radon cc . \
+            --exclude "migrations,.venv,manage.py,scripts" \
+            --min C \
+            --show-complexity 2>/dev/null)
+          if [ -n "$result" ]; then
+            echo "::error::Functions with Cyclomatic Complexity > 10 detected:"
+            echo "$result"
+            echo ""
+            echo "## تعقيد الكود — فشل" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$result" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "جميع الدوال ضمن الحد المقبول (CC ≤ 10)"
+          echo "## تعقيد الكود — ناجح (CC ≤ 10)" >> $GITHUB_STEP_SUMMARY
+
+  # ══════════════════════════════════════════════════════
+  #  5. detect-secrets — كشف بيانات الاعتماد المسربة
+  # ══════════════════════════════════════════════════════
+  secrets-scan:
+    name: detect-secrets — كشف الأسرار
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: تثبيت detect-secrets
+        run: pip install detect-secrets==1.5.0
+
+      - name: فحص الأسرار المسربة
+        run: |
+          detect-secrets scan \
+            --exclude-files '\.venv|migrations|\.git|staticfiles|htmlcov|node_modules|\.pyc' \
+            --exclude-lines 'SECRET_KEY.*=.*decouple|getenv|config\(' \
+            > .secrets-results.json
+
+          # Check if any real secrets found (not just the metadata)
+          secrets_count=$(python3 -c "
+          import json
+          with open('.secrets-results.json') as f:
+              data = json.load(f)
+          count = sum(len(v) for v in data.get('results', {}).values())
+          print(count)
+          ")
+
+          if [ "$secrets_count" -gt "0" ]; then
+            echo "::error::Potential secrets detected: $secrets_count findings"
+            python3 -c "
+          import json
+          with open('.secrets-results.json') as f:
+              data = json.load(f)
+          for filename, secrets in data.get('results', {}).items():
+              for s in secrets:
+                  print(f'  {filename}:{s[\"line_number\"]} — {s[\"type\"]}')
+          "
+            exit 1
+          fi
+          echo "لم يتم العثور على أسرار مسربة"
+
+  # ══════════════════════════════════════════════════════
+  #  ملخص بوابة الجودة
+  # ══════════════════════════════════════════════════════
+  gate-summary:
+    name: ملخص بوابة الجودة
+    runs-on: ubuntu-latest
+    needs: [test-coverage, ruff, mypy, complexity, secrets-scan]
+    if: always()
+    steps:
+      - name: نتيجة بوابة الجودة
+        run: |
+          echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + Coverage ≥85% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| mypy type checking | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Radon CC ≤ 10 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: فشل إذا فشل أي فحص
+        if: >-
+          needs.test-coverage.result != 'success' ||
+          needs.ruff.result != 'success' ||
+          needs.mypy.result != 'success' ||
+          needs.complexity.result != 'success' ||
+          needs.secrets-scan.result != 'success'
+        run: |
+          echo "::error::Quality Gate FAILED — one or more checks did not pass"
+          exit 1

@@ -1,0 +1,260 @@
+name: Security Scan — OWASP + SAST + CVEs
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 0"  # every Sunday 4:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ══════════════════════════════════════════════════════
+  #  1. OWASP ZAP Baseline Scan (DAST)
+  # ══════════════════════════════════════════════════════
+  zap-scan:
+    name: OWASP ZAP — DAST Baseline
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: ${{ secrets.STAGING_URL || 'https://staging.schoolos.qa' }}
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-a -j"
+          allow_issue_writing: false
+        continue-on-error: true
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-baseline-report
+          path: report_html.html
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════
+  #  2. pip-audit — Known CVEs in Dependencies
+  # ══════════════════════════════════════════════════════
+  pip-audit:
+    name: pip-audit — CVE Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.3
+
+      - name: Scan for known CVEs
+        run: |
+          pip-audit -r requirements.txt \
+            --format json \
+            --output pip-audit-report.json \
+            --desc \
+            --progress-spinner off
+
+      - name: Upload pip-audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════
+  #  3. Bandit — Python SAST
+  # ══════════════════════════════════════════════════════
+  bandit:
+    name: Bandit — SAST Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install bandit
+        run: pip install bandit[toml]==1.7.8
+
+      - name: Bandit SAST scan (fail on HIGH)
+        run: |
+          bandit -r . \
+            -x .venv,migrations,tests,manage.py,scripts \
+            --severity-level high \
+            --confidence-level high \
+            -f json -o bandit-report.json
+
+      - name: Bandit full report (all severities)
+        if: always()
+        run: |
+          bandit -r . \
+            -x .venv,migrations,tests,manage.py,scripts \
+            --severity-level low \
+            --confidence-level low \
+            -f html -o bandit-full-report.html || true
+
+      - name: Upload Bandit Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-reports
+          path: |
+            bandit-report.json
+            bandit-full-report.html
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════
+  #  4. Safety — Vulnerable Dependencies
+  # ══════════════════════════════════════════════════════
+  safety:
+    name: Safety — Dependency Vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install safety
+        run: pip install safety==3.2.3
+
+      - name: Safety check
+        run: |
+          safety check \
+            -r requirements.txt \
+            --output json \
+            --save-json safety-report.json || true
+
+      - name: Check for HIGH severity
+        run: |
+          python3 -c "
+          import json, sys
+          try:
+              with open('safety-report.json') as f:
+                  data = json.load(f)
+              vulns = data.get('vulnerabilities', [])
+              high = [v for v in vulns if v.get('severity', '').upper() in ('HIGH', 'CRITICAL')]
+              if high:
+                  print(f'FAIL: {len(high)} HIGH/CRITICAL vulnerabilities found:')
+                  for v in high:
+                      print(f'  - {v.get(\"package_name\")}: {v.get(\"vulnerability_id\")} ({v.get(\"severity\")})')
+                  sys.exit(1)
+              print(f'PASS: No HIGH/CRITICAL vulnerabilities ({len(vulns)} total findings)')
+          except FileNotFoundError:
+              print('No safety report generated')
+          except (json.JSONDecodeError, KeyError):
+              print('WARNING: Could not parse safety report — manual review needed')
+          "
+
+      - name: Upload Safety Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: safety-report.json
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════
+  #  5. Django Deployment Check
+  # ══════════════════════════════════════════════════════
+  django-check:
+    name: Django — Deployment Security Check
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.production
+      SECRET_KEY: "test-ci-secret-key-not-for-production-use-only-ci"
+      FERNET_KEY: "dGVzdC1jaS1mZXJuZXQta2V5LW5vdC1mb3ItcHJvZHVjdGlvbg=="
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      DATABASE_URL: "postgres://test_user:test_pass@localhost:5432/test_db"
+      EXCEL_PROTECTION_PASSWORD: "ci-test-password"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Django deployment check
+        run: |
+          python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt
+
+      - name: Upload Django Check Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: django-deploy-check
+          path: django-deploy-check.txt
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════
+  #  Summary
+  # ══════════════════════════════════════════════════════
+  summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [pip-audit, bandit, safety, django-check]
+    if: always()
+    steps:
+      - name: Security scan results
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| pip-audit (CVEs) | ${{ needs.pip-audit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Bandit (SAST) | ${{ needs.bandit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Safety (deps) | ${{ needs.safety.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Django --deploy | ${{ needs.django-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if any critical check failed
+        run: |
+          if [[ "${{ needs.pip-audit.result }}" == "failure" ]] || \
+             [[ "${{ needs.bandit.result }}" == "failure" ]]; then
+            echo "CRITICAL: Security checks failed — blocking merge"
+            exit 1
+          fi
