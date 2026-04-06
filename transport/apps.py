@@ -15,6 +15,12 @@ class TransportConfig(AppConfig):
             url_prefix="/transport/",
             icon="bi-bus-front",
             allowed_roles={"principal", "vice_admin", "bus_supervisor", "transport_officer"},
-            sidebar_roles={"principal", "vice_admin", "bus_supervisor", "transport_officer", "parent"},
+            sidebar_roles={
+                "principal",
+                "vice_admin",
+                "bus_supervisor",
+                "transport_officer",
+                "parent",
+            },
             sort_order=60,
         )

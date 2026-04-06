@@ -94,7 +94,9 @@ def _inject_fonts(html_str: str) -> str:
 # ── WeasyPrint: حقن CSS الهيدر/الفوتر على كل صفحة ───────────────────────
 
 
-def _inject_wp_page_header_css(html_str: str, school: str, title: str, paper_size: str = "A4") -> str:
+def _inject_wp_page_header_css(
+    html_str: str, school: str, title: str, paper_size: str = "A4"
+) -> str:
     """
     يحقن:
     1. CSS — @page مع @top-center / @bottom-*
@@ -617,7 +619,12 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
                         pw_margin = (
                             {"top": "2cm", "bottom": "1.5cm", "left": "1.5cm", "right": "1.5cm"}
                             if paper_size == "A3"
-                            else {"top": "2.8cm", "bottom": "2.2cm", "left": "1.5cm", "right": "1.5cm"}
+                            else {
+                                "top": "2.8cm",
+                                "bottom": "2.2cm",
+                                "left": "1.5cm",
+                                "right": "1.5cm",
+                            }
                         )
                         _pdf_result["bytes"] = page.pdf(
                             format=paper_size,
@@ -671,7 +678,11 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
             xhtml_page_css = "<style>@page { size: A3 landscape; margin: 2cm 1.5cm; }</style>\n"
             if "<head>" in xhtml_html.lower():
                 xhtml_html = re.sub(
-                    r"(<head[^>]*>)", r"\1\n" + xhtml_page_css, xhtml_html, count=1, flags=re.IGNORECASE
+                    r"(<head[^>]*>)",
+                    r"\1\n" + xhtml_page_css,
+                    xhtml_html,
+                    count=1,
+                    flags=re.IGNORECASE,
                 )
             else:
                 xhtml_html = xhtml_page_css + xhtml_html

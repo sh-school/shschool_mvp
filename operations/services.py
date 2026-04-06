@@ -455,9 +455,7 @@ class ScheduleService:
             return 0
 
         # bulk_create مع ignore_conflicts — يتجاهل أي تكرار بسبب UniqueConstraint
-        created = Session.objects.bulk_create(
-            sessions_to_create, ignore_conflicts=True
-        )
+        created = Session.objects.bulk_create(sessions_to_create, ignore_conflicts=True)
         count = len(created)
 
         if count > 0:
@@ -500,6 +498,7 @@ class ScheduleService:
     def ensure_today_sessions(school: School) -> int:
         """Alias — يستدعي ensure_sessions_for_date لتاريخ اليوم."""
         from django.utils import timezone
+
         return ScheduleService.ensure_sessions_for_date(school, timezone.localdate())
 
     @staticmethod
@@ -548,7 +547,10 @@ class ScheduleService:
         )
         logger.info(
             "حصة جديدة في الجدول: %s — معلم=%s يوم=%d حصة=%d",
-            slot.pk, teacher.full_name, day_of_week, period_number,
+            slot.pk,
+            teacher.full_name,
+            day_of_week,
+            period_number,
         )
         return slot
 
@@ -592,7 +594,9 @@ class ScheduleService:
         )
         logger.info(
             "تفريغ جديد: معلم=%s نوع=%s يوم=%d بواسطة=%s",
-            teacher.full_name, exemption_type, day_of_week,
+            teacher.full_name,
+            exemption_type,
+            day_of_week,
             created_by.full_name if created_by else "—",
         )
         return exemption
@@ -791,7 +795,11 @@ class SubstituteService:
         يضمن أن الحصة اليومية تعكس المعلم الفعلي.
         """
         assignment = SubstituteService.assign_substitute(
-            absence, slot, substitute, assigned_by, notes,
+            absence,
+            slot,
+            substitute,
+            assigned_by,
+            notes,
         )
         # تحديث Session اليومية إذا وُجدت
         Session.objects.filter(
@@ -830,7 +838,8 @@ class FreeSlotService:
         # جميع معلمي المدرسة
         teacher_ids = list(
             Membership.objects.filter(
-                school=school, is_active=True,
+                school=school,
+                is_active=True,
                 role__name__in=("teacher", "coordinator", "ese_teacher"),
             ).values_list("user_id", flat=True)
         )
@@ -838,7 +847,9 @@ class FreeSlotService:
         # بناء مجموعة الحصص المشغولة لكل معلم
         busy = {}
         slots = ScheduleSlot.objects.filter(
-            school=school, academic_year=academic_year, is_active=True,
+            school=school,
+            academic_year=academic_year,
+            is_active=True,
         ).values_list("teacher_id", "day_of_week", "period_number")
 
         for tid, day, period in slots:
@@ -851,17 +862,23 @@ class FreeSlotService:
             for day in range(5):  # 0=أحد → 4=خميس
                 for period in range(1, max_periods + 1):
                     if (day, period) not in teacher_busy:
-                        records.append(FreeSlotRegistry(
-                            teacher_id=tid,
-                            school=school,
-                            day_of_week=day,
-                            period_number=period,
-                            academic_year=academic_year,
-                            is_available=True,
-                        ))
+                        records.append(
+                            FreeSlotRegistry(
+                                teacher_id=tid,
+                                school=school,
+                                day_of_week=day,
+                                period_number=period,
+                                academic_year=academic_year,
+                                is_available=True,
+                            )
+                        )
 
         FreeSlotRegistry.objects.bulk_create(records, batch_size=500)
-        logger.info("FreeSlotService.build_registry: created %d entries for school %s", len(records), school.code)
+        logger.info(
+            "FreeSlotService.build_registry: created %d entries for school %s",
+            len(records),
+            school.code,
+        )
         return len(records)
 
     @staticmethod
@@ -872,7 +889,10 @@ class FreeSlotService:
     ) -> QuerySet:
         """حصص المعلم الفارغة — مرتبة حسب اليوم والحصة."""
         return FreeSlotRegistry.objects.filter(
-            teacher=teacher, school=school, academic_year=academic_year, is_available=True,
+            teacher=teacher,
+            school=school,
+            academic_year=academic_year,
+            is_available=True,
         ).order_by("day_of_week", "period_number")
 
     @staticmethod
@@ -907,7 +927,9 @@ class FreeSlotService:
             else:
                 # fallback: اسم نصي
                 dept_teacher_ids = Membership.objects.filter(
-                    school=school, is_active=True, department_obj__name=department,
+                    school=school,
+                    is_active=True,
+                    department_obj__name=department,
                 ).values_list("user_id", flat=True)
             teachers = teachers.filter(id__in=dept_teacher_ids)
 
@@ -918,13 +940,19 @@ class SwapService:
     """خدمة تبديل الحصص بين المعلمين."""
 
     # ── ثوابت القوانين ────────────────────────────────────────────
-    MIN_ADVANCE_HOURS = 24       # القانون 6: حد أدنى 24 ساعة مسبقاً
-    MAX_ADVANCE_DAYS = 14        # القانون 8: حد أقصى 14 يوم مسبقاً
-    EXPIRY_HOURS = 48            # القانون 7: انتهاء صلاحية بعد 48 ساعة
+    MIN_ADVANCE_HOURS = 24  # القانون 6: حد أدنى 24 ساعة مسبقاً
+    MAX_ADVANCE_DAYS = 14  # القانون 8: حد أقصى 14 يوم مسبقاً
+    EXPIRY_HOURS = 48  # القانون 7: انتهاء صلاحية بعد 48 ساعة
     MAX_PENDING_PER_TEACHER = 2  # القانون 8: حد أقصى طلبين معلّقين
-    MAX_EXECUTED_PER_MONTH = 4   # القانون 8: حد أقصى 4 تبديلات شهرياً
+    MAX_EXECUTED_PER_MONTH = 4  # القانون 8: حد أقصى 4 تبديلات شهرياً
     # مواد تُعامل كحصص مزدوجة (SC7)
-    DOUBLE_PERIOD_SUBJECTS = {"فنون بصرية", "الفنون البصرية", "تكنولوجيا", "التكنولوجيا", "تكنولوجيا المعلومات"}
+    DOUBLE_PERIOD_SUBJECTS = {
+        "فنون بصرية",
+        "الفنون البصرية",
+        "تكنولوجيا",
+        "التكنولوجيا",
+        "تكنولوجيا المعلومات",
+    }
 
     # ── التحقق الشامل من قوانين التبديل ───────────────────────────
 
@@ -967,7 +995,9 @@ class SwapService:
         else:
             # حساب 24 ساعة من الآن
             swap_datetime = datetime.combine(swap_date, slot_a.start_time)
-            swap_datetime = tz.make_aware(swap_datetime) if tz.is_naive(swap_datetime) else swap_datetime
+            swap_datetime = (
+                tz.make_aware(swap_datetime) if tz.is_naive(swap_datetime) else swap_datetime
+            )
             if swap_datetime - now < timedelta(hours=SwapService.MIN_ADVANCE_HOURS):
                 errors.append("يجب تقديم الطلب قبل 24 ساعة على الأقل من موعد الحصة")
 
@@ -984,11 +1014,13 @@ class SwapService:
             errors.append("يوجد طلب تبديل معلّق على هذه الحصة بالفعل")
 
         # ── القانون 3: لا طلب معلّق على حصة ب ─────────────────────
-        pending_on_b = TeacherSwap.objects.filter(
-            status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
-        ).filter(
-            models.Q(slot_a=slot_b) | models.Q(slot_b=slot_b)
-        ).exists()
+        pending_on_b = (
+            TeacherSwap.objects.filter(
+                status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
+            )
+            .filter(models.Q(slot_a=slot_b) | models.Q(slot_b=slot_b))
+            .exists()
+        )
         if pending_on_b:
             errors.append("حصة المعلم الآخر عليها طلب تبديل معلّق")
 
@@ -998,7 +1030,9 @@ class SwapService:
             status__in=("pending_b", "accepted_b", "pending_coordinator", "pending_vp"),
         ).count()
         if pending_count >= SwapService.MAX_PENDING_PER_TEACHER:
-            errors.append(f"لديك {pending_count} طلبات معلّقة — الحد الأقصى {SwapService.MAX_PENDING_PER_TEACHER}")
+            errors.append(
+                f"لديك {pending_count} طلبات معلّقة — الحد الأقصى {SwapService.MAX_PENDING_PER_TEACHER}"
+            )
 
         # ── القانون 8b: حد التبديلات الشهرية (4) ──────────────────
         month_start = swap_date.replace(day=1)
@@ -1010,10 +1044,12 @@ class SwapService:
             swap_date_a__lt=next_month,
         ).count()
         if executed_this_month >= SwapService.MAX_EXECUTED_PER_MONTH:
-            errors.append(f"وصلت للحد الأقصى ({SwapService.MAX_EXECUTED_PER_MONTH} تبديلات) هذا الشهر")
+            errors.append(
+                f"وصلت للحد الأقصى ({SwapService.MAX_EXECUTED_PER_MONTH} تبديلات) هذا الشهر"
+            )
 
         # ── القانون 5: حصص مزدوجة تُبدّل كوحدة ───────────────────
-        subj_name = (slot_a.subject.name_ar if slot_a.subject else "")
+        subj_name = slot_a.subject.name_ar if slot_a.subject else ""
         if subj_name in SwapService.DOUBLE_PERIOD_SUBJECTS:
             # ابحث عن الحصة المتتالية لنفس المعلم/الفصل/المادة/اليوم
             adjacent = ScheduleSlot.objects.filter(
@@ -1051,13 +1087,17 @@ class SwapService:
         معلمي نفس الفصل المتاحين للتبديل مع حصة معيّنة.
         القيد: التبديل مع معلمي نفس الفصل فقط.
         """
-        same_class_slots = ScheduleSlot.objects.filter(
-            school=school,
-            class_group=slot.class_group,
-            is_active=True,
-        ).exclude(
-            teacher=teacher,
-        ).select_related("teacher", "class_group", "subject")
+        same_class_slots = (
+            ScheduleSlot.objects.filter(
+                school=school,
+                class_group=slot.class_group,
+                is_active=True,
+            )
+            .exclude(
+                teacher=teacher,
+            )
+            .select_related("teacher", "class_group", "subject")
+        )
 
         # تصفية: المعلم ب يجب أن يكون فارغاً في وقت الحصة أ
         options = []
@@ -1078,11 +1118,13 @@ class SwapService:
             ).exists()
 
             if not b_busy_at_a and not a_busy_at_b:
-                options.append({
-                    "teacher": candidate_slot.teacher,
-                    "slot": candidate_slot,
-                    "same_subject": candidate_slot.subject == slot.subject,
-                })
+                options.append(
+                    {
+                        "teacher": candidate_slot.teacher,
+                        "slot": candidate_slot,
+                        "same_subject": candidate_slot.subject == slot.subject,
+                    }
+                )
         return options
 
     @staticmethod
@@ -1126,17 +1168,25 @@ class SwapService:
         )
         # إشعار المعلم ب
         SwapService._notify(
-            swap, teacher_b,
+            swap,
+            teacher_b,
             title=f"طلب تبديل حصة من {teacher_a.full_name}",
             body=f"يطلب منك تبديل حصته ({slot_a.subject or 'حصة'}) بحصتك ({slot_b.subject or 'حصة'})",
             event_type="swap_request",
         )
-        logger.info("SwapService: created swap %s (%s <-> %s)", swap.pk, teacher_a.full_name, teacher_b.full_name)
+        logger.info(
+            "SwapService: created swap %s (%s <-> %s)",
+            swap.pk,
+            teacher_a.full_name,
+            teacher_b.full_name,
+        )
         return swap
 
     @staticmethod
     @transaction.atomic
-    def respond_to_swap(swap: TeacherSwap, accepted: bool, rejection_reason: str = "") -> TeacherSwap:
+    def respond_to_swap(
+        swap: TeacherSwap, accepted: bool, rejection_reason: str = ""
+    ) -> TeacherSwap:
         """المعلم ب يقبل أو يرفض."""
         from django.utils import timezone as tz
 
@@ -1151,7 +1201,8 @@ class SwapService:
             else:
                 swap.status = "pending_coordinator"
             SwapService._notify(
-                swap, swap.teacher_a,
+                swap,
+                swap.teacher_a,
                 title=f"{swap.teacher_b.full_name} وافق على التبديل",
                 body="بانتظار موافقة المنسق",
                 event_type="swap_response",
@@ -1160,7 +1211,8 @@ class SwapService:
             swap.status = "rejected_b"
             swap.rejection_reason = rejection_reason
             SwapService._notify(
-                swap, swap.teacher_a,
+                swap,
+                swap.teacher_a,
                 title=f"{swap.teacher_b.full_name} رفض التبديل",
                 body=rejection_reason or "يمكنك اختيار معلم آخر",
                 event_type="swap_response",
@@ -1170,7 +1222,12 @@ class SwapService:
 
     @staticmethod
     @transaction.atomic
-    def approve_swap(swap: TeacherSwap, approved_by: CustomUser, approved: bool = True, rejection_reason: str = "") -> TeacherSwap:
+    def approve_swap(
+        swap: TeacherSwap,
+        approved_by: CustomUser,
+        approved: bool = True,
+        rejection_reason: str = "",
+    ) -> TeacherSwap:
         """المنسق أو النائب يوافق/يرفض."""
         from django.utils import timezone as tz
 
@@ -1191,7 +1248,8 @@ class SwapService:
             # إشعار الطرفين
             for t in (swap.teacher_a, swap.teacher_b):
                 SwapService._notify(
-                    swap, t,
+                    swap,
+                    t,
                     title="تم رفض طلب التبديل",
                     body=rejection_reason or "تم رفض الطلب من الإدارة",
                     event_type="swap_response",
@@ -1214,13 +1272,17 @@ class SwapService:
 
         # تحديث Session اليومية إذا وُجدت
         Session.objects.filter(
-            school=swap.school, teacher=swap.teacher_a,
-            date=swap.swap_date_a, start_time=slot_a.start_time,
+            school=swap.school,
+            teacher=swap.teacher_a,
+            date=swap.swap_date_a,
+            start_time=slot_a.start_time,
         ).update(teacher=swap.teacher_b)
 
         Session.objects.filter(
-            school=swap.school, teacher=swap.teacher_b,
-            date=swap.swap_date_b, start_time=slot_b.start_time,
+            school=swap.school,
+            teacher=swap.teacher_b,
+            date=swap.swap_date_b,
+            start_time=slot_b.start_time,
         ).update(teacher=swap.teacher_a)
 
         swap.status = "executed"
@@ -1230,7 +1292,8 @@ class SwapService:
         # إشعار الطرفين
         for t in (swap.teacher_a, swap.teacher_b):
             SwapService._notify(
-                swap, t,
+                swap,
+                t,
                 title="تم تنفيذ التبديل بنجاح",
                 body=f"التبديل بين {swap.teacher_a.full_name} و {swap.teacher_b.full_name} تم",
                 event_type="swap_approved",
@@ -1306,7 +1369,8 @@ class SwapService:
         for t in (swap.teacher_a, swap.teacher_b):
             if t != cancelled_by:
                 SwapService._notify(
-                    swap, t,
+                    swap,
+                    t,
                     title="تم إلغاء طلب التبديل",
                     body=f"قام {cancelled_by.full_name} بإلغاء الطلب",
                     event_type="swap_cancelled",
@@ -1337,7 +1401,8 @@ class SwapService:
             swap.notes = "انتهت صلاحية الطلب — لم يرد المعلم خلال 48 ساعة"
             swap.save(update_fields=["status", "notes", "updated_at"])
             SwapService._notify(
-                swap, swap.teacher_a,
+                swap,
+                swap.teacher_a,
                 title="انتهت صلاحية طلب التبديل",
                 body=f"لم يرد {swap.teacher_b.full_name} خلال 48 ساعة — يمكنك تقديم طلب جديد",
                 event_type="swap_expired",
@@ -1351,6 +1416,7 @@ class SwapService:
         """إرسال إشعار — يفشل بصمت إذا نظام الإشعارات غير متاح."""
         try:
             from notifications.hub import NotificationHub
+
             NotificationHub.dispatch(
                 event_type=event_type,
                 school=swap.school,
@@ -1385,8 +1451,10 @@ class CompensatoryService:
 
         # حصص المعلم الحرة في هذا اليوم
         free = FreeSlotRegistry.objects.filter(
-            teacher=teacher, school=school,
-            day_of_week=day, academic_year=academic_year,
+            teacher=teacher,
+            school=school,
+            day_of_week=day,
+            academic_year=academic_year,
             is_available=True,
         ).values_list("period_number", flat=True)
 
@@ -1434,13 +1502,14 @@ class CompensatoryService:
             dept_obj = teacher.department_obj
             if dept_obj:
                 coordinators = dept_obj.memberships.filter(
-                    is_active=True, role__name="coordinator",
+                    is_active=True,
+                    role__name="coordinator",
                 ).values_list("user_id", flat=True)
             else:
                 coordinators = []
             if coordinators:
-
                 from core.models import CustomUser
+
                 coord_users = list(CustomUser.objects.filter(pk__in=coordinators))
                 if coord_users:
                     NotificationHub.dispatch(
@@ -1454,7 +1523,9 @@ class CompensatoryService:
         except (ImportError, OSError):
             pass
 
-        logger.info("CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name)
+        logger.info(
+            "CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name
+        )
         return comp
 
     @staticmethod
@@ -1479,9 +1550,12 @@ class CompensatoryService:
 
             # إنشاء Session فعلية
             from operations.models import TimeSlotConfig
+
             time_config = TimeSlotConfig.objects.filter(
-                school=comp.school, period_number=comp.compensatory_period,
-                day_type="regular", is_break=False,
+                school=comp.school,
+                period_number=comp.compensatory_period,
+                day_type="regular",
+                is_break=False,
             ).first()
 
             if time_config:
@@ -1505,8 +1579,10 @@ class CompensatoryService:
             our_day = mapping.get(comp.compensatory_date.weekday(), -1)
             if our_day >= 0:
                 FreeSlotRegistry.objects.filter(
-                    teacher=comp.teacher, school=comp.school,
-                    day_of_week=our_day, period_number=comp.compensatory_period,
+                    teacher=comp.teacher,
+                    school=comp.school,
+                    day_of_week=our_day,
+                    period_number=comp.compensatory_period,
                 ).update(is_available=False, reserved_for=comp)
         else:
             comp.status = "cancelled"
@@ -1517,6 +1593,7 @@ class CompensatoryService:
         # إشعار المعلم
         try:
             from notifications.hub import NotificationHub
+
             status_text = "تمت الموافقة" if approved else "تم الرفض"
             NotificationHub.dispatch(
                 event_type="compensatory",
@@ -1545,9 +1622,11 @@ class CompensatoryService:
     def expire_overdue(school: School) -> int:
         """إلغاء الحصص التعويضية التي انتهت مهلتها (أكثر من أسبوعين)."""
         from datetime import timedelta
+
         cutoff = date.today() - timedelta(days=14)
         updated = CompensatorySession.objects.filter(
-            school=school, status="pending",
+            school=school,
+            status="pending",
             created_at__date__lt=cutoff,
         ).update(status="expired")
         if updated:
@@ -1592,12 +1671,14 @@ class CapacityCheckService:
             thu_max = get_max_periods_for_day(4, level)
             weekly_capacity = 4 * 7 + thu_max
             if demand > weekly_capacity:
-                overcapacity.append({
-                    "class_id": cid,
-                    "demand": demand,
-                    "capacity": weekly_capacity,
-                    "overflow": demand - weekly_capacity,
-                })
+                overcapacity.append(
+                    {
+                        "class_id": cid,
+                        "demand": demand,
+                        "capacity": weekly_capacity,
+                        "overflow": demand - weekly_capacity,
+                    }
+                )
         return overcapacity
 
 
@@ -1626,8 +1707,9 @@ class TeacherLoadService:
         from collections import Counter
 
         slot_counts = Counter(
-            ScheduleSlot.objects.filter(school=school, academic_year=year, is_active=True)
-            .values_list("teacher_id", flat=True)
+            ScheduleSlot.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).values_list("teacher_id", flat=True)
         )
         month_start = date.today().replace(day=1)
         sub_counts = Counter(
@@ -1648,20 +1730,21 @@ class TeacherLoadService:
             weekly = slot_counts.get(t.id, 0)
             subs = sub_counts.get(t.id, 0)
             days = [daily_counts.get((tid, d), 0) for d in range(5)]
-            teacher_data.append({
-                "teacher": t,
-                "weekly": weekly,
-                "subs": subs,
-                "max_daily": max(days) if days else 0,
-                "min_daily": min(d for d in days if d > 0) if any(d > 0 for d in days) else 0,
-                "free_days": sum(1 for d in days if d == 0),
-                "days": days,
-            })
+            teacher_data.append(
+                {
+                    "teacher": t,
+                    "weekly": weekly,
+                    "subs": subs,
+                    "max_daily": max(days) if days else 0,
+                    "min_daily": min(d for d in days if d > 0) if any(d > 0 for d in days) else 0,
+                    "free_days": sum(1 for d in days if d == 0),
+                    "days": days,
+                }
+            )
 
         teacher_data.sort(key=lambda x: -x["weekly"])
         avg_weekly = (
-            sum(d["weekly"] for d in teacher_data) / len(teacher_data)
-            if teacher_data else 0
+            sum(d["weekly"] for d in teacher_data) / len(teacher_data) if teacher_data else 0
         )
 
         return {

@@ -32,15 +32,27 @@ def normalize_arabic(text):
     text = unicodedata.normalize("NFKC", text)
     # استبدالات إضافية للحروف العربية الخاصة
     replacements = {
-        "\ufefb": "لا", "\ufefc": "لا",  # لام ألف
-        "\ufef7": "لأ", "\ufef8": "لأ",  # لام ألف همزة
-        "\ufef9": "لإ", "\ufefa": "لإ",  # لام ألف همزة تحت
-        "\ufef5": "لآ", "\ufef6": "لآ",  # لام ألف مد
+        "\ufefb": "لا",
+        "\ufefc": "لا",  # لام ألف
+        "\ufef7": "لأ",
+        "\ufef8": "لأ",  # لام ألف همزة
+        "\ufef9": "لإ",
+        "\ufefa": "لإ",  # لام ألف همزة تحت
+        "\ufef5": "لآ",
+        "\ufef6": "لآ",  # لام ألف مد
         "\ufdf2": "الله",
-        "ﺷ": "ش", "ﺵ": "ش", "ﺶ": "ش",
+        "ﺷ": "ش",
+        "ﺵ": "ش",
+        "ﺶ": "ش",
         "ﺸ": "ش",
-        "ﺣ": "ح", "ﺤ": "ح", "ﺡ": "ح", "ﺢ": "ح",
-        "ﺠ": "ج", "ﺟ": "ج", "ﺝ": "ج", "ﺞ": "ج",
+        "ﺣ": "ح",
+        "ﺤ": "ح",
+        "ﺡ": "ح",
+        "ﺢ": "ح",
+        "ﺠ": "ج",
+        "ﺟ": "ج",
+        "ﺝ": "ج",
+        "ﺞ": "ج",
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
@@ -49,6 +61,8 @@ def normalize_arabic(text):
     # تنظيف المسافات
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
 from operations.models import (
     ScheduleSlot,
     Subject,
@@ -245,6 +259,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         import io
         import sys
+
         self.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_buffering=True)
 
         pdf_path = options["pdf"]
@@ -252,8 +267,10 @@ class Command(BaseCommand):
         validate_only = options["validate_only"]
 
         mode_label = (
-            "وضع التحقق فقط" if validate_only
-            else "وضع المعاينة" if dry_run
+            "وضع التحقق فقط"
+            if validate_only
+            else "وضع المعاينة"
+            if dry_run
             else "تنظيف + إعادة حقن"
         )
 
@@ -289,9 +306,7 @@ class Command(BaseCommand):
             teachers_data, teacher_id_map, classgroup_map
         )
         self.stdout.write(f"   {len(schedule_rows)} حصة جاهزة للحقن")
-        self.stdout.write(
-            f"   {len(assignment_map)} توزيع (معلم+مادة+شعبة)"
-        )
+        self.stdout.write(f"   {len(assignment_map)} توزيع (معلم+مادة+شعبة)")
         if errors:
             for e in errors:
                 self.stdout.write(self.style.ERROR(f"   {e}"))
@@ -299,9 +314,11 @@ class Command(BaseCommand):
         # ─── 4a+. ملء الحصص المزدوجة المفقودة (merged cells) ───
         schedule_rows, filled_count = self._fill_double_periods(schedule_rows, cg_grade_map)
         if filled_count:
-            self.stdout.write(self.style.SUCCESS(
-                f"   [+] {filled_count} حصة مزدوجة مُكتملة (كانت مفقودة بسبب merged cells)"
-            ))
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"   [+] {filled_count} حصة مزدوجة مُكتملة (كانت مفقودة بسبب merged cells)"
+                )
+            )
 
         # ─── 4b. التحقق من قيد الخميس (إعدادي=6، ثانوي=7) ───
         thursday_warnings = []
@@ -314,9 +331,11 @@ class Command(BaseCommand):
                         f"معلم={row['teacher_id'][:8]}.. مادة={row['subject_name']}"
                     )
         if thursday_warnings:
-            self.stdout.write(self.style.WARNING(
-                f"\n[تحذير] {len(thursday_warnings)} حصة خميس ح7 لشعب إعدادية (الحد 6 حصص):"
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\n[تحذير] {len(thursday_warnings)} حصة خميس ح7 لشعب إعدادية (الحد 6 حصص):"
+                )
+            )
             for w in thursday_warnings:
                 self.stdout.write(self.style.WARNING(w))
 
@@ -326,13 +345,13 @@ class Command(BaseCommand):
         if validate_only:
             self.stdout.write("\n" + "=" * 60)
             if total_errors == 0 and total_warnings == 0:
-                self.stdout.write(self.style.SUCCESS(
-                    "  [OK] التحقق ناجح — صفر اخطاء، صفر تحذيرات"
-                ))
+                self.stdout.write(self.style.SUCCESS("  [OK] التحقق ناجح — صفر اخطاء، صفر تحذيرات"))
             else:
-                self.stdout.write(self.style.WARNING(
-                    f"  نتيجة التحقق: {total_errors} خطأ، {total_warnings} تحذير"
-                ))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  نتيجة التحقق: {total_errors} خطأ، {total_warnings} تحذير"
+                    )
+                )
             self.stdout.write(f"  الحصص: {len(schedule_rows)}")
             self.stdout.write(f"  التوزيعات: {len(assignment_map)}")
             self.stdout.write("=" * 60)
@@ -382,9 +401,7 @@ class Command(BaseCommand):
                 subj_name, cg_id, teacher_uid = key
                 subject = subject_objs.get(subj_name)
                 if not subject:
-                    self.stdout.write(
-                        self.style.ERROR(f"   مادة غير موجودة: {subj_name}")
-                    )
+                    self.stdout.write(self.style.ERROR(f"   مادة غير موجودة: {subj_name}"))
                     continue
                 sca = SubjectClassAssignment.objects.create(
                     school=school,
@@ -423,9 +440,9 @@ class Command(BaseCommand):
             self.stdout.write("\nإنشاء ScheduleSlot...")
             slots = []
             seen_teacher = set()  # (teacher, day, period)
-            seen_class = set()    # (class, day, period)
+            seen_class = set()  # (class, day, period)
             skipped = 0
-            skipped_details = []   # تفاصيل الحصص المتخطاة (تقسيم شعبة)
+            skipped_details = []  # تفاصيل الحصص المتخطاة (تقسيم شعبة)
             thursday_prep_skipped = 0  # حصص خميس ح7 إعدادي محذوفة
             for row in schedule_rows:
                 t_key = (row["teacher_id"], row["day_idx"], row["period"])
@@ -472,9 +489,9 @@ class Command(BaseCommand):
             if skipped:
                 self.stdout.write(f"   تخطي {skipped} تكرار (تقسيم شعبة)")
             if thursday_prep_skipped:
-                self.stdout.write(self.style.WARNING(
-                    f"   تخطي {thursday_prep_skipped} حصة خميس ح7 إعدادي"
-                ))
+                self.stdout.write(
+                    self.style.WARNING(f"   تخطي {thursday_prep_skipped} حصة خميس ح7 إعدادي")
+                )
             if skipped_details:
                 self.stdout.write("\n   تفاصيل الحصص المتخطاة:")
                 for detail in skipped_details:
@@ -612,9 +629,7 @@ class Command(BaseCommand):
                 teacher_uid = teacher_id_map.get(norm_platform)
 
             if not teacher_uid:
-                errors.append(
-                    f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}')"
-                )
+                errors.append(f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}')")
                 continue
 
             for slot in t["schedule"]:
@@ -638,18 +653,14 @@ class Command(BaseCommand):
                             subject_name = v
                             break
                 if not subject_name:
-                    errors.append(
-                        f"مادة غير معروفة: '{subject_raw}' ({pdf_name}, ص{t['page']})"
-                    )
+                    errors.append(f"مادة غير معروفة: '{subject_raw}' ({pdf_name}, ص{t['page']})")
                     continue
 
                 # حل الشعبة
                 section = slot["section"]
                 cg_id = classgroup_map.get(section)
                 if not cg_id:
-                    errors.append(
-                        f"شعبة غير موجودة: '{section}' ({pdf_name})"
-                    )
+                    errors.append(f"شعبة غير موجودة: '{section}' ({pdf_name})")
                     continue
 
                 schedule_rows.append(
@@ -704,17 +715,19 @@ class Command(BaseCommand):
             teacher_day_periods[key_td].add(row["period"])
 
             if row["subject_name"] in DOUBLE_PERIOD_SUBJECTS:
-                key_tsd = (row["teacher_id"], row["classgroup_id"], row["subject_name"], row["day_idx"])
+                key_tsd = (
+                    row["teacher_id"],
+                    row["classgroup_id"],
+                    row["subject_name"],
+                    row["day_idx"],
+                )
                 teacher_subject_day[key_tsd].append(row["period"])
 
         # ترتيب: المواد الأقل حصصاً أولاً (IT/CS قبل ART)
         subject_total = defaultdict(int)
         for key, plist in teacher_subject_day.items():
             subject_total[key[2]] += len(plist)
-        sorted_items = sorted(
-            teacher_subject_day.items(),
-            key=lambda x: subject_total[x[0][2]]
-        )
+        sorted_items = sorted(teacher_subject_day.items(), key=lambda x: subject_total[x[0][2]])
 
         filled = []
         for key, periods in sorted_items:
@@ -735,14 +748,18 @@ class Command(BaseCommand):
 
             candidate = None
             # أولاً: الحصة السابقة
-            if (existing_period - 1 >= 1
-                    and (existing_period - 1) not in class_occupied
-                    and (existing_period - 1) not in teacher_busy):
+            if (
+                existing_period - 1 >= 1
+                and (existing_period - 1) not in class_occupied
+                and (existing_period - 1) not in teacher_busy
+            ):
                 candidate = existing_period - 1
             # ثانياً: الحصة التالية
-            elif (existing_period + 1 <= max_period
-                    and (existing_period + 1) not in class_occupied
-                    and (existing_period + 1) not in teacher_busy):
+            elif (
+                existing_period + 1 <= max_period
+                and (existing_period + 1) not in class_occupied
+                and (existing_period + 1) not in teacher_busy
+            ):
                 candidate = existing_period + 1
 
             if candidate:

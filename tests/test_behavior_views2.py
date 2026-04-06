@@ -56,12 +56,17 @@ def teacher_student_link(db, school, teacher_user, student_user):
     from datetime import time
 
     from operations.models import ScheduleSlot
+
     cg = ClassGroupFactory(school=school)
     StudentEnrollmentFactory(student=student_user, class_group=cg)
     ScheduleSlot.objects.create(
-        school=school, teacher=teacher_user, class_group=cg,
-        day_of_week=0, period_number=1,
-        start_time=time(7, 30), end_time=time(8, 15),
+        school=school,
+        teacher=teacher_user,
+        class_group=cg,
+        day_of_week=0,
+        period_number=1,
+        start_time=time(7, 30),
+        end_time=time(8, 15),
     )
     return cg
 
@@ -138,13 +143,21 @@ class TestBehaviorDashboardExtended:
         resp = client.get("/behavior/dashboard/")
         assert resp.context["is_committee"] is False
 
-    def test_dashboard_with_infractions(self, client_as, teacher_user, school, behavior_infraction, teacher_student_link):
+    def test_dashboard_with_infractions(
+        self, client_as, teacher_user, school, behavior_infraction, teacher_student_link
+    ):
         client = client_as(teacher_user)
         resp = client.get("/behavior/dashboard/")
         assert resp.context["total_deducted"] > 0
 
     def test_dashboard_with_recovery(
-        self, client_as, teacher_user, school, behavior_infraction, principal_user, teacher_student_link
+        self,
+        client_as,
+        teacher_user,
+        school,
+        behavior_infraction,
+        principal_user,
+        teacher_student_link,
     ):
         BehaviorPointRecovery.objects.create(
             infraction=behavior_infraction,
@@ -341,7 +354,9 @@ class TestStudentBehaviorProfileExtended:
         resp = client.get(f"/behavior/student/{uuid.uuid4()}/")
         assert resp.status_code == 404
 
-    def test_profile_by_level_counts(self, client_as, principal_user, school, student_user, teacher_user):
+    def test_profile_by_level_counts(
+        self, client_as, principal_user, school, student_user, teacher_user
+    ):
         BehaviorInfractionFactory(
             school=school,
             student=student_user,
@@ -363,7 +378,9 @@ class TestStudentBehaviorProfileExtended:
         assert by_level[1] == 1
         assert by_level[2] == 1
 
-    def test_profile_status_color_yellow(self, client_as, principal_user, school, student_user, teacher_user):
+    def test_profile_status_color_yellow(
+        self, client_as, principal_user, school, student_user, teacher_user
+    ):
         """score = 100 - 25 = 75 => yellow (60<=score<80)"""
         BehaviorInfractionFactory(
             school=school,
@@ -376,7 +393,9 @@ class TestStudentBehaviorProfileExtended:
         resp = client.get(f"/behavior/student/{student_user.id}/")
         assert resp.context["status_color"] == "yellow"
 
-    def test_profile_status_color_red(self, client_as, principal_user, school, student_user, teacher_user):
+    def test_profile_status_color_red(
+        self, client_as, principal_user, school, student_user, teacher_user
+    ):
         """score = 100 - 50 = 50 => red (<60)"""
         BehaviorInfractionFactory(
             school=school,

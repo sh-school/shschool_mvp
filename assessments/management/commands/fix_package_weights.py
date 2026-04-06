@@ -18,16 +18,16 @@ from assessments.models import AnnualSubjectResult, AssessmentPackage
 # الأوزان الصحيحة حسب مواصفات وزارة التعليم القطرية
 CORRECT_WEIGHTS = {
     "S1": {
-        "P1": Decimal("12.50"),   # أعمال مستمرة ف1 → 2  درجة من 40
-        "P2": Decimal("0.00"),    # غير مستخدم في الفصل الأول
-        "P3": Decimal("37.50"),   # منتصف الفصل الأول → 6  درجات من 40
-        "P4": Decimal("50.00"),   # نهاية الفصل الأول → 8  درجات من 40
+        "P1": Decimal("12.50"),  # أعمال مستمرة ف1 → 2  درجة من 40
+        "P2": Decimal("0.00"),  # غير مستخدم في الفصل الأول
+        "P3": Decimal("37.50"),  # منتصف الفصل الأول → 6  درجات من 40
+        "P4": Decimal("50.00"),  # نهاية الفصل الأول → 8  درجات من 40
     },
     "S2": {
-        "P1": Decimal("8.33"),    # أعمال مستمرة ف2 → 3  درجات من 60
-        "P2": Decimal("0.00"),    # غير مستخدم
-        "P3": Decimal("25.00"),   # منتصف الفصل الثاني → 9  درجات من 60
-        "P4": Decimal("66.67"),   # نهاية العام → 24 درجة  من 60
+        "P1": Decimal("8.33"),  # أعمال مستمرة ف2 → 3  درجات من 60
+        "P2": Decimal("0.00"),  # غير مستخدم
+        "P3": Decimal("25.00"),  # منتصف الفصل الثاني → 9  درجات من 60
+        "P4": Decimal("66.67"),  # نهاية العام → 24 درجة  من 60
     },
 }
 
@@ -75,9 +75,7 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write(
-                self.style.WARNING(
-                    "أعد تشغيل الأمر بدون --dry-run لتطبيق التغييرات."
-                )
+                self.style.WARNING("أعد تشغيل الأمر بدون --dry-run لتطبيق التغييرات.")
             )
 
     # ─────────────────────────────────────────────
@@ -97,19 +95,21 @@ class Command(BaseCommand):
             for pkg_type, correct_weight in type_weights.items():
                 pkg_label = PACKAGE_TYPE_LABELS[pkg_type]
 
-                wrong_packages = AssessmentPackage.objects.filter(
-                    semester=semester,
-                    package_type=pkg_type,
-                ).exclude(
-                    weight=correct_weight,
-                    semester_max_grade=correct_max,
-                ).select_related("setup__subject", "setup__class_group")
+                wrong_packages = (
+                    AssessmentPackage.objects.filter(
+                        semester=semester,
+                        package_type=pkg_type,
+                    )
+                    .exclude(
+                        weight=correct_weight,
+                        semester_max_grade=correct_max,
+                    )
+                    .select_related("setup__subject", "setup__class_group")
+                )
 
                 count = wrong_packages.count()
                 if count == 0:
-                    self.stdout.write(
-                        f"  ✓ {sem_label} / {pkg_type} {pkg_label}: كل الصفوف صحيحة"
-                    )
+                    self.stdout.write(f"  ✓ {sem_label} / {pkg_type} {pkg_label}: كل الصفوف صحيحة")
                     continue
 
                 total_wrong += count
@@ -152,21 +152,23 @@ class Command(BaseCommand):
         updated_total = 0
         with transaction.atomic():
             for semester, pkg_type, correct_weight, correct_max in to_update:
-                n = AssessmentPackage.objects.filter(
-                    semester=semester,
-                    package_type=pkg_type,
-                ).exclude(
-                    weight=correct_weight,
-                    semester_max_grade=correct_max,
-                ).update(
-                    weight=correct_weight,
-                    semester_max_grade=correct_max,
+                n = (
+                    AssessmentPackage.objects.filter(
+                        semester=semester,
+                        package_type=pkg_type,
+                    )
+                    .exclude(
+                        weight=correct_weight,
+                        semester_max_grade=correct_max,
+                    )
+                    .update(
+                        weight=correct_weight,
+                        semester_max_grade=correct_max,
+                    )
                 )
                 updated_total += n
 
-        self.stdout.write(
-            self.style.SUCCESS(f"\n  تم تحديث {updated_total} باقة بنجاح.")
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n  تم تحديث {updated_total} باقة بنجاح."))
 
     # ─────────────────────────────────────────────
     # 2. pass_grade في AnnualSubjectResult
@@ -179,7 +181,9 @@ class Command(BaseCommand):
         count = wrong_qs.count()
 
         if count == 0:
-            self.stdout.write(self.style.SUCCESS("  ✓ كل نتائج pass_grade = 60 بالفعل — لا شيء للتحديث."))
+            self.stdout.write(
+                self.style.SUCCESS("  ✓ كل نتائج pass_grade = 60 بالفعل — لا شيء للتحديث.")
+            )
             return
 
         self.stdout.write(

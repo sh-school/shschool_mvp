@@ -126,7 +126,9 @@ def _setup_workbook(sheet_title, school_name, report_title):
     return wb, ws, styles, year, today_str
 
 
-def _finalize_workbook(wb, ws, styles, num_cols, school_name, report_title, year, today_str, num_data_rows):
+def _finalize_workbook(
+    wb, ws, styles, num_cols, school_name, report_title, year, today_str, num_data_rows
+):
     """يضيف الرأس الاحترافي، يُجمّد، ويُعدّ الطباعة."""
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
@@ -264,20 +266,38 @@ def student_import_export(request):
 # ── ثوابت الاستيراد ──────────────────────────────────────────────────
 
 _IMPORT_RELATION_MAP = {
-    "father": "father", "mother": "mother",
-    "guardian": "guardian", "other": "other",
-    "أب": "father", "والد": "father",
-    "أم": "mother", "ام": "mother", "والدة": "mother",
-    "وصي": "guardian", "وصية": "guardian",
+    "father": "father",
+    "mother": "mother",
+    "guardian": "guardian",
+    "other": "other",
+    "أب": "father",
+    "والد": "father",
+    "أم": "mother",
+    "ام": "mother",
+    "والدة": "mother",
+    "وصي": "guardian",
+    "وصية": "guardian",
 }
 
 _IMPORT_GRADE_NORMALIZE = {
-    "7": "G7", "8": "G8", "9": "G9",
-    "10": "G10", "11": "G11", "12": "G12",
-    "g7": "G7", "g8": "G8", "g9": "G9",
-    "g10": "G10", "g11": "G11", "g12": "G12",
-    "G7": "G7", "G8": "G8", "G9": "G9",
-    "G10": "G10", "G11": "G11", "G12": "G12",
+    "7": "G7",
+    "8": "G8",
+    "9": "G9",
+    "10": "G10",
+    "11": "G11",
+    "12": "G12",
+    "g7": "G7",
+    "g8": "G8",
+    "g9": "G9",
+    "g10": "G10",
+    "g11": "G11",
+    "g12": "G12",
+    "G7": "G7",
+    "G8": "G8",
+    "G9": "G9",
+    "G10": "G10",
+    "G11": "G11",
+    "G12": "G12",
 }
 
 
@@ -286,6 +306,7 @@ _IMPORT_GRADE_NORMALIZE = {
 
 def _parse_import_row(row):
     """يحوّل tuple الصف الخام إلى قاموس بأسماء واضحة."""
+
     def _cell(pos, default=""):
         return str(row[pos]).strip() if len(row) > pos and row[pos] else default
 
@@ -423,9 +444,12 @@ def _process_import(uploaded_file, school, year):
         data_rows.append(row)
 
     stats = {
-        "students_created": 0, "students_existed": 0,
-        "parents_created": 0, "parents_existed": 0,
-        "enrollments_created": 0, "links_created": 0,
+        "students_created": 0,
+        "students_existed": 0,
+        "parents_created": 0,
+        "parents_existed": 0,
+        "enrollments_created": 0,
+        "links_created": 0,
         "errors": [],
     }
 
@@ -437,21 +461,23 @@ def _process_import(uploaded_file, school, year):
                 stats["errors"].append(f"سطر {i}: الرقم الوطني فارغ — تجاوز")
                 continue
             if not fields["full_name"]:
-                stats["errors"].append(
-                    f"سطر {i}: اسم الطالب {fields['student_nid']} فارغ — تجاوز"
-                )
+                stats["errors"].append(f"سطر {i}: اسم الطالب {fields['student_nid']} فارغ — تجاوز")
                 continue
 
             # ── الطالب ──────────────────────────────────────────────
             student, s_created = _upsert_user(
-                fields["student_nid"], fields["full_name"],
-                fields["phone"], fields["email"],
+                fields["student_nid"],
+                fields["full_name"],
+                fields["phone"],
+                fields["email"],
             )
             stats["students_created" if s_created else "students_existed"] += 1
 
             if school:
                 Membership.objects.get_or_create(
-                    user=student, school=school, role=student_role,
+                    user=student,
+                    school=school,
+                    role=student_role,
                     defaults={"is_active": True},
                 )
                 if _enroll_student_in_class(
@@ -464,19 +490,21 @@ def _process_import(uploaded_file, school, year):
                 continue
 
             parent, p_created = _upsert_user(
-                fields["parent_nid"], fields["parent_name"],
-                fields["parent_phone"], fields["parent_email"],
+                fields["parent_nid"],
+                fields["parent_name"],
+                fields["parent_phone"],
+                fields["parent_email"],
             )
             stats["parents_created" if p_created else "parents_existed"] += 1
 
             if school:
                 Membership.objects.get_or_create(
-                    user=parent, school=school, role=parent_role,
+                    user=parent,
+                    school=school,
+                    role=parent_role,
                     defaults={"is_active": True},
                 )
-                if _link_parent_to_student(
-                    parent, student, school, fields["relation_raw"], stats
-                ):
+                if _link_parent_to_student(parent, student, school, fields["relation_raw"], stats):
                     stats["links_created"] += 1
 
     return {
@@ -522,10 +550,9 @@ def student_export_excel(request):
     )
 
     student_ids = [m.user_id for m in memberships]
-    enrollments_qs = (
-        StudentEnrollment.objects.filter(student_id__in=student_ids, is_active=True)
-        .select_related("class_group")
-    )
+    enrollments_qs = StudentEnrollment.objects.filter(
+        student_id__in=student_ids, is_active=True
+    ).select_related("class_group")
     enrollment_map = {enr.student_id: enr for enr in enrollments_qs}
 
     # ── بناء Workbook ───────────────────────────────────────────────
@@ -670,10 +697,32 @@ def student_import_template(request):
 
     # ── صفوف نموذجية (مثال) ─────────────────────────────────────────
     examples = [
-        ("12345678", "محمد أحمد العلي", "G9", "أ", "+97455000001", "student@example.com",
-         "87654321", "أحمد محمد العلي", "+97455000002", "parent@example.com", "father"),
-        ("12345679", "علي محمد السيد", "G10", "ب", "+97455000003", "",
-         "87654322", "محمد سيد الأمين", "+97455000004", "", "father"),
+        (
+            "12345678",
+            "محمد أحمد العلي",
+            "G9",
+            "أ",
+            "+97455000001",
+            "student@example.com",
+            "87654321",
+            "أحمد محمد العلي",
+            "+97455000002",
+            "parent@example.com",
+            "father",
+        ),
+        (
+            "12345679",
+            "علي محمد السيد",
+            "G10",
+            "ب",
+            "+97455000003",
+            "",
+            "87654322",
+            "محمد سيد الأمين",
+            "+97455000004",
+            "",
+            "father",
+        ),
     ]
     from openpyxl.styles import Font as XLFont
 

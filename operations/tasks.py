@@ -171,9 +171,7 @@ def check_license_expiry_task():
 
         # العثور على المدرسة والمدير
         membership = (
-            Membership.objects.filter(user=user, is_active=True)
-            .select_related("school")
-            .first()
+            Membership.objects.filter(user=user, is_active=True).select_related("school").first()
         )
         if not membership:
             continue

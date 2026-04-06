@@ -35,7 +35,16 @@ except ImportError:
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin", "secretary")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin",
+    "secretary",
+)
 def import_grades_select(request):
     """اختيار التقييم المراد استيراد درجاته"""
     school = request.user.get_school()
@@ -93,7 +102,16 @@ def import_grades_select(request):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin", "secretary")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin",
+    "secretary",
+)
 def download_grade_template(request, assessment_id):
     """تحميل ملف Excel فارغ لإدخال الدرجات — مُعبَّأ بأسماء الطلاب"""
     if not OPENPYXL_OK:
@@ -192,7 +210,16 @@ def download_grade_template(request, assessment_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin", "secretary")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin",
+    "secretary",
+)
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
     if request.method != "POST":
@@ -387,7 +414,16 @@ def upload_grade_file(request, assessment_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "admin", "secretary")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin",
+    "secretary",
+)
 def import_log_list(request):
     """سجل كل عمليات الاستيراد"""
     if not request.user.is_admin():

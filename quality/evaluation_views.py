@@ -44,9 +44,11 @@ def _require_evaluator(request):
 
 def _get_employee_role(school, employee):
     """الحصول على دور الموظف في المدرسة"""
-    membership = Membership.objects.filter(
-        school=school, user=employee, is_active=True
-    ).select_related("role").first()
+    membership = (
+        Membership.objects.filter(school=school, user=employee, is_active=True)
+        .select_related("role")
+        .first()
+    )
     return membership.role.name if membership else None
 
 
@@ -58,9 +60,13 @@ def _get_axes_for_employee(school, employee, year):
     """
     role_name = _get_employee_role(school, employee)
     if role_name:
-        template = RoleEvaluationTemplate.objects.filter(
-            school=school, role_name=role_name, academic_year=year, is_active=True
-        ).prefetch_related("axes").first()
+        template = (
+            RoleEvaluationTemplate.objects.filter(
+                school=school, role_name=role_name, academic_year=year, is_active=True
+            )
+            .prefetch_related("axes")
+            .first()
+        )
         if template and template.axes.exists():
             return (
                 [(a.key, a.label, a.weight) for a in template.axes.all()],
@@ -72,9 +78,7 @@ def _get_axes_for_employee(school, employee, year):
 def _get_evaluable_staff(school, year):
     """قائمة الموظفين القابلين للتقييم مع حالة التقييم"""
     memberships = (
-        Membership.objects.filter(
-            school=school, is_active=True, role__name__in=_EVALUABLE_ROLES
-        )
+        Membership.objects.filter(school=school, is_active=True, role__name__in=_EVALUABLE_ROLES)
         .select_related("user", "role")
         .order_by("role__name", "user__full_name")
     )
@@ -91,13 +95,15 @@ def _get_evaluable_staff(school, year):
     for m in memberships:
         s1_eval = existing_evals.get((m.user_id, "S1"))
         s2_eval = existing_evals.get((m.user_id, "S2"))
-        staff_list.append({
-            "user": m.user,
-            "role": m.role,
-            "role_display": m.role.get_name_display(),
-            "s1": s1_eval,
-            "s2": s2_eval,
-        })
+        staff_list.append(
+            {
+                "user": m.user,
+                "role": m.role,
+                "role_display": m.role.get_name_display(),
+                "s1": s1_eval,
+                "s2": s2_eval,
+            }
+        )
     return staff_list
 
 
@@ -186,9 +192,7 @@ def create_evaluation(request, employee_id):
     year = request.GET.get("year", _DEFAULT_YEAR)
     period = request.GET.get("period", "S1")
 
-    if not Membership.objects.filter(
-        school=school, user=employee, is_active=True
-    ).exists():
+    if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
         return HttpResponse("الموظف ليس في مدرستك", status=403)
 
     # الحصول على محاور التقييم حسب دور الموظف
@@ -210,9 +214,7 @@ def create_evaluation(request, employee_id):
     if request.method == "POST":
         _save_evaluation(request, obj, axes)
         if obj.status == "submitted":
-            messages.success(
-                request, f"تم تقديم تقييم {employee.full_name} بنجاح."
-            )
+            messages.success(request, f"تم تقديم تقييم {employee.full_name} بنجاح.")
         else:
             messages.info(request, "تم حفظ المسودة.")
         return redirect("evaluation_dashboard")
@@ -240,9 +242,7 @@ def create_evaluation(request, employee_id):
 def acknowledge_evaluation(request, eval_id):
     """الموظف يُقرّ باستلام تقييمه"""
     school = request.user.get_school()
-    obj = get_object_or_404(
-        EmployeeEvaluation, id=eval_id, employee=request.user, school=school
-    )
+    obj = get_object_or_404(EmployeeEvaluation, id=eval_id, employee=request.user, school=school)
     if obj.status != "approved":
         return HttpResponse("التقييم لم يُعتمد بعد", status=400)
     if request.method == "POST":

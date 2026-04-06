@@ -184,7 +184,9 @@ class TestRule01NoDuplicate:
 
 
 class TestRule02SameClassOnly:
-    def test_different_class_rejected(self, school, teacher_a, slot_a, slot_diff_class, future_sunday):
+    def test_different_class_rejected(
+        self, school, teacher_a, slot_a, slot_diff_class, future_sunday
+    ):
         """لا يجوز التبديل مع معلم من فصل مختلف"""
         errors = SwapService.validate_swap_request(
             teacher=teacher_a,
@@ -255,31 +257,51 @@ class TestRule03NoPendingOnSlotB:
 
 
 class TestRule04CrossDepartment:
-    def test_same_subject_not_cross(self, school, class_11_4, teacher_a, teacher_b, subject_math, future_sunday):
+    def test_same_subject_not_cross(
+        self, school, class_11_4, teacher_a, teacher_b, subject_math, future_sunday
+    ):
         """نفس المادة → ليس cross department"""
         slot_x = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_math, day_of_week=2, period_number=1,
-            start_time=time(7, 30), end_time=time(8, 15),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_math,
+            day_of_week=2,
+            period_number=1,
+            start_time=time(7, 30),
+            end_time=time(8, 15),
         )
         slot_y = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_b,
-            subject=subject_math, day_of_week=2, period_number=2,
-            start_time=time(8, 15), end_time=time(9, 0),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_b,
+            subject=subject_math,
+            day_of_week=2,
+            period_number=2,
+            start_time=time(8, 15),
+            end_time=time(9, 0),
         )
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_x, slot_b=slot_y,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_x,
+            slot_b=slot_y,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         assert not swap.is_cross_department
 
     def test_diff_subject_is_cross(self, school, slot_a, slot_b, future_sunday):
         """مادتان مختلفتان → cross department → يحتاج النائب"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=slot_a.teacher, teacher_b=slot_b.teacher,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=slot_a.teacher,
+            teacher_b=slot_b.teacher,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         assert swap.is_cross_department  # رياضيات ≠ فيزياء
 
@@ -295,15 +317,25 @@ class TestRule05DoublePeriods:
     ):
         """فنون بصرية مزدوجة — لا يُسمح بتبديل واحدة فقط"""
         art_p1 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_art, day_of_week=3, period_number=3,
-            start_time=time(9, 0), end_time=time(9, 45),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_art,
+            day_of_week=3,
+            period_number=3,
+            start_time=time(9, 0),
+            end_time=time(9, 45),
         )
         # الحصة المتتالية (مزدوجة)
         ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_art, day_of_week=3, period_number=4,
-            start_time=time(9, 45), end_time=time(10, 30),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_art,
+            day_of_week=3,
+            period_number=4,
+            start_time=time(9, 45),
+            end_time=time(10, 30),
         )
         errors = SwapService.validate_swap_request(
             teacher=teacher_a,
@@ -325,8 +357,11 @@ class TestRule06DateConstraints:
         """لا يُقبل تاريخ ماضٍ"""
         past = date.today() - timedelta(days=3)
         errors = SwapService.validate_swap_request(
-            teacher=teacher_a, slot_a=slot_a, slot_b=slot_b,
-            swap_date=past, school=school,
+            teacher=teacher_a,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date=past,
+            school=school,
         )
         assert any("ماضٍ" in e for e in errors)
 
@@ -334,16 +369,22 @@ class TestRule06DateConstraints:
         """لا يُقبل بعد 14 يوم"""
         far = date.today() + timedelta(days=30)
         errors = SwapService.validate_swap_request(
-            teacher=teacher_a, slot_a=slot_a, slot_b=slot_b,
-            swap_date=far, school=school,
+            teacher=teacher_a,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date=far,
+            school=school,
         )
         assert any("14" in e for e in errors)
 
     def test_valid_date_passes(self, school, teacher_a, slot_a, slot_b, future_sunday):
         """تاريخ صالح (3+ أيام مقدماً) يمر"""
         errors = SwapService.validate_swap_request(
-            teacher=teacher_a, slot_a=slot_a, slot_b=slot_b,
-            swap_date=future_sunday, school=school,
+            teacher=teacher_a,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date=future_sunday,
+            school=school,
         )
         assert not any("ماضٍ" in e or "14" in e for e in errors)
 
@@ -357,12 +398,17 @@ class TestRule07Expiry:
     def test_expire_stale_swaps(self, school, teacher_a, slot_a, slot_b, future_sunday):
         """الطلبات المعلّقة أكثر من 48 ساعة تُلغى تلقائياً"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=slot_b.teacher,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=slot_b.teacher,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         # حاكِ مرور 49 ساعة
         from django.utils import timezone as tz
+
         old_time = tz.now() - timedelta(hours=49)
         TeacherSwap.objects.filter(pk=swap.pk).update(created_at=old_time)
 
@@ -376,9 +422,13 @@ class TestRule07Expiry:
     def test_fresh_swap_not_expired(self, school, teacher_a, slot_a, slot_b, future_sunday):
         """طلب حديث لا تنتهي صلاحيته"""
         SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=slot_b.teacher,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=slot_b.teacher,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         count = SwapService.expire_stale_swaps()
         assert count == 0
@@ -391,61 +441,110 @@ class TestRule07Expiry:
 
 class TestRule08aPendingLimit:
     def test_max_pending_enforced(
-        self, school, teacher_a, class_11_4, teacher_b, teacher_c,
-        subject_math, subject_physics, future_sunday,
+        self,
+        school,
+        teacher_a,
+        class_11_4,
+        teacher_b,
+        teacher_c,
+        subject_math,
+        subject_physics,
+        future_sunday,
     ):
         """لا يُسمح بأكثر من 2 طلب معلّق"""
         # أنشئ حصتين مختلفتين للمعلم أ
         s1 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_math, day_of_week=1, period_number=1,
-            start_time=time(7, 30), end_time=time(8, 15),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_math,
+            day_of_week=1,
+            period_number=1,
+            start_time=time(7, 30),
+            end_time=time(8, 15),
         )
         s2 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_math, day_of_week=2, period_number=1,
-            start_time=time(7, 30), end_time=time(8, 15),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_math,
+            day_of_week=2,
+            period_number=1,
+            start_time=time(7, 30),
+            end_time=time(8, 15),
         )
         s3 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_a,
-            subject=subject_math, day_of_week=3, period_number=1,
-            start_time=time(7, 30), end_time=time(8, 15),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_a,
+            subject=subject_math,
+            day_of_week=3,
+            period_number=1,
+            start_time=time(7, 30),
+            end_time=time(8, 15),
         )
         # حصص للمعلمين الآخرين
         sb1 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_b,
-            subject=subject_physics, day_of_week=1, period_number=5,
-            start_time=time(11, 0), end_time=time(11, 45),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_b,
+            subject=subject_physics,
+            day_of_week=1,
+            period_number=5,
+            start_time=time(11, 0),
+            end_time=time(11, 45),
         )
         sb2 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_c,
-            subject=subject_physics, day_of_week=2, period_number=5,
-            start_time=time(11, 0), end_time=time(11, 45),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_c,
+            subject=subject_physics,
+            day_of_week=2,
+            period_number=5,
+            start_time=time(11, 0),
+            end_time=time(11, 45),
         )
         sb3 = ScheduleSlot.objects.create(
-            school=school, class_group=class_11_4, teacher=teacher_b,
-            subject=subject_physics, day_of_week=3, period_number=5,
-            start_time=time(11, 0), end_time=time(11, 45),
+            school=school,
+            class_group=class_11_4,
+            teacher=teacher_b,
+            subject=subject_physics,
+            day_of_week=3,
+            period_number=5,
+            start_time=time(11, 0),
+            end_time=time(11, 45),
         )
 
         # طلب 1 و 2 ينجحان
         SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=s1, slot_b=sb1,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=s1,
+            slot_b=sb1,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_c,
-            slot_a=s2, slot_b=sb2,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_c,
+            slot_a=s2,
+            slot_b=sb2,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
 
         # الطلب 3 يُرفض
         with pytest.raises(ValueError, match="الحد الأقصى"):
             SwapService.create_swap_request(
-                school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-                slot_a=s3, slot_b=sb3,
-                swap_date_a=future_sunday, swap_date_b=future_sunday,
+                school=school,
+                teacher_a=teacher_a,
+                teacher_b=teacher_b,
+                slot_a=s3,
+                slot_b=sb3,
+                swap_date_a=future_sunday,
+                swap_date_b=future_sunday,
             )
 
 
@@ -473,8 +572,11 @@ class TestRule08bMonthlyLimit:
             )
 
         errors = SwapService.validate_swap_request(
-            teacher=teacher_a, slot_a=slot_a, slot_b=slot_b,
-            swap_date=future_sunday, school=school,
+            teacher=teacher_a,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date=future_sunday,
+            school=school,
         )
         monthly_errors = [e for e in errors if "شهر" in e or ("4" in e and "تبديل" in e)]
         assert len(monthly_errors) > 0, f"Expected monthly limit error, got: {errors}"
@@ -489,19 +591,29 @@ class TestRule09Cancel:
     def test_teacher_a_can_cancel_pending_b(self, school, teacher_a, slot_a, slot_b, future_sunday):
         """المعلم أ يلغي طلبه قبل رد المعلم ب"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=slot_b.teacher,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=slot_b.teacher,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         result = SwapService.cancel_swap(swap, cancelled_by=teacher_a)
         assert result.status == "cancelled"
 
-    def test_teacher_b_cannot_cancel_pending_b(self, school, teacher_a, teacher_b, slot_a, slot_b, future_sunday):
+    def test_teacher_b_cannot_cancel_pending_b(
+        self, school, teacher_a, teacher_b, slot_a, slot_b, future_sunday
+    ):
         """المعلم ب لا يمكنه إلغاء طلب لم يُرد عليه بعد"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         with pytest.raises(ValueError, match="صاحب الطلب"):
             SwapService.cancel_swap(swap, cancelled_by=teacher_b)
@@ -518,9 +630,13 @@ class TestRule13Withdrawal:
     ):
         """بعد موافقة المعلم ب — أي طرف يسحب"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         SwapService.respond_to_swap(swap, accepted=True)
         assert swap.status in ("pending_coordinator", "pending_vp")
@@ -540,9 +656,13 @@ class TestRule14ApprovedCancelLeadershipOnly:
     ):
         """بعد موافقة المنسق — المعلم لا يمكنه الإلغاء"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         SwapService.respond_to_swap(swap, accepted=True)
         swap.status = "approved"
@@ -556,9 +676,13 @@ class TestRule14ApprovedCancelLeadershipOnly:
     ):
         """المنسق يمكنه إلغاء تبديل معتمد"""
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         SwapService.respond_to_swap(swap, accepted=True)
         swap.status = "approved"
@@ -597,9 +721,13 @@ class TestHappyPath:
         """دورة حياة كاملة: طلب → قبول → موافقة → تنفيذ"""
         # 1. الطلب
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         assert swap.status == "pending_b"
 
@@ -645,9 +773,13 @@ class TestSwapViews:
 
     def test_swap_cancel_post(self, client_as, teacher_a, school, slot_a, slot_b, future_sunday):
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=slot_b.teacher,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=slot_b.teacher,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         c = client_as(teacher_a)
         resp = c.post(f"/teacher/schedule/swap/{swap.pk}/cancel/")
@@ -659,9 +791,13 @@ class TestSwapViews:
         self, client_as, teacher_b, school, teacher_a, slot_a, slot_b, future_sunday
     ):
         swap = SwapService.create_swap_request(
-            school=school, teacher_a=teacher_a, teacher_b=teacher_b,
-            slot_a=slot_a, slot_b=slot_b,
-            swap_date_a=future_sunday, swap_date_b=future_sunday,
+            school=school,
+            teacher_a=teacher_a,
+            teacher_b=teacher_b,
+            slot_a=slot_a,
+            slot_b=slot_b,
+            swap_date_a=future_sunday,
+            swap_date_b=future_sunday,
         )
         c = client_as(teacher_b)
         resp = c.post(f"/teacher/schedule/swap/{swap.pk}/cancel/")

@@ -593,11 +593,10 @@ class RoleEvaluationTemplate(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="eval_templates"
-    )
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_templates")
     role_name = models.CharField(
-        max_length=30, verbose_name="الدور الوظيفي",
+        max_length=30,
+        verbose_name="الدور الوظيفي",
         help_text="يطابق Role.name — مثل teacher, nurse, librarian",
     )
     academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
@@ -633,13 +632,12 @@ class EvaluationAxis(models.Model):
         RoleEvaluationTemplate, on_delete=models.CASCADE, related_name="axes"
     )
     key = models.CharField(
-        max_length=50, verbose_name="معرّف المحور",
+        max_length=50,
+        verbose_name="معرّف المحور",
         help_text="معرّف برمجي — مثل professional, commitment, teaching_skills",
     )
     label = models.CharField(max_length=200, verbose_name="اسم المحور")
-    weight = models.PositiveSmallIntegerField(
-        default=25, verbose_name="الوزن (من 100)"
-    )
+    weight = models.PositiveSmallIntegerField(default=25, verbose_name="الوزن (من 100)")
     order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
@@ -737,10 +735,14 @@ class EmployeeEvaluation(models.Model):
         return f"{self.employee.full_name} | {self.get_period_display()} | {self.academic_year}"
 
     # ── الحقول التي تستوجب إعادة حساب المجموع ──
-    _AXIS_FIELDS = frozenset([
-        "axis_professional", "axis_commitment",
-        "axis_teamwork", "axis_development",
-    ])
+    _AXIS_FIELDS = frozenset(
+        [
+            "axis_professional",
+            "axis_commitment",
+            "axis_teamwork",
+            "axis_development",
+        ]
+    )
 
     def calculate_total(self):
         """حساب المجموع من المحاور الأربعة الافتراضية + التقدير"""
@@ -831,11 +833,14 @@ class EvaluationScore(models.Model):
         EmployeeEvaluation, on_delete=models.CASCADE, related_name="scores"
     )
     evaluator = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="evaluation_scores_given",
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="evaluation_scores_given",
         verbose_name="المقيِّم",
     )
     weight = models.PositiveSmallIntegerField(
-        default=100, verbose_name="الوزن (%)",
+        default=100,
+        verbose_name="الوزن (%)",
         help_text="وزن هذا المقيِّم — مثل 40 للمدير، 35 للنائب، 25 للمنسق",
     )
 
@@ -848,7 +853,8 @@ class EvaluationScore(models.Model):
 
     # محاور مخصصة (JSON) — للقوالب المخصصة
     custom_axes = models.JSONField(
-        default=dict, blank=True,
+        default=dict,
+        blank=True,
         verbose_name="محاور مخصصة",
         help_text='{"teaching_skills": 20, "classroom_mgmt": 22, ...}',
     )

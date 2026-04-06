@@ -6,8 +6,14 @@ from .models import BehaviorInfraction, BehaviorPointRecovery, ViolationCategory
 @admin.register(ViolationCategory)
 class ViolationCategoryAdmin(admin.ModelAdmin):
     list_display = [
-        "code", "degree", "name_ar", "points", "tags",
-        "requires_security_referral", "requires_parent_summon", "is_active",
+        "code",
+        "degree",
+        "name_ar",
+        "points",
+        "tags",
+        "requires_security_referral",
+        "requires_parent_summon",
+        "is_active",
     ]
     list_filter = ["degree", "is_active", "requires_security_referral"]
     search_fields = ["code", "name_ar"]
@@ -30,12 +36,21 @@ class ViolationCategoryAdmin(admin.ModelAdmin):
 @admin.register(BehaviorInfraction)
 class BehaviorInfractionAdmin(admin.ModelAdmin):
     list_display = [
-        "student", "violation_category", "level", "escalation_step",
-        "date", "is_resolved", "parent_summoned", "school",
+        "student",
+        "violation_category",
+        "level",
+        "escalation_step",
+        "date",
+        "is_resolved",
+        "parent_summoned",
+        "school",
     ]
     list_filter = [
-        "level", "is_resolved", "escalation_step",
-        "parent_summoned", "security_agency",
+        "level",
+        "is_resolved",
+        "escalation_step",
+        "parent_summoned",
+        "security_agency",
         "social_media_platform",
     ]
     search_fields = ["student__full_name", "description"]
@@ -43,38 +58,67 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
     date_hierarchy = "date"
 
     fieldsets = (
-        ("المعلومات الأساسية", {
-            "fields": (
-                "school", "student", "reported_by", "violation_category",
-                "level", "description",
-            ),
-        }),
-        ("الإجراء المتخذ", {
-            "fields": (
-                "action_taken", "escalation_step", "points_deducted", "is_resolved",
-            ),
-        }),
-        ("استدعاء ولي الأمر", {
-            "fields": (
-                "parent_summoned", "parent_summon_date", "parent_undertaking_signed",
-            ),
-            "classes": ("collapse",),
-        }),
-        ("الإيقاف", {
-            "fields": ("suspension_type", "suspension_days"),
-            "classes": ("collapse",),
-        }),
-        ("التشهير الرقمي", {
-            "fields": ("social_media_platform", "digital_evidence_notes"),
-            "classes": ("collapse",),
-        }),
-        ("الإحالة الأمنية (الدرجة 4)", {
-            "fields": (
-                "security_referral_date", "security_agency",
-                "security_reference_number", "security_notes",
-            ),
-            "classes": ("collapse",),
-        }),
+        (
+            "المعلومات الأساسية",
+            {
+                "fields": (
+                    "school",
+                    "student",
+                    "reported_by",
+                    "violation_category",
+                    "level",
+                    "description",
+                ),
+            },
+        ),
+        (
+            "الإجراء المتخذ",
+            {
+                "fields": (
+                    "action_taken",
+                    "escalation_step",
+                    "points_deducted",
+                    "is_resolved",
+                ),
+            },
+        ),
+        (
+            "استدعاء ولي الأمر",
+            {
+                "fields": (
+                    "parent_summoned",
+                    "parent_summon_date",
+                    "parent_undertaking_signed",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الإيقاف",
+            {
+                "fields": ("suspension_type", "suspension_days"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "التشهير الرقمي",
+            {
+                "fields": ("social_media_platform", "digital_evidence_notes"),
+                "classes": ("collapse",),
+            },
+        ),
+        (
+            "الإحالة الأمنية (الدرجة 4)",
+            {
+                "fields": (
+                    "security_referral_date",
+                    "security_agency",
+                    "security_reference_number",
+                    "security_notes",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
     )
 
 

@@ -18,12 +18,29 @@ from .services import AttendanceService, ScheduleService
 
 logger = logging.getLogger(__name__)
 
-_REPORT_ROLES = {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+_REPORT_ROLES = {
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "admin_supervisor",
+    "admin",
+}
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher",
-               "ese_teacher", "academic_advisor", "admin_supervisor", "student", "parent")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+    "admin_supervisor",
+    "student",
+    "parent",
+)
 def schedule(request):
     """جدول حصص المعلم اليوم"""
     school = request.user.get_school()
@@ -62,15 +79,19 @@ def schedule(request):
         if period_filter:
             # Session ليس فيه period_number — نفلتر بوقت البداية عبر ScheduleSlot
             from operations.models import ScheduleSlot
+
             slot_times = (
                 ScheduleSlot.objects.filter(school=school, period_number=int(period_filter))
-                .values_list("start_time", flat=True).distinct()
+                .values_list("start_time", flat=True)
+                .distinct()
             )
             if slot_times:
                 sessions = sessions.filter(start_time__in=list(slot_times))
         # إحصائيات سريعة
         all_count = Session.objects.filter(school=school, date=selected_date).count()
-        completed_count = Session.objects.filter(school=school, date=selected_date, status="completed").count()
+        completed_count = Session.objects.filter(
+            school=school, date=selected_date, status="completed"
+        ).count()
     else:
         sessions = (
             Session.objects.filter(school=school, teacher=request.user, date=selected_date)
@@ -91,45 +112,65 @@ def schedule(request):
     filter_classes = []
     if is_leader:
         from core.models.access import Membership
+
         filter_teachers = (
             Membership.objects.filter(
-                school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher"),
-            ).select_related("user").order_by("user__full_name")
+                school=school,
+                is_active=True,
+                role__name__in=("teacher", "coordinator", "ese_teacher"),
+            )
+            .select_related("user")
+            .order_by("user__full_name")
         )
         from core.models.academic import ClassGroup
-        filter_classes = (
-            ClassGroup.objects.filter(school=school, is_active=True)
-            .order_by("grade", "section")
+
+        filter_classes = ClassGroup.objects.filter(school=school, is_active=True).order_by(
+            "grade", "section"
         )
 
-    return render(request, "teacher/schedule.html", {
-        "sessions": sessions,
-        "selected_date": selected_date,
-        "today": timezone.now().date(),
-        "next_session": next_session,
-        "user_role": request.user.get_role(),
-        "is_leader": is_leader,
-        "teacher_filter": teacher_filter,
-        "class_filter": class_filter,
-        "status_filter": status_filter,
-        "period_filter": period_filter,
-        "show_all": show_all,
-        "all_count": all_count if is_leader else 0,
-        "completed_count": completed_count if is_leader else 0,
-        "filter_teachers": filter_teachers,
-        "filter_classes": filter_classes,
-    })
+    return render(
+        request,
+        "teacher/schedule.html",
+        {
+            "sessions": sessions,
+            "selected_date": selected_date,
+            "today": timezone.now().date(),
+            "next_session": next_session,
+            "user_role": request.user.get_role(),
+            "is_leader": is_leader,
+            "teacher_filter": teacher_filter,
+            "class_filter": class_filter,
+            "status_filter": status_filter,
+            "period_filter": period_filter,
+            "show_all": show_all,
+            "all_count": all_count if is_leader else 0,
+            "completed_count": completed_count if is_leader else 0,
+            "filter_teachers": filter_teachers,
+            "filter_classes": filter_classes,
+        },
+    )
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator",
-               "teacher", "ese_teacher", "admin_supervisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin_supervisor",
+)
 def attendance_view(request, session_id):
     """صفحة تسجيل الحضور لحصة"""
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
 
-    if request.user != session.teacher and not request.user.is_admin() and not request.user.is_leadership():
+    if (
+        request.user != session.teacher
+        and not request.user.is_admin()
+        and not request.user.is_leadership()
+    ):
         return HttpResponse("<p dir='rtl'>غير مسموح — هذه الحصة ليست لك.</p>", status=403)
 
     enrollments = (
@@ -142,26 +183,42 @@ def attendance_view(request, session_id):
         for att in StudentAttendance.objects.filter(session=session).select_related("student")
     }
     students_data = [
-        {"student": e.student, "attendance": existing.get(e.student.id),
-         "status": existing.get(e.student.id).status if existing.get(e.student.id) else "present"}
+        {
+            "student": e.student,
+            "attendance": existing.get(e.student.id),
+            "status": existing.get(e.student.id).status
+            if existing.get(e.student.id)
+            else "present",
+        }
         for e in enrollments
     ]
     summary = AttendanceService.get_session_summary(session)
     view_mode = request.GET.get("view", "list")
     template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
-    return render(request, template, {
-        "session": session,
-        "students_data": students_data,
-        "summary": summary,
-        "existing_count": len(existing),
-        "view_mode": view_mode,
-    })
+    return render(
+        request,
+        template,
+        {
+            "session": session,
+            "students_data": students_data,
+            "summary": summary,
+            "existing_count": len(existing),
+            "view_mode": view_mode,
+        },
+    )
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator",
-               "teacher", "ese_teacher", "admin_supervisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin_supervisor",
+)
 @require_POST
 def mark_single(request, session_id):
     """HTMX: تسجيل حضور طالب واحد"""
@@ -179,24 +236,43 @@ def mark_single(request, session_id):
 
     student = get_object_or_404(CustomUser, id=student_id)
     att, _ = AttendanceService.mark_attendance(
-        session=session, student=student, status=status,
-        excuse_type=excuse_type, excuse_notes=excuse_notes, marked_by=request.user,
+        session=session,
+        student=student,
+        status=status,
+        excuse_type=excuse_type,
+        excuse_notes=excuse_notes,
+        marked_by=request.user,
     )
     summary = AttendanceService.get_session_summary(session)
     view_mode = request.POST.get("view", "list")
     partial_template = (
-        "teacher/partials/grid_cell.html" if view_mode == "grid"
+        "teacher/partials/grid_cell.html"
+        if view_mode == "grid"
         else "teacher/partials/student_row.html"
     )
-    return render(request, partial_template, {
-        "student": student, "attendance": att, "status": att.status,
-        "session": session, "summary": summary,
-    })
+    return render(
+        request,
+        partial_template,
+        {
+            "student": student,
+            "attendance": att,
+            "status": att.status,
+            "session": session,
+            "summary": summary,
+        },
+    )
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator",
-               "teacher", "ese_teacher", "admin_supervisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin_supervisor",
+)
 @require_POST
 def mark_all_present(request, session_id):
     """HTMX: الكل حاضر بضغطة واحدة"""
@@ -209,30 +285,47 @@ def mark_all_present(request, session_id):
     AttendanceService.bulk_mark_all_present(session, marked_by=request.user)
     enrollments = (
         StudentEnrollment.objects.filter(class_group=session.class_group, is_active=True)
-        .select_related("student").order_by("student__full_name")
+        .select_related("student")
+        .order_by("student__full_name")
     )
     existing = {
         a.student_id: a
         for a in StudentAttendance.objects.filter(session=session).select_related("student")
     }
     students_data = [
-        {"student": e.student, "attendance": existing.get(e.student_id),
-         "status": existing.get(e.student_id).status if existing.get(e.student_id) else "unmarked"}
+        {
+            "student": e.student,
+            "attendance": existing.get(e.student_id),
+            "status": existing.get(e.student_id).status
+            if existing.get(e.student_id)
+            else "unmarked",
+        }
         for e in enrollments
     ]
     summary = AttendanceService.get_session_summary(session)
     view_mode = request.POST.get("view", "list")
     partial_template = (
-        "teacher/partials/grid_container.html" if view_mode == "grid"
+        "teacher/partials/grid_container.html"
+        if view_mode == "grid"
         else "teacher/partials/students_list.html"
     )
-    return render(request, partial_template,
-                  {"students_data": students_data, "session": session, "summary": summary})
+    return render(
+        request,
+        partial_template,
+        {"students_data": students_data, "session": session, "summary": summary},
+    )
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator",
-               "teacher", "ese_teacher", "admin_supervisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin_supervisor",
+)
 @require_POST
 def complete_session(request, session_id):
     """إنهاء الحصة"""
@@ -247,15 +340,23 @@ def complete_session(request, session_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator",
-               "teacher", "ese_teacher", "admin_supervisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "admin_supervisor",
+)
 def session_summary(request, session_id):
     """ملخص الحصة — HTMX partial"""
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
     summary = AttendanceService.get_session_summary(session)
-    return render(request, "teacher/partials/summary_widget.html",
-                  {"session": session, "summary": summary})
+    return render(
+        request, "teacher/partials/summary_widget.html", {"session": session, "summary": summary}
+    )
 
 
 @login_required
@@ -278,7 +379,9 @@ def daily_report(request):
 
     absences = (
         StudentAttendance.objects.filter(
-            school=school, session__date=report_date, status__in=["absent", "late"],
+            school=school,
+            session__date=report_date,
+            status__in=["absent", "late"],
         )
         .select_related("student", "session__class_group")
         .order_by("session__class_group__grade", "student__full_name")
@@ -298,11 +401,15 @@ def daily_report(request):
     total = sum(stats.values())
     present_pct = round(stats.get("present", 0) / total * 100) if total else 0
 
-    return render(request, "admin/daily_report.html", {
-        "absences": absences,
-        "report_date": report_date,
-        "sessions": sessions,
-        "stats": stats,
-        "total": total,
-        "present_pct": present_pct,
-    })
+    return render(
+        request,
+        "admin/daily_report.html",
+        {
+            "absences": absences,
+            "report_date": report_date,
+            "sessions": sessions,
+            "stats": stats,
+            "total": total,
+            "present_pct": present_pct,
+        },
+    )

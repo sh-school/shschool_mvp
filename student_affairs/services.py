@@ -32,54 +32,65 @@ logger = logging.getLogger(__name__)
 # Lazy imports — تجنّب circular imports عند التحميل الأولي
 # ═══════════════════════════════════════════════════════════════════════
 
+
 def _get_attendance_model():
     from operations.models import StudentAttendance
+
     return StudentAttendance
 
 
 def _get_absence_alert_model():
     from operations.models import AbsenceAlert
+
     return AbsenceAlert
 
 
 def _get_session_model():
     from operations.models import Session
+
     return Session
 
 
 def _get_behavior_model():
     from behavior.models import BehaviorInfraction
+
     return BehaviorInfraction
 
 
 def _get_clinic_model():
     from clinic.models import ClinicVisit
+
     return ClinicVisit
 
 
 def _get_grades_model():
     from assessments.models import StudentSubjectResult
+
     return StudentSubjectResult
 
 
 def _get_library_model():
     from library.models import BookBorrowing
+
     return BookBorrowing
 
 
 def _get_activity_model():
     from student_affairs.models import StudentActivity
+
     return StudentActivity
 
 
 def _get_transfer_model():
     from student_affairs.models import StudentTransfer
+
     return StudentTransfer
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # 1. StudentService — إحصائيات + ملف الطالب + CRUD
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class StudentService:
     """خدمات شؤون الطلاب: لوحة تحكم، ملف شامل، إنشاء وتعطيل."""
@@ -162,8 +173,7 @@ class StudentService:
 
         # توزيع الطلاب حسب الصف
         grade_distribution = (
-            active_enrollments
-            .values("class_group__grade")
+            active_enrollments.values("class_group__grade")
             .annotate(count=Count("id"))
             .order_by("class_group__grade")
         )
@@ -218,7 +228,8 @@ class StudentService:
         stats = StudentService.get_dashboard_stats(school, year)
 
         clinic_today = ClinicVisit.objects.filter(
-            school=school, visit_date__date=today,
+            school=school,
+            visit_date__date=today,
         ).count()
 
         recent_infractions = list(
@@ -243,7 +254,8 @@ class StudentService:
             .annotate(
                 has_parent=Exists(
                     ParentStudentLink.objects.filter(
-                        school=school, student_id=OuterRef("student_id"),
+                        school=school,
+                        student_id=OuterRef("student_id"),
                     )
                 )
             )
@@ -304,8 +316,7 @@ class StudentService:
         StudentTransfer = _get_transfer_model()
 
         student = (
-            CustomUser.objects
-            .select_related("profile")
+            CustomUser.objects.select_related("profile")
             .prefetch_related(
                 "enrollments__class_group",
                 "parent_links__parent",
@@ -315,8 +326,7 @@ class StudentService:
 
         # التسجيل الحالي
         enrollment = (
-            StudentEnrollment.objects
-            .filter(
+            StudentEnrollment.objects.filter(
                 student=student,
                 class_group__school=school,
                 class_group__academic_year=year,
@@ -329,8 +339,7 @@ class StudentService:
         # سجلات الحضور (آخر 30 يوم)
         thirty_days_ago = timezone.now().date() - timedelta(days=30)
         attendance_records = (
-            StudentAttendance.objects
-            .filter(
+            StudentAttendance.objects.filter(
                 student=student,
                 school=school,
                 session__date__gte=thirty_days_ago,
@@ -341,8 +350,7 @@ class StudentService:
 
         # المخالفات السلوكية لهذا العام
         behavior_data = (
-            BehaviorInfraction.objects
-            .filter(
+            BehaviorInfraction.objects.filter(
                 student=student,
                 school=school,
                 date__gte=_academic_year_start(year),
@@ -353,8 +361,7 @@ class StudentService:
 
         # الدرجات
         grades = (
-            StudentSubjectResult.objects
-            .filter(
+            StudentSubjectResult.objects.filter(
                 student=student,
                 school=school,
             )
@@ -364,8 +371,7 @@ class StudentService:
 
         # زيارات العيادة
         clinic = (
-            ClinicVisit.objects
-            .filter(
+            ClinicVisit.objects.filter(
                 student=student,
                 school=school,
             )
@@ -375,8 +381,7 @@ class StudentService:
 
         # المكتبة — إعارات نشطة
         library = (
-            BookBorrowing.objects
-            .filter(
+            BookBorrowing.objects.filter(
                 user=student,
                 book__school=school,
             )
@@ -385,35 +390,23 @@ class StudentService:
         )
 
         # الأنشطة
-        activities = (
-            StudentActivity.objects
-            .filter(
-                student=student,
-                school=school,
-                academic_year=year,
-            )
-            .order_by("-date")
-        )
+        activities = StudentActivity.objects.filter(
+            student=student,
+            school=school,
+            academic_year=year,
+        ).order_by("-date")
 
         # الانتقالات
-        transfers = (
-            StudentTransfer.objects
-            .filter(
-                student=student,
-                school=school,
-            )
-            .order_by("-transfer_date")
-        )
+        transfers = StudentTransfer.objects.filter(
+            student=student,
+            school=school,
+        ).order_by("-transfer_date")
 
         # ربط أولياء الأمور
-        parent_links = (
-            ParentStudentLink.objects
-            .filter(
-                student=student,
-                school=school,
-            )
-            .select_related("parent")
-        )
+        parent_links = ParentStudentLink.objects.filter(
+            student=student,
+            school=school,
+        ).select_related("parent")
 
         return {
             "student": student,
@@ -510,7 +503,9 @@ class StudentService:
 
         logger.info(
             "تم إنشاء طالب جديد: %s (national_id=%s) في المدرسة %s",
-            user.full_name, national_id, school.code,
+            user.full_name,
+            national_id,
+            school.code,
         )
         return user
 
@@ -547,16 +542,19 @@ class StudentService:
         student.invalidate_active_membership()
 
         logger.info(
-            "تم تعطيل الطالب %s في المدرسة %s بواسطة %s "
-            "(عضويات: %d، تسجيلات: %d)",
-            student.full_name, school.code, user.full_name,
-            updated_memberships, updated_enrollments,
+            "تم تعطيل الطالب %s في المدرسة %s بواسطة %s " "(عضويات: %d، تسجيلات: %d)",
+            student.full_name,
+            school.code,
+            user.full_name,
+            updated_memberships,
+            updated_enrollments,
         )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # 2. AttendanceService — تقارير الحضور والغياب
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class AttendanceService:
     """خدمات تقارير الحضور والغياب والتأخر."""
@@ -618,8 +616,7 @@ class AttendanceService:
             year_filter &= Q(session__class_group__section=section)
 
         worst_students = (
-            StudentAttendance.objects
-            .filter(year_filter)
+            StudentAttendance.objects.filter(year_filter)
             .values("student__id", "student__full_name")
             .annotate(absence_count=Count("id"))
             .order_by("-absence_count")[:20]
@@ -627,8 +624,7 @@ class AttendanceService:
 
         # ── 3. توزيع حسب الصف ──
         class_breakdown = (
-            StudentAttendance.objects
-            .filter(
+            StudentAttendance.objects.filter(
                 school=school,
                 session__date=today,
                 session__class_group__academic_year=year,
@@ -647,8 +643,7 @@ class AttendanceService:
         # ── 4. تنبيهات الغياب المتكرر (قيد المراجعة) ──
         alerts_filter = Q(school=school, status="pending")
         alerts = (
-            AbsenceAlert.objects
-            .filter(alerts_filter)
+            AbsenceAlert.objects.filter(alerts_filter)
             .select_related("student")
             .order_by("-absence_count")[:30]
         )
@@ -656,8 +651,7 @@ class AttendanceService:
         # ── 5. بيانات الاتجاه — آخر 30 يوم ──
         thirty_days_ago = today - timedelta(days=30)
         trend_data = (
-            StudentAttendance.objects
-            .filter(
+            StudentAttendance.objects.filter(
                 school=school,
                 session__date__gte=thirty_days_ago,
                 session__date__lte=today,
@@ -711,8 +705,7 @@ class AttendanceService:
 
         # ── سجلات التأخر ──
         late_records = (
-            StudentAttendance.objects
-            .filter(base_filter)
+            StudentAttendance.objects.filter(base_filter)
             .select_related(
                 "student",
                 "session__class_group",
@@ -725,8 +718,7 @@ class AttendanceService:
 
         # ── توزيع حسب الصف ──
         class_breakdown = (
-            StudentAttendance.objects
-            .filter(base_filter)
+            StudentAttendance.objects.filter(base_filter)
             .values("session__class_group__grade", "session__class_group__section")
             .annotate(count=Count("id"))
             .order_by("session__class_group__grade")
@@ -741,9 +733,7 @@ class AttendanceService:
         kpis = {
             "total_late": total_late,
             "total_students_today": total_today,
-            "late_pct": round(
-                (total_late / max(total_today, 1)) * 100, 1
-            ),
+            "late_pct": round((total_late / max(total_today, 1)) * 100, 1),
         }
 
         return {
@@ -757,6 +747,7 @@ class AttendanceService:
 # ═══════════════════════════════════════════════════════════════════════
 # 3. TransferService — إدارة انتقالات الطلاب
 # ═══════════════════════════════════════════════════════════════════════
+
 
 class TransferService:
     """خدمات إدارة انتقالات الطلاب (وارد/صادر)."""
@@ -783,8 +774,7 @@ class TransferService:
         StudentTransfer = _get_transfer_model()
 
         qs = (
-            StudentTransfer.objects
-            .filter(school=school)
+            StudentTransfer.objects.filter(school=school)
             .select_related("student", "created_by")
             .order_by("-created_at")
         )
@@ -870,8 +860,7 @@ class TransferService:
         valid_actions = {"approved", "rejected", "completed", "cancelled"}
         if action not in valid_actions:
             raise ValueError(
-                f"إجراء غير صالح: {action}. "
-                f"الإجراءات المتاحة: {', '.join(valid_actions)}"
+                f"إجراء غير صالح: {action}. " f"الإجراءات المتاحة: {', '.join(valid_actions)}"
             )
 
         # لا يمكن المراجعة إلا إذا كان الطلب قيد الانتظار أو موافقاً عليه
@@ -904,13 +893,16 @@ class TransferService:
 
         logger.info(
             "تمت مراجعة طلب انتقال #%s — الإجراء: %s بواسطة %s",
-            transfer.pk, action, reviewer.full_name,
+            transfer.pk,
+            action,
+            reviewer.full_name,
         )
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # دوال مساعدة خاصة
 # ═══════════════════════════════════════════════════════════════════════
+
 
 def _academic_year_start(year: str):
     """
@@ -921,6 +913,7 @@ def _academic_year_start(year: str):
     try:
         start_year = int(year.split("-")[0])
         from datetime import date
+
         return date(start_year, 9, 1)
     except (ValueError, IndexError):
         # fallback: بداية العام الميلادي

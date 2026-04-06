@@ -15,11 +15,19 @@ class LibraryConfig(AppConfig):
             url_prefix="/library/",
             icon="bi-book",
             allowed_roles={
-                "principal", "vice_admin", "librarian",
-                "teacher", "coordinator", "ese_teacher",
-                "specialist", "social_worker", "student",
+                "principal",
+                "vice_admin",
+                "librarian",
+                "teacher",
+                "coordinator",
+                "ese_teacher",
+                "specialist",
+                "social_worker",
+                "student",
                 # v7 — مساعدون + منسق أنشطة يستعيرون كتباً
-                "activities_coordinator", "teacher_assistant", "ese_assistant",
+                "activities_coordinator",
+                "teacher_assistant",
+                "ese_assistant",
             },
             sort_order=55,
         )

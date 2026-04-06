@@ -21,9 +21,7 @@ def permission_audit_log(request):
     school = request.user.get_school()
 
     # ── بناء الـ queryset الأساسي ──────────────────────────────────
-    logs = PermissionAuditLog.objects.filter(
-        school=school
-    ).select_related("actor", "target")
+    logs = PermissionAuditLog.objects.filter(school=school).select_related("actor", "target")
 
     # ── فلتر نوع الإجراء ──────────────────────────────────────────
     action = request.GET.get("action", "").strip()
@@ -41,9 +39,7 @@ def permission_audit_log(request):
     # ── فلتر البحث بالاسم (المنفّذ أو المستهدف) ───────────────────
     search = request.GET.get("q", "").strip()
     if search:
-        logs = logs.filter(
-            actor__full_name__icontains=search
-        ) | PermissionAuditLog.objects.filter(
+        logs = logs.filter(actor__full_name__icontains=search) | PermissionAuditLog.objects.filter(
             school=school,
             target__full_name__icontains=search,
         ).select_related("actor", "target")

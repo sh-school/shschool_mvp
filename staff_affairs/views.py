@@ -3,7 +3,6 @@ staff_affairs/views.py — شؤون الموظفين
 8 views — يتبع أنماط المشروع.
 """
 
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -23,19 +22,31 @@ STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_de
 
 # ترجمة الأدوار
 ROLE_LABELS = {
-    "principal": "مدير", "vice_admin": "نائب إداري", "vice_academic": "نائب أكاديمي",
-    "coordinator": "منسق", "admin_supervisor": "مشرف إداري",
-    "teacher": "معلم", "ese_teacher": "تربية خاصة", "social_worker": "أخصائي اجتماعي",
-    "psychologist": "أخصائي نفسي", "academic_advisor": "مرشد أكاديمي",
-    "nurse": "ممرض", "librarian": "أمين مكتبة", "it_technician": "فني تقنية",
-    "bus_supervisor": "مشرف نقل", "admin": "إداري", "secretary": "سكرتير",
-    "specialist": "أخصائي", "platform_developer": "مطور",
+    "principal": "مدير",
+    "vice_admin": "نائب إداري",
+    "vice_academic": "نائب أكاديمي",
+    "coordinator": "منسق",
+    "admin_supervisor": "مشرف إداري",
+    "teacher": "معلم",
+    "ese_teacher": "تربية خاصة",
+    "social_worker": "أخصائي اجتماعي",
+    "psychologist": "أخصائي نفسي",
+    "academic_advisor": "مرشد أكاديمي",
+    "nurse": "ممرض",
+    "librarian": "أمين مكتبة",
+    "it_technician": "فني تقنية",
+    "bus_supervisor": "مشرف نقل",
+    "admin": "إداري",
+    "secretary": "سكرتير",
+    "specialist": "أخصائي",
+    "platform_developer": "مطور",
 }
 
 
 # ═══════════════════════════════════════════════════════════════════
 # الخطوة 3: لوحة شؤون الموظفين
 # ═══════════════════════════════════════════════════════════════════
+
 
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
@@ -58,15 +69,20 @@ def staff_dashboard(request):
         for r in stats.pop("role_distribution_raw", [])
     ]
 
-    return render(request, "staff_affairs/dashboard.html", {
-        "today": today,
-        "year": year,
-        "role_distribution": role_distribution,
-        **stats,
-    })
+    return render(
+        request,
+        "staff_affairs/dashboard.html",
+        {
+            "today": today,
+            "year": year,
+            "role_distribution": role_distribution,
+            **stats,
+        },
+    )
 
 
 # ═══ الخطوة 4: سجل الموظفين ═══
+
 
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
@@ -87,9 +103,7 @@ def staff_list(request):
     dept_filter = request.GET.get("dept", "")
 
     if q:
-        staff = staff.filter(
-            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
-        )
+        staff = staff.filter(Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q))
     if role_filter:
         staff = staff.filter(role__name=role_filter)
     if dept_filter:
@@ -98,27 +112,33 @@ def staff_list(request):
     # ── بناء القائمة ──
     staff_rows = []
     for m in staff[:200]:
-        staff_rows.append({
-            "id": m.user_id,
-            "full_name": m.user.full_name,
-            "national_id": m.user.national_id,
-            "role": m.role.name if m.role else "—",
-            "role_display": ROLE_LABELS.get(m.role.name, m.role.name) if m.role else "—",
-            "department": m.department_obj.name if m.department_obj else m.department or "—",
-            "phone": m.user.phone,
-            "email": m.user.email,
-            "joined": m.joined_at,
-            "license_expiry": m.user.professional_license_expiry,
-        })
+        staff_rows.append(
+            {
+                "id": m.user_id,
+                "full_name": m.user.full_name,
+                "national_id": m.user.national_id,
+                "role": m.role.name if m.role else "—",
+                "role_display": ROLE_LABELS.get(m.role.name, m.role.name) if m.role else "—",
+                "department": m.department_obj.name if m.department_obj else m.department or "—",
+                "phone": m.user.phone,
+                "email": m.user.email,
+                "joined": m.joined_at,
+                "license_expiry": m.user.professional_license_expiry,
+            }
+        )
 
     # ── خيارات الفلتر ──
     from core.models.access import Role
+
     available_roles = (
         Role.objects.filter(school=school)
         .exclude(name__in=("student", "parent"))
-        .values_list("name", flat=True).distinct().order_by("name")
+        .values_list("name", flat=True)
+        .distinct()
+        .order_by("name")
     )
     from core.models.department import Department
+
     available_depts = Department.objects.filter(school=school, is_active=True).order_by("name")
 
     ctx = {
@@ -137,8 +157,8 @@ def staff_list(request):
     return render(request, "staff_affairs/staff_list.html", ctx)
 
 
-
 # ═══ الخطوة 5: ملف الموظف ═══
+
 
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
@@ -146,8 +166,10 @@ def staff_profile(request, user_id):
     """ملف الموظف الشامل — بيانات + غياب + تقييم + إجازات + رخصة."""
     school = request.user.get_school()
     user = get_object_or_404(
-        CustomUser, id=user_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=user_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -156,26 +178,34 @@ def staff_profile(request, user_id):
     membership = profile_data["membership"]
     role_display = (
         ROLE_LABELS.get(membership.role.name, membership.role.name)
-        if membership and membership.role else "—"
+        if membership and membership.role
+        else "—"
     )
 
-    return render(request, "staff_affairs/staff_profile.html", {
-        "staff_user": user,
-        "year": year,
-        "role_display": role_display,
-        "today": timezone.localdate(),
-        **profile_data,  # membership, profile, absences, swaps, ...
-    })
+    return render(
+        request,
+        "staff_affairs/staff_profile.html",
+        {
+            "staff_user": user,
+            "year": year,
+            "role_display": role_display,
+            "today": timezone.localdate(),
+            **profile_data,  # membership, profile, absences, swaps, ...
+        },
+    )
 
 
 # ═══ الخطوة 6: الإجازات ═══
+
 
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
 def leave_list(request):
     """قائمة طلبات الإجازات مع فلتر."""
     school = request.user.get_school()
-    leaves = LeaveRequest.objects.filter(school=school).select_related("staff").order_by("-created_at")
+    leaves = (
+        LeaveRequest.objects.filter(school=school).select_related("staff").order_by("-created_at")
+    )
 
     status_filter = request.GET.get("status", "")
     type_filter = request.GET.get("type", "")
@@ -185,13 +215,18 @@ def leave_list(request):
         leaves = leaves.filter(leave_type=type_filter)
 
     from .models import LEAVE_STATUS, LEAVE_TYPES
-    return render(request, "staff_affairs/leave_list.html", {
-        "leaves": leaves[:100],
-        "status_filter": status_filter,
-        "type_filter": type_filter,
-        "status_choices": LEAVE_STATUS,
-        "type_choices": LEAVE_TYPES,
-    })
+
+    return render(
+        request,
+        "staff_affairs/leave_list.html",
+        {
+            "leaves": leaves[:100],
+            "status_filter": status_filter,
+            "type_filter": type_filter,
+            "status_choices": LEAVE_STATUS,
+            "type_choices": LEAVE_TYPES,
+        },
+    )
 
 
 @login_required
@@ -206,8 +241,10 @@ def leave_request_create(request):
         if form.is_valid():
             cd = form.cleaned_data
             staff = get_object_or_404(
-                CustomUser, id=cd["staff_id"],
-                memberships__school=school, memberships__is_active=True,
+                CustomUser,
+                id=cd["staff_id"],
+                memberships__school=school,
+                memberships__is_active=True,
             )
             # ✅ v5.4: LeaveService.create_leave_request — atomic + audit trail
             LeaveService.create_leave_request(
@@ -221,7 +258,9 @@ def leave_request_create(request):
                 attachment=cd.get("attachment"),
                 created_by=request.user,
             )
-            messages.success(request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم).")
+            messages.success(
+                request, f"تم تقديم طلب إجازة {staff.full_name} ({cd['days_count']} يوم)."
+            )
             return redirect("staff_affairs:leave_list")
     else:
         form = LeaveRequestForm()
@@ -229,11 +268,17 @@ def leave_request_create(request):
     staff_members = (
         Membership.objects.filter(school=school, is_active=True)
         .exclude(role__name__in=("student", "parent"))
-        .select_related("user").order_by("user__full_name")
+        .select_related("user")
+        .order_by("user__full_name")
     )
-    return render(request, "staff_affairs/leave_form.html", {
-        "form": form, "staff_members": staff_members,
-    })
+    return render(
+        request,
+        "staff_affairs/leave_form.html",
+        {
+            "form": form,
+            "staff_members": staff_members,
+        },
+    )
 
 
 @login_required
@@ -254,6 +299,7 @@ def leave_review(request, pk):
     leave = get_object_or_404(LeaveRequest, pk=pk, school=school)
 
     from .forms import LeaveReviewForm
+
     form = LeaveReviewForm(request.POST)
     if form.is_valid():
         action = form.cleaned_data["action"]
@@ -278,6 +324,7 @@ def leave_review(request, pk):
 # الرخص المهنية
 # ═══════════════════════════════════════════════════════════════════
 
+
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
 def licensing_overview(request):
@@ -289,7 +336,11 @@ def licensing_overview(request):
     # يتجنّب تحميل جميع الموظفين في الذاكرة لتصنيفهم (O(n) memory → O(1))
     license_data = StaffService.get_license_overview(school, today=today)
 
-    return render(request, "staff_affairs/licensing.html", {
-        "today": today,
-        **license_data,
-    })
+    return render(
+        request,
+        "staff_affairs/licensing.html",
+        {
+            "today": today,
+            **license_data,
+        },
+    )

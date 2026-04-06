@@ -73,7 +73,9 @@ class SubjectClassSetup(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["school", "teacher", "academic_year"], name="idx_setup_school_teacher_year"),
+            models.Index(
+                fields=["school", "teacher", "academic_year"], name="idx_setup_school_teacher_year"
+            ),
         ]
 
     def __str__(self):
@@ -129,18 +131,18 @@ class AssessmentPackage(models.Model):
     #   AW أعمال مستمرة ف2   =  5% من 100 →  8.33%  من 60 →  5 درجات
     #   المجموع = 100% من 60 = 60 درجة ✓
     DEFAULT_WEIGHTS_S1 = {
-        "P1": Decimal("37.50"),   # منتصف الفصل الأول → 15 من 40
-        "P2": Decimal("50.00"),   # نهاية الفصل الأول → 20 من 40
-        "P3": Decimal("0"),       # غير مستخدم في الفصل الأول
-        "P4": Decimal("0"),       # غير مستخدم في الفصل الأول
-        "AW": Decimal("12.50"),   # أعمال مستمرة ف1 → 5 من 40
+        "P1": Decimal("37.50"),  # منتصف الفصل الأول → 15 من 40
+        "P2": Decimal("50.00"),  # نهاية الفصل الأول → 20 من 40
+        "P3": Decimal("0"),  # غير مستخدم في الفصل الأول
+        "P4": Decimal("0"),  # غير مستخدم في الفصل الأول
+        "AW": Decimal("12.50"),  # أعمال مستمرة ف1 → 5 من 40
     }
     DEFAULT_WEIGHTS_S2 = {
-        "P1": Decimal("0"),       # غير مستخدم في الفصل الثاني
-        "P2": Decimal("0"),       # غير مستخدم في الفصل الثاني
-        "P3": Decimal("25.00"),   # منتصف الفصل الثاني → 15 من 60
-        "P4": Decimal("66.67"),   # نهاية الفصل الثاني → 40 من 60
-        "AW": Decimal("8.33"),    # أعمال مستمرة ف2 → 5 من 60
+        "P1": Decimal("0"),  # غير مستخدم في الفصل الثاني
+        "P2": Decimal("0"),  # غير مستخدم في الفصل الثاني
+        "P3": Decimal("25.00"),  # منتصف الفصل الثاني → 15 من 60
+        "P4": Decimal("66.67"),  # نهاية الفصل الثاني → 40 من 60
+        "AW": Decimal("8.33"),  # أعمال مستمرة ف2 → 5 من 60
     }
 
     # درجة الفصل القصوى من المجموع السنوي

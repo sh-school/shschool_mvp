@@ -19,7 +19,9 @@ from .production import *  # noqa: F401,F403
 
 DEBUG = False  # Keep False — staging must behave like production
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="staging.schoolos.qa,staging-schoolos.up.railway.app").split(",")
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", default="staging.schoolos.qa,staging-schoolos.up.railway.app"
+).split(",")
 
 # ── Sentry: separate environment ──────────────────────────────
 SENTRY_DSN = config("SENTRY_DSN", default="")

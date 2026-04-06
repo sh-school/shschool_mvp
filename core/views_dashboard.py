@@ -159,9 +159,7 @@ def _get_director_ctx(school, today):
         sent_home=Count("id", filter=Q(is_sent_home=True)),
     )
 
-    library_overdue = BookBorrowing.objects.filter(
-        book__school=school, status="OVERDUE"
-    ).count()
+    library_overdue = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
 
     pending_swaps = TeacherSwap.objects.filter(
         school=school, status__in=["accepted_b", "pending_coordinator", "pending_vp"]
@@ -240,9 +238,7 @@ def _get_teacher_ctx(user, school, today, role):
         ctx["coord_pending_comp"] = CompensatorySession.objects.filter(
             school=school, status="pending"
         ).count()
-        ctx["coord_absent_today"] = TeacherAbsence.objects.filter(
-            school=school, date=today
-        ).count()
+        ctx["coord_absent_today"] = TeacherAbsence.objects.filter(school=school, date=today).count()
 
     return ctx
 
@@ -288,9 +284,7 @@ def _get_specialist_social_ctx(user, school, today):
     ).count()
 
     # مخالفات خطرة (مستوى 3+)
-    behavior_critical = BehaviorInfraction.objects.filter(
-        school=school, level__gte=3
-    ).count()
+    behavior_critical = BehaviorInfraction.objects.filter(school=school, level__gte=3).count()
 
     # نتائج الطلاب — راسبون
     failing_students = (
@@ -332,8 +326,10 @@ def _get_therapist_ctx(user, school, today):
     # إحصائيات الأسبوع — مفيدة لمتابعة التقدم
     week_start = today - datetime.timedelta(days=today.weekday())
     week_sessions = Session.objects.filter(
-        school=school, teacher=user,
-        date__gte=week_start, date__lte=today,
+        school=school,
+        teacher=user,
+        date__gte=week_start,
+        date__lte=today,
     )
     week_total = week_sessions.count()
     week_completed = week_sessions.filter(status="completed").count()
@@ -377,7 +373,8 @@ def _get_activities_ctx(user, school, today):
 
     # أنشطة هذا العام الدراسي
     activities_year = StudentActivity.objects.filter(
-        school=school, academic_year=year,
+        school=school,
+        academic_year=year,
     )
     activities_total = activities_year.count()
     activities_this_month = activities_year.filter(date__gte=month_start).count()
@@ -463,12 +460,21 @@ def _get_service_ctx(user, school, today, role):
     elif role == "it_technician":
         from core.models.user import CustomUser
 
-        ctx["active_users"] = CustomUser.objects.filter(
-            is_active=True, memberships__school=school,
-        ).distinct().count()
-        ctx["total_users"] = CustomUser.objects.filter(
-            memberships__school=school,
-        ).distinct().count()
+        ctx["active_users"] = (
+            CustomUser.objects.filter(
+                is_active=True,
+                memberships__school=school,
+            )
+            .distinct()
+            .count()
+        )
+        ctx["total_users"] = (
+            CustomUser.objects.filter(
+                memberships__school=school,
+            )
+            .distinct()
+            .count()
+        )
 
     return ctx
 
@@ -482,8 +488,12 @@ _DIRECTOR_ROLES = {"principal", "vice_admin", "vice_academic"}
 
 # معلمون وكوادر تدريسية — حصص اليوم + طلبات التبديل
 _TEACHER_ROLES = {
-    "teacher", "coordinator", "ese_teacher", "specialist",
-    "teacher_assistant", "ese_assistant",
+    "teacher",
+    "coordinator",
+    "ese_teacher",
+    "specialist",
+    "teacher_assistant",
+    "ese_assistant",
 }
 
 # أخصائيون اجتماعيون ونفسيون ومرشدون أكاديميون

@@ -174,8 +174,10 @@ def audit_membership(sender, instance, created, **kwargs):
 
         actor = get_current_user()
         request = get_current_request()
-        action = "role_assigned" if created else (
-            "account_disabled" if not instance.is_active else "role_assigned"
+        action = (
+            "role_assigned"
+            if created
+            else ("account_disabled" if not instance.is_active else "role_assigned")
         )
         if actor and instance.school_id:
             PermissionAuditLog.log(

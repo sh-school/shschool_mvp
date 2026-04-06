@@ -20,11 +20,13 @@ class StudentAddForm(forms.Form):
     """نموذج إضافة طالب جديد — يُنشئ 4 سجلات (User + Profile + Membership + Enrollment)."""
 
     national_id = forms.CharField(
-        max_length=20, label="الرقم الوطني",
+        max_length=20,
+        label="الرقم الوطني",
         error_messages={"required": "الرقم الوطني مطلوب."},
     )
     full_name = forms.CharField(
-        max_length=200, label="الاسم الكامل",
+        max_length=200,
+        label="الاسم الكامل",
         error_messages={"required": "اسم الطالب مطلوب."},
     )
     gender = forms.ChoiceField(
@@ -33,7 +35,8 @@ class StudentAddForm(forms.Form):
     )
     birth_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
-        required=False, label="تاريخ الميلاد",
+        required=False,
+        label="تاريخ الميلاد",
     )
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
     email = forms.EmailField(required=False, label="البريد الإلكتروني")
@@ -62,11 +65,13 @@ class ParentAddForm(forms.Form):
     """نموذج إضافة ولي أمر جديد وربطه بطالب في نفس الوقت."""
 
     national_id = forms.CharField(
-        max_length=20, label="الرقم الوطني",
+        max_length=20,
+        label="الرقم الوطني",
         error_messages={"required": "الرقم الوطني مطلوب."},
     )
     full_name = forms.CharField(
-        max_length=200, label="الاسم الكامل",
+        max_length=200,
+        label="الاسم الكامل",
         error_messages={"required": "اسم ولي الأمر مطلوب."},
     )
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
@@ -108,11 +113,13 @@ class StudentEditForm(forms.Form):
     section = forms.CharField(max_length=10, label="الشعبة")
     birth_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),
-        required=False, label="تاريخ الميلاد",
+        required=False,
+        label="تاريخ الميلاد",
     )
     notes = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 3}),
-        required=False, label="ملاحظات",
+        required=False,
+        label="ملاحظات",
     )
 
 
@@ -132,7 +139,8 @@ class TransferForm(forms.Form):
         label="اتجاه الانتقال",
     )
     other_school_name = forms.CharField(
-        max_length=200, label="المدرسة الأخرى",
+        max_length=200,
+        label="المدرسة الأخرى",
         error_messages={"required": "اسم المدرسة الأخرى مطلوب."},
     )
     from_grade = forms.CharField(max_length=3, required=False, label="الصف (من)")
@@ -143,7 +151,9 @@ class TransferForm(forms.Form):
     )
     reason = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 3}),
-        max_length=1000, required=False, label="السبب",
+        max_length=1000,
+        required=False,
+        label="السبب",
     )
 
 
@@ -156,7 +166,9 @@ class TransferReviewForm(forms.Form):
     )
     notes = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 2}),
-        max_length=500, required=False, label="ملاحظات",
+        max_length=500,
+        required=False,
+        label="ملاحظات",
     )
 
     def clean(self):
@@ -182,12 +194,15 @@ class ActivityForm(forms.Form):
         label="نوع النشاط",
     )
     title = forms.CharField(
-        max_length=200, label="العنوان",
+        max_length=200,
+        label="العنوان",
         error_messages={"required": "عنوان النشاط مطلوب."},
     )
     description = forms.CharField(
         widget=forms.Textarea(attrs={"rows": 3}),
-        max_length=2000, required=False, label="الوصف",
+        max_length=2000,
+        required=False,
+        label="الوصف",
     )
     scope = forms.ChoiceField(
         choices=StudentActivity.SCOPE_CHOICES,

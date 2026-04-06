@@ -2,6 +2,7 @@
 core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 أسماء ملفات + هيدر + فوتر + توقيع المُصدِّر
 """
+
 import uuid
 from pathlib import Path
 
@@ -115,7 +116,9 @@ def add_excel_header(ws, context: dict, num_cols: int):
 
     # صف 2: عنوان التقرير
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=num_cols)
-    cell2 = ws.cell(row=2, column=1, value=f"{context['title']}  —  العام الدراسي {context['academic_year']}")
+    cell2 = ws.cell(
+        row=2, column=1, value=f"{context['title']}  —  العام الدراسي {context['academic_year']}"
+    )
     cell2.fill = PatternFill(start_color="B91C38", end_color="B91C38", fill_type="solid")
     cell2.font = white_font_md
     cell2.alignment = center
@@ -151,7 +154,11 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     # توقيع المُصدِّر
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(row=row, column=1, value=f"صدر بواسطة: {context['exported_by']}  —  {context['exporter_role']}")
+    cell = ws.cell(
+        row=row,
+        column=1,
+        value=f"صدر بواسطة: {context['exported_by']}  —  {context['exporter_role']}",
+    )
     cell.font = sig_font
     cell.alignment = Alignment(horizontal="right")
     cell.border = thin_top
@@ -164,7 +171,9 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
 
     row += 1
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
-    cell = ws.cell(row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS")
+    cell = ws.cell(
+        row=row, column=1, value=f"{context['school_name']}  —  وثيقة رسمية  —  SchoolOS"
+    )
     cell.font = footer_font
     cell.alignment = Alignment(horizontal="center")
 
@@ -175,27 +184,27 @@ def get_pdf_header_html(context: dict) -> str:
     """
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
-    return f'''
+    return f"""
     <div style="text-align:center;border-bottom:3px solid #8A1538;padding-bottom:12px;margin-bottom:20px">
       <h1 style="color:#8A1538;font-size:16pt;margin:0">{context["school_name"]}</h1>
       <p style="font-size:9pt;color:#666;margin:2px 0 0">{context["ministry"]}</p>
       <p style="font-size:11pt;font-weight:700;color:#333;margin:8px 0 0">{context["title"]}</p>
       <p style="font-size:8pt;color:#999;margin:4px 0 0">العام الدراسي {context["academic_year"]}</p>
     </div>
-    '''
+    """
 
 
 def get_pdf_footer_html(context: dict) -> str:
     """
     HTML فوتر PDF — توقيع المُصدِّر في أسفل كل صفحة
     """
-    return f'''
+    return f"""
     <div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
       <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {context["exported_by"]} — {context["exporter_role"]}</p>
       <p style="margin:2px 0 0">التاريخ: {context["export_datetime"]}</p>
       <p style="margin:2px 0 0">{context["school_name"]} — وثيقة رسمية — SchoolOS</p>
     </div>
-    '''
+    """
 
 
 def excel_to_response(wb, filename: str):

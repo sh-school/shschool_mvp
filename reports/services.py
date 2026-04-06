@@ -543,13 +543,17 @@ class ExcelService:
 
         is_a3 = paper.lower() == "a3"
         columns = (
-            [("م", 6 if is_a3 else 5),
-             ("اسم الطالب", 38 if is_a3 else 28),
-             ("الرقم الوطني", 20 if is_a3 else 16)]
+            [
+                ("م", 6 if is_a3 else 5),
+                ("اسم الطالب", 38 if is_a3 else 28),
+                ("الرقم الوطني", 20 if is_a3 else 16),
+            ]
             + [(s.name_ar[:18], 15 if is_a3 else 11) for s in subjects]
-            + [("المتوسط", 13 if is_a3 else 10),
-               ("الحالة", 13 if is_a3 else 10),
-               ("الترتيب", 10 if is_a3 else 8)]
+            + [
+                ("المتوسط", 13 if is_a3 else 10),
+                ("الحالة", 13 if is_a3 else 10),
+                ("الترتيب", 10 if is_a3 else 8),
+            ]
         )
         cls._add_header_row(ws, styles, 4, columns)
 
@@ -683,7 +687,10 @@ class ExcelService:
 
     @classmethod
     def behavior_excel(
-        cls, school: School, year: str = settings.CURRENT_ACADEMIC_YEAR, paper: str = "a4",
+        cls,
+        school: School,
+        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        paper: str = "a4",
     ) -> HttpResponse:
         """
         Excel تقرير السلوك:

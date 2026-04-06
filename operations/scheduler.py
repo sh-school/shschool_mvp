@@ -183,9 +183,9 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     """بناء قائمة المهام من SubjectClassAssignment"""
     # تحميل المواد التي تتطلب حصة مزدوجة (من إعدادات النائب الأكاديمي)
     double_period_subjects = set(
-        Subject.objects.filter(
-            school=school, requires_double_period=True
-        ).values_list("id", flat=True)
+        Subject.objects.filter(school=school, requires_double_period=True).values_list(
+            "id", flat=True
+        )
     )
 
     assignments = SubjectClassAssignment.objects.filter(
@@ -208,10 +208,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
             level_type = ""
 
         # حصة مزدوجة: من إعدادات المادة في DB أو من الكود القديم
-        is_double = (
-            a.subject_id in double_period_subjects
-            or a.subject.code in {"ART", "TECH"}
-        )
+        is_double = a.subject_id in double_period_subjects or a.subject.code in {"ART", "TECH"}
 
         for _ in range(a.weekly_periods):
             tasks.append(
@@ -324,7 +321,9 @@ def generate_schedule(
 
     # 2b. تحميل تفريغات المعلمين — مجموعة (teacher_id, day, period) المحظورة
     exemptions_qs = TeacherExemption.objects.filter(
-        school=school, academic_year=academic_year, is_active=True,
+        school=school,
+        academic_year=academic_year,
+        is_active=True,
     )
     blocked_slots: set[tuple[str, int, int | None]] = set()
     for ex in exemptions_qs:
@@ -385,9 +384,7 @@ def generate_schedule(
 
                 # إنشاء الحصص الجديدة — تحميل أوقات الحصص (regular + thursday)
                 time_config = {}
-                for tc in TimeSlotConfig.objects.filter(
-                    school=school, is_break=False
-                ):
+                for tc in TimeSlotConfig.objects.filter(school=school, is_break=False):
                     time_config[(tc.day_type, tc.period_number)] = (tc.start_time, tc.end_time)
 
                 # أوقات احتياطية إذا لم يُعدَّ TimeSlotConfig

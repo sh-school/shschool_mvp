@@ -753,9 +753,13 @@ class TestEmployeeEvaluation:
         admin = make_admin(school)
         teacher = make_teacher(school)
         ev = make_evaluation(
-            school, teacher, admin,
-            axis_professional=25, axis_commitment=25,
-            axis_teamwork=23, axis_development=22,
+            school,
+            teacher,
+            admin,
+            axis_professional=25,
+            axis_commitment=25,
+            axis_teamwork=23,
+            axis_development=22,
         )
         assert ev.total_score == 95
         assert ev.rating == "excellent"
@@ -764,9 +768,13 @@ class TestEmployeeEvaluation:
         admin = make_admin(school)
         teacher = make_teacher(school)
         ev = make_evaluation(
-            school, teacher, admin,
-            axis_professional=15, axis_commitment=16,
-            axis_teamwork=15, axis_development=16,
+            school,
+            teacher,
+            admin,
+            axis_professional=15,
+            axis_commitment=16,
+            axis_teamwork=15,
+            axis_development=16,
         )
         assert ev.total_score == 62
         assert ev.rating == "good"
@@ -775,9 +783,13 @@ class TestEmployeeEvaluation:
         admin = make_admin(school)
         teacher = make_teacher(school)
         ev = make_evaluation(
-            school, teacher, admin,
-            axis_professional=10, axis_commitment=10,
-            axis_teamwork=10, axis_development=10,
+            school,
+            teacher,
+            admin,
+            axis_professional=10,
+            axis_commitment=10,
+            axis_teamwork=10,
+            axis_development=10,
         )
         assert ev.total_score == 40
         assert ev.rating == "needs_dev"
@@ -860,15 +872,23 @@ class TestEvaluationScore:
 
         # مدير: وزن 60%، درجة 90
         EvaluationScore.objects.create(
-            evaluation=ev, evaluator=admin, weight=60,
-            axis_professional=24, axis_commitment=23,
-            axis_teamwork=22, axis_development=21,
+            evaluation=ev,
+            evaluator=admin,
+            weight=60,
+            axis_professional=24,
+            axis_commitment=23,
+            axis_teamwork=22,
+            axis_development=21,
         )
         # نائب: وزن 40%، درجة 70
         EvaluationScore.objects.create(
-            evaluation=ev, evaluator=vice, weight=40,
-            axis_professional=18, axis_commitment=17,
-            axis_teamwork=18, axis_development=17,
+            evaluation=ev,
+            evaluator=vice,
+            weight=40,
+            axis_professional=18,
+            axis_commitment=17,
+            axis_teamwork=18,
+            axis_development=17,
         )
 
         ev.recalculate_from_scores()
@@ -896,15 +916,23 @@ class TestEvaluationScore:
         teacher = make_teacher(school)
         ev = make_evaluation(school, teacher, admin)
         EvaluationScore.objects.create(
-            evaluation=ev, evaluator=admin, weight=100,
-            axis_professional=20, axis_commitment=20,
-            axis_teamwork=20, axis_development=20,
+            evaluation=ev,
+            evaluator=admin,
+            weight=100,
+            axis_professional=20,
+            axis_commitment=20,
+            axis_teamwork=20,
+            axis_development=20,
         )
         with pytest.raises(Exception):
             EvaluationScore.objects.create(
-                evaluation=ev, evaluator=admin, weight=100,
-                axis_professional=15, axis_commitment=15,
-                axis_teamwork=15, axis_development=15,
+                evaluation=ev,
+                evaluator=admin,
+                weight=100,
+                axis_professional=15,
+                axis_commitment=15,
+                axis_teamwork=15,
+                axis_development=15,
             )
 
 
@@ -920,19 +948,37 @@ class TestRoleEvaluationTemplate:
     def test_create_template_with_axes(self, school):
         """إنشاء قالب تقييم بمحاور مخصصة"""
         tmpl = RoleEvaluationTemplate.objects.create(
-            school=school, role_name="teacher", academic_year="2025-2026",
+            school=school,
+            role_name="teacher",
+            academic_year="2025-2026",
         )
         EvaluationAxis.objects.create(
-            template=tmpl, key="teaching_skills", label="مهارات التدريس", weight=30, order=1,
+            template=tmpl,
+            key="teaching_skills",
+            label="مهارات التدريس",
+            weight=30,
+            order=1,
         )
         EvaluationAxis.objects.create(
-            template=tmpl, key="classroom_mgmt", label="إدارة الفصل", weight=25, order=2,
+            template=tmpl,
+            key="classroom_mgmt",
+            label="إدارة الفصل",
+            weight=25,
+            order=2,
         )
         EvaluationAxis.objects.create(
-            template=tmpl, key="assessment", label="التقييم والقياس", weight=25, order=3,
+            template=tmpl,
+            key="assessment",
+            label="التقييم والقياس",
+            weight=25,
+            order=3,
         )
         EvaluationAxis.objects.create(
-            template=tmpl, key="professional_dev", label="التطوير المهني", weight=20, order=4,
+            template=tmpl,
+            key="professional_dev",
+            label="التطوير المهني",
+            weight=20,
+            order=4,
         )
         assert tmpl.total_weight == 100
         assert tmpl.axes.count() == 4
@@ -940,24 +986,36 @@ class TestRoleEvaluationTemplate:
     def test_unique_template_per_role_year(self, school):
         """لا يمكن إنشاء قالبين لنفس الدور في نفس السنة"""
         RoleEvaluationTemplate.objects.create(
-            school=school, role_name="nurse", academic_year="2025-2026",
+            school=school,
+            role_name="nurse",
+            academic_year="2025-2026",
         )
         with pytest.raises(Exception):
             RoleEvaluationTemplate.objects.create(
-                school=school, role_name="nurse", academic_year="2025-2026",
+                school=school,
+                role_name="nurse",
+                academic_year="2025-2026",
             )
 
     def test_unique_axis_per_template(self, school):
         """لا يمكن تكرار نفس المحور في القالب"""
         tmpl = RoleEvaluationTemplate.objects.create(
-            school=school, role_name="coordinator", academic_year="2025-2026",
+            school=school,
+            role_name="coordinator",
+            academic_year="2025-2026",
         )
         EvaluationAxis.objects.create(
-            template=tmpl, key="leadership", label="القيادة", weight=30,
+            template=tmpl,
+            key="leadership",
+            label="القيادة",
+            weight=30,
         )
         with pytest.raises(Exception):
             EvaluationAxis.objects.create(
-                template=tmpl, key="leadership", label="القيادة مكرر", weight=20,
+                template=tmpl,
+                key="leadership",
+                label="القيادة مكرر",
+                weight=20,
             )
 
     def test_evaluation_linked_to_template(self, school):
@@ -965,7 +1023,9 @@ class TestRoleEvaluationTemplate:
         admin = make_admin(school)
         teacher = make_teacher(school)
         tmpl = RoleEvaluationTemplate.objects.create(
-            school=school, role_name="teacher", academic_year="2025-2026",
+            school=school,
+            role_name="teacher",
+            academic_year="2025-2026",
         )
         ev = make_evaluation(school, teacher, admin, template=tmpl)
         assert ev.template == tmpl
@@ -984,7 +1044,9 @@ class TestEvaluationCycle:
         """دورة بدون تقييمات → 0%"""
         admin = make_admin(school)
         cycle = EvaluationCycle.objects.create(
-            school=school, academic_year="2025-2026", period="S1",
+            school=school,
+            academic_year="2025-2026",
+            period="S1",
             deadline=timezone.now().date() + timedelta(days=30),
             created_by=admin,
         )
@@ -995,7 +1057,9 @@ class TestEvaluationCycle:
         admin = make_admin(school)
         teacher = make_teacher(school)
         cycle = EvaluationCycle.objects.create(
-            school=school, academic_year="2025-2026", period="S1",
+            school=school,
+            academic_year="2025-2026",
+            period="S1",
             deadline=timezone.now().date() + timedelta(days=30),
             created_by=admin,
         )

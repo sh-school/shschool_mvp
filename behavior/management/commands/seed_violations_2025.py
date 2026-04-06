@@ -23,23 +23,18 @@ class Command(BaseCommand):
         total_2025 = ViolationCategory.objects.filter(code__regex=r"^\d+-\d+$").count()
 
         if options["deactivate_old"]:
-            old_count = ViolationCategory.objects.filter(
-                code__regex=r"^[A-D]\d+$"
-            ).update(is_active=False)
-            self.stdout.write(
-                self.style.WARNING(f"⚠ تم تعطيل {old_count} مخالفة قديمة (ABCD)")
+            old_count = ViolationCategory.objects.filter(code__regex=r"^[A-D]\d+$").update(
+                is_active=False
             )
+            self.stdout.write(self.style.WARNING(f"⚠ تم تعطيل {old_count} مخالفة قديمة (ABCD)"))
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"✅ تم إضافة {created} مخالفة جديدة | "
-                f"الإجمالي 2025: {total_2025} مخالفة"
+                f"✅ تم إضافة {created} مخالفة جديدة | " f"الإجمالي 2025: {total_2025} مخالفة"
             )
         )
 
         # ملخص حسب الدرجات
         for degree in range(1, 5):
-            count = ViolationCategory.objects.filter(
-                degree=degree, is_active=True
-            ).count()
+            count = ViolationCategory.objects.filter(degree=degree, is_active=True).count()
             self.stdout.write(f"   الدرجة {degree}: {count} مخالفة")

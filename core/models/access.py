@@ -20,15 +20,26 @@ TIER_2_DEPUTIES = {"vice_admin", "vice_academic"}
 TIER_3_SUPERVISORS = {"coordinator", "admin_supervisor", "activities_coordinator"}
 TIER_4_STAFF = {
     # الكادر التدريسي
-    "teacher", "ese_teacher", "teacher_assistant", "ese_assistant",
+    "teacher",
+    "ese_teacher",
+    "teacher_assistant",
+    "ese_assistant",
     # الدعم الأكاديمي والطلابي
-    "social_worker", "psychologist", "academic_advisor",
-    "speech_therapist", "occupational_therapist",
+    "social_worker",
+    "psychologist",
+    "academic_advisor",
+    "speech_therapist",
+    "occupational_therapist",
     # الخدمات المساندة
-    "nurse", "librarian", "it_technician",
-    "bus_supervisor", "transport_officer",
+    "nurse",
+    "librarian",
+    "it_technician",
+    "bus_supervisor",
+    "transport_officer",
     # الإداريون
-    "admin", "secretary", "receptionist",
+    "admin",
+    "secretary",
+    "receptionist",
 }
 TIER_5_BENEFICIARIES = {"student", "parent"}
 TIER_SYSTEM = {"platform_developer"}
@@ -39,8 +50,13 @@ ADMIN_ROLES = TIER_1_LEADERSHIP | TIER_2_DEPUTIES
 LEADERSHIP = TIER_1_LEADERSHIP | TIER_2_DEPUTIES
 # أدوار الطاقم الأكاديمي
 ACADEMIC_ROLES = {
-    "principal", "vice_academic", "coordinator",
-    "teacher", "ese_teacher", "teacher_assistant", "ese_assistant",
+    "principal",
+    "vice_academic",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "teacher_assistant",
+    "ese_assistant",
     "activities_coordinator",
 }
 # أدوار الطاقم بالكامل (بدون طلاب وأولياء أمور)
@@ -57,28 +73,28 @@ class Role(models.Model):
         # T3 — المنسقون والإشراف
         ("coordinator", "منسق أكاديمي"),
         ("admin_supervisor", "مشرف إداري"),
-        ("activities_coordinator", "منسق الأنشطة المدرسية"),   # قرار 32/2019 — جديد v7
+        ("activities_coordinator", "منسق الأنشطة المدرسية"),  # قرار 32/2019 — جديد v7
         # T4 — الكادر التدريسي
         ("teacher", "معلم"),
         ("ese_teacher", "معلم تربية خاصة"),
-        ("teacher_assistant", "مساعد المعلم"),                 # نص صريح قرار 32/2019 — جديد v7
-        ("ese_assistant", "مساعد معلم تربية خاصة"),           # نص صريح قرار 32/2019 — جديد v7
+        ("teacher_assistant", "مساعد المعلم"),  # نص صريح قرار 32/2019 — جديد v7
+        ("ese_assistant", "مساعد معلم تربية خاصة"),  # نص صريح قرار 32/2019 — جديد v7
         # T4 — الدعم الأكاديمي والطلابي
         ("social_worker", "أخصائي اجتماعي"),
         ("psychologist", "أخصائي نفسي"),
         ("academic_advisor", "مرشد أكاديمي"),
-        ("speech_therapist", "أخصائي النطق"),                  # إعلان رسمي وزارة التعليم — جديد v7
-        ("occupational_therapist", "أخصائي العلاج الوظائفي"), # إعلان رسمي وزارة التعليم — جديد v7
+        ("speech_therapist", "أخصائي النطق"),  # إعلان رسمي وزارة التعليم — جديد v7
+        ("occupational_therapist", "أخصائي العلاج الوظائفي"),  # إعلان رسمي وزارة التعليم — جديد v7
         # T4 — الخدمات المساندة
         ("nurse", "ممرض"),
         ("librarian", "أمين مصادر التعلم"),
         ("it_technician", "فني تقنية معلومات"),
         ("bus_supervisor", "مشرف نقل مدرسي"),
-        ("transport_officer", "مسؤول النقل"),                  # إدارة النقل — مختلف عن مشرف الحافلة — جديد v7
+        ("transport_officer", "مسؤول النقل"),  # إدارة النقل — مختلف عن مشرف الحافلة — جديد v7
         # T4 — الإداريون
         ("admin", "إداري"),
         ("secretary", "سكرتير المدرسة"),
-        ("receptionist", "موظف استقبال"),                      # جديد v7
+        ("receptionist", "موظف استقبال"),  # جديد v7
         # T4-legacy — التوافق الخلفي
         ("specialist", "أخصائي (قديم)"),
         # T5 — المستفيدون
@@ -126,6 +142,7 @@ class Role(models.Model):
 # ══════════════════════════════════════════════════════════════════════
 # Membership — عضوية المستخدم في المدرسة مع الدور والقسم
 # ══════════════════════════════════════════════════════════════════════
+
 
 class Membership(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

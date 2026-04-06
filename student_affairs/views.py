@@ -60,26 +60,30 @@ def student_dashboard(request):
     ctx = StudentService.get_dashboard_context(school, year, today=today)
     att = ctx["today_attendance"]
 
-    return render(request, "student_affairs/dashboard.html", {
-        "today": today,
-        "year": year,
-        "current_school": school,
-        "total_students": ctx["total_students"],
-        "absent_today": att["absent"] or 0,
-        "late_today": att["late"] or 0,
-        "present_today": att["present"] or 0,
-        "behavior_month": ctx["behavior_month"]["total"] or 0,
-        "clinic_today": ctx["clinic_today"],
-        "pending_transfers": ctx["pending_transfers"],
-        "grade_distribution": ctx["grade_distribution"],
-        "linked_parents": ctx["parent_link_count"],
-        "activities_year": ctx["activities_count"],
-        "recent_infractions": ctx["recent_infractions"],
-        "recent_transfers": ctx["recent_transfers"],
-        "no_parent_count": ctx["no_parent_count"],
-        "weekly_tardiness": ctx["weekly_tardiness"],
-        "recent_activities": ctx["recent_activities"],
-    })
+    return render(
+        request,
+        "student_affairs/dashboard.html",
+        {
+            "today": today,
+            "year": year,
+            "current_school": school,
+            "total_students": ctx["total_students"],
+            "absent_today": att["absent"] or 0,
+            "late_today": att["late"] or 0,
+            "present_today": att["present"] or 0,
+            "behavior_month": ctx["behavior_month"]["total"] or 0,
+            "clinic_today": ctx["clinic_today"],
+            "pending_transfers": ctx["pending_transfers"],
+            "grade_distribution": ctx["grade_distribution"],
+            "linked_parents": ctx["parent_link_count"],
+            "activities_year": ctx["activities_count"],
+            "recent_infractions": ctx["recent_infractions"],
+            "recent_transfers": ctx["recent_transfers"],
+            "no_parent_count": ctx["no_parent_count"],
+            "weekly_tardiness": ctx["weekly_tardiness"],
+            "recent_activities": ctx["recent_activities"],
+        },
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -97,7 +101,9 @@ def student_list(request):
     # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
     students = (
         Membership.objects.filter(
-            school=school, role__name="student", is_active=True,
+            school=school,
+            role__name="student",
+            is_active=True,
         )
         .select_related("user", "user__profile")
         .order_by("user__full_name")
@@ -164,28 +170,26 @@ def student_list(request):
             ParentStudentLink.objects.filter(school=school, student_id=OuterRef("user_id"))
         )
         if parent_status == "linked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(
-                _has_parent=True
-            )
+            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=True)
         elif parent_status == "unlinked":
-            students = students.annotate(_has_parent=parent_link_exists).filter(
-                _has_parent=False
-            )
+            students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
 
     # ── بناء القائمة مع بيانات التسجيل ──
     student_rows = []
     for m in students[:200]:
         enr = enrollments.get(m.user_id, {})
-        student_rows.append({
-            "id": m.user_id,
-            "full_name": m.user.full_name,
-            "national_id": m.user.national_id,
-            "phone": m.user.phone,
-            "email": m.user.email,
-            "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
-            "grade": enr.get("class_group__grade", "—"),
-            "section": enr.get("class_group__section", "—"),
-        })
+        student_rows.append(
+            {
+                "id": m.user_id,
+                "full_name": m.user.full_name,
+                "national_id": m.user.national_id,
+                "phone": m.user.phone,
+                "email": m.user.email,
+                "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
+                "grade": enr.get("class_group__grade", "—"),
+                "section": enr.get("class_group__section", "—"),
+            }
+        )
 
     # ── خيارات الفلتر ──
     available_grades = (
@@ -248,9 +252,15 @@ def student_export_excel(request):
     ctx = get_export_context(request, "سجل الطلاب")
 
     # نفس فلترة student_list
-    students = Membership.objects.filter(
-        school=school, role__name="student", is_active=True,
-    ).select_related("user").order_by("user__full_name")
+    students = (
+        Membership.objects.filter(
+            school=school,
+            role__name="student",
+            is_active=True,
+        )
+        .select_related("user")
+        .order_by("user__full_name")
+    )
 
     if q:
         students = students.filter(
@@ -259,15 +269,25 @@ def student_export_excel(request):
 
     enrollment_data = {}
     for enr in StudentEnrollment.objects.filter(
-        class_group__school=school, class_group__academic_year=year, is_active=True,
+        class_group__school=school,
+        class_group__academic_year=year,
+        is_active=True,
     ).values("student_id", "class_group__grade", "class_group__section"):
         enrollment_data[enr["student_id"]] = enr
 
     if grade_filter:
-        enrolled_ids = [sid for sid, data in enrollment_data.items() if data["class_group__grade"] == grade_filter]
+        enrolled_ids = [
+            sid
+            for sid, data in enrollment_data.items()
+            if data["class_group__grade"] == grade_filter
+        ]
         students = students.filter(user_id__in=enrolled_ids)
     if section_filter:
-        enrolled_ids = [sid for sid, data in enrollment_data.items() if data.get("class_group__section") == section_filter]
+        enrolled_ids = [
+            sid
+            for sid, data in enrollment_data.items()
+            if data.get("class_group__section") == section_filter
+        ]
         students = students.filter(user_id__in=enrolled_ids)
 
     wb = openpyxl.Workbook()
@@ -285,8 +305,10 @@ def student_export_excel(request):
     header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
     cell_font = Font(name="Tajawal", size=10)
     thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     for col, h in enumerate(headers, 1):
@@ -357,30 +379,43 @@ def student_add(request):
 
             # ── تحديد الشعبة (المطلوب للـ Service) ──
             class_group = ClassGroup.objects.filter(
-                school=school, grade=cd["grade"], section=cd["section"],
-                academic_year=year, is_active=True,
+                school=school,
+                grade=cd["grade"],
+                section=cd["section"],
+                academic_year=year,
+                is_active=True,
             ).first()
             if not class_group:
                 messages.error(
                     request,
                     f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}.",
                 )
-                return render(request, "student_affairs/student_form.html", {
-                    "form": form, "mode": "add", "year": year,
-                    "grades": ClassGroup.GRADES, "school": school,
-                })
+                return render(
+                    request,
+                    "student_affairs/student_form.html",
+                    {
+                        "form": form,
+                        "mode": "add",
+                        "year": year,
+                        "grades": ClassGroup.GRADES,
+                        "school": school,
+                    },
+                )
 
             # ── تفويض الإنشاء للـ Service Layer ──
             try:
-                user = StudentService.create_student(school, {
-                    "national_id": cd["national_id"],
-                    "full_name": cd["full_name"],
-                    "phone": cd.get("phone", ""),
-                    "email": cd.get("email", ""),
-                    "gender": cd.get("gender", ""),
-                    "birth_date": cd.get("birth_date"),
-                    "class_group_id": class_group.pk,
-                })
+                user = StudentService.create_student(
+                    school,
+                    {
+                        "national_id": cd["national_id"],
+                        "full_name": cd["full_name"],
+                        "phone": cd.get("phone", ""),
+                        "email": cd.get("email", ""),
+                        "gender": cd.get("gender", ""),
+                        "birth_date": cd.get("birth_date"),
+                        "class_group_id": class_group.pk,
+                    },
+                )
                 messages.success(
                     request,
                     f"تم إضافة الطالب {user.full_name} في "
@@ -395,13 +430,17 @@ def student_add(request):
     else:
         form = StudentAddForm()
 
-    return render(request, "student_affairs/student_form.html", {
-        "form": form,
-        "mode": "add",
-        "year": year,
-        "grades": ClassGroup.GRADES,
-        "school": school,
-    })
+    return render(
+        request,
+        "student_affairs/student_form.html",
+        {
+            "form": form,
+            "mode": "add",
+            "year": year,
+            "grades": ClassGroup.GRADES,
+            "school": school,
+        },
+    )
 
 
 @login_required
@@ -410,15 +449,21 @@ def student_edit(request, student_id):
     """تعديل بيانات طالب موجود."""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = settings.CURRENT_ACADEMIC_YEAR
     profile = getattr(student, "profile", None)
     enrollment = (
         StudentEnrollment.objects.filter(
-            student=student, class_group__academic_year=year, is_active=True,
-        ).select_related("class_group").first()
+            student=student,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+        .select_related("class_group")
+        .first()
     )
 
     from .forms import StudentEditForm
@@ -452,15 +497,20 @@ def student_edit(request, student_id):
             )
             if needs_reenroll:
                 new_class = ClassGroup.objects.filter(
-                    school=school, grade=new_grade, section=new_section,
-                    academic_year=year, is_active=True,
+                    school=school,
+                    grade=new_grade,
+                    section=new_section,
+                    academic_year=year,
+                    is_active=True,
                 ).first()
                 if new_class:
                     if enrollment:
                         enrollment.is_active = False
                         enrollment.save()
                     StudentEnrollment.objects.create(
-                        student=student, class_group=new_class, is_active=True,
+                        student=student,
+                        class_group=new_class,
+                        is_active=True,
                     )
                 else:
                     messages.warning(request, f"لا توجد شعبة {new_section} في الصف {new_grade}.")
@@ -468,24 +518,30 @@ def student_edit(request, student_id):
             messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
             return redirect("student_affairs:student_profile", student_id=student.id)
     else:
-        form = StudentEditForm(initial={
-            "full_name": student.full_name,
-            "phone": student.phone,
-            "email": student.email,
-            "grade": enrollment.class_group.grade if enrollment else "",
-            "section": enrollment.class_group.section if enrollment else "",
-            "birth_date": profile.birth_date if profile else None,
-            "notes": profile.notes if profile else "",
-        })
+        form = StudentEditForm(
+            initial={
+                "full_name": student.full_name,
+                "phone": student.phone,
+                "email": student.email,
+                "grade": enrollment.class_group.grade if enrollment else "",
+                "section": enrollment.class_group.section if enrollment else "",
+                "birth_date": profile.birth_date if profile else None,
+                "notes": profile.notes if profile else "",
+            }
+        )
 
-    return render(request, "student_affairs/student_form.html", {
-        "form": form,
-        "mode": "edit",
-        "student": student,
-        "year": year,
-        "grades": ClassGroup.GRADES,
-        "school": school,
-    })
+    return render(
+        request,
+        "student_affairs/student_form.html",
+        {
+            "form": form,
+            "mode": "edit",
+            "student": student,
+            "year": year,
+            "grades": ClassGroup.GRADES,
+            "school": school,
+        },
+    )
 
 
 @login_required
@@ -500,8 +556,10 @@ def student_deactivate(request, student_id):
 
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
 
     StudentService.deactivate_student(
@@ -525,8 +583,10 @@ def student_profile(request, student_id):
     """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -534,18 +594,23 @@ def student_profile(request, student_id):
     profile = getattr(student, "profile", None)
     enrollment = (
         StudentEnrollment.objects.filter(
-            student=student, class_group__academic_year=year, is_active=True,
+            student=student,
+            class_group__academic_year=year,
+            is_active=True,
         )
         .select_related("class_group")
         .first()
     )
     parent_links = ParentStudentLink.objects.filter(
-        student=student, school=school,
+        student=student,
+        school=school,
     ).select_related("parent")
 
     # ── 2. الحضور (operations) ──
     attendance_qs = StudentAttendance.objects.filter(
-        student=student, school=school, session__date__year=timezone.localdate().year,
+        student=student,
+        school=school,
+        session__date__year=timezone.localdate().year,
     )
     attendance_summary = {
         "present": attendance_qs.filter(status="present").count(),
@@ -569,33 +634,34 @@ def student_profile(request, student_id):
     )
     behavior_summary = {
         "total": infractions.count(),
-        "by_level": {
-            lvl: infractions.filter(level=lvl).count() for lvl in range(1, 5)
-        },
+        "by_level": {lvl: infractions.filter(level=lvl).count() for lvl in range(1, 5)},
         "recent": infractions[:5],
     }
     # نقاط السلوك — Sum و BehaviorPointRecovery مُستورَدان من أعلى الملف
     total_deducted = infractions.aggregate(s=Sum("points_deducted"))["s"] or 0
     total_restored = (
         BehaviorPointRecovery.objects.filter(
-            infraction__student=student, infraction__school=school,
-        ).aggregate(s=Sum("points_restored"))["s"] or 0
+            infraction__student=student,
+            infraction__school=school,
+        ).aggregate(s=Sum("points_restored"))["s"]
+        or 0
     )
     behavior_summary["net_score"] = max(0, 100 - total_deducted + total_restored)
     behavior_summary["total_deducted"] = total_deducted
     behavior_summary["total_restored"] = total_restored
 
     # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
-    clinic_visits = (
-        ClinicVisit.objects.filter(student=student, school=school)
-        .order_by("-visit_date")[:5]
-    )
+    clinic_visits = ClinicVisit.objects.filter(student=student, school=school).order_by(
+        "-visit_date"
+    )[:5]
     health_record = HealthRecord.objects.filter(student=student).first()
 
     # ── 5. الدرجات (assessments) — AnnualSubjectResult مُستورَد من أعلى الملف ──
     grades = (
         AnnualSubjectResult.objects.filter(
-            student=student, school=school, academic_year=year,
+            student=student,
+            school=school,
+            academic_year=year,
         )
         .select_related("setup__subject", "setup__class_group")
         .order_by("setup__subject__name_ar")
@@ -614,33 +680,35 @@ def student_profile(request, student_id):
     )
 
     # ── 7. الأنشطة (student_affairs) ──
-    activities = (
-        StudentActivity.objects.filter(student=student, school=school)
-        .order_by("-date")[:10]
-    )
+    activities = StudentActivity.objects.filter(student=student, school=school).order_by("-date")[
+        :10
+    ]
 
     # ── الانتقالات ──
-    transfers = (
-        StudentTransfer.objects.filter(student=student, school=school)
-        .order_by("-created_at")[:5]
-    )
+    transfers = StudentTransfer.objects.filter(student=student, school=school).order_by(
+        "-created_at"
+    )[:5]
 
-    return render(request, "student_affairs/student_profile.html", {
-        "student": student,
-        "profile": profile,
-        "enrollment": enrollment,
-        "parent_links": parent_links,
-        "attendance": attendance_summary,
-        "behavior": behavior_summary,
-        "clinic_visits": clinic_visits,
-        "health_record": health_record,
-        "grades": grades,
-        "grades_summary": grades_summary,
-        "borrowings": borrowings,
-        "activities": activities,
-        "transfers": transfers,
-        "year": year,
-    })
+    return render(
+        request,
+        "student_affairs/student_profile.html",
+        {
+            "student": student,
+            "profile": profile,
+            "enrollment": enrollment,
+            "parent_links": parent_links,
+            "attendance": attendance_summary,
+            "behavior": behavior_summary,
+            "clinic_visits": clinic_visits,
+            "health_record": health_record,
+            "grades": grades,
+            "grades_summary": grades_summary,
+            "borrowings": borrowings,
+            "activities": activities,
+            "transfers": transfers,
+            "year": year,
+        },
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -653,7 +721,11 @@ def student_profile(request, student_id):
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
     school = request.user.get_school()
-    transfers = StudentTransfer.objects.filter(school=school).select_related("student").order_by("-created_at")
+    transfers = (
+        StudentTransfer.objects.filter(school=school)
+        .select_related("student")
+        .order_by("-created_at")
+    )
 
     status_filter = request.GET.get("status", "")
     direction_filter = request.GET.get("direction", "")
@@ -662,13 +734,17 @@ def transfer_list(request):
     if direction_filter:
         transfers = transfers.filter(direction=direction_filter)
 
-    return render(request, "student_affairs/transfer_list.html", {
-        "transfers": transfers[:100],
-        "status_filter": status_filter,
-        "direction_filter": direction_filter,
-        "status_choices": StudentTransfer.STATUS_CHOICES,
-        "direction_choices": StudentTransfer.DIRECTION_CHOICES,
-    })
+    return render(
+        request,
+        "student_affairs/transfer_list.html",
+        {
+            "transfers": transfers[:100],
+            "status_filter": status_filter,
+            "direction_filter": direction_filter,
+            "status_choices": StudentTransfer.STATUS_CHOICES,
+            "direction_choices": StudentTransfer.DIRECTION_CHOICES,
+        },
+    )
 
 
 @login_required
@@ -684,8 +760,10 @@ def transfer_create(request):
         if form.is_valid():
             cd = form.cleaned_data
             student = get_object_or_404(
-                CustomUser, id=cd["student_id"],
-                memberships__school=school, memberships__is_active=True,
+                CustomUser,
+                id=cd["student_id"],
+                memberships__school=school,
+                memberships__is_active=True,
             )
             StudentTransfer.objects.create(
                 school=school,
@@ -711,10 +789,14 @@ def transfer_create(request):
         .select_related("user")
         .order_by("user__full_name")
     )
-    return render(request, "student_affairs/transfer_form.html", {
-        "form": form,
-        "students": students,
-    })
+    return render(
+        request,
+        "student_affairs/transfer_form.html",
+        {
+            "form": form,
+            "students": students,
+        },
+    )
 
 
 @login_required
@@ -749,10 +831,14 @@ def transfer_review(request, pk):
         # إذا اكتمل الانتقال الصادر → تعطيل الطالب
         if action == "completed" and transfer.direction == "out":
             Membership.objects.filter(
-                user=transfer.student, school=school, role__name="student", is_active=True,
+                user=transfer.student,
+                school=school,
+                role__name="student",
+                is_active=True,
             ).update(is_active=False)
             StudentEnrollment.objects.filter(
-                student=transfer.student, is_active=True,
+                student=transfer.student,
+                is_active=True,
             ).update(is_active=False)
 
         status_label = dict(StudentTransfer.STATUS_CHOICES).get(action, action)
@@ -785,15 +871,20 @@ def attendance_overview(request):
     pct = round(present * 100 / total_today) if total_today else 0
 
     summary = {
-        "present": present, "absent": absent, "late": late,
-        "excused": excused, "total": total_today, "pct": pct,
+        "present": present,
+        "absent": absent,
+        "late": late,
+        "excused": excused,
+        "total": total_today,
+        "pct": pct,
     }
 
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
     worst_students_qs = (
         StudentAttendance.objects.filter(
-            school=school, status="absent",
+            school=school,
+            status="absent",
             session__date__gte=thirty_days_ago,
         )
         .values("student__id", "student__full_name")
@@ -838,19 +929,23 @@ def attendance_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
-    return render(request, "student_affairs/attendance_overview.html", {
-        "summary": summary,
-        "today": today,
-        "year": year,
-        "worst_students": worst_students_qs,
-        "class_breakdown": class_breakdown,
-        "chart_labels_json": json.dumps(chart_labels),
-        "chart_present_json": json.dumps(chart_present),
-        "chart_absent_json": json.dumps(chart_absent),
-        "alerts": alerts,
-        "grades": grades,
-        "grade_filter": grade_filter,
-    })
+    return render(
+        request,
+        "student_affairs/attendance_overview.html",
+        {
+            "summary": summary,
+            "today": today,
+            "year": year,
+            "worst_students": worst_students_qs,
+            "class_breakdown": class_breakdown,
+            "chart_labels_json": json.dumps(chart_labels),
+            "chart_present_json": json.dumps(chart_present),
+            "chart_absent_json": json.dumps(chart_absent),
+            "alerts": alerts,
+            "grades": grades,
+            "grade_filter": grade_filter,
+        },
+    )
 
 
 @login_required
@@ -869,7 +964,9 @@ def attendance_export_excel(request):
     # أكثر الطلاب غياباً — Count مُستورَد من أعلى الملف
     absence_data = (
         StudentAttendance.objects.filter(
-            school=school, status="absent", session__date__gte=thirty_ago,
+            school=school,
+            status="absent",
+            session__date__gte=thirty_ago,
         )
         .values("student__full_name", "student__national_id")
         .annotate(absence_count=Count("id"))
@@ -888,8 +985,10 @@ def attendance_export_excel(request):
     header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
     cell_font = Font(name="Tajawal", size=10)
     thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     wb = openpyxl.Workbook()
@@ -990,29 +1089,28 @@ def behavior_overview(request):
 
     # ── مخالفات السنة الحالية ──
     year_infractions = BehaviorInfraction.objects.filter(
-        school=school, date__year=today.year,
+        school=school,
+        date__year=today.year,
     )
     total_infractions = year_infractions.count()
     unresolved = year_infractions.filter(is_resolved=False).count()
 
     # ── عدد الطلاب المخالفين (فريد) ──
-    students_with_infractions = (
-        year_infractions.values("student").distinct().count()
-    )
+    students_with_infractions = year_infractions.values("student").distinct().count()
 
     # ── إجمالي الطلاب المسجلين ──
     total_students = Membership.objects.filter(
-        school=school, role__name="student", is_active=True,
+        school=school,
+        role__name="student",
+        is_active=True,
     ).count()
     infraction_pct = (
-        round(students_with_infractions * 100 / total_students)
-        if total_students else 0
+        round(students_with_infractions * 100 / total_students) if total_students else 0
     )
 
     # ── توزيع حسب درجة المخالفة (1-4) ──
     degree_distribution = (
-        year_infractions
-        .values("violation_category__degree")
+        year_infractions.values("violation_category__degree")
         .annotate(count=Count("id"), points=Sum("points_deducted"))
         .order_by("violation_category__degree")
     )
@@ -1028,8 +1126,7 @@ def behavior_overview(request):
 
     # ── أكثر 15 طالب مخالفات ──
     worst_students = (
-        year_infractions
-        .values("student__id", "student__full_name")
+        year_infractions.values("student__id", "student__full_name")
         .annotate(
             infraction_count=Count("id"),
             total_points=Sum("points_deducted"),
@@ -1047,7 +1144,9 @@ def behavior_overview(request):
         else:
             next_month = today + timedelta(days=1)
         count = BehaviorInfraction.objects.filter(
-            school=school, date__gte=month_start, date__lt=next_month,
+            school=school,
+            date__gte=month_start,
+            date__lt=next_month,
         ).count()
         chart_labels.append(month_start.strftime("%b"))
         chart_data.append(count)
@@ -1058,21 +1157,25 @@ def behavior_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
-    return render(request, "student_affairs/behavior_overview.html", {
-        "today": today,
-        "total_infractions": total_infractions,
-        "unresolved": unresolved,
-        "students_with_infractions": students_with_infractions,
-        "total_students": total_students,
-        "infraction_pct": infraction_pct,
-        "today_infractions": today_infractions,
-        "degree_map": degree_map,
-        "worst_students": worst_students,
-        "chart_labels_json": json.dumps(chart_labels),
-        "chart_data_json": json.dumps(chart_data),
-        "grades": grades,
-        "grade_filter": grade_filter,
-    })
+    return render(
+        request,
+        "student_affairs/behavior_overview.html",
+        {
+            "today": today,
+            "total_infractions": total_infractions,
+            "unresolved": unresolved,
+            "students_with_infractions": students_with_infractions,
+            "total_students": total_students,
+            "infraction_pct": infraction_pct,
+            "today_infractions": today_infractions,
+            "degree_map": degree_map,
+            "worst_students": worst_students,
+            "chart_labels_json": json.dumps(chart_labels),
+            "chart_data_json": json.dumps(chart_data),
+            "grades": grades,
+            "grade_filter": grade_filter,
+        },
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -1099,14 +1202,18 @@ def activity_list(request):
     if scope_filter:
         activities = activities.filter(scope=scope_filter)
 
-    return render(request, "student_affairs/activity_list.html", {
-        "activities": activities[:200],
-        "type_filter": type_filter,
-        "scope_filter": scope_filter,
-        "type_choices": StudentActivity.TYPE_CHOICES,
-        "scope_choices": StudentActivity.SCOPE_CHOICES,
-        "year": year,
-    })
+    return render(
+        request,
+        "student_affairs/activity_list.html",
+        {
+            "activities": activities[:200],
+            "type_filter": type_filter,
+            "scope_filter": scope_filter,
+            "type_choices": StudentActivity.TYPE_CHOICES,
+            "scope_choices": StudentActivity.SCOPE_CHOICES,
+            "year": year,
+        },
+    )
 
 
 @login_required
@@ -1122,8 +1229,10 @@ def activity_add(request):
         if form.is_valid():
             cd = form.cleaned_data
             student = get_object_or_404(
-                CustomUser, id=cd["student_id"],
-                memberships__school=school, memberships__is_active=True,
+                CustomUser,
+                id=cd["student_id"],
+                memberships__school=school,
+                memberships__is_active=True,
             )
             StudentActivity.objects.create(
                 school=school,
@@ -1137,18 +1246,27 @@ def activity_add(request):
                 recorded_by=request.user,
                 attachment=cd.get("attachment"),
             )
-            messages.success(request, f"تم تسجيل النشاط «{cd['title']}» للطالب {student.full_name}.")
+            messages.success(
+                request, f"تم تسجيل النشاط «{cd['title']}» للطالب {student.full_name}."
+            )
             return redirect("student_affairs:activity_list")
     else:
         form = ActivityForm()
 
     students = (
         Membership.objects.filter(school=school, role__name="student", is_active=True)
-        .select_related("user").order_by("user__full_name")
+        .select_related("user")
+        .order_by("user__full_name")
     )
-    return render(request, "student_affairs/activity_form.html", {
-        "form": form, "students": students, "mode": "add",
-    })
+    return render(
+        request,
+        "student_affairs/activity_form.html",
+        {
+            "form": form,
+            "students": students,
+            "mode": "add",
+        },
+    )
 
 
 @login_required
@@ -1175,22 +1293,32 @@ def activity_edit(request, pk):
             messages.success(request, f"تم تحديث النشاط «{activity.title}».")
             return redirect("student_affairs:activity_list")
     else:
-        form = ActivityForm(initial={
-            "student_id": activity.student_id,
-            "activity_type": activity.activity_type,
-            "title": activity.title,
-            "description": activity.description,
-            "scope": activity.scope,
-            "date": activity.date,
-        })
+        form = ActivityForm(
+            initial={
+                "student_id": activity.student_id,
+                "activity_type": activity.activity_type,
+                "title": activity.title,
+                "description": activity.description,
+                "scope": activity.scope,
+                "date": activity.date,
+            }
+        )
 
     students = (
         Membership.objects.filter(school=school, role__name="student", is_active=True)
-        .select_related("user").order_by("user__full_name")
+        .select_related("user")
+        .order_by("user__full_name")
     )
-    return render(request, "student_affairs/activity_form.html", {
-        "form": form, "students": students, "mode": "edit", "activity": activity,
-    })
+    return render(
+        request,
+        "student_affairs/activity_form.html",
+        {
+            "form": form,
+            "students": students,
+            "mode": "edit",
+            "activity": activity,
+        },
+    )
 
 
 @login_required
@@ -1210,6 +1338,7 @@ def activity_delete(request, pk):
 # إضافة ولي أمر جديد + ربطه بطالب
 # ═════════════════════════════════════════════════════════════════════
 
+
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def parent_add(request):
@@ -1221,11 +1350,15 @@ def parent_add(request):
     year = settings.CURRENT_ACADEMIC_YEAR
 
     # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
-    students = CustomUser.objects.filter(
-        enrollments__class_group__school=school,
-        enrollments__class_group__academic_year=year,
-        enrollments__is_active=True,
-    ).distinct().order_by("full_name")
+    students = (
+        CustomUser.objects.filter(
+            enrollments__class_group__school=school,
+            enrollments__class_group__academic_year=year,
+            enrollments__is_active=True,
+        )
+        .distinct()
+        .order_by("full_name")
+    )
 
     if request.method == "POST":
         form = ParentAddForm(request.POST)
@@ -1242,7 +1375,9 @@ def parent_add(request):
                         # تأكد من وجود Membership كـ parent
                         parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
                         Membership.objects.get_or_create(
-                            user=parent, school=school, role=parent_role,
+                            user=parent,
+                            school=school,
+                            role=parent_role,
                             defaults={"is_active": True},
                         )
                     else:
@@ -1258,7 +1393,10 @@ def parent_add(request):
                         Profile.objects.get_or_create(user=parent)
                         parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
                         Membership.objects.create(
-                            user=parent, school=school, role=parent_role, is_active=True,
+                            user=parent,
+                            school=school,
+                            role=parent_role,
+                            is_active=True,
                         )
 
                     # ربط ولي الأمر بالطالب
@@ -1290,10 +1428,14 @@ def parent_add(request):
     else:
         form = ParentAddForm()
 
-    return render(request, "student_affairs/parent_form.html", {
-        "form": form,
-        "students": students,
-    })
+    return render(
+        request,
+        "student_affairs/parent_form.html",
+        {
+            "form": form,
+            "students": students,
+        },
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -1307,15 +1449,19 @@ def student_profile_pdf(request, student_id):
     """ملف الطالب الشامل — PDF للطباعة (A4)."""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
     # enrollment
     enrollment = (
         StudentEnrollment.objects.filter(
-            student=student, class_group__academic_year=year, is_active=True,
+            student=student,
+            class_group__academic_year=year,
+            is_active=True,
         )
         .select_related("class_group")
         .first()
@@ -1324,9 +1470,15 @@ def student_profile_pdf(request, student_id):
     # حضور آخر 30 يوم
     today = timezone.localdate()
     thirty_ago = today - timedelta(days=30)
-    attendance = StudentAttendance.objects.filter(
-        school=school, student=student, session__date__gte=thirty_ago,
-    ).select_related("session__subject").order_by("-session__date")
+    attendance = (
+        StudentAttendance.objects.filter(
+            school=school,
+            student=student,
+            session__date__gte=thirty_ago,
+        )
+        .select_related("session__subject")
+        .order_by("-session__date")
+    )
 
     att_summary = {
         "total": attendance.count(),
@@ -1346,40 +1498,45 @@ def student_profile_pdf(request, student_id):
     # درجات — AnnualSubjectResult مُستورَد من أعلى الملف
     grades = (
         AnnualSubjectResult.objects.filter(
-            student=student, school=school, academic_year=year,
+            student=student,
+            school=school,
+            academic_year=year,
         )
         .select_related("setup__subject")
         .order_by("setup__subject__name_ar")
     )
 
     # أنشطة
-    activities = (
-        StudentActivity.objects.filter(school=school, student=student)
-        .order_by("-date")[:10]
-    )
+    activities = StudentActivity.objects.filter(school=school, student=student).order_by("-date")[
+        :10
+    ]
 
     # أولياء الأمور
     parent_links = ParentStudentLink.objects.filter(
-        school=school, student=student,
+        school=school,
+        student=student,
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
 
-    html_string = render_to_string("student_affairs/student_profile_pdf.html", {
-        "student": student,
-        "school": school,
-        "enrollment": enrollment,
-        "attendance": attendance[:15],
-        "att_summary": att_summary,
-        "infractions": infractions,
-        "total_points": total_points,
-        "grades": grades,
-        "activities": activities,
-        "parent_links": parent_links,
-        "today": today,
-        "year": year,
-        **ctx,
-    })
+    html_string = render_to_string(
+        "student_affairs/student_profile_pdf.html",
+        {
+            "student": student,
+            "school": school,
+            "enrollment": enrollment,
+            "attendance": attendance[:15],
+            "att_summary": att_summary,
+            "infractions": infractions,
+            "total_points": total_points,
+            "grades": grades,
+            "activities": activities,
+            "parent_links": parent_links,
+            "today": today,
+            "year": year,
+            **ctx,
+        },
+    )
 
     return render_pdf(html_string, f"student_{student.full_name}.pdf")
 
@@ -1387,6 +1544,7 @@ def student_profile_pdf(request, student_id):
 # ═════════════════════════════════════════════════════════════════════
 # التأخر الصباحي
 # ═════════════════════════════════════════════════════════════════════
+
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
@@ -1398,6 +1556,7 @@ def tardiness_list(request):
     if date_str:
         try:
             from datetime import date as date_type
+
             selected_date = date_type.fromisoformat(date_str)
         except ValueError:
             selected_date = timezone.localdate()
@@ -1408,25 +1567,31 @@ def tardiness_list(request):
     section_filter = request.GET.get("section", "")
 
     late_qs = StudentAttendance.objects.filter(
-        school=school, status="late", session__date=selected_date,
+        school=school,
+        status="late",
+        session__date=selected_date,
     )
     if grade_filter:
         late_qs = late_qs.filter(session__class_group__grade=grade_filter)
     if section_filter:
         late_qs = late_qs.filter(session__class_group__section=section_filter)
 
-    late_records = (
-        late_qs
-        .select_related("student", "session__class_group", "session__subject")
-        .order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
-    )
+    late_records = late_qs.select_related(
+        "student", "session__class_group", "session__subject"
+    ).order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
 
     total_late = late_records.count()
 
     # KPIs إضافية
-    total_students_today = StudentAttendance.objects.filter(
-        school=school, session__date=selected_date,
-    ).values("student").distinct().count()
+    total_students_today = (
+        StudentAttendance.objects.filter(
+            school=school,
+            session__date=selected_date,
+        )
+        .values("student")
+        .distinct()
+        .count()
+    )
     late_pct = round(total_late * 100 / total_students_today) if total_students_today else 0
 
     # توزيع التأخر حسب الصف
@@ -1439,24 +1604,30 @@ def tardiness_list(request):
     # التأخر هذا الأسبوع
     week_start = selected_date - timedelta(days=selected_date.weekday())
     weekly_late = StudentAttendance.objects.filter(
-        school=school, status="late",
-        session__date__gte=week_start, session__date__lte=selected_date,
+        school=school,
+        status="late",
+        session__date__gte=week_start,
+        session__date__lte=selected_date,
     ).count()
 
     grades = ClassGroup.GRADES
 
-    return render(request, "student_affairs/tardiness_list.html", {
-        "late_records": late_records,
-        "selected_date": selected_date,
-        "total_late": total_late,
-        "total_students_today": total_students_today,
-        "late_pct": late_pct,
-        "class_breakdown": class_breakdown,
-        "weekly_late": weekly_late,
-        "grades": grades,
-        "grade_filter": grade_filter,
-        "section_filter": section_filter,
-    })
+    return render(
+        request,
+        "student_affairs/tardiness_list.html",
+        {
+            "late_records": late_records,
+            "selected_date": selected_date,
+            "total_late": total_late,
+            "total_students_today": total_students_today,
+            "late_pct": late_pct,
+            "class_breakdown": class_breakdown,
+            "weekly_late": weekly_late,
+            "grades": grades,
+            "grade_filter": grade_filter,
+            "section_filter": section_filter,
+        },
+    )
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -1495,8 +1666,10 @@ def behavior_export_excel(request):
     header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
     cell_font = Font(name="Tajawal", size=10)
     thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     for col, h in enumerate(headers, 1):
@@ -1508,7 +1681,13 @@ def behavior_export_excel(request):
 
     row_count = 0
     for i, rec in enumerate(infractions, 1):
-        row_data = [i, rec["student__full_name"], rec["student__national_id"], rec["count"], rec["points"] or 0]
+        row_data = [
+            i,
+            rec["student__full_name"],
+            rec["student__national_id"],
+            rec["count"],
+            rec["points"] or 0,
+        ]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
             cell.font = cell_font
@@ -1541,17 +1720,22 @@ def tardiness_export_excel(request):
     if date_str:
         try:
             from datetime import date as date_type
+
             selected_date = date_type.fromisoformat(date_str)
         except ValueError:
             selected_date = timezone.localdate()
     else:
         selected_date = timezone.localdate()
 
-    ctx = get_export_context(request, f"تقرير التأخر الصباحي — {selected_date.strftime('%d/%m/%Y')}")
+    ctx = get_export_context(
+        request, f"تقرير التأخر الصباحي — {selected_date.strftime('%d/%m/%Y')}"
+    )
 
     late_records = (
         StudentAttendance.objects.filter(
-            school=school, status="late", session__date=selected_date,
+            school=school,
+            status="late",
+            session__date=selected_date,
         )
         .select_related("student", "session__class_group", "session__subject")
         .order_by("session__class_group__grade", "student__full_name")
@@ -1570,8 +1754,10 @@ def tardiness_export_excel(request):
     header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
     cell_font = Font(name="Tajawal", size=10)
     thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     for col, h in enumerate(headers, 1):
@@ -1626,9 +1812,7 @@ def activities_export_excel(request):
     scope_map = dict(StudentActivity.SCOPE_CHOICES)
 
     activities = (
-        StudentActivity.objects.filter(school=school)
-        .select_related("student")
-        .order_by("-date")
+        StudentActivity.objects.filter(school=school).select_related("student").order_by("-date")
     )
 
     wb = openpyxl.Workbook()
@@ -1644,8 +1828,10 @@ def activities_export_excel(request):
     header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
     cell_font = Font(name="Tajawal", size=10)
     thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     for col, h in enumerate(headers, 1):
@@ -1706,15 +1892,20 @@ def attendance_overview_pdf(request):
     pct = round(present * 100 / total_today) if total_today else 0
 
     summary = {
-        "present": present, "absent": absent, "late": late,
-        "excused": excused, "total": total_today, "pct": pct,
+        "present": present,
+        "absent": absent,
+        "late": late,
+        "excused": excused,
+        "total": total_today,
+        "pct": pct,
     }
 
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
     worst_students = (
         StudentAttendance.objects.filter(
-            school=school, status="absent",
+            school=school,
+            status="absent",
             session__date__gte=thirty_days_ago,
         )
         .values("student__id", "student__full_name")
@@ -1726,14 +1917,17 @@ def attendance_overview_pdf(request):
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
-    html = render_to_string("student_affairs/attendance_overview_pdf.html", {
-        "summary": summary,
-        "today": today,
-        "worst_students": worst_students,
-        "pdf_header": pdf_header,
-        "pdf_footer": pdf_footer,
-        **ctx,
-    })
+    html = render_to_string(
+        "student_affairs/attendance_overview_pdf.html",
+        {
+            "summary": summary,
+            "today": today,
+            "worst_students": worst_students,
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
 
     filename = generate_export_filename("attendance", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
@@ -1748,7 +1942,8 @@ def behavior_overview_pdf(request):
 
     # ── مخالفات السنة الحالية ──
     year_infractions = BehaviorInfraction.objects.filter(
-        school=school, date__year=today.year,
+        school=school,
+        date__year=today.year,
     )
     total_infractions = year_infractions.count()
     unresolved = year_infractions.filter(is_resolved=False).count()
@@ -1756,17 +1951,17 @@ def behavior_overview_pdf(request):
     # ── نسبة المخالفين ──
     students_with_infractions = year_infractions.values("student").distinct().count()
     total_students = Membership.objects.filter(
-        school=school, role__name="student", is_active=True,
+        school=school,
+        role__name="student",
+        is_active=True,
     ).count()
     infraction_pct = (
-        round(students_with_infractions * 100 / total_students)
-        if total_students else 0
+        round(students_with_infractions * 100 / total_students) if total_students else 0
     )
 
     # ── توزيع حسب الدرجة ──
     degree_distribution = (
-        year_infractions
-        .values("violation_category__degree")
+        year_infractions.values("violation_category__degree")
         .annotate(count=Count("id"), points=Sum("points_deducted"))
         .order_by("violation_category__degree")
     )
@@ -1774,16 +1969,17 @@ def behavior_overview_pdf(request):
     for row in degree_distribution:
         deg = row["violation_category__degree"]
         if deg:
-            degree_rows.append({
-                "degree": deg,
-                "count": row["count"],
-                "points": row["points"] or 0,
-            })
+            degree_rows.append(
+                {
+                    "degree": deg,
+                    "count": row["count"],
+                    "points": row["points"] or 0,
+                }
+            )
 
     # ── أكثر 15 طالب مخالفات ──
     worst_students = (
-        year_infractions
-        .values("student__id", "student__full_name")
+        year_infractions.values("student__id", "student__full_name")
         .annotate(
             infraction_count=Count("id"),
             total_points=Sum("points_deducted"),
@@ -1795,17 +1991,20 @@ def behavior_overview_pdf(request):
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
-    html = render_to_string("student_affairs/behavior_overview_pdf.html", {
-        "today": today,
-        "total_infractions": total_infractions,
-        "unresolved": unresolved,
-        "infraction_pct": infraction_pct,
-        "degree_rows": degree_rows,
-        "worst_students": worst_students,
-        "pdf_header": pdf_header,
-        "pdf_footer": pdf_footer,
-        **ctx,
-    })
+    html = render_to_string(
+        "student_affairs/behavior_overview_pdf.html",
+        {
+            "today": today,
+            "total_infractions": total_infractions,
+            "unresolved": unresolved,
+            "infraction_pct": infraction_pct,
+            "degree_rows": degree_rows,
+            "worst_students": worst_students,
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
 
     filename = generate_export_filename("behavior", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
@@ -1821,6 +2020,7 @@ def tardiness_pdf(request):
     if date_str:
         try:
             from datetime import date as date_type
+
             selected_date = date_type.fromisoformat(date_str)
         except ValueError:
             selected_date = timezone.localdate()
@@ -1829,41 +2029,56 @@ def tardiness_pdf(request):
 
     late_records = (
         StudentAttendance.objects.filter(
-            school=school, status="late", session__date=selected_date,
+            school=school,
+            status="late",
+            session__date=selected_date,
         )
         .select_related("student", "session__class_group", "session__subject")
-        .order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
+        .order_by(
+            "session__class_group__grade", "session__class_group__section", "student__full_name"
+        )
     )
 
     total_late = late_records.count()
 
     # نسبة التأخر
-    total_students_today = StudentAttendance.objects.filter(
-        school=school, session__date=selected_date,
-    ).values("student").distinct().count()
+    total_students_today = (
+        StudentAttendance.objects.filter(
+            school=school,
+            session__date=selected_date,
+        )
+        .values("student")
+        .distinct()
+        .count()
+    )
     late_pct = round(total_late * 100 / total_students_today) if total_students_today else 0
 
     # التأخر هذا الأسبوع
     week_start = selected_date - timedelta(days=selected_date.weekday())
     weekly_late = StudentAttendance.objects.filter(
-        school=school, status="late",
-        session__date__gte=week_start, session__date__lte=selected_date,
+        school=school,
+        status="late",
+        session__date__gte=week_start,
+        session__date__lte=selected_date,
     ).count()
 
     ctx = get_export_context(request, "تقرير التأخر الصباحي")
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
-    html = render_to_string("student_affairs/tardiness_pdf.html", {
-        "selected_date": selected_date,
-        "late_records": late_records,
-        "total_late": total_late,
-        "late_pct": late_pct,
-        "weekly_late": weekly_late,
-        "pdf_header": pdf_header,
-        "pdf_footer": pdf_footer,
-        **ctx,
-    })
+    html = render_to_string(
+        "student_affairs/tardiness_pdf.html",
+        {
+            "selected_date": selected_date,
+            "late_records": late_records,
+            "total_late": total_late,
+            "late_pct": late_pct,
+            "weekly_late": weekly_late,
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
 
     filename = generate_export_filename("tardiness", "list", "pdf")
     return render_pdf(html, filename, paper_size="A4")

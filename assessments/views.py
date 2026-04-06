@@ -32,7 +32,15 @@ from .services import GradeService
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+)
 def assessments_dashboard(request):
     """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
     school = request.user.get_school()
@@ -90,7 +98,15 @@ def assessments_dashboard(request):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+)
 def api_assessment_charts(request):
     """بيانات الرسوم البيانية للتقييمات"""
     school = request.user.get_school()
@@ -366,7 +382,15 @@ def save_all_grades(request, assessment_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+)
 def class_gradebook(request, setup_id):
     """كشف الدرجات الكامل للفصل في مادة — يدعم عرض فصل أو السنوي"""
     school = request.user.get_school()
@@ -426,9 +450,7 @@ def class_gradebook(request, setup_id):
 
         if not show_annual:
             for pkg in pkg_list:
-                pkg_scores[pkg.package_type] = batch_scores.get(
-                    (student.id, pkg.package_type)
-                )
+                pkg_scores[pkg.package_type] = batch_scores.get((student.id, pkg.package_type))
 
         rows.append(
             {
@@ -457,7 +479,15 @@ def class_gradebook(request, setup_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+)
 def export_gradebook(request, setup_id):
     """تصدير كشف الدرجات إلى Excel"""
     import io
@@ -554,7 +584,9 @@ def export_gradebook(request, setup_id):
         excel_row = row_idx + 2
         fill = ALT_FILL if row_idx % 2 == 0 else None
 
-        pkg_scores = {p.package_type: batch_scores.get((student.id, p.package_type)) for p in pkg_list}
+        pkg_scores = {
+            p.package_type: batch_scores.get((student.id, p.package_type)) for p in pkg_list
+        }
 
         sem_result = sem_results_map.get(student.id)
         if sem_result:
@@ -623,13 +655,23 @@ def recalculate_class(request, setup_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher", "academic_advisor")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+)
 def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 

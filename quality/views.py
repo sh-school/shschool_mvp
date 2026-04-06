@@ -93,12 +93,16 @@ def _can_edit_procedure(user, procedure):
 
 def _get_reviewer_domain(user, school, year=_DEFAULT_YEAR):
     """الحصول على مجال المراجع (أو None إذا لم يكن مراجعاً)."""
-    membership = QualityCommitteeMember.objects.filter(
-        school=school,
-        user=user,
-        committee_type=QualityCommitteeMember.REVIEW,
-        is_active=True,
-    ).select_related("domain").first()
+    membership = (
+        QualityCommitteeMember.objects.filter(
+            school=school,
+            user=user,
+            committee_type=QualityCommitteeMember.REVIEW,
+            is_active=True,
+        )
+        .select_related("domain")
+        .first()
+    )
     return membership.domain if membership else None
 
 
@@ -251,7 +255,9 @@ def plan_dashboard(request):
     reviewer_domain = _get_reviewer_domain(request.user, school, year) if is_reviewer else None
 
     # ── المجالات — المنفذ/المراجع يرى مجالاته فقط ──
-    all_domains = OperationalDomain.objects.filter(school=school, academic_year=year).with_progress()
+    all_domains = OperationalDomain.objects.filter(
+        school=school, academic_year=year
+    ).with_progress()
     if is_admin:
         domains = all_domains
     elif is_reviewer and reviewer_domain:
@@ -260,7 +266,9 @@ def plan_dashboard(request):
         my_domain_ids.add(reviewer_domain.pk)
         my_domain_ids.update(
             OperationalProcedure.objects.filter(
-                school=school, executor_user=request.user, academic_year=year,
+                school=school,
+                executor_user=request.user,
+                academic_year=year,
             ).values_list("indicator__target__domain_id", flat=True)
         )
         domains = all_domains.filter(pk__in=my_domain_ids)
@@ -268,7 +276,9 @@ def plan_dashboard(request):
         # المنفذ العادي — يرى فقط مجالات إجراءاته
         my_domain_ids = set(
             OperationalProcedure.objects.filter(
-                school=school, executor_user=request.user, academic_year=year,
+                school=school,
+                executor_user=request.user,
+                academic_year=year,
             ).values_list("indicator__target__domain_id", flat=True)
         )
         domains = all_domains.filter(pk__in=my_domain_ids) if my_domain_ids else all_domains.none()
@@ -279,14 +289,17 @@ def plan_dashboard(request):
         base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
     elif is_reviewer and reviewer_domain:
         base_qs = OperationalProcedure.objects.filter(
-            school=school, academic_year=year,
+            school=school,
+            academic_year=year,
             indicator__target__domain=reviewer_domain,
         )
         stats = QualityService._calc_stats(base_qs)
         stats["pending_review"] = stats.pop("pending")
     else:
         base_qs = OperationalProcedure.objects.filter(
-            school=school, academic_year=year, executor_user=request.user,
+            school=school,
+            academic_year=year,
+            executor_user=request.user,
         )
         stats = QualityService._calc_stats(base_qs)
         stats["pending_review"] = stats.pop("pending")
@@ -297,11 +310,7 @@ def plan_dashboard(request):
     evidence_requested = base_qs.filter(evidence_request_status="requested").count()
     unmapped_count = QualityService.get_unmapped_count(school, year) if is_admin else 0
 
-    my_procedures = (
-        []
-        if is_admin
-        else QualityService.get_my_procedures(request.user, school, year)
-    )
+    my_procedures = [] if is_admin else QualityService.get_my_procedures(request.user, school, year)
     return render(
         request,
         "quality/dashboard.html",
@@ -335,7 +344,8 @@ def domain_detail(request, domain_id):
     if not request.user.is_admin():
         reviewer_domain = _get_reviewer_domain(request.user, school)
         has_procs = OperationalProcedure.objects.filter(
-            school=school, executor_user=request.user,
+            school=school,
+            executor_user=request.user,
             indicator__target__domain=domain,
         ).exists()
         if not has_procs and reviewer_domain != domain:
@@ -369,7 +379,8 @@ def procedure_detail(request, proc_id):
     school = request.user.get_school()
     procedure = get_object_or_404(
         OperationalProcedure.objects.select_related("indicator__target__domain"),
-        id=proc_id, school=school,
+        id=proc_id,
+        school=school,
     )
     # FIX-06: فحص الدور — المنفذ يرى إجراءه، المراجع يرى مجاله، المدير يرى الكل
     if not _can_view_procedure(request.user, school, procedure):
@@ -463,7 +474,8 @@ def approve_procedure(request, proc_id):
     school = request.user.get_school()
     procedure = get_object_or_404(
         OperationalProcedure.objects.select_related("indicator__target__domain"),
-        id=proc_id, school=school,
+        id=proc_id,
+        school=school,
     )
     # FIX-05: فحص المجال — المراجع يعتمد مجاله فقط
     if not _can_review_procedure(request.user, school, procedure):
@@ -491,9 +503,13 @@ def approve_procedure(request, proc_id):
 
     # FIX-08: AuditLog
     AuditLog.log(
-        user=request.user, action="update", model_name="other",
-        object_id=procedure.pk, object_repr=f"Approve/Reject {procedure.number}",
-        request=request, changes={"action": action, "status": procedure.status, "note": note},
+        user=request.user,
+        action="update",
+        model_name="other",
+        object_id=procedure.pk,
+        object_repr=f"Approve/Reject {procedure.number}",
+        request=request,
+        changes={"action": action, "status": procedure.status, "note": note},
     )
 
     if procedure.executor_user:
@@ -567,11 +583,12 @@ def my_procedures(request):
     pct = round(completed / total * 100) if total else 0
 
     # فحص هل حساب المستخدم مربوط بمنفذ في الخطة
-    mapping_exists = ExecutorMapping.objects.filter(
-        school=school, user=request.user
-    ).exists() or OperationalProcedure.objects.filter(
-        school=school, executor_user=request.user, academic_year=year
-    ).exists()
+    mapping_exists = (
+        ExecutorMapping.objects.filter(school=school, user=request.user).exists()
+        or OperationalProcedure.objects.filter(
+            school=school, executor_user=request.user, academic_year=year
+        ).exists()
+    )
 
     return render(
         request,
@@ -625,12 +642,16 @@ def review_list(request):
     # ── الحصول على مجال العضو (للفلترة التلقائية) ──
     member_domain = None
     if is_reviewer and not is_admin:
-        membership = QualityCommitteeMember.objects.filter(
-            school=school,
-            user=request.user,
-            committee_type=QualityCommitteeMember.REVIEW,
-            is_active=True,
-        ).select_related("domain").first()
+        membership = (
+            QualityCommitteeMember.objects.filter(
+                school=school,
+                user=request.user,
+                committee_type=QualityCommitteeMember.REVIEW,
+                is_active=True,
+            )
+            .select_related("domain")
+            .first()
+        )
         if membership and membership.domain:
             member_domain = membership.domain
 
@@ -689,9 +710,13 @@ def task_update_modal(request, proc_id):
         old_status = procedure.status
         _process_task_update(request, procedure)
         AuditLog.log(
-            user=request.user, action="update", model_name="other",
-            object_id=procedure.pk, object_repr=f"TaskUpdate {procedure.number}",
-            request=request, changes={"old_status": old_status, "new_status": procedure.status},
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=procedure.pk,
+            object_repr=f"TaskUpdate {procedure.number}",
+            request=request,
+            changes={"old_status": old_status, "new_status": procedure.status},
         )
         messages.success(request, "تم تحديث الإجراء بنجاح")
         return _safe_next_redirect(request, "execution_list")
@@ -747,10 +772,15 @@ def review_evaluate_modal(request, proc_id):
         old_status = procedure.status
         _process_review_evaluate(request, procedure)
         AuditLog.log(
-            user=request.user, action="update", model_name="other",
-            object_id=procedure.pk, object_repr=f"ReviewEvaluate {procedure.number}",
-            request=request, changes={
-                "old_status": old_status, "new_status": procedure.status,
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=procedure.pk,
+            object_repr=f"ReviewEvaluate {procedure.number}",
+            request=request,
+            changes={
+                "old_status": old_status,
+                "new_status": procedure.status,
                 "quality_rating": procedure.quality_rating,
                 "evidence_request": procedure.evidence_request_status,
             },
@@ -782,7 +812,8 @@ def toggle_evidence_request(request, proc_id):
     school = request.user.get_school()
     procedure = get_object_or_404(
         OperationalProcedure.objects.select_related("indicator__target__domain"),
-        id=proc_id, school=school,
+        id=proc_id,
+        school=school,
     )
     # FIX-05: فحص المجال — المراجع يطلب أدلة لمجاله فقط
     if not _can_review_procedure(request.user, school, procedure):

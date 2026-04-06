@@ -155,13 +155,10 @@ class LibraryService:
         today = timezone.now().date()
         stats = LibraryService.get_dashboard_stats(school)
 
-        recent_books = list(
-            LibraryBook.objects.filter(school=school).order_by("-id")[:5]
-        )
+        recent_books = list(LibraryBook.objects.filter(school=school).order_by("-id")[:5])
 
         recent_borrowings = list(
-            BookBorrowing.objects.filter(book__school=school)
-            .select_related("book", "user")[:10]
+            BookBorrowing.objects.filter(book__school=school).select_related("book", "user")[:10]
         )
 
         category_stats = list(

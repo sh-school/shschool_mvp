@@ -78,9 +78,7 @@ def weekly_risk_check(self, school_id=None):
                     .iterator(chunk_size=200)
                 )
 
-                student_names = ", ".join(
-                    r["student__full_name"] for r in risk_list[:5]
-                )
+                student_names = ", ".join(r["student__full_name"] for r in risk_list[:5])
                 extra = f" و{len(risk_list) - 5} آخرين" if len(risk_list) > 5 else ""
 
                 for member in leadership:

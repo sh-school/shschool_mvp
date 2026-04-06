@@ -221,9 +221,7 @@ class ParentService:
 
         # (1) Batch: نقاط الخصم السلوكية لكل طالب
         deducted_map = dict(
-            BehaviorInfraction.objects.filter(
-                school=school, student_id__in=student_ids
-            )
+            BehaviorInfraction.objects.filter(school=school, student_id__in=student_ids)
             .values("student_id")
             .annotate(total=Sum("points_deducted"))
             .values_list("student_id", "total")
@@ -241,13 +239,17 @@ class ParentService:
 
         # (3) Batch: نسبة الحضور خلال 30 يومًا لكل طالب
         att_stats: dict = {}
-        for row in StudentAttendance.objects.filter(
-            student_id__in=student_ids,
-            session__school=school,
-            session__date__gte=today - timedelta(days=30),
-        ).values("student_id").annotate(
-            total=Count("id"),
-            present=Count("id", filter=Q(status="present")),
+        for row in (
+            StudentAttendance.objects.filter(
+                student_id__in=student_ids,
+                session__school=school,
+                session__date__gte=today - timedelta(days=30),
+            )
+            .values("student_id")
+            .annotate(
+                total=Count("id"),
+                present=Count("id", filter=Q(status="present")),
+            )
         ):
             att_stats[row["student_id"]] = row
 
@@ -281,7 +283,9 @@ class ParentService:
             att = att_stats.get(sid, {})
             att_total = att.get("total", 0)
             att_present = att.get("present", 0)
-            child_data["attendance_pct"] = round(att_present * 100 / att_total) if att_total else None
+            child_data["attendance_pct"] = (
+                round(att_present * 100 / att_total) if att_total else None
+            )
             child_data["week_attendance"] = week_att_map.get(sid, [])
 
         return children

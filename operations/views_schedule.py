@@ -29,7 +29,14 @@ from .services import ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
 
-_REPORT_ROLES = {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+_REPORT_ROLES = {
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "admin_supervisor",
+    "admin",
+}
 _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
 
 
@@ -37,8 +44,17 @@ _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher",
-               "ese_teacher", "academic_advisor", "admin_supervisor", "admin")
+@role_required(
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+    "admin_supervisor",
+    "admin",
+)
 def weekly_schedule(request):
     """عرض الجدول الأسبوعي — للمعلم أو كل المعلمين للمدير"""
     from core.models import ClassGroup
@@ -52,8 +68,10 @@ def weekly_schedule(request):
     target_teacher = None
     if teacher_id:
         target_teacher = get_object_or_404(
-            CustomUser, id=teacher_id,
-            memberships__school=school, memberships__is_active=True,
+            CustomUser,
+            id=teacher_id,
+            memberships__school=school,
+            memberships__is_active=True,
         )
     elif user.is_teacher() and not user.is_admin():
         target_teacher = user
@@ -74,20 +92,26 @@ def weekly_schedule(request):
             school=school, is_active=True, role__name__in=("teacher", "coordinator")
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-        classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+        classes = ClassGroup.objects.filter(school=school, is_active=True).order_by(
+            "grade", "section"
+        )
 
-    return render(request, "schedule/weekly.html", {
-        "grid": grid,
-        "days": DAYS,
-        "periods": PERIODS,
-        "conflicts": conflicts,
-        "target_teacher": target_teacher,
-        "target_class": target_class,
-        "teachers": teachers,
-        "classes": classes,
-        "academic_year": year,
-        "user_role": user.get_role(),
-    })
+    return render(
+        request,
+        "schedule/weekly.html",
+        {
+            "grid": grid,
+            "days": DAYS,
+            "periods": PERIODS,
+            "conflicts": conflicts,
+            "target_teacher": target_teacher,
+            "target_class": target_class,
+            "teachers": teachers,
+            "classes": classes,
+            "academic_year": year,
+            "user_role": user.get_role(),
+        },
+    )
 
 
 @login_required
@@ -129,20 +153,24 @@ def schedule_print(request):
     elif target_class:
         title = f"جدول الفصل: {target_class}"
 
-    return render(request, "schedule/print_schedule.html", {
-        "grid": grid,
-        "days": DAYS,
-        "periods": PERIODS,
-        "paper": paper,
-        "view_type": view_type,
-        "target_teacher": target_teacher,
-        "target_class": target_class,
-        "teachers": teachers,
-        "classes": classes,
-        "title": title,
-        "school": school,
-        "year": year,
-    })
+    return render(
+        request,
+        "schedule/print_schedule.html",
+        {
+            "grid": grid,
+            "days": DAYS,
+            "periods": PERIODS,
+            "paper": paper,
+            "view_type": view_type,
+            "target_teacher": target_teacher,
+            "target_class": target_class,
+            "teachers": teachers,
+            "classes": classes,
+            "title": title,
+            "school": school,
+            "year": year,
+        },
+    )
 
 
 @login_required
@@ -156,6 +184,7 @@ def schedule_slot_create(request):
     if request.method == "POST":
         try:
             from core.models import CustomUser as _CU
+
             teacher = get_object_or_404(_CU, id=request.POST["teacher"])
             # ✅ v5.4: ScheduleService.create_slot — atomic + logging
             slot = ScheduleService.create_slot(
@@ -182,12 +211,16 @@ def schedule_slot_create(request):
     classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
 
-    return render(request, "schedule/slot_form.html", {
-        "teachers": teachers,
-        "classes": classes,
-        "subjects": subjects,
-        "days": ScheduleSlot.DAYS,
-    })
+    return render(
+        request,
+        "schedule/slot_form.html",
+        {
+            "teachers": teachers,
+            "classes": classes,
+            "subjects": subjects,
+            "days": ScheduleSlot.DAYS,
+        },
+    )
 
 
 @login_required
@@ -245,8 +278,9 @@ def teacher_absence_list(request):
     if dept_ids is not None:
         absences = absences.filter(teacher_id__in=dept_ids)
 
-    return render(request, "substitute/absence_list.html",
-                  {"absences": absences, "abs_date": abs_date})
+    return render(
+        request, "substitute/absence_list.html", {"absences": absences, "abs_date": abs_date}
+    )
 
 
 @login_required
@@ -284,11 +318,15 @@ def register_teacher_absence(request):
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
-    return render(request, "substitute/register_absence.html", {
-        "teachers": teachers,
-        "reasons": TeacherAbsence.REASON,
-        "today": timezone.now().date(),
-    })
+    return render(
+        request,
+        "substitute/register_absence.html",
+        {
+            "teachers": teachers,
+            "reasons": TeacherAbsence.REASON,
+            "today": timezone.now().date(),
+        },
+    )
 
 
 @login_required
@@ -316,18 +354,24 @@ def absence_detail(request, absence_id):
     slots_data = []
     for slot in slots:
         available = SubstituteService.get_available_teachers(
-            school, absence.date, slot.day_of_week, slot.period_number,
+            school,
+            absence.date,
+            slot.day_of_week,
+            slot.period_number,
             exclude_teacher=absence.teacher,
             subject_id=slot.subject_id,
         )
-        slots_data.append({
-            "slot": slot,
-            "assignment": assignments.get(slot.id),
-            "available": available,
-        })
+        slots_data.append(
+            {
+                "slot": slot,
+                "assignment": assignments.get(slot.id),
+                "available": available,
+            }
+        )
 
-    return render(request, "substitute/absence_detail.html",
-                  {"absence": absence, "slots_data": slots_data})
+    return render(
+        request, "substitute/absence_detail.html", {"absence": absence, "slots_data": slots_data}
+    )
 
 
 @login_required
@@ -347,17 +391,30 @@ def assign_substitute(request, absence_id, slot_id):
 
     substitute = get_object_or_404(CustomUser, id=request.POST["substitute"])
     assignment = SubstituteService.assign_substitute(
-        absence, slot, substitute, assigned_by=request.user,
+        absence,
+        slot,
+        substitute,
+        assigned_by=request.user,
         notes=request.POST.get("notes", ""),
     )
     available = SubstituteService.get_available_teachers(
-        school, absence.date, slot.day_of_week, slot.period_number,
+        school,
+        absence.date,
+        slot.day_of_week,
+        slot.period_number,
         exclude_teacher=absence.teacher,
         subject_id=slot.subject_id,
     )
-    return render(request, "substitute/partials/slot_card.html", {
-        "slot": slot, "assignment": assignment, "available": available, "absence": absence,
-    })
+    return render(
+        request,
+        "substitute/partials/slot_card.html",
+        {
+            "slot": slot,
+            "assignment": assignment,
+            "available": available,
+            "absence": absence,
+        },
+    )
 
 
 @login_required
@@ -381,12 +438,16 @@ def substitute_report(request):
         name = a.substitute.full_name
         summary[name] = summary.get(name, 0) + 1
 
-    return render(request, "substitute/report.html", {
-        "assignments": assignments,
-        "summary": sorted(summary.items(), key=lambda x: -x[1]),
-        "date_from": date_from,
-        "date_to": date_to,
-    })
+    return render(
+        request,
+        "substitute/report.html",
+        {
+            "assignments": assignments,
+            "summary": sorted(summary.items(), key=lambda x: -x[1]),
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+    )
 
 
 # ── الجدولة الذكية ────────────────────────────────────────────────
@@ -409,17 +470,22 @@ def smart_schedule_view(request):
 
     # ✅ v5.4: CapacityCheckService.get_overcapacity_classes — validation في service layer
     from operations.services import CapacityCheckService
+
     overcapacity_classes = CapacityCheckService.get_overcapacity_classes(assignments)
 
-    return render(request, "schedule/smart_schedule.html", {
-        "assignments": assignments,
-        "generations": generations,
-        "year": year,
-        "total_weekly": total_weekly,
-        "classes_count": assignments.values("class_group").distinct().count(),
-        "teachers_count": assignments.values("teacher").distinct().count(),
-        "overcapacity_classes": overcapacity_classes,
-    })
+    return render(
+        request,
+        "schedule/smart_schedule.html",
+        {
+            "assignments": assignments,
+            "generations": generations,
+            "year": year,
+            "total_weekly": total_weekly,
+            "classes_count": assignments.values("class_group").distinct().count(),
+            "teachers_count": assignments.values("teacher").distinct().count(),
+            "overcapacity_classes": overcapacity_classes,
+        },
+    )
 
 
 @login_required
@@ -494,12 +560,17 @@ def teacher_load_report(request):
 
     # ✅ v5.4: TeacherLoadService.get_teacher_load_data — business logic في service layer
     from operations.services import TeacherLoadService
+
     data = TeacherLoadService.get_teacher_load_data(school, year, teachers)
 
-    return render(request, "schedule/teacher_load.html", {
-        "year": year,
-        **data,
-    })
+    return render(
+        request,
+        "schedule/teacher_load.html",
+        {
+            "year": year,
+            **data,
+        },
+    )
 
 
 # ── تفضيلات المعلم ──────────────────────────────────────────────
@@ -512,7 +583,9 @@ def teacher_preferences(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     pref, _created = TeacherPreference.objects.get_or_create(
-        teacher=request.user, school=school, academic_year=year,
+        teacher=request.user,
+        school=school,
+        academic_year=year,
     )
 
     if request.method == "POST":
@@ -525,11 +598,15 @@ def teacher_preferences(request):
         messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
         return redirect("teacher_preferences")
 
-    return render(request, "schedule/teacher_preferences.html", {
-        "pref": pref,
-        "days": ScheduleSlot.DAYS,
-        "year": year,
-    })
+    return render(
+        request,
+        "schedule/teacher_preferences.html",
+        {
+            "pref": pref,
+            "days": ScheduleSlot.DAYS,
+            "year": year,
+        },
+    )
 
 
 # ── اعتماد الجدول ─────────────────────────────────────────────────
@@ -559,7 +636,8 @@ def approve_schedule(request, generation_id):
     from notifications.models import InAppNotification
 
     teacher_ids = Membership.objects.filter(
-        school=school, is_active=True,
+        school=school,
+        is_active=True,
         role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
     ).values_list("user_id", flat=True)
 
@@ -590,10 +668,9 @@ def schedule_settings(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
-    exemptions = (
-        TeacherExemption.objects.filter(school=school, academic_year=year, is_active=True)
-        .select_related("teacher", "created_by")
-    )
+    exemptions = TeacherExemption.objects.filter(
+        school=school, academic_year=year, is_active=True
+    ).select_related("teacher", "created_by")
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
@@ -603,19 +680,24 @@ def schedule_settings(request):
 
     # قائمة المعلمين لإضافة تفريغ
     teacher_ids = Membership.objects.filter(
-        school=school, is_active=True,
+        school=school,
+        is_active=True,
         role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
-    return render(request, "schedule/schedule_settings.html", {
-        "exemptions": exemptions,
-        "subjects": subjects,
-        "teacher_prefs": teacher_prefs,
-        "teachers": teachers,
-        "days": ScheduleSlot.DAYS,
-        "year": year,
-    })
+    return render(
+        request,
+        "schedule/schedule_settings.html",
+        {
+            "exemptions": exemptions,
+            "subjects": subjects,
+            "teacher_prefs": teacher_prefs,
+            "teachers": teachers,
+            "days": ScheduleSlot.DAYS,
+            "year": year,
+        },
+    )
 
 
 @login_required
@@ -643,7 +725,9 @@ def add_exemption(request):
         created_by=request.user,
     )
     messages.success(request, f"تم تفريغ {teacher.full_name}")
-    return redirect(f"{request.META.get('HTTP_REFERER', '/operations/schedule-settings/')}?year={year}")
+    return redirect(
+        f"{request.META.get('HTTP_REFERER', '/operations/schedule-settings/')}?year={year}"
+    )
 
 
 @login_required

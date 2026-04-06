@@ -347,10 +347,16 @@ class QualityService:
         if follow_up in dict(OperationalProcedure.FOLLOW_UP_CHOICES):
             procedure.follow_up = follow_up
 
-        procedure.save(update_fields=[
-            "status", "evidence_type", "evidence_source_file",
-            "comments", "follow_up", "updated_at",
-        ])
+        procedure.save(
+            update_fields=[
+                "status",
+                "evidence_type",
+                "evidence_source_file",
+                "comments",
+                "follow_up",
+                "updated_at",
+            ]
+        )
 
         if file:
             ProcedureEvidence.objects.create(
@@ -405,10 +411,18 @@ class QualityService:
         procedure.reviewed_by = reviewed_by
         procedure.reviewed_at = _tz.now()
 
-        procedure.save(update_fields=[
-            "evidence_request_status", "evidence_request_note", "quality_rating",
-            "status", "review_note", "reviewed_by", "reviewed_at", "updated_at",
-        ])
+        procedure.save(
+            update_fields=[
+                "evidence_request_status",
+                "evidence_request_note",
+                "quality_rating",
+                "status",
+                "review_note",
+                "reviewed_by",
+                "reviewed_at",
+                "updated_at",
+            ]
+        )
 
         if old_status != procedure.status:
             ProcedureStatusLog.objects.create(

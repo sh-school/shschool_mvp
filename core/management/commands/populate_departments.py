@@ -3,7 +3,6 @@ Management command: Create 13 Department records + link Memberships.
 Usage: python manage.py populate_departments
 """
 
-
 from django.core.management.base import BaseCommand
 
 from core.models import Department, Membership, School
@@ -13,9 +12,7 @@ class Command(BaseCommand):
     help = "Create 13 academic departments and link existing Memberships to FK"
 
     def handle(self, *args, **options):
-        out = open(
-            r"D:\shschool_mvp\_dept_migration_log.txt", "w", encoding="utf-8"
-        )
+        out = open(r"D:\shschool_mvp\_dept_migration_log.txt", "w", encoding="utf-8")
 
         def log(msg):
             out.write(msg + "\n")
@@ -138,7 +135,8 @@ class Command(BaseCommand):
             school=school, is_active=True, department_obj__isnull=False
         ).count()
         total_staff = Membership.objects.filter(
-            school=school, is_active=True,
+            school=school,
+            is_active=True,
             role__name__in=("teacher", "coordinator", "ese_teacher", "specialist", "social_worker"),
         ).count()
 

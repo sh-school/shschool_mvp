@@ -55,6 +55,7 @@ def _get_scoped_students(user, school):
         )
     return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
 
+
 from .services import (
     PERIOD_CHOICES,
     POINTS_BY_LEVEL,
@@ -152,9 +153,7 @@ def report_infraction(request):
 
     # فئات المخالفات النشطة (2025) — مجمّعة حسب الدرجة (مفاتيح نصية للـ template)
     all_violations = ViolationCategory.objects.filter(is_active=True).order_by("code")
-    violations_by_degree = {
-        str(d): list(all_violations.filter(degree=d)) for d in range(1, 5)
-    }
+    violations_by_degree = {str(d): list(all_violations.filter(degree=d)) for d in range(1, 5)}
 
     if request.method == "POST":
         form = InfractionForm(request.POST)
@@ -349,7 +348,9 @@ def _quick_log_context(user, school, preselected_student_id=""):
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
         "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
-        "violation_categories": ViolationCategory.objects.filter(is_active=True).order_by("degree", "code"),
+        "violation_categories": ViolationCategory.objects.filter(is_active=True).order_by(
+            "degree", "code"
+        ),
         "preselected_student_id": str(preselected_student_id),
     }
 
@@ -361,8 +362,10 @@ def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
@@ -412,7 +415,7 @@ def point_recovery_request(request, infraction_id):
                 messages.success(
                     request,
                     f"تمت استعادة {recovery.points_restored} نقطة "
-                    f"للطالب {infraction.student.full_name}"
+                    f"للطالب {infraction.student.full_name}",
                 )
                 return redirect("behavior:student_profile", student_id=infraction.student.id)
             except (ValueError, TypeError) as e:
@@ -442,7 +445,9 @@ def committee_decision(request, infraction_id):
         return redirect("behavior:committee")
 
     school = request.user.get_school()
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school)
+    infraction = get_object_or_404(
+        BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
+    )
     if request.method == "POST":
         msg, level = BehaviorService.apply_committee_decision(
             infraction=infraction,
@@ -458,10 +463,15 @@ def committee_decision(request, infraction_id):
         return redirect("behavior:committee")
 
     from .constants import ESCALATION_STEPS as ESC_STEPS
-    return render(request, "behavior/committee_decision.html", {
-        "infraction": infraction,
-        "escalation_steps": ESC_STEPS.get(infraction.level, []),
-    })
+
+    return render(
+        request,
+        "behavior/committee_decision.html",
+        {
+            "infraction": infraction,
+            "escalation_steps": ESC_STEPS.get(infraction.level, []),
+        },
+    )
 
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
@@ -474,8 +484,10 @@ def behavior_report(request, student_id):
 
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
@@ -539,9 +551,7 @@ def behavior_report(request, student_id):
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
 _STATS_TEACHER_ROLES = {"teacher", "coordinator", "ese_teacher"}
-_STATS_ALLOWED_ROLES = (
-    BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | _STATS_TEACHER_ROLES
-)
+_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | _STATS_TEACHER_ROLES
 
 
 @login_required
@@ -581,7 +591,9 @@ def escalate_infraction(request, infraction_id):
     if request.method == "POST":
         notes = request.POST.get("notes", "").strip()
         success, msg = BehaviorService.escalate_infraction(
-            infraction, escalated_by=request.user, notes=notes,
+            infraction,
+            escalated_by=request.user,
+            notes=notes,
         )
         if success:
             messages.success(request, f"⬆️ {msg}")
@@ -606,8 +618,11 @@ def security_referral(request, infraction_id):
         ref_num = request.POST.get("reference_number", "").strip()
         notes = request.POST.get("security_notes", "").strip()
         success, msg = BehaviorService.record_security_referral(
-            infraction, agency=agency, reference_number=ref_num,
-            notes=notes, referred_by=request.user,
+            infraction,
+            agency=agency,
+            reference_number=ref_num,
+            notes=notes,
+            referred_by=request.user,
         )
         if success:
             messages.success(request, f"🔒 {msg}")
@@ -616,10 +631,15 @@ def security_referral(request, infraction_id):
         return redirect("behavior:student_profile", student_id=infraction.student.id)
 
     from .constants import SECURITY_AGENCIES
-    return render(request, "behavior/security_referral.html", {
-        "infraction": infraction,
-        "agencies": SECURITY_AGENCIES,
-    })
+
+    return render(
+        request,
+        "behavior/security_referral.html",
+        {
+            "infraction": infraction,
+            "agencies": SECURITY_AGENCIES,
+        },
+    )
 
 
 # ════════════════════════════════════════════════════════════════
@@ -786,28 +806,34 @@ def summon_parent(request, student_id=None):
         # بيانات أولياء الأمور مع أرقام الهواتف
         parents_info = []
         for link in parent_links:
-            parents_info.append({
-                "name": link.parent.full_name,
-                "phone": link.parent.phone or "",
-                "relationship": link.get_relationship_display(),
-                "is_primary": link.is_primary,
-            })
+            parents_info.append(
+                {
+                    "name": link.parent.full_name,
+                    "phone": link.parent.phone or "",
+                    "relationship": link.get_relationship_display(),
+                    "is_primary": link.is_primary,
+                }
+            )
         student_context = {
             "behavior_score": score_data.get("net_score", 100),
             "active_infractions": active_infractions,
             "parents_info": parents_info,
         }
 
-    return render(request, "behavior/summon_parent.html", {
-        "students": students,
-        "selected_student": selected_student,
-        "school": school,
-        "categories": SUMMON_CATEGORIES,
-        "urgency_levels": URGENCY_LEVELS,
-        "meeting_places": MEETING_PLACES,
-        "sender": request.user,
-        **student_context,
-    })
+    return render(
+        request,
+        "behavior/summon_parent.html",
+        {
+            "students": students,
+            "selected_student": selected_student,
+            "school": school,
+            "categories": SUMMON_CATEGORIES,
+            "urgency_levels": URGENCY_LEVELS,
+            "meeting_places": MEETING_PLACES,
+            "sender": request.user,
+            **student_context,
+        },
+    )
 
 
 @login_required
@@ -816,8 +842,10 @@ def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
 
     # تقييد الوصول: المعلم/المنسق يرى طلابه فقط
@@ -834,6 +862,7 @@ def student_behavior_pdf(request, student_id):
 
     # جلب بيانات الفصل الدراسي
     from core.models import StudentEnrollment
+
     enrollment = (
         StudentEnrollment.objects.filter(
             student=student, class_group__school=school, is_active=True

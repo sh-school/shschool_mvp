@@ -37,14 +37,15 @@ class Command(BaseCommand):
         for school in schools:
             for role_name in NEW_ROLES:
                 _, created = Role.objects.get_or_create(
-                    school=school, name=role_name,
+                    school=school,
+                    name=role_name,
                 )
                 if created:
                     created_count += 1
-                    self.stdout.write(
-                        self.style.SUCCESS(f"  [OK] {role_name} -> {school.code}")
-                    )
+                    self.stdout.write(self.style.SUCCESS(f"  [OK] {role_name} -> {school.code}"))
 
         self.stdout.write(
-            self.style.SUCCESS(f"\n[DONE] Created {created_count} new roles for {schools.count()} school(s)")
+            self.style.SUCCESS(
+                f"\n[DONE] Created {created_count} new roles for {schools.count()} school(s)"
+            )
         )

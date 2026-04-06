@@ -207,17 +207,21 @@ class ExamControlService:
                 incident.save(update_fields=["behavior_link"])
                 logger.info(
                     "حادثة غش مرتبطة بمخالفة سلوكية: incident=%s infraction=%s",
-                    incident.pk, infraction.pk,
+                    incident.pk,
+                    infraction.pk,
                 )
             except Exception as exc:
                 logger.exception(
                     "فشل ربط حادثة الغش بسلوك الطالب [incident=%s]: %s",
-                    incident.pk, exc,
+                    incident.pk,
+                    exc,
                 )
 
         logger.info(
             "حادثة اختبار جديدة: نوع=%s جلسة=%s طالب=%s",
-            incident_type, session.pk, student.full_name if student else "—",
+            incident_type,
+            session.pk,
+            student.full_name if student else "—",
         )
         return incident
 

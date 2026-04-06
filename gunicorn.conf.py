@@ -11,10 +11,10 @@ bind = f"0.0.0.0:{os.environ.get('PORT', '8000')}"
 
 # ── Workers ─────────────────────────────────────────────────────
 # ✅ Railway/Hobby: عدد workers ثابت (CPU count غير موثوق في الحاويات)
-workers = int(os.environ.get('GUNICORN_WORKERS', '3'))
+workers = int(os.environ.get("GUNICORN_WORKERS", "3"))
 # ✅ sync worker — WSGI كافٍ حتى نضيف ASGI/WebSockets فعلياً
 # للـ ASGI في المستقبل: ثبّت uvicorn ثم عيّن GUNICORN_WORKER_CLASS=uvicorn.workers.UvicornWorker
-worker_class = os.environ.get('GUNICORN_WORKER_CLASS', 'sync')
+worker_class = os.environ.get("GUNICORN_WORKER_CLASS", "sync")
 threads = 1
 
 # ── Timeouts ────────────────────────────────────────────────────

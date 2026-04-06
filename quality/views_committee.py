@@ -103,12 +103,12 @@ def quality_committee(request):
                 "reviewed_count": (
                     reviewed_domain_map.get(member.domain_id, 0)
                     if member.domain_id
-                    else reviewed_map.get(member.user_id, 0) if member.user_id else 0
+                    else reviewed_map.get(member.user_id, 0)
+                    if member.user_id
+                    else 0
                 ),
                 "pending_in_domain": (
-                    needs_review_map.get(member.domain_id, 0)
-                    if member.domain_id
-                    else 0
+                    needs_review_map.get(member.domain_id, 0) if member.domain_id else 0
                 ),
             }
         )

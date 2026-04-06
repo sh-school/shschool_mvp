@@ -63,6 +63,7 @@ class TestRoleCreation:
 #  2. TIER CLASSIFICATION — كل دور في المستوى الصحيح
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestTierClassification:
     """التأكد من أن الأدوار v7 في المستوى الإداري الصحيح."""
@@ -71,11 +72,17 @@ class TestTierClassification:
         role = Role.objects.create(school=school, name="activities_coordinator")
         assert role.tier == 3
 
-    @pytest.mark.parametrize("role_name", [
-        "teacher_assistant", "ese_assistant",
-        "speech_therapist", "occupational_therapist",
-        "receptionist", "transport_officer",
-    ])
+    @pytest.mark.parametrize(
+        "role_name",
+        [
+            "teacher_assistant",
+            "ese_assistant",
+            "speech_therapist",
+            "occupational_therapist",
+            "receptionist",
+            "transport_officer",
+        ],
+    )
     def test_remaining_v7_are_tier4(self, school, role_name):
         role = Role.objects.create(school=school, name=role_name)
         assert role.tier == 4, f"{role_name} should be tier 4"
@@ -85,31 +92,37 @@ class TestTierClassification:
 #  3. ROLE INHERITANCE — وراثة الأدوار
 # ══════════════════════════════════════════════════════════
 
+
 class TestRoleInheritance:
     """التأكد من أن سلسلة الوراثة صحيحة للأدوار v7."""
 
     def test_teacher_assistant_inherits_teacher(self):
         from core.permissions import expand_roles
+
         expanded = expand_roles({"teacher"})
         assert "teacher_assistant" in expanded
 
     def test_ese_assistant_inherits_ese_teacher(self):
         from core.permissions import expand_roles
+
         expanded = expand_roles({"ese_teacher"})
         assert "ese_assistant" in expanded
 
     def test_activities_coordinator_inherits_coordinator(self):
         from core.permissions import expand_roles
+
         expanded = expand_roles({"coordinator"})
         assert "activities_coordinator" in expanded
 
     def test_transport_officer_inherits_bus_supervisor(self):
         from core.permissions import expand_roles
+
         expanded = expand_roles({"bus_supervisor"})
         assert "transport_officer" in expanded
 
     def test_full_chain_teacher_to_principal(self):
         from core.permissions import expand_roles
+
         expanded = expand_roles({"teacher"})
         assert "principal" in expanded
         assert "teacher_assistant" in expanded
@@ -119,6 +132,7 @@ class TestRoleInheritance:
     def test_role_required_expands_teacher(self):
         """@role_required({"teacher"}) should also allow teacher_assistant."""
         from core.permissions import expand_roles
+
         expanded = expand_roles({"teacher"})
         assert "teacher_assistant" in expanded
         assert "ese_teacher" in expanded
@@ -129,26 +143,31 @@ class TestRoleInheritance:
 #  4. PERMISSION SETS — مجموعات الصلاحيات
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestPermissionSets:
     """التأكد من أن الأدوار v7 مدرجة في المجموعات الصحيحة."""
 
     def test_all_staff_roles_includes_v7(self):
         from core.permissions import ALL_STAFF_ROLES
+
         for r in V7_ROLES:
             assert r in ALL_STAFF_ROLES, f"{r} missing from ALL_STAFF_ROLES"
 
     def test_dashboard_roles_includes_assistants(self):
         from core.permissions import DASHBOARD_ROLES
+
         for r in ["teacher_assistant", "ese_assistant"]:
             assert r in DASHBOARD_ROLES, f"{r} missing from DASHBOARD_ROLES"
 
     def test_activities_coordinator_in_behavior_view_all(self):
         from core.permissions import BEHAVIOR_VIEW_ALL
+
         assert "activities_coordinator" in BEHAVIOR_VIEW_ALL
 
     def test_activities_coordinator_in_tier3(self):
         from core.permissions import TIER_3_SUPERVISORS
+
         assert "activities_coordinator" in TIER_3_SUPERVISORS
 
 
@@ -156,12 +175,14 @@ class TestPermissionSets:
 #  4. MODULE REGISTRY — middleware يسمح للأدوار v7
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestModuleRegistry:
     """التأكد من أن الأدوار v7 مسجّلة في الوحدات المناسبة."""
 
     def test_notifications_allows_all_v7(self):
         from core.module_registry import get_module
+
         mod = get_module("notifications")
         assert mod is not None
         for r in V7_ROLES:
@@ -169,12 +190,14 @@ class TestModuleRegistry:
 
     def test_transport_allows_transport_officer(self):
         from core.module_registry import get_module
+
         mod = get_module("transport")
         assert mod is not None
         assert "transport_officer" in mod.allowed_roles
 
     def test_behavior_allows_assistants(self):
         from core.module_registry import get_module
+
         mod = get_module("behavior")
         assert mod is not None
         for r in ["activities_coordinator", "teacher_assistant", "ese_assistant"]:
@@ -182,6 +205,7 @@ class TestModuleRegistry:
 
     def test_quality_evaluations_allows_all_v7(self):
         from core.module_registry import get_module
+
         mod = get_module("quality_evaluations")
         assert mod is not None
         for r in V7_ROLES:
@@ -189,13 +213,20 @@ class TestModuleRegistry:
 
     def test_schedule_allows_teaching_v7(self):
         from core.module_registry import get_module
+
         mod = get_module("schedule")
         assert mod is not None
-        for r in ["teacher_assistant", "ese_assistant", "speech_therapist", "occupational_therapist"]:
+        for r in [
+            "teacher_assistant",
+            "ese_assistant",
+            "speech_therapist",
+            "occupational_therapist",
+        ]:
             assert r in mod.allowed_roles, f"{r} missing from schedule"
 
     def test_assessments_allows_assistants(self):
         from core.module_registry import get_module
+
         mod = get_module("assessments")
         assert mod is not None
         for r in ["teacher_assistant", "ese_assistant"]:
@@ -206,17 +237,20 @@ class TestModuleRegistry:
 #  5. PERMISSION BOUNDARIES — الأدوار v7 لا تصل للقيادة
 # ══════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestPermissionBoundaries:
     """الأدوار v7 يجب أن لا تكون في مجموعات القيادة."""
 
     def test_v7_not_in_leadership(self):
         from core.permissions import LEADERSHIP
+
         for r in V7_ROLES:
             assert r not in LEADERSHIP, f"{r} should NOT be in LEADERSHIP"
 
     def test_v7_not_in_staging(self):
         from core.module_registry import get_module
+
         mod = get_module("staging")
         if mod:
             for r in V7_ROLES:
@@ -224,6 +258,7 @@ class TestPermissionBoundaries:
 
     def test_v7_not_in_breach(self):
         from core.module_registry import get_module
+
         mod = get_module("breach")
         if mod:
             for r in V7_ROLES:
@@ -231,12 +266,14 @@ class TestPermissionBoundaries:
 
     def test_transport_officer_not_in_analytics(self):
         from core.module_registry import get_module
+
         mod = get_module("analytics")
         if mod:
             assert "transport_officer" not in mod.allowed_roles
 
     def test_receptionist_not_in_analytics(self):
         from core.module_registry import get_module
+
         mod = get_module("analytics")
         if mod:
             assert "receptionist" not in mod.allowed_roles
@@ -245,6 +282,7 @@ class TestPermissionBoundaries:
 # ══════════════════════════════════════════════════════════
 #  6. DASHBOARD ACCESS — HTTP level
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestDashboardAccess:
@@ -274,6 +312,7 @@ class TestDashboardAccess:
 # ══════════════════════════════════════════════════════════
 #  7. REGRESSION — الأدوار القديمة لم تتأثر
 # ══════════════════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestExistingRolesRegression:

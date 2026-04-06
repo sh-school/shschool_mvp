@@ -78,8 +78,10 @@ def student_grades(request, student_id):
     """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -120,8 +122,10 @@ def student_attendance(request, student_id):
     """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
     school = _get_parent_school(request) or request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
 
@@ -175,9 +179,9 @@ def parent_all_grades(request):
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
-    links = ParentStudentLink.objects.filter(
-        parent=request.user, school=school
-    ).select_related("student")
+    links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
+        "student"
+    )
 
     children_grades = []
     for link in links:
@@ -189,17 +193,23 @@ def parent_all_grades(request):
             .first()
         )
         data = ParentService.get_student_grades(link.student, school, year)
-        children_grades.append({
-            "student": link.student,
-            "enrollment": enrollment,
-            **data,
-        })
+        children_grades.append(
+            {
+                "student": link.student,
+                "enrollment": enrollment,
+                **data,
+            }
+        )
 
-    return render(request, "parents/all_grades.html", {
-        "children_grades": children_grades,
-        "school": school,
-        "year": year,
-    })
+    return render(
+        request,
+        "parents/all_grades.html",
+        {
+            "children_grades": children_grades,
+            "school": school,
+            "year": year,
+        },
+    )
 
 
 # ── حضور كل الأبناء ─────────────────────────────────────────
@@ -219,9 +229,9 @@ def parent_all_attendance(request):
     except ValueError:
         days = 30
 
-    links = ParentStudentLink.objects.filter(
-        parent=request.user, school=school
-    ).select_related("student")
+    links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
+        "student"
+    )
 
     children_attendance = []
     for link in links:
@@ -233,22 +243,28 @@ def parent_all_attendance(request):
             .first()
         )
         data = ParentService.get_student_attendance(link.student, school, days)
-        alerts = AbsenceAlert.objects.filter(
-            student=link.student, school=school
-        ).order_by("-created_at")[:3]
-        children_attendance.append({
-            "student": link.student,
-            "enrollment": enrollment,
-            "alerts": alerts,
-            **data,
-        })
+        alerts = AbsenceAlert.objects.filter(student=link.student, school=school).order_by(
+            "-created_at"
+        )[:3]
+        children_attendance.append(
+            {
+                "student": link.student,
+                "enrollment": enrollment,
+                "alerts": alerts,
+                **data,
+            }
+        )
 
-    return render(request, "parents/all_attendance.html", {
-        "children_attendance": children_attendance,
-        "school": school,
-        "period": period,
-        "period_choices": ["7", "14", "30", "60"],
-    })
+    return render(
+        request,
+        "parents/all_attendance.html",
+        {
+            "children_attendance": children_attendance,
+            "school": school,
+            "period": period,
+            "period_choices": ["7", "14", "30", "60"],
+        },
+    )
 
 
 # ── سلوك الأبناء ──────────────────────────────────────────────
@@ -262,15 +278,17 @@ def parent_behavior(request):
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    links = ParentStudentLink.objects.filter(
-        parent=request.user, school=school
-    ).select_related("student")
+    links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
+        "student"
+    )
 
     children_behavior = []
     for link in links:
-        infractions = BehaviorInfraction.objects.filter(
-            school=school, student=link.student
-        ).select_related("violation_category").order_by("-date")
+        infractions = (
+            BehaviorInfraction.objects.filter(school=school, student=link.student)
+            .select_related("violation_category")
+            .order_by("-date")
+        )
 
         total_points = sum(i.points_deducted for i in infractions)
         recovered = BehaviorPointRecovery.objects.filter(
@@ -285,20 +303,26 @@ def parent_behavior(request):
 
         behavior_score = max(0, 100 - total_points + recovered_points)
 
-        children_behavior.append({
-            "student": link.student,
-            "infractions": infractions[:10],
-            "total_infractions": infractions.count(),
-            "total_points_deducted": total_points,
-            "recovered_points": recovered_points,
-            "behavior_score": min(100, behavior_score),
-            "unresolved": infractions.filter(is_resolved=False).count(),
-        })
+        children_behavior.append(
+            {
+                "student": link.student,
+                "infractions": infractions[:10],
+                "total_infractions": infractions.count(),
+                "total_points_deducted": total_points,
+                "recovered_points": recovered_points,
+                "behavior_score": min(100, behavior_score),
+                "unresolved": infractions.filter(is_resolved=False).count(),
+            }
+        )
 
-    return render(request, "parents/behavior.html", {
-        "children_behavior": children_behavior,
-        "school": school,
-    })
+    return render(
+        request,
+        "parents/behavior.html",
+        {
+            "children_behavior": children_behavior,
+            "school": school,
+        },
+    )
 
 
 # ══════════════════════════════════════════════════════════════

@@ -172,7 +172,11 @@ def evaluate_soft_constraints(
     if is_double and same_subject_today == 1:
         # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
         prev_task = grid.get_task_at(day, period - 1)
-        if prev_task and prev_task.subject_id == task.subject_id and prev_task.class_id == task.class_id:
+        if (
+            prev_task
+            and prev_task.subject_id == task.subject_id
+            and prev_task.class_id == task.class_id
+        ):
             penalty.add("double_bonus", -5, True)  # مكافأة (قيمة سالبة)
 
     # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
@@ -180,8 +184,13 @@ def evaluate_soft_constraints(
         prev_task = grid.get_task_at(day, period - 1)
         next_task = grid.get_task_at(day, period + 1) if period < 7 else None
         is_adj_same = (
-            (prev_task and prev_task.subject_id == task.subject_id and prev_task.class_id == task.class_id)
-            or (next_task and next_task.subject_id == task.subject_id and next_task.class_id == task.class_id)
+            prev_task
+            and prev_task.subject_id == task.subject_id
+            and prev_task.class_id == task.class_id
+        ) or (
+            next_task
+            and next_task.subject_id == task.subject_id
+            and next_task.class_id == task.class_id
         )
         penalty.add("high_weekly_adjacent", 7, is_adj_same)
 

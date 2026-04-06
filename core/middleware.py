@@ -18,7 +18,7 @@ EXEMPT = [
     "/static/",
     "/media/",
     "/health/",
-    "/ready/",   # ✅ v5.4: Readiness Probe — عام بدون مصادقة
+    "/ready/",  # ✅ v5.4: Readiness Probe — عام بدون مصادقة
     # ✅ PWA — يجب أن تكون عامة بدون تسجيل دخول
     "/manifest.json",
     "/sw.js",
@@ -68,6 +68,7 @@ class SchoolPermissionMiddleware:
         # ── حساب معطّل — تسجيل خروج فوري ──
         if not request.user.is_active:
             from django.contrib.auth import logout
+
             logout(request)
             if path.startswith("/api/"):
                 return JsonResponse(

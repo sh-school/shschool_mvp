@@ -79,7 +79,9 @@ class ClinicService:
 
         logger.info(
             "زيارة عيادة جديدة: طالب=%s مدرسة=%s منزل=%s",
-            student.full_name, school.code, is_sent_home,
+            student.full_name,
+            school.code,
+            is_sent_home,
         )
         return visit
 
@@ -109,29 +111,30 @@ class ClinicService:
         week_ago = today - timedelta(days=7)
 
         visits_today = ClinicVisit.objects.filter(
-            school=school, visit_date__date=today,
+            school=school,
+            visit_date__date=today,
         ).count()
 
         sent_home_today = ClinicVisit.objects.filter(
-            school=school, visit_date__date=today, is_sent_home=True,
+            school=school,
+            visit_date__date=today,
+            is_sent_home=True,
         ).count()
 
         recent_visits = list(
-            ClinicVisit.objects
-            .filter(school=school)
+            ClinicVisit.objects.filter(school=school)
             .select_related("student")
             .order_by("-visit_date")[:10]
         )
 
         follow_up_visits = list(
-            ClinicVisit.objects
-            .filter(school=school, is_sent_home=True, visit_date__date=today)
-            .select_related("student")
+            ClinicVisit.objects.filter(
+                school=school, is_sent_home=True, visit_date__date=today
+            ).select_related("student")
         )
 
         weekly_visits = list(
-            ClinicVisit.objects
-            .filter(school=school, visit_date__date__gte=week_ago)
+            ClinicVisit.objects.filter(school=school, visit_date__date__gte=week_ago)
             .values(day=TruncDate("visit_date"))
             .annotate(
                 total=Count("id"),
@@ -141,16 +144,14 @@ class ClinicService:
         )
 
         peak_hours = list(
-            ClinicVisit.objects
-            .filter(school=school, visit_date__date__gte=week_ago)
+            ClinicVisit.objects.filter(school=school, visit_date__date__gte=week_ago)
             .values(hour=ExtractHour("visit_date"))
             .annotate(count=Count("id"))
             .order_by("-count")[:5]
         )
 
         frequent = list(
-            ClinicVisit.objects
-            .filter(
+            ClinicVisit.objects.filter(
                 school=school,
                 visit_date__month=today.month,
                 visit_date__year=today.year,
@@ -205,8 +206,7 @@ class ClinicService:
 
         # استعلام واحد يُجمّع كل الأيام في نفس الوقت
         rows = (
-            ClinicVisit.objects
-            .filter(school=school, visit_date__date__gte=start_date)
+            ClinicVisit.objects.filter(school=school, visit_date__date__gte=start_date)
             .values(day=TruncDate("visit_date"))
             .annotate(
                 visits=Count("id"),
@@ -251,16 +251,14 @@ class ClinicService:
         now = timezone.now()
 
         health_records_count = (
-            HealthRecord.objects
-            .filter(student__memberships__school=school)
+            HealthRecord.objects.filter(student__memberships__school=school)
             .filter(chronic_diseases__isnull=False)
             .exclude(chronic_diseases="")
             .count()
         )
 
         allergies_count = (
-            HealthRecord.objects
-            .filter(student__memberships__school=school)
+            HealthRecord.objects.filter(student__memberships__school=school)
             .filter(allergies__isnull=False)
             .exclude(allergies="")
             .count()
@@ -293,11 +291,9 @@ class ClinicService:
             from core.models import ParentStudentLink
             from notifications.services import NotificationService
 
-            links = (
-                ParentStudentLink.objects
-                .filter(student=visit.student, school=school)
-                .select_related("parent")
-            )
+            links = ParentStudentLink.objects.filter(
+                student=visit.student, school=school
+            ).select_related("parent")
             sent = False
             for link in links:
                 parent = link.parent
@@ -323,6 +319,7 @@ class ClinicService:
         except (ImportError, OSError, RuntimeError, ValueError) as e:
             logger.exception(
                 "فشل إرسال إشعار العيادة لولي الأمر [visit=%s]: %s",
-                visit.pk, e,
+                visit.pk,
+                e,
             )
             return False

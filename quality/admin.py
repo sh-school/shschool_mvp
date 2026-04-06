@@ -233,8 +233,12 @@ class EvaluationScoreInline(admin.TabularInline):
     model = EvaluationScore
     extra = 0
     fields = (
-        "evaluator", "weight",
-        "axis_professional", "axis_commitment", "axis_teamwork", "axis_development",
+        "evaluator",
+        "weight",
+        "axis_professional",
+        "axis_commitment",
+        "axis_teamwork",
+        "axis_development",
         "total_score",
     )
     readonly_fields = ("total_score",)
@@ -242,7 +246,15 @@ class EvaluationScoreInline(admin.TabularInline):
 
 @admin.register(EmployeeEvaluation)
 class EmployeeEvaluationAdmin(admin.ModelAdmin):
-    list_display = ("employee", "evaluator", "period", "total_score", "rating", "status", "academic_year")
+    list_display = (
+        "employee",
+        "evaluator",
+        "period",
+        "total_score",
+        "rating",
+        "status",
+        "academic_year",
+    )
     list_filter = ("school", "academic_year", "period", "status", "rating")
     search_fields = ("employee__full_name", "evaluator__full_name")
     readonly_fields = ("total_score", "rating")

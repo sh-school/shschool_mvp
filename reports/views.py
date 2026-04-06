@@ -218,8 +218,10 @@ def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
@@ -244,8 +246,10 @@ def student_annual_result_pdf(request, student_id):
     """كشف نتائج الطالب السنوي — PDF للطباعة الرسمية"""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
@@ -272,8 +276,10 @@ def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
     school = request.user.get_school()
     student = get_object_or_404(
-        CustomUser, id=student_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        id=student_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
@@ -310,7 +316,9 @@ def class_results_excel(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     paper = request.GET.get("paper", "a4")
     return ExcelService.class_results_excel(
-        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        class_grp,
+        school,
+        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
         paper=paper,
     )
 
@@ -326,7 +334,9 @@ def attendance_excel(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     paper = request.GET.get("paper", "a4")
     return ExcelService.attendance_excel(
-        class_grp, school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        class_grp,
+        school,
+        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
         paper=paper,
     )
 
@@ -341,6 +351,7 @@ def behavior_excel(request):
     school = request.user.get_school()
     paper = request.GET.get("paper", "a4")
     return ExcelService.behavior_excel(
-        school, request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        school,
+        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
         paper=paper,
     )

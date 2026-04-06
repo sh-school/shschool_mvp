@@ -21,8 +21,15 @@ from .services import CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
 
-SCHEDULE_VIEW_ROLES = {"principal", "vice_academic", "vice_admin", "coordinator",
-                       "teacher", "ese_teacher", "academic_advisor"}
+SCHEDULE_VIEW_ROLES = {
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+}
 
 
 # ── قائمة طلبات التبديل ─────────────────────────────────────────
@@ -39,6 +46,7 @@ def swap_list(request):
         swaps = TeacherSwap.objects.filter(school=school)
     elif role == "coordinator":
         from core.permissions import get_department_teacher_ids
+
         dept_teachers = get_department_teacher_ids(request.user) or set()
         swaps = TeacherSwap.objects.filter(school=school).filter(
             Q(teacher_a_id__in=dept_teachers) | Q(teacher_b_id__in=dept_teachers)
@@ -49,20 +57,27 @@ def swap_list(request):
         )
 
     swaps = swaps.select_related(
-        "teacher_a", "teacher_b",
-        "slot_a__subject", "slot_a__class_group",
-        "slot_b__subject", "slot_b__class_group",
+        "teacher_a",
+        "teacher_b",
+        "slot_a__subject",
+        "slot_a__class_group",
+        "slot_b__subject",
+        "slot_b__class_group",
     ).order_by("-created_at")
 
     status_filter = request.GET.get("status", "")
     if status_filter:
         swaps = swaps.filter(status=status_filter)
 
-    return render(request, "schedule/swap_list.html", {
-        "swaps": swaps[:50],
-        "status_filter": status_filter,
-        "status_choices": TeacherSwap.STATUS,
-    })
+    return render(
+        request,
+        "schedule/swap_list.html",
+        {
+            "swaps": swaps[:50],
+            "status_filter": status_filter,
+            "status_choices": TeacherSwap.STATUS,
+        },
+    )
 
 
 @login_required
@@ -73,6 +88,7 @@ def swap_request(request):
 
     if request.method == "POST":
         from datetime import date as date_cls
+
         slot_a_id = request.POST.get("slot_a")
         slot_b_id = request.POST.get("slot_b")
         swap_date_str = request.POST.get("swap_date", "")
@@ -86,7 +102,9 @@ def swap_request(request):
         slot_b = get_object_or_404(ScheduleSlot, pk=slot_b_id, school=school)
 
         try:
-            swap_date = date_cls.fromisoformat(swap_date_str) if swap_date_str else timezone.now().date()
+            swap_date = (
+                date_cls.fromisoformat(swap_date_str) if swap_date_str else timezone.now().date()
+            )
         except ValueError:
             swap_date = timezone.now().date()
 
@@ -108,9 +126,15 @@ def swap_request(request):
             messages.error(request, f"خطأ: {e}")
             return redirect("swap_request")
 
-    my_slots = ScheduleSlot.objects.filter(
-        school=school, teacher=request.user, is_active=True,
-    ).select_related("class_group", "subject").order_by("day_of_week", "period_number")
+    my_slots = (
+        ScheduleSlot.objects.filter(
+            school=school,
+            teacher=request.user,
+            is_active=True,
+        )
+        .select_related("class_group", "subject")
+        .order_by("day_of_week", "period_number")
+    )
 
     return render(request, "schedule/swap_request.html", {"my_slots": my_slots})
 
@@ -122,8 +146,9 @@ def swap_options_htmx(request, slot_id):
     school = request.user.get_school()
     slot = get_object_or_404(ScheduleSlot, pk=slot_id, school=school)
     options = SwapService.get_swap_options(request.user, slot, school)
-    return render(request, "schedule/partials/swap_options.html",
-                  {"options": options, "slot": slot})
+    return render(
+        request, "schedule/partials/swap_options.html", {"options": options, "slot": slot}
+    )
 
 
 @login_required
@@ -133,11 +158,18 @@ def swap_respond(request, swap_id):
     school = request.user.get_school()
     swap = get_object_or_404(
         TeacherSwap.objects.select_related(
-            "teacher_a", "teacher_b", "slot_a", "slot_b",
-            "slot_a__subject", "slot_a__class_group",
-            "slot_b__subject", "slot_b__class_group",
+            "teacher_a",
+            "teacher_b",
+            "slot_a",
+            "slot_b",
+            "slot_a__subject",
+            "slot_a__class_group",
+            "slot_b__subject",
+            "slot_b__class_group",
         ),
-        pk=swap_id, school=school, teacher_b=request.user,
+        pk=swap_id,
+        school=school,
+        teacher_b=request.user,
     )
 
     if request.method == "POST":
@@ -175,7 +207,9 @@ def swap_approve(request, swap_id):
             messages.success(request, "تم اعتماد التبديل وتنفيذه")
         elif action == "reject":
             SwapService.approve_swap(
-                swap, approved_by=request.user, approved=False,
+                swap,
+                approved_by=request.user,
+                approved=False,
                 rejection_reason=rejection_reason,
             )
             messages.info(request, "تم رفض طلب التبديل")
@@ -216,25 +250,33 @@ def compensatory_list(request):
         comps = CompensatorySession.objects.filter(school=school)
     elif role == "coordinator":
         from core.permissions import get_department_teacher_ids
+
         dept_teachers = get_department_teacher_ids(request.user) or set()
         comps = CompensatorySession.objects.filter(school=school, teacher_id__in=dept_teachers)
     else:
         comps = CompensatorySession.objects.filter(school=school, teacher=request.user)
 
     comps = comps.select_related(
-        "teacher", "original_slot__subject", "original_slot__class_group",
-        "class_group", "subject",
+        "teacher",
+        "original_slot__subject",
+        "original_slot__class_group",
+        "class_group",
+        "subject",
     ).order_by("-created_at")
 
     status_filter = request.GET.get("status", "")
     if status_filter:
         comps = comps.filter(status=status_filter)
 
-    return render(request, "schedule/compensatory_list.html", {
-        "compensatory_sessions": comps[:50],
-        "status_filter": status_filter,
-        "status_choices": CompensatorySession.STATUS,
-    })
+    return render(
+        request,
+        "schedule/compensatory_list.html",
+        {
+            "compensatory_sessions": comps[:50],
+            "status_filter": status_filter,
+            "status_choices": CompensatorySession.STATUS,
+        },
+    )
 
 
 @login_required
@@ -245,6 +287,7 @@ def compensatory_request(request):
 
     if request.method == "POST":
         from datetime import date as date_cls
+
         slot_id = request.POST.get("original_slot")
         absence_id = request.POST.get("absence")
         comp_date_str = request.POST.get("compensatory_date", "")
@@ -261,8 +304,13 @@ def compensatory_request(request):
         try:
             comp_date = date_cls.fromisoformat(comp_date_str)
             CompensatoryService.request_compensatory(
-                school=school, teacher=request.user, original_slot=slot, absence=absence,
-                compensatory_date=comp_date, compensatory_period=int(comp_period), notes=notes,
+                school=school,
+                teacher=request.user,
+                original_slot=slot,
+                absence=absence,
+                compensatory_date=comp_date,
+                compensatory_period=int(comp_period),
+                notes=notes,
             )
             messages.success(request, "تم إرسال طلب التعويض بنجاح")
             return redirect("compensatory_list")
@@ -271,16 +319,27 @@ def compensatory_request(request):
             return redirect("compensatory_request")
 
     my_absences = TeacherAbsence.objects.filter(
-        school=school, teacher=request.user,
+        school=school,
+        teacher=request.user,
     ).order_by("-date")[:10]
-    my_slots = ScheduleSlot.objects.filter(
-        school=school, teacher=request.user, is_active=True,
-    ).select_related("class_group", "subject").order_by("day_of_week", "period_number")
+    my_slots = (
+        ScheduleSlot.objects.filter(
+            school=school,
+            teacher=request.user,
+            is_active=True,
+        )
+        .select_related("class_group", "subject")
+        .order_by("day_of_week", "period_number")
+    )
 
-    return render(request, "schedule/compensatory_form.html", {
-        "my_absences": my_absences,
-        "my_slots": my_slots,
-    })
+    return render(
+        request,
+        "schedule/compensatory_form.html",
+        {
+            "my_absences": my_absences,
+            "my_slots": my_slots,
+        },
+    )
 
 
 @login_required
@@ -299,7 +358,9 @@ def compensatory_approve(request, comp_id):
             messages.success(request, "تمت الموافقة على الحصة التعويضية")
         elif action == "reject":
             CompensatoryService.approve_compensatory(
-                comp, approved_by=request.user, approved=False,
+                comp,
+                approved_by=request.user,
+                approved=False,
                 rejection_reason=rejection_reason,
             )
             messages.info(request, "تم رفض طلب التعويض")
@@ -322,8 +383,10 @@ def teacher_free_slots(request, teacher_id):
 
     school = request.user.get_school()
     teacher = get_object_or_404(
-        CustomUser, pk=teacher_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        pk=teacher_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     free = FreeSlotService.get_teacher_free_slots(teacher, school)
 
@@ -332,8 +395,11 @@ def teacher_free_slots(request, teacher_id):
         grid[f.day_of_week].append(f.period_number)
 
     days = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    return render(request, "schedule/partials/free_slots_grid.html",
-                  {"teacher": teacher, "grid": grid, "days": days})
+    return render(
+        request,
+        "schedule/partials/free_slots_grid.html",
+        {"teacher": teacher, "grid": grid, "days": days},
+    )
 
 
 @login_required
@@ -357,16 +423,22 @@ def teacher_weekly_view(request, teacher_id):
 
     school = request.user.get_school()
     teacher = get_object_or_404(
-        CustomUser, pk=teacher_id,
-        memberships__school=school, memberships__is_active=True,
+        CustomUser,
+        pk=teacher_id,
+        memberships__school=school,
+        memberships__is_active=True,
     )
     grid = ScheduleService.get_weekly_schedule(school, teacher=teacher)
     days = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     periods = range(1, 8)
 
-    return render(request, "schedule/teacher_weekly.html", {
-        "teacher": teacher,
-        "grid": grid,
-        "days": days,
-        "periods": periods,
-    })
+    return render(
+        request,
+        "schedule/teacher_weekly.html",
+        {
+            "teacher": teacher,
+            "grid": grid,
+            "days": days,
+            "periods": periods,
+        },
+    )

@@ -102,15 +102,11 @@ class PermissionAuditLog(models.Model):
 
     def save(self, *args, **kwargs):
         if self.pk and PermissionAuditLog.objects.filter(pk=self.pk).exists():
-            raise PermissionDenied(
-                "سجلات تغيير الصلاحيات غير قابلة للتعديل (Immutable)."
-            )
+            raise PermissionDenied("سجلات تغيير الصلاحيات غير قابلة للتعديل (Immutable).")
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise PermissionDenied(
-            "سجلات تغيير الصلاحيات غير قابلة للحذف (Immutable)."
-        )
+        raise PermissionDenied("سجلات تغيير الصلاحيات غير قابلة للحذف (Immutable).")
 
     # ── Class Method — تسجيل سريع ────────────────────────────────────
 

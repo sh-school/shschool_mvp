@@ -57,14 +57,14 @@ class StaffService:
         today = today or timezone.localdate()
 
         total_staff = (
-            Membership.objects
-            .filter(school=school, is_active=True)
+            Membership.objects.filter(school=school, is_active=True)
             .exclude(role__name__in=("student", "parent"))
             .count()
         )
 
         absences_today = TeacherAbsence.objects.filter(
-            school=school, date=today,
+            school=school,
+            date=today,
         ).count()
 
         pending_swaps = TeacherSwap.objects.filter(
@@ -73,11 +73,14 @@ class StaffService:
         ).count()
 
         pending_leaves = LeaveRequest.objects.filter(
-            school=school, status="pending",
+            school=school,
+            status="pending",
         ).count()
 
         pending_evals = StaffEvaluation.objects.filter(
-            school=school, status="draft", academic_year=year,
+            school=school,
+            status="draft",
+            academic_year=year,
         ).count()
 
         expiring_licenses = CustomUser.objects.filter(
@@ -89,8 +92,7 @@ class StaffService:
         ).count()
 
         role_distribution_raw = (
-            Membership.objects
-            .filter(school=school, is_active=True)
+            Membership.objects.filter(school=school, is_active=True)
             .exclude(role__name__in=("student", "parent"))
             .values("role__name")
             .annotate(count=Count("id"))
@@ -98,15 +100,13 @@ class StaffService:
         )
 
         recent_absences = list(
-            TeacherAbsence.objects
-            .filter(school=school)
+            TeacherAbsence.objects.filter(school=school)
             .select_related("teacher")
             .order_by("-date")[:5]
         )
 
         recent_leaves = list(
-            LeaveRequest.objects
-            .filter(school=school)
+            LeaveRequest.objects.filter(school=school)
             .select_related("staff")
             .order_by("-created_at")[:5]
         )
@@ -149,37 +149,33 @@ class StaffService:
         from staff_affairs.models import LeaveBalance, LeaveRequest
 
         membership = (
-            Membership.objects
-            .filter(user=user, school=school, is_active=True)
+            Membership.objects.filter(user=user, school=school, is_active=True)
             .select_related("role", "department_obj")
             .first()
         )
 
-        absences_qs = (
-            TeacherAbsence.objects
-            .filter(teacher=user, school=school)
-            .order_by("-date")
-        )
+        absences_qs = TeacherAbsence.objects.filter(teacher=user, school=school).order_by("-date")
         absence_count = absences_qs.count()
         absences_recent = list(absences_qs[:10])
 
         swaps_count = TeacherSwap.objects.filter(
-            Q(teacher_a=user) | Q(teacher_b=user), school=school,
+            Q(teacher_a=user) | Q(teacher_b=user),
+            school=school,
         ).count()
 
         compensatory_count = CompensatorySession.objects.filter(
-            teacher=user, school=school,
+            teacher=user,
+            school=school,
         ).count()
 
-        evaluations = list(
-            school.staff_evaluations.filter(staff=user)
-            .order_by("-academic_year")[:5]
-        ) if hasattr(school, "staff_evaluations") else []
+        evaluations = (
+            list(school.staff_evaluations.filter(staff=user).order_by("-academic_year")[:5])
+            if hasattr(school, "staff_evaluations")
+            else []
+        )
 
         leaves = list(
-            LeaveRequest.objects
-            .filter(staff=user, school=school)
-            .order_by("-created_at")[:10]
+            LeaveRequest.objects.filter(staff=user, school=school).order_by("-created_at")[:10]
         )
 
         leave_balances = list(
@@ -187,7 +183,9 @@ class StaffService:
         )
 
         weekly_slots = ScheduleSlot.objects.filter(
-            teacher=user, school=school, is_active=True,
+            teacher=user,
+            school=school,
+            is_active=True,
         ).count()
 
         return {
@@ -202,7 +200,6 @@ class StaffService:
             "leave_balances": leave_balances,
             "weekly_slots": weekly_slots,
         }
-
 
     @staticmethod
     def get_license_overview(school, today=None) -> dict:
@@ -253,8 +250,7 @@ class StaffService:
         ).order_by("professional_license_expiry")
 
         no_license = (
-            Membership.objects
-            .filter(
+            Membership.objects.filter(
                 school=school,
                 is_active=True,
                 role__name__in=("teacher", "coordinator", "ese_teacher"),
@@ -325,7 +321,10 @@ class LeaveService:
         )
         logger.info(
             "طلب إجازة جديد: %s لـ %s (%d يوم) في %s",
-            leave.pk, staff.full_name, days_count, school.code,
+            leave.pk,
+            staff.full_name,
+            days_count,
+            school.code,
         )
         return leave
 
@@ -373,10 +372,16 @@ class LeaveService:
         if action == "rejected":
             leave.rejection_reason = rejection_reason
 
-        leave.save(update_fields=[
-            "status", "reviewed_by", "reviewed_at",
-            "rejection_reason", "updated_by", "updated_at",
-        ])
+        leave.save(
+            update_fields=[
+                "status",
+                "reviewed_by",
+                "reviewed_at",
+                "rejection_reason",
+                "updated_by",
+                "updated_at",
+            ]
+        )
 
         # ── تحديث رصيد الإجازات عند الموافقة ──────────────────
         if action == "approved":
@@ -392,11 +397,15 @@ class LeaveService:
             balance.save(update_fields=["used_days"])
             logger.info(
                 "رصيد إجازات %s: استُخدم %d يوم (إجمالي مُستخدم: %d)",
-                leave.staff.full_name, leave.days_count, balance.used_days,
+                leave.staff.full_name,
+                leave.days_count,
+                balance.used_days,
             )
 
         logger.info(
             "طلب إجازة #%s: %s بواسطة %s",
-            leave.pk, action, reviewer.full_name,
+            leave.pk,
+            action,
+            reviewer.full_name,
         )
         return leave

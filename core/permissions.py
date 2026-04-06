@@ -32,16 +32,16 @@ from .models.access import (
 
 ROLE_INHERITS = {
     # child → parent (يرث كل صلاحياته الأكاديمية)
-    "coordinator": "teacher",           # المنسق يرث المعلم
-    "ese_teacher": "teacher",           # معلم ESE يرث المعلم
-    "vice_academic": "coordinator",     # النائب الأكاديمي يرث المنسق
-    "vice_admin": "admin_supervisor",   # النائب الإداري يرث المشرف الإداري
-    "principal": "vice_academic",       # المدير يرث النائب الأكاديمي
+    "coordinator": "teacher",  # المنسق يرث المعلم
+    "ese_teacher": "teacher",  # معلم ESE يرث المعلم
+    "vice_academic": "coordinator",  # النائب الأكاديمي يرث المنسق
+    "vice_admin": "admin_supervisor",  # النائب الإداري يرث المشرف الإداري
+    "principal": "vice_academic",  # المدير يرث النائب الأكاديمي
     # v7 — مساعدون يرثون من أساتذتهم
-    "teacher_assistant": "teacher",     # مساعد المعلم يرث المعلم (جدول + حضور)
-    "ese_assistant": "ese_teacher",     # مساعد ESE يرث معلم ESE
+    "teacher_assistant": "teacher",  # مساعد المعلم يرث المعلم (جدول + حضور)
+    "ese_assistant": "ese_teacher",  # مساعد ESE يرث معلم ESE
     "activities_coordinator": "coordinator",  # منسق أنشطة يرث المنسق
-    "transport_officer": "bus_supervisor",    # مسؤول نقل يرث مشرف النقل
+    "transport_officer": "bus_supervisor",  # مسؤول نقل يرث مشرف النقل
 }
 
 
@@ -73,29 +73,52 @@ def expand_roles(roles: set) -> set:
 
 # ── الجدول الدراسي والحصص ────────────────────────────────────────
 SCHEDULE_VIEW = {
-    "principal", "vice_academic", "vice_admin", "coordinator",
-    "teacher", "ese_teacher", "academic_advisor",
-    "student", "parent",
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "teacher",
+    "ese_teacher",
+    "academic_advisor",
+    "student",
+    "parent",
     # v7 — جديد:
-    "teacher_assistant", "ese_assistant",       # يحتاجون لرؤية جدول فصولهم
-    "activities_coordinator",                   # يحتاج الجدول لتنسيق الأنشطة
-    "speech_therapist", "occupational_therapist",  # جلسات الطلاب
-    "transport_officer",                        # توقيت الدراسة للنقل
+    "teacher_assistant",
+    "ese_assistant",  # يحتاجون لرؤية جدول فصولهم
+    "activities_coordinator",  # يحتاج الجدول لتنسيق الأنشطة
+    "speech_therapist",
+    "occupational_therapist",  # جلسات الطلاب
+    "transport_officer",  # توقيت الدراسة للنقل
 }
 SCHEDULE_MANAGE = {"principal", "vice_academic"}
-SCHEDULE_SWAP_REQUEST = {"teacher", "ese_teacher", "teacher_assistant"}  # v7: مساعد المعلم يطلب تبديل
+SCHEDULE_SWAP_REQUEST = {
+    "teacher",
+    "ese_teacher",
+    "teacher_assistant",
+}  # v7: مساعد المعلم يطلب تبديل
 SCHEDULE_SWAP_APPROVE = {"coordinator"}  # تخصصه فقط
-SCHEDULE_SUBSTITUTE_ASSIGN = {"coordinator", "activities_coordinator"}  # v7: منسق الأنشطة يُسند للأنشطة
+SCHEDULE_SUBSTITUTE_ASSIGN = {
+    "coordinator",
+    "activities_coordinator",
+}  # v7: منسق الأنشطة يُسند للأنشطة
 SCHEDULE_SUBSTITUTE_APPROVE = {"principal", "vice_academic", "vice_admin"}
 
 # ── الحضور والغياب ──────────────────────────────────────────────
 ATTENDANCE_RECORD = {
-    "teacher", "ese_teacher", "coordinator", "admin_supervisor",
-    "teacher_assistant", "ese_assistant",   # v7: يسجّلون تحت إشراف المعلم
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "admin_supervisor",
+    "teacher_assistant",
+    "ese_assistant",  # v7: يسجّلون تحت إشراف المعلم
 }
 ATTENDANCE_VIEW_ALL = {
-    "principal", "vice_academic", "vice_admin", "admin_supervisor", "social_worker",
-    "transport_officer",   # v7: يحتاج رؤية الحضور لتنظيم النقل
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "admin_supervisor",
+    "social_worker",
+    "transport_officer",  # v7: يحتاج رؤية الحضور لتنظيم النقل
     "activities_coordinator",  # v7: يتابع حضور الأنشطة
 }
 ATTENDANCE_VIEW_DEPT = {"coordinator"}
@@ -114,13 +137,21 @@ ASSESSMENT_VIEW_SELF = {"student"}
 
 # ── السلوك والانضباط ────────────────────────────────────────────
 BEHAVIOR_RECORD = {
-    "teacher", "ese_teacher", "coordinator", "social_worker", "admin_supervisor",
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "social_worker",
+    "admin_supervisor",
     "activities_coordinator",  # v7: يُسجّل سلوك خلال الأنشطة
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
 BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
 BEHAVIOR_VIEW_ALL = {
-    "principal", "vice_admin", "vice_academic", "social_worker", "psychologist",
+    "principal",
+    "vice_admin",
+    "vice_academic",
+    "social_worker",
+    "psychologist",
     "activities_coordinator",  # v7: يرى سلوك الطلاب في الأنشطة
 }
 BEHAVIOR_VIEW_CHILD = {"parent"}
@@ -138,7 +169,7 @@ LIBRARY_VIEW = {"principal", "vice_admin", "teacher", "coordinator", "student"}
 # ── النقل المدرسي ───────────────────────────────────────────────
 # bus_supervisor = مشرف الحافلة (ميداني — يرافق الطلاب)
 # transport_officer = مسؤول النقل (إداري — يُدير المنظومة كاملاً)
-TRANSPORT_FULL = {"bus_supervisor", "transport_officer"}   # v7: transport_officer يدير النظام
+TRANSPORT_FULL = {"bus_supervisor", "transport_officer"}  # v7: transport_officer يدير النظام
 TRANSPORT_MANAGE = {"principal", "vice_admin", "transport_officer"}  # v7: transport_officer يُدير
 TRANSPORT_VIEW = {"parent"}
 
@@ -147,10 +178,15 @@ ANALYTICS_FULL = {"principal", "vice_academic", "vice_admin"}
 ANALYTICS_DEPT = {"coordinator", "activities_coordinator"}  # v7: منسق الأنشطة يرى تحليلات قسمه
 ANALYTICS_OWN = {"teacher", "ese_teacher", "teacher_assistant", "ese_assistant"}
 ANALYTICS_VIEW = {
-    "social_worker", "psychologist", "academic_advisor", "nurse", "librarian",
-    "speech_therapist", "occupational_therapist",   # v7: يحتاجون لمتابعة تقدم طلابهم
-    "activities_coordinator",                       # v7: يتابع مشاركة الأنشطة
-    "transport_officer",                            # v7: إحصائيات النقل
+    "social_worker",
+    "psychologist",
+    "academic_advisor",
+    "nurse",
+    "librarian",
+    "speech_therapist",
+    "occupational_therapist",  # v7: يحتاجون لمتابعة تقدم طلابهم
+    "activities_coordinator",  # v7: يتابع مشاركة الأنشطة
+    "transport_officer",  # v7: إحصائيات النقل
 }
 
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
@@ -160,9 +196,14 @@ SYSTEM_ADMIN = {"platform_developer"}
 # ── الجودة ──────────────────────────────────────────────────────
 QUALITY_MANAGE = {"principal", "vice_admin", "vice_academic"}
 QUALITY_VIEW = {
-    "coordinator", "teacher", "specialist", "social_worker", "psychologist",
-    "activities_coordinator",   # v7: يرى خطة الجودة المتعلقة بالأنشطة
-    "speech_therapist", "occupational_therapist",  # v7: يتابعون أهدافهم في الخطة
+    "coordinator",
+    "teacher",
+    "specialist",
+    "social_worker",
+    "psychologist",
+    "activities_coordinator",  # v7: يرى خطة الجودة المتعلقة بالأنشطة
+    "speech_therapist",
+    "occupational_therapist",  # v7: يتابعون أهدافهم في الخطة
 }
 QUALITY_EVALUATE = ALL_STAFF_ROLES  # الجميع يُقيَّم
 
@@ -176,23 +217,49 @@ STAGING_MANAGE = {"principal", "vice_academic", "vice_admin"}
 # صلاحيات شؤون الطلاب — MTG-2026-012
 # ═══════════════════════════════════════════════════════════════
 
-STUDENT_AFFAIRS_MANAGE = frozenset({
-    "principal", "vice_admin", "vice_academic", "platform_developer",
-})
-STUDENT_AFFAIRS_VIEW = frozenset({
-    "principal", "vice_admin", "vice_academic", "coordinator",
-    "social_worker", "psychologist", "platform_developer",
-})
-STUDENT_DEACTIVATE = frozenset({
-    "principal", "vice_admin", "platform_developer",
-})
-PARENT_LINK_MANAGE = frozenset({
-    "principal", "vice_admin", "platform_developer",
-})
-BEHAVIOR_SUMMON = frozenset({
-    "principal", "vice_admin", "vice_academic",
-    "social_worker", "psychologist", "platform_developer",
-})
+STUDENT_AFFAIRS_MANAGE = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "platform_developer",
+    }
+)
+STUDENT_AFFAIRS_VIEW = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "coordinator",
+        "social_worker",
+        "psychologist",
+        "platform_developer",
+    }
+)
+STUDENT_DEACTIVATE = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "platform_developer",
+    }
+)
+PARENT_LINK_MANAGE = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "platform_developer",
+    }
+)
+BEHAVIOR_SUMMON = frozenset(
+    {
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "social_worker",
+        "psychologist",
+        "platform_developer",
+    }
+)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -206,21 +273,34 @@ ACADEMIC_STAFF = ACADEMIC_ROLES
 # كل الطاقم (ليس طالب أو ولي أمر)
 ALL_STAFF = ALL_STAFF_ROLES
 # أكاديميون + إداريون (لوحة التحكم) — v7: يشمل جميع الأدوار الجديدة
-DASHBOARD_ROLES = LEADERSHIP | TIER_3_SUPERVISORS | {
-    "teacher", "social_worker", "nurse", "librarian",
-    # v7 — الأدوار الجديدة التي تحتاج داشبورد:
-    "teacher_assistant", "ese_assistant",
-    "speech_therapist", "occupational_therapist",
-    "receptionist", "transport_officer",
-    "bus_supervisor", "it_technician",
-    "psychologist", "academic_advisor",
-    "ese_teacher",
-}
+DASHBOARD_ROLES = (
+    LEADERSHIP
+    | TIER_3_SUPERVISORS
+    | {
+        "teacher",
+        "social_worker",
+        "nurse",
+        "librarian",
+        # v7 — الأدوار الجديدة التي تحتاج داشبورد:
+        "teacher_assistant",
+        "ese_assistant",
+        "speech_therapist",
+        "occupational_therapist",
+        "receptionist",
+        "transport_officer",
+        "bus_supervisor",
+        "it_technician",
+        "psychologist",
+        "academic_advisor",
+        "ese_teacher",
+    }
+)
 
 
 # ══════════════════════════════════════════════════════════════════════
 # 3. DECORATORS — الديكوريتورات
 # ══════════════════════════════════════════════════════════════════════
+
 
 def _get_user_role(request):
     """يستخلص الدور بأمان — يدعم WSGIRequest و HttpRequest."""
@@ -340,6 +420,7 @@ def permission_required(permission_set):
 # 4. SHORTCUT DECORATORS — ديكوريتورات مختصرة
 # ══════════════════════════════════════════════════════════════════════
 
+
 def staff_required(view_func):
     """أي موظف بالمدرسة (ليس طالب أو ولي أمر)."""
     return role_required(ALL_STAFF | {"specialist"})(view_func)
@@ -399,6 +480,7 @@ def schedule_view_required(view_func):
 # 5. UTILITY FUNCTIONS — دوال مساعدة
 # ══════════════════════════════════════════════════════════════════════
 
+
 def is_leadership(user):
     """
     يتحقق إذا كان المستخدم من القيادة العليا (T1-T2) — مدير أو نائب.
@@ -443,14 +525,23 @@ def can_view_student_data(user, student=None):
         return True
     role = user.get_role()
     return role in (
-        "principal", "vice_admin", "vice_academic",
-        "coordinator", "teacher", "ese_teacher",
-        "social_worker", "psychologist", "academic_advisor",
-        "admin_supervisor", "nurse",
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "coordinator",
+        "teacher",
+        "ese_teacher",
+        "social_worker",
+        "psychologist",
+        "academic_advisor",
+        "admin_supervisor",
+        "nurse",
         # v7 — الأدوار الجديدة التي تحتاج رؤية بيانات الطلاب:
-        "teacher_assistant", "ese_assistant",        # يعملون مع طلاب مباشرة
-        "speech_therapist", "occupational_therapist",  # جلسات علاج فردية
-        "activities_coordinator",                    # يتابع مشاركة الطلاب في الأنشطة
+        "teacher_assistant",
+        "ese_assistant",  # يعملون مع طلاب مباشرة
+        "speech_therapist",
+        "occupational_therapist",  # جلسات علاج فردية
+        "activities_coordinator",  # يتابع مشاركة الطلاب في الأنشطة
     )
 
 
@@ -484,12 +575,18 @@ def get_teacher_student_ids(user):
 
     # القيادة والأخصائيون يرون كل الطلاب
     ALL_STUDENTS_ROLES = {
-        "principal", "vice_admin", "vice_academic",
-        "social_worker", "psychologist", "academic_advisor",
-        "admin_supervisor", "nurse",
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "social_worker",
+        "psychologist",
+        "academic_advisor",
+        "admin_supervisor",
+        "nurse",
         # v7 — الأدوار الجديدة التي تحتاج رؤية كل الطلاب:
-        "speech_therapist", "occupational_therapist",  # يُحال إليهم طلاب من مختلف الفصول
-        "transport_officer",   # يحتاج كل طلاب النقل لإسناد الحافلات
+        "speech_therapist",
+        "occupational_therapist",  # يُحال إليهم طلاب من مختلف الفصول
+        "transport_officer",  # يحتاج كل طلاب النقل لإسناد الحافلات
         "activities_coordinator",  # يُنسّق أنشطة لكل الطلاب
     }
     if role in ALL_STUDENTS_ROLES:
@@ -503,7 +600,9 @@ def get_teacher_student_ids(user):
     # ── 1) فصول المعلم الشخصية من الجدول الأسبوعي ──
     own_class_ids = set(
         ScheduleSlot.objects.filter(
-            teacher=user, is_active=True, academic_year=year,
+            teacher=user,
+            is_active=True,
+            academic_year=year,
         ).values_list("class_group_id", flat=True)
     )
 
@@ -534,7 +633,9 @@ def get_teacher_student_ids(user):
             substitute=user,
             status__in=("assigned", "confirmed"),
             absence__date=today,
-        ).select_related("slot").values_list("slot__class_group_id", flat=True)
+        )
+        .select_related("slot")
+        .values_list("slot__class_group_id", flat=True)
     )
 
     all_class_ids = own_class_ids | dept_class_ids | substitute_class_ids
@@ -544,7 +645,8 @@ def get_teacher_student_ids(user):
 
     return set(
         StudentEnrollment.objects.filter(
-            class_group_id__in=all_class_ids, is_active=True,
+            class_group_id__in=all_class_ids,
+            is_active=True,
         ).values_list("student_id", flat=True)
     )
 
@@ -574,7 +676,10 @@ def get_department_teacher_ids(user):
 
     role = user.get_role()
     ALL_TEACHERS_ROLES = {
-        "principal", "vice_admin", "vice_academic", "admin_supervisor",
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "admin_supervisor",
     }
     if role in ALL_TEACHERS_ROLES:
         return None
@@ -620,10 +725,21 @@ def get_accessible_modules(user):
     # ── Fallback: القاموس القديم (حتى اكتمال الهجرة) ──
     if user.is_superuser:
         return [
-            "dashboard", "schedule", "attendance", "assessments",
-            "behavior", "clinic", "library", "transport",
-            "analytics", "reports", "quality", "notifications",
-            "users", "staging", "system",
+            "dashboard",
+            "schedule",
+            "attendance",
+            "assessments",
+            "behavior",
+            "clinic",
+            "library",
+            "transport",
+            "analytics",
+            "reports",
+            "quality",
+            "notifications",
+            "users",
+            "staging",
+            "system",
         ]
 
     role = user.get_role()
@@ -631,7 +747,11 @@ def get_accessible_modules(user):
 
     module_access = {
         "schedule": SCHEDULE_VIEW,
-        "attendance": ATTENDANCE_VIEW_ALL | ATTENDANCE_RECORD | ATTENDANCE_VIEW_DEPT | ATTENDANCE_VIEW_OWN | {"parent", "student"},
+        "attendance": ATTENDANCE_VIEW_ALL
+        | ATTENDANCE_RECORD
+        | ATTENDANCE_VIEW_DEPT
+        | ATTENDANCE_VIEW_OWN
+        | {"parent", "student"},
         "assessments": ASSESSMENT_CREATE | ASSESSMENT_VIEW_ALL | {"parent", "student"},
         "behavior": BEHAVIOR_MANAGE | BEHAVIOR_RECORD | {"parent", "student"},
         "clinic": CLINIC_FULL | CLINIC_VIEW | {"parent"},
@@ -655,6 +775,7 @@ def get_accessible_modules(user):
 # ══════════════════════════════════════════════════════════════════════
 # 6. INTERNAL ONLY — حماية endpoints حساسة
 # ══════════════════════════════════════════════════════════════════════
+
 
 def internal_only(view_func):
     """يسمح فقط بالوصول من عناوين IP الداخلية — لحماية /metrics و endpoints حساسة."""

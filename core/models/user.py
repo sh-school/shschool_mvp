@@ -210,13 +210,20 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def is_leadership(self):
         """المستوى الأول والثاني — القيادة العليا ونواب المدير."""
         return self.is_superuser or self.get_role() in (
-            "principal", "vice_admin", "vice_academic",
+            "principal",
+            "vice_admin",
+            "vice_academic",
         )
 
     def is_staff_member(self):
         """أي دور من الطاقم (ليس طالب أو ولي أمر)."""
         from .access import ALL_STAFF_ROLES
-        return self.is_superuser or self.get_role() in ALL_STAFF_ROLES or self.get_role() == "specialist"
+
+        return (
+            self.is_superuser
+            or self.get_role() in ALL_STAFF_ROLES
+            or self.get_role() == "specialist"
+        )
 
     def is_same_department(self, other_department):
         """

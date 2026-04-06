@@ -82,7 +82,11 @@ def make_procedure(
 
 
 def make_committee_member(
-    school, user, committee_type=QualityCommitteeMember.REVIEW, can_review=True, year="2025-2026",
+    school,
+    user,
+    committee_type=QualityCommitteeMember.REVIEW,
+    can_review=True,
+    year="2025-2026",
     domain=None,
 ):
     return QualityCommitteeMember.objects.create(
@@ -401,7 +405,9 @@ class TestApproveProcedure:
     def test_reviewer_can_approve(self, client, school):
         teacher = make_teacher(school, "09")
         domain = make_domain(school)
-        make_committee_member(school, teacher, QualityCommitteeMember.REVIEW, can_review=True, domain=domain)
+        make_committee_member(
+            school, teacher, QualityCommitteeMember.REVIEW, can_review=True, domain=domain
+        )
         proc = make_procedure(school, domain, status="Pending Review")
         client.force_login(teacher)
         resp = client.post(

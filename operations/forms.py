@@ -1,4 +1,5 @@
 """operations/forms.py — نماذج الجداول والحضور والتبادل"""
+
 from django import forms
 
 from .models import TeacherAbsence

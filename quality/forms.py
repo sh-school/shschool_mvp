@@ -1,4 +1,5 @@
 """quality/forms.py — نماذج الجودة والإجراءات"""
+
 from django import forms
 
 from .models import QualityProcedure

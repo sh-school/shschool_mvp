@@ -3,7 +3,6 @@ student_affairs/models.py — نماذج شؤون الطلاب
 نموذجان جديدان فقط — الباقي استعلامات من نماذج موجودة.
 """
 
-
 from django.conf import settings
 from django.db import models
 
@@ -40,36 +39,53 @@ class StudentTransfer(AuditedModel):
     ]
 
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="student_transfers",
+        School,
+        on_delete=models.CASCADE,
+        related_name="student_transfers",
         verbose_name="المدرسة",
     )
     student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="transfers",
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="transfers",
         verbose_name="الطالب",
     )
     direction = models.CharField(
-        max_length=3, choices=DIRECTION_CHOICES, verbose_name="اتجاه الانتقال",
+        max_length=3,
+        choices=DIRECTION_CHOICES,
+        verbose_name="اتجاه الانتقال",
     )
     other_school_name = models.CharField(
-        max_length=200, verbose_name="المدرسة الأخرى",
+        max_length=200,
+        verbose_name="المدرسة الأخرى",
     )
     from_grade = models.CharField(
-        max_length=3, blank=True, verbose_name="الصف (من)",
+        max_length=3,
+        blank=True,
+        verbose_name="الصف (من)",
     )
     to_grade = models.CharField(
-        max_length=3, blank=True, verbose_name="الصف (إلى)",
+        max_length=3,
+        blank=True,
+        verbose_name="الصف (إلى)",
     )
     transfer_date = models.DateField(verbose_name="تاريخ الانتقال")
     reason = models.TextField(
-        max_length=1000, blank=True, verbose_name="سبب الانتقال",
+        max_length=1000,
+        blank=True,
+        verbose_name="سبب الانتقال",
     )
     status = models.CharField(
-        max_length=15, choices=STATUS_CHOICES, default="pending",
-        db_index=True, verbose_name="الحالة",
+        max_length=15,
+        choices=STATUS_CHOICES,
+        default="pending",
+        db_index=True,
+        verbose_name="الحالة",
     )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
     academic_year = models.CharField(
-        max_length=9, default=settings.CURRENT_ACADEMIC_YEAR,
+        max_length=9,
+        default=settings.CURRENT_ACADEMIC_YEAR,
         verbose_name="العام الدراسي",
     )
 
@@ -118,31 +134,46 @@ class StudentActivity(SchoolScopedModel):
     ]
 
     student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="activities",
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="activities",
         verbose_name="الطالب",
     )
     activity_type = models.CharField(
-        max_length=20, choices=TYPE_CHOICES, verbose_name="نوع النشاط",
+        max_length=20,
+        choices=TYPE_CHOICES,
+        verbose_name="نوع النشاط",
     )
     title = models.CharField(max_length=200, verbose_name="العنوان")
     description = models.TextField(
-        max_length=2000, blank=True, verbose_name="الوصف",
+        max_length=2000,
+        blank=True,
+        verbose_name="الوصف",
     )
     scope = models.CharField(
-        max_length=15, choices=SCOPE_CHOICES, default="school",
+        max_length=15,
+        choices=SCOPE_CHOICES,
+        default="school",
         verbose_name="النطاق",
     )
     date = models.DateField(verbose_name="التاريخ")
     academic_year = models.CharField(
-        max_length=9, default=settings.CURRENT_ACADEMIC_YEAR,
+        max_length=9,
+        default=settings.CURRENT_ACADEMIC_YEAR,
         verbose_name="العام الدراسي",
     )
     recorded_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name="recorded_activities", verbose_name="سُجّل بواسطة",
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_activities",
+        verbose_name="سُجّل بواسطة",
     )
     attachment = models.FileField(
-        upload_to="student_activities/%Y/%m/", blank=True, null=True,
+        upload_to="student_activities/%Y/%m/",
+        blank=True,
+        null=True,
         verbose_name="مرفق",
     )
 

@@ -21,6 +21,7 @@ from tests.conftest import UserFactory
 # 1. Readiness Probe — /ready/
 # ══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.django_db
 class TestReadinessProbe:
     """اختبارات GET /ready/ — Readiness Probe الخفيف."""
@@ -54,8 +55,9 @@ class TestReadinessProbe:
         resp = client.get("/ready/")
         # never_cache يضع no-cache في الرأس
         assert resp.get("Cache-Control") is not None
-        assert "no-cache" in resp.get("Cache-Control", "").lower() or \
-               resp.get("Pragma") == "no-cache"
+        assert (
+            "no-cache" in resp.get("Cache-Control", "").lower() or resp.get("Pragma") == "no-cache"
+        )
 
     def test_ready_rejects_post(self, client):
         """✅ /ready/ لا يقبل POST — يُعيد 405."""
@@ -66,6 +68,7 @@ class TestReadinessProbe:
 # ══════════════════════════════════════════════════════════════
 # 2. Health Liveness — /health/
 # ══════════════════════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestHealthLiveness:
@@ -104,6 +107,7 @@ class TestHealthLiveness:
 # ══════════════════════════════════════════════════════════════
 # 3. Admin PDPPL — national_id مُخفًى في list_display
 # ══════════════════════════════════════════════════════════════
+
 
 @pytest.mark.django_db
 class TestAdminPDPPLMasking:
@@ -161,12 +165,14 @@ class TestAdminPDPPLMasking:
 # 4. _axes_reset() — اختياري + لا يكسر الكود
 # ══════════════════════════════════════════════════════════════
 
+
 class TestAxesReset:
     """اختبارات _axes_reset() helper في views_auth.py."""
 
     def test_axes_reset_does_not_raise(self):
         """✅ _axes_reset() لا تُثير استثناء في أي حال."""
         from core.views_auth import _axes_reset
+
         factory = RequestFactory()
         request = factory.post("/auth/login/")
         # يجب أن تعمل بهدوء سواء كان axes مثبتاً أم لا
@@ -178,6 +184,7 @@ class TestAxesReset:
     def test_axes_reset_with_empty_national_id(self):
         """✅ _axes_reset() آمنة مع رقم وطني فارغ."""
         from core.views_auth import _axes_reset
+
         factory = RequestFactory()
         request = factory.post("/auth/login/")
         _axes_reset(request, "")  # يجب أن لا تُثير استثناء

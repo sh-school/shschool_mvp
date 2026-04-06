@@ -29,12 +29,24 @@ urlpatterns = [
     # -- المرحلة 3: الجدولة الذكية --
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
-    path("smart-schedule/<uuid:generation_id>/approve/", views.approve_schedule, name="approve_schedule"),
+    path(
+        "smart-schedule/<uuid:generation_id>/approve/",
+        views.approve_schedule,
+        name="approve_schedule",
+    ),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
     path("schedule-settings/", views.schedule_settings, name="schedule_settings"),
     path("schedule-settings/exemption/add/", views.add_exemption, name="add_exemption"),
-    path("schedule-settings/exemption/<uuid:exemption_id>/remove/", views.remove_exemption, name="remove_exemption"),
-    path("schedule-settings/subject/<uuid:subject_id>/toggle-double/", views.toggle_double_period, name="toggle_double_period"),
+    path(
+        "schedule-settings/exemption/<uuid:exemption_id>/remove/",
+        views.remove_exemption,
+        name="remove_exemption",
+    ),
+    path(
+        "schedule-settings/subject/<uuid:subject_id>/toggle-double/",
+        views.toggle_double_period,
+        name="toggle_double_period",
+    ),
     path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
     # ══ المرحلة 6: التبديل والتعويض ══
     path("schedule/swaps/", views.swap_list, name="swap_list"),
@@ -45,8 +57,20 @@ urlpatterns = [
     path("schedule/swap/<uuid:swap_id>/cancel/", views.swap_cancel, name="swap_cancel"),
     path("schedule/compensatory/", views.compensatory_list, name="compensatory_list"),
     path("schedule/compensatory/request/", views.compensatory_request, name="compensatory_request"),
-    path("schedule/compensatory/<uuid:comp_id>/approve/", views.compensatory_approve, name="compensatory_approve"),
-    path("schedule/teacher/<uuid:teacher_id>/weekly/", views.teacher_weekly_view, name="teacher_weekly_view"),
-    path("schedule/teacher/<uuid:teacher_id>/free-slots/", views.teacher_free_slots, name="teacher_free_slots"),
+    path(
+        "schedule/compensatory/<uuid:comp_id>/approve/",
+        views.compensatory_approve,
+        name="compensatory_approve",
+    ),
+    path(
+        "schedule/teacher/<uuid:teacher_id>/weekly/",
+        views.teacher_weekly_view,
+        name="teacher_weekly_view",
+    ),
+    path(
+        "schedule/teacher/<uuid:teacher_id>/free-slots/",
+        views.teacher_free_slots,
+        name="teacher_free_slots",
+    ),
     path("schedule/free-slots/build/", views.build_free_slots, name="build_free_slots"),
 ]

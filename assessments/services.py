@@ -60,8 +60,7 @@ class GradeService:
 
         # Lock existing row (if any) to prevent concurrent writes
         existing = (
-            StudentAssessmentGrade.objects
-            .select_for_update()
+            StudentAssessmentGrade.objects.select_for_update()
             .filter(assessment=assessment, student=student)
             .first()
         )
@@ -117,9 +116,7 @@ class GradeService:
         pkg_assessments: dict[str, list] = {}  # package_type → [Assessment]
         all_assessment_ids = []
         for pkg in packages:
-            assessments = list(
-                pkg.assessments.filter(status__in=["published", "graded", "closed"])
-            )
+            assessments = list(pkg.assessments.filter(status__in=["published", "graded", "closed"]))
             pkg_assessments[pkg.package_type] = assessments
             all_assessment_ids.extend(a.id for a in assessments)
 
@@ -143,9 +140,7 @@ class GradeService:
             assessments = pkg_assessments.get(pkg.package_type, [])
             if not assessments or pkg.weight == 0:
                 for sid in student_ids:
-                    results[(sid, pkg.package_type)] = (
-                        Decimal("0") if pkg.weight == 0 else None
-                    )
+                    results[(sid, pkg.package_type)] = Decimal("0") if pkg.weight == 0 else None
                 continue
 
             total_weight = sum(float(a.weight_in_package) for a in assessments)
@@ -176,10 +171,7 @@ class GradeService:
                 if not has_grade:
                     results[(sid, pkg.package_type)] = None
                 else:
-                    actual = (
-                        weighted_pct * pkg.weight * pkg.semester_max_grade
-                        / Decimal("10000")
-                    )
+                    actual = weighted_pct * pkg.weight * pkg.semester_max_grade / Decimal("10000")
                     results[(sid, pkg.package_type)] = actual.quantize(
                         Decimal("0.01"), rounding=ROUND_HALF_UP
                     )
@@ -279,8 +271,7 @@ class GradeService:
 
         # Lock existing row to prevent concurrent recalculation races
         existing = (
-            StudentSubjectResult.objects
-            .select_for_update()
+            StudentSubjectResult.objects.select_for_update()
             .filter(student=student, setup=setup, semester=semester)
             .first()
         )
@@ -353,8 +344,7 @@ class GradeService:
 
         # Lock existing row to prevent concurrent recalculation races
         existing = (
-            AnnualSubjectResult.objects
-            .select_for_update()
+            AnnualSubjectResult.objects.select_for_update()
             .filter(student=student, setup=setup, academic_year=year)
             .first()
         )
@@ -428,8 +418,9 @@ class GradeService:
         """إحصائيات تقييم: متوسط، أعلى، أدنى، نسبة النجاح"""
         # Single query — fetch all grades for this assessment
         all_grades = list(
-            StudentAssessmentGrade.objects.filter(assessment=assessment)
-            .values_list("grade", "is_absent")
+            StudentAssessmentGrade.objects.filter(assessment=assessment).values_list(
+                "grade", "is_absent"
+            )
         )
         total = len(all_grades)
         absent = sum(1 for _, is_abs in all_grades if is_abs)
@@ -466,9 +457,7 @@ class GradeService:
         setup: SubjectClassSetup, year: str = settings.CURRENT_ACADEMIC_YEAR
     ) -> dict:
         """ملخص النتائج السنوية للفصل في مادة — استعلام واحد"""
-        stats = AnnualSubjectResult.objects.filter(
-            setup=setup, academic_year=year
-        ).aggregate(
+        stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
             total=Count("id"),
             passed=Count("id", filter=Q(status="pass")),
             failed=Count("id", filter=Q(status="fail")),
@@ -579,8 +568,9 @@ class GradeService:
 
         # ── Class comparison — 2 queries ──
         classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year)
-            .order_by("grade", "section")[:15]
+            ClassGroup.objects.filter(school=school, academic_year=year).order_by(
+                "grade", "section"
+            )[:15]
         )
         class_ids = [cg.pk for cg in classes]
 
@@ -623,8 +613,7 @@ class GradeService:
         subj_labels = [s["setup__subject__name_ar"] or "" for s in subj_data]
         subj_avgs = [round(float(s["avg"]), 1) if s["avg"] else 0 for s in subj_data]
         subj_fail_rates = [
-            round(s["fail_count"] / s["total"] * 100, 1) if s["total"] else 0
-            for s in subj_data
+            round(s["fail_count"] / s["total"] * 100, 1) if s["total"] else 0 for s in subj_data
         ]
 
         return {

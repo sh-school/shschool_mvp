@@ -44,7 +44,9 @@ class IsTeacherOrAdmin(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         return request.user.is_admin() or request.user.get_role() in (
-            "teacher", "coordinator", "ese_teacher",
+            "teacher",
+            "coordinator",
+            "ese_teacher",
         )
 
 

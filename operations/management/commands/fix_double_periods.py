@@ -44,6 +44,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         import io
         import sys
+
         self.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", line_buffering=True)
 
         dry_run = options["dry_run"]
@@ -51,9 +52,9 @@ class Command(BaseCommand):
         year = settings.CURRENT_ACADEMIC_YEAR
 
         self.stdout.write(self.style.WARNING("=" * 60))
-        self.stdout.write(self.style.WARNING(
-            f"  {'[DRY RUN] ' if dry_run else ''}fix_double_periods"
-        ))
+        self.stdout.write(
+            self.style.WARNING(f"  {'[DRY RUN] ' if dry_run else ''}fix_double_periods")
+        )
         self.stdout.write(self.style.WARNING("=" * 60))
 
         # جلب كل الحصص
@@ -90,10 +91,7 @@ class Command(BaseCommand):
         subject_total = defaultdict(int)
         for key, sl in double_subject_map.items():
             subject_total[key[2]] += len(sl)
-        sorted_items = sorted(
-            double_subject_map.items(),
-            key=lambda x: subject_total[x[0][2]]
-        )
+        sorted_items = sorted(double_subject_map.items(), key=lambda x: subject_total[x[0][2]])
 
         to_create = []
         for key, slots_list in sorted_items:
@@ -119,48 +117,52 @@ class Command(BaseCommand):
 
             candidate = None
             # أولاً: الحصة السابقة
-            if (p - 1 >= 1
-                    and (p - 1) not in class_occupied
-                    and (p - 1) not in teacher_busy):
+            if p - 1 >= 1 and (p - 1) not in class_occupied and (p - 1) not in teacher_busy:
                 candidate = p - 1
             # ثانياً: الحصة التالية
-            elif (p + 1 <= max_period
-                    and (p + 1) not in class_occupied
-                    and (p + 1) not in teacher_busy):
+            elif (
+                p + 1 <= max_period
+                and (p + 1) not in class_occupied
+                and (p + 1) not in teacher_busy
+            ):
                 candidate = p + 1
 
             if candidate:
                 start_t, end_t = PERIOD_TIMES[candidate]
-                to_create.append({
-                    "slot": ScheduleSlot(
-                        school=school,
-                        teacher_id=existing.teacher_id,
-                        class_group_id=existing.class_group_id,
-                        subject=existing.subject,
-                        day_of_week=day,
-                        period_number=candidate,
-                        start_time=start_t,
-                        end_time=end_t,
-                        academic_year=year,
-                        is_active=True,
-                    ),
-                    "info": (
-                        f"{existing.subject.name_ar} ({subj_code}) | "
-                        f"{existing.class_group} | "
-                        f"Day {day} P{candidate} "
-                        f"(adjacent to P{p}) | "
-                        f"{existing.teacher.full_name}"
-                    ),
-                })
+                to_create.append(
+                    {
+                        "slot": ScheduleSlot(
+                            school=school,
+                            teacher_id=existing.teacher_id,
+                            class_group_id=existing.class_group_id,
+                            subject=existing.subject,
+                            day_of_week=day,
+                            period_number=candidate,
+                            start_time=start_t,
+                            end_time=end_t,
+                            academic_year=year,
+                            is_active=True,
+                        ),
+                        "info": (
+                            f"{existing.subject.name_ar} ({subj_code}) | "
+                            f"{existing.class_group} | "
+                            f"Day {day} P{candidate} "
+                            f"(adjacent to P{p}) | "
+                            f"{existing.teacher.full_name}"
+                        ),
+                    }
+                )
                 # تحديث الفهارس لمنع التصادم مع حصص لاحقة
                 global_occupied[(cg_id, day)].add(candidate)
                 teacher_occupied[(teacher_id, day)].add(candidate)
             else:
-                self.stdout.write(self.style.WARNING(
-                    f"  [!] لا يمكن ملء: {existing.subject.name_ar} "
-                    f"({subj_code}) | {existing.class_group} | Day {day} P{p} — "
-                    f"لا فارغة مجاورة"
-                ))
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  [!] لا يمكن ملء: {existing.subject.name_ar} "
+                        f"({subj_code}) | {existing.class_group} | Day {day} P{p} — "
+                        f"لا فارغة مجاورة"
+                    )
+                )
 
         # عرض النتائج
         self.stdout.write(f"\n  الحصص المزدوجة المفقودة: {len(to_create)}")
@@ -183,9 +185,9 @@ class Command(BaseCommand):
                 [item["slot"] for item in to_create],
                 batch_size=100,
             )
-            self.stdout.write(self.style.SUCCESS(
-                f"\n  [OK] تم إنشاء {len(created)} حصة مزدوجة مفقودة"
-            ))
+            self.stdout.write(
+                self.style.SUCCESS(f"\n  [OK] تم إنشاء {len(created)} حصة مزدوجة مفقودة")
+            )
 
         # ملخص بعد الإصلاح
         self.stdout.write("\n  ملخص بعد الإصلاح:")

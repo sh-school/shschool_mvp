@@ -120,6 +120,7 @@ def _get_from_azure(key, default=""):
 
 # ── دوال مساعدة ──────────────────────────────────────
 
+
 def get_all_secrets(keys):
     """جلب مجموعة أسرار دفعة واحدة."""
     return {key: get_secret(key) for key in keys}

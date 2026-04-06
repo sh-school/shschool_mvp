@@ -66,19 +66,23 @@ class ViolationCategory(models.Model):
 
     # ── الحقول الأصلية (محدّثة) ──
     category = models.CharField(
-        max_length=1, choices=CATEGORY_CHOICES,
-        blank=True, default="",
+        max_length=1,
+        choices=CATEGORY_CHOICES,
+        blank=True,
+        default="",
         verbose_name="الفئة القديمة (ABCD)",
         help_text="⚠ حقل قديم — يُستخدم فقط للمخالفات المحقونة قبل 2025",
     )
     code = models.CharField(
-        max_length=10, unique=True,
+        max_length=10,
+        unique=True,
         verbose_name="الرمز",
         help_text="مثال: 1-01, 2-05, 3-07, 4-13",
     )
     name_ar = models.CharField(max_length=300, verbose_name="اسم المخالفة")
     default_action = models.CharField(
-        max_length=500, blank=True,
+        max_length=500,
+        blank=True,
         verbose_name="الإجراء الافتراضي",
     )
     points = models.PositiveSmallIntegerField(default=5, verbose_name="النقاط المخصومة")
@@ -86,7 +90,9 @@ class ViolationCategory(models.Model):
 
     # ── حقول جديدة 2025 ──
     tags = models.CharField(
-        max_length=100, blank=True, default="",
+        max_length=100,
+        blank=True,
+        default="",
         verbose_name="تصنيفات",
         help_text="فاصل: tech,safety,law,national",
     )
@@ -167,8 +173,10 @@ class ViolationCategory(models.Model):
             obj, made = cls.objects.get_or_create(
                 code=code,
                 defaults={
-                    "category": cat, "name_ar": name,
-                    "points": pts, "degree": deg,
+                    "category": cat,
+                    "name_ar": name,
+                    "points": pts,
+                    "degree": deg,
                 },
             )
             if made:
@@ -222,19 +230,23 @@ class BehaviorInfraction(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey("core.School", on_delete=models.CASCADE)
     student = models.ForeignKey(
-        "core.CustomUser", on_delete=models.PROTECT,
+        "core.CustomUser",
+        on_delete=models.PROTECT,
         related_name="behavior_infractions",
     )
     reported_by = models.ForeignKey(
-        "core.CustomUser", on_delete=models.SET_NULL,
-        null=True, related_name="reported_infractions",
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="reported_infractions",
     )
 
     # ── فئة المخالفة ──
     violation_category = models.ForeignKey(
         ViolationCategory,
         on_delete=models.SET_NULL,
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name="فئة المخالفة",
         related_name="infractions",
     )
@@ -245,16 +257,22 @@ class BehaviorInfraction(models.Model):
 
     # ── الدرجة والوصف ──
     level = models.PositiveSmallIntegerField(
-        choices=LEVELS, default=1, db_index=True,
+        choices=LEVELS,
+        default=1,
+        db_index=True,
     )
     description = models.TextField(
-        verbose_name="وصف المخالفة", max_length=2000,
+        verbose_name="وصف المخالفة",
+        max_length=2000,
     )
     action_taken = models.TextField(
-        blank=True, verbose_name="الإجراء المتخذ", max_length=2000,
+        blank=True,
+        verbose_name="الإجراء المتخذ",
+        max_length=2000,
     )
     points_deducted = models.PositiveSmallIntegerField(
-        default=0, verbose_name="النقاط المخصومة",
+        default=0,
+        verbose_name="النقاط المخصومة",
     )
 
     # ── خطوة الإجراء التصاعدي الحالية ──
@@ -269,12 +287,14 @@ class BehaviorInfraction(models.Model):
     social_media_platform = models.CharField(
         max_length=20,
         choices=SOCIAL_MEDIA_PLATFORMS,
-        blank=True, default="",
+        blank=True,
+        default="",
         verbose_name="منصة التواصل الاجتماعي",
         help_text="عند تسجيل مخالفة تشهير أو تصوير رقمي",
     )
     digital_evidence_notes = models.TextField(
-        blank=True, default="",
+        blank=True,
+        default="",
         verbose_name="ملاحظات الأدلة الرقمية",
         help_text="وصف الأدلة الرقمية (روابط، لقطات شاشة، إلخ)",
         max_length=1000,
@@ -282,21 +302,26 @@ class BehaviorInfraction(models.Model):
 
     # ── حقول الإحالة الأمنية (الدرجة 4) ──
     security_referral_date = models.DateField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name="تاريخ الإحالة الأمنية",
     )
     security_agency = models.CharField(
         max_length=30,
         choices=SECURITY_AGENCIES,
-        blank=True, default="",
+        blank=True,
+        default="",
         verbose_name="الجهة الأمنية المُحالة إليها",
     )
     security_reference_number = models.CharField(
-        max_length=50, blank=True, default="",
+        max_length=50,
+        blank=True,
+        default="",
         verbose_name="رقم المرجع الأمني",
     )
     security_notes = models.TextField(
-        blank=True, default="",
+        blank=True,
+        default="",
         verbose_name="ملاحظات الإحالة الأمنية",
         max_length=1000,
     )
@@ -307,7 +332,8 @@ class BehaviorInfraction(models.Model):
         verbose_name="تم استدعاء ولي الأمر",
     )
     parent_summon_date = models.DateField(
-        null=True, blank=True,
+        null=True,
+        blank=True,
         verbose_name="تاريخ استدعاء ولي الأمر",
     )
     parent_undertaking_signed = models.BooleanField(
@@ -327,7 +353,8 @@ class BehaviorInfraction(models.Model):
             ("internal", "إيقاف داخل المدرسة"),
             ("external", "إيقاف خارج المدرسة"),
         ],
-        blank=True, default="",
+        blank=True,
+        default="",
         verbose_name="نوع الإيقاف",
     )
 
@@ -341,7 +368,9 @@ class BehaviorInfraction(models.Model):
         db_table = "core_behaviorinfraction"
         indexes = [
             models.Index(fields=["school", "date"], name="idx_infraction_school_date"),
-            models.Index(fields=["school", "level", "is_resolved"], name="idx_infraction_level_resolved"),
+            models.Index(
+                fields=["school", "level", "is_resolved"], name="idx_infraction_level_resolved"
+            ),
         ]
 
     def __str__(self):
@@ -402,12 +431,16 @@ class BehaviorPointRecovery(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     infraction = models.OneToOneField(
-        BehaviorInfraction, on_delete=models.CASCADE, related_name="recovery",
+        BehaviorInfraction,
+        on_delete=models.CASCADE,
+        related_name="recovery",
     )
     reason = models.TextField(verbose_name="سبب استعادة النقاط (سلوك إيجابي)")
     points_restored = models.PositiveIntegerField(default=0)
     approved_by = models.ForeignKey(
-        "core.CustomUser", on_delete=models.SET_NULL, null=True,
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
     )
     date = models.DateField(auto_now_add=True)
 

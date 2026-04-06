@@ -15,8 +15,12 @@ class ExamControlConfig(AppConfig):
             url_prefix="/exam-control/",
             icon="bi-file-earmark-lock",
             allowed_roles={
-                "principal", "vice_academic", "vice_admin",
-                "coordinator", "admin_supervisor", "admin",
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "admin_supervisor",
+                "admin",
             },
             sort_order=15,
         )

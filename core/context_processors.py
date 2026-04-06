@@ -61,7 +61,9 @@ def quality_nav_context(request):
     # MTG-2026-005: merged 2 queries into 1
     member_types = set(
         QualityCommitteeMember.objects.filter(
-            school=school, user=request.user, is_active=True,
+            school=school,
+            user=request.user,
+            is_active=True,
         ).values_list("committee_type", flat=True)
     )
 

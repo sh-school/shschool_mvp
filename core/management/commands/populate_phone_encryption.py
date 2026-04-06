@@ -58,9 +58,8 @@ class Command(BaseCommand):
                 new_hmac = hmac_field(user.phone)
                 new_enc = encrypt_field(user.phone)
 
-                needs_update = (
-                    (new_hmac and new_hmac != user.phone_hmac)
-                    or (new_enc and new_enc != user.phone_encrypted)
+                needs_update = (new_hmac and new_hmac != user.phone_hmac) or (
+                    new_enc and new_enc != user.phone_encrypted
                 )
 
                 if needs_update:
@@ -72,9 +71,7 @@ class Command(BaseCommand):
 
             if to_update and not dry_run:
                 with transaction.atomic():
-                    CustomUser.objects.bulk_update(
-                        to_update, ["phone_encrypted", "phone_hmac"]
-                    )
+                    CustomUser.objects.bulk_update(to_update, ["phone_encrypted", "phone_hmac"])
 
             updated += len(to_update)
             self.stdout.write(
@@ -82,6 +79,4 @@ class Command(BaseCommand):
             )
 
         style = self.style.SUCCESS if not dry_run else self.style.WARNING
-        self.stdout.write(style(
-            f"\n✅ اكتمل — محدَّث: {updated} | متخطَّى: {skipped}"
-        ))
+        self.stdout.write(style(f"\n✅ اكتمل — محدَّث: {updated} | متخطَّى: {skipped}"))

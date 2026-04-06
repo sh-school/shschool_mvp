@@ -39,8 +39,12 @@ def progress_report(request):
     # بناء خريطة اسم المنفذ → اسم الموظف
     mapping_dict = dict(
         ExecutorMapping.objects.filter(
-            school=school, academic_year=year, user__isnull=False,
-        ).select_related("user").values_list("executor_norm", "user__full_name")
+            school=school,
+            academic_year=year,
+            user__isnull=False,
+        )
+        .select_related("user")
+        .values_list("executor_norm", "user__full_name")
     )
     executor_stats = []
     for ex in executor_raw:
@@ -50,8 +54,10 @@ def progress_report(request):
     # ── مسؤول كل مجال (من لجنة المراجعة) ──
     reviewer_map = {}
     for m in QualityCommitteeMember.objects.filter(
-        school=school, committee_type=QualityCommitteeMember.REVIEW,
-        is_active=True, domain__isnull=False,
+        school=school,
+        committee_type=QualityCommitteeMember.REVIEW,
+        is_active=True,
+        domain__isnull=False,
     ).select_related("user", "domain"):
         if m.domain_id and m.user:
             reviewer_map[m.domain_id] = m.user.full_name

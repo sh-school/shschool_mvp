@@ -66,11 +66,13 @@ class TestLeaveService:
         school = SchoolFactory()
         staff = UserFactory()
         leave = LeaveService.create_leave_request(
-            school=school, staff=staff,
+            school=school,
+            staff=staff,
             leave_type="sick",
             start_date=date(2026, 4, 10),
             end_date=date(2026, 4, 12),
-            days_count=3, reason="مرض",
+            days_count=3,
+            reason="مرض",
         )
         assert leave.status == "pending"
 
@@ -87,17 +89,20 @@ class TestLeaveService:
         MembershipFactory(user=staff, school=school)
 
         leave = LeaveService.create_leave_request(
-            school=school, staff=staff,
+            school=school,
+            staff=staff,
             leave_type="annual",
             start_date=date(2026, 6, 1),
             end_date=date(2026, 6, 5),
-            days_count=5, reason="إجازة",
+            days_count=5,
+            reason="إجازة",
         )
 
         LeaveService.review_leave(leave=leave, action="approved", reviewer=reviewer)
 
         balance = LeaveBalance.objects.get(
-            school=school, staff=staff,
+            school=school,
+            staff=staff,
             leave_type="annual",
         )
         assert balance.used_days == 5
@@ -114,19 +119,25 @@ class TestLeaveService:
         reviewer = UserFactory()
 
         leave = LeaveService.create_leave_request(
-            school=school, staff=staff,
+            school=school,
+            staff=staff,
             leave_type="annual",
             start_date=date(2026, 7, 1),
             end_date=date(2026, 7, 3),
-            days_count=3, reason="سبب",
+            days_count=3,
+            reason="سبب",
         )
         LeaveService.review_leave(
-            leave=leave, action="rejected",
-            reviewer=reviewer, rejection_reason="لا يوجد رصيد",
+            leave=leave,
+            action="rejected",
+            reviewer=reviewer,
+            rejection_reason="لا يوجد رصيد",
         )
 
         assert not LeaveBalance.objects.filter(
-            school=school, staff=staff, leave_type="annual",
+            school=school,
+            staff=staff,
+            leave_type="annual",
         ).exists()
 
     def test_review_leave_invalid_action_raises(self):
@@ -139,9 +150,13 @@ class TestLeaveService:
         staff = UserFactory()
         reviewer = UserFactory()
         leave = LeaveService.create_leave_request(
-            school=school, staff=staff, leave_type="annual",
-            start_date=date(2026, 8, 1), end_date=date(2026, 8, 2),
-            days_count=2, reason="x",
+            school=school,
+            staff=staff,
+            leave_type="annual",
+            start_date=date(2026, 8, 1),
+            end_date=date(2026, 8, 2),
+            days_count=2,
+            reason="x",
         )
         with pytest.raises(ValueError, match="غير صالح"):
             LeaveService.review_leave(leave=leave, action="suspend", reviewer=reviewer)
@@ -156,9 +171,13 @@ class TestLeaveService:
         staff = UserFactory()
         reviewer = UserFactory()
         leave = LeaveService.create_leave_request(
-            school=school, staff=staff, leave_type="sick",
-            start_date=date(2026, 9, 1), end_date=date(2026, 9, 1),
-            days_count=1, reason="x",
+            school=school,
+            staff=staff,
+            leave_type="sick",
+            start_date=date(2026, 9, 1),
+            end_date=date(2026, 9, 1),
+            days_count=1,
+            reason="x",
         )
         # نوافق مرة
         LeaveService.review_leave(leave=leave, action="approved", reviewer=reviewer)
@@ -210,8 +229,11 @@ class TestBehaviorServiceCreateInfraction:
 
         with pytest.raises(ValueError, match="1 و4"):
             BehaviorService.create_infraction(
-                school=school, student=student, reporter=reporter,
-                level=5, description="مخالفة",
+                school=school,
+                student=student,
+                reporter=reporter,
+                level=5,
+                description="مخالفة",
             )
 
     def test_create_infraction_escalation_calculated(self):
@@ -224,8 +246,11 @@ class TestBehaviorServiceCreateInfraction:
 
         # أول مخالفة → escalation_step=1
         infraction = BehaviorService.create_infraction(
-            school=school, student=student, reporter=reporter,
-            level=2, description="مخالفة أولى",
+            school=school,
+            student=student,
+            reporter=reporter,
+            level=2,
+            description="مخالفة أولى",
         )
         assert infraction.escalation_step >= 1
 
@@ -241,9 +266,7 @@ class TestBehaviorServicePointRecovery:
         school = SchoolFactory()
         student = UserFactory()
         approver = UserFactory()
-        infraction = BehaviorInfractionFactory(
-            school=school, student=student, points_deducted=10
-        )
+        infraction = BehaviorInfractionFactory(school=school, student=student, points_deducted=10)
 
         recovery = BehaviorService.approve_point_recovery(
             infraction=infraction,
@@ -281,14 +304,18 @@ class TestBehaviorServicePointRecovery:
         approver = UserFactory()
 
         BehaviorService.approve_point_recovery(
-            infraction=infraction, approved_by=approver,
-            reason="سبب", points_restored=5,
+            infraction=infraction,
+            approved_by=approver,
+            reason="سبب",
+            points_restored=5,
         )
 
         with pytest.raises(ValueError, match="معالجة مسبقاً"):
             BehaviorService.approve_point_recovery(
-                infraction=infraction, approved_by=approver,
-                reason="سبب ثانٍ", points_restored=3,
+                infraction=infraction,
+                approved_by=approver,
+                reason="سبب ثانٍ",
+                points_restored=3,
             )
 
 
@@ -469,9 +496,16 @@ class TestStaffService:
         data = StaffService.get_staff_profile_data(user, school, "2025-2026")
 
         expected_keys = {
-            "membership", "profile", "absence_count", "absences_recent",
-            "swaps_count", "compensatory_count", "evaluations",
-            "leaves", "leave_balances", "weekly_slots",
+            "membership",
+            "profile",
+            "absence_count",
+            "absences_recent",
+            "swaps_count",
+            "compensatory_count",
+            "evaluations",
+            "leaves",
+            "leave_balances",
+            "weekly_slots",
         }
         assert expected_keys.issubset(data.keys())
 
@@ -508,8 +542,10 @@ class TestClinicServiceHealthStats:
         data = ClinicService.get_health_statistics(school)
 
         expected_keys = {
-            "health_records_count", "allergies_count",
-            "visits_count", "visits_this_month",
+            "health_records_count",
+            "allergies_count",
+            "visits_count",
+            "visits_this_month",
         }
         assert expected_keys == set(data.keys())
 

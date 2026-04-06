@@ -21,16 +21,18 @@ from .services import ExamControlService
 
 # ── الأدوار المسموح لها بالوصول لنظام الكنترول ──
 EXAM_CONTROL_ROLES = {
-    "principal", "vice_academic", "vice_admin",
-    "coordinator", "admin_supervisor", "admin",
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "admin_supervisor",
+    "admin",
 }
 
 
 def _can_access(user):
     return user.is_authenticated and (
-        user.is_admin()
-        or user.is_superuser
-        or user.get_role() in EXAM_CONTROL_ROLES
+        user.is_admin() or user.is_superuser or user.get_role() in EXAM_CONTROL_ROLES
     )
 
 

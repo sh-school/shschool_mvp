@@ -1,4 +1,5 @@
 """clinic/forms.py — نماذج العيادة المدرسية"""
+
 from django import forms
 
 from .models import HealthRecord
