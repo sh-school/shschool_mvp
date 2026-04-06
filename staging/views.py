@@ -303,15 +303,15 @@ def _validate_upload_request(request):
 )
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
-    uploaded, error_redirect = _validate_upload_request(request)
-    if error_redirect:
-        return error_redirect
-
     school = request.user.get_school()
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
+
+    uploaded, error_redirect = _validate_upload_request(request)
+    if error_redirect:
+        return error_redirect
 
     dry_run = request.POST.get("dry_run") == "1"
     log = None
