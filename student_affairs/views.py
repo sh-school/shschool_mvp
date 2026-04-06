@@ -11,7 +11,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q, Sum
-from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -20,7 +19,6 @@ from django.views.decorators.http import require_POST
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 from clinic.models import ClinicVisit, HealthRecord
-from library.models import BookBorrowing
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -30,11 +28,12 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
-from core.models.access import Membership, Role
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
+from core.models.access import Membership, Role
 from core.models.user import CustomUser, Profile
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
+from library.models import BookBorrowing
 from operations.models import AbsenceAlert, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer

@@ -50,7 +50,7 @@ class PIIMaskingFilter(logging.Filter):
         """يُخفي PII في وسائط التنسيق."""
         if isinstance(args, dict):
             return {k: self._mask_value(v) for k, v in args.items()}
-        if isinstance(args, (tuple, list)):
+        if isinstance(args, tuple | list):
             return tuple(self._mask_value(a) for a in args)
         return args
 

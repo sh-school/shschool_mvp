@@ -5,7 +5,6 @@ exam_control/views.py  ·  SchoolOS v5
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -15,7 +14,6 @@ from .models import (
     ExamGradeSheet,
     ExamIncident,
     ExamRoom,
-    ExamSchedule,
     ExamSession,
     ExamSupervisor,
 )

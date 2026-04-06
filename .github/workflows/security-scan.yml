@@ -57,6 +57,9 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Install system dependencies for native packages
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
+
       - name: Install pip-audit
         run: pip install pip-audit==2.7.3
 

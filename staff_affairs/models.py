@@ -11,7 +11,6 @@ from core.models.base import AuditedModel, SchoolScopedModel
 from core.models.school import School
 from core.models.user import CustomUser
 
-
 # ═════════════════════════════════════════════════════════════════════
 # أنواع الإجازات — 16 نوع وفق قانون الموارد البشرية المدنية 15/2016
 # ═════════════════════════════════════════════════════════════════════

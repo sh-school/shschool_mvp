@@ -11,7 +11,6 @@ from core.models.academic import ClassGroup
 
 from .models import StudentActivity, StudentTransfer
 
-
 # ═════════════════════════════════════════════════════════════════════
 # إضافة طالب جديد
 # ═════════════════════════════════════════════════════════════════════

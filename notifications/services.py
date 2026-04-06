@@ -481,7 +481,7 @@ class BreachNotificationService:
         }
 
     @staticmethod
-    def get_dashboard_stats(school: "School", year: str) -> dict:
+    def get_dashboard_stats(school: School, year: str) -> dict:
         """
         إحصائيات لوحة الإشعارات — 5 استعلامات في service layer.
 

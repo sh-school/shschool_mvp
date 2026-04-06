@@ -17,6 +17,7 @@ from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.permissions import leadership_required, role_required, teacher_can_access_student
 from operations.models import Subject
 
+from .forms import CreateAssessmentForm
 from .models import (
     AnnualSubjectResult,
     Assessment,
@@ -25,7 +26,6 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .forms import CreateAssessmentForm
 from .services import GradeService
 
 # ── لوحة تحكم التقييمات ────────────────────────────────────

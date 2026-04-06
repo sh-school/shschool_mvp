@@ -19,9 +19,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
 from core.permissions import role_required
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery
 from operations.models import AbsenceAlert
 
 # ── أدوار مسموح لها بالوصول لبوابة ولي الأمر ──

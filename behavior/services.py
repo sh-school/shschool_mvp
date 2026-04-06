@@ -754,7 +754,7 @@ class BehaviorService:
         action_taken: str = "",
         points_deducted: int = 0,
         violation_category=None,
-    ) -> "BehaviorInfraction":
+    ) -> BehaviorInfraction:
         """
         إنشاء مخالفة سلوكية جديدة — Service Layer الصحيح.
 
@@ -805,11 +805,11 @@ class BehaviorService:
     @staticmethod
     @transaction.atomic
     def approve_point_recovery(
-        infraction: "BehaviorInfraction",
-        approved_by: "CustomUser",
+        infraction: BehaviorInfraction,
+        approved_by: CustomUser,
         reason: str,
         points_restored: int,
-    ) -> "BehaviorPointRecovery":
+    ) -> BehaviorPointRecovery:
         """
         استعادة نقاط مخصومة من مخالفة سلوكية — للجنة فقط.
 

@@ -29,7 +29,6 @@ SchoolOS REST API v1 — ViewSets + APIViews
 import logging
 
 from django.conf import settings
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema

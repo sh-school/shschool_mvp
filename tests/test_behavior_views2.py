@@ -54,6 +54,7 @@ def superuser(db, school):
 def teacher_student_link(db, school, teacher_user, student_user):
     """ربط المعلم بالطالب عبر ScheduleSlot + StudentEnrollment"""
     from datetime import time
+
     from operations.models import ScheduleSlot
     cg = ClassGroupFactory(school=school)
     StudentEnrollmentFactory(student=student_user, class_group=cg)

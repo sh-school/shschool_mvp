@@ -7,8 +7,8 @@ api/permissions.py
 
 from rest_framework.permissions import BasePermission
 
-from core.models.access import ADMIN_ROLES, ALL_STAFF_ROLES, LEADERSHIP
 from core.models import ParentStudentLink
+from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
 
 
 class IsSchoolAdmin(BasePermission):

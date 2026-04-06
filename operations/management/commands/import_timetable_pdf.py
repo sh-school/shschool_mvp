@@ -12,17 +12,14 @@
 """
 
 import re
-import uuid
+import unicodedata
 from collections import defaultdict
 from datetime import time
 
 import fitz  # PyMuPDF
-
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
-
-import unicodedata
 
 from core.models import ClassGroup, CustomUser, School
 
@@ -39,14 +36,11 @@ def normalize_arabic(text):
         "\ufef7": "لأ", "\ufef8": "لأ",  # لام ألف همزة
         "\ufef9": "لإ", "\ufefa": "لإ",  # لام ألف همزة تحت
         "\ufef5": "لآ", "\ufef6": "لآ",  # لام ألف مد
-        "\ufdf2": "الله",                 # لفظ الجلالة
-        "ﷲ": "الله",
-        "ﻻ": "لا", "ﻼ": "لا",
+        "\ufdf2": "الله",
         "ﺷ": "ش", "ﺵ": "ش", "ﺶ": "ش",
         "ﺸ": "ش",
         "ﺣ": "ح", "ﺤ": "ح", "ﺡ": "ح", "ﺢ": "ح",
         "ﺠ": "ج", "ﺟ": "ج", "ﺝ": "ج", "ﺞ": "ج",
-        "ﺸ": "ش",
     }
     for k, v in replacements.items():
         text = text.replace(k, v)
@@ -59,7 +53,6 @@ from operations.models import (
     ScheduleSlot,
     Subject,
     SubjectClassAssignment,
-    TimeSlotConfig,
 )
 
 try:

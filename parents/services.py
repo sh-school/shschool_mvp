@@ -192,7 +192,7 @@ class ParentService:
         }
 
     @staticmethod
-    def enrich_children_dashboard(children: list, school: "School", today=None) -> list:
+    def enrich_children_dashboard(children: list, school: School, today=None) -> list:
         """
         يُثري بيانات الأبناء بـ 4 batch queries بدل N+1.
 

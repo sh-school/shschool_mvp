@@ -20,13 +20,11 @@ from django.shortcuts import redirect
 
 from .models.access import (
     ACADEMIC_ROLES,
-    ADMIN_ROLES,
     ALL_STAFF_ROLES,
     TIER_1_LEADERSHIP,
     TIER_2_DEPUTIES,
     TIER_3_SUPERVISORS,
 )
-
 
 # ══════════════════════════════════════════════════════════════════════
 # 0. ROLE INHERITANCE — وراثة الأدوار التلقائية (v6)
@@ -250,7 +248,7 @@ def role_required(*roles):
         def my_view(request): ...
     """
     # دعم تمرير مجموعة set أو tuple أو list كعنصر واحد
-    if len(roles) == 1 and isinstance(roles[0], (set, frozenset, list, tuple)):
+    if len(roles) == 1 and isinstance(roles[0], set | frozenset | list | tuple):
         roles = tuple(roles[0])
 
     # توسيع الأدوار لتشمل الأدوار الوارثة (coordinator ← teacher، إلخ)
@@ -287,7 +285,7 @@ def department_scoped(*roles):
         @department_scoped("coordinator")
         def schedule_dept_view(request, user_department=None): ...
     """
-    if len(roles) == 1 and isinstance(roles[0], (set, frozenset, list, tuple)):
+    if len(roles) == 1 and isinstance(roles[0], set | frozenset | list | tuple):
         roles = tuple(roles[0])
 
     expanded = expand_roles(set(roles))
@@ -475,7 +473,7 @@ def get_teacher_student_ids(user):
     """
     from django.conf import settings
 
-    from core.models import Membership, StudentEnrollment
+    from core.models import StudentEnrollment
 
     if not user or not user.is_authenticated:
         return set()

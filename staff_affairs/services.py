@@ -51,7 +51,7 @@ class StaffService:
 
         from core.models.access import Membership
         from core.models.user import CustomUser
-        from operations.models import TeacherAbsence, TeacherSwap, StaffEvaluation
+        from operations.models import StaffEvaluation, TeacherAbsence, TeacherSwap
         from staff_affairs.models import LeaveRequest
 
         today = today or timezone.localdate()
@@ -282,15 +282,15 @@ class LeaveService:
     @staticmethod
     @transaction.atomic
     def create_leave_request(
-        school: "School",
-        staff: "CustomUser",
+        school: School,
+        staff: CustomUser,
         leave_type: str,
         start_date,
         end_date,
         days_count: int,
         reason: str,
         attachment=None,
-        created_by: "CustomUser | None" = None,
+        created_by: CustomUser | None = None,
     ) -> LeaveRequest:
         """
         إنشاء طلب إجازة جديد.
@@ -334,7 +334,7 @@ class LeaveService:
     def review_leave(
         leave: LeaveRequest,
         action: str,
-        reviewer: "CustomUser",
+        reviewer: CustomUser,
         rejection_reason: str = "",
     ) -> LeaveRequest:
         """

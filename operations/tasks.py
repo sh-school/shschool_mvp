@@ -148,7 +148,7 @@ def check_license_expiry_task():
 
     from django.utils import timezone
 
-    from core.models import CustomUser, Membership, School
+    from core.models import CustomUser, Membership
 
     today = timezone.localdate()
     warning_date = today + timedelta(days=60)

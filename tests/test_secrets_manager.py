@@ -7,8 +7,6 @@ tests/test_secrets_manager.py
 import os
 from unittest.mock import patch
 
-import pytest
-
 from core.secrets_manager import get_all_secrets, get_secret, is_secrets_manager_available
 
 

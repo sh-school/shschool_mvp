@@ -19,6 +19,7 @@ from operations.models import (
     SubjectClassAssignment,
     SubstituteAssignment,
     TeacherAbsence,
+    TeacherExemption,
     TeacherSwap,
     TimeSlotConfig,
 )
@@ -643,7 +644,7 @@ class SubstituteService:
         qs = CustomUser.objects.filter(id__in=available_ids)
 
         if subject_id:
-            from django.db.models import Case, When, Value, IntegerField
+            from django.db.models import Case, IntegerField, Value, When
 
             same_subject_ids = set(
                 SubjectClassAssignment.objects.filter(
@@ -781,8 +782,8 @@ class SubstituteService:
     def assign_substitute_and_update_session(
         absence: TeacherAbsence,
         slot: ScheduleSlot,
-        substitute: "CustomUser",
-        assigned_by: "CustomUser | None" = None,
+        substitute: CustomUser,
+        assigned_by: CustomUser | None = None,
         notes: str = "",
     ) -> SubstituteAssignment:
         """
@@ -813,7 +814,7 @@ class FreeSlotService:
     @staticmethod
     @transaction.atomic
     def build_registry(
-        school: "School",
+        school: School,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
         max_periods: int = 7,
     ) -> int:
@@ -865,8 +866,8 @@ class FreeSlotService:
 
     @staticmethod
     def get_teacher_free_slots(
-        teacher: "CustomUser",
-        school: "School",
+        teacher: CustomUser,
+        school: School,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
     ) -> QuerySet:
         """حصص المعلم الفارغة — مرتبة حسب اليوم والحصة."""
@@ -876,7 +877,7 @@ class FreeSlotService:
 
     @staticmethod
     def get_free_teachers_at(
-        school: "School",
+        school: School,
         day_of_week: int,
         period_number: int,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
@@ -929,11 +930,11 @@ class SwapService:
 
     @staticmethod
     def validate_swap_request(
-        teacher: "CustomUser",
+        teacher: CustomUser,
         slot_a: ScheduleSlot,
         slot_b: ScheduleSlot,
         swap_date: date,
-        school: "School",
+        school: School,
     ) -> list[str]:
         """
         يتحقق من جميع قوانين التبديل — يعيد قائمة أخطاء (فارغة = صالح).
@@ -949,6 +950,7 @@ class SwapService:
         5. حصص مزدوجة تُبدّل كوحدة
         """
         from datetime import datetime, timedelta
+
         from django.utils import timezone as tz
 
         errors = []
@@ -1041,9 +1043,9 @@ class SwapService:
 
     @staticmethod
     def get_swap_options(
-        teacher: "CustomUser",
+        teacher: CustomUser,
         slot: ScheduleSlot,
-        school: "School",
+        school: School,
     ) -> list:
         """
         معلمي نفس الفصل المتاحين للتبديل مع حصة معيّنة.
@@ -1086,15 +1088,15 @@ class SwapService:
     @staticmethod
     @transaction.atomic
     def create_swap_request(
-        school: "School",
-        teacher_a: "CustomUser",
-        teacher_b: "CustomUser",
+        school: School,
+        teacher_a: CustomUser,
+        teacher_b: CustomUser,
         slot_a: ScheduleSlot,
         slot_b: ScheduleSlot,
         swap_date_a: date,
         swap_date_b: date,
         reason: str = "",
-        requested_by: "CustomUser | None" = None,
+        requested_by: CustomUser | None = None,
     ) -> TeacherSwap:
         """إنشاء طلب تبديل + التحقق من القوانين + إرسال إشعار للمعلم ب."""
         # ── التحقق من القوانين ─────────────────────────────────
@@ -1168,7 +1170,7 @@ class SwapService:
 
     @staticmethod
     @transaction.atomic
-    def approve_swap(swap: TeacherSwap, approved_by: "CustomUser", approved: bool = True, rejection_reason: str = "") -> TeacherSwap:
+    def approve_swap(swap: TeacherSwap, approved_by: CustomUser, approved: bool = True, rejection_reason: str = "") -> TeacherSwap:
         """المنسق أو النائب يوافق/يرفض."""
         from django.utils import timezone as tz
 
@@ -1238,14 +1240,14 @@ class SwapService:
     @staticmethod
     @transaction.atomic
     def force_swap(
-        school: "School",
-        teacher_a: "CustomUser",
-        teacher_b: "CustomUser",
+        school: School,
+        teacher_a: CustomUser,
+        teacher_b: CustomUser,
         slot_a: ScheduleSlot,
         slot_b: ScheduleSlot,
         swap_date_a: date,
         swap_date_b: date,
-        forced_by: "CustomUser",
+        forced_by: CustomUser,
         reason: str = "",
     ) -> TeacherSwap:
         """نائب/مدير ينشئ وينفذ تبديل مباشرة بدون مسار موافقة."""
@@ -1271,7 +1273,7 @@ class SwapService:
 
     @staticmethod
     @transaction.atomic
-    def cancel_swap(swap: TeacherSwap, cancelled_by: "CustomUser") -> TeacherSwap:
+    def cancel_swap(swap: TeacherSwap, cancelled_by: CustomUser) -> TeacherSwap:
         """
         إلغاء طلب تبديل:
         - قبل رد المعلم ب → المعلم أ يلغي بحرية
@@ -1321,6 +1323,7 @@ class SwapService:
         يُلغي الطلبات المعلّقة أكثر من 48 ساعة بدون رد من المعلم ب.
         """
         from datetime import timedelta
+
         from django.utils import timezone as tz
 
         cutoff = tz.now() - timedelta(hours=SwapService.EXPIRY_HOURS)
@@ -1344,7 +1347,7 @@ class SwapService:
         return count
 
     @staticmethod
-    def _notify(swap: TeacherSwap, recipient: "CustomUser", title: str, body: str, event_type: str):
+    def _notify(swap: TeacherSwap, recipient: CustomUser, title: str, body: str, event_type: str):
         """إرسال إشعار — يفشل بصمت إذا نظام الإشعارات غير متاح."""
         try:
             from notifications.hub import NotificationHub
@@ -1365,8 +1368,8 @@ class CompensatoryService:
 
     @staticmethod
     def get_available_compensatory_slots(
-        teacher: "CustomUser",
-        school: "School",
+        teacher: CustomUser,
+        school: School,
         target_date: date,
         academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
     ) -> list:
@@ -1374,7 +1377,6 @@ class CompensatoryService:
         الأوقات المتاحة للتعويض — حصص حرة للمعلم في اليوم المطلوب.
         يتحقق أيضاً أن الشعبة ليست مشغولة.
         """
-        from datetime import timedelta
 
         mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
         day = mapping.get(target_date.weekday(), -1)
@@ -1393,8 +1395,8 @@ class CompensatoryService:
     @staticmethod
     @transaction.atomic
     def request_compensatory(
-        school: "School",
-        teacher: "CustomUser",
+        school: School,
+        teacher: CustomUser,
         original_slot: ScheduleSlot,
         absence: TeacherAbsence,
         compensatory_date: date,
@@ -1402,7 +1404,6 @@ class CompensatoryService:
         notes: str = "",
     ) -> CompensatorySession:
         """إنشاء طلب تعويض + إشعار المنسق."""
-        from datetime import timedelta
 
         # حساب week_offset
         original_date = absence.date
@@ -1428,7 +1429,6 @@ class CompensatoryService:
 
         # إشعار المنسق (إذا وُجد)
         try:
-            from core.models import Membership
             from notifications.hub import NotificationHub
 
             dept_obj = teacher.department_obj
@@ -1461,7 +1461,7 @@ class CompensatoryService:
     @transaction.atomic
     def approve_compensatory(
         comp: CompensatorySession,
-        approved_by: "CustomUser",
+        approved_by: CustomUser,
         approved: bool = True,
         rejection_reason: str = "",
     ) -> CompensatorySession:
@@ -1542,7 +1542,7 @@ class CompensatoryService:
         return comp
 
     @staticmethod
-    def expire_overdue(school: "School") -> int:
+    def expire_overdue(school: School) -> int:
         """إلغاء الحصص التعويضية التي انتهت مهلتها (أكثر من أسبوعين)."""
         from datetime import timedelta
         cutoff = date.today() - timedelta(days=14)
@@ -1605,7 +1605,7 @@ class TeacherLoadService:
     """خدمات تقرير أحمال المعلمين — ينقل business logic من teacher_load_report view."""
 
     @staticmethod
-    def get_teacher_load_data(school: "School", year: str, teachers) -> dict:
+    def get_teacher_load_data(school: School, year: str, teachers) -> dict:
         """
         بيانات تقرير أحمال المعلمين — استعلامان بدل N+1.
 

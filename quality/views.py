@@ -26,7 +26,6 @@ from .models import (
     ExecutorMapping,
     OperationalDomain,
     OperationalProcedure,
-    ProcedureEvidence,
     ProcedureStatusLog,
     QualityCommitteeMember,
 )

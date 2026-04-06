@@ -19,7 +19,7 @@ class TransportService:
     """خدمات النقل المدرسي — لوحة التحكم والإحصائيات."""
 
     @staticmethod
-    def get_dashboard_context(school: "School") -> dict:
+    def get_dashboard_context(school: School) -> dict:
         """
         السياق الكامل للوحة النقل — annotate بدل loop (N+1 fix مُحكَّم).
 
@@ -84,7 +84,7 @@ class TransportService:
         }
 
     @staticmethod
-    def get_statistics(school: "School") -> dict:
+    def get_statistics(school: School) -> dict:
         """
         إحصائيات النقل المدرسي — aggregate DB بدل Python sum loop.
 

@@ -18,11 +18,10 @@ tests/test_swap_rules.py
 """
 
 from datetime import date, time, timedelta
-from unittest.mock import patch
 
 import pytest
 
-from operations.models import ScheduleSlot, Subject, TeacherSwap, TimeSlotConfig
+from operations.models import ScheduleSlot, Subject, TeacherSwap
 from operations.services import SwapService
 from tests.conftest import (
     ClassGroupFactory,
@@ -30,7 +29,6 @@ from tests.conftest import (
     RoleFactory,
     UserFactory,
 )
-
 
 # ══════════════════════════════════════════════════
 #  FACTORIES & FIXTURES

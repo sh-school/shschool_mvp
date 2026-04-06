@@ -3,7 +3,6 @@ student_affairs/models.py — نماذج شؤون الطلاب
 نموذجان جديدان فقط — الباقي استعلامات من نماذج موجودة.
 """
 
-import uuid
 
 from django.conf import settings
 from django.db import models
@@ -11,7 +10,6 @@ from django.db import models
 from core.models.base import AuditedModel, SchoolScopedModel
 from core.models.school import School
 from core.models.user import CustomUser
-
 
 # ═════════════════════════════════════════════════════════════════════
 # انتقال الطالب — وفق إجراءات بوابة معارف (eduservices.edu.gov.qa)

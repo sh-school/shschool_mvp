@@ -3,18 +3,17 @@ Management command: Create 13 Department records + link Memberships.
 Usage: python manage.py populate_departments
 """
 
-import io
 
 from django.core.management.base import BaseCommand
 
-from core.models import CustomUser, Department, Membership, School
+from core.models import Department, Membership, School
 
 
 class Command(BaseCommand):
     help = "Create 13 academic departments and link existing Memberships to FK"
 
     def handle(self, *args, **options):
-        out = io.open(
+        out = open(
             r"D:\shschool_mvp\_dept_migration_log.txt", "w", encoding="utf-8"
         )
 

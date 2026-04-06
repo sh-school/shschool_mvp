@@ -14,15 +14,12 @@ import pytest
 from tests.conftest import (
     BehaviorInfractionFactory,
     BookBorrowingFactory,
-    ClassGroupFactory,
     LibraryBookFactory,
     MembershipFactory,
     RoleFactory,
     SchoolFactory,
-    StudentEnrollmentFactory,
     UserFactory,
 )
-
 
 # ══════════════════════════════════════════════
 #  LeaveService
@@ -37,7 +34,6 @@ class TestLeaveService:
         """create_leave_request يُنشئ LeaveRequest بالحقول الصحيحة."""
         from datetime import date
 
-        from staff_affairs.models import LeaveRequest
         from staff_affairs.services import LeaveService
 
         school = SchoolFactory()
@@ -183,7 +179,6 @@ class TestBehaviorServiceCreateInfraction:
     def test_create_infraction_basic(self):
         """create_infraction يُنشئ مخالفة بالحقول الصحيحة."""
         from behavior.services import BehaviorService
-        from core.models import BehaviorInfraction
 
         school = SchoolFactory()
         student = UserFactory()
@@ -309,7 +304,6 @@ class TestClinicService:
     def test_record_visit_creates_clinic_visit(self):
         """record_visit يُنشئ ClinicVisit بالحقول الصحيحة."""
         from clinic.services import ClinicService
-        from core.models import ClinicVisit
 
         school = SchoolFactory()
         student = UserFactory()

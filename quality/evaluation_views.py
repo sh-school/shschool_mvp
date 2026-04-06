@@ -17,11 +17,10 @@ from core.models import AuditLog, CustomUser, Membership
 from core.permissions import role_required
 
 from .models import (
+    _EVALUABLE_ROLES,
     EmployeeEvaluation,
     EvaluationCycle,
-    EvaluationScore,
     RoleEvaluationTemplate,
-    _EVALUABLE_ROLES,
 )
 
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR

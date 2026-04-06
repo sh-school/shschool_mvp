@@ -9,7 +9,6 @@ behavior/models.py
 import uuid
 
 from django.db import models
-from django.utils import timezone
 
 from .constants import (
     DEGREE_CHOICES,

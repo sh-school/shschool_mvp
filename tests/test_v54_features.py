@@ -10,14 +10,12 @@ tests/test_v54_features.py
 """
 
 import pytest
-from django.test import Client, RequestFactory
 from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
 
-from core.views_health import health_check, readiness_check
 from core.admin import CustomUserAdmin
 from core.models import CustomUser
-from tests.conftest import SchoolFactory, UserFactory
-
+from tests.conftest import UserFactory
 
 # ══════════════════════════════════════════════════════════════
 # 1. Readiness Probe — /ready/

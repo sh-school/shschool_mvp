@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from django.db import models, transaction
 from django.utils import timezone
 
-from library.models import BookBorrowing, LibraryActivity, LibraryBook
+from library.models import BookBorrowing, LibraryBook
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +136,7 @@ class LibraryService:
         }
 
     @staticmethod
-    def get_dashboard_context(school: "School") -> dict:
+    def get_dashboard_context(school: School) -> dict:
         """
         السياق الكامل للوحة المكتبة — يجمع get_dashboard_stats + raw queries الإضافية.
 
@@ -194,7 +194,7 @@ class LibraryService:
         }
 
     @staticmethod
-    def get_chart_data(school: "School") -> dict:
+    def get_chart_data(school: School) -> dict:
         """
         بيانات الرسوم البيانية للمكتبة — توزيع الفئات + اتجاه الإعارة الشهري.
 
@@ -238,6 +238,6 @@ class LibraryService:
         }
 
     @staticmethod
-    def search_books(school: "School", query: str) -> models.QuerySet:
+    def search_books(school: School, query: str) -> models.QuerySet:
         """بحث في كتب المدرسة."""
         return LibraryBook.objects.filter(school=school).search(query)

@@ -13,7 +13,6 @@ from django.core.management.base import BaseCommand
 
 from core.models import Role, School
 
-
 NEW_ROLES = [
     "admin_supervisor",
     "social_worker",

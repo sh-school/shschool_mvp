@@ -7,8 +7,6 @@ E2E Tests: بوابة أولياء الأمور — SchoolOS v5.2
 import pytest
 from playwright.sync_api import expect
 
-from core.models import ConsentRecord
-
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
 

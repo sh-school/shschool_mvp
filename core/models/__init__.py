@@ -26,14 +26,14 @@ from .access import (  # noqa: F401
     Role,
 )
 from .audit import AuditLog, BreachReport, ConsentRecord, ErasureRequest  # noqa: F401
-from .department import Department  # noqa: F401
-from .permission_audit import PermissionAuditLog  # noqa: F401
 from .base import (  # noqa: F401
     AuditedModel,
     SchoolScopedModel,
     SoftDeleteModel,
     TimeStampedModel,
 )
+from .department import Department  # noqa: F401
+from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
 from .user import (  # noqa: F401
     CustomUser,

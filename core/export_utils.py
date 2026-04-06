@@ -3,7 +3,6 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 أسماء ملفات + هيدر + فوتر + توقيع المُصدِّر
 """
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -78,7 +77,7 @@ def add_excel_header(ws, context: dict, num_cols: int):
     يُعيد رقم أول صف للبيانات (5)
     """
     from openpyxl.drawing.image import Image as XLImage
-    from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     MAROON = "8A1538"
     header_fill = PatternFill(start_color=MAROON, end_color=MAROON, fill_type="solid")
@@ -141,7 +140,7 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
     """
     فوتر Excel: توقيع المُصدِّر + معلومات المدرسة
     """
-    from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+    from openpyxl.styles import Alignment, Border, Font, Side
 
     thin_top = Border(top=Side(style="medium", color="8A1538"))
     footer_font = Font(name="Tajawal", size=9, color="666666")
@@ -202,6 +201,7 @@ def get_pdf_footer_html(context: dict) -> str:
 def excel_to_response(wb, filename: str):
     """تحويل workbook إلى HttpResponse للتحميل"""
     from io import BytesIO
+
     from django.http import HttpResponse
 
     output = BytesIO()

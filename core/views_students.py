@@ -17,10 +17,9 @@ from io import BytesIO
 
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
 
 from core.permissions import role_required
 
@@ -109,7 +108,6 @@ def _style_data_row(ws, styles, row_num, num_cols, is_alt=False):
 def _setup_workbook(sheet_title, school_name, report_title):
     """ينشئ Workbook بهوية المنصة (4 صفوف رأس)."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -123,7 +121,6 @@ def _setup_workbook(sheet_title, school_name, report_title):
     year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "")
 
     # دعم get_column_letter ديناميكياً
-    from openpyxl.utils import get_column_letter
 
     # الأعمدة ستُحدَّد لاحقاً — نمرر None مؤقتاً
     return wb, ws, styles, year, today_str
@@ -221,7 +218,7 @@ def student_import_export(request):
     """
     from django.conf import settings
 
-    from core.models import ClassGroup, CustomUser, Membership, Role, School, StudentEnrollment
+    from core.models import Membership, Role
 
     school = request.user.get_school()
     year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "")
@@ -257,7 +254,7 @@ def student_import_export(request):
     try:
         result = _process_import(uploaded_file, school, year)
         ctx["import_result"] = result
-    except (IOError, OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError) as exc:
         logger.exception("فشل استيراد الطلاب")
         ctx["import_error"] = f"خطأ في قراءة الملف: {exc}"
 
@@ -637,7 +634,7 @@ def student_import_template(request):
     GET → تنزيل قالب Excel فارغ مع تعليمات الاستيراد.
     """
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment, Border, PatternFill, Side
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.properties import PageSetupProperties
 

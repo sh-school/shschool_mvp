@@ -10,14 +10,13 @@ from datetime import timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
 
 from assessments.models import StudentSubjectResult
-from core.permissions import leadership_required
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -29,6 +28,7 @@ from core.models import (
     StudentEnrollment,
 )
 from core.pdf_utils import render_pdf
+from core.permissions import leadership_required
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
 

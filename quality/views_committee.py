@@ -57,7 +57,7 @@ def quality_committee(request):
     members = QualityCommitteeMember.objects.review_committee(school, year)
 
     # ── Bulk counts بدلاً من N+1 ────────────────────────────
-    from django.db.models import Count, Q
+    from django.db.models import Count
 
     # عدد المراجعات لكل مستخدم (reviewed_by أو status مكتمل+معتمد)
     reviewed_map = dict(

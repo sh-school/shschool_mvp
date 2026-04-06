@@ -20,6 +20,8 @@ from django.db.models import Count, Prefetch, QuerySet
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
+    from .models import ProcedureEvidence
+
 from .models import (
     ExecutorMapping,
     OperationalDomain,
@@ -294,12 +296,12 @@ class QualityService:
     # ── رفع الدليل ──────────────────────────────────────────
     @staticmethod
     def upload_evidence(
-        procedure: "OperationalProcedure",
+        procedure: OperationalProcedure,
         title: str,
         description: str = "",
         file=None,
-        uploaded_by: "CustomUser | None" = None,
-    ) -> "ProcedureEvidence":
+        uploaded_by: CustomUser | None = None,
+    ) -> ProcedureEvidence:
         """
         إنشاء دليل جديد للإجراء.
         يجب التحقق من نوع الملف في الـ view قبل استدعاء هذه الدالة.
@@ -317,14 +319,14 @@ class QualityService:
     # ── تحديث حالة الإجراء + تسجيل التغيير ─────────────────
     @staticmethod
     def update_procedure_status(
-        procedure: "OperationalProcedure",
+        procedure: OperationalProcedure,
         *,
         status: str,
         evidence_type: str = "",
         evidence_source_file=None,
         comments: str = "",
         follow_up: str = "",
-        changed_by: "CustomUser",
+        changed_by: CustomUser,
         file=None,
         file_title: str = "",
     ) -> None:
@@ -370,14 +372,14 @@ class QualityService:
     # ── تقييم المراجعة + تسجيل التغيير ─────────────────────
     @staticmethod
     def review_evaluate(
-        procedure: "OperationalProcedure",
+        procedure: OperationalProcedure,
         *,
         evidence_request_status: str = "",
         evidence_request_note: str = "",
         quality_rating: str = "",
         new_status: str = "",
         review_note: str = "",
-        reviewed_by: "CustomUser",
+        reviewed_by: CustomUser,
     ) -> None:
         """
         حفظ تقييم المراجعة + تسجيل log التغيير.

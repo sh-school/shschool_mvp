@@ -16,7 +16,6 @@ from django.utils import timezone
 from assessments.models import SubjectClassSetup
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.pdf_utils import render_pdf
-
 from core.permissions import leadership_required, role_required
 
 from .services import ExcelService, ReportDataService

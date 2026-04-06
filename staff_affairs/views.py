@@ -8,7 +8,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,7 +16,7 @@ from core.models.access import Membership
 from core.models.user import CustomUser
 from core.permissions import role_required
 
-from .models import LeaveBalance, LeaveRequest
+from .models import LeaveRequest
 from .services import LeaveService, StaffService
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
@@ -185,7 +184,7 @@ def leave_list(request):
     if type_filter:
         leaves = leaves.filter(leave_type=type_filter)
 
-    from .models import LEAVE_TYPES, LEAVE_STATUS
+    from .models import LEAVE_STATUS, LEAVE_TYPES
     return render(request, "staff_affairs/leave_list.html", {
         "leaves": leaves[:100],
         "status_filter": status_filter,

@@ -10,8 +10,8 @@ from django.utils import timezone
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
-from core.permissions import role_required
 from core.models.access import ALL_STAFF_ROLES
+from core.permissions import role_required
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
@@ -22,7 +22,6 @@ from operations.models import (
     TeacherSwap,
 )
 from transport.models import BusRoute, SchoolBus
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Private context builders — called from dashboard() dispatcher
@@ -258,7 +257,6 @@ def _get_specialist_social_ctx(user, school, today):
     سياق الأخصائيين الاجتماعيين والنفسيين والمرشدين الأكاديميين.
     يُركّز على: الغياب المتكرر + مخالفات السلوك + حالات الطلاب.
     """
-    from core.models import StudentEnrollment
 
     year = settings.CURRENT_ACADEMIC_YEAR
 

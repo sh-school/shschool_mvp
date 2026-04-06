@@ -21,7 +21,6 @@ from .models import (
     ExamRoom,
     ExamSchedule,
     ExamSession,
-    ExamSupervisor,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +33,7 @@ class ExamControlService:
     """خدمات نظام الكنترول — الجلسات والجداول والحوادث."""
 
     @staticmethod
-    def get_dashboard_sessions(school: "School"):
+    def get_dashboard_sessions(school: School):
         """
         جلسات الكنترول مع إحصائيات مُدمجة — annotate واحد.
 
@@ -63,13 +62,13 @@ class ExamControlService:
     @staticmethod
     @transaction.atomic
     def create_session(
-        school: "School",
+        school: School,
         name: str,
         session_type: str,
         academic_year: str,
         start_date,
         end_date,
-        created_by: "CustomUser",
+        created_by: CustomUser,
     ) -> ExamSession:
         """
         إنشاء دورة اختبار جديدة.
@@ -139,12 +138,12 @@ class ExamControlService:
     @transaction.atomic
     def add_incident(
         session: ExamSession,
-        school: "School",
-        reported_by: "CustomUser",
+        school: School,
+        reported_by: CustomUser,
         incident_type: str,
         severity,
         description: str,
-        student: "CustomUser | None" = None,
+        student: CustomUser | None = None,
         room: ExamRoom | None = None,
         injuries: str = "",
         action_taken: str = "",

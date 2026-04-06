@@ -8,11 +8,11 @@ Views نحيفة — كل Business Logic في behavior/services.py
 import logging
 
 from django.conf import settings
-from django.utils import timezone as _tz
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone as _tz
 
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
@@ -87,8 +87,9 @@ def behavior_dashboard(request):
 
     # ── Chart data ──
     from datetime import timedelta
+
     from django.db.models import Count
-    from django.db.models.functions import TruncMonth, TruncDate
+    from django.db.models.functions import TruncDate, TruncMonth
 
     today = _tz.localdate()
 
@@ -684,7 +685,6 @@ def summon_parent(request, student_id=None):
     if not school:
         return HttpResponseForbidden("لم يتم تعيينك في مدرسة")
 
-    from core.models import Membership
     from core.models.academic import ParentStudentLink
 
     SUMMON_CATEGORIES = [

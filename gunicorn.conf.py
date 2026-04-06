@@ -3,7 +3,6 @@
 # Zero-downtime: preload + graceful timeout + max-requests cycling
 # ════════════════════════════════════════════════════════════════
 
-import multiprocessing
 import os
 
 # ── Binding ─────────────────────────────────────────────────────

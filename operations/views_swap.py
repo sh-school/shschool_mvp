@@ -9,11 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.permissions import role_required, SCHEDULE_MANAGE, SCHEDULE_VIEW
+from core.permissions import SCHEDULE_MANAGE, SCHEDULE_VIEW, role_required
 
 from .models import (
     CompensatorySession,
-    FreeSlotRegistry,
     ScheduleSlot,
     TeacherAbsence,
     TeacherSwap,

@@ -6,7 +6,6 @@ API Contract Testing — يتحقق من توافق الاستجابات مع Op
 """
 
 import pytest
-from django.test import override_settings
 
 pytestmark = pytest.mark.django_db
 

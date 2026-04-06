@@ -1,8 +1,8 @@
 """exam_control/forms.py — نماذج لجان الاختبارات"""
-from django.conf import settings
 from django import forms
+from django.conf import settings
 
-from .models import ExamSession, ExamStaffAssignment, ExamIncident
+from .models import ExamIncident, ExamSession, ExamStaffAssignment
 
 
 class ExamSessionForm(forms.Form):

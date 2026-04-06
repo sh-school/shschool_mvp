@@ -28,9 +28,9 @@ class ClinicService:
     @staticmethod
     @transaction.atomic
     def record_visit(
-        school: "School",
-        student: "CustomUser",
-        nurse: "CustomUser",
+        school: School,
+        student: CustomUser,
+        nurse: CustomUser,
         reason: str,
         symptoms: str = "",
         temperature=None,
