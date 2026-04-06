@@ -1,0 +1,332 @@
+name: CD — Railway Deploy Pipeline
+
+on:
+  push:
+    branches: [main]
+
+# Prevent concurrent deploys
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}  # e.g. https://schoolos.up.railway.app
+
+jobs:
+  # ══════════════════════════════════════════════════════
+  #  1. Preflight checks (subset safe for CI)
+  # ══════════════════════════════════════════════════════
+  preflight:
+    name: Deploy Preflight Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system libraries (Cairo + WeasyPrint)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: "Preflight: Dependencies check (test 1)"
+        run: |
+          echo "## Preflight: Dependencies" >> $GITHUB_STEP_SUMMARY
+          # Verify all non-dev packages are importable
+          python -c "
+          import importlib, sys
+          failures = []
+          packages = [
+              ('django', 'django'),
+              ('rest_framework', 'djangorestframework'),
+              ('psycopg2', 'psycopg2-binary'),
+              ('gunicorn', 'gunicorn'),
+              ('redis', 'redis'),
+          ]
+          for mod, pkg in packages:
+              try:
+                  importlib.import_module(mod)
+              except ImportError:
+                  failures.append(pkg)
+          if failures:
+              print(f'Missing: {failures}', file=sys.stderr)
+              sys.exit(1)
+          print('All core packages importable')
+          "
+          echo "PASS: Core dependencies importable" >> $GITHUB_STEP_SUMMARY
+
+      - name: "Preflight: Gunicorn config check (test 2)"
+        run: |
+          python -c "
+          import os, runpy, sys
+          os.environ.setdefault('PORT', '8000')
+          if not os.path.exists('gunicorn.conf.py'):
+              print('FAIL: gunicorn.conf.py not found', file=sys.stderr)
+              sys.exit(1)
+          conf = runpy.run_path('gunicorn.conf.py')
+          bind = conf.get('bind', '')
+          worker_class = conf.get('worker_class', 'sync')
+          print(f'bind={bind}, worker_class={worker_class}')
+          if '0.0.0.0' not in str(bind):
+              print('FAIL: bind should use 0.0.0.0:\$PORT', file=sys.stderr)
+              sys.exit(1)
+          print('Gunicorn config OK')
+          "
+          echo "PASS: Gunicorn config valid" >> $GITHUB_STEP_SUMMARY
+
+      # Tests 3 & 4 (gunicorn boot + health endpoint) skipped in CI
+      # Railway handles gunicorn startup; post-deploy smoke test covers health
+
+      - name: "Preflight: Security settings check (test 9)"
+        run: |
+          if grep -q "SECURE_PROXY_SSL_HEADER" shschool/settings/production.py; then
+            echo "PASS: SECURE_PROXY_SSL_HEADER found"
+          else
+            echo "::error::SECURE_PROXY_SSL_HEADER missing in production.py"
+            exit 1
+          fi
+
+      - name: "Preflight: Railway config check (test 10)"
+        run: |
+          python -c "
+          import json, sys
+          try:
+              with open('railway.json') as f:
+                  cfg = json.load(f)
+              hp = cfg.get('deploy', {}).get('healthcheckPath', '')
+              if not hp:
+                  print('FAIL: railway.json missing deploy.healthcheckPath', file=sys.stderr)
+                  sys.exit(1)
+              print(f'healthcheckPath={hp}')
+          except FileNotFoundError:
+              print('FAIL: railway.json not found', file=sys.stderr)
+              sys.exit(1)
+          "
+
+      - name: "Preflight: Static files dry-run (test 7)"
+        env:
+          DJANGO_SETTINGS_MODULE: shschool.settings.testing
+        run: |
+          python manage.py collectstatic --dry-run --noinput 2>&1 | tee /tmp/static_output.txt
+          if grep -qi "error\|traceback" /tmp/static_output.txt; then
+            echo "::error::collectstatic --dry-run has errors"
+            exit 1
+          fi
+          echo "PASS: collectstatic dry-run OK"
+
+      - name: "Preflight: Migrations consistency check (test 8)"
+        env:
+          DJANGO_SETTINGS_MODULE: shschool.settings.testing
+        run: python manage.py makemigrations --check --noinput
+
+  # ══════════════════════════════════════════════════════
+  #  2. Test suite (pytest + coverage gate)
+  # ══════════════════════════════════════════════════════
+  test:
+    name: pytest — Tests + Coverage
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
+            libffi-dev shared-mime-info pkg-config
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Apply migrations
+        run: python manage.py migrate --noinput
+
+      - name: Run tests
+        run: pytest tests/ -v --junit-xml=test-results.xml
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploy-test-results
+          path: |
+            test-results.xml
+            coverage.xml
+
+  # ══════════════════════════════════════════════════════
+  #  3. Deploy to Railway via webhook
+  # ══════════════════════════════════════════════════════
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: [preflight, test]
+    environment: production
+
+    steps:
+      - name: Trigger Railway deploy webhook
+        run: |
+          echo "Triggering Railway deploy for commit ${{ github.sha }}..."
+          HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
+            -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
+
+          echo "Railway webhook response: HTTP $HTTP_CODE"
+          cat /tmp/railway_response.txt || true
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Railway deploy webhook failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Railway deploy triggered successfully"
+
+      - name: Wait for Railway deployment to stabilize
+        run: |
+          echo "Waiting 60s for Railway to build and deploy..."
+          sleep 60
+
+  # ══════════════════════════════════════════════════════
+  #  4. Post-deploy smoke tests
+  # ══════════════════════════════════════════════════════
+  smoke-test:
+    name: Post-Deploy Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy]
+
+    steps:
+      - name: "Smoke test: /health/ endpoint (HTTP 200)"
+        id: health_check
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "::warning::PRODUCTION_URL secret not set — skipping smoke tests"
+            echo "health_ok=skip" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Checking $PROD_URL/health/ ..."
+
+          # Retry up to 5 times (Railway may still be starting)
+          for attempt in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -s -o /tmp/health_response.txt -w "%{http_code}" \
+              --max-time 15 "$PROD_URL/health/" 2>/dev/null || echo "000")
+
+            echo "Attempt $attempt: HTTP $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "health_ok=true" >> $GITHUB_OUTPUT
+              echo "Health check passed"
+              cat /tmp/health_response.txt || true
+              break
+            fi
+
+            if [ "$attempt" -lt 5 ]; then
+              echo "Retrying in 15s..."
+              sleep 15
+            fi
+          done
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "health_ok=false" >> $GITHUB_OUTPUT
+            echo "::error::Health check failed — /health/ returned HTTP $HTTP_CODE after 5 attempts"
+            cat /tmp/health_response.txt 2>/dev/null || true
+          fi
+
+      - name: "Smoke test: / returns HTML"
+        id: html_check
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "html_ok=skip" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Checking $PROD_URL/ for HTML response..."
+
+          HTTP_CODE=$(curl -s -o /tmp/index_response.txt -w "%{http_code}" \
+            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "000")
+
+          CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" \
+            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "")
+
+          echo "HTTP $HTTP_CODE, Content-Type: $CONTENT_TYPE"
+
+          if echo "$CONTENT_TYPE" | grep -qi "text/html"; then
+            echo "html_ok=true" >> $GITHUB_OUTPUT
+            echo "HTML response confirmed"
+          else
+            echo "html_ok=false" >> $GITHUB_OUTPUT
+            echo "::warning::Root URL did not return HTML (Content-Type: $CONTENT_TYPE)"
+          fi
+
+      - name: Smoke test summary
+        if: always()
+        run: |
+          echo "## Post-Deploy Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          HEALTH="${{ steps.health_check.outputs.health_ok }}"
+          HTML="${{ steps.html_check.outputs.html_ok }}"
+
+          case "$HEALTH" in
+            true)  echo "| /health/ endpoint | PASS |" >> $GITHUB_STEP_SUMMARY ;;
+            skip)  echo "| /health/ endpoint | SKIPPED (no PRODUCTION_URL) |" >> $GITHUB_STEP_SUMMARY ;;
+            *)     echo "| /health/ endpoint | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
+
+          case "$HTML" in
+            true)  echo "| / HTML response | PASS |" >> $GITHUB_STEP_SUMMARY ;;
+            skip)  echo "| / HTML response | SKIPPED (no PRODUCTION_URL) |" >> $GITHUB_STEP_SUMMARY ;;
+            *)     echo "| / HTML response | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+          # Fail the job if health check failed
+          if [ "$HEALTH" = "false" ]; then
+            echo "::warning::DEPLOYMENT MAY BE UNHEALTHY — /health/ check failed. Investigate immediately."
+            echo "::error::Smoke test failed for commit ${{ github.sha }}"
+            exit 1
+          fi

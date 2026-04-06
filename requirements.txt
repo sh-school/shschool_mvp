@@ -112,7 +112,7 @@ reportlab==4.4.10
 requests==2.33.0
 rlPyCairo==0.4.0
 rpds-py==0.30.0
-sentry-sdk==2.8.0
+sentry-sdk[django]>=2.8.0
 service-identity==24.2.0
 six==1.17.0
 sqlparse==0.5.5

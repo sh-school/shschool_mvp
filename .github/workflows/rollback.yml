@@ -1,0 +1,183 @@
+name: Rollback — Railway Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to rollback to"
+        required: true
+        type: string
+      reason:
+        description: "Reason for rollback"
+        required: false
+        type: string
+        default: "Manual rollback"
+
+concurrency:
+  group: railway-deploy
+  cancel-in-progress: false
+
+jobs:
+  # ══════════════════════════════════════════════════════
+  #  1. Validate and rollback
+  # ══════════════════════════════════════════════════════
+  rollback:
+    name: Rollback to ${{ inputs.commit_sha }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history to access any commit
+
+      - name: Validate commit SHA exists
+        run: |
+          echo "Rollback requested to: ${{ inputs.commit_sha }}"
+          echo "Reason: ${{ inputs.reason }}"
+
+          if ! git cat-file -t "${{ inputs.commit_sha }}" 2>/dev/null; then
+            echo "::error::Commit SHA ${{ inputs.commit_sha }} not found in repository"
+            exit 1
+          fi
+
+          COMMIT_MSG=$(git log --format="%s" -1 "${{ inputs.commit_sha }}")
+          COMMIT_DATE=$(git log --format="%ci" -1 "${{ inputs.commit_sha }}")
+          echo "Rolling back to: $COMMIT_MSG ($COMMIT_DATE)"
+
+          echo "## Rollback Details" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target commit | \`${{ inputs.commit_sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit message | $COMMIT_MSG |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit date | $COMMIT_DATE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Triggered by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout target commit
+        run: git checkout "${{ inputs.commit_sha }}"
+
+      - name: Trigger Railway deploy webhook (rollback)
+        run: |
+          echo "Triggering Railway deploy for rollback commit ${{ inputs.commit_sha }}..."
+
+          HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
+            -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
+
+          echo "Railway webhook response: HTTP $HTTP_CODE"
+          cat /tmp/railway_response.txt || true
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Railway rollback webhook failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Railway rollback deploy triggered"
+
+      - name: Wait for Railway deployment to stabilize
+        run: |
+          echo "Waiting 60s for Railway to rebuild and deploy..."
+          sleep 60
+
+  # ══════════════════════════════════════════════════════
+  #  2. Post-rollback smoke tests
+  # ══════════════════════════════════════════════════════
+  smoke-test:
+    name: Post-Rollback Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [rollback]
+
+    steps:
+      - name: "Smoke test: /health/ endpoint"
+        id: health_check
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "::warning::PRODUCTION_URL secret not set — skipping smoke tests"
+            echo "health_ok=skip" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Checking $PROD_URL/health/ after rollback..."
+
+          for attempt in 1 2 3 4 5; do
+            HTTP_CODE=$(curl -s -o /tmp/health_response.txt -w "%{http_code}" \
+              --max-time 15 "$PROD_URL/health/" 2>/dev/null || echo "000")
+
+            echo "Attempt $attempt: HTTP $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "health_ok=true" >> $GITHUB_OUTPUT
+              echo "Health check passed after rollback"
+              cat /tmp/health_response.txt || true
+              break
+            fi
+
+            if [ "$attempt" -lt 5 ]; then
+              echo "Retrying in 15s..."
+              sleep 15
+            fi
+          done
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "health_ok=false" >> $GITHUB_OUTPUT
+            echo "::error::Health check failed after rollback — /health/ returned HTTP $HTTP_CODE"
+          fi
+
+      - name: "Smoke test: / returns HTML"
+        id: html_check
+        run: |
+          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "html_ok=skip" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "000")
+
+          CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" \
+            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "")
+
+          echo "HTTP $HTTP_CODE, Content-Type: $CONTENT_TYPE"
+
+          if echo "$CONTENT_TYPE" | grep -qi "text/html"; then
+            echo "html_ok=true" >> $GITHUB_OUTPUT
+            echo "HTML response confirmed after rollback"
+          else
+            echo "html_ok=false" >> $GITHUB_OUTPUT
+            echo "::warning::Root URL did not return HTML after rollback"
+          fi
+
+      - name: Rollback smoke test summary
+        if: always()
+        run: |
+          echo "## Post-Rollback Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          HEALTH="${{ steps.health_check.outputs.health_ok }}"
+          HTML="${{ steps.html_check.outputs.html_ok }}"
+
+          case "$HEALTH" in
+            true)  echo "| /health/ endpoint | PASS |" >> $GITHUB_STEP_SUMMARY ;;
+            skip)  echo "| /health/ endpoint | SKIPPED |" >> $GITHUB_STEP_SUMMARY ;;
+            *)     echo "| /health/ endpoint | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
+
+          case "$HTML" in
+            true)  echo "| / HTML response | PASS |" >> $GITHUB_STEP_SUMMARY ;;
+            skip)  echo "| / HTML response | SKIPPED |" >> $GITHUB_STEP_SUMMARY ;;
+            *)     echo "| / HTML response | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Rollback target: \`${{ github.event.inputs.commit_sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$HEALTH" = "false" ]; then
+            echo "::error::CRITICAL — Rollback smoke test failed! Manual intervention required."
+            exit 1
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Rollback completed successfully." >> $GITHUB_STEP_SUMMARY

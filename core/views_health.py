@@ -1,22 +1,31 @@
 """
-core/views/health.py
+core/views_health.py
 ━━━━━━━━━━━━━━━━━━━
 GET /health/ — فحص صحة كامل (DB + Redis)
 GET /ready/  — Readiness Probe خفيف (DB فقط — لـ load balancer و Kubernetes)
+GET /status/ — معلومات تشغيلية مفصّلة (DB + Redis + migrations + uptime + version)
 
 الفرق:
   /health/ → Liveness: يتحقق من DB + Redis — للمراقبة والتنبيهات
   /ready/  → Readiness: يتحقق من DB فقط — لإخبار الـ load balancer إذا كان
               الـ container جاهزاً لاستقبال الطلبات (يُستخدم في rolling updates)
+  /status/ → Dashboard: معلومات مفصّلة لفريق العمليات — latency, migrations, uptime
 """
 
 import logging
+import os
 import time
 
+from django.conf import settings
 from django.db import connection
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
+
+# Server start time — captured at module import (first request or gunicorn fork)
+_SERVER_START_TIME = time.monotonic()
+_SERVER_START_TIMESTAMP = timezone.now()
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +62,6 @@ def health_check(request):
 
     if not all_ok:
         logger.warning("health_check degraded: %s", checks)
-
-    from django.conf import settings
 
     return JsonResponse(
         {
@@ -97,6 +104,87 @@ def readiness_check(request):
         {
             "ready": db_ok,
             "latency_ms": round((time.monotonic() - start) * 1000, 1),
+        },
+        status=status_code,
+    )
+
+
+@require_GET
+@never_cache
+def status_check(request):
+    """
+    GET /status/ — Full system status for operations dashboards.
+
+    Returns detailed JSON with:
+      - database: connected/disconnected + latency_ms
+      - redis: connected/disconnected + latency_ms
+      - migrations: all_applied true/false
+      - version: from APP_VERSION env or PLATFORM_VERSION setting
+      - uptime: seconds since server start
+      - timestamp: current server time
+    """
+    checks = {}
+    overall_healthy = True
+
+    # ── Database ──────────────────────────────────────────────────
+    db_start = time.monotonic()
+    try:
+        connection.ensure_connection()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        db_latency = round((time.monotonic() - db_start) * 1000, 1)
+        checks["database"] = {"status": "connected", "latency_ms": db_latency}
+    except Exception as e:  # noqa: BLE001
+        db_latency = round((time.monotonic() - db_start) * 1000, 1)
+        checks["database"] = {"status": "disconnected", "latency_ms": db_latency}
+        overall_healthy = False
+        logger.error("status_check: DB failed: %s", e, exc_info=True)
+
+    # ── Redis / Cache ─────────────────────────────────────────────
+    redis_start = time.monotonic()
+    try:
+        from django.core.cache import cache
+
+        cache.set("_status_probe", "1", timeout=5)
+        result = cache.get("_status_probe")
+        redis_latency = round((time.monotonic() - redis_start) * 1000, 1)
+        if result == "1":
+            checks["redis"] = {"status": "connected", "latency_ms": redis_latency}
+        else:
+            checks["redis"] = {"status": "disconnected", "latency_ms": redis_latency}
+            overall_healthy = False
+    except Exception as e:  # noqa: BLE001
+        redis_latency = round((time.monotonic() - redis_start) * 1000, 1)
+        checks["redis"] = {"status": "disconnected", "latency_ms": redis_latency}
+        overall_healthy = False
+        logger.error("status_check: Redis failed: %s", e, exc_info=True)
+
+    # ── Migrations ────────────────────────────────────────────────
+    try:
+        from django.db.migrations.executor import MigrationExecutor
+
+        executor = MigrationExecutor(connection)
+        plan = executor.migration_plan(executor.loader.graph.leaf_nodes())
+        checks["migrations"] = {"all_applied": len(plan) == 0}
+    except Exception as e:  # noqa: BLE001
+        checks["migrations"] = {"all_applied": False}
+        logger.error("status_check: Migration check failed: %s", e, exc_info=True)
+
+    # ── Version & Uptime ──────────────────────────────────────────
+    version = os.environ.get(
+        "APP_VERSION",
+        f"v{getattr(settings, 'PLATFORM_VERSION', '5.4')}",
+    )
+    uptime_seconds = round(time.monotonic() - _SERVER_START_TIME, 1)
+
+    status_code = 200 if overall_healthy else 503
+    return JsonResponse(
+        {
+            "status": "healthy" if overall_healthy else "unhealthy",
+            "timestamp": timezone.now().isoformat(),
+            "version": version,
+            "uptime_seconds": uptime_seconds,
+            "checks": checks,
         },
         status=status_code,
     )

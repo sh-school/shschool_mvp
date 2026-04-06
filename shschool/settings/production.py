@@ -26,8 +26,9 @@ if SENTRY_DSN:
             RedisIntegration(),
         ],
         traces_sample_rate=0.1,  # 10% من الطلبات للـ performance tracing
+        profiles_sample_rate=0.1,  # 10% من الطلبات للـ profiling
         send_default_pii=False,  # ← PDPPL: لا بيانات شخصية للطلاب
-        environment="production",
+        environment=config("RAILWAY_ENVIRONMENT", default="production"),
         # ✅ v5.4: يستخدم PLATFORM_VERSION من base.py بدل hardcoded string
         release=config("APP_VERSION", default=f"v{PLATFORM_VERSION}"),
     )
@@ -54,7 +55,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True
 # Exempt healthcheck endpoints from SSL redirect — Railway's internal probe
 # connects directly over HTTP without X-Forwarded-Proto header
-SECURE_REDIRECT_EXEMPT = [r"^health/$", r"^ready/$"]
+SECURE_REDIRECT_EXEMPT = [r"^health/$", r"^ready/$", r"^status/$"]
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
