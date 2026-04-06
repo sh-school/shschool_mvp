@@ -12,6 +12,7 @@ concurrency:
 permissions:
   contents: read
   deployments: write
+  issues: write  # v5.5: auto-create issue on deploy failure
 
 env:
   PRODUCTION_URL: ${{ secrets.PRODUCTION_URL || 'https://shschoolmvp-production.up.railway.app' }}
@@ -236,12 +237,78 @@ jobs:
           fi
           echo "Deploy triggered successfully"
 
-      - name: Wait for Railway deployment to stabilize
+      - name: Wait for Railway build + deploy
         run: |
-          echo "Waiting 60s for Railway to build and deploy..."
-          sleep 60
+          echo "Waiting 90s for Railway to build and deploy..."
+          sleep 90
+
+      # ── v5.5: Canary health gate — verify before marking success ──
+      - name: "Canary: Health check gate"
+        id: canary
+        run: |
+          PROD_URL="${{ env.PRODUCTION_URL }}"
+          echo "Canary health check: $PROD_URL/health/"
+
+          for attempt in 1 2 3 4 5 6; do
+            HTTP_CODE=$(curl -s -o /tmp/canary_health.txt -w "%{http_code}" \
+              --max-time 15 "$PROD_URL/health/" 2>/dev/null || echo "000")
+            echo "Attempt $attempt: HTTP $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              VERSION=$(cat /tmp/canary_health.txt | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','?'))" 2>/dev/null || echo "?")
+              echo "canary_passed=true" >> $GITHUB_OUTPUT
+              echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
+              echo "✅ Canary PASSED — version $VERSION is healthy"
+              cat /tmp/canary_health.txt
+              break
+            fi
+
+            if [ "$attempt" -lt 6 ]; then
+              echo "Retrying in 20s..."
+              sleep 20
+            fi
+          done
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "canary_passed=false" >> $GITHUB_OUTPUT
+            echo "::error::❌ CANARY FAILED — /health/ returned HTTP $HTTP_CODE after 6 attempts"
+            cat /tmp/canary_health.txt 2>/dev/null || true
+          fi
+
+      # ── v5.5: Automated rollback notification ──
+      - name: "Rollback: Create urgent issue if canary failed"
+        if: steps.canary.outputs.canary_passed == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              ...context.repo,
+              title: `🔴 DEPLOY FAILED: ${context.sha.substring(0, 7)} — canary health check failed`,
+              body: [
+                `## Deployment Failure — Automated Alert`,
+                ``,
+                `**Commit**: \`${context.sha}\``,
+                `**Time**: ${new Date().toISOString()}`,
+                `**Health endpoint**: \`${{ env.PRODUCTION_URL }}/health/\``,
+                `**Result**: Health check failed after 6 attempts`,
+                ``,
+                `### Action Required`,
+                `1. Check Railway dashboard for build/deploy errors`,
+                `2. Review Railway deploy logs`,
+                `3. If needed, rollback in Railway dashboard → Deployments → previous deploy → Rollback`,
+                ``,
+                `### Possible Causes`,
+                `- Migration failure`,
+                `- Missing environment variable`,
+                `- Import error in new code`,
+                `- Railway build timeout`,
+              ].join('\n'),
+              labels: ['bug', 'urgent', 'deploy-failure'],
+            });
+            core.setFailed('Canary health check failed — rollback issue created');
 
       - name: Create GitHub deployment status
+        if: steps.canary.outputs.canary_passed == 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -251,7 +318,7 @@ jobs:
               environment: 'production',
               auto_merge: false,
               required_contexts: [],
-              description: `Deploy ${context.sha.substring(0, 7)} to Railway`,
+              description: `Deploy ${context.sha.substring(0, 7)} to Railway — canary passed`,
               transient_environment: false,
               production_environment: true,
             });
@@ -259,8 +326,8 @@ jobs:
               ...context.repo,
               deployment_id: deployment.data.id,
               state: 'success',
-              environment_url: '${{ secrets.PRODUCTION_URL }}',
-              description: 'Deployed to Railway via webhook',
+              environment_url: '${{ env.PRODUCTION_URL }}',
+              description: `Deployed v${{ steps.canary.outputs.deployed_version }} — canary health check passed`,
             });
 
   # ══════════════════════════════════════════════════════
@@ -276,7 +343,7 @@ jobs:
       - name: "Smoke test: /health/ endpoint (HTTP 200)"
         id: health_check
         run: |
-          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          PROD_URL="${{ env.PRODUCTION_URL }}"
           if [ -z "$PROD_URL" ]; then
             echo "::warning::PRODUCTION_URL secret not set — skipping smoke tests"
             echo "health_ok=skip" >> $GITHUB_OUTPUT
@@ -314,7 +381,7 @@ jobs:
       - name: "Smoke test: / returns HTML"
         id: html_check
         run: |
-          PROD_URL="${{ secrets.PRODUCTION_URL }}"
+          PROD_URL="${{ env.PRODUCTION_URL }}"
           if [ -z "$PROD_URL" ]; then
             echo "html_ok=skip" >> $GITHUB_OUTPUT
             exit 0
