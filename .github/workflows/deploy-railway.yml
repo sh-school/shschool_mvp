@@ -9,6 +9,10 @@ concurrency:
   group: railway-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  deployments: write
+
 env:
   PRODUCTION_URL: ${{ secrets.PRODUCTION_URL || 'https://shschoolmvp-production.up.railway.app' }}
 

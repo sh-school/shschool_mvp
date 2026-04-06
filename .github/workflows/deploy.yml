@@ -1,8 +1,9 @@
-name: CD — نشر تلقائي للإنتاج
+name: CD — نشر تلقائي للإنتاج (LEGACY — disabled, use deploy-railway.yml)
 
+# ⚠️ DISABLED: This workflow was for SSH + Docker deployment.
+# Railway deployment is now handled by deploy-railway.yml
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:  # Manual trigger only — no longer auto-runs
 
 # منع تشغيل نشرين في نفس الوقت
 concurrency:
