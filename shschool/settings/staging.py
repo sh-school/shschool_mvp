@@ -23,7 +23,7 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS", default="staging.schoolos.qa,staging-schoolos.up.railway.app"
 ).split(",")
 
-# ── Sentry: v5.5 — same elite config as production, higher sampling ──
+# ── Sentry: v5.5 — same Azkia config as production, higher sampling ──
 SENTRY_DSN = config("SENTRY_DSN", default="")
 if SENTRY_DSN:
     import sentry_sdk

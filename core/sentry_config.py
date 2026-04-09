@@ -3,7 +3,7 @@ core/sentry_config.py
 ━━━━━━━━━━━━━━━━━━━━━
 إعدادات Sentry المتقدمة — تصفية ضوضاء + PDPPL scrubbing + smart sampling.
 
-✅ v5.5: Elite-grade Sentry configuration
+✅ v5.5: Azkia-grade Sentry configuration
 - before_send: تصفية الأخطاء غير المفيدة
 - traces_sampler: تخطي health checks وstatic files
 - configure_scope_from_request: إضافة school_id + user_role

@@ -40,8 +40,8 @@ ZZZZ.zip
 _*.py
 _*.txt
 
-# Elite config
-.elite/
+# Azkia config
+.Azkia/
 
 # Secrets scan results
 .secrets-results.json

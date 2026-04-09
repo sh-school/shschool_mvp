@@ -9,7 +9,7 @@ DEBUG = False
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 
 # ══════════════════════════════════════════════════════════════
-# ✅ v5.5: Sentry — مراقبة نخبوية (PDPPL + smart sampling + context)
+# ✅ v5.5: Sentry — مراقبة أذكياء (PDPPL + smart sampling + context)
 # ══════════════════════════════════════════════════════════════
 SENTRY_DSN = config("SENTRY_DSN", default="")
 if SENTRY_DSN:

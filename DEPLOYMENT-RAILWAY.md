@@ -230,5 +230,5 @@ CSRF_TRUSTED_ORIGINS = [
 ---
 
 **تاريخ الإعداد:** 2026-04-05
-**المسؤول:** elite-devops
+**المسؤول:** Azkia-devops
 **الإصدار:** v5.4

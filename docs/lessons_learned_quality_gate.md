@@ -5,7 +5,7 @@
 **Date / التاريخ:** 2026-04-06
 **Severity / الخطورة:** Critical -- Pipeline completely broken
 **Resolution / الحل:** 8 commits across one debugging session
-**Author / الكاتب:** Elite Archive & Knowledge Management
+**Author / الكاتب:** Azkia Archive & Knowledge Management
 
 ---
 
@@ -330,5 +330,5 @@ pytest --co                              # Can pytest collect tests?
 
 ---
 
-*This document is maintained by the Elite Archive & Knowledge Management department.*
+*This document is maintained by the Azkia Archive & Knowledge Management department.*
 *Last updated: 2026-04-06*
