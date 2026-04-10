@@ -275,6 +275,8 @@ class TestReportInfractionExtended:
                 "description": "سوء سلوك",
                 "points_deducted": 15,
                 "action_taken": "تحذير",
+                # REQ-SH-001: disciplinary_action_type is now required on InfractionForm
+                "disciplinary_action_type": "verbal_warning",
             },
         )
         assert resp.status_code == 302
@@ -291,6 +293,8 @@ class TestReportInfractionExtended:
                 "level": 3,
                 "description": "مخالفة جسيمة",
                 "points_deducted": 25,
+                # REQ-SH-001: disciplinary_action_type is now required on InfractionForm
+                "disciplinary_action_type": "verbal_warning",
             },
         )
         assert resp.status_code == 302
@@ -307,6 +311,8 @@ class TestReportInfractionExtended:
                 "level": 4,
                 "description": "مخالفة شديدة الخطورة",
                 "points_deducted": 40,
+                # REQ-SH-001: disciplinary_action_type is now required on InfractionForm
+                "disciplinary_action_type": "verbal_warning",
             },
         )
         assert resp.status_code == 302

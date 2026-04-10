@@ -47,6 +47,8 @@ class TestReportInfraction:
                 "description": "تأخر عن الحصة",
                 "points_deducted": 5,
                 "action_taken": "تحذير شفوي",
+                # REQ-SH-001: disciplinary_action_type is now required on InfractionForm
+                "disciplinary_action_type": "verbal_warning",
             },
         )
         assert response.status_code in (200, 302)
@@ -65,6 +67,8 @@ class TestReportInfraction:
                 "level": 3,
                 "description": "تصرف خطير",
                 "points_deducted": 25,
+                # REQ-SH-001: disciplinary_action_type is now required on InfractionForm
+                "disciplinary_action_type": "verbal_warning",
             },
         )
         # المخالفة تُسجَّل وتُعاد توجيه المعلم (302 redirect)
