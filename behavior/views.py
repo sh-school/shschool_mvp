@@ -165,7 +165,15 @@ def report_infraction(request):
             student_id = form.cleaned_data["student_id"]
             violation_cat_id = form.cleaned_data.get("violation_category")
             description = form.cleaned_data["description"]
-            action = form.cleaned_data["action_taken"]
+            # REQ-SH-001: structured disciplinary action + conditional textarea
+            disciplinary_action_type = form.cleaned_data.get("disciplinary_action_type", "")
+            violation_description = form.cleaned_data.get("violation_description", "")
+            # Legacy free-text (kept for backward compat). Mirror the selected label
+            # from the dropdown so legacy readers still see a human-friendly value.
+            _choices_map = dict(form.fields["disciplinary_action_type"].choices)
+            action = _choices_map.get(disciplinary_action_type, "") or form.cleaned_data.get(
+                "action_taken", ""
+            )
             level = form.cleaned_data["level"]
             points = form.cleaned_data["points_deducted"]
 
@@ -195,6 +203,8 @@ def report_infraction(request):
                         action_taken=action,
                         points_deducted=points,
                         violation_category=violation_cat if violation_cat else None,
+                        disciplinary_action_type=disciplinary_action_type,
+                        violation_description=violation_description,
                     )
                 except ValueError as e:
                     messages.error(request, str(e))

@@ -153,18 +153,52 @@
     </select>
    </div>
 
-   {# ── النقاط + الإجراء ── #}
+   {# ── النقاط + الإجراء التأديبي (REQ-SH-001 — Client #001) ── #}
    <div class="grid grid-cols-2 gap-4">
     <div>
-     <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">النقاط المخصومة</label>
+     <label for="pointsInput" class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">النقاط المخصومة</label>
      <input type="number" name="points_deducted" id="pointsInput" value="5" min="0" max="100"
       class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
     </div>
     <div>
-     <label class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">الإجراء الأولي</label>
-     <input type="text" name="action_taken" placeholder="مثال: تحذير شفوي..."
-      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400">
+     <label for="disciplinaryActionType" class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">
+      الإجراء التأديبي <span class="text-red-500" aria-hidden="true">*</span>
+     </label>
+     <select
+      name="disciplinary_action_type"
+      id="disciplinaryActionType"
+      required
+      aria-label="الإجراء التأديبي"
+      aria-required="true"
+      class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+      <option value="">-- اختر الإجراء --</option>
+      <option value="verbal_warning">تنبيه شفهي</option>
+      <option value="written_pledge">تعهد خطي</option>
+      <option value="incident_report">محضر لإثبات المخالفة</option>
+      <option value="parent_pledge">تعهد خطي لولي الأمر</option>
+      <option value="social_specialist_referral">تحويل للأخصائي الاجتماعي</option>
+      <option value="parent_summons">استدعاء ولي الأمر</option>
+     </select>
     </div>
+   </div>
+
+   {# ── Conditional: وصف المخالفة (يظهر فقط عند 'محضر لإثبات المخالفة') ── #}
+   <div id="violationDescriptionWrap" class="md:col-span-2 mt-4 hidden">
+    <label for="violationDescription" class="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">
+     وصف المخالفة <span class="text-red-500" aria-hidden="true">*</span>
+    </label>
+    <textarea
+     name="violation_description"
+     id="violationDescription"
+     rows="4"
+     minlength="20"
+     maxlength="2000"
+     aria-describedby="violationDescriptionCounter"
+     placeholder="اذكر تفاصيل المخالفة (20-2000 حرف)"
+     class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-300 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"></textarea>
+    <p id="violationDescriptionCounter" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+     <span id="violationDescCount">0</span> / 2000 حرف
+    </p>
    </div>
 
    {# ── وصف المخالفة — عرض كامل ── #}
@@ -312,6 +346,38 @@
   searchInput.value = '';
   searchInput.dispatchEvent(new Event('input'));
  });
+
+ /* ══════════ REQ-SH-001: Conditional violation description textarea ══════════ */
+ /* يظهر مربع "وصف المخالفة" فقط عند اختيار "محضر لإثبات المخالفة". */
+ var actionSelect = document.getElementById('disciplinaryActionType');
+ var descWrap = document.getElementById('violationDescriptionWrap');
+ var descTextarea = document.getElementById('violationDescription');
+ var descCount = document.getElementById('violationDescCount');
+
+ function toggleViolationDescription() {
+  var isIncident = actionSelect.value === 'incident_report';
+  if (isIncident) {
+   descWrap.classList.remove('hidden');
+   descTextarea.setAttribute('required', 'required');
+   descTextarea.setAttribute('aria-required', 'true');
+  } else {
+   descWrap.classList.add('hidden');
+   descTextarea.removeAttribute('required');
+   descTextarea.removeAttribute('aria-required');
+   descTextarea.value = '';
+   descCount.textContent = '0';
+  }
+ }
+
+ if (actionSelect && descWrap && descTextarea && descCount) {
+  actionSelect.addEventListener('change', toggleViolationDescription);
+  descTextarea.addEventListener('input', function() {
+   descCount.textContent = String(descTextarea.value.length);
+  });
+  /* Initial state (e.g. after server-side re-render with errors). */
+  toggleViolationDescription();
+  descCount.textContent = String(descTextarea.value.length);
+ }
 })();
 </script>
 {% endblock %}

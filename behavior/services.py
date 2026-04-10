@@ -765,6 +765,8 @@ class BehaviorService:
         action_taken: str = "",
         points_deducted: int = 0,
         violation_category=None,
+        disciplinary_action_type: str = "",
+        violation_description: str = "",
     ) -> BehaviorInfraction:
         """
         إنشاء مخالفة سلوكية جديدة — Service Layer الصحيح.
@@ -808,6 +810,8 @@ class BehaviorService:
             description=description,
             action_taken=action_taken,
             points_deducted=points_deducted,
+            disciplinary_action_type=disciplinary_action_type,
+            violation_description=violation_description,
         )
 
         logger.info(

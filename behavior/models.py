@@ -270,6 +270,33 @@ class BehaviorInfraction(models.Model):
         verbose_name="الإجراء المتخذ",
         max_length=2000,
     )
+
+    # ── REQ-SH-001 (Client #001 — Shahaniya School, MTG-007) ──
+    # Structured disciplinary action dropdown + conditional violation description.
+    DISCIPLINARY_ACTION_CHOICES = [
+        ("verbal_warning", "تنبيه شفهي"),
+        ("written_pledge", "تعهد خطي"),
+        ("incident_report", "محضر لإثبات المخالفة"),
+        ("parent_pledge", "تعهد خطي لولي الأمر"),
+        ("social_specialist_referral", "تحويل للأخصائي الاجتماعي"),
+        ("parent_summons", "استدعاء ولي الأمر"),
+    ]
+    disciplinary_action_type = models.CharField(
+        max_length=50,
+        choices=DISCIPLINARY_ACTION_CHOICES,
+        blank=True,
+        default="",
+        verbose_name="الإجراء التأديبي",
+        help_text="الإجراء التأديبي الرسمي وفق لائحة المدرسة",
+    )
+    violation_description = models.TextField(
+        blank=True,
+        default="",
+        max_length=2000,
+        verbose_name="وصف المخالفة (محضر)",
+        help_text="مطلوب فقط عند اختيار 'محضر لإثبات المخالفة' (20-2000 حرف)",
+    )
+
     points_deducted = models.PositiveSmallIntegerField(
         default=0,
         verbose_name="النقاط المخصومة",
