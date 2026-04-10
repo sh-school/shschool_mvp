@@ -502,7 +502,7 @@ class ExcelService:
         buf.seek(0)
         resp = HttpResponse(
             buf.read(),
-            content_type=("application/vnd.openxmlformats-officedocument" ".spreadsheetml.sheet"),
+            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
         resp["Content-Disposition"] = f'attachment; filename="{filename}"'
         return resp
@@ -602,7 +602,7 @@ class ExcelService:
         else:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
-        filename = f"نتائج_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
+        filename = f"نتائج_{class_group.get_grade_display()}_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod
@@ -682,7 +682,7 @@ class ExcelService:
         else:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
-        filename = f"غياب_{class_group.get_grade_display()}" f"_{class_group.section}_{year}.xlsx"
+        filename = f"غياب_{class_group.get_grade_display()}_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod

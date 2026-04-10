@@ -215,7 +215,7 @@ class Command(BaseCommand):
             for e in stats["errors"][:15]:
                 self.stdout.write(f"  • {e}")
             if len(stats["errors"]) > 15:
-                self.stdout.write(f"  ... و {len(stats['errors'])-15} خطأ آخر")
+                self.stdout.write(f"  ... و {len(stats['errors']) - 15} خطأ آخر")
 
         self.stdout.write("━" * 55)
         self.stdout.write("✅ اكتمل الاستيراد بنجاح\n")

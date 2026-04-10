@@ -875,10 +875,7 @@ class EvaluationScore(models.Model):
         ]
 
     def __str__(self):
-        return (
-            f"{self.evaluator.full_name} → "
-            f"{self.evaluation.employee.full_name} ({self.weight}%)"
-        )
+        return f"{self.evaluator.full_name} → {self.evaluation.employee.full_name} ({self.weight}%)"
 
     def calculate_total(self):
         """حساب مجموع المحاور"""

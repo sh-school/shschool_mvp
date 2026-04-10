@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"✅ تم إضافة {created} مخالفة جديدة | " f"الإجمالي 2025: {total_2025} مخالفة"
+                f"✅ تم إضافة {created} مخالفة جديدة | الإجمالي 2025: {total_2025} مخالفة"
             )
         )
 

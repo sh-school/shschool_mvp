@@ -542,7 +542,7 @@ class StudentService:
         student.invalidate_active_membership()
 
         logger.info(
-            "تم تعطيل الطالب %s في المدرسة %s بواسطة %s " "(عضويات: %d، تسجيلات: %d)",
+            "تم تعطيل الطالب %s في المدرسة %s بواسطة %s (عضويات: %d، تسجيلات: %d)",
             student.full_name,
             school.code,
             user.full_name,
@@ -860,14 +860,13 @@ class TransferService:
         valid_actions = {"approved", "rejected", "completed", "cancelled"}
         if action not in valid_actions:
             raise ValueError(
-                f"إجراء غير صالح: {action}. " f"الإجراءات المتاحة: {', '.join(valid_actions)}"
+                f"إجراء غير صالح: {action}. الإجراءات المتاحة: {', '.join(valid_actions)}"
             )
 
         # لا يمكن المراجعة إلا إذا كان الطلب قيد الانتظار أو موافقاً عليه
         if transfer.status not in ("pending", "approved"):
             raise ValueError(
-                f"لا يمكن تنفيذ الإجراء '{action}' على طلب بحالة "
-                f"'{transfer.get_status_display()}'."
+                f"لا يمكن تنفيذ الإجراء '{action}' على طلب بحالة '{transfer.get_status_display()}'."
             )
 
         transfer.status = action

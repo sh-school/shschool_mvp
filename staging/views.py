@@ -201,7 +201,7 @@ def download_grade_template(request, assessment_id):
     from urllib.parse import quote
 
     resp["Content-Disposition"] = (
-        f'attachment; filename="{filename_ascii}"; ' f"filename*=UTF-8''{quote(filename_ar)}"
+        f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename_ar)}"
     )
     return resp
 
@@ -252,13 +252,10 @@ def _validate_grade(grade_raw, is_absent, max_grade, student_name, row_num):
     try:
         grade = float(str(grade_raw).strip())
     except (ValueError, TypeError):
-        return None, (
-            f"صف {row_num}: قيمة الدرجة غير صالحة [{grade_raw}] " f"للطالب [{student_name}]"
-        )
+        return None, (f"صف {row_num}: قيمة الدرجة غير صالحة [{grade_raw}] للطالب [{student_name}]")
     if grade < 0 or grade > float(max_grade):
         return None, (
-            f"صف {row_num}: الدرجة [{grade}] خارج النطاق "
-            f"(0–{max_grade}) للطالب [{student_name}]"
+            f"صف {row_num}: الدرجة [{grade}] خارج النطاق (0–{max_grade}) للطالب [{student_name}]"
         )
     return grade, None
 

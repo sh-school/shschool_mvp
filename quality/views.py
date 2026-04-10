@@ -518,7 +518,7 @@ def approve_procedure(request, proc_id):
             event_type="plan_update",
             school=school,
             recipients=[procedure.executor_user],
-            title=f'{"تم اعتماد" if new_status == "Completed" else "تم إعادة"} الإجراء {procedure.number}',
+            title=f"{'تم اعتماد' if new_status == 'Completed' else 'تم إعادة'} الإجراء {procedure.number}",
             body=note or "",
         )
 

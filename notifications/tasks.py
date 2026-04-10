@@ -319,9 +319,9 @@ def _send_breach_alert(breach, hours_left, overdue=False):
 عدد الأشخاص: {breach.affected_count}
 وقت الاكتشاف: {breach.discovered_at}
 موعد NCSA: {breach.ncsa_deadline}
-الحالة: {'⛔ تجاوز المهلة' if overdue else f'⚠️ {hours_left} ساعة متبقية'}
+الحالة: {"⛔ تجاوز المهلة" if overdue else f"⚠️ {hours_left} ساعة متبقية"}
 
-الإجراء الفوري: {breach.immediate_action or '—'}
+الإجراء الفوري: {breach.immediate_action or "—"}
 
 رابط المراجعة: /breach/{breach.pk}/
 

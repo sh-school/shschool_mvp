@@ -853,8 +853,7 @@ class BehaviorService:
 
         if points_restored <= 0 or points_restored > infraction.points_deducted:
             raise ValueError(
-                f"النقاط يجب أن تكون بين 1 و{infraction.points_deducted} "
-                f"(مُعطى: {points_restored})."
+                f"النقاط يجب أن تكون بين 1 و{infraction.points_deducted} (مُعطى: {points_restored})."
             )
 
         recovery = BehaviorPointRecovery.objects.create(

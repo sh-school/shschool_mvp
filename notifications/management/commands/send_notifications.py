@@ -33,7 +33,7 @@ class Command(BaseCommand):
             schools = schools.filter(code=school_code)
 
         for school in schools:
-            self.stdout.write(f"\n{'='*50}")
+            self.stdout.write(f"\n{'=' * 50}")
             self.stdout.write(f"المدرسة: {school.name}")
 
             if notif_type in ("absence", "all"):

@@ -74,7 +74,7 @@ class Command(BaseCommand):
                 for p in domain_procs[:3]:
                     self.stdout.write(f"       - [{p.number}] {p.text[:60]}... | {p.date_range}")
                 if len(domain_procs) > 3:
-                    self.stdout.write(f"       ... و {len(domain_procs)-3} إجراء إضافي")
+                    self.stdout.write(f"       ... و {len(domain_procs) - 3} إجراء إضافي")
 
     def handle(self, *args, **options):
         school_code = options["school"]
@@ -111,9 +111,9 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.WARNING(
-                f"\n{'='*60}\n"
+                f"\n{'=' * 60}\n"
                 f"تقرير الإجراءات [{status}] — {year}\n"
-                f"{'='*60}\n"
+                f"{'=' * 60}\n"
                 f"الإجمالي: {total} إجراء | عدد المنفذين: {len(by_executor)}\n"
             )
         )
@@ -124,7 +124,7 @@ class Command(BaseCommand):
 
         # ── تصدير CSV ──
         if export:
-            filename = f"overdue_report_{year.replace('-','_')}_{date.today()}.csv"
+            filename = f"overdue_report_{year.replace('-', '_')}_{date.today()}.csv"
             with open(filename, "w", newline="", encoding="utf-8-sig") as f:
                 writer = csv.writer(f)
                 writer.writerow(
@@ -163,7 +163,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"\n✅ تم تصدير {total} إجراء إلى: {filename}"))
 
         # ── ملخص نهائي ──
-        self.stdout.write(f"\n{'='*60}\n" f"الملخص:\n")
+        self.stdout.write(f"\n{'=' * 60}\nالملخص:\n")
         domain_summary = (
             OperationalProcedure.objects.filter(
                 academic_year=year,
