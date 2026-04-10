@@ -41,12 +41,8 @@ class TestAcademicManagementStubs:
             assert expected_label in content, (
                 f"{url_name} missing expected label '{expected_label}'"
             )
-            assert "قيد التطوير" in content, (
-                f"{url_name} missing 'under construction' notice"
-            )
-            assert "إدارة الشؤون الأكاديمية" in content, (
-                f"{url_name} missing module name"
-            )
+            assert "قيد التطوير" in content, f"{url_name} missing 'under construction' notice"
+            assert "إدارة الشؤون الأكاديمية" in content, f"{url_name} missing module name"
 
     def test_stub_pages_require_login(self, client):
         """Unauthenticated users should be redirected (login_required)."""
@@ -57,9 +53,7 @@ class TestAcademicManagementStubs:
             f"Unauthenticated request should redirect, got {response.status_code}"
         )
 
-    def test_menu_label_updated_in_base_template(
-        self, client_as, principal_user
-    ):
+    def test_menu_label_updated_in_base_template(self, client_as, principal_user):
         """Verify the renamed header label 'إدارة الشؤون الأكاديمية' appears in nav."""
         c = client_as(principal_user)
         response = c.get(reverse("academic_management:evaluations"))
@@ -69,12 +63,8 @@ class TestAcademicManagementStubs:
 
     def test_all_ten_routes_exist(self):
         """Ensure exactly 10 URL patterns are registered."""
-        assert len(self.STUB_URLS) == 10, (
-            "REQ-SH-002 requires exactly 10 submenu items"
-        )
+        assert len(self.STUB_URLS) == 10, "REQ-SH-002 requires exactly 10 submenu items"
         # Verify all reverse
         for url_name, _ in self.STUB_URLS:
             url = reverse(url_name)
-            assert url.startswith("/academic/"), (
-                f"{url_name} should be under /academic/, got {url}"
-            )
+            assert url.startswith("/academic/"), f"{url_name} should be under /academic/, got {url}"
