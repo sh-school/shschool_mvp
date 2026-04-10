@@ -33,14 +33,14 @@ class TestAcademicManagementStubs:
             url = reverse(url_name)
             response = c.get(url)
 
-            assert response.status_code == 200, (
-                f"{url_name} returned {response.status_code} (expected 200)"
-            )
+            assert (
+                response.status_code == 200
+            ), f"{url_name} returned {response.status_code} (expected 200)"
 
             content = response.content.decode("utf-8")
-            assert expected_label in content, (
-                f"{url_name} missing expected label '{expected_label}'"
-            )
+            assert (
+                expected_label in content
+            ), f"{url_name} missing expected label '{expected_label}'"
             assert "قيد التطوير" in content, f"{url_name} missing 'under construction' notice"
             assert "إدارة الشؤون الأكاديمية" in content, f"{url_name} missing module name"
 
@@ -49,9 +49,10 @@ class TestAcademicManagementStubs:
         url = reverse("academic_management:evaluations")
         response = client.get(url)
         # login_required redirects to LOGIN_URL
-        assert response.status_code in (302, 301), (
-            f"Unauthenticated request should redirect, got {response.status_code}"
-        )
+        assert response.status_code in (
+            302,
+            301,
+        ), f"Unauthenticated request should redirect, got {response.status_code}"
 
     def test_menu_label_updated_in_base_template(self, client_as, principal_user):
         """Verify the renamed header label 'إدارة الشؤون الأكاديمية' appears in nav."""
