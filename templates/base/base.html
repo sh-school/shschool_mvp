@@ -106,7 +106,7 @@
     <div class="nb-bar">
     {% if is_admin_role %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
@@ -231,7 +231,7 @@
     {% else %}
       {# platform_developer أو أي دور آخر — نفس المدير #}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} الشؤون الأكاديمية <span class="chv">▼</span></button>
+      <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
@@ -247,25 +247,18 @@
 {# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
 {% if is_admin_role %}
 
-<div class="sd-menu" id="m-academic" role="menu" aria-label="الشؤون الأكاديمية">
-  <div class="sd-label">الدراسة والتقييم</div>
-  <a href="{% url 'assessments_dashboard' %}">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
-  <a href="{% url 'failing_students' %}">{% include "components/icon.html" with name="alert-triangle" %} قائمة الراسبين</a>
-  <a href="{% url 'reports_index' %}">{% include "components/icon.html" with name="bar-chart" %} التقارير الأكاديمية</a>
-  <a href="{% url 'analytics_dashboard' %}">{% include "components/icon.html" with name="activity" %} الإحصاءات والتحليل</a>
-  <a href="{% url 'kpi_dashboard' %}">{% include "components/icon.html" with name="list-checks" %} مؤشرات الأداء (KPIs)</a>
-  <a href="/import/">{% include "components/icon.html" with name="download" %} استيراد الدرجات</a>
-  <hr>
-  <div class="sd-label">الاختبارات</div>
-  <a href="/exam-control/">{% include "components/icon.html" with name="lock" %} كنترول الاختبارات</a>
-  <hr>
-  <div class="sd-label">الجدول والحضور</div>
-  <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="bar-chart" %} التقرير اليومي</a>
-  <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
-  <a href="{% url 'smart_schedule' %}">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</a>
-  <a href="{% url 'schedule_settings' %}">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول</a>
-  <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
+<div class="sd-menu" id="m-academic" role="menu" aria-label="إدارة الشؤون الأكاديمية">
+  {# ✅ REQ-SH-002 — Client #001 menu restructure (10 items, exact order) #}
+  <a href="{% url 'academic_management:evaluations' %}" role="menuitem">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
+  <a href="{% url 'academic_management:departments' %}" role="menuitem">{% include "components/icon.html" with name="settings" %} إدارة الأقسام التعليمية</a>
+  <a href="{% url 'academic_management:test_analytics' %}" role="menuitem">{% include "components/icon.html" with name="activity" %} تحليلات الاختبارات</a>
+  <a href="{% url 'academic_management:workload' %}" role="menuitem">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
+  <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} التكاليف</a>
+  <a href="{% url 'academic_management:department_reports' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} التقارير الخاصة بالقسم</a>
+  <a href="{% url 'academic_management:classroom_visits' %}" role="menuitem">{% include "components/icon.html" with name="search" %} الزيارات الصفية</a>
+  <a href="{% url 'academic_management:elearning' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} التعليم الإلكتروني</a>
+  <a href="{% url 'academic_management:class_performance' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} تقارير الأداء الصفي</a>
+  <a href="{% url 'academic_management:underperformance' %}" role="menuitem">{% include "components/icon.html" with name="alert-triangle" %} إدارة الأداء دون المستوى</a>
 </div>
 
 <div class="sd-menu" id="m-staff-affairs" role="menu" aria-label="شؤون الموظفين">

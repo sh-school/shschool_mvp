@@ -47,6 +47,11 @@ urlpatterns = [
     path("student-affairs/", include("student_affairs.urls", namespace="student_affairs")),
     # ✅ v7: شؤون الموظفين
     path("staff-affairs/", include("staff_affairs.urls", namespace="staff_affairs")),
+    # ✅ REQ-SH-002: إدارة الشؤون الأكاديمية (Client #001) — stub phase
+    path(
+        "academic/",
+        include("academic_management.urls", namespace="academic_management"),
+    ),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",
