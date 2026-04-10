@@ -19,6 +19,9 @@ Thumbs.db
 *.swp
 .coverage
 htmlcov/
+.testmondata
+.testmondata-journal
+.pytest_cache/
 
 # بيانات حقيقية — يُمنع رفعها
 data/

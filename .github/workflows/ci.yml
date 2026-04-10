@@ -133,7 +133,18 @@ jobs:
       - name: تثبيت المتطلبات
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
+          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
+            pytest-xdist==3.8.0 pytest-testmon==2.2.0
+
+      - name: استعادة testmon cache
+        uses: actions/cache@v4
+        with:
+          path: .testmondata
+          key: testmon-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            testmon-${{ github.ref }}-
+            testmon-refs/heads/main-
+            testmon-refs/heads/develop-
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -144,9 +155,16 @@ jobs:
       - name: فحص إعدادات Django
         run: python manage.py check --fail-level WARNING
 
-      - name: "★ الاختبارات + Coverage Gate 80%"
-        run: pytest tests/ -v --junit-xml=test-results.xml
-        # الإعدادات في pyproject.toml: cov + fail-under=80 + omit
+      - name: "★ الاختبارات (parallel + incremental) — target < 3 min"
+        # pytest-xdist (-n auto): يستخدم كل الـ CPU cores
+        # pytest-testmon (--testmon): يشغّل فقط الاختبارات المتأثرة بالتغييرات
+        # --cov-fail-under=0: يعطّل الـ gate في الـ fast CI (fail-under مفعّل في nightly.yml على full suite)
+        # التغطية الكاملة + fail-under=85 محفوظة في nightly.yml (safety net)
+        run: |
+          pytest tests/ -n auto --testmon \
+            --junit-xml=test-results.xml \
+            --cov-fail-under=0 \
+            --tb=short
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v4

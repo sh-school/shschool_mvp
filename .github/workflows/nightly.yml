@@ -1,0 +1,128 @@
+name: Nightly — Full Test Suite (Safety Net)
+
+# ══════════════════════════════════════════════════════
+#  Safety net للـ fast CI (xdist + testmon)
+#  - يشغّل كل الـ 1181 test بدون testmon
+#  - يكتشف flaky tests
+#  - يكتشف regressions عبر transitive dependencies
+#  - يفرض coverage gate 85% على الـ full suite
+# ══════════════════════════════════════════════════════
+
+on:
+  schedule:
+    # 02:00 UTC daily = 05:00 Qatar time (AST, UTC+3)
+    - cron: "0 2 * * *"
+  workflow_dispatch: # allow manual trigger
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  full-pytest:
+    name: pytest — full suite (no testmon, coverage gate 85%)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+
+      - name: تثبيت المتطلبات
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: "★ FULL pytest — كل الاختبارات + coverage gate 85%"
+        # -p no:cacheprovider: لا cache (كل شيء من الصفر)
+        # بدون --testmon (full suite)
+        # بدون -n auto (sequential — لاكتشاف flaky tests بسهولة)
+        # --cov-fail-under=85 يأتي من pyproject.toml (default)
+        run: |
+          pytest tests/ \
+            --junit-xml=test-results.xml \
+            --tb=short \
+            -p no:cacheprovider
+
+      - name: رفع نتائج الاختبارات
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-test-results
+          path: |
+            test-results.xml
+            coverage.xml
+            htmlcov/
+
+      - name: ملخص Coverage في GitHub Summary
+        if: always()
+        run: |
+          echo "## Nightly Full Test Suite" >> $GITHUB_STEP_SUMMARY
+          echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          python3 -c "
+          import xml.etree.ElementTree as ET
+          try:
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              rate = float(root.attrib.get('line-rate', 0)) * 100
+              status = 'ناجح' if rate >= 85 else 'فاشل'
+              print(f'| التغطية | {rate:.1f}% |')
+              print(f'| Gate (85%) | {status} |')
+          except Exception as e:
+              print('| التغطية | غير متاح |')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: تنبيه عند الفشل
+        if: failure()
+        run: |
+          echo "::error::Nightly full test suite FAILED — testmon في fast CI فاته شيء!"
+          echo "## Nightly FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "الـ full test suite فشل. هذا يعني أن fast CI (testmon) فاته regression." >> $GITHUB_STEP_SUMMARY
+          echo "TODO: إضافة Slack/email notification" >> $GITHUB_STEP_SUMMARY
