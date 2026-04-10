@@ -267,6 +267,675 @@ class ReportDataService:
 
 
 # ══════════════════════════════════════════════════════════════════════
+# AcademicReportsService — REQ-SH-003 (Client #001, MTG-007)
+# ══════════════════════════════════════════════════════════════════════
+#
+# 4 report types requested by the Shahaniya School principal:
+#   1. Quiz reports (by subject, at student or section scope)
+#   2. Exam package results (AssessmentPackage comparison across classes)
+#   3. Academic progress reports (by section over a time range)
+#   4. Monthly behavior + academic report (FLAGSHIP — quiz avg + infractions)
+#
+# All 4 reports use existing schemas (Assessment, StudentAssessmentGrade,
+# BehaviorInfraction) — NO new migrations. Walking-skeleton approach.
+# ══════════════════════════════════════════════════════════════════════
+
+
+class AcademicReportsService:
+    """Services for REQ-SH-003 academic reports (4 report types)."""
+
+    # ── Helpers ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _month_bounds(year: int, month: int):
+        """Return (start_date, end_date) for the given month."""
+        from calendar import monthrange
+        from datetime import date
+
+        return (
+            date(year, month, 1),
+            date(year, month, monthrange(year, month)[1]),
+        )
+
+    @staticmethod
+    def _safe_date(value: str | None):
+        """Parse an ISO date string or return None."""
+        if not value:
+            return None
+        try:
+            from datetime import date
+
+            parts = value.split("-")
+            if len(parts) != 3:
+                return None
+            return date(int(parts[0]), int(parts[1]), int(parts[2]))
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _avg(values):
+        clean = [float(v) for v in values if v is not None]
+        if not clean:
+            return None
+        return round(sum(clean) / len(clean), 2)
+
+    # ── Report 1: Quiz reports by subject ──────────────────────────
+
+    @classmethod
+    def get_quiz_reports(
+        cls,
+        school,
+        *,
+        subject_id: str | None = None,
+        class_group_id: str | None = None,
+        student_id: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict:
+        """
+        Report 1 — Quiz results by subject at student or section scope.
+        Uses StudentAssessmentGrade filtered by assessment_type='quiz'.
+        """
+        from assessments.models import StudentAssessmentGrade
+        from core.models import ClassGroup
+        from operations.models import Subject
+
+        d_from = cls._safe_date(date_from)
+        d_to = cls._safe_date(date_to)
+
+        qs = StudentAssessmentGrade.objects.filter(
+            school=school,
+            assessment__assessment_type="quiz",
+        ).select_related(
+            "assessment__package__setup__subject",
+            "assessment__package__setup__class_group",
+            "student",
+        )
+
+        if subject_id:
+            qs = qs.filter(assessment__package__setup__subject_id=subject_id)
+        if class_group_id:
+            qs = qs.filter(assessment__package__setup__class_group_id=class_group_id)
+        if student_id:
+            qs = qs.filter(student_id=student_id)
+        if d_from:
+            qs = qs.filter(assessment__date__gte=d_from)
+        if d_to:
+            qs = qs.filter(assessment__date__lte=d_to)
+
+        qs = qs.order_by("assessment__date", "student__full_name")
+
+        rows = []
+        pct_values = []
+        for grade in qs:
+            pct = grade.grade_pct
+            if pct is not None:
+                pct_values.append(pct)
+            rows.append(
+                {
+                    "student_name": grade.student.full_name,
+                    "subject": grade.assessment.package.setup.subject.name_ar,
+                    "class_group": str(grade.assessment.package.setup.class_group),
+                    "title": grade.assessment.title,
+                    "date": grade.assessment.date,
+                    "max_grade": float(grade.assessment.max_grade),
+                    "raw_grade": float(grade.grade) if grade.grade is not None else None,
+                    "pct": pct,
+                    "status": grade.status_label,
+                }
+            )
+
+        # lookups for filter dropdowns (scoped to the school)
+        subjects = list(Subject.objects.filter(school=school).order_by("name_ar"))
+        classes = list(
+            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+        )
+
+        return {
+            "school": school,
+            "rows": rows,
+            "total_rows": len(rows),
+            "avg_pct": cls._avg(pct_values),
+            "min_pct": min(pct_values) if pct_values else None,
+            "max_pct": max(pct_values) if pct_values else None,
+            "filters": {
+                "subject_id": subject_id or "",
+                "class_group_id": class_group_id or "",
+                "student_id": student_id or "",
+                "date_from": date_from or "",
+                "date_to": date_to or "",
+            },
+            "subjects": subjects,
+            "classes": classes,
+            "print_date": timezone.now().date(),
+        }
+
+    # ── Report 2: Exam results (package comparison) ───────────────
+
+    @classmethod
+    def get_exam_results_reports(
+        cls,
+        school,
+        *,
+        package_type: str | None = None,
+        semester: str | None = None,
+        class_group_id: str | None = None,
+    ) -> dict:
+        """
+        Report 2 — AssessmentPackage exam results across classes.
+        Compares student totals of a package type (P1..P4, AW) between classes.
+        """
+        from assessments.models import AssessmentPackage, StudentSubjectResult
+        from core.models import ClassGroup
+
+        pkg_qs = AssessmentPackage.objects.filter(school=school).select_related(
+            "setup__subject", "setup__class_group"
+        )
+        if package_type:
+            pkg_qs = pkg_qs.filter(package_type=package_type)
+        if semester:
+            pkg_qs = pkg_qs.filter(semester=semester)
+        if class_group_id:
+            pkg_qs = pkg_qs.filter(setup__class_group_id=class_group_id)
+
+        pkg_qs = pkg_qs.order_by("semester", "package_type", "setup__subject__name_ar")
+
+        # Map package_type → field on StudentSubjectResult
+        field_map = {
+            "P1": "p1_score",
+            "P2": "p2_score",
+            "P3": "p3_score",
+            "P4": "p4_score",
+            "AW": "p_aw_score",
+        }
+
+        rows = []
+        by_class: dict = {}
+        for pkg in pkg_qs:
+            field = field_map.get(pkg.package_type)
+            if not field:
+                continue
+            results = StudentSubjectResult.objects.filter(
+                school=school, setup=pkg.setup, semester=pkg.semester
+            ).select_related("student")
+
+            scores = []
+            for r in results:
+                val = getattr(r, field, None)
+                if val is None:
+                    continue
+                scores.append(float(val))
+
+            avg = cls._avg(scores)
+            cg_key = str(pkg.setup.class_group)
+
+            row = {
+                "package": pkg.get_package_type_display(),
+                "package_type": pkg.package_type,
+                "semester": pkg.get_semester_display(),
+                "class_group": cg_key,
+                "subject": pkg.setup.subject.name_ar,
+                "students_count": len(scores),
+                "avg_score": avg,
+                "min_score": min(scores) if scores else None,
+                "max_score": max(scores) if scores else None,
+                "max_grade": float(pkg.effective_max_grade),
+            }
+            rows.append(row)
+
+            by_class.setdefault(cg_key, []).append(row)
+
+        # Class-level summary (cross-class comparison)
+        class_summary = []
+        for cg, crows in by_class.items():
+            avgs = [r["avg_score"] for r in crows if r["avg_score"] is not None]
+            class_summary.append(
+                {
+                    "class_group": cg,
+                    "packages_count": len(crows),
+                    "overall_avg": cls._avg(avgs),
+                }
+            )
+
+        classes = list(
+            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+        )
+
+        return {
+            "school": school,
+            "rows": rows,
+            "class_summary": class_summary,
+            "total_packages": len(rows),
+            "filters": {
+                "package_type": package_type or "",
+                "semester": semester or "",
+                "class_group_id": class_group_id or "",
+            },
+            "package_type_choices": list(AssessmentPackage.PACKAGE_TYPE),
+            "semester_choices": list(AssessmentPackage.SEMESTER),
+            "classes": classes,
+            "print_date": timezone.now().date(),
+        }
+
+    # ── Report 3: Academic progress ────────────────────────────────
+
+    @classmethod
+    def get_academic_progress_reports(
+        cls,
+        school,
+        *,
+        class_group_id: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> dict:
+        """
+        Report 3 — Academic progress for a section over a time range.
+        Aggregates all Assessment grades per student within the window.
+        """
+        from assessments.models import StudentAssessmentGrade
+        from core.models import ClassGroup, StudentEnrollment
+
+        d_from = cls._safe_date(date_from)
+        d_to = cls._safe_date(date_to)
+
+        class_group = None
+        if class_group_id:
+            try:
+                class_group = ClassGroup.objects.filter(school=school, id=class_group_id).first()
+            except (ValueError, TypeError):
+                class_group = None
+
+        students = []
+        if class_group:
+            enrollments = (
+                StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
+                .select_related("student")
+                .order_by("student__full_name")
+            )
+
+            student_ids = [e.student_id for e in enrollments]
+
+            grade_qs = StudentAssessmentGrade.objects.filter(
+                school=school,
+                student_id__in=student_ids,
+                assessment__package__setup__class_group=class_group,
+            )
+            if d_from:
+                grade_qs = grade_qs.filter(assessment__date__gte=d_from)
+            if d_to:
+                grade_qs = grade_qs.filter(assessment__date__lte=d_to)
+
+            # Bucket grades per student
+            from collections import defaultdict
+
+            buckets: dict = defaultdict(list)
+            for g in grade_qs:
+                pct = g.grade_pct
+                if pct is not None:
+                    buckets[g.student_id].append(pct)
+
+            for enr in enrollments:
+                pcts = buckets.get(enr.student_id, [])
+                avg = cls._avg(pcts)
+                students.append(
+                    {
+                        "student_name": enr.student.full_name,
+                        "assessments_count": len(pcts),
+                        "avg_pct": avg,
+                        "min_pct": min(pcts) if pcts else None,
+                        "max_pct": max(pcts) if pcts else None,
+                    }
+                )
+
+            # Rank by average
+            students.sort(key=lambda s: s["avg_pct"] or 0, reverse=True)
+            for i, s in enumerate(students, start=1):
+                s["rank"] = i
+
+        classes = list(
+            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+        )
+
+        overall_pcts = [s["avg_pct"] for s in students if s["avg_pct"] is not None]
+
+        return {
+            "school": school,
+            "class_group": class_group,
+            "students": students,
+            "overall_avg": cls._avg(overall_pcts),
+            "filters": {
+                "class_group_id": class_group_id or "",
+                "date_from": date_from or "",
+                "date_to": date_to or "",
+            },
+            "classes": classes,
+            "print_date": timezone.now().date(),
+        }
+
+    # ── Report 4: Monthly Behavior + Academic (FLAGSHIP) ──────────
+
+    @classmethod
+    def get_monthly_behavior_academic_report(
+        cls,
+        school,
+        *,
+        month: int,
+        year: int,
+        scope: str = "section",
+        class_group_id: str | None = None,
+        student_id: str | None = None,
+    ) -> dict:
+        """
+        Report 4 — FLAGSHIP monthly report: quiz averages + behavior count.
+        Level: 'student' (single student) or 'section' (all students in a class).
+        Period: one calendar month.
+        """
+        from assessments.models import StudentAssessmentGrade
+        from behavior.models import BehaviorInfraction
+        from core.models import ClassGroup, CustomUser, StudentEnrollment
+
+        start_date, end_date = cls._month_bounds(year, month)
+
+        class_group = None
+        if class_group_id:
+            class_group = ClassGroup.objects.filter(school=school, id=class_group_id).first()
+
+        # Resolve students list
+        students: list = []
+        if scope == "student" and student_id:
+            student = CustomUser.objects.filter(
+                id=student_id,
+                memberships__school=school,
+                memberships__is_active=True,
+            ).first()
+            if student:
+                students = [student]
+        elif class_group:
+            enrollments = (
+                StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
+                .select_related("student")
+                .order_by("student__full_name")
+            )
+            students = [e.student for e in enrollments]
+
+        # Batch query: quiz grades within month
+        quiz_qs = StudentAssessmentGrade.objects.filter(
+            school=school,
+            assessment__assessment_type="quiz",
+            assessment__date__gte=start_date,
+            assessment__date__lte=end_date,
+        )
+        if students:
+            quiz_qs = quiz_qs.filter(student__in=students)
+
+        # Batch query: behavior infractions within month
+        beh_qs = BehaviorInfraction.objects.filter(
+            school=school,
+            date__gte=start_date,
+            date__lte=end_date,
+        )
+        if students:
+            beh_qs = beh_qs.filter(student__in=students)
+
+        # Bucket per student
+        from collections import defaultdict
+
+        quiz_buckets: dict = defaultdict(list)
+        for g in quiz_qs:
+            pct = g.grade_pct
+            if pct is not None:
+                quiz_buckets[g.student_id].append(pct)
+
+        beh_counts: dict = defaultdict(int)
+        beh_points: dict = defaultdict(int)
+        for inf in beh_qs:
+            beh_counts[inf.student_id] += 1
+            beh_points[inf.student_id] += inf.points_deducted or 0
+
+        rows = []
+        for st in students:
+            pcts = quiz_buckets.get(st.id, [])
+            quiz_avg = cls._avg(pcts)
+            inf_count = beh_counts.get(st.id, 0)
+            points = beh_points.get(st.id, 0)
+
+            # Combined score: quiz% weighted 0.7 minus behavior penalty
+            # (behavior penalty = min(points, 30) × 0.3, so 30+ points → −9 on score)
+            if quiz_avg is not None:
+                penalty = min(points, 30) * 0.3
+                combined = round(quiz_avg * 0.7 + (100 - penalty) * 0.3, 2)
+            else:
+                combined = None
+
+            rows.append(
+                {
+                    "student_name": st.full_name,
+                    "student_id": str(st.id),
+                    "quiz_count": len(pcts),
+                    "quiz_avg": quiz_avg,
+                    "behavior_count": inf_count,
+                    "behavior_points": points,
+                    "combined_score": combined,
+                }
+            )
+
+        rows.sort(key=lambda r: (r["combined_score"] or 0), reverse=True)
+
+        quiz_avg_all = cls._avg([r["quiz_avg"] for r in rows if r["quiz_avg"] is not None])
+        total_infractions = sum(r["behavior_count"] for r in rows)
+
+        classes = list(
+            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+        )
+
+        return {
+            "school": school,
+            "period": f"{year}-{month:02d}",
+            "month": month,
+            "year": year,
+            "scope": scope,
+            "class_group": class_group,
+            "rows": rows,
+            "students_count": len(rows),
+            "quiz_avg": quiz_avg_all,
+            "total_infractions": total_infractions,
+            "filters": {
+                "month": month,
+                "year": year,
+                "scope": scope,
+                "class_group_id": class_group_id or "",
+                "student_id": student_id or "",
+            },
+            "classes": classes,
+            "print_date": timezone.now().date(),
+        }
+
+
+# ══════════════════════════════════════════════════════════════════════
+# AcademicReportsExcel — lightweight Excel exports for REQ-SH-003
+# ══════════════════════════════════════════════════════════════════════
+
+
+class AcademicReportsExcel:
+    """
+    Lightweight Excel exporters for the 4 REQ-SH-003 reports.
+    Re-uses ExcelService's header/style helpers.
+    """
+
+    @classmethod
+    def _build(cls, sheet_title: str, title: str, columns: list, data_rows: list, school) -> bytes:
+        """
+        Generic builder: creates a workbook with the 4-row pro header,
+        the given column widths, and writes the data rows.
+        Returns HttpResponse via ExcelService.to_response.
+        """
+        wb, ws, styles = ExcelService._make_workbook(sheet_title)
+        num_cols = len(columns)
+        ExcelService._add_professional_header(
+            ws,
+            school.name if school else "SchoolOS",
+            title,
+            settings.CURRENT_ACADEMIC_YEAR,
+            num_cols,
+        )
+        ExcelService._add_header_row(ws, styles, 4, columns)
+        ws.freeze_panes = "A5"
+
+        for idx, row in enumerate(data_rows, start=1):
+            row_num = idx + 4
+            for col_idx, value in enumerate(row, start=1):
+                ws.cell(row=row_num, column=col_idx, value=value if value is not None else "—")
+            ExcelService._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
+
+        ExcelService._apply_protection(ws, num_cols)
+        ExcelService._setup_print_a4_portrait(ws, num_cols, len(data_rows))
+        return wb
+
+    @classmethod
+    def quiz_reports_excel(cls, data: dict, school) -> HttpResponse:
+        columns = [
+            ("م", 5),
+            ("اسم الطالب", 28),
+            ("المادة", 20),
+            ("الفصل", 14),
+            ("عنوان التقييم", 28),
+            ("التاريخ", 13),
+            ("الدرجة", 10),
+            ("من", 8),
+            ("النسبة %", 12),
+        ]
+        data_rows = []
+        for i, r in enumerate(data.get("rows", []), start=1):
+            data_rows.append(
+                [
+                    i,
+                    r["student_name"],
+                    r["subject"],
+                    r["class_group"],
+                    r["title"],
+                    r["date"].strftime("%Y/%m/%d") if r.get("date") else "—",
+                    r.get("raw_grade"),
+                    r.get("max_grade"),
+                    r.get("pct"),
+                ]
+            )
+        wb = cls._build(
+            "الاختبارات القصيرة",
+            "تقارير الاختبارات القصيرة",
+            columns,
+            data_rows,
+            school,
+        )
+        return ExcelService.to_response(wb, "quiz_reports.xlsx")
+
+    @classmethod
+    def exam_results_excel(cls, data: dict, school) -> HttpResponse:
+        columns = [
+            ("م", 5),
+            ("الباقة", 22),
+            ("الفصل الدراسي", 18),
+            ("الشعبة", 14),
+            ("المادة", 20),
+            ("عدد الطلاب", 12),
+            ("المتوسط", 12),
+            ("الأدنى", 10),
+            ("الأعلى", 10),
+            ("من", 10),
+        ]
+        data_rows = []
+        for i, r in enumerate(data.get("rows", []), start=1):
+            data_rows.append(
+                [
+                    i,
+                    r["package"],
+                    r["semester"],
+                    r["class_group"],
+                    r["subject"],
+                    r["students_count"],
+                    r["avg_score"],
+                    r["min_score"],
+                    r["max_score"],
+                    r["max_grade"],
+                ]
+            )
+        wb = cls._build(
+            "نتائج الاختبارات",
+            "تقارير نتائج الاختبارات",
+            columns,
+            data_rows,
+            school,
+        )
+        return ExcelService.to_response(wb, "exam_results.xlsx")
+
+    @classmethod
+    def academic_progress_excel(cls, data: dict, school) -> HttpResponse:
+        columns = [
+            ("الترتيب", 8),
+            ("اسم الطالب", 32),
+            ("عدد التقييمات", 14),
+            ("المتوسط %", 12),
+            ("الأدنى %", 12),
+            ("الأعلى %", 12),
+        ]
+        data_rows = []
+        for s in data.get("students", []):
+            data_rows.append(
+                [
+                    s.get("rank"),
+                    s["student_name"],
+                    s["assessments_count"],
+                    s["avg_pct"],
+                    s["min_pct"],
+                    s["max_pct"],
+                ]
+            )
+        cg = data.get("class_group")
+        title = f"تقارير التقدم الأكاديمي — {cg}" if cg else "تقارير التقدم الأكاديمي"
+        wb = cls._build(
+            "التقدم الأكاديمي",
+            title,
+            columns,
+            data_rows,
+            school,
+        )
+        return ExcelService.to_response(wb, "academic_progress.xlsx")
+
+    @classmethod
+    def monthly_behavior_academic_excel(cls, data: dict, school) -> HttpResponse:
+        columns = [
+            ("م", 5),
+            ("اسم الطالب", 32),
+            ("عدد الاختبارات", 13),
+            ("متوسط الاختبارات %", 17),
+            ("عدد المخالفات", 13),
+            ("النقاط المخصومة", 15),
+            ("التقييم المدمج", 14),
+        ]
+        data_rows = []
+        for i, r in enumerate(data.get("rows", []), start=1):
+            data_rows.append(
+                [
+                    i,
+                    r["student_name"],
+                    r["quiz_count"],
+                    r["quiz_avg"],
+                    r["behavior_count"],
+                    r["behavior_points"],
+                    r["combined_score"],
+                ]
+            )
+        title = f"التقرير السلوكي والتعليمي الشهري — {data.get('period', '')}"
+        wb = cls._build(
+            "السلوك والتعليم الشهري",
+            title,
+            columns,
+            data_rows,
+            school,
+        )
+        return ExcelService.to_response(wb, f"monthly_ba_{data.get('period', 'report')}.xlsx")
+
+
+# ══════════════════════════════════════════════════════════════════════
 # ExcelService — إنشاء Excel باحترافية كاملة
 # ══════════════════════════════════════════════════════════════════════
 

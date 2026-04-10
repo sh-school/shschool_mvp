@@ -1,0 +1,152 @@
+{% extends "academic_management/reports/_base.html" %}
+
+{% block subtitle %}
+  <p class="text-gray-600 dark:text-gray-400 mt-1">
+    نتائج الاختبارات القصيرة حسب المواد على مستوى الطالب أو الشعبة.
+  </p>
+{% endblock %}
+
+{% block filters %}
+<form method="get" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mt-4"
+      aria-label="تصفية التقرير">
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+    <div>
+      <label for="f-subject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        المادة
+      </label>
+      <select id="f-subject" name="subject_id"
+              class="w-full rounded-md border border-gray-300 dark:border-gray-600
+                     bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2
+                     focus:ring-2 focus:ring-red-500 focus:border-red-500">
+        <option value="">كل المواد</option>
+        {% for s in data.subjects %}
+          <option value="{{ s.id }}" {% if data.filters.subject_id == s.id|stringformat:"s" %}selected{% endif %}>
+            {{ s.name_ar }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="f-class" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        الشعبة
+      </label>
+      <select id="f-class" name="class_group_id"
+              class="w-full rounded-md border border-gray-300 dark:border-gray-600
+                     bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2
+                     focus:ring-2 focus:ring-red-500 focus:border-red-500">
+        <option value="">كل الشعب</option>
+        {% for c in data.classes %}
+          <option value="{{ c.id }}" {% if data.filters.class_group_id == c.id|stringformat:"s" %}selected{% endif %}>
+            {{ c }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="f-from" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        من تاريخ
+      </label>
+      <input id="f-from" type="date" name="date_from" value="{{ data.filters.date_from }}"
+             class="w-full rounded-md border border-gray-300 dark:border-gray-600
+                    bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2
+                    focus:ring-2 focus:ring-red-500 focus:border-red-500">
+    </div>
+    <div>
+      <label for="f-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+        إلى تاريخ
+      </label>
+      <input id="f-to" type="date" name="date_to" value="{{ data.filters.date_to }}"
+             class="w-full rounded-md border border-gray-300 dark:border-gray-600
+                    bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2
+                    focus:ring-2 focus:ring-red-500 focus:border-red-500">
+    </div>
+    <div class="flex items-end gap-2">
+      <button type="submit"
+              class="bg-red-700 hover:bg-red-800 text-white font-medium px-4 py-2 rounded-md
+                     focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition">
+        عرض التقرير
+      </button>
+      <a href="{% url 'academic_management:quiz_reports' %}"
+         class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200
+                hover:bg-gray-200 dark:hover:bg-gray-600 px-4 py-2 rounded-md transition">
+        مسح
+      </a>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block report_body %}
+  {# ── Summary cards ── #}
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400">عدد النتائج</div>
+      <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ data.total_rows }}</div>
+    </div>
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400">المتوسط %</div>
+      <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        {{ data.avg_pct|default:"—" }}
+      </div>
+    </div>
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400">الأدنى %</div>
+      <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        {{ data.min_pct|default:"—" }}
+      </div>
+    </div>
+    <div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+      <div class="text-sm text-gray-600 dark:text-gray-400">الأعلى %</div>
+      <div class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+        {{ data.max_pct|default:"—" }}
+      </div>
+    </div>
+  </div>
+
+  {# ── Data table ── #}
+  {% if data.rows %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm text-right" aria-label="جدول نتائج الاختبارات القصيرة">
+        <thead class="bg-gray-100 dark:bg-gray-700">
+          <tr>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">م</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">اسم الطالب</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">المادة</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">الشعبة</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">عنوان التقييم</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">التاريخ</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">الدرجة</th>
+            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">النسبة %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in data.rows %}
+            <tr class="border-b border-gray-200 dark:border-gray-700
+                       {% cycle '' 'bg-gray-50 dark:bg-gray-700/30' %}">
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ forloop.counter }}</td>
+              <td class="px-3 py-2 text-gray-900 dark:text-gray-100">{{ r.student_name }}</td>
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ r.subject }}</td>
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ r.class_group }}</td>
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ r.title }}</td>
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">
+                {% if r.date %}{{ r.date|date:"Y/m/d" }}{% else %}—{% endif %}
+              </td>
+              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">
+                {{ r.raw_grade|default:"—" }} / {{ r.max_grade }}
+              </td>
+              <td class="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">
+                {{ r.pct|default:"—" }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="text-center py-12">
+      <div class="text-5xl mb-3" aria-hidden="true">📭</div>
+      <p class="text-lg text-gray-600 dark:text-gray-400">لا توجد نتائج اختبارات قصيرة للفلاتر المحددة.</p>
+      <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">جرّب توسيع نطاق التاريخ أو اختيار مادة أخرى.</p>
+    </div>
+  {% endif %}
+{% endblock %}
