@@ -42,6 +42,8 @@ ZZZZ.zip
 # Temp/scratch scripts
 _*.py
 _*.txt
+# Never ignore Python package markers (the _*.py rule above catches __init__.py)
+!**/__init__.py
 
 # Azkia config
 .Azkia/
