@@ -104,7 +104,7 @@
               </td>
               <td>
                 {% if msg.user %}
-                  {{ msg.user.full_name|default:msg.user.username }}
+                  {{ msg.user.full_name|default:msg.user }}
                 {% else %}
                   <em>{% trans "محذوف" %}</em>
                 {% endif %}
