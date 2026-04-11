@@ -18,7 +18,6 @@ User = get_user_model()
 
 
 class DeveloperMessageModelTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
@@ -72,7 +71,6 @@ class DeveloperMessageModelTests(TestCase):
 
 
 class AuditLogModelTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(

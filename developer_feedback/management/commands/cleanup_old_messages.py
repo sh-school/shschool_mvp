@@ -46,9 +46,7 @@ class Command(BaseCommand):
         count = qs.count()
 
         self.stdout.write(
-            self.style.WARNING(
-                f"[cleanup_old_messages] رسائل أقدم من {days} يوم: {count}"
-            )
+            self.style.WARNING(f"[cleanup_old_messages] رسائل أقدم من {days} يوم: {count}")
         )
 
         if count == 0:
@@ -57,9 +55,7 @@ class Command(BaseCommand):
 
         if not apply:
             self.stdout.write(
-                self.style.NOTICE(
-                    "Dry-run — لم يُحذف شيء. استخدم --apply للحذف الفعلي."
-                )
+                self.style.NOTICE("Dry-run — لم يُحذف شيء. استخدم --apply للحذف الفعلي.")
             )
             return
 
@@ -67,7 +63,5 @@ class Command(BaseCommand):
             deleted, breakdown = qs.delete()
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"تم حذف {deleted} عنصر (مع cascade). التفاصيل: {breakdown}"
-            )
+            self.style.SUCCESS(f"تم حذف {deleted} عنصر (مع cascade). التفاصيل: {breakdown}")
         )

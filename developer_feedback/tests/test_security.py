@@ -25,7 +25,6 @@ User = get_user_model()
 
 
 class SecurityTests(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.user_a = User.objects.create_user(

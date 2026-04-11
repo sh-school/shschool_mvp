@@ -14,7 +14,6 @@ from developer_feedback.forms import (
 
 
 class DeveloperMessageFormTests(TestCase):
-
     def _valid_data(self, **overrides):
         data = {
             "message_type": "bug",
@@ -70,9 +69,7 @@ class DeveloperMessageFormTests(TestCase):
         self.assertEqual(form.cleaned_data["context_json_raw"]["url_path"], "/page")
 
     def test_context_json_blocks_token_values(self):
-        payload = json.dumps(
-            {"url_path": "/page", "role": "teacher-with-jwt-token"}
-        )
+        payload = json.dumps({"url_path": "/page", "role": "teacher-with-jwt-token"})
         form = DeveloperMessageForm(data=self._valid_data(context_json_raw=payload))
         self.assertTrue(form.is_valid())
         # role تحوي "jwt" و "token" → يُحذف
@@ -80,7 +77,6 @@ class DeveloperMessageFormTests(TestCase):
 
 
 class OnboardingConsentFormTests(TestCase):
-
     def _valid_data(self, **overrides):
         data = {
             "accept_privacy_policy": True,
@@ -92,9 +88,7 @@ class OnboardingConsentFormTests(TestCase):
         return data
 
     def test_all_agreements_required(self):
-        form = OnboardingConsentForm(
-            data=self._valid_data(no_student_data_pledge=False)
-        )
+        form = OnboardingConsentForm(data=self._valid_data(no_student_data_pledge=False))
         self.assertFalse(form.is_valid())
         self.assertIn("no_student_data_pledge", form.errors)
 
@@ -108,7 +102,6 @@ class OnboardingConsentFormTests(TestCase):
 
 
 class OnboardingQuizFormTests(TestCase):
-
     def test_all_correct_passes(self):
         form = OnboardingQuizForm(data={"q1": "no", "q2": "c", "q3": "yes"})
         self.assertTrue(form.is_valid())

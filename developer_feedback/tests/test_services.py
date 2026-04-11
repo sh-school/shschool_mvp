@@ -63,6 +63,4 @@ class TicketingServiceTests(TestCase):
         ticket = generate_unique_ticket_number(DeveloperMessage)
         self.assertTrue(ticket.startswith("SOS-"))
         # لا يوجد في DB الفعلي
-        self.assertFalse(
-            DeveloperMessage.objects.filter(ticket_number=ticket).exists()
-        )
+        self.assertFalse(DeveloperMessage.objects.filter(ticket_number=ticket).exists())
