@@ -30,6 +30,7 @@ def permissions_context(request):
             "registry_modules": [],
             "is_leadership": False,
             "is_staff_member": False,
+            "is_developer": False,
         }
 
     from core.module_registry import get_accessible_modules_from_registry
@@ -41,6 +42,10 @@ def permissions_context(request):
         "is_leadership": request.user.is_leadership(),
         "is_admin_role": request.user.is_leadership(),
         "is_staff_member": request.user.is_staff_member(),
+        "is_developer": (
+            request.user.is_superuser
+            or request.user.groups.filter(name__iexact="developers").exists()
+        ),
     }
 
 

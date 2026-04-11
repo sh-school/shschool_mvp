@@ -300,6 +300,22 @@
   <hr>
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
   <a href="{% url 'developer_feedback:message_create' %}">{% include "components/icon.html" with name="mail" %} أرسل إلى المطوّر</a>
+  {% if is_developer %}
+  <hr>
+  <div class="sd-label">أدوات المطوّر</div>
+  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
+     aria-label="صندوق الوارد للمطوّر">
+    {% include "components/icon.html" with name="mail" %} صندوق الوارد
+  </a>
+  <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem"
+     aria-label="الرسائل الجديدة غير المقروءة">
+    {% include "components/icon.html" with name="alert-triangle" %} الرسائل الجديدة
+  </a>
+  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem"
+     aria-label="الرسائل التي أرسلتها">
+    {% include "components/icon.html" with name="list-checks" %} رسائلي المرسلة
+  </a>
+  {% endif %}
   {% if is_leadership %}
   <hr>
   <div class="sd-label">الأمان والصلاحيات</div>
