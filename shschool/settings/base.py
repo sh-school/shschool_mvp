@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     "staff_affairs.apps.StaffAffairsConfig",
     # ✅ REQ-SH-002: إدارة الشؤون الأكاديمية (Client #001)
     "academic_management.apps.AcademicManagementConfig",
+    # ✅ SPRINT-DF-001: أرسل إلى المطوّر (Developer Feedback) — PRD-SOS-DEV-FEEDBACK-v1.0
+    "developer_feedback.apps.DeveloperFeedbackConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ v5.4: حماية من هجمات القوة الغاشمة (Brute Force)

@@ -1,0 +1,52 @@
+# Developer Feedback — English translations
+# Copyright (C) 2026 Azkia Software
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: developer_feedback 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-11 00:00+0300\n"
+"PO-Revision-Date: 2026-04-11 00:00+0300\n"
+"Last-Translator: Azkia Software <info@azkia.qa>\n"
+"Language-Team: English <en@li.org>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "أرسل إلى المطوّر"
+msgstr "Send to Developer"
+
+msgid "صندوق المطوّر"
+msgstr "Developer Inbox"
+
+msgid "رسائلي"
+msgstr "My Messages"
+
+msgid "إرسال"
+msgstr "Send"
+
+msgid "إلغاء"
+msgstr "Cancel"
+
+msgid "تحديث الحالة"
+msgstr "Update Status"
+
+msgid "رقم التذكرة"
+msgstr "Ticket Number"
+
+msgid "جديدة"
+msgstr "New"
+
+msgid "تم الاطلاع"
+msgstr "Seen"
+
+msgid "قيد المعالجة"
+msgstr "In Progress"
+
+msgid "تم الحل"
+msgstr "Resolved"
+
+msgid "مُغلقة"
+msgstr "Closed"

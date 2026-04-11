@@ -1,0 +1,150 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "صندوق المطوّر" %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=1">
+{% endblock %}
+
+{% block page_header %}
+<div class="df-container df-page-header-row">
+  <h1 class="df-page-title">
+    {% include "components/icon.html" with name="inbox" %}
+    {% trans "صندوق المطوّر" %}
+  </h1>
+  <span class="df-badge df-badge-count" aria-label="{% trans 'عدد الرسائل الكلي' %}">
+    {% trans "كل الرسائل" %}: {{ page_obj.paginator.count|default:0 }}
+  </span>
+</div>
+{% endblock %}
+
+{% block content %}
+<main id="main-content" class="df-container" role="main">
+
+  {# ── شريط الفلترة ── #}
+  <form method="get" class="df-filter-bar" role="search" aria-label="{% trans 'فلترة الرسائل' %}">
+    <div class="df-form-group df-filter-group">
+      <label for="df-q">{% trans "بحث" %}</label>
+      <input
+        type="search"
+        id="df-q"
+        name="q"
+        value="{{ current_q|default:'' }}"
+        class="form-control"
+        placeholder="{% trans 'العنوان أو الوصف…' %}"
+      >
+    </div>
+
+    <div class="df-form-group df-filter-group">
+      <label for="df-status">{% trans "الحالة" %}</label>
+      <select name="status" id="df-status" class="form-select">
+        <option value="">{% trans "— الكل —" %}</option>
+        {% for value, label in status_choices %}
+          <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="df-form-group df-filter-group">
+      <label for="df-type">{% trans "النوع" %}</label>
+      <select name="type" id="df-type" class="form-select">
+        <option value="">{% trans "— الكل —" %}</option>
+        <option value="bug" {% if current_type == "bug" %}selected{% endif %}>{% trans "عطل / مشكلة" %}</option>
+        <option value="feature" {% if current_type == "feature" %}selected{% endif %}>{% trans "اقتراح ميزة" %}</option>
+        <option value="question" {% if current_type == "question" %}selected{% endif %}>{% trans "سؤال" %}</option>
+        <option value="complaint" {% if current_type == "complaint" %}selected{% endif %}>{% trans "شكوى" %}</option>
+        <option value="praise" {% if current_type == "praise" %}selected{% endif %}>{% trans "شكر / ثناء" %}</option>
+        <option value="other" {% if current_type == "other" %}selected{% endif %}>{% trans "أخرى" %}</option>
+      </select>
+    </div>
+
+    <div class="df-form-group df-filter-group">
+      <label for="df-priority">{% trans "الأولوية" %}</label>
+      <select name="priority" id="df-priority" class="form-select">
+        <option value="">{% trans "— الكل —" %}</option>
+        <option value="high" {% if current_priority == "high" %}selected{% endif %}>{% trans "عالية" %}</option>
+        <option value="normal" {% if current_priority == "normal" %}selected{% endif %}>{% trans "عادية" %}</option>
+        <option value="low" {% if current_priority == "low" %}selected{% endif %}>{% trans "منخفضة" %}</option>
+      </select>
+    </div>
+
+    <div class="df-filter-actions">
+      <button type="submit" class="btn btn-primary">
+        {% include "components/icon.html" with name="search" %}
+        {% trans "بحث" %}
+      </button>
+      <a href="{% url 'developer_feedback:inbox_list' %}" class="df-link-muted">{% trans "إعادة تعيين" %}</a>
+    </div>
+  </form>
+
+  {# ── جدول الرسائل ── #}
+  {% if messages_list %}
+    <div class="df-table-wrap" role="region" aria-label="{% trans 'جدول رسائل المطوّر' %}">
+      <table class="df-table">
+        <thead>
+          <tr>
+            <th scope="col">{% trans "رقم التذكرة" %}</th>
+            <th scope="col">{% trans "المستخدم" %}</th>
+            <th scope="col">{% trans "النوع" %}</th>
+            <th scope="col">{% trans "الأولوية" %}</th>
+            <th scope="col">{% trans "العنوان" %}</th>
+            <th scope="col">{% trans "الحالة" %}</th>
+            <th scope="col">{% trans "التاريخ" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for msg in messages_list %}
+            <tr>
+              <td>
+                <a href="{% url 'developer_feedback:inbox_detail' pk=msg.pk %}" class="df-ticket-link">
+                  <code class="df-ticket-inline" dir="ltr">{{ msg.ticket_number }}</code>
+                </a>
+              </td>
+              <td>
+                {% if msg.user %}
+                  {{ msg.user.full_name|default:msg.user.username }}
+                {% else %}
+                  <em>{% trans "محذوف" %}</em>
+                {% endif %}
+              </td>
+              <td><span class="df-badge df-badge-type">{{ msg.get_message_type_display }}</span></td>
+              <td><span class="df-badge df-badge-priority-{{ msg.priority }}">{{ msg.get_priority_display }}</span></td>
+              <td class="df-cell-subject">{{ msg.subject|truncatechars:60 }}</td>
+              <td>{% include "developer_feedback/_status_badge.html" with status=msg.status %}</td>
+              <td><time datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"Y/m/d H:i" }}</time></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# ── Pagination — نحافظ على الفلاتر ── #}
+    {% if is_paginated %}
+      <nav class="df-pagination" role="navigation" aria-label="{% trans 'تصفّح الصفحات' %}">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q|urlencode }}{% endif %}{% if current_status %}&status={{ current_status|urlencode }}{% endif %}{% if current_type %}&type={{ current_type|urlencode }}{% endif %}{% if current_priority %}&priority={{ current_priority|urlencode }}{% endif %}" class="df-page-link">{% trans "السابق" %}</a>
+        {% endif %}
+        <span class="df-page-info">
+          {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}
+            صفحة {{ current }} من {{ total }}
+          {% endblocktrans %}
+        </span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q|urlencode }}{% endif %}{% if current_status %}&status={{ current_status|urlencode }}{% endif %}{% if current_type %}&type={{ current_type|urlencode }}{% endif %}{% if current_priority %}&priority={{ current_priority|urlencode }}{% endif %}" class="df-page-link">{% trans "التالي" %}</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <div class="df-empty-state" role="status">
+      <div class="df-empty-icon" aria-hidden="true">
+        {% include "components/icon.html" with name="inbox" %}
+      </div>
+      <h3>{% trans "لا توجد رسائل مطابقة" %}</h3>
+      <p>{% trans "حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل." %}</p>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}

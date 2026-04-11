@@ -1,0 +1,61 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "تم استلام رسالتك" %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=1">
+{% endblock %}
+
+{% block content %}
+<main id="main-content" class="df-container" role="main">
+
+  {% if ticket_number %}
+    <section class="df-card df-ticket-hero" aria-labelledby="df-success-title">
+      <div class="df-success-icon" aria-hidden="true">
+        {% include "components/icon.html" with name="check-circle" %}
+      </div>
+
+      <h1 id="df-success-title" class="df-card-title">{% trans "تم استلام رسالتك ✓" %}</h1>
+
+      <p>{% trans "رقم التذكرة الخاص بك:" %}</p>
+      <code class="df-ticket-number ticket-number-badge" dir="ltr">{{ ticket_number }}</code>
+      <p class="helptext">{% trans "احتفظ برقم التذكرة لمتابعة حالتها لاحقاً." %}</p>
+
+      <hr class="df-divider">
+
+      <p>{% trans "سيصل إشعار إلى المطوّر خلال دقائق. سنراسلك بحالة التذكرة داخل النظام." %}</p>
+
+      <div class="df-btn-group df-btn-group-center">
+        <a href="{% url 'developer_feedback:my_messages' %}" class="btn btn-primary">
+          {% include "components/icon.html" with name="list-checks" %}
+          {% trans "عرض رسائلي" %}
+        </a>
+        <a href="{% url 'developer_feedback:message_create' %}" class="btn btn-secondary">
+          {% include "components/icon.html" with name="mail" %}
+          {% trans "إرسال رسالة أخرى" %}
+        </a>
+      </div>
+    </section>
+
+  {% else %}
+    {# المستخدم دخل مباشرة دون إرسال رسالة #}
+    <section class="df-empty-state" aria-labelledby="df-empty-title">
+      <div class="df-empty-icon" aria-hidden="true">
+        {% include "components/icon.html" with name="info" %}
+      </div>
+      <h2 id="df-empty-title">{% trans "لا توجد رسالة حديثة" %}</h2>
+      <p>{% trans "لم يتم إرسال أي رسالة في هذه الجلسة." %}</p>
+      <div class="df-btn-group df-btn-group-center">
+        <a href="{% url 'developer_feedback:message_create' %}" class="btn btn-primary">
+          {% trans "إرسال رسالة جديدة" %}
+        </a>
+        <a href="{% url 'developer_feedback:my_messages' %}" class="btn btn-secondary">
+          {% trans "عرض رسائلي" %}
+        </a>
+      </div>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

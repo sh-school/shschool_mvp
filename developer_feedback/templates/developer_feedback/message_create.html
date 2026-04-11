@@ -1,0 +1,162 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "أرسل ملاحظتك إلى المطوّر" %}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=1">
+{% endblock %}
+
+{% block page_header %}
+<div class="df-container">
+  <h1 class="df-page-title">{% trans "أرسل ملاحظتك إلى المطوّر" %}</h1>
+  <p class="df-page-subtitle">{% trans "رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع" %}</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<main id="main-content" class="df-container" role="main">
+
+  {# ── بطاقة تعليمية قصيرة ── #}
+  <aside class="df-card df-card-hero" aria-labelledby="df-tip-title">
+    <h2 id="df-tip-title" class="df-card-title">{% trans "قبل أن تبدأ" %}</h2>
+    <p>{% trans "اكتب العنوان والوصف بوضوح. لا ترفق أي بيانات شخصية لطلاب. رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع." %}</p>
+  </aside>
+
+  {# ── أخطاء عامة ── #}
+  {% if form.non_field_errors %}
+    <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post" novalidate class="df-form" aria-labelledby="df-msg-form-title">
+    {% csrf_token %}
+    <h2 id="df-msg-form-title" class="sr-only">{% trans "نموذج إرسال رسالة إلى المطوّر" %}</h2>
+
+    <div class="df-card">
+
+      {# ── نوع الرسالة + الأولوية (جنباً إلى جنب) ── #}
+      <div class="df-row-2">
+        <div class="df-form-group">
+          <label for="{{ form.message_type.id_for_label }}">
+            {{ form.message_type.label }}<span class="required" aria-hidden="true">*</span>
+          </label>
+          {{ form.message_type }}
+          {% if form.message_type.errors %}
+            <ul class="df-errorlist" role="alert">
+              {% for error in form.message_type.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+
+        <div class="df-form-group">
+          <label for="{{ form.priority.id_for_label }}">
+            {{ form.priority.label }}<span class="required" aria-hidden="true">*</span>
+          </label>
+          {{ form.priority }}
+          {% if form.priority.errors %}
+            <ul class="df-errorlist" role="alert">
+              {% for error in form.priority.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── العنوان ── #}
+      <div class="df-form-group">
+        <label for="{{ form.subject.id_for_label }}">
+          {{ form.subject.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        {{ form.subject }}
+        {% if form.subject.help_text %}
+          <small class="helptext">{{ form.subject.help_text }}</small>
+        {% endif %}
+        {% if form.subject.errors %}
+          <ul class="df-errorlist" role="alert">
+            {% for error in form.subject.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      {# ── الوصف (Textarea + عدّاد حروف) ── #}
+      <div class="df-form-group">
+        <label for="{{ form.body.id_for_label }}">
+          {{ form.body.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        {# نُضيف data-df-counter-for لكي يلتقطه JS — rows=10 حسب المواصفة #}
+        <textarea
+          name="{{ form.body.name }}"
+          id="{{ form.body.id_for_label }}"
+          rows="10"
+          maxlength="4000"
+          class="form-control"
+          aria-required="true"
+          data-df-counter-for="body"
+          placeholder="{% trans 'اشرح ما حدث، وما كنت تتوقعه، وكيف يمكن إعادة إظهار المشكلة' %}"
+        >{{ form.body.value|default_if_none:'' }}</textarea>
+        <small class="df-counter" data-df-counter>0 / 4000</small>
+        {% if form.body.errors %}
+          <ul class="df-errorlist" role="alert">
+            {% for error in form.body.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── معاينة السياق التقني الذي سيُرسَل ── #}
+    <div class="df-card" aria-labelledby="df-context-title">
+      <h2 id="df-context-title" class="df-card-title">
+        {% include "components/icon.html" with name="info" %}
+        {% trans "معلومات تقنية ستُرسَل مع رسالتك (لا تحوي بياناتك الشخصية)" %}
+      </h2>
+      <p class="helptext">{% trans "هذه المعلومات تساعد المطوّر على تشخيص المشكلة بسرعة. لا تُرسل أي tokens ولا بيانات حساسة." %}</p>
+      <dl class="df-context-preview" data-df-context-preview>
+        <dt>{% trans "الصفحة الحالية" %}</dt><dd>—</dd>
+        <dt>{% trans "الدور" %}</dt><dd>—</dd>
+        <dt>{% trans "وقت الإرسال" %}</dt><dd>—</dd>
+        <dt>{% trans "المتصفح" %}</dt><dd>—</dd>
+      </dl>
+    </div>
+
+    {# ── Consent Checkbox + Hidden context ── #}
+    <div class="df-card">
+      <div class="df-form-group">
+        <label for="{{ form.consent_privacy.id_for_label }}" class="df-checkbox-label">
+          <input
+            type="checkbox"
+            name="{{ form.consent_privacy.name }}"
+            id="{{ form.consent_privacy.id_for_label }}"
+            {% if form.consent_privacy.value %}checked{% endif %}
+            aria-required="true"
+            required
+          >
+          <span>{{ form.consent_privacy.label }}</span>
+        </label>
+        {% if form.consent_privacy.errors %}
+          <ul class="df-errorlist" role="alert">
+            {% for error in form.consent_privacy.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      {# الحقل المخفي — JS سيملؤه #}
+      {{ form.context_json_raw }}
+    </div>
+
+    {# ── الأزرار ── #}
+    <div class="df-btn-group">
+      <button type="submit" class="btn btn-primary">
+        {% include "components/icon.html" with name="mail" %}
+        {% trans "إرسال" %}
+      </button>
+      <a href="{% url 'dashboard' %}" class="btn btn-secondary">{% trans "إلغاء" %}</a>
+      <a href="{% url 'developer_feedback:my_messages' %}" class="df-link-muted">{% trans "عرض رسائلي السابقة" %}</a>
+    </div>
+  </form>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'developer_feedback/js/feedback.js' %}?v=1" defer></script>
+{% endblock %}

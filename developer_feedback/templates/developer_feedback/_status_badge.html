@@ -1,0 +1,10 @@
+{% load i18n %}
+{% comment %}Usage: {% include "developer_feedback/_status_badge.html" with status=message.status %}{% endcomment %}
+<span class="df-badge df-badge-status df-status-{{ status }}">
+  {% if status == "new" %}{% trans "جديدة" %}
+  {% elif status == "seen" %}{% trans "تم الاطلاع" %}
+  {% elif status == "in_progress" %}{% trans "قيد المعالجة" %}
+  {% elif status == "resolved" %}{% trans "تم الحل" %}
+  {% elif status == "closed" %}{% trans "مُغلقة" %}
+  {% else %}{{ status }}{% endif %}
+</span>

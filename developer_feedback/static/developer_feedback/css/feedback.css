@@ -1,0 +1,876 @@
+/* ==========================================================================
+   Developer Feedback — Feature CSS v1
+   - RTL-first
+   - Dark Mode support (html.dark) — القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط
+   - Maroon/Gold tokens from custom.css
+   - WCAG 2.1 AA focus states, touch targets >= 44px
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Layout & Container
+   ========================================================================== */
+.df-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  font-family: "Tajawal", system-ui, -apple-system, sans-serif;
+}
+
+.df-page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--maroon, #8A1538);
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.df-page-subtitle {
+  margin: 0 0 1rem;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.df-page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.df-grid-2 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+
+.df-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .df-grid-2,
+  .df-row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   2. Cards
+   ========================================================================== */
+.df-card {
+  background: #fff;
+  border: 1px solid var(--maroon-border, #e8b4c3);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.df-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--maroon, #8A1538);
+  margin: 0 0 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.df-card-hero {
+  background: var(--maroon-bg, #fdf2f5);
+  border-color: var(--maroon, #8A1538);
+}
+
+.df-card-sidebar {
+  padding: 1rem 1.15rem;
+}
+
+.df-intro-block {
+  margin-bottom: 1rem;
+}
+
+.df-intro-block h3 {
+  font-size: 1rem;
+  color: var(--maroon-dark, #6b0f2a);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.df-intro-block p {
+  margin: 0;
+  line-height: 1.8;
+  color: #333;
+}
+
+/* ==========================================================================
+   3. Forms
+   ========================================================================== */
+.df-form fieldset {
+  border: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+
+.df-form fieldset legend {
+  padding: 0;
+}
+
+.df-form-group {
+  margin-bottom: 1rem;
+}
+
+.df-form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.df-form-group label .required {
+  color: #c0392b;
+  margin-inline-start: 0.25rem;
+}
+
+.df-form-group .helptext {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.df-form-group input[type="text"],
+.df-form-group input[type="search"],
+.df-form-group textarea,
+.df-form-group select,
+.df-form .form-control,
+.df-form .form-select {
+  width: 100%;
+  min-height: 44px; /* touch target >= 44px */
+}
+
+.df-errorlist {
+  color: #c0392b;
+  font-size: 0.875rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.df-errorlist li::before {
+  content: "⚠ ";
+}
+
+/* Checkbox label pattern */
+.df-checkbox-label {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  cursor: pointer;
+  line-height: 1.6;
+  padding: 0.3rem 0;
+  min-height: 44px;
+}
+
+.df-checkbox-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 0.15rem;
+  accent-color: var(--maroon, #8A1538);
+  flex-shrink: 0;
+}
+
+/* Quiz radio questions */
+.df-quiz-question {
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px dashed var(--maroon-border, #e8b4c3);
+}
+
+.df-quiz-question:last-child {
+  border-bottom: none;
+}
+
+.df-quiz-label {
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.df-quiz-choices ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.df-quiz-choices li {
+  padding: 0.35rem 0;
+}
+
+.df-quiz-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  margin: 0;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  min-height: 44px;
+}
+
+.df-quiz-choices label:hover {
+  background: var(--maroon-bg, #fdf2f5);
+}
+
+.df-quiz-choices input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--maroon, #8A1538);
+}
+
+/* ==========================================================================
+   4. Textarea counter
+   ========================================================================== */
+.df-counter {
+  display: block;
+  text-align: start;
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 0.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.df-counter.df-counter-warn {
+  color: #c0392b;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   5. Buttons
+   ========================================================================== */
+.df-btn-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+  align-items: center;
+}
+
+.df-btn-group-center {
+  justify-content: center;
+}
+
+.df-btn-group .btn,
+.df-form .btn {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.df-link-muted {
+  color: #6c757d;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+
+.df-link-muted:hover {
+  color: var(--maroon, #8A1538);
+}
+
+/* ==========================================================================
+   6. Status / Type / Priority badges
+   ========================================================================== */
+.df-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.df-badge-count {
+  background: var(--maroon-bg, #fdf2f5);
+  color: var(--maroon, #8A1538);
+  border-color: var(--maroon, #8A1538);
+  font-size: 0.85rem;
+}
+
+.df-badge-type {
+  background: #f5f5f5;
+  color: #424242;
+  border-color: #bdbdbd;
+}
+
+/* Status colors */
+.df-status-new        { background: #e3f2fd; color: #0d47a1; border-color: #90caf9; }
+.df-status-seen       { background: #f3e5f5; color: #4a148c; border-color: #ce93d8; }
+.df-status-in_progress{ background: #fff3e0; color: #e65100; border-color: #ffb74d; }
+.df-status-resolved   { background: #e8f5e9; color: #1b5e20; border-color: #81c784; }
+.df-status-closed     { background: #eceff1; color: #37474f; border-color: #b0bec5; }
+
+/* Priority colors */
+.df-badge-priority-high   { background: #ffebee; color: #b71c1c; border-color: #ef9a9a; }
+.df-badge-priority-normal { background: #f5f5f5; color: #424242; border-color: #bdbdbd; }
+.df-badge-priority-low    { background: #e0f7fa; color: #006064; border-color: #80deea; }
+
+/* ==========================================================================
+   7. Context preview (technical info block)
+   ========================================================================== */
+.df-context-preview {
+  background: #fafafa;
+  border-inline-start: 3px solid var(--gold, #D4A843);
+  padding: 0.85rem 1.1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin: 0.5rem 0 0;
+}
+
+.df-context-preview dt {
+  font-weight: 600;
+  color: #555;
+  margin-top: 0.35rem;
+}
+
+.df-context-preview dd {
+  margin: 0 0 0.5rem;
+  color: #222;
+  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+  font-size: 0.82rem;
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   8. Ticket number hero (success page)
+   ========================================================================== */
+.df-ticket-hero {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.df-success-icon {
+  font-size: 3.5rem;
+  color: #1b5e20;
+  display: inline-flex;
+  width: 72px;
+  height: 72px;
+  align-items: center;
+  justify-content: center;
+  background: #e8f5e9;
+  border: 3px solid #81c784;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+
+.df-success-icon svg {
+  width: 40px;
+  height: 40px;
+}
+
+.df-ticket-number {
+  display: inline-block;
+  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--maroon, #8A1538);
+  background: var(--maroon-bg, #fdf2f5);
+  border: 2px dashed var(--maroon, #8A1538);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  margin: 1rem 0;
+  letter-spacing: 0.05em;
+}
+
+.df-ticket-inline {
+  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--maroon, #8A1538);
+  background: var(--maroon-bg, #fdf2f5);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid var(--maroon-border, #e8b4c3);
+}
+
+.df-ticket-link {
+  text-decoration: none;
+}
+
+.df-ticket-link:hover .df-ticket-inline {
+  background: var(--maroon, #8A1538);
+  color: #fff;
+}
+
+.df-divider {
+  border: none;
+  border-top: 1px solid var(--maroon-border, #e8b4c3);
+  margin: 1.5rem 0;
+}
+
+/* ==========================================================================
+   9. Timeline (status logs)
+   ========================================================================== */
+.df-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-inline-start: 2px solid var(--maroon-border, #e8b4c3);
+  padding-inline-start: 1.25rem;
+}
+
+.df-timeline li {
+  position: relative;
+  padding-bottom: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.df-timeline li:last-child {
+  margin-bottom: 0;
+}
+
+.df-timeline li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -1.6rem;
+  top: 0.45rem;
+  width: 12px;
+  height: 12px;
+  background: var(--maroon, #8A1538);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--maroon-border, #e8b4c3);
+}
+
+.df-timeline-change {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.df-timeline-meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.df-timeline-note {
+  font-size: 0.85rem;
+  color: #333;
+  background: #fafafa;
+  border-inline-start: 2px solid var(--gold, #D4A843);
+  padding: 0.4rem 0.7rem;
+  border-radius: 4px;
+  margin-top: 0.35rem;
+}
+
+/* ==========================================================================
+   10. Inbox filter bar
+   ========================================================================== */
+.df-filter-bar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 1rem;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  align-items: flex-end;
+}
+
+.df-filter-group {
+  flex: 1 1 160px;
+  min-width: 140px;
+  margin-bottom: 0;
+}
+
+.df-filter-bar .form-control,
+.df-filter-bar .form-select {
+  max-width: 220px;
+}
+
+.df-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   11. Tables
+   ========================================================================== */
+.df-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--maroon-border, #e8b4c3);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.df-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 0.92rem;
+}
+
+.df-table thead {
+  background: var(--maroon-bg, #fdf2f5);
+}
+
+.df-table th {
+  text-align: start;
+  padding: 0.75rem 0.9rem;
+  font-weight: 700;
+  color: var(--maroon-dark, #6b0f2a);
+  border-bottom: 2px solid var(--maroon-border, #e8b4c3);
+  white-space: nowrap;
+}
+
+.df-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #f0e4e8;
+  vertical-align: middle;
+}
+
+.df-table tbody tr:hover {
+  background: #fdf8fa;
+}
+
+.df-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.df-cell-subject {
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pagination */
+.df-pagination {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  align-items: center;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.df-page-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+  min-height: 44px;
+  border: 1px solid var(--maroon-border, #e8b4c3);
+  border-radius: 6px;
+  color: var(--maroon, #8A1538);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.df-page-link:hover {
+  background: var(--maroon-bg, #fdf2f5);
+}
+
+.df-page-info {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+/* ==========================================================================
+   12. Empty state
+   ========================================================================== */
+.df-empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6c757d;
+}
+
+.df-empty-state .df-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  color: var(--maroon-border, #e8b4c3);
+  margin-bottom: 1rem;
+}
+
+.df-empty-state .df-empty-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.df-empty-state h3 {
+  color: #555;
+  margin: 0.5rem 0 0.5rem;
+}
+
+.df-empty-state p {
+  margin: 0 0 1rem;
+}
+
+/* ==========================================================================
+   13. Message body + meta list (detail page)
+   ========================================================================== */
+.df-message-body {
+  line-height: 1.9;
+  color: #222;
+  font-size: 1rem;
+  white-space: pre-wrap;
+}
+
+.df-meta-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+}
+
+.df-meta-list dt {
+  font-size: 0.82rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.df-meta-list dd {
+  margin: 0 0 0.25rem;
+  color: #222;
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   14. Focus states (WCAG AA)
+   ========================================================================== */
+.df-container :focus-visible,
+.df-form :focus-visible {
+  outline: 2px solid var(--maroon, #8A1538);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   15. Screen-reader only helper (if base doesn't have one)
+   ========================================================================== */
+.df-container .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ==========================================================================
+   ═══════════════ DARK MODE — html.dark ═══════════════
+   القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط — ممنوع كخلفيات كاملة.
+   الخلفيات الداكنة مبنية على ظلال الماروون.
+   ========================================================================== */
+html.dark .df-card {
+  background: #2a1018;
+  border-color: #5a2033;
+  color: #f0f0f0;
+}
+
+html.dark .df-card-title {
+  color: #f5d0dc;
+}
+
+html.dark .df-card-hero {
+  background: #3a1420;
+  border-color: #8A1538;
+}
+
+html.dark .df-intro-block h3 {
+  color: #f5d0dc;
+}
+
+html.dark .df-intro-block p,
+html.dark .df-message-body {
+  color: #e8e8e8;
+}
+
+html.dark .df-page-title {
+  color: #f5d0dc;
+}
+
+html.dark .df-page-subtitle,
+html.dark .df-form-group .helptext {
+  color: #b8b8b8;
+}
+
+html.dark .df-form-group label {
+  color: #e8e8e8;
+}
+
+html.dark .df-context-preview {
+  background: #1f0c14;
+  border-inline-start-color: var(--gold, #D4A843);
+  color: #e8e8e8;
+}
+
+html.dark .df-context-preview dt {
+  color: #d0d0d0;
+}
+
+html.dark .df-context-preview dd {
+  color: #f0f0f0;
+}
+
+html.dark .df-filter-bar {
+  background: #1f0c14;
+  border-color: #3a1420;
+}
+
+html.dark .df-ticket-number {
+  background: #3a1420;
+  color: #f5d0dc;
+  border-color: #f5d0dc;
+}
+
+html.dark .df-ticket-inline {
+  background: #3a1420;
+  color: #f5d0dc;
+  border-color: #5a2033;
+}
+
+html.dark .df-success-icon {
+  background: #0d3b14;
+  color: #a5d6a7;
+  border-color: #4caf50;
+}
+
+html.dark .df-empty-state {
+  color: #b8b8b8;
+}
+
+html.dark .df-empty-state h3 {
+  color: #d8d8d8;
+}
+
+html.dark .df-empty-state .df-empty-icon {
+  color: #5a2033;
+}
+
+html.dark .df-timeline {
+  border-color: #5a2033;
+}
+
+html.dark .df-timeline li::before {
+  background: #f5d0dc;
+  border-color: #2a1018;
+  box-shadow: 0 0 0 2px #5a2033;
+}
+
+html.dark .df-timeline-meta {
+  color: #b8b8b8;
+}
+
+html.dark .df-timeline-note {
+  background: #1f0c14;
+  color: #e8e8e8;
+}
+
+html.dark .df-table {
+  background: #2a1018;
+  color: #f0f0f0;
+}
+
+html.dark .df-table thead {
+  background: #3a1420;
+}
+
+html.dark .df-table th {
+  color: #f5d0dc;
+  border-bottom-color: #5a2033;
+}
+
+html.dark .df-table td {
+  border-bottom-color: #3a1420;
+}
+
+html.dark .df-table tbody tr:hover {
+  background: #3a1420;
+}
+
+html.dark .df-quiz-question {
+  border-bottom-color: #5a2033;
+}
+
+html.dark .df-quiz-label {
+  color: #f0f0f0;
+}
+
+html.dark .df-quiz-choices label:hover {
+  background: #3a1420;
+}
+
+html.dark .df-page-link {
+  color: #f5d0dc;
+  border-color: #5a2033;
+}
+
+html.dark .df-page-link:hover {
+  background: #3a1420;
+}
+
+html.dark .df-link-muted {
+  color: #b8b8b8;
+}
+
+html.dark .df-link-muted:hover {
+  color: #f5d0dc;
+}
+
+html.dark .df-divider {
+  border-top-color: #5a2033;
+}
+
+html.dark .df-table-wrap {
+  border-color: #5a2033;
+}
+
+html.dark .df-badge-type {
+  background: #2a1018;
+  color: #e8e8e8;
+  border-color: #5a2033;
+}
+
+/* Dark mode status/priority badges — keep semantic colors, soften for dark bg */
+html.dark .df-status-new        { background: #0d2a4a; color: #bbdefb; border-color: #1565c0; }
+html.dark .df-status-seen       { background: #2d1b3d; color: #e1bee7; border-color: #6a1b9a; }
+html.dark .df-status-in_progress{ background: #3e2510; color: #ffcc80; border-color: #e65100; }
+html.dark .df-status-resolved   { background: #0d3b14; color: #a5d6a7; border-color: #2e7d32; }
+html.dark .df-status-closed     { background: #263238; color: #cfd8dc; border-color: #546e7a; }
+
+html.dark .df-badge-priority-high   { background: #3d0f12; color: #ef9a9a; border-color: #b71c1c; }
+html.dark .df-badge-priority-normal { background: #2a1018; color: #e8e8e8; border-color: #5a2033; }
+html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; border-color: #00838f; }
+
+/* ==========================================================================
+   16. Print
+   ========================================================================== */
+@media print {
+  .df-btn-group,
+  .df-filter-bar,
+  .df-pagination {
+    display: none !important;
+  }
+  .df-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

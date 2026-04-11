@@ -52,6 +52,8 @@ urlpatterns = [
         "academic/",
         include("academic_management.urls", namespace="academic_management"),
     ),
+    # Developer Feedback — SPRINT-DF-001 — MTG-2026-014/015/016/017/018
+    path("developer-feedback/", include("developer_feedback.urls")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",

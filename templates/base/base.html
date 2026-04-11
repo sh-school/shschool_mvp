@@ -299,6 +299,7 @@
   <a href="{% url 'notifications_dashboard' %}">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
   <hr>
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
+  <a href="{% url 'developer_feedback:message_create' %}">{% include "components/icon.html" with name="mail" %} أرسل إلى المطوّر</a>
   {% if is_leadership %}
   <hr>
   <div class="sd-label">الأمان والصلاحيات</div>
