@@ -189,7 +189,7 @@ LOGGING = {
     "loggers": {
         "django": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "django.security": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
-        "django.request": {"handlers": ["file"], "level": "WARNING", "propagate": False},
+        "django.request": {"handlers": ["file", "console"], "level": "WARNING", "propagate": False},
         "notifications": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "notifications.hub": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
