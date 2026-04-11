@@ -11,6 +11,8 @@ Views لميزة "أرسل إلى المطوّر".
 
 from __future__ import annotations
 
+import logging
+
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
@@ -41,6 +43,8 @@ from developer_feedback.services.audit import (
     log_status_update,
 )
 from developer_feedback.services.notifications import send_developer_notification
+
+logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
 # 1) OnboardingView
@@ -191,7 +195,10 @@ class DeveloperInboxListView(DeveloperOnlyMixin, ListView):
     paginate_by = 25
 
     def get(self, request, *args, **kwargs):
-        log_inbox_view(request)
+        try:
+            log_inbox_view(request)
+        except Exception:
+            logger.exception("AuditLog failed in InboxListView — non-fatal")
         return super().get(request, *args, **kwargs)
 
     def get_queryset(self):
