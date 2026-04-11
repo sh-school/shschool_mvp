@@ -50,3 +50,6 @@ _*.txt
 
 # Secrets scan results
 .secrets-results.json
+
+# Local archive — مجلد محلي للملفات القديمة/المبعثرة (لا يُرفع)
+_archive/
