@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -114,7 +113,7 @@ def _render_email(payload: dict) -> tuple[str, str, str]:
 
 def send_developer_notification(
     message: DeveloperMessage,
-    recipient: Optional[str] = None,
+    recipient: str | None = None,
 ) -> DeveloperMessageNotification:
     """
     يرسل إشعار SMTP للمطوّر.
@@ -134,7 +133,7 @@ def send_developer_notification(
         status=NotificationStatus.PENDING,
     )
 
-    last_error: Optional[str] = None
+    last_error: str | None = None
     for attempt in range(1, MAX_RETRIES + 1):
         notification.attempt_count = attempt
         try:

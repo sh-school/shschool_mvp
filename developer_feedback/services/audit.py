@@ -6,14 +6,12 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from django.http import HttpRequest
 
 from developer_feedback.models import AuditAction, AuditLog, DeveloperMessage
 
 
-def _get_client_ip(request: HttpRequest) -> Optional[str]:
+def _get_client_ip(request: HttpRequest) -> str | None:
     """يستخرج IP العميل بشكل آمن من الـ request."""
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
     if xff:
@@ -27,7 +25,7 @@ def _get_client_ip(request: HttpRequest) -> Optional[str]:
 def log_audit(
     request: HttpRequest,
     action: str,
-    target_message: Optional[DeveloperMessage] = None,
+    target_message: DeveloperMessage | None = None,
 ) -> AuditLog:
     """
     يكتب إدخالاً جديداً في AuditLog.
