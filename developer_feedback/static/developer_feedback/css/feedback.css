@@ -109,16 +109,6 @@
 /* ==========================================================================
    3. Forms
    ========================================================================== */
-.df-form fieldset {
-  border: none;
-  padding: 0;
-  margin: 0 0 1rem;
-}
-
-.df-form fieldset legend {
-  padding: 0;
-}
-
 .df-form-group {
   margin-bottom: 1rem;
 }
@@ -144,12 +134,39 @@
 
 .df-form-group input[type="text"],
 .df-form-group input[type="search"],
+.df-form-group input[type="email"],
+.df-form-group input[type="url"],
+.df-form-group input[type="tel"],
+.df-form-group input[type="number"],
 .df-form-group textarea,
 .df-form-group select,
 .df-form .form-control,
 .df-form .form-select {
   width: 100%;
   min-height: 44px; /* touch target >= 44px */
+  padding: 0.625rem 0.875rem;
+  font-size: 1rem;
+  font-family: inherit;
+  line-height: 1.5;
+  color: #222;
+  background-color: #fff;
+  border: 1px solid var(--maroon-border, #e8b4c3);
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.df-form-group input[type="text"]:focus,
+.df-form-group input[type="search"]:focus,
+.df-form-group input[type="email"]:focus,
+.df-form-group input[type="url"]:focus,
+.df-form-group input[type="tel"]:focus,
+.df-form-group input[type="number"]:focus,
+.df-form-group textarea:focus,
+.df-form-group select:focus {
+  border-color: var(--maroon, #8A1538);
+  box-shadow: 0 0 0 3px rgba(138, 21, 56, 0.15);
+  outline: none;
 }
 
 .df-errorlist {
@@ -201,6 +218,7 @@
   line-height: 1.6;
 }
 
+/* Legacy support — Django's RadioSelect may still render a <ul> in some places */
 .df-quiz-choices ul {
   list-style: none;
   padding: 0;
@@ -211,7 +229,14 @@
   padding: 0.35rem 0;
 }
 
-.df-quiz-choices label {
+.df-quiz-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.df-quiz-choices label,
+.df-quiz-choices .df-quiz-choice {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -223,7 +248,8 @@
   min-height: 44px;
 }
 
-.df-quiz-choices label:hover {
+.df-quiz-choices label:hover,
+.df-quiz-choices .df-quiz-choice:hover {
   background: var(--maroon-bg, #fdf2f5);
 }
 
@@ -714,6 +740,31 @@ html.dark .df-form-group .helptext {
 
 html.dark .df-form-group label {
   color: #e8e8e8;
+}
+
+html.dark .df-form-group input[type="text"],
+html.dark .df-form-group input[type="search"],
+html.dark .df-form-group input[type="email"],
+html.dark .df-form-group input[type="url"],
+html.dark .df-form-group input[type="tel"],
+html.dark .df-form-group input[type="number"],
+html.dark .df-form-group textarea,
+html.dark .df-form-group select {
+  background-color: #1f0c14;
+  border-color: #5a2033;
+  color: #f0f0f0;
+}
+
+html.dark .df-form-group input[type="text"]:focus,
+html.dark .df-form-group input[type="search"]:focus,
+html.dark .df-form-group input[type="email"]:focus,
+html.dark .df-form-group input[type="url"]:focus,
+html.dark .df-form-group input[type="tel"]:focus,
+html.dark .df-form-group input[type="number"]:focus,
+html.dark .df-form-group textarea:focus,
+html.dark .df-form-group select:focus {
+  border-color: #f5d0dc;
+  box-shadow: 0 0 0 3px rgba(245, 208, 220, 0.15);
 }
 
 html.dark .df-context-preview {

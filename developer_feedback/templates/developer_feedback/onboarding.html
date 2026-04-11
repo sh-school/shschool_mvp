@@ -5,7 +5,7 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=1">
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=2">
 {% endblock %}
 
 {% block page_header %}
@@ -57,11 +57,9 @@
       <div class="df-errorlist" role="alert">{{ quiz_form.non_field_errors }}</div>
     {% endif %}
 
-    {# ────────────────────────────
-       قسم 1: الموافقات القانونية
-       ──────────────────────────── #}
-    <fieldset class="df-card">
-      <legend class="df-card-title">{% trans "القسم 1 — الموافقات القانونية" %}</legend>
+    {# قسم 1: الموافقات القانونية #}
+    <section class="df-card" role="group" aria-labelledby="df-section-1-title">
+      <h2 class="df-card-title" id="df-section-1-title">{% trans "القسم 1 — الموافقات القانونية" %}</h2>
 
       {% for field in consent_form %}
         <div class="df-form-group">
@@ -95,13 +93,11 @@
           {% endif %}
         </div>
       {% endfor %}
-    </fieldset>
+    </section>
 
-    {# ────────────────────────────
-       قسم 2: الاختبار (3 أسئلة)
-       ──────────────────────────── #}
-    <fieldset class="df-card">
-      <legend class="df-card-title">{% trans "القسم 2 — اختبار فهم قصير (3 أسئلة)" %}</legend>
+    {# قسم 2: الاختبار (3 أسئلة) #}
+    <section class="df-card" role="group" aria-labelledby="df-section-2-title">
+      <h2 class="df-card-title" id="df-section-2-title">{% trans "القسم 2 — اختبار فهم قصير (3 أسئلة)" %}</h2>
 
       {% for field in quiz_form %}
         <div class="df-form-group df-quiz-question">
@@ -110,7 +106,12 @@
             {% if field.field.required %}<span class="required" aria-hidden="true">*</span>{% endif %}
           </div>
           <div class="df-quiz-choices" role="radiogroup" aria-labelledby="label-{{ field.id_for_label }}" aria-required="true">
-            {{ field }}
+            {% for radio in field %}
+              <label for="{{ radio.id_for_label }}" class="df-quiz-choice">
+                {{ radio.tag }}
+                <span>{{ radio.choice_label }}</span>
+              </label>
+            {% endfor %}
           </div>
           {% if field.errors %}
             <ul class="df-errorlist" role="alert">
@@ -119,7 +120,7 @@
           {% endif %}
         </div>
       {% endfor %}
-    </fieldset>
+    </section>
 
     {# ── أزرار الإرسال ── #}
     <div class="df-btn-group">
@@ -135,5 +136,5 @@
 
 {% block extra_js %}
 {{ block.super }}
-<script src="{% static 'developer_feedback/js/feedback.js' %}?v=1" defer></script>
+<script src="{% static 'developer_feedback/js/feedback.js' %}?v=2" defer></script>
 {% endblock %}
