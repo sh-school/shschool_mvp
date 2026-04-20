@@ -292,8 +292,8 @@ class StudentService:
             active_enrollments
             .annotate(
                 stage=Case(
-                    When(class_group__grade__in=["7", "8", "9"], then=2),
-                    When(class_group__grade__in=["10", "11", "12"], then=3),
+                    When(class_group__grade__in=["G7", "G8", "G9"], then=2),
+                    When(class_group__grade__in=["G10", "G11", "G12"], then=3),
                     default=0,
                     output_field=IntegerField(),
                 )
