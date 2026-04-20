@@ -283,14 +283,15 @@ class StudentService:
         from django.db.models import Case, IntegerField, When
 
         # توزيع الطلاب حسب المرحلة الدراسية (متوسط 7-9 / ثانوي 10-12 فقط — لا ابتدائي)
-        active_enrollments = stats.get("_active_enrollments_qs") or StudentEnrollment.objects.filter(
+        active_enrollments = stats.get(
+            "_active_enrollments_qs"
+        ) or StudentEnrollment.objects.filter(
             class_group__school=school,
             class_group__academic_year=year,
             is_active=True,
         )
         stage_qs = (
-            active_enrollments
-            .annotate(
+            active_enrollments.annotate(
                 stage=Case(
                     When(class_group__grade__in=["G7", "G8", "G9"], then=2),
                     When(class_group__grade__in=["G10", "G11", "G12"], then=3),
@@ -330,9 +331,7 @@ class StudentService:
         # قائمتا الغائبين/المتأخرين: dedupe بالطالب + dicts بمفاتيح نظيفة للعرض
         def _dedupe_attendance_list(status: str):
             rows = (
-                StudentAttendance.objects.filter(
-                    school=school, session__date=today, status=status
-                )
+                StudentAttendance.objects.filter(school=school, session__date=today, status=status)
                 .select_related("student", "session__class_group")
                 .values(
                     "student_id",
@@ -349,11 +348,13 @@ class StudentService:
                 if sid in seen:
                     continue
                 seen.add(sid)
-                result.append({
-                    "id": sid,
-                    "full_name": r["student__full_name"],
-                    "class_group": f"{r['session__class_group__grade']}/{r['session__class_group__section']}",
-                })
+                result.append(
+                    {
+                        "id": sid,
+                        "full_name": r["student__full_name"],
+                        "class_group": f"{r['session__class_group__grade']}/{r['session__class_group__section']}",
+                    }
+                )
                 if len(result) >= 100:
                     break
             return result
