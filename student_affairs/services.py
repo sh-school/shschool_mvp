@@ -277,6 +277,88 @@ class StudentService:
             .order_by("-date")[:5]
         )
 
+        # ── إحصائيات الطلب 3 (SOS-20260420-9A91) ──────────────────────
+        from django.db.models import Case, IntegerField, When
+
+        # توزيع الطلاب حسب المرحلة الدراسية
+        active_enrollments = stats.get("_active_enrollments_qs") or StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+        stage_qs = (
+            active_enrollments
+            .annotate(
+                stage=Case(
+                    When(class_group__grade__in=["1", "2", "3", "4", "5", "6"], then=1),
+                    When(class_group__grade__in=["7", "8", "9"], then=2),
+                    When(class_group__grade__in=["10", "11", "12"], then=3),
+                    default=0,
+                    output_field=IntegerField(),
+                )
+            )
+            .values("stage")
+            .annotate(count=Count("id"))
+            .order_by("stage")
+        )
+        stage_map = {row["stage"]: row["count"] for row in stage_qs}
+
+        # نسبة القطريين
+        total_students = stats.get("total_students", 0)
+        qatari_count = Membership.objects.filter(
+            school=school,
+            role__name="student",
+            is_active=True,
+            user__nationality__icontains="قطري",
+        ).count()
+        qatari_pct = round(qatari_count * 100 / total_students) if total_students else 0
+
+        # نسب الغياب والتأخير
+        today_att = stats.get("today_attendance", {})
+        absent_today_n = today_att.get("absent") or 0
+        late_today_n = today_att.get("late") or 0
+        absent_pct = round(absent_today_n * 100 / total_students) if total_students else 0
+        late_pct = round(late_today_n * 100 / total_students) if total_students else 0
+
+        # مخالفات اليوم
+        today_behavior_count = BehaviorInfraction.objects.filter(
+            school=school,
+            date=today,
+        ).count()
+
+        # قائمة الغائبين اليوم
+        absent_list = list(
+            StudentAttendance.objects.filter(school=school, session__date=today, status="absent")
+            .select_related("student", "session__class_group")
+            .values(
+                "student__id",
+                "student__full_name",
+                "session__class_group__grade",
+                "session__class_group__section",
+            )
+            .distinct()[:100]
+        )
+
+        # قائمة المتأخرين اليوم
+        late_list = list(
+            StudentAttendance.objects.filter(school=school, session__date=today, status="late")
+            .select_related("student", "session__class_group")
+            .values(
+                "student__id",
+                "student__full_name",
+                "session__class_group__grade",
+                "session__class_group__section",
+            )
+            .distinct()[:100]
+        )
+
+        # قائمة المخالفين اليوم
+        today_infraction_list = list(
+            BehaviorInfraction.objects.filter(school=school, date=today)
+            .select_related("student", "violation_category")
+            .order_by("student__full_name")[:100]
+        )
+
         return {
             **stats,
             "clinic_today": clinic_today,
@@ -285,6 +367,15 @@ class StudentService:
             "no_parent_count": no_parent_count,
             "weekly_tardiness": weekly_tardiness,
             "recent_activities": recent_activities,
+            # Req3 additions
+            "stage_map": stage_map,
+            "qatari_pct": qatari_pct,
+            "absent_pct": absent_pct,
+            "late_pct": late_pct,
+            "today_behavior_count": today_behavior_count,
+            "absent_list": absent_list,
+            "late_list": late_list,
+            "today_infraction_list": today_infraction_list,
         }
 
     # ── ملف الطالب الشامل ──────────────────────────────────────────

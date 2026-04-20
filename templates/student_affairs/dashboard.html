@@ -70,6 +70,165 @@
     </div>
   </details>
 
+
+  {# ── قسم 1: الإحصائيات اليومية (SOS-20260420-9A91) ── #}
+  <div class="dash-chart-card" style="margin-top:1.5rem">
+    <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart-2" %} الإحصائيات اليومية</div>
+    <div class="kpi-strip" style="margin-top:12px">
+      <div class="kpi-mini kpi-maroon">
+        <div class="kpi-mini-label">إجمالي الطلاب</div>
+        <div class="kpi-mini-value">{{ total_students }}</div>
+        <div class="kpi-mini-sub">{{ year }}</div>
+      </div>
+
+      <div class="kpi-mini kpi-blue">
+        <div class="kpi-mini-label">ابتدائي</div>
+        <div class="kpi-mini-value">{{ stage_map.1|default:0 }}</div>
+        <div class="kpi-mini-sub">الصفوف 1-6</div>
+      </div>
+
+      <div class="kpi-mini kpi-teal">
+        <div class="kpi-mini-label">متوسط</div>
+        <div class="kpi-mini-value">{{ stage_map.2|default:0 }}</div>
+        <div class="kpi-mini-sub">الصفوف 7-9</div>
+      </div>
+
+      <div class="kpi-mini kpi-purple">
+        <div class="kpi-mini-label">ثانوي</div>
+        <div class="kpi-mini-value">{{ stage_map.3|default:0 }}</div>
+        <div class="kpi-mini-sub">الصفوف 10-12</div>
+      </div>
+
+      <div class="kpi-mini kpi-green">
+        <div class="kpi-mini-label">نسبة القطريين</div>
+        <div class="kpi-mini-value">{{ qatari_pct }}%</div>
+        <div class="kpi-mini-sub">من إجمالي الطلاب</div>
+      </div>
+
+      <div class="kpi-mini kpi-red">
+        <div class="kpi-mini-label">نسبة الغياب اليوم</div>
+        <div class="kpi-mini-value">{{ absent_pct }}%</div>
+        <div class="kpi-mini-sub">{{ absent_today }} طالب</div>
+      </div>
+
+      <div class="kpi-mini kpi-orange">
+        <div class="kpi-mini-label">نسبة التأخير اليوم</div>
+        <div class="kpi-mini-value">{{ late_pct }}%</div>
+        <div class="kpi-mini-sub">{{ late_today }} طالب</div>
+      </div>
+
+      <div class="kpi-mini kpi-maroon">
+        <div class="kpi-mini-label">مخالفات اليوم</div>
+        <div class="kpi-mini-value">{{ today_behavior_count }}</div>
+        <div class="kpi-mini-sub">{{ today|date:"d/m/Y" }}</div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ── قسم 2: القوائم اليومية (SOS-20260420-9A91) ── #}
+  <div class="charts-grid-3" style="margin-top:1.5rem">
+
+    {# قائمة الغائبين #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="user-x" %}الغائبون اليوم
+        <span class="status-badge status-danger" style="margin-right:8px;font-size:.7rem">{{ absent_today }}</span>
+      </div>
+      {% if absent_list %}
+      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
+        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
+          <thead style="position:sticky;top:0;background:var(--card-bg,#fff)">
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
+              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
+              <th style="padding:6px 8px;text-align:center;font-weight:600">الصف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in absent_list %}
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:6px 8px;color:var(--muted)">{{ forloop.counter }}</td>
+              <td style="padding:6px 8px;font-weight:500">{{ s.full_name }}</td>
+              <td style="padding:6px 8px;text-align:center">{{ s.class_group }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:.85rem">لا غياب اليوم</div>
+      {% endif %}
+    </div>
+
+    {# قائمة المتأخرين #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="clock" %}المتأخرون اليوم
+        <span class="status-badge status-warning" style="margin-right:8px;font-size:.7rem">{{ late_today }}</span>
+      </div>
+      {% if late_list %}
+      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
+        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
+          <thead style="position:sticky;top:0;background:var(--card-bg,#fff)">
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
+              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
+              <th style="padding:6px 8px;text-align:center;font-weight:600">الصف</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in late_list %}
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:6px 8px;color:var(--muted)">{{ forloop.counter }}</td>
+              <td style="padding:6px 8px;font-weight:500">{{ s.full_name }}</td>
+              <td style="padding:6px 8px;text-align:center">{{ s.class_group }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:.85rem">لا تأخير اليوم</div>
+      {% endif %}
+    </div>
+
+    {# قائمة المخالفين #}
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">{% include "components/icon.html" with name="scale" %}مخالفات اليوم السلوكية
+        <span class="status-badge status-danger" style="margin-right:8px;font-size:.7rem">{{ today_behavior_count }}</span>
+      </div>
+      {% if today_infraction_list %}
+      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
+        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
+          <thead style="position:sticky;top:0;background:var(--card-bg,#fff)">
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
+              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
+              <th style="padding:6px 8px;text-align:right;font-weight:600">المخالفة</th>
+              <th style="padding:6px 8px;text-align:center;font-weight:600">د</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inf in today_infraction_list %}
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:6px 8px;color:var(--muted)">{{ forloop.counter }}</td>
+              <td style="padding:6px 8px;font-weight:500">{{ inf.student.full_name }}</td>
+              <td style="padding:6px 8px;font-size:.75rem">{{ inf.violation_category.name_ar|truncatechars:40 }}</td>
+              <td style="padding:6px 8px;text-align:center">
+                <span class="status-badge {% if inf.level == 1 %}status-success{% elif inf.level == 2 %}status-warning{% elif inf.level == 3 %}status-warning{% else %}status-danger{% endif %}">
+                  د{{ inf.level }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:24px;color:var(--muted);font-size:.85rem">لا مخالفات اليوم</div>
+      {% endif %}
+    </div>
+
+  </div>
   {# ── الروابط السريعة ── #}
   <div class="quick-links">
     <a href="{% url 'student_affairs:student_list' %}" class="ql-item">

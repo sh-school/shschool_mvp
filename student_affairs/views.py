@@ -82,6 +82,15 @@ def student_dashboard(request):
             "no_parent_count": ctx["no_parent_count"],
             "weekly_tardiness": ctx["weekly_tardiness"],
             "recent_activities": ctx["recent_activities"],
+            # Req3 — لوحة اليوم
+            "stage_map": ctx.get("stage_map", {}),
+            "qatari_pct": ctx.get("qatari_pct", 0),
+            "absent_pct": ctx.get("absent_pct", 0),
+            "late_pct": ctx.get("late_pct", 0),
+            "today_behavior_count": ctx.get("today_behavior_count", 0),
+            "absent_list": ctx.get("absent_list", []),
+            "late_list": ctx.get("late_list", []),
+            "today_infraction_list": ctx.get("today_infraction_list", []),
         },
     )
 
