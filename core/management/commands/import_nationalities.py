@@ -1,16 +1,21 @@
 """
-management command: python manage.py import_nationalities [--file PATH]
+management command: python manage.py import_nationalities [--file PATH | --stdin]
 
 يستورد قيم الجنسية من ملف سجل القيد الرسمي (سجل_القيد_*.xlsx) أو من CSV
 بعمودين: national_id, nationality.
 
 السبب: ملف طلاب الوزارة (new_students_full.csv) لا يحتوي عمود الجنسية،
 لكن سجل القيد الصادر من نظام المدرسة يحتوي العمود في الصف الرابع.
+
+للإنتاج (Railway):
+    cat data/student_nationalities.csv | railway run python manage.py \\
+        import_nationalities --stdin
 """
 
 from __future__ import annotations
 
 import csv
+import sys
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -31,24 +36,32 @@ class Command(BaseCommand):
             help=f"مسار CSV (افتراضي: {DEFAULT_CSV})",
         )
         parser.add_argument(
+            "--stdin",
+            action="store_true",
+            help="قراءة CSV من stdin بدل ملف على القرص",
+        )
+        parser.add_argument(
             "--dry-run",
             action="store_true",
             help="استعراض التغييرات فقط بدون حفظ",
         )
 
     def handle(self, *args, **options):
-        path = Path(options["file"])
-        if not path.exists():
-            raise CommandError(f"الملف غير موجود: {path}")
-
         dry = options["dry_run"]
         updated = 0
         skipped_nomatch = 0
         skipped_unchanged = 0
 
-        with path.open("r", encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
+        if options["stdin"]:
+            reader = csv.DictReader(sys.stdin)
             rows = list(reader)
+        else:
+            path = Path(options["file"])
+            if not path.exists():
+                raise CommandError(f"الملف غير موجود: {path}")
+            with path.open("r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                rows = list(reader)
 
         self.stdout.write(f"عدد الصفوف في CSV: {len(rows)}")
 
