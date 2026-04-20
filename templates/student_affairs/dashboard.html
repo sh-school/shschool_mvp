@@ -22,103 +22,52 @@
     </div>
   </div>
 
-  {# ── KPI Strip — 5 بطاقات أساسية ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">إجمالي الطلاب</div>
-      <div class="kpi-mini-value">{{ total_students }}</div>
-      <div class="kpi-mini-sub">{{ year }}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">غائبون اليوم</div>
-      <div class="kpi-mini-value">{{ absent_today }}</div>
-      <div class="kpi-mini-sub">متأخرون: {{ late_today }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">مخالفات الشهر</div>
-      <div class="kpi-mini-value">{{ behavior_month }}</div>
-      <div class="kpi-mini-sub">{{ today|date:"F Y" }}</div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">زيارات العيادة</div>
-      <div class="kpi-mini-value">{{ clinic_today }}</div>
-      <div class="kpi-mini-sub">اليوم</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">انتقالات معلقة</div>
-      <div class="kpi-mini-value">{{ pending_transfers }}</div>
-      <div class="kpi-mini-sub">قيد المراجعة</div>
-    </div>
-  </div>
-
-  {# ── KPIs ثانوية (قابلة للطي) ── #}
-  <details class="exec-details">
-    <summary class="exec-details-summary">{% include "components/icon.html" with name="bar-chart" %} إحصائيات إضافية</summary>
-    <div class="kpi-strip" style="margin-top:8px">
-      <div class="kpi-mini kpi-green">
-        <div class="kpi-mini-label">حاضرون اليوم</div>
-        <div class="kpi-mini-value">{{ present_today }}</div>
-      </div>
-      <div class="kpi-mini kpi-purple">
-        <div class="kpi-mini-label">أولياء أمور مرتبطون</div>
-        <div class="kpi-mini-value">{{ linked_parents }}</div>
-      </div>
-      <div class="kpi-mini kpi-sky">
-        <div class="kpi-mini-label">أنشطة العام</div>
-        <div class="kpi-mini-value">{{ activities_year }}</div>
-      </div>
-    </div>
-  </details>
-
-
-  {# ── قسم 1: الإحصائيات اليومية (SOS-20260420-9A91) ── #}
-  <div class="dash-chart-card" style="margin-top:1.5rem">
+  {# ── الجزء الأول: الإحصائيات اليومية (SOS-20260420-9A91) — 6 عناصر حسب طلب المدير ── #}
+  <div class="dash-chart-card">
     <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart-2" %} الإحصائيات اليومية</div>
     <div class="kpi-strip" style="margin-top:12px">
+
+      {# 1. إجمالي الطلاب #}
       <div class="kpi-mini kpi-maroon">
         <div class="kpi-mini-label">إجمالي الطلاب</div>
         <div class="kpi-mini-value">{{ total_students }}</div>
         <div class="kpi-mini-sub">{{ year }}</div>
       </div>
 
+      {# 2. أعداد الطلاب على مستوى المراحل — متوسط + ثانوي #}
       <div class="kpi-mini kpi-blue">
-        <div class="kpi-mini-label">ابتدائي</div>
-        <div class="kpi-mini-value">{{ stage_map.1|default:0 }}</div>
-        <div class="kpi-mini-sub">الصفوف 1-6</div>
+        <div class="kpi-mini-label">أعداد الطلاب على مستوى المراحل</div>
+        <div class="kpi-mini-value" style="font-size:1.1rem;line-height:1.4">
+          <span>متوسط: <strong>{{ stage_map.2|default:0 }}</strong></span>
+          <span style="margin-right:10px">ثانوي: <strong>{{ stage_map.3|default:0 }}</strong></span>
+        </div>
+        <div class="kpi-mini-sub">7-9 / 10-12</div>
       </div>
 
-      <div class="kpi-mini kpi-teal">
-        <div class="kpi-mini-label">متوسط</div>
-        <div class="kpi-mini-value">{{ stage_map.2|default:0 }}</div>
-        <div class="kpi-mini-sub">الصفوف 7-9</div>
-      </div>
-
-      <div class="kpi-mini kpi-purple">
-        <div class="kpi-mini-label">ثانوي</div>
-        <div class="kpi-mini-value">{{ stage_map.3|default:0 }}</div>
-        <div class="kpi-mini-sub">الصفوف 10-12</div>
-      </div>
-
+      {# 3. نسبة الطلاب القطريين #}
       <div class="kpi-mini kpi-green">
-        <div class="kpi-mini-label">نسبة القطريين</div>
+        <div class="kpi-mini-label">نسبة الطلاب القطريين</div>
         <div class="kpi-mini-value">{{ qatari_pct }}%</div>
         <div class="kpi-mini-sub">من إجمالي الطلاب</div>
       </div>
 
+      {# 4. نسبة الغياب #}
       <div class="kpi-mini kpi-red">
-        <div class="kpi-mini-label">نسبة الغياب اليوم</div>
+        <div class="kpi-mini-label">نسبة الغياب</div>
         <div class="kpi-mini-value">{{ absent_pct }}%</div>
         <div class="kpi-mini-sub">{{ absent_today }} طالب</div>
       </div>
 
+      {# 5. نسبة التأخير #}
       <div class="kpi-mini kpi-orange">
-        <div class="kpi-mini-label">نسبة التأخير اليوم</div>
+        <div class="kpi-mini-label">نسبة التأخير</div>
         <div class="kpi-mini-value">{{ late_pct }}%</div>
         <div class="kpi-mini-sub">{{ late_today }} طالب</div>
       </div>
 
+      {# 6. عدد المخالفات اليومية #}
       <div class="kpi-mini kpi-maroon">
-        <div class="kpi-mini-label">مخالفات اليوم</div>
+        <div class="kpi-mini-label">عدد المخالفات اليومية</div>
         <div class="kpi-mini-value">{{ today_behavior_count }}</div>
         <div class="kpi-mini-sub">{{ today|date:"d/m/Y" }}</div>
       </div>

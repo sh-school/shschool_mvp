@@ -22,7 +22,7 @@ core/models/audit.py       → AuditLog, ConsentRecord, BreachReport, ErasureReq
 
 operations/models.py       → Subject, Session, StudentAttendance, ScheduleSlot, TeacherAbsence, SubstituteAssignment, AbsenceAlert, TimeSlotConfig, SubjectClassAssignment
 assessments/models.py      → SubjectClassSetup, AssessmentPackage, Assessment, StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult
-behavior/models.py         → ViolationCategory (46 مخالفة), BehaviorInfraction, BehaviorPointRecovery
+behavior/models.py         → ViolationCategory (40 مخالفة — لائحة الشحانية), BehaviorInfraction, BehaviorPointRecovery
 quality/models.py          → OperationalDomain, OperationalTarget, OperationalIndicator, OperationalProcedure, ProcedureEvidence
 notifications/models.py    → NotificationLog, NotificationSettings, PushSubscription, InAppNotification, UserNotificationPreference
 clinic/models.py           → HealthRecord (مشفّر Fernet), ClinicVisit
@@ -141,10 +141,10 @@ user.is_teacher()         # → teacher أو coordinator أو ese_teacher
 
 ---
 
-## 6. السلوك — 46 مخالفة × 4 درجات
+## 6. السلوك — 40 مخالفة × 4 درجات (لائحة الشحانية)
 
 ```
-ViolationCategory → degree (1-4), code ("1-01"..."4-13"), tags (tech/safety/law/national)
+ViolationCategory → degree (1-4), code ("1-01"..."4-13"), tags (فارغة — لم يطلبها المدير)
 BehaviorInfraction → student, violation_category, level (1-4), escalation_step (0-4)
                      حقول خاصة بالدرجة 3: social_media_platform, digital_evidence_notes
                      حقول خاصة بالدرجة 4: security_referral_date, security_agency

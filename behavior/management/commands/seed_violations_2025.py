@@ -1,6 +1,6 @@
 """
 management command: python manage.py seed_violations_2025
-يحقن 46 مخالفة رسمية وفق لائحة وزارة التربية القطرية 2025-2026
+يحقن 40 مخالفة رسمية وفق لائحة مدرسة الشحانية (SOS-20260420-1E01)
 """
 
 from django.core.management.base import BaseCommand
@@ -9,7 +9,7 @@ from behavior.models import ViolationCategory
 
 
 class Command(BaseCommand):
-    help = "حقن 46 مخالفة رسمية — لائحة السلوك الطلابي قطر 2025-2026"
+    help = "حقن 40 مخالفة رسمية — لائحة مدرسة الشحانية"
 
     def add_arguments(self, parser):
         parser.add_argument(

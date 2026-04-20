@@ -1,7 +1,7 @@
 """
 behavior/models.py
-نماذج السلوك الطلابي — v6 (لائحة قطر 2025-2026)
-✅ ViolationCategory: 46 مخالفة رسمية × 4 درجات
+نماذج السلوك الطلابي — v6 (لائحة مدرسة الشحانية)
+✅ ViolationCategory: 40 مخالفة رسمية × 4 درجات
 ✅ BehaviorInfraction: حقول الإحالة الأمنية + التشهير الرقمي + الإجراء التصاعدي
 ✅ BehaviorPointRecovery: استعادة النقاط (التعزيز الإيجابي)
 """
@@ -29,8 +29,8 @@ def _uuid():
 # ─────────────────────────────────────────────────────────────────
 class ViolationCategory(models.Model):
     """
-    فئة مخالفة سلوكية وفق لائحة وزارة التربية القطرية 2025-2026
-    4 درجات × 46 مخالفة — يُحقن بأمر: python manage.py seed_violations_2025
+    فئة مخالفة سلوكية وفق لائحة مدرسة الشحانية (SOS-20260420-1E01)
+    4 درجات × 40 مخالفة — يُحقن بأمر: python manage.py seed_violations_2025
     """
 
     # ── keep old ABCD for backward compat ──
@@ -185,7 +185,7 @@ class ViolationCategory(models.Model):
 
     @classmethod
     def seed_2025(cls):
-        """حقن 46 مخالفة رسمية وفق لائحة وزارة التربية القطرية 2025-2026"""
+        """حقن 40 مخالفة رسمية وفق لائحة مدرسة الشحانية (SOS-20260420-1E01)"""
         created = 0
         for degree, code, name, pts, tag_list in VIOLATIONS_2025:
             obj, made = cls.objects.get_or_create(

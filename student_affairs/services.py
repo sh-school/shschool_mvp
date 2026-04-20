@@ -277,10 +277,12 @@ class StudentService:
             .order_by("-date")[:5]
         )
 
-        # ── إحصائيات الطلب 3 (SOS-20260420-9A91) ──────────────────────
+        # ── إحصائيات لوحة شؤون الطلاب (SOS-20260420-9A91) ─────────────
+        # الجزء الأول: إحصائيات يومية ( 6 عناصر — طلب المدير )
+        # الجزء الثاني: 3 قوائم — غائبون، متأخرون، مخالفون
         from django.db.models import Case, IntegerField, When
 
-        # توزيع الطلاب حسب المرحلة الدراسية
+        # توزيع الطلاب حسب المرحلة الدراسية (متوسط 7-9 / ثانوي 10-12 فقط — لا ابتدائي)
         active_enrollments = stats.get("_active_enrollments_qs") or StudentEnrollment.objects.filter(
             class_group__school=school,
             class_group__academic_year=year,
@@ -290,7 +292,6 @@ class StudentService:
             active_enrollments
             .annotate(
                 stage=Case(
-                    When(class_group__grade__in=["1", "2", "3", "4", "5", "6"], then=1),
                     When(class_group__grade__in=["7", "8", "9"], then=2),
                     When(class_group__grade__in=["10", "11", "12"], then=3),
                     default=0,
@@ -326,31 +327,39 @@ class StudentService:
             date=today,
         ).count()
 
-        # قائمة الغائبين اليوم
-        absent_list = list(
-            StudentAttendance.objects.filter(school=school, session__date=today, status="absent")
-            .select_related("student", "session__class_group")
-            .values(
-                "student__id",
-                "student__full_name",
-                "session__class_group__grade",
-                "session__class_group__section",
+        # قائمتا الغائبين/المتأخرين: dedupe بالطالب + dicts بمفاتيح نظيفة للعرض
+        def _dedupe_attendance_list(status: str):
+            rows = (
+                StudentAttendance.objects.filter(
+                    school=school, session__date=today, status=status
+                )
+                .select_related("student", "session__class_group")
+                .values(
+                    "student_id",
+                    "student__full_name",
+                    "session__class_group__grade",
+                    "session__class_group__section",
+                )
+                .order_by("student__full_name")
             )
-            .distinct()[:100]
-        )
+            seen = set()
+            result = []
+            for r in rows:
+                sid = r["student_id"]
+                if sid in seen:
+                    continue
+                seen.add(sid)
+                result.append({
+                    "id": sid,
+                    "full_name": r["student__full_name"],
+                    "class_group": f"{r['session__class_group__grade']}/{r['session__class_group__section']}",
+                })
+                if len(result) >= 100:
+                    break
+            return result
 
-        # قائمة المتأخرين اليوم
-        late_list = list(
-            StudentAttendance.objects.filter(school=school, session__date=today, status="late")
-            .select_related("student", "session__class_group")
-            .values(
-                "student__id",
-                "student__full_name",
-                "session__class_group__grade",
-                "session__class_group__section",
-            )
-            .distinct()[:100]
-        )
+        absent_list = _dedupe_attendance_list("absent")
+        late_list = _dedupe_attendance_list("late")
 
         # قائمة المخالفين اليوم
         today_infraction_list = list(
