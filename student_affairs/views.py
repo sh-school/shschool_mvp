@@ -413,6 +413,7 @@ def student_add(request):
                         "email": cd.get("email", ""),
                         "gender": cd.get("gender", ""),
                         "birth_date": cd.get("birth_date"),
+                        "nationality": cd.get("nationality", ""),
                         "class_group_id": class_group.pk,
                     },
                 )

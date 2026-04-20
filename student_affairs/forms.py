@@ -21,8 +21,8 @@ class StudentAddForm(forms.Form):
 
     national_id = forms.CharField(
         max_length=20,
-        label="الرقم الوطني",
-        error_messages={"required": "الرقم الوطني مطلوب."},
+        label="الرقم الشخصي",
+        error_messages={"required": "الرقم الشخصي مطلوب."},
     )
     full_name = forms.CharField(
         max_length=200,
@@ -32,6 +32,12 @@ class StudentAddForm(forms.Form):
     gender = forms.ChoiceField(
         choices=[("M", "ذكر"), ("F", "أنثى")],
         label="الجنس",
+    )
+    nationality = forms.CharField(
+        max_length=100,
+        required=False,
+        label="الجنسية",
+        initial="قطري",
     )
     birth_date = forms.DateField(
         widget=forms.DateInput(attrs={"type": "date"}),

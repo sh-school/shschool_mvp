@@ -50,6 +50,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         db_index=True,
         verbose_name="HMAC الجوال",
     )
+    nationality = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="الجنسية",
+    )
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)

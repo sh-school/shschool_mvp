@@ -439,6 +439,7 @@ class StudentService:
                 - birth_date (date, optional)
                 - phone (str, optional)
                 - email (str, optional)
+                - nationality (str, optional): الجنسية
                 - class_group_id (UUID): معرّف الفصل الدراسي
 
         Returns:
@@ -473,7 +474,9 @@ class StudentService:
             phone=data.get("phone", ""),
         )
         user.must_change_password = True
-        user.save(update_fields=["must_change_password"])
+        if data.get("nationality"):
+            user.nationality = data["nationality"]
+        user.save(update_fields=["must_change_password", "nationality"])
 
         # ── 2. الملف الشخصي ──
         Profile.objects.create(
