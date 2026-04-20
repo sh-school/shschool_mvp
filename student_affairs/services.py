@@ -305,13 +305,13 @@ class StudentService:
         )
         stage_map = {row["stage"]: row["count"] for row in stage_qs}
 
-        # نسبة القطريين
+        # نسبة القطريين — سجل القيد الرسمي يستخدم "قطر" (اسم الدولة) لا "قطري"
         total_students = stats.get("total_students", 0)
         qatari_count = Membership.objects.filter(
             school=school,
             role__name="student",
             is_active=True,
-            user__nationality__icontains="قطري",
+            user__nationality__in=["قطر", "قطري"],
         ).count()
         qatari_pct = round(qatari_count * 100 / total_students) if total_students else 0
 
