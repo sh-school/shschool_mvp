@@ -60,6 +60,8 @@ def student_dashboard(request):
     ctx = StudentService.get_dashboard_context(school, year, today=today)
     att = ctx["today_attendance"]
 
+    # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
+    # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
     return render(
         request,
         "student_affairs/dashboard.html",
@@ -70,24 +72,14 @@ def student_dashboard(request):
             "total_students": ctx["total_students"],
             "absent_today": att["absent"] or 0,
             "late_today": att["late"] or 0,
-            "present_today": att["present"] or 0,
-            "behavior_month": ctx["behavior_month"]["total"] or 0,
-            "clinic_today": ctx["clinic_today"],
-            "pending_transfers": ctx["pending_transfers"],
             "grade_distribution": ctx["grade_distribution"],
-            "linked_parents": ctx["parent_link_count"],
-            "activities_year": ctx["activities_count"],
-            "recent_infractions": ctx["recent_infractions"],
-            "recent_transfers": ctx["recent_transfers"],
-            "no_parent_count": ctx["no_parent_count"],
-            "weekly_tardiness": ctx["weekly_tardiness"],
-            "recent_activities": ctx["recent_activities"],
-            # Req3 — لوحة اليوم
+            # الجزء 1 — إحصائيات اليوم
             "stage_map": ctx.get("stage_map", {}),
             "qatari_pct": ctx.get("qatari_pct", 0),
             "absent_pct": ctx.get("absent_pct", 0),
             "late_pct": ctx.get("late_pct", 0),
             "today_behavior_count": ctx.get("today_behavior_count", 0),
+            # الجزء 2 — القوائم اليومية
             "absent_list": ctx.get("absent_list", []),
             "late_list": ctx.get("late_list", []),
             "today_infraction_list": ctx.get("today_infraction_list", []),

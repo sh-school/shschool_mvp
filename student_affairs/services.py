@@ -280,7 +280,7 @@ class StudentService:
         # الجزء الثاني: 3 قوائم — غائبون، متأخرون، مخالفون
         from django.db.models import Case, IntegerField, When
 
-        # توزيع الطلاب حسب المرحلة الدراسية (متوسط 7-9 / ثانوي 10-12 فقط — لا ابتدائي)
+        # توزيع الطلاب حسب المرحلة الدراسية (إعدادي 7-9 / ثانوي 10-12 فقط — لا ابتدائي)
         active_enrollments = stats.get(
             "_active_enrollments_qs"
         ) or StudentEnrollment.objects.filter(

@@ -34,11 +34,11 @@
         <div class="kpi-mini-sub">{{ year }}</div>
       </div>
 
-      {# 2. أعداد الطلاب على مستوى المراحل — متوسط + ثانوي #}
+      {# 2. أعداد الطلاب على مستوى المراحل — إعدادي + ثانوي #}
       <div class="kpi-mini kpi-blue">
         <div class="kpi-mini-label">أعداد الطلاب على مستوى المراحل</div>
         <div class="kpi-mini-value" style="font-size:1.1rem;line-height:1.4">
-          <span>متوسط: <strong>{{ stage_map.2|default:0 }}</strong></span>
+          <span>إعدادي: <strong>{{ stage_map.2|default:0 }}</strong></span>
           <span style="margin-right:10px">ثانوي: <strong>{{ stage_map.3|default:0 }}</strong></span>
         </div>
         <div class="kpi-mini-sub">7-9 / 10-12</div>
@@ -237,109 +237,6 @@
         </tbody>
       </table>
     </div>
-  </div>
-  {% endif %}
-
-  {# ── صفّين: آخر المخالفات + آخر الانتقالات ── #}
-  <div class="charts-grid-2">
-
-    {# آخر المخالفات السلوكية #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="scale" %} آخر المخالفات السلوكية</div>
-      {% if recent_infractions %}
-      <div class="dash-list">
-        {% for inf in recent_infractions %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ inf.student.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ inf.date|date:"d/m" }}</span>
-          </div>
-          <span class="status-badge
-            {% if inf.level == 1 %}status-success
-            {% elif inf.level == 2 %}status-warning
-            {% elif inf.level == 3 %}status-warning
-            {% else %}status-danger{% endif %}">
-            د{{ inf.level }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا توجد مخالفات هذا الشهر" %}
-      {% endif %}
-    </div>
-
-    {# آخر الانتقالات #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="refresh" %} آخر الانتقالات</div>
-      {% if recent_transfers %}
-      <div class="dash-list">
-        {% for tr in recent_transfers %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ tr.student.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">
-              {% if tr.direction == "in" %}← وارد{% else %}→ صادر{% endif %}
-            </span>
-          </div>
-          <span class="status-badge
-            {% if tr.status == "pending" %}status-warning
-            {% elif tr.status == "approved" %}status-info
-            {% elif tr.status == "completed" %}status-success
-            {% elif tr.status == "rejected" %}status-danger
-            {% else %}status-gray{% endif %}">
-            {{ tr.get_status_display }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا توجد انتقالات" %}
-      {% endif %}
-    </div>
-
-  </div>
-
-  {# ── Widget: طلاب بدون ولي أمر ── #}
-  {% if no_parent_count > 0 %}
-  <div class="card-qatar" style="margin-top:1.5rem;padding:16px 20px;border-right:4px solid #f59e0b">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="alert-triangle" %} طلاب بدون ولي أمر مرتبط</h3>
-        <p style="font-size:.85rem;color:var(--text-muted);margin:4px 0 0">{{ no_parent_count }} طالب بحاجة لربط ولي أمر</p>
-      </div>
-      <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور</a>
-    </div>
-  </div>
-  {% endif %}
-
-  {# ── Widget: التأخرات هذا الأسبوع ── #}
-  <div class="card-qatar" style="margin-top:1rem;padding:16px 20px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="clock" %} التأخر الصباحي هذا الأسبوع</h3>
-        <p style="font-size:1.3rem;font-weight:700;color:{% if weekly_tardiness == 0 %}var(--success-color){% elif weekly_tardiness <= 10 %}#f59e0b{% else %}var(--danger-color){% endif %};margin:8px 0 0">{{ weekly_tardiness }} حالة تأخر</p>
-      </div>
-      <a href="{% url 'student_affairs:tardiness_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} التفاصيل</a>
-    </div>
-  </div>
-
-  {# ── Widget: آخر الأنشطة الطلابية ── #}
-  {% if recent_activities %}
-  <div class="card-qatar" style="margin-top:1rem;padding:16px 20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <h3 style="font-size:.95rem;font-weight:600;margin:0">{% include "components/icon.html" with name="activity" %} آخر الأنشطة الطلابية</h3>
-      <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-xs">عرض الكل</a>
-    </div>
-    {% for act in recent_activities %}
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--border-color);{% endif %}">
-      <div>
-        <span style="font-size:.85rem;font-weight:500">{{ act.title }}</span>
-        <span style="font-size:.75rem;color:var(--text-muted);margin-right:8px">{{ act.student.full_name }}</span>
-      </div>
-      <span style="font-size:.75rem;color:var(--text-muted)">{{ act.date|date:"d/m" }}</span>
-    </div>
-    {% endfor %}
   </div>
   {% endif %}
 
