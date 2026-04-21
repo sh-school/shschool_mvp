@@ -305,7 +305,7 @@ def student_export_excel(request):
     ws.sheet_view.rightToLeft = True
 
     # هيدر احترافي
-    headers = ["#", "الاسم الكامل", "الرقم الوطني", "الصف", "الشعبة", "الجوال", "البريد"]
+    headers = ["#", "الاسم الكامل", "الرقم الشخصي", "الصف", "الشعبة", "الجوال", "البريد"]
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
@@ -1008,7 +1008,7 @@ def attendance_export_excel(request):
     ws1.title = "الغياب المتكرر"
     ws1.sheet_view.rightToLeft = True
 
-    s1_headers = ["#", "اسم الطالب", "الرقم الوطني", "أيام الغياب (30 يوم)"]
+    s1_headers = ["#", "اسم الطالب", "الرقم الشخصي", "أيام الغياب (30 يوم)"]
     s1_num_cols = len(s1_headers)
     s1_data_start = add_excel_header(ws1, ctx, s1_num_cols)
 
@@ -1668,7 +1668,7 @@ def behavior_export_excel(request):
     ws.title = "السلوك"
     ws.sheet_view.rightToLeft = True
 
-    headers = ["#", "اسم الطالب", "الرقم الوطني", "عدد المخالفات", "النقاط المخصومة"]
+    headers = ["#", "اسم الطالب", "الرقم الشخصي", "عدد المخالفات", "النقاط المخصومة"]
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 

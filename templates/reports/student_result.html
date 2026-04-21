@@ -12,7 +12,7 @@
 <table class="report-meta">
   <tr>
     <td>الطالب: <strong>{{ student.full_name }}</strong></td>
-    <td>الرقم الوطني: <strong>{{ student.national_id|default:"—" }}</strong></td>
+    <td>الرقم الشخصي: <strong>{{ student.national_id|default:"—" }}</strong></td>
     {% if enrollment %}<td>الفصل: <strong>{{ enrollment.class_group }}</strong></td>{% endif %}
     <td>السنة: <strong>{{ year }}</strong></td>
     <td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>

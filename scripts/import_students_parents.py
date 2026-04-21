@@ -109,7 +109,7 @@ def run():
                 parent_email = ""
 
             if not student_nid:
-                stats["errors"].append(f"سطر {i}: رقم وطني فارغ")
+                stats["errors"].append(f"سطر {i}: رقم شخصي فارغ")
                 continue
 
             # ══ 1. الطالب ══════════════════════════════════════
@@ -122,7 +122,7 @@ def run():
             )
 
             if s_created:
-                # كلمة مرور افتراضية = الرقم الوطني
+                # كلمة مرور افتراضية = الرقم الشخصي
                 student.set_password(student_nid)
                 student.save()
                 stats["students_created"] += 1
@@ -170,7 +170,7 @@ def run():
             )
 
             if p_created:
-                # كلمة مرور افتراضية = الرقم الوطني
+                # كلمة مرور افتراضية = الرقم الشخصي
                 parent.set_password(parent_nid)
                 parent.save()
                 stats["parents_created"] += 1
@@ -239,7 +239,7 @@ def run():
 
     print("━" * 55)
     print("✅ اكتمل الاستيراد بنجاح\n")
-    print("ملاحظة: كلمة المرور الافتراضية = الرقم الوطني للمستخدم")
+    print("ملاحظة: كلمة المرور الافتراضية = الرقم الشخصي للمستخدم")
     print("        يُنصح بإخبار أولياء الأمور بتغييرها أول دخول\n")
 
 

@@ -30,9 +30,9 @@
 
       <div class="form-row">
 
-        {# الرقم الوطني #}
+        {# الرقم الشخصي #}
         <div class="form-group">
-          <label class="form-label">الرقم الوطني <span style="color:red">*</span></label>
+          <label class="form-label">الرقم الشخصي <span style="color:red">*</span></label>
           <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
                  placeholder="مثال: 28001234567" required dir="ltr">

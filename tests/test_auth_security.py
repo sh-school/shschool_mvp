@@ -78,7 +78,7 @@ class TestLogin:
         # كلا الردين يحتويان نفس الرسالة
         content1 = resp1.content.decode()
         content2 = resp2.content.decode()
-        # لا تظهر "الرقم الوطني غير موجود"
+        # لا تظهر "الرقم الشخصي غير موجود"
         assert "غير موجود" not in content1
         assert "غير موجود" not in content2
 

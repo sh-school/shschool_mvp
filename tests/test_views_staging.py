@@ -321,7 +321,7 @@ class TestUploadGradeFile:
         # إنشاء ملف xlsx بسيط بدون بيانات طلاب (0 صفوف)
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws["A1"] = "الرقم الوطني"
+        ws["A1"] = "الرقم الشخصي"
         ws["B1"] = "اسم الطالب"
         ws["C1"] = "الدرجة"
         buf = io.BytesIO()

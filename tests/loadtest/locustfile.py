@@ -12,7 +12,7 @@ tests/loadtest/locustfile.py
            --headless -u 50 -r 5 --run-time 2m
 
 المتغيرات البيئية:
-    LOCUST_NATIONAL_ID   — الرقم الوطني لتسجيل الدخول (افتراضي: 12345678901)
+    LOCUST_NATIONAL_ID   — الرقم الشخصي لتسجيل الدخول (افتراضي: 12345678901)
     LOCUST_PASSWORD      — كلمة المرور (افتراضي: TestPass123!)
 """
 

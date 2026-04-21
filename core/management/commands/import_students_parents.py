@@ -99,7 +99,7 @@ class Command(BaseCommand):
                     parent_email = ""
 
                 if not student_nid:
-                    stats["errors"].append(f"سطر {i}: رقم وطني فارغ")
+                    stats["errors"].append(f"سطر {i}: رقم شخصي فارغ")
                     continue
 
                 student, s_created = CustomUser.objects.get_or_create(
@@ -219,5 +219,5 @@ class Command(BaseCommand):
 
         self.stdout.write("━" * 55)
         self.stdout.write("✅ اكتمل الاستيراد بنجاح\n")
-        self.stdout.write("ملاحظة: كلمة المرور الافتراضية = الرقم الوطني للمستخدم")
+        self.stdout.write("ملاحظة: كلمة المرور الافتراضية = الرقم الشخصي للمستخدم")
         self.stdout.write("        يُنصح بإخبار أولياء الأمور بتغييرها أول دخول\n")

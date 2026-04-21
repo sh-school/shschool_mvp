@@ -64,7 +64,7 @@
     {{ student.full_name }}
   </div>
   <div class="text-xs text-gray-500 mb-4">
-    الرقم الوطني: {{ student.national_id|default:"—" }}
+    الرقم الشخصي: {{ student.national_id|default:"—" }}
     {% if enrollment %} &nbsp;|&nbsp; الفصل: {{ enrollment.class_group }}{% endif %}
   </div>
 

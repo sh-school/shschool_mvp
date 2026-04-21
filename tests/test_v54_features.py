@@ -112,7 +112,7 @@ class TestHealthLiveness:
 @pytest.mark.django_db
 class TestAdminPDPPLMasking:
     """
-    ✅ PDPPL م.8: اختبارات إخفاء الرقم الوطني في Django Admin.
+    ✅ PDPPL م.8: اختبارات إخفاء الرقم الشخصي في Django Admin.
     """
 
     def _get_admin_instance(self):
@@ -182,7 +182,7 @@ class TestAxesReset:
             pytest.fail(f"_axes_reset() رفعت استثناء غير متوقع: {e}")
 
     def test_axes_reset_with_empty_national_id(self):
-        """✅ _axes_reset() آمنة مع رقم وطني فارغ."""
+        """✅ _axes_reset() آمنة مع رقم شخصي فارغ."""
         from core.views_auth import _axes_reset
 
         factory = RequestFactory()

@@ -36,7 +36,7 @@
     <div class="filter-field filter-field--grow">
       <label class="filter-label">بحث</label>
       <input type="text" name="q" value="{{ q }}"
-             placeholder="اسم الطالب أو الرقم الوطني..."
+             placeholder="اسم الطالب أو الرقم الشخصي..."
              class="form-control form-control-sm"
              hx-get="{% url 'student_affairs:student_list' %}"
              hx-trigger="input changed delay:400ms, search"

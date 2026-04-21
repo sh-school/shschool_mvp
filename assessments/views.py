@@ -554,7 +554,7 @@ def export_gradebook(request, setup_id):
     # ── السطر 2: رؤوس الأعمدة ──────────────────────────────
     pkg_list = list(packages)
     headers = (
-        ["م", "اسم الطالب", "الرقم الوطني"]
+        ["م", "اسم الطالب", "الرقم الشخصي"]
         + [pkg_labels.get(p.package_type, p.package_type) for p in pkg_list]
         + ["مجموع الفصل", "الحالة"]
     )

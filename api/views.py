@@ -125,7 +125,7 @@ class StudentListView(generics.ListAPIView):
     الفلترة:
       ?year=2025-2026
       ?class_id=<uuid>
-      ?search=اسم أو رقم وطني
+      ?search=اسم أو رقم شخصي
 
     الفرز:
       ?ordering=name | -name | national_id | class | -class

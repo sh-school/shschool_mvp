@@ -30,7 +30,7 @@ class StudentFilter(FilterSet):
     - الجنس: ?gender=M
     """
 
-    search = filters.CharFilter(method="filter_search", label="بحث بالاسم أو الرقم الوطني")
+    search = filters.CharFilter(method="filter_search", label="بحث بالاسم أو الرقم الشخصي")
     class_id = filters.UUIDFilter(
         field_name="studentenrollment__class_group__id", label="الفصل الدراسي"
     )

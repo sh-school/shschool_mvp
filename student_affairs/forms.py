@@ -52,7 +52,7 @@ class StudentAddForm(forms.Form):
     def clean_national_id(self):
         nid = self.cleaned_data["national_id"].strip()
         if not re.match(r"^\d{5,20}$", nid):
-            raise forms.ValidationError("الرقم الوطني يجب أن يكون أرقاماً فقط (5-20 رقم).")
+            raise forms.ValidationError("الرقم الشخصي يجب أن يكون أرقاماً فقط (5-20 رقم).")
         return nid
 
     def clean_full_name(self):
@@ -72,8 +72,8 @@ class ParentAddForm(forms.Form):
 
     national_id = forms.CharField(
         max_length=20,
-        label="الرقم الوطني",
-        error_messages={"required": "الرقم الوطني مطلوب."},
+        label="الرقم الشخصي",
+        error_messages={"required": "الرقم الشخصي مطلوب."},
     )
     full_name = forms.CharField(
         max_length=200,
@@ -94,7 +94,7 @@ class ParentAddForm(forms.Form):
     def clean_national_id(self):
         nid = self.cleaned_data["national_id"].strip()
         if not re.match(r"^\d{5,20}$", nid):
-            raise forms.ValidationError("الرقم الوطني يجب أن يكون أرقاماً فقط (5-20 رقم).")
+            raise forms.ValidationError("الرقم الشخصي يجب أن يكون أرقاماً فقط (5-20 رقم).")
         return nid
 
     def clean_full_name(self):

@@ -46,7 +46,7 @@
         <span class="status-badge status-success" style="font-size:.75rem;margin-inline-start:4px">نشط</span>
       </div>
       <div class="profile-meta">
-        <span dir="ltr" title="الرقم الوطني — مخفي لحماية الخصوصية">****{{ student.national_id|slice:"-4:" }}</span>
+        <span dir="ltr" title="الرقم الشخصي — مخفي لحماية الخصوصية">****{{ student.national_id|slice:"-4:" }}</span>
         {% if enrollment %}<span>{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>{% endif %}
         {% if profile and profile.gender %}<span>{% if profile.gender == "M" %}ذكر{% else %}أنثى{% endif %}</span>{% endif %}
       </div>
@@ -128,7 +128,7 @@
       <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
       <dl class="detail-dl">
         <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
-        <dt>الرقم الوطني</dt><dd dir="ltr">{{ student.national_id }}</dd>
+        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id }}</dd>
         {% if enrollment %}
         <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}</dd>
         {% endif %}

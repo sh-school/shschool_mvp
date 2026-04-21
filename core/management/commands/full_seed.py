@@ -947,9 +947,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"  كلمة المرور الموحدة: {self._seed_password}"))
         if principal:
             self.stdout.write(self.style.SUCCESS(f"  المدير:    {principal.user.national_id}"))
-        self.stdout.write("  المعلمون:  <الرقم الوطني>")
-        self.stdout.write("  الطلاب:    <الرقم الوطني>")
-        self.stdout.write("  الأولياء:  <الرقم الوطني>")
+        self.stdout.write("  المعلمون:  <الرقم الشخصي>")
+        self.stdout.write("  الطلاب:    <الرقم الشخصي>")
+        self.stdout.write("  الأولياء:  <الرقم الشخصي>")
         self.stdout.write("═" * 58)
         self.stdout.write("\n── روابط مهمة ─────────────────────────────────────────")
         self.stdout.write("  http://localhost:8000/          ← الداشبورد")

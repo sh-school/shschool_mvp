@@ -57,7 +57,7 @@
       <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
       <dl class="detail-dl">
         <dt>الاسم</dt><dd>{{ staff_user.full_name }}</dd>
-        <dt>الرقم الوطني</dt><dd dir="ltr">{{ staff_user.national_id }}</dd>
+        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id }}</dd>
         {% if membership %}
         <dt>الدور</dt><dd>{{ role_display }}</dd>
         {% if membership.department_obj %}

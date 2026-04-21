@@ -157,7 +157,7 @@ def download_grade_template(request, assessment_id):
         ws.cell(i, 2).font = Font(size=10)
 
     # ── رأس الجدول (صف 6) ──
-    headers = ["الرقم الوطني", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
+    headers = ["الرقم الشخصي", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
     for col, h in enumerate(headers, start=1):
         cell = ws.cell(6, col, h)
         cell.fill = header_fill
@@ -210,10 +210,10 @@ def download_grade_template(request, assessment_id):
 
 
 def _find_data_start_row(ws):
-    """Find the first data row after the header containing 'الرقم الوطني'."""
+    """Find the first data row after the header containing 'الرقم الشخصي'."""
     for row in ws.iter_rows():
         for cell in row:
-            if cell.value and "الرقم الوطني" in str(cell.value):
+            if cell.value and "الرقم الشخصي" in str(cell.value):
                 return cell.row + 1
     return 7  # default row in template
 
@@ -232,7 +232,7 @@ def _validate_student(national_id, assessment, row_num):
     try:
         student = CustomUser.objects.get(national_id=national_id)
     except CustomUser.DoesNotExist:
-        return None, f"صف {row_num}: الرقم الوطني [{national_id}] غير موجود"
+        return None, f"صف {row_num}: الرقم الشخصي [{national_id}] غير موجود"
 
     enrolled = StudentEnrollment.objects.filter(
         student=student,

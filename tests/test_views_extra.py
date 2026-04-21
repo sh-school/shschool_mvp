@@ -514,7 +514,7 @@ class TestUploadGradeFile:
         wb = openpyxl.Workbook()
         ws = wb.active
         # Header row at row 6
-        ws.cell(6, 1, "الرقم الوطني")
+        ws.cell(6, 1, "الرقم الشخصي")
         ws.cell(6, 2, "اسم الطالب")
         ws.cell(6, 3, "الدرجة")
         ws.cell(6, 4, "غائب (1/0)")
@@ -548,7 +548,7 @@ class TestUploadGradeFile:
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.cell(6, 1, "الرقم الوطني")
+        ws.cell(6, 1, "الرقم الشخصي")
         ws.cell(7, 1, "INVALID_ID_999")
         ws.cell(7, 2, "Ghost Student")
         ws.cell(7, 3, 5)
@@ -576,7 +576,7 @@ class TestUploadGradeFile:
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.cell(6, 1, "الرقم الوطني")
+        ws.cell(6, 1, "الرقم الشخصي")
         ws.cell(7, 1, student_user.national_id)
         ws.cell(7, 2, student_user.full_name)
         ws.cell(7, 3, 999)  # way above max_grade=10
@@ -631,7 +631,7 @@ class TestUploadGradeFile:
 
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.cell(6, 1, "الرقم الوطني")
+        ws.cell(6, 1, "الرقم الشخصي")
         ws.cell(7, 1, student_user.national_id)
         ws.cell(7, 2, student_user.full_name)
         ws.cell(7, 3, "")

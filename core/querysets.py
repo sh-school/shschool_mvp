@@ -32,7 +32,7 @@ class UserQuerySet(models.QuerySet):
 
     def search(self, query: str) -> UserQuerySet:
         """
-        بحث Full-Text في الاسم الكامل والرقم الوطني.
+        بحث Full-Text في الاسم الكامل والرقم الشخصي.
         يرتّب النتائج حسب الصلة (rank).
         """
         if not query:

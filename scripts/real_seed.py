@@ -395,9 +395,9 @@ def run():
     print(f"  كلمة المرور الموحدة: {_SEED_PASSWORD}")
     if principal_user:
         print(f"  المدير:    {principal_user.user.national_id}")
-    print("  المعلمون:  <الرقم الوطني>")
-    print("  الطلاب:    <الرقم الوطني>")
-    print("  الأولياء:  <الرقم الوطني>")
+    print("  المعلمون:  <الرقم الشخصي>")
+    print("  الطلاب:    <الرقم الشخصي>")
+    print("  الأولياء:  <الرقم الشخصي>")
     print("═" * 55)
 
 

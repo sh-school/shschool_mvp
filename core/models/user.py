@@ -9,7 +9,7 @@ from .school import _uuid
 
 _national_id_validator = RegexValidator(
     regex=r"^\d{5,20}$",
-    message="الرقم الوطني يجب أن يحتوي على أرقام فقط (5-20 رقم)",
+    message="الرقم الشخصي يجب أن يحتوي على أرقام فقط (5-20 رقم)",
 )
 _phone_validator = RegexValidator(
     regex=r"^\+?[\d\s\-]{7,20}$",
@@ -25,7 +25,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     national_id = models.CharField(
         max_length=20,
         unique=True,
-        verbose_name="الرقم الوطني",
+        verbose_name="الرقم الشخصي",
         db_index=True,
         validators=[_national_id_validator],
     )
@@ -89,14 +89,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     national_id_encrypted = models.TextField(
         blank=True,
         default="",
-        verbose_name="الرقم الوطني (مشفّر)",
+        verbose_name="الرقم الشخصي (مشفّر)",
     )
     national_id_hmac = models.CharField(
         max_length=64,
         blank=True,
         default="",
         db_index=True,
-        verbose_name="HMAC الرقم الوطني",
+        verbose_name="HMAC الرقم الشخصي",
     )
 
     USERNAME_FIELD = "national_id"
@@ -129,7 +129,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def get_national_id_decrypted(self):
-        """فك تشفير الرقم الوطني من الحقل المشفّر — fallback إلى الحقل العادي."""
+        """فك تشفير الرقم الشخصي من الحقل المشفّر — fallback إلى الحقل العادي."""
         if self.national_id_encrypted:
             decrypted = decrypt_field(self.national_id_encrypted)
             if decrypted and decrypted != self.national_id_encrypted:

@@ -48,7 +48,7 @@ ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
 # ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
 # لا تغيّر هذه الرسالة ولا تجعلها تختلف بحسب وجود المستخدم من عدمه
-_AUTH_ERROR = "الرقم الوطني أو كلمة المرور غير صحيحة"
+_AUTH_ERROR = "الرقم الشخصي أو كلمة المرور غير صحيحة"
 
 
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
@@ -62,7 +62,7 @@ def login_view(request):
         password = request.POST.get("password", "").strip()
 
         if not national_id or not password:
-            messages.error(request, "يرجى إدخال الرقم الوطني وكلمة المرور")
+            messages.error(request, "يرجى إدخال الرقم الشخصي وكلمة المرور")
             return render(request, "auth/login.html")
 
         # ── التحقق من قفل الحساب (الرسالة هنا مقبولة لأن القفل يحدث بعد محاولات) ──
@@ -99,7 +99,7 @@ def login_view(request):
         else:
             # ── إصلاح User Enumeration ────────────────────────────────────────
             # نزيد العداد بصمت إذا وُجد المستخدم، لكن نُظهر نفس الرسالة دائماً
-            # سواء وُجد الرقم الوطني أم لا — المهاجم لا يعرف الفرق
+            # سواء وُجد الرقم الشخصي أم لا — المهاجم لا يعرف الفرق
             try:
                 with transaction.atomic():
                     updated = (

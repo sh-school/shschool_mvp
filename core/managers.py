@@ -66,7 +66,7 @@ class CustomUserManager(BaseUserManager):
 
     def create_user(self, national_id, full_name, password=None, **extra_fields):
         if not national_id:
-            raise ValueError(_("الرقم الوطني مطلوب"))
+            raise ValueError(_("الرقم الشخصي مطلوب"))
         user = self.model(national_id=national_id, full_name=full_name, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)

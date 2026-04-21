@@ -1215,7 +1215,7 @@ class ExcelService:
             [
                 ("م", 6 if is_a3 else 5),
                 ("اسم الطالب", 38 if is_a3 else 28),
-                ("الرقم الوطني", 20 if is_a3 else 16),
+                ("الرقم الشخصي", 20 if is_a3 else 16),
             ]
             + [(s.name_ar[:18], 15 if is_a3 else 11) for s in subjects]
             + [
@@ -1308,7 +1308,7 @@ class ExcelService:
         columns = [
             ("م", 6 if is_a3 else 5),
             ("اسم الطالب", 38 if is_a3 else 28),
-            ("الرقم الوطني", 20 if is_a3 else 16),
+            ("الرقم الشخصي", 20 if is_a3 else 16),
             ("إجمالي الحصص", 17 if is_a3 else 13),
             ("حاضر", 13 if is_a3 else 10),
             ("غائب", 13 if is_a3 else 10),
@@ -1394,7 +1394,7 @@ class ExcelService:
         columns = [
             ("م", 6 if is_a3 else 5),
             ("اسم الطالب", 38 if is_a3 else 28),
-            ("الرقم الوطني", 20 if is_a3 else 16),
+            ("الرقم الشخصي", 20 if is_a3 else 16),
             ("التاريخ", 17 if is_a3 else 13),
             ("الدرجة", 22 if is_a3 else 18),
             ("النقاط المخصومة", 18 if is_a3 else 15),

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # الأعمدة الثابتة لملف الاستيراد/التصدير
 EXPORT_COLUMNS = [
-    ("الرقم الوطني", 18),
+    ("الرقم الشخصي", 18),
     ("الاسم الكامل", 30),
     ("الصف", 10),
     ("الشعبة", 10),
@@ -37,13 +37,13 @@ EXPORT_COLUMNS = [
 
 # أعمدة القالب — تُضاف عمود ولي الأمر
 TEMPLATE_COLUMNS = [
-    ("الرقم الوطني", 18),
+    ("الرقم الشخصي", 18),
     ("الاسم الكامل", 30),
     ("الصف (G7-G12)", 12),
     ("الشعبة (أ/ب/ج...)", 12),
     ("الجوال", 18),
     ("البريد الإلكتروني", 28),
-    ("الرقم الوطني ولي الأمر", 20),
+    ("الرقم الشخصي ولي الأمر", 20),
     ("اسم ولي الأمر", 28),
     ("جوال ولي الأمر", 18),
     ("بريد ولي الأمر", 28),
@@ -327,7 +327,7 @@ def _parse_import_row(row):
 
 def _upsert_user(nid, full_name, phone="", email=""):
     """
-    get_or_create مستخدم بالرقم الوطني.
+    get_or_create مستخدم بالرقم الشخصي.
     إذا أُنشئ: يضع كلمة المرور ويملأ phone/email.
     إذا كان موجوداً: يُكمل الحقول الفارغة فقط.
     يُعيد (user, created).
@@ -458,7 +458,7 @@ def _process_import(uploaded_file, school, year):
             fields = _parse_import_row(raw_row)
 
             if not fields["student_nid"]:
-                stats["errors"].append(f"سطر {i}: الرقم الوطني فارغ — تجاوز")
+                stats["errors"].append(f"سطر {i}: الرقم الشخصي فارغ — تجاوز")
                 continue
             if not fields["full_name"]:
                 stats["errors"].append(f"سطر {i}: اسم الطالب {fields['student_nid']} فارغ — تجاوز")
@@ -526,7 +526,7 @@ def _process_import(uploaded_file, school, year):
 def student_export_excel(request):
     """
     GET → تنزيل ملف Excel بكل بيانات الطلاب في المدرسة.
-    الأعمدة: الرقم الوطني | الاسم | الصف | الشعبة | الجوال | البريد
+    الأعمدة: الرقم الشخصي | الاسم | الصف | الشعبة | الجوال | البريد
     """
     from django.conf import settings
 
@@ -683,9 +683,9 @@ def student_import_template(request):
     c = ws["A1"]
     c.value = (
         "تعليمات: لا تحذف هذا الصف — ابدأ البيانات من الصف الثالث — "
-        "الحقول الإلزامية: الرقم الوطني + الاسم الكامل — "
+        "الحقول الإلزامية: الرقم الشخصي + الاسم الكامل — "
         "الصفوف المقبولة: G7 G8 G9 G10 G11 G12 — "
-        "كلمة المرور الافتراضية = الرقم الوطني"
+        "كلمة المرور الافتراضية = الرقم الشخصي"
     )
     c.font = styles["note_font"]
     c.fill = styles["note_fill"]

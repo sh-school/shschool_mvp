@@ -19,7 +19,7 @@
   <form method="get" class="filter-bar">
     <div class="filter-field filter-field--grow">
       <label class="filter-label">بحث</label>
-      <input type="text" name="q" value="{{ q }}" placeholder="اسم الموظف أو الرقم الوطني..."
+      <input type="text" name="q" value="{{ q }}" placeholder="اسم الموظف أو الرقم الشخصي..."
              class="form-control form-control-sm"
              hx-get="{% url 'staff_affairs:staff_list' %}"
              hx-trigger="input changed delay:400ms, search"

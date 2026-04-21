@@ -533,7 +533,7 @@ class StudentService:
         Args:
             school: كائن المدرسة
             data: dict يحتوي:
-                - national_id (str): الرقم الوطني
+                - national_id (str): الرقم الشخصي
                 - full_name (str): الاسم الكامل
                 - password (str, optional): كلمة المرور (افتراضي = national_id)
                 - gender (str, optional): "M" أو "F"
@@ -554,7 +554,7 @@ class StudentService:
 
         # ── التحققات ──
         if CustomUser.objects.filter(national_id=national_id).exists():
-            raise ValueError(f"الرقم الوطني {national_id} مسجّل مسبقاً في النظام.")
+            raise ValueError(f"الرقم الشخصي {national_id} مسجّل مسبقاً في النظام.")
 
         try:
             class_group = ClassGroup.objects.get(

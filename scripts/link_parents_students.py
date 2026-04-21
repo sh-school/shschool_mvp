@@ -63,7 +63,7 @@ def run():
             parent_email = row.get("parent_email", "").strip()
 
             if not student_id or not parent_id:
-                stats["errors"].append(f"سطر {i}: رقم وطني ناقص")
+                stats["errors"].append(f"سطر {i}: رقم شخصي ناقص")
                 continue
 
             # 1. ابحث عن الطالب

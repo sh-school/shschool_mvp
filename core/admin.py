@@ -29,7 +29,7 @@ class ProfileInline(admin.StackedInline):
 @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
     """
-    ✅ v5.4 PDPPL م.8: الرقم الوطني مُخفًى في قائمة المستخدمين (آخر 4 أرقام فقط).
+    ✅ v5.4 PDPPL م.8: الرقم الشخصي مُخفًى في قائمة المستخدمين (آخر 4 أرقام فقط).
     يظهر كاملاً في نموذج التعديل للمسؤول المعتمد فقط.
     """
 
@@ -59,7 +59,7 @@ class CustomUserAdmin(UserAdmin):
         ),
     )
 
-    @admin.display(description="الرقم الوطني", ordering="national_id")
+    @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
         """
         PDPPL م.8 — يعرض آخر 4 أرقام فقط في قائمة المستخدمين.
@@ -70,7 +70,7 @@ class CustomUserAdmin(UserAdmin):
             return "****"
         suffix = nid[-4:]
         return format_html(
-            '<span title="الرقم الوطني — مخفي (PDPPL م.8)" style="font-family:monospace">****{}</span>',
+            '<span title="الرقم الشخصي — مخفي (PDPPL م.8)" style="font-family:monospace">****{}</span>',
             suffix,
         )
 
