@@ -65,3 +65,8 @@ def log_status_update(request: HttpRequest, message: DeveloperMessage) -> AuditL
 def log_message_delete(request: HttpRequest, message: DeveloperMessage) -> AuditLog:
     """اختصار: تسجيل حذف رسالة."""
     return log_audit(request, AuditAction.DELETE_MESSAGE, message)
+
+
+def log_message_edit(request: HttpRequest, message: DeveloperMessage) -> AuditLog:
+    """اختصار: تسجيل تعديل رسالة من قبل المُرسِل."""
+    return log_audit(request, AuditAction.EDIT_MESSAGE, message)

@@ -349,6 +349,34 @@
 .df-badge-priority-normal { background: #f5f5f5; color: #424242; border-color: #bdbdbd; }
 .df-badge-priority-low    { background: #e0f7fa; color: #006064; border-color: #80deea; }
 
+/* Edited-after-send badge */
+.df-badge-edited {
+  display: inline-block;
+  margin-inline-start: .35rem;
+  padding: .1rem .45rem;
+  font-size: .7rem;
+  font-weight: 600;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+  border-radius: .25rem;
+  vertical-align: middle;
+}
+html.dark .df-badge-edited {
+  background: #4a3a10;
+  color: #ffe08a;
+  border-color: #6b531a;
+}
+
+/* History list on edit page */
+.df-history-list {
+  margin: .5rem 0 0;
+  padding-inline-start: 1.25rem;
+  color: var(--muted, #666);
+  font-size: .85rem;
+  line-height: 1.7;
+}
+
 /* ==========================================================================
    7. Context preview (technical info block)
    ========================================================================== */

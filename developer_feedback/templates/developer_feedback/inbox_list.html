@@ -101,6 +101,12 @@
                 <a href="{% url 'developer_feedback:inbox_detail' pk=msg.pk %}" class="df-ticket-link">
                   <code class="df-ticket-inline" dir="ltr">{{ msg.ticket_number }}</code>
                 </a>
+                {% if msg.edit_history.exists %}
+                <span class="df-badge df-badge-edited"
+                      title="{% blocktrans count counter=msg.edit_history.count %}عُدّلت مرة واحدة بعد الإرسال{% plural %}عُدّلت {{ counter }} مرات بعد الإرسال{% endblocktrans %}">
+                  {% trans "مُعدَّلة" %}
+                </span>
+                {% endif %}
               </td>
               <td>
                 {% if msg.user %}

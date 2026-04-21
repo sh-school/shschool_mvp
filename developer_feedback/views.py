@@ -16,12 +16,14 @@ import logging
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import CreateView, DetailView, ListView, TemplateView, View
+from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView, View
 
 from developer_feedback.forms import (
+    DeveloperMessageEditForm,
     DeveloperMessageForm,
     OnboardingConsentForm,
     OnboardingQuizForm,
@@ -29,6 +31,7 @@ from developer_feedback.forms import (
 from developer_feedback.models import (
     DeveloperMessage,
     LegalOnboardingConsent,
+    MessageEditHistory,
     MessageStatus,
     MessageStatusLog,
 )
@@ -39,10 +42,14 @@ from developer_feedback.permissions import (
 )
 from developer_feedback.services.audit import (
     log_inbox_view,
+    log_message_edit,
     log_message_view,
     log_status_update,
 )
-from developer_feedback.services.notifications import send_developer_notification
+from developer_feedback.services.notifications import (
+    send_developer_edit_notification,
+    send_developer_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +186,59 @@ class UserMessageHistoryView(OnboardingRequiredMixin, ListView):
 
     def get_queryset(self):
         return DeveloperMessage.objects.filter(user=self.request.user).order_by("-created_at")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 4.b) DeveloperMessageEditView — تعديل رسالة سبق إرسالها
+# ═══════════════════════════════════════════════════════════════
+
+
+class DeveloperMessageEditView(OnboardingRequiredMixin, UpdateView):
+    """
+    يُتيح للمُرسِل تعديل رسالة سبق إرسالها. لكل تعديل:
+    - تُحفظ لقطة MessageEditHistory للقيم القديمة
+    - يُسجَّل EDIT_MESSAGE في AuditLog
+    - يُرسَل إشعار SMTP جديد للمطوّر مع بادئة [تعديل]
+
+    قيود الوصول: المُرسِل فقط يعدّل رسائله (get_object يقيّد بـ user=request.user).
+    """
+
+    model = DeveloperMessage
+    form_class = DeveloperMessageEditForm
+    template_name = "developer_feedback/message_edit.html"
+    pk_url_kwarg = "pk"
+
+    def get_queryset(self):
+        # يقيّد الوصول: المُرسِل فقط يرى/يعدّل رسائله
+        return DeveloperMessage.objects.filter(user=self.request.user)
+
+    def form_valid(self, form):
+        # self.object = instance الأصلي قبل تطبيق التعديلات (UpdateView ملأه في get())
+        original = DeveloperMessage.objects.get(pk=self.object.pk)
+        with transaction.atomic():
+            MessageEditHistory.objects.create(
+                message=original,
+                old_subject=original.subject,
+                old_body=original.body,
+                old_message_type=original.message_type,
+                old_priority=original.priority,
+                edited_by=self.request.user,
+            )
+            updated = form.save(commit=False)
+            updated.save(update_fields=["subject", "body", "message_type", "priority"])
+            log_message_edit(self.request, updated)
+
+        # إشعار المطوّر (فشل SMTP لا يُفشل الحفظ)
+        try:
+            send_developer_edit_notification(updated)
+        except Exception:  # noqa: BLE001
+            pass
+
+        messages.success(
+            self.request,
+            _("تم حفظ التعديل على الرسالة %(t)s وإخطار المطوّر.") % {"t": updated.ticket_number},
+        )
+        return redirect(reverse("developer_feedback:my_messages"))
 
 
 # ═══════════════════════════════════════════════════════════════

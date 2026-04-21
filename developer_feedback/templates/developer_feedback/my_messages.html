@@ -5,7 +5,7 @@
 
 {% block extra_css %}
 {{ block.super }}
-<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=3">
 {% endblock %}
 
 {% block page_header %}
@@ -32,17 +32,33 @@
             <th scope="col">{% trans "الأولوية" %}</th>
             <th scope="col">{% trans "الحالة" %}</th>
             <th scope="col">{% trans "التاريخ" %}</th>
+            <th scope="col">{% trans "إجراءات" %}</th>
           </tr>
         </thead>
         <tbody>
           {% for msg in messages_list %}
             <tr>
-              <td><code class="df-ticket-inline" dir="ltr">{{ msg.ticket_number }}</code></td>
+              <td>
+                <code class="df-ticket-inline" dir="ltr">{{ msg.ticket_number }}</code>
+                {% if msg.edit_history.exists %}
+                <span class="df-badge df-badge-edited" title="{% trans 'عُدّلت بعد الإرسال' %}">
+                  {% trans "مُعدَّلة" %}
+                </span>
+                {% endif %}
+              </td>
               <td class="df-cell-subject">{{ msg.subject }}</td>
               <td><span class="df-badge df-badge-type">{{ msg.get_message_type_display }}</span></td>
               <td><span class="df-badge df-badge-priority-{{ msg.priority }}">{{ msg.get_priority_display }}</span></td>
               <td>{% include "developer_feedback/_status_badge.html" with status=msg.status %}</td>
               <td><time datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"Y/m/d H:i" }}</time></td>
+              <td>
+                <a href="{% url 'developer_feedback:message_edit' pk=msg.pk %}"
+                   class="btn btn-sm btn-secondary"
+                   aria-label="{% trans 'تعديل الرسالة' %} {{ msg.ticket_number }}">
+                  {% include "components/icon.html" with name="edit" %}
+                  {% trans "تعديل" %}
+                </a>
+              </td>
             </tr>
           {% endfor %}
         </tbody>

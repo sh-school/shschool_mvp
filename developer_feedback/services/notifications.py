@@ -179,3 +179,90 @@ def send_developer_notification(
         message.ticket_number,
     )
     return notification
+
+
+def send_developer_edit_notification(
+    message: DeveloperMessage,
+    recipient: str | None = None,
+) -> DeveloperMessageNotification:
+    """
+    يرسل إشعار SMTP للمطوّر عندما يقوم المُرسِل بتعديل رسالة سبق إرسالها.
+
+    الفرق عن send_developer_notification:
+    - الـ subject يبدأ بـ "[تعديل]"
+    - يتضمن ملاحظة واضحة أن الرسالة عُدّلت بعد إرسالها الأصلي
+    - يتضمن edit_count ليُعلم المطوّر بعدد التعديلات السابقة
+    """
+    to_email = recipient or DEVELOPER_EMAIL
+    payload = _build_safe_payload(message)
+    edit_count = message.edit_history.count()
+
+    original_subject, text_body, html_body = _render_email(payload)
+    # إضافة بادئة [تعديل] + ملاحظة التعديل
+    subject = f"[تعديل #{edit_count}] {original_subject}"
+    edit_notice_text = (
+        f"\n⚠️ تنبيه: هذه رسالة مُعدَّلة (التعديل رقم {edit_count}).\n"
+        f"تم تعديلها بعد الإرسال الأصلي.\n\n"
+    )
+    edit_notice_html = (
+        f"<div style='background:#fff3cd;border-right:4px solid #ff9800;"
+        f"padding:10px;margin:10px 0;color:#856404;'>"
+        f"⚠️ <b>رسالة مُعدَّلة</b> — التعديل رقم {edit_count}. "
+        f"عُدّلت بعد الإرسال الأصلي.</div>"
+    )
+    text_body = edit_notice_text + text_body
+    html_body = html_body.replace("<h2", edit_notice_html + "<h2", 1)
+
+    notification = DeveloperMessageNotification.objects.create(
+        message=message,
+        channel=NotificationChannel.SMTP,
+        recipient=to_email,
+        status=NotificationStatus.PENDING,
+    )
+
+    last_error: str | None = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        notification.attempt_count = attempt
+        try:
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                to=[to_email],
+            )
+            email.attach_alternative(html_body, "text/html")
+            email.send(fail_silently=False)
+
+            notification.status = NotificationStatus.SENT
+            notification.sent_at = timezone.now()
+            notification.error_detail = ""
+            notification.save()
+            logger.info(
+                "Developer EDIT notification sent: ticket=%s edit#=%d attempt=%d",
+                message.ticket_number,
+                edit_count,
+                attempt,
+            )
+            return notification
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)[:500]
+            logger.warning(
+                "Developer edit notification attempt %d failed: %s",
+                attempt,
+                last_error,
+            )
+            if attempt < MAX_RETRIES:
+                notification.status = NotificationStatus.RETRY
+                notification.error_detail = last_error
+                notification.save()
+                continue
+
+    notification.status = NotificationStatus.FAILED
+    notification.error_detail = last_error or "unknown"
+    notification.save()
+    logger.error(
+        "Developer edit notification failed after %d attempts: ticket=%s",
+        MAX_RETRIES,
+        message.ticket_number,
+    )
+    return notification

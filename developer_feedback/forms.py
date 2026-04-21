@@ -148,6 +148,28 @@ class DeveloperMessageForm(forms.ModelForm):
 
 
 # ═══════════════════════════════════════════════════════════════
+# 1.b) DeveloperMessageEditForm — تعديل رسالة سبق إرسالها
+# ═══════════════════════════════════════════════════════════════
+
+
+class DeveloperMessageEditForm(forms.ModelForm):
+    """
+    نموذج تعديل رسالة — بدون consent_privacy (أُعطيت عند الإرسال الأصلي)
+    وبدون context_json_raw (محفوظ مع الرسالة الأصلية — لا يُعاد حقنه).
+    """
+
+    class Meta:
+        model = DeveloperMessage
+        fields = ["message_type", "priority", "subject", "body"]
+        widgets = DeveloperMessageForm.Meta.widgets
+        labels = DeveloperMessageForm.Meta.labels
+        error_messages = DeveloperMessageForm.Meta.error_messages
+
+    clean_subject = DeveloperMessageForm.clean_subject
+    clean_body = DeveloperMessageForm.clean_body
+
+
+# ═══════════════════════════════════════════════════════════════
 # 2) OnboardingConsentForm
 # ═══════════════════════════════════════════════════════════════
 

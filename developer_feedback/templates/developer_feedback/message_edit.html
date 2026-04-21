@@ -1,0 +1,150 @@
+{% extends "base/base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "تعديل رسالة" %} {{ object.ticket_number }}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=3">
+{% endblock %}
+
+{% block page_header %}
+<div class="df-container">
+  <h1 class="df-page-title">
+    {% trans "تعديل رسالة" %}
+    <code class="df-ticket-inline" dir="ltr">{{ object.ticket_number }}</code>
+  </h1>
+  <p class="df-page-subtitle">
+    {% trans "سيُخطَر المطوّر بالتعديل، وستُحفظ القيم السابقة في سجل التعديلات." %}
+  </p>
+</div>
+{% endblock %}
+
+{% block content %}
+<main id="main-content" class="df-container" role="main">
+
+  {# ── معلومات ── #}
+  <aside class="df-card df-card-hero" aria-labelledby="df-edit-tip-title">
+    <h2 id="df-edit-tip-title" class="df-card-title">
+      {% include "components/icon.html" with name="info" %}
+      {% trans "ملاحظة" %}
+    </h2>
+    <p>
+      {% blocktrans count counter=object.edit_history.count %}
+        لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.
+      {% plural %}
+        عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.
+      {% endblocktrans %}
+    </p>
+  </aside>
+
+  {# ── أخطاء عامة ── #}
+  {% if form.non_field_errors %}
+    <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post" novalidate class="df-form" aria-labelledby="df-edit-form-title">
+    {% csrf_token %}
+    <h2 id="df-edit-form-title" class="sr-only">{% trans "نموذج تعديل رسالة" %}</h2>
+
+    <div class="df-card">
+      {# ── نوع الرسالة + الأولوية ── #}
+      <div class="df-row-2">
+        <div class="df-form-group">
+          <label for="{{ form.message_type.id_for_label }}">
+            {{ form.message_type.label }}<span class="required" aria-hidden="true">*</span>
+          </label>
+          {{ form.message_type }}
+          {% if form.message_type.errors %}
+            <ul class="df-errorlist" role="alert">
+              {% for error in form.message_type.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+
+        <div class="df-form-group">
+          <label for="{{ form.priority.id_for_label }}">
+            {{ form.priority.label }}<span class="required" aria-hidden="true">*</span>
+          </label>
+          {{ form.priority }}
+          {% if form.priority.errors %}
+            <ul class="df-errorlist" role="alert">
+              {% for error in form.priority.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── العنوان ── #}
+      <div class="df-form-group">
+        <label for="{{ form.subject.id_for_label }}">
+          {{ form.subject.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        {{ form.subject }}
+        {% if form.subject.errors %}
+          <ul class="df-errorlist" role="alert">
+            {% for error in form.subject.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+
+      {# ── الوصف ── #}
+      <div class="df-form-group">
+        <label for="{{ form.body.id_for_label }}">
+          {{ form.body.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        <textarea
+          name="{{ form.body.name }}"
+          id="{{ form.body.id_for_label }}"
+          rows="10"
+          maxlength="4000"
+          class="form-control"
+          aria-required="true"
+          data-df-counter-for="body"
+        >{{ form.body.value|default_if_none:'' }}</textarea>
+        <small class="df-counter" data-df-counter>0 / 4000</small>
+        {% if form.body.errors %}
+          <ul class="df-errorlist" role="alert">
+            {% for error in form.body.errors %}<li>{{ error }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── سجل التعديلات السابقة ── #}
+    {% if object.edit_history.exists %}
+    <div class="df-card" aria-labelledby="df-history-title">
+      <h2 id="df-history-title" class="df-card-title">
+        {% include "components/icon.html" with name="clock" %}
+        {% trans "سجل التعديلات السابقة" %}
+      </h2>
+      <ol class="df-history-list">
+        {% for h in object.edit_history.all %}
+          <li>
+            <strong>{{ h.edited_at|date:"Y/m/d H:i" }}</strong>
+            — {% trans "الموضوع السابق" %}:
+            <em>{{ h.old_subject|truncatechars:80 }}</em>
+          </li>
+        {% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {# ── الأزرار ── #}
+    <div class="df-btn-group">
+      <button type="submit" class="btn btn-primary">
+        {% include "components/icon.html" with name="save" %}
+        {% trans "حفظ التعديلات" %}
+      </button>
+      <a href="{% url 'developer_feedback:my_messages' %}" class="btn btn-secondary">
+        {% trans "إلغاء" %}
+      </a>
+    </div>
+  </form>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'developer_feedback/js/feedback.js' %}?v=1" defer></script>
+{% endblock %}

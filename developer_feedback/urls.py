@@ -11,6 +11,11 @@ urlpatterns = [
     path("send/", views.DeveloperMessageCreateView.as_view(), name="message_create"),
     path("success/", views.MessageSuccessView.as_view(), name="message_success"),
     path("my-messages/", views.UserMessageHistoryView.as_view(), name="my_messages"),
+    path(
+        "my-messages/<int:pk>/edit/",
+        views.DeveloperMessageEditView.as_view(),
+        name="message_edit",
+    ),
     path("inbox/", views.DeveloperInboxListView.as_view(), name="inbox_list"),
     path(
         "inbox/<int:pk>/",

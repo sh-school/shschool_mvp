@@ -61,6 +61,7 @@ class AuditAction(models.TextChoices):
     VIEW_INBOX = "view_inbox", _("عرض صندوق الوارد")
     VIEW_MESSAGE = "view_message", _("عرض رسالة")
     UPDATE_STATUS = "update_status", _("تحديث الحالة")
+    EDIT_MESSAGE = "edit_message", _("تعديل رسالة")
     DELETE_MESSAGE = "delete_message", _("حذف رسالة")
 
 
@@ -272,6 +273,66 @@ class MessageStatusLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.message_id}: {self.old_status} → {self.new_status}"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 2.b MessageEditHistory — سجل تعديلات المُرسِل على الرسالة
+# ═══════════════════════════════════════════════════════════════
+
+
+class MessageEditHistory(models.Model):
+    """
+    لقطة لحقول الرسالة *قبل* التعديل — تُنشأ لكل تعديل يقوم به المُرسِل.
+
+    الشفافية: المطوّر يرى في inbox ما كانت عليه الرسالة الأصلية وما أصبحت.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+
+    message = models.ForeignKey(
+        DeveloperMessage,
+        on_delete=models.CASCADE,
+        related_name="edit_history",
+        verbose_name=_("الرسالة"),
+    )
+
+    old_subject = models.CharField(_("الموضوع السابق"), max_length=200)
+    old_body = models.TextField(_("النص السابق"))
+    old_message_type = models.CharField(
+        _("نوع الرسالة السابق"),
+        max_length=20,
+        choices=MessageType.choices,
+    )
+    old_priority = models.CharField(
+        _("الأولوية السابقة"),
+        max_length=10,
+        choices=MessagePriority.choices,
+    )
+
+    edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dev_feedback_edits",
+        verbose_name=_("عدّلها"),
+    )
+
+    edited_at = models.DateTimeField(_("وقت التعديل"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("سجل تعديل رسالة")
+        verbose_name_plural = _("سجلات تعديل الرسائل")
+        ordering = ["-edited_at"]
+        indexes = [
+            models.Index(
+                fields=["message", "edited_at"],
+                name="devfb_edit_msg_time_idx",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"edit#{self.pk} on msg {self.message_id} @ {self.edited_at:%Y-%m-%d %H:%M}"
 
 
 # ═══════════════════════════════════════════════════════════════
