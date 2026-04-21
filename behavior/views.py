@@ -151,8 +151,11 @@ def report_infraction(request):
 
     school = request.user.get_school()
 
-    # فئات المخالفات النشطة (2025) — مجمّعة حسب الدرجة (مفاتيح نصية للـ template)
-    all_violations = ViolationCategory.objects.filter(is_active=True).order_by("code")
+    # فئات المخالفات النشطة — 40 مخالفة رسمية حسب لائحة الشحانية
+    # الفلتر code__regex يستبعد ABCD القديمة حتى لو بقيت is_active=True
+    all_violations = ViolationCategory.objects.filter(
+        is_active=True, code__regex=r"^\d+-\d+$"
+    ).order_by("code")
     violations_by_degree = {str(d): list(all_violations.filter(degree=d)) for d in range(1, 5)}
 
     if request.method == "POST":
@@ -358,9 +361,9 @@ def _quick_log_context(user, school, preselected_student_id=""):
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
         "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
-        "violation_categories": ViolationCategory.objects.filter(is_active=True).order_by(
-            "degree", "code"
-        ),
+        "violation_categories": ViolationCategory.objects.filter(
+            is_active=True, code__regex=r"^\d+-\d+$"
+        ).order_by("degree", "code"),
         "preselected_student_id": str(preselected_student_id),
     }
 
