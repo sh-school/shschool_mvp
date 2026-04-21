@@ -74,7 +74,6 @@
  {% if inf.level == 4 %}status-danger{% else %}status-warning{% endif %}">
  الدرجة {{ inf.level }} — {{ inf.get_level_display }}
  </span>
- <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
  </div>
  <p class="text-sm text-gray-600 mb-1">{{ inf.description }}</p>
  {% if inf.action_taken %}
@@ -94,14 +93,6 @@
 
  <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة (اختياري)"
  class="w-full text-xs border border-gray-200 rounded p-2 mb-2 resize-none bg-white text-gray-900 placeholder:text-gray-400"></textarea>
-
- <div class="flex items-center gap-2 mb-2">
- <input type="number" name="points_restored" placeholder="نقاط للاسترداد"
- min="0" max="{{ inf.points_deducted }}"
- class="w-28 text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-900 placeholder:text-gray-400">
- <input type="text" name="recovery_reason" placeholder="سبب الاسترداد"
- class="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-900 placeholder:text-gray-400">
- </div>
 
  <div class="flex gap-2">
  <button name="decision" value="resolve"
@@ -146,9 +137,7 @@
  <th scope="col" class="px-4 py-3">الطالب</th>
  <th scope="col" class="px-4 py-3">الدرجة</th>
  <th scope="col" class="px-4 py-3">التاريخ</th>
- <th scope="col" class="px-4 py-3">النقاط المخصومة</th>
- <th scope="col" class="px-4 py-3">المستردة</th>
- <th scope="col" class="px-4 py-3">أعتمدها</th>
+ <th scope="col" class="px-4 py-3">اعتمدها</th>
  </tr>
  </thead>
  <tbody class="divide-y">
@@ -163,10 +152,6 @@
  <span class="status-badge status-gray">الدرجة {{ inf.level }}</span>
  </td>
  <td class="px-4 py-3 text-gray-500">{{ inf.date }}</td>
- <td class="px-4 py-3 text-red-600 font-bold">-{{ inf.points_deducted }}</td>
- <td class="px-4 py-3 text-green-600 font-bold">
- {% if inf.recovery %}+{{ inf.recovery.points_restored }}{% else %}—{% endif %}
- </td>
  <td class="px-4 py-3 text-gray-500 text-xs">
  {% if inf.recovery %}{{ inf.recovery.approved_by.full_name|default:"—" }}{% else %}—{% endif %}
  </td>

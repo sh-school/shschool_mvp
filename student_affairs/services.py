@@ -18,7 +18,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
@@ -148,9 +148,7 @@ class StudentService:
         ).aggregate(
             total=Count("id"),
             unresolved=Count("id", filter=Q(is_resolved=False)),
-            points=Sum("points_deducted"),
         )
-        behavior_month["points"] = behavior_month["points"] or 0
 
         # زيارات العيادة هذا الشهر
         clinic_visits = ClinicVisit.objects.filter(

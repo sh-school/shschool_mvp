@@ -18,12 +18,6 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <!-- Total Deducted Points -->
-        <div class="bg-white rounded-xl shadow-md p-6 border-r-4 border-maroon-600" style="border-color: #8A1538;">
-            <div class="text-sm font-medium text-gray-500 mb-1">إجمالي النقاط المخصومة</div>
-            <div class="text-2xl font-bold text-maroon-800" style="color: #8A1538;">{{ total_deducted }} نقطة</div>
-        </div>
-
         <!-- Stats by Level -->
         {% for stat in stats %}
         <div class="bg-white rounded-xl shadow-md p-6 border-r-4 {% if stat.level == 1 %}border-green-500{% elif stat.level == 2 %}border-yellow-500{% elif stat.level == 3 %}border-orange-500{% else %}border-red-600{% endif %}">
@@ -46,7 +40,6 @@
                         <th scope="col" class="py-3 px-6">الطالب</th>
                         <th scope="col" class="py-3 px-6">الدرجة</th>
                         <th scope="col" class="py-3 px-6">التاريخ</th>
-                        <th scope="col" class="py-3 px-6">النقاط</th>
                         <th scope="col" class="py-3 px-6">الحالة</th>
                         <th scope="col" class="py-3 px-6">الإجراءات</th>
                     </tr>
@@ -69,7 +62,6 @@
                             </span>
                         </td>
                         <td class="py-3 px-6">{{ infraction.date }}</td>
-                        <td class="py-3 px-6 font-bold text-red-600">-{{ infraction.points_deducted }}</td>
                         <td class="py-3 px-6">
                             {% if infraction.is_resolved %}
                             <span class="text-green-600 flex items-center">✅ معالج</span>
@@ -80,7 +72,6 @@
                         <td class="py-3 px-6">
                             <div class="flex space-x-2 space-x-reverse">
                                 <a href="{% url 'behavior:student_profile' infraction.student.id %}" class="text-blue-600 hover:text-blue-900">🔍 ملف الطالب</a>
-                                <a href="{% url 'behavior:point_recovery' infraction.id %}" class="text-maroon-600 hover:text-maroon-900" style="color: #8A1538;">⭐ استعادة نقاط</a>
                             </div>
                         </td>
                     </tr>
@@ -94,20 +85,8 @@
         </div>
     </div>
 
-    <!-- Behavior Policy Quick Guide -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div class="bg-maroon-50 p-6 rounded-xl border border-maroon-200" style="background-color: #F9F2F4;">
-            <h3 class="text-xl font-bold text-maroon-900 mb-4" style="color: #8A1538;">💡 نظام التحفيز التربوي (استعادة النقاط)</h3>
-            <p class="text-gray-700 leading-relaxed mb-4">
-                وفقاً للائحة وزارة التربية والتعليم والتعليم العالي في قطر، يمكن للطالب استعادة النقاط المخصومة في حال أظهر التزاماً وانضباطاً ملموساً خلال فترة زمنية محددة.
-            </p>
-            <ul class="list-disc list-inside text-gray-600 space-y-2">
-                <li>المشاركة الفعالة في الأنشطة المدرسية.</li>
-                <li>تحسن ملحوظ في الحضور والالتزام بالزي.</li>
-                <li>توصية من المعلمين أو الأخصائي الاجتماعي.</li>
-            </ul>
-        </div>
-        
+    <!-- Behavior Policy Quick Guide — نظام النقاط ملغى -->
+    <div class="grid grid-cols-1 md:grid-cols-1 gap-8">
         <div class="bg-gray-800 text-white p-6 rounded-xl shadow-lg">
             <h3 class="text-xl font-bold mb-4 flex items-center">
                 <span class="mr-2">⚖️</span> تصنيفات المخالفات القطرية

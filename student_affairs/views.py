@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from assessments.models import AnnualSubjectResult
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
 from core.export_utils import (
     add_excel_footer,
@@ -642,23 +642,12 @@ def student_profile(request, student_id):
         .select_related("violation_category")
         .order_by("-date")
     )
+    # نظام النقاط ملغى — summary يعتمد على عدد المخالفات فقط
     behavior_summary = {
         "total": infractions.count(),
         "by_level": {lvl: infractions.filter(level=lvl).count() for lvl in range(1, 5)},
         "recent": infractions[:5],
     }
-    # نقاط السلوك — Sum و BehaviorPointRecovery مُستورَدان من أعلى الملف
-    total_deducted = infractions.aggregate(s=Sum("points_deducted"))["s"] or 0
-    total_restored = (
-        BehaviorPointRecovery.objects.filter(
-            infraction__student=student,
-            infraction__school=school,
-        ).aggregate(s=Sum("points_restored"))["s"]
-        or 0
-    )
-    behavior_summary["net_score"] = max(0, 100 - total_deducted + total_restored)
-    behavior_summary["total_deducted"] = total_deducted
-    behavior_summary["total_restored"] = total_restored
 
     # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
     clinic_visits = ClinicVisit.objects.filter(student=student, school=school).order_by(
@@ -1118,30 +1107,23 @@ def behavior_overview(request):
         round(students_with_infractions * 100 / total_students) if total_students else 0
     )
 
-    # ── توزيع حسب درجة المخالفة (1-4) ──
+    # ── توزيع حسب درجة المخالفة (1-4) — نظام النقاط ملغى ──
     degree_distribution = (
         year_infractions.values("violation_category__degree")
-        .annotate(count=Count("id"), points=Sum("points_deducted"))
+        .annotate(count=Count("id"))
         .order_by("violation_category__degree")
     )
-    # تحويل إلى dict سهل الوصول {degree: {count, points}}
     degree_map = {}
     for row in degree_distribution:
         deg = row["violation_category__degree"]
         if deg:
-            degree_map[deg] = {
-                "count": row["count"],
-                "points": row["points"] or 0,
-            }
+            degree_map[deg] = {"count": row["count"]}
 
-    # ── أكثر 15 طالب مخالفات ──
+    # ── أكثر 15 طالب مخالفات — مُرتَّبة حسب العدد ──
     worst_students = (
         year_infractions.values("student__id", "student__full_name")
-        .annotate(
-            infraction_count=Count("id"),
-            total_points=Sum("points_deducted"),
-        )
-        .order_by("-total_points")[:15]
+        .annotate(infraction_count=Count("id"))
+        .order_by("-infraction_count")[:15]
     )
 
     # ── اتجاه المخالفات الشهري (آخر 6 أشهر) ──
@@ -1497,13 +1479,12 @@ def student_profile_pdf(request, student_id):
         "late": attendance.filter(status="late").count(),
     }
 
-    # سلوك
+    # سلوك — نظام النقاط ملغى
     infractions = (
         BehaviorInfraction.objects.filter(school=school, student=student)
         .select_related("violation_category")
         .order_by("-date")[:20]
     )
-    total_points = sum(i.points_deducted for i in infractions)
 
     # درجات — AnnualSubjectResult مُستورَد من أعلى الملف
     grades = (
@@ -1538,7 +1519,6 @@ def student_profile_pdf(request, student_id):
             "attendance": attendance[:15],
             "att_summary": att_summary,
             "infractions": infractions,
-            "total_points": total_points,
             "grades": grades,
             "activities": activities,
             "parent_links": parent_links,
@@ -1659,8 +1639,8 @@ def behavior_export_excel(request):
     infractions = (
         BehaviorInfraction.objects.filter(school=school)
         .values("student__full_name", "student__national_id")
-        .annotate(count=Count("id"), points=Sum("points_deducted"))
-        .order_by("-points")
+        .annotate(count=Count("id"))
+        .order_by("-count")
     )
 
     wb = openpyxl.Workbook()
@@ -1668,7 +1648,7 @@ def behavior_export_excel(request):
     ws.title = "السلوك"
     ws.sheet_view.rightToLeft = True
 
-    headers = ["#", "اسم الطالب", "الرقم الشخصي", "عدد المخالفات", "النقاط المخصومة"]
+    headers = ["#", "اسم الطالب", "الرقم الشخصي", "عدد المخالفات"]
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
@@ -1696,7 +1676,6 @@ def behavior_export_excel(request):
             rec["student__full_name"],
             rec["student__national_id"],
             rec["count"],
-            rec["points"] or 0,
         ]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
@@ -1969,32 +1948,23 @@ def behavior_overview_pdf(request):
         round(students_with_infractions * 100 / total_students) if total_students else 0
     )
 
-    # ── توزيع حسب الدرجة ──
+    # ── توزيع حسب الدرجة — نظام النقاط ملغى ──
     degree_distribution = (
         year_infractions.values("violation_category__degree")
-        .annotate(count=Count("id"), points=Sum("points_deducted"))
+        .annotate(count=Count("id"))
         .order_by("violation_category__degree")
     )
     degree_rows = []
     for row in degree_distribution:
         deg = row["violation_category__degree"]
         if deg:
-            degree_rows.append(
-                {
-                    "degree": deg,
-                    "count": row["count"],
-                    "points": row["points"] or 0,
-                }
-            )
+            degree_rows.append({"degree": deg, "count": row["count"]})
 
-    # ── أكثر 15 طالب مخالفات ──
+    # ── أكثر 15 طالب مخالفات — مرتبة حسب العدد ──
     worst_students = (
         year_infractions.values("student__id", "student__full_name")
-        .annotate(
-            infraction_count=Count("id"),
-            total_points=Sum("points_deducted"),
-        )
-        .order_by("-total_points")[:15]
+        .annotate(infraction_count=Count("id"))
+        .order_by("-infraction_count")[:15]
     )
 
     ctx = get_export_context(request, "تقرير السلوك")

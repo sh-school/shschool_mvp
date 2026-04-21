@@ -142,7 +142,7 @@ class BehaviorInfractionFactory(factory.django.DjangoModelFactory):
     reported_by = factory.SubFactory(UserFactory)
     level = 1
     description = "تأخر عن الحصة"
-    points_deducted = 5
+    points_deducted = 0  # نظام النقاط ملغى — DB field باقٍ بصفر
     is_resolved = False
 
 

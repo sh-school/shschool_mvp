@@ -28,26 +28,11 @@
  {% endfor %}
  </div>
 
- <!-- بطاقة النقاط -->
+ <!-- بطاقة عدد المخالفات — نظام النقاط ملغى -->
  <div class="card-qatar">
- <div class="flex items-center justify-between mb-4">
- <div>
- <p class="text-4xl font-bold {% if rating_color == 'green' %}text-green-700{% elif rating_color == 'blue' %}text-blue-700{% elif rating_color == 'amber' %}text-amber-600{% else %}text-red-600{% endif %}">
- {{ net_score }}<span class="text-lg font-normal text-gray-400">/100</span>
- </p>
- <p class="text-sm font-medium text-gray-600 mt-1">{{ rating }}</p>
- </div>
- <div class="text-right space-y-1">
- <p class="text-sm text-gray-500">المخالفات: <span class="font-semibold text-gray-800">{{ infractions.count }}</span></p>
- <p class="text-sm text-red-500">نقاط مخصومة: <span class="font-semibold">{{ total_deducted }}</span></p>
- <p class="text-sm text-green-600">نقاط مستعادة: <span class="font-semibold">{{ total_restored }}</span></p>
- </div>
- </div>
- <!-- شريط التقدم -->
- <div class="w-full bg-gray-100 rounded-full h-3">
- <div class="h-3 rounded-full transition-all
- {% if rating_color == 'green' %}bg-green-500{% elif rating_color == 'blue' %}bg-blue-500{% elif rating_color == 'amber' %}bg-amber-400{% else %}bg-red-500{% endif %}"
- style="--progress-w:{{ net_score }}%"></div>
+ <div class="flex items-center justify-between">
+ <p class="text-sm font-medium text-gray-600">التقييم السلوكي</p>
+ <p class="text-sm text-gray-500">إجمالي المخالفات: <span class="font-semibold text-gray-800">{{ infractions.count }}</span></p>
  </div>
  </div>
 
@@ -97,7 +82,6 @@
  <p class="text-sm text-gray-700">{{ inf.description }}</p>
  {% if inf.action_taken %}<p class="text-xs text-gray-400 mt-0.5">الإجراء: {{ inf.action_taken }}</p>{% endif %}
  </div>
- <span class="text-sm font-medium text-red-600 me-3 flex-shrink-0">-{{ inf.points_deducted }}</span>
  </div>
  {% endfor %}
  </div>

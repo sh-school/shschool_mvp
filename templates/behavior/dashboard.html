@@ -15,26 +15,14 @@
     <span class="exec-date">{{ today|default:"" }}</span>
   </div>
 
-  {# ── KPI Strip ── #}
+  {# ── KPI Strip — نظام النقاط ملغى ── #}
   <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">نقاط مخصومة</div>
-      <div class="kpi-mini-value">{{ total_deducted }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">صافي الخصم</div>
-      <div class="kpi-mini-value">{{ net_deducted }}</div>
-    </div>
     <div class="kpi-mini kpi-red">
       <div class="kpi-mini-label">مخالفات جسيمة معلّقة</div>
       <div class="kpi-mini-value">{{ critical_unresolved|length }}</div>
       {% if critical_unresolved %}
       <div class="kpi-mini-alert">تحتاج قرار لجنة</div>
       {% endif %}
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">نقاط مستردة</div>
-      <div class="kpi-mini-value">{{ total_restored }}</div>
     </div>
   </div>
 

@@ -32,18 +32,6 @@
 
  {# ── KPI Strip ── #}
  <div class="kpi-strip">
-   <div class="kpi-mini {% if status_color == 'green' %}kpi-green{% elif status_color == 'yellow' %}kpi-orange{% else %}kpi-red{% endif %}">
-     <span class="kpi-mini-value">{{ net_score }}<small>/100</small></span>
-     <span class="kpi-mini-label">رصيد النقاط الحالي</span>
-   </div>
-   <div class="kpi-mini kpi-red">
-     <span class="kpi-mini-value">-{{ total_deducted }}</span>
-     <span class="kpi-mini-label">نقاط مخصومة</span>
-   </div>
-   <div class="kpi-mini kpi-green">
-     <span class="kpi-mini-value">+{{ total_restored }}</span>
-     <span class="kpi-mini-label">نقاط مستردة</span>
-   </div>
    <div class="kpi-mini kpi-maroon">
      <span class="kpi-mini-value">{{ infractions.count }}</span>
      <span class="kpi-mini-label">إجمالي المخالفات</span>
@@ -81,7 +69,6 @@
  الخطوة {{ inf.escalation_step }}
  </span>
  {% endif %}
- <span class="text-xs text-red-600 font-bold">-{{ inf.points_deducted }} نقطة</span>
  {% if inf.is_resolved %}<span class="status-badge status-success">محلولة</span>{% endif %}
  {% if inf.parent_summoned %}<span class="status-badge status-warning">استدعاء ولي أمر</span>{% endif %}
  {% if inf.security_agency %}<span class="status-badge status-danger">إحالة أمنية</span>{% endif %}
@@ -91,16 +78,9 @@
  {% endif %}
  <p class="text-sm text-gray-700">{{ inf.description }}</p>
  {% if inf.action_taken %}<p class="text-xs text-gray-500 mt-1">الإجراء: {{ inf.action_taken }}</p>{% endif %}
- {% if inf.recovery %}<p class="text-xs text-green-600 mt-1">{% include "components/icon.html" with name="check" %} استردت {{ inf.recovery.points_restored }} نقطة: {{ inf.recovery.reason }}</p>{% endif %}
  <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
  </div>
  <div class="flex flex-col gap-1 shrink-0 me-2">
- {% if is_committee and not inf.is_resolved and not inf.recovery %}
- <a href="{% url 'behavior:point_recovery' inf.id %}"
- class="btn-success text-xs text-white px-3 py-1.5 rounded-lg">
- استرداد نقاط
- </a>
- {% endif %}
  {% if is_committee and not inf.is_resolved %}
  <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" class="inline">
  {% csrf_token %}

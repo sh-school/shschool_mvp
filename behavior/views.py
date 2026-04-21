@@ -58,7 +58,6 @@ def _get_scoped_students(user, school):
 
 from .services import (
     PERIOD_CHOICES,
-    POINTS_BY_LEVEL,
     BehaviorPermissions,
     BehaviorService,
 )
@@ -178,7 +177,6 @@ def report_infraction(request):
                 "action_taken", ""
             )
             level = form.cleaned_data["level"]
-            points = form.cleaned_data["points_deducted"]
 
             # جلب فئة المخالفة إن وُجدت
             violation_cat = None
@@ -186,8 +184,6 @@ def report_infraction(request):
                 try:
                     violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
                     level = violation_cat.degree
-                    if not points:
-                        points = violation_cat.points
                 except ViolationCategory.DoesNotExist:
                     messages.error(request, "فئة المخالفة غير موجودة.")
                     violation_cat = "INVALID"
@@ -197,6 +193,7 @@ def report_infraction(request):
 
                 try:
                     # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+                    # نظام النقاط ملغى — نُمرر 0 لتوافق DB (الحقل NOT NULL)
                     infraction = BehaviorService.create_infraction(
                         school=school,
                         student=student,
@@ -204,7 +201,7 @@ def report_infraction(request):
                         level=level,
                         description=description,
                         action_taken=action,
-                        points_deducted=points,
+                        points_deducted=0,
                         violation_category=violation_cat if violation_cat else None,
                         disciplinary_action_type=disciplinary_action_type,
                         violation_description=violation_description,
@@ -241,7 +238,6 @@ def report_infraction(request):
         "behavior/report_form.html",
         {
             "students": students,
-            "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
         },
@@ -275,9 +271,8 @@ def quick_log(request):
 
         try:
             level = int(request.POST.get("level", 1))
-            points = int(request.POST.get("points_deducted", POINTS_BY_LEVEL.get(level, 5)))
         except (ValueError, TypeError):
-            level, points = 1, 5
+            level = 1
 
         # جلب فئة المخالفة
         violation_cat = None
@@ -285,8 +280,6 @@ def quick_log(request):
             try:
                 violation_cat = ViolationCategory.objects.get(id=violation_cat_id)
                 level = violation_cat.degree
-                if not points:
-                    points = violation_cat.points
             except ViolationCategory.DoesNotExist:
                 pass
 
@@ -315,6 +308,7 @@ def quick_log(request):
         student = get_object_or_404(CustomUser, id=student_id)
 
         # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+        # نظام النقاط ملغى — points_deducted=0 للحفاظ على توافق DB
         infraction = BehaviorService.create_infraction(
             school=school,
             student=student,
@@ -322,7 +316,7 @@ def quick_log(request):
             level=level,
             description=description,
             action_taken=action,
-            points_deducted=points,
+            points_deducted=0,
             violation_category=violation_cat,
         )
 
@@ -360,7 +354,6 @@ def _quick_log_context(user, school, preselected_student_id=""):
     return {
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
-        "POINTS_BY_LEVEL": POINTS_BY_LEVEL,
         "violation_categories": ViolationCategory.objects.filter(
             is_active=True, code__regex=r"^\d+-\d+$"
         ).order_by("degree", "code"),
@@ -396,47 +389,6 @@ def student_behavior_profile(request, student_id):
     return render(request, "behavior/student_profile.html", context)
 
 
-# ── استعادة النقاط ────────────────────────────────────────────
-@login_required
-@role_required(BEHAVIOR_COMMITTEE)
-def point_recovery_request(request, infraction_id):
-    """طلب استعادة نقاط مخصومة — للجنة الضبط السلوكي فقط."""
-    if not BehaviorPermissions.is_committee(request.user):
-        messages.error(request, "استعادة النقاط مقتصرة على أعضاء لجنة الضبط السلوكي.")
-        return redirect("behavior:dashboard")
-
-    school = request.user.get_school()
-    infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
-    if hasattr(infraction, "recovery"):
-        messages.warning(request, "تم معالجة هذه المخالفة مسبقاً.")
-        return redirect("behavior:student_profile", student_id=infraction.student.id)
-
-    if request.method == "POST":
-        reason = request.POST.get("reason", "").strip()
-        points_raw = request.POST.get("points_restored", "0")
-        if not reason:
-            messages.error(request, "يرجى تحديد سبب استعادة النقاط.")
-        else:
-            try:
-                # ✅ v5.4: BehaviorService.approve_point_recovery — atomic + validation
-                recovery = BehaviorService.approve_point_recovery(
-                    infraction=infraction,
-                    approved_by=request.user,
-                    reason=reason,
-                    points_restored=int(points_raw),
-                )
-                messages.success(
-                    request,
-                    f"تمت استعادة {recovery.points_restored} نقطة "
-                    f"للطالب {infraction.student.full_name}",
-                )
-                return redirect("behavior:student_profile", student_id=infraction.student.id)
-            except (ValueError, TypeError) as e:
-                messages.error(request, str(e))
-
-    return render(request, "behavior/recovery_form.html", {"infraction": infraction})
-
-
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
 @role_required(BEHAVIOR_COMMITTEE)
@@ -462,12 +414,13 @@ def committee_decision(request, infraction_id):
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
     if request.method == "POST":
+        # نظام النقاط ملغى — restore_pts=0 دائماً
         msg, level = BehaviorService.apply_committee_decision(
             infraction=infraction,
             decision=request.POST.get("decision"),
             action=request.POST.get("action_taken", "").strip(),
-            restore_pts=int(request.POST.get("points_restored", 0)),
-            reason=request.POST.get("recovery_reason", "").strip(),
+            restore_pts=0,
+            reason="",
             approved_by=request.user,
             suspension_type=request.POST.get("suspension_type", "internal"),
             suspension_days=int(request.POST.get("suspension_days", 1) or 1),

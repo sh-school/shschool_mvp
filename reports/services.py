@@ -686,23 +686,24 @@ class AcademicReportsService:
             if pct is not None:
                 quiz_buckets[g.student_id].append(pct)
 
+        # نظام النقاط ملغى — نحسب فقط عدد المخالفات بوزن حسب الدرجة
         beh_counts: dict = defaultdict(int)
-        beh_points: dict = defaultdict(int)
+        beh_severity: dict = defaultdict(int)
+        _SEVERITY_PER_LEVEL = {1: 2, 2: 5, 3: 10, 4: 25}
         for inf in beh_qs:
             beh_counts[inf.student_id] += 1
-            beh_points[inf.student_id] += inf.points_deducted or 0
+            beh_severity[inf.student_id] += _SEVERITY_PER_LEVEL.get(inf.level, 2)
 
         rows = []
         for st in students:
             pcts = quiz_buckets.get(st.id, [])
             quiz_avg = cls._avg(pcts)
             inf_count = beh_counts.get(st.id, 0)
-            points = beh_points.get(st.id, 0)
+            severity = beh_severity.get(st.id, 0)
 
-            # Combined score: quiz% weighted 0.7 minus behavior penalty
-            # (behavior penalty = min(points, 30) × 0.3, so 30+ points → −9 on score)
+            # Combined score: quiz% weighted 0.7 minus behavior penalty (severity-based)
             if quiz_avg is not None:
-                penalty = min(points, 30) * 0.3
+                penalty = min(severity, 30) * 0.3
                 combined = round(quiz_avg * 0.7 + (100 - penalty) * 0.3, 2)
             else:
                 combined = None
@@ -714,7 +715,6 @@ class AcademicReportsService:
                     "quiz_count": len(pcts),
                     "quiz_avg": quiz_avg,
                     "behavior_count": inf_count,
-                    "behavior_points": points,
                     "combined_score": combined,
                 }
             )
@@ -1397,14 +1397,13 @@ class ExcelService:
             ("الرقم الشخصي", 20 if is_a3 else 16),
             ("التاريخ", 17 if is_a3 else 13),
             ("الدرجة", 22 if is_a3 else 18),
-            ("النقاط المخصومة", 18 if is_a3 else 15),
             ("المُبلِّغ", 26 if is_a3 else 20),
             ("الوصف", 55 if is_a3 else 40),
         ]
         cls._add_header_row(ws, styles, 4, columns)
 
         ws.freeze_panes = "A5"
-        ws.auto_filter.ref = "A4:H4"
+        ws.auto_filter.ref = "A4:G4"
 
         for idx, inf in enumerate(data["infractions"], start=1):
             row_num = idx + 4  # البيانات تبدأ من الصف 5
@@ -1425,11 +1424,10 @@ class ExcelService:
                 bold=True,
             )
 
-            ws.cell(row=row_num, column=6, value=inf.points_deducted)
             ws.cell(
-                row=row_num, column=7, value=inf.reported_by.full_name if inf.reported_by else "—"
+                row=row_num, column=6, value=inf.reported_by.full_name if inf.reported_by else "—"
             )
-            ws.cell(row=row_num, column=8, value=inf.description or "")
+            ws.cell(row=row_num, column=7, value=inf.description or "")
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 

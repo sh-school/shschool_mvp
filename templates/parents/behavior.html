@@ -40,16 +40,8 @@
       </div>
     </div>
 
-    {# KPI Row #}
+    {# KPI Row — نظام النقاط ملغى #}
     <div class="kpi-strip" style="margin:0 0 1rem">
-      <div class="kpi-mini kpi-red">
-        <div class="kpi-mini-value">{{ child.total_points_deducted }}</div>
-        <div class="kpi-mini-label">نقاط مخصومة</div>
-      </div>
-      <div class="kpi-mini kpi-green">
-        <div class="kpi-mini-value">{{ child.recovered_points }}</div>
-        <div class="kpi-mini-label">نقاط مُستعادة</div>
-      </div>
       <div class="kpi-mini kpi-orange">
         <div class="kpi-mini-value">{{ child.unresolved }}</div>
         <div class="kpi-mini-label">غير محلولة</div>
@@ -70,7 +62,6 @@
             <th class="text-right py-2 px-2">التاريخ</th>
             <th class="text-right py-2 px-2">الفئة</th>
             <th class="text-right py-2 px-2">الوصف</th>
-            <th class="text-center py-2 px-2">النقاط</th>
             <th class="text-center py-2 px-2">الحالة</th>
           </tr>
         </thead>
@@ -92,7 +83,6 @@
               {% endif %}
             </td>
             <td class="py-2 px-2">{{ inf.description|truncatewords:10 }}</td>
-            <td class="py-2 px-2 text-center font-bold text-red-600">-{{ inf.points_deducted }}</td>
             <td class="py-2 px-2 text-center">
               {% if inf.is_resolved %}
               <span class="status-badge status-green">محلولة</span>

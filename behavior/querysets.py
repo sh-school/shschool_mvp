@@ -1,11 +1,12 @@
 """
 behavior/querysets.py — Custom QuerySets للسلوك الطلابي
 =========================================================
+ملاحظة: نظام النقاط ملغى — at_risk الآن يعتمد على عدد المخالفات.
 """
 
 from __future__ import annotations
 
-from django.db.models import Count, QuerySet, Sum
+from django.db.models import Count, QuerySet
 from django.utils import timezone
 
 
@@ -59,16 +60,16 @@ class InfractionQuerySet(QuerySet):
 
     # ── الطلاب في خطر الفصل ────────────────────────────────────────────────
 
-    def at_risk(self, threshold: int = 80) -> InfractionQuerySet:
+    def at_risk(self, threshold: int = 5) -> InfractionQuerySet:
         """
-        الطلاب الذين تجاوزوا حد النقاط المخصومة — خطر الفصل.
-        يُرجع queryset مُجمَّع على مستوى الطالب.
+        الطلاب المعرّضون للخطر — عدد المخالفات ≥ threshold (افتراضي 5).
+        نظام النقاط ملغى — نعتمد على العدد الإجمالي.
         """
         return (
             self.values("student")
-            .annotate(total_points=Sum("points_deducted"))
-            .filter(total_points__gte=threshold)
-            .order_by("-total_points")
+            .annotate(total_count=Count("id"))
+            .filter(total_count__gte=threshold)
+            .order_by("-total_count")
         )
 
     # ── تحسين الـ queries ─────────────────────────────────────────────────
@@ -76,12 +77,9 @@ class InfractionQuerySet(QuerySet):
     def with_student(self) -> InfractionQuerySet:
         return self.select_related("student", "reported_by", "violation_category")
 
-    def with_recovery(self) -> InfractionQuerySet:
-        return self.prefetch_related("recovery")
-
     def unresolved(self) -> InfractionQuerySet:
-        """مخالفات لم تُغلق بعد (لا استرداد نقاط)."""
-        return self.filter(recovery__isnull=True)
+        """مخالفات لم تُغلق بعد."""
+        return self.filter(is_resolved=False)
 
     # ── الإحصاء ───────────────────────────────────────────────────────────
 
@@ -97,17 +95,6 @@ class InfractionQuerySet(QuerySet):
 
 
 class RecoveryQuerySet(QuerySet):
-    """QuerySet لـ BehaviorPointRecovery."""
-
-    def approved(self) -> RecoveryQuerySet:
-        return self.filter(approved_by__isnull=False)
-
-    def pending(self) -> RecoveryQuerySet:
-        return self.filter(approved_by__isnull=True)
-
-    def for_student(self, student) -> RecoveryQuerySet:
-        return self.filter(infraction__student=student)
-
-    def this_month(self) -> RecoveryQuerySet:
-        today = timezone.now().date()
-        return self.filter(date__year=today.year, date__month=today.month)
+    """DEPRECATED — BehaviorPointRecovery model غير مُستخدم بعد إلغاء نظام النقاط.
+    نُبقي الـ class placeholder لئلا نكسر related_name مرجعية سابقة.
+    """

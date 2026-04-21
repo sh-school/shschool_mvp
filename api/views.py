@@ -496,7 +496,7 @@ class BehaviorListView(generics.ListAPIView):
       ?class_id=<uuid>
 
     الفرز:
-      ?ordering=-date | level | -points_deducted | student__full_name
+      ?ordering=-date | level | student__full_name
     """
 
     serializer_class = BehaviorInfractionSerializer
@@ -504,7 +504,7 @@ class BehaviorListView(generics.ListAPIView):
     pagination_class = StandardPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = InfractionFilter
-    ordering_fields = ["date", "level", "points_deducted", "student__full_name"]
+    ordering_fields = ["date", "level", "student__full_name"]
     ordering = ["-date"]
 
     @extend_schema(

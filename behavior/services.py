@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
@@ -28,7 +28,6 @@ logger = logging.getLogger(__name__)
 
 from core.models import (
     BehaviorInfraction,
-    BehaviorPointRecovery,
     ParentStudentLink,
     StudentEnrollment,
 )
@@ -37,12 +36,12 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 # ── ثوابت موحدة من constants.py ────────────────────────────
+# POINTS_BY_LEVEL مُستبعد — نظام النقاط ملغى
 from .constants import (  # noqa: E402,F401
     ESCALATION_STEPS,
     LEVEL_AUTHORITY,
     LEVEL_DESC,
     LEVEL_DISPLAY,
-    POINTS_BY_LEVEL,
 )
 
 PERIOD_CHOICES = [
@@ -103,7 +102,7 @@ class BehaviorPermissions:
 
 
 class BehaviorService:
-    # ── حساب النقاط السلوكية للطالب ─────────────────────────
+    # ── التقييم السلوكي للطالب (نظام النقاط ملغى — يعتمد على عدد المخالفات) ──
     @staticmethod
     def get_student_score(
         student: CustomUser,
@@ -112,8 +111,8 @@ class BehaviorService:
         date_to: date | None = None,
     ) -> dict:
         """
-        يحسب النقاط السلوكية للطالب (من 100).
-        Returns: dict with total_deducted, total_restored, net_score, rating, rating_color
+        يحسب التقييم السلوكي للطالب بناءً على عدد المخالفات ودرجاتها.
+        نظام النقاط ملغى — net_score مشتقّ من عدد/خطورة المخالفات فقط.
         """
         qs = BehaviorInfraction.objects.filter(student=student)
         if school:
@@ -123,19 +122,16 @@ class BehaviorService:
         if date_to:
             qs = qs.filter(date__lte=date_to)
 
-        total_deducted = qs.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
-
-        recovery_qs = BehaviorPointRecovery.objects.filter(infraction__student=student)
-        if school:
-            recovery_qs = recovery_qs.filter(infraction__school=school)
-        if date_from:
-            recovery_qs = recovery_qs.filter(infraction__date__gte=date_from)
-        if date_to:
-            recovery_qs = recovery_qs.filter(infraction__date__lte=date_to)
-
-        total_restored = recovery_qs.aggregate(Sum("points_restored"))["points_restored__sum"] or 0
-
-        net_score = max(0, min(100, 100 - total_deducted + total_restored))
+        total_count = qs.count()
+        # عقوبة تقريبية: د1×2 + د2×5 + د3×10 + د4×25 (محدّد بـ30)
+        by_level = {row["level"]: row["c"] for row in qs.values("level").annotate(c=Count("id"))}
+        severity = (
+            by_level.get(1, 0) * 2
+            + by_level.get(2, 0) * 5
+            + by_level.get(3, 0) * 10
+            + by_level.get(4, 0) * 25
+        )
+        net_score = max(0, 100 - min(30, severity))
 
         if net_score >= 90:
             rating, rating_color = "ممتاز", "green"
@@ -147,8 +143,7 @@ class BehaviorService:
             rating, rating_color = "يحتاج تطوير", "red"
 
         return {
-            "total_deducted": total_deducted,
-            "total_restored": total_restored,
+            "total_count": total_count,
             "net_score": net_score,
             "rating": rating,
             "rating_color": rating_color,
@@ -169,28 +164,16 @@ class BehaviorService:
 
         stats = base.values("level").annotate(count=Count("id"))
 
-        total_deducted = base.aggregate(Sum("points_deducted"))["points_deducted__sum"] or 0
-
-        recovery_qs = BehaviorPointRecovery.objects.filter(infraction__school=school)
-        if student_ids is not None:
-            recovery_qs = recovery_qs.filter(infraction__student_id__in=student_ids)
-        total_restored = recovery_qs.aggregate(Sum("points_restored"))["points_restored__sum"] or 0
-
         recent = base.select_related("student", "reported_by", "violation_category").order_by(
             "-date"
         )[:15]
 
-        critical_unresolved = (
-            base.filter(level__in=[3, 4], is_resolved=False)
-            .select_related("student", "violation_category")
-            .prefetch_related("recovery")
+        critical_unresolved = base.filter(level__in=[3, 4], is_resolved=False).select_related(
+            "student", "violation_category"
         )
 
         return {
             "stats": stats,
-            "total_deducted": total_deducted,
-            "total_restored": total_restored,
-            "net_deducted": total_deducted - total_restored,
             "recent_infractions": recent,
             "critical_unresolved": critical_unresolved,
         }
@@ -201,9 +184,7 @@ class BehaviorService:
         """بيانات الملف السلوكي الكامل"""
         infractions = (
             BehaviorInfraction.objects.filter(student=student)
-            .select_related(
-                "reported_by", "recovery", "recovery__approved_by", "violation_category"
-            )
+            .select_related("reported_by", "violation_category")
             .order_by("-date")
         )
 
@@ -237,7 +218,7 @@ class BehaviorService:
 
         resolved_cases = (
             BehaviorInfraction.objects.filter(school=school, level__in=[3, 4], is_resolved=True)
-            .select_related("student", "reported_by", "recovery", "recovery__approved_by")
+            .select_related("student", "reported_by")
             .order_by("-date")[:20]
         )
 
@@ -275,14 +256,8 @@ class BehaviorService:
             infraction.action_taken = (infraction.action_taken + "\n" + action).strip()
 
         if decision == "resolve":
+            # نظام النقاط ملغى — restore_pts/reason مُتجاهلان
             infraction.is_resolved = True
-            if restore_pts > 0 and not hasattr(infraction, "recovery"):
-                BehaviorPointRecovery.objects.create(
-                    infraction=infraction,
-                    reason=reason or "قرار لجنة الضبط السلوكي",
-                    points_restored=restore_pts,
-                    approved_by=approved_by,
-                )
             infraction.save()
             return f"✅ تم حل المخالفة للطالب {infraction.student.full_name}", "success"
 
@@ -384,7 +359,7 @@ class BehaviorService:
 
         top_students = (
             all_inf.values("student__full_name", "student__id")
-            .annotate(count=Count("id"), pts=Sum("points_deducted"))
+            .annotate(count=Count("id"))
             .order_by("-count")[:10]
         )
 
@@ -441,7 +416,7 @@ class BehaviorService:
 
         top_students = (
             all_inf.values("student__full_name", "student__id")
-            .annotate(count=Count("id"), pts=Sum("points_deducted"))
+            .annotate(count=Count("id"))
             .order_by("-count")[:10]
         )
 
@@ -598,8 +573,7 @@ class BehaviorService:
             )
             body = (
                 f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {infraction.date.strftime('%Y/%m/%d') if infraction.date else ''} | "
-                f"النقاط المخصومة: {infraction.points_deducted}"
+                f"التاريخ: {infraction.date.strftime('%Y/%m/%d') if infraction.date else ''}"
             )
 
             NotificationHub.dispatch_to_parents(
@@ -822,54 +796,3 @@ class BehaviorService:
             reporter.full_name,
         )
         return infraction
-
-    @staticmethod
-    @transaction.atomic
-    def approve_point_recovery(
-        infraction: BehaviorInfraction,
-        approved_by: CustomUser,
-        reason: str,
-        points_restored: int,
-    ) -> BehaviorPointRecovery:
-        """
-        استعادة نقاط مخصومة من مخالفة سلوكية — للجنة فقط.
-
-        يُنشئ سجل استعادة ويُغلق المخالفة في transaction ذرّي.
-
-        Args:
-            infraction: المخالفة السلوكية
-            approved_by: عضو اللجنة الذي وافق
-            reason: سبب استعادة النقاط
-            points_restored: عدد النقاط المستعادة
-
-        Returns:
-            BehaviorPointRecovery: سجل الاستعادة
-
-        Raises:
-            ValueError: إذا كانت النقاط خارج النطاق أو المخالفة محلولة مسبقاً
-        """
-        if hasattr(infraction, "recovery"):
-            raise ValueError("هذه المخالفة معالجة مسبقاً — لا يمكن تطبيق استعادة أخرى.")
-
-        if points_restored <= 0 or points_restored > infraction.points_deducted:
-            raise ValueError(
-                f"النقاط يجب أن تكون بين 1 و{infraction.points_deducted} (مُعطى: {points_restored})."
-            )
-
-        recovery = BehaviorPointRecovery.objects.create(
-            infraction=infraction,
-            reason=reason,
-            points_restored=points_restored,
-            approved_by=approved_by,
-        )
-        infraction.is_resolved = True
-        infraction.save(update_fields=["is_resolved"])
-
-        logger.info(
-            "استعادة نقاط: %d نقطة للطالب %s (مخالفة #%s) بواسطة %s",
-            points_restored,
-            infraction.student.full_name,
-            infraction.pk,
-            approved_by.full_name,
-        )
-        return recovery

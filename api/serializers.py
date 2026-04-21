@@ -268,7 +268,6 @@ class BehaviorInfractionSerializer(serializers.ModelSerializer):
             "level",
             "level_label",
             "description",
-            "points_deducted",
             "reported_by",
             "date",
             "is_resolved",

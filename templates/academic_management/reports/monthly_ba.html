@@ -134,7 +134,6 @@
             <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">عدد الاختبارات</th>
             <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">متوسط الاختبارات %</th>
             <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">عدد المخالفات</th>
-            <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">النقاط المخصومة</th>
             <th class="px-3 py-2 font-bold text-gray-700 dark:text-gray-200">التقييم المدمج</th>
           </tr>
         </thead>
@@ -149,7 +148,6 @@
                 {{ r.quiz_avg|default:"—" }}
               </td>
               <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ r.behavior_count }}</td>
-              <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ r.behavior_points }}</td>
               <td class="px-3 py-2 font-bold
                          {% if r.combined_score and r.combined_score >= 75 %}text-green-700 dark:text-green-400
                          {% elif r.combined_score and r.combined_score >= 50 %}text-amber-700 dark:text-amber-400
@@ -164,7 +162,7 @@
     </div>
     <p class="text-xs text-gray-500 dark:text-gray-500 mt-3">
       * التقييم المدمج = (متوسط الاختبارات × 0.7) + ((100 − عقوبة السلوك) × 0.3).
-      عقوبة السلوك = النقاط المخصومة × 0.3 (حتى 30 نقطة كحد أقصى).
+      عقوبة السلوك = min(30, عدد المخالفات × وزن مُكافئ للدرجة).
     </p>
   {% else %}
     <div class="text-center py-12">

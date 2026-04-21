@@ -60,7 +60,7 @@ def audit_behavior(sender, instance, created, **kwargs):
         "BehaviorInfraction",
         "create" if created else "update",
         instance,
-        changes={"level": instance.level, "points": instance.points_deducted},
+        changes={"level": instance.level},
     )
 
 

@@ -19,7 +19,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from behavior.models import BehaviorInfraction
 from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
 from core.permissions import role_required
 from operations.models import AbsenceAlert
@@ -282,6 +282,7 @@ def parent_behavior(request):
         "student"
     )
 
+    # نظام النقاط ملغى — نعرض عدد المخالفات فقط
     children_behavior = []
     for link in links:
         infractions = (
@@ -289,28 +290,11 @@ def parent_behavior(request):
             .select_related("violation_category")
             .order_by("-date")
         )
-
-        total_points = sum(i.points_deducted for i in infractions)
-        recovered = BehaviorPointRecovery.objects.filter(
-            infraction__school=school, infraction__student=link.student
-        ).count()
-        recovered_points = sum(
-            r.points_restored
-            for r in BehaviorPointRecovery.objects.filter(
-                infraction__school=school, infraction__student=link.student
-            )
-        )
-
-        behavior_score = max(0, 100 - total_points + recovered_points)
-
         children_behavior.append(
             {
                 "student": link.student,
                 "infractions": infractions[:10],
                 "total_infractions": infractions.count(),
-                "total_points_deducted": total_points,
-                "recovered_points": recovered_points,
-                "behavior_score": min(100, behavior_score),
                 "unresolved": infractions.filter(is_resolved=False).count(),
             }
         )

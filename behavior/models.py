@@ -405,9 +405,7 @@ class BehaviorInfraction(models.Model):
         return f"{self.student.full_name}{cat} - {self.get_level_display()}"
 
     def save(self, *args, **kwargs):
-        # تعيين النقاط تلقائياً من فئة المخالفة
-        if self.violation_category and not self.points_deducted:
-            self.points_deducted = self.violation_category.points
+        # نظام النقاط ملغى — لا نملأ points_deducted تلقائياً
         # تعيين الدرجة تلقائياً من فئة المخالفة
         if self.violation_category and self.violation_category.degree:
             self.level = self.violation_category.degree

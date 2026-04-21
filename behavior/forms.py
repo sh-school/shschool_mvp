@@ -19,9 +19,8 @@ _VIOLATION_DESC_MAX = 2000
 
 
 class InfractionForm(forms.Form):
-    """نموذج تسجيل مخالفة سلوكية."""
+    """نموذج تسجيل مخالفة سلوكية. نظام النقاط ملغى — لا يُعرض ولا يُطلب."""
 
-    _MAX_POINTS = 100
     _MAX_DESC_LEN = 2000
     _VALID_LEVELS = {1, 2, 3, 4}
 
@@ -50,12 +49,6 @@ class InfractionForm(forms.Form):
     # legacy free-text (backward compat with quick_log_form & committee view)
     action_taken = forms.CharField(required=False, max_length=1000)
     level = forms.IntegerField(initial=1, min_value=1, max_value=4)
-    points_deducted = forms.IntegerField(
-        initial=0,
-        min_value=0,
-        max_value=_MAX_POINTS,
-        error_messages={"max_value": f"نقاط الخصم يجب أن تكون بين 0 و {_MAX_POINTS}."},
-    )
 
     def clean_level(self):
         level = self.cleaned_data["level"]

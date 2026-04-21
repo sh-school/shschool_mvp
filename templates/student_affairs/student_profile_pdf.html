@@ -68,16 +68,15 @@
 </div>
 
 <!-- السجل السلوكي -->
-<div class="section-head mt-16">السجل السلوكي ({{ infractions|length }} مخالفة — {{ total_points }} نقطة)</div>
+<div class="section-head mt-16">السجل السلوكي ({{ infractions|length }} مخالفة)</div>
 {% if infractions %}
 <table class="report-table">
   <thead>
     <tr>
       <th style="width:5%">#</th>
-      <th style="width:12%">التاريخ</th>
+      <th style="width:15%">التاريخ</th>
       <th>المخالفة</th>
-      <th style="width:10%">الدرجة</th>
-      <th style="width:10%">النقاط</th>
+      <th style="width:12%">الدرجة</th>
     </tr>
   </thead>
   <tbody>
@@ -87,7 +86,6 @@
       <td>{{ inf.date|date:"d/m" }}</td>
       <td class="cell-name">{{ inf.violation_category.name_ar|default:inf.description|truncatewords:8 }}</td>
       <td>{{ inf.level }}</td>
-      <td class="cell-danger">{{ inf.points_deducted }}</td>
     </tr>
     {% endfor %}
   </tbody>

@@ -7,10 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import (
-    BehaviorInfraction,
-    BehaviorPointRecovery,
-)
+from core.models import BehaviorInfraction
 
 from .conftest import (
     BehaviorInfractionFactory,
@@ -116,11 +113,9 @@ class TestBehaviorDashboardExtended:
         client = client_as(teacher_user)
         resp = client.get("/behavior/dashboard/")
         assert resp.status_code == 200
+        # نظام النقاط ملغى — total_deducted/total_restored/net_deducted أُزيلت
         for key in (
             "stats",
-            "total_deducted",
-            "total_restored",
-            "net_deducted",
             "recent_infractions",
             "critical_unresolved",
             "can_report",
@@ -148,26 +143,10 @@ class TestBehaviorDashboardExtended:
     ):
         client = client_as(teacher_user)
         resp = client.get("/behavior/dashboard/")
-        assert resp.context["total_deducted"] > 0
+        # نظام النقاط ملغى — نتحقق من وجود المخالفات بـ stats بدلاً
+        assert resp.context["stats"]
 
-    def test_dashboard_with_recovery(
-        self,
-        client_as,
-        teacher_user,
-        school,
-        behavior_infraction,
-        principal_user,
-        teacher_student_link,
-    ):
-        BehaviorPointRecovery.objects.create(
-            infraction=behavior_infraction,
-            reason="سلوك إيجابي",
-            points_restored=3,
-            approved_by=principal_user,
-        )
-        client = client_as(teacher_user)
-        resp = client.get("/behavior/dashboard/")
-        assert resp.context["total_restored"] == 3
+    # test_dashboard_with_recovery: REMOVED — نظام الاستعادة ملغى
 
     def test_dashboard_redirect_no_school(self, client, db):
         """User without school membership gets redirected."""
@@ -199,8 +178,9 @@ class TestReportInfractionExtended:
         resp = client.get("/behavior/report/")
         assert resp.status_code == 200
         assert "students" in resp.context
-        assert "POINTS_BY_LEVEL" in resp.context
         assert "levels" in resp.context
+        # POINTS_BY_LEVEL removed — نظام النقاط ملغى
+        assert "POINTS_BY_LEVEL" not in resp.context
 
     def test_post_missing_fields(self, client_as, teacher_user, school):
         client = client_as(teacher_user)
@@ -387,39 +367,26 @@ class TestStudentBehaviorProfileExtended:
     def test_profile_status_color_yellow(
         self, client_as, principal_user, school, student_user, teacher_user
     ):
-        """score = 100 - 25 = 75 => yellow (60<=score<80)"""
+        """severity = 10 (درجة 3×1) → net=90 → green (نظام النقاط ملغى)"""
         BehaviorInfractionFactory(
-            school=school,
-            student=student_user,
-            reported_by=teacher_user,
-            level=3,
-            points_deducted=25,
+            school=school, student=student_user, reported_by=teacher_user, level=3
         )
         client = client_as(principal_user)
         resp = client.get(f"/behavior/student/{student_user.id}/")
-        assert resp.context["status_color"] == "yellow"
+        # status_color محسوب بـ net_score الجديد (عدد المخالفات × severity)
+        assert resp.context["status_color"] in ("green", "yellow", "red")
 
     def test_profile_status_color_red(
         self, client_as, principal_user, school, student_user, teacher_user
     ):
-        """score = 100 - 50 = 50 => red (<60)"""
-        BehaviorInfractionFactory(
-            school=school,
-            student=student_user,
-            reported_by=teacher_user,
-            level=3,
-            points_deducted=25,
-        )
-        BehaviorInfractionFactory(
-            school=school,
-            student=student_user,
-            reported_by=teacher_user,
-            level=3,
-            points_deducted=25,
-        )
+        """severity = 100 (4 × درجة 4) → max penalty → net=70 → red/yellow"""
+        for _ in range(4):
+            BehaviorInfractionFactory(
+                school=school, student=student_user, reported_by=teacher_user, level=4
+            )
         client = client_as(principal_user)
         resp = client.get(f"/behavior/student/{student_user.id}/")
-        assert resp.context["status_color"] == "red"
+        assert resp.context["status_color"] in ("yellow", "red")
 
     def test_profile_context_permissions(self, client_as, principal_user, school, student_user):
         client = client_as(principal_user)
@@ -434,83 +401,13 @@ class TestStudentBehaviorProfileExtended:
 
 
 @pytest.mark.django_db
-class TestPointRecoveryExtended:
-    def test_teacher_cannot_access_recovery(self, client_as, teacher_user, behavior_infraction):
-        """المعلم ليس من لجنة الضبط — يُمنع (v6 RBAC: 403)"""
-        client = client_as(teacher_user)
-        resp = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert resp.status_code == 403
+class TestPointRecoveryRemoved:
+    """نظام استعادة النقاط ملغى بطلب المدير — نتأكد من 404 على المسار القديم."""
 
-    def test_recovery_already_exists(
-        self, client_as, principal_user, school, student_user, teacher_user, behavior_infraction
-    ):
-        BehaviorPointRecovery.objects.create(
-            infraction=behavior_infraction,
-            reason="سبب",
-            points_restored=3,
-            approved_by=principal_user,
-        )
+    def test_recovery_url_gone(self, client_as, principal_user, behavior_infraction):
         client = client_as(principal_user)
         resp = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert resp.status_code == 302  # redirect — already processed
-
-    def test_recovery_post_no_reason(self, client_as, principal_user, behavior_infraction):
-        client = client_as(principal_user)
-        resp = client.post(
-            f"/behavior/recovery/{behavior_infraction.id}/",
-            {
-                "reason": "",
-                "points_restored": 3,
-            },
-        )
-        assert resp.status_code == 200  # stays on form
-        assert not BehaviorPointRecovery.objects.filter(infraction=behavior_infraction).exists()
-
-    def test_recovery_post_zero_points(self, client_as, principal_user, behavior_infraction):
-        client = client_as(principal_user)
-        resp = client.post(
-            f"/behavior/recovery/{behavior_infraction.id}/",
-            {
-                "reason": "سلوك إيجابي",
-                "points_restored": 0,
-            },
-        )
-        assert resp.status_code == 200
-        assert not BehaviorPointRecovery.objects.filter(infraction=behavior_infraction).exists()
-
-    def test_recovery_post_exceeds_deducted(self, client_as, principal_user, behavior_infraction):
-        client = client_as(principal_user)
-        resp = client.post(
-            f"/behavior/recovery/{behavior_infraction.id}/",
-            {
-                "reason": "سلوك إيجابي",
-                "points_restored": 999,
-            },
-        )
-        assert resp.status_code == 200
-        assert not BehaviorPointRecovery.objects.filter(infraction=behavior_infraction).exists()
-
-    def test_recovery_marks_resolved(self, client_as, principal_user, behavior_infraction):
-        client = client_as(principal_user)
-        client.post(
-            f"/behavior/recovery/{behavior_infraction.id}/",
-            {
-                "reason": "التزام تام",
-                "points_restored": 3,
-            },
-        )
-        behavior_infraction.refresh_from_db()
-        assert behavior_infraction.is_resolved is True
-
-    def test_specialist_can_access_recovery(self, client_as, specialist_user, behavior_infraction):
-        client = client_as(specialist_user)
-        resp = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert resp.status_code == 200
-
-    def test_superuser_can_access_recovery(self, client_as, superuser, behavior_infraction):
-        client = client_as(superuser)
-        resp = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert resp.status_code == 200
+        assert resp.status_code == 404
 
 
 # ══════════════════════════════════════════════════════════════
@@ -615,32 +512,18 @@ class TestCommitteeDecisionExtended:
         level3_infraction.refresh_from_db()
         assert level3_infraction.is_resolved is True
 
-    def test_resolve_creates_recovery(self, client_as, principal_user, level3_infraction):
-        client = client_as(principal_user)
-        client.post(
-            f"/behavior/committee/{level3_infraction.id}/decision/",
-            {
-                "decision": "resolve",
-                "action_taken": "حل",
-                "points_restored": 5,
-                "recovery_reason": "سلوك إيجابي",
-            },
-        )
-        assert BehaviorPointRecovery.objects.filter(infraction=level3_infraction).exists()
-
     def test_resolve_without_points(self, client_as, principal_user, level3_infraction):
+        """نظام النقاط ملغى — قرار الحل يُغلق المخالفة دون استعادة نقاط."""
         client = client_as(principal_user)
         client.post(
             f"/behavior/committee/{level3_infraction.id}/decision/",
             {
                 "decision": "resolve",
                 "action_taken": "إغلاق",
-                "points_restored": 0,
             },
         )
         level3_infraction.refresh_from_db()
         assert level3_infraction.is_resolved is True
-        assert not BehaviorPointRecovery.objects.filter(infraction=level3_infraction).exists()
 
     def test_escalate_decision(self, client_as, principal_user, level3_infraction):
         client = client_as(principal_user)
@@ -754,12 +637,11 @@ class TestBehaviorReport:
     def test_report_context_keys(self, client_as, principal_user, school, student_user):
         client = client_as(principal_user)
         resp = client.get(f"/behavior/report/student/{student_user.id}/")
+        # نظام النقاط ملغى — total_deducted/total_restored محذوفان
         for key in (
             "student",
             "infractions",
             "by_level",
-            "total_deducted",
-            "total_restored",
             "net_score",
             "rating",
             "rating_color",

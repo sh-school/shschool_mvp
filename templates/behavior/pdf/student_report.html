@@ -33,30 +33,10 @@
   </table>
 </div>
 
-<!-- ملخص النقاط السلوكية -->
+<!-- التقييم السلوكي — نظام النقاط ملغى -->
 <div class="section">
-  <div class="section-title">ملخص النقاط السلوكية</div>
-  <div class="report-title">النقاط السلوكية — {{ rating }}</div>
-  <table style="width:100%; border-collapse:collapse; margin-top:8px; font-size:12px;">
-    <tr>
-      <td style="padding:5px 8px; font-weight:bold; width:40%;">مجموع النقاط المخصومة:</td>
-      <td style="padding:5px 8px; color:#B91C1C;">{{ total_deducted }} نقطة</td>
-      <td style="padding:5px 8px; font-weight:bold; width:30%;">النقاط المستعادة:</td>
-      <td style="padding:5px 8px; color:#15803D;">{{ total_restored }} نقطة</td>
-    </tr>
-    <tr>
-      <td style="padding:5px 8px; font-weight:bold;">النقاط الصافية:</td>
-      <td style="padding:5px 8px; font-weight:bold; font-size:15px;
-        color:{% if net_score >= 90 %}#15803D{% elif net_score >= 75 %}#1D4ED8{% elif net_score >= 60 %}#D97706{% else %}#B91C1C{% endif %};">
-        {{ net_score }} / 100
-      </td>
-      <td style="padding:5px 8px; font-weight:bold;">التقدير:</td>
-      <td style="padding:5px 8px; font-weight:bold;
-        color:{% if net_score >= 90 %}#15803D{% elif net_score >= 75 %}#1D4ED8{% elif net_score >= 60 %}#D97706{% else %}#B91C1C{% endif %};">
-        {{ rating }}
-      </td>
-    </tr>
-  </table>
+  <div class="section-title">التقييم السلوكي</div>
+  <div class="report-title">{{ rating }}</div>
 </div>
 
 <!-- توزيع المخالفات حسب الدرجة -->
@@ -112,7 +92,6 @@
         <th style="padding:5px 6px; text-align:right; width:12%;">التاريخ</th>
         <th style="padding:5px 6px; text-align:right; width:22%;">فئة المخالفة</th>
         <th style="padding:5px 6px; text-align:center; width:10%;">الدرجة</th>
-        <th style="padding:5px 6px; text-align:center; width:8%;">النقاط</th>
         <th style="padding:5px 6px; text-align:center; width:10%;">الحالة</th>
         <th style="padding:5px 6px; text-align:right;">الوصف / الإجراء</th>
       </tr>
@@ -134,7 +113,6 @@
           color:{% if inf.level == 1 %}#D97706{% elif inf.level == 2 %}#EA580C{% elif inf.level == 3 %}#DC2626{% else %}#7F1D1D{% endif %};">
           {{ inf.level }}
         </td>
-        <td style="padding:5px 6px; text-align:center; color:#B91C1C;">{{ inf.points_deducted }}</td>
         <td style="padding:5px 6px; text-align:center;">
           {% if inf.is_resolved %}
             <span style="color:#15803D; font-size:10px;">محلولة</span>

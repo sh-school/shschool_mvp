@@ -209,35 +209,15 @@ class ParentService:
         """
         from collections import defaultdict
 
-        from django.db.models import Sum
-
-        from behavior.models import BehaviorInfraction, BehaviorPointRecovery
-
         today = today or timezone.now().date()
         student_ids = [cd["student"].pk for cd in children if cd.get("student")]
 
         if not student_ids:
             return children
 
-        # (1) Batch: نقاط الخصم السلوكية لكل طالب
-        deducted_map = dict(
-            BehaviorInfraction.objects.filter(school=school, student_id__in=student_ids)
-            .values("student_id")
-            .annotate(total=Sum("points_deducted"))
-            .values_list("student_id", "total")
-        )
+        # نظام النقاط ملغى — لا deducted/recovered maps
 
-        # (2) Batch: نقاط الاسترداد السلوكية لكل طالب
-        recovered_map = dict(
-            BehaviorPointRecovery.objects.filter(
-                infraction__school=school, infraction__student_id__in=student_ids
-            )
-            .values("infraction__student_id")
-            .annotate(total=Sum("points_restored"))
-            .values_list("infraction__student_id", "total")
-        )
-
-        # (3) Batch: نسبة الحضور خلال 30 يومًا لكل طالب
+        # Batch: نسبة الحضور خلال 30 يومًا لكل طالب
         att_stats: dict = {}
         for row in (
             StudentAttendance.objects.filter(
@@ -275,9 +255,6 @@ class ParentService:
             if not student:
                 continue
             sid = student.pk
-            deducted = deducted_map.get(sid) or 0
-            recovered = recovered_map.get(sid) or 0
-            child_data["behavior_score"] = min(100, max(0, 100 - deducted + recovered))
             child_data["subjects_count"] = child_data.get("total_subj", 0)
 
             att = att_stats.get(sid, {})

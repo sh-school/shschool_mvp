@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import BehaviorInfraction, BehaviorPointRecovery, ViolationCategory
+from .models import BehaviorInfraction, ViolationCategory
 
 
 @admin.register(ViolationCategory)
@@ -9,8 +9,6 @@ class ViolationCategoryAdmin(admin.ModelAdmin):
         "code",
         "degree",
         "name_ar",
-        "points",
-        "tags",
         "requires_security_referral",
         "requires_parent_summon",
         "is_active",
@@ -77,7 +75,6 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
                 "fields": (
                     "action_taken",
                     "escalation_step",
-                    "points_deducted",
                     "is_resolved",
                 ),
             },
@@ -120,9 +117,3 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
             },
         ),
     )
-
-
-@admin.register(BehaviorPointRecovery)
-class BehaviorPointRecoveryAdmin(admin.ModelAdmin):
-    list_display = ["infraction", "points_restored", "date", "approved_by"]
-    autocomplete_fields = ["approved_by"]

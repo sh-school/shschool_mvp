@@ -34,12 +34,13 @@ def weekly_risk_check(self, school_id=None):
       3. يرسل إشعار in_app للقيادة (المدير + النائب الإداري)
     """
     try:
-        from django.db.models import Sum
+        from django.db.models import Count
 
         from behavior.models import BehaviorInfraction
         from core.models import Membership, School
 
-        RISK_THRESHOLD = 80
+        # نظام النقاط ملغى — RISK = 5 مخالفات فأكثر (أو 2+ من الدرجة 3-4)
+        RISK_COUNT_THRESHOLD = 5
 
         if school_id:
             schools = School.objects.filter(id=school_id, is_active=True)
@@ -49,13 +50,13 @@ def weekly_risk_check(self, school_id=None):
         total_flagged = 0
 
         for school in schools.iterator(chunk_size=200):
-            # ── الطلاب المعرّضين للخطر (تجميع على مستوى الطالب) ──
+            # ── الطلاب المعرّضين للخطر (حسب عدد المخالفات) ──
             at_risk = (
                 BehaviorInfraction.objects.filter(school=school)
                 .values("student_id", "student__full_name")
-                .annotate(total_deducted=Sum("points_deducted"))
-                .filter(total_deducted__gte=RISK_THRESHOLD)
-                .order_by("-total_deducted")
+                .annotate(count=Count("id"))
+                .filter(count__gte=RISK_COUNT_THRESHOLD)
+                .order_by("-count")
             )
 
             risk_list = list(at_risk)
