@@ -6,13 +6,14 @@ student_affairs/views.py — شؤون الطلاب
 import json
 import os
 from datetime import timedelta
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q, Sum
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -1535,6 +1536,10 @@ def student_profile_pdf(request, student_id):
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
+    # F-001-a: Path traversal sanitization
+    if '..' in path or path.startswith('/'):
+        raise Http404
+
     school = request.user.get_school()
 
     # تحقق أن الملف يخص مدرسة المستخدم
@@ -1544,9 +1549,11 @@ def protected_media(request, path):
         excuse_file=path,
     )
 
+    # F-001-b: Content-Disposition RFC 5987 encoding
+    safe_name = quote(os.path.basename(path))
     response = HttpResponse()
     response["X-Accel-Redirect"] = f"/media/{path}"
-    response["Content-Disposition"] = f'attachment; filename="{os.path.basename(path)}"'
+    response["Content-Disposition"] = f'attachment; filename="{safe_name}"'
     del response["Content-Type"]  # دع Nginx يحدد النوع تلقائياً
     return response
 
