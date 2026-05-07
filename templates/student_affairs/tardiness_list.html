@@ -180,7 +180,7 @@
           </td>
           <td>
             {% if rec.excuse_file %}
-            <a href="{{ rec.excuse_file.url }}" target="_blank" class="btn-secondary btn-xs">
+            <a href="{% url 'student_affairs:protected_media' rec.excuse_file.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">
               {% include "components/icon.html" with name="file-pen" %} عرض
             </a>
             {% else %}—{% endif %}
