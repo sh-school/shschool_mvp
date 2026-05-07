@@ -227,12 +227,6 @@
   var cancelBtn   = document.getElementById('tardiness-cancel-btn');
   var debounceTimer = null;
 
-  function escTxt(str) {
-    var d = document.createElement('div');
-    d.appendChild(document.createTextNode(str));
-    return d.innerHTML;
-  }
-
   /* ── Search on input ── */
   searchInput.addEventListener('input', function() {
     clearTimeout(debounceTimer);
