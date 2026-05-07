@@ -11,6 +11,12 @@ def _uuid():
     return uuid.uuid4()
 
 
+def _excuse_upload_path(instance, filename):
+    """F-006: مسار رفع غير متوقع — UUID بدل اسم الملف الأصلي."""
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+    return f"tardiness_excuses/{uuid.uuid4().hex}.{ext}"
+
+
 class Subject(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")
@@ -128,7 +134,7 @@ class StudentAttendance(models.Model):
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
     excuse_file = models.FileField(
-        upload_to="tardiness_excuses/%Y/%m/",
+        upload_to=_excuse_upload_path,
         blank=True,
         verbose_name="ملف إذن ولي الأمر",
     )
