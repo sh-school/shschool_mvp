@@ -2134,8 +2134,6 @@ def tardiness_search_students(request):
 @require_POST
 def tardiness_record(request):
     """POST — تسجيل تأخير صباحي لطالب."""
-    from django.http import HttpResponse
-
     school = request.user.get_school()
     today = timezone.localdate()
     now = timezone.localtime()
@@ -2149,6 +2147,7 @@ def tardiness_record(request):
         pk=student_id,
         memberships__school=school,
         memberships__role__name="student",
+        memberships__is_active=True,
     )
 
     minutes_val = int(minutes) if minutes and minutes.isdigit() else None
@@ -2156,7 +2155,8 @@ def tardiness_record(request):
     session = Session.objects.filter(
         school=school,
         date=today,
-        class_group__students=student,
+        class_group__enrollments__student=student,
+        class_group__enrollments__is_active=True,
     ).order_by("start_time").first()
 
     if not session:
