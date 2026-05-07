@@ -2040,7 +2040,7 @@ def tardiness_pdf(request):
     else:
         selected_date = timezone.localdate()
 
-    late_records = (
+    late_records = list(
         StudentAttendance.objects.filter(
             school=school,
             status="late",
@@ -2052,7 +2052,15 @@ def tardiness_pdf(request):
         )
     )
 
-    total_late = late_records.count()
+    total_late = len(late_records)
+
+    cumulative_counts = dict(
+        StudentAttendance.objects.filter(
+            school=school, status="late",
+        ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
+    )
+    for rec in late_records:
+        rec.cumulative = cumulative_counts.get(rec.student_id, 0)
 
     # نسبة التأخر
     total_students_today = (
