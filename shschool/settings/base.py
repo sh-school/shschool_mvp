@@ -431,3 +431,7 @@ AXES_USERNAME_FORM_FIELD = "national_id"
 
 # إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
 AXES_LOCKOUT_URL = None
+
+# ── F-004: حد حجم الرفع (5 MB) — OWASP File Upload ──────────────
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
