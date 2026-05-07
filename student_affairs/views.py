@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import Count, Exists, OuterRef, Q, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -1523,6 +1524,31 @@ def student_profile_pdf(request, student_id):
     )
 
     return render_pdf(html_string, f"student_{student.full_name}.pdf")
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تقديم ملفات media محمية — F-001 Security Fix
+# ═════════════════════════════════════════════════════════════════════
+
+
+@login_required
+@role_required(STUDENT_AFFAIRS_MANAGE)
+def protected_media(request, path):
+    """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
+    school = request.user.get_school()
+
+    # تحقق أن الملف يخص مدرسة المستخدم
+    attendance = get_object_or_404(
+        StudentAttendance,
+        school=school,
+        excuse_file=path,
+    )
+
+    response = HttpResponse()
+    response["X-Accel-Redirect"] = f"/media/{path}"
+    response["Content-Disposition"] = f'attachment; filename="{os.path.basename(path)}"'
+    del response["Content-Type"]  # دع Nginx يحدد النوع تلقائياً
+    return response
 
 
 # ═════════════════════════════════════════════════════════════════════
