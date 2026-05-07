@@ -2284,6 +2284,24 @@ body { padding-bottom: 72px; }
   transition: color var(--transition-fast);
 }
 .breadcrumbs a:hover { color: var(--maroon-dark); text-decoration: underline; }
+.bc-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--maroon);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  flex-shrink: 0;
+}
+.bc-back:hover {
+  background: var(--maroon);
+  color: #fff;
+}
 .breadcrumbs .bc-sep {
   color: var(--border-strong);
   font-size: 10px;
@@ -4908,6 +4926,15 @@ html.dark .breadcrumbs a { color: #f9a8c9; }
 html.dark .breadcrumbs a:hover { color: #fcc4d8; }
 html.dark .breadcrumbs .bc-sep { color: #475569; }
 html.dark .breadcrumbs .bc-current { color: var(--text-secondary); }
+html.dark .bc-back {
+  border-color: #475569;
+  background: var(--surface);
+  color: #f9a8c9;
+}
+html.dark .bc-back:hover {
+  background: var(--maroon);
+  color: #fff;
+}
 
 /* ── 23. Section Header ─────────────────────────────────────────── */
 html.dark .section-header { border-bottom-color: #334155; }
