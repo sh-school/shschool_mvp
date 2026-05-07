@@ -31,6 +31,7 @@ from core.export_utils import (
 )
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.access import Membership, Role
+from core.models.audit import AuditLog
 from core.models.user import CustomUser, Profile
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
@@ -1572,6 +1573,7 @@ def tardiness_list(request):
         StudentAttendance.objects.filter(
             school=school,
             status="late",
+            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
         ).values("student_id").annotate(
             total=Count("id")
         ).values_list("student_id", "total")
@@ -1616,10 +1618,10 @@ def tardiness_list(request):
         .order_by("session__class_group__level_type")
     )
     level_labels = dict(ClassGroup.LEVELS)
-    stage_breakdown = [
-        {"stage_label": level_labels.get(s["session__class_group__level_type"], s["session__class_group__level_type"]), "count": s["count"]}
-        for s in stage_raw
-    ]
+    stage_breakdown = []
+    for s in stage_raw:
+        lt = s["session__class_group__level_type"]
+        stage_breakdown.append({"stage_label": level_labels.get(lt, lt), "count": s["count"]})
 
     return render(
         request,
@@ -1760,6 +1762,7 @@ def tardiness_export_excel(request):
     cumulative_counts = dict(
         StudentAttendance.objects.filter(
             school=school, status="late",
+            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
         ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
     )
 
@@ -2057,6 +2060,7 @@ def tardiness_pdf(request):
     cumulative_counts = dict(
         StudentAttendance.objects.filter(
             school=school, status="late",
+            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
         ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
     )
     for rec in late_records:
@@ -2167,6 +2171,19 @@ def tardiness_record(request):
     excuse_minutes = request.POST.get("excuse_minutes", "").strip()
     excuse_file = request.FILES.get("excuse_file")
 
+    # ── File validation (قبل أي عملية DB) ──
+    if excuse_file:
+        allowed_ext = (".pdf", ".jpg", ".jpeg", ".png")
+        allowed_ct = ("application/pdf", "image/jpeg", "image/png")
+        max_size = 5 * 1024 * 1024
+        ext = os.path.splitext(excuse_file.name)[1].lower()
+        if ext not in allowed_ext or excuse_file.content_type not in allowed_ct:
+            messages.error(request, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط.")
+            return redirect("student_affairs:tardiness_list")
+        if excuse_file.size > max_size:
+            messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
+            return redirect("student_affairs:tardiness_list")
+
     student = get_object_or_404(
         CustomUser,
         pk=student_id,
@@ -2220,17 +2237,19 @@ def tardiness_record(request):
         ])
 
     if excuse_file:
-        allowed_ext = (".pdf", ".jpg", ".jpeg", ".png")
-        max_size = 5 * 1024 * 1024  # 5 MB
-        ext = os.path.splitext(excuse_file.name)[1].lower()
-        if ext not in allowed_ext:
-            messages.error(request, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط.")
-            return redirect("student_affairs:tardiness_list")
-        if excuse_file.size > max_size:
-            messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
-            return redirect("student_affairs:tardiness_list")
         attendance.excuse_file = excuse_file
         attendance.save(update_fields=["excuse_file"])
+
+    # ── Audit Trail (PDPPL) ──
+    AuditLog.objects.create(
+        user=request.user,
+        school=school,
+        action="create",
+        model_name="other",
+        object_id=str(attendance.pk),
+        object_repr=f"تسجيل تأخير {student.full_name}",
+        ip_address=request.META.get("REMOTE_ADDR"),
+    )
 
     time_str = now.strftime("%H:%M")
     messages.success(request, f"تم تسجيل تأخير {student.full_name} — الساعة {time_str}")
@@ -2255,5 +2274,17 @@ def tardiness_delete(request, pk):
         "status", "tardiness_minutes", "excuse_notes",
         "tardiness_recorded_at", "excuse_file", "updated_at",
     ])
+
+    # ── Audit Trail (PDPPL) ──
+    AuditLog.objects.create(
+        user=request.user,
+        school=school,
+        action="delete",
+        model_name="other",
+        object_id=str(rec.pk),
+        object_repr=f"إلغاء تأخير {rec.student.full_name}",
+        ip_address=request.META.get("REMOTE_ADDR"),
+    )
+
     messages.success(request, f"تم إلغاء تأخير {rec.student.full_name}")
     return redirect("student_affairs:tardiness_list")
