@@ -4,6 +4,7 @@ student_affairs/views.py — شؤون الطلاب
 """
 
 import json
+import os
 from datetime import timedelta
 
 from django.conf import settings
@@ -1608,12 +1609,17 @@ def tardiness_list(request):
 
     grades = ClassGroup.GRADES
 
-    # توزيع التأخر حسب المراحل الدراسية
-    stage_breakdown = (
-        late_qs.values("session__class_group__grade")
+    # توزيع التأخر حسب المراحل الدراسية (إعدادي / ثانوي)
+    stage_raw = (
+        late_qs.values("session__class_group__level_type")
         .annotate(count=Count("id"))
-        .order_by("session__class_group__grade")
+        .order_by("session__class_group__level_type")
     )
+    level_labels = dict(ClassGroup.LEVELS)
+    stage_breakdown = [
+        {"stage_label": level_labels.get(s["session__class_group__level_type"], s["session__class_group__level_type"]), "count": s["count"]}
+        for s in stage_raw
+    ]
 
     return render(
         request,
@@ -1751,7 +1757,13 @@ def tardiness_export_excel(request):
     ws.title = "التأخر"
     ws.sheet_view.rightToLeft = True
 
-    headers = ["#", "اسم الطالب", "الصف", "الشعبة", "المادة", "وقت الحصة"]
+    cumulative_counts = dict(
+        StudentAttendance.objects.filter(
+            school=school, status="late",
+        ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
+    )
+
+    headers = ["#", "اسم الطالب", "الصف", "الشعبة", "التكرار", "توقيت التسجيل", "الملاحظات", "المادة", "مرفق"]
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
@@ -1775,14 +1787,18 @@ def tardiness_export_excel(request):
     row_count = 0
     for i, rec in enumerate(late_records, 1):
         subject_name = rec.session.subject.name_ar if rec.session.subject else "—"
-        time_str = rec.session.start_time.strftime("%H:%M") if rec.session.start_time else "—"
+        recorded_time = rec.tardiness_recorded_at.strftime("%H:%M") if rec.tardiness_recorded_at else "—"
+        has_file = "نعم" if rec.excuse_file else "—"
         row_data = [
             i,
             rec.student.full_name,
             rec.session.class_group.grade,
             rec.session.class_group.section,
+            cumulative_counts.get(rec.student_id, 0),
+            recorded_time,
+            rec.excuse_notes or "—",
             subject_name,
-            time_str,
+            has_file,
         ]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
@@ -1793,11 +1809,12 @@ def tardiness_export_excel(request):
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
+        col_letter = chr(64 + col_idx) if col_idx <= 26 else chr(64 + (col_idx - 1) // 26) + chr(65 + (col_idx - 1) % 26)
         max_len = 0
         for r in range(data_start, data_start + row_count + 1):
             cell = ws.cell(row=r, column=col_idx)
             max_len = max(max_len, len(str(cell.value or "")))
-        ws.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
+        ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
     add_excel_footer(ws, ctx, data_start + row_count, num_cols)
     return excel_to_response(wb, generate_export_filename("tardiness", "daily", "xlsx"))
@@ -2195,6 +2212,15 @@ def tardiness_record(request):
         ])
 
     if excuse_file:
+        allowed_ext = (".pdf", ".jpg", ".jpeg", ".png")
+        max_size = 5 * 1024 * 1024  # 5 MB
+        ext = os.path.splitext(excuse_file.name)[1].lower()
+        if ext not in allowed_ext:
+            messages.error(request, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط.")
+            return redirect("student_affairs:tardiness_list")
+        if excuse_file.size > max_size:
+            messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
+            return redirect("student_affairs:tardiness_list")
         attendance.excuse_file = excuse_file
         attendance.save(update_fields=["excuse_file"])
 

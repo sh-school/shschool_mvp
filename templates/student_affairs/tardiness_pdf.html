@@ -27,11 +27,13 @@
 <table class="report-table">
   <thead>
     <tr>
-      <th style="width:6%">#</th>
+      <th style="width:5%">#</th>
       <th>اسم الطالب</th>
-      <th style="width:14%">الفصل</th>
-      <th style="width:20%">المادة</th>
-      <th style="width:12%">الوقت</th>
+      <th style="width:12%">الفصل</th>
+      <th style="width:10%">التكرار</th>
+      <th style="width:10%">التوقيت</th>
+      <th style="width:22%">الملاحظات</th>
+      <th style="width:14%">المادة</th>
     </tr>
   </thead>
   <tbody>
@@ -40,8 +42,10 @@
       <td class="cell-num">{{ forloop.counter }}</td>
       <td class="cell-name">{{ rec.student.full_name }}</td>
       <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
-      <td class="cell-name">{{ rec.session.subject.name|default:"—" }}</td>
-      <td>{{ rec.session.start_time|time:"H:i"|default:"—" }}</td>
+      <td class="cell-num">{{ rec.cumulative }}</td>
+      <td>{{ rec.tardiness_recorded_at|time:"H:i"|default:"—" }}</td>
+      <td>{{ rec.excuse_notes|default:"—" }}</td>
+      <td class="cell-name">{{ rec.session.subject.name_ar|default:"—" }}</td>
     </tr>
     {% endfor %}
   </tbody>

@@ -135,7 +135,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% for item in stage_breakdown %}
       <span style="background:var(--bg-muted);padding:4px 12px;border-radius:6px;font-size:.85rem">
-        {{ item.session__class_group__grade }}: <strong>{{ item.count }}</strong>
+        {{ item.stage_label }}: <strong>{{ item.count }}</strong>
       </span>
       {% endfor %}
     </div>
@@ -227,6 +227,12 @@
   var cancelBtn   = document.getElementById('tardiness-cancel-btn');
   var debounceTimer = null;
 
+  function escTxt(str) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(str));
+    return d.innerHTML;
+  }
+
   /* ── Search on input ── */
   searchInput.addEventListener('input', function() {
     clearTimeout(debounceTimer);
@@ -248,25 +254,30 @@
           resultsBox.style.display = 'block';
           return;
         }
-        var html = '';
+        resultsBox.innerHTML = '';
         for (var i = 0; i < items.length; i++) {
           var s = items[i];
           var already = s.already_late;
-          html += '<div role="option" class="tardiness-result-item" '
-                + 'data-id="' + s.id + '" data-name="' + s.name + '" '
-                + (already ? 'data-already="1" ' : '')
-                + 'style="padding:8px 14px;cursor:' + (already ? 'default' : 'pointer')
-                + ';display:flex;justify-content:space-between;align-items:center;'
-                + 'border-bottom:1px solid var(--border);font-size:.88rem'
-                + (already ? ';opacity:.5' : '')
-                + '" tabindex="0">'
-                + '<span>' + s.name + '</span>'
-                + '<span style="color:var(--text-muted);font-size:.78rem">'
-                + (s.nid || '')
-                + (already ? ' — مسجّل' : '')
-                + '</span></div>';
+          var row = document.createElement('div');
+          row.setAttribute('role', 'option');
+          row.className = 'tardiness-result-item';
+          row.dataset.id = s.id;
+          row.dataset.name = s.name;
+          if (already) row.dataset.already = '1';
+          row.setAttribute('tabindex', '0');
+          row.style.cssText = 'padding:8px 14px;cursor:' + (already ? 'default' : 'pointer')
+            + ';display:flex;justify-content:space-between;align-items:center;'
+            + 'border-bottom:1px solid var(--border);font-size:.88rem'
+            + (already ? ';opacity:.5' : '');
+          var nameSpan = document.createElement('span');
+          nameSpan.textContent = s.name;
+          var metaSpan = document.createElement('span');
+          metaSpan.style.cssText = 'color:var(--text-muted);font-size:.78rem';
+          metaSpan.textContent = (s.nid || '') + (already ? ' — مسجّل' : '');
+          row.appendChild(nameSpan);
+          row.appendChild(metaSpan);
+          resultsBox.appendChild(row);
         }
-        resultsBox.innerHTML = html;
         resultsBox.style.display = 'block';
         attachResultListeners();
       })
