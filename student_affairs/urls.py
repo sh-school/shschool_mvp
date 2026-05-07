@@ -33,6 +33,8 @@ urlpatterns = [
     path("activities/<uuid:pk>/delete/", views.activity_delete, name="activity_delete"),
     # ── إضافة ولي أمر ──
     path("parent/add/", views.parent_add, name="parent_add"),
+    # ── ملفات محمية (F-001) ──
+    path("media/<path:path>", views.protected_media, name="protected_media"),
     # ── التأخر الصباحي ──
     path("tardiness/", views.tardiness_list, name="tardiness_list"),
     path("tardiness/pdf/", views.tardiness_pdf, name="tardiness_pdf"),
