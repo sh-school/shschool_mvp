@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import ClassGroup, CustomUser, School
+from core.validators import FileTypeValidator
 
 
 def _uuid():
@@ -137,6 +138,7 @@ class StudentAttendance(models.Model):
         upload_to=_excuse_upload_path,
         blank=True,
         verbose_name="ملف إذن ولي الأمر",
+        validators=[FileTypeValidator(allowed_types="excuse", max_size_mb=10)],
     )
     marked_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, related_name="marked_attendances"
