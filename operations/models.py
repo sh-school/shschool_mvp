@@ -120,8 +120,18 @@ class StudentAttendance(models.Model):
         blank=True,
         help_text="عدد دقائق التأخير الصباحي (يُسجَّل فقط عند status=late)",
     )
+    tardiness_recorded_at = models.DateTimeField(
+        verbose_name="توقيت تسجيل التأخير",
+        null=True,
+        blank=True,
+    )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
+    excuse_file = models.FileField(
+        upload_to="tardiness_excuses/%Y/%m/",
+        blank=True,
+        verbose_name="ملف إذن ولي الأمر",
+    )
     marked_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, related_name="marked_attendances"
     )

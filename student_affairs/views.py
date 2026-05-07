@@ -2139,8 +2139,8 @@ def tardiness_record(request):
     now = timezone.localtime()
 
     student_id = request.POST.get("student_id")
-    minutes = request.POST.get("minutes", "").strip()
-    excuse_notes = request.POST.get("excuse_notes", "").strip()
+    excuse_minutes = request.POST.get("excuse_minutes", "").strip()
+    excuse_file = request.FILES.get("excuse_file")
 
     student = get_object_or_404(
         CustomUser,
@@ -2150,7 +2150,8 @@ def tardiness_record(request):
         memberships__is_active=True,
     )
 
-    minutes_val = int(minutes) if minutes and minutes.isdigit() else None
+    excuse_val = int(excuse_minutes) if excuse_minutes and excuse_minutes.isdigit() else None
+    excuse_notes = f"إذن تأخير {excuse_val} دقيقة" if excuse_val else ""
 
     session = Session.objects.filter(
         school=school,
@@ -2175,20 +2176,30 @@ def tardiness_record(request):
         school=school,
         defaults={
             "status": "late",
-            "tardiness_minutes": minutes_val,
+            "tardiness_minutes": excuse_val,
             "excuse_notes": excuse_notes,
+            "tardiness_recorded_at": now,
             "marked_by": request.user,
         },
     )
 
     if not created:
         attendance.status = "late"
-        attendance.tardiness_minutes = minutes_val
+        attendance.tardiness_minutes = excuse_val
         attendance.excuse_notes = excuse_notes
+        attendance.tardiness_recorded_at = now
         attendance.marked_by = request.user
-        attendance.save(update_fields=["status", "tardiness_minutes", "excuse_notes", "marked_by", "updated_at"])
+        attendance.save(update_fields=[
+            "status", "tardiness_minutes", "excuse_notes",
+            "tardiness_recorded_at", "marked_by", "updated_at",
+        ])
 
-    messages.success(request, f"تم تسجيل تأخير {student.full_name} ({minutes_val or '—'} دقيقة)")
+    if excuse_file:
+        attendance.excuse_file = excuse_file
+        attendance.save(update_fields=["excuse_file"])
+
+    time_str = now.strftime("%H:%M")
+    messages.success(request, f"تم تسجيل تأخير {student.full_name} — الساعة {time_str}")
     return redirect("student_affairs:tardiness_list")
 
 
@@ -2202,6 +2213,13 @@ def tardiness_delete(request, pk):
     rec.status = "present"
     rec.tardiness_minutes = None
     rec.excuse_notes = ""
-    rec.save(update_fields=["status", "tardiness_minutes", "excuse_notes", "updated_at"])
+    rec.tardiness_recorded_at = None
+    if rec.excuse_file:
+        rec.excuse_file.delete(save=False)
+    rec.excuse_file = ""
+    rec.save(update_fields=[
+        "status", "tardiness_minutes", "excuse_notes",
+        "tardiness_recorded_at", "excuse_file", "updated_at",
+    ])
     messages.success(request, f"تم إلغاء تأخير {rec.student.full_name}")
     return redirect("student_affairs:tardiness_list")

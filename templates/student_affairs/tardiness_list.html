@@ -76,7 +76,7 @@
 
     {# Mini form — hidden until student selected #}
     <form id="tardiness-form" method="post" action="{% url 'student_affairs:tardiness_record' %}"
-          style="display:none" aria-label="نموذج تسجيل التأخير">
+          enctype="multipart/form-data" style="display:none" aria-label="نموذج تسجيل التأخير">
       {% csrf_token %}
       <input type="hidden" id="tardiness-student-id" name="student_id" value="">
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
@@ -85,15 +85,17 @@
           <input id="tardiness-student-name" type="text" class="form-control" readonly
                  style="background:var(--bg-muted);cursor:default" aria-label="اسم الطالب المحدد">
         </div>
-        <div style="width:120px">
-          <label for="tardiness-minutes" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">الدقائق</label>
-          <input id="tardiness-minutes" type="number" name="minutes" class="form-control"
-                 placeholder="دقائق التأخير" min="1" max="120" aria-label="عدد دقائق التأخير">
+        <div style="width:140px">
+          <label for="tardiness-excuse-min" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">التماس (دقائق)</label>
+          <input id="tardiness-excuse-min" type="number" name="excuse_minutes" class="form-control"
+                 placeholder="مثال: 15" min="1" max="120" aria-label="دقائق الالتماس">
+          <span id="tardiness-excuse-preview" style="font-size:.75rem;color:var(--text-muted);display:none;margin-top:2px"></span>
         </div>
-        <div style="flex:2;min-width:180px">
-          <label for="tardiness-excuse" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">ملاحظات</label>
-          <input id="tardiness-excuse" type="text" name="excuse_notes" class="form-control"
-                 placeholder="ملاحظات / إذن تأخير" aria-label="ملاحظات التأخير">
+        <div style="flex:1;min-width:160px">
+          <label for="tardiness-file" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">ملف ولي الأمر</label>
+          <input id="tardiness-file" type="file" name="excuse_file" class="form-control"
+                 accept=".pdf,.jpg,.jpeg,.png" aria-label="رفع ملف إذن ولي الأمر"
+                 style="font-size:.82rem;padding:4px 8px">
         </div>
         <div>
           <button type="submit" class="btn-primary btn-sm" id="tardiness-submit-btn"
@@ -149,11 +151,10 @@
           <th>#</th>
           <th>اسم الطالب</th>
           <th>الفصل</th>
-          <th>المادة</th>
-          <th>الحصة</th>
           <th>عدد التكرار</th>
-          <th>الدقائق</th>
+          <th>التوقيت</th>
           <th>الملاحظات</th>
+          <th>المرفق</th>
           <th>الإجراءات</th>
         </tr>
       </thead>
@@ -167,17 +168,22 @@
             </a>
           </td>
           <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
-          <td>{{ rec.session.subject.name_ar|default:"—" }}</td>
-          <td>{{ rec.session.start_time|time:"H:i"|default:"—" }}</td>
           <td>
             <span style="background:var(--bg-muted);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--red);font-weight:600{% endif %}">
               {{ rec.cumulative_late }}
             </span>
           </td>
-          <td>{{ rec.tardiness_minutes|default:"—" }}</td>
+          <td style="font-variant-numeric:tabular-nums">{{ rec.tardiness_recorded_at|time:"H:i"|default:"—" }}</td>
           <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
               title="{{ rec.excuse_notes }}">
             {{ rec.excuse_notes|default:"—" }}
+          </td>
+          <td>
+            {% if rec.excuse_file %}
+            <a href="{{ rec.excuse_file.url }}" target="_blank" class="btn-secondary btn-xs">
+              {% include "components/icon.html" with name="file-pen" %} عرض
+            </a>
+            {% else %}—{% endif %}
           </td>
           <td style="display:flex;gap:4px;flex-wrap:nowrap">
             <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="btn-secondary btn-xs">
@@ -290,6 +296,9 @@
     }
   }
 
+  var excuseMinInput = document.getElementById('tardiness-excuse-min');
+  var excusePreview  = document.getElementById('tardiness-excuse-preview');
+
   function onSelectResult(e) {
     var el = e.currentTarget;
     if (el.dataset.already) return;
@@ -299,16 +308,28 @@
     resultsBox.style.display = 'none';
     resultsBox.innerHTML = '';
     searchInput.value = '';
-    document.getElementById('tardiness-minutes').focus();
+    excuseMinInput.focus();
   }
+
+  /* ── Excuse minutes preview ── */
+  excuseMinInput.addEventListener('input', function() {
+    var v = excuseMinInput.value.trim();
+    if (v && !isNaN(v) && parseInt(v) > 0) {
+      excusePreview.textContent = 'إذن تأخير ' + parseInt(v) + ' دقيقة';
+      excusePreview.style.display = 'block';
+    } else {
+      excusePreview.style.display = 'none';
+    }
+  });
 
   /* ── Cancel ── */
   cancelBtn.addEventListener('click', function() {
     form.style.display = 'none';
     studentId.value = '';
     studentName.value = '';
-    document.getElementById('tardiness-minutes').value = '';
-    document.getElementById('tardiness-excuse').value = '';
+    excuseMinInput.value = '';
+    excusePreview.style.display = 'none';
+    document.getElementById('tardiness-file').value = '';
     searchInput.focus();
   });
 
