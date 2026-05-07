@@ -73,6 +73,10 @@ ALLOWED_EXTENSIONS_DOCUMENT = {
 ALLOWED_EXTENSIONS_IMAGE = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
 ALLOWED_EXTENSIONS_LIBRARY = ALLOWED_EXTENSIONS_DOCUMENT | {".epub"}
 
+# F-005: أنواع ملفات الأعذار (PDF + صور)
+ALLOWED_EXCUSE_TYPES = {"application/pdf"} | ALLOWED_IMAGE_TYPES
+ALLOWED_EXTENSIONS_EXCUSE = {".pdf"} | ALLOWED_EXTENSIONS_IMAGE
+
 
 @deconstructible
 class FileTypeValidator:
@@ -90,6 +94,7 @@ class FileTypeValidator:
         "document": (ALLOWED_DOCUMENT_TYPES, ALLOWED_EXTENSIONS_DOCUMENT),
         "image": (ALLOWED_IMAGE_TYPES, ALLOWED_EXTENSIONS_IMAGE),
         "library": (ALLOWED_LIBRARY_TYPES, ALLOWED_EXTENSIONS_LIBRARY),
+        "excuse": (ALLOWED_EXCUSE_TYPES, ALLOWED_EXTENSIONS_EXCUSE),
     }
 
     # امتدادات خطيرة — ممنوعة دائماً بغض النظر عن الإعدادات
@@ -188,6 +193,20 @@ class FileTypeValidator:
         if ext == ".pdf" and not header.startswith(b"%PDF"):
             raise ValidationError(
                 "محتوى الملف لا يتطابق مع امتداد PDF.",
+                code="content_mismatch",
+            )
+
+        # F-002: JPEG يجب أن يبدأ بـ FF D8 FF
+        if ext in (".jpg", ".jpeg") and header[:3] != b"\xff\xd8\xff":
+            raise ValidationError(
+                "الملف لا يطابق صيغة JPEG.",
+                code="content_mismatch",
+            )
+
+        # F-002: PNG يجب أن يبدأ بـ 89 50 4E 47 0D 0A 1A 0A
+        if ext == ".png" and header[:8] != b"\x89PNG\r\n\x1a\n":
+            raise ValidationError(
+                "الملف لا يطابق صيغة PNG.",
                 code="content_mismatch",
             )
 
