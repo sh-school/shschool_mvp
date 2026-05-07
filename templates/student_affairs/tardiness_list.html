@@ -53,6 +53,66 @@
     </div>
   </div>
 
+  {# ══════ Section 1: Recording Form (today only) ══════ #}
+  {% if is_today %}
+  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
+    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">
+      {% include "components/icon.html" with name="plus" %} تسجيل تأخير جديد
+    </h3>
+
+    {# Search row #}
+    <div style="position:relative;margin-bottom:12px">
+      <label for="tardiness-search" class="sr-only">بحث عن طالب</label>
+      <input id="tardiness-search" type="text" class="form-control"
+             placeholder="اكتب اسم الطالب للبحث..." autocomplete="off"
+             aria-label="بحث عن طالب لتسجيل التأخير"
+             style="width:100%;max-width:400px">
+      <div id="tardiness-results" role="listbox" aria-label="نتائج البحث"
+           style="display:none;position:absolute;top:100%;right:0;width:100%;max-width:400px;
+                  background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+                  box-shadow:var(--shadow-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px">
+      </div>
+    </div>
+
+    {# Mini form — hidden until student selected #}
+    <form id="tardiness-form" method="post" action="{% url 'student_affairs:tardiness_record' %}"
+          style="display:none" aria-label="نموذج تسجيل التأخير">
+      {% csrf_token %}
+      <input type="hidden" id="tardiness-student-id" name="student_id" value="">
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <label style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">الطالب</label>
+          <input id="tardiness-student-name" type="text" class="form-control" readonly
+                 style="background:var(--bg-muted);cursor:default" aria-label="اسم الطالب المحدد">
+        </div>
+        <div style="width:120px">
+          <label for="tardiness-minutes" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">الدقائق</label>
+          <input id="tardiness-minutes" type="number" name="minutes" class="form-control"
+                 placeholder="دقائق التأخير" min="1" max="120" aria-label="عدد دقائق التأخير">
+        </div>
+        <div style="flex:2;min-width:180px">
+          <label for="tardiness-excuse" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">ملاحظات</label>
+          <input id="tardiness-excuse" type="text" name="excuse_notes" class="form-control"
+                 placeholder="ملاحظات / إذن تأخير" aria-label="ملاحظات التأخير">
+        </div>
+        <div>
+          <button type="submit" class="btn-primary btn-sm" id="tardiness-submit-btn"
+                  aria-label="تسجيل التأخير">
+            {% include "components/icon.html" with name="check-circle" %} تسجيل
+          </button>
+        </div>
+        <div>
+          <button type="button" class="btn-secondary btn-sm" id="tardiness-cancel-btn"
+                  aria-label="إلغاء التسجيل">
+            {% include "components/icon.html" with name="x-circle" %} إلغاء
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+
+  {# ══════ Class Breakdown ══════ #}
   {% if class_breakdown %}
   <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
     <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب الفصل</h3>
@@ -66,6 +126,21 @@
   </div>
   {% endif %}
 
+  {# ══════ Section 2: Stage Breakdown ══════ #}
+  {% if stage_breakdown %}
+  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
+    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب المرحلة</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% for item in stage_breakdown %}
+      <span style="background:var(--bg-muted);padding:4px 12px;border-radius:6px;font-size:.85rem">
+        {{ item.session__class_group__grade }}: <strong>{{ item.count }}</strong>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ══════ Section 3: Enhanced Table ══════ #}
   {% if late_records %}
   <div class="table-wrap">
     <table class="data-table">
@@ -76,6 +151,9 @@
           <th>الفصل</th>
           <th>المادة</th>
           <th>الحصة</th>
+          <th>عدد التكرار</th>
+          <th>الدقائق</th>
+          <th>الملاحظات</th>
           <th>الإجراءات</th>
         </tr>
       </thead>
@@ -89,12 +167,32 @@
             </a>
           </td>
           <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
-          <td>{{ rec.session.subject.name|default:"—" }}</td>
+          <td>{{ rec.session.subject.name_ar|default:"—" }}</td>
           <td>{{ rec.session.start_time|time:"H:i"|default:"—" }}</td>
           <td>
+            <span style="background:var(--bg-muted);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--red);font-weight:600{% endif %}">
+              {{ rec.cumulative_late }}
+            </span>
+          </td>
+          <td>{{ rec.tardiness_minutes|default:"—" }}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+              title="{{ rec.excuse_notes }}">
+            {{ rec.excuse_notes|default:"—" }}
+          </td>
+          <td style="display:flex;gap:4px;flex-wrap:nowrap">
             <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="btn-secondary btn-xs">
               {% include "components/icon.html" with name="user" %} الملف
             </a>
+            {% if is_today %}
+            <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
+                  style="display:inline" onsubmit="return confirm('هل تريد إلغاء تسجيل التأخير؟')">
+              {% csrf_token %}
+              <button type="submit" class="btn-secondary btn-xs" style="color:var(--red)"
+                      aria-label="إلغاء تأخير {{ rec.student.full_name }}">
+                {% include "components/icon.html" with name="trash" %} إلغاء
+              </button>
+            </form>
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -109,4 +207,118 @@
   {% endif %}
 
 </div>
+
+{% if is_today %}
+<script>
+(function() {
+  'use strict';
+
+  var searchInput = document.getElementById('tardiness-search');
+  var resultsBox  = document.getElementById('tardiness-results');
+  var form        = document.getElementById('tardiness-form');
+  var studentId   = document.getElementById('tardiness-student-id');
+  var studentName = document.getElementById('tardiness-student-name');
+  var cancelBtn   = document.getElementById('tardiness-cancel-btn');
+  var debounceTimer = null;
+
+  /* ── Search on input ── */
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    var q = searchInput.value.trim();
+    if (q.length < 2) {
+      resultsBox.style.display = 'none';
+      resultsBox.innerHTML = '';
+      return;
+    }
+    debounceTimer = setTimeout(function() {
+      fetch('{% url "student_affairs:tardiness_search" %}?q=' + encodeURIComponent(q), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var items = data.results || [];
+        if (items.length === 0) {
+          resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:.85rem">لا توجد نتائج</div>';
+          resultsBox.style.display = 'block';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < items.length; i++) {
+          var s = items[i];
+          var already = s.already_late;
+          html += '<div role="option" class="tardiness-result-item" '
+                + 'data-id="' + s.id + '" data-name="' + s.name + '" '
+                + (already ? 'data-already="1" ' : '')
+                + 'style="padding:8px 14px;cursor:' + (already ? 'default' : 'pointer')
+                + ';display:flex;justify-content:space-between;align-items:center;'
+                + 'border-bottom:1px solid var(--border);font-size:.88rem'
+                + (already ? ';opacity:.5' : '')
+                + '" tabindex="0">'
+                + '<span>' + s.name + '</span>'
+                + '<span style="color:var(--text-muted);font-size:.78rem">'
+                + (s.nid || '')
+                + (already ? ' — مسجّل' : '')
+                + '</span></div>';
+        }
+        resultsBox.innerHTML = html;
+        resultsBox.style.display = 'block';
+        attachResultListeners();
+      })
+      .catch(function() {
+        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--red);font-size:.85rem">خطأ في البحث</div>';
+        resultsBox.style.display = 'block';
+      });
+    }, 250);
+  });
+
+  /* ── Keyboard nav in search ── */
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      resultsBox.style.display = 'none';
+      resultsBox.innerHTML = '';
+    }
+  });
+
+  /* ── Click on result ── */
+  function attachResultListeners() {
+    var items = resultsBox.querySelectorAll('.tardiness-result-item');
+    for (var i = 0; i < items.length; i++) {
+      items[i].addEventListener('click', onSelectResult);
+      items[i].addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') onSelectResult.call(this, e);
+      });
+    }
+  }
+
+  function onSelectResult(e) {
+    var el = e.currentTarget;
+    if (el.dataset.already) return;
+    studentId.value = el.dataset.id;
+    studentName.value = el.dataset.name;
+    form.style.display = 'block';
+    resultsBox.style.display = 'none';
+    resultsBox.innerHTML = '';
+    searchInput.value = '';
+    document.getElementById('tardiness-minutes').focus();
+  }
+
+  /* ── Cancel ── */
+  cancelBtn.addEventListener('click', function() {
+    form.style.display = 'none';
+    studentId.value = '';
+    studentName.value = '';
+    document.getElementById('tardiness-minutes').value = '';
+    document.getElementById('tardiness-excuse').value = '';
+    searchInput.focus();
+  });
+
+  /* ── Close dropdown on outside click ── */
+  document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+      resultsBox.style.display = 'none';
+    }
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

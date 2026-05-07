@@ -34,7 +34,7 @@ from core.models.user import CustomUser, Profile
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
 from library.models import BookBorrowing
-from operations.models import AbsenceAlert, StudentAttendance
+from operations.models import AbsenceAlert, Session, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer
 
@@ -1558,11 +1558,25 @@ def tardiness_list(request):
     if section_filter:
         late_qs = late_qs.filter(session__class_group__section=section_filter)
 
-    late_records = late_qs.select_related(
-        "student", "session__class_group", "session__subject"
-    ).order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
+    late_records = list(
+        late_qs.select_related(
+            "student", "session__class_group", "session__subject"
+        ).order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
+    )
 
-    total_late = late_records.count()
+    total_late = len(late_records)
+
+    # العدّ التراكمي لتأخرات كل طالب هذا العام — مُرفَق مباشرة بكل سجل
+    cumulative_counts = dict(
+        StudentAttendance.objects.filter(
+            school=school,
+            status="late",
+        ).values("student_id").annotate(
+            total=Count("id")
+        ).values_list("student_id", "total")
+    )
+    for rec in late_records:
+        rec.cumulative_late = cumulative_counts.get(rec.student_id, 0)
 
     # KPIs إضافية
     total_students_today = (
@@ -1594,6 +1608,13 @@ def tardiness_list(request):
 
     grades = ClassGroup.GRADES
 
+    # توزيع التأخر حسب المراحل الدراسية
+    stage_breakdown = (
+        late_qs.values("session__class_group__grade")
+        .annotate(count=Count("id"))
+        .order_by("session__class_group__grade")
+    )
+
     return render(
         request,
         "student_affairs/tardiness_list.html",
@@ -1604,10 +1625,13 @@ def tardiness_list(request):
             "total_students_today": total_students_today,
             "late_pct": late_pct,
             "class_breakdown": class_breakdown,
+            "stage_breakdown": stage_breakdown,
             "weekly_late": weekly_late,
             "grades": grades,
             "grade_filter": grade_filter,
             "section_filter": section_filter,
+            "cumulative_counts": cumulative_counts,
+            "is_today": selected_date == timezone.localdate(),
         },
     )
 
@@ -2054,3 +2078,130 @@ def tardiness_pdf(request):
 
     filename = generate_export_filename("tardiness", "list", "pdf")
     return render_pdf(html, filename, paper_size="A4")
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تسجيل التأخير الصباحي — SOS-20260504-5191
+# ═════════════════════════════════════════════════════════════════════
+
+
+@login_required
+@role_required(STUDENT_AFFAIRS_MANAGE)
+def tardiness_search_students(request):
+    """HTMX — بحث عن طلاب بالاسم لتسجيل تأخير."""
+    from django.http import JsonResponse
+
+    q = request.GET.get("q", "").strip()
+    school = request.user.get_school()
+    today = timezone.localdate()
+
+    if len(q) < 2:
+        return JsonResponse({"results": []})
+
+    students = (
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__role__name="student",
+            memberships__is_active=True,
+            full_name__icontains=q,
+        )
+        .distinct()
+        .values("id", "full_name", "national_id")[:15]
+    )
+
+    already_late_ids = set(
+        StudentAttendance.objects.filter(
+            school=school,
+            status="late",
+            session__date=today,
+        ).values_list("student_id", flat=True)
+    )
+
+    results = []
+    for s in students:
+        results.append({
+            "id": str(s["id"]),
+            "name": s["full_name"],
+            "nid": s["national_id"] or "",
+            "already_late": s["id"] in already_late_ids,
+        })
+
+    return JsonResponse({"results": results})
+
+
+@login_required
+@role_required(STUDENT_AFFAIRS_MANAGE)
+@require_POST
+def tardiness_record(request):
+    """POST — تسجيل تأخير صباحي لطالب."""
+    from django.http import HttpResponse
+
+    school = request.user.get_school()
+    today = timezone.localdate()
+    now = timezone.localtime()
+
+    student_id = request.POST.get("student_id")
+    minutes = request.POST.get("minutes", "").strip()
+    excuse_notes = request.POST.get("excuse_notes", "").strip()
+
+    student = get_object_or_404(
+        CustomUser,
+        pk=student_id,
+        memberships__school=school,
+        memberships__role__name="student",
+    )
+
+    minutes_val = int(minutes) if minutes and minutes.isdigit() else None
+
+    session = Session.objects.filter(
+        school=school,
+        date=today,
+        class_group__students=student,
+    ).order_by("start_time").first()
+
+    if not session:
+        session = Session.objects.filter(
+            school=school,
+            date=today,
+        ).order_by("start_time").first()
+
+    if not session:
+        messages.error(request, "لا توجد حصة مجدولة اليوم لتسجيل التأخير.")
+        return redirect("student_affairs:tardiness_list")
+
+    attendance, created = StudentAttendance.objects.get_or_create(
+        session=session,
+        student=student,
+        school=school,
+        defaults={
+            "status": "late",
+            "tardiness_minutes": minutes_val,
+            "excuse_notes": excuse_notes,
+            "marked_by": request.user,
+        },
+    )
+
+    if not created:
+        attendance.status = "late"
+        attendance.tardiness_minutes = minutes_val
+        attendance.excuse_notes = excuse_notes
+        attendance.marked_by = request.user
+        attendance.save(update_fields=["status", "tardiness_minutes", "excuse_notes", "marked_by", "updated_at"])
+
+    messages.success(request, f"تم تسجيل تأخير {student.full_name} ({minutes_val or '—'} دقيقة)")
+    return redirect("student_affairs:tardiness_list")
+
+
+@login_required
+@role_required(STUDENT_AFFAIRS_MANAGE)
+@require_POST
+def tardiness_delete(request, pk):
+    """حذف سجل تأخير (إعادته لحاضر)."""
+    school = request.user.get_school()
+    rec = get_object_or_404(StudentAttendance, pk=pk, school=school, status="late")
+    rec.status = "present"
+    rec.tardiness_minutes = None
+    rec.excuse_notes = ""
+    rec.save(update_fields=["status", "tardiness_minutes", "excuse_notes", "updated_at"])
+    messages.success(request, f"تم إلغاء تأخير {rec.student.full_name}")
+    return redirect("student_affairs:tardiness_list")

@@ -36,6 +36,9 @@ urlpatterns = [
     # ── التأخر الصباحي ──
     path("tardiness/", views.tardiness_list, name="tardiness_list"),
     path("tardiness/pdf/", views.tardiness_pdf, name="tardiness_pdf"),
+    path("tardiness/search/", views.tardiness_search_students, name="tardiness_search"),
+    path("tardiness/record/", views.tardiness_record, name="tardiness_record"),
+    path("tardiness/<uuid:pk>/delete/", views.tardiness_delete, name="tardiness_delete"),
     # ── تصديرات Excel إضافية ──
     path("behavior/export/", views.behavior_export_excel, name="behavior_export"),
     path("tardiness/export/", views.tardiness_export_excel, name="tardiness_export"),

@@ -114,6 +114,12 @@ class StudentAttendance(models.Model):
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="attendances")
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="attendances")
     status = models.CharField(max_length=10, choices=STATUS, default="present", db_index=True)
+    tardiness_minutes = models.PositiveSmallIntegerField(
+        verbose_name="دقائق التأخير",
+        null=True,
+        blank=True,
+        help_text="عدد دقائق التأخير الصباحي (يُسجَّل فقط عند status=late)",
+    )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
     marked_by = models.ForeignKey(
