@@ -73,7 +73,7 @@ def send_monthly_kpi_report(self, school_id=None):
             from core.models import Membership
 
             director = (
-                Membership.objects.filter(school=school, is_active=True, role__name="director")
+                Membership.objects.filter(school=school, is_active=True, role__name="principal")
                 .select_related("user")
                 .first()
             )
