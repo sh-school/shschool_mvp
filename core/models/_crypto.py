@@ -63,6 +63,13 @@ def _get_fernet():
         return current
     except (ValueError, TypeError, UnicodeDecodeError) as e:
         logger.error("FERNET_KEY غير صالح: %s", e)
+        # fail-closed في الإنتاج: مفتاح غير صالح يجب ألا يؤدي لتخزين نص صريح بصمت
+        if not getattr(settings, "DEBUG", True):
+            from django.core.exceptions import ImproperlyConfigured
+
+            raise ImproperlyConfigured(
+                "FERNET_KEY غير صالح — التشفير معطّل. fail-closed في الإنتاج."
+            ) from e
         return None
 
 
@@ -104,6 +111,12 @@ def hmac_field(value: str) -> str:
         return ""
     key = getattr(settings, "FERNET_KEY", "")
     if not key:
+        # fail-closed في الإنتاج: بدون مفتاح، إعادة النص الصريح كـ HMAC تكسر
+        # البحث والتفرد وتخزّن معرّفات شخصية بلا حماية.
+        if not getattr(settings, "DEBUG", True):
+            from django.core.exceptions import ImproperlyConfigured
+
+            raise ImproperlyConfigured("FERNET_KEY مطلوب لتوليد HMAC في الإنتاج. fail-closed.")
         return value
     key_bytes = key.encode() if isinstance(key, str) else key
     return _hmac.new(key_bytes, value.strip().encode(), hashlib.sha256).hexdigest()
