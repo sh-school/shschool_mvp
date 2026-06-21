@@ -177,8 +177,11 @@
   }
 </style>
 <!-- Tajawal font for Arabic -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    @font-face{font-family:'Tajawal';font-weight:400;font-display:swap;src:url("{% static 'fonts/Tajawal-Regular.woff2' %}") format('woff2');}
+    @font-face{font-family:'Tajawal';font-weight:500;font-display:swap;src:url("{% static 'fonts/Tajawal-Medium.woff2' %}") format('woff2');}
+    @font-face{font-family:'Tajawal';font-weight:700;font-display:swap;src:url("{% static 'fonts/Tajawal-Bold.woff2' %}") format('woff2');}
+  </style>
 </head>
 <body class="{% if paper == 'a3' %}paper-a3{% endif %}">
 

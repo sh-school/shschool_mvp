@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 
 {% block title %}لوحة تحكم المدير — التحليلات{% endblock %}
 
@@ -279,7 +280,7 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 const YEAR = "{{ year }}";
 
