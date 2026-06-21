@@ -1538,7 +1538,7 @@ def student_profile_pdf(request, student_id):
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
     # F-001-a: Path traversal sanitization
-    if '..' in path or path.startswith('/'):
+    if ".." in path or path.startswith("/"):
         raise Http404
 
     school = request.user.get_school()
@@ -1595,9 +1595,9 @@ def tardiness_list(request):
         late_qs = late_qs.filter(session__class_group__section=section_filter)
 
     late_records = list(
-        late_qs.select_related(
-            "student", "session__class_group", "session__subject"
-        ).order_by("session__class_group__grade", "session__class_group__section", "student__full_name")
+        late_qs.select_related("student", "session__class_group", "session__subject").order_by(
+            "session__class_group__grade", "session__class_group__section", "student__full_name"
+        )
     )
 
     total_late = len(late_records)
@@ -1608,9 +1608,10 @@ def tardiness_list(request):
             school=school,
             status="late",
             session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
-        ).values("student_id").annotate(
-            total=Count("id")
-        ).values_list("student_id", "total")
+        )
+        .values("student_id")
+        .annotate(total=Count("id"))
+        .values_list("student_id", "total")
     )
     for rec in late_records:
         rec.cumulative_late = cumulative_counts.get(rec.student_id, 0)
@@ -1795,12 +1796,26 @@ def tardiness_export_excel(request):
 
     cumulative_counts = dict(
         StudentAttendance.objects.filter(
-            school=school, status="late",
+            school=school,
+            status="late",
             session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
-        ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
+        )
+        .values("student_id")
+        .annotate(total=Count("id"))
+        .values_list("student_id", "total")
     )
 
-    headers = ["#", "اسم الطالب", "الصف", "الشعبة", "التكرار", "توقيت التسجيل", "الملاحظات", "المادة", "مرفق"]
+    headers = [
+        "#",
+        "اسم الطالب",
+        "الصف",
+        "الشعبة",
+        "التكرار",
+        "توقيت التسجيل",
+        "الملاحظات",
+        "المادة",
+        "مرفق",
+    ]
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
@@ -1824,7 +1839,9 @@ def tardiness_export_excel(request):
     row_count = 0
     for i, rec in enumerate(late_records, 1):
         subject_name = rec.session.subject.name_ar if rec.session.subject else "—"
-        recorded_time = rec.tardiness_recorded_at.strftime("%H:%M") if rec.tardiness_recorded_at else "—"
+        recorded_time = (
+            rec.tardiness_recorded_at.strftime("%H:%M") if rec.tardiness_recorded_at else "—"
+        )
         has_file = "نعم" if rec.excuse_file else "—"
         row_data = [
             i,
@@ -1846,7 +1863,11 @@ def tardiness_export_excel(request):
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
-        col_letter = chr(64 + col_idx) if col_idx <= 26 else chr(64 + (col_idx - 1) // 26) + chr(65 + (col_idx - 1) % 26)
+        col_letter = (
+            chr(64 + col_idx)
+            if col_idx <= 26
+            else chr(64 + (col_idx - 1) // 26) + chr(65 + (col_idx - 1) % 26)
+        )
         max_len = 0
         for r in range(data_start, data_start + row_count + 1):
             cell = ws.cell(row=r, column=col_idx)
@@ -2093,9 +2114,13 @@ def tardiness_pdf(request):
 
     cumulative_counts = dict(
         StudentAttendance.objects.filter(
-            school=school, status="late",
+            school=school,
+            status="late",
             session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
-        ).values("student_id").annotate(total=Count("id")).values_list("student_id", "total")
+        )
+        .values("student_id")
+        .annotate(total=Count("id"))
+        .values_list("student_id", "total")
     )
     for rec in late_records:
         rec.cumulative = cumulative_counts.get(rec.student_id, 0)
@@ -2182,12 +2207,14 @@ def tardiness_search_students(request):
 
     results = []
     for s in students:
-        results.append({
-            "id": str(s["id"]),
-            "name": s["full_name"],
-            "nid": s["national_id"] or "",
-            "already_late": s["id"] in already_late_ids,
-        })
+        results.append(
+            {
+                "id": str(s["id"]),
+                "name": s["full_name"],
+                "nid": s["national_id"] or "",
+                "already_late": s["id"] in already_late_ids,
+            }
+        )
 
     return JsonResponse({"results": results})
 
@@ -2229,18 +2256,26 @@ def tardiness_record(request):
     excuse_val = int(excuse_minutes) if excuse_minutes and excuse_minutes.isdigit() else None
     excuse_notes = f"إذن تأخير {excuse_val} دقيقة" if excuse_val else ""
 
-    session = Session.objects.filter(
-        school=school,
-        date=today,
-        class_group__enrollments__student=student,
-        class_group__enrollments__is_active=True,
-    ).order_by("start_time").first()
-
-    if not session:
-        session = Session.objects.filter(
+    session = (
+        Session.objects.filter(
             school=school,
             date=today,
-        ).order_by("start_time").first()
+            class_group__enrollments__student=student,
+            class_group__enrollments__is_active=True,
+        )
+        .order_by("start_time")
+        .first()
+    )
+
+    if not session:
+        session = (
+            Session.objects.filter(
+                school=school,
+                date=today,
+            )
+            .order_by("start_time")
+            .first()
+        )
 
     if not session:
         messages.error(request, "لا توجد حصة مجدولة اليوم لتسجيل التأخير.")
@@ -2265,10 +2300,16 @@ def tardiness_record(request):
         attendance.excuse_notes = excuse_notes
         attendance.tardiness_recorded_at = now
         attendance.marked_by = request.user
-        attendance.save(update_fields=[
-            "status", "tardiness_minutes", "excuse_notes",
-            "tardiness_recorded_at", "marked_by", "updated_at",
-        ])
+        attendance.save(
+            update_fields=[
+                "status",
+                "tardiness_minutes",
+                "excuse_notes",
+                "tardiness_recorded_at",
+                "marked_by",
+                "updated_at",
+            ]
+        )
 
     if excuse_file:
         attendance.excuse_file = excuse_file
@@ -2304,10 +2345,16 @@ def tardiness_delete(request, pk):
     if rec.excuse_file:
         rec.excuse_file.delete(save=False)
     rec.excuse_file = ""
-    rec.save(update_fields=[
-        "status", "tardiness_minutes", "excuse_notes",
-        "tardiness_recorded_at", "excuse_file", "updated_at",
-    ])
+    rec.save(
+        update_fields=[
+            "status",
+            "tardiness_minutes",
+            "excuse_notes",
+            "tardiness_recorded_at",
+            "excuse_file",
+            "updated_at",
+        ]
+    )
 
     # ── Audit Trail (PDPPL) ──
     AuditLog.objects.create(

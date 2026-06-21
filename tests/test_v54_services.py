@@ -252,6 +252,8 @@ class TestBehaviorServiceCreateInfraction:
             description="مخالفة أولى",
         )
         assert infraction.escalation_step >= 1
+
+
 @pytest.mark.django_db
 class TestClinicService:
     """اختبارات ClinicService.record_visit."""

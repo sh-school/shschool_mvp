@@ -63,7 +63,5 @@ class Command(BaseCommand):
                 )
                 created += int(was_created)
             total_created += created
-            self.stdout.write(
-                f"✓ {school.name}: {created} معيار جديد ({len(CRITERIA)} إجمالاً)"
-            )
+            self.stdout.write(f"✓ {school.name}: {created} معيار جديد ({len(CRITERIA)} إجمالاً)")
         self.stdout.write(self.style.SUCCESS(f"اكتمل — {total_created} معيار مزروع."))

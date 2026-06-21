@@ -96,22 +96,32 @@ class ClassroomObservation(AuditedModel):
         School, on_delete=models.CASCADE, related_name="classroom_observations"
     )
     teacher = models.ForeignKey(
-        CustomUser, on_delete=models.PROTECT, related_name="observations_received",
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="observations_received",
         verbose_name="المعلّم",
     )
     observer = models.ForeignKey(
-        CustomUser, on_delete=models.PROTECT, related_name="observations_made",
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="observations_made",
         verbose_name="الزائر",
     )
     kind = models.CharField(
         max_length=12, choices=OBSERVATION_KIND, default="supervision", verbose_name="نوع التقييم"
     )
     subject = models.ForeignKey(
-        "operations.Subject", on_delete=models.SET_NULL, null=True, blank=True,
+        "operations.Subject",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         verbose_name="المادّة",
     )
     class_group = models.ForeignKey(
-        "core.ClassGroup", on_delete=models.SET_NULL, null=True, blank=True,
+        "core.ClassGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         verbose_name="الصّف",
     )
     observation_date = models.DateField(default=timezone.localdate, verbose_name="التاريخ")
@@ -160,11 +170,7 @@ class ClassroomObservation(AuditedModel):
         """متوسط أوزان المعايير المُقيَّمة (باستثناء «لم يُقَس»). يُعيد None إن لا تقييم."""
         from decimal import Decimal
 
-        rated = [
-            RATING_WEIGHTS[s.rating]
-            for s in self.scores.all()
-            if s.rating in RATING_WEIGHTS
-        ]
+        rated = [RATING_WEIGHTS[s.rating] for s in self.scores.all() if s.rating in RATING_WEIGHTS]
         if not rated:
             return None
         return (Decimal(sum(rated)) / Decimal(len(rated))).quantize(Decimal("0.01"))

@@ -38,9 +38,7 @@ class ObservationService:
     # ── المعايير + التقييمات ────────────────────────────────────────
     @staticmethod
     def criteria_for(school):
-        return ObservationCriterion.objects.filter(school=school, is_active=True).order_by(
-            "order"
-        )
+        return ObservationCriterion.objects.filter(school=school, is_active=True).order_by("order")
 
     @staticmethod
     @transaction.atomic
@@ -62,7 +60,9 @@ class ObservationService:
     # ── التعديل ─────────────────────────────────────────────────────
     @staticmethod
     @transaction.atomic
-    def update_observation(observation, *, header: dict, ratings: dict, recommendations: dict, by_user):
+    def update_observation(
+        observation, *, header: dict, ratings: dict, recommendations: dict, by_user
+    ):
         """
         تعديل زيارة (مسودة أو مُرسَلة). المُقَرّة غير قابلة للتعديل — تُعاد فتحها أولاً.
         تعديل المُرسَلة صامت (المعلّم لم يُقِرّ بعد ويرى أحدث نسخة عند الفتح)؛ الإشعار
@@ -104,7 +104,9 @@ class ObservationService:
         )
         # التقييم الذاتي: المعلّم هو المُنشئ — لا إشعار له
         if observation.kind == "supervision":
-            ObservationService._notify_teacher(observation, updated=observation.submission_count > 1)
+            ObservationService._notify_teacher(
+                observation, updated=observation.submission_count > 1
+            )
         return observation
 
     @staticmethod

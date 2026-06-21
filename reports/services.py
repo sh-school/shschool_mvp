@@ -719,7 +719,7 @@ class AcademicReportsService:
                 }
             )
 
-        rows.sort(key=lambda r: (r["combined_score"] or 0), reverse=True)
+        rows.sort(key=lambda r: r["combined_score"] or 0, reverse=True)
 
         quiz_avg_all = cls._avg([r["quiz_avg"] for r in rows if r["quiz_avg"] is not None])
         total_infractions = sum(r["behavior_count"] for r in rows)

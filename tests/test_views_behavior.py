@@ -120,6 +120,8 @@ class TestStudentBehaviorProfile:
         response = client.get(f"/behavior/student/{student_user.id}/")
         # بدون مخالفات → net_score = 100 → green
         assert response.context["status_color"] == "green"
+
+
 @pytest.mark.django_db
 class TestCommitteeDashboard:
     def test_committee_dashboard_loads_for_principal(self, client_as, principal_user, school):

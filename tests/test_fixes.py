@@ -69,9 +69,9 @@ class TestClassGroupFactory:
     def test_class_group_no_grade_level_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي grade_level"""
         cg = ClassGroupFactory(school=school)
-        assert not hasattr(
-            cg, "grade_level"
-        ), "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
+        assert not hasattr(cg, "grade_level"), (
+            "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
+        )
 
     def test_class_group_no_name_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي name كحقل مباشر"""
@@ -104,9 +104,9 @@ class TestMiddlewareAPIFix:
     def test_api_unauthenticated_not_redirect(self, client):
         """/api/ لا يُعيد redirect (302) لصفحة Login"""
         response = client.get("/api/schedule/today/")
-        assert (
-            response.status_code != 302
-        ), "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
+        assert response.status_code != 302, (
+            "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
+        )
 
     def test_exempt_list_excludes_api(self):
         """التحقق المباشر أن /api/ غير موجود في EXEMPT"""

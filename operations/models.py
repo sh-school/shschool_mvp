@@ -14,7 +14,7 @@ def _uuid():
 
 def _excuse_upload_path(instance, filename):
     """F-006: مسار رفع غير متوقع — UUID بدل اسم الملف الأصلي."""
-    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
     return f"tardiness_excuses/{uuid.uuid4().hex}.{ext}"
 
 

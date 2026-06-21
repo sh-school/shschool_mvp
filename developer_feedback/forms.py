@@ -24,9 +24,7 @@ class DeveloperMessageForm(forms.ModelForm):
 
     consent_privacy = forms.BooleanField(
         required=True,
-        label=_(
-            "أوافق على إرسال معلومات السياق التقني " "(الصفحة، الدور، الوقت) لتسهيل حل المشكلة"
-        ),
+        label=_("أوافق على إرسال معلومات السياق التقني (الصفحة، الدور، الوقت) لتسهيل حل المشكلة"),
         error_messages={
             "required": _("الموافقة على إرسال السياق إلزامية للإرسال."),
         },
@@ -56,9 +54,7 @@ class DeveloperMessageForm(forms.ModelForm):
                     "rows": 8,
                     "maxlength": 4000,
                     "aria-required": "true",
-                    "placeholder": _(
-                        "اشرح ما حدث، وما كنت تتوقعه، " "وكيف يمكن إعادة إظهار المشكلة"
-                    ),
+                    "placeholder": _("اشرح ما حدث، وما كنت تتوقعه، وكيف يمكن إعادة إظهار المشكلة"),
                 }
             ),
         }
@@ -186,16 +182,14 @@ class OnboardingConsentForm(forms.Form):
     )
     accept_data_handling = forms.BooleanField(
         required=True,
-        label=_(
-            "أفهم أن رسائلي تُحفظ 90 يوماً ثم تُحذف تلقائياً، " "ويمكنني طلب الحذف الفوري في أي وقت."
-        ),
+        label=_("أفهم أن رسائلي تُحفظ 90 يوماً ثم تُحذف تلقائياً، ويمكنني طلب الحذف الفوري في أي وقت."),
         error_messages={
             "required": _("يجب الإقرار بفهم آلية معالجة البيانات."),
         },
     )
     no_student_data_pledge = forms.BooleanField(
         required=True,
-        label=_("أتعهد بألّا أُرسل في الرسالة أي بيانات شخصية لطلاب " "(أسماء، درجات، سجلات)."),
+        label=_("أتعهد بألّا أُرسل في الرسالة أي بيانات شخصية لطلاب (أسماء، درجات، سجلات)."),
         error_messages={
             "required": _("التعهّد بحماية بيانات الطلاب إلزامي."),
         },
@@ -275,6 +269,6 @@ class OnboardingQuizForm(forms.Form):
         # تحقّق فقط إذا كل الحقول عُبئت (بدون أخطاء أخرى)
         if not self.errors and not self.is_passed():
             raise ValidationError(
-                _("إجاباتك غير مكتملة الصحة. " "يرجى مراجعة المادة التعليمية والمحاولة مجدداً.")
+                _("إجاباتك غير مكتملة الصحة. يرجى مراجعة المادة التعليمية والمحاولة مجدداً.")
             )
         return cleaned

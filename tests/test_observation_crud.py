@@ -44,7 +44,11 @@ def test_update_draft_persists_and_recomputes(school, coordinator_user, teacher_
     ObservationService.update_observation(
         obs,
         header={"topic": "الكسور"},
-        ratings={str(crits[0].id): "limited", str(crits[1].id): "complete", str(crits[2].id): "complete"},
+        ratings={
+            str(crits[0].id): "limited",
+            str(crits[1].id): "complete",
+            str(crits[2].id): "complete",
+        },
         recommendations={str(crits[0].id): "يحتاج تطوير"},
         by_user=coordinator_user,
     )
@@ -134,7 +138,9 @@ def test_visible_to_excludes_deleted(school, principal_user, teacher_user):
 
 # ══════════════════════ صلاحيات (تكامل عبر الـviews) ══════════════════
 @pytest.mark.django_db
-def test_edit_by_non_author_leadership_denied(client_as, school, coordinator_user, principal_user, teacher_user):
+def test_edit_by_non_author_leadership_denied(
+    client_as, school, coordinator_user, principal_user, teacher_user
+):
     obs, _ = _make_obs(school, coordinator_user, teacher_user)  # الزائر = المنسّق
     c = client_as(principal_user)  # قيادة لكنه ليس الزائر
     r = c.get(reverse("observation_edit", args=[obs.id]))
@@ -169,7 +175,9 @@ def test_delete_submitted_by_observer_denied(client_as, school, coordinator_user
 
 
 @pytest.mark.django_db
-def test_delete_submitted_by_leadership_requires_reason(client_as, school, principal_user, teacher_user):
+def test_delete_submitted_by_leadership_requires_reason(
+    client_as, school, principal_user, teacher_user
+):
     obs, _ = _make_obs(school, principal_user, teacher_user, status="submitted")
     c = client_as(principal_user)
     # بلا سبب → يُرفض ويبقى
@@ -184,9 +192,14 @@ def test_delete_submitted_by_leadership_requires_reason(client_as, school, princ
 def test_reopen_leadership_only(client_as, school, coordinator_user, principal_user, teacher_user):
     obs, _ = _make_obs(school, coordinator_user, teacher_user, status="acknowledged")
     # المنسّق (الزائر، ليس قيادة) → ممنوع
-    assert client_as(coordinator_user).post(reverse("observation_reopen", args=[obs.id])).status_code == 403
+    assert (
+        client_as(coordinator_user).post(reverse("observation_reopen", args=[obs.id])).status_code
+        == 403
+    )
     # المدير (قيادة) → يُعيد الفتح
-    client_as(principal_user).post(reverse("observation_reopen", args=[obs.id]), {"reason": "تصحيح"})
+    client_as(principal_user).post(
+        reverse("observation_reopen", args=[obs.id]), {"reason": "تصحيح"}
+    )
     obs.refresh_from_db()
     assert obs.status == "submitted"
 
@@ -223,7 +236,11 @@ def test_self_create_by_teacher(client_as, school, teacher_user):
 def test_supervisor_cannot_visit_self(client_as, school, coordinator_user):
     crits = _criteria(school)
     c = client_as(coordinator_user)
-    data = {"teacher": str(coordinator_user.id), "observation_date": "2026-06-21", "action": "draft"}
+    data = {
+        "teacher": str(coordinator_user.id),
+        "observation_date": "2026-06-21",
+        "action": "draft",
+    }
     for cc in crits:
         data[f"rating_{cc.id}"] = "complete"
     c.post(reverse("observation_create"), data)

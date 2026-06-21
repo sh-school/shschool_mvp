@@ -142,7 +142,9 @@ def _get_observation(request, obs_id):
     """يجلب الزيارة (غير المؤرشَفة) + علم الوصول (زائر/معلّم/قيادة)."""
     school = request.user.get_school()
     obs = get_object_or_404(
-        ClassroomObservation.objects.select_related("teacher", "observer", "subject", "class_group"),
+        ClassroomObservation.objects.select_related(
+            "teacher", "observer", "subject", "class_group"
+        ),
         id=obs_id,
         school=school,
     )
@@ -277,7 +279,9 @@ def observation_edit(request, obs_id):
         return redirect("observation_detail", obs_id=obs.pk)
     scores_map = {str(s.criterion_id): s for s in obs.scores.all()}
     return render(
-        request, "quality/observation_form.html", _form_context(school, obs=obs, scores_map=scores_map)
+        request,
+        "quality/observation_form.html",
+        _form_context(school, obs=obs, scores_map=scores_map),
     )
 
 
@@ -329,7 +333,8 @@ def observation_list(request):
         {
             "rows": rows,
             "page_obj": page,
-            "can_create": request.user.get_role() in OBSERVATION_CREATE or request.user.is_superuser,
+            "can_create": request.user.get_role() in OBSERVATION_CREATE
+            or request.user.is_superuser,
             "can_self": request.user.get_role() in OBSERVATION_SELF_CREATE,
             "is_leadership": lead,
             "status_choices": OBSERVATION_STATUS,
