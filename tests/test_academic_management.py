@@ -32,14 +32,14 @@ class TestAcademicManagementStubs:
             url = reverse(url_name)
             response = c.get(url)
 
-            assert response.status_code == 200, (
-                f"{url_name} returned {response.status_code} (expected 200)"
-            )
+            assert (
+                response.status_code == 200
+            ), f"{url_name} returned {response.status_code} (expected 200)"
 
             content = response.content.decode("utf-8")
-            assert expected_label in content, (
-                f"{url_name} missing expected label '{expected_label}'"
-            )
+            assert (
+                expected_label in content
+            ), f"{url_name} missing expected label '{expected_label}'"
             assert "قيد التطوير" in content, f"{url_name} missing 'under construction' notice"
             assert "إدارة الشؤون الأكاديمية" in content, f"{url_name} missing module name"
 

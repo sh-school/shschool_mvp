@@ -295,9 +295,9 @@ class TestRBACPermissions:
         client.force_login(user)
         for path in paths:
             resp = client.get(path)
-            assert resp.status_code == 403, (
-                f"{role_name} should NOT access {path}, got {resp.status_code}"
-            )
+            assert (
+                resp.status_code == 403
+            ), f"{role_name} should NOT access {path}, got {resp.status_code}"
 
     def test_unauthenticated_redirects_to_login(self, client, db):
         resp = client.get("/dashboard/")

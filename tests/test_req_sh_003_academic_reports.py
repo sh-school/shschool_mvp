@@ -147,6 +147,6 @@ class TestAcademicReportsREQSH003:
         ]
         for name in url_names:
             url = reverse(name)
-            assert url.startswith("/academic/reports"), (
-                f"{name} should be under /academic/reports/, got {url}"
-            )
+            assert url.startswith(
+                "/academic/reports"
+            ), f"{name} should be under /academic/reports/, got {url}"
