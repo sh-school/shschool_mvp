@@ -52,4 +52,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD wget -qO- http://localhost:8000/health/ || exit 1
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn shschool.wsgi:application --config /app/gunicorn.conf.py"]
+# ASGI (daphne) — يدعم WebSocket/Channels مثل docker-compose.prod.yml (لا gunicorn WSGI)
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 shschool.asgi:application"]
