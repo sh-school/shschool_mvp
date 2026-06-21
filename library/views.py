@@ -72,8 +72,15 @@ def borrow_book(request):
         book_id = request.POST.get("book_id")
         user_id = request.POST.get("user_id")
 
-        book = get_object_or_404(LibraryBook, id=book_id)
-        user = get_object_or_404(CustomUser, id=user_id)
+        # ✅ منع IDOR: قصر الكتاب والمستخدم على مدرسة أمين المكتبة
+        school = request.user.get_school()
+        book = get_object_or_404(LibraryBook, id=book_id, school=school)
+        user = get_object_or_404(
+            CustomUser.objects.filter(
+                memberships__school=school, memberships__is_active=True
+            ).distinct(),
+            id=user_id,
+        )
 
         try:
             # ✅ v5.4: LibraryService.borrow_book — select_for_update + atomic
