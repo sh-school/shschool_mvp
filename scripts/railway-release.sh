@@ -12,6 +12,11 @@ echo ""
 echo "📦 Running database migrations..."
 python manage.py migrate --noinput
 
+# 1b. Seed classroom-observation criteria (idempotent — يزرع كل المدارس)
+echo ""
+echo "📋 Seeding classroom-observation criteria..."
+python manage.py seed_observation_criteria || echo "  seed_observation_criteria skipped"
+
 # 2. Collect static files
 echo ""
 echo "📁 Collecting static files..."
