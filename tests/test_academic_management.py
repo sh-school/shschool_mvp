@@ -1,6 +1,6 @@
 """
 tests/test_academic_management.py — REQ-SH-002
-Smoke tests for the 10 stub pages under إدارة الشؤون الأكاديمية.
+Smoke tests for the 9 stub pages under إدارة الشؤون الأكاديمية.
 Client #001 (Shahaniya School) menu restructure.
 """
 
@@ -10,7 +10,7 @@ from django.urls import reverse
 
 @pytest.mark.django_db
 class TestAcademicManagementStubs:
-    """Verify all 10 stub pages render correctly for authenticated users."""
+    """Verify all 9 stub pages render correctly for authenticated users."""
 
     STUB_URLS = [
         ("academic_management:evaluations", "التقييمات والدرجات"),
@@ -19,14 +19,13 @@ class TestAcademicManagementStubs:
         ("academic_management:workload", "إسناد الأنصبة"),
         ("academic_management:assignments", "التكاليف"),
         ("academic_management:department_reports", "التقارير الخاصة بالقسم"),
-        ("academic_management:classroom_visits", "الزيارات الصفية"),
         ("academic_management:elearning", "التعليم الإلكتروني"),
         ("academic_management:class_performance", "تقارير الأداء الصفي"),
         ("academic_management:underperformance", "إدارة الأداء دون المستوى"),
     ]
 
     def test_all_stub_pages_render_for_principal(self, client_as, principal_user):
-        """All 10 stub pages return HTTP 200 with correct Arabic label + 'قيد التطوير'."""
+        """All 9 stub pages return HTTP 200 with correct Arabic label + 'قيد التطوير'."""
         c = client_as(principal_user)
 
         for url_name, expected_label in self.STUB_URLS:
@@ -62,9 +61,9 @@ class TestAcademicManagementStubs:
         # New label must be present (via base.html nav)
         assert "إدارة الشؤون الأكاديمية" in content
 
-    def test_all_ten_routes_exist(self):
-        """Ensure exactly 10 URL patterns are registered."""
-        assert len(self.STUB_URLS) == 10, "REQ-SH-002 requires exactly 10 submenu items"
+    def test_all_nine_routes_exist(self):
+        """Ensure exactly 9 URL patterns are registered (classroom_visits consolidated into quality:observation_list)."""
+        assert len(self.STUB_URLS) == 9, "9 stub items remain after classroom_visits consolidation"
         # Verify all reverse
         for url_name, _ in self.STUB_URLS:
             url = reverse(url_name)

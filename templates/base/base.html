@@ -137,7 +137,7 @@
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
       <a href="{% url 'student_affairs:student_list' %}" class="nb">{% include "components/icon.html" with name="users" %} طلاب قسمي</a>
-      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الإشراف على الأداء</a>
+      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -149,7 +149,7 @@
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
-      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الإشراف على أدائي</a>
+      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -167,7 +167,7 @@
 
     {% elif role == "academic_advisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الإشراف على الأداء</a>
+      <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -258,8 +258,7 @@
   <a href="{% url 'academic_management:workload' %}" role="menuitem">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
   <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} التكاليف</a>
   <a href="{% url 'academic_management:department_reports' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} التقارير الخاصة بالقسم</a>
-  <a href="{% url 'academic_management:classroom_visits' %}" role="menuitem">{% include "components/icon.html" with name="search" %} الزيارات الصفية</a>
-  <a href="{% url 'observation_list' %}" role="menuitem">{% include "components/icon.html" with name="clipboard-check" %} الإشراف على أداء المعلّم</a>
+  <a href="{% url 'observation_list' %}" role="menuitem">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
   <a href="{% url 'academic_management:elearning' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} التعليم الإلكتروني</a>
   <a href="{% url 'academic_management:class_performance' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} تقارير الأداء الصفي</a>
   <a href="{% url 'academic_management:underperformance' %}" role="menuitem">{% include "components/icon.html" with name="alert-triangle" %} إدارة الأداء دون المستوى</a>

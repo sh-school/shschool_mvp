@@ -1,7 +1,7 @@
 """
 academic_management/views.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REQ-SH-002 — 10 stub pages for the submenu restructure
+REQ-SH-002 — 9 stub pages for the submenu restructure (classroom_visits → quality:observation_list)
 REQ-SH-003 — 4 academic reports + landing page (Client #001, MTG-007)
 """
 
@@ -63,11 +63,6 @@ def assignments(request):
 @login_required
 def department_reports(request):
     return _stub_view(request, "التقارير الخاصة بالقسم", "📄")
-
-
-@login_required
-def classroom_visits(request):
-    return _stub_view(request, "الزيارات الصفية", "👁️")
 
 
 @login_required

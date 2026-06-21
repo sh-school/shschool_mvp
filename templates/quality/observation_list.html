@@ -1,10 +1,10 @@
 {% extends "base/base.html" %}
-{% block title %}الإشراف على أداء المعلّمين{% endblock %}
+{% block title %}الزيارات الصفية{% endblock %}
 
 {% block content %}
 <div class="card-qatar">
   <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="clipboard-check" %} الإشراف على أداء المعلّمين</h1>
+    <h1>{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</h1>
     {% if can_create %}
     <a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>
     {% endif %}

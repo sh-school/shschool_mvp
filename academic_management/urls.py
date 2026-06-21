@@ -1,7 +1,7 @@
 """
 academic_management/urls.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REQ-SH-002 — 10 routes for the restructured menu (stubs).
+REQ-SH-002 — 9 routes for the restructured menu (stubs).
 REQ-SH-003 — 5 routes for the academic reports landing + 4 report types.
 """
 
@@ -19,7 +19,6 @@ urlpatterns = [
     path("workload/", views.workload, name="workload"),
     path("assignments/", views.assignments, name="assignments"),
     path("department-reports/", views.department_reports, name="department_reports"),
-    path("classroom-visits/", views.classroom_visits, name="classroom_visits"),
     path("e-learning/", views.elearning, name="elearning"),
     path("class-performance/", views.class_performance, name="class_performance"),
     path("underperformance/", views.underperformance, name="underperformance"),
