@@ -833,6 +833,7 @@ def transfer_review(request, pk):
             ).update(is_active=False)
             StudentEnrollment.objects.filter(
                 student=transfer.student,
+                class_group__school=school,
                 is_active=True,
             ).update(is_active=False)
 
