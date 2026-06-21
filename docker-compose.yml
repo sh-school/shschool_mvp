@@ -1,38 +1,65 @@
-version: "3.9"
+# ══════════════════════════════════════════════════════════════
+# SchoolOS — Development docker-compose
+# تشغيل محلي:  docker compose up --build -d   →   http://localhost:8000
+# يعمل بمعزل تام عن مشروع schoolos-template (أسماء حاويات ومنافذ مختلفة).
+# للإنتاج استخدم docker-compose.prod.yml.
+# ══════════════════════════════════════════════════════════════
 services:
   db:
     image: postgres:16-alpine
-    restart: always
-    env_file:
-      - .env
+    container_name: shschool-dev-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB:       \
-      POSTGRES_USER:     \
-      POSTGRES_PASSWORD: \
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - shschool_pgdata:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5433:5432"          # 5432 محجوز لـ schoolos-template — نستخدم 5433 على المضيف
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \ -d \"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: shschool-dev-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"          # 6379 محجوز لـ schoolos-template — نستخدم 6380 على المضيف
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   web:
     build: .
-    restart: always
-    ports:
-      - "8000:8000"
+    container_name: shschool-dev-web
+    restart: unless-stopped
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.development
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
     env_file:
       - .env
-    environment:
-      DB_HOST: db
     volumes:
-      - ./media:/app/media
-      - ./staticfiles:/app/staticfiles
-      - ./logs:/app/logs
+      - .:/app                # كود حيّ مع auto-reload للتطوير
+      - /app/.venv            # لا تُظلِّل بيئة الصورة بأي venv محلي
+    ports:
+      - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
-  postgres_data:
+  shschool_pgdata:

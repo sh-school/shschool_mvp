@@ -1,0 +1,40 @@
+# ── VCS / IDE / tooling ──────────────────────────────
+.git
+.github
+.idea
+.vscode
+.azkia
+.claude
+
+# ── caches ───────────────────────────────────────────
+__pycache__
+**/__pycache__
+*.py[cod]
+.mypy_cache
+.ruff_cache
+.pytest_cache
+htmlcov
+.coverage
+coverage.xml
+
+# ── virtualenvs ──────────────────────────────────────
+.venv
+venv
+env
+
+# ── archives / docs / ops (غير لازمة لصورة التطبيق) ──
+_archive
+AAdocs
+docs
+grafana
+nginx
+
+# ── مخرجات مُولّدة (تُعاد عند التشغيل) ───────────────
+staticfiles
+media
+logs/*.log
+*.sqlite3
+node_modules
+
+# ── أسرار / أمثلة ────────────────────────────────────
+.env.example
