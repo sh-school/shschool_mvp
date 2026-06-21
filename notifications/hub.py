@@ -210,6 +210,10 @@ class NotificationHub:
             "parent"
         )
         recipients = [link.parent for link in links]
+
+        # ── PDPPL: استبعاد ولي أمر سحب موافقته على نوع بيانات هذا الحدث ──
+        recipients = _filter_consent(recipients, event_type, school, student)
+
         return NotificationHub.dispatch(
             event_type=event_type,
             school=school,
@@ -221,6 +225,54 @@ class NotificationHub:
 
 
 # ── دوال مساعدة داخلية ──────────────────────────────────────
+
+# PDPPL: ربط حدث الإشعار بنوع الموافقة المطلوب (None ⇒ بلا فحص موافقة)
+_CONSENT_DATA_TYPE = {
+    "behavior_l1": "behavior",
+    "behavior_l2": "behavior",
+    "behavior_l3": "behavior",
+    "behavior_l4": "behavior",
+    "behavior_risk": "behavior",
+    "parent_summon": "behavior",
+    "sent_home": "behavior",
+    "absence": "attendance",
+    "grade": "grades",
+    "fail": "grades",
+    "clinic": "health",
+}
+
+
+def _filter_consent(recipients, event_type, school, student):
+    """يستبعد أولياء الأمور الذين سحبوا موافقتهم (is_given=False) على نوع
+    البيانات المرتبط بالحدث — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
+    عدم وجود سجل ⇒ مسموح (الافتراضي). 'all' يغطّي كل الأنواع."""
+    data_type = _CONSENT_DATA_TYPE.get(event_type)
+    if not data_type or not recipients:
+        return recipients
+
+    from core.models import ConsentRecord
+
+    withdrawn = set(
+        ConsentRecord.objects.filter(
+            student=student,
+            school=school,
+            data_type__in=[data_type, "all"],
+            is_given=False,
+        ).values_list("parent_id", flat=True)
+    )
+    if not withdrawn:
+        return recipients
+
+    kept = [p for p in recipients if p.pk not in withdrawn]
+    dropped = len(recipients) - len(kept)
+    if dropped:
+        logger.info(
+            "PDPPL consent: suppressed %d parent notification(s) | student=%s event=%s",
+            dropped,
+            getattr(student, "pk", student),
+            event_type,
+        )
+    return kept
 
 
 def _get_prefs(user):
