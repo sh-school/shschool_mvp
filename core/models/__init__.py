@@ -35,6 +35,7 @@ from .base import (  # noqa: F401
 from .department import Department  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
+from .stored_file import StoredFile  # noqa: F401
 from .user import (  # noqa: F401
     CustomUser,
     Profile,

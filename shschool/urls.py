@@ -10,6 +10,7 @@ from django_prometheus.exports import ExportToDjangoView
 
 from core.permissions import internal_only
 from core.views_health import health_check, readiness_check, status_check
+from core.views_media import serve_db_file
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
 
@@ -20,6 +21,8 @@ urlpatterns = [
     # ✅ v5.4: Full status endpoint — DB + Redis + migrations + uptime + version
     path("status/", status_check, name="status_check"),
     path("", lambda r: redirect("dashboard/")),
+    # خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — محمية بتسجيل الدخول
+    path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
     path("admin/", admin.site.urls),
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),

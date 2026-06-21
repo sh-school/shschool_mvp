@@ -32,7 +32,7 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # ── تطوير: استخدام StaticFilesStorage العادي بدل Manifest ─────
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {"BACKEND": "core.db_storage.DatabaseStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 

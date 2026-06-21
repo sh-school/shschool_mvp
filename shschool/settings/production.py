@@ -224,7 +224,8 @@ CSP_REPORT_URI = config("CSP_REPORT_URI", default="")
 # ── WhiteNoise: static files مع Brotli/GZip + cache forever ──
 # يعمل دائماً في الإنتاج بغض النظر عن USE_S3
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    # الملفات المرفوعة → قاعدة البيانات (تدوم على Railway المؤقّت). S3 يتجاوزه أدناه عند USE_S3.
+    "default": {"BACKEND": "core.db_storage.DatabaseStorage"},
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },

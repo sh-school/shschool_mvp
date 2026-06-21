@@ -247,6 +247,13 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = config("MEDIA_ROOT", default=str(BASE_DIR / "media"))
 
+# ── التخزين الافتراضي: قاعدة البيانات (يدوم على Railway المؤقّت + يُنسَخ مع القاعدة) ──
+# تتجاوزه dev/prod بنفس الـ default؛ يُستثنى عند USE_S3 في الإنتاج.
+STORAGES = {
+    "default": {"BACKEND": "core.db_storage.DatabaseStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
 # ── S3 / Object Storage (اختياري — يُفعَّل في الإنتاج) ──────────────
 # pip install django-storages[boto3]
 # اضبط USE_S3=true في .env مع متغيرات AWS_* أو نقطة نهاية S3 متوافقة (MinIO, Wasabi, Cloudflare R2)
