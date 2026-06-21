@@ -278,9 +278,10 @@ def parent_behavior(request):
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
-        "student"
-    )
+    # يُقصَر على الأبناء المسموح لولي الأمر برؤية سلوكهم (اتساقاً مع الدرجات/الحضور — PDPPL)
+    links = ParentStudentLink.objects.filter(
+        parent=request.user, school=school, can_view_behavior=True
+    ).select_related("student")
 
     # نظام النقاط ملغى — نعرض عدد المخالفات فقط
     children_behavior = []

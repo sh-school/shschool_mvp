@@ -147,6 +147,7 @@ class ParentStudentLink(models.Model):
     is_primary = models.BooleanField(default=True, verbose_name="ولي الأمر الأساسي")
     can_view_grades = models.BooleanField(default=True, verbose_name="يرى الدرجات")
     can_view_attendance = models.BooleanField(default=True, verbose_name="يرى الغياب")
+    can_view_behavior = models.BooleanField(default=True, verbose_name="يرى السلوك")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
