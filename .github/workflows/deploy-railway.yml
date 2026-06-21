@@ -247,31 +247,42 @@ jobs:
         id: canary
         run: |
           PROD_URL="${{ env.PRODUCTION_URL }}"
-          echo "Canary health check: $PROD_URL/health/"
+          EXPECTED="$(echo '${{ github.sha }}' | cut -c1-7)"
+          echo "Canary: التحقّق من أن commit $EXPECTED حيّ على $PROD_URL/health/"
+          PASSED=false
 
-          for attempt in 1 2 3 4 5 6; do
+          # ينتظر حتى يخدم الإنتاج commit الجديد فعلاً (لا النسخة القديمة) ثم يتحقّق من الصحة.
+          for attempt in $(seq 1 18); do
             HTTP_CODE=$(curl -s -o /tmp/canary_health.txt -w "%{http_code}" \
               --max-time 15 "$PROD_URL/health/" 2>/dev/null || echo "000")
-            echo "Attempt $attempt: HTTP $HTTP_CODE"
+            COMMIT=$(cat /tmp/canary_health.txt | python3 -c "import sys,json; print(json.load(sys.stdin).get('commit',''))" 2>/dev/null || echo "")
+            echo "Attempt $attempt: HTTP $HTTP_CODE | served=$COMMIT want=$EXPECTED"
 
             if [ "$HTTP_CODE" = "200" ]; then
               VERSION=$(cat /tmp/canary_health.txt | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','?'))" 2>/dev/null || echo "?")
-              echo "canary_passed=true" >> $GITHUB_OUTPUT
-              echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
-              echo "✅ Canary PASSED — version $VERSION is healthy"
-              cat /tmp/canary_health.txt
-              break
+              if [ -z "$COMMIT" ]; then
+                echo "::warning::/health/ بلا حقل commit (RAILWAY_GIT_COMMIT_SHA غير متاح) — رجوع لفحص الصحة فقط"
+                echo "canary_passed=true" >> $GITHUB_OUTPUT
+                echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
+                echo "✅ Canary PASSED (health-only) — version $VERSION"
+                PASSED=true; break
+              elif [ "$COMMIT" = "$EXPECTED" ]; then
+                echo "canary_passed=true" >> $GITHUB_OUTPUT
+                echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
+                echo "✅ Canary PASSED — commit $COMMIT (version $VERSION) حيّ وسليم"
+                cat /tmp/canary_health.txt
+                PASSED=true; break
+              else
+                echo "  ↳ النسخة القديمة ($COMMIT) ما زالت تخدم — بانتظار $EXPECTED"
+              fi
             fi
 
-            if [ "$attempt" -lt 6 ]; then
-              echo "Retrying in 20s..."
-              sleep 20
-            fi
+            if [ "$attempt" -lt 18 ]; then sleep 25; fi
           done
 
-          if [ "$HTTP_CODE" != "200" ]; then
+          if [ "$PASSED" != "true" ]; then
             echo "canary_passed=false" >> $GITHUB_OUTPUT
-            echo "::error::❌ CANARY FAILED — /health/ returned HTTP $HTTP_CODE after 6 attempts"
+            echo "::error::❌ CANARY FAILED — commit $EXPECTED لا يخدم (آخر HTTP=$HTTP_CODE, served=$COMMIT). نشر Railway فشل غالباً؛ الإنتاج ما زال على النسخة السابقة."
             cat /tmp/canary_health.txt 2>/dev/null || true
           fi
 
@@ -290,7 +301,7 @@ jobs:
                 `**Commit**: \`${context.sha}\``,
                 `**Time**: ${new Date().toISOString()}`,
                 `**Health endpoint**: \`${{ env.PRODUCTION_URL }}/health/\``,
-                `**Result**: Health check failed after 6 attempts`,
+                `**Result**: New commit did not become live (production still on previous version, or deploy failed)`,
                 ``,
                 `### Action Required`,
                 `1. Check Railway dashboard for build/deploy errors`,

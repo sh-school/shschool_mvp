@@ -68,6 +68,9 @@ def health_check(request):
             "status": "ok" if all_ok else "degraded",
             # ✅ v5.4: يسحب الإصدار من PLATFORM_VERSION بدل hardcoded string
             "version": f"v{getattr(settings, 'PLATFORM_VERSION', '5.4')}",
+            # commit المنشور فعلياً (Railway يحقن RAILWAY_GIT_COMMIT_SHA) — يتيح
+            # لخط النشر التحقّق من أن النسخة الجديدة هي التي تخدم، لا القديمة.
+            "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", "")[:7],
             "checks": checks,
             "latency_ms": round((time.monotonic() - start) * 1000, 1),
         },
