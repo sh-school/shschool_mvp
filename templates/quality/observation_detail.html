@@ -4,7 +4,8 @@
 {% block content %}
 <div class="card-qatar" style="max-width:1000px;margin-inline:auto">
   <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="clipboard-check" %} الزيارة الصفّية: {{ obs.teacher.full_name }}</h1>
+    <h1>{% include "components/icon.html" with name="clipboard-check" %}
+      {% if obs.kind == "self" %}التقييم الذاتي{% else %}الزيارة الصفّية{% endif %}: {{ obs.teacher.full_name }}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
       <a href="{% url 'observation_pdf' obs.id %}" class="btn-secondary btn-sm">PDF</a>
@@ -20,6 +21,7 @@
     <div><b>الحصة:</b> {{ obs.period|default:"—" }}</div>
     <div><b>الموضوع:</b> {{ obs.topic|default:"—" }}</div>
     <div><b>المتابعة:</b> {{ obs.get_follow_up_mode_display }} {{ obs.get_follow_up_scope_display }}</div>
+    <div><b>النوع:</b> {{ obs.get_kind_display }}</div>
     <div><b>الحالة:</b> <span class="badge">{{ obs.get_status_display }}</span></div>
     <div><b>النسبة الإجماليّة:</b> {% if obs.score_percent != None %}<b>{{ obs.score_percent }}%</b>{% else %}—{% endif %}</div>
   </div>

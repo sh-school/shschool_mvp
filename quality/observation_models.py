@@ -55,6 +55,12 @@ OBSERVATION_STATUS = [
     ("acknowledged", "مُقَرّة من المعلّم"),
 ]
 
+# نوع التقييم: زيارة إشرافية (مشرف يقيّم معلّماً) أو تقييم ذاتي (المعلّم يقيّم نفسه)
+OBSERVATION_KIND = [
+    ("supervision", "زيارة إشرافية"),
+    ("self", "تقييم ذاتي"),
+]
+
 
 class ObservationCriterion(TimeStampedModel):
     """معيار أداء ضمن مجال — بيانات مرجعية ثابتة (مزروعة لكل مدرسة)."""
@@ -96,6 +102,9 @@ class ClassroomObservation(AuditedModel):
     observer = models.ForeignKey(
         CustomUser, on_delete=models.PROTECT, related_name="observations_made",
         verbose_name="الزائر",
+    )
+    kind = models.CharField(
+        max_length=12, choices=OBSERVATION_KIND, default="supervision", verbose_name="نوع التقييم"
     )
     subject = models.ForeignKey(
         "operations.Subject", on_delete=models.SET_NULL, null=True, blank=True,

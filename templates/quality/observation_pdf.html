@@ -21,7 +21,7 @@
 </style>
 </head>
 <body>
-  <h1>استمارة الإشراف على أداء المعلّم</h1>
+  <h1>{% if obs.kind == "self" %}استمارة التقييم الذاتي للمعلّم{% else %}استمارة الإشراف على أداء المعلّم{% endif %}</h1>
   <div class="sub">{{ obs.school.name }} — العام الأكاديميّ {{ obs.school.current_academic_year|default:"2025/2026" }}</div>
 
   <table class="info">
@@ -59,8 +59,13 @@
   {% endif %}
 
   <div class="sign">
+    {% if obs.kind == "self" %}
+    <div>توقيع المعلّم (تقييم ذاتي)<br><small>{{ obs.teacher.full_name }}</small></div>
+    <div>&nbsp;</div>
+    {% else %}
     <div>توقيع المعلّم{% if obs.status == "acknowledged" %}<br><small>أقرّ إلكترونياً: {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}</small>{% endif %}</div>
     <div>توقيع الزائر<br><small>{{ obs.observer.full_name }}</small></div>
+    {% endif %}
   </div>
 </body>
 </html>

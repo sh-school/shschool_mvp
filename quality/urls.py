@@ -11,6 +11,11 @@ urlpatterns = [
     path("observations/", observation_views.observation_list, name="observation_list"),
     path("observations/new/", observation_views.observation_create, name="observation_create"),
     path(
+        "observations/self/new/",
+        observation_views.observation_self_create,
+        name="observation_self_create",
+    ),
+    path(
         "observations/<uuid:obs_id>/",
         observation_views.observation_detail,
         name="observation_detail",

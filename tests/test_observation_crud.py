@@ -21,9 +21,14 @@ def _criteria(school, n=3):
     return out
 
 
-def _make_obs(school, observer, teacher, status="draft", rate="complete"):
+def _make_obs(school, observer, teacher, status="draft", rate="complete", kind="supervision"):
     obs = ClassroomObservation.objects.create(
-        school=school, teacher=teacher, observer=observer, created_by=observer, status=status
+        school=school,
+        teacher=teacher,
+        observer=observer,
+        created_by=observer,
+        status=status,
+        kind=kind,
     )
     crits = _criteria(school)
     ObservationService.save_scores(obs, {str(c.id): rate for c in crits}, {})
@@ -195,3 +200,67 @@ def test_list_filter_by_status(client_as, school, coordinator_user, teacher_user
     assert r.status_code == 200
     assert len(r.context["rows"]) == 1
     assert r.context["rows"][0][0].status == "submitted"
+
+
+# ══════════════════════ التقييم الذاتي ════════════════════════════════
+@pytest.mark.django_db
+def test_self_create_by_teacher(client_as, school, teacher_user):
+    crits = _criteria(school)
+    c = client_as(teacher_user)
+    data = {"observation_date": "2026-06-21", "action": "submit"}
+    for cc in crits:
+        data[f"rating_{cc.id}"] = "complete"
+    r = c.post(reverse("observation_self_create"), data)
+    assert r.status_code == 302
+    obs = ClassroomObservation.objects.filter(teacher=teacher_user, kind="self").first()
+    assert obs is not None
+    assert obs.observer_id == teacher_user.id  # المعلّم هو المُقيِّم نفسه
+    assert obs.status == "submitted"
+    assert obs.score_percent == 100
+
+
+@pytest.mark.django_db
+def test_supervisor_cannot_visit_self(client_as, school, coordinator_user):
+    crits = _criteria(school)
+    c = client_as(coordinator_user)
+    data = {"teacher": str(coordinator_user.id), "observation_date": "2026-06-21", "action": "draft"}
+    for cc in crits:
+        data[f"rating_{cc.id}"] = "complete"
+    c.post(reverse("observation_create"), data)
+    assert not ClassroomObservation.objects.filter(
+        observer=coordinator_user, teacher=coordinator_user, kind="supervision"
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_self_assessment_has_no_acknowledge(school, teacher_user):
+    from quality.observation_views import _obs_perms
+
+    obs, _ = _make_obs(school, teacher_user, teacher_user, status="submitted", kind="self")
+    assert _obs_perms(teacher_user, obs)["can_ack"] is False
+
+
+@pytest.mark.django_db
+def test_supervisor_views_self_but_cannot_edit(school, coordinator_user, teacher_user):
+    from quality.observation_views import _obs_perms
+
+    obs, _ = _make_obs(school, teacher_user, teacher_user, kind="self")
+    # المنسّق (مشرف) يطّلع عليه
+    assert ObservationService.visible_to(coordinator_user, school).filter(id=obs.id).exists()
+    # لكنه لا يُعدّله
+    assert _obs_perms(coordinator_user, obs)["can_edit"] is False
+
+
+@pytest.mark.django_db
+def test_self_assessment_edit_by_teacher_no_teacher_field(client_as, school, teacher_user):
+    crits = _criteria(school)
+    obs, _ = _make_obs(school, teacher_user, teacher_user, kind="self")
+    c = client_as(teacher_user)
+    data = {"observation_date": "2026-06-22", "topic": "تأمل ذاتي", "action": "draft"}
+    for cc in crits:  # بلا حقل «teacher» — كما في استمارة التقييم الذاتي
+        data[f"rating_{cc.id}"] = "most"
+    r = c.post(reverse("observation_edit", args=[obs.id]), data)
+    assert r.status_code == 302
+    obs.refresh_from_db()
+    assert obs.topic == "تأمل ذاتي"
+    assert obs.teacher_id == teacher_user.id  # المعلّم ثابت

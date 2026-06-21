@@ -13,12 +13,18 @@ from django.views.decorators.http import require_POST
 
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
-from core.permissions import OBSERVATION_CREATE, OBSERVATION_VIEW_ALL, role_required
+from core.permissions import (
+    OBSERVATION_CREATE,
+    OBSERVATION_SELF_CREATE,
+    OBSERVATION_VIEW_ALL,
+    role_required,
+)
 
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
     OBSERVATION_DOMAINS,
+    OBSERVATION_KIND,
     OBSERVATION_STATUS,
     RATING_CHOICES,
     ClassroomObservation,
@@ -105,12 +111,12 @@ def _obs_perms(user, obs):
         "can_submit": can_edit and status == "draft",
         "can_withdraw": (is_observer or lead) and status == "submitted",
         "can_reopen": lead and status == "acknowledged",
-        "can_ack": is_teacher and status == "submitted",
+        "can_ack": is_teacher and status == "submitted" and obs.kind == "supervision",
         "can_delete": can_delete,
     }
 
 
-def _form_context(school, *, obs=None, scores_map=None):
+def _form_context(school, *, obs=None, scores_map=None, is_self=False):
     """grouped_criteria = [(domain_label, [(criterion, score|None)])] — score للتعبئة عند التعديل."""
     scores_map = scores_map or {}
     grouped = [
@@ -126,6 +132,7 @@ def _form_context(school, *, obs=None, scores_map=None):
             "follow_up_scopes": FOLLOW_UP_SCOPE,
             "mode": "edit" if obs else "create",
             "obs": obs,
+            "is_self": is_self or bool(obs and obs.kind == "self"),
         }
     )
     return ctx
@@ -165,9 +172,17 @@ def observation_create(request):
             CustomUser.objects.filter(memberships__school=school).distinct(),
             id=request.POST.get("teacher"),
         )
+        if teacher.id == request.user.id:
+            messages.error(request, "لا يمكن للمشرف أن يزور نفسه — استخدم «تقييم ذاتي».")
+            return redirect("observation_create")
         header, ratings, recs = _collect_post(request, school)
         obs = ClassroomObservation.objects.create(
-            school=school, teacher=teacher, observer=request.user, created_by=request.user, **header
+            school=school,
+            teacher=teacher,
+            observer=request.user,
+            kind="supervision",
+            created_by=request.user,
+            **header,
         )
         ObservationService.save_scores(obs, ratings, recs)
         if request.POST.get("action") == "submit":
@@ -188,6 +203,39 @@ def observation_create(request):
 
 
 @login_required
+@role_required(OBSERVATION_SELF_CREATE)
+def observation_self_create(request):
+    """تقييم ذاتي — المعلّم يقيّم نفسه (هو المعلّم والمُقيِّم معاً)."""
+    school = request.user.get_school()
+    if request.method == "POST":
+        header, ratings, recs = _collect_post(request, school)
+        obs = ClassroomObservation.objects.create(
+            school=school,
+            teacher=request.user,
+            observer=request.user,
+            kind="self",
+            created_by=request.user,
+            **header,
+        )
+        ObservationService.save_scores(obs, ratings, recs)
+        if request.POST.get("action") == "submit":
+            ObservationService.submit(obs, request.user)
+            messages.success(request, "تم اعتماد تقييمك الذاتي.")
+        else:
+            messages.success(request, "حُفظ كمسودة.")
+        AuditLog.log(
+            user=request.user,
+            action="create",
+            model_name="other",
+            object_id=obs.pk,
+            object_repr=f"تقييم ذاتي — {request.user.full_name}",
+            request=request,
+        )
+        return redirect("observation_detail", obs_id=obs.pk)
+    return render(request, "quality/observation_form.html", _form_context(school, is_self=True))
+
+
+@login_required
 def observation_edit(request, obs_id):
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
@@ -200,12 +248,16 @@ def observation_edit(request, obs_id):
         return render(request, "403.html", status=403)
     school = obs.school
     if request.method == "POST":
-        teacher = get_object_or_404(
-            CustomUser.objects.filter(memberships__school=school).distinct(),
-            id=request.POST.get("teacher"),
-        )
         header, ratings, recs = _collect_post(request, school)
-        header["teacher"] = teacher
+        if obs.kind != "self":  # التقييم الذاتي: المعلّم ثابت (هو المستخدم) — لا حقل اختيار
+            teacher = get_object_or_404(
+                CustomUser.objects.filter(memberships__school=school).distinct(),
+                id=request.POST.get("teacher"),
+            )
+            if teacher.id == request.user.id:
+                messages.error(request, "لا يمكن للمشرف أن يزور نفسه — استخدم «تقييم ذاتي».")
+                return redirect("observation_edit", obs_id=obs.pk)
+            header["teacher"] = teacher
         ObservationService.update_observation(
             obs, header=header, ratings=ratings, recommendations=recs, by_user=request.user
         )
@@ -239,6 +291,8 @@ def observation_list(request):
 
     if g.get("status") in dict(OBSERVATION_STATUS):
         qs = qs.filter(status=g["status"])
+    if g.get("kind") in dict(OBSERVATION_KIND):
+        qs = qs.filter(kind=g["kind"])
     if g.get("teacher"):
         qs = qs.filter(teacher_id=g["teacher"])
     if lead and g.get("observer"):
@@ -276,8 +330,10 @@ def observation_list(request):
             "rows": rows,
             "page_obj": page,
             "can_create": request.user.get_role() in OBSERVATION_CREATE or request.user.is_superuser,
+            "can_self": request.user.get_role() in OBSERVATION_SELF_CREATE,
             "is_leadership": lead,
             "status_choices": OBSERVATION_STATUS,
+            "kind_choices": OBSERVATION_KIND,
             "sort_choices": [("date", "التاريخ"), ("score", "النسبة"), ("status", "الحالة")],
             "teachers": teachers,
             "observers": observers,

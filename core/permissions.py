@@ -203,6 +203,14 @@ OBSERVATION_CREATE = {"principal", "vice_academic", "coordinator", "academic_adv
 OBSERVATION_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
 # إعادة فتح ملاحظة مُقَرّة + حذف ملاحظة مُرسَلة/مُقَرّة — قيادة فقط (يُلغي توقيع المعلّم)
 OBSERVATION_REOPEN = OBSERVATION_VIEW_ALL
+# من يُنشئ تقييماً ذاتياً لنفسه (المعلّمون ومن في حكمهم)
+OBSERVATION_SELF_CREATE = {
+    "teacher",
+    "ese_teacher",
+    "specialist",
+    "coordinator",
+    "activities_coordinator",
+}
 
 QUALITY_VIEW = {
     "coordinator",

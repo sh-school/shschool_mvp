@@ -102,7 +102,9 @@ class ObservationService:
                 "updated_at",
             ]
         )
-        ObservationService._notify_teacher(observation, updated=observation.submission_count > 1)
+        # التقييم الذاتي: المعلّم هو المُنشئ — لا إشعار له
+        if observation.kind == "supervision":
+            ObservationService._notify_teacher(observation, updated=observation.submission_count > 1)
         return observation
 
     @staticmethod
@@ -196,8 +198,12 @@ class ObservationService:
     # ── الرؤية ──────────────────────────────────────────────────────
     @staticmethod
     def visible_to(user, school):
-        """القيادة=الكل، الزائر=ما أنشأه، المعلّم=ما تلقّاه. (المؤرشَف مُستبعَد تلقائياً)."""
-        from core.permissions import OBSERVATION_VIEW_ALL
+        """
+        القيادة=الكل، الزائر=ما أنشأه، المعلّم=ما تلقّاه + تقييمه الذاتي.
+        المشرفون (OBSERVATION_CREATE) يطّلعون أيضاً على التقييمات الذاتية (قراءة فقط).
+        (المؤرشَف مُستبعَد تلقائياً عبر الـmanager الافتراضي.)
+        """
+        from core.permissions import OBSERVATION_CREATE, OBSERVATION_VIEW_ALL
 
         qs = ClassroomObservation.objects.filter(school=school).select_related(
             "teacher", "observer", "subject", "class_group"
@@ -205,7 +211,10 @@ class ObservationService:
         role = user.get_role()
         if user.is_superuser or role in OBSERVATION_VIEW_ALL:
             return qs
-        return qs.filter(Q(observer=user) | Q(teacher=user))
+        cond = Q(observer=user) | Q(teacher=user)
+        if role in OBSERVATION_CREATE:
+            cond |= Q(kind="self")
+        return qs.filter(cond)
 
     # ── الإشعارات (لا تُسقط العملية الأساسية أبداً) ──────────────────
     @staticmethod
