@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from clinic.services import ClinicService
-from core.models import ClinicVisit, CustomUser, HealthRecord
+from core.models import AuditLog, ClinicVisit, CustomUser, HealthRecord
 from core.permissions import nurse_required
 
 
@@ -51,6 +51,7 @@ def student_health_record(request, student_id):
             chronic_diseases=request.POST.get("chronic_diseases", ""),
             medications=request.POST.get("medications", ""),
         )
+        # ملاحظة: تدقيق التعديل يتم تلقائياً عبر post_save signal (core/signals.py)
         from django.contrib import messages
 
         messages.success(request, "✅ تم حفظ السجل الصحي بنجاح.")
@@ -69,6 +70,16 @@ def student_health_record(request, student_id):
         "chronic_diseases": health_record.get_chronic_diseases(),
         "medications": health_record.get_medications(),
     }
+
+    # PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)
+    AuditLog.log(
+        user=request.user,
+        action="view",
+        model_name="HealthRecord",
+        object_id=health_record.pk,
+        object_repr=f"عرض السجل الصحي — {student.full_name}",
+        request=request,
+    )
     return render(request, "clinic/health_record.html", context)
 
 
@@ -96,6 +107,7 @@ def record_visit(request, student_id=None):
             treatment=request.POST.get("treatment", ""),
             is_sent_home=request.POST.get("is_sent_home") == "on",
         )
+        # ملاحظة: تدقيق إنشاء الزيارة يتم تلقائياً عبر post_save signal (core/signals.py)
 
         if request.headers.get("HX-Request"):
             return render(request, "clinic/visit_card.html", {"visit": visit})
