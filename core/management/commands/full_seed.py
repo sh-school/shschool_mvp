@@ -415,10 +415,9 @@ class Command(BaseCommand):
             ("تكنولوجيا المعلومات", "Information Technology"),
         ]
         subject_map = {}
-        for name_ar, name_en in SUBJECTS:
-            subj, _ = Subject.objects.get_or_create(
-                school=school, name_ar=name_ar, defaults={"name_en": name_en}
-            )
+        for name_ar, _name_en in SUBJECTS:
+            # موديل Subject لا يخزّن اسماً إنجليزياً — name_ar فقط (+ code/requires_double_period)
+            subj, _ = Subject.objects.get_or_create(school=school, name_ar=name_ar)
             subject_map[name_ar] = subj
         self.stdout.write(f"✅ المواد: {len(subject_map)}")
         return subject_map
