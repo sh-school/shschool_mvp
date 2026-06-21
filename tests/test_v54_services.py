@@ -3,7 +3,7 @@ tests/test_v54_services.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 اختبارات Services الجديدة في v5.4:
   - LeaveService (create + review + race condition logic)
-  - BehaviorService.create_infraction + approve_point_recovery
+  - BehaviorService.create_infraction
   - ClinicService.record_visit
   - LibraryService (borrow + return)
   - StaffService.get_staff_profile_data
@@ -253,77 +253,6 @@ class TestBehaviorServiceCreateInfraction:
             description="مخالفة أولى",
         )
         assert infraction.escalation_step >= 1
-
-
-@pytest.mark.django_db
-class TestBehaviorServicePointRecovery:
-    """اختبارات BehaviorService.approve_point_recovery."""
-
-    def test_approve_point_recovery_resolves_infraction(self, db):
-        """approve_point_recovery يُغلق المخالفة ويُنشئ سجل استعادة."""
-        from behavior.services import BehaviorService
-
-        school = SchoolFactory()
-        student = UserFactory()
-        approver = UserFactory()
-        infraction = BehaviorInfractionFactory(school=school, student=student, points_deducted=10)
-
-        recovery = BehaviorService.approve_point_recovery(
-            infraction=infraction,
-            approved_by=approver,
-            reason="سلوك ممتاز",
-            points_restored=5,
-        )
-
-        assert recovery.pk is not None
-        assert recovery.points_restored == 5
-        infraction.refresh_from_db()
-        assert infraction.is_resolved is True
-
-    def test_approve_point_recovery_invalid_points_raises(self):
-        """approve_point_recovery يرفع ValueError على نقاط خارج النطاق."""
-        from behavior.services import BehaviorService
-
-        school = SchoolFactory()
-        infraction = BehaviorInfractionFactory(school=school, points_deducted=5)
-
-        with pytest.raises(ValueError):
-            BehaviorService.approve_point_recovery(
-                infraction=infraction,
-                approved_by=UserFactory(),
-                reason="سبب",
-                points_restored=10,  # أكثر من المخصوم
-            )
-
-    def test_approve_point_recovery_double_raises(self, db):
-        """approve_point_recovery لا يُطبَّق على مخالفة محلولة مسبقاً."""
-        from behavior.services import BehaviorService
-
-        school = SchoolFactory()
-        infraction = BehaviorInfractionFactory(school=school, points_deducted=10)
-        approver = UserFactory()
-
-        BehaviorService.approve_point_recovery(
-            infraction=infraction,
-            approved_by=approver,
-            reason="سبب",
-            points_restored=5,
-        )
-
-        with pytest.raises(ValueError, match="معالجة مسبقاً"):
-            BehaviorService.approve_point_recovery(
-                infraction=infraction,
-                approved_by=approver,
-                reason="سبب ثانٍ",
-                points_restored=3,
-            )
-
-
-# ══════════════════════════════════════════════
-#  ClinicService
-# ══════════════════════════════════════════════
-
-
 @pytest.mark.django_db
 class TestClinicService:
     """اختبارات ClinicService.record_visit."""

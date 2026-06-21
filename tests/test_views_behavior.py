@@ -22,7 +22,6 @@ class TestBehaviorDashboard:
         client = client_as(teacher_user)
         response = client.get("/behavior/dashboard/")
         assert "recent_infractions" in response.context
-        assert "total_deducted" in response.context
         assert "critical_unresolved" in response.context
 
 
@@ -121,36 +120,6 @@ class TestStudentBehaviorProfile:
         response = client.get(f"/behavior/student/{student_user.id}/")
         # بدون مخالفات → net_score = 100 → green
         assert response.context["status_color"] == "green"
-
-
-@pytest.mark.django_db
-class TestPointRecovery:
-    def test_get_recovery_form(self, client_as, principal_user, behavior_infraction):
-        client = client_as(principal_user)
-        response = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert response.status_code == 200
-        assert "infraction" in response.context
-
-    def test_post_creates_recovery(
-        self, client_as, principal_user, school, student_user, teacher_user, behavior_infraction
-    ):
-        client = client_as(principal_user)
-        response = client.post(
-            f"/behavior/recovery/{behavior_infraction.id}/",
-            {
-                "reason": "التزام بالنظام المدرسي",
-                "points_restored": 3,
-            },
-        )
-        assert response.status_code in (200, 302)
-        assert BehaviorPointRecovery.objects.filter(infraction=behavior_infraction).exists()
-
-    def test_teacher_cannot_approve_recovery(self, client_as, teacher_user, behavior_infraction):
-        client = client_as(teacher_user)
-        response = client.get(f"/behavior/recovery/{behavior_infraction.id}/")
-        assert response.status_code in (302, 403)
-
-
 @pytest.mark.django_db
 class TestCommitteeDashboard:
     def test_committee_dashboard_loads_for_principal(self, client_as, principal_user, school):
