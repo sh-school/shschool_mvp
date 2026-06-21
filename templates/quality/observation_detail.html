@@ -1,0 +1,62 @@
+{% extends "base/base.html" %}
+{% block title %}ملاحظة صفّية — {{ obs.teacher.full_name }}{% endblock %}
+
+{% block content %}
+<div class="card-qatar" style="max-width:1000px;margin-inline:auto">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="clipboard-check" %} إشراف على أداء: {{ obs.teacher.full_name }}</h1>
+    <div style="display:flex;gap:8px">
+      <a href="{% url 'observation_pdf' obs.id %}" class="btn-secondary btn-sm">PDF</a>
+      <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:14px">
+    <div><b>الزائر:</b> {{ obs.observer.full_name }}</div>
+    <div><b>المادّة:</b> {{ obs.subject.name_ar|default:"—" }}</div>
+    <div><b>الصّف:</b> {{ obs.class_group|default:"—" }}</div>
+    <div><b>التاريخ:</b> {{ obs.observation_date }}</div>
+    <div><b>الحصة:</b> {{ obs.period|default:"—" }}</div>
+    <div><b>الموضوع:</b> {{ obs.topic|default:"—" }}</div>
+    <div><b>المتابعة:</b> {{ obs.get_follow_up_mode_display }} {{ obs.get_follow_up_scope_display }}</div>
+    <div><b>الحالة:</b> <span class="badge">{{ obs.get_status_display }}</span></div>
+    <div><b>النسبة الإجماليّة:</b> {% if obs.score_percent != None %}<b>{{ obs.score_percent }}%</b>{% else %}—{% endif %}</div>
+  </div>
+
+  {% for domain_label, rows in grouped %}
+  <h3 class="section-title">{{ domain_label }}</h3>
+  <table class="table table-qatar" style="font-size:.9rem">
+    <thead><tr><th style="width:45%">المعيار</th><th>التقييم</th><th>التوصية</th></tr></thead>
+    <tbody>
+      {% for c, sc in rows %}
+      <tr>
+        <td>{{ c.text }}</td>
+        <td>{% if sc and sc.rating %}{{ sc.get_rating_display }}{% else %}—{% endif %}</td>
+        <td>{{ sc.recommendation|default:"—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+
+  {% if obs.general_notes %}
+  <h3 class="section-title">ملاحظات وتوصيات عامّة</h3>
+  <p>{{ obs.general_notes|linebreaksbr }}</p>
+  {% endif %}
+
+  {# ── إقرار المعلّم ── #}
+  {% if obs.status == "acknowledged" %}
+  <div class="alert-strip" style="background:var(--status-success-bg,#e8f5e9);border:1px solid var(--status-success-border,#a5d6a7);margin-top:14px">
+    ✓ أقرّ المعلّم بالاطّلاع في {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}.
+    {% if obs.teacher_comment %}<br><b>تعليقه:</b> {{ obs.teacher_comment }}{% endif %}
+  </div>
+  {% elif is_teacher and obs.status == "submitted" %}
+  <form method="post" action="{% url 'observation_acknowledge' obs.id %}" style="margin-top:14px">
+    {% csrf_token %}
+    <h3 class="section-title">الإقرار بالاطّلاع</h3>
+    <textarea name="teacher_comment" rows="2" class="form-control" placeholder="تعليق (اختياري)"></textarea>
+    <button type="submit" class="btn-primary" style="margin-top:8px">أقرّ بالاطّلاع</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

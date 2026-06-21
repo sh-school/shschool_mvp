@@ -49,6 +49,7 @@ DEFAULT_CHANNELS = {
     "plan_deadline": ["in_app", "email"],
     "plan_overdue": ["in_app", "email"],
     "review_cycle": ["in_app", "email"],
+    "observation": ["in_app", "email"],
     "general": ["in_app", "push", "email"],
 }
 
@@ -312,6 +313,7 @@ def _map_event_type(hub_event):
         "plan_deadline": "plan_deadline",
         "plan_overdue": "plan_overdue",
         "review_cycle": "review_cycle",
+        "observation": "general",
         "general": "general",
     }
     return mapping.get(hub_event, "general")

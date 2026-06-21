@@ -1,0 +1,89 @@
+{% extends "base/base.html" %}
+{% block title %}استمارة إشراف على أداء المعلّم{% endblock %}
+
+{% block content %}
+<div class="card-qatar" style="max-width:1100px;margin-inline:auto">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="clipboard-check" %} استمارة الإشراف على أداء المعلّم</h1>
+    <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
+  </div>
+
+  <form method="post" action="{% url 'observation_create' %}">
+    {% csrf_token %}
+
+    {# ── المعلومات الأساسية ── #}
+    <h3 class="section-title">المعلومات الأساسيّة</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+      <label>المعلّم *
+        <select name="teacher" required class="form-control">
+          <option value="">— اختر —</option>
+          {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>المادّة
+        <select name="subject" class="form-control">
+          <option value="">—</option>
+          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name_ar }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>الصّف
+        <select name="class_group" class="form-control">
+          <option value="">—</option>
+          {% for c in class_groups %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>التاريخ <input type="date" name="observation_date" class="form-control"></label>
+      <label>الحصة <input type="number" name="period" min="1" max="8" class="form-control"></label>
+      <label>الموضوع <input type="text" name="topic" class="form-control"></label>
+      <label>نوع المتابعة
+        <select name="follow_up_mode" class="form-control">
+          <option value="">—</option>
+          {% for v,l in follow_up_modes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>المدى
+        <select name="follow_up_scope" class="form-control">
+          <option value="">—</option>
+          {% for v,l in follow_up_scopes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>ملاحظات البث <input type="text" name="broadcast_note" class="form-control"></label>
+    </div>
+
+    {# ── المعايير حسب المجال ── #}
+    {% for domain_label, items in grouped_criteria %}
+    <h3 class="section-title">{{ domain_label }}</h3>
+    <table class="table table-qatar" style="font-size:.9rem">
+      <thead>
+        <tr>
+          <th style="width:34%">معيار الأداء</th>
+          {% for v,l in rating_choices %}<th style="text-align:center">{{ l }}</th>{% endfor %}
+          <th style="width:20%">التوصية</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in items %}
+        <tr>
+          <td>{{ c.text }}</td>
+          {% for v,l in rating_choices %}
+          <td style="text-align:center">
+            <input type="radio" name="rating_{{ c.id }}" value="{{ v }}" aria-label="{{ l }}">
+          </td>
+          {% endfor %}
+          <td><input type="text" name="rec_{{ c.id }}" class="form-control" style="font-size:.85rem"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+
+    <h3 class="section-title">ملاحظات وتوصيات عامّة</h3>
+    <textarea name="general_notes" rows="3" class="form-control"></textarea>
+
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <button type="submit" name="action" value="submit" class="btn-primary">إرسال للمعلّم وإشعاره</button>
+      <button type="submit" name="action" value="draft" class="btn-secondary">حفظ كمسودة</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

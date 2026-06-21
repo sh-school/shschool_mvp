@@ -195,6 +195,13 @@ SYSTEM_ADMIN = {"platform_developer"}
 
 # ── الجودة ──────────────────────────────────────────────────────
 QUALITY_MANAGE = {"principal", "vice_admin", "vice_academic"}
+
+# ── الإشراف على أداء المعلّم (الملاحظة الصفّية) ──────────────────────
+# من يُجري الزيارة الإشرافية (الزائر)
+OBSERVATION_CREATE = {"principal", "vice_academic", "coordinator", "academic_advisor"}
+# من يرى كل ملاحظات المدرسة (القيادة)
+OBSERVATION_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
+
 QUALITY_VIEW = {
     "coordinator",
     "teacher",

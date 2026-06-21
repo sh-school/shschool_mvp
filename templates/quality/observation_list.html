@@ -1,0 +1,36 @@
+{% extends "base/base.html" %}
+{% block title %}الإشراف على أداء المعلّمين{% endblock %}
+
+{% block content %}
+<div class="card-qatar">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="clipboard-check" %} الإشراف على أداء المعلّمين</h1>
+    {% if can_create %}
+    <a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>
+    {% endif %}
+  </div>
+
+  <table class="table table-qatar">
+    <thead>
+      <tr><th>المعلّم</th><th>الزائر</th><th>المادّة</th><th>التاريخ</th><th>النسبة</th><th>الحالة</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for o in observations %}
+      <tr>
+        <td>{{ o.teacher.full_name }}</td>
+        <td>{{ o.observer.full_name }}</td>
+        <td>{{ o.subject.name_ar|default:"—" }}</td>
+        <td class="col-num">{{ o.observation_date }}</td>
+        <td class="col-num">{% if o.score_percent != None %}{{ o.score_percent }}%{% else %}—{% endif %}</td>
+        <td><span class="badge">{{ o.get_status_display }}</span></td>
+        <td><a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a></td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">لا توجد ملاحظات بعد.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% include "components/pagination.html" with page_obj=page_obj %}
+</div>
+{% endblock %}

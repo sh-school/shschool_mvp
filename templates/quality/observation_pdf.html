@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.4cm 1.2cm; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Tajawal','Amiri',sans-serif; font-size: 10pt; color: #1a1a1a; }
+  h1 { font-size: 14pt; text-align: center; color: #8A1538; margin: 0 0 2px; }
+  .sub { text-align: center; font-size: 9pt; color: #555; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  th, td { border: 1px solid #888; padding: 3px 5px; vertical-align: top; }
+  th { background: #8A1538; color: #fff; font-size: 8.5pt; text-align: center; }
+  .info td { font-size: 9pt; }
+  .info b { color: #8A1538; }
+  .domain { background: #f3e6ea; font-weight: bold; color: #8A1538; }
+  .crit td { font-size: 8.5pt; }
+  .mark { text-align: center; font-weight: bold; }
+  .sign { margin-top: 16px; display: flex; justify-content: space-between; font-size: 9pt; }
+  .sign div { width: 45%; border-top: 1px solid #888; padding-top: 4px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>استمارة الإشراف على أداء المعلّم</h1>
+  <div class="sub">{{ obs.school.name }} — العام الأكاديميّ {{ obs.school.current_academic_year|default:"2025/2026" }}</div>
+
+  <table class="info">
+    <tr><td><b>المعلّم:</b> {{ obs.teacher.full_name }}</td><td><b>المادّة:</b> {{ obs.subject.name_ar|default:"—" }}</td><td><b>الصّف:</b> {{ obs.class_group|default:"—" }}</td></tr>
+    <tr><td><b>الزائر:</b> {{ obs.observer.full_name }}</td><td><b>التاريخ:</b> {{ obs.observation_date }}</td><td><b>الحصة:</b> {{ obs.period|default:"—" }}</td></tr>
+    <tr><td><b>الموضوع:</b> {{ obs.topic|default:"—" }}</td><td><b>نوع المتابعة:</b> {{ obs.get_follow_up_mode_display }} {{ obs.get_follow_up_scope_display }}</td><td><b>النسبة:</b> {% if obs.score_percent != None %}{{ obs.score_percent }}%{% else %}—{% endif %}</td></tr>
+  </table>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:38%">معيار الأداء</th>
+        {% for v,l in rating_choices %}<th>{{ l }}</th>{% endfor %}
+        <th style="width:18%">التوصية</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for domain_label, rows in grouped %}
+      <tr><td class="domain" colspan="7">{{ domain_label }}</td></tr>
+      {% for c, sc in rows %}
+      <tr class="crit">
+        <td>{{ c.text }}</td>
+        {% for v,l in rating_choices %}
+        <td class="mark">{% if sc and sc.rating == v %}✓{% endif %}</td>
+        {% endfor %}
+        <td>{{ sc.recommendation|default:"" }}</td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if obs.general_notes %}
+  <p><b style="color:#8A1538">ملاحظات وتوصيات عامّة:</b> {{ obs.general_notes }}</p>
+  {% endif %}
+
+  <div class="sign">
+    <div>توقيع المعلّم{% if obs.status == "acknowledged" %}<br><small>أقرّ إلكترونياً: {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}</small>{% endif %}</div>
+    <div>توقيع الزائر<br><small>{{ obs.observer.full_name }}</small></div>
+  </div>
+</body>
+</html>

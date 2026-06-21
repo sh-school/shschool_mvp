@@ -932,3 +932,11 @@ class EvaluationCycle(models.Model):
             status__in=["submitted", "approved", "acknowledged"],
         ).count()
         return round(evaluated / total_staff * 100) if total_staff else 0
+
+
+# ── الإشراف على أداء المعلّم (الملاحظة الصفّية) — وحدة مستقلّة ──────────
+from quality.observation_models import (  # noqa: E402,F401
+    ClassroomObservation,
+    ObservationCriterion,
+    ObservationScore,
+)
