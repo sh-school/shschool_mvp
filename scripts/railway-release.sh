@@ -51,7 +51,17 @@ echo "=============================================="
 echo "✅ Release Phase Complete — Starting server..."
 echo "=============================================="
 echo ""
-echo "🎯 Starting daphne (ASGI) on 0.0.0.0:${PORT:-8080}"
-echo "   يدعم WebSocket/Channels (بديل gunicorn WSGI) — يُكمل risk #10 على مسار Railway"
-echo ""
-exec daphne -b 0.0.0.0 -p "${PORT:-8080}" --access-log - shschool.asgi:application
+# ── تشغيل الخادم (ASGI/daphne) ─────────────────────────────────────
+# migrate أعلاه عمل بدور المالك (DATABASE_URL=postgres) لتطبيق DDL.
+# إن ضُبط APP_DB_PASSWORD: نوفّر دور التطبيق غير-superuser ونشغّل daphne به
+# فيُفرَض RLS فعلياً (المخاطر #1/#2/#3). وإلا نُبقي السلوك الحالي (postgres) — قابل للتراجع.
+if [ -n "$APP_DB_PASSWORD" ]; then
+  echo "🔐 RLS مفعّل: توفير دور shschool_app (غير-superuser) ثم تشغيل daphne به"
+  python manage.py provision_rls_role || { echo "::error:: فشل توفير دور RLS"; exit 1; }
+  echo "🎯 Starting daphne (ASGI) as shschool_app on 0.0.0.0:${PORT:-8080} — RLS مُفرَض"
+  exec env -u DATABASE_URL DB_USER=shschool_app DB_PASSWORD="$APP_DB_PASSWORD" \
+    daphne -b 0.0.0.0 -p "${PORT:-8080}" --access-log - shschool.asgi:application
+else
+  echo "🎯 Starting daphne (ASGI) on 0.0.0.0:${PORT:-8080} (postgres — RLS متجاوَز؛ اضبط APP_DB_PASSWORD لتفعيله)"
+  exec daphne -b 0.0.0.0 -p "${PORT:-8080}" --access-log - shschool.asgi:application
+fi
