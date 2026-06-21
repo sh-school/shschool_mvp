@@ -201,6 +201,8 @@ QUALITY_MANAGE = {"principal", "vice_admin", "vice_academic"}
 OBSERVATION_CREATE = {"principal", "vice_academic", "coordinator", "academic_advisor"}
 # من يرى كل ملاحظات المدرسة (القيادة)
 OBSERVATION_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
+# إعادة فتح ملاحظة مُقَرّة + حذف ملاحظة مُرسَلة/مُقَرّة — قيادة فقط (يُلغي توقيع المعلّم)
+OBSERVATION_REOPEN = OBSERVATION_VIEW_ALL
 
 QUALITY_VIEW = {
     "coordinator",

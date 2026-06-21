@@ -1,11 +1,12 @@
 {% extends "base/base.html" %}
-{% block title %}ملاحظة صفّية — {{ obs.teacher.full_name }}{% endblock %}
+{% block title %}زيارة صفّية — {{ obs.teacher.full_name }}{% endblock %}
 
 {% block content %}
 <div class="card-qatar" style="max-width:1000px;margin-inline:auto">
   <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="clipboard-check" %} إشراف على أداء: {{ obs.teacher.full_name }}</h1>
-    <div style="display:flex;gap:8px">
+    <h1>{% include "components/icon.html" with name="clipboard-check" %} الزيارة الصفّية: {{ obs.teacher.full_name }}</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
       <a href="{% url 'observation_pdf' obs.id %}" class="btn-secondary btn-sm">PDF</a>
       <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
     </div>
@@ -44,19 +45,78 @@
   <p>{{ obs.general_notes|linebreaksbr }}</p>
   {% endif %}
 
-  {# ── إقرار المعلّم ── #}
-  {% if obs.status == "acknowledged" %}
-  <div class="alert-strip" style="background:var(--status-success-bg,#e8f5e9);border:1px solid var(--status-success-border,#a5d6a7);margin-top:14px">
-    ✓ أقرّ المعلّم بالاطّلاع في {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}.
-    {% if obs.teacher_comment %}<br><b>تعليقه:</b> {{ obs.teacher_comment }}{% endif %}
+  {# ════════ شريط الإجراءات حسب الحالة والصلاحية ════════ #}
+  <div class="action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-color,#e5e7eb)">
+    {% if can_submit %}
+    <form method="post" action="{% url 'observation_submit' obs.id %}" onsubmit="return confirm('إرسال الملاحظة للمعلّم وإشعاره؟')">
+      {% csrf_token %}<button type="submit" class="btn-primary">إرسال للمعلّم</button>
+    </form>
+    {% endif %}
+
+    {% if can_withdraw %}
+    <form method="post" action="{% url 'observation_withdraw' obs.id %}" onsubmit="return confirm('سحب الملاحظة وإعادتها إلى مسودة؟ سيُخطَر المعلّم.')">
+      {% csrf_token %}<button type="submit" class="btn-secondary">سحب (إعادة لمسودة)</button>
+    </form>
+    {% endif %}
+
+    {% if can_delete and obs.status == "draft" %}
+    <form method="post" action="{% url 'observation_delete' obs.id %}" onsubmit="return confirm('حذف هذه المسودة؟')">
+      {% csrf_token %}<button type="submit" class="btn-danger">حذف</button>
+    </form>
+    {% endif %}
   </div>
-  {% elif is_teacher and obs.status == "submitted" %}
+
+  {# ── إقرار المعلّم (للمعلّم، عند الإرسال) ── #}
+  {% if can_ack %}
   <form method="post" action="{% url 'observation_acknowledge' obs.id %}" style="margin-top:14px">
     {% csrf_token %}
     <h3 class="section-title">الإقرار بالاطّلاع</h3>
     <textarea name="teacher_comment" rows="2" class="form-control" placeholder="تعليق (اختياري)"></textarea>
     <button type="submit" class="btn-primary" style="margin-top:8px">أقرّ بالاطّلاع</button>
   </form>
+  {% endif %}
+
+  {# ── حالة الإقرار ── #}
+  {% if obs.status == "acknowledged" %}
+  <div class="alert-strip" style="background:#e8f5e9;border:1px solid #a5d6a7;margin-top:14px;padding:10px;border-radius:6px">
+    ✓ أقرّ المعلّم بالاطّلاع في {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}.
+    {% if obs.teacher_comment %}<br><b>تعليقه:</b> {{ obs.teacher_comment }}{% endif %}
+  </div>
+
+    {# إعادة الفتح + الحذف المُعلَّل (قيادة) #}
+    {% if can_reopen or can_delete %}
+    <div style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:6px">
+      <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">إجراءات القيادة على ملاحظة مُقَرّة:</div>
+      {% if can_reopen %}
+      <form method="post" action="{% url 'observation_reopen' obs.id %}" style="margin-bottom:10px"
+            onsubmit="return confirm('إعادة فتح الملاحظة؟ سيُلغى إقرار المعلّم الحالي ويُعاد إشعاره.')">
+        {% csrf_token %}
+        <input type="text" name="reason" class="form-control" placeholder="سبب إعادة الفتح (اختياري)" style="max-width:420px">
+        <button type="submit" class="btn-secondary" style="margin-top:6px">إعادة فتح للتعديل</button>
+      </form>
+      {% endif %}
+      {% if can_delete %}
+      <form method="post" action="{% url 'observation_delete' obs.id %}"
+            onsubmit="return confirm('حذف ملاحظة مُقَرّة؟ ستُحفظ في الأرشيف.')">
+        {% csrf_token %}
+        <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" style="max-width:420px">
+        <button type="submit" class="btn-danger" style="margin-top:6px">حذف (أرشفة)</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  {% endif %}
+
+  {# ── حذف مُعلَّل لملاحظة مُرسَلة (قيادة) ── #}
+  {% if obs.status == "submitted" and can_delete %}
+  <div style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:6px">
+    <form method="post" action="{% url 'observation_delete' obs.id %}"
+          onsubmit="return confirm('حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.')">
+      {% csrf_token %}
+      <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" style="max-width:420px">
+      <button type="submit" class="btn-danger" style="margin-top:6px">حذف (أرشفة)</button>
+    </form>
+  </div>
   {% endif %}
 </div>
 {% endblock %}

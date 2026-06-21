@@ -10,27 +10,104 @@
     {% endif %}
   </div>
 
+  {# ── شريط الفلاتر ── #}
+  <form method="get" class="filter-bar"
+        style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;margin-bottom:14px">
+    <label>الحالة
+      <select name="status" class="form-control">
+        <option value="">الكل</option>
+        {% for v,l in status_choices %}
+        <option value="{{ v }}" {% if f.status == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>المعلّم
+      <select name="teacher" class="form-control">
+        <option value="">الكل</option>
+        {% for t in teachers %}
+        <option value="{{ t.id }}" {% if f.teacher == t.id|stringformat:'s' %}selected{% endif %}>{{ t.full_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if is_leadership %}
+    <label>الزائر
+      <select name="observer" class="form-control">
+        <option value="">الكل</option>
+        {% for o in observers %}
+        <option value="{{ o.id }}" {% if f.observer == o.id|stringformat:'s' %}selected{% endif %}>{{ o.full_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <label>من تاريخ <input type="date" name="date_from" class="form-control" value="{{ f.date_from }}"></label>
+    <label>إلى تاريخ <input type="date" name="date_to" class="form-control" value="{{ f.date_to }}"></label>
+    <label>بحث <input type="search" name="q" class="form-control" placeholder="موضوع أو اسم معلّم" value="{{ f.q }}"></label>
+    <label>الترتيب
+      <select name="sort" class="form-control">
+        {% for v,l in sort_choices %}
+        <option value="{{ v }}" {% if f.sort == v %}selected{% endif %}>{{ l }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div style="display:flex;gap:6px">
+      <button type="submit" class="btn-primary btn-sm">تصفية</button>
+      <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">مسح</a>
+    </div>
+  </form>
+
   <table class="table table-qatar">
     <thead>
-      <tr><th>المعلّم</th><th>الزائر</th><th>المادّة</th><th>التاريخ</th><th>النسبة</th><th>الحالة</th><th></th></tr>
+      <tr><th>المعلّم</th><th>الزائر</th><th>المادّة</th><th>التاريخ</th><th>النسبة</th><th>الحالة</th><th>إجراءات</th></tr>
     </thead>
     <tbody>
-      {% for o in observations %}
+      {% for o, p in rows %}
       <tr>
         <td>{{ o.teacher.full_name }}</td>
         <td>{{ o.observer.full_name }}</td>
         <td>{{ o.subject.name_ar|default:"—" }}</td>
         <td class="col-num">{{ o.observation_date }}</td>
-        <td class="col-num">{% if o.score_percent != None %}{{ o.score_percent }}%{% else %}—{% endif %}</td>
-        <td><span class="badge">{{ o.get_status_display }}</span></td>
-        <td><a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a></td>
+        <td class="col-num">
+          {% if o.score_percent != None %}
+            {% if o.score_percent >= 75 %}<span style="color:#15803d;font-weight:600">{{ o.score_percent }}%</span>
+            {% elif o.score_percent >= 50 %}<span style="color:#b45309;font-weight:600">{{ o.score_percent }}%</span>
+            {% else %}<span style="color:#b91c1c;font-weight:600">{{ o.score_percent }}%</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if o.status == "acknowledged" %}<span class="badge" style="background:#dcfce7;color:#15803d">{{ o.get_status_display }}</span>
+          {% elif o.status == "submitted" %}<span class="badge" style="background:#fef3c7;color:#b45309">{{ o.get_status_display }}</span>
+          {% else %}<span class="badge" style="background:#f1f5f9;color:#475569">{{ o.get_status_display }}</span>{% endif %}
+        </td>
+        <td style="white-space:nowrap">
+          <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>
+          {% if p.can_edit %}<a href="{% url 'observation_edit' o.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
+          <a href="{% url 'observation_pdf' o.id %}" class="btn-secondary btn-sm">PDF</a>
+          {% if p.can_delete and o.status == "draft" %}
+          <form method="post" action="{% url 'observation_delete' o.id %}" style="display:inline"
+                onsubmit="return confirm('حذف هذه المسودة؟')">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger btn-sm">حذف</button>
+          </form>
+          {% endif %}
+        </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">لا توجد ملاحظات بعد.</td></tr>
+      <tr><td colspan="7" style="text-align:center;color:var(--text-muted)">لا توجد زيارات مطابقة.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 
-  {% include "components/pagination.html" with page_obj=page_obj %}
+  {# ── ترقيم يحفظ الفلاتر ── #}
+  {% if page_obj.has_other_pages %}
+  <div class="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:14px;align-items:center">
+    {% if page_obj.has_previous %}
+    <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">السابق</a>
+    {% endif %}
+    <span style="color:var(--text-muted)">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">التالي</a>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

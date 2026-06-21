@@ -1,9 +1,17 @@
 """
 quality/observation_services.py
 منطق الإشراف على أداء المعلّم (Fat Service / Skinny Views).
+
+سير الحالة (قابل للعكس، مُدقَّق):
+    draft ──submit──▶ submitted ──acknowledge──▶ acknowledged
+      ▲                  │  ▲                          │
+      └──── withdraw ────┘  └────────── reopen ────────┘
+
+الحذف ناعم دائماً (archive) — لا تُفقَد سجلّات التقييم أبداً.
 """
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from quality.observation_models import (
@@ -12,8 +20,22 @@ from quality.observation_models import (
     ObservationScore,
 )
 
+# الحقول القابلة للتعديل في الترويسة (عدا teacher الذي يُعالَج كـFK)
+_HEADER_FIELDS = (
+    "subject_id",
+    "class_group_id",
+    "observation_date",
+    "period",
+    "topic",
+    "follow_up_mode",
+    "follow_up_scope",
+    "broadcast_note",
+    "general_notes",
+)
+
 
 class ObservationService:
+    # ── المعايير + التقييمات ────────────────────────────────────────
     @staticmethod
     def criteria_for(school):
         return ObservationCriterion.objects.filter(school=school, is_active=True).order_by(
@@ -23,11 +45,8 @@ class ObservationService:
     @staticmethod
     @transaction.atomic
     def save_scores(observation, ratings: dict, recommendations: dict):
-        """ratings/recommendations: {criterion_id(str): value}. يُنشئ/يحدّث التقييمات."""
-        crits = {
-            str(c.id): c
-            for c in ObservationService.criteria_for(observation.school)
-        }
+        """ratings/recommendations: {criterion_id(str): value}. يُنشئ/يحدّث كل المعايير."""
+        crits = {str(c.id): c for c in ObservationService.criteria_for(observation.school)}
         for cid, crit in crits.items():
             ObservationScore.objects.update_or_create(
                 observation=observation,
@@ -40,44 +59,107 @@ class ObservationService:
         observation.score_percent = observation.compute_score_percent()
         observation.save(update_fields=["score_percent", "updated_at"])
 
+    # ── التعديل ─────────────────────────────────────────────────────
+    @staticmethod
+    @transaction.atomic
+    def update_observation(observation, *, header: dict, ratings: dict, recommendations: dict, by_user):
+        """
+        تعديل زيارة (مسودة أو مُرسَلة). المُقَرّة غير قابلة للتعديل — تُعاد فتحها أولاً.
+        تعديل المُرسَلة صامت (المعلّم لم يُقِرّ بعد ويرى أحدث نسخة عند الفتح)؛ الإشعار
+        الرسمي بالتحديث يمرّ عبر سحب→تعديل→إعادة إرسال.
+        """
+        if observation.status == "acknowledged":
+            raise ValueError("لا يمكن تعديل ملاحظة مُقَرّة — أعد فتحها أولاً.")
+        for field in _HEADER_FIELDS:
+            if field in header:
+                setattr(observation, field, header[field])
+        if header.get("teacher") is not None:
+            observation.teacher = header["teacher"]
+        observation.updated_by = by_user
+        observation.save()
+        ObservationService.save_scores(observation, ratings, recommendations)
+        return observation
+
+    # ── سير الحالة ──────────────────────────────────────────────────
     @staticmethod
     @transaction.atomic
     def submit(observation, by_user):
-        """إرسال الزيارة للمعلّم + إشعار."""
+        """إرسال الزيارة للمعلّم + إشعار. لا يُرسَل إلا من مسودة."""
+        if observation.status != "draft":
+            return observation
         observation.status = "submitted"
         observation.submitted_at = timezone.now()
+        observation.submission_count = (observation.submission_count or 0) + 1
         observation.score_percent = observation.compute_score_percent()
-        observation.save(update_fields=["status", "submitted_at", "score_percent", "updated_at"])
-        ObservationService._notify_teacher(observation)
+        observation.updated_by = by_user
+        observation.save(
+            update_fields=[
+                "status",
+                "submitted_at",
+                "submission_count",
+                "score_percent",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        ObservationService._notify_teacher(observation, updated=observation.submission_count > 1)
         return observation
 
     @staticmethod
-    def _notify_teacher(observation):
-        try:
-            from notifications.hub import NotificationHub
+    @transaction.atomic
+    def withdraw(observation, by_user):
+        """سحب: مُرسَلة → مسودة (للتعديل قبل إعادة الإرسال)."""
+        if observation.status != "submitted":
+            return observation
+        observation.status = "draft"
+        observation.submitted_at = None
+        observation.teacher_acknowledged_at = None
+        observation.teacher_comment = ""
+        observation.updated_by = by_user
+        observation.save(
+            update_fields=[
+                "status",
+                "submitted_at",
+                "teacher_acknowledged_at",
+                "teacher_comment",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        ObservationService._dispatch(
+            observation,
+            observation.teacher,
+            "سُحبت ملاحظة صفّية مؤقتاً",
+            f"سحب {observation.observer.full_name} الملاحظة الصفّية على أدائك مؤقتاً للمراجعة.",
+        )
+        return observation
 
-            pct = observation.score_percent
-            body = f"أجرى {observation.observer.full_name} زيارة إشرافية على أدائك"
-            if pct is not None:
-                body += f" — النسبة الإجماليّة {pct}%"
-            body += ". يُرجى الاطّلاع والإقرار."
-            NotificationHub.dispatch(
-                event_type="observation",
-                school=observation.school,
-                recipients=[observation.teacher],
-                title="ملاحظة صفّية جديدة على أدائك",
-                body=body,
-                related_url=f"/quality/observations/{observation.id}/",
-                related_object_id=str(observation.id),
-            )
-        except Exception:  # noqa: BLE001 — الإشعار لا يُسقط العملية الأساسية
-            import logging
-
-            logging.getLogger("quality").exception("observation notify failed")
+    @staticmethod
+    @transaction.atomic
+    def reopen(observation, by_user, reason=""):
+        """إعادة فتح: مُقَرّة → مُرسَلة (الطريق المُدقَّق لتعديل سجل موقّع). يُلغي الإقرار السابق."""
+        if observation.status != "acknowledged":
+            return observation
+        observation.status = "submitted"
+        observation.teacher_acknowledged_at = None
+        observation.teacher_comment = ""
+        observation.updated_by = by_user
+        observation.save(
+            update_fields=[
+                "status",
+                "teacher_acknowledged_at",
+                "teacher_comment",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        ObservationService._notify_teacher(observation, updated=True)
+        return observation
 
     @staticmethod
     @transaction.atomic
     def acknowledge(observation, comment=""):
+        """إقرار المعلّم بالاطّلاع + إشعار الزائر."""
         observation.status = "acknowledged"
         observation.teacher_acknowledged_at = timezone.now()
         observation.teacher_comment = (comment or "").strip()
@@ -89,11 +171,32 @@ class ObservationService:
                 "updated_at",
             ]
         )
+        ObservationService._notify_observer(observation)
         return observation
 
+    # ── الحذف الناعم / الاسترجاع ─────────────────────────────────────
+    @staticmethod
+    @transaction.atomic
+    def archive(observation, by_user, reason=""):
+        """حذف ناعم — يحفظ الزيارة وتقييماتها للتدقيق (قابل للاسترجاع)."""
+        observation.updated_by = by_user
+        observation.save(update_fields=["updated_by", "updated_at"])
+        observation.delete()  # soft delete
+        return None
+
+    @staticmethod
+    @transaction.atomic
+    def restore(observation, by_user):
+        """استرجاع زيارة مؤرشَفة (تُجلب عبر all_objects)."""
+        observation.updated_by = by_user
+        observation.save(update_fields=["updated_by", "updated_at"])
+        observation.restore()
+        return None
+
+    # ── الرؤية ──────────────────────────────────────────────────────
     @staticmethod
     def visible_to(user, school):
-        """الملاحظات التي يراها المستخدم: القيادة=الكل، الزائر=ما أنشأه، المعلّم=ما تلقّاه."""
+        """القيادة=الكل، الزائر=ما أنشأه، المعلّم=ما تلقّاه. (المؤرشَف مُستبعَد تلقائياً)."""
         from core.permissions import OBSERVATION_VIEW_ALL
 
         qs = ClassroomObservation.objects.filter(school=school).select_related(
@@ -102,6 +205,51 @@ class ObservationService:
         role = user.get_role()
         if user.is_superuser or role in OBSERVATION_VIEW_ALL:
             return qs
-        from django.db.models import Q
-
         return qs.filter(Q(observer=user) | Q(teacher=user))
+
+    # ── الإشعارات (لا تُسقط العملية الأساسية أبداً) ──────────────────
+    @staticmethod
+    def _dispatch(observation, recipient, title, body):
+        try:
+            from notifications.hub import NotificationHub
+
+            NotificationHub.dispatch(
+                event_type="observation",
+                school=observation.school,
+                recipients=[recipient],
+                title=title,
+                body=body,
+                related_url=f"/quality/observations/{observation.id}/",
+                related_object_id=str(observation.id),
+            )
+        except Exception:  # noqa: BLE001 — الإشعار لا يُسقط العملية
+            import logging
+
+            logging.getLogger("quality").exception("observation notify failed")
+
+    @staticmethod
+    def _notify_teacher(observation, updated=False):
+        pct = observation.score_percent
+        if updated:
+            title = "تحديث على ملاحظة صفّية"
+            body = f"حدّث {observation.observer.full_name} الملاحظة الصفّية على أدائك"
+        else:
+            title = "ملاحظة صفّية جديدة على أدائك"
+            body = f"أجرى {observation.observer.full_name} زيارة إشرافية على أدائك"
+        if pct is not None:
+            body += f" — النسبة الإجماليّة {pct}%"
+        body += ". يُرجى الاطّلاع والإقرار."
+        ObservationService._dispatch(observation, observation.teacher, title, body)
+
+    @staticmethod
+    def _notify_observer(observation):
+        body = f"أقرّ {observation.teacher.full_name} بالاطّلاع على ملاحظتك الصفّية"
+        if observation.teacher_comment:
+            body += f" — تعليقه: {observation.teacher_comment}"
+        body += "."
+        ObservationService._dispatch(
+            observation,
+            observation.observer,
+            "أقرّ المعلّم بالاطّلاع على ملاحظتك",
+            body,
+        )

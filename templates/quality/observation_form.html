@@ -4,11 +4,14 @@
 {% block content %}
 <div class="card-qatar" style="max-width:1100px;margin-inline:auto">
   <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="clipboard-check" %} استمارة الإشراف على أداء المعلّم</h1>
-    <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
+    <h1>{% include "components/icon.html" with name="clipboard-check" %}
+      {% if mode == "edit" %}تعديل زيارة صفّية{% else %}استمارة الإشراف على أداء المعلّم{% endif %}</h1>
+    <a href="{% if mode == 'edit' %}{% url 'observation_detail' obs.id %}{% else %}{% url 'observation_list' %}{% endif %}"
+       class="btn-secondary btn-sm">← رجوع</a>
   </div>
 
-  <form method="post" action="{% url 'observation_create' %}">
+  <form method="post"
+        action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% else %}{% url 'observation_create' %}{% endif %}">
     {% csrf_token %}
 
     {# ── المعلومات الأساسية ── #}
@@ -17,37 +20,49 @@
       <label>المعلّم *
         <select name="teacher" required class="form-control">
           <option value="">— اختر —</option>
-          {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+          {% for t in teachers %}
+          <option value="{{ t.id }}" {% if obs and obs.teacher_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
+          {% endfor %}
         </select>
       </label>
       <label>المادّة
         <select name="subject" class="form-control">
           <option value="">—</option>
-          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name_ar }}</option>{% endfor %}
+          {% for s in subjects %}
+          <option value="{{ s.id }}" {% if obs and obs.subject_id == s.id %}selected{% endif %}>{{ s.name_ar }}</option>
+          {% endfor %}
         </select>
       </label>
       <label>الصّف
         <select name="class_group" class="form-control">
           <option value="">—</option>
-          {% for c in class_groups %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+          {% for c in class_groups %}
+          <option value="{{ c.id }}" {% if obs and obs.class_group_id == c.id %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
         </select>
       </label>
-      <label>التاريخ <input type="date" name="observation_date" class="form-control"></label>
-      <label>الحصة <input type="number" name="period" min="1" max="8" class="form-control"></label>
-      <label>الموضوع <input type="text" name="topic" class="form-control"></label>
+      <label>التاريخ <input type="date" name="observation_date" required class="form-control"
+        value="{% if obs %}{{ obs.observation_date|date:'Y-m-d' }}{% endif %}"></label>
+      <label>الحصة <input type="number" name="period" min="1" max="8" class="form-control"
+        value="{{ obs.period|default_if_none:'' }}"></label>
+      <label>الموضوع <input type="text" name="topic" class="form-control" value="{{ obs.topic|default:'' }}"></label>
       <label>نوع المتابعة
         <select name="follow_up_mode" class="form-control">
           <option value="">—</option>
-          {% for v,l in follow_up_modes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+          {% for v,l in follow_up_modes %}
+          <option value="{{ v }}" {% if obs and obs.follow_up_mode == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
         </select>
       </label>
       <label>المدى
         <select name="follow_up_scope" class="form-control">
           <option value="">—</option>
-          {% for v,l in follow_up_scopes %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
+          {% for v,l in follow_up_scopes %}
+          <option value="{{ v }}" {% if obs and obs.follow_up_scope == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
         </select>
       </label>
-      <label>ملاحظات البث <input type="text" name="broadcast_note" class="form-control"></label>
+      <label>ملاحظات البث <input type="text" name="broadcast_note" class="form-control" value="{{ obs.broadcast_note|default:'' }}"></label>
     </div>
 
     {# ── المعايير حسب المجال ── #}
@@ -62,15 +77,17 @@
         </tr>
       </thead>
       <tbody>
-        {% for c in items %}
+        {% for c, sc in items %}
         <tr>
           <td>{{ c.text }}</td>
           {% for v,l in rating_choices %}
           <td style="text-align:center">
-            <input type="radio" name="rating_{{ c.id }}" value="{{ v }}" aria-label="{{ l }}">
+            <input type="radio" name="rating_{{ c.id }}" value="{{ v }}" aria-label="{{ l }}"
+              {% if sc and sc.rating == v %}checked{% endif %}>
           </td>
           {% endfor %}
-          <td><input type="text" name="rec_{{ c.id }}" class="form-control" style="font-size:.85rem"></td>
+          <td><input type="text" name="rec_{{ c.id }}" class="form-control" style="font-size:.85rem"
+            value="{% if sc %}{{ sc.recommendation }}{% endif %}"></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -78,11 +95,16 @@
     {% endfor %}
 
     <h3 class="section-title">ملاحظات وتوصيات عامّة</h3>
-    <textarea name="general_notes" rows="3" class="form-control"></textarea>
+    <textarea name="general_notes" rows="3" class="form-control">{{ obs.general_notes|default:'' }}</textarea>
 
     <div style="margin-top:16px;display:flex;gap:10px">
-      <button type="submit" name="action" value="submit" class="btn-primary">إرسال للمعلّم وإشعاره</button>
-      <button type="submit" name="action" value="draft" class="btn-secondary">حفظ كمسودة</button>
+      {% if mode == "edit" and obs.status != "draft" %}
+        <button type="submit" name="action" value="save" class="btn-primary">حفظ التعديلات</button>
+        <span style="align-self:center;color:var(--text-muted);font-size:.85rem">الملاحظة مُرسَلة — سيرى المعلّم أحدث نسخة.</span>
+      {% else %}
+        <button type="submit" name="action" value="submit" class="btn-primary">إرسال للمعلّم وإشعاره</button>
+        <button type="submit" name="action" value="draft" class="btn-secondary">حفظ كمسودة</button>
+      {% endif %}
     </div>
   </form>
 </div>

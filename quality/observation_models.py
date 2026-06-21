@@ -15,7 +15,12 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import CustomUser, School
-from core.models.base import AuditedModel, TimeStampedModel
+from core.models.base import (
+    AllObjectsManager,
+    AuditedModel,
+    SoftDeleteManager,
+    TimeStampedModel,
+)
 
 
 def _uuid():
@@ -119,6 +124,17 @@ class ClassroomObservation(AuditedModel):
     teacher_acknowledged_at = models.DateTimeField(null=True, blank=True)
     teacher_comment = models.TextField(blank=True, verbose_name="تعليق المعلّم")
 
+    # عدّاد مرّات الإرسال — يُميّز الإرسال الأول من إعادة الإرسال بعد سحب/إعادة فتح
+    submission_count = models.PositiveSmallIntegerField(default=0)
+
+    # ── الحذف الناعم: مُركَّب يدوياً فوق AuditedModel للحفاظ على created_by/updated_by ──
+    # (مطابق لـ core.models.base.SoftDeleteModel:129-152 — لا نرث منه كي لا نفقد أعمدة التدقيق)
+    is_deleted = models.BooleanField(default=False, db_index=True, verbose_name="محذوف")
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الحذف")
+
+    objects = SoftDeleteManager()  # الافتراضي — يستبعد المحذوف
+    all_objects = AllObjectsManager()  # يشمل المؤرشَف (للأرشيف/الإدارة)
+
     class Meta:
         verbose_name = "ملاحظة صفّية"
         verbose_name_plural = "الملاحظات الصفّية"
@@ -143,6 +159,23 @@ class ClassroomObservation(AuditedModel):
         if not rated:
             return None
         return (Decimal(sum(rated)) / Decimal(len(rated))).quantize(Decimal("0.01"))
+
+    # ── الحذف الناعم (مطابق لـ SoftDeleteModel) — يحفظ الزيارة وتقييماتها للتدقيق ──
+    def delete(self, using=None, keep_parents=False):
+        """حذف ناعم: يُعلّم السجل محذوفاً دون إزالته (لا يُسقط ObservationScore)."""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
+
+    def hard_delete(self, using=None, keep_parents=False):
+        """حذف فعليّ — غير موصول بأي view (PROTECT على المعيار يمنعه أصلاً)."""
+        models.Model.delete(self, using=using, keep_parents=keep_parents)
+
+    def restore(self):
+        """استرجاع زيارة مؤرشَفة."""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save(update_fields=["is_deleted", "deleted_at", "updated_at"])
 
 
 class ObservationScore(TimeStampedModel):

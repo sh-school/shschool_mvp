@@ -16,6 +16,31 @@ urlpatterns = [
         name="observation_detail",
     ),
     path(
+        "observations/<uuid:obs_id>/edit/",
+        observation_views.observation_edit,
+        name="observation_edit",
+    ),
+    path(
+        "observations/<uuid:obs_id>/submit/",
+        observation_views.observation_submit,
+        name="observation_submit",
+    ),
+    path(
+        "observations/<uuid:obs_id>/withdraw/",
+        observation_views.observation_withdraw,
+        name="observation_withdraw",
+    ),
+    path(
+        "observations/<uuid:obs_id>/reopen/",
+        observation_views.observation_reopen,
+        name="observation_reopen",
+    ),
+    path(
+        "observations/<uuid:obs_id>/delete/",
+        observation_views.observation_delete,
+        name="observation_delete",
+    ),
+    path(
         "observations/<uuid:obs_id>/acknowledge/",
         observation_views.observation_acknowledge,
         name="observation_acknowledge",
