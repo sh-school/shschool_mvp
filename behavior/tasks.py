@@ -23,14 +23,14 @@ logger = logging.getLogger(__name__)
 )
 def weekly_risk_check(self, school_id=None):
     """
-    فحص أسبوعي — يحدد الطلاب المعرّضين لخطر سلوكي (نقاط >= 80 مخصومة).
+    فحص أسبوعي — يحدد الطلاب المعرّضين لخطر سلوكي (عدد المخالفات >= 5).
 
     يُشغَّل من Celery Beat أسبوعياً (مثلاً كل أحد صباحاً).
     يستخدم .iterator(chunk_size=200) لتجنب تحميل كل الطلاب في الذاكرة.
 
     الإجراءات:
       1. يفحص كل المدارس النشطة (أو مدرسة محددة)
-      2. يجد الطلاب الذين تجاوزت نقاطهم المخصومة الحد (80 نقطة)
+      2. يجد الطلاب الذين تجاوز عدد مخالفاتهم الحد (5 مخالفات)
       3. يرسل إشعار in_app للقيادة (المدير + النائب الإداري)
     """
     try:
@@ -82,17 +82,17 @@ def weekly_risk_check(self, school_id=None):
                 student_names = ", ".join(r["student__full_name"] for r in risk_list[:5])
                 extra = f" و{len(risk_list) - 5} آخرين" if len(risk_list) > 5 else ""
 
-                for member in leadership:
-                    NotificationHub.send(
-                        user=member.user,
-                        school=school,
+                recipients = [member.user for member in leadership]
+                if recipients:
+                    NotificationHub.dispatch(
                         event_type="behavior_risk",
+                        school=school,
+                        recipients=recipients,
                         title=f"تنبيه سلوكي: {len(risk_list)} طالب في خطر",
                         body=(
-                            f"الطلاب التالية أسماؤهم تجاوزوا حد {RISK_THRESHOLD} نقطة مخصومة:\n"
+                            f"الطلاب التالية أسماؤهم تجاوزوا حد {RISK_COUNT_THRESHOLD} مخالفات:\n"
                             f"{student_names}{extra}"
                         ),
-                        channels=["in_app"],
                     )
 
             except Exception as e:
