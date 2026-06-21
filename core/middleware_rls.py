@@ -2,7 +2,7 @@
 core/middleware_rls.py
 ━━━━━━━━━━━━━━━━━━━━━
 PostgreSQL Row-Level Security Middleware.
-يضبط متغير الجلسة app.current_school_id لتفعيل سياسات RLS.
+يضبط متغير الاتصال app.current_school_id لتفعيل سياسات RLS (fail-closed).
 """
 
 import logging
@@ -15,47 +15,53 @@ logger = logging.getLogger("core")
 
 class RLSMiddleware:
     """
-    يضبط SET LOCAL app.current_school_id = '<school_uuid>'
-    في بداية كل طلب HTTP مُعتمَد.
+    يضبط app.current_school_id على اتصال PostgreSQL لكل طلب لتفعيل سياسات RLS.
 
-    هذا يُفعّل سياسات PostgreSQL RLS التي تمنع تسرب البيانات
-    بين المدارس على مستوى قاعدة البيانات.
+    القيمة المضبوطة:
+      - '*'           للـ superuser (يرى كل المدارس — تجاوز منضبط)
+      - <school_uuid>  للمستخدم العادي (يرى مدرسته فقط)
+      - ''             لغير المُعتمَد / بلا مدرسة ⇒ لا صفوف على الجداول المحميّة
 
-    يعمل بالتنسيق مع:
-    - Migration 0021_postgresql_rls_policies.py
-    - SchoolPermissionMiddleware (يحدد المدرسة النشطة)
+    يُضبط بـ is_local=False ليدوم عبر كل استعلامات الطلب دون الاعتماد على
+    ATOMIC_REQUESTS، ويُعاد تعيينه في finally ويُضبط من جديد في بداية كل طلب
+    لمنع تسرّب السياق عبر الاتصالات المُجمّعة (CONN_MAX_AGE).
+
+    يجب أن يعمل بعد AuthenticationMiddleware وقبل أي middleware يستعلم جداول
+    محميّة (SchoolPermissionMiddleware / SessionAutoGenerateMiddleware ...).
+    يعمل بالتنسيق مع migration 0033_rls_hardening.
     """
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        school_id = self._get_school_id(request)
-        if school_id:
-            self._set_rls_context(school_id)
+        self._apply(self._context(request))
+        try:
+            return self.get_response(request)
+        finally:
+            # إعادة التعيين حتى لا يتسرّب السياق للطلب التالي على نفس الاتصال
+            self._apply("")
 
-        response = self.get_response(request)
-        return response
-
-    def _get_school_id(self, request):
-        """استخراج school_id من المستخدم المُعتمَد."""
+    def _context(self, request):
+        """يحسب قيمة السياق من المستخدم المُعتمَد."""
         user = getattr(request, "user", None)
-        if user and user.is_authenticated:
-            try:
-                school = user.get_school()
-                if school:
-                    return str(school.pk)
-            except AttributeError:
-                pass
-        return None
+        if not (user and user.is_authenticated):
+            return ""
+        if user.is_superuser:
+            return "*"
+        try:
+            school = user.get_school()
+        except AttributeError:
+            return ""
+        return str(school.pk) if school else ""
 
-    def _set_rls_context(self, school_id):
-        """ضبط متغير الجلسة في PostgreSQL."""
+    def _apply(self, value):
+        """ضبط متغير الاتصال في PostgreSQL (session-level)."""
         try:
             with connection.cursor() as cursor:
                 cursor.execute(
-                    "SELECT set_config('app.current_school_id', %s, true)",
-                    [school_id],
+                    "SELECT set_config('app.current_school_id', %s, false)",
+                    [value],
                 )
         except (django.db.OperationalError, django.db.DatabaseError) as e:
             logger.warning("RLS context set failed: %s", e)

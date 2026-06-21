@@ -2,9 +2,15 @@
 tests/test_rls_middleware.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 اختبارات PostgreSQL Row-Level Security Middleware.
+
+العقد الجديد (0033): _context(request) يُعيد
+  - '*'           للـ superuser
+  - str(school.pk) للمستخدم العادي
+  - ''             لغير المُعتمَد / بلا مدرسة (fail-closed)
 """
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory
 
 from core.middleware_rls import RLSMiddleware
@@ -20,34 +26,35 @@ class TestRLSMiddleware:
         middleware = RLSMiddleware(get_response=lambda r: None)
         assert middleware is not None
 
-    def test_get_school_id_for_authenticated_user(self, principal_user, school):
-        """يستخرج school_id للمستخدم المُعتمَد."""
+    def test_context_for_normal_user_is_school_pk(self, principal_user, school):
+        """المستخدم العادي (غير superuser) ⇒ السياق = معرّف مدرسته."""
+        principal_user.is_superuser = False
         middleware = RLSMiddleware(get_response=lambda r: None)
-        factory = RequestFactory()
-        request = factory.get("/dashboard/")
+        request = RequestFactory().get("/dashboard/")
         request.user = principal_user
 
-        school_id = middleware._get_school_id(request)
-        assert school_id == str(school.pk)
+        assert middleware._context(request) == str(school.pk)
 
-    def test_get_school_id_returns_none_for_anonymous(self):
-        """يرجع None للمستخدم المجهول."""
-        from django.contrib.auth.models import AnonymousUser
-
+    def test_context_for_superuser_is_wildcard(self, principal_user):
+        """الـ superuser ⇒ السياق = '*' (يرى كل المدارس)."""
+        principal_user.is_superuser = True
         middleware = RLSMiddleware(get_response=lambda r: None)
-        factory = RequestFactory()
-        request = factory.get("/auth/login/")
+        request = RequestFactory().get("/dashboard/")
+        request.user = principal_user
+
+        assert middleware._context(request) == "*"
+
+    def test_context_empty_for_anonymous(self):
+        """المستخدم المجهول ⇒ '' (fail-closed)."""
+        middleware = RLSMiddleware(get_response=lambda r: None)
+        request = RequestFactory().get("/auth/login/")
         request.user = AnonymousUser()
 
-        school_id = middleware._get_school_id(request)
-        assert school_id is None
+        assert middleware._context(request) == ""
 
-    def test_middleware_does_not_crash_on_missing_user(self):
-        """الـ middleware لا ينهار بدون user."""
+    def test_does_not_crash_on_missing_user(self):
+        """الـ middleware لا ينهار بدون user ⇒ ''."""
         middleware = RLSMiddleware(get_response=lambda r: None)
-        factory = RequestFactory()
-        request = factory.get("/health/")
-        # لا user على الطلب
+        request = RequestFactory().get("/health/")
 
-        school_id = middleware._get_school_id(request)
-        assert school_id is None
+        assert middleware._context(request) == ""

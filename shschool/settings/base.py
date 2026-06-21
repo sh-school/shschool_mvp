@@ -78,6 +78,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # ✅ v5.4: axes يجب أن يكون بعد AuthenticationMiddleware مباشرةً
     "axes.middleware.AxesMiddleware",
+    # ✅ v5.6: RLS — يجب أن يضبط السياق قبل أي middleware يستعلم جداول محميّة
+    "core.middleware_rls.RLSMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -85,7 +87,6 @@ MIDDLEWARE = [
     "core.middleware.CurrentUserMiddleware",
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
-    "core.middleware_rls.RLSMiddleware",  # ✅ v5.2: PostgreSQL RLS — defense-in-depth
     "csp.middleware.CSPMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # ✅ v5.1: Prometheus آخر middleware لقياس وقت الاستجابة كاملاً
