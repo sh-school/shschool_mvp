@@ -16,7 +16,6 @@ import logging
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _

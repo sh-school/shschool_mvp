@@ -21,7 +21,6 @@ from developer_feedback.models import (
     AuditLog,
     DeveloperMessage,
     LegalOnboardingConsent,
-    MessageEditHistory,
     MessagePriority,
     MessageStatus,
     MessageType,

@@ -12,7 +12,6 @@ tests/test_v54_services.py
 import pytest
 
 from tests.conftest import (
-    BehaviorInfractionFactory,
     BookBorrowingFactory,
     LibraryBookFactory,
     MembershipFactory,
