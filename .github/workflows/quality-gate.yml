@@ -75,8 +75,14 @@ jobs:
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
-      - name: "pytest + Coverage Gate 85%"
-        run: python -m pytest tests/ -v --junit-xml=test-results.xml
+      - name: "pytest + Coverage Gate"
+        # بوّابة تغطية حقيقية: pytest.ini كان يحجب أعلام --cov في pyproject فلم
+        # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 60% أرضية حالية (التغطية
+        # الفعلية ≈63%)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
+        run: |
+          python -m pytest tests/ -v --junit-xml=test-results.xml \
+            --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov \
+            --cov-fail-under=60
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v4
@@ -101,9 +107,9 @@ jobs:
               tree = ET.parse('coverage.xml')
               root = tree.getroot()
               rate = float(root.attrib.get('line-rate', 0)) * 100
-              status = 'PASS' if rate >= 85 else 'FAIL'
+              status = 'PASS' if rate >= 60 else 'FAIL'
               print(f'| التغطية | {rate:.1f}% |')
-              print(f'| الحد الأدنى | 85% |')
+              print(f'| الحد الأدنى | 60% |')
               print(f'| الحالة | {status} |')
           except Exception as e:
               print(f'| التغطية | غير متاح ({e}) |')

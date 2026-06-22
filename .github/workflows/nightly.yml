@@ -79,16 +79,19 @@ jobs:
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
-      - name: "★ FULL pytest — كل الاختبارات + coverage gate 85%"
+      - name: "★ FULL pytest — كل الاختبارات + coverage gate"
         # -p no:cacheprovider: لا cache (كل شيء من الصفر)
         # بدون --testmon (full suite)
         # بدون -n auto (sequential — لاكتشاف flaky tests بسهولة)
-        # --cov-fail-under=85 يأتي من pyproject.toml (default)
+        # أعلام --cov صريحة: pytest.ini كان يحجب إعداد pyproject فلا تُقَس التغطية.
+        # العتبة 60% أرضية حالية (≈63%)؛ تُرفَع تدريجياً نحو 85%.
         run: |
           pytest tests/ \
             --junit-xml=test-results.xml \
             --tb=short \
-            -p no:cacheprovider
+            -p no:cacheprovider \
+            --cov=. --cov-report=xml:coverage.xml --cov-report=term \
+            --cov-fail-under=60
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v4
