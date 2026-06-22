@@ -210,6 +210,13 @@ class FileTypeValidator:
                 code="content_mismatch",
             )
 
+        # WebP يجب أن يبدأ بـ "RIFF"...."WEBP"
+        if ext == ".webp" and not (header[:4] == b"RIFF" and header[8:12] == b"WEBP"):
+            raise ValidationError(
+                "الملف لا يطابق صيغة WebP.",
+                code="content_mismatch",
+            )
+
         # الملفات التنفيذية (PE format) — ممنوعة دائماً
         if header[:2] == b"MZ":
             raise ValidationError(
