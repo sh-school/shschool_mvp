@@ -1,0 +1,100 @@
+name: نسخ احتياطي يومي مشفّر (pg_dump → artifact + R2)
+
+# نسخة احتياطية منطقية مستقلّة عن Railway (off-site): pg_dump من قاعدة الإنتاج عبر
+# الوكيل العام، ضغط، تشفير AES-256 (gpg)، ثم رفع كـ GitHub artifact + Cloudflare R2.
+# الملف مشفّر دائماً — لا يُقرأ بلا BACKUP_PASSPHRASE (يُحفظ خارج المستودع).
+#
+# الأسرار المطلوبة (Settings → Secrets and variables → Actions):
+#   DATABASE_PUBLIC_URL   إلزامي — رابط قاعدة الإنتاج العام (DATABASE_PUBLIC_URL من خدمة Postgres)
+#   BACKUP_PASSPHRASE     إلزامي — عبارة تشفير قوية (احفظها بأمان! بدونها لا استرجاع)
+#   R2_ACCESS_KEY_ID      اختياري — مفتاح R2 (يُفعّل الرفع إلى R2 عند وجوده)
+#   R2_SECRET_ACCESS_KEY  اختياري
+#   R2_ENDPOINT           اختياري — مثل https://<account_id>.r2.cloudflarestorage.com
+#   R2_BUCKET             اختياري — اسم الحاوية
+#
+# الاسترجاع:
+#   gpg --batch --decrypt --passphrase "<PASSPHRASE>" schoolos-XXXX.sql.gz.gpg \
+#     | gunzip | psql "<DATABASE_URL>"
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # يومياً 01:00 UTC (~04:00 بتوقيت قطر) — RPO ≤ 24h
+  workflow_dispatch: {} # تشغيل يدوي عند الحاجة
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: تثبيت عميل PostgreSQL 16
+        run: |
+          set -euo pipefail
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+
+      - name: تحضير + كشف توفّر R2
+        id: prep
+        run: |
+          set -euo pipefail
+          echo "stamp=$(date -u +%Y%m%d-%H%M%S)" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.R2_BUCKET }}" ]; then
+            echo "r2=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "r2=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: pg_dump + ضغط + تشفير AES-256
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_PUBLIC_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ] || [ -z "${PASSPHRASE:-}" ]; then
+            echo "::error::DATABASE_PUBLIC_URL و BACKUP_PASSPHRASE إلزاميان"; exit 1
+          fi
+          FILE="schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg"
+          /usr/lib/postgresql/16/bin/pg_dump --no-owner --no-privileges "$DATABASE_URL" \
+            | gzip -9 \
+            | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --passphrase "$PASSPHRASE" -o "$FILE"
+          test -s "$FILE" # سلامة: حجم غير صفري
+          SIZE=$(stat -c%s "$FILE")
+          echo "تمّ: $FILE ($SIZE بايت)"
+          [ "$SIZE" -gt 1024 ] || { echo "::error::النسخة صغيرة جداً — فشل محتمل"; exit 1; }
+
+      - name: رفع كـ GitHub artifact (احتفاظ 90 يوماً)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ steps.prep.outputs.stamp }}
+          path: schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: رفع إلى Cloudflare R2
+        if: steps.prep.outputs.r2 == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          FILE="schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg"
+          aws s3 cp "$FILE" "s3://${{ secrets.R2_BUCKET }}/db-backups/$FILE" \
+            --endpoint-url "${{ secrets.R2_ENDPOINT }}" --only-show-errors
+          echo "رُفِع إلى R2: db-backups/$FILE"
+
+      - name: ملخّص
+        if: always()
+        run: |
+          echo "## نسخة احتياطية — ${{ steps.prep.outputs.stamp }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GitHub artifact: ✅ (احتفاظ 90 يوماً)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cloudflare R2: ${{ steps.prep.outputs.r2 == 'true' && '✅' || '⏸️ (مفاتيح R2 غير مضبوطة)' }}" >> "$GITHUB_STEP_SUMMARY"
