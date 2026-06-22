@@ -8,6 +8,8 @@ import uuid
 
 from django.db import models
 
+from core.fields import EncryptedTextField
+
 from .querysets import ClinicVisitQuerySet
 
 
@@ -98,10 +100,11 @@ class ClinicVisit(models.Model):
         "core.CustomUser", on_delete=models.SET_NULL, null=True, related_name="nurse_visits"
     )
     visit_date = models.DateTimeField(auto_now_add=True)
-    reason = models.TextField(verbose_name="سبب الزيارة")
-    symptoms = models.TextField(blank=True, verbose_name="الأعراض")
+    # بيانات صحية حسّاسة (م.8 PDPPL) — مشفّرة at-rest بـ Fernet
+    reason = EncryptedTextField(verbose_name="سبب الزيارة")
+    symptoms = EncryptedTextField(blank=True, verbose_name="الأعراض")
     temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
-    treatment = models.TextField(blank=True, verbose_name="الإجراء المتخذ")
+    treatment = EncryptedTextField(blank=True, verbose_name="الإجراء المتخذ")
     is_sent_home = models.BooleanField(default=False, verbose_name="تم إرساله للمنزل")
     parent_notified = models.BooleanField(default=False, verbose_name="تم إبلاغ ولي الأمر")
 
