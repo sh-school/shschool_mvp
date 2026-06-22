@@ -37,6 +37,7 @@ def _lazy_student_fk_models():
     from clinic.models import ClinicVisit, HealthRecord
     from library.models import BookBorrowing
     from operations.models import AbsenceAlert, StudentAttendance
+    from student_affairs.models import StudentActivity
 
     _STUDENT_FK_MODELS.extend(
         [
@@ -49,9 +50,31 @@ def _lazy_student_fk_models():
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),
             (BookBorrowing, "user", False),
+            (StudentActivity, "student", False),  # نشاط طلابي (يحوي مرفق PII)
         ]
     )
     return _STUDENT_FK_MODELS
+
+
+# نماذج بحقول ملفات مرتبطة بالطالب — تُطهَّر blobs الملفات قبل الحذف
+_FILE_FIELD_MODELS = []
+
+
+def _lazy_file_field_models():
+    """(Model, fk_field, file_field) للنماذج التي ترفع ملفات مرتبطة بالطالب."""
+    if _FILE_FIELD_MODELS:
+        return _FILE_FIELD_MODELS
+
+    from operations.models import StudentAttendance
+    from student_affairs.models import StudentActivity
+
+    _FILE_FIELD_MODELS.extend(
+        [
+            (StudentAttendance, "student", "excuse_file"),
+            (StudentActivity, "student", "attachment"),
+        ]
+    )
+    return _FILE_FIELD_MODELS
 
 
 class ErasureService:
@@ -92,6 +115,21 @@ class ErasureService:
             for route in BusRoute.objects.filter(students=student):
                 route.students.remove(student)
             summary["models"]["BusRoute_m2m"] = route_count
+
+        # 2.5 Purge uploaded files (storage blobs) before bulk delete — bulk .delete()
+        #     لا يستدعي storage backend فتبقى ملفات الطالب يتيمة في StoredFile/S3 (فجوة محو م.18).
+        files_purged = 0
+        for Model, fk_field, file_field in _lazy_file_field_models():
+            for obj in Model.objects.filter(**{fk_field: student}):
+                f = getattr(obj, file_field, None)
+                if f:
+                    try:
+                        f.delete(save=False)  # يفوّض storage backend (DatabaseStorage/S3)
+                        files_purged += 1
+                    except Exception:
+                        logger.warning("تعذّر حذف ملف %s أثناء المحو", file_field, exc_info=True)
+        if files_purged:
+            summary["files_purged"] = files_purged
 
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():
