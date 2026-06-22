@@ -4,6 +4,7 @@ student_affairs/views.py — شؤون الطلاب
 """
 
 import json
+import logging
 import os
 from datetime import timedelta
 from urllib.parse import quote
@@ -41,6 +42,8 @@ from library.models import BookBorrowing
 from operations.models import AbsenceAlert, Session, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer
+
+logger = logging.getLogger(__name__)
 
 # الأدوار المسموح لها بالوصول لشؤون الطلاب — مستوردة من core.permissions (MTG-2026-012)
 
@@ -478,51 +481,30 @@ def student_edit(request, student_id):
         form = StudentEditForm(request.POST)
         if form.is_valid():
             cd = form.cleaned_data
-            # ── تحديث CustomUser ──
-            student.full_name = cd["full_name"]
-            student.phone = cd.get("phone", "")
-            student.email = cd.get("email", "")
-            student.save()
+            from .services import StudentService
 
-            # ── تحديث Profile ──
-            Profile.objects.update_or_create(
-                user=student,
-                defaults={
-                    "birth_date": cd.get("birth_date"),
-                    "notes": cd.get("notes", ""),
-                },
-            )
-
-            # ── تحديث التسجيل (إذا تغيّر الصف/الشعبة) ──
-            new_grade = cd["grade"]
-            new_section = cd["section"]
-            needs_reenroll = (
-                not enrollment
-                or enrollment.class_group.grade != new_grade
-                or enrollment.class_group.section != new_section
-            )
-            if needs_reenroll:
-                new_class = ClassGroup.objects.filter(
-                    school=school,
-                    grade=new_grade,
-                    section=new_section,
-                    academic_year=year,
-                    is_active=True,
-                ).first()
-                if new_class:
-                    if enrollment:
-                        enrollment.is_active = False
-                        enrollment.save()
-                    StudentEnrollment.objects.create(
-                        student=student,
-                        class_group=new_class,
-                        is_active=True,
-                    )
-                else:
-                    messages.warning(request, f"لا توجد شعبة {new_section} في الصف {new_grade}.")
-
-            messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
-            return redirect("student_affairs:student_profile", student_id=student.id)
+            # ── تفويض التحديث للـ Service Layer (ذرّي) ──
+            try:
+                StudentService.update_student(
+                    student,
+                    school,
+                    {
+                        "full_name": cd["full_name"],
+                        "phone": cd.get("phone", ""),
+                        "email": cd.get("email", ""),
+                        "birth_date": cd.get("birth_date"),
+                        "notes": cd.get("notes", ""),
+                        "grade": cd["grade"],
+                        "section": cd["section"],
+                    },
+                )
+                messages.success(request, f"تم تحديث بيانات {student.full_name} بنجاح.")
+                return redirect("student_affairs:student_profile", student_id=student.id)
+            except ValueError as e:
+                messages.error(request, str(e))
+            except Exception:
+                logger.exception("خطأ غير متوقع أثناء تحديث الطالب %s", student_id)
+                messages.error(request, "حدث خطأ غير متوقع أثناء التحديث.")
     else:
         form = StudentEditForm(
             initial={
