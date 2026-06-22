@@ -58,8 +58,20 @@ echo "=============================================="
 echo ""
 # ── تشغيل الخادم (ASGI/daphne) ─────────────────────────────────────
 # migrate أعلاه عمل بدور المالك (DATABASE_URL=postgres) لتطبيق DDL.
-# إن ضُبط APP_DB_PASSWORD: نوفّر دور التطبيق غير-superuser ونشغّل daphne به
-# فيُفرَض RLS فعلياً (المخاطر #1/#2/#3). وإلا نُبقي السلوك الحالي (postgres) — قابل للتراجع.
+# إن ضُبط APP_DB_PASSWORD: نوفّر دور التطبيق غير-superuser ونشغّل daphne به فيُفرَض RLS فعلياً.
+
+# ── حارس fail-closed: عزل المدارس (RLS) إلزامي في الإنتاج ──
+# بلا APP_DB_PASSWORD يعمل daphne بدور postgres (superuser) فيُتجاوَز RLS بصمت.
+# في الإنتاج نرفض الإقلاع بدلاً من تشغيل المنصة بلا عزل بين المدارس (دفاع عميق).
+case "${DJANGO_SETTINGS_MODULE:-}" in
+  *production*) _IS_PROD=1 ;;
+  *) _IS_PROD=0 ;;
+esac
+if [ -z "$APP_DB_PASSWORD" ] && [ "$_IS_PROD" = "1" ]; then
+  echo "::error:: APP_DB_PASSWORD غير مضبوط في الإنتاج — RLS لن يُفرَض. الإقلاع مرفوض (fail-closed). اضبط APP_DB_PASSWORD لتفعيل دور shschool_app."
+  exit 1
+fi
+
 if [ -n "$APP_DB_PASSWORD" ]; then
   echo "🔐 RLS مفعّل: توفير دور shschool_app (غير-superuser) ثم تشغيل daphne به"
   python manage.py provision_rls_role || { echo "::error:: فشل توفير دور RLS"; exit 1; }
