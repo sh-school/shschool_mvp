@@ -33,13 +33,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: تثبيت عميل PostgreSQL 16
+      - name: تثبيت عميل PostgreSQL 18
+        # خادم الإنتاج PostgreSQL 18 — يجب أن يكون عميل pg_dump 18 (≥ الخادم) وإلا يُجهَض
         run: |
           set -euo pipefail
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-16
+          sudo apt-get install -y -qq postgresql-client-18
 
       - name: تحضير + كشف توفّر R2
         id: prep
@@ -62,7 +63,7 @@ jobs:
             echo "::error::DATABASE_PUBLIC_URL و BACKUP_PASSPHRASE إلزاميان"; exit 1
           fi
           FILE="schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg"
-          /usr/lib/postgresql/16/bin/pg_dump --no-owner --no-privileges "$DATABASE_URL" \
+          /usr/lib/postgresql/18/bin/pg_dump --no-owner --no-privileges "$DATABASE_URL" \
             | gzip -9 \
             | gpg --batch --yes --symmetric --cipher-algo AES256 \
                   --passphrase "$PASSPHRASE" -o "$FILE"
