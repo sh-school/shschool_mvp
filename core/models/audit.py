@@ -101,7 +101,9 @@ class AuditLog(models.Model):
     ):
         ip = ua = ""
         if request:
-            ip = request.META.get("REMOTE_ADDR")
+            from core.request_utils import get_client_ip
+
+            ip = get_client_ip(request)  # IP الحقيقي خلف وكيل Railway (لا IP الوكيل)
             ua = request.META.get("HTTP_USER_AGENT", "")[:300]
             if not school and hasattr(request.user, "get_school"):
                 school = request.user.get_school()

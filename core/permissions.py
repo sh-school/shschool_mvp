@@ -801,8 +801,9 @@ def internal_only(view_func):
     def wrapper(request, *args, **kwargs):
         from django.conf import settings as _s
 
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+        from core.request_utils import get_client_ip
+
+        ip = get_client_ip(request)  # آخر إدخال XFF (موثوق من الوكيل) لا الأول (قابل للتزوير)
         allowed = list(getattr(_s, "METRICS_ALLOWED_IPS", [])) + ["127.0.0.1", "::1"]
         if ip not in allowed:
             return HttpResponseForbidden("Access denied — internal only.")
