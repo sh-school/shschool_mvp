@@ -188,17 +188,21 @@ LOGGING = {
     "root": {"handlers": ["file", "console"], "level": "WARNING"},
     "loggers": {
         "django": {"handlers": ["file"], "level": "WARNING", "propagate": False},
-        "django.security": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        "django.security": {
+            "handlers": ["security_file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         "django.request": {"handlers": ["file", "console"], "level": "WARNING", "propagate": False},
         "notifications": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "notifications.hub": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
-        "core": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        "core": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
         # ✅ v5.1: Channels & WebSocket logging
         "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "daphne": {"handlers": ["console"], "level": "WARNING", "propagate": False},
         # ✅ v5.4: django-axes — تسجيل محاولات تسجيل الدخول الفاشلة
-        "axes": {"handlers": ["security_file"], "level": "WARNING", "propagate": False},
+        "axes": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
     },
 }
 
