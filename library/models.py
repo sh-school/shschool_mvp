@@ -8,6 +8,8 @@ import uuid
 
 from django.db import models
 
+from core.validators import FileTypeValidator
+
 from .querysets import BookQuerySet, BorrowingQuerySet
 
 
@@ -41,7 +43,9 @@ class LibraryBook(models.Model):
         null=True,
         blank=True,
         verbose_name="الملف الرقمي",
-        validators=[],  # FileTypeValidator يُطبّق في الـ View/Form — لا في الـ Model migration
+        # حدّ حجم إلزامي: التخزين في قاعدة البيانات على قرص محدود (~500MB).
+        # للمكتبات الكبيرة فعّل USE_S3 ووجّه الكتب لـ S3/R2.
+        validators=[FileTypeValidator(allowed_types="library", max_size_mb=25)],
     )
     location = models.CharField(max_length=100, blank=True, verbose_name="موقع الكتاب (الرف)")
 

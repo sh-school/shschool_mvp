@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie
 
 from assessments.models import StudentSubjectResult
 from core.models import (
@@ -39,6 +40,7 @@ from .services import KPIService
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def analytics_dashboard(request):
     """لوحة الإحصاءات المتقدمة للمدير"""
     school = request.user.get_school()
@@ -133,6 +135,7 @@ def analytics_dashboard(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_attendance_trend(request):
     school = request.user.get_school()
     days = int(request.GET.get("days", 30))
@@ -188,6 +191,7 @@ def api_attendance_trend(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_grades_distribution(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -235,6 +239,7 @@ def api_grades_distribution(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_class_comparison(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -272,6 +277,7 @@ def api_class_comparison(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_subject_comparison(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -321,6 +327,7 @@ def api_subject_comparison(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_plan_progress(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -361,6 +368,7 @@ def api_plan_progress(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_behavior_trend(request):
     school = request.user.get_school()
     today = timezone.now().date()
@@ -427,6 +435,7 @@ def api_behavior_trend(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_failing_by_class(request):
     school = request.user.get_school()
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
@@ -461,6 +470,7 @@ def api_failing_by_class(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_clinic_stats(request):
     school = request.user.get_school()
     since = timezone.now().date() - timedelta(days=30)
@@ -517,6 +527,7 @@ def kpi_dashboard(request):
 @login_required
 @leadership_required
 @cache_page(300)
+@vary_on_cookie
 def api_kpis_all(request):
     """JSON: 10 KPIs — يُعيد بيانات KPIService.compute()"""
     school = request.user.get_school()

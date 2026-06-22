@@ -56,7 +56,7 @@ ALLOWED_IMAGE_TYPES = {
     "image/jpeg",
     "image/png",
     "image/webp",
-    "image/svg+xml",
+    # SVG غير مسموح: قد يحوي <script> → XSS مخزّن عند تقديمه inline
 }
 
 ALLOWED_LIBRARY_TYPES = ALLOWED_DOCUMENT_TYPES | {"application/epub+zip"}
@@ -70,7 +70,7 @@ ALLOWED_EXTENSIONS_DOCUMENT = {
     ".pptx",
     ".txt",
 }
-ALLOWED_EXTENSIONS_IMAGE = {".jpg", ".jpeg", ".png", ".webp", ".svg"}
+ALLOWED_EXTENSIONS_IMAGE = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_EXTENSIONS_LIBRARY = ALLOWED_EXTENSIONS_DOCUMENT | {".epub"}
 
 # F-005: أنواع ملفات الأعذار (PDF + صور)
