@@ -7,7 +7,7 @@ from transport.models import BusRoute, SchoolBus
 class SchoolBusAdmin(admin.ModelAdmin):
     list_display = ("bus_number", "driver_name", "capacity", "school")
     list_filter = ("school", "capacity")
-    search_fields = ("bus_number", "driver_name", "driver_phone")
+    search_fields = ("bus_number", "driver_name")  # [PII-09] driver_phone مشفّر — أُزيل من البحث
     autocomplete_fields = ("supervisor",)
     fieldsets = (
         ("بيانات الحافلة", {"fields": ("school", "bus_number", "capacity")}),

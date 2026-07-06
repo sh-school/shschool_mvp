@@ -335,13 +335,14 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
+    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
+    if not _teacher_can_access_class(request, school, class_grp, year):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
     paper = request.GET.get("paper", "a4")
-    return ExcelService.class_results_excel(
-        class_grp,
-        school,
-        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
-        paper=paper,
-    )
+    return ExcelService.class_results_excel(class_grp, school, year, paper=paper)
 
 
 @login_required

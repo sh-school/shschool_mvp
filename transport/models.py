@@ -8,6 +8,8 @@ import uuid
 
 from django.db import models
 
+from core.fields import EncryptedTextField
+
 from .querysets import BusQuerySet, RouteQuerySet
 
 
@@ -24,7 +26,7 @@ class SchoolBus(models.Model):
     school = models.ForeignKey("core.School", on_delete=models.CASCADE, related_name="buses")
     bus_number = models.CharField(max_length=20, verbose_name="رقم الحافلة")
     driver_name = models.CharField(max_length=200, verbose_name="اسم السائق")
-    driver_phone = models.CharField(max_length=20, verbose_name="جوال السائق")
+    driver_phone = EncryptedTextField(verbose_name="جوال السائق")  # [PII-09] مشفّر at-rest
     supervisor = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
@@ -34,7 +36,7 @@ class SchoolBus(models.Model):
     )
     capacity = models.PositiveIntegerField(default=30)
     karwa_id = models.CharField(max_length=50, blank=True, verbose_name="رقم كروة (Karwa ID)")
-    gps_link = models.URLField(blank=True, verbose_name="رابط التتبع (GPS)")
+    gps_link = EncryptedTextField(blank=True, verbose_name="رابط التتبع (GPS)")  # [PII-09] مشفّر at-rest
 
     class Meta:
         verbose_name = "حافلة مدرسية"

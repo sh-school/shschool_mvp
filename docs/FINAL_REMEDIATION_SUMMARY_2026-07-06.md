@@ -66,16 +66,16 @@
 | `manage.py check` | ✅ System check identified no issues |
 | `makemigrations --check --dry-run` | ✅ No changes detected (كل الترحيلات مطابقة للنماذج) |
 | `manage.py migrate` | ✅ token_blacklist + DLQ + تشفير clinic/behavior طُبِّقت |
-| `pytest tests/` (الحزمة الكاملة — 1243 اختباراً) | ✅ **1240 تمرّ** (تكافؤ الدرجات + التشفير + PII-03) |
+| `pytest tests/` (الحزمة الكاملة — 1243 اختباراً) | ✅ **الكل يمرّ محلياً** (تكافؤ الدرجات + التشفير + PII-03) |
 | `ruff check .` | ✅ All checks passed |
 
-> **الفشلان الوحيدان بيئيان** (`test_attendance_report`, `test_student_result_pdf`) — يطلبان PDF
-> بحالة 200، وسببهما غياب مكتبات WeasyPrint الأصلية على ويندوز (يمرّان في CI/Linux). أُثبِت بـ
-> `git stash` أنهما سابقان لأي تعديل.
+> **الحزمة كاملة خضراء محلياً.** اختبارا PDF (`test_attendance_report`, `test_student_result_pdf`)
+> كانا يفشلان على ويندوز (لا WeasyPrint) — أُصلح المسار الاحتياطي بحذف كتل `@page` قبل xhtml2pdf
+> (`_strip_page_rules` في `core/pdf_utils.py`)، فصار xhtml2pdf يُنتج PDF حتى بلا WeasyPrint. المسار
+> الأساسي (WeasyPrint في الإنتاج/Linux) لا يتأثّر.
 >
-> **ملاحظة PDF:** تحسين التدهور اللطيف غيّر حالة «تعذّر المحرّك» من 500 إلى **503** (الأصحّ)،
-> فحُدِّثت 3 اختبارات لتقبله، وحُصِّن اختبار إحصائيات سلوك كان هشّ التاريخ (`auto_now_add` مقابل
-> نافذة السنة الدراسية) ليصير مستقلّاً عن شهر التشغيل.
+> **مسار PDF:** التدهور اللطيف يعيد **503** عند تعذّر كل المحرّكات (لا 500 منهار)، فحُدِّثت 3 اختبارات
+> لتقبله؛ وحُصِّن اختبار إحصائيات سلوك كان هشّ التاريخ (`auto_now_add` مقابل نافذة السنة الدراسية).
 
 ---
 

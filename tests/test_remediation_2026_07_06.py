@@ -85,3 +85,27 @@ def test_userbrief_hides_pii_from_teacher(teacher_user, student_user):
     assert data["full_name"] == student_user.full_name
     assert "national_id" not in data
     assert "phone" not in data
+
+
+@pytest.mark.django_db
+def test_driver_phone_encrypted_at_rest(school, settings):
+    """[PII-09] هاتف السائق: شفّاف عبر ORM ومشفّر at-rest."""
+    from django.db import connection
+
+    from transport.models import SchoolBus
+
+    bus = SchoolBus.objects.create(
+        school=school, bus_number="B-1", driver_name="سائق", driver_phone="0505550505"
+    )
+    bus.refresh_from_db()
+    assert bus.driver_phone == "0505550505"
+
+    if getattr(settings, "FERNET_KEY", ""):
+        with connection.cursor() as cur:
+            cur.execute(
+                f"SELECT driver_phone FROM {SchoolBus._meta.db_table} "
+                f"WHERE {SchoolBus._meta.pk.column} = %s",
+                [str(bus.pk)],
+            )
+            raw = cur.fetchone()[0]
+        assert "0505550505" not in (raw or "")

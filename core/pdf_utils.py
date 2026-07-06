@@ -672,6 +672,8 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
         _patch_xhtml2pdf_context()
         # حذف @font-face (تسبب مشكلة temp files على Windows)
         xhtml_html = _strip_font_face(html_str)
+        # [PDF] حذف كتل @page (الصناديق الهامشية) — تُنهي محلّل CSS في xhtml2pdf
+        xhtml_html = _strip_page_rules(xhtml_html)
 
         # ── حقن @page لحجم الورق (A3 landscape عند الحاجة) ──
         if paper_size == "A3":
@@ -723,6 +725,34 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
     except Exception as e:  # noqa: BLE001 — آخر احتياطي: أي خطأ (بما فيه TypeError من @page في xhtml2pdf) يُغلَّف كـ RuntimeError نظيف بدل تسريب استثناء غير متوقّع
         logger.error("xhtml2pdf فشل: %s", e)
         raise RuntimeError(f"فشل توليد PDF: {e}") from e
+
+
+def _strip_page_rules(html: str) -> str:
+    """[PDF] يزيل كتل @page {...} (بما فيها الصناديق الهامشية المتداخلة) قبل xhtml2pdf،
+    لأن محلّل CSS فيه ينهار عليها (TypeError: NotImplementedType). xhtml2pdf لا يدعم
+    margin boxes أصلاً، وWeasyPrint (المسار الأساسي) لا يمرّ بهذه الدالة."""
+    out = []
+    i = 0
+    low = html.lower()
+    while True:
+        idx = low.find("@page", i)
+        if idx == -1:
+            out.append(html[i:])
+            break
+        out.append(html[i:idx])
+        brace = html.find("{", idx)
+        if brace == -1:
+            out.append(html[idx:])
+            break
+        depth, j = 1, brace + 1
+        while j < len(html) and depth:
+            if html[j] == "{":
+                depth += 1
+            elif html[j] == "}":
+                depth -= 1
+            j += 1
+        i = j  # تخطّى الكتلة كاملة (من @page حتى } المطابقة)
+    return "".join(out)
 
 
 def render_pdf(html_str: str, filename: str, paper_size: str = "A4") -> HttpResponse:
