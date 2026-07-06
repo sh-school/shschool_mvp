@@ -7,8 +7,9 @@
 line-length    = 100
 target-version = "py312"
 exclude = [
-    ".venv", "venv", "migrations", "__pycache__",
-    ".git", ".claude", "staticfiles", "htmlcov",
+    ".venv", "venv", ".local", "migrations", "__pycache__",
+    ".git", ".claude", "staticfiles", "htmlcov", ".mypy_cache",
+    ".pytest_cache", ".ruff_cache", "_archive",
     "scripts", "setup_fonts.py",
     "notifications/0003_pushsubscription.py",
 ]

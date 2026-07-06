@@ -26,6 +26,10 @@ class RLSMiddleware:
     ATOMIC_REQUESTS، ويُعاد تعيينه في finally ويُضبط من جديد في بداية كل طلب
     لمنع تسرّب السياق عبر الاتصالات المُجمّعة (CONN_MAX_AGE).
 
+    [SEC-01] fail-closed: إن تعذّر ضبط السياق (خطأ قاعدة بيانات) نرفض الطلب بـ 503
+    بدل المتابعة بسياق موروث من طلب سابق على نفس الاتصال المُجمّع — إغلاق نافذة
+    تسرّب البيانات عبر المستأجرين.
+
     يجب أن يعمل بعد AuthenticationMiddleware وقبل أي middleware يستعلم جداول
     محميّة (SchoolPermissionMiddleware / SessionAutoGenerateMiddleware ...).
     يعمل بالتنسيق مع migration 0033_rls_hardening.
@@ -35,12 +39,21 @@ class RLSMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        self._apply(self._context(request))
+        try:
+            self._apply(self._context(request))
+        except (django.db.OperationalError, django.db.DatabaseError) as e:
+            logger.error("RLS context set FAILED — رفض الطلب (fail-closed): %s", e)
+            from django.http import HttpResponse
+
+            return HttpResponse("الخدمة غير متاحة مؤقتاً", status=503)
         try:
             return self.get_response(request)
         finally:
             # إعادة التعيين حتى لا يتسرّب السياق للطلب التالي على نفس الاتصال
-            self._apply("")
+            try:
+                self._apply("")
+            except (django.db.OperationalError, django.db.DatabaseError) as e:
+                logger.warning("RLS context reset failed: %s", e)
 
     def _context(self, request):
         """يحسب قيمة السياق من المستخدم المُعتمَد."""
@@ -56,12 +69,15 @@ class RLSMiddleware:
         return str(school.pk) if school else ""
 
     def _apply(self, value):
-        """ضبط متغير الاتصال في PostgreSQL (session-level)."""
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "SELECT set_config('app.current_school_id', %s, false)",
-                    [value],
-                )
-        except (django.db.OperationalError, django.db.DatabaseError) as e:
-            logger.warning("RLS context set failed: %s", e)
+        """
+        ضبط متغير الاتصال في PostgreSQL (session-level).
+        fail-closed: يرفع الاستثناء عند الفشل ليُعالَج في __call__.
+        الاختبارات/قواعد غير PostgreSQL لا تدعم set_config — تخطٍّ آمن.
+        """
+        if connection.vendor != "postgresql":
+            return
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT set_config('app.current_school_id', %s, false)",
+                [value],
+            )

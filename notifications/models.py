@@ -16,6 +16,30 @@ def _uuid():
     return uuid.uuid4()
 
 
+class DeadLetterMessage(models.Model):
+    """[P0-8] رسائل إشعار فشلت نهائياً بعد استنفاد المحاولات — بدل ضياعها بصمت.
+
+    تُكتب من مهام Celery عند تجاوز max_retries، لتُراجَع/يُعاد إرسالها من لوحة إدارية.
+    """
+
+    KIND = [("email", "بريد"), ("sms", "SMS"), ("push", "Push")]
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    kind = models.CharField(max_length=10, choices=KIND)
+    payload = models.JSONField(default=dict)
+    error = models.TextField(blank=True)
+    resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "رسالة فاشلة (DLQ)"
+        verbose_name_plural = "رسائل فاشلة (DLQ)"
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["resolved", "created_at"], name="notif_dlq_resolved_idx")]
+
+    def __str__(self):
+        return f"{self.kind} — {'محلولة' if self.resolved else 'معلّقة'}"
+
+
 class NotificationLog(models.Model):
     """سجل كل إشعار أُرسل"""
 

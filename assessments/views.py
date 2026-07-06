@@ -367,8 +367,12 @@ def save_all_grades(request, assessment_id):
             is_excused=is_excused,
             notes=notes,
             entered_by=request.user,
+            recalc=False,  # [PERF-02] يُعاد الحساب دفعةً واحدة بعد الحلقة
         )
         saved += 1
+
+    # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
+    GradeService.recalculate_full_class(assessment.package.setup)
 
     # تحديث حالة التقييم
     assessment.status = "graded"

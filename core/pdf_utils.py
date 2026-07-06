@@ -720,9 +720,9 @@ def _generate_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:
         raise RuntimeError(
             "لا توجد مكتبة PDF — شغّل: pip install weasyprint أو pip install xhtml2pdf"
         )
-    except (OSError, RuntimeError, ValueError) as e:
+    except Exception as e:  # noqa: BLE001 — آخر احتياطي: أي خطأ (بما فيه TypeError من @page في xhtml2pdf) يُغلَّف كـ RuntimeError نظيف بدل تسريب استثناء غير متوقّع
         logger.error("xhtml2pdf فشل: %s", e)
-        raise RuntimeError(f"فشل توليد PDF: {e}")
+        raise RuntimeError(f"فشل توليد PDF: {e}") from e
 
 
 def render_pdf(html_str: str, filename: str, paper_size: str = "A4") -> HttpResponse:
@@ -735,8 +735,14 @@ def render_pdf(html_str: str, filename: str, paper_size: str = "A4") -> HttpResp
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
         resp["Content-Disposition"] = f'inline; filename="{filename}"'
         return resp
-    except RuntimeError as e:
-        return HttpResponse(str(e), status=500)
+    except Exception as e:  # noqa: BLE001 — تدهور لطيف بدل انهيار 500 غير مُعالَج
+        logger.error("render_pdf فشل نهائياً: %s", e)
+        return HttpResponse(
+            "تعذّر توليد ملف PDF حالياً (خدمة التوليد غير متاحة مؤقتاً). "
+            "يرجى المحاولة لاحقاً أو التواصل مع مسؤول النظام.",
+            status=503,
+            content_type="text/plain; charset=utf-8",
+        )
 
 
 def render_pdf_bytes(html_str: str, paper_size: str = "A4") -> bytes:

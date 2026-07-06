@@ -26,4 +26,16 @@ class EncryptedTextField(models.TextField):
             return value
         from core.models import encrypt_field
 
-        return encrypt_field(str(value))
+        enc = encrypt_field(str(value))
+        # [PII-10] fail-closed: إن أُعيدت القيمة كما هي رغم وجود مفتاح فالتشفير فشل.
+        # (في التطوير بلا FERNET_KEY يبقى السلوك fail-open كما كان.)
+        if enc == str(value):
+            from django.conf import settings
+
+            if getattr(settings, "FERNET_KEY", ""):
+                from django.core.exceptions import ImproperlyConfigured
+
+                raise ImproperlyConfigured(
+                    "فشل تشفير حقل حسّاس رغم وجود FERNET_KEY — رُفض الحفظ (fail-closed)"
+                )
+        return enc

@@ -108,7 +108,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = "المستخدمون"
 
     def __str__(self):
-        return f"{self.full_name} ({self.national_id})"
+        # PDPPL [PII-02]: لا نُدرج الرقم الشخصي في التمثيل النصّي لأنه يتسرّب
+        # إلى AuditLog.object_repr (جدول دائم غير قابل للحذف).
+        return self.full_name
 
     def save(self, *args, **kwargs):
         # ── Auto-populate HMAC + Fernet fields on every save ──

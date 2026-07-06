@@ -38,8 +38,9 @@ class HealthRecord(models.Model):
     allergies = models.TextField(blank=True, verbose_name="الحساسية")
     chronic_diseases = models.TextField(blank=True, verbose_name="الأمراض المزمنة")
     medications = models.TextField(blank=True, verbose_name="الأدوية المستمرة")
-    emergency_contact_name = models.CharField(max_length=200, blank=True)
-    emergency_contact_phone = models.CharField(max_length=20, blank=True)
+    # [PII-04] بيانات جهة اتصال الطوارئ (طرف ثالث بجوار سجل صحي لقاصر) — مشفّرة at-rest
+    emergency_contact_name = EncryptedTextField(blank=True)
+    emergency_contact_phone = EncryptedTextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -236,7 +236,8 @@ def audit_user_change(sender, instance, created, **kwargs):
             "CustomUser",
             "create",
             instance,
-            changes={"national_id": instance.national_id, "full_name": instance.full_name},
+            # PDPPL [PII-02]: لا نُخزّن الرقم الشخصي الخام في سجل التدقيق الدائم
+            changes={"user_id": str(instance.id), "full_name": instance.full_name},
         )
     else:
         # تسجيل التعديل فقط إذا تغيّرت حقول حساسة

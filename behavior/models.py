@@ -10,6 +10,8 @@ import uuid
 
 from django.db import models
 
+from core.fields import EncryptedTextField
+
 from .constants import (
     DEGREE_CHOICES,
     ESCALATION_STEPS,
@@ -289,7 +291,7 @@ class BehaviorInfraction(models.Model):
         verbose_name="الإجراء التأديبي",
         help_text="الإجراء التأديبي الرسمي وفق لائحة المدرسة",
     )
-    violation_description = models.TextField(
+    violation_description = EncryptedTextField(  # [PII-06] مشفّر at-rest
         blank=True,
         default="",
         max_length=2000,
@@ -319,7 +321,7 @@ class BehaviorInfraction(models.Model):
         verbose_name="منصة التواصل الاجتماعي",
         help_text="عند تسجيل مخالفة تشهير أو تصوير رقمي",
     )
-    digital_evidence_notes = models.TextField(
+    digital_evidence_notes = EncryptedTextField(  # [PII-06] مشفّر at-rest
         blank=True,
         default="",
         verbose_name="ملاحظات الأدلة الرقمية",
@@ -346,7 +348,7 @@ class BehaviorInfraction(models.Model):
         default="",
         verbose_name="رقم المرجع الأمني",
     )
-    security_notes = models.TextField(
+    security_notes = EncryptedTextField(  # [PII-06] مشفّر at-rest
         blank=True,
         default="",
         verbose_name="ملاحظات الإحالة الأمنية",
@@ -406,8 +408,9 @@ class BehaviorInfraction(models.Model):
 
     def save(self, *args, **kwargs):
         # نظام النقاط ملغى — لا نملأ points_deducted تلقائياً
-        # تعيين الدرجة تلقائياً من فئة المخالفة
-        if self.violation_category and self.violation_category.degree:
+        # [ARCH-01] تجميد الدرجة عند الإنشاء فقط: تعديل تعريف الفئة (degree) لاحقاً
+        # يجب ألا يعيد ختم المخالفات التاريخية بدرجة مختلفة (منع drift في التقارير).
+        if self._state.adding and self.violation_category and self.violation_category.degree:
             self.level = self.violation_category.degree
         super().save(*args, **kwargs)
 

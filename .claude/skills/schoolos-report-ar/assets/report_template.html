@@ -1,0 +1,120 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>{{ report_title }}</title>
+<style>
+  /* ── الخطوط العربية (WeasyPrint يحتاج مساراً فعلياً على القرص) ── */
+  @font-face {
+    font-family: "Noto Sans Arabic";
+    src: url("{% static 'fonts/NotoSansArabic-Regular.ttf' %}") format("truetype");
+    font-weight: normal;
+  }
+  @font-face {
+    font-family: "Noto Sans Arabic";
+    src: url("{% static 'fonts/NotoSansArabic-Bold.ttf' %}") format("truetype");
+    font-weight: bold;
+  }
+
+  /* ── الصفحة: A4، هوامش، وصناديق الترويسة/التذييل على كل صفحة ── */
+  @page {
+    size: {{ paper_size|default:"A4" }};
+    margin: 22mm 15mm 16mm 20mm;      /* أعلى يمين(تجليد أصغر) أسفل يسار — RTL */
+    @top-center { content: element(pageHeader); }
+    @bottom-right  { content: "{{ confidentiality|default:'داخلي' }}"; font: 8pt "Noto Sans Arabic"; color:#6b1a2b; }
+    @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font: 8pt "Noto Sans Arabic"; color:#444; }
+    @bottom-left   { content: "{{ generated_stamp }}"; font: 7pt "Noto Sans Arabic"; color:#888; }
+  }
+
+  * { box-sizing: border-box; }
+  html { font-family: "Noto Sans Arabic", "Cairo", sans-serif; color:#1a1a1a; }
+  body { margin:0; font-size:11pt; line-height:1.5; }
+
+  /* ── الترويسة المتكرّرة على كل صفحة ── */
+  .page-header { position: running(pageHeader); width:100%; }
+  .hdr-grid { display:flex; align-items:center; justify-content:space-between;
+              border-bottom:2px solid #8A1538; padding-bottom:4mm; }
+  .hdr-grid .side { width:26mm; text-align:center; }
+  .hdr-grid .side img { max-height:16mm; max-width:24mm; }
+  .hdr-center { text-align:center; flex:1; }
+  .hdr-center .ministry { font-weight:bold; font-size:11pt; color:#8A1538; }
+  .hdr-center .school   { font-size:10pt; margin-top:1mm; }
+  .hdr-title { text-align:center; font-weight:bold; font-size:13pt; margin-top:2mm; color:#111; }
+  .hdr-meta  { text-align:center; font-size:9pt; color:#555; margin-top:1mm; }
+
+  /* ── المحتوى ── */
+  h1 { font-size:20pt; text-align:center; margin:4mm 0; }
+  .descriptive { display:flex; flex-wrap:wrap; gap:2mm 8mm; justify-content:center;
+                 font-size:10pt; margin-bottom:4mm; }
+  .descriptive b { color:#8A1538; }
+
+  table { width:100%; border-collapse:collapse; margin:3mm 0; font-size:10.5pt; }
+  thead { display: table-header-group; }        /* يتكرّر رأس الجدول على كل صفحة */
+  th { background:#8A1538; color:#fff; font-weight:bold; padding:2.5mm 2mm;
+       text-align:center; border:0.4pt solid #6b1024; }
+  td { padding:2mm; border:0.4pt solid #c9a9b1; text-align:center; }
+  td.text { text-align:start; }                  /* النصوص من اليمين */
+  tbody tr:nth-child(even) { background:#faf3f5; }
+  tr { page-break-inside: avoid; }               /* لا تقطع صفّاً بين صفحتين */
+
+  .summary { margin-top:4mm; padding:3mm; background:#f4f4f4; border-inline-start:3pt solid #8A1538;
+             font-size:10.5pt; }
+  .signatures { display:flex; justify-content:space-between; margin-top:14mm; font-size:10pt; }
+  .signatures .sig { text-align:center; width:30%; }
+  .signatures .sig .line { border-top:1px solid #333; margin-top:12mm; padding-top:1mm; }
+  .empty-state { text-align:center; color:#888; padding:20mm 0; font-size:12pt; }
+</style>
+</head>
+<body>
+
+  <!-- الترويسة المتكرّرة -->
+  <div class="page-header">
+    <div class="hdr-grid">
+      <div class="side"><img src="{% static 'brand/qatar-emblem-2022.svg' %}" alt="شعار قطر"></div>
+      <div class="hdr-center">
+        <div class="ministry">دولة قطر — وزارة التعليم والتعليم العالي</div>
+        <div class="school">{{ school.name }}</div>
+      </div>
+      <div class="side">
+        {% if school.logo %}<img src="{{ school.logo }}" alt="شعار المدرسة">{% endif %}
+      </div>
+    </div>
+    <div class="hdr-title">{{ report_title }}</div>
+    <div class="hdr-meta">العام الدراسي {{ academic_year }} — {{ term_label }}</div>
+  </div>
+
+  <!-- المحتوى -->
+  <div class="descriptive">
+    {% if class_label %}<span><b>الصف:</b> {{ class_label }}</span>{% endif %}
+    {% if subject_label %}<span><b>المادة:</b> {{ subject_label }}</span>{% endif %}
+    {% if teacher_label %}<span><b>المعلّم:</b> {{ teacher_label }}</span>{% endif %}
+    <span><b>تاريخ الإصدار:</b> {{ issue_date }}</span>
+  </div>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>{% for cell in row %}<td class="{% if forloop.first %}text{% endif %}">{{ cell }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if summary %}
+  <div class="summary">{{ summary|safe }}</div>
+  {% endif %}
+  {% else %}
+  <div class="empty-state">لا توجد بيانات لعرضها في هذا التقرير.</div>
+  {% endif %}
+
+  <div class="signatures">
+    <div class="sig"><div class="line">معلّم المادة</div></div>
+    <div class="sig"><div class="line">المنسّق</div></div>
+    <div class="sig"><div class="line">مدير المدرسة (الختم)</div></div>
+  </div>
+
+</body>
+</html>

@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     "developer_feedback.apps.DeveloperFeedbackConfig",
     # ✅ فلترة احترافية
     "django_filters",
+    # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
+    "rest_framework_simplejwt.token_blacklist",
     # ✅ v5.4: حماية من هجمات القوة الغاشمة (Brute Force)
     "axes",
 ]
@@ -351,6 +353,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,  # ✅ [SEC-02] إبطال توكن التحديث القديم بعد التدوير
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",

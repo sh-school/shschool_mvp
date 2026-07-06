@@ -107,6 +107,10 @@ class ClassGroupSerializer(serializers.ModelSerializer):
         ]
 
     def get_student_count(self, obj):
+        # [PERF-22] يقرأ التعداد المحسوب مسبقاً (annotate من الـ view) بدل COUNT لكل فصل
+        count = getattr(obj, "active_student_count", None)
+        if count is not None:
+            return count
         return obj.enrollments.filter(is_active=True).count()
 
 

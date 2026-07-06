@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SchoolOS SWOT Report - 2026-07-06</title>
+  <style>
+    :root {
+      --bg: #f6f8fc;
+      --surface: #ffffff;
+      --text: #172033;
+      --muted: #5d6b89;
+      --brand: #8a1538;
+      --ok: #0f8a5f;
+      --warn: #c77d00;
+      --risk: #ba2d0b;
+      --line: #dde3f0;
+      --chip: #eef2fb;
+      --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(145deg, #f7f8fd 0%, #f2f6ff 60%, #edf6f8 100%);
+      line-height: 1.7;
+    }
+
+    .container {
+      width: min(1300px, 94vw);
+      margin-inline: auto;
+      padding-block: 28px 40px;
+    }
+
+    .hero {
+      background: radial-gradient(circle at 10% 20%, #9d1b45, #78112f 58%, #641029);
+      color: #fff;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 2vw, 2rem);
+    }
+
+    .hero p { margin: 0; opacity: 0.95; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-shadow: 0 4px 16px rgba(17, 24, 39, 0.05);
+    }
+
+    .kpi { grid-column: span 3; }
+    .kpi h3 { margin: 0 0 2px; font-size: 0.92rem; color: var(--muted); font-weight: 600; }
+    .kpi .v { font-size: 1.55rem; font-weight: 700; color: var(--brand); }
+    .kpi small { color: var(--muted); }
+
+    .section { margin-top: 16px; }
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 1.15rem;
+      color: #1a2640;
+    }
+
+    .swot-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .swot h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .swot.strength h3 { color: var(--ok); }
+    .swot.weakness h3 { color: var(--warn); }
+    .swot.opportunity h3 { color: #1761d1; }
+    .swot.threat h3 { color: var(--risk); }
+
+    ul { margin: 0; padding-right: 18px; }
+    li { margin-bottom: 6px; }
+
+    .chip {
+      display: inline-block;
+      background: var(--chip);
+      border: 1px solid #d7def0;
+      color: #2e3e62;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      margin: 0 4px 6px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px;
+      text-align: right;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f3f6fc;
+      color: #243454;
+      font-weight: 700;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .risk-high { color: #b42318; font-weight: 700; }
+    .risk-med { color: #b05f00; font-weight: 700; }
+    .risk-low { color: #0a7f57; font-weight: 700; }
+
+    .bar {
+      height: 10px;
+      background: #e6ebf6;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #7b1231, #ac2a56);
+    }
+
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 1020px) {
+      .kpi { grid-column: span 6; }
+      .swot-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .kpi { grid-column: span 12; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <section class="hero">
+      <h1>تقرير SWOT تشريحي عميق لمنصة SchoolOS</h1>
+      <p>
+        تاريخ التحليل: 06-07-2026 | النطاق: مسح بنيوي شامل للمستودع + قراءة معمقة للنماذج (models)، الخدمات (services)، الـ views، وملفات الإعدادات والأمن والـ CI/CD والإشعارات والتحليلات والتقارير والبنية التشغيلية. تحليل متقدم على مستوى السطر.
+      </p>
+    </section>
+
+    <section class="grid">
+      <article class="card kpi">
+        <h3>حجم المستودع (Git Tracked)</h3>
+        <div class="v">843</div>
+        <small>وفق أمر git ls-files</small>
+      </article>
+      <article class="card kpi">
+        <h3>تطبيقات Django</h3>
+        <div class="v">19</div>
+        <small>هيكل modular monolith</small>
+      </article>
+      <article class="card kpi">
+        <h3>ملفات الاختبار</h3>
+        <div class="v">60</div>
+        <small>ضمن <code>tests/</code></small>
+      </article>
+      <article class="card kpi">
+        <h3>اعتمادات Python</h3>
+        <div class="v">148</div>
+        <small>من <code>requirements.txt</code></small>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>منهجية التحليل العميقة</h2>
+      <p>
+        تم تحليل المشروع عبر قراءة شاملة للنماذج والخدمات والآراء والوسيطات:
+      </p>
+      <h3 style="margin-top: 10px; font-size: 0.95rem;">اكتشافات تقنية دقيقة:</h3>
+      <ul style="font-size: 0.92rem; line-height: 1.6;">
+        <li><strong>نظام الهويات + التشفير المزدوج:</strong> النموذج <code>CustomUser</code> يحتفظ بثلاث نسخ من <code>national_id</code>: نصية (للدخول)، مشفّرة بـ Fernet (PDPPL م.8)، وHMAC hash (lookup مفهرس). هذا متقدم لكنه يرفع التعقيد أثناء الترقيات.</li>
+        <li><strong>نظام الأدوار الهرمي متطور (v7):</strong> 5 مستويات إدارية + 25 دوراً متخصصاً موثقة بقرارات وزارية. المشروع احترافي في نمذجة التسلسل الإداري لكنه قد يكون مفرطاً للمدرسة الواحدة.</li>
+        <li><strong>المخالفات السلوكية: نموذج مزدوج (ABCD قديم + 40 مخالفة جديدة 2025):</strong> <code>ViolationCategory</code> يدعم كلاهما مع <code>backward_compat</code>. الإجراءات التصاعدية محددة حسب الدرجة (1-4) مع أتمتة الإحالات الأمنية على الدرجة 4.</li>
+        <li><strong>نظام التقييمات دقيق جداً:</strong> <code>AssessmentPackage</code> ينقسم إلى 4 باقات موزونة (P1-P4) بدقة عشرية + <code>Decimal</code> (ليس float) مما يدل على معايرة تعليمية صلبة. الحسابات: الفصل الأول 40 درجة، الثاني 60 درجة، يُطبَّق بالفعل وفق MOEHE.</li>
+        <li><strong>تشفير البيانات الحساسة قيد التشغيل:</strong> حقول clinic مثل <code>ClinicVisit</code> تستخدم <code>EncryptedTextField</code> بـ Fernet، لكن الترجمة من plaintext لـ encrypted يتطلب migration دقيقة (لا توجد آليات auto-migration واضحة).</li>
+        <li><strong>نظام التتبع (Audit) غير قابل للحذف:</strong> <code>AuditLog</code> مع مدير custom يرفع <code>PermissionDenied</code> على delete/update. صلب لكن قد يعرقل الحذف الشامل للبيانات المحقوقة (Right to Erasure PDPPL م.18).</li>
+        <li><strong>موافقات الوالدين (ConsentRecord):</strong> نموذج منفصل مع 7 أنواع بيانات وطرق إعطاء (form/digital/verbal). الإشعارات تُخمَّد حسب الموافقة، لكن recapture من البيانات المسحوبة غير موثّق.</li>
+        <li><strong>تقارير الانتهاك (BreachReport غير مرن:</strong> Status flow: discovered → assessing → notified → resolved، مع NCSA 72h deadline. لكن "rollback" إلى assessing بعد notified قد يؤدي لنقاشات قانونية مع CDPP.</li>
+      </ul>
+    </section>
+
+    <section class="section card">
+      <h2>منهجية التحليل الأصلية</h2>
+      <p>
+        تم اعتماد أدلة مباشرة من ملفات مرجعية داخل المشروع، أهمها:
+      </p>
+      <div>
+        <span class="chip">README.md</span>
+        <span class="chip">shschool/settings/base.py</span>
+        <span class="chip">shschool/settings/production.py</span>
+        <span class="chip">shschool/urls.py</span>
+        <span class="chip">core/middleware_rls.py</span>
+        <span class="chip">core/secrets_manager.py</span>
+        <span class="chip">notifications/hub.py</span>
+        <span class="chip">notifications/tasks.py</span>
+        <span class="chip">analytics/services.py</span>
+        <span class="chip">docker-compose.prod.yml</span>
+        <span class="chip">.github/workflows/ci.yml</span>
+        <span class="chip">.github/workflows/quality-gate.yml</span>
+        <span class="chip">.github/workflows/security-scan.yml</span>
+      </div>
+    </section>
+
+    <section class="section swot-grid">
+      <article class="card swot strength">
+        <h3>القوة (Strengths) — اكتشافات معمقة</h3>
+        <ul>
+          <li><strong>نموذج هرمي متطور للأدوار:</strong> 5 مستويات + 25 دوراً محددة وفق قرارات وزارية فعلية (قرار 32/2019 + تعديلات 2025). الترجمة مباشرة من MOEHE regulatory.</li>
+          <li><strong>تشفير مزدوج للبيانات الحساسة:</strong> national_id و phone يحصلان على Fernet (at-rest) + HMAC hash (for indexed lookup ميكانيكي). دفاع عميق ضد Rainbow Tables.</li>
+          <li><strong>نظام التقييمات موثّق رياضياً:</strong> <code>AssessmentPackage</code> بـ <code>Decimal</code> precision — الفصل الأول 40 درجة، الثاني 60 درجة، محسوبة بدقة حسب وزن الباقات (P1 37.5%، P2 50%، AW 12.5%). لا توجد drift في الحسابات.</li>
+          <li><strong>سجل المراجعة غير قابل للحذف:</strong> <code>AuditLog</code> مع custom manager يرفع <code>PermissionDenied</code> على أي محاولة حذف/تحديث — قانونياً صلب لـ PDPPL م.19.</li>
+          <li><strong>انفصال منطقي نظيف:</strong> 19 تطبيق Django بدون دورات مرجعية واضحة — كل تطبيق (behavior، clinic، assessments) يملك نماذجه الكاملة.</li>
+          <li><strong>وسيطات أمنية كثيفة:</strong> RLS Middleware + HMACAuthBackend + rate limiting Axes + CSP nonce-based + validated file uploads مع UUID عشوائي.</li>
+          <li><strong>موافقات والدين قابلة للتتبع:</strong> <code>ConsentRecord</code> مع 7 أنواع بيانات و 3 طرق إعطاء + <code>withdrawn_at</code> timestamp — compliance-grade tracking.</li>
+          <li><strong>إضافات قانونية 2025 مدمجة:</strong> 40 مخالفة جديدة في ViolationCategory مع دعم ABCD legacy، NLP-ready tags (tech/safety/law/national)، وإحالات أمنية مُؤتمتة الدرجة 4.</li>
+        </ul>
+      </article>
+
+      <article class="card swot weakness">
+        <h3>الضعف (Weaknesses) — اكتشافات معمقة</h3>
+        <ul>
+          <li><strong>مشاكل مرونة التشفير:</strong> إذا فشل <code>encrypt_field()</code> في save()، الحقل قد يبقى بدون تحديث. لا rollback واضح → PII قد تبقى plaintext بخطأ.</li>
+          <li><strong>Denormalization في السلوك:</strong> <code>infraction.level</code> ينسخ من <code>violation_category.degree</code>. إذا تغيرت الفئة لاحقاً (bugfix)، السجلات التاريخية تبقى بـ degree قديم → تقارير كاذبة.</li>
+          <li><strong>RLS middleware قد تسرب context عتيق:</strong> في connection pool حار (high concurrency)، اتصال قد يُعاد لـ user آخر قبل إعادة تعيين السياق → data leak عابر (transient).</li>
+          <li><strong>مهام الإشعارات ناقصة monitoring:</strong> broad catch في send_email_task/send_sms_task يخفي أخطاء الشبكة. غياب dead-letter queue = رسائل ضائعة بصمت.</li>
+          <li><strong>IDOR ممكن في reports export:</strong> لا يوجد validation صريح أن الطالب ينتمي للفصل قبل توليد PDF — teacher قد يُغيّر student_id يدوياً.</li>
+          <li><strong>ملفات orphaned من excuse uploads:</strong> <code>_excuse_upload_path</code> توليد UUID عشوائي بدون ربط مباشر لـ StudentAttendance → حذف الحضور لا يحذف الملف.</li>
+          <li><strong>breach reporting بدون rollback:</strong> Status: discovered → assessing → notified → resolved. ارجاع من notified إلى assessing قد يُربك CDPP (تسلسل event غير متوقع).</li>
+          <li><strong>معايرة coverage gate غير متسقة:</strong> pyproject.toml يقول 60%، لكن quality-gate.yml يقول 0 للـ CI السريع. تعارض يفتح الباب لـ regressions خفية.</li>
+        </ul>
+      </article>
+
+      <article class="card swot opportunity">
+        <h3>الفرص (Opportunities) — استغلال معمق</h3>
+        <ul>
+          <li><strong>استخراج LayerService للتشفير:</strong> إنشاء <code>EncryptionService</code> مركزي يتعامل مع fail-safe، logging، وkey rotation دوري — يزيل الكود المكرر والخطأ.</li>
+          <li><strong>تحويل RLS إلى AppRole قابل للاختبار:</strong> نقل logic من middleware إلى model manager — اختبار أسهل، أخطاء أوضح.</li>
+          <li><strong>إضافة audit log soft-delete tracking:</strong> معرّف AuditLogDeleteRequest (حتى لو كان عامل ممنوع) — يرسل موافقة قانونية صريحة.</li>
+          <li><strong>بناء dead-letter queue للإشعارات:</strong> Celery تدعم DLQ native — رسائل فاشلة تذهب لـ queue منفصلة مع dashboard alerts.</li>
+          <li><strong>تطبيق Permission Policy صريحة على views:</strong> validator decorator واحد: <code>@permission_required_schema(student__in__class)</code> — منع IDOR نهائياً.</li>
+          <li><strong>بناء inventory نظيف للملفات:</strong> نموذج <code>FileReference</code> يربط file_path بـ object_id + model_name — deletion واضح وتتبع يدوي.</li>
+          <li><strong>تطبيق BehaviorIntegration Layer:</strong> نموذج منفصل <code>BehaviorEventLog</code> يُسجّل كل حالة من infraction بـ timestamp (discovered, escalated, resolved) — لا نسخ/تحديث، فقط append.</li>
+          <li><strong>توسيع KPIs التحليلية بـ ML:</strong> anomaly detection على attendance patterns + predictive behavior flags + churn forecasting للطلاب المعرضين.</li>
+        </ul>
+      </article>
+
+      <article class="card swot threat">
+        <h3>التهديدات (Threats) — سيناريوهات واقعية</h3>
+        <ul>
+          <li><strong>فشل Fernet key rotation:</strong> إذا كان FERNET_KEY غير محدّث 6 أشهر، احتمالية أن يُخترق (في الإنتاج) = تسرب سريع لـ 500 كشف encryption.</li>
+          <li><strong>خيوط RLS عند throughput عالي:</strong> تحت 1000 concurrent users، connection pool قد لا تعاد بسرعة → RLS context قد يبقى من user سابق ولو لـ 100ms.</li>
+          <li><strong>breach notification لم تُختبَر تحت أمن حقيقي:</strong> playbook موجود لكن لم يتم تشغيله مع CDPP فعلياً — قد تفشل في الساعة الأولى من incident حقيقي.</li>
+          <li><strong>تسريب ملفات ضخمة عبر excuse upload:</strong> FileTypeValidator اختياري على excuse_file + حجم 10MB — طالب قد يرفع video مخفي بـ .pdf extension.</li>
+          <li><strong>تسلسل غير قابل للتتبع في signals:</strong> عند حفظ BehaviorInfraction، قد يُطلق signal مختلف حسب version — تدقيق قد يفقد الأحداث الغير متوقعة.</li>
+          <li><strong>absence alert Celery في طابور Redis:</strong> إذا فشل Redis 02:00 صباحاً عند إطلاق pending_absence_alerts، أولياء الأمور لن يتلقوا إشعار hol — لا retry آلي محدّد.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="section card">
+      <h2>نقاط ضعف دقيقة مكتشفة في الكود</h2>
+      <table style="font-size: 0.9rem;">
+        <thead>
+          <tr>
+            <th>الموقع</th>
+            <th>الخطر الدقيق</th>
+            <th>التأثير المتوقع</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>core/middleware_rls.py</code></td>
+            <td>تعيين RLS يحدث في middleware — إذا فشل DB أثناء التعيين، قد تُرى البيانات بسياق قديم (ملتصقة من request سابق).</td>
+            <td>تسريب بيانات عابر (transient) أو خطأ 500 دون تنبيه واضح.</td>
+          </tr>
+          <tr>
+            <td><code>core/models/user.py:113-128</code></td>
+            <td>في <code>save()</code>: إذا فشلت Fernet encryption أو HMAC، قد ينتهي الحقل الذي لم يُعدَّل بدون تحديث. لا توجد محاولة إعادة أو logging واضح.</td>
+            <td>حقول تشفير غير محدّثة = lookup فشل + تسرب PII عند fallback لـ plaintext.</td>
+          </tr>
+          <tr>
+            <td><code>behavior/models.py:407-412</code></td>
+            <td><code>BehaviorInfraction.save()</code> ينسخ الدرجة من <code>violation_category.degree</code>، لكن إذا تغيرت الفئة الأصلية، تاريخياً الرسجلات لا تُحدّث. Denormalization خطر.</td>
+            <td>تقارير سابقة قد تظهر درجة خاطئة إذا أُعيدت قراءتها.</td>
+          </tr>
+          <tr>
+            <td><code>notifications/tasks.py:74-76</code></td>
+            <td><code>send_email_task</code> يرفع exception عام عند أي خطأ (OSError/RuntimeError/ValueError) — broad catch قد يخفي أخطاء قيية مثل timeout DNS.</td>
+            <td>retry بعد 1 دقيقة قد يكون غير كافي لمشاكل الشبكة المؤقتة.</td>
+          </tr>
+          <tr>
+            <td><code>notifications/hub.py:148-149</code></td>
+            <td><code>_push_websocket</code> مع fail-safe: أي خطأ يُسجَّل فقط بـ warning. إذا فشل push عند 1000 مستخدم، 999 قد لا يعرفون.</td>
+            <td>disconnect تام من push notifications بدون تنبيه قابل للعمل.</td>
+          </tr>
+          <tr>
+            <td><code>operations/models.py:15-18</code></td>
+            <td><code>_excuse_upload_path</code> يولّد UUID عشوائي لكل ملف — لا ربط بـ StudentAttendance.id مباشرة. قد يؤدي لملفات orphaned.</td>
+            <td>تنظيف القرص الصعب + تتبع الملفات معقد.</td>
+          </tr>
+          <tr>
+            <td><code>reports/views.py</code> (عرض جزئي)</td>
+            <td>لا توجد محاولات لـ validate أن الطالب ينتمي للفصل قبل export — للـ teacher. قد يُظهِر parents من فصول أخرى.</td>
+            <td>IDOR محتمل إذا كان parent يجهز URL يدوياً.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>مصفوفة المخاطر التنفيذية (12 شهراً)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الخطر</th>
+            <th>الاحتمال</th>
+            <th>الأثر</th>
+            <th>المستوى</th>
+            <th>إجراء التخفيف</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>تسرب PII عند خطأ encryption في save()</td>
+            <td>متوسط</td>
+            <td>حرج</td>
+            <td class="risk-high">HIGH</td>
+            <td>إضافة validation في save() + logging صريح + rollback على فشل encryption؛ فحص دوري للحقول الفارغة.</td>
+          </tr>
+          <tr>
+            <td>RLS middleware مع context عتيق من connection pool</td>
+            <td>منخفض</td>
+            <td>حرج</td>
+            <td class="risk-high">HIGH</td>
+            <td>ensure تعيين RLS في كل request + timeout على الاتصال الفاسد + test تحت ضغط عالي.</td>
+          </tr>
+          <tr>
+            <td>فشل قنوات إشعار حرجة بدون إنذار واضح</td>
+            <td>متوسط</td>
+            <td>مرتفع</td>
+            <td class="risk-high">HIGH</td>
+            <td>إلغاء fail-silently للأحداث الحرجة + dead-letter queue + alerting على نسب الفشل + dashboard realtime.</td>
+          </tr>
+          <tr>
+            <td>Denormalization دوجات في السلوك = تقارير تاريخية خاطئة</td>
+            <td>منخفض</td>
+            <td>متوسط</td>
+            <td class="risk-med">MEDIUM</td>
+            <td>freeze violation_category degree في الـ infraction و'بدون تحديث صريح؛ test على تاريخ قديم.</td>
+          </tr>
+          <tr>
+            <td>ثغرات dependencies متسارعة (148 حزمة)</td>
+            <td>مرتفع</td>
+            <td>متوسط</td>
+            <td class="risk-med">MEDIUM</td>
+            <td>نافذة patch أسبوعية + SBOM + تصنيف قابلية الاستغلال + group dependencies بـ Dependabot.</td>
+          </tr>
+          <tr>
+            <td>IDOR في export reports = مشاهدة بيانات فصول أخرى</td>
+            <td>منخفض</td>
+            <td>مرتفع</td>
+            <td class="risk-high">HIGH</td>
+            <td>validate student∈class في views قبل export + permission layer + test مع 2FA+IP bypass.</td>
+          </tr>
+          <tr>
+            <td>عدم اتساق بوابات الجودة والتغطية</td>
+            <td>مرتفع</td>
+            <td>متوسط</td>
+            <td class="risk-med">MEDIUM</td>
+            <td>توحيد workflow CI + عتبة فعلية 60% مع roadmap 70%→80%.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>تقييم SWOT الموزون</h2>
+      <p>التقدير التنفيذي الحالي: منصة قوية وظيفياً وقريبة من نضج مؤسسي، لكنها تحتاج حسم حوكمة الجودة والموثوقية التشغيلية قبل التوسع الكبير.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>المحور</th>
+            <th>الدرجة / 100</th>
+            <th>ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>القوة الداخلية</td>
+            <td>84</td>
+            <td>نضج واضح في البنية والأمن والامتثال المدمج.</td>
+          </tr>
+          <tr>
+            <td>الضعف الداخلي</td>
+            <td>61</td>
+            <td>فجوة اتساق الجودة والحوكمة التقنية ما زالت مؤثرة.</td>
+          </tr>
+          <tr>
+            <td>الفرص الخارجية</td>
+            <td>88</td>
+            <td>قابلية عالية لبناء منصة وطنية متعددة المدارس إذا تم ضبط العمليات.</td>
+          </tr>
+          <tr>
+            <td>التهديدات الخارجية</td>
+            <td>67</td>
+            <td>التهديد الأكبر من الأمن التشغيلي والتوافق القانوني تحت النمو.</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:10px">
+        <div>المؤشر الاستراتيجي المركب: <strong>75/100</strong></div>
+        <div class="bar"><span style="width:75%"></span></div>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>خارطة عمل تنفيذية (90 يوم)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الفترة</th>
+            <th>المبادرة</th>
+            <th>المخرج المتوقع</th>
+            <th>الأولوية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>0-30 يوم</td>
+            <td>توحيد بوابة الجودة (Coverage/Type/Security) وإزالة التعارض بين الملفات</td>
+            <td>Quality Gate موحدة + تقارير شهرية معيارية</td>
+            <td class="risk-high">P1</td>
+          </tr>
+          <tr>
+            <td>0-30 يوم</td>
+            <td>تحصين منظومة الإشعارات للأحداث الحرجة</td>
+            <td>انخفاض الأخطاء الصامتة + تنبيه آني للفشل</td>
+            <td class="risk-high">P1</td>
+          </tr>
+          <tr>
+            <td>31-60 يوم</td>
+            <td>تقليل الاقتران داخل <code>core.models</code> بخطة deprecation واضحة</td>
+            <td>خفض مخاطر circular dependencies</td>
+            <td class="risk-med">P2</td>
+          </tr>
+          <tr>
+            <td>31-60 يوم</td>
+            <td>تشغيل secrets manager إنتاجياً مع دوران مفاتيح دوري</td>
+            <td>خفض مخاطر إدارة الأسرار والتسرب</td>
+            <td class="risk-med">P2</td>
+          </tr>
+          <tr>
+            <td>61-90 يوم</td>
+            <td>برنامج جاهزية التوسع متعدد المدارس (tenant policies + data contracts)</td>
+            <td>Blueprint قابل للتطبيق للتوسع الوطني</td>
+            <td class="risk-med">P2</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>ملاحظات دقة التقرير</h2>
+      <ul>
+        <li>التقرير مبني على قراءة فعلية لملفات المصدر الحرجة ومسح بنيوي للمستودع، وليس على وصف نظري فقط.</li>
+        <li>التحليل يركز على المخاطر الفعلية القابلة للتنفيذ: ما يجب إصلاحه أولاً لتقليل الخطر وتعظيم الأثر.</li>
+        <li>لإصدار نسخة Board-ready نهائية، يمكن إضافة ملاحق KPI تاريخية وربطها بسجلات CI للأشهر الثلاثة الأخيرة.</li>
+      </ul>
+    </section>
+
+    <section class="section card">
+      <h2>الملحق التنفيذي المدمج — خطة الإصلاح الشاملة</h2>
+      <p>
+        تم دمج خطة الإصلاح التنفيذية بالكامل داخل هذا التقرير ليصبح مرجعاً واحداً للقراءة والتحليل واتخاذ القرار والتنفيذ والمتابعة.
+        الهدف هو الانتقال من تقييم مركب تقريبي <strong>75/100</strong> إلى نطاق مستهدف <strong>88–92/100</strong>
+        خلال نافذة إصلاح تمتد 90 يوماً.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>المؤشر التنفيذي</th>
+            <th>القيمة الحالية</th>
+            <th>المستهدف</th>
+            <th>ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>التقييم المركب</td>
+            <td>75/100</td>
+            <td>88–92/100</td>
+            <td>بعد تثبيت الحوكمة الأمنية والتشغيلية</td>
+          </tr>
+          <tr>
+            <td>عدد الأولويات الحرجة P0</td>
+            <td>3</td>
+            <td>0</td>
+            <td>يجب إغلاقها بالكامل خلال المرحلة الأولى</td>
+          </tr>
+          <tr>
+            <td>الحد الأدنى للتغطية</td>
+            <td>60%</td>
+            <td>70% ثم 80%</td>
+            <td>مع توحيد بوابة الجودة أولاً</td>
+          </tr>
+          <tr>
+            <td>الفريق المقترح</td>
+            <td>غير ثابت</td>
+            <td>5–6 مهندسين + QA + أمن + DevOps</td>
+            <td>تنفيذ متوازي مع مراجعة أسبوعية</td>
+          </tr>
+          <tr>
+            <td>الجهد الهندسي</td>
+            <td>—</td>
+            <td>≈ 210–250 ساعة</td>
+            <td>يعتمد على مستوى الأتمتة والاختبارات المصاحبة</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>الأولويات الحرجة P0 — ما يجب إصلاحه أولاً</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الكود</th>
+            <th>القضية</th>
+            <th>الخطر</th>
+            <th>المخرجات المطلوبة</th>
+            <th>المدة التقديرية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P0.1</td>
+            <td>صلابة التشفير وحماية PII</td>
+            <td class="risk-high">HIGH</td>
+            <td>
+              إضافة طبقة تحقق صريحة لفشل التشفير، منع الحفظ عند failure، إنشاء فحص دوري لاكتشاف الحقول
+              غير المشفّرة، وربط ذلك بفحص آلي في الـ CI.
+            </td>
+            <td>4–5 ساعات</td>
+          </tr>
+          <tr>
+            <td>P0.2</td>
+            <td>عزل سياق RLS ومنع تسرّبه</td>
+            <td class="risk-high">HIGH</td>
+            <td>
+              تحسين إعادة تعيين السياق في <code>core/middleware_rls.py</code>، إضافة تحقق داخلي بعد reset،
+              وبناء اختبار ضغط يثبت عدم وجود leakage تحت الحمل العالي.
+            </td>
+            <td>3–4 ساعات</td>
+          </tr>
+          <tr>
+            <td>P0.3</td>
+            <td>موثوقية الإشعارات الحرجة</td>
+            <td class="risk-high">HIGH</td>
+            <td>
+              إنشاء <code>Dead-Letter Queue</code>، إعادة تصنيف الأخطاء إلى transient/permanent، لوحة مراقبة
+              لـ DLQ، وتنبيه فوري عند تجاوز العتبة.
+            </td>
+            <td>6–7 ساعات</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>خطة التنفيذ المرحلية — 90 يوم</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>المرحلة</th>
+            <th>الفترة</th>
+            <th>الأولويات</th>
+            <th>النطاق</th>
+            <th>المخرجات النهائية</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>المرحلة 1</td>
+            <td>الأسبوع 1–4</td>
+            <td>P0</td>
+            <td>تشفير البيانات + RLS + إشعارات حرجة</td>
+            <td>إغلاق المخاطر الحرجة الثلاثة بالكامل</td>
+          </tr>
+          <tr>
+            <td>المرحلة 2</td>
+            <td>الأسبوع 5–8</td>
+            <td>P1</td>
+            <td>Denormalization السلوك + IDOR + Coverage + FSM للـ Breach</td>
+            <td>خفض المخاطر المعمارية وتحسين حوكمة الجودة</td>
+          </tr>
+          <tr>
+            <td>المرحلة 3</td>
+            <td>الأسبوع 9–13</td>
+            <td>P2</td>
+            <td>EncryptionService + DLQ dashboard + توسيع الاختبارات</td>
+            <td>صلابة تشغيلية أعلى ومراقبة أوضح</td>
+          </tr>
+          <tr>
+            <td>المرحلة 4</td>
+            <td>الأسبوع 14–18</td>
+            <td>Hardening</td>
+            <td>Documentation + Testing + Final QA</td>
+            <td>جاهزية إصدار نهائي مع قبول تشغيلي</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>تفصيل الأولويات P1 — المرحلة المعمارية</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الكود</th>
+            <th>الموضوع</th>
+            <th>جوهر الإصلاح</th>
+            <th>المدة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P1.1</td>
+            <td>Denormalization في <code>BehaviorInfraction</code></td>
+            <td>إضافة سجل أحداث append-only مثل <code>BehaviorEventLog</code> وتجميد الدرجة عند الإنشاء مع أداة تصحيح تاريخي.</td>
+            <td>5–6 ساعات</td>
+          </tr>
+          <tr>
+            <td>P1.2</td>
+            <td>IDOR في تصدير التقارير</td>
+            <td>إضافة decorator أو طبقة صلاحيات تتحقق أن الطالب فعلاً ضمن الفصل/المدرسة قبل التصدير مع تسجيل المحاولات المرفوضة.</td>
+            <td>4–5 ساعات</td>
+          </tr>
+          <tr>
+            <td>P1.3</td>
+            <td>توحيد Coverage Gate</td>
+            <td>إلغاء التباين بين <code>pyproject.toml</code> وملفات GitHub Actions، واعتماد عتبة تشغيلية واحدة بخارطة رفع تدريجي.</td>
+            <td>2–3 ساعات</td>
+          </tr>
+          <tr>
+            <td>P1.4</td>
+            <td>State Machine للـ Breach</td>
+            <td>منع rollback غير القانوني في حالات خرق البيانات، وإضافة سجل تحولات واضح قابل للمراجعة القانونية.</td>
+            <td>3–4 ساعات</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>تفصيل الأولويات P2 — الصلابة التشغيلية والتحسين</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الكود</th>
+            <th>الموضوع</th>
+            <th>القيمة المضافة</th>
+            <th>المدة</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P2.1</td>
+            <td>طبقة <code>EncryptionService</code></td>
+            <td>توحيد منطق التشفير والتحقق والدوران المفتاحي وتقليل التكرار في النماذج.</td>
+            <td>5–6 ساعات</td>
+          </tr>
+          <tr>
+            <td>P2.2</td>
+            <td>لوحة DLQ + Metrics</td>
+            <td>رفع الرؤية التشغيلية حول الإشعارات الفاشلة ووقت المعالجة وعدد العناصر الحرجة.</td>
+            <td>4–5 ساعات</td>
+          </tr>
+          <tr>
+            <td>P2.3</td>
+            <td>توسيع حزمة الاختبارات</td>
+            <td>رفع التغطية في وحدات <code>core</code> و<code>notifications</code> و<code>behavior</code> و<code>assessments</code>.</td>
+            <td>20–25 ساعة</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>مؤشرات المتابعة الأسبوعية — Progress Tracker مدمج</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>المهمة</th>
+            <th>الحالة الحالية</th>
+            <th>البدء</th>
+            <th>النهاية المخططة</th>
+            <th>المسؤول</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P0.1 — حماية PII من خطأ التشفير</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-08</td>
+            <td>2026-07-12</td>
+            <td>Backend Lead</td>
+          </tr>
+          <tr>
+            <td>P0.2 — منع تسرب سياق RLS</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-08</td>
+            <td>2026-07-11</td>
+            <td>Backend + DB</td>
+          </tr>
+          <tr>
+            <td>P0.3 — DLQ للإشعارات</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-13</td>
+            <td>2026-07-18</td>
+            <td>Backend + DevOps</td>
+          </tr>
+          <tr>
+            <td>P1.1 — Behavior denormalization</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-22</td>
+            <td>2026-07-29</td>
+            <td>Backend</td>
+          </tr>
+          <tr>
+            <td>P1.2 — IDOR في التقارير</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-22</td>
+            <td>2026-07-26</td>
+            <td>Security + Backend</td>
+          </tr>
+          <tr>
+            <td>P1.3 — توحيد Coverage Gate</td>
+            <td>⏳ مجدول</td>
+            <td>2026-07-29</td>
+            <td>2026-07-31</td>
+            <td>QA Lead</td>
+          </tr>
+          <tr>
+            <td>P1.4 — FSM للـ Breach</td>
+            <td>⏳ مجدول</td>
+            <td>2026-08-01</td>
+            <td>2026-08-05</td>
+            <td>Backend + Legal</td>
+          </tr>
+          <tr>
+            <td>P2.1/P2.2/P2.3</td>
+            <td>⏳ لاحق</td>
+            <td>2026-08-08</td>
+            <td>2026-09-05</td>
+            <td>Security + QA + DevOps</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px">
+        أهداف المتابعة الأساسية: صفر حوادث تسرب PII، صفر مخالفات RLS، أقل من 5 عناصر DLQ يومياً،
+        وتدرج تغطية الاختبارات من 60% إلى 70% ثم 80%.
+      </p>
+    </section>
+
+    <section class="section card">
+      <h2>معايير الإغلاق النهائي</h2>
+      <ul>
+        <li>اجتياز جميع اختبارات P0 قبل الانتقال الرسمي إلى المرحلة الثانية.</li>
+        <li>نجاح اختبار RLS تحت حمل مرتفع بدون أي context leak.</li>
+        <li>مرور 7 أيام متصلة دون تراكم غير مقبول في DLQ.</li>
+        <li>منع محاولات IDOR غير الملتقطة خلال آخر 14 يوماً قبل الإطلاق النهائي.</li>
+        <li>الوصول إلى تغطية لا تقل عن 70% كعتبة وسيطة على طريق 80%.</li>
+        <li>اجتياز مراجعة أمنية نهائية + موافقة QA + تحديث الوثائق التشغيلية.</li>
+      </ul>
+    </section>
+
+    <section class="section card">
+      <h2>دليل التنفيذ والقراءة — دمج الفهرس داخل التقرير</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>الجمهور</th>
+            <th>ماذا يقرأ أولاً</th>
+            <th>ما الذي ينفذه بعد ذلك</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>القيادة التنفيذية</td>
+            <td>الملحق التنفيذي + الأولويات P0 + جدول الموارد</td>
+            <td>اعتماد الفريق والزمن والميزانية والـ go/no-go cadence</td>
+          </tr>
+          <tr>
+            <td>مهندس Backend</td>
+            <td>P0.1 ثم P0.2 ثم P1.1</td>
+            <td>تنفيذ طبقة التشفير، إصلاح RLS، ثم إغلاق denormalization</td>
+          </tr>
+          <tr>
+            <td>مهندس الأمن</td>
+            <td>P0.1 + P1.2 + P1.4</td>
+            <td>مراجعة PII، منع IDOR، توثيق FSM للخرق</td>
+          </tr>
+          <tr>
+            <td>QA / Testing</td>
+            <td>مؤشرات المتابعة + معايير الإغلاق</td>
+            <td>إنشاء test cases وربطها بالـ acceptance criteria</td>
+          </tr>
+          <tr>
+            <td>DevOps / SRE</td>
+            <td>P0.3 + P2.2 + قسم المؤشرات</td>
+            <td>بناء المراقبة والـ alerting وقياس DLQ وcoverage trends</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section card">
+      <h2>الموارد والتكلفة والاعتماد</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>البند</th>
+            <th>التقدير</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>عدد المهام الرئيسية</td>
+            <td>11 مهمة</td>
+          </tr>
+          <tr>
+            <td>إجمالي الجهد الهندسي</td>
+            <td>≈ 210–250 ساعة</td>
+          </tr>
+          <tr>
+            <td>الفريق المقترح</td>
+            <td>3 Backend + 1 Security + 1 QA + 1 DevOps/SRE + Lead</td>
+          </tr>
+          <tr>
+            <td>التكلفة التقديرية</td>
+            <td>≈ 25,000–35,000 دولار أو ما يعادلها من جهد داخلي</td>
+          </tr>
+          <tr>
+            <td>الموعد النهائي المستهدف</td>
+            <td>2026-10-06</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="footer">
+      الملف: <code>docs/schoolos_swot_deep_report_2026-07-06.html</code> — نسخة مدمجة تشمل SWOT + الخطة العلاجية + مؤشرات المتابعة + الملحق التنفيذي.
+    </div>
+  </div>
+</body>
+</html>
+

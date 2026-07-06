@@ -494,7 +494,8 @@ def behavior_report(request, student_id):
                     )
                     sent_to.append(parent.full_name)
                 except Exception as e:
-                    logger.error("behavior_report: email failed for %s: %s", parent.email, e)
+                    # [PII-11] سجّل معرّف ولي الأمر لا بريده
+                    logger.error("behavior_report: email failed for parent id=%s: %s", parent.id, e)
         if sent_to:
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:
@@ -848,7 +849,8 @@ def student_behavior_pdf(request, student_id):
         "generated_at": _tz.now(),
         **report,
     }
-    filename = f"behavior_report_{student.national_id}_{year}.pdf"
+    # [PII-08] لا نضع الرقم الشخصي في اسم الملف (يظهر في سجل التنزيلات والوكيل)
+    filename = f"behavior_report_{student.id}_{year}.pdf"
     return _render_behavior_pdf("behavior/pdf/student_report.html", ctx, filename)
 
 

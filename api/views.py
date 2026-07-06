@@ -329,9 +329,12 @@ def class_list(request):
     ordering = request.query_params.get("ordering", "grade")
     db_ordering = ordering_map.get(ordering, ("grade", "section"))
 
+    from django.db.models import Count, Q
+
+    # [PERF-22] تعداد الطلاب النشطين عبر annotate (استعلام واحد) بدل COUNT لكل فصل
     qs = (
         ClassGroup.objects.filter(school=school, academic_year=year)
-        .prefetch_related("enrollments")
+        .annotate(active_student_count=Count("enrollments", filter=Q(enrollments__is_active=True)))
         .order_by(*db_ordering)
     )
     return Response(ClassGroupSerializer(qs, many=True).data)

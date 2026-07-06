@@ -449,15 +449,24 @@ class AcademicReportsService:
             "AW": "p_aw_score",
         }
 
+        # [PERF-04] جلب كل النتائج دفعةً واحدة بدل استعلام لكل باقة (كان N+1)
+        pkg_list = list(pkg_qs)
+        setup_ids = {pkg.setup_id for pkg in pkg_list}
+        semesters = {pkg.semester for pkg in pkg_list}
+        results_map: dict = {}
+        if setup_ids:
+            for r in StudentSubjectResult.objects.filter(
+                school=school, setup_id__in=setup_ids, semester__in=semesters
+            ).select_related("student"):
+                results_map.setdefault((r.setup_id, r.semester), []).append(r)
+
         rows = []
         by_class: dict = {}
-        for pkg in pkg_qs:
+        for pkg in pkg_list:
             field = field_map.get(pkg.package_type)
             if not field:
                 continue
-            results = StudentSubjectResult.objects.filter(
-                school=school, setup=pkg.setup, semester=pkg.semester
-            ).select_related("student")
+            results = results_map.get((pkg.setup_id, pkg.semester), [])
 
             scores = []
             for r in results:

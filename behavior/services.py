@@ -355,7 +355,9 @@ class BehaviorService:
         )
         total = all_inf.count()
 
-        by_level = {lvl: all_inf.filter(level=lvl).count() for lvl in [1, 2, 3, 4]}
+        # [PERF-15] عدّ المستويات باستعلام تجميعي واحد بدل أربعة COUNT منفصلة
+        _lvl_counts = dict(all_inf.values_list("level").annotate(c=Count("id")))
+        by_level = {lvl: _lvl_counts.get(lvl, 0) for lvl in [1, 2, 3, 4]}
 
         top_students = (
             all_inf.values("student__full_name", "student__id")
@@ -412,7 +414,9 @@ class BehaviorService:
         )
         total = all_inf.count()
 
-        by_level = {lvl: all_inf.filter(level=lvl).count() for lvl in [1, 2, 3, 4]}
+        # [PERF-15] عدّ المستويات باستعلام تجميعي واحد بدل أربعة COUNT منفصلة
+        _lvl_counts = dict(all_inf.values_list("level").annotate(c=Count("id")))
+        by_level = {lvl: _lvl_counts.get(lvl, 0) for lvl in [1, 2, 3, 4]}
 
         top_students = (
             all_inf.values("student__full_name", "student__id")

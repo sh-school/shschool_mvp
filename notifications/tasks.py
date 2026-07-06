@@ -17,9 +17,21 @@ notifications/tasks.py
 import logging
 
 from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _to_dlq(kind, payload, error):
+    """[P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت."""
+    try:
+        from notifications.models import DeadLetterMessage
+
+        DeadLetterMessage.objects.create(kind=kind, payload=payload, error=str(error)[:2000])
+        logger.error("DLQ: %s message dead-lettered", kind)
+    except Exception:  # noqa: BLE001 — لا نُفشل المهمة بسبب فشل الكتابة في DLQ نفسه
+        logger.exception("DLQ write failed for kind=%s", kind)
 
 
 # ── إرسال بريد إلكتروني ─────────────────────────────────────────────
@@ -67,13 +79,28 @@ def send_email_task(
 
         if not ok:
             logger.warning(f"Email failed to {recipient_email}: {err}")
-            raise Exception(err)
+            raise RuntimeError(err)  # نوع مُلتقَط ⇒ يدخل مسار retry ثم DLQ
 
         return {"status": "sent", "recipient": recipient_email}
 
     except (OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_email_task error: %s", exc)
-        raise self.retry(exc=exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            _to_dlq(
+                "email",
+                {
+                    "school_id": school_id,
+                    "recipient_email": recipient_email,
+                    "subject": subject,
+                    "student_id": student_id,
+                    "notif_type": notif_type,
+                    "sent_by_id": sent_by_id,
+                },
+                exc,
+            )
+            return {"status": "dead_letter", "recipient": recipient_email}
 
 
 # ── إرسال SMS ────────────────────────────────────────────────────────
@@ -107,13 +134,28 @@ def send_sms_task(
         )
 
         if not ok:
-            raise Exception(err)
+            raise RuntimeError(err)  # نوع مُلتقَط ⇒ يدخل مسار retry ثم DLQ
 
         return {"status": "sent", "recipient": phone_number}
 
     except (OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_sms_task error: %s", exc)
-        raise self.retry(exc=exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            _to_dlq(
+                "sms",
+                {
+                    "school_id": school_id,
+                    "phone_number": phone_number,
+                    "message": message,
+                    "student_id": student_id,
+                    "notif_type": notif_type,
+                    "sent_by_id": sent_by_id,
+                },
+                exc,
+            )
+            return {"status": "dead_letter", "recipient": phone_number}
 
 
 # ── إشعار غياب الطالب ───────────────────────────────────────────────

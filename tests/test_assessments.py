@@ -181,6 +181,16 @@ class TestGradeService:
         assert created is True
         assert obj.grade == Decimal("15")
 
+    def test_batch_matches_single_package_score(self, s1_package, assessment_in_p1, student_user):
+        """[PERF-01] calc_package_scores_batch يطابق calc_package_score تماماً — ضمان
+        عدم انحراف النتائج بعد اعتماد المسار الدُّفعي في recalculate_full_class."""
+        GradeService.save_grade(
+            assessment=assessment_in_p1, student=student_user, grade=Decimal("15"), recalc=False
+        )
+        single = GradeService.calc_package_score(student_user, s1_package)
+        batch = GradeService.calc_package_scores_batch([student_user.id], [s1_package])
+        assert batch[(student_user.id, "P1")] == single
+
     def test_save_grade_clamps_to_max(self, assessment_in_p1, student_user):
         """الدرجة لا تتجاوز الحد الأقصى"""
         obj, _ = GradeService.save_grade(

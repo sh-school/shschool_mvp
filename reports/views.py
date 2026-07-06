@@ -32,6 +32,22 @@ def _has_parent_access(request, student, school) -> bool:
     ).exists()
 
 
+def _teacher_can_access_class(request, school, class_grp, year) -> bool:
+    """[SEC-04] القيادة/الإدارة/المنسّق: وصول إشرافي مبرّر. المعلّم: فصوله فقط."""
+    user = request.user
+    role = user.get_role()
+    if user.is_superuser or user.is_admin() or role in (
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+    ):
+        return True
+    return SubjectClassSetup.objects.filter(
+        school=school, teacher=user, class_group=class_grp, academic_year=year
+    ).exists()
+
+
 def _set_final_status(ctx: dict) -> None:
     """يضيف final_status و status_color إلى السياق"""
     if ctx["failed"] == 0 and ctx["passed"] > 0:
@@ -110,6 +126,11 @@ def class_results_pdf(request, class_id):
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
+    if not _teacher_can_access_class(request, school, class_grp, year):
+        from django.core.exceptions import PermissionDenied
+
+        raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
     preview = request.GET.get("preview") == "1"
     paper = request.GET.get("paper", "A4")
 

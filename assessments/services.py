@@ -45,6 +45,7 @@ class GradeService:
         is_excused: bool = False,
         notes: str = "",
         entered_by: CustomUser | None = None,
+        recalc: bool = True,
     ) -> tuple:
         """
         حفظ درجة طالب، ثم:
@@ -90,10 +91,12 @@ class GradeService:
         setup = assessment.package.setup
         semester = assessment.package.semester
 
-        # 1. نتيجة الفصل
-        GradeService.recalculate_semester_result(student, setup, semester)
-        # 2. النتيجة السنوية
-        GradeService.recalculate_annual_result(student, setup)
+        # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
+        if recalc:
+            # 1. نتيجة الفصل
+            GradeService.recalculate_semester_result(student, setup, semester)
+            # 2. النتيجة السنوية
+            GradeService.recalculate_annual_result(student, setup)
 
         return obj, created
 
@@ -367,16 +370,74 @@ class GradeService:
         return annual
 
     @staticmethod
-    def recalculate_full_class(setup: SubjectClassSetup) -> None:
-        """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي"""
-        enrollments = StudentEnrollment.objects.filter(
-            class_group=setup.class_group, is_active=True
-        ).select_related("student")
+    @transaction.atomic
+    def _write_semester_result(student, setup, semester, packages, scores):
+        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات.
+        منطق الكتابة مطابق تماماً لـ recalculate_semester_result لضمان تطابق النتائج
+        بين المسار المفرد (calc_package_score) والمسار الدُّفعي (calc_package_scores_batch)."""
+        total = Decimal("0")
+        semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
+        has_score = False
+        for pkg in packages:
+            score = scores.get(pkg.package_type)
+            if score is not None:
+                total += score
+                has_score = True
+                semester_max = pkg.semester_max_grade
 
-        for enr in enrollments:
-            for sem in ("S1", "S2"):
-                GradeService.recalculate_semester_result(enr.student, setup, sem)
-            GradeService.recalculate_annual_result(enr.student, setup)
+        existing = (
+            StudentSubjectResult.objects.select_for_update()
+            .filter(student=student, setup=setup, semester=semester)
+            .first()
+        )
+        defaults = {
+            "school": setup.school,
+            "p1_score": scores.get("P1"),
+            "p2_score": scores.get("P2"),
+            "p3_score": scores.get("P3"),
+            "p4_score": scores.get("P4"),
+            "p_aw_score": scores.get("AW"),
+            "total": total if has_score else None,
+            "semester_max": semester_max,
+        }
+        if existing:
+            for attr, val in defaults.items():
+                setattr(existing, attr, val)
+            existing.save()
+            return existing
+        return StudentSubjectResult.objects.create(
+            student=student, setup=setup, semester=semester, **defaults
+        )
+
+    @staticmethod
+    def recalculate_full_class(setup: SubjectClassSetup) -> None:
+        """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
+        [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
+        الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب."""
+        enrollments = list(
+            StudentEnrollment.objects.filter(
+                class_group=setup.class_group, is_active=True
+            ).select_related("student")
+        )
+        students = [e.student for e in enrollments]
+        student_ids = [s.id for s in students]
+        if not student_ids:
+            return
+
+        for sem in ("S1", "S2"):
+            packages = list(
+                AssessmentPackage.objects.filter(setup=setup, semester=sem, is_active=True)
+            )
+            batch = GradeService.calc_package_scores_batch(student_ids, packages)
+            for student in students:
+                scores = {
+                    pkg.package_type: batch.get((student.id, pkg.package_type))
+                    for pkg in packages
+                }
+                GradeService._write_semester_result(student, setup, sem, packages, scores)
+
+        for student in students:
+            GradeService.recalculate_annual_result(student, setup)
 
     # ── إحصائيات ───────────────────────────────────────────
 

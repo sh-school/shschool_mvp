@@ -166,6 +166,12 @@ class ErasureService:
         student.national_id = f"ERASED-{student.pk.hex[:8]}"
         student.email = ""
         student.phone = ""
+        # PDPPL م.18 [PII-07]: صفّر الأعمدة المشفّرة والـ HMAC صراحةً — وإلا يبقى
+        # الهاتف الأصلي قابلاً للفك (save() لا يعيد حسابها لأن phone أصبح فارغاً).
+        student.national_id_encrypted = ""
+        student.national_id_hmac = ""
+        student.phone_encrypted = ""
+        student.phone_hmac = ""
         student.totp_secret = ""
         student.totp_enabled = False
         student.is_active = False
