@@ -66,11 +66,16 @@
 | `manage.py check` | ✅ System check identified no issues |
 | `makemigrations --check --dry-run` | ✅ No changes detected (كل الترحيلات مطابقة للنماذج) |
 | `manage.py migrate` | ✅ token_blacklist + DLQ + تشفير clinic/behavior طُبِّقت |
-| `pytest` (assessments/services/apis/views_extra/remediation) | ✅ **100+ اختبار** تمرّ (منها اختبار تكافؤ الدرجات) |
+| `pytest tests/` (الحزمة الكاملة — 1243 اختباراً) | ✅ **1240 تمرّ** (تكافؤ الدرجات + التشفير + PII-03) |
 | `ruff check .` | ✅ All checks passed |
 
-> فشلان بيئيان فقط (`test_attendance_report`, `test_student_result_pdf`) — سببهما غياب مكتبات
-> WeasyPrint الأصلية على ويندوز (يمرّان في CI/Linux)، وأُثبِت بـ `git stash` أنهما سابقان لأي تعديل.
+> **الفشلان الوحيدان بيئيان** (`test_attendance_report`, `test_student_result_pdf`) — يطلبان PDF
+> بحالة 200، وسببهما غياب مكتبات WeasyPrint الأصلية على ويندوز (يمرّان في CI/Linux). أُثبِت بـ
+> `git stash` أنهما سابقان لأي تعديل.
+>
+> **ملاحظة PDF:** تحسين التدهور اللطيف غيّر حالة «تعذّر المحرّك» من 500 إلى **503** (الأصحّ)،
+> فحُدِّثت 3 اختبارات لتقبله، وحُصِّن اختبار إحصائيات سلوك كان هشّ التاريخ (`auto_now_add` مقابل
+> نافذة السنة الدراسية) ليصير مستقلّاً عن شهر التشغيل.
 
 ---
 
@@ -105,21 +110,27 @@
 
 ---
 
-## 6. خطوات النشر
+## 6. خطوات النشر / التشغيل المحلي
 
-```bash
-python manage.py migrate                 # الترحيلات الجديدة (JWT/DLQ/تشفير)
-python manage.py makemigrations --check   # يجب: No changes
-python manage.py check
-pytest tests/ -q                          # الحزمة الكاملة
-python manage.py collectstatic --noinput  # عند تعديل static
-# على نسخة إنتاج قبل إزالة المفتاح القديم:
-python manage.py rotate_fernet_key
+> **على ويندوز:** استخدم python الخاص بالـ venv مباشرةً — `python` المجرّد يفشل بسبب اختصار
+> متجر Windows (App execution alias). **ملاحظة:** `migrate`/`check`/`pytest` نُفِّذت ونجحت في
+> جلسة الإصلاح، فقاعدة البيانات **مُرحَّلة ومُختبَرة أصلاً** — الأوامر أدناه للتحقّق/إعادة النشر.
+
+```powershell
+.\.venv\Scripts\python.exe manage.py migrate                 # الترحيلات (JWT/DLQ/تشفير)
+.\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run   # يجب: No changes
+.\.venv\Scripts\python.exe manage.py check
+.\.venv\Scripts\python.exe -m pytest tests/ -q               # الحزمة الكاملة
+# rotate_fernet_key: على نسخة إنتاج فقط، قبل إزالة المفتاح القديم من FERNET_OLD_KEYS
+.\.venv\Scripts\python.exe manage.py rotate_fernet_key
 ```
 
+على Linux/CI (حيث venv مُفعّل و PATH سليم) تُستخدم `python manage.py ...` مباشرةً.
+
 **حفظ العمل:**
-```bash
-git add -A && git commit -m "security/privacy/perf remediation — audited, applied, verified (75→89)"
+```powershell
+git add -A
+git commit -m "security/privacy/perf remediation — audited, applied, verified (75->89)"
 ```
 
 ---

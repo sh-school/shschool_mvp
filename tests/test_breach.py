@@ -227,7 +227,7 @@ class TestBreachViews:
     def test_pdf_view_accessible(self, client_as, principal_user, breach):
         c = client_as(principal_user)
         resp = c.get(f"/breach/{breach.pk}/pdf/")
-        # إما PDF أو خطأ قابل للتتبع (لو WeasyPrint غير مثبت)
-        assert resp.status_code in [200, 500]
+        # إما PDF أو 503 عند تعذّر محرّك PDF (تدهور لطيف)
+        assert resp.status_code in [200, 503]
         if resp.status_code == 200:
             assert resp["Content-Type"] == "application/pdf"

@@ -1198,11 +1198,11 @@ class TestProgressReportPdf:
         teacher = make_teacher(school, "49")
         client.force_login(teacher)
         resp = client.get(reverse("quality_report_pdf"))
-        assert resp.status_code in (200, 500)  # 500 إذا WeasyPrint غير مثبت
+        assert resp.status_code in (200, 503)  # 503 عند تعذّر محرّك PDF (تدهور لطيف)
 
     def test_admin_gets_pdf(self, client, school):
         admin = make_admin(school)
         client.force_login(admin)
         resp = client.get(reverse("quality_report_pdf"))
-        # قد تكون 200 (PDF) أو 500 إن كانت WeasyPrint غير مثبتة
-        assert resp.status_code in (200, 500)
+        # قد تكون 200 (PDF) أو 503 عند تعذّر محرّك PDF (تدهور لطيف)
+        assert resp.status_code in (200, 503)
