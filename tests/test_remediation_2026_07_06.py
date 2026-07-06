@@ -70,3 +70,18 @@ def test_emergency_contact_encrypted_at_rest(student_user, settings):
             )
             raw = cur.fetchone()[0]
         assert "0501234567" not in (raw or "")  # مخزّن مشفّراً لا صريحاً
+
+
+@pytest.mark.django_db
+def test_userbrief_hides_pii_from_teacher(teacher_user, student_user):
+    """[PII-03] المعلّم لا يرى national_id/phone في التمثيل المختصر (تقليل البيانات)."""
+    from rest_framework.test import APIRequestFactory
+
+    from api.serializers import UserBriefSerializer
+
+    req = APIRequestFactory().get("/")
+    req.user = teacher_user
+    data = UserBriefSerializer(student_user, context={"request": req}).data
+    assert data["full_name"] == student_user.full_name
+    assert "national_id" not in data
+    assert "phone" not in data

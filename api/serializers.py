@@ -45,11 +45,35 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class UserBriefSerializer(serializers.ModelSerializer):
-    """تمثيل مختصر للمستخدم — للقوائم والروابط (للمعلم/المدير)"""
+    """تمثيل مختصر للمستخدم — للقوائم والروابط.
+
+    [PII-03] تقليل البيانات (PDPPL م.13): الرقم الشخصي والهاتف يُكشفان فقط للإدارة/القيادة؛
+    غيرهم يرى الاسم فقط. الافتراض إخفاء (privacy-by-default) عند غياب سياق الطلب.
+    """
 
     class Meta:
         model = CustomUser
         fields = ["id", "full_name", "national_id", "email", "phone"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        from core.models.access import LEADERSHIP
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        privileged = bool(
+            user
+            and getattr(user, "is_authenticated", False)
+            and (
+                getattr(user, "is_superuser", False)
+                or (hasattr(user, "is_admin") and user.is_admin())
+                or (hasattr(user, "get_role") and user.get_role() in LEADERSHIP)
+            )
+        )
+        if not privileged:
+            data.pop("national_id", None)
+            data.pop("phone", None)
+        return data
 
 
 class UserSafeSerializer(serializers.ModelSerializer):
