@@ -54,7 +54,7 @@ jobs:
       - name: فحص الثغرات الأمنية
         run: |
           bandit -r . \
-            -x .venv,migrations,tests,manage.py \
+            -x .venv,.local,migrations,tests,manage.py \
             --severity-level high \
             --confidence-level high
         # يفشل فقط على High severity + High confidence
@@ -63,7 +63,7 @@ jobs:
         if: always()
         run: |
           bandit -r . \
-            -x .venv,migrations,tests,manage.py \
+            -x .venv,.local,migrations,tests,manage.py \
             --severity-level medium \
             --confidence-level medium \
             -f json -o bandit-report.json || true

@@ -131,7 +131,7 @@ exclude_lines = [
 
 # ── Bandit ────────────────────────────────────────────
 [tool.bandit]
-exclude_dirs = [".venv", "migrations", "tests", "manage.py"]
+exclude_dirs = [".venv", ".local", "migrations", "tests", "manage.py"]
 skips        = ["B101", "B601"]  # assert + shell=True في مواضع مقبولة
 
 # ── mypy ─────────────────────────────────────────────
