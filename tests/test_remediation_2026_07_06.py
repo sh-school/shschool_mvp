@@ -2,6 +2,7 @@
 اختبارات إصلاحات التدقيق العدائي 2026-07-06.
 تتحقّق من البنود المطبَّقة فعلياً وتمنع ارتدادها.
 """
+
 import pytest
 
 
@@ -55,9 +56,7 @@ def test_emergency_contact_encrypted_at_rest(student_user, settings):
 
     from clinic.models import HealthRecord
 
-    hr = HealthRecord.objects.create(
-        student=student_user, emergency_contact_phone="0501234567"
-    )
+    hr = HealthRecord.objects.create(student=student_user, emergency_contact_phone="0501234567")
     hr.refresh_from_db()
     assert hr.emergency_contact_phone == "0501234567"  # شفّاف دائماً عبر ORM
 

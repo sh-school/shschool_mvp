@@ -431,8 +431,7 @@ class GradeService:
             batch = GradeService.calc_package_scores_batch(student_ids, packages)
             for student in students:
                 scores = {
-                    pkg.package_type: batch.get((student.id, pkg.package_type))
-                    for pkg in packages
+                    pkg.package_type: batch.get((student.id, pkg.package_type)) for pkg in packages
                 }
                 GradeService._write_semester_result(student, setup, sem, packages, scores)
 

@@ -794,9 +794,7 @@ class TestBehaviorStatistics:
 
         _today = date.today()
         _sy = _today.year if _today.month >= 9 else _today.year - 1
-        BehaviorInfraction.objects.filter(pk__in=[inf1.pk, inf2.pk]).update(
-            date=date(_sy, 10, 1)
-        )
+        BehaviorInfraction.objects.filter(pk__in=[inf1.pk, inf2.pk]).update(date=date(_sy, 10, 1))
         client = client_as(principal_user)
         resp = client.get("/behavior/statistics/")
         assert resp.context["total"] >= 2

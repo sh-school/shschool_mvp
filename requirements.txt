@@ -120,7 +120,7 @@ svglib==1.6.0
 tinycss2==1.5.1
 tinyhtml5==2.1.0
 twilio==9.3.2
-Twisted==25.5.0
+Twisted==26.4.0
 txaio==25.12.2
 typing_extensions==4.15.0
 tzdata==2025.3
@@ -131,7 +131,7 @@ uritools==6.0.1
 urllib3==2.7.0
 vine==5.1.0
 wcwidth==0.6.0
-weasyprint==68.1
+weasyprint==69.0
 webencodings==0.5.1
 xhtml2pdf==0.2.17
 yarl==1.23.0

@@ -112,6 +112,4 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"\n✅ تم تدوير المفاتيح: {total} سجل محدّث، {errors} خطأ")
         )
         if errors:
-            self.stdout.write(
-                self.style.WARNING("⚠️ راجع الأخطاء أعلاه — قد تحتاج إعادة المحاولة")
-            )
+            self.stdout.write(self.style.WARNING("⚠️ راجع الأخطاء أعلاه — قد تحتاج إعادة المحاولة"))

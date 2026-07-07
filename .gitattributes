@@ -1,0 +1,14 @@
+# ── سلامة نهايات الأسطر ──────────────────────────────────────────────
+# فرض LF على مصادر بايثون حتى تمرّ خطوة `ruff format --check .` في CI على كل
+# الأنظمة. (كانت ملفات CRLF على Windows تُفشِل خطوة Ruff رغم صحّة الكود.)
+*.py text eol=lf
+
+# قوالب/أصول الويب أيضاً على LF (اتساق عبر الأنظمة)
+*.html text eol=lf
+*.css  text eol=lf
+*.js   text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+
+# لا تُطبِّع الـ virtualenv المُدرَج محلياً — يمنع إعادة تطبيع ضخمة عرضية
+.local/** -text

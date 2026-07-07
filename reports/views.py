@@ -36,11 +36,16 @@ def _teacher_can_access_class(request, school, class_grp, year) -> bool:
     """[SEC-04] القيادة/الإدارة/المنسّق: وصول إشرافي مبرّر. المعلّم: فصوله فقط."""
     user = request.user
     role = user.get_role()
-    if user.is_superuser or user.is_admin() or role in (
-        "principal",
-        "vice_academic",
-        "vice_admin",
-        "coordinator",
+    if (
+        user.is_superuser
+        or user.is_admin()
+        or role
+        in (
+            "principal",
+            "vice_academic",
+            "vice_admin",
+            "coordinator",
+        )
     ):
         return True
     return SubjectClassSetup.objects.filter(

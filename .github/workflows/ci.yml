@@ -259,9 +259,9 @@ jobs:
 
       - name: فحص الثغرات (يفشل عند وجود CVEs)
         # ✅ v5.4: بدون --dry-run — يفشل CI فعلياً عند وجود ثغرات معروفة
-        # PYSEC-2026-160: twisted.names DoS — غير قابل للاستغلال (لا نُشغّل خادم DNS؛
-        #   daphne يستخدم twisted.internet فقط)؛ الإصلاح RC غير مستقرّ. يُعاد التقييم عند صدور مستقرّة.
-        run: pip-audit -r requirements.txt --desc --progress-spinner off --ignore-vuln PYSEC-2026-160
+        # 2026-07: Twisted→26.4.0 (يُصلح PYSEC-2026-160/CVE-2026-42304) وweasyprint→69.0
+        #   (يُصلح CVE-2026-49452) — أُزيل --ignore-vuln؛ التدقيق صارم كاملاً الآن.
+        run: pip-audit -r requirements.txt --desc --progress-spinner off
 
   # ══════════════════════════════════════════════════════
   #  ملخص نهائي — يظهر في كل PR

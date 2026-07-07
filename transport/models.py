@@ -36,7 +36,9 @@ class SchoolBus(models.Model):
     )
     capacity = models.PositiveIntegerField(default=30)
     karwa_id = models.CharField(max_length=50, blank=True, verbose_name="رقم كروة (Karwa ID)")
-    gps_link = EncryptedTextField(blank=True, verbose_name="رابط التتبع (GPS)")  # [PII-09] مشفّر at-rest
+    gps_link = EncryptedTextField(
+        blank=True, verbose_name="رابط التتبع (GPS)"
+    )  # [PII-09] مشفّر at-rest
 
     class Meta:
         verbose_name = "حافلة مدرسية"
