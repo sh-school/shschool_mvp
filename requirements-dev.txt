@@ -24,8 +24,8 @@ mypy==1.10.0
 django-stubs==5.0.2
 djangorestframework-stubs==3.15.0
 
-# Load testing — locust مُثبَّت في requirements.txt (v2.32.6) لتفادي تعارض النسخ
-# (أُزيل locust==2.29.1 لأنه كان يتعارض مع 2.32.6 ويمنع pip من التثبيت)
+# Load testing
+locust==2.32.6
 
 # Security scanning
 bandit[toml]==1.7.8
