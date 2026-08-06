@@ -13,10 +13,10 @@ concurrency:
 
 jobs:
   # ══════════════════════════════════════════════════════
-  #  1. pytest + Coverage ≥85%
+  #  1. pytest + Coverage ≥60%
   # ══════════════════════════════════════════════════════
   test-coverage:
-    name: pytest — تغطية ≥85%
+    name: pytest — تغطية ≥60%
     runs-on: ubuntu-latest
 
     services:
@@ -180,10 +180,10 @@ jobs:
           echo "::warning::mypy type checking completed (warn-only mode — Phase 1)"
 
   # ══════════════════════════════════════════════════════
-  #  4. Radon — تعقيد حلقي (CC > 10 = فشل)
+  #  4. Radon — تعقيد حلقي (CC 11-30 = فشل)
   # ══════════════════════════════════════════════════════
   complexity:
-    name: Radon — تعقيد CC ≤ 10
+    name: Radon — تعقيد CC ≤ 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -195,40 +195,40 @@ jobs:
       - name: تثبيت radon
         run: pip install radon==6.0.1
 
-      - name: فحص التعقيد الحلقي (CC > 20 = فشل)
+      - name: فحص التعقيد الحلقي (CC >= 31 = فشل)
         run: |
-          # radon CC grades: A(1-5) B(6-10) C(11-15) D(16-20) E(21-25) F(26+)
-          # --min E catches CC > 20 (critical complexity only)
-          # Phase 1: block CC > 20. Phase 2 (future): lower to C (CC > 10)
+          # radon grades: A(1-5) B(6-10) C(11-20) D(21-30) E(31-40) F(41+)
+          # --min E catches CC >= 31.
+          # Phase 1: block CC >= 31. Phase 2 (future): lower to C (CC 11-30)
           result=$(radon cc . \
             --exclude "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*" \
             --min E \
             --show-complexity 2>/dev/null)
           if [ -n "$result" ]; then
-            echo "::error::Functions with Critical Complexity (CC > 20) detected:"
+            echo "::error::Functions with Critical Complexity (CC >= 31) detected:"
             echo "$result"
             echo ""
-            echo "## تعقيد الكود — فشل (CC > 20)" >> $GITHUB_STEP_SUMMARY
+            echo "## تعقيد الكود — فشل (CC >= 31)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "$result" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
-          # Warn about moderate complexity (CC > 10) but don't fail
+          # Warn about moderate complexity (CC 11-30) but don't fail
           warnings=$(radon cc . \
             --exclude "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*" \
             --min C --max D \
             --show-complexity 2>/dev/null)
           if [ -n "$warnings" ]; then
-            echo "::warning::Functions with moderate complexity (CC 11-20):"
+            echo "::warning::Functions with moderate complexity (CC 11-30):"
             echo "$warnings"
-            echo "## تعقيد الكود — تحذير (CC 11-20)" >> $GITHUB_STEP_SUMMARY
+            echo "## تعقيد الكود — تحذير (CC 11-30)" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "$warnings" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
-            echo "## تعقيد الكود — ناجح (CC ≤ 10)" >> $GITHUB_STEP_SUMMARY
+            echo "## تعقيد الكود — ناجح (CC ≤ 30)" >> $GITHUB_STEP_SUMMARY
           fi
 
   # ══════════════════════════════════════════════════════
@@ -306,10 +306,10 @@ jobs:
           echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pytest + Coverage ≥85% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + Coverage ≥60% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mypy type checking | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Radon CC ≤ 10 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: فشل إذا فشل أي فحص
