@@ -125,9 +125,7 @@ SESSION_ENGINE = "django.contrib.sessions.backends.db"
 
 if USE_REDIS_SESSIONS:
     if not REDIS_URL:
-        raise ImproperlyConfigured(
-            "USE_REDIS_SESSIONS=true requires REDIS_URL"
-        )
+        raise ImproperlyConfigured("USE_REDIS_SESSIONS=true requires REDIS_URL")
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 
 
@@ -141,9 +139,7 @@ CELERY_ASYNC_ENABLED = config(
 )
 
 if CELERY_ASYNC_ENABLED and not REDIS_URL:
-    raise ImproperlyConfigured(
-        "CELERY_ASYNC_ENABLED=true requires REDIS_URL"
-    )
+    raise ImproperlyConfigured("CELERY_ASYNC_ENABLED=true requires REDIS_URL")
 
 if REDIS_URL:
     CELERY_BROKER_URL = REDIS_URL
