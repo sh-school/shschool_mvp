@@ -74,7 +74,7 @@ jobs:
       - name: تثبيت PostgreSQL 18 وGnuPG
         run: |
           set -euo pipefail
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
             sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
@@ -121,11 +121,11 @@ jobs:
           PGPASSWORD: restore_pass
         run: |
           set -euo pipefail
-          PSQL="/usr/lib/postgresql/18/bin/psql postgresql://restore_user@localhost:5432/restore_test -Atq"
+          PSQL=(/usr/lib/postgresql/18/bin/psql "postgresql://restore_user@localhost:5432/restore_test" -Atq)
 
-          TABLE_COUNT="$(${PSQL} -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")"
-          MIGRATION_TABLE="$(${PSQL} -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='django_migrations';")"
-          MIGRATION_ROWS="$(${PSQL} -c "SELECT COUNT(*) FROM django_migrations;" 2>/dev/null || echo 0)"
+          TABLE_COUNT="$("${PSQL[@]}" -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE';")"
+          MIGRATION_TABLE="$("${PSQL[@]}" -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='django_migrations';")"
+          MIGRATION_ROWS="$("${PSQL[@]}" -c "SELECT COUNT(*) FROM django_migrations;" 2>/dev/null || echo 0)"
 
           if [ "${TABLE_COUNT}" -le 0 ]; then
             echo "::error::الاستعادة لم تُنتج جداول"
