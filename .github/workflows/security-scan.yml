@@ -3,6 +3,8 @@ name: Security Scan — OWASP + SAST + CVEs
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "0 4 * * 0"  # every Sunday 4:00 UTC
   workflow_dispatch:

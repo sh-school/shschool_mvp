@@ -13,7 +13,7 @@ name: نسخ احتياطي يومي مشفّر (pg_dump → artifact + R2)
 #   R2_BUCKET             اختياري — اسم الحاوية
 #
 # الاسترجاع:
-#   gpg --batch --decrypt --passphrase "<PASSPHRASE>" schoolos-XXXX.sql.gz.gpg \
+#   gpg --batch --pinentry-mode loopback --passphrase-fd 3 --decrypt schoolos-XXXX.sql.gz.gpg 3<<<"<PASSPHRASE>" \
 #     | gunzip | psql "<DATABASE_URL>"
 
 on:
@@ -34,13 +34,14 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: تثبيت عميل PostgreSQL 18
-        # خادم الإنتاج PostgreSQL 18 — يجب أن يكون عميل pg_dump 18 (≥ الخادم) وإلا يُجهَض
+        # خادم الإنتاج الفعلي PostgreSQL 18 — نستخدم عميل pg_dump 18 المطابق لإصدار الإنتاج
         run: |
           set -euo pipefail
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - name: تحضير + كشف توفّر R2
         id: prep
@@ -63,16 +64,17 @@ jobs:
             echo "::error::DATABASE_PUBLIC_URL و BACKUP_PASSPHRASE إلزاميان"; exit 1
           fi
           FILE="schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg"
-          /usr/lib/postgresql/18/bin/pg_dump --no-owner --no-privileges "$DATABASE_URL" \
+          pg_dump --no-owner --no-privileges "$DATABASE_URL" \
             | gzip -9 \
             | gpg --batch --yes --symmetric --cipher-algo AES256 \
-                  --passphrase "$PASSPHRASE" -o "$FILE"
+                  --pinentry-mode loopback --passphrase-fd 3 -o "$FILE" 3<<<"$PASSPHRASE"
           test -s "$FILE" # سلامة: حجم غير صفري
           SIZE=$(stat -c%s "$FILE")
           echo "تمّ: $FILE ($SIZE بايت)"
           [ "$SIZE" -gt 1024 ] || { echo "::error::النسخة صغيرة جداً — فشل محتمل"; exit 1; }
 
       - name: رفع كـ GitHub artifact (احتفاظ 90 يوماً)
+        id: artifact
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ steps.prep.outputs.stamp }}
@@ -81,6 +83,7 @@ jobs:
           if-no-files-found: error
 
       - name: رفع إلى Cloudflare R2
+        id: r2
         if: steps.prep.outputs.r2 == 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -97,5 +100,5 @@ jobs:
         if: always()
         run: |
           echo "## نسخة احتياطية — ${{ steps.prep.outputs.stamp }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GitHub artifact: ✅ (احتفاظ 90 يوماً)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Cloudflare R2: ${{ steps.prep.outputs.r2 == 'true' && '✅' || '⏸️ (مفاتيح R2 غير مضبوطة)' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GitHub artifact: ${{ steps.artifact.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cloudflare R2: ${{ steps.r2.outcome }}" >> "$GITHUB_STEP_SUMMARY"
