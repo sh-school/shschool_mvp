@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 
-
 _REQUIRED_ENV = {
     "DEBUG": "false",
     "SECRET_KEY": "test-only-secret-key-for-production-settings-regression",
