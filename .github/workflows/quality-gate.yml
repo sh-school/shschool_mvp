@@ -183,7 +183,7 @@ jobs:
           echo "::warning::mypy type checking completed (warn-only mode — Phase 1)"
 
   # ══════════════════════════════════════════════════════
-  #  4. Radon — تعقيد حلقي (CC 11-30 = فشل)
+  #  4. Radon — تعقيد حلقي (CC 11-30 = تحذير، CC >= 31 = فشل)
   # ══════════════════════════════════════════════════════
   complexity:
     name: Radon — تعقيد CC ≤ 30
