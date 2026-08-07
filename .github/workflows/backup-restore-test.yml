@@ -21,7 +21,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: restore_test
           POSTGRES_USER: restore_user
@@ -71,15 +71,15 @@ jobs:
           run-id: ${{ steps.latest.outputs.run_id }}
           github-token: ${{ github.token }}
 
-      - name: تثبيت PostgreSQL 16 وGnuPG
+      - name: تثبيت PostgreSQL 18 وGnuPG
         run: |
           set -euo pipefail
           sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc |
             sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client-16 gnupg
-          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+          sudo apt-get install -y -qq postgresql-client-18 gnupg
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
 
       - name: فك التشفير دون طباعة البيانات
         env:
