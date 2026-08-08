@@ -427,8 +427,15 @@ loadKPIs('{{ year }}');
   var pdfLink = document.getElementById('kpiPdfLink');
   if (paperSel && pdfLink) {
     function updatePdfLink() {
-      var year = document.getElementById('yearSelect').value;
-      pdfLink.href = '{% url "kpi_monthly_pdf" %}?year=' + year + '&paper=' + paperSel.value;
+      var year = String(document.getElementById('yearSelect').value || '');
+      var safeYear = /^\d{4}-\d{4}$/.test(year) ? year : '{{ year|escapejs }}';
+      var safePaper = paperSel.value === 'A3' ? 'A3' : 'A4';
+      var params = new URLSearchParams({
+        year: safeYear,
+        paper: safePaper
+      });
+
+      pdfLink.href = '{% url "kpi_monthly_pdf" %}?' + params.toString();
     }
     paperSel.addEventListener('change', updatePdfLink);
     document.getElementById('yearSelect').addEventListener('change', updatePdfLink);

@@ -187,12 +187,14 @@ if (paperSelect) {
 }
 
 function updateExportLinks() {
-  var paper = paperSelect ? paperSelect.value : 'A4';
+  var paper = paperSelect && paperSelect.value === 'A3' ? 'A3' : 'A4';
+
   document.querySelectorAll('.report-export-link').forEach(function(link) {
-    var base = link.getAttribute('data-base-href');
-    if (!base) return;
-    var sep = base.indexOf('?') !== -1 ? '&' : '?';
-    link.href = base + sep + 'paper=' + paper;
+    var url = new URL(link.getAttribute('href'), window.location.origin);
+    if (url.origin !== window.location.origin) return;
+
+    url.searchParams.set('paper', paper);
+    link.setAttribute('href', url.pathname + url.search + url.hash);
   });
 }
 
@@ -209,26 +211,65 @@ if (searchBtn) {
 async function searchStudent() {
   var q = searchInput.value.trim();
   if (!q) return;
+
   var res = document.getElementById('student-results');
-  res.innerHTML = '<p class="text-gray-400 text-xs">جاري البحث...</p>';
-  var paper = paperSelect ? paperSelect.value : 'A4';
+  var paper = paperSelect && paperSelect.value === 'A3' ? 'A3' : 'A4';
+  var year = '{{ year|escapejs }}';
+
+  function showStatus(text, className) {
+    var message = document.createElement('p');
+    message.className = className;
+    message.textContent = text;
+    res.replaceChildren(message);
+  }
+
+  showStatus('جاري البحث...', 'text-gray-400 text-xs');
+
   try {
     var r = await fetch('/api/students/search/?q=' + encodeURIComponent(q));
     var data = await r.json();
+
     if (!data.results || !data.results.length) {
-      res.innerHTML = '<p class="text-gray-400 text-xs">لا توجد نتائج</p>';
+      showStatus('لا توجد نتائج', 'text-gray-400 text-xs');
       return;
     }
-    res.innerHTML = data.results.map(function(s) {
-      return '<div class="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result">'
-        + '<span class="font-medium text-sm">' + s.full_name + '</span>'
-        + '<div class="flex gap-1">'
-        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}&paper=' + paper + '" class="btn-primary btn-sm">تقرير</a>'
-        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}&paper=' + paper + '" class="btn-secondary btn-sm">شهادة</a>'
-        + '</div></div>';
-    }).join('');
+
+    res.replaceChildren();
+
+    data.results.forEach(function(s) {
+      var studentId = encodeURIComponent(String(s.id || ''));
+      if (!studentId) return;
+
+      var row = document.createElement('div');
+      row.className = 'flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result';
+
+      var name = document.createElement('span');
+      name.className = 'font-medium text-sm';
+      name.textContent = String(s.full_name || '');
+
+      var actions = document.createElement('div');
+      actions.className = 'flex gap-1';
+
+      var resultLink = document.createElement('a');
+      resultLink.className = 'btn-primary btn-sm';
+      resultLink.textContent = 'تقرير';
+      resultLink.href =
+        '/reports/student/' + studentId + '/result/?year=' +
+        encodeURIComponent(year) + '&paper=' + encodeURIComponent(paper);
+
+      var certificateLink = document.createElement('a');
+      certificateLink.className = 'btn-secondary btn-sm';
+      certificateLink.textContent = 'شهادة';
+      certificateLink.href =
+        '/reports/student/' + studentId + '/certificate/?year=' +
+        encodeURIComponent(year) + '&paper=' + encodeURIComponent(paper);
+
+      actions.append(resultLink, certificateLink);
+      row.append(name, actions);
+      res.appendChild(row);
+    });
   } catch(e) {
-    res.innerHTML = '<p class="text-red-500 text-xs">خطأ في البحث</p>';
+    showStatus('خطأ في البحث', 'text-red-500 text-xs');
   }
 }
 </script>

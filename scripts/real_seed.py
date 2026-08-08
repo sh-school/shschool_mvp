@@ -4,6 +4,9 @@ real_seed.py — حقن البيانات الحقيقية لمدرسة الشح�
 يشمل: الموظفين، الطلاب، أولياء الأمور، الفصول، الخطة التشغيلية، لجنة الجودة
 
 تشغيل:
+    يجب ضبط SEED_DEFAULT_PASSWORD صراحةً قبل التشغيل، ولا تُطبع
+    كلمة المرور أو الأرقام الشخصية في المخرجات.
+
     python manage.py shell < scripts/real_seed.py
 أو:
     python manage.py real_seed
@@ -12,10 +15,13 @@ real_seed.py — حقن البيانات الحقيقية لمدرسة الشح�
 import csv
 import os
 import re
-import secrets
 from pathlib import Path
 
-_SEED_PASSWORD = os.environ.get("SEED_DEFAULT_PASSWORD", secrets.token_urlsafe(12))
+_SEED_PASSWORD = os.environ.get("SEED_DEFAULT_PASSWORD")
+if not _SEED_PASSWORD:
+    raise RuntimeError(
+        "SEED_DEFAULT_PASSWORD must be set explicitly before running real_seed.py."
+    )
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -392,12 +398,7 @@ def run():
         f"  تسجيلات الطلاب:      {StudentEnrollment.objects.filter(class_group__school=school).count()}"
     )
     print("\n── بيانات الدخول ─────────────────────────────────────")
-    print(f"  كلمة المرور الموحدة: {_SEED_PASSWORD}")
-    if principal_user:
-        print(f"  المدير:    {principal_user.user.national_id}")
-    print("  المعلمون:  <الرقم الشخصي>")
-    print("  الطلاب:    <الرقم الشخصي>")
-    print("  الأولياء:  <الرقم الشخصي>")
+    print("  تم إعداد بيانات الدخول دون طباعة كلمات المرور أو الأرقام الشخصية.")
     print("═" * 55)
 
 

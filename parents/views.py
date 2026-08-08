@@ -545,9 +545,9 @@ def push_subscribe(request):
             },
         )
         return JsonResponse({"status": "subscribed", "new": created})
-    except (KeyError, ValueError, TypeError, OSError) as e:
-        logger.exception("فشل تسجيل اشتراك Push لولي الأمر: %s", e)
-        return JsonResponse({"error": str(e)}, status=500)
+    except (KeyError, ValueError, TypeError, OSError):
+        logger.error("فشل تسجيل اشتراك Push لولي الأمر")
+        return JsonResponse({"error": "تعذر تسجيل اشتراك الإشعارات."}, status=500)
 
 
 @login_required
@@ -560,9 +560,9 @@ def push_unsubscribe(request):
             is_active=False
         )
         return JsonResponse({"status": "unsubscribed"})
-    except (KeyError, ValueError, TypeError, OSError) as e:
-        logger.exception("فشل إلغاء اشتراك Push لولي الأمر: %s", e)
-        return JsonResponse({"error": str(e)}, status=500)
+    except (KeyError, ValueError, TypeError, OSError):
+        logger.error("فشل إلغاء اشتراك Push لولي الأمر")
+        return JsonResponse({"error": "تعذر إلغاء اشتراك الإشعارات."}, status=500)
 
 
 @login_required
