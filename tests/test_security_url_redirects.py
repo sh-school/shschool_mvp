@@ -49,9 +49,7 @@ def test_committee_redirect_stays_local(
 
 
 def test_executor_redirect_stays_local(rf):
-    request = rf.post(
-        "/quality/executor-mapping/save/"
-    )
+    request = rf.post("/quality/executor-mapping/save/")
 
     response = _executor_mapping_redirect(
         request,
@@ -60,17 +58,13 @@ def test_executor_redirect_stays_local(rf):
 
     assert_relative_local(response)
 
-    assert response["Location"].startswith(
-        "/quality/executor-mapping/"
-    )
+    assert response["Location"].startswith("/quality/executor-mapping/")
 
 
 def test_behavior_report_redirect_stays_local(rf):
     student_id = uuid.uuid4()
 
-    request = rf.post(
-        f"/behavior/report/student/{student_id}/"
-    )
+    request = rf.post(f"/behavior/report/student/{student_id}/")
 
     response = _behavior_report_redirect(
         request,
@@ -81,9 +75,7 @@ def test_behavior_report_redirect_stays_local(rf):
 
     assert_relative_local(response)
 
-    assert response["Location"].startswith(
-        f"/behavior/report/student/{student_id}/"
-    )
+    assert response["Location"].startswith(f"/behavior/report/student/{student_id}/")
 
 
 @pytest.mark.parametrize(
@@ -103,9 +95,7 @@ def test_schedule_external_referer_falls_back(
         HTTP_REFERER=referer,
     )
 
-    response = _safe_schedule_settings_redirect(
-        request
-    )
+    response = _safe_schedule_settings_redirect(request)
 
     assert_relative_local(response)
 
@@ -113,31 +103,22 @@ def test_schedule_external_referer_falls_back(
 
 
 def test_schedule_same_host_referer_is_preserved(rf):
-    referer = (
-        "http://testserver/operations/schedule-settings/"
-        "?year=2025-2026"
-    )
+    referer = "http://testserver/operations/schedule-settings/" "?year=2025-2026"
 
     request = rf.post(
         "/operations/schedule-settings/exemption/add/",
         HTTP_REFERER=referer,
     )
 
-    response = _safe_schedule_settings_redirect(
-        request
-    )
+    response = _safe_schedule_settings_redirect(request)
 
     assert response["Location"] == referer
 
 
 def test_schedule_missing_referer_falls_back(rf):
-    request = rf.post(
-        "/operations/schedule-settings/exemption/add/"
-    )
+    request = rf.post("/operations/schedule-settings/exemption/add/")
 
-    response = _safe_schedule_settings_redirect(
-        request
-    )
+    response = _safe_schedule_settings_redirect(request)
 
     assert_relative_local(response)
 
