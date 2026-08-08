@@ -20,9 +20,22 @@ def test_student_search_uses_dom_text_nodes_for_api_data():
     assert "res.innerHTML = data.results.map" not in source
     assert "name.textContent = String(s.full_name || '')" in source
     assert "encodeURIComponent(String(s.id || ''))" in source
-    assert "var base = link.getAttribute('data-base-href');" in source
-    assert "new URL(base, window.location.origin)" in source
-    assert "new URL(link.getAttribute('href'), window.location.origin)" not in source
+
+    # CodeQL #102: eliminate DOM-derived export URL mutation.
+    assert "data-base-href" not in source
+    assert "updateExportLinks" not in source
+    assert "link.setAttribute('href'" not in source
+    assert "new URL(" not in source
+
+    # Paper selection is server-side and allowlisted.
+    assert source.count('name="paper"') == 2
+    assert source.count('onchange="this.form.submit()"') == 2
+    assert "var paper = '{{ paper|escapejs }}';" in source
+
+    views = read("reports/views.py")
+    assert "def _get_paper_size(request) -> str:" in views
+    assert 'paper in {"A3", "A4"}' in views
+    assert views.count('request.GET.get("paper"') == 1
 
 
 def test_schedule_controls_do_not_assign_dom_values_to_location_href():
