@@ -36,6 +36,7 @@ import shschool.settings.production as settings
 print("CACHE_BACKEND=" + settings.CACHES["default"]["BACKEND"])
 print("SESSION_ENGINE=" + settings.SESSION_ENGINE)
 print("CELERY_EAGER=" + str(settings.CELERY_TASK_ALWAYS_EAGER))
+print("CELERY_PROPAGATES=" + str(settings.CELERY_TASK_EAGER_PROPAGATES))
 print("CELERY_BROKER=" + str(getattr(settings, "CELERY_BROKER_URL", "")))
 """
 
@@ -72,6 +73,7 @@ def test_redis_does_not_enable_async_celery_or_cache_sessions():
     assert values["CACHE_BACKEND"] == "django.core.cache.backends.redis.RedisCache"
     assert values["SESSION_ENGINE"] == "django.contrib.sessions.backends.db"
     assert values["CELERY_EAGER"] == "True"
+    assert values["CELERY_PROPAGATES"] == "False"
     assert values["CELERY_BROKER"] == redis_url
 
 
@@ -123,3 +125,4 @@ def test_redis_sessions_are_separate_opt_in():
 
     assert values["SESSION_ENGINE"] == "django.contrib.sessions.backends.cache"
     assert values["CELERY_EAGER"] == "True"
+    assert values["CELERY_PROPAGATES"] == "False"

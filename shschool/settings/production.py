@@ -157,7 +157,10 @@ CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 # Safe default for the current Railway topology:
 # execute tasks synchronously until a dedicated worker is deployed.
 CELERY_TASK_ALWAYS_EAGER = not CELERY_ASYNC_ENABLED
-CELERY_TASK_EAGER_PROPAGATES = CELERY_TASK_ALWAYS_EAGER
+# Eager mode is a topology fallback, not an exception-propagation policy.
+# Keep task failures inside the EagerResult instead of bubbling through
+# synchronous .delay() call sites.
+CELERY_TASK_EAGER_PROPAGATES = False
 
 # ── Logging ───────────────────────────────────────────────────
 LOGGING = {
