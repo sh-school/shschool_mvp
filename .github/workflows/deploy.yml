@@ -10,6 +10,10 @@ concurrency:
   group: production-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  checks: read
+
 jobs:
   deploy:
     name: نشر على الخادم
