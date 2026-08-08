@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.models import CustomUser, Membership
@@ -23,14 +24,23 @@ from .services import QualityService
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 
-def _committee_redirect(committee_type, year):
-    """Clean Code: لا URLs مشفرة — استخدام reverse()"""
+def _committee_redirect(request, committee_type, year):
+    """Return only a same-host committee redirect."""
     url_name = (
         "executor_committee"
         if committee_type == QualityCommitteeMember.EXECUTOR
         else "quality_committee"
     )
-    return f"{reverse(url_name)}?year={year}"
+    target = f"{reverse(url_name)}?year={year}"
+
+    if url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(target)
+
+    return redirect(url_name)
 
 
 @login_required
@@ -153,7 +163,7 @@ def add_committee_member(request):
 
     if not job_title and not user:
         messages.error(request, "يجب تحديد المستخدم أو المسمى الوظيفي")
-        return redirect(_committee_redirect(committee_type, year))
+        return _committee_redirect(request, committee_type, year)
 
     if not job_title and user:
         job_title = getattr(user, "job_title", "") or str(user)
@@ -172,7 +182,7 @@ def add_committee_member(request):
     )
 
     messages.success(request, f"✅ تم إضافة {job_title} للجنة")
-    return redirect(_committee_redirect(committee_type, year))
+    return _committee_redirect(request, committee_type, year)
 
 
 @login_required
@@ -188,7 +198,7 @@ def remove_committee_member(request, member_id):
     member.delete()
 
     messages.success(request, "تم إزالة العضو من اللجنة")
-    return redirect(_committee_redirect(committee_type, year))
+    return _committee_redirect(request, committee_type, year)
 
 
 @login_required
