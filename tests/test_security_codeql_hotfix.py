@@ -20,7 +20,9 @@ def test_student_search_uses_dom_text_nodes_for_api_data():
     assert "res.innerHTML = data.results.map" not in source
     assert "name.textContent = String(s.full_name || '')" in source
     assert "encodeURIComponent(String(s.id || ''))" in source
-    assert "new URL(link.getAttribute('href'), window.location.origin)" in source
+    assert "var base = link.getAttribute('data-base-href');" in source
+    assert "new URL(base, window.location.origin)" in source
+    assert "new URL(link.getAttribute('href'), window.location.origin)" not in source
 
 
 def test_schedule_controls_do_not_assign_dom_values_to_location_href():
@@ -63,6 +65,14 @@ def test_notification_exception_logs_do_not_include_recipient():
     assert 'logger.exception("فشل إرسال SMS")' not in source
     assert 'logger.error("فشل إرسال البريد الإلكتروني")' in source
     assert 'logger.error("فشل إرسال SMS")' in source
+
+    assert "log.error_msg = str(e)" not in source
+    assert "return False, str(e)" not in source
+    assert "_EMAIL_FAILURE_MESSAGE" in source
+    assert "_SMS_FAILURE_MESSAGE" in source
+
+    dashboard = read("templates/notifications/dashboard.html")
+    assert 'title="{{ log.error_msg }}"' not in dashboard
 
 
 def test_real_seed_requires_secret_without_printing_credentials():

@@ -190,11 +190,18 @@ function updateExportLinks() {
   var paper = paperSelect && paperSelect.value === 'A3' ? 'A3' : 'A4';
 
   document.querySelectorAll('.report-export-link').forEach(function(link) {
-    var url = new URL(link.getAttribute('href'), window.location.origin);
-    if (url.origin !== window.location.origin) return;
+    var base = link.getAttribute('data-base-href');
+    if (!base) return;
 
-    url.searchParams.set('paper', paper);
-    link.setAttribute('href', url.pathname + url.search + url.hash);
+    try {
+      var url = new URL(base, window.location.origin);
+      if (url.origin !== window.location.origin) return;
+
+      url.searchParams.set('paper', paper);
+      link.setAttribute('href', url.pathname + url.search + url.hash);
+    } catch (error) {
+      return;
+    }
   });
 }
 
