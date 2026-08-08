@@ -63,6 +63,12 @@ def _set_final_status(ctx: dict) -> None:
         ctx.update(final_status="غير مكتمل", status_color="#d97706")
 
 
+def _get_paper_size(request) -> str:
+    """Return a validated report paper size."""
+    paper = request.GET.get("paper", "A4").upper()
+    return paper if paper in {"A3", "A4"} else "A4"
+
+
 # ── فهرس التقارير ───────────────────────────────────────────────────
 
 
@@ -75,6 +81,7 @@ def reports_index(request):
     tab = request.GET.get("tab", "results")
     grade_filter = request.GET.get("grade", "")
     level_filter = request.GET.get("level", "")
+    paper = _get_paper_size(request)
 
     if request.user.is_admin():
         classes = ClassGroup.objects.filter(
@@ -111,6 +118,7 @@ def reports_index(request):
         "tab": tab,
         "grade_filter": grade_filter,
         "level_filter": level_filter,
+        "paper": paper,
         "available_grades": available_grades,
         "GRADES": ClassGroup.GRADES,
         "LEVELS": ClassGroup.LEVELS,
@@ -137,7 +145,7 @@ def class_results_pdf(request, class_id):
 
         raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     ctx = ReportDataService.get_class_results(class_grp, school, year)
     ctx["paper_size"] = paper
@@ -174,7 +182,7 @@ def class_certificates_pdf(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     enrollments = (
         StudentEnrollment.objects.filter(class_group=class_grp, is_active=True)
@@ -218,7 +226,7 @@ def attendance_report_pdf(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     ctx = ReportDataService.get_attendance_report(class_grp, school, year)
     ctx["paper_size"] = paper
@@ -251,7 +259,7 @@ def student_result_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
         if not _has_parent_access(request, student, school):
@@ -279,7 +287,7 @@ def student_annual_result_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     if not (request.user.is_admin() or request.user.is_teacher() or request.user == student):
         if not _has_parent_access(request, student, school):
@@ -309,7 +317,7 @@ def student_certificate_pdf(request, student_id):
     )
     year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
     preview = request.GET.get("preview") == "1"
-    paper = request.GET.get("paper", "A4")
+    paper = _get_paper_size(request)
 
     if not (request.user.is_admin() or request.user.is_teacher()):
         if not _has_parent_access(request, student, school):
@@ -346,7 +354,7 @@ def class_results_excel(request, class_id):
         from django.core.exceptions import PermissionDenied
 
         raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
-    paper = request.GET.get("paper", "a4")
+    paper = _get_paper_size(request).lower()
     return ExcelService.class_results_excel(class_grp, school, year, paper=paper)
 
 
@@ -359,7 +367,7 @@ def attendance_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    paper = request.GET.get("paper", "a4")
+    paper = _get_paper_size(request).lower()
     return ExcelService.attendance_excel(
         class_grp,
         school,
@@ -376,7 +384,7 @@ def behavior_excel(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    paper = request.GET.get("paper", "a4")
+    paper = _get_paper_size(request).lower()
     return ExcelService.behavior_excel(
         school,
         request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),

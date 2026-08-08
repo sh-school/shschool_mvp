@@ -221,7 +221,7 @@
                 <span class="status-badge text-[10px] status-success">أُرسل</span>
               {% elif log.status == "failed" %}
                 <span class="status-badge text-[10px] status-danger"
-                      title="{{ log.error_msg }}">فشل</span>
+                      title="تعذر إرسال الإشعار">فشل</span>
               {% else %}
                 <span class="px-2 py-0.5 rounded-full text-[10px] bg-[var(--surface-alt)] text-[var(--muted)]">معلّق</span>
               {% endif %}

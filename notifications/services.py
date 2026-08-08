@@ -20,6 +20,9 @@ from core.models import ParentStudentLink
 
 from .models import NotificationLog, NotificationSettings
 
+_EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
+_SMS_FAILURE_MESSAGE = "تعذر إرسال رسالة SMS."
+
 if TYPE_CHECKING:
     from core.models import CustomUser, School
     from operations.models import AbsenceAlert
@@ -81,12 +84,12 @@ class NotificationService:
             log.save(update_fields=["status"])
             return True, None
 
-        except (OSError, RuntimeError, ValueError) as e:
-            logger.exception("فشل إرسال البريد الإلكتروني إلى %s: %s", log.recipient, e)
+        except (OSError, RuntimeError, ValueError):
+            logger.error("فشل إرسال البريد الإلكتروني")
             log.status = "failed"
-            log.error_msg = str(e)
+            log.error_msg = _EMAIL_FAILURE_MESSAGE
             log.save(update_fields=["status", "error_msg"])
-            return False, str(e)
+            return False, _EMAIL_FAILURE_MESSAGE
 
     # ── إرسال SMS ────────────────────────────────────────────
 
@@ -137,12 +140,12 @@ class NotificationService:
             log.save(update_fields=["status"])
             return True, None
 
-        except (OSError, RuntimeError, ValueError) as e:
-            logger.exception("فشل إرسال SMS إلى %s: %s", log.recipient, e)
+        except (OSError, RuntimeError, ValueError):
+            logger.error("فشل إرسال SMS")
             log.status = "failed"
-            log.error_msg = str(e)
+            log.error_msg = _SMS_FAILURE_MESSAGE
             log.save(update_fields=["status", "error_msg"])
-            return False, str(e)
+            return False, _SMS_FAILURE_MESSAGE
 
     # ── إشعار غياب الطالب لولي الأمر ─────────────────────────
 

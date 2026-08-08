@@ -464,12 +464,14 @@ document.addEventListener('keydown', function(e) {
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
       '    <button class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
       '  </div>' +
-      '  <div class="modal-body"><p style="color:var(--text-secondary);line-height:1.7">' + msg + '</p></div>' +
+      '  <div class="modal-body"><p data-confirm-message style="color:var(--text-secondary);line-height:1.7"></p></div>' +
       '  <div class="modal-footer">' +
       '    <button class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
       '    <button class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
       '  </div>' +
       '</div>';
+
+    overlay.querySelector('[data-confirm-message]').textContent = msg;
 
     document.body.appendChild(overlay);
     overlay.querySelector('[data-action="confirm"]').focus();

@@ -254,10 +254,11 @@ class TestNotificationService:
             )
 
         assert ok is False
-        assert err is not None
+        assert err == "تعذر إرسال البريد الإلكتروني."
         log = NotificationLog.objects.filter(school=school).last()
         assert log.status == "failed"
-        assert "SMTP" in log.error_msg
+        assert log.error_msg == "تعذر إرسال البريد الإلكتروني."
+        assert "SMTP" not in log.error_msg
 
     def test_sms_disabled_returns_error(self, school, student_user):
         """SMS معطّل في الإعدادات الافتراضية"""

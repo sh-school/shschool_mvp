@@ -34,20 +34,20 @@
 
 {# ── التبويبات ── #}
 <div class="report-tabs">
-  <a href="?tab=results&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
+  <a href="?tab=results&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}&paper={{ paper }}"
      class="report-tab {% if tab == 'results' %}active{% endif %}">
     <span class="report-tab-icon">{% include "components/icon.html" with name="bar-chart" %}</span> كشف النتائج
   </a>
-  <a href="?tab=certificates&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
+  <a href="?tab=certificates&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}&paper={{ paper }}"
      class="report-tab {% if tab == 'certificates' %}active{% endif %}">
     <span class="report-tab-icon">{% include "components/icon.html" with name="file-text" %}</span> الشهادات
   </a>
-  <a href="?tab=attendance&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}"
+  <a href="?tab=attendance&level={{ level_filter }}&grade={{ grade_filter }}&year={{ year }}&paper={{ paper }}"
      class="report-tab {% if tab == 'attendance' %}active{% endif %}">
     <span class="report-tab-icon">{% include "components/icon.html" with name="calendar" %}</span> الحضور والغياب
   </a>
   {% if request.user.is_admin or request.user.get_role == "principal" %}
-  <a href="?tab=behavior&year={{ year }}"
+  <a href="?tab=behavior&year={{ year }}&paper={{ paper }}"
      class="report-tab {% if tab == 'behavior' %}active{% endif %}">
     <span class="report-tab-icon">{% include "components/icon.html" with name="scale" %}</span> المخالفات السلوكية
   </a>
@@ -75,23 +75,37 @@
     {% endfor %}
   </select>
 
-  <select id="paper-size-select" class="form-control w-auto min-w-[100px] m-0">
-    <option value="A4" selected>A4</option>
-    <option value="A3">A3</option>
-  </select>
+  <form method="get" class="m-0">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <input type="hidden" name="level" value="{{ level_filter }}">
+    <input type="hidden" name="grade" value="{{ grade_filter }}">
+    <select name="paper"
+            class="form-control w-auto min-w-[100px] m-0"
+            onchange="this.form.submit()">
+      <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
+      <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
+    </select>
+  </form>
 
   {% if grade_filter or level_filter %}
-  <a href="?tab={{ tab }}&year={{ year }}" class="btn-secondary btn-sm">مسح الفلاتر</a>
+  <a href="?tab={{ tab }}&year={{ year }}&paper={{ paper }}" class="btn-secondary btn-sm">مسح الفلاتر</a>
   {% endif %}
 
   <span class="pagination-info">{{ classes|length }} فصل</span>
 </div>
 {% else %}
 <div class="filter-bar mb-4">
-  <select id="paper-size-select" class="form-control w-auto min-w-[100px] m-0">
-    <option value="A4" selected>A4</option>
-    <option value="A3">A3</option>
-  </select>
+  <form method="get" class="m-0">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="hidden" name="year" value="{{ year }}">
+    <select name="paper"
+            class="form-control w-auto min-w-[100px] m-0"
+            onchange="this.form.submit()">
+      <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
+      <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
+    </select>
+  </form>
 </div>
 {% endif %}
 
@@ -104,7 +118,7 @@
     </div>
     <div class="flex items-center justify-between p-5">
       <span class="text-sm text-secondary">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}" class="btn-success report-export-link" data-base-href="{% url 'behavior_excel' %}?year={{ year }}">
+      <a href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success report-export-link">
         {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>
     </div>
@@ -126,34 +140,26 @@
       <div class="pt-2 border-t flex gap-2 flex-wrap">
 
         {% if tab == "results" %}
-          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'class_results_pdf' cls.id %}?year={{ year }}">PDF</a>
-          <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'class_results_excel' cls.id %}?year={{ year }}">Excel</a>
+          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
+          <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>
 
         {% elif tab == "certificates" %}
-          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}">PDF</a>
+          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
 
         {% elif tab == "attendance" %}
-          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}">PDF</a>
-          <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link"
-             data-base-href="{% url 'attendance_excel' cls.id %}?year={{ year }}">Excel</a>
+          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
+             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
+          <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>
         {% endif %}
 
       </div>
@@ -179,23 +185,6 @@ function applyFilter(name, value) {
   window.location.search = params.toString();
 }
 
-/* ── حجم الورق — يُحدّث روابط التصدير ديناميكياً ── */
-var paperSelect = document.getElementById('paper-size-select');
-if (paperSelect) {
-  paperSelect.addEventListener('change', updateExportLinks);
-  updateExportLinks();  /* تطبيق القيمة المبدئية */
-}
-
-function updateExportLinks() {
-  var paper = paperSelect ? paperSelect.value : 'A4';
-  document.querySelectorAll('.report-export-link').forEach(function(link) {
-    var base = link.getAttribute('data-base-href');
-    if (!base) return;
-    var sep = base.indexOf('?') !== -1 ? '&' : '?';
-    link.href = base + sep + 'paper=' + paper;
-  });
-}
-
 /* بحث الطالب الفردي */
 var searchBtn = document.getElementById('student-search-btn');
 var searchInput = document.getElementById('student-search-input');
@@ -209,26 +198,65 @@ if (searchBtn) {
 async function searchStudent() {
   var q = searchInput.value.trim();
   if (!q) return;
+
   var res = document.getElementById('student-results');
-  res.innerHTML = '<p class="text-gray-400 text-xs">جاري البحث...</p>';
-  var paper = paperSelect ? paperSelect.value : 'A4';
+  var paper = '{{ paper|escapejs }}';
+  var year = '{{ year|escapejs }}';
+
+  function showStatus(text, className) {
+    var message = document.createElement('p');
+    message.className = className;
+    message.textContent = text;
+    res.replaceChildren(message);
+  }
+
+  showStatus('جاري البحث...', 'text-gray-400 text-xs');
+
   try {
     var r = await fetch('/api/students/search/?q=' + encodeURIComponent(q));
     var data = await r.json();
+
     if (!data.results || !data.results.length) {
-      res.innerHTML = '<p class="text-gray-400 text-xs">لا توجد نتائج</p>';
+      showStatus('لا توجد نتائج', 'text-gray-400 text-xs');
       return;
     }
-    res.innerHTML = data.results.map(function(s) {
-      return '<div class="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result">'
-        + '<span class="font-medium text-sm">' + s.full_name + '</span>'
-        + '<div class="flex gap-1">'
-        + '<a href="/reports/student/' + s.id + '/result/?year={{ year }}&paper=' + paper + '" class="btn-primary btn-sm">تقرير</a>'
-        + '<a href="/reports/student/' + s.id + '/certificate/?year={{ year }}&paper=' + paper + '" class="btn-secondary btn-sm">شهادة</a>'
-        + '</div></div>';
-    }).join('');
+
+    res.replaceChildren();
+
+    data.results.forEach(function(s) {
+      var studentId = encodeURIComponent(String(s.id || ''));
+      if (!studentId) return;
+
+      var row = document.createElement('div');
+      row.className = 'flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result';
+
+      var name = document.createElement('span');
+      name.className = 'font-medium text-sm';
+      name.textContent = String(s.full_name || '');
+
+      var actions = document.createElement('div');
+      actions.className = 'flex gap-1';
+
+      var resultLink = document.createElement('a');
+      resultLink.className = 'btn-primary btn-sm';
+      resultLink.textContent = 'تقرير';
+      resultLink.href =
+        '/reports/student/' + studentId + '/result/?year=' +
+        encodeURIComponent(year) + '&paper=' + encodeURIComponent(paper);
+
+      var certificateLink = document.createElement('a');
+      certificateLink.className = 'btn-secondary btn-sm';
+      certificateLink.textContent = 'شهادة';
+      certificateLink.href =
+        '/reports/student/' + studentId + '/certificate/?year=' +
+        encodeURIComponent(year) + '&paper=' + encodeURIComponent(paper);
+
+      actions.append(resultLink, certificateLink);
+      row.append(name, actions);
+      res.appendChild(row);
+    });
   } catch(e) {
-    res.innerHTML = '<p class="text-red-500 text-xs">خطأ في البحث</p>';
+    showStatus('خطأ في البحث', 'text-red-500 text-xs');
   }
 }
 </script>
