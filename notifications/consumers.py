@@ -17,8 +17,11 @@ NotificationConsumer — إشعارات فورية لكل مستخدم
 import json
 import logging
 
-from asgiref.sync import sync_to_async
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.db import DatabaseError
+
+from core.rls import rls_context
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +42,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         self.user_group = f"user_{user.pk}"
 
         # group للمدرسة (للبث الطارئ من المدير)
-        school = await sync_to_async(lambda: user.school)()
-        self.school_group = f"school_{school.pk}" if school else None
+        self.school_id = await self._get_school_id()
+        self.school_group = f"school_{self.school_id}" if self.school_id else None
 
         # انضمام للـ groups
         await self.channel_layer.group_add(self.user_group, self.channel_name)
@@ -119,8 +122,35 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     # ── دوال مساعدة ─────────────────────────────────────────────
 
-    @sync_to_async
+    @database_sync_to_async
+    def _get_school_id(self):
+        try:
+            school = self.user.get_school()
+            return str(school.pk) if school else None
+        except DatabaseError:
+            logger.exception(
+                "WS notification school lookup failed: user=%s",
+                getattr(self.user, "pk", None),
+            )
+            return None
+
+    @database_sync_to_async
     def _unread_count(self):
         from .models import InAppNotification
 
-        return InAppNotification.objects.filter(user=self.user, is_read=False).count()
+        context = "*" if self.user.is_superuser else self.school_id
+        if not context:
+            return 0
+
+        try:
+            with rls_context(context):
+                return InAppNotification.objects.filter(
+                    user=self.user,
+                    is_read=False,
+                ).count()
+        except DatabaseError:
+            logger.exception(
+                "WS notification unread-count DB failure: user=%s",
+                getattr(self.user, "pk", None),
+            )
+            return 0
