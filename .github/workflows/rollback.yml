@@ -17,6 +17,9 @@ concurrency:
   group: railway-deploy
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   # ══════════════════════════════════════════════════════
   #  1. Validate and rollback

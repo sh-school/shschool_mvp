@@ -18,6 +18,9 @@ concurrency:
   group: nightly-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   full-pytest:
     name: pytest — full suite (no testmon, coverage gate 85%)

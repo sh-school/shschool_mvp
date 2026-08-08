@@ -5,6 +5,9 @@ on:
     - cron: "0 6 * * 0"  # كل أحد الساعة 6 صباحاً UTC
   workflow_dispatch:      # يدوي عند الحاجة
 
+permissions:
+  contents: read
+
 jobs:
   # ══════════════════════════════════════════════════════
   #  CVEs في المكتبات — pip-audit
