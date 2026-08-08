@@ -56,13 +56,9 @@ def test_notification_exception_logs_do_not_include_recipient():
     source = read("notifications/services.py")
 
     assert (
-        'logger.exception("فشل إرسال البريد الإلكتروني إلى %s: %s", log.recipient, e)'
-        not in source
+        'logger.exception("فشل إرسال البريد الإلكتروني إلى %s: %s", log.recipient, e)' not in source
     )
-    assert (
-        'logger.exception("فشل إرسال SMS إلى %s: %s", log.recipient, e)'
-        not in source
-    )
+    assert 'logger.exception("فشل إرسال SMS إلى %s: %s", log.recipient, e)' not in source
     assert 'logger.exception("فشل إرسال البريد الإلكتروني")' not in source
     assert 'logger.exception("فشل إرسال SMS")' not in source
     assert 'logger.error("فشل إرسال البريد الإلكتروني")' in source
