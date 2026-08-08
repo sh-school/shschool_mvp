@@ -98,7 +98,7 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 # To enforce in Django: pip install django-permissions-policy, add to MIDDLEWARE,
 # then set PERMISSIONS_POLICY dict here.
 
-# ── Cache ─────────────────────────────────────────────────────
+# ── Redis / Cache ─────────────────────────────────────────────
 REDIS_URL = config("REDIS_URL", default="")
 
 if REDIS_URL:
@@ -109,7 +109,6 @@ if REDIS_URL:
             "OPTIONS": {"socket_timeout": 5},
         }
     }
-    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 else:
     CACHES = {
         "default": {
@@ -118,24 +117,50 @@ else:
         }
     }
 
+# الجلسات تبقى في PostgreSQL افتراضياً.
+# نقل الجلسات إلى Redis قرار مستقل حتى لا يؤدي مجرد ربط Redis
+# إلى تسجيل خروج المستخدمين الحاليين.
+USE_REDIS_SESSIONS = config("USE_REDIS_SESSIONS", default=False, cast=bool)
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+
+if USE_REDIS_SESSIONS:
+    if not REDIS_URL:
+        raise ImproperlyConfigured("USE_REDIS_SESSIONS=true requires REDIS_URL")
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+
+
 # ── Celery + Redis ────────────────────────────────────────────
-# [مهمة 15] الإشعارات وتقارير PDF تُعالج بشكل غير متزامن
+# وجود Redis لا يعني تلقائياً وجود Celery worker.
+# async mode يجب تفعيله صراحةً فقط بعد إنشاء worker مستقل.
+CELERY_ASYNC_ENABLED = config(
+    "CELERY_ASYNC_ENABLED",
+    default=False,
+    cast=bool,
+)
+
+if CELERY_ASYNC_ENABLED and not REDIS_URL:
+    raise ImproperlyConfigured("CELERY_ASYNC_ENABLED=true requires REDIS_URL")
+
 if REDIS_URL:
     CELERY_BROKER_URL = REDIS_URL
     CELERY_RESULT_BACKEND = REDIS_URL
-    CELERY_ACCEPT_CONTENT = ["json"]
-    CELERY_TASK_SERIALIZER = "json"
-    CELERY_RESULT_SERIALIZER = "json"
-    CELERY_TIMEZONE = "Asia/Qatar"
-    CELERY_TASK_TRACK_STARTED = True
-    CELERY_TASK_TIME_LIMIT = 300  # 5 دقائق حد أقصى للمهمة
-    CELERY_TASK_SOFT_TIME_LIMIT = 240  # تحذير بعد 4 دقائق
-    CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # مهمة واحدة في المرة للذاكرة
-    CELERY_TASK_ALWAYS_EAGER = False
-else:
-    # Fallback إذا لم يكن Redis متاحاً
-    CELERY_TASK_ALWAYS_EAGER = True
-    CELERY_TASK_EAGER_PROPAGATES = True
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Asia/Qatar"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300
+CELERY_TASK_SOFT_TIME_LIMIT = 240
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Safe default for the current Railway topology:
+# execute tasks synchronously until a dedicated worker is deployed.
+CELERY_TASK_ALWAYS_EAGER = not CELERY_ASYNC_ENABLED
+# Eager mode is a topology fallback, not an exception-propagation policy.
+# Keep task failures inside the EagerResult instead of bubbling through
+# synchronous .delay() call sites.
+CELERY_TASK_EAGER_PROPAGATES = False
 
 # ── Logging ───────────────────────────────────────────────────
 LOGGING = {
