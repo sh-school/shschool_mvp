@@ -9,6 +9,7 @@ tests/test_channels.py
 """
 
 import uuid
+from datetime import date, time
 
 import pytest
 from channels.db import database_sync_to_async
@@ -19,6 +20,7 @@ from notifications.models import InAppNotification
 from operations.consumers import AttendanceConsumer
 
 from .conftest import (
+    ClassGroupFactory,
     MembershipFactory,
     RoleFactory,
     SchoolFactory,
@@ -64,6 +66,29 @@ def _create_user_with_school():
     user = UserFactory(full_name="معلم اختباري")
     MembershipFactory(user=user, school=school, role=role)
     return user, school
+
+
+@database_sync_to_async
+def _create_user_for_school(school, role_name="teacher"):
+    role = RoleFactory(school=school, name=role_name)
+    user = UserFactory()
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+@database_sync_to_async
+def _create_attendance_session(school, teacher):
+    from operations.models import Session
+
+    class_group = ClassGroupFactory(school=school)
+    return Session.objects.create(
+        school=school,
+        class_group=class_group,
+        teacher=teacher,
+        date=date.today(),
+        start_time=time(8, 0),
+        end_time=time(8, 45),
+    )
 
 
 @database_sync_to_async
@@ -240,14 +265,79 @@ class TestAttendanceConsumer:
         connected, _ = await communicator.connect()
         assert not connected
 
-    async def test_valid_session_connected(self):
-        """UUID صحيح → اتصال ناجح."""
+    async def test_teacher_of_session_connected(self):
+        """The assigned teacher may subscribe to the attendance session."""
         user, school = await _create_user_with_school()
-        session_id = str(uuid.uuid4())
+        session = await _create_attendance_session(school, user)
+        session_id = str(session.id)
+
         communicator = await make_communicator(
             AttendanceConsumer,
             f"/ws/attendance/{session_id}/",
             user=user,
+            url_route_kwargs={"session_id": session_id},
+        )
+        connected, _ = await communicator.connect()
+        assert connected
+        await communicator.disconnect()
+
+    async def test_nonexistent_session_rejected(self):
+        """A valid UUID must still refer to a real accessible session."""
+        user, school = await _create_user_with_school()
+        session_id = str(uuid.uuid4())
+
+        communicator = await make_communicator(
+            AttendanceConsumer,
+            f"/ws/attendance/{session_id}/",
+            user=user,
+            url_route_kwargs={"session_id": session_id},
+        )
+        connected, _ = await communicator.connect()
+        assert not connected
+
+    async def test_cross_school_session_rejected(self):
+        """An authenticated user cannot subscribe to another school's session."""
+        user, own_school = await _create_user_with_school()
+        teacher, other_school = await _create_user_with_school()
+        session = await _create_attendance_session(other_school, teacher)
+        session_id = str(session.id)
+
+        communicator = await make_communicator(
+            AttendanceConsumer,
+            f"/ws/attendance/{session_id}/",
+            user=user,
+            url_route_kwargs={"session_id": session_id},
+        )
+        connected, _ = await communicator.connect()
+        assert not connected
+
+    async def test_unrelated_same_school_teacher_rejected(self):
+        """A same-school teacher cannot subscribe to another teacher's session."""
+        teacher, school = await _create_user_with_school()
+        session = await _create_attendance_session(school, teacher)
+        viewer = await _create_user_for_school(school, "teacher")
+        session_id = str(session.id)
+
+        communicator = await make_communicator(
+            AttendanceConsumer,
+            f"/ws/attendance/{session_id}/",
+            user=viewer,
+            url_route_kwargs={"session_id": session_id},
+        )
+        connected, _ = await communicator.connect()
+        assert not connected
+
+    async def test_same_school_leadership_connected(self):
+        """School leadership may observe an attendance session."""
+        teacher, school = await _create_user_with_school()
+        session = await _create_attendance_session(school, teacher)
+        leader = await _create_user_for_school(school, "principal")
+        session_id = str(session.id)
+
+        communicator = await make_communicator(
+            AttendanceConsumer,
+            f"/ws/attendance/{session_id}/",
+            user=leader,
             url_route_kwargs={"session_id": session_id},
         )
         connected, _ = await communicator.connect()
@@ -269,7 +359,8 @@ class TestAttendanceConsumer:
     async def test_attendance_update_broadcast(self):
         """attendance.update يُبث لجميع المشتركين في الحصة."""
         user, school = await _create_user_with_school()
-        session_id = str(uuid.uuid4())
+        session = await _create_attendance_session(school, user)
+        session_id = str(session.id)
 
         communicator = await make_communicator(
             AttendanceConsumer,
@@ -303,7 +394,8 @@ class TestAttendanceConsumer:
     async def test_multiple_consumers_same_session(self):
         """متصلان باتصالين مختلفين على نفس الحصة يستقبلان نفس التحديث."""
         user, school = await _create_user_with_school()
-        session_id = str(uuid.uuid4())
+        session = await _create_attendance_session(school, user)
+        session_id = str(session.id)
 
         comm1 = await make_communicator(
             AttendanceConsumer,
