@@ -5,6 +5,7 @@ from django.db import connection
 
 EXPECTED_ROLE = "shschool_app"
 CRITICAL_RLS_TABLE = "operations_session"
+CRITICAL_RLS_RELATION = f"public.{CRITICAL_RLS_TABLE}"
 CRITICAL_POLICY = "school_isolation"
 
 
@@ -42,7 +43,7 @@ class Command(BaseCommand):
                 FROM pg_class AS c
                 WHERE c.oid = %s::regclass
                 """,
-                [CRITICAL_RLS_TABLE],
+                [CRITICAL_RLS_RELATION],
             )
             table_row = cursor.fetchone()
 

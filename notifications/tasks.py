@@ -179,7 +179,9 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
         from notifications.services import NotificationService
         from operations.models import AbsenceAlert
 
-        alert = AbsenceAlert.objects.select_related("school", "student").get(id=absence_alert_id)
+        alert = AbsenceAlert.objects.select_related("school", "student").get(
+            id=absence_alert_id, school_id=school_id
+        )
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
 
         results = NotificationService.notify_absence(alert, sent_by=sent_by)
@@ -310,7 +312,7 @@ def notify_behavior_task(self, infraction_id, reporter_id, school_id=None):
         from core.models import CustomUser
 
         infraction = BehaviorInfraction.objects.select_related("student", "school").get(
-            id=infraction_id
+            id=infraction_id, school_id=school_id
         )
         reporter = CustomUser.objects.get(id=reporter_id)
 

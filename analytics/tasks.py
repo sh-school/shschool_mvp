@@ -34,12 +34,12 @@ def send_monthly_kpi_report(self, school_id=None):
         from core.pdf_utils import render_pdf_bytes
         from quality.models import OperationalDomain
 
-        schools = School.objects.filter(is_active=True)
-
         if school_id:
-            schools = schools.filter(id=school_id)
+            schools = [School.objects.get(id=school_id)]
+        else:
+            schools = School.objects.filter(is_active=True).iterator(chunk_size=100)
 
-        for school in schools.iterator(chunk_size=100):
+        for school in schools:
             with school_rls_scope(school.id):
                 logger.info(
                     "إنشاء تقرير KPIs لـ %s",

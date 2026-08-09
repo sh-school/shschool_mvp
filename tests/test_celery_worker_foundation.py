@@ -209,3 +209,13 @@ def test_worker_railway_config_is_worker_only():
 
     # A Celery worker has no HTTP health endpoint.
     assert "healthcheckPath" not in deploy
+
+
+def test_runtime_role_critical_relation_is_schema_qualified():
+    assert runtime_role.CRITICAL_RLS_RELATION == "public.operations_session"
+
+    source = (ROOT / "core" / "management" / "commands" / "verify_runtime_db_role.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "[CRITICAL_RLS_RELATION]" in source
