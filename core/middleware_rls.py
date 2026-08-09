@@ -18,9 +18,14 @@ class RLSMiddleware:
     يضبط app.current_school_id على اتصال PostgreSQL لكل طلب لتفعيل سياسات RLS.
 
     القيمة المضبوطة:
-      - '*'           للـ superuser (يرى كل المدارس — تجاوز منضبط)
-      - <school_uuid>  للمستخدم العادي (يرى مدرسته فقط)
-      - ''             لغير المُعتمَد / بلا مدرسة ⇒ لا صفوف على الجداول المحميّة
+      - <school_uuid>  لكل مستخدم مُعتمَد له عضوية (يرى مدرسته فقط)
+      - ''             لغير المُعتمَد / بلا عضوية ⇒ لا صفوف على الجداول المحميّة
+
+    [SEC-05] لا يوجد تجاوز على مستوى الطلب — ولا حتى للـ superuser. كان السياق '*'
+    يُعطّل العزل على كل الجداول دفعةً واحدة، وهو متغيّر جلسة يستطيع أي دور ضبطه
+    بلا صلاحية، فكان حقنُ جملةٍ ثانية كافياً لإلغاء العزل بالكامل. أُزيل التجاوز
+    في migration 0037. الـ superuser يُحلّ الآن عبر عضويته كأي مستخدم؛ ومن لا
+    عضوية له لا يرى صفوفاً على الجداول المحميّة.
 
     يُضبط بـ is_local=False ليدوم عبر كل استعلامات الطلب دون الاعتماد على
     ATOMIC_REQUESTS، ويُعاد تعيينه في finally ويُضبط من جديد في بداية كل طلب
@@ -56,17 +61,27 @@ class RLSMiddleware:
                 logger.warning("RLS context reset failed: %s", e)
 
     def _context(self, request):
-        """يحسب قيمة السياق من المستخدم المُعتمَد."""
+        """
+        يحسب قيمة السياق من المستخدم المُعتمَد.
+
+        [SEC-05] لا استثناء للـ superuser — العضوية هي المصدر الوحيد للسياق.
+        """
         user = getattr(request, "user", None)
         if not (user and user.is_authenticated):
             return ""
-        if user.is_superuser:
-            return "*"
         try:
             school = user.get_school()
         except AttributeError:
             return ""
-        return str(school.pk) if school else ""
+        if school:
+            return str(school.pk)
+        if user.is_superuser:
+            # تشخيص: superuser بلا عضوية لن يرى صفوفاً على الجداول المحميّة.
+            logger.warning(
+                "RLS: superuser id=%s بلا عضوية مدرسة — سياق فارغ (لا صفوف).",
+                user.pk,
+            )
+        return ""
 
     def _apply(self, value):
         """
