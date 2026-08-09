@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from django.core.management.base import CommandError
 
+from core.management.commands import provision_rls_role as provision_role
 from core.management.commands import verify_runtime_db_role as runtime_role
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -219,3 +220,105 @@ def test_runtime_role_critical_relation_is_schema_qualified():
     )
 
     assert "[CRITICAL_RLS_RELATION]" in source
+
+
+class ProvisionCursor:
+    def __init__(self, role_exists):
+        self.role_exists = role_exists
+        self.calls = []
+        self.fetchone_count = 0
+
+    def execute(self, sql, params=None):
+        self.calls.append(
+            (
+                " ".join(sql.split()),
+                params,
+            )
+        )
+
+    def fetchone(self):
+        self.fetchone_count += 1
+
+        if self.fetchone_count == 1:
+            return (1,) if self.role_exists else None
+
+        if self.fetchone_count == 2:
+            return (
+                False,
+                False,
+                True,
+                False,
+            )
+
+        raise AssertionError("unexpected fetchone call")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(
+        self,
+        exc_type,
+        exc,
+        tb,
+    ):
+        return False
+
+
+class ProvisionConnection:
+    vendor = "postgresql"
+    settings_dict = {
+        "NAME": "school_test",
+    }
+
+    def __init__(self, role_exists):
+        self.cursor_instance = ProvisionCursor(role_exists)
+
+    def cursor(self):
+        return self.cursor_instance
+
+
+@pytest.mark.parametrize(
+    ("role_exists", "expected_sql"),
+    [
+        (
+            True,
+            ("ALTER ROLE shschool_app WITH LOGIN PASSWORD %s " "NOSUPERUSER NOBYPASSRLS NOINHERIT"),
+        ),
+        (
+            False,
+            (
+                "CREATE ROLE shschool_app LOGIN PASSWORD %s "
+                "NOSUPERUSER NOBYPASSRLS NOINHERIT "
+                "NOCREATEDB NOCREATEROLE"
+            ),
+        ),
+    ],
+)
+def test_provision_rls_role_enforces_noinherit(
+    monkeypatch,
+    role_exists,
+    expected_sql,
+):
+    connection = ProvisionConnection(role_exists)
+
+    monkeypatch.setattr(
+        provision_role,
+        "connection",
+        connection,
+    )
+
+    monkeypatch.setenv(
+        "APP_DB_PASSWORD",
+        "test-only-password",
+    )
+
+    provision_role.Command().handle()
+
+    executed_sql = [sql for sql, _params in connection.cursor_instance.calls]
+
+    assert expected_sql in executed_sql
+
+    role_check_sql = [sql for sql in executed_sql if "SELECT rolsuper" in sql]
+
+    assert len(role_check_sql) == 1
+    assert "rolinherit" in role_check_sql[0]
