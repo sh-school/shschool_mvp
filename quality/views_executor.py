@@ -2,6 +2,8 @@
 quality/views_executor.py — ربط المنفذين بالإجراءات
 """
 
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -22,7 +24,8 @@ _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
 
 def _executor_mapping_redirect(request, year):
     """Return only a same-host executor-mapping redirect."""
-    target = f"{reverse('executor_mapping')}?year={year}"
+    query = urlencode({"year": year})
+    target = f"{reverse('executor_mapping')}?{query}"
 
     if url_has_allowed_host_and_scheme(
         target,

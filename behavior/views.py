@@ -6,6 +6,7 @@ Views نحيفة — كل Business Logic في behavior/services.py
 """
 
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -40,10 +41,13 @@ def _behavior_report_redirect(
     period,
 ):
     """Return only a same-host behavior-report redirect."""
-    target = (
-        f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}"
-        f"?year={year}&period={period}"
+    query = urlencode(
+        {
+            "year": year,
+            "period": period,
+        }
     )
+    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}" f"?{query}"
 
     if url_has_allowed_host_and_scheme(
         target,

@@ -2,6 +2,8 @@
 quality/views_committee.py — لجنة المراجعة الذاتية + لجنة المنفذين
 """
 
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -31,7 +33,8 @@ def _committee_redirect(request, committee_type, year):
         if committee_type == QualityCommitteeMember.EXECUTOR
         else "quality_committee"
     )
-    target = f"{reverse(url_name)}?year={year}"
+    query = urlencode({"year": year})
+    target = f"{reverse(url_name)}?{query}"
 
     if url_has_allowed_host_and_scheme(
         target,
