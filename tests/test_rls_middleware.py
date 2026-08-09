@@ -3,10 +3,11 @@ tests/test_rls_middleware.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 اختبارات PostgreSQL Row-Level Security Middleware.
 
-العقد الجديد (0033): _context(request) يُعيد
-  - '*'           للـ superuser
-  - str(school.pk) للمستخدم العادي
-  - ''             لغير المُعتمَد / بلا مدرسة (fail-closed)
+العقد الحالي (0037): _context(request) يُعيد
+  - str(school.pk) لكل مستخدم مُعتمَد له عضوية — بما فيهم الـ superuser
+  - ''             لغير المُعتمَد / بلا عضوية (fail-closed)
+
+أُزيل التجاوز '*' لأنه كان متغيّر جلسة يستطيع أي دور ضبطه بلا صلاحية.
 """
 
 import pytest
@@ -36,14 +37,29 @@ class TestRLSMiddleware:
 
         assert middleware._context(request) == str(school.pk)
 
-    def test_context_for_superuser_is_wildcard(self, principal_user):
-        """الـ superuser ⇒ السياق = '*' (يرى كل المدارس)."""
+    def test_context_for_superuser_is_own_school(self, principal_user, school):
+        """[SEC-05] الـ superuser يُحلّ عبر عضويته — لا تجاوز '*'."""
         principal_user.is_superuser = True
         middleware = RLSMiddleware(get_response=lambda r: None)
         request = RequestFactory().get("/dashboard/")
         request.user = principal_user
 
-        assert middleware._context(request) == "*"
+        context = middleware._context(request)
+
+        assert context == str(school.pk)
+        assert context != "*"
+
+    def test_context_never_returns_wildcard_without_membership(self, principal_user):
+        """[SEC-05] superuser بلا عضوية ⇒ '' (fail-closed) لا '*'."""
+        principal_user.is_superuser = True
+        principal_user.memberships.update(is_active=False)
+        # العضوية مُخزَّنة مؤقتاً على النسخة (_active_membership) — يجب إبطالها.
+        principal_user.invalidate_active_membership()
+        middleware = RLSMiddleware(get_response=lambda r: None)
+        request = RequestFactory().get("/dashboard/")
+        request.user = principal_user
+
+        assert middleware._context(request) == ""
 
     def test_context_empty_for_anonymous(self):
         """المستخدم المجهول ⇒ '' (fail-closed)."""
@@ -67,6 +83,10 @@ class TestRLSSchema:
     EXCLUDED_BOOTSTRAP_TABLES = {
         "core_membership",
         "core_role",
+        # [SEC-07] جدول ربط الدور بالمدرسة: يحمل school_id لكنه بنية تمهيدية.
+        # سياسة عليه تستدعي app_rls_school() التي تقرأه ⇒ تكرار لانهائي
+        # (stack depth limit exceeded). يُحمى بالمنح لا بـRLS.
+        "app_rls_role_school",
     }
 
     def test_every_school_scoped_table_has_canonical_rls(self):
@@ -141,3 +161,90 @@ class TestRLSSchema:
         ]
 
         assert invalid_policies == []
+
+    def test_no_policy_references_the_wildcard_bypass(self):
+        """[SEC-07] لا سياسة تستدعي app_rls_bypass — التجاوز أُزيل (0037)."""
+        if connection.vendor != "postgresql":
+            pytest.skip("PostgreSQL-specific RLS schema contract")
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT tablename
+                FROM pg_policies
+                WHERE schemaname = 'public'
+                  AND policyname = 'school_isolation'
+                  AND (
+                      coalesce(qual, '') LIKE '%%app_rls_bypass%%'
+                      OR coalesce(with_check, '') LIKE '%%app_rls_bypass%%'
+                  )
+                ORDER BY tablename
+                """
+            )
+            tables_with_bypass = [row[0] for row in cursor.fetchall()]
+
+        assert tables_with_bypass == []
+
+    def test_tenant_identity_ignores_the_session_guc(self):
+        """[SEC-07] السياق لم يعد جزءاً من قرار RLS — الهوية من دور الاتصال."""
+        if connection.vendor != "postgresql":
+            pytest.skip("PostgreSQL-specific RLS schema contract")
+
+        with connection.cursor() as cursor:
+            # try/finally: لو فشل استعلام في المنتصف لبقي السياق مضبوطاً على
+            # بقيّة عمليات نفس الاتصال، فيتسرّب إلى اختبارات لاحقة.
+            try:
+                cursor.execute("SELECT set_config('app.current_school_id', '*', true)")
+                cursor.execute("SELECT app_rls_bypass(), app_rls_school()")
+                wildcard_bypass, wildcard_school = cursor.fetchone()
+
+                cursor.execute(
+                    "SELECT set_config('app.current_school_id', %s, true)",
+                    ["11111111-1111-1111-1111-111111111111"],
+                )
+                cursor.execute("SELECT app_rls_school()")
+                spoofed_school = cursor.fetchone()[0]
+            finally:
+                cursor.execute("SELECT set_config('app.current_school_id', '', true)")
+
+        # التجاوز ميّت، والمدرسة لا تتغيّر بتغيّر المتغيّر مهما كانت قيمته.
+        assert wildcard_bypass is False
+        assert wildcard_school == spoofed_school
+
+    def test_tenant_identity_is_derived_from_session_user(self):
+        """[SEC-07] app_rls_school تقرأ session_user لا متغيّر الجلسة."""
+        if connection.vendor != "postgresql":
+            pytest.skip("PostgreSQL-specific RLS schema contract")
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT pg_get_functiondef(oid)
+                FROM pg_proc
+                WHERE proname = 'app_rls_school'
+                """
+            )
+            definition = cursor.fetchone()[0]
+
+        assert "session_user" in definition
+        assert "app_rls_role_school" in definition
+        assert "current_setting" not in definition
+
+    def test_mapping_table_is_not_writable_by_a_non_owner(self):
+        """[SEC-07] لا أحد عبر PUBLIC يُعيد كتابة هوية المستأجر."""
+        if connection.vendor != "postgresql":
+            pytest.skip("PostgreSQL-specific RLS schema contract")
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    has_table_privilege('public', 'public.app_rls_role_school', 'INSERT'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'UPDATE'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'DELETE'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'TRUNCATE')
+                """
+            )
+            write_privileges = cursor.fetchone()
+
+        assert not any(write_privileges)

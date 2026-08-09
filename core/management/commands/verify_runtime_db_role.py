@@ -1,7 +1,7 @@
 """Fail-closed verification for the production runtime database role."""
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
+from django.db import DatabaseError, connection
 
 EXPECTED_ROLE = "shschool_app"
 CRITICAL_RLS_TABLE = "operations_session"
@@ -57,6 +57,46 @@ class Command(BaseCommand):
             cursor.execute("SELECT current_setting(" "'app.current_school_id', true)")
             context_row = cursor.fetchone()
             rls_context = context_row[0] if context_row else None
+
+            # [SEC-07] هوية المستأجر تُشتق من دور الاتصال. غياب الربط يعني أن
+            # السياسات تُقيّم على NULL فلا يرى العامل شيئاً — نرفض بدل العمل أعمى.
+            #
+            # كل الأسماء مؤهَّلة بـpublic: هذا فحص إقلاع لضابط أمني، فلا يجوز
+            # أن يعتمد على search_path الذي قد يُظلّل الجدول بآخر يحمل الاسم نفسه.
+            # وأي فشل هنا (جدول مفقود، ترحيل ناقص، صلاحية مقطوعة) يُترجَم إلى
+            # CommandError صريح بدل استثناء قاعدة بيانات خام.
+            try:
+                cursor.execute("SELECT public.app_rls_school() IS NOT NULL")
+                tenant_bound = cursor.fetchone()[0]
+
+                # الدور الخاضع للسياسة يجب ألّا يملك تعديل الجدول الذي يحدّد هويته.
+                cursor.execute(
+                    """
+                    SELECT
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'INSERT'
+                        ),
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'UPDATE'
+                        ),
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'DELETE'
+                        ),
+                        -- TRUNCATE يمسح الربط كاملاً: app_rls_school() تُرجع NULL
+                        -- لكل دور، فينهار العزل إلى «لا صفوف» — تعطيل خدمة، وهو
+                        -- تعديل لهوية المستأجر بقدر UPDATE. provision يسحبها،
+                        -- فيجب أن يقرأها الفاحص وإلا فُرض ما لا يُتحقَّق منه.
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'TRUNCATE'
+                        )
+                    """
+                )
+                mapping_writable = any(cursor.fetchone())
+            except DatabaseError as exc:
+                raise CommandError(
+                    "Tenant mapping public.app_rls_role_school is unreadable "
+                    f"({type(exc).__name__}); migration 0037 may not be applied."
+                ) from exc
 
             cursor.execute(
                 """
@@ -165,6 +205,18 @@ class Command(BaseCommand):
         if rls_context not in (None, ""):
             raise CommandError("Worker startup inherited a non-empty " "tenant RLS context.")
 
+        if not tenant_bound:
+            raise CommandError(
+                "Runtime DB role has no tenant binding in app_rls_role_school; "
+                "every school-scoped policy would evaluate against NULL."
+            )
+
+        if mapping_writable:
+            raise CommandError(
+                "Runtime DB role can modify app_rls_role_school — it could "
+                "rewrite its own tenant identity."
+            )
+
         self.stdout.write(
             self.style.SUCCESS(
                 "runtime DB role verified: "
@@ -175,6 +227,8 @@ class Command(BaseCommand):
                 "memberships=0 schema_create=false "
                 "rls=enabled "
                 "policy=school_isolation "
-                "context=unset"
+                "context=unset "
+                "tenant_binding=db_role "
+                "mapping_writable=false"
             )
         )

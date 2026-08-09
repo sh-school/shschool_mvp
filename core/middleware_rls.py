@@ -2,7 +2,9 @@
 core/middleware_rls.py
 ━━━━━━━━━━━━━━━━━━━━━
 PostgreSQL Row-Level Security Middleware.
-يضبط متغير الاتصال app.current_school_id لتفعيل سياسات RLS (fail-closed).
+يضبط متغير الاتصال app.current_school_id لكل طلب (fail-closed).
+[SEC-07] المتغيّر بيانات وصفية للتطبيق — هوية المستأجر في RLS تأتي من دور
+الاتصال منذ migration 0037، لا من هذا المتغيّر.
 """
 
 import logging
@@ -15,12 +17,24 @@ logger = logging.getLogger("core")
 
 class RLSMiddleware:
     """
-    يضبط app.current_school_id على اتصال PostgreSQL لكل طلب لتفعيل سياسات RLS.
+    يضبط app.current_school_id على اتصال PostgreSQL لكل طلب — **كبيانات وصفية
+    للتطبيق، لا كمصدر لهوية المستأجر**.
+
+    [SEC-07] هذا المتغيّر لم يعد جزءاً من قرار RLS الأمني. منذ migration 0037
+    تشتقّ سياسات school_isolation الهوية من دور الاتصال:
+        app_rls_school() ← app_rls_role_school ← session_user
+    أي من اعتماد قاعدة البيانات، وهو ما لا يستطيع الـSQL المحقون تغييره.
+
+    السبب: المتغيّرات المخصّصة يضبطها أي دور بلا صلاحية، فكان الطرف الذي تحكمه
+    السياسة هو من يُعرّف هويته فيها. قياساً على مخطّط التطوير بدور shschool_app،
+    كان ضبط UUID مدرسة أخرى يكشف صفوفها كاملةً.
 
     القيمة المضبوطة:
-      - '*'           للـ superuser (يرى كل المدارس — تجاوز منضبط)
-      - <school_uuid>  للمستخدم العادي (يرى مدرسته فقط)
-      - ''             لغير المُعتمَد / بلا مدرسة ⇒ لا صفوف على الجداول المحميّة
+      - <school_uuid>  لكل مستخدم مُعتمَد له عضوية
+      - ''             لغير المُعتمَد / بلا عضوية
+
+    ولا يوجد تجاوز على مستوى الطلب — ولا حتى للـ superuser: يُحلّ عبر عضويته
+    كأي مستخدم، ومن لا عضوية له لا يرى صفوفاً على الجداول المحميّة.
 
     يُضبط بـ is_local=False ليدوم عبر كل استعلامات الطلب دون الاعتماد على
     ATOMIC_REQUESTS، ويُعاد تعيينه في finally ويُضبط من جديد في بداية كل طلب
@@ -56,17 +70,27 @@ class RLSMiddleware:
                 logger.warning("RLS context reset failed: %s", e)
 
     def _context(self, request):
-        """يحسب قيمة السياق من المستخدم المُعتمَد."""
+        """
+        يحسب قيمة السياق من المستخدم المُعتمَد.
+
+        [SEC-05] لا استثناء للـ superuser — العضوية هي المصدر الوحيد للسياق.
+        """
         user = getattr(request, "user", None)
         if not (user and user.is_authenticated):
             return ""
-        if user.is_superuser:
-            return "*"
         try:
             school = user.get_school()
         except AttributeError:
             return ""
-        return str(school.pk) if school else ""
+        if school:
+            return str(school.pk)
+        if user.is_superuser:
+            # تشخيص: superuser بلا عضوية لن يرى صفوفاً على الجداول المحميّة.
+            logger.warning(
+                "RLS: superuser id=%s بلا عضوية مدرسة — سياق فارغ (لا صفوف).",
+                user.pk,
+            )
+        return ""
 
     def _apply(self, value):
         """
