@@ -59,6 +59,14 @@ class Command(BaseCommand):
             # الصلاحيات (idempotent — GRANT لا يفشل عند التكرار)
             cur.execute(f"GRANT CONNECT ON DATABASE {dbname_quoted} TO {ROLE}")
             cur.execute(f"GRANT USAGE ON SCHEMA public TO {ROLE}")
+            # [SEC-06] لا CREATE على المخطّط: أي جدول يُنشئه الدور يملكه، والمالك
+            # يتجاوز RLS على جداوله. PostgreSQL 15+ يُلغيها افتراضياً — نؤكّدها
+            # صراحةً لتغطية القواعد المُرقّاة من إصدارات أقدم.
+            # السحب من الدور وحده لا يكفي: المنحة القديمة كانت لـPUBLIC ويرثها كل
+            # دور ضمناً، وhas_schema_privilege يحتسبها — فيرفض الفاحص الإقلاع بلا
+            # سبيل للشفاء الذاتي ما لم تُسحب من PUBLIC أيضاً.
+            cur.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
+            cur.execute(f"REVOKE CREATE ON SCHEMA public FROM {ROLE}")
             cur.execute(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {ROLE}"
             )
@@ -75,15 +83,36 @@ class Command(BaseCommand):
             )
 
             cur.execute(
-                "SELECT rolsuper, rolbypassrls, rolcanlogin, rolinherit "
+                "SELECT rolsuper, rolbypassrls, rolcanlogin, rolinherit, "
+                "rolcreatedb, rolcreaterole "
                 "FROM pg_roles WHERE rolname = %s",
                 [ROLE],
             )
-            su, bypass, login, inherit = cur.fetchone()
+            su, bypass, login, inherit, createdb, createrole = cur.fetchone()
+
+            # [SEC-06] العضوية في دور آخر تفتح SET ROLE رغم NOINHERIT — نرصدها
+            # ولا نُلغيها تلقائياً حتى لا نكسر منحاً مقصوداً بلا علم المشغّل.
+            # pg_has_role يحلّ الرسم البياني للعضوية تعدّياً — عدّ pg_auth_members
+            # المباشر يُفوّت السلسلة: الدور ← وسيط ← دور مميّز.
+            cur.execute(
+                "SELECT COUNT(*) FROM pg_roles AS r "
+                "WHERE r.rolname <> %s AND pg_has_role(%s, r.oid, 'MEMBER')",
+                [ROLE, ROLE],
+            )
+            memberships = cur.fetchone()[0]
+
+        if memberships:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"⚠ {ROLE} عضو في {memberships} دور — SET ROLE ممكن رغم NOINHERIT. "
+                    f"راجعها: verify_runtime_db_role سيرفض الإقلاع."
+                )
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"✓ {ROLE} {action} | super={su} bypassrls={bypass} "
-                f"login={login} inherit={inherit} (db={dbname})"
+                f"login={login} inherit={inherit} createdb={createdb} "
+                f"createrole={createrole} memberships={memberships} (db={dbname})"
             )
         )
