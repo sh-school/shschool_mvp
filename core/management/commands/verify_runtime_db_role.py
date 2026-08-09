@@ -26,12 +26,34 @@ class Command(BaseCommand):
                     rolsuper,
                     rolbypassrls,
                     rolcanlogin,
-                    rolinherit
+                    rolinherit,
+                    rolcreatedb,
+                    rolcreaterole
                 FROM pg_roles
                 WHERE rolname = current_user
                 """
             )
             role_flags = cursor.fetchone()
+
+            # NOINHERIT blocks automatic inheritance but never blocks SET ROLE,
+            # so any membership in a privileged role is still an escalation path.
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM pg_auth_members AS m
+                WHERE m.member = (
+                    SELECT oid
+                    FROM pg_roles
+                    WHERE rolname = current_user
+                )
+                """
+            )
+            role_memberships = cursor.fetchone()[0]
+
+            # CREATE on schema public would let the runtime role create tables it
+            # owns, and an owner bypasses RLS on its own tables.
+            cursor.execute("SELECT has_schema_privilege(current_user, 'public', 'CREATE')")
+            can_create_in_public = cursor.fetchone()[0]
 
             cursor.execute("SELECT current_setting(" "'app.current_school_id', true)")
             context_row = cursor.fetchone()
@@ -87,6 +109,8 @@ class Command(BaseCommand):
             bypass_rls,
             can_login,
             inherit,
+            create_db,
+            create_role,
         ) = role_flags
 
         if role != EXPECTED_ROLE:
@@ -105,6 +129,24 @@ class Command(BaseCommand):
 
         if inherit:
             raise CommandError("Unsafe runtime DB role: inherit=true.")
+
+        if create_db:
+            raise CommandError("Unsafe runtime DB role: createdb=true.")
+
+        if create_role:
+            raise CommandError("Unsafe runtime DB role: createrole=true.")
+
+        if role_memberships:
+            raise CommandError(
+                "Unsafe runtime DB role holds role memberships: "
+                f"{role_memberships} (SET ROLE escalation path)."
+            )
+
+        if can_create_in_public:
+            raise CommandError(
+                "Unsafe runtime DB role has CREATE on schema public "
+                "(could own tables and bypass RLS)."
+            )
 
         if owned_public_tables:
             raise CommandError(
@@ -130,6 +172,8 @@ class Command(BaseCommand):
                 "role=shschool_app "
                 "super=false bypassrls=false "
                 "inherit=false owned_tables=0 "
+                "createdb=false createrole=false "
+                "memberships=0 schema_create=false "
                 "rls=enabled "
                 "policy=school_isolation "
                 "context=unset"
