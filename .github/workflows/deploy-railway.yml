@@ -303,16 +303,30 @@ jobs:
               `**Result**: the new commit did not become live.`,
             ].join('\n');
 
-            // listForRepo يُرجع الـPRs أيضاً — GitHub يعامل الـPR كقضية. الترشيح
-            // على .pull_request يمنع التعليق على PR يحمل الوسم بالخطأ.
+            // ملكية القضية تُحسم بثلاثة شروط معاً:
+            //   - ليست PR (GitHub يعامل الـPR كقضية في listForRepo)
+            //   - أنشأها github-actions[bot] تحديداً، لا أي بوت
+            //   - عنوانها يحمل بادئة النشر الآلي
+            // قضية فتحها إنسان ووسمها يدوياً ليست ملكاً لهذا الـworkflow:
+            // التعليق عليها ضجيج، وخطوة الإغلاق لن تمسّها فتبقى مفتوحة أبداً.
+            const isAutomatedDeployIssue = (item) =>
+              !item.pull_request &&
+              item.user &&
+              item.user.login === 'github-actions[bot]' &&
+              typeof item.title === 'string' &&
+              item.title.startsWith('🔴 DEPLOY FAILED');
+
+            // sort=updated يضمن أن أول عنصر هو الأحدث لا الأقدم.
             const candidates = await github.rest.issues.listForRepo({
               ...context.repo,
               state: 'open',
               labels: 'deploy-failure',
+              sort: 'updated',
+              direction: 'desc',
               per_page: 100,
             });
 
-            const existing = candidates.data.filter((i) => !i.pull_request);
+            const existing = candidates.data.filter(isAutomatedDeployIssue);
 
             if (existing.length > 0) {
               const number = existing[0].number;
@@ -359,13 +373,21 @@ jobs:
               ...context.repo,
               state: 'open',
               labels: 'deploy-failure',
+              sort: 'updated',
+              direction: 'desc',
               per_page: 100,
             });
 
-            // يُغلَق فقط ما أنشأه النشر الآلي: لا PRs، ولا قضايا فتحها إنسان
-            // ووسمها يدوياً — إغلاقها نيابةً عنه يُفقد سياقاً لا يملكه الـworkflow.
+            // نفس شروط الملكية في خطوة الفتح — يجب أن تتطابق الخطوتان تماماً،
+            // وإلا فتحت إحداهما قضية لا تُغلقها الأخرى. user.type === 'Bot'
+            // وحده كان يشمل بوتات أخرى لا علاقة لها بهذا النشر.
             const automated = open.data.filter(
-              (i) => !i.pull_request && i.user && i.user.type === 'Bot',
+              (i) =>
+                !i.pull_request &&
+                i.user &&
+                i.user.login === 'github-actions[bot]' &&
+                typeof i.title === 'string' &&
+                i.title.startsWith('🔴 DEPLOY FAILED'),
             );
 
             for (const issue of automated) {
