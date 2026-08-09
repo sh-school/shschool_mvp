@@ -2,7 +2,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 .env
-.env.example
 *.egg-info/
 .venv/
 venv/
@@ -22,6 +21,10 @@ htmlcov/
 .testmondata
 .testmondata-journal
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# ذاكرة pip المؤقتة — كانت مُودَعة (276 ملفاً ≈ 49MB) وتضخّم كل استنساخ
+.cache/
 
 # بيانات حقيقية — يُمنع رفعها
 data/

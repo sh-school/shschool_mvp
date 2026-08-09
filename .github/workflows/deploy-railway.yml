@@ -287,36 +287,90 @@ jobs:
           fi
 
       # ── v5.5: Automated rollback notification ──
-      - name: "Rollback: Create urgent issue if canary failed"
+      # v5.7: idempotent — يُعلّق على القضية المفتوحة بدل فتح واحدة لكل فشل.
+      # كل فشل كان يفتح قضية جديدة، فتراكمت عشر قضايا لحادث واحد متكرّر
+      # وأغرقت لوحة القضايا حتى صار الحقيقي منها غير مرئي.
+      - name: "Rollback: Open or update the deploy-failure issue"
         if: steps.canary.outputs.canary_passed == 'false'
         uses: actions/github-script@v7
         with:
           script: |
-            await github.rest.issues.create({
+            const detail = [
+              `**Commit**: \`${context.sha}\``,
+              `**Time**: ${new Date().toISOString()}`,
+              `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Health endpoint**: \`${{ env.PRODUCTION_URL }}/health/\``,
+              `**Result**: the new commit did not become live.`,
+            ].join('\n');
+
+            const existing = await github.rest.issues.listForRepo({
               ...context.repo,
-              title: `🔴 DEPLOY FAILED: ${context.sha.substring(0, 7)} — canary health check failed`,
-              body: [
-                `## Deployment Failure — Automated Alert`,
-                ``,
-                `**Commit**: \`${context.sha}\``,
-                `**Time**: ${new Date().toISOString()}`,
-                `**Health endpoint**: \`${{ env.PRODUCTION_URL }}/health/\``,
-                `**Result**: New commit did not become live (production still on previous version, or deploy failed)`,
-                ``,
-                `### Action Required`,
-                `1. Check Railway dashboard for build/deploy errors`,
-                `2. Review Railway deploy logs`,
-                `3. If needed, rollback in Railway dashboard → Deployments → previous deploy → Rollback`,
-                ``,
-                `### Possible Causes`,
-                `- Migration failure`,
-                `- Missing environment variable`,
-                `- Import error in new code`,
-                `- Railway build timeout`,
-              ].join('\n'),
-              labels: ['bug', 'urgent', 'deploy-failure'],
+              state: 'open',
+              labels: 'deploy-failure',
+              per_page: 1,
             });
-            core.setFailed('Canary health check failed — rollback issue created');
+
+            if (existing.data.length > 0) {
+              const number = existing.data[0].number;
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: number,
+                body: `### فشل نشر إضافي\n\n${detail}`,
+              });
+              core.setFailed(`Canary health check failed — appended to issue #${number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: '🔴 DEPLOY FAILED — canary health check failing',
+                body: [
+                  `## Deployment Failure — Automated Alert`,
+                  ``,
+                  detail,
+                  ``,
+                  `تُحدَّث هذه القضية عند كل فشل لاحق، وتُغلق تلقائياً عند أول نشر ناجح.`,
+                  ``,
+                  `### Action Required`,
+                  `1. Check Railway dashboard for build/deploy errors`,
+                  `2. Review Railway deploy logs`,
+                  `3. If needed, rollback in Railway dashboard → Deployments → previous deploy → Rollback`,
+                  ``,
+                  `### Possible Causes`,
+                  `- Migration failure`,
+                  `- Missing environment variable`,
+                  `- Import error in new code`,
+                  `- Railway build timeout`,
+                ].join('\n'),
+                labels: ['bug', 'urgent', 'deploy-failure'],
+              });
+              core.setFailed(`Canary health check failed — opened issue #${created.data.number}`);
+            }
+
+      # v5.7: نشر ناجح ⇒ إغلاق أي قضية فشل مفتوحة (شفاء ذاتي).
+      - name: "Rollback: Close stale deploy-failure issues"
+        if: steps.canary.outputs.canary_passed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo,
+              state: 'open',
+              labels: 'deploy-failure',
+              per_page: 100,
+            });
+
+            for (const issue of open.data) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: `تم نشر \`${context.sha.substring(0, 7)}\` بنجاح واجتاز فحص canary — تُغلق تلقائياً.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
 
       - name: Create GitHub deployment status
         if: steps.canary.outputs.canary_passed == 'true'
