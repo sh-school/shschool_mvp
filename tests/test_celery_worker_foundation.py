@@ -240,7 +240,7 @@ class ProvisionCursor:
         self.fetchone_count += 1
 
         if self.fetchone_count == 1:
-            return (1,) if self.role_exists else None
+            return (1, None, None, None) if self.role_exists else None
 
         if self.fetchone_count == 2:
             return (
@@ -282,7 +282,11 @@ class ProvisionConnection:
     [
         (
             True,
-            ("ALTER ROLE shschool_app WITH LOGIN PASSWORD %s " "NOSUPERUSER NOBYPASSRLS NOINHERIT"),
+            (
+                "ALTER ROLE shschool_app WITH LOGIN PASSWORD %s "
+                "NOSUPERUSER NOBYPASSRLS NOINHERIT "
+                "NOCREATEDB NOCREATEROLE"
+            ),
         ),
         (
             False,

@@ -43,7 +43,8 @@ class Command(BaseCommand):
             if exists:
                 cur.execute(
                     f"ALTER ROLE {ROLE} WITH LOGIN PASSWORD %s "
-                    f"NOSUPERUSER NOBYPASSRLS NOINHERIT",
+                    f"NOSUPERUSER NOBYPASSRLS NOINHERIT "
+                    f"NOCREATEDB NOCREATEROLE",
                     [pw],
                 )
                 action = "updated"
