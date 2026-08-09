@@ -13,6 +13,7 @@ superuser ولا BYPASSRLS. المالك يبقى للترحيل (DDL، يتجا
 """
 
 import os
+import uuid
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
@@ -148,18 +149,30 @@ class Command(BaseCommand):
         """
         configured = os.environ.get("APP_DB_ROLE_SCHOOL_ID", "").strip()
         if configured:
+            # التحقّق من الشكل أولاً: تمرير قيمة ليست UUID إلى المقارنة يرفع
+            # DataError خاماً من المحرّك بدل رسالة تشرح ما الخطأ في الإعداد.
+            try:
+                uuid.UUID(configured)
+            except ValueError as exc:
+                raise CommandError(f"APP_DB_ROLE_SCHOOL_ID={configured!r} ليس UUID صالحاً.") from exc
+
             cur.execute("SELECT 1 FROM core_school WHERE id = %s", [configured])
             if cur.fetchone() is None:
                 raise CommandError(f"APP_DB_ROLE_SCHOOL_ID={configured!r} لا يطابق أي مدرسة.")
             return configured
 
-        cur.execute("SELECT id FROM core_school")
+        # LIMIT 2 يكفي للتمييز بين «واحدة» و«أكثر من واحدة» — لا داعي لجلب
+        # كل الصفوف لسؤال ثنائي.
+        cur.execute("SELECT id FROM core_school LIMIT 2")
         schools = cur.fetchall()
 
         if len(schools) == 1:
             return str(schools[0][0])
 
+        if not schools:
+            raise CommandError("لا توجد مدارس — لا يمكن ربط دور التشغيل بمستأجر.")
+
         raise CommandError(
-            f"عدد المدارس = {len(schools)} — لا يمكن استنتاج مدرسة الدور. "
-            f"اضبط APP_DB_ROLE_SCHOOL_ID صراحةً."
+            "أكثر من مدرسة واحدة — لا يمكن استنتاج مدرسة الدور. "
+            "اضبط APP_DB_ROLE_SCHOOL_ID صراحةً."
         )
