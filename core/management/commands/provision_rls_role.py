@@ -82,6 +82,25 @@ class Command(BaseCommand):
                 f"GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {ROLE}"
             )
 
+            # ── [SEC-07] هوية المستأجر تأتي من دور الاتصال ─────────────
+            # المنح الشاملة أعلاه تشمل جدول الربط، أي أن الدور كان سيستطيع
+            # إعادة كتابة هويته — نفس الثغرة في موضع جديد. يجب أن يأتي السحب
+            # **بعد** المنح الشاملة، وإلا أعادها الإطلاق التالي.
+            cur.execute(
+                "REVOKE INSERT, UPDATE, DELETE, TRUNCATE " f"ON app_rls_role_school FROM {ROLE}"
+            )
+            cur.execute(
+                "REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON app_rls_role_school FROM PUBLIC"
+            )
+            cur.execute(f"GRANT SELECT ON app_rls_role_school TO {ROLE}")
+
+            school_id = self._resolve_school_id(cur)
+            cur.execute(
+                "INSERT INTO app_rls_role_school (db_role, school_id) VALUES (%s, %s) "
+                "ON CONFLICT (db_role) DO UPDATE SET school_id = EXCLUDED.school_id",
+                [ROLE, school_id],
+            )
+
             cur.execute(
                 "SELECT rolsuper, rolbypassrls, rolcanlogin, rolinherit, "
                 "rolcreatedb, rolcreaterole "
@@ -113,6 +132,34 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"✓ {ROLE} {action} | super={su} bypassrls={bypass} "
                 f"login={login} inherit={inherit} createdb={createdb} "
-                f"createrole={createrole} memberships={memberships} (db={dbname})"
+                f"createrole={createrole} memberships={memberships} "
+                f"tenant_binding=db_role (db={dbname})"
             )
+        )
+
+    def _resolve_school_id(self, cur):
+        """
+        [SEC-07] يحدّد المدرسة المربوطة بدور التشغيل — fail-closed.
+
+        المصدر الصريح APP_DB_ROLE_SCHOOL_ID يسبق أي استنتاج. بدونه نقبل
+        الاستنتاج فقط حين تكون هناك مدرسة واحدة لا لبس فيها؛ ومع أكثر من
+        مدرسة نرفض بدل أن نخمّن — تخمين خاطئ هنا يعني ربط الإنتاج بمستأجر
+        خاطئ، وهو أسوأ من رفض الإقلاع.
+        """
+        configured = os.environ.get("APP_DB_ROLE_SCHOOL_ID", "").strip()
+        if configured:
+            cur.execute("SELECT 1 FROM core_school WHERE id = %s", [configured])
+            if cur.fetchone() is None:
+                raise CommandError(f"APP_DB_ROLE_SCHOOL_ID={configured!r} لا يطابق أي مدرسة.")
+            return configured
+
+        cur.execute("SELECT id FROM core_school")
+        schools = cur.fetchall()
+
+        if len(schools) == 1:
+            return str(schools[0][0])
+
+        raise CommandError(
+            f"عدد المدارس = {len(schools)} — لا يمكن استنتاج مدرسة الدور. "
+            f"اضبط APP_DB_ROLE_SCHOOL_ID صراحةً."
         )

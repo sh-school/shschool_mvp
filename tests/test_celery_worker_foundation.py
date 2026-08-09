@@ -48,6 +48,8 @@ def runtime_rows(
     role_memberships=0,
     can_create_in_public=False,
     context=None,
+    tenant_bound=True,
+    mapping_writable=False,
     rls_enabled=True,
     policy_count=1,
     owned_public_tables=0,
@@ -66,6 +68,8 @@ def runtime_rows(
         (role_memberships,),
         (can_create_in_public,),
         (context,),
+        (tenant_bound,),
+        (mapping_writable, mapping_writable, mapping_writable),
         (rls_enabled,),
         (policy_count,),
         (owned_public_tables,),
@@ -165,6 +169,22 @@ def test_runtime_role_rejects_schema_create_privilege(monkeypatch):
         run_verifier(monkeypatch, can_create_in_public=True)
 
     assert "CREATE on schema public" in str(exc.value)
+
+
+def test_runtime_role_rejects_missing_tenant_binding(monkeypatch):
+    """[SEC-07] بلا ربط دور←مدرسة تُقيَّم كل سياسة على NULL — رفض لا عمل أعمى."""
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, tenant_bound=False)
+
+    assert "no tenant binding" in str(exc.value)
+
+
+def test_runtime_role_rejects_writable_mapping(monkeypatch):
+    """[SEC-07] القدرة على تعديل جدول الربط = إعادة كتابة الهوية."""
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, mapping_writable=True)
+
+    assert "rewrite its own tenant identity" in str(exc.value)
 
 
 def test_runtime_role_rejects_missing_table_rls(monkeypatch):
@@ -299,6 +319,10 @@ class ProvisionCursor:
 
         raise AssertionError("unexpected fetchone call")
 
+    def fetchall(self):
+        # [SEC-07] _resolve_school_id: مدرسة واحدة ⇒ استنتاج مقبول.
+        return [("11111111-1111-1111-1111-111111111111",)]
+
     def __enter__(self):
         return self
 
@@ -385,3 +409,13 @@ def test_provision_rls_role_enforces_noinherit(
     membership_sql = [sql for sql in executed_sql if "pg_has_role" in sql]
 
     assert len(membership_sql) == 1
+
+    # [SEC-07] السحب يجب أن يأتي بعد المنح الشاملة، وإلا أعادها الإطلاق التالي.
+    revoke_index = next(
+        i for i, sql in enumerate(executed_sql) if "REVOKE INSERT, UPDATE, DELETE, TRUNCATE" in sql
+    )
+    grant_all_index = next(
+        i for i, sql in enumerate(executed_sql) if "ON ALL TABLES IN SCHEMA public" in sql
+    )
+
+    assert revoke_index > grant_all_index

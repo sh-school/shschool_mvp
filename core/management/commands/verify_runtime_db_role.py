@@ -58,6 +58,28 @@ class Command(BaseCommand):
             context_row = cursor.fetchone()
             rls_context = context_row[0] if context_row else None
 
+            # [SEC-07] هوية المستأجر تُشتق من دور الاتصال. غياب الربط يعني أن
+            # السياسات تُقيّم على NULL فلا يرى العامل شيئاً — نرفض بدل العمل أعمى.
+            cursor.execute("SELECT app_rls_school() IS NOT NULL")
+            tenant_bound = cursor.fetchone()[0]
+
+            # الدور الخاضع للسياسة يجب ألّا يملك تعديل الجدول الذي يحدّد هويته.
+            cursor.execute(
+                """
+                SELECT
+                    has_table_privilege(
+                        current_user, 'app_rls_role_school', 'INSERT'
+                    ),
+                    has_table_privilege(
+                        current_user, 'app_rls_role_school', 'UPDATE'
+                    ),
+                    has_table_privilege(
+                        current_user, 'app_rls_role_school', 'DELETE'
+                    )
+                """
+            )
+            mapping_writable = any(cursor.fetchone())
+
             cursor.execute(
                 """
                 SELECT c.relrowsecurity
@@ -165,6 +187,18 @@ class Command(BaseCommand):
         if rls_context not in (None, ""):
             raise CommandError("Worker startup inherited a non-empty " "tenant RLS context.")
 
+        if not tenant_bound:
+            raise CommandError(
+                "Runtime DB role has no tenant binding in app_rls_role_school; "
+                "every school-scoped policy would evaluate against NULL."
+            )
+
+        if mapping_writable:
+            raise CommandError(
+                "Runtime DB role can modify app_rls_role_school — it could "
+                "rewrite its own tenant identity."
+            )
+
         self.stdout.write(
             self.style.SUCCESS(
                 "runtime DB role verified: "
@@ -175,6 +209,8 @@ class Command(BaseCommand):
                 "memberships=0 schema_create=false "
                 "rls=enabled "
                 "policy=school_isolation "
-                "context=unset"
+                "context=unset "
+                "tenant_binding=db_role "
+                "mapping_writable=false"
             )
         )
