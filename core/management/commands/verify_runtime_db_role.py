@@ -75,6 +75,13 @@ class Command(BaseCommand):
                     ),
                     has_table_privilege(
                         current_user, 'app_rls_role_school', 'DELETE'
+                    ),
+                    -- TRUNCATE يمسح الربط كاملاً: app_rls_school() تُرجع NULL
+                    -- لكل دور، فينهار العزل إلى «لا صفوف» — تعطيل خدمة، وهو
+                    -- تعديل لهوية المستأجر بقدر UPDATE. provision يسحبها،
+                    -- فيجب أن يقرأها الفاحص وإلا فُرض ما لا يُتحقَّق منه.
+                    has_table_privilege(
+                        current_user, 'app_rls_role_school', 'TRUNCATE'
                     )
                 """
             )

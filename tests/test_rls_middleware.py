@@ -241,9 +241,10 @@ class TestRLSSchema:
                 SELECT
                     has_table_privilege('public', 'app_rls_role_school', 'INSERT'),
                     has_table_privilege('public', 'app_rls_role_school', 'UPDATE'),
-                    has_table_privilege('public', 'app_rls_role_school', 'DELETE')
+                    has_table_privilege('public', 'app_rls_role_school', 'DELETE'),
+                    has_table_privilege('public', 'app_rls_role_school', 'TRUNCATE')
                 """
             )
-            insert_ok, update_ok, delete_ok = cursor.fetchone()
+            write_privileges = cursor.fetchone()
 
-        assert not any([insert_ok, update_ok, delete_ok])
+        assert not any(write_privileges)

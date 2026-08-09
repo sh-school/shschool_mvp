@@ -69,7 +69,7 @@ def runtime_rows(
         (can_create_in_public,),
         (context,),
         (tenant_bound,),
-        (mapping_writable, mapping_writable, mapping_writable),
+        (mapping_writable, mapping_writable, mapping_writable, mapping_writable),
         (rls_enabled,),
         (policy_count,),
         (owned_public_tables,),
