@@ -42,14 +42,16 @@ class Command(BaseCommand):
 
             if exists:
                 cur.execute(
-                    f"ALTER ROLE {ROLE} WITH LOGIN PASSWORD %s NOSUPERUSER NOBYPASSRLS",
+                    f"ALTER ROLE {ROLE} WITH LOGIN PASSWORD %s "
+                    f"NOSUPERUSER NOBYPASSRLS NOINHERIT "
+                    f"NOCREATEDB NOCREATEROLE",
                     [pw],
                 )
                 action = "updated"
             else:
                 cur.execute(
                     f"CREATE ROLE {ROLE} LOGIN PASSWORD %s "
-                    f"NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE",
+                    f"NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE",
                     [pw],
                 )
                 action = "created"
@@ -73,13 +75,15 @@ class Command(BaseCommand):
             )
 
             cur.execute(
-                "SELECT rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname = %s",
+                "SELECT rolsuper, rolbypassrls, rolcanlogin, rolinherit "
+                "FROM pg_roles WHERE rolname = %s",
                 [ROLE],
             )
-            su, bypass, login = cur.fetchone()
+            su, bypass, login, inherit = cur.fetchone()
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"✓ {ROLE} {action} | super={su} bypassrls={bypass} login={login} (db={dbname})"
+                f"✓ {ROLE} {action} | super={su} bypassrls={bypass} "
+                f"login={login} inherit={inherit} (db={dbname})"
             )
         )
