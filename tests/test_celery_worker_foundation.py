@@ -43,11 +43,16 @@ def runtime_rows(
     bypass_rls=False,
     can_login=True,
     inherit=False,
+    create_db=False,
+    create_role=False,
+    role_memberships=0,
+    can_create_in_public=False,
     context=None,
     rls_enabled=True,
     policy_count=1,
     owned_public_tables=0,
 ):
+    """صفوف المؤشّر بترتيب استعلامات verify_runtime_db_role تماماً."""
     return [
         (role,),
         (
@@ -55,7 +60,11 @@ def runtime_rows(
             bypass_rls,
             can_login,
             inherit,
+            create_db,
+            create_role,
         ),
+        (role_memberships,),
+        (can_create_in_public,),
         (context,),
         (rls_enabled,),
         (policy_count,),
@@ -126,6 +135,36 @@ def test_runtime_role_rejects_inheriting_role(monkeypatch):
         )
 
     assert "inherit=true" in str(exc.value)
+
+
+def test_runtime_role_rejects_createdb(monkeypatch):
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, create_db=True)
+
+    assert "createdb=true" in str(exc.value)
+
+
+def test_runtime_role_rejects_createrole(monkeypatch):
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, create_role=True)
+
+    assert "createrole=true" in str(exc.value)
+
+
+def test_runtime_role_rejects_role_memberships(monkeypatch):
+    """[SEC-06] NOINHERIT لا يمنع SET ROLE — العضوية مسار تصعيد."""
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, role_memberships=1)
+
+    assert "SET ROLE escalation path" in str(exc.value)
+
+
+def test_runtime_role_rejects_schema_create_privilege(monkeypatch):
+    """[SEC-06] CREATE على المخطّط ⇒ جداول يملكها الدور تتجاوز RLS."""
+    with pytest.raises(CommandError) as exc:
+        run_verifier(monkeypatch, can_create_in_public=True)
+
+    assert "CREATE on schema public" in str(exc.value)
 
 
 def test_runtime_role_rejects_missing_table_rls(monkeypatch):
@@ -239,16 +278,24 @@ class ProvisionCursor:
     def fetchone(self):
         self.fetchone_count += 1
 
+        # 1) هل الدور موجود؟
         if self.fetchone_count == 1:
             return (1, None, None, None) if self.role_exists else None
 
+        # 2) سمات الدور بعد التوفير (6 أعمدة)
         if self.fetchone_count == 2:
             return (
-                False,
-                False,
-                True,
-                False,
+                False,  # rolsuper
+                False,  # rolbypassrls
+                True,  # rolcanlogin
+                False,  # rolinherit
+                False,  # rolcreatedb
+                False,  # rolcreaterole
             )
+
+        # 3) عدد عضويات الدور
+        if self.fetchone_count == 3:
+            return (0,)
 
         raise AssertionError("unexpected fetchone call")
 
@@ -326,3 +373,14 @@ def test_provision_rls_role_enforces_noinherit(
 
     assert len(role_check_sql) == 1
     assert "rolinherit" in role_check_sql[0]
+    assert "rolcreatedb" in role_check_sql[0]
+    assert "rolcreaterole" in role_check_sql[0]
+
+    # [SEC-06] CREATE على المخطّط يُلغى صراحةً — قواعد مُرقّاة من إصدارات
+    # أقدم من PostgreSQL 15 تحتفظ بالمنحة القديمة لولا هذا السطر.
+    assert "REVOKE CREATE ON SCHEMA public FROM shschool_app" in executed_sql
+
+    # العضويات تُرصد ولا تُلغى تلقائياً — الفاحص هو من يرفض الإقلاع.
+    membership_sql = [sql for sql in executed_sql if "pg_auth_members" in sql]
+
+    assert len(membership_sql) == 1
