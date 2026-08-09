@@ -2,6 +2,8 @@
 quality/views_executor.py — ربط المنفذين بالإجراءات
 """
 
+from urllib.parse import urlencode
+
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,6 +11,7 @@ from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.models import CustomUser, Membership
@@ -17,6 +20,21 @@ from core.permissions import QUALITY_MANAGE, role_required
 from .models import ExecutorMapping, OperationalProcedure
 
 _DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+
+
+def _executor_mapping_redirect(request, year):
+    """Return only a same-host executor-mapping redirect."""
+    query = urlencode({"year": year})
+    target = f"{reverse('executor_mapping')}?{query}"
+
+    if url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(target)
+
+    return redirect("executor_mapping")
 
 
 @login_required
@@ -121,7 +139,7 @@ def save_executor_mapping(request):
     else:
         messages.warning(request, f"تم إلغاء ربط [{executor_norm}]")
 
-    return redirect(f"{reverse('executor_mapping')}?year={year}")
+    return _executor_mapping_redirect(request, year)
 
 
 @login_required
@@ -142,4 +160,4 @@ def apply_all_mappings(request):
         m.apply_mapping()
 
     messages.success(request, f"✅ تم تطبيق {mappings.count()} ربط على {total} إجراء")
-    return redirect(f"{reverse('executor_mapping')}?year={year}")
+    return _executor_mapping_redirect(request, year)

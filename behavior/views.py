@@ -6,13 +6,16 @@ Views نحيفة — كل Business Logic في behavior/services.py
 """
 
 import logging
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone as _tz
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
@@ -29,6 +32,35 @@ logger = logging.getLogger(__name__)
 _VALID_LEVELS = {1, 2, 3, 4}
 _MAX_POINTS = 100
 _MAX_DESC_LEN = 2000
+
+
+def _behavior_report_redirect(
+    request,
+    student_id,
+    year,
+    period,
+):
+    """Return only a same-host behavior-report redirect."""
+    query = urlencode(
+        {
+            "year": year,
+            "period": period,
+        }
+    )
+    target = f"{reverse('behavior:behavior_report', kwargs={'student_id': student_id})}" f"?{query}"
+
+    if url_has_allowed_host_and_scheme(
+        target,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(target)
+
+    return redirect(
+        "behavior:behavior_report",
+        student_id=student_id,
+    )
+
 
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
@@ -500,7 +532,7 @@ def behavior_report(request, student_id):
             messages.success(request, f"تم إرسال التقرير لـ: {', '.join(sent_to)}")
         else:
             messages.warning(request, "لا يوجد بريد إلكتروني مسجَّل لأولياء الأمور.")
-        return redirect(request.path + f"?year={year}&period={period}")
+        return _behavior_report_redirect(request, student.id, year, period)
 
     return render(
         request,

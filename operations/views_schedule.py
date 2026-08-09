@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 import django.db
 from django.conf import settings
@@ -9,7 +10,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.models import CustomUser, Membership
@@ -38,6 +41,31 @@ _REPORT_ROLES = {
     "admin",
 }
 _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
+
+
+def _safe_schedule_settings_redirect(request, fallback_year=None):
+    """Use a same-host Referer or a safe year-aware fallback."""
+    referer = request.META.get("HTTP_REFERER", "")
+
+    if referer and url_has_allowed_host_and_scheme(
+        referer,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(referer)
+
+    if fallback_year:
+        query = urlencode({"year": fallback_year})
+        target = f"{reverse('schedule_settings')}?{query}"
+
+        if url_has_allowed_host_and_scheme(
+            target,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(target)
+
+    return redirect("schedule_settings")
 
 
 # ── الجدول الأسبوعي ──────────────────────────────────────────────
@@ -725,9 +753,7 @@ def add_exemption(request):
         created_by=request.user,
     )
     messages.success(request, f"تم تفريغ {teacher.full_name}")
-    return redirect(
-        f"{request.META.get('HTTP_REFERER', '/operations/schedule-settings/')}?year={year}"
-    )
+    return _safe_schedule_settings_redirect(request, year)
 
 
 @login_required
@@ -740,7 +766,10 @@ def remove_exemption(request, exemption_id):
     exemption.is_active = False
     exemption.save(update_fields=["is_active"])
     messages.success(request, "تم إلغاء التفريغ")
-    return redirect(request.META.get("HTTP_REFERER", "/operations/schedule-settings/"))
+    return _safe_schedule_settings_redirect(
+        request,
+        exemption.academic_year,
+    )
 
 
 @login_required
@@ -754,4 +783,4 @@ def toggle_double_period(request, subject_id):
     subject.save(update_fields=["requires_double_period"])
     status = "مفعّلة" if subject.requires_double_period else "معطّلة"
     messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
-    return redirect(request.META.get("HTTP_REFERER", "/operations/schedule-settings/"))
+    return _safe_schedule_settings_redirect(request)
