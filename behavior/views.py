@@ -252,6 +252,7 @@ def report_infraction(request):
                     notify_behavior_task.delay(
                         infraction_id=str(infraction.id),
                         reporter_id=str(request.user.id),
+                        school_id=str(school.id),
                     )
                 except (ImportError, OSError, RuntimeError) as e:
                     logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
@@ -359,6 +360,7 @@ def quick_log(request):
             notify_behavior_task.delay(
                 infraction_id=str(infraction.id),
                 reporter_id=str(request.user.id),
+                school_id=str(school.id),
             )
         except (ImportError, OSError, RuntimeError) as exc:
             logger.warning("Celery unavailable for quick_log notify: %s", exc)

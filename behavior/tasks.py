@@ -12,6 +12,8 @@ import logging
 
 from celery import shared_task
 
+from core.celery_tasks import school_rls_scope
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,98 +24,101 @@ logger = logging.getLogger(__name__)
     default_retry_delay=300,
 )
 def weekly_risk_check(self, school_id=None):
-    """
-    فحص أسبوعي — يحدد الطلاب المعرّضين لخطر سلوكي (عدد المخالفات >= 5).
-
-    يُشغَّل من Celery Beat أسبوعياً (مثلاً كل أحد صباحاً).
-    يستخدم .iterator(chunk_size=200) لتجنب تحميل كل الطلاب في الذاكرة.
-
-    الإجراءات:
-      1. يفحص كل المدارس النشطة (أو مدرسة محددة)
-      2. يجد الطلاب الذين تجاوز عدد مخالفاتهم الحد (5 مخالفات)
-      3. يرسل إشعار in_app للقيادة (المدير + النائب الإداري)
-    """
+    """Check behavioral risk inside one school scope at a time."""
     try:
         from django.db.models import Count
 
         from behavior.models import BehaviorInfraction
         from core.models import Membership, School
 
-        # نظام النقاط ملغى — RISK = 5 مخالفات فأكثر (أو 2+ من الدرجة 3-4)
-        RISK_COUNT_THRESHOLD = 5
+        risk_count_threshold = 5
+
+        schools = School.objects.filter(is_active=True)
 
         if school_id:
-            schools = School.objects.filter(id=school_id, is_active=True)
-        else:
-            schools = School.objects.filter(is_active=True)
+            schools = schools.filter(id=school_id)
 
         total_flagged = 0
 
-        for school in schools.iterator(chunk_size=200):
-            # ── الطلاب المعرّضين للخطر (حسب عدد المخالفات) ──
-            at_risk = (
-                BehaviorInfraction.objects.filter(school=school)
-                .values("student_id", "student__full_name")
-                .annotate(count=Count("id"))
-                .filter(count__gte=RISK_COUNT_THRESHOLD)
-                .order_by("-count")
-            )
-
-            risk_list = list(at_risk)
-            if not risk_list:
-                continue
-
-            total_flagged += len(risk_list)
-
-            # ── إشعار القيادة ──────────────────────────────────
-            try:
-                from notifications.hub import NotificationHub
-
-                leadership = (
-                    Membership.objects.filter(
-                        school=school,
-                        is_active=True,
-                        role__name__in=["principal", "vice_admin", "social_worker"],
+        for school in schools.iterator(chunk_size=100):
+            with school_rls_scope(school.id):
+                at_risk = (
+                    BehaviorInfraction.objects.filter(school=school)
+                    .values(
+                        "student_id",
+                        "student__full_name",
                     )
-                    .select_related("user")
-                    .iterator(chunk_size=200)
+                    .annotate(count=Count("id"))
+                    .filter(count__gte=risk_count_threshold)
+                    .order_by("-count")
                 )
 
-                student_names = ", ".join(r["student__full_name"] for r in risk_list[:5])
-                extra = f" و{len(risk_list) - 5} آخرين" if len(risk_list) > 5 else ""
+                risk_list = list(at_risk)
 
-                recipients = [member.user for member in leadership]
-                if recipients:
-                    NotificationHub.dispatch(
-                        event_type="behavior_risk",
-                        school=school,
-                        recipients=recipients,
-                        title=f"تنبيه سلوكي: {len(risk_list)} طالب في خطر",
-                        body=(
-                            f"الطلاب التالية أسماؤهم تجاوزوا حد {RISK_COUNT_THRESHOLD} مخالفات:\n"
-                            f"{student_names}{extra}"
-                        ),
+                if not risk_list:
+                    continue
+
+                total_flagged += len(risk_list)
+
+                try:
+                    from notifications.hub import NotificationHub
+
+                    leadership = (
+                        Membership.objects.filter(
+                            school=school,
+                            is_active=True,
+                            role__name__in=[
+                                "principal",
+                                "vice_admin",
+                                "social_worker",
+                            ],
+                        )
+                        .select_related("user")
+                        .iterator(chunk_size=200)
                     )
 
-            except Exception as e:
-                logger.warning(
-                    "weekly_risk_check: notification failed for school %s: %s",
+                    student_names = ", ".join(row["student__full_name"] for row in risk_list[:5])
+
+                    extra = f" و{len(risk_list) - 5} آخرين" if len(risk_list) > 5 else ""
+
+                    recipients = [member.user for member in leadership]
+
+                    if recipients:
+                        NotificationHub.dispatch(
+                            event_type="behavior_risk",
+                            school=school,
+                            recipients=recipients,
+                            title=("تنبيه سلوكي: " f"{len(risk_list)} طالب في خطر"),
+                            body=(
+                                "الطلاب التالية أسماؤهم تجاوزوا "
+                                f"حد {risk_count_threshold} مخالفات:\n"
+                                f"{student_names}{extra}"
+                            ),
+                        )
+
+                except Exception as exc:
+                    logger.warning(
+                        "weekly_risk_check: notification " "failed for school %s: %s",
+                        school.name,
+                        exc,
+                    )
+
+                logger.info(
+                    "weekly_risk_check: school %s — " "%d students at risk",
                     school.name,
-                    e,
+                    len(risk_list),
                 )
-
-            logger.info(
-                "weekly_risk_check: school %s — %d students at risk",
-                school.name,
-                len(risk_list),
-            )
 
         logger.info(
-            "weekly_risk_check complete: %d students flagged across all schools",
+            "weekly_risk_check complete: " "%d students flagged across all schools",
             total_flagged,
         )
+
         return {"total_flagged": total_flagged}
 
     except Exception as exc:
-        logger.exception("weekly_risk_check error: %s", exc)
+        logger.exception(
+            "weekly_risk_check error: %s",
+            exc,
+        )
         raise self.retry(exc=exc)

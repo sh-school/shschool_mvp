@@ -9,6 +9,8 @@
 *.js   text eol=lf
 *.yml  text eol=lf
 *.yaml text eol=lf
-
+*.sh   text eol=lf
+railway.worker.json text eol=lf
+.gitattributes       text eol=lf
 # لا تُطبِّع الـ virtualenv المُدرَج محلياً — يمنع إعادة تطبيع ضخمة عرضية
 .local/** -text

@@ -20,6 +20,8 @@ from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 
+from core.celery_tasks import TenantRLSTask, school_rls_scope
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +40,7 @@ def _to_dlq(kind, payload, error):
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=3,
     default_retry_delay=60,  # إعادة المحاولة بعد دقيقة
@@ -107,6 +110,7 @@ def send_email_task(
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=3,
     default_retry_delay=60,
@@ -162,12 +166,13 @@ def send_sms_task(
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=2,
     default_retry_delay=120,
     name="notifications.notify_absence",
 )
-def notify_absence_task(self, absence_alert_id, sent_by_id=None):
+def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None):
     """إشعار ولي الأمر بغياب ابنه — يُشغَّل من AbsenceService"""
     try:
         from core.models import CustomUser
@@ -194,6 +199,7 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None):
                     title=f"⚠️ غياب — {alert.student.full_name}",
                     body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
                     url="/parents/",
+                    school_id=str(alert.school_id),
                 )
         except (ImportError, OSError, RuntimeError) as pe:
             logger.warning(f"Push notification failed: {pe}")
@@ -209,6 +215,7 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None):
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=2,
     default_retry_delay=120,
@@ -251,34 +258,52 @@ def notify_fail_task(
 
 @shared_task(name="notifications.send_pending_absence_alerts_all_schools")
 def send_pending_absence_alerts_task():
-    """
-    مهمة مُجدوَلة — تُشغَّل صباح كل يوم من Celery Beat
-    ترسل كل تنبيهات الغياب المعلقة لكل المدارس
-    """
+    """Send pending absence alerts one school at a time."""
     from core.models import School
     from notifications.services import NotificationService
 
-    total_sent = total_failed = 0
-    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
-        sent, failed = NotificationService.send_pending_absence_alerts(school)
-        total_sent += sent
-        total_failed += failed
-        logger.info(f"School {school.name}: {sent} sent, {failed} failed")
+    total_sent = 0
+    total_failed = 0
 
-    logger.info(f"Daily absence alerts: {total_sent} sent, {total_failed} failed")
-    return {"total_sent": total_sent, "total_failed": total_failed}
+    schools = School.objects.filter(is_active=True)
+
+    for school in schools.iterator(chunk_size=100):
+        with school_rls_scope(school.id):
+            sent, failed = NotificationService.send_pending_absence_alerts(school)
+
+            total_sent += sent
+            total_failed += failed
+
+            logger.info(
+                "School %s: %d sent, %d failed",
+                school.name,
+                sent,
+                failed,
+            )
+
+    logger.info(
+        "Daily absence alerts: %d sent, %d failed",
+        total_sent,
+        total_failed,
+    )
+
+    return {
+        "total_sent": total_sent,
+        "total_failed": total_failed,
+    }
 
 
 # ── إشعار مخالفة سلوكية ─────────────────────────────────────────────
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=2,
     default_retry_delay=60,
     name="notifications.notify_behavior",
 )
-def notify_behavior_task(self, infraction_id, reporter_id):
+def notify_behavior_task(self, infraction_id, reporter_id, school_id=None):
     """إشعار ولي الأمر عند تسجيل مخالفة سلوكية"""
     try:
         from behavior.models import BehaviorInfraction
@@ -305,41 +330,60 @@ def notify_behavior_task(self, infraction_id, reporter_id):
 
 @shared_task(name="notifications.check_breach_deadlines")
 def check_breach_deadlines_task():
-    """
-    مهمة مُجدوَلة — تُشغَّل كل ساعة من Celery Beat
-    تتحقق من مواعيد BreachReport وترسل تنبيهات للمدير والـ DPO
-    """
+    """Check breach deadlines inside one school scope at a time."""
     from django.utils import timezone
 
-    from core.models import BreachReport
+    from core.models import BreachReport, School
 
     now = timezone.now()
     warnings = 0
     overdue = 0
 
-    # تقارير لم يُشعَر عنها بعد
-    active = BreachReport.objects.filter(status__in=["discovered", "assessing"]).select_related(
-        "school", "reported_by", "assigned_to"
+    schools = School.objects.all()
+
+    for school in schools.iterator(chunk_size=100):
+        with school_rls_scope(school.id):
+            active = BreachReport.objects.filter(
+                school=school,
+                status__in=["discovered", "assessing"],
+            ).select_related(
+                "school",
+                "reported_by",
+                "assigned_to",
+            )
+
+            for breach in active.iterator(chunk_size=100):
+                if not breach.ncsa_deadline:
+                    continue
+
+                hours_left = breach.hours_remaining
+
+                if hours_left is not None and hours_left <= 12:
+                    _send_breach_alert(
+                        breach,
+                        hours_left,
+                        overdue=False,
+                    )
+                    warnings += 1
+
+                if breach.is_overdue:
+                    _send_breach_alert(
+                        breach,
+                        0,
+                        overdue=True,
+                    )
+                    overdue += 1
+
+    logger.warning(
+        "Breach check: %d تحذير، %d تجاوز مهلة",
+        warnings,
+        overdue,
     )
 
-    for breach in active:
-        if not breach.ncsa_deadline:
-            continue
-
-        hours_left = breach.hours_remaining
-
-        # تحذير: أقل من 12 ساعة متبقية
-        if hours_left is not None and hours_left <= 12:
-            _send_breach_alert(breach, hours_left, overdue=False)
-            warnings += 1
-
-        # تجاوز المهلة
-        if breach.is_overdue:
-            _send_breach_alert(breach, 0, overdue=True)
-            overdue += 1
-
-    logger.warning(f"Breach check: {warnings} تحذير، {overdue} تجاوز مهلة")
-    return {"warnings": warnings, "overdue": overdue}
+    return {
+        "warnings": warnings,
+        "overdue": overdue,
+    }
 
 
 def _send_breach_alert(breach, hours_left, overdue=False):
@@ -398,6 +442,7 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=2,
     default_retry_delay=30,
@@ -416,7 +461,11 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
 
         from notifications.models import PushSubscription
 
-        subs = PushSubscription.objects.filter(user_id=user_id, is_active=True)
+        subs = PushSubscription.objects.filter(
+            user_id=user_id,
+            school_id=school_id,
+            is_active=True,
+        )
         if not subs.exists():
             return {"status": "no_subscriptions", "user": str(user_id)}
 
@@ -469,7 +518,10 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
         raise self.retry(exc=exc)
 
 
-@shared_task(name="notifications.send_push_to_school")
+@shared_task(
+    base=TenantRLSTask,
+    name="notifications.send_push_to_school",
+)
 def send_push_to_school_task(school_id, title, body, url="/parents/"):
     """إرسال Push لكل أولياء الأمور في مدرسة"""
     from core.models import School
@@ -483,7 +535,7 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
     )
 
     for uid in users:
-        send_push_task.delay(str(uid), title, body, url, school_id)
+        send_push_task.delay(str(uid), title, body, url, school_id=school_id)
 
     return {"queued": len(users)}
 
@@ -494,6 +546,7 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
 
 
 @shared_task(
+    base=TenantRLSTask,
     bind=True,
     max_retries=3,
     name="notifications.hub_send",
@@ -555,7 +608,7 @@ def hub_send_notification_task(
                     title,
                     body,
                     context.get("related_url", "/") if context else "/",
-                    str(school.id),
+                    school_id=str(school.id),
                 )
                 results.append(("push", True, None))
             except (ImportError, OSError, RuntimeError) as e:
