@@ -378,9 +378,10 @@ def test_provision_rls_role_enforces_noinherit(
 
     # [SEC-06] CREATE على المخطّط يُلغى صراحةً — قواعد مُرقّاة من إصدارات
     # أقدم من PostgreSQL 15 تحتفظ بالمنحة القديمة لولا هذا السطر.
+    assert "REVOKE CREATE ON SCHEMA public FROM PUBLIC" in executed_sql
     assert "REVOKE CREATE ON SCHEMA public FROM shschool_app" in executed_sql
 
     # العضويات تُرصد ولا تُلغى تلقائياً — الفاحص هو من يرفض الإقلاع.
-    membership_sql = [sql for sql in executed_sql if "pg_auth_members" in sql]
+    membership_sql = [sql for sql in executed_sql if "pg_has_role" in sql]
 
     assert len(membership_sql) == 1

@@ -62,6 +62,10 @@ class Command(BaseCommand):
             # [SEC-06] لا CREATE على المخطّط: أي جدول يُنشئه الدور يملكه، والمالك
             # يتجاوز RLS على جداوله. PostgreSQL 15+ يُلغيها افتراضياً — نؤكّدها
             # صراحةً لتغطية القواعد المُرقّاة من إصدارات أقدم.
+            # السحب من الدور وحده لا يكفي: المنحة القديمة كانت لـPUBLIC ويرثها كل
+            # دور ضمناً، وhas_schema_privilege يحتسبها — فيرفض الفاحص الإقلاع بلا
+            # سبيل للشفاء الذاتي ما لم تُسحب من PUBLIC أيضاً.
+            cur.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
             cur.execute(f"REVOKE CREATE ON SCHEMA public FROM {ROLE}")
             cur.execute(
                 f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {ROLE}"
@@ -88,10 +92,12 @@ class Command(BaseCommand):
 
             # [SEC-06] العضوية في دور آخر تفتح SET ROLE رغم NOINHERIT — نرصدها
             # ولا نُلغيها تلقائياً حتى لا نكسر منحاً مقصوداً بلا علم المشغّل.
+            # pg_has_role يحلّ الرسم البياني للعضوية تعدّياً — عدّ pg_auth_members
+            # المباشر يُفوّت السلسلة: الدور ← وسيط ← دور مميّز.
             cur.execute(
-                "SELECT COUNT(*) FROM pg_auth_members "
-                "WHERE member = (SELECT oid FROM pg_roles WHERE rolname = %s)",
-                [ROLE],
+                "SELECT COUNT(*) FROM pg_roles AS r "
+                "WHERE r.rolname <> %s AND pg_has_role(%s, r.oid, 'MEMBER')",
+                [ROLE, ROLE],
             )
             memberships = cur.fetchone()[0]
 

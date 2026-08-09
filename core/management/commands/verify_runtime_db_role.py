@@ -37,15 +37,14 @@ class Command(BaseCommand):
 
             # NOINHERIT blocks automatic inheritance but never blocks SET ROLE,
             # so any membership in a privileged role is still an escalation path.
+            # pg_has_role resolves the membership graph transitively — a direct
+            # pg_auth_members count would miss role -> intermediate -> privileged.
             cursor.execute(
                 """
                 SELECT COUNT(*)
-                FROM pg_auth_members AS m
-                WHERE m.member = (
-                    SELECT oid
-                    FROM pg_roles
-                    WHERE rolname = current_user
-                )
+                FROM pg_roles AS r
+                WHERE r.rolname <> current_user
+                  AND pg_has_role(current_user, r.oid, 'MEMBER')
                 """
             )
             role_memberships = cursor.fetchone()[0]
