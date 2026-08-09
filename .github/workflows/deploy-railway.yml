@@ -303,15 +303,19 @@ jobs:
               `**Result**: the new commit did not become live.`,
             ].join('\n');
 
-            const existing = await github.rest.issues.listForRepo({
+            // listForRepo يُرجع الـPRs أيضاً — GitHub يعامل الـPR كقضية. الترشيح
+            // على .pull_request يمنع التعليق على PR يحمل الوسم بالخطأ.
+            const candidates = await github.rest.issues.listForRepo({
               ...context.repo,
               state: 'open',
               labels: 'deploy-failure',
-              per_page: 1,
+              per_page: 100,
             });
 
-            if (existing.data.length > 0) {
-              const number = existing.data[0].number;
+            const existing = candidates.data.filter((i) => !i.pull_request);
+
+            if (existing.length > 0) {
+              const number = existing[0].number;
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: number,
@@ -358,7 +362,13 @@ jobs:
               per_page: 100,
             });
 
-            for (const issue of open.data) {
+            // يُغلَق فقط ما أنشأه النشر الآلي: لا PRs، ولا قضايا فتحها إنسان
+            // ووسمها يدوياً — إغلاقها نيابةً عنه يُفقد سياقاً لا يملكه الـworkflow.
+            const automated = open.data.filter(
+              (i) => !i.pull_request && i.user && i.user.type === 'Bot',
+            );
+
+            for (const issue of automated) {
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: issue.number,
