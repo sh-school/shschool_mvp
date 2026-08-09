@@ -239,10 +239,10 @@ class TestRLSSchema:
             cursor.execute(
                 """
                 SELECT
-                    has_table_privilege('public', 'app_rls_role_school', 'INSERT'),
-                    has_table_privilege('public', 'app_rls_role_school', 'UPDATE'),
-                    has_table_privilege('public', 'app_rls_role_school', 'DELETE'),
-                    has_table_privilege('public', 'app_rls_role_school', 'TRUNCATE')
+                    has_table_privilege('public', 'public.app_rls_role_school', 'INSERT'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'UPDATE'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'DELETE'),
+                    has_table_privilege('public', 'public.app_rls_role_school', 'TRUNCATE')
                 """
             )
             write_privileges = cursor.fetchone()

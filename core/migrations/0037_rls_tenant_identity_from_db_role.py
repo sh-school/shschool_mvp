@@ -17,7 +17,7 @@ Tenant identity now comes from the connection credentials, which injected SQL
 cannot change:
 
     app_rls_school()  ->  SELECT school_id
-                          FROM app_rls_role_school
+                          FROM public.app_rls_role_school
                           WHERE db_role = session_user
 
 `session_user` is deliberate. `current_user` follows `SET ROLE`, so a role with
@@ -60,7 +60,7 @@ RUNTIME_ROLE = "shschool_app"
 # ══════════════════════════════════════════════════════════════════
 
 MAPPING_SQL = f"""
-CREATE TABLE IF NOT EXISTS app_rls_role_school (
+CREATE TABLE IF NOT EXISTS public.app_rls_role_school (
     db_role   name PRIMARY KEY,
     school_id uuid NOT NULL
 );
@@ -68,15 +68,15 @@ CREATE TABLE IF NOT EXISTS app_rls_role_school (
 -- No PUBLIC grant: every role would otherwise be able to read the whole
 -- role -> school mapping. Only the runtime role needs SELECT, and it is granted
 -- that in LOCK_MAPPING_SQL below once the role is known to exist.
-REVOKE ALL ON app_rls_role_school FROM PUBLIC;
+REVOKE ALL ON public.app_rls_role_school FROM PUBLIC;
 
 -- Seed the single-tenant deployment so the mapping is live the moment the
 -- policies start reading it. Without this the running web process would see
 -- zero rows between migrate and provision_rls_role.
-INSERT INTO app_rls_role_school (db_role, school_id)
+INSERT INTO public.app_rls_role_school (db_role, school_id)
 SELECT '{RUNTIME_ROLE}', s.id
-FROM core_school AS s
-WHERE (SELECT COUNT(*) FROM core_school) = 1
+FROM public.core_school AS s
+WHERE (SELECT COUNT(*) FROM public.core_school) = 1
 ON CONFLICT (db_role) DO NOTHING;
 """
 
@@ -84,16 +84,24 @@ ON CONFLICT (db_role) DO NOTHING;
 # 2. Helper functions — no GUC anywhere
 # ══════════════════════════════════════════════════════════════════
 
+# Both helpers pin search_path and schema-qualify every reference. They are the
+# tenant authority for every policy, so name resolution must not depend on the
+# caller's search_path: a schema earlier in the path holding a same-named table
+# would otherwise decide who sees what.
 HELPERS_SQL = """
-CREATE OR REPLACE FUNCTION app_rls_bypass() RETURNS boolean
-    LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION public.app_rls_bypass() RETURNS boolean
+    LANGUAGE sql STABLE
+    SET search_path = pg_catalog, public
+    AS $$
     SELECT false;
 $$;
 
-CREATE OR REPLACE FUNCTION app_rls_school() RETURNS uuid
-    LANGUAGE sql STABLE AS $$
+CREATE OR REPLACE FUNCTION public.app_rls_school() RETURNS uuid
+    LANGUAGE sql STABLE
+    SET search_path = pg_catalog, public
+    AS $$
     SELECT school_id
-    FROM app_rls_role_school
+    FROM public.app_rls_role_school
     WHERE db_role = session_user;
 $$;
 """
@@ -132,24 +140,30 @@ BEGIN
     LOOP
         IF target.table_name = 'core_auditlog' THEN
             predicate :=
-                '(school_id = app_rls_school() OR school_id IS NULL)';
+                '(school_id = public.app_rls_school() OR school_id IS NULL)';
         ELSE
-            predicate := '(school_id = app_rls_school())';
+            predicate := '(school_id = public.app_rls_school())';
         END IF;
 
+        -- %I.%I: الحلقة تختار جداول public تحديداً، فيجب أن تُعدّل
+        -- جداول public تحديداً. اسم غير مؤهَّل يُحلّ عبر search_path وقد يصيب
+        -- سكيما أخرى تحمل الاسم نفسه، فتبقى جداول public بلا سياسة.
         EXECUTE format(
-            'ALTER TABLE %I ENABLE ROW LEVEL SECURITY',
+            'ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY',
+            'public',
             target.table_name
         );
 
         EXECUTE format(
-            'DROP POLICY IF EXISTS school_isolation ON %I',
+            'DROP POLICY IF EXISTS school_isolation ON %I.%I',
+            'public',
             target.table_name
         );
 
         EXECUTE format(
-            'CREATE POLICY school_isolation ON %I '
+            'CREATE POLICY school_isolation ON %I.%I '
             'USING %s WITH CHECK %s',
+            'public',
             target.table_name,
             predicate,
             predicate
@@ -164,14 +178,14 @@ END $$;
 
 LOCK_MAPPING_SQL = f"""
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE
-    ON app_rls_role_school FROM PUBLIC;
+    ON public.app_rls_role_school FROM PUBLIC;
 
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{RUNTIME_ROLE}') THEN
         EXECUTE 'REVOKE INSERT, UPDATE, DELETE, TRUNCATE '
-                'ON app_rls_role_school FROM {RUNTIME_ROLE}';
-        EXECUTE 'GRANT SELECT ON app_rls_role_school TO {RUNTIME_ROLE}';
+                'ON public.app_rls_role_school FROM {RUNTIME_ROLE}';
+        EXECUTE 'GRANT SELECT ON public.app_rls_role_school TO {RUNTIME_ROLE}';
     END IF;
 END $$;
 """

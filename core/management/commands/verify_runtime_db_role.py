@@ -1,7 +1,7 @@
 """Fail-closed verification for the production runtime database role."""
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
+from django.db import DatabaseError, connection
 
 EXPECTED_ROLE = "shschool_app"
 CRITICAL_RLS_TABLE = "operations_session"
@@ -60,32 +60,43 @@ class Command(BaseCommand):
 
             # [SEC-07] هوية المستأجر تُشتق من دور الاتصال. غياب الربط يعني أن
             # السياسات تُقيّم على NULL فلا يرى العامل شيئاً — نرفض بدل العمل أعمى.
-            cursor.execute("SELECT app_rls_school() IS NOT NULL")
-            tenant_bound = cursor.fetchone()[0]
+            #
+            # كل الأسماء مؤهَّلة بـpublic: هذا فحص إقلاع لضابط أمني، فلا يجوز
+            # أن يعتمد على search_path الذي قد يُظلّل الجدول بآخر يحمل الاسم نفسه.
+            # وأي فشل هنا (جدول مفقود، ترحيل ناقص، صلاحية مقطوعة) يُترجَم إلى
+            # CommandError صريح بدل استثناء قاعدة بيانات خام.
+            try:
+                cursor.execute("SELECT public.app_rls_school() IS NOT NULL")
+                tenant_bound = cursor.fetchone()[0]
 
-            # الدور الخاضع للسياسة يجب ألّا يملك تعديل الجدول الذي يحدّد هويته.
-            cursor.execute(
-                """
-                SELECT
-                    has_table_privilege(
-                        current_user, 'app_rls_role_school', 'INSERT'
-                    ),
-                    has_table_privilege(
-                        current_user, 'app_rls_role_school', 'UPDATE'
-                    ),
-                    has_table_privilege(
-                        current_user, 'app_rls_role_school', 'DELETE'
-                    ),
-                    -- TRUNCATE يمسح الربط كاملاً: app_rls_school() تُرجع NULL
-                    -- لكل دور، فينهار العزل إلى «لا صفوف» — تعطيل خدمة، وهو
-                    -- تعديل لهوية المستأجر بقدر UPDATE. provision يسحبها،
-                    -- فيجب أن يقرأها الفاحص وإلا فُرض ما لا يُتحقَّق منه.
-                    has_table_privilege(
-                        current_user, 'app_rls_role_school', 'TRUNCATE'
-                    )
-                """
-            )
-            mapping_writable = any(cursor.fetchone())
+                # الدور الخاضع للسياسة يجب ألّا يملك تعديل الجدول الذي يحدّد هويته.
+                cursor.execute(
+                    """
+                    SELECT
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'INSERT'
+                        ),
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'UPDATE'
+                        ),
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'DELETE'
+                        ),
+                        -- TRUNCATE يمسح الربط كاملاً: app_rls_school() تُرجع NULL
+                        -- لكل دور، فينهار العزل إلى «لا صفوف» — تعطيل خدمة، وهو
+                        -- تعديل لهوية المستأجر بقدر UPDATE. provision يسحبها،
+                        -- فيجب أن يقرأها الفاحص وإلا فُرض ما لا يُتحقَّق منه.
+                        has_table_privilege(
+                            current_user, 'public.app_rls_role_school', 'TRUNCATE'
+                        )
+                    """
+                )
+                mapping_writable = any(cursor.fetchone())
+            except DatabaseError as exc:
+                raise CommandError(
+                    "Tenant mapping public.app_rls_role_school is unreadable "
+                    f"({type(exc).__name__}); migration 0037 may not be applied."
+                ) from exc
 
             cursor.execute(
                 """
