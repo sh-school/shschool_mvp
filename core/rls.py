@@ -29,6 +29,15 @@ def _current_rls_context() -> str:
     return row[0] if row and row[0] else ""
 
 
+def reset_rls_context() -> None:
+    """Fail-closed reset of the current PostgreSQL tenant context."""
+    try:
+        _apply_rls_context("")
+    except DatabaseError:
+        connection.close()
+        raise
+
+
 @contextmanager
 def rls_context(value: str):
     """Temporarily apply an RLS context and restore the previous value."""

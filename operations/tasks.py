@@ -27,6 +27,8 @@ import logging
 
 from celery import shared_task
 
+from core.celery_tasks import school_rls_scope
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,46 +39,55 @@ logger = logging.getLogger(__name__)
 
 @shared_task(name="operations.revoke_expired_temp_permissions")
 def revoke_expired_temp_permissions():
-    """
-    مهمة مُجدوَلة — تُشغَّل كل دقيقة من Celery Beat.
-
-    تُلغي كل صلاحية مؤقتة (TemporaryPermission) انتهت صلاحيتها
-    (valid_until < now) وحالتها "active".
-
-    تُسجّل كل إلغاء في PermissionAuditLog.
-    """
+    """Expire temporary permissions school-by-school."""
     from django.utils import timezone
 
-    from operations.models import PermissionAuditLog, TemporaryPermission
+    from core.models import School
+    from operations.models import (
+        PermissionAuditLog,
+        TemporaryPermission,
+    )
 
     now = timezone.now()
+    total_count = 0
 
-    expired = TemporaryPermission.objects.filter(
-        status="active",
-        valid_until__lt=now,
-    ).select_related("teacher", "class_group")
+    schools = School.objects.all()
 
-    count = 0
-    for perm in expired.iterator(chunk_size=100):
-        perm.status = "expired"
-        perm.revoked_at = now
-        perm.save(update_fields=["status", "revoked_at"])
+    for school in schools.iterator(chunk_size=100):
+        with school_rls_scope(school.id):
+            expired = TemporaryPermission.objects.filter(
+                school=school,
+                status="active",
+                valid_until__lt=now,
+            ).select_related("teacher", "class_group")
 
-        PermissionAuditLog.objects.create(
-            temp_permission=perm,
-            action="auto_revoked",
-            notes=f"انتهت صلاحية الإذن تلقائياً عند {now.strftime('%H:%M')}",
-        )
-        count += 1
+            school_count = 0
 
-    if count:
-        logger.info(
-            "revoke_expired_temp_permissions: %d permissions auto-revoked at %s",
-            count,
-            now.strftime("%Y-%m-%d %H:%M"),
-        )
+            for perm in expired.iterator(chunk_size=100):
+                perm.status = "expired"
+                perm.revoked_at = now
+                perm.save(update_fields=["status", "revoked_at"])
 
-    return {"revoked": count, "checked_at": str(now)}
+                PermissionAuditLog.objects.create(
+                    temp_permission=perm,
+                    action="auto_revoked",
+                    notes=("انتهت صلاحية الإذن تلقائياً عند " f"{now.strftime('%H:%M')}"),
+                )
+
+                school_count += 1
+                total_count += 1
+
+            if school_count:
+                logger.info(
+                    "revoke_expired_temp_permissions: " "%d permissions auto-revoked for %s",
+                    school_count,
+                    school.name,
+                )
+
+    return {
+        "revoked": total_count,
+        "checked_at": str(now),
+    }
 
 
 @shared_task(
@@ -86,13 +97,7 @@ def revoke_expired_temp_permissions():
     default_retry_delay=120,
 )
 def generate_daily_sessions_task(self, school_id=None):
-    """
-    توليد Session يومية من ScheduleSlot لجميع المدارس النشطة.
-
-    - idempotent: get_or_create يمنع التكرار
-    - يعمل عبر Celery Beat (أحد–خميس 6:00 صباحاً)
-    - يُستدعى أيضاً يدوياً من شاشة الإدارة
-    """
+    """Generate daily sessions inside one RLS scope per school."""
     try:
         from django.utils import timezone
 
@@ -101,32 +106,46 @@ def generate_daily_sessions_task(self, school_id=None):
 
         today = timezone.localdate()
 
+        schools = School.objects.filter(is_active=True)
+
         if school_id:
-            schools = School.objects.filter(id=school_id, is_active=True)
-        else:
-            schools = School.objects.filter(is_active=True)
+            schools = schools.filter(id=school_id)
 
         total = 0
-        for school in schools:
-            count = ScheduleService.generate_daily_sessions(school, today)
-            total += count
-            if count > 0:
-                logger.info(
-                    "generate_daily_sessions: %d sessions for %s on %s",
-                    count,
-                    school.name,
+
+        for school in schools.iterator(chunk_size=100):
+            with school_rls_scope(school.id):
+                count = ScheduleService.generate_daily_sessions(
+                    school,
                     today,
                 )
 
+                total += count
+
+                if count > 0:
+                    logger.info(
+                        "generate_daily_sessions: " "%d sessions for %s on %s",
+                        count,
+                        school.name,
+                        today,
+                    )
+
         logger.info(
-            "generate_daily_sessions_task complete: %d sessions total on %s",
+            "generate_daily_sessions_task complete: " "%d sessions total on %s",
             total,
             today,
         )
-        return {"date": str(today), "total_sessions": total}
+
+        return {
+            "date": str(today),
+            "total_sessions": total,
+        }
 
     except Exception as exc:
-        logger.exception("generate_daily_sessions_task error: %s", exc)
+        logger.exception(
+            "generate_daily_sessions_task error: %s",
+            exc,
+        )
         raise self.retry(exc=exc)
 
 
@@ -138,12 +157,7 @@ def generate_daily_sessions_task(self, school_id=None):
 
 @shared_task(name="operations.check_license_expiry")
 def check_license_expiry_task():
-    """
-    مهمة مُجدوَلة — تُشغَّل يومياً من Celery Beat.
-
-    تتحقق من الرخص المهنية التي ستنتهي خلال 60 يوماً
-    وترسل إشعاراً للموظف ومدير المدرسة.
-    """
+    """Check expiring professional licences under the legacy school selection contract."""
     from datetime import timedelta
 
     from django.utils import timezone
@@ -153,7 +167,6 @@ def check_license_expiry_task():
     today = timezone.localdate()
     warning_date = today + timedelta(days=60)
 
-    # الموظفون الذين تنتهي رخصهم خلال 60 يوماً (ولم تنتهِ بعد)
     expiring = (
         CustomUser.objects.filter(
             professional_license_expiry__isnull=False,
@@ -166,72 +179,84 @@ def check_license_expiry_task():
     )
 
     alerted = 0
-    for user in expiring.iterator(chunk_size=200):
-        days_left = (user.professional_license_expiry - today).days
 
-        # العثور على المدرسة والمدير
+    for user in expiring.iterator(chunk_size=200):
         membership = (
-            Membership.objects.filter(user=user, is_active=True).select_related("school").first()
+            Membership.objects.filter(
+                user=user,
+                is_active=True,
+            )
+            .select_related("school")
+            .first()
         )
+
         if not membership:
             continue
 
         school = membership.school
 
-        # إرسال إشعار عبر Hub (إن وُجد)
-        try:
-            from notifications.hub import NotificationHub
+        with school_rls_scope(school.id):
+            days_left = (user.professional_license_expiry - today).days
 
-            # إشعار الموظف
-            NotificationHub.send(
-                user=user,
-                school=school,
-                event_type="license_expiry",
-                title="تنبيه: رخصتك المهنية تقترب من الانتهاء",
-                body=(
-                    f"رخصتك المهنية رقم {user.professional_license_number} "
-                    f"ستنتهي خلال {days_left} يوماً "
-                    f"({user.professional_license_expiry}). "
-                    "يرجى التجديد قبل انتهاء الصلاحية."
-                ),
-                channels=["in_app", "push"],
-            )
+            try:
+                from notifications.hub import NotificationHub
 
-            # إشعار المدير
-            principal_membership = (
-                Membership.objects.filter(
-                    school=school,
-                    role__name="principal",
-                    is_active=True,
-                )
-                .select_related("user")
-                .first()
-            )
-            if principal_membership:
                 NotificationHub.send(
-                    user=principal_membership.user,
+                    user=user,
                     school=school,
                     event_type="license_expiry",
-                    title=f"تنبيه: رخصة {user.full_name} تقترب من الانتهاء",
+                    title="تنبيه: رخصتك المهنية تقترب من الانتهاء",
                     body=(
-                        f"الرخصة المهنية للموظف {user.full_name} "
-                        f"(رقم {user.professional_license_number}) "
-                        f"ستنتهي خلال {days_left} يوماً."
+                        f"رخصتك المهنية رقم "
+                        f"{user.professional_license_number} "
+                        f"ستنتهي خلال {days_left} يوماً "
+                        f"({user.professional_license_expiry}). "
+                        "يرجى التجديد قبل انتهاء الصلاحية."
                     ),
-                    channels=["in_app"],
+                    channels=["in_app", "push"],
                 )
 
-            alerted += 1
+                principal_membership = (
+                    Membership.objects.filter(
+                        school=school,
+                        role__name="principal",
+                        is_active=True,
+                    )
+                    .select_related("user")
+                    .first()
+                )
 
-        except Exception as e:
-            logger.warning(
-                "license_expiry alert failed for %s: %s",
-                user.full_name,
-                e,
-            )
+                if principal_membership:
+                    NotificationHub.send(
+                        user=principal_membership.user,
+                        school=school,
+                        event_type="license_expiry",
+                        title=(f"تنبيه: رخصة {user.full_name} " "تقترب من الانتهاء"),
+                        body=(
+                            f"الرخصة المهنية للموظف "
+                            f"{user.full_name} "
+                            f"(رقم "
+                            f"{user.professional_license_number}) "
+                            f"ستنتهي خلال {days_left} يوماً."
+                        ),
+                        channels=["in_app"],
+                    )
+
+                alerted += 1
+
+            except Exception as exc:
+                logger.warning(
+                    "license_expiry alert failed for %s: %s",
+                    user.full_name,
+                    exc,
+                )
 
     logger.info(
-        "check_license_expiry_task: %d staff alerted (expiring within 60 days)",
+        "check_license_expiry_task: " "%d staff alerted (expiring within 60 days)",
         alerted,
     )
-    return {"alerted": alerted, "checked_date": str(today)}
+
+    return {
+        "alerted": alerted,
+        "checked_date": str(today),
+    }

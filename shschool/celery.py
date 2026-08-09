@@ -10,7 +10,10 @@ from celery.schedules import crontab
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shschool.settings.development")
 
-app = Celery("shschool")
+app = Celery(
+    "shschool",
+    task_cls="core.celery_tasks:RLSIsolatedTask",
+)
 
 # قراءة الإعدادات من Django settings تحت namespace CELERY
 app.config_from_object("django.conf:settings", namespace="CELERY")
