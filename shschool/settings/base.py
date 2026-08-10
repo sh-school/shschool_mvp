@@ -278,8 +278,11 @@ LOGOUT_REDIRECT_URL = "/auth/login/"
 # ── أمان الجلسات والكوكيز ─────────────────────────────────
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-# CSRF cookie يجب أن يكون قابلاً للقراءة من JS (لطلبات AJAX/fetch مع X-CSRFToken)
-CSRF_COOKIE_HTTPONLY = False
+# [P2-A] لا JavaScript يقرأ كوكي CSRF. الرمز يأتي من الحقل المخفي في DOM الذي
+# يضعه base/base.html لكل مستخدم مُعتمَد، فلا حاجة لإتاحة الكوكي للسكربتات.
+# عقد أمني موحَّد عبر البيئات عمداً: وضعه في production وحده يجعل التطوير
+# والاختبار يمرّان بسلوك مختلف، فينكشف أي كاسر بعد النشر لا قبله.
+CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
