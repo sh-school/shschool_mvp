@@ -8,8 +8,24 @@ from types import SimpleNamespace
 import pytest
 from django.db import DatabaseError
 
+from core import celery_tasks as celery_tasks_module
 from core.celery_tasks import RLSIsolatedTask, TenantRLSTask, school_rls_scope
 from core.rls import reset_rls_context
+
+
+@pytest.fixture
+def no_enforcement_probe(monkeypatch):
+    """
+    يُعطّل فحص فرض RLS لاختبار وحدة لا يملك اتصال قاعدة بيانات.
+
+    ليست autouse عمداً. في ملف اختبار أمني يجب أن يكون الافتراضي هو السلوك
+    الحقيقي، والتعطيل استثناءً يطلبه من يحتاجه صراحةً — وإلا مرّ اختبار
+    يُضاف لاحقاً أخضرَ لأن مؤلفه لم ينتبه إلى تعطيل شامل للملف.
+    """
+    monkeypatch.setattr(
+        "core.celery_tasks.rls_is_enforced_for_current_role",
+        lambda: False,
+    )
 
 
 def test_worker_task_resets_rls_before_and_after_execution(monkeypatch):
@@ -171,6 +187,7 @@ VALID_SCHOOL_ID = "00000000-0000-0000-0000-000000000001"
 
 def test_tenant_worker_enters_school_context_between_resets(
     monkeypatch,
+    no_enforcement_probe,
 ):
     events = []
 
@@ -215,6 +232,7 @@ def test_tenant_worker_enters_school_context_between_resets(
 
 def test_tenant_eager_nests_school_inside_fail_closed_scope(
     monkeypatch,
+    no_enforcement_probe,
 ):
     events = []
 
@@ -478,7 +496,7 @@ def test_push_subscription_lookup_is_explicitly_school_scoped():
     assert "is_active" in keywords
 
 
-def test_school_rls_scope_enters_canonical_context(monkeypatch):
+def test_school_rls_scope_enters_canonical_context(monkeypatch, no_enforcement_probe):
     events = []
 
     @contextmanager
@@ -735,3 +753,97 @@ def test_monthly_kpi_explicit_school_preserves_legacy_contract():
     assert "School.objects.filter(is_active=True)" in source
 
     assert "schools = schools.filter(id=school_id)" not in source
+
+
+# ══════════════════════════════════════════════════════════════════
+# [SEC-08] حارس تطابق المستأجر — يُحوّل النقص الصامت إلى فشل مرئي
+# ══════════════════════════════════════════════════════════════════
+
+FOREIGN_SCHOOL_ID = "00000000-0000-0000-0000-0000000000ff"
+
+
+@contextmanager
+def _noop_rls_context(value):
+    yield
+
+
+def _enforce(monkeypatch, *, bound=VALID_SCHOOL_ID):
+    """يحاكي دوراً خاضعاً لـRLS مربوطاً بمدرسة محددة."""
+    monkeypatch.setattr(
+        "core.celery_tasks.rls_is_enforced_for_current_role",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "core.celery_tasks.db_role_tenant",
+        lambda: bound,
+    )
+    monkeypatch.setattr(
+        "core.celery_tasks.rls_context",
+        _noop_rls_context,
+    )
+
+
+def test_scope_accepts_the_school_bound_to_the_db_role(monkeypatch):
+    """المستأجر الصحيح يمرّ دون اعتراض."""
+    _enforce(monkeypatch, bound=VALID_SCHOOL_ID)
+
+    with school_rls_scope(VALID_SCHOOL_ID) as canonical:
+        assert canonical == VALID_SCHOOL_ID
+
+
+def test_scope_rejects_a_school_the_role_is_not_bound_to(monkeypatch):
+    """
+    [SEC-08] العامل المربوط بمدرسة A لا يستطيع معالجة B.
+
+    بلا هذا الحارس كانت القراءة تُرجع صفر صفوف وتُبلّغ نجاحاً — وهو ما لا
+    يُميَّز عن «لا عمل لدى B».
+    """
+    _enforce(monkeypatch, bound=VALID_SCHOOL_ID)
+
+    with pytest.raises(ValueError, match="tenant mismatch"):
+        with school_rls_scope(FOREIGN_SCHOOL_ID):
+            pass
+
+
+def test_scope_fails_closed_when_the_role_has_no_tenant_binding(monkeypatch):
+    """دور مفروض بلا ربط ⇒ كل سياسة تُقيَّم على NULL ⇒ رفض لا متابعة صامتة."""
+    _enforce(monkeypatch, bound=None)
+
+    with pytest.raises(ValueError, match="tenant binding missing"):
+        with school_rls_scope(VALID_SCHOOL_ID):
+            pass
+
+
+def test_scope_skips_the_assertion_for_exempt_roles(monkeypatch, no_enforcement_probe):
+    """
+    الدور المتميّز (superuser/BYPASSRLS) يتجاوز السياسات أصلاً.
+
+    المقارنة عنده تُقارن بهوية لا تُطبّقها قاعدة البيانات — الترحيلات وأوامر
+    الإدارة وقاعدة اختبارات CI كلها تعمل بمثل هذا الدور.
+    """
+    queried = []
+
+    monkeypatch.setattr(
+        "core.celery_tasks.db_role_tenant",
+        lambda: queried.append("probe") or None,
+    )
+    monkeypatch.setattr(
+        "core.celery_tasks.rls_context",
+        _noop_rls_context,
+    )
+
+    with school_rls_scope(FOREIGN_SCHOOL_ID) as canonical:
+        assert canonical == FOREIGN_SCHOOL_ID
+
+    assert queried == []
+
+
+def test_enforcement_probe_is_skipped_off_postgresql(monkeypatch):
+    """محرّك غير PostgreSQL ⇒ لا RLS ⇒ لا استعلام ولا حارس."""
+    monkeypatch.setattr(
+        celery_tasks_module,
+        "connection",
+        SimpleNamespace(vendor="sqlite"),
+    )
+
+    assert celery_tasks_module.rls_is_enforced_for_current_role() is False
