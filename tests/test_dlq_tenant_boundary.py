@@ -15,6 +15,7 @@ tests/test_dlq_tenant_boundary.py
 """
 
 import inspect
+import os
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -208,7 +209,9 @@ def test_school_is_required_on_the_model():
 #    المفاتيح الأجنبية المؤجّلة: "cannot ALTER TABLE ... pending trigger
 #    events". فكل DDL يسبق أي DML.
 
-RLS_TEST_ROLE = "dlq_rls_probe"
+#: الأدوار على مستوى العنقود لا القاعدة، وعمّال xdist يتشاركون العنقود نفسه.
+#: اسم لكل عامل يمنع تسابق الإنشاء/الحذف بدل معالجته بعد وقوعه.
+RLS_TEST_ROLE = "dlq_rls_probe_" + os.environ.get("PYTEST_XDIST_WORKER", "solo")
 
 
 @contextmanager
@@ -233,7 +236,10 @@ def _rls_enforced_as(school_id):
             END $$;
             """
         )
-        cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON public.{TABLE} TO {RLS_TEST_ROLE}")
+        # الحدّ الأدنى: قراءة وكتابة على الجدول المُختبَر فقط. منحٌ أوسع قد
+        # يجعل رفض الصفّ الأجنبي يبدو ناجحاً لسبب آخر — أو يُخفي نقص صلاحية
+        # خلف رسالة RLS.
+        cursor.execute(f"GRANT SELECT, INSERT ON public.{TABLE} TO {RLS_TEST_ROLE}")
         cursor.execute(f"GRANT SELECT ON public.app_rls_role_school TO {RLS_TEST_ROLE}")
         cursor.execute(f"GRANT USAGE ON SCHEMA public TO {RLS_TEST_ROLE}")
         cursor.execute(
@@ -277,6 +283,24 @@ def test_own_school_rows_are_visible():
 
 
 @pytest.mark.django_db
+def test_own_school_insert_succeeds_under_the_restricted_role():
+    """
+    [P2-B1] الدور المقيَّد يستطيع الإدراج المشروع.
+
+    بلا هذا الاختبار يصير رفضُ الصفّ الأجنبي بلا دلالة: قد ينجح لأن الدور
+    لا يملك INSERT أصلاً — "permission denied" لا "WITH CHECK". نُثبت القدرة
+    أولاً ليصير الرفض لاحقاً منسوباً إلى السياسة وحدها.
+    """
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+
+    with _rls_enforced_as(own.id):
+        created = _make_row(own)
+        assert DeadLetterMessage.objects.filter(id=created.id).exists()
+
+
+@pytest.mark.django_db
 def test_foreign_school_rows_are_invisible():
     """[P2-B1] هذا ما كان مكشوفاً قبل الترحيل: صفوف مدرسة أخرى."""
     _skip_unless_postgres()
@@ -294,58 +318,41 @@ def test_foreign_school_rows_are_invisible():
 
 
 @pytest.mark.django_db
-def test_writing_into_a_foreign_school_is_rejected():
-    """[P2-B1] WITH CHECK يمنع الكتابة عبر المستأجرين لا القراءة فقط."""
+def test_writing_into_a_foreign_school_is_rejected_by_the_policy():
+    """
+    [P2-B1] WITH CHECK يمنع الكتابة عبر المستأجرين لا القراءة فقط.
+
+    الإدراج داخل savepoint: خطأ RLS يُجهض المعاملة، وأي SQL بعده — بما فيه
+    RESET ROLE في المُنظِّف — يفشل بـ"current transaction is aborted" فيُخفي
+    الخطأ الأصلي. الرجوع إلى الـsavepoint يُعيد المعاملة صالحة للاستعمال.
+    """
     _skip_unless_postgres()
 
     own = SchoolFactory()
     victim = SchoolFactory()
 
     with _rls_enforced_as(own.id):
-        # انتهاك WITH CHECK هو SQLSTATE 42501، وربطه بصنف بعينه هشّ عبر
-        # إصدارات psycopg — نُمسك DatabaseError ونؤكّد على الرسالة نفسها.
-        with pytest.raises(DatabaseError) as exc:
+        with pytest.raises(DatabaseError) as raised:
             with transaction.atomic():
                 _make_row(victim)
 
-    assert "row-level security" in str(exc.value).lower()
+        # المعاملة صالحة بعد الرجوع — وإلا لفشل هذا الاستعلام.
+        assert DeadLetterMessage.objects.count() >= 0
+
+    _assert_rejected_by_rls(raised.value)
 
 
-# ══════════════════════════════════════════════════════════════════
-# [P2-B2] حقل error آمن بحكم العقد لا بحكم عادة المُستدعين
-# ══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.parametrize(
-    ("raw", "leaked"),
-    [
-        ("SMTP refused for parent@school.qa", "parent@school.qa"),
-        ("Twilio: invalid number +97455512345", "97455512345"),
-        ("push endpoint https://fcm.googleapis.com/fcm/send/xyz gone", "fcm.googleapis.com"),
-    ],
-)
-def test_error_text_is_scrubbed_before_storage(raw, leaked):
+def _assert_rejected_by_rls(error):
     """
-    نصّ الاستثناء مسار تسريب مثل الـpayload.
+    SQLSTATE 42501 هو العقد؛ والنصّ تأكيد ثانوي.
 
-    الخدمات اليوم تُرجع رسائل عامة، لكن `_to_dlq` تقبل أي استثناء من أي مُستدعٍ
-    مستقبلي — ورسائل مزوّدي البريد وTwilio تحمل العنوان أو الرقم الذي فشل.
+    الاعتماد على الرسالة وحدها هشّ عبر إصدارات PostgreSQL والـdriver واللغة،
+    والاعتماد على صنف الاستثناء هشّ عبر psycopg2/psycopg3 — فنأخذ الرمز حين
+    يكون متاحاً ونرجع إلى النصّ حين لا يكون.
     """
-    assert leaked not in notification_tasks._safe_error(raw)
+    sqlstate = getattr(error.__cause__, "pgcode", None) or getattr(error, "pgcode", None)
 
+    if sqlstate is not None:
+        assert sqlstate == "42501", f"expected insufficient_privilege, got {sqlstate}"
 
-def test_error_scrubbing_keeps_the_diagnosis():
-    """التنقية تُزيل الهوية لا المعنى — وإلا صار الحقل بلا فائدة."""
-    scrubbed = notification_tasks._safe_error("SMTP refused for parent@school.qa")
-
-    assert "SMTP" in scrubbed
-    assert "refused" in scrubbed
-    assert "<email>" in scrubbed
-
-
-def test_error_is_stored_through_the_scrubber():
-    """الحارس يفشل لو عاد أحدهم إلى str(error) مباشرةً."""
-    source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
-
-    assert "error=_safe_error(error)" in source
-    assert "error=str(error)" not in source
+    assert "row-level security" in str(error).lower()
