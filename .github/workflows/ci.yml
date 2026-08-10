@@ -137,17 +137,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
-            pytest-xdist==3.8.0 pytest-testmon==2.2.0
-
-      - name: استعادة testmon cache
-        uses: actions/cache@v4
-        with:
-          path: .testmondata
-          key: testmon-${{ github.ref }}-${{ github.sha }}
-          restore-keys: |
-            testmon-${{ github.ref }}-
-            testmon-refs/heads/main-
-            testmon-refs/heads/develop-
+            pytest-xdist==3.8.0
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -158,13 +148,22 @@ jobs:
       - name: فحص إعدادات Django
         run: python manage.py check --fail-level WARNING
 
-      - name: "★ الاختبارات (parallel + incremental) — target < 3 min"
-        # pytest-xdist (-n auto): يستخدم كل الـ CPU cores
-        # pytest-testmon (--testmon): يشغّل فقط الاختبارات المتأثرة بالتغييرات
+      - name: "★ الاختبارات (parallel) — target < 3 min"
+        # pytest-xdist (-n auto): يستخدم كل الـ CPU cores.
+        #
+        # أُزيل --testmon: تركيبه مع xdist غير مدعومة رسمياً. testmon يختار
+        # الاختبارات المتأثرة بالتغيير، وxdist يشترط أن يجمع كل العمّال المجموعة
+        # نفسها — فيفشل الجمع بـ"Different tests were collected between gw0 and
+        # gw1". وذاكرة .testmondata كانت تُستعاد من main عبر restore-keys، فأي
+        # ملف اختبار جديد في فرع يجعل الاختلاف حتمياً لا احتمالياً.
+        #
+        # النتيجة كانت فشلاً زائفاً يحجب PRs لا علاقة له بأي تأكيد: صادفناه على
+        # #28 ثم #30. xdist وحده يكفي لهدف "أقل من 3 دقائق".
+        #
         # --cov-fail-under=0: يعطّل الـ gate في الـ fast CI (fail-under مفعّل في nightly.yml على full suite)
         # التغطية الكاملة + fail-under=85 محفوظة في nightly.yml (safety net)
         run: |
-          pytest tests/ -n auto --testmon \
+          pytest tests/ -n auto \
             --junit-xml=test-results.xml \
             --cov-fail-under=0 \
             --tb=short
