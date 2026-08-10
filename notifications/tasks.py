@@ -536,6 +536,14 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
     """
     إرسال Push Notification لولي الأمر عبر VAPID
     يعمل حتى لو كان المتصفح مغلقاً (شرط قبوله الإذن)
+
+    [B4-PRE1] وحدة المحاولة هنا نداء المزوّد لا المهمّة: مستخدم بعدّة اشتراكات
+    يُنتج عدّة نداءات، فيُكتب صفّ لكل واحد. مسارٌ لا يبلغ `webpush` — لا اشتراكات
+    فعّالة، أو مكتبة الإرسال غير مثبتة — لا يكتب شيئاً، لأن محاولة تسليم لم تقع.
+
+    ودلالة `failed` هنا "هذه المحاولة فشلت" لا "التسليم فشل نهائياً"؛ الفرق
+    بينهما يحتاج `NotificationDelivery` ولم تُبنَ بعد. وسلوك الإعادة وDLQ لم
+    يتغيّر في هذه المرحلة: النجاح الجزئي يبقى نجاحاً للمهمّة كما قرّرنا في B3.
     """
     try:
         import json
@@ -543,7 +551,7 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
         from django.conf import settings
         from django.utils import timezone
 
-        from notifications.models import PushSubscription
+        from notifications.models import NotificationLog, PushSubscription
 
         subs = PushSubscription.objects.filter(
             user_id=user_id,
@@ -574,6 +582,25 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
             transient = []
 
             for sub in subs:
+                # [B4-PRE1] محاولة لكل نداء مزوّد — لا واحدة للمهمّة كلّها.
+                #
+                # المهمّة تنادي webpush مرّة لكل اشتراك فعّال، ووليّ أمر بهاتف
+                # وحاسوب ينتج عنه نداءان قد ينجح أحدهما ويفشل الآخر. صفّ واحد
+                # يلخّص الاثنين لا يستطيع قول ذلك ضمن pending/sent/failed:
+                # "أُرسل" يُخفي جهازاً لم تصله الرسالة، و"فشل" يقول إن شيئاً لم
+                # يصل وقد وصل. صفٌّ لكل نداء يجعل كل صفّ صادقاً بذاته.
+                #
+                # والمستلم يُعرَّف بمعرّف الاشتراك الداخلي لا بـendpoint: هذا
+                # الأخير عنوان جهاز، وتخزينه يفتح مستودع تتبّع جديداً.
+                log = NotificationLog.objects.create(
+                    school_id=sub.school_id,
+                    recipient=f"push:{sub.id}",
+                    channel="push",
+                    notif_type="custom",
+                    subject=title,
+                    body=body,
+                    status="pending",
+                )
                 try:
                     webpush(
                         subscription_info=sub.to_dict(),
@@ -581,13 +608,17 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
                         vapid_private_key=vapid_private,
                         vapid_claims={"sub": f"mailto:{vapid_email}"},
                     )
-                    sub.last_used = timezone.now()
-                    sub.save(update_fields=["last_used"])
-                    sent += 1
                 except WebPushException as e:
+                    log.status = "failed"
+                    log.error_msg = _safe_error(e)
+                    log.save(update_fields=["status", "error_msg"])
+
                     # [P2-B3] 404/410 ليست تسليماً فاشلاً بل اشتراكاً ميّتاً:
                     # المتصفّح ألغاه. إعادة المحاولة عليه لن تنجح أبداً، وتسجيله
                     # في DLQ يملؤها بضجيج لا إجراء له. التعطيل هو الإجراء.
+                    #
+                    # [B4-PRE1] والتعطيل لا يمحو أثر المحاولة: الاشتراك يصير
+                    # غير فعّال، والصفّ يبقى شاهداً على أننا حاولنا وفشلنا.
                     if "410" in str(e) or "404" in str(e):
                         sub.is_active = False
                         sub.save(update_fields=["is_active"])
@@ -599,6 +630,13 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
                     # كان يُبتلع في عدّاد وتنتهي المهمة بنجاح، فلا retry ولا DLQ.
                     transient.append(e)
                     logger.warning("Push delivery failed (transient): %s", e)
+                    continue
+
+                sub.last_used = timezone.now()
+                sub.save(update_fields=["last_used"])
+                log.status = "sent"
+                log.save(update_fields=["status"])
+                sent += 1
 
             if transient and sent == 0:
                 # كل التسليمات الصالحة فشلت ⇒ لا شيء نجح، فالإعادة لا تُكرّر شيئاً.

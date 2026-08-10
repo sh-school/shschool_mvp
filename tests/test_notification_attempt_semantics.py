@@ -299,6 +299,223 @@ def test_whatsapp_error_text_carries_no_phone_number():
 
 
 # ══════════════════════════════════════════════════════════════════
+# Push — محاولة لكل نداء مزوّد
+# ══════════════════════════════════════════════════════════════════
+#
+# هذه القناة وحدها تُنادي المزوّد أكثر من مرّة في المهمّة الواحدة: مرّة لكل
+# اشتراك فعّال. ولذلك وحدة المحاولة هنا الاشتراك لا المهمّة — وهو ما يجعل
+# النجاح الجزئي قابلاً للتمثيل بلا اختراع حالة رابعة.
+
+
+def _subscription(school, user, endpoint):
+    from notifications.models import PushSubscription
+
+    return PushSubscription.objects.create(
+        school=school,
+        user=user,
+        endpoint=endpoint,
+        p256dh="p256dh-key",
+        auth="auth-secret",
+    )
+
+
+class _WebPushSpy:
+    """يقف مقام `webpush`، ويُقرّر لكل اشتراك على حدة."""
+
+    def __init__(self, outcomes):
+        #: endpoint -> None للنجاح، أو استثناء يُرفع
+        self.outcomes = outcomes
+        self.seen_at_call = []
+
+    def __call__(self, subscription_info, **kwargs):
+        endpoint = subscription_info["endpoint"]
+        self.seen_at_call.append(set(NotificationLog.objects.values_list("recipient", "status")))
+
+        outcome = self.outcomes[endpoint]
+        if outcome is not None:
+            raise outcome
+
+
+class _FakeWebPushError(Exception):
+    """`WebPushException` بديلة — الكود يفحص نصّها لا نوعها."""
+
+
+def _push_failure(message="push provider refused"):
+    return _FakeWebPushError(message)
+
+
+def _push_module(spy):
+    """يستبدل رمزَي `pywebpush` اللذين تستوردهما المهمّة."""
+    import sys
+    import types
+
+    module = types.ModuleType("pywebpush")
+    module.webpush = spy
+    module.WebPushException = _FakeWebPushError
+    return patch.dict(sys.modules, {"pywebpush": module})
+
+
+def _run_push(user, school):
+    from notifications.tasks import send_push_task
+
+    return send_push_task(str(user.id), "عنوان", "نصّ", "/parents/", school_id=str(school.id))
+
+
+def _push_logs():
+    return dict(NotificationLog.objects.values_list("recipient", "status"))
+
+
+def test_push_single_subscription_success_writes_one_sent_attempt():
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    sub = _subscription(school, user, "https://push.example/a")
+    spy = _WebPushSpy({"https://push.example/a": None})
+
+    with _push_module(spy):
+        result = _run_push(user, school)
+
+    assert result["sent"] == 1
+    assert _push_logs() == {f"push:{sub.id}": "sent"}
+
+
+def test_push_log_exists_pending_before_the_provider_is_called():
+    """الصفّ موجود لحظة نداء `webpush` — لا بعد عودته."""
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    sub = _subscription(school, user, "https://push.example/a")
+    spy = _WebPushSpy({"https://push.example/a": _push_failure()})
+
+    with _push_module(spy):
+        _run_push(user, school)
+
+    assert spy.seen_at_call == [{(f"push:{sub.id}", "pending")}]
+    assert _push_logs() == {f"push:{sub.id}": "failed"}
+
+
+def test_push_two_subscriptions_both_succeed_write_two_attempts():
+    """محاولة لكل جهاز — لا صفّ واحد يلخّص الاثنين."""
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    first = _subscription(school, user, "https://push.example/a")
+    second = _subscription(school, user, "https://push.example/b")
+    spy = _WebPushSpy({"https://push.example/a": None, "https://push.example/b": None})
+
+    with _push_module(spy):
+        result = _run_push(user, school)
+
+    assert result["sent"] == 2
+    assert _push_logs() == {
+        f"push:{first.id}": "sent",
+        f"push:{second.id}": "sent",
+    }
+
+
+def test_push_partial_success_is_recorded_as_it_happened():
+    """
+    [B4-PRE1] هذا هو سبب اختيار الاشتراك وحدةً للمحاولة.
+
+    جهاز وصلته الرسالة وآخر لم تصله. صفٌّ واحد كان سيقول "أُرسل" فيُخفي
+    الثاني، أو "فشل" فينفي الأول. صفّان يقولان ما حدث بلا حالة رابعة.
+
+    وسلوك المهمّة لم يتغيّر: النجاح الجزئي يبقى نجاحاً كما قرّرنا في B3 —
+    PRE1 يوحّد الرصد ولا يُعيد فتح قرار الإعادة.
+    """
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    delivered = _subscription(school, user, "https://push.example/a")
+    refused = _subscription(school, user, "https://push.example/b")
+    spy = _WebPushSpy(
+        {
+            "https://push.example/a": None,
+            "https://push.example/b": _push_failure(),
+        }
+    )
+
+    with _push_module(spy):
+        result = _run_push(user, school)
+
+    assert result["sent"] == 1
+    assert result["transient"] == 1
+    assert _push_logs() == {
+        f"push:{delivered.id}": "sent",
+        f"push:{refused.id}": "failed",
+    }
+
+
+@pytest.mark.parametrize("code", ["410", "404"])
+def test_push_gone_subscription_leaves_a_failed_attempt_and_is_deactivated(code):
+    """
+    الاشتراك يُعطَّل، والمحاولة تبقى مسجّلة.
+
+    تعطيل الاشتراك إجراء على المستقبل؛ محو أثر المحاولة يجعل الماضي يبدو
+    كأن شيئاً لم يُحاوَل.
+    """
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    sub = _subscription(school, user, "https://push.example/a")
+    spy = _WebPushSpy({"https://push.example/a": _push_failure(f"gone {code}")})
+
+    with _push_module(spy):
+        result = _run_push(user, school)
+
+    assert result["invalidated"] == 1
+    assert result["transient"] == 0
+    assert _push_logs() == {f"push:{sub.id}": "failed"}
+
+    sub.refresh_from_db()
+    assert sub.is_active is False
+
+
+def test_push_without_subscriptions_writes_no_attempt():
+    """لا نداء مزوّد ⇒ لا محاولة. صفٌّ هنا يصف حدثاً لم يقع."""
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    spy = _WebPushSpy({})
+
+    with _push_module(spy):
+        result = _run_push(user, school)
+
+    assert result["status"] == "no_subscriptions"
+    assert NotificationLog.objects.count() == 0
+    assert spy.seen_at_call == []
+
+
+def test_push_attempt_never_stores_the_endpoint():
+    """
+    [P2-B2] الـendpoint عنوان جهاز — لا في `recipient` ولا في `error_msg`.
+
+    ونصّ `WebPushException` يحمله عادةً، فالتنقية ليست احتياطاً نظرياً.
+    """
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    endpoint = "https://push.example/device-abc123"
+    _subscription(school, user, endpoint)
+    spy = _WebPushSpy({endpoint: _push_failure(f"delivery refused for {endpoint}")})
+
+    with _push_module(spy):
+        _run_push(user, school)
+
+    log = _only_log()
+    assert "push.example" not in log.recipient
+    assert "device-abc123" not in log.recipient
+    assert "device-abc123" not in log.error_msg
+
+
+# ══════════════════════════════════════════════════════════════════
 # النموذج
 # ══════════════════════════════════════════════════════════════════
 
