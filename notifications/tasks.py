@@ -202,6 +202,48 @@ def send_sms_task(
             return {"status": "dead_letter", "recipient": phone_number}
 
 
+# ── إرسال WhatsApp ───────────────────────────────────────────────────
+
+
+@shared_task(
+    base=TenantRLSTask,
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    name="notifications.send_whatsapp",
+)
+def send_whatsapp_task(self, school_id, phone_number, title, body, sent_by_id=None):
+    """
+    [P2-B3] تسليم WhatsApp مستقلّ.
+
+    كان يُرسَل داخل hub_send_notification_task مباشرةً بينما فُوّضت بقيّة
+    القنوات، فلم يكن له retry خاص ولا مسار إلى DLQ: فشله يُضاف إلى results
+    وتنتهي مهمة الـHub بنجاح. قناة تُرسل بنفسها داخل المنسّق تُبطل عقد
+    "الوحدة تسليم" بدل أن تستثني نفسها منه.
+    """
+    try:
+        from core.models import School
+
+        school = School.objects.get(id=school_id)
+        _send_whatsapp(school, phone_number, title, body)
+
+        return {"status": "sent", "channel": "whatsapp"}
+
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        logger.exception("send_whatsapp_task error: %s", exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            # [P2-B2] تشخيص لا إعادة تشغيل: لا رقم ولا نصّ رسالة.
+            _to_dlq(
+                "whatsapp",
+                school_id,
+                {"notif_type": "whatsapp", "sent_by_id": sent_by_id, "user_id": None},
+                exc,
+            )
+            return {"status": "dead_letter", "channel": "whatsapp"}
+
+
 # ── إشعار غياب الطالب ───────────────────────────────────────────────
 
 
@@ -664,12 +706,14 @@ def hub_send_notification_task(
 
         # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
         if "whatsapp" in channels and user.phone:
-            try:
-                _send_whatsapp(school, user.phone, title, body)
-                results.append(("whatsapp", True, None))
-            except (ImportError, OSError, RuntimeError, ValueError) as e:
-                logger.exception("فشل إرسال WhatsApp إلى %s: %s", user.phone, e)
-                results.append(("whatsapp", False, str(e)))
+            send_whatsapp_task.delay(
+                school_id=str(school.id),
+                phone_number=user.phone,
+                title=title,
+                body=body,
+                sent_by_id=str(sender.id) if sender else None,
+            )
+            results.append(("whatsapp", True, None))
 
         # ── Push ───────────────────────────────────────────────
         if "push" in channels:

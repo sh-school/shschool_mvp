@@ -35,7 +35,12 @@ class DeadLetterMessage(models.Model):
     مشفّر؛ والبديل — تخزين البريد والهاتف والنصّ خاماً — يُنشئ مستودع PII جديداً.
     """
 
-    KIND = [("email", "بريد"), ("sms", "SMS"), ("push", "Push")]
+    KIND = [
+        ("email", "بريد"),
+        ("sms", "SMS"),
+        ("push", "Push"),
+        ("whatsapp", "WhatsApp"),
+    ]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
         School,

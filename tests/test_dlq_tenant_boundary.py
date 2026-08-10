@@ -173,10 +173,11 @@ def test_the_payload_scanner_sees_the_real_call_sites():
     source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
     blocks = _dlq_call_blocks(source)
 
-    assert len(blocks) >= 3
+    assert len(blocks) >= 4
     assert any('"email"' in block for block in blocks)
     assert any('"sms"' in block for block in blocks)
     assert any('"push"' in block for block in blocks)
+    assert any('"whatsapp"' in block for block in blocks)
 
 
 def test_every_payload_identifies_its_recipient():

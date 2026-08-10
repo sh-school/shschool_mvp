@@ -52,9 +52,11 @@ def test_hub_dispatches_deliveries_instead_of_sending_them():
     hub = _hub_body()
 
     assert "NotificationService." not in hub, "the hub must not deliver by itself"
+    assert "_send_whatsapp(" not in hub, "WhatsApp must not be sent inside the orchestrator"
     assert "send_email_task.delay" in hub
     assert "send_sms_task.delay" in hub
     assert "send_push_task.delay" in hub
+    assert "send_whatsapp_task.delay" in hub
 
 
 def test_partial_channel_failure_does_not_retry_the_dispatch():
@@ -155,7 +157,7 @@ def test_push_does_not_dead_letter_when_some_deliveries_succeeded():
 # ══════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.parametrize("channel", ["email", "sms", "push"])
+@pytest.mark.parametrize("channel", ["email", "sms", "push", "whatsapp"])
 def test_every_channel_has_its_own_dead_letter_path(channel):
     """كل قناة تُسجّل فشلها النهائي بنفسها — لا قناة تتحدّث نيابةً عن أخرى."""
     assert f'"{channel}",' in TASKS_SOURCE
@@ -167,7 +169,7 @@ def test_dead_letter_kinds_match_the_model():
 
     declared = {value for value, _label in DeadLetterMessage.KIND}
 
-    assert declared == {"email", "sms", "push"}
+    assert declared == {"email", "sms", "push", "whatsapp"}
 
 
 def test_the_dlq_docstring_agrees_with_the_writer():
@@ -196,3 +198,21 @@ def test_source_anchors_still_resolve():
     assert len(_push_body()) > 500
     assert "hub_send_notification_task" in TASKS_SOURCE
     assert hasattr(notification_tasks, "send_push_task")
+
+
+def test_whatsapp_is_a_delivery_like_any_other_channel():
+    """
+    [P2-B3] آخر قناة كانت تُرسل داخل المنسّق.
+
+    كانت WhatsApp تُنفَّذ عبر _send_whatsapp() مباشرةً، فتُضاف نتيجتها إلى
+    results وتنتهي مهمة الـHub بنجاح — بلا retry خاص ولا DLQ. قناة واحدة
+    تستثني نفسها من العقد تُبطله: التعليق كان يقول "الفشل مسؤولية كل مهمة
+    تسليم على حدة" بينما لم تكن لها مهمة تسليم أصلاً.
+    """
+    source = TASKS_SOURCE
+
+    assert "def send_whatsapp_task" in source
+    assert "MaxRetriesExceededError" in source[source.index("def send_whatsapp_task") :][:2000]
+
+    hub = _hub_body()
+    assert "_send_whatsapp(" not in hub
