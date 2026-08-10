@@ -19,7 +19,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from django.db import InternalError, connection, transaction
+from django.db import DatabaseError, connection, transaction
 
 from notifications import tasks as notification_tasks
 from notifications.models import DeadLetterMessage
@@ -195,17 +195,47 @@ def test_school_is_required_on_the_model():
 # [P2-B1] العزل سلوكياً — لا تركيباً
 # ══════════════════════════════════════════════════════════════════
 #
-# فحص وجود السياسة يُثبت أنها مُركَّبة، لا أنها تمنع. وهذه الاختبارات
-# لا يمكن أن تعمل بدور مالك قاعدة الاختبار: المالك يتجاوز RLS ما لم
-# تُفرَض بـFORCE، وapp_rls_school() تشتقّ المستأجر من session_user عبر
-# جدول الربط — لا من متغيّر جلسة. فنُهيّئ الاثنين معاً.
+# فحص وجود السياسة يُثبت أنها مُركَّبة، لا أنها تمنع.
+#
+# وتشغيلها يصطدم بعقبتين، كلتاهما أسقطت المحاولة الأولى في CI:
+#
+# 1) الدور. قاعدة الاختبار تتصل بـPOSTGRES_USER وهو **superuser**.
+#    وFORCE ROW LEVEL SECURITY يُخضع مالك الجدول ولا يُخضع superuser ولا
+#    BYPASSRLS — فكانت الاختبارات ستمرّ بلا أن تمارس السياسة إطلاقاً.
+#    الحلّ: دور فعلي غير متميّز يُنشأ في الاختبار ونتحوّل إليه بـSET ROLE.
+#
+# 2) الترتيب. ALTER TABLE بعد INSERT في المعاملة نفسها يصطدم بمشغّلات
+#    المفاتيح الأجنبية المؤجّلة: "cannot ALTER TABLE ... pending trigger
+#    events". فكل DDL يسبق أي DML.
+
+RLS_TEST_ROLE = "dlq_rls_probe"
 
 
 @contextmanager
 def _rls_enforced_as(school_id):
-    """يجعل الدور الحالي خاضعاً للسياسة ومربوطاً بمدرسة محددة."""
+    """
+    يُمارس السياسة بدور غير متميّز — لا بمالك القاعدة.
+
+    SET ROLE يُغيّر current_user فتُطبَّق السياسة، بينما session_user يبقى
+    المالك؛ ولهذا يُربط الاثنان في جدول الربط: app_rls_school() تقرأ
+    session_user، وقرار تطبيق السياسة يقوم على current_user.
+    """
     with connection.cursor() as cursor:
-        cursor.execute(f"ALTER TABLE public.{TABLE} FORCE ROW LEVEL SECURITY")
+        # DDL أولاً: أي DML قبله يترك مشغّلات مؤجّلة تمنع ALTER TABLE.
+        cursor.execute(
+            f"""
+            DO $$
+            BEGIN
+                CREATE ROLE {RLS_TEST_ROLE} NOSUPERUSER NOBYPASSRLS NOINHERIT;
+            EXCEPTION WHEN duplicate_object THEN
+                -- الأدوار على مستوى العنقود لا القاعدة، وعمّال xdist يتشاركونه.
+                NULL;
+            END $$;
+            """
+        )
+        cursor.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON public.{TABLE} TO {RLS_TEST_ROLE}")
+        cursor.execute(f"GRANT SELECT ON public.app_rls_role_school TO {RLS_TEST_ROLE}")
+        cursor.execute(f"GRANT USAGE ON SCHEMA public TO {RLS_TEST_ROLE}")
         cursor.execute(
             """
             INSERT INTO public.app_rls_role_school (db_role, school_id)
@@ -214,11 +244,13 @@ def _rls_enforced_as(school_id):
             """,
             [str(school_id)],
         )
+        cursor.execute(f"SET ROLE {RLS_TEST_ROLE}")
+
     try:
         yield
     finally:
         with connection.cursor() as cursor:
-            cursor.execute(f"ALTER TABLE public.{TABLE} NO FORCE ROW LEVEL SECURITY")
+            cursor.execute("RESET ROLE")
 
 
 def _make_row(school, kind="email"):
@@ -270,9 +302,13 @@ def test_writing_into_a_foreign_school_is_rejected():
     victim = SchoolFactory()
 
     with _rls_enforced_as(own.id):
-        with pytest.raises(InternalError):
+        # انتهاك WITH CHECK هو SQLSTATE 42501، وربطه بصنف بعينه هشّ عبر
+        # إصدارات psycopg — نُمسك DatabaseError ونؤكّد على الرسالة نفسها.
+        with pytest.raises(DatabaseError) as exc:
             with transaction.atomic():
                 _make_row(victim)
+
+    assert "row-level security" in str(exc.value).lower()
 
 
 # ══════════════════════════════════════════════════════════════════
