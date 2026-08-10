@@ -84,6 +84,83 @@ def test_csrf_cookie_is_not_readable_by_scripts():
 
 
 # ══════════════════════════════════════════════════════════════════
+# حارس ارتداد عام — يمنع ظهور قارئ ثالث لا عودة القديمَين فقط
+# ══════════════════════════════════════════════════════════════════
+
+SCANNED_ROOTS = (ROOT / "static" / "js", ROOT / "templates")
+SCANNED_SUFFIXES = {".js", ".html"}
+
+# مكتبات طرف ثالث: لا نملكها ولا يعنينا عقدها الداخلي.
+VENDOR_MARKERS = (".min.", "/vendor/", "\\vendor\\")
+
+# استثناءات صريحة عند ظهور إيجابية كاذبة حقيقية — تُضاف بمبرّر مكتوب.
+CSRF_COOKIE_ALLOWLIST: set[str] = set()
+
+# اسم الترويسة X-CSRFToken يحوي "csrftoken" عند تصغير الحروف، وهو بالضبط ما
+# نريد إبقاءه. نزيله قبل البحث حتى لا يُجرّم الحارس السلوك الصحيح.
+CSRF_HEADER_TOKEN = "x-csrftoken"
+
+
+def _reads_csrf_cookie(source: str) -> bool:
+    """
+    استدلال واسع عمداً: اجتماع document.cookie مع اسم كوكي CSRF في ملف واحد.
+
+    لا يحاول تحليل الدلالة — `const c = document.cookie; parse(c, 'csrftoken')`
+    يفلت من أي regex ضيّق. حارس الارتداد يحتاج اتساعاً لا دقّة نحوية.
+    """
+    lowered = source.lower().replace(CSRF_HEADER_TOKEN, "")
+    return "document.cookie" in lowered and "csrftoken" in lowered
+
+
+def test_no_production_script_reads_the_csrf_cookie():
+    """
+    [P2-A] العقد عالمي لأن الإعداد عالمي.
+
+    اختبارا الموضعين أعلاه يمنعان عودة القديمَين. هذا يمنع الثالث: ملف جديد
+    يقرأ الكوكي سيمرّ من هناك ويُكسر العقد صامتاً.
+    """
+    offenders = []
+
+    for root in SCANNED_ROOTS:
+        for path in root.rglob("*"):
+            if path.suffix not in SCANNED_SUFFIXES:
+                continue
+
+            relative = path.relative_to(ROOT).as_posix()
+
+            if any(marker in str(path) for marker in VENDOR_MARKERS):
+                continue
+            if relative in CSRF_COOKIE_ALLOWLIST:
+                continue
+
+            if _reads_csrf_cookie(path.read_text(encoding="utf-8", errors="ignore")):
+                offenders.append(relative)
+
+    assert offenders == [], (
+        "CSRF_COOKIE_HTTPONLY=True — لا سكربت تطبيقي يقرأ كوكي CSRF. "
+        "خُذ الرمز من [name=csrfmiddlewaretoken] في DOM. المخالفون: " + ", ".join(sorted(offenders))
+    )
+
+
+def test_the_regression_guard_actually_catches_an_offender():
+    """
+    الحارس نفسه يحتاج برهاناً.
+
+    اختبار يمرّ دائماً لا يحرس شيئاً — نُثبت أنه يلتقط النمط الذي وُضع له،
+    بما فيه الشكل الذي يفلت من regex ضيّق.
+    """
+    inline = "var m = document.cookie.match('csrftoken=([^;]*)');"
+    indirect = "const c = document.cookie;\nconst t = parse(c, 'csrftoken');"
+    legitimate = (
+        "headers['X-CSRFToken'] = document.querySelector('[name=csrfmiddlewaretoken]').value;"
+    )
+
+    assert _reads_csrf_cookie(inline)
+    assert _reads_csrf_cookie(indirect)
+    assert not _reads_csrf_cookie(legitimate)
+
+
+# ══════════════════════════════════════════════════════════════════
 # حارس الافتراض الذي يقوم عليه كل ما سبق
 # ══════════════════════════════════════════════════════════════════
 
