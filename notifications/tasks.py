@@ -528,7 +528,9 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
             vapid_private = getattr(settings, "VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
             vapid_email = getattr(settings, "VAPID_CLAIMS_EMAIL", "admin@shahaniya.edu.qa")
 
-            sent = failed = 0
+            sent = invalidated = 0
+            transient = []
+
             for sub in subs:
                 try:
                     webpush(
@@ -541,14 +543,26 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
                     sub.save(update_fields=["last_used"])
                     sent += 1
                 except WebPushException as e:
-                    # 410 Gone = اشتراك منتهي → نحذفه
+                    # [P2-B3] 404/410 ليست تسليماً فاشلاً بل اشتراكاً ميّتاً:
+                    # المتصفّح ألغاه. إعادة المحاولة عليه لن تنجح أبداً، وتسجيله
+                    # في DLQ يملؤها بضجيج لا إجراء له. التعطيل هو الإجراء.
                     if "410" in str(e) or "404" in str(e):
                         sub.is_active = False
                         sub.save(update_fields=["is_active"])
-                    failed += 1
-                    logger.warning(f"Push failed for {sub.endpoint[:40]}: {e}")
+                        invalidated += 1
+                        logger.info("Push subscription invalidated (gone)")
+                        continue
 
-            return {"sent": sent, "failed": failed}
+                    # وفشل المزوّد على اشتراك صالح تسليمٌ فاشل قابل للإعادة —
+                    # كان يُبتلع في عدّاد وتنتهي المهمة بنجاح، فلا retry ولا DLQ.
+                    transient.append(e)
+                    logger.warning("Push delivery failed (transient): %s", e)
+
+            if transient and sent == 0:
+                # كل التسليمات الصالحة فشلت ⇒ لا شيء نجح، فالإعادة لا تُكرّر شيئاً.
+                raise RuntimeError(f"push delivery failed for {len(transient)} subscription(s)")
+
+            return {"sent": sent, "invalidated": invalidated, "transient": len(transient)}
 
         except ImportError:
             # pywebpush غير مثبت — نسجّل فقط
@@ -557,7 +571,18 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
 
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_push_task error: %s", exc)
-        raise self.retry(exc=exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            # [P2-B3] تسليم Push انتهت محاولاته ⇒ يدخل DLQ مثل البريد وSMS.
+            # النموذج يُعرّف kind="push" منذ البداية ولم يكن يُكتب قط.
+            _to_dlq(
+                "push",
+                school_id,
+                {"user_id": str(user_id), "notif_type": "push", "sent_by_id": None},
+                exc,
+            )
+            return {"status": "dead_letter", "user": str(user_id)}
 
 
 @shared_task(
@@ -601,7 +626,6 @@ def hub_send_notification_task(
     Retry: 3 محاولات مع exponential backoff (60s, 120s, 240s)
     """
     from core.models import CustomUser, School
-    from notifications.services import NotificationService
 
     try:
         user = CustomUser.objects.get(id=user_id)
@@ -612,26 +636,31 @@ def hub_send_notification_task(
 
         # ── Email ──────────────────────────────────────────────
         if "email" in channels and user.email:
-            ok, err = NotificationService.send_email(
-                school=school,
+            # [P2-B3] تسليم مستقلّ لا إرسال داخل هذه المهمة. كان البريد وSMS
+            # يُرسَلان هنا مباشرةً، فصار فشل قناة واحدة إمّا يضيع صامتاً — لأن
+            # المهمة تنتهي بنجاح ما دام أحدهما نجح — أو، لو أعدنا المهمة،
+            # يُعيد إرسال القناة الناجحة ويُنتج إشعاراً مكرّراً.
+            # كل مهمة تسليم تحمل retry الخاص بها ومسارها إلى DLQ.
+            send_email_task.delay(
+                school_id=str(school.id),
                 recipient_email=user.email,
                 subject=title,
                 body_text=body,
                 notif_type=_hub_to_notif_type(event_type),
-                sent_by=sender,
+                sent_by_id=str(sender.id) if sender else None,
             )
-            results.append(("email", ok, err))
+            results.append(("email", True, None))
 
         # ── SMS ────────────────────────────────────────────────
         if "sms" in channels and user.phone:
-            ok, err = NotificationService.send_sms(
-                school=school,
+            send_sms_task.delay(
+                school_id=str(school.id),
                 phone_number=user.phone,
                 message=f"{title}\n{body}",
                 notif_type=_hub_to_notif_type(event_type),
-                sent_by=sender,
+                sent_by_id=str(sender.id) if sender else None,
             )
-            results.append(("sms", ok, err))
+            results.append(("sms", True, None))
 
         # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
         if "whatsapp" in channels and user.phone:
@@ -658,11 +687,18 @@ def hub_send_notification_task(
                 results.append(("push", False, str(e)))
 
         # ── تحقق من الفشل ─────────────────────────────────────
+        # [P2-B3] لا retry على مستوى المهمة. كان هنا raise Exception(...)
+        # و except أدناه يمسك (OSError, RuntimeError, ValueError, KeyError)
+        # فقط — فلم يكن يلتقطها، ولم يُستدعَ self.retry() قط رغم أن التعليق
+        # يقول "→ retry". وحتى لو التقطها، إعادة المهمة كانت ستُعيد إرسال
+        # القنوات الناجحة. الفشل الآن مسؤولية كل مهمة تسليم على حدة.
         failures = [r for r in results if not r[1]]
-        if failures and all(not r[1] for r in results):
-            # كل القنوات فشلت → retry
-            error_msg = "; ".join(f"{ch}: {err}" for ch, _, err in failures)
-            raise Exception(f"All channels failed: {error_msg}")
+        if failures:
+            logger.warning(
+                "hub_send: %d channel(s) failed to dispatch for user %s",
+                len(failures),
+                user_id,
+            )
 
         logger.info(
             f"hub_send: {user.full_name} | "
