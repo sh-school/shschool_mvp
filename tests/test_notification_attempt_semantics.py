@@ -387,9 +387,29 @@ def test_push_log_exists_pending_before_the_provider_is_called():
     school = SchoolFactory()
     user = UserFactory()
     sub = _subscription(school, user, "https://push.example/a")
-    spy = _WebPushSpy({"https://push.example/a": _push_failure()})
+    spy = _WebPushSpy({"https://push.example/a": None})
 
     with _push_module(spy):
+        _run_push(user, school)
+
+    assert spy.seen_at_call == [{(f"push:{sub.id}", "pending")}]
+
+
+def test_push_sole_subscription_failing_still_leaves_a_failed_attempt():
+    """
+    اشتراك وحيد فشل ⇒ `sent == 0` ⇒ المهمّة ترفع وتُعاد.
+
+    هذا سلوك B3 ولم يتغيّر: إذا لم ينجح شيء فالإعادة لا تُكرّر تسليماً. ما
+    يضيفه PRE1 أن المحاولة تُسجَّل قبل ذلك، فالإعادة لا تمحو أثر الأولى.
+    """
+    from tests.conftest import UserFactory
+
+    school = SchoolFactory()
+    user = UserFactory()
+    sub = _subscription(school, user, "https://push.example/a")
+    spy = _WebPushSpy({"https://push.example/a": _push_failure()})
+
+    with _push_module(spy), pytest.raises(RuntimeError):
         _run_push(user, school)
 
     assert spy.seen_at_call == [{(f"push:{sub.id}", "pending")}]
@@ -506,7 +526,8 @@ def test_push_attempt_never_stores_the_endpoint():
     _subscription(school, user, endpoint)
     spy = _WebPushSpy({endpoint: _push_failure(f"delivery refused for {endpoint}")})
 
-    with _push_module(spy):
+    # اشتراك وحيد فشل ⇒ المهمّة ترفع (سلوك B3)، والصفّ مكتوب قبل ذلك.
+    with _push_module(spy), pytest.raises(RuntimeError):
         _run_push(user, school)
 
     log = _only_log()
