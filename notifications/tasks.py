@@ -25,12 +25,25 @@ from core.celery_tasks import TenantRLSTask, school_rls_scope
 logger = logging.getLogger(__name__)
 
 
-def _to_dlq(kind, payload, error):
-    """[P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت."""
+def _to_dlq(kind, school_id, payload, error):
+    """
+    [P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت.
+
+    [P2-B1] المدرسة وسيط صريح لا مفتاح يُستخرج من الـpayload. هي العمود الذي
+    تعتمد عليه سياسة العزل، وتمريرها ضمناً داخل JSON هو ما أبقى هذا الجدول
+    خارج RLS من الأساس.
+
+    والـpayload بيانات إعادة تشغيل لا نسخة من الرسالة: لا بريد ولا هاتف ولا نصّ.
+    """
     try:
         from notifications.models import DeadLetterMessage
 
-        DeadLetterMessage.objects.create(kind=kind, payload=payload, error=str(error)[:2000])
+        DeadLetterMessage.objects.create(
+            kind=kind,
+            school_id=school_id,
+            payload=payload,
+            error=str(error)[:2000],
+        )
         logger.error("DLQ: %s message dead-lettered", kind)
     except Exception:  # noqa: BLE001 — لا نُفشل المهمة بسبب فشل الكتابة في DLQ نفسه
         logger.exception("DLQ write failed for kind=%s", kind)
@@ -91,12 +104,12 @@ def send_email_task(
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
+            # [P2-B1] لا recipient_email ولا subject: المستلم والمحتوى يُشتقّان
+            # وقت إعادة الإرسال من student_id و notif_type.
             _to_dlq(
                 "email",
+                school_id,
                 {
-                    "school_id": school_id,
-                    "recipient_email": recipient_email,
-                    "subject": subject,
                     "student_id": student_id,
                     "notif_type": notif_type,
                     "sent_by_id": sent_by_id,
@@ -147,12 +160,12 @@ def send_sms_task(
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
+            # [P2-B1] لا phone_number ولا message: كلاهما بيانات شخصية، وإعادة
+            # الإرسال تُعيد بناءهما من student_id و notif_type.
             _to_dlq(
                 "sms",
+                school_id,
                 {
-                    "school_id": school_id,
-                    "phone_number": phone_number,
-                    "message": message,
                     "student_id": student_id,
                     "notif_type": notif_type,
                     "sent_by_id": sent_by_id,
