@@ -173,10 +173,30 @@ def test_the_payload_scanner_sees_the_real_call_sites():
     source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
     blocks = _dlq_call_blocks(source)
 
-    assert len(blocks) >= 2
+    assert len(blocks) >= 3
     assert any('"email"' in block for block in blocks)
     assert any('"sms"' in block for block in blocks)
-    assert all("student_id" in block for block in blocks)
+    assert any('"push"' in block for block in blocks)
+
+
+def test_every_payload_identifies_its_recipient():
+    """
+    [P2-B3] كل صفّ في الطابور يجب أن يقول لمن كان.
+
+    الثابت ليس `student_id` بعينه: البريد وSMS يخصّان طالباً وأولياء أمره،
+    وPush يخصّ مستخدماً مشتركاً — وحدة التسليم تختلف بين القنوات. المطلوب
+    مرجع داخليّ للمستلم، لا حقل بذاته.
+
+    وهذا التأكيد نفسه كان يشترط `student_id` في كل موضع، فالتقط إضافة Push
+    في P2-B3 — وهو ما ينبغي أن يفعله حارس: يفشل عند تغيّر المعنى لا عند
+    تغيّر الشكل.
+    """
+    source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
+
+    for block in _dlq_call_blocks(source):
+        assert (
+            "student_id" in block or "user_id" in block
+        ), "a dead-letter payload must carry an internal reference to its recipient"
 
 
 # ══════════════════════════════════════════════════════════════════
