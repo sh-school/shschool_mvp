@@ -13,6 +13,21 @@ from core.celery_tasks import RLSIsolatedTask, TenantRLSTask, school_rls_scope
 from core.rls import reset_rls_context
 
 
+@pytest.fixture
+def no_enforcement_probe(monkeypatch):
+    """
+    يُعطّل فحص فرض RLS لاختبار وحدة لا يملك اتصال قاعدة بيانات.
+
+    ليست autouse عمداً. في ملف اختبار أمني يجب أن يكون الافتراضي هو السلوك
+    الحقيقي، والتعطيل استثناءً يطلبه من يحتاجه صراحةً — وإلا مرّ اختبار
+    يُضاف لاحقاً أخضرَ لأن مؤلفه لم ينتبه إلى تعطيل شامل للملف.
+    """
+    monkeypatch.setattr(
+        "core.celery_tasks.rls_is_enforced_for_current_role",
+        lambda: False,
+    )
+
+
 def test_worker_task_resets_rls_before_and_after_execution(monkeypatch):
     calls = []
 
@@ -172,6 +187,7 @@ VALID_SCHOOL_ID = "00000000-0000-0000-0000-000000000001"
 
 def test_tenant_worker_enters_school_context_between_resets(
     monkeypatch,
+    no_enforcement_probe,
 ):
     events = []
 
@@ -216,6 +232,7 @@ def test_tenant_worker_enters_school_context_between_resets(
 
 def test_tenant_eager_nests_school_inside_fail_closed_scope(
     monkeypatch,
+    no_enforcement_probe,
 ):
     events = []
 
@@ -479,7 +496,7 @@ def test_push_subscription_lookup_is_explicitly_school_scoped():
     assert "is_active" in keywords
 
 
-def test_school_rls_scope_enters_canonical_context(monkeypatch):
+def test_school_rls_scope_enters_canonical_context(monkeypatch, no_enforcement_probe):
     events = []
 
     @contextmanager
@@ -744,23 +761,6 @@ def test_monthly_kpi_explicit_school_preserves_legacy_contract():
 
 FOREIGN_SCHOOL_ID = "00000000-0000-0000-0000-0000000000ff"
 
-# المرجع الأصلي للدالة — محصّن ضد الـfixture أدناه الذي يستبدل سمة الوحدة.
-_REAL_ENFORCEMENT_PROBE = celery_tasks_module.rls_is_enforced_for_current_role
-
-
-@pytest.fixture(autouse=True)
-def _disable_enforcement_probe(monkeypatch):
-    """
-    اختبارات هذه الوحدة اختبارات وحدة بلا قاعدة بيانات.
-
-    الحارس يستعلم pg_roles ليعرف إن كان الدور خاضعاً لـRLS، وهو استعلام حقيقي.
-    نُعطّله افتراضياً؛ واختبارات الحارس نفسها تُفعّله صراحةً.
-    """
-    monkeypatch.setattr(
-        "core.celery_tasks.rls_is_enforced_for_current_role",
-        lambda: False,
-    )
-
 
 @contextmanager
 def _noop_rls_context(value):
@@ -814,7 +814,7 @@ def test_scope_fails_closed_when_the_role_has_no_tenant_binding(monkeypatch):
             pass
 
 
-def test_scope_skips_the_assertion_for_exempt_roles(monkeypatch):
+def test_scope_skips_the_assertion_for_exempt_roles(monkeypatch, no_enforcement_probe):
     """
     الدور المتميّز (superuser/BYPASSRLS) يتجاوز السياسات أصلاً.
 
@@ -846,4 +846,4 @@ def test_enforcement_probe_is_skipped_off_postgresql(monkeypatch):
         SimpleNamespace(vendor="sqlite"),
     )
 
-    assert _REAL_ENFORCEMENT_PROBE() is False
+    assert celery_tasks_module.rls_is_enforced_for_current_role() is False
