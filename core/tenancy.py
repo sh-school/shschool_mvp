@@ -49,7 +49,10 @@ PARENT_DERIVED = {
     "exam_control_examgradesheet": "schedule -> session -> exam_control_examsession.school_id",
     # library
     "core_bookborrowing": "book -> core_librarybook.school_id",
-    "core_libraryactivity_participants": "libraryactivity -> core_libraryactivity.school_id",
+    "core_libraryactivity_participants": (
+        "libraryactivity -> core_libraryactivity.school_id "
+        "(+ participant must hold a core_membership here, on write)"
+    ),
     # operations
     "operations_permissionauditlog": "temp_permission -> operations_temporarypermission.school_id",
     # quality
@@ -64,7 +67,10 @@ PARENT_DERIVED = {
     "quality_procedurestatuslog": "procedure -> quality_operationalprocedure.school_id",
     # transport
     "core_busroute": "bus -> core_schoolbus.school_id",
-    "core_busroute_students": "busroute -> bus -> core_schoolbus.school_id",
+    "core_busroute_students": (
+        "busroute -> bus -> core_schoolbus.school_id "
+        "(+ student must hold a core_membership here, on write)"
+    ),
 }
 
 

@@ -119,6 +119,41 @@ def test_derived_policies_reference_a_parent_table(table):
     assert "EXISTS" in with_check.upper()
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "table",
+    ["core_busroute_students", "core_libraryactivity_participants"],
+)
+def test_join_table_checks_are_stronger_than_their_using(table):
+    """
+    [RLS-PRE0] جدول الربط له طرفان، فـWITH CHECK يجب أن يزيد على USING.
+
+    السياسة الأولى فحصت الأب في الاثنين معاً، فبدت خضراء بينما تترك الطرف
+    الثاني مفتوحاً. هذا الفحص يُثبت بنيوياً أن مُسنَد الكتابة يسأل جدول
+    العضويّات — فإن حذفه أحد يوماً سقط الاختبار بدل أن يمرّ بادعاء أوسع من
+    السياسة.
+    """
+    _skip_unless_postgres()
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT qual, with_check
+            FROM pg_policies
+            WHERE schemaname = 'public'
+              AND tablename = %s
+              AND policyname = 'school_isolation'
+            """,
+            [table],
+        )
+        qual, with_check = cursor.fetchone()
+
+    assert "core_membership" in with_check, f"{table}: WITH CHECK لا يفحص الطرف الثاني"
+    assert "core_membership" not in qual, (
+        f"{table}: USING يفحص العضويّة — وهذا يُخفي صفوفاً مشروعة انتهت عضويّة " f"صاحبها ويمنع تصحيحها"
+    )
+
+
 # ══════════════════════════════════════════════════════════════════
 # السلوك — دور غير متميّز
 # ══════════════════════════════════════════════════════════════════
@@ -265,29 +300,102 @@ def test_route_on_a_foreign_bus_is_rejected():
         )
 
 
-# ── الشكل الثاني: قفزتان عبر جدول ربط M2M ────────────────────────────────────
+# ── الشكل الثاني: جدولا ربط M2M — طرفان مستأجِران ────────────────────────────
+#
+# جدول الربط يحمل مرجعين، وكلاهما مستأجِر. فحص الأب وحده يترك الطرف الآخر
+# مفتوحاً: مسار مدرستنا يقبل طالب مدرسة أخرى.
+#
+# والطرف الآخر لا يُفحص بعمود — `core_customuser` بلا `school_id` لأن استئجار
+# الشخص علاقة متعدّدة عبر `core_membership`. فالمُسنَد يسأل جدول العضويّات.
+#
+# ولهذا ثلاثية لكل جدول لا اختباران. اختبارٌ يرفض مستخدماً بلا عضويّة **ومع**
+# أبٍ أجنبي لا يُثبت شيئاً عن المستخدم: الرفض منسوب إلى الأب. الحالة الوحيدة
+# التي تُثبت الطرف الثاني هي **أبٌ لنا ومستخدم ليس لنا**.
+
+JOIN_TABLE_PARENTS = ("core_busroute", "core_schoolbus", "core_membership")
+
+
+def _member_of(school):
+    """مستخدم يحمل عضويّة في المدرسة — لا مستخدم عشوائي."""
+    from tests.conftest import MembershipFactory
+
+    return MembershipFactory(school=school).user
+
+
+@pytest.mark.django_db
+def test_route_membership_for_a_member_succeeds():
+    """
+    الحالة المشروعة: مسارنا وطالب يحمل عضويّة عندنا.
+
+    كان هذا الاختبار يُنشئ `UserFactory()` بلا عضويّة ويؤكّد النجاح — أي أنه
+    كان يُثبت أن أيّ مستخدم في المنصّة يُقبل، وهو نقيض ما تدّعيه السياسة.
+    """
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    route = _make_route(own)
+    student = _member_of(own)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=JOIN_TABLE_PARENTS,
+        writable=("core_busroute_students",),
+    ):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO public.core_busroute_students "
+                "(busroute_id, customuser_id) VALUES (%s, %s)",
+                [str(route.id), str(student.id)],
+            )
+
+
+@pytest.mark.django_db
+def test_own_route_with_a_foreign_student_is_rejected():
+    """
+    [RLS-PRE0] الطرف الثاني — وهو ما كانت السياسة الأولى تتركه مفتوحاً.
+
+    المسار مسارنا فيمرّ `USING`، والطالب يحمل عضويّة في مدرسة أخرى وحدها.
+    سياسة تفحص الأب فقط كانت ستقبل الصفّ: طالب مدرسة أخرى في حافلة مدرستنا.
+    ولا المفتاح الأجنبي يمنعه، لأن فحص السلامة المرجعية يجري خارج RLS.
+    """
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    route = _make_route(own)
+    foreign_student = _member_of(victim)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=JOIN_TABLE_PARENTS,
+        writable=("core_busroute_students",),
+    ):
+        _assert_rejected_by_rls(
+            "INSERT INTO public.core_busroute_students (busroute_id, customuser_id) "
+            "VALUES (%s, %s)",
+            [str(route.id), str(foreign_student.id)],
+        )
 
 
 @pytest.mark.django_db
 def test_foreign_route_membership_is_rejected():
     """
-    [RLS-PRE0] جدول الربط الآلي كان الفجوة التي لا يراها جرد النماذج.
+    [RLS-PRE0] الطرف الأول: جدول الربط الآلي لا يراه جرد النماذج.
 
     `core_busroute_students` يُنشئه Django لـ`BusRoute.students`، ولا يظهر في
-    `apps.get_models()` افتراضياً. قبل الترحيل لم يكن شيء يمنع ربط مسار مدرسة
-    بطالب مدرسة أخرى — والمفتاحان الأجنبيان لا يمنعانه لأن فحص السلامة
-    المرجعية يجري خارج RLS.
+    `apps.get_models()` افتراضياً. المسار هنا أجنبي والطالب عضو عندنا، فالرفض
+    منسوب إلى الأب وحده — وهذا ما يجعله مكمّلاً للاختبار السابق لا بديلاً عنه.
     """
     _skip_unless_postgres()
 
     own = SchoolFactory()
     victim = SchoolFactory()
     foreign_route = _make_route(victim)
-    student = UserFactory()
+    student = _member_of(own)
 
     with _rls_enforced_as(
         own.id,
-        readable=("core_busroute", "core_schoolbus"),
+        readable=JOIN_TABLE_PARENTS,
         writable=("core_busroute_students",),
     ):
         _assert_rejected_by_rls(
@@ -298,25 +406,123 @@ def test_foreign_route_membership_is_rejected():
 
 
 @pytest.mark.django_db
-def test_own_route_membership_succeeds():
-    """القفزتان تعملان في الاتجاه المشروع أيضاً."""
+def test_a_student_of_two_schools_may_ride_in_each():
+    """
+    شرط العضويّة لا يكسر تعدّد المدارس.
+
+    من يحمل عضويّتين يُقبل في كلٍّ منهما، لأن كل مدرسة تستوفي المُسنَد في
+    دورها. المرفوض هو من لا عضويّة له هنا، لا من له عضويّة هناك أيضاً.
+    """
+    _skip_unless_postgres()
+
+    from tests.conftest import MembershipFactory
+
+    first = SchoolFactory()
+    second = SchoolFactory()
+    student = _member_of(first)
+    MembershipFactory(school=second, user=student)
+
+    for school in (first, second):
+        route = _make_route(school)
+        with _rls_enforced_as(
+            school.id,
+            readable=JOIN_TABLE_PARENTS,
+            writable=("core_busroute_students",),
+        ):
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "INSERT INTO public.core_busroute_students "
+                    "(busroute_id, customuser_id) VALUES (%s, %s)",
+                    [str(route.id), str(student.id)],
+                )
+
+
+# ── نفس الثلاثية لمشاركي أنشطة المكتبة ───────────────────────────────────────
+
+ACTIVITY_PARENTS = ("core_libraryactivity", "core_membership")
+
+
+def _make_activity(school):
+    from library.models import LibraryActivity
+
+    return LibraryActivity.objects.create(
+        school=school,
+        title="نشاط",
+        description="وصف",
+        date="2026-01-01",
+    )
+
+
+@pytest.mark.django_db
+def test_activity_participant_who_is_a_member_succeeds():
+    """الحالة المشروعة: نشاطنا ومشارك يحمل عضويّة عندنا."""
     _skip_unless_postgres()
 
     own = SchoolFactory()
-    route = _make_route(own)
-    student = UserFactory()
+    activity = _make_activity(own)
+    participant = _member_of(own)
 
     with _rls_enforced_as(
         own.id,
-        readable=("core_busroute", "core_schoolbus"),
-        writable=("core_busroute_students",),
+        readable=ACTIVITY_PARENTS,
+        writable=("core_libraryactivity_participants",),
     ):
         with connection.cursor() as cursor:
             cursor.execute(
-                "INSERT INTO public.core_busroute_students "
-                "(busroute_id, customuser_id) VALUES (%s, %s)",
-                [str(route.id), str(student.id)],
+                "INSERT INTO public.core_libraryactivity_participants "
+                "(libraryactivity_id, customuser_id) VALUES (%s, %s)",
+                [str(activity.id), str(participant.id)],
             )
+
+
+@pytest.mark.django_db
+def test_own_activity_with_a_foreign_participant_is_rejected():
+    """
+    [RLS-PRE0] نشاطنا لا يقبل مشاركاً من مدرسة أخرى.
+
+    وهذا حكم دلالي صريح لا صمت: لا شيء في النموذج يشير إلى ضيف خارجي، وقبوله
+    ضمناً كان سيجعل هذا الجدول الموضع الوحيد في المنصّة الذي يُسجَّل فيه شخص
+    من مدرسة أخرى على نشاط مدرسة. إن لزم ذلك يوماً فليكن علاقةً معلنة.
+    """
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    activity = _make_activity(own)
+    foreign_participant = _member_of(victim)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=ACTIVITY_PARENTS,
+        writable=("core_libraryactivity_participants",),
+    ):
+        _assert_rejected_by_rls(
+            "INSERT INTO public.core_libraryactivity_participants "
+            "(libraryactivity_id, customuser_id) VALUES (%s, %s)",
+            [str(activity.id), str(foreign_participant.id)],
+        )
+
+
+@pytest.mark.django_db
+def test_foreign_activity_participation_is_rejected():
+    """الطرف الأول: نشاط مدرسة أخرى مرفوض ولو كان المشارك عضواً عندنا."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    foreign_activity = _make_activity(victim)
+    participant = _member_of(own)
+
+    with _rls_enforced_as(
+        own.id,
+        readable=ACTIVITY_PARENTS,
+        writable=("core_libraryactivity_participants",),
+    ):
+        _assert_rejected_by_rls(
+            "INSERT INTO public.core_libraryactivity_participants "
+            "(libraryactivity_id, customuser_id) VALUES (%s, %s)",
+            [str(foreign_activity.id), str(participant.id)],
+        )
 
 
 # ── الشكل الثالث: علاقتا استئجار في صفّ واحد ─────────────────────────────────
