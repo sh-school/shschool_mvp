@@ -15,13 +15,15 @@ tests/test_dlq_tenant_boundary.py
 """
 
 import inspect
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from django.db import connection
+from django.db import InternalError, connection, transaction
 
 from notifications import tasks as notification_tasks
 from notifications.models import DeadLetterMessage
+from tests.conftest import SchoolFactory
 
 # لا pytestmark عام: فحوص المخطّط وحدها تحتاج قاعدة بيانات، وفحوص المصدر
 # تعمل في أي بيئة. فرضُ django_db على الجميع يجعل جزءاً من الحراسة غير قابل
@@ -187,3 +189,127 @@ def test_school_is_required_on_the_model():
 
     assert field.null is False
     assert field.related_model.__name__ == "School"
+
+
+# ══════════════════════════════════════════════════════════════════
+# [P2-B1] العزل سلوكياً — لا تركيباً
+# ══════════════════════════════════════════════════════════════════
+#
+# فحص وجود السياسة يُثبت أنها مُركَّبة، لا أنها تمنع. وهذه الاختبارات
+# لا يمكن أن تعمل بدور مالك قاعدة الاختبار: المالك يتجاوز RLS ما لم
+# تُفرَض بـFORCE، وapp_rls_school() تشتقّ المستأجر من session_user عبر
+# جدول الربط — لا من متغيّر جلسة. فنُهيّئ الاثنين معاً.
+
+
+@contextmanager
+def _rls_enforced_as(school_id):
+    """يجعل الدور الحالي خاضعاً للسياسة ومربوطاً بمدرسة محددة."""
+    with connection.cursor() as cursor:
+        cursor.execute(f"ALTER TABLE public.{TABLE} FORCE ROW LEVEL SECURITY")
+        cursor.execute(
+            """
+            INSERT INTO public.app_rls_role_school (db_role, school_id)
+            VALUES (session_user, %s)
+            ON CONFLICT (db_role) DO UPDATE SET school_id = EXCLUDED.school_id
+            """,
+            [str(school_id)],
+        )
+    try:
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute(f"ALTER TABLE public.{TABLE} NO FORCE ROW LEVEL SECURITY")
+
+
+def _make_row(school, kind="email"):
+    return DeadLetterMessage.objects.create(
+        school=school,
+        kind=kind,
+        payload={"student_id": None, "notif_type": "custom", "sent_by_id": None},
+        error="تعذر الإرسال.",
+    )
+
+
+@pytest.mark.django_db
+def test_own_school_rows_are_visible():
+    """[P2-B1] الوصول المشروع يعمل — وإلا كان العزل تعطيلاً لا حماية."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    row = _make_row(own)
+
+    with _rls_enforced_as(own.id):
+        visible = list(DeadLetterMessage.objects.values_list("id", flat=True))
+
+    assert row.id in visible
+
+
+@pytest.mark.django_db
+def test_foreign_school_rows_are_invisible():
+    """[P2-B1] هذا ما كان مكشوفاً قبل الترحيل: صفوف مدرسة أخرى."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+    victim_row = _make_row(victim)
+    own_row = _make_row(own)
+
+    with _rls_enforced_as(own.id):
+        visible = set(DeadLetterMessage.objects.values_list("id", flat=True))
+
+    assert own_row.id in visible
+    assert victim_row.id not in visible
+
+
+@pytest.mark.django_db
+def test_writing_into_a_foreign_school_is_rejected():
+    """[P2-B1] WITH CHECK يمنع الكتابة عبر المستأجرين لا القراءة فقط."""
+    _skip_unless_postgres()
+
+    own = SchoolFactory()
+    victim = SchoolFactory()
+
+    with _rls_enforced_as(own.id):
+        with pytest.raises(InternalError):
+            with transaction.atomic():
+                _make_row(victim)
+
+
+# ══════════════════════════════════════════════════════════════════
+# [P2-B2] حقل error آمن بحكم العقد لا بحكم عادة المُستدعين
+# ══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.parametrize(
+    ("raw", "leaked"),
+    [
+        ("SMTP refused for parent@school.qa", "parent@school.qa"),
+        ("Twilio: invalid number +97455512345", "97455512345"),
+        ("push endpoint https://fcm.googleapis.com/fcm/send/xyz gone", "fcm.googleapis.com"),
+    ],
+)
+def test_error_text_is_scrubbed_before_storage(raw, leaked):
+    """
+    نصّ الاستثناء مسار تسريب مثل الـpayload.
+
+    الخدمات اليوم تُرجع رسائل عامة، لكن `_to_dlq` تقبل أي استثناء من أي مُستدعٍ
+    مستقبلي — ورسائل مزوّدي البريد وTwilio تحمل العنوان أو الرقم الذي فشل.
+    """
+    assert leaked not in notification_tasks._safe_error(raw)
+
+
+def test_error_scrubbing_keeps_the_diagnosis():
+    """التنقية تُزيل الهوية لا المعنى — وإلا صار الحقل بلا فائدة."""
+    scrubbed = notification_tasks._safe_error("SMTP refused for parent@school.qa")
+
+    assert "SMTP" in scrubbed
+    assert "refused" in scrubbed
+    assert "<email>" in scrubbed
+
+
+def test_error_is_stored_through_the_scrubber():
+    """الحارس يفشل لو عاد أحدهم إلى str(error) مباشرةً."""
+    source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
+
+    assert "error=_safe_error(error)" in source
+    assert "error=str(error)" not in source
