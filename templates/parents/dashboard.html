@@ -242,9 +242,12 @@ function _urlB64ToUint8(b64) {
   var raw = window.atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
   return Uint8Array.from([...raw].map(function(c){ return c.charCodeAt(0); }));
 }
+/* [P2-A] الرمز من DOM لا من الكوكي — هذه الصفحة تمتدّ من base/base.html
+   الذي يضع {% csrf_token %} لكل مستخدم مُعتمَد. القراءة من document.cookie
+   كانت تُلزمنا بإبقاء CSRF_COOKIE_HTTPONLY=False. */
 function _getCsrf() {
-  var m = document.cookie.match('(^|;) ?csrftoken=([^;]*)(;|$)');
-  return m ? m[2] : '';
+  var el = document.querySelector('[name=csrfmiddlewaretoken]');
+  return el ? el.value : '';
 }
 </script>
 {% endblock %}

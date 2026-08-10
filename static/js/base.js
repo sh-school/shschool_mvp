@@ -330,12 +330,15 @@ document.body.addEventListener('showToast', function(e) {
   if (e.detail) window.showToast(e.detail.msg, e.detail.type);
 });
 
-/* ── HTMX CSRF Token — يُرسَل تلقائياً مع كل طلب ────────── */
+/* ── HTMX CSRF Token — يُرسَل تلقائياً مع كل طلب ──────────
+   [P2-A] المصدر الوحيد هو الحقل المخفي في DOM. كان هنا رجوع إلى
+   document.cookie، وهو ما يمنع CSRF_COOKIE_HTTPONLY=True.
+   base/base.html يضع {% csrf_token %} داخل نموذج الخروج تحت
+   {% if user.is_authenticated %} بلا شرط دور، فالحقل حاضر على كل صفحة
+   مُعتمَدة — والجزئيات المحقونة بـHTMX تقرأه من المستند الحاضن. */
 document.addEventListener('htmx:configRequest', function(e) {
   var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
-  if (csrf) { e.detail.headers['X-CSRFToken'] = csrf.value; return; }
-  var cookie = document.cookie.split('; ').find(function(c) { return c.startsWith('csrftoken='); });
-  if (cookie) e.detail.headers['X-CSRFToken'] = cookie.split('=')[1];
+  if (csrf) e.detail.headers['X-CSRFToken'] = csrf.value;
 });
 
 /* ── HTMX Global Loading Bar ─────────────────────────────── */
