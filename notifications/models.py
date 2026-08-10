@@ -20,10 +20,24 @@ class DeadLetterMessage(models.Model):
     """[P0-8] رسائل إشعار فشلت نهائياً بعد استنفاد المحاولات — بدل ضياعها بصمت.
 
     تُكتب من مهام Celery عند تجاوز max_retries، لتُراجَع/يُعاد إرسالها من لوحة إدارية.
+
+    [P2-B1] المدرسة عمود حقيقي لا مفتاح داخل JSON. سياسات RLS تعمل على الأعمدة
+    ولا تقرأ داخل JSONField، فجدول يخزّن school_id في الـpayload يبقى خارج العزل
+    مهما بلغت تغطية بقيّة الجداول — وأي شاشة تُبنى فوقه تعرض كل المدارس.
+
+    والـpayload بيانات إعادة تشغيل لا نسخة من الرسالة: لا بريد ولا هاتف ولا نصّ.
+    المستلم والمحتوى يُشتقّان وقت إعادة الإرسال من student_id و notif_type، فلا
+    يصير هذا الجدول مستودع PII جديداً بلا داعٍ.
     """
 
     KIND = [("email", "بريد"), ("sms", "SMS"), ("push", "Push")]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="dead_letter_messages",
+        verbose_name="المدرسة",
+    )
     kind = models.CharField(max_length=10, choices=KIND)
     payload = models.JSONField(default=dict)
     error = models.TextField(blank=True)
@@ -34,7 +48,10 @@ class DeadLetterMessage(models.Model):
         verbose_name = "رسالة فاشلة (DLQ)"
         verbose_name_plural = "رسائل فاشلة (DLQ)"
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["resolved", "created_at"], name="notif_dlq_resolved_idx")]
+        indexes = [
+            # school أولاً: كل استعلام يمرّ بمُسند RLS على school_id.
+            models.Index(fields=["school", "resolved", "created_at"], name="notif_dlq_school_idx"),
+        ]
 
     def __str__(self):
         return f"{self.kind} — {'محلولة' if self.resolved else 'معلّقة'}"

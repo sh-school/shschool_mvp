@@ -15,6 +15,7 @@ notifications/tasks.py
 """
 
 import logging
+import re
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -25,12 +26,50 @@ from core.celery_tasks import TenantRLSTask, school_rls_scope
 logger = logging.getLogger(__name__)
 
 
-def _to_dlq(kind, payload, error):
-    """[P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت."""
+#: [P2-B2] أنماط تُنقَّى من نصّ الخطأ قبل تخزينه. الخدمات اليوم تُرجع رسائل
+#: عامة، لكن عقد `_to_dlq` يقبل أي استثناء من أي مُستدعٍ مستقبلي — ورسائل
+#: مزوّدي البريد وTwilio تحمل عادةً العنوان أو الرقم الذي فشل. الحقل يجب أن
+#: يكون آمناً بحكم العقد لا بحكم عادة المُستدعين الحاليين.
+_ERROR_REDACTIONS = (
+    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "<email>"),
+    (re.compile(r"\+?\d[\d\s-]{7,}\d"), "<phone>"),
+    (re.compile(r"https?://\S+"), "<url>"),
+)
+
+
+def _safe_error(error):
+    """[P2-B2] يُزيل ما قد يحمله نصّ الاستثناء من بيانات شخصية."""
+    text = str(error)
+
+    for pattern, replacement in _ERROR_REDACTIONS:
+        text = pattern.sub(replacement, text)
+
+    return text[:2000]
+
+
+def _to_dlq(kind, school_id, payload, error):
+    """
+    [P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت.
+
+    [P2-B1] المدرسة وسيط صريح لا مفتاح يُستخرج من الـpayload. هي العمود الذي
+    تعتمد عليه سياسة العزل، وتمريرها ضمناً داخل JSON هو ما أبقى هذا الجدول
+    خارج RLS من الأساس.
+
+    [P2-B2] الـpayload بيانات **تشخيصية**: تكفي لمعرفة ما فشل ومتى ولأي مدرسة،
+    ولا تكفي لإعادة الإرسال. `send_email_task` تقبل `student_id=None` مع
+    `notif_type="custom"`، فرسالة إلى عنوان خارجي لا يبقى منها ما يستعيد
+    المستلم. إعادة الإرسال تحتاج مرجعاً أو snapshot مشفّراً لم يُصمَّم بعد —
+    والبديل، أي تخزين البريد والهاتف والنصّ خاماً، يُنشئ مستودع PII جديداً.
+    """
     try:
         from notifications.models import DeadLetterMessage
 
-        DeadLetterMessage.objects.create(kind=kind, payload=payload, error=str(error)[:2000])
+        DeadLetterMessage.objects.create(
+            kind=kind,
+            school_id=school_id,
+            payload=payload,
+            error=_safe_error(error),
+        )
         logger.error("DLQ: %s message dead-lettered", kind)
     except Exception:  # noqa: BLE001 — لا نُفشل المهمة بسبب فشل الكتابة في DLQ نفسه
         logger.exception("DLQ write failed for kind=%s", kind)
@@ -91,12 +130,13 @@ def send_email_task(
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
+            # [P2-B2] تشخيص لا إعادة تشغيل: بلا recipient_email ولا subject.
+            # مع student_id=None و notif_type="custom" لا يبقى ما يستعيد المستلم —
+            # وهذا مقصود حتى يُصمَّم مرجع/snapshot مشفّر (P2-C).
             _to_dlq(
                 "email",
+                school_id,
                 {
-                    "school_id": school_id,
-                    "recipient_email": recipient_email,
-                    "subject": subject,
                     "student_id": student_id,
                     "notif_type": notif_type,
                     "sent_by_id": sent_by_id,
@@ -147,12 +187,12 @@ def send_sms_task(
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
+            # [P2-B2] تشخيص لا إعادة تشغيل: الهاتف والنصّ بيانات شخصية،
+            # وما تبقّى لا يكفي لإعادة البناء عند student_id=None.
             _to_dlq(
                 "sms",
+                school_id,
                 {
-                    "school_id": school_id,
-                    "phone_number": phone_number,
-                    "message": message,
                     "student_id": student_id,
                     "notif_type": notif_type,
                     "sent_by_id": sent_by_id,
