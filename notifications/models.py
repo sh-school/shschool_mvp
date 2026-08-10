@@ -48,6 +48,22 @@ class DeadLetterMessage(models.Model):
         related_name="dead_letter_messages",
         verbose_name="المدرسة",
     )
+    # [B4-0] الرابط إلى التسليم — خامد حتى يوجد كاتب.
+    #
+    # `null=True` للصفوف السابقة للخطّ لا لصفوف جديدة بلا تسليم: اشتراط وجوده
+    # على الكتابة الجديدة قرارٌ يأتي مع الكاتب، لا في بنية لا تكتب شيئاً.
+    #
+    # و`PROTECT` لأن هذا الجدول **دليل**: صفٌّ فيه يقول إن تسليماً استنفد
+    # محاولاته. حذف التسليم لا يجوز أن يمحو شهادة فشله، والصفّ يبقى منسوباً
+    # لمدرسته على أي حال لأنه يحمل `school_id` خاصاً به.
+    delivery = models.OneToOneField(
+        "NotificationDelivery",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="dead_letter",
+        verbose_name="التسليم",
+    )
     kind = models.CharField(max_length=10, choices=KIND)
     payload = models.JSONField(default=dict)
     error = models.TextField(blank=True)
@@ -101,6 +117,21 @@ class NotificationLog(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="notification_logs")
+    # [B4-0] الرابط إلى التسليم — خامد حتى يوجد كاتب.
+    #
+    # `null=True` معناه "سابق للخطّ"، وهو وصف صادق للصفوف القائمة. ولا backfill:
+    # اختلاق واقعة إطلاق لم نشهدها هو النمط نفسه الذي نطارده.
+    #
+    # و`PROTECT` لأن هذا الصفّ **دليل** على محاولة جرت. حذف التسليم يجب ألّا
+    # يمحو تاريخ ما حدث؛ والصفّ يبقى ضمن حدّ مدرسته لأنه يحمل `school_id` خاصاً.
+    delivery = models.ForeignKey(
+        "NotificationDelivery",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="attempts",
+        verbose_name="التسليم",
+    )
     student = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -418,3 +449,144 @@ class UserNotificationPreference(models.Model):
             return self.quiet_hours_start <= now <= self.quiet_hours_end
         else:  # يعبر منتصف الليل
             return now >= self.quiet_hours_start or now <= self.quiet_hours_end
+
+
+# ════════════════════════════════════════════════════════════════════
+# [B4-0] البنية الخامدة — Dispatch / Delivery
+# ════════════════════════════════════════════════════════════════════
+#
+# لا كاتب لهذين الجدولين بعد، ولا راية تُشغّلهما. هذه الدفعة تُنشئ البنية
+# وتُثبت قيودها فقط؛ توصيل المسار الحالي إليها يأتي لاحقاً.
+
+
+class NotificationDispatch(models.Model):
+    """واقعة إطلاق إشعار واحدة — لا وحدة تسليم.
+
+    الـdispatch هو "حدث وقع فأردنا إخبار أحد به": مخالفة سُجّلت، إجراء اقترب
+    موعده. وهو فريد بحكم إنشائه لا بقيد: تذكير الغد لنفس الإجراء واقعة جديدة
+    مقصودة، لا تكراراً لواقعة الأمس.
+
+    ولهذا `related_object_id` سياق لا هوية. مُعرّف كائن الأعمال يُجيب عن
+    "بمَ يتعلّق هذا؟" ولا يُجيب عن "أهذه الواقعة نفسها؟" — والخلط بينهما كان
+    سيمنع تذكيرين مشروعين لنفس الإجراء في يومين.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="notification_dispatches",
+        verbose_name="المدرسة",
+    )
+    event_type = models.CharField(max_length=40, db_index=True, verbose_name="نوع الحدث")
+    related_object_id = models.CharField(
+        max_length=64, blank=True, verbose_name="كائن الأعمال (سياق)"
+    )
+    related_url = models.CharField(max_length=500, blank=True, verbose_name="الرابط")
+    sent_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notification_dispatches",
+        verbose_name="أطلقها",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "واقعة إشعار"
+        verbose_name_plural = "وقائع الإشعار"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["school", "event_type", "created_at"], name="notif_dispatch_idx"),
+        ]
+        constraints = [
+            # هدف المفتاح المركّب في NotificationDelivery. بدونه لا يمكن لقاعدة
+            # البيانات أن تفرض أن الابن يحمل مدرسة أبيه.
+            models.UniqueConstraint(fields=["id", "school"], name="uniq_dispatch_id_school"),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} — {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class NotificationDelivery(models.Model):
+    """محاولة إيصال واقعة إلى مستلم واحد عبر قناة واحدة.
+
+    هذه هي وحدة الفشل التي استقرّ عليها P2-B3، والهوية التي تجعل إعادة الإرسال
+    قابلة للتمييز عن إرسال جديد: `(dispatch, recipient, channel)`.
+
+    والهوية ليست ضماناً بأن الرسالة تُسلَّم مرّة واحدة. القيد يمنع **تسليمين**
+    لنفس الثلاثية، ولا يمنع محاولتين على تسليم واحد تبلغان المزوّد كلتاهما —
+    فالالتزام عندنا وعند المزوّد ليسا ذرّة واحدة. الضمان `at-least-once`.
+
+    `school` مكرَّر عمداً هنا خلافاً لقاعدة الاشتقاق من الأب التي اعتمدناها في
+    الجداول العشرين: هذا الجدول يُستعلَم بالمدرسة مباشرةً في شاشات التشغيل،
+    وتكراره يجعل سياسة العزل مُسنَداً محلياً بلا استعلام فرعي. والانحراف عن
+    الأب مستحيل لأن المفتاح المركّب يفرض التطابق في قاعدة البيانات نفسها.
+
+    `in_app` ليست قناة هنا: `InAppNotification` هي الكيان المُرسَل والمخزَّن،
+    لا تسليماً خارجياً له مزوّد وإعادة محاولة وطابور فشل.
+    """
+
+    CHANNEL = [
+        ("email", "بريد إلكتروني"),
+        ("sms", "SMS"),
+        ("whatsapp", "WhatsApp"),
+        ("push", "Push"),
+    ]
+
+    #: [B4-0] الحالات كما أُقرّت في تصميم B4-B، بلا `unknown_outcome`.
+    #: تلك تصير حقيقة قابلة للتسجيل حين يدخل الاستئجار وآلة الحالات في B4-3؛
+    #: إضافتها قبل وجود انتقال يُنتجها تخلق دلالة لا يكتبها شيء.
+    STATUS = [
+        ("pending", "معلّق"),
+        ("in_progress", "قيد التنفيذ"),
+        ("sent", "سُلّم"),
+        ("retry_wait", "بانتظار إعادة المحاولة"),
+        ("dead_lettered", "استنفد المحاولات"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    dispatch = models.ForeignKey(
+        NotificationDispatch,
+        on_delete=models.CASCADE,
+        related_name="deliveries",
+        verbose_name="الواقعة",
+    )
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="notification_deliveries",
+        verbose_name="المدرسة",
+    )
+    recipient = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="notification_deliveries",
+        verbose_name="المستلم",
+    )
+    channel = models.CharField(max_length=10, choices=CHANNEL, verbose_name="القناة")
+    status = models.CharField(
+        max_length=15, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تسليم إشعار"
+        verbose_name_plural = "تسليمات الإشعار"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["school", "status", "created_at"], name="notif_delivery_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dispatch", "recipient", "channel"],
+                name="uniq_delivery_dispatch_recipient_channel",
+            ),
+            # هدف المفتاح المركّب في NotificationLog وDeadLetterMessage.
+            models.UniqueConstraint(fields=["id", "school"], name="uniq_delivery_id_school"),
+        ]
+
+    def __str__(self):
+        return f"{self.channel} → {self.recipient_id} ({self.status})"
