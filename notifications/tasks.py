@@ -783,44 +783,65 @@ def _send_whatsapp(school, phone, title, body):
     """
     إرسال WhatsApp عبر Twilio WhatsApp Business API.
     يحتاج: whatsapp_from_number في NotificationSettings
+
+    [B4-PRE1] السجلّ يُنشأ `pending` **قبل** المزوّد ثم يُحسم.
+
+    كان يُكتب بعد نجاح `messages.create` وحده، فمحاولة فشلت لا تترك أثراً:
+    القناة الوحيدة التي يبدو سجلّها نظيفاً دائماً هي القناة التي لا تُسجّل
+    فشلها. وكان يُسجَّل `channel="sms"` لأن `whatsapp` لم يكن في الخيارات —
+    تعليق في الكود يعترف بذلك بينما الصفّ في القاعدة يقول شيئاً آخر.
+
+    وإخفاق الإعدادات يُحسَم `failed` كذلك، مثل `send_sms` تماماً: رقم غير
+    مضبوط سببُ عدم وصول رسالة، ولا فرق عند المستلم بين ذلك وبين رفض المزوّد.
     """
     from notifications.models import NotificationLog, NotificationSettings
 
-    cfg = NotificationSettings.objects.filter(school=school).first()
-    if not cfg:
-        raise RuntimeError("لا توجد إعدادات إشعارات للمدرسة")
-
-    whatsapp_from = getattr(cfg, "whatsapp_from_number", "") or getattr(cfg, "sms_from_number", "")
-    if not whatsapp_from:
-        raise RuntimeError("رقم WhatsApp غير مضبوط")
-
-    try:
-        from twilio.rest import Client
-    except ImportError as exc:
-        raise RuntimeError("مكتبة twilio غير مثبتة") from exc
-
-    try:
-        client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
-        message = client.messages.create(
-            from_="whatsapp:" + whatsapp_from,
-            to="whatsapp:" + phone,
-            body=f"*{title}*\n{body}",
-        )
-    except Exception as exc:  # noqa: BLE001 — أخطاء المزوّد أنواع خاصة به
-        # [P2-B3] تُلَفّ في RuntimeError لأنها العقد الذي تمسكه مهمة التسليم.
-        # بلا ذلك يفلت خطأ Twilio من retry ومن DLQ معاً — وهو الفشل الأكثر
-        # احتمالاً في هذه القناة. والرسالة عامة عمداً: نصّ استثناء المزوّد
-        # يحمل عادةً الرقم الذي فشل.
-        raise RuntimeError("تعذّر إرسال رسالة WhatsApp عبر المزوّد.") from exc
-
-    # تسجيل في NotificationLog
-    NotificationLog.objects.create(
+    log = NotificationLog.objects.create(
         school=school,
         recipient=f"whatsapp:{phone}",
-        channel="sms",  # نستخدم sms كقناة لأن whatsapp غير موجود في choices حالياً
+        channel="whatsapp",
         notif_type="custom",
         subject=title,
         body=body,
-        status="sent",
+        status="pending",
     )
+
+    try:
+        cfg = NotificationSettings.objects.filter(school=school).first()
+        if not cfg:
+            raise RuntimeError("لا توجد إعدادات إشعارات للمدرسة")
+
+        whatsapp_from = getattr(cfg, "whatsapp_from_number", "") or getattr(
+            cfg, "sms_from_number", ""
+        )
+        if not whatsapp_from:
+            raise RuntimeError("رقم WhatsApp غير مضبوط")
+
+        try:
+            from twilio.rest import Client
+        except ImportError as exc:
+            raise RuntimeError("مكتبة twilio غير مثبتة") from exc
+
+        try:
+            client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
+            message = client.messages.create(
+                from_="whatsapp:" + whatsapp_from,
+                to="whatsapp:" + phone,
+                body=f"*{title}*\n{body}",
+            )
+        except Exception as exc:  # noqa: BLE001 — أخطاء المزوّد أنواع خاصة به
+            # [P2-B3] تُلَفّ في RuntimeError لأنها العقد الذي تمسكه مهمة التسليم.
+            # بلا ذلك يفلت خطأ Twilio من retry ومن DLQ معاً — وهو الفشل الأكثر
+            # احتمالاً في هذه القناة. والرسالة عامة عمداً: نصّ استثناء المزوّد
+            # يحمل عادةً الرقم الذي فشل.
+            raise RuntimeError("تعذّر إرسال رسالة WhatsApp عبر المزوّد.") from exc
+
+    except Exception as exc:  # noqa: BLE001 — يُحسَم السجلّ ثم يُعاد رفع الخطأ
+        log.status = "failed"
+        log.error_msg = _safe_error(exc)
+        log.save(update_fields=["status", "error_msg"])
+        raise
+
+    log.status = "sent"
+    log.save(update_fields=["status"])
     return message.sid
