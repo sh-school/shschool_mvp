@@ -37,10 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _physical_tables():
-    return {
-        model._meta.db_table
-        for model in apps.get_models(include_auto_created=True)
-    }
+    return {model._meta.db_table for model in apps.get_models(include_auto_created=True)}
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -63,9 +60,8 @@ def test_every_physical_table_is_classified():
     )
     unclassified = sorted(_physical_tables() - classified)
 
-    assert not unclassified, (
-        "غير مصنَّفة — صنّفها في core/tenancy.py قبل الدمج: "
-        + ", ".join(unclassified)
+    assert not unclassified, "غير مصنَّفة — صنّفها في core/tenancy.py قبل الدمج: " + ", ".join(
+        unclassified
     )
 
 
@@ -183,9 +179,7 @@ def test_a_migration_declares_a_policy_for_each_derived_table(table):
     """
     wanted = f"CREATE POLICY school_isolation ON public.{table}"
 
-    assert any(wanted in sql for sql in _declared_policy_sql()), (
-        f"لا ترحيل يُنشئ سياسة على {table}"
-    )
+    assert any(wanted in sql for sql in _declared_policy_sql()), f"لا ترحيل يُنشئ سياسة على {table}"
 
 
 @pytest.mark.parametrize("table", sorted(PARENT_DERIVED))

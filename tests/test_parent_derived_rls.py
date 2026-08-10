@@ -85,9 +85,9 @@ def test_every_tenant_table_is_row_level_secured(table):
 
     qual, with_check = policy
     assert qual and "app_rls_school" in qual, f"{table}: USING لا يقرأ هوية المستأجر"
-    assert with_check and "app_rls_school" in with_check, (
-        f"{table}: WITH CHECK لا يقرأ هوية المستأجر — القراءة محميّة والكتابة ليست"
-    )
+    assert (
+        with_check and "app_rls_school" in with_check
+    ), f"{table}: WITH CHECK لا يقرأ هوية المستأجر — القراءة محميّة والكتابة ليست"
 
 
 @pytest.mark.django_db
@@ -148,9 +148,7 @@ def _rls_enforced_as(school_id, readable=(), writable=()):
         )
         cursor.execute(f"GRANT USAGE ON SCHEMA public TO {RLS_TEST_ROLE}")
         cursor.execute(f"GRANT SELECT ON public.app_rls_role_school TO {RLS_TEST_ROLE}")
-        cursor.execute(
-            f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {RLS_TEST_ROLE}"
-        )
+        cursor.execute(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {RLS_TEST_ROLE}")
 
         for table in readable:
             cursor.execute(f"GRANT SELECT ON public.{table} TO {RLS_TEST_ROLE}")
@@ -182,9 +180,7 @@ def _assert_rejected_by_rls(statement, params):
                 cursor.execute(statement, params)
 
     cause = caught.value.__cause__
-    assert getattr(cause, "pgcode", None) == "42501", (
-        f"رُفض لسبب آخر: {caught.value}"
-    )
+    assert getattr(cause, "pgcode", None) == "42501", f"رُفض لسبب آخر: {caught.value}"
 
 
 def _visible_ids(table):
@@ -243,9 +239,7 @@ def test_own_route_insert_succeeds_under_the_restricted_role():
     own = SchoolFactory()
     bus = SchoolBusFactory(school=own)
 
-    with _rls_enforced_as(
-        own.id, readable=("core_schoolbus",), writable=("core_busroute",)
-    ):
+    with _rls_enforced_as(own.id, readable=("core_schoolbus",), writable=("core_busroute",)):
         with connection.cursor() as cursor:
             cursor.execute(
                 "INSERT INTO public.core_busroute (id, bus_id, area_name) "
@@ -263,9 +257,7 @@ def test_route_on_a_foreign_bus_is_rejected():
     victim = SchoolFactory()
     foreign_bus = SchoolBusFactory(school=victim)
 
-    with _rls_enforced_as(
-        own.id, readable=("core_schoolbus",), writable=("core_busroute",)
-    ):
+    with _rls_enforced_as(own.id, readable=("core_schoolbus",), writable=("core_busroute",)):
         _assert_rejected_by_rls(
             "INSERT INTO public.core_busroute (id, bus_id, area_name) "
             "VALUES (gen_random_uuid(), %s, %s)",
@@ -348,9 +340,7 @@ def _make_observation(school):
 def _make_criterion(school, text):
     from quality.observation_models import ObservationCriterion
 
-    return ObservationCriterion.objects.create(
-        school=school, domain="planning", text=text
-    )
+    return ObservationCriterion.objects.create(school=school, domain="planning", text=text)
 
 
 @pytest.mark.django_db
