@@ -216,3 +216,91 @@ def test_whatsapp_is_a_delivery_like_any_other_channel():
 
     hub = _hub_body()
     assert "_send_whatsapp(" not in hub
+
+
+# ══════════════════════════════════════════════════════════════════
+# [P2-B3] عقد الاستثناءات في مسار WhatsApp
+# ══════════════════════════════════════════════════════════════════
+#
+# وجود مسار إلى DLQ لا يعني أن الفشل الحقيقي يصل إليه. المهمة تمسك
+# (ImportError, OSError, RuntimeError, ValueError)، وكانت _send_whatsapp
+# ترفع Exception عامة — فتفلت من retry ومن الطابور معاً.
+
+
+def test_whatsapp_sender_raises_the_contract_type_only():
+    """كل فشل متوقَّع يُرفع بنوع تمسكه مهمة التسليم."""
+    start = TASKS_SOURCE.index("def _send_whatsapp")
+    sender = TASKS_SOURCE[start:]
+
+    assert "raise Exception(" not in sender, "a bare Exception escapes the task's except clause"
+    assert sender.count("raise RuntimeError(") >= 3
+
+
+def test_whatsapp_provider_errors_are_wrapped():
+    """
+    خطأ المزوّد هو الفشل الأكثر احتمالاً — ونوعه يخصّ Twilio لا Python.
+
+    بلا لفّه في RuntimeError يفلت من العقد كما كانت تفلت الحالات الثلاث
+    الأخرى، ورسالته تحمل عادةً الرقم الذي فشل.
+    """
+    start = TASKS_SOURCE.index("def _send_whatsapp")
+    sender = TASKS_SOURCE[start:]
+
+    assert "client.messages.create" in sender
+    assert "except Exception as exc:" in sender
+    assert "raise RuntimeError(" in sender
+    assert "from exc" in sender
+
+
+@pytest.mark.django_db
+def test_missing_settings_reaches_the_retry_contract():
+    """[P2-B3] مدرسة بلا إعدادات إشعارات ⇒ RuntimeError لا Exception."""
+    from tests.conftest import SchoolFactory
+
+    school = SchoolFactory()
+
+    with pytest.raises(RuntimeError, match="إعدادات"):
+        notification_tasks._send_whatsapp(school, "+97455512345", "t", "b")
+
+
+@pytest.mark.django_db
+def test_missing_whatsapp_number_reaches_the_retry_contract():
+    """[P2-B3] إعدادات بلا رقم مُرسِل ⇒ RuntimeError لا Exception."""
+    from notifications.models import NotificationSettings
+    from tests.conftest import SchoolFactory
+
+    school = SchoolFactory()
+    NotificationSettings.objects.create(school=school)
+
+    with pytest.raises(RuntimeError, match="WhatsApp"):
+        notification_tasks._send_whatsapp(school, "+97455512345", "t", "b")
+
+
+@pytest.mark.django_db
+def test_provider_failure_reaches_the_retry_contract(monkeypatch):
+    """[P2-B3] فشل المزوّد يُلَفّ، ولا تتسرّب رسالته الأصلية."""
+    from notifications.models import NotificationSettings
+    from tests.conftest import SchoolFactory
+
+    school = SchoolFactory()
+    NotificationSettings.objects.create(school=school, sms_from_number="+97444000000")
+
+    class _ProviderError(Exception):
+        pass
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            self.messages = self
+
+        def create(self, **kwargs):
+            raise _ProviderError("provider says +97455512345 is invalid")
+
+    import twilio.rest
+
+    monkeypatch.setattr(twilio.rest, "Client", _FakeClient)
+
+    with pytest.raises(RuntimeError) as raised:
+        notification_tasks._send_whatsapp(school, "+97455512345", "t", "b")
+
+    assert "97455512345" not in str(raised.value)
+    assert isinstance(raised.value.__cause__, _ProviderError)
