@@ -202,6 +202,48 @@ def send_sms_task(
             return {"status": "dead_letter", "recipient": phone_number}
 
 
+# ── إرسال WhatsApp ───────────────────────────────────────────────────
+
+
+@shared_task(
+    base=TenantRLSTask,
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    name="notifications.send_whatsapp",
+)
+def send_whatsapp_task(self, school_id, phone_number, title, body, sent_by_id=None):
+    """
+    [P2-B3] تسليم WhatsApp مستقلّ.
+
+    كان يُرسَل داخل hub_send_notification_task مباشرةً بينما فُوّضت بقيّة
+    القنوات، فلم يكن له retry خاص ولا مسار إلى DLQ: فشله يُضاف إلى results
+    وتنتهي مهمة الـHub بنجاح. قناة تُرسل بنفسها داخل المنسّق تُبطل عقد
+    "الوحدة تسليم" بدل أن تستثني نفسها منه.
+    """
+    try:
+        from core.models import School
+
+        school = School.objects.get(id=school_id)
+        _send_whatsapp(school, phone_number, title, body)
+
+        return {"status": "sent", "channel": "whatsapp"}
+
+    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+        logger.exception("send_whatsapp_task error: %s", exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            # [P2-B2] تشخيص لا إعادة تشغيل: لا رقم ولا نصّ رسالة.
+            _to_dlq(
+                "whatsapp",
+                school_id,
+                {"notif_type": "whatsapp", "sent_by_id": sent_by_id, "user_id": None},
+                exc,
+            )
+            return {"status": "dead_letter", "channel": "whatsapp"}
+
+
 # ── إشعار غياب الطالب ───────────────────────────────────────────────
 
 
@@ -528,7 +570,9 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
             vapid_private = getattr(settings, "VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
             vapid_email = getattr(settings, "VAPID_CLAIMS_EMAIL", "admin@shahaniya.edu.qa")
 
-            sent = failed = 0
+            sent = invalidated = 0
+            transient = []
+
             for sub in subs:
                 try:
                     webpush(
@@ -541,14 +585,26 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
                     sub.save(update_fields=["last_used"])
                     sent += 1
                 except WebPushException as e:
-                    # 410 Gone = اشتراك منتهي → نحذفه
+                    # [P2-B3] 404/410 ليست تسليماً فاشلاً بل اشتراكاً ميّتاً:
+                    # المتصفّح ألغاه. إعادة المحاولة عليه لن تنجح أبداً، وتسجيله
+                    # في DLQ يملؤها بضجيج لا إجراء له. التعطيل هو الإجراء.
                     if "410" in str(e) or "404" in str(e):
                         sub.is_active = False
                         sub.save(update_fields=["is_active"])
-                    failed += 1
-                    logger.warning(f"Push failed for {sub.endpoint[:40]}: {e}")
+                        invalidated += 1
+                        logger.info("Push subscription invalidated (gone)")
+                        continue
 
-            return {"sent": sent, "failed": failed}
+                    # وفشل المزوّد على اشتراك صالح تسليمٌ فاشل قابل للإعادة —
+                    # كان يُبتلع في عدّاد وتنتهي المهمة بنجاح، فلا retry ولا DLQ.
+                    transient.append(e)
+                    logger.warning("Push delivery failed (transient): %s", e)
+
+            if transient and sent == 0:
+                # كل التسليمات الصالحة فشلت ⇒ لا شيء نجح، فالإعادة لا تُكرّر شيئاً.
+                raise RuntimeError(f"push delivery failed for {len(transient)} subscription(s)")
+
+            return {"sent": sent, "invalidated": invalidated, "transient": len(transient)}
 
         except ImportError:
             # pywebpush غير مثبت — نسجّل فقط
@@ -557,7 +613,18 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
 
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_push_task error: %s", exc)
-        raise self.retry(exc=exc)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            # [P2-B3] تسليم Push انتهت محاولاته ⇒ يدخل DLQ مثل البريد وSMS.
+            # النموذج يُعرّف kind="push" منذ البداية ولم يكن يُكتب قط.
+            _to_dlq(
+                "push",
+                school_id,
+                {"user_id": str(user_id), "notif_type": "push", "sent_by_id": None},
+                exc,
+            )
+            return {"status": "dead_letter", "user": str(user_id)}
 
 
 @shared_task(
@@ -601,7 +668,6 @@ def hub_send_notification_task(
     Retry: 3 محاولات مع exponential backoff (60s, 120s, 240s)
     """
     from core.models import CustomUser, School
-    from notifications.services import NotificationService
 
     try:
         user = CustomUser.objects.get(id=user_id)
@@ -612,35 +678,42 @@ def hub_send_notification_task(
 
         # ── Email ──────────────────────────────────────────────
         if "email" in channels and user.email:
-            ok, err = NotificationService.send_email(
-                school=school,
+            # [P2-B3] تسليم مستقلّ لا إرسال داخل هذه المهمة. كان البريد وSMS
+            # يُرسَلان هنا مباشرةً، فصار فشل قناة واحدة إمّا يضيع صامتاً — لأن
+            # المهمة تنتهي بنجاح ما دام أحدهما نجح — أو، لو أعدنا المهمة،
+            # يُعيد إرسال القناة الناجحة ويُنتج إشعاراً مكرّراً.
+            # كل مهمة تسليم تحمل retry الخاص بها ومسارها إلى DLQ.
+            send_email_task.delay(
+                school_id=str(school.id),
                 recipient_email=user.email,
                 subject=title,
                 body_text=body,
                 notif_type=_hub_to_notif_type(event_type),
-                sent_by=sender,
+                sent_by_id=str(sender.id) if sender else None,
             )
-            results.append(("email", ok, err))
+            results.append(("email", True, None))
 
         # ── SMS ────────────────────────────────────────────────
         if "sms" in channels and user.phone:
-            ok, err = NotificationService.send_sms(
-                school=school,
+            send_sms_task.delay(
+                school_id=str(school.id),
                 phone_number=user.phone,
                 message=f"{title}\n{body}",
                 notif_type=_hub_to_notif_type(event_type),
-                sent_by=sender,
+                sent_by_id=str(sender.id) if sender else None,
             )
-            results.append(("sms", ok, err))
+            results.append(("sms", True, None))
 
         # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
         if "whatsapp" in channels and user.phone:
-            try:
-                _send_whatsapp(school, user.phone, title, body)
-                results.append(("whatsapp", True, None))
-            except (ImportError, OSError, RuntimeError, ValueError) as e:
-                logger.exception("فشل إرسال WhatsApp إلى %s: %s", user.phone, e)
-                results.append(("whatsapp", False, str(e)))
+            send_whatsapp_task.delay(
+                school_id=str(school.id),
+                phone_number=user.phone,
+                title=title,
+                body=body,
+                sent_by_id=str(sender.id) if sender else None,
+            )
+            results.append(("whatsapp", True, None))
 
         # ── Push ───────────────────────────────────────────────
         if "push" in channels:
@@ -658,11 +731,18 @@ def hub_send_notification_task(
                 results.append(("push", False, str(e)))
 
         # ── تحقق من الفشل ─────────────────────────────────────
+        # [P2-B3] لا retry على مستوى المهمة. كان هنا raise Exception(...)
+        # و except أدناه يمسك (OSError, RuntimeError, ValueError, KeyError)
+        # فقط — فلم يكن يلتقطها، ولم يُستدعَ self.retry() قط رغم أن التعليق
+        # يقول "→ retry". وحتى لو التقطها، إعادة المهمة كانت ستُعيد إرسال
+        # القنوات الناجحة. الفشل الآن مسؤولية كل مهمة تسليم على حدة.
         failures = [r for r in results if not r[1]]
-        if failures and all(not r[1] for r in results):
-            # كل القنوات فشلت → retry
-            error_msg = "; ".join(f"{ch}: {err}" for ch, _, err in failures)
-            raise Exception(f"All channels failed: {error_msg}")
+        if failures:
+            logger.warning(
+                "hub_send: %d channel(s) failed to dispatch for user %s",
+                len(failures),
+                user_id,
+            )
 
         logger.info(
             f"hub_send: {user.full_name} | "
@@ -708,33 +788,39 @@ def _send_whatsapp(school, phone, title, body):
 
     cfg = NotificationSettings.objects.filter(school=school).first()
     if not cfg:
-        raise Exception("لا توجد إعدادات إشعارات للمدرسة")
+        raise RuntimeError("لا توجد إعدادات إشعارات للمدرسة")
 
     whatsapp_from = getattr(cfg, "whatsapp_from_number", "") or getattr(cfg, "sms_from_number", "")
     if not whatsapp_from:
-        raise Exception("رقم WhatsApp غير مضبوط")
+        raise RuntimeError("رقم WhatsApp غير مضبوط")
 
     try:
         from twilio.rest import Client
+    except ImportError as exc:
+        raise RuntimeError("مكتبة twilio غير مثبتة") from exc
 
+    try:
         client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
         message = client.messages.create(
             from_="whatsapp:" + whatsapp_from,
             to="whatsapp:" + phone,
             body=f"*{title}*\n{body}",
         )
+    except Exception as exc:  # noqa: BLE001 — أخطاء المزوّد أنواع خاصة به
+        # [P2-B3] تُلَفّ في RuntimeError لأنها العقد الذي تمسكه مهمة التسليم.
+        # بلا ذلك يفلت خطأ Twilio من retry ومن DLQ معاً — وهو الفشل الأكثر
+        # احتمالاً في هذه القناة. والرسالة عامة عمداً: نصّ استثناء المزوّد
+        # يحمل عادةً الرقم الذي فشل.
+        raise RuntimeError("تعذّر إرسال رسالة WhatsApp عبر المزوّد.") from exc
 
-        # تسجيل في NotificationLog
-        NotificationLog.objects.create(
-            school=school,
-            recipient=f"whatsapp:{phone}",
-            channel="sms",  # نستخدم sms كقناة لأن whatsapp غير موجود في choices حالياً
-            notif_type="custom",
-            subject=title,
-            body=body,
-            status="sent",
-        )
-        return message.sid
-
-    except ImportError:
-        raise Exception("مكتبة twilio غير مثبتة")
+    # تسجيل في NotificationLog
+    NotificationLog.objects.create(
+        school=school,
+        recipient=f"whatsapp:{phone}",
+        channel="sms",  # نستخدم sms كقناة لأن whatsapp غير موجود في choices حالياً
+        notif_type="custom",
+        subject=title,
+        body=body,
+        status="sent",
+    )
+    return message.sid
