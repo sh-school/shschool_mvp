@@ -615,3 +615,91 @@ class NotificationDelivery(models.Model):
 
     def __str__(self):
         return f"{self.channel} → {self.recipient_id} ({self.status})"
+
+
+class NotificationEnqueueIntent(models.Model):
+    """[B4-PRE4] نيّة إدخال عملٍ إلى الوسيط — دائمة لا محفوظة في إغلاق.
+
+    ما يُطابَر إلى `hub_send_notification_task` كان يعيش في إغلاق
+    `transaction.on_commit` وحده: `title` و`body` تحديداً لا يحفظهما
+    `NotificationDispatch`. فإن فشل الطبر وانتهى الطلب، ضاع المصدر الوحيد
+    لهما — ومُصالِحٌ يعرف أن رسالةً لم تخرج ولا يعرف **ماذا** يُعيد ليس
+    مُصالِحاً. ولا قفلٌ يحلّ ذلك.
+
+    والوحدة هنا `(dispatch, recipient)` لأنها وحدة الطبر الفعلية: الـHub
+    يُطابر مهمّة واحدة للمستلم تحمل قنواته. ولو كان القفل على التسليم لاقتسم
+    مُصالِحان قنوات المستلم الواحد، وصار السؤال: من يملك إعادة بناء النداء؟
+
+    **ولا عمود `channels` هنا.** مصدر الحقيقة للقنوات صفوفُ `NotificationDelivery`،
+    وعمودٌ ثالث بجانب التفضيلات والتسليمات نسخةٌ تنحرف بلا قارئ يحتاجها.
+
+    والطبقات صارت أربعاً لا واحدة:
+
+        Dispatch      لماذا نُرسل؟
+        EnqueueIntent ما الرسالة التي نُدخلها إلى الوسيط لهذا المستلم؟
+        Delivery      ماذا جرى لكل قناة عند التنفيذ؟
+        NotificationLog  ماذا جرى لكل نداء مزوّد؟
+
+    وهذه **صندوق صادر مؤقّت لا أرشيف محتوى**: حين تصير كل تسليماتها نهائية
+    لا يبقى ما يُعيد بناءه، فيُمسح النصّ ويبقى الصفّ للتدقيق. المسحُ نفسه
+    مسؤولية B4-4 — والراية تبقى مُطفأة حتى يوجد، فلا يُنشأ مستودع محتوى
+    إنتاجيّ بلا سياسة إنهاء.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="notification_enqueue_intents",
+        verbose_name="المدرسة",
+    )
+    dispatch = models.ForeignKey(
+        "NotificationDispatch",
+        on_delete=models.CASCADE,
+        related_name="enqueue_intents",
+        verbose_name="الواقعة",
+    )
+    recipient = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="notification_enqueue_intents",
+        verbose_name="المستلم",
+    )
+
+    # المحتوى الذي لا يحفظه غيرها — ويُمسح حين لا يبقى ما يُعيد بناءه.
+    title = models.CharField(max_length=300, null=True, blank=True, verbose_name="العنوان")
+    body = models.TextField(null=True, blank=True, verbose_name="النصّ")
+    content_cleared_at = models.DateTimeField(null=True, blank=True, verbose_name="مُسح المحتوى")
+
+    # ── استئجار الطبر — مستقلّ عن استئجار التنفيذ ──────────────────
+    #
+    # وانقضاؤه **قابل للاستحواذ ثانيةً**، خلافاً لاستئجار التسليم: فقدانُ
+    # العامل هنا لا يعني أن المزوّد استقبل شيئاً. وأسوأ ما يقع أن يكون الوسيط
+    # قد استلم الرسالة ثم مات المنتج قبل تسجيل ذلك، فتُعاد رسالة في الوسيط —
+    # وسياج التسليم مصمَّم لاحتمال ذلك بالضبط.
+    enqueue_token = models.UUIDField(null=True, blank=True, verbose_name="رمز الطبر")
+    enqueue_expires_at = models.DateTimeField(null=True, blank=True)
+    last_enqueue_attempt_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="آخر محاولة طبر"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "نيّة طبر"
+        verbose_name_plural = "نيّات الطبر"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["school", "last_enqueue_attempt_at"], name="notif_intent_school_idx"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dispatch", "recipient"], name="uniq_enqueue_intent_per_recipient"
+            ),
+            models.UniqueConstraint(fields=["id", "school"], name="uniq_intent_id_school"),
+        ]
+
+    def __str__(self):
+        return f"intent {self.id} → {self.recipient_id}"

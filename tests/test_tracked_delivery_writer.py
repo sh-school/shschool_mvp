@@ -309,18 +309,21 @@ def test_every_delivery_exists_before_the_first_callback_is_registered():
     العامل يفشل مغلقاً إن نقص تسليم لقناة طُلبت. تسجيلُ نداء قبل اكتمال صفوفه
     يعني عقداً يتّكئ على أن الـcallback لن يُنفَّذ قبل الالتزام — صحيحٌ اليوم
     وهشٌّ غداً.
+
+    [B4-PRE4] المُسجِّل في المسار المتتبَّع صار `_enqueue_intent_after_commit`،
+    فالحارس يتبع المُسجِّل الجديد. الثابت لم يتغيّر — تغيّر من يُسجّل.
     """
     school = SchoolFactory()
     recipients = [_reachable_user(), _reachable_user(email="q@example.com")]
 
     seen = []
-    real = NotificationHub.dispatch.__globals__["_queue_external_after_commit"]
+    real = NotificationHub.dispatch.__globals__["_enqueue_intent_after_commit"]
 
-    def _spy(**kwargs):
+    def _spy(*args, **kwargs):
         seen.append(NotificationDelivery.objects.count())
-        return real(**kwargs)
+        return real(*args, **kwargs)
 
-    with patch("notifications.hub._queue_external_after_commit", _spy):
+    with patch("notifications.hub._enqueue_intent_after_commit", _spy):
         _dispatch(school, recipients)
 
     total = NotificationDelivery.objects.count()

@@ -486,3 +486,20 @@ if NOTIFICATION_DELIVERY_LEASE_SECONDS <= 0:
         "NOTIFICATION_DELIVERY_LEASE_SECONDS يجب أن تكون موجبة — "
         "مهلة صفرية أو سالبة تجعل كل استئجار منتهياً لحظة إنشائه."
     )
+
+# ── [B4-PRE4] مهلة استئجار الطبر ────────────────────────────────────
+#
+# قصيرة عمداً: محاولة إدخال العمل إلى الوسيط عملٌ سريع، وانقضاء هذا الاستئجار
+# **قابل للاستحواذ ثانيةً** خلافاً لاستئجار التسليم — فقدانُ العامل هنا لا يعني
+# أن المزوّد استقبل شيئاً، وأسوأ ما يقع رسالةٌ مكرّرة في الوسيط يحتملها سياج
+# التسليم.
+NOTIFICATION_ENQUEUE_LEASE_SECONDS = config(
+    "NOTIFICATION_ENQUEUE_LEASE_SECONDS",
+    default=60,
+    cast=int,
+)
+
+if NOTIFICATION_ENQUEUE_LEASE_SECONDS <= 0:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("NOTIFICATION_ENQUEUE_LEASE_SECONDS يجب أن تكون موجبة")
