@@ -433,6 +433,57 @@ def test_the_notification_helpers_do_not_own_a_boundary():
     assert not _encloses_in_atomic("operations/services.py", "_notify")
 
 
+def _defers_to(module_path, function_name, target_name):
+    """هل تُسجّل الدالّة `transaction.on_commit` يقود إلى `target_name`؟"""
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    source = (root / module_path).read_text(encoding="utf-8")
+
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if node.name != function_name:
+            continue
+
+        body = ast.get_source_segment(source, node) or ""
+        return "transaction.on_commit" in body and target_name in body
+
+    raise AssertionError(f"{module_path}::{function_name} غير موجودة")
+
+
+@pytest.mark.parametrize("view_name", ["report_infraction", "quick_log"])
+def test_the_infraction_views_defer_their_own_enqueue(view_name):
+    """
+    [B4-PRE3] الشاشتان تُسجّلان التأجيل بأنفسهما.
+
+    الاختبارات السلوكية أعلاه تمرّ بمساعدٍ يُحاكي ما تفعله الشاشتان، فحذفُ
+    `transaction.on_commit` منهما لا يُسقط أيّاً منها. وهذا الفحص هو ما يُسقطه:
+    بدونه يبقى الطبر الخام داخل المعاملة، ومع `ALWAYS_EAGER` يصير إرسالاً قبل
+    الالتزام — العطب الذي أزالته B4-PRE2 عائداً من باب آخر.
+    """
+    assert _defers_to("behavior/views.py", view_name, "_notify_behavior_after_commit")
+
+
+def test_the_deferred_helper_carries_its_own_fallback():
+    """
+    المؤجَّل هو المحاولة وارتدادها معاً.
+
+    `except` خارج الـcallback لا يُمسك خطأ وسيطٍ يقع بعد الالتزام، فيسقط
+    الارتداد المباشر بصمت — إصلاحُ التراجع على حساب الإتاحة القائمة.
+    """
+    import inspect
+
+    from behavior.views import _notify_behavior_after_commit
+
+    source = inspect.getsource(_notify_behavior_after_commit)
+
+    assert "notify_behavior_task.delay(" in source
+    assert "except" in source
+    assert "notify_parents(" in source
+
+
 def test_the_boundary_scanner_can_tell_the_difference():
     """
     ماسح يقول "نعم" دائماً لا يحرس شيئاً.
