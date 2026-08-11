@@ -556,6 +556,17 @@ def _application_sources():
         yield path, path.read_text(encoding="utf-8")
 
 
+#: أنماط الإنشاء وحدها. القراءة ليست كتابة — و[B4-1] يقرأ هذه الجداول عمداً
+#: ليمرّر التسليم إلى مهمّته، فحارسٌ يمنع كل استعمال كان سيمنع الاستهلاك نفسه
+#: الذي بُني من أجله الإصدار.
+CREATION_PATTERNS = (
+    ".objects.create(",
+    ".objects.get_or_create(",
+    ".objects.update_or_create(",
+    ".objects.bulk_create(",
+)
+
+
 def _writers_of(models):
     from pathlib import Path
 
@@ -567,7 +578,7 @@ def _writers_of(models):
         if path.name == "models.py" and path.parent.name == "notifications":
             continue
         for model in models:
-            if f"{model}.objects" in text or f"{model}(" in text:
+            if any(f"{model}{pattern}" in text for pattern in CREATION_PATTERNS):
                 found.append(f"{path.relative_to(root)}: {model}")
 
     return found
@@ -599,3 +610,18 @@ def test_the_writer_scanner_reads_real_application_code():
     assert len(sources) > 100
     assert any(path.name == "tasks.py" for path in sources)
     assert _writers_of(("NotificationLog",)), "الماسح لا يرى كتّاب NotificationLog المعروفين"
+
+
+def test_the_writer_scanner_distinguishes_reading_from_creating():
+    """
+    الحارس يفصل القراءة عن الإنشاء.
+
+    صيغته الأولى كانت تُمسك `Model.objects` بأي شكل، فأسقطت [B4-1] لحظة أن قرأ
+    التسليمَ ليمرّره — أي أنها كانت ستمنع الاستهلاك الذي بُني الإصدار من أجله،
+    لا الإنشاء الذي قصدنا منعه.
+    """
+    assert any(
+        "NotificationDelivery.objects.filter(" in text for _, text in _application_sources()
+    ), "القراءة المشروعة اختفت — الاختبار يقيس شيئاً لم يعد موجوداً"
+
+    assert not _writers_of(("NotificationDelivery",))

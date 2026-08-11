@@ -41,10 +41,16 @@ class NotificationService:
         student: CustomUser | None = None,
         notif_type: str = "custom",
         sent_by: CustomUser | None = None,
+        delivery=None,
     ) -> tuple:
-        """إرسال بريد إلكتروني وتسجيله"""
+        """إرسال بريد إلكتروني وتسجيله
+
+        [B4-1] `delivery` اختياري: يربط هذه المحاولة بتسليمها حين يعرفه
+        المُستدعي. لا شيء يُنشئه هنا — الخدمة تنفّذ ولا تُقرّر الهوية.
+        """
         log = NotificationLog.objects.create(
             school=school,
+            delivery=delivery,
             student=student,
             recipient=recipient_email,
             channel="email",
@@ -101,10 +107,15 @@ class NotificationService:
         student: CustomUser | None = None,
         notif_type: str = "custom",
         sent_by: CustomUser | None = None,
+        delivery=None,
     ) -> tuple:
-        """إرسال SMS عبر Twilio"""
+        """إرسال SMS عبر Twilio
+
+        [B4-1] `delivery` اختياري — انظر `send_email`.
+        """
         log = NotificationLog.objects.create(
             school=school,
+            delivery=delivery,
             student=student,
             recipient=phone_number,
             channel="sms",
