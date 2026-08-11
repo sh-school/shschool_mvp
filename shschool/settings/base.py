@@ -464,3 +464,25 @@ NOTIFICATION_HUB_DELIVERY_PIPELINE_ENABLED = config(
     default=False,
     cast=bool,
 )
+
+# ── [B4-3A] مهلة استئجار التسليم ────────────────────────────────────
+#
+# إعداد مستقلّ عن راية الخطّ: المهلة تصف زمن التنفيذ لا تشغيله.
+#
+# خمس عشرة دقيقة قيمة محافظة عمداً وغير مضبوطة بقياس — لا قياس ممكن والراية
+# مُطفأة. والاتّجاه مقصود: انقضاءٌ كاذب أخطر من مهلة طويلة، لأنه يجعل مُصالِحاً
+# مستقبلياً يصنّف تنفيذاً حيّاً `unknown_outcome`، بينما المهلة الأطول تُؤخّر
+# الاكتشاف وحده.
+NOTIFICATION_DELIVERY_LEASE_SECONDS = config(
+    "NOTIFICATION_DELIVERY_LEASE_SECONDS",
+    default=900,
+    cast=int,
+)
+
+if NOTIFICATION_DELIVERY_LEASE_SECONDS <= 0:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured(
+        "NOTIFICATION_DELIVERY_LEASE_SECONDS يجب أن تكون موجبة — "
+        "مهلة صفرية أو سالبة تجعل كل استئجار منتهياً لحظة إنشائه."
+    )

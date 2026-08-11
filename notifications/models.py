@@ -570,6 +570,25 @@ class NotificationDelivery(models.Model):
     status = models.CharField(
         max_length=15, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
     )
+
+    # ── [B4-3A] الاستئجار ────────────────────────────────────────────
+    #
+    # `lease_token` ليس قفلاً بل **رمز سياج**: العامل لا يُنهي تسليماً إلا وهو
+    # ما زال يحمل الرمز الذي أخذه عند الاستحواذ. بدونه يستطيع عاملٌ بطيء أن
+    # يعود بعد أن انتقلت ملكية التسليم إلى تنفيذ آخر فيهدم الحالة الأحدث.
+    #
+    # ولا `attempt_count` هنا: المحاولات صفوفٌ في `NotificationLog`، وعمودٌ
+    # يعدّها نسخةٌ ثانية من حقيقة قائمة يمكن أن تنحرف عنها.
+    lease_token = models.UUIDField(null=True, blank=True, verbose_name="رمز الاستئجار")
+    lease_expires_at = models.DateTimeField(null=True, blank=True, verbose_name="انتهاء الاستئجار")
+
+    # يُكتب صراحةً في كل انتقال — لا `auto_now`.
+    #
+    # الانتقالات تجري بـ`QuerySet.update()` لأنها تحتاج أن تكون ذرّية، و
+    # `auto_now` لا يعمل مع `update()`. حقلٌ يبدو محدَّثاً تلقائياً ولا يُحدَّث
+    # هو ما نتجنّبه: أسوأ من غيابه.
+    status_changed_at = models.DateTimeField(default=timezone.now, verbose_name="آخر انتقال")
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
