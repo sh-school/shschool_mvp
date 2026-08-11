@@ -204,7 +204,7 @@ def test_a_failing_swap_does_not_roll_back_the_ones_before_it(hub_queued):
     from operations.services import SwapService
 
     school = SchoolFactory()
-    first, second = _stale_swap(school), _stale_swap(school)
+    first, second = _stale_swap(school, 1), _stale_swap(school, 3)
     order = [first.id, second.id]
 
     def _notify_but_fail_on_the_second(swap, *args, **kwargs):
@@ -226,19 +226,51 @@ def test_a_failing_swap_does_not_roll_back_the_ones_before_it(hub_queued):
     assert TeacherSwap.objects.filter(status="cancelled").count() == 1
 
 
-def _stale_swap(school):
-    """طلب تبديل قديم بما يكفي ليُلغى."""
+def _schedule_slot(school, class_group, subject, teacher, period):
+    from datetime import time
+
+    from operations.models import ScheduleSlot
+
+    return ScheduleSlot.objects.create(
+        school=school,
+        class_group=class_group,
+        teacher=teacher,
+        subject=subject,
+        day_of_week=0,
+        period_number=period,
+        start_time=time(8, 0),
+        end_time=time(8, 45),
+    )
+
+
+def _stale_swap(school, period_offset):
+    """طلب تبديل قديم بما يكفي ليُلغى.
+
+    `period_offset` يُبقي حصص كل طلب متمايزة، فالجدول يمنع تكرار المعلّم في
+    الحصّة نفسها.
+    """
     from datetime import timedelta
 
     from django.utils import timezone as tz
 
-    from operations.models import TeacherSwap
+    from operations.models import Subject, TeacherSwap
     from operations.services import SwapService
+    from tests.conftest import ClassGroupFactory
+
+    class_group = ClassGroupFactory(school=school)
+    subject = Subject.objects.create(
+        school=school, name_ar=f"مادة {period_offset}", code=f"S{period_offset}"
+    )
+    teacher_a, teacher_b = UserFactory(), UserFactory()
 
     swap = TeacherSwap.objects.create(
         school=school,
-        teacher_a=UserFactory(),
-        teacher_b=UserFactory(),
+        teacher_a=teacher_a,
+        teacher_b=teacher_b,
+        slot_a=_schedule_slot(school, class_group, subject, teacher_a, period_offset),
+        slot_b=_schedule_slot(school, class_group, subject, teacher_b, period_offset + 1),
+        swap_date_a=tz.localdate(),
+        swap_date_b=tz.localdate(),
         status="pending_b",
         reason="سبب",
     )
