@@ -596,26 +596,61 @@ def _wire_call_sites():
     return found
 
 
-def test_no_producer_sends_a_wire_identifier_yet():
-    """
-    [B4-1] الإصدار مستهلك لا منتج — على كل المهامّ لا الـHub وحده.
+#: [B4-2B] المنتج الوحيد المسموح له بإرسال `dispatch_id`: طبقةُ نشر الـHub.
+#: تُرقّي هذه القاعدة حظر B4-1 المطلق ولا تُلغيه — منتجا Push المباشران يبقيان
+#: ممنوعين من `delivery_id` كما كانا.
+TRACKED_PRODUCER = ("notifications/hub.py", "_queue_external_now")
 
-    الغرض من هذه الدفعة أن يفهم العامل السلك الجديد **قبل** أن يُرسله أحد.
-    منتجٌ يسبق ذلك يُبطل الترتيب كلّه: عاملٌ قديم يستقبل رسالة لا يفهمها فتُفقد
-    بلا إعادة.
 
-    وحصرُ الحراسة في الـHub كان يترك الباب مفتوحاً حيث نعرف أنه مفتوح: لـPush
-    منتجان مباشران خارج الـHub، فلو مرّر أحدهما `delivery_id` غداً لبقي الحارس
-    أخضر بينما ينكسر ترتيب الإصدارين الذي بُني B4-1 كلّه لحمايته.
+def test_only_the_tracked_hub_path_sends_a_wire_identifier():
     """
-    offenders = [
-        f"{path}::{enclosing or '<module>'} → {task}({argument})"
+    [B4-2B] الحظر المطلق صار حصراً مسمّى.
+
+    كان B4-1 يمنع كل منتج، لأن غرضه أن يفهم العامل السلك قبل أن يُرسله أحد.
+    وقد أُنجز ذلك، فصار المسموح موضعاً واحداً بعينه: `_queue_external_now`
+    داخل الـHub، خلف راية مُطفأة افتراضياً.
+
+    وما زال ممنوعاً ما كان ممنوعاً حيث نعرف أن الباب مفتوح: منتجا Push
+    المباشران خارج الـHub لا يُمرّران `delivery_id`.
+    """
+    offenders = []
+
+    for path, enclosing, task, keywords in _wire_call_sites():
+        argument = WIRE_ARGUMENT[task]
+        if argument not in keywords:
+            continue
+
+        # تفويض الـHub إلى قنواته — استهلاكٌ لما وصل لا إنتاج.
+        if task != FORWARDING_HOST and enclosing == FORWARDING_HOST:
+            continue
+
+        # المنتج المتتبَّع المسمّى.
+        if (str(path).replace("\\", "/"), enclosing) == TRACKED_PRODUCER:
+            continue
+
+        offenders.append(f"{path}::{enclosing or '<module>'} → {task}({argument})")
+
+    assert not offenders, "منتج غير مصرَّح به: " + ", ".join(offenders)
+
+
+def test_the_tracked_producer_exists_where_the_exception_names_it():
+    """
+    استثناء يحرس موضعاً غير موجود لا يُثبت شيئاً.
+
+    لو انتقل المنتج المتتبَّع إلى دالّة أخرى لبقي الحارس أخضر بينما صار
+    الاستثناء يشير إلى فراغ — والمنتج الجديد يمرّ بلا حراسة.
+    """
+    module_path, function_name = TRACKED_PRODUCER
+
+    matches = [
+        (path, enclosing)
         for path, enclosing, task, keywords in _wire_call_sites()
-        if (argument := WIRE_ARGUMENT[task]) in keywords
-        and not (task != FORWARDING_HOST and enclosing == FORWARDING_HOST)
+        if task == FORWARDING_HOST and "dispatch_id" in keywords
     ]
 
-    assert not offenders, "منتج سابق لأوانه: " + ", ".join(offenders)
+    assert (module_path, function_name) in [
+        (str(path).replace("\\", "/"), enclosing) for path, enclosing in matches
+    ], "المنتج المتتبَّع ليس حيث يسمّيه الاستثناء"
 
 
 def test_the_producer_scanner_sees_every_kind_of_call_site():
