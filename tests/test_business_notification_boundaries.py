@@ -204,11 +204,17 @@ def test_a_failing_swap_does_not_roll_back_the_ones_before_it(hub_queued):
     from operations.services import SwapService
 
     school = SchoolFactory()
-    first, second = _stale_swap(school, 1), _stale_swap(school, 3)
-    order = [first.id, second.id]
+    _stale_swap(school, 1)
+    _stale_swap(school, 3)
+
+    # الفشل يقع على **ثاني** طلب تصل إليه الحلقة لا على معرّف بعينه: ترتيب
+    # الاستعلام غير مضمون، فتثبيت المعرّف كان يجعل الاختبار يقيس الترتيب لا
+    # حدود المعاملة — وقد يفشل الطلب الأول فلا يُعالَج الآخر إطلاقاً.
+    processed = []
 
     def _notify_but_fail_on_the_second(swap, *args, **kwargs):
-        if swap.id == order[1]:
+        processed.append(swap.id)
+        if len(processed) == 2:
             raise _SentinelError
         return None
 
@@ -218,11 +224,13 @@ def test_a_failing_swap_does_not_roll_back_the_ones_before_it(hub_queued):
     ):
         SwapService.expire_stale_swaps()
 
-    first.refresh_from_db()
-    second.refresh_from_db()
+    assert len(processed) == 2, "الحلقة لم تبلغ طلبين"
 
-    assert first.status == "cancelled", "تراجع طلبٌ نجح بسبب فشل طلب لاحق"
-    assert second.status == "pending_b", "لم يتراجع الطلب الذي فشل"
+    committed = TeacherSwap.objects.get(id=processed[0])
+    rolled_back = TeacherSwap.objects.get(id=processed[1])
+
+    assert committed.status == "cancelled", "تراجع طلبٌ نجح بسبب فشل طلب لاحق"
+    assert rolled_back.status == "pending_b", "لم يتراجع الطلب الذي فشل"
     assert TeacherSwap.objects.filter(status="cancelled").count() == 1
 
 
