@@ -19,6 +19,7 @@ from django.test import override_settings
 
 from notifications.hub import NotificationHub
 from notifications.models import (
+    InAppNotification,
     NotificationDelivery,
     NotificationDispatch,
     UserNotificationPreference,
@@ -108,6 +109,57 @@ def test_the_legacy_fallback_still_runs_when_the_broker_fails(django_capture_on_
             _dispatch(school, [_reachable_user()])
 
     assert sync.called
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_flag_off_path_registers_between_recipients_not_after_them(queued):
+    """
+    [B4-2B] الراية المُطفأة لا يُلاحَظ لها أثر — ولا حتى في الترتيب.
+
+    الصيغة الأولى لفّت حلقة المستلمين كلّها بـ`transaction.atomic()` مهما كانت
+    الراية، فصار التسجيل يُنتظر إلى نهاية النداء بدل أن يُنفَّذ فور معالجة كل
+    مستلم خارج أي معاملة. هذا تغييرٌ في سلوك قائم لا في خطٍّ جديد.
+
+    والقياس هنا هو ما تراه القاعدة لحظة أول خروج: مستلم واحد مُعالَج، لا
+    الاثنان.
+    """
+    school = SchoolFactory()
+    recipients = [_reachable_user(), _reachable_user(email="q@example.com")]
+
+    seen = []
+    queued.side_effect = lambda **kwargs: seen.append(InAppNotification.objects.count())
+
+    _dispatch(school, recipients)
+
+    assert len(seen) == 2, "لم يخرج نداء لكل مستلم"
+    assert seen[0] == 1, "انتظر التسجيلُ نهاية النداء بدل أن يقع بين المستلمين"
+    assert seen[1] == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_flag_off_path_keeps_an_earlier_recipient_when_a_later_one_fails(queued):
+    """
+    [B4-2B] ولا يُسقط فشلُ مستلم أثرَ من سبقه.
+
+    المعاملة التي أضافتها الصيغة الأولى كانت تجعل إشعارات المنصّة لعدّة
+    مستلمين وحدةً واحدة، فيُلغي خطأٌ في الأخير إشعارَ الأول — وهو سلوك لم يكن
+    قائماً ولم يطلبه أحد.
+    """
+    school = SchoolFactory()
+    first, second = _reachable_user(), _reachable_user(email="q@example.com")
+
+    def _fail_for_the_second(user, notif):
+        if user.id == second.id:
+            raise _SentinelError
+
+    with patch("notifications.hub._push_websocket", side_effect=_fail_for_the_second):
+        with pytest.raises(_SentinelError):
+            _dispatch(school, [first, second])
+
+    assert InAppNotification.objects.filter(
+        user=first
+    ).exists(), "تراجع إشعار مستلم سابق بسبب فشل مستلم لاحق"
+    assert not InAppNotification.objects.filter(user=second).exists()
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -136,91 +136,86 @@ class NotificationHub:
             # لا مستلم ⇒ لا واقعة. إشعارٌ لا يخصّ أحداً ليس حدثاً يُسجَّل.
             return results
 
-        # [B4-2B] مرحلتان داخل حدٍّ واحد.
-        #
-        # المرحلة الأولى قاعدةُ بيانات بحتة: التفضيلات، وإشعارات المنصّة،
-        # والواقعة، وكل التسليمات. والثانية تسجيلُ ما سيخرج بعد الالتزام.
-        # فصلُهما ليس ترتيباً تجميلياً: العامل يفشل مغلقاً إن نقص تسليم لقناة
-        # طُلبت، فتسجيلُ نداء قبل اكتمال صفوفه يعني عقداً يعتمد على أن الـ
-        # callback لن يُنفَّذ قبل الالتزام — وهو صحيح اليوم ويصير هشّاً غداً.
-        #
-        # والمعاملة هنا داخلية: المستدعي الذي يملك طفرة أعمال (B4-PRE3) يبقى
-        # صاحب الالتزام الحقيقي، وهذه تصير نقطةَ حفظ ضمنه. أمّا المسارات
-        # المجدولة التي تأتي بلا معاملة فتجد الوحدة مضمونة هنا.
-        with transaction.atomic():
-            intents = []
+        prepared = {
+            "school": school,
+            "title": title,
+            "body": body,
+            "event_type": event_type,
+            "inapp_event": inapp_event,
+            "priority": priority,
+            "related_object_id": related_object_id,
+            "related_url": related_url,
+            "default_channels": default_channels,
+        }
 
+        def _register(user, external_channels, dispatch_id):
+            # [B4-PRE2] يُسجَّل الآن ويُنفَّذ بعد الالتزام.
+            #
+            # `InAppNotification` أعلاه كتابةُ قاعدة داخل معاملة المستدعي،
+            # فتتراجع معها إن تراجعت — وهذا صحيح. أمّا ما يخرج إلى مزوّد
+            # خارجي فلا يتراجع، فلا يجوز أن يقع قبل أن يُصبح الحدث نهائياً.
+            _queue_external_after_commit(
+                user=user,
+                school=school,
+                channels=external_channels,
+                title=title,
+                body=body,
+                event_type=event_type,
+                context=context,
+                sent_by=sent_by,
+                dispatch_id=dispatch_id,
+            )
+
+        if not _tracked_pipeline_enabled():
+            # ── المسار القديم — حرفياً كما كان ───────────────────────
+            #
+            # [B4-2B] لا معاملة تُضاف هنا. لفُّ الحلقة كلّها بواحدة يُغيّر
+            # سلوكاً قائماً في اتجاهين: التسجيل يصير مؤجَّلاً إلى نهاية النداء
+            # بدل أن يُنفَّذ فور معالجة كل مستلم خارج أي معاملة، وإشعارات
+            # المنصّة لعدّة مستلمين تصير وحدةً يُسقطها فشلٌ لاحق. والراية
+            # المُطفأة يجب ألّا يُلاحَظ لها أثر.
             for user in recipients:
                 try:
-                    # ── 1. إشعار المنصة (دائماً — synchronous) ──────────
-                    prefs = _get_prefs(user)
-                    user_channels = _resolve_channels(prefs, event_type, default_channels)
-
-                    if "in_app" in user_channels:
-                        notif = InAppNotification.objects.create(
-                            user=user,
-                            school=school,
-                            title=title,
-                            body=body,
-                            event_type=inapp_event,
-                            priority=priority,
-                            related_object_id=str(related_object_id),
-                            related_url=related_url,
-                        )
-                        results["in_app"] += 1
-
-                        # ── WebSocket push (fail-safe — لا يكسر الإشعار) ──
-                        _push_websocket(user, notif)
-
-                    # ── 2. القنوات الخارجية (async عبر Celery) ──────────
-                    external_channels = [ch for ch in user_channels if ch != "in_app"]
-
-                    if not external_channels:
-                        continue
-
-                    # التحقق من ساعات الهدوء
-                    if prefs and prefs.is_quiet_hours():
-                        # في ساعات الهدوء: in_app فقط (أُرسل أعلاه)
-                        logger.info(
-                            f"Quiet hours for {user.full_name} — skipping external channels"
-                        )
-                        continue
-
-                    intents.append((user, external_channels))
-
-                    for ch in external_channels:
-                        results["queued"][ch] = results["queued"].get(ch, 0) + 1
-
+                    external_channels = _prepare_recipient(user, prepared, results)
+                    if external_channels:
+                        _register(user, external_channels, None)
                 except (OSError, RuntimeError, ValueError, KeyError) as e:
                     logger.error(f"NotificationHub error for {user}: {e}", exc_info=True)
 
-            dispatch = _create_dispatch(
-                school=school,
-                event_type=event_type,
-                related_object_id=related_object_id,
-                related_url=related_url,
-                sent_by=sent_by,
-                intents=intents,
-            )
+        else:
+            # ── المسار المتتبَّع — مرحلتان داخل حدٍّ واحد ──────────────
+            #
+            # المرحلة الأولى قاعدةُ بيانات بحتة: التفضيلات، وإشعارات المنصّة،
+            # والواقعة، وكل التسليمات. والثانية تسجيلُ ما سيخرج بعد الالتزام.
+            # فصلُهما ليس ترتيباً تجميلياً: العامل يفشل مغلقاً إن نقص تسليم
+            # لقناة طُلبت، فتسجيلُ نداء قبل اكتمال صفوفه عقدٌ يتّكئ على أن
+            # الـcallback لن يُنفَّذ قبل الالتزام — صحيحٌ اليوم وهشٌّ غداً.
+            #
+            # والمعاملة داخلية: مالك طفرة الأعمال (B4-PRE3) يبقى صاحب الالتزام
+            # وتصير هذه نقطةَ حفظ ضمنه، والمسارات المجدولة تجد الوحدة مضمونة.
+            with transaction.atomic():
+                intents = []
 
-            # ── 3. التسجيل — بعد اكتمال كل صفوف التسليم ────────────
-            for user, external_channels in intents:
-                # [B4-PRE2] يُسجَّل الآن ويُنفَّذ بعد الالتزام.
-                #
-                # `InAppNotification` أعلاه كتابةُ قاعدة داخل معاملة المستدعي،
-                # فتتراجع معها إن تراجعت — وهذا صحيح. أمّا ما يخرج إلى مزوّد
-                # خارجي فلا يتراجع، فلا يجوز أن يقع قبل أن يُصبح الحدث نهائياً.
-                _queue_external_after_commit(
-                    user=user,
+                for user in recipients:
+                    try:
+                        external_channels = _prepare_recipient(user, prepared, results)
+                        if external_channels:
+                            intents.append((user, external_channels))
+                    except (OSError, RuntimeError, ValueError, KeyError) as e:
+                        logger.error(f"NotificationHub error for {user}: {e}", exc_info=True)
+
+                dispatch = _create_dispatch(
                     school=school,
-                    channels=external_channels,
-                    title=title,
-                    body=body,
                     event_type=event_type,
-                    context=context,
+                    related_object_id=related_object_id,
+                    related_url=related_url,
                     sent_by=sent_by,
-                    dispatch_id=str(dispatch.id) if dispatch else None,
+                    intents=intents,
                 )
+
+                # ── التسجيل — بعد اكتمال كل صفوف التسليم ────────────
+                for user, external_channels in intents:
+                    _register(user, external_channels, str(dispatch.id) if dispatch else None)
 
         logger.info(
             f"NotificationHub.dispatch({event_type}): "
@@ -285,6 +280,51 @@ _CONSENT_DATA_TYPE = {
     "fail": "grades",
     "clinic": "health",
 }
+
+
+def _prepare_recipient(user, prepared, results):
+    """إشعار المنصّة، ثم القنوات الخارجية المطلوبة لهذا المستلم — أو `None`.
+
+    مشترك بين المسارين كي لا تُكتب دلالةُ التفضيلات وساعات الهدوء مرّتين: نسخة
+    للمسار القديم وأخرى للمتتبَّع كانتا ستنحرفان، فيصير ما يُنشئ له الكاتب
+    تسليماً غير ما كان المسار القديم ليُرسله.
+    """
+    prefs = _get_prefs(user)
+    user_channels = _resolve_channels(prefs, prepared["event_type"], prepared["default_channels"])
+
+    # ── 1. إشعار المنصة (دائماً — synchronous) ──────────
+    if "in_app" in user_channels:
+        notif = InAppNotification.objects.create(
+            user=user,
+            school=prepared["school"],
+            title=prepared["title"],
+            body=prepared["body"],
+            event_type=prepared["inapp_event"],
+            priority=prepared["priority"],
+            related_object_id=str(prepared["related_object_id"]),
+            related_url=prepared["related_url"],
+        )
+        results["in_app"] += 1
+
+        # ── WebSocket push (fail-safe — لا يكسر الإشعار) ──
+        _push_websocket(user, notif)
+
+    # ── 2. القنوات الخارجية (async عبر Celery) ──────────
+    external_channels = [ch for ch in user_channels if ch != "in_app"]
+
+    if not external_channels:
+        return None
+
+    # التحقق من ساعات الهدوء
+    if prefs and prefs.is_quiet_hours():
+        # في ساعات الهدوء: in_app فقط (أُرسل أعلاه)
+        logger.info(f"Quiet hours for {user.full_name} — skipping external channels")
+        return None
+
+    for channel in external_channels:
+        results["queued"][channel] = results["queued"].get(channel, 0) + 1
+
+    return external_channels
 
 
 def _tracked_pipeline_enabled():
