@@ -256,13 +256,16 @@ def test_a_retry_wait_delivery_can_be_claimed_again():
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("status", ["undeliverable", "unknown_outcome", "pending", "in_progress"])
-def test_this_stage_refuses_to_write_a_status_it_cannot_mean(status):
+@pytest.mark.parametrize("status", ["unknown_outcome", "pending", "in_progress"])
+def test_finalizing_refuses_a_status_it_cannot_mean(status):
     """
-    [B4-3A] لا حالة بلا منتج لها — والعكس أيضاً.
+    لا حالة بلا منتج لها — والعكس أيضاً.
 
-    `undeliverable` تنتظر B4-3B و`unknown_outcome` تنتظر B4-4. وقبولُ اسمٍ
-    هنا لأنه سيصير صالحاً لاحقاً يجعل المرحلة تدّعي دلالةً لا تملكها.
+    `unknown_outcome` تنتظر B4-4 لأن العامل الميت لا يقول إنه مات. أمّا
+    `undeliverable` فقد دخلت في B4-3B **مع منتجَيها** في Push، فخرجت من هنا.
+
+    و`pending`/`in_progress` ليستا نهايتين: الأولى بدايةٌ والثانية ملكيّةٌ
+    قائمة، وكتابتهما إنهاءً تعني تسليماً يبدو محسوماً وهو ليس كذلك.
     """
     delivery = _delivery()
     token = claim_delivery(delivery.id, delivery.school_id)
@@ -274,11 +277,24 @@ def test_this_stage_refuses_to_write_a_status_it_cannot_mean(status):
     assert delivery.status == "in_progress"
 
 
-def test_the_model_still_carries_only_the_five_states():
-    """`undeliverable` و`unknown_outcome` تدخلان مع من يكتبهما لا قبله."""
+def test_the_model_carries_no_state_without_a_producer():
+    """
+    كل حالة موجودة يكتبها شيء.
+
+    `undeliverable` دخلت مع منتجَيها في B4-3B، و`unknown_outcome` تنتظر مكتشفها
+    في B4-4 — والقاعدة واحدة: الاسم يصل مع من يعنيه لا قبله.
+    """
     codes = {code for code, _ in NotificationDelivery.STATUS}
 
-    assert codes == {"pending", "in_progress", "sent", "retry_wait", "dead_lettered"}
+    assert codes == {
+        "pending",
+        "in_progress",
+        "sent",
+        "retry_wait",
+        "dead_lettered",
+        "undeliverable",
+    }
+    assert "unknown_outcome" not in codes
 
 
 # ══════════════════════════════════════════════════════════════════

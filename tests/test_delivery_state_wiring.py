@@ -17,6 +17,7 @@ tests/test_delivery_state_wiring.py
 import sys
 import types
 import uuid
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -101,6 +102,22 @@ def _twilio_settings(school):
 def _status_of(delivery):
     delivery.refresh_from_db()
     return delivery.status
+
+
+@contextmanager
+def _no_retries_left(task):
+    """يجعل الميزانية مستنفدة.
+
+    `patch.object(type(task), ...)` لا يعمل: `task` وكيلٌ من Celery ونوعه
+    `celery.local` لا يحمل السمة. الضبط على الوكيل نفسه يصل إلى المهمّة
+    المسجَّلة.
+    """
+    original = task.max_retries
+    task.max_retries = 0
+    try:
+        yield
+    finally:
+        task.max_retries = original
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -256,7 +273,7 @@ def test_an_exhausted_delivery_is_dead_lettered_and_linked():
 
     with (
         patch("django.core.mail.send_mail", _Provider(fail=True)),
-        patch.object(type(send_email_task), "max_retries", 0),
+        _no_retries_left(send_email_task),
     ):
         result = send_email_task.delay(
             school_id=str(school.id),
