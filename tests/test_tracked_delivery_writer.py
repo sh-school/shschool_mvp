@@ -156,10 +156,15 @@ def test_the_flag_off_path_keeps_an_earlier_recipient_when_a_later_one_fails(que
         with pytest.raises(_SentinelError):
             _dispatch(school, [first, second])
 
+    # الصفّان مكتوبان قبل نداء الـWebSocket، وبلا معاملة يلتزم كلٌّ منهما فور
+    # كتابته. فالمنتظَر أن ينجو الاثنان — وتحت الصيغة التي لفّت الحلقة بمعاملة
+    # كان الفشل الأخير يُلغيهما معاً.
     assert InAppNotification.objects.filter(
         user=first
     ).exists(), "تراجع إشعار مستلم سابق بسبب فشل مستلم لاحق"
-    assert not InAppNotification.objects.filter(user=second).exists()
+    assert InAppNotification.objects.filter(
+        user=second
+    ).exists(), "تراجع صفٌّ كُتب قبل الفشل — لا معاملة هنا تُبرّر ذلك"
 
 
 # ══════════════════════════════════════════════════════════════════
