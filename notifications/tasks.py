@@ -22,6 +22,7 @@ from celery.exceptions import MaxRetriesExceededError
 from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
+from notifications.channels import deliverable_external_channels
 
 logger = logging.getLogger(__name__)
 
@@ -821,16 +822,11 @@ def hub_send_notification_task(
 
         # القنوات التي ستُطابَر فعلاً — لا التي طُلبت. تُحلّ تسليماتها كلّها
         # قبل إطلاق أيّ منها، كي لا يخرج نصف الإشعار متتبَّعاً ونصفه لا.
-        deliverable = [
-            channel
-            for channel, allowed in (
-                ("email", "email" in channels and bool(user.email)),
-                ("sms", "sms" in channels and bool(user.phone)),
-                ("whatsapp", "whatsapp" in channels and bool(user.phone)),
-                ("push", "push" in channels),
-            )
-            if allowed
-        ]
+        #
+        # [B4-2B] المنطق مشترك مع الكاتب الذي يُنشئ التسليمات. نسختان منه
+        # تعنيان انحرافاً بين ما أُنشئ وما يُطلب — ولأن هذه المهمّة تفشل مغلقاً
+        # عند النقص، يظهر الانحراف كإشعارٍ لا يخرج لا كخطأ يُقرأ.
+        deliverable = deliverable_external_channels(user, channels)
         delivery_ids = (
             _resolve_dispatch_deliveries(dispatch_id, user_id, school_id, deliverable)
             if dispatch_id

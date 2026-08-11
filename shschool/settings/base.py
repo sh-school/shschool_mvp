@@ -449,3 +449,18 @@ AXES_LOCKOUT_URL = None
 # ── F-004: حد حجم الرفع (5 MB) — OWASP File Upload ──────────────
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
+
+# ── [B4-2B] خطّ التسليم المتتبَّع — مُطفأ افتراضياً وفي الإنتاج ──────
+#
+# الاسم يذكر `HUB` عمداً: `NotificationHub` وحده يُنشئ واقعةً وتسليمات،
+# ومنتجا Push المباشران خارج الـHub ما زالا legacy. اسمٌ عامّ كان سيدّعي
+# تغطيةً لا يملكها.
+#
+# ودمجُ الكاتب ليس تفعيلاً له. التفعيل في الإنتاج يحتاج مُصالِحاً يلتقط
+# التسليمات المعلّقة، ولم يُبنَ بعد (B4-4): الكاتب اليوم يُنتج صفوفاً قد تبقى
+# `pending` حتى بعد وصول الرسالة، لأن آلة الحالات تنتظر B4-3.
+NOTIFICATION_HUB_DELIVERY_PIPELINE_ENABLED = config(
+    "NOTIFICATION_HUB_DELIVERY_PIPELINE_ENABLED",
+    default=False,
+    cast=bool,
+)

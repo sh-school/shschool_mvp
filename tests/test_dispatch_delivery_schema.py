@@ -567,7 +567,15 @@ CREATION_PATTERNS = (
 )
 
 
+#: [B4-2B] الكاتب الوحيد المسموح له. تُرقّي هذه القاعدة حظر B4-0 المطلق ولا
+#: تُلغيه: كان "لا كاتب إطلاقاً" لأن البنية خامدة، فصار "موضع واحد مسمّى" خلف
+#: راية مُطفأة افتراضياً.
+TRACKED_WRITER = ("notifications/hub.py", "_create_dispatch")
+
+
 def _writers_of(models):
+    """مواضع إنشاء صفوف لهذه النماذج، مع الدالّة الحاوية لكلٍّ منها."""
+    import ast
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
@@ -577,24 +585,63 @@ def _writers_of(models):
         # تعريف النموذج نفسه ليس كتابةً فيه.
         if path.name == "models.py" and path.parent.name == "notifications":
             continue
-        for model in models:
-            if any(f"{model}{pattern}" in text for pattern in CREATION_PATTERNS):
-                found.append(f"{path.relative_to(root)}: {model}")
+
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+
+        def _visit(node, enclosing, path=path, text=text):
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                enclosing = node.name
+
+            if isinstance(node, ast.Call):
+                segment = ast.get_source_segment(text, node) or ""
+                for model in models:
+                    if any(f"{model}{pattern}" in segment for pattern in CREATION_PATTERNS):
+                        found.append(
+                            (
+                                str(path.relative_to(root)).replace("\\", "/"),
+                                enclosing,
+                                model,
+                            )
+                        )
+
+            for child in ast.iter_child_nodes(node):
+                _visit(child, enclosing)
+
+        _visit(tree, None)
 
     return found
 
 
-def test_nothing_writes_to_the_new_tables_yet():
+def test_only_the_tracked_writer_creates_a_dispatch_or_delivery():
     """
-    [B4-0] البنية خامدة — لا كاتب في شيفرة التطبيق.
+    [B4-2B] الحظر المطلق صار حصراً مسمّى.
 
-    تشغيل الخطّ قرار مستقلّ عن إنشاء جداوله، وهذا الحارس يجعل الفصل بينهما
-    مفروضاً لا موعوداً: كاتب يتسلّل في دفعة لاحقة يُسقط CI بدل أن يمرّ لأن
-    البنية كانت جاهزة.
+    كان B4-0 يمنع كل كاتب لأن البنية خامدة. وقد دخل الكاتب المتتبَّع خلف راية
+    مُطفأة افتراضياً، فصار المسموح موضعاً واحداً بعينه — وأي كاتب آخر يُسقط CI
+    كما كان.
     """
-    assert not _writers_of(DORMANT_MODELS), "كاتب غير مصرَّح به: " + ", ".join(
-        _writers_of(DORMANT_MODELS)
-    )
+    offenders = [
+        f"{path}::{enclosing or '<module>'} → {model}"
+        for path, enclosing, model in _writers_of(DORMANT_MODELS)
+        if (path, enclosing) != TRACKED_WRITER
+    ]
+
+    assert not offenders, "كاتب غير مصرَّح به: " + ", ".join(offenders)
+
+
+def test_the_tracked_writer_exists_where_the_exception_names_it():
+    """
+    استثناء يحرس موضعاً غير موجود لا يُثبت شيئاً.
+
+    لو انتقل الكاتب إلى دالّة أخرى لبقي الحارس أخضر بينما صار الاستثناء يشير
+    إلى فراغ، ومرّ الكاتب الجديد بلا حراسة.
+    """
+    written = {(path, enclosing) for path, enclosing, _ in _writers_of(DORMANT_MODELS)}
+
+    assert TRACKED_WRITER in written, "الكاتب المتتبَّع ليس حيث يسمّيه الاستثناء"
 
 
 def test_the_writer_scanner_reads_real_application_code():
@@ -624,4 +671,10 @@ def test_the_writer_scanner_distinguishes_reading_from_creating():
         "NotificationDelivery.objects.filter(" in text for _, text in _application_sources()
     ), "القراءة المشروعة اختفت — الاختبار يقيس شيئاً لم يعد موجوداً"
 
-    assert not _writers_of(("NotificationDelivery",))
+    readers_only = [
+        (path, enclosing)
+        for path, enclosing, _ in _writers_of(("NotificationDelivery",))
+        if (path, enclosing) != TRACKED_WRITER
+    ]
+
+    assert not readers_only, f"قراءةٌ حُسبت إنشاءً: {readers_only}"
