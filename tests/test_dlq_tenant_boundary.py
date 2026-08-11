@@ -127,10 +127,21 @@ PII_KEYS = ("recipient_email", "phone_number", "message", "subject")
 
 
 def test_dlq_writer_takes_the_school_explicitly():
-    """[P2-B1] تمرير المدرسة ضمناً داخل JSON هو ما أبقى الجدول خارج العزل."""
+    """[P2-B1] تمرير المدرسة ضمناً داخل JSON هو ما أبقى الجدول خارج العزل.
+
+    [B4-3B] و`delivery_id` أخيرة واختيارية: المسار القديم لا تسليم له فيبقى
+    `None`، والمتتبَّع يربط صفّ الطابور بالتسليم الذي استنفد محاولاته.
+    """
     signature = inspect.signature(notification_tasks._to_dlq)
 
-    assert list(signature.parameters) == ["kind", "school_id", "payload", "error"]
+    assert list(signature.parameters) == [
+        "kind",
+        "school_id",
+        "payload",
+        "error",
+        "delivery_id",
+    ]
+    assert signature.parameters["delivery_id"].default is None
 
 
 @pytest.mark.parametrize("key", PII_KEYS)
@@ -147,13 +158,24 @@ def test_no_dlq_payload_carries_personal_data(key):
         assert f'"{key}"' not in block, f"{key} must not be stored in the DLQ payload"
 
 
+#: [B4-3B] موضعا بناء الـpayload.
+#:
+#: كان `_to_dlq` وحده. ثم انتقل بناء الـpayload في المسار المتتبَّع إلى
+#: مُستدعي `_tracked_failure`، فصار الماسح يرى في `_to_dlq` وسيطاً مبهماً
+#: ويمرّ — ماسحٌ يتبع اسم الدالّة لا مسار البيانات يفقد موضوعه عند أول
+#: إعادة تنظيم.
+PAYLOAD_BUILDERS = ("_to_dlq(", "_tracked_failure(")
+
+
 def _dlq_call_blocks(source):
-    """يستخرج نصّ كل استدعاء لـ_to_dlq حتى قوس الإغلاق."""
+    """يستخرج نصّ كل استدعاء يبني payload للطابور حتى قوس الإغلاق."""
     blocks = []
     lines = source.splitlines()
 
     for index, line in enumerate(lines):
-        if "_to_dlq(" not in line or "def _to_dlq" in line:
+        if not any(builder in line for builder in PAYLOAD_BUILDERS):
+            continue
+        if "def _to_dlq" in line or "def _tracked_failure" in line:
             continue
 
         depth = 0
@@ -173,11 +195,9 @@ def test_the_payload_scanner_sees_the_real_call_sites():
     source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
     blocks = _dlq_call_blocks(source)
 
-    assert len(blocks) >= 4
-    assert any('"email"' in block for block in blocks)
-    assert any('"sms"' in block for block in blocks)
-    assert any('"push"' in block for block in blocks)
-    assert any('"whatsapp"' in block for block in blocks)
+    assert len(blocks) >= 8, "المسارَان — القديم والمتتبَّع — لكل قناة"
+    for channel in ('"email"', '"sms"', '"push"', '"whatsapp"'):
+        assert sum(channel in block for block in blocks) >= 2, f"{channel}: الماسح لا يرى المسارين"
 
 
 def test_every_payload_identifies_its_recipient():
@@ -195,6 +215,11 @@ def test_every_payload_identifies_its_recipient():
     source = (ROOT / "notifications" / "tasks.py").read_text(encoding="utf-8")
 
     for block in _dlq_call_blocks(source):
+        # نداء `_to_dlq` داخل `_tracked_failure` يُمرّر payload بُني عند
+        # مُستدعيه — وذلك المُستدعي مفحوصٌ في هذه الحلقة نفسها.
+        if "payload," in block and "kind," in block:
+            continue
+
         assert (
             "student_id" in block or "user_id" in block
         ), "a dead-letter payload must carry an internal reference to its recipient"
