@@ -238,7 +238,13 @@ class BehaviorService:
         }
 
     # ── تنفيذ قرار اللجنة ──────────────────────────────────
+    #
+    # [B4-PRE3] الحدّ عند مالك الطفرة. فرعا التصعيد والإيقاف يحفظان المخالفة
+    # ثم يستدعيان `_auto_summon_parent`، فالحفظ والنيّة يلتزمان معاً أو لا
+    # يلتزمان. ولا تُزيَّن `_auto_summon_parent` نفسها: معاملةٌ حولها وحدها
+    # تعني حدّاً منفصلاً عن الطفرة — وهو العطب لا علاجه.
     @staticmethod
+    @transaction.atomic
     def apply_committee_decision(
         infraction: BehaviorInfraction,
         decision: str,
@@ -604,7 +610,10 @@ class BehaviorService:
             )
 
     # ── تصعيد الإجراء التصاعدي ───────────────────────────────
+    #
+    # [B4-PRE3] الحفظ واستدعاء وليّ الأمر في حدٍّ واحد.
     @staticmethod
+    @transaction.atomic
     def escalate_infraction(
         infraction: BehaviorInfraction,
         escalated_by: CustomUser | None = None,
@@ -649,7 +658,10 @@ class BehaviorService:
         return True, f"تم التصعيد إلى الخطوة {new_step}: {step_text}"
 
     # ── تسجيل إحالة أمنية (الدرجة الرابعة) ───────────────────
+    #
+    # [B4-PRE3] الإحالة وإشعارها في حدٍّ واحد.
     @staticmethod
+    @transaction.atomic
     def record_security_referral(
         infraction: BehaviorInfraction,
         agency: str,

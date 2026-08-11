@@ -1397,16 +1397,25 @@ class SwapService:
         )
         count = stale.count()
         for swap in stale:
-            swap.status = "cancelled"
-            swap.notes = "انتهت صلاحية الطلب — لم يرد المعلم خلال 48 ساعة"
-            swap.save(update_fields=["status", "notes", "updated_at"])
-            SwapService._notify(
-                swap,
-                swap.teacher_a,
-                title="انتهت صلاحية طلب التبديل",
-                body=f"لم يرد {swap.teacher_b.full_name} خلال 48 ساعة — يمكنك تقديم طلب جديد",
-                event_type="swap_expired",
-            )
+            # [B4-PRE3] معاملة لكل طلب لا للدفعة كلّها.
+            #
+            # حدٌّ حول الحلقة كان سيجعل فشلاً في الطلب الأربعين يُلغي تسعةً
+            # وثلاثين إلغاءً ناجحاً، ويُؤجّل إشعاراتها جميعاً إلى التزام واحد
+            # في النهاية فتسقط معه. وهذا توسيعُ نطاق تراجع لم يكن في العقد.
+            #
+            # وبفضل B4-PRE2 يصير الخروج الخارجي الذي يُسجّله `_notify` مؤجّلاً
+            # إلى التزام هذا الطلب وحده.
+            with transaction.atomic():
+                swap.status = "cancelled"
+                swap.notes = "انتهت صلاحية الطلب — لم يرد المعلم خلال 48 ساعة"
+                swap.save(update_fields=["status", "notes", "updated_at"])
+                SwapService._notify(
+                    swap,
+                    swap.teacher_a,
+                    title="انتهت صلاحية طلب التبديل",
+                    body=f"لم يرد {swap.teacher_b.full_name} خلال 48 ساعة — يمكنك تقديم طلب جديد",
+                    event_type="swap_expired",
+                )
         if count:
             logger.info("SwapService: expired %d stale swaps", count)
         return count
