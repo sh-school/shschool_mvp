@@ -99,29 +99,25 @@ def test_a_failed_infraction_notifies_nobody(behavior_queued):
     """
     [B4-PRE3] الثابت الأساسي.
 
-    `create_infraction` مزيَّنة بـ`@transaction.atomic` أصلاً، فتصير هنا نقطةَ
-    حفظ داخلية؛ والالتزام الذي يُطلق الـcallback هو نهاية المعاملة الخارجية.
-    """
-    from behavior.services import BehaviorService
+    يمرّ بالمسار نفسه — تسجيلَ الـcallback ضمناً — لا بإنشاء المخالفة وحده.
+    صيغتُه الأولى كانت تُنشئ المخالفة ثم ترفع بلا تسجيل شيء، فكانت تبقى خضراء
+    حتى لو حُذف `transaction.on_commit` من الشاشتين كلّيهما: تأكيدٌ يقول "لم
+    يخرج شيء" بينما لم يكن هناك ما يخرج أصلاً.
 
+    و`create_infraction` مزيَّنة بـ`@transaction.atomic`، فتصير نقطةَ حفظ
+    داخلية؛ والالتزام الذي يُطلق الـcallback هو نهاية المعاملة الخارجية.
+    """
     school = SchoolFactory()
     student = UserFactory()
     reporter = UserFactory()
 
     with patch("behavior.services.BehaviorService.notify_parents") as direct:
         with pytest.raises(_SentinelError), transaction.atomic():
-            BehaviorService.create_infraction(
-                school=school,
-                student=student,
-                reporter=reporter,
-                level=2,
-                description="وصف",
-                action_taken="إجراء",
-                points_deducted=0,
-            )
+            infraction = _record_infraction(school, student, reporter)
+            assert BehaviorInfraction.objects.filter(id=infraction.id).exists()
             _abort_the_business_transaction()
 
-    assert not BehaviorInfraction.objects.filter(student=student).exists()
+    assert not BehaviorInfraction.objects.filter(id=infraction.id).exists()
     assert not behavior_queued.called, "خرج إلى الطابور رغم التراجع"
     assert not direct.called, "أرسل مباشرةً رغم التراجع"
 
@@ -184,6 +180,93 @@ def test_a_failed_operations_mutation_notifies_nobody(hub_queued):
     assert not InAppNotification.objects.filter(user=teacher).exists()
     assert not hub_queued.called
     assert not sync.called
+
+
+# ══════════════════════════════════════════════════════════════════
+# السلوك — طفرة جودة عبر الشاشة الإنتاجية
+# ══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_quality_mutation_rolls_back_and_notifies_nobody(client, hub_queued):
+    """
+    [B4-PRE3] ممثّل عن حدود الجودة الثلاثة — عبر الشاشة نفسها لا محاكاتها.
+
+    الفشل يُفرَض **داخل** حدّ الشاشة: يمرّ الإشعار كاملاً — فتُكتب إشعارات
+    المنصّة ويُسجَّل الـcallback — ثم يُرفع استثناء قبل أن تلتزم المعاملة. فإن
+    كان الحدّ يضمّ الحفظ والإشعار معاً، تراجعا معاً ولم يخرج شيء.
+
+    وحدُّ الشاشة هو المُختبَر لا حدّ الاختبار: لو لُفّت الشاشة من الخارج لكان
+    الاختبار يُثبت معاملته هو.
+    """
+    from django.urls import reverse
+
+    from notifications.hub import NotificationHub
+    from tests.test_quality_models import make_committee_member, make_domain, make_procedure
+    from tests.test_views_quality2 import make_admin, make_teacher
+
+    school = SchoolFactory()
+    admin = make_admin(school)
+    reviewer = make_teacher(school, suffix="RV")
+    make_committee_member(school, reviewer)
+
+    procedure = make_procedure(school, make_domain(school), status="In Progress")
+
+    real_dispatch = NotificationHub.dispatch
+
+    def _dispatch_then_fail(*args, **kwargs):
+        real_dispatch(*args, **kwargs)
+        _abort_the_business_transaction()
+
+    client.force_login(admin)
+
+    with patch("quality.views.NotificationHub.dispatch", side_effect=_dispatch_then_fail):
+        with patch("notifications.hub._send_sync") as sync, pytest.raises(_SentinelError):
+            client.post(
+                reverse("update_proc_status", kwargs={"proc_id": procedure.id}),
+                {"status": "Pending Review"},
+            )
+
+    procedure.refresh_from_db()
+
+    assert procedure.status == "In Progress", "بقيت الطفرة رغم فشل داخل حدّها"
+    assert not InAppNotification.objects.filter(user=reviewer).exists()
+    assert not hub_queued.called
+    assert not sync.called
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_same_quality_view_does_notify_when_it_succeeds(client, hub_queued):
+    """
+    الاختبار السابق بلا معنى ما لم يكن الإشعار قد بُلغ فعلاً.
+
+    لو لم تصل الشاشة إلى `NotificationHub.dispatch` — لعدم وجود مراجعين مثلاً —
+    لمرّ اختبار التراجع لأن شيئاً لم يُطلب أصلاً. وهذا هو الفخّ نفسه الذي أسقط
+    الصيغة الأولى لاختبار المخالفة.
+    """
+    from django.urls import reverse
+
+    from tests.test_quality_models import make_committee_member, make_domain, make_procedure
+    from tests.test_views_quality2 import make_admin, make_teacher
+
+    school = SchoolFactory()
+    admin = make_admin(school)
+    reviewer = make_teacher(school, suffix="RW")
+    make_committee_member(school, reviewer)
+
+    procedure = make_procedure(school, make_domain(school), status="In Progress")
+
+    client.force_login(admin)
+    client.post(
+        reverse("update_proc_status", kwargs={"proc_id": procedure.id}),
+        {"status": "Pending Review"},
+    )
+
+    procedure.refresh_from_db()
+
+    assert procedure.status == "Pending Review"
+    assert InAppNotification.objects.filter(user=reviewer).exists()
+    assert hub_queued.called
 
 
 # ══════════════════════════════════════════════════════════════════
