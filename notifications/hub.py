@@ -160,8 +160,12 @@ class NotificationHub:
                     logger.info(f"Quiet hours for {user.full_name} — skipping external channels")
                     continue
 
-                # إرسال عبر Celery
-                _queue_external(
+                # [B4-PRE2] يُسجَّل الآن ويُنفَّذ بعد الالتزام.
+                #
+                # `InAppNotification` أعلاه كتابةُ قاعدة داخل معاملة المستدعي،
+                # فتتراجع معها إن تراجعت — وهذا صحيح. أمّا ما يخرج إلى مزوّد
+                # خارجي فلا يتراجع، فلا يجوز أن يقع قبل أن يُصبح الحدث نهائياً.
+                _queue_external_after_commit(
                     user=user,
                     school=school,
                     channels=external_channels,
@@ -319,8 +323,42 @@ def _map_event_type(hub_event):
     return mapping.get(hub_event, "general")
 
 
-def _queue_external(user, school, channels, title, body, event_type, context, sent_by):
-    """يُرسل المهام للقنوات الخارجية عبر Celery"""
+def _queue_external_after_commit(user, school, channels, title, body, event_type, context, sent_by):
+    """[B4-PRE2] يُؤجّل الخروج إلى القنوات الخارجية حتى تلتزم معاملة المستدعي.
+
+    عشرة من مواضع استدعاء الـHub تقع داخل `@transaction.atomic` — تسجيل غياب،
+    وتبادل الحصص، والحصص التعويضية، ودورة حياة الزيارة الصفّية. وكان الطبر
+    يقع داخل تلك المعاملة، فإن تراجعت بقي في الطابور عملٌ يشير إلى صفوف لم
+    تُكتب. ومع `CELERY_TASK_ALWAYS_EAGER` — وهو وضع الإنتاج اليوم — لا يبقى
+    الأمر عند الطابور: المزوّد يُنادى فوراً، فيصل البريد أو الرسالة عن حدث
+    تراجع بعد ثوانٍ. ورسالةٌ وصلت لا تُسحب.
+
+    والتسجيل مفصول عن التنفيذ باسمين لا اسم واحد: خلط الطبقتين تحت `_queue_external`
+    كان يُخفي أيّهما ينشر فعلاً.
+
+    خارج أي معاملة يُنفّذ Django الـcallback فوراً، فالمسارات غير المعامليّة
+    تسلك كما كانت بلا تغيير.
+
+    و`robust` تُترك على قيمتها الافتراضية عمداً: جعلُها `True` يبتلع الاستثناءات
+    ويُصعّب التشخيص، وسياسة "الطبر best-effort" تنتظر مصدرَ حقيقة في القاعدة
+    ومُصالِحاً يلتقط ما سقط — وكلاهما لم يوجد بعد.
+    """
+    from django.db import transaction
+
+    transaction.on_commit(
+        lambda: _queue_external_now(
+            user, school, channels, title, body, event_type, context, sent_by
+        )
+    )
+
+
+def _queue_external_now(user, school, channels, title, body, event_type, context, sent_by):
+    """يُرسل المهام للقنوات الخارجية عبر Celery — بعد الالتزام.
+
+    السلوك هنا لم يتغيّر في B4-PRE2؛ تغيّر توقيت استدعائه وحده. والارتداد إلى
+    الإرسال المتزامن يبقى كما هو للمسار القديم — لكنه صار يقع بعد الالتزام، فلا
+    يُرسل عن حدث قد يتراجع.
+    """
     try:
         from .tasks import hub_send_notification_task
 
