@@ -47,6 +47,65 @@ def _safe_error(error):
     return text[:2000]
 
 
+def _resolve_delivery(delivery_id, school_id, channel, recipient_id=None):
+    """[B4-1] يقرأ التسليم الذي سمّاه السلك، أو يرفض الإرسال.
+
+    قراءة فقط. لا `get_or_create` ولا إنشاء ناقص: مهمّة تسليم لا تخترع هويّتها،
+    وإن لم تجد ما أُرسلت لتنفّذه فالصواب ألّا تُرسل شيئاً — إشعارٌ غير متتبَّع
+    أسوأ من إشعار لم يُرسَل، لأن الأول يبدو ناجحاً.
+
+    والتحقّق ليس شكلياً: مُعرِّف تسليم من مدرسة أخرى، أو لقناة أخرى، أو لمستلم
+    آخر، يعني أن الرسالة تحمل هويّة ليست هويّتها. لا شيء في السلك يمنع ذلك،
+    فالمهمّة هي التي تمنعه.
+    """
+    from notifications.models import NotificationDelivery
+
+    delivery = NotificationDelivery.objects.filter(id=delivery_id).first()
+
+    if delivery is None:
+        raise ValueError(f"delivery {delivery_id} غير موجود — لن يُرسَل شيء")
+
+    if str(delivery.school_id) != str(school_id):
+        raise ValueError(f"delivery {delivery_id} يخصّ مدرسة أخرى")
+
+    if delivery.channel != channel:
+        raise ValueError(f"delivery {delivery_id} قناته {delivery.channel} لا {channel}")
+
+    if recipient_id is not None and str(delivery.recipient_id) != str(recipient_id):
+        raise ValueError(f"delivery {delivery_id} يخصّ مستلماً آخر")
+
+    return delivery
+
+
+def _resolve_dispatch_deliveries(dispatch_id, user_id, school_id, channels):
+    """[B4-1] يجمع تسليمات الواقعة لقنواتها قبل أن يُطابر أيّاً منها.
+
+    يُحلّ الكلّ أولاً ثم يُطابر: لو حللنا قناةً وأرسلناها ثم اكتشفنا نقص تسليم
+    القناة التالية، لكان بعضُ الإشعار خرج متتبَّعاً وبعضه لم يخرج — وهو أسوأ من
+    الفشل الكامل لأنه يترك حالة نصفية لا يصفها شيء.
+
+    والقنوات هنا هي التي **ستُطابَر فعلاً** لا التي طُلبت: مستخدم بلا هاتف لا
+    تُرسَل له SMS، فاشتراط تسليم لها كان سيُفشل مساراً مشروعاً.
+    """
+    from notifications.models import NotificationDelivery
+
+    found = {
+        row.channel: str(row.id)
+        for row in NotificationDelivery.objects.filter(
+            dispatch_id=dispatch_id,
+            recipient_id=user_id,
+            school_id=school_id,
+            channel__in=list(channels),
+        )
+    }
+
+    missing = sorted(set(channels) - set(found))
+    if missing:
+        raise ValueError(f"dispatch {dispatch_id} بلا تسليم للقنوات {missing} — لن يُرسَل شيء")
+
+    return found
+
+
 def _to_dlq(kind, school_id, payload, error):
     """
     [P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت.
@@ -95,10 +154,14 @@ def send_email_task(
     student_id=None,
     notif_type="custom",
     sent_by_id=None,
+    delivery_id=None,
 ):
     """
     إرسال بريد إلكتروني بشكل غير متزامن.
     يُعيد المحاولة تلقائياً 3 مرات عند الفشل.
+
+    [B4-1] `delivery_id` آخر وسيطة واختيارية: رسالة من إصدار سابق لا تحملها
+    فتسلك المسار الحالي حرفياً، ورسالة تحملها تُربط محاولتها بتسليمها.
     """
     try:
         from core.models import CustomUser, School
@@ -107,6 +170,7 @@ def send_email_task(
         school = School.objects.get(id=school_id)
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
+        delivery = _resolve_delivery(delivery_id, school_id, "email") if delivery_id else None
 
         ok, err = NotificationService.send_email(
             school=school,
@@ -117,6 +181,7 @@ def send_email_task(
             student=student,
             notif_type=notif_type,
             sent_by=sent_by,
+            delivery=delivery,
         )
 
         if not ok:
@@ -157,9 +222,19 @@ def send_email_task(
     name="notifications.send_sms",
 )
 def send_sms_task(
-    self, school_id, phone_number, message, student_id=None, notif_type="custom", sent_by_id=None
+    self,
+    school_id,
+    phone_number,
+    message,
+    student_id=None,
+    notif_type="custom",
+    sent_by_id=None,
+    delivery_id=None,
 ):
-    """إرسال SMS بشكل غير متزامن عبر Twilio"""
+    """إرسال SMS بشكل غير متزامن عبر Twilio
+
+    [B4-1] `delivery_id` آخر وسيطة واختيارية — انظر `send_email_task`.
+    """
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -167,6 +242,7 @@ def send_sms_task(
         school = School.objects.get(id=school_id)
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
+        delivery = _resolve_delivery(delivery_id, school_id, "sms") if delivery_id else None
 
         ok, err = NotificationService.send_sms(
             school=school,
@@ -175,6 +251,7 @@ def send_sms_task(
             student=student,
             notif_type=notif_type,
             sent_by=sent_by,
+            delivery=delivery,
         )
 
         if not ok:
@@ -212,7 +289,9 @@ def send_sms_task(
     default_retry_delay=60,
     name="notifications.send_whatsapp",
 )
-def send_whatsapp_task(self, school_id, phone_number, title, body, sent_by_id=None):
+def send_whatsapp_task(
+    self, school_id, phone_number, title, body, sent_by_id=None, delivery_id=None
+):
     """
     [P2-B3] تسليم WhatsApp مستقلّ.
 
@@ -225,7 +304,8 @@ def send_whatsapp_task(self, school_id, phone_number, title, body, sent_by_id=No
         from core.models import School
 
         school = School.objects.get(id=school_id)
-        _send_whatsapp(school, phone_number, title, body)
+        delivery = _resolve_delivery(delivery_id, school_id, "whatsapp") if delivery_id else None
+        _send_whatsapp(school, phone_number, title, body, delivery=delivery)
 
         return {"status": "sent", "channel": "whatsapp"}
 
@@ -532,7 +612,7 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
     default_retry_delay=30,
     name="notifications.send_push",
 )
-def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
+def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, delivery_id=None):
     """
     إرسال Push Notification لولي الأمر عبر VAPID
     يعمل حتى لو كان المتصفح مغلقاً (شرط قبوله الإذن)
@@ -552,6 +632,15 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
         from django.utils import timezone
 
         from notifications.models import NotificationLog, PushSubscription
+
+        # [B4-1] تسليم واحد للمستخدم على هذه القناة، ومحاولات بعدد اشتراكاته.
+        # `recipient_id` مُتاح في السلك هنا، فيُفحص أيضاً: مُعرِّف تسليم لمستلم
+        # آخر يعني رسالة تحمل هويّة ليست هويّتها.
+        delivery = (
+            _resolve_delivery(delivery_id, school_id, "push", recipient_id=user_id)
+            if delivery_id
+            else None
+        )
 
         subs = PushSubscription.objects.filter(
             user_id=user_id,
@@ -594,6 +683,7 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None):
                 # الأخير عنوان جهاز، وتخزينه يفتح مستودع تتبّع جديداً.
                 log = NotificationLog.objects.create(
                     school_id=sub.school_id,
+                    delivery=delivery,
                     recipient=f"push:{sub.id}",
                     channel="push",
                     notif_type="custom",
@@ -699,11 +789,26 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
     name="notifications.hub_send",
 )
 def hub_send_notification_task(
-    self, user_id, school_id, channels, title, body, event_type, context=None, sent_by_id=None
+    self,
+    user_id,
+    school_id,
+    channels,
+    title,
+    body,
+    event_type,
+    context=None,
+    sent_by_id=None,
+    dispatch_id=None,
 ):
     """
     مهمة مركزية — يستدعيها NotificationHub لإرسال الإشعارات الخارجية.
     Retry: 3 محاولات مع exponential backoff (60s, 120s, 240s)
+
+    [B4-1] السلك هنا `dispatch_id` لا `delivery_id`: هذه المهمّة تمثّل مستلماً
+    واحداً على عدّة قنوات، فتقابلها عدّة تسليمات لا واحد. وهي تقرأ فقط — تبحث
+    عن تسليم كل قناة وتمرّره إلى مهمّتها، ولا تُنشئ واقعةً ولا تسليماً.
+
+    ورسالة بلا `dispatch_id` تسلك المسار الحالي حرفياً.
     """
     from core.models import CustomUser, School
 
@@ -713,6 +818,24 @@ def hub_send_notification_task(
         sender = CustomUser.objects.get(id=sent_by_id) if sent_by_id else None
 
         results = []
+
+        # القنوات التي ستُطابَر فعلاً — لا التي طُلبت. تُحلّ تسليماتها كلّها
+        # قبل إطلاق أيّ منها، كي لا يخرج نصف الإشعار متتبَّعاً ونصفه لا.
+        deliverable = [
+            channel
+            for channel, allowed in (
+                ("email", "email" in channels and bool(user.email)),
+                ("sms", "sms" in channels and bool(user.phone)),
+                ("whatsapp", "whatsapp" in channels and bool(user.phone)),
+                ("push", "push" in channels),
+            )
+            if allowed
+        ]
+        delivery_ids = (
+            _resolve_dispatch_deliveries(dispatch_id, user_id, school_id, deliverable)
+            if dispatch_id
+            else {}
+        )
 
         # ── Email ──────────────────────────────────────────────
         if "email" in channels and user.email:
@@ -728,6 +851,7 @@ def hub_send_notification_task(
                 body_text=body,
                 notif_type=_hub_to_notif_type(event_type),
                 sent_by_id=str(sender.id) if sender else None,
+                delivery_id=delivery_ids.get("email"),
             )
             results.append(("email", True, None))
 
@@ -739,6 +863,7 @@ def hub_send_notification_task(
                 message=f"{title}\n{body}",
                 notif_type=_hub_to_notif_type(event_type),
                 sent_by_id=str(sender.id) if sender else None,
+                delivery_id=delivery_ids.get("sms"),
             )
             results.append(("sms", True, None))
 
@@ -750,6 +875,7 @@ def hub_send_notification_task(
                 title=title,
                 body=body,
                 sent_by_id=str(sender.id) if sender else None,
+                delivery_id=delivery_ids.get("whatsapp"),
             )
             results.append(("whatsapp", True, None))
 
@@ -762,6 +888,7 @@ def hub_send_notification_task(
                     body,
                     context.get("related_url", "/") if context else "/",
                     school_id=str(school.id),
+                    delivery_id=delivery_ids.get("push"),
                 )
                 results.append(("push", True, None))
             except (ImportError, OSError, RuntimeError) as e:
@@ -817,7 +944,7 @@ def _hub_to_notif_type(event_type):
     return mapping.get(event_type, "custom")
 
 
-def _send_whatsapp(school, phone, title, body):
+def _send_whatsapp(school, phone, title, body, delivery=None):
     """
     إرسال WhatsApp عبر Twilio WhatsApp Business API.
     يحتاج: whatsapp_from_number في NotificationSettings
@@ -836,6 +963,7 @@ def _send_whatsapp(school, phone, title, body):
 
     log = NotificationLog.objects.create(
         school=school,
+        delivery=delivery,
         recipient=f"whatsapp:{phone}",
         channel="whatsapp",
         notif_type="custom",
