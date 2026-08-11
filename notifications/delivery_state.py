@@ -49,7 +49,20 @@ def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
     مستأجر آخر يجعل التوقّع ضمنياً في مكان يجب أن يكون فيه مكتوباً.
     """
     now = now or timezone.now()
-    seconds = lease_seconds or settings.NOTIFICATION_DELIVERY_LEASE_SECONDS
+
+    # `lease_seconds or settings...` كان يُخفي حالتين: الصفر قيمة كاذبة فيتحوّل
+    # صامتاً إلى الافتراضي بدل أن يُرفض، والسالب قيمة صادقة فيُقبل — فيُنشئ
+    # استئجاراً منتهياً لحظة إنشائه. وفحصُ الإعداد في `settings` لا يبلغ
+    # مُستدعياً يُمرّر القيمة مباشرةً.
+    seconds = (
+        settings.NOTIFICATION_DELIVERY_LEASE_SECONDS if lease_seconds is None else lease_seconds
+    )
+
+    if seconds <= 0:
+        raise ValueError(
+            f"lease_seconds يجب أن تكون موجبة — {seconds} تُنشئ استئجاراً منتهياً فور إنشائه"
+        )
+
     token = uuid.uuid4()
 
     claimed = NotificationDelivery.objects.filter(

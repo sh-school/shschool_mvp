@@ -309,6 +309,27 @@ def test_the_lease_window_follows_the_configured_duration():
     assert delivery.lease_expires_at == now + timedelta(seconds=60)
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("seconds", [0, -1, -900])
+def test_a_non_positive_lease_is_refused_at_the_call_site(seconds):
+    """
+    [B4-3A] فحصُ الإعداد لا يبلغ مُستدعياً يُمرّر القيمة مباشرةً.
+
+    والصيغة الأولى `lease_seconds or settings...` كانت تُخفي حالتين: الصفر
+    قيمة كاذبة فيتحوّل صامتاً إلى الافتراضي بدل أن يُرفض — وهو أخطر من السالب
+    لأنه يبدو ناجحاً — والسالب قيمة صادقة فيُقبل، فيُنشئ استئجاراً منتهياً
+    لحظة إنشائه يلتقطه المُصالِح كأن عاملاً مات.
+    """
+    delivery = _delivery()
+
+    with pytest.raises(ValueError):
+        claim_delivery(delivery.id, delivery.school_id, lease_seconds=seconds)
+
+    delivery.refresh_from_db()
+    assert delivery.status == "pending", "كُتب استحواذ رغم رفض المهلة"
+    assert delivery.lease_token is None
+
+
 # ══════════════════════════════════════════════════════════════════
 # مالك واحد للحالة
 # ══════════════════════════════════════════════════════════════════
