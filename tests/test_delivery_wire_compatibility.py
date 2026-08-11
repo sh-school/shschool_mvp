@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from celery.exceptions import Retry
 
 from notifications.models import (
     NotificationDelivery,
@@ -170,6 +171,21 @@ def _delivery_for(school, recipient, channel, dispatch=None):
     )
 
 
+@contextmanager
+def _expect_refusal():
+    """المهمّة ترفض فتُجدوِل إعادة — والسبب `ValueError` تحتها.
+
+    `self.retry` يرفع `celery.exceptions.Retry` حين تصل المهمّة عبر الطابور،
+    ويُعيد رفع الاستثناء الأصلي فقط عند الاستدعاء المباشر. فالمُلاحَظ هنا هو
+    ما يراه العامل الحقيقي، والسبب يُفحص تحته كي لا يمرّ الاختبار على إعادة
+    جُدولت لعلّة أخرى.
+    """
+    with pytest.raises(Retry) as caught:
+        yield
+
+    assert isinstance(caught.value.exc, ValueError), f"سبب آخر: {caught.value.exc!r}"
+
+
 # ══════════════════════════════════════════════════════════════════
 # الرسائل القديمة — المسار الحالي حرفياً
 # ══════════════════════════════════════════════════════════════════
@@ -273,7 +289,7 @@ def test_a_missing_delivery_stops_every_channel():
         patch("notifications.tasks.send_email_task.delay") as email,
         patch("notifications.tasks.send_sms_task.delay") as sms,
     ):
-        with pytest.raises(ValueError):
+        with _expect_refusal():
             hub_send_notification_task.delay(
                 user_id=str(user.id),
                 school_id=str(school.id),
@@ -387,7 +403,7 @@ def test_a_delivery_from_another_school_is_refused():
     other = SchoolFactory()
     foreign = _delivery_for(other, UserFactory(), "email")
 
-    with _silent_providers(), pytest.raises(ValueError):
+    with _silent_providers(), _expect_refusal():
         send_email_task.delay(
             school_id=str(school.id),
             recipient_email="p@example.com",
@@ -405,7 +421,7 @@ def test_a_delivery_for_another_channel_is_refused():
     school = SchoolFactory()
     delivery = _delivery_for(school, UserFactory(), "sms")
 
-    with _silent_providers(), pytest.raises(ValueError):
+    with _silent_providers(), _expect_refusal():
         send_email_task.delay(
             school_id=str(school.id),
             recipient_email="p@example.com",
@@ -429,7 +445,7 @@ def test_a_push_delivery_for_another_recipient_is_refused():
     someone_else = UserFactory()
     delivery = _delivery_for(school, someone_else, "push")
 
-    with pytest.raises(ValueError):
+    with _expect_refusal():
         send_push_task.delay(
             str(UserFactory().id),
             "عنوان",
@@ -449,7 +465,7 @@ def test_an_unknown_delivery_is_refused():
 
     school = SchoolFactory()
 
-    with _silent_providers(), pytest.raises(ValueError):
+    with _silent_providers(), _expect_refusal():
         send_sms_task.delay(
             school_id=str(school.id),
             phone_number="+97455555555",
