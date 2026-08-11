@@ -30,6 +30,7 @@ from .models import (
     InAppNotification,
     NotificationDelivery,
     NotificationDispatch,
+    NotificationEnqueueIntent,
     UserNotificationPreference,
 )
 
@@ -211,11 +212,26 @@ class NotificationHub:
                     related_url=related_url,
                     sent_by=sent_by,
                     intents=intents,
+                    title=title,
+                    body=body,
                 )
 
                 # ── التسجيل — بعد اكتمال كل صفوف التسليم ────────────
-                for user, external_channels in intents:
-                    _register(user, external_channels, str(dispatch.id) if dispatch else None)
+                #
+                # [B4-PRE4] الـcallback يحمل مُعرِّف النيّة وحده — لا مستخدم
+                # ولا قنوات ولا عنوان ولا نصّ. حملُ النصّ في إغلاق يجعله يموت
+                # مع العملية، فيبقى للمُصالِح صفٌّ معلّق لا يعرف ماذا يُعيد
+                # إرساله.
+                #
+                # و`dispatch is None` هنا فرعٌ دفاعيّ لا مسارٌ حيّ: الراية تُقرأ
+                # مرّتين — عند اختيار المسار وداخل الكاتب — فلو أُطفئت بينهما
+                # عاد التسجيل القديم بدل أن يسقط النداء كلّه.
+                if dispatch is None:
+                    for user, external_channels in intents:
+                        _register(user, external_channels, None)
+                else:
+                    for intent_id in dispatch.enqueue_intents.values_list("id", flat=True):
+                        _enqueue_intent_after_commit(str(intent_id), str(school.id))
 
         logger.info(
             f"NotificationHub.dispatch({event_type}): "
@@ -332,7 +348,9 @@ def _tracked_pipeline_enabled():
     return getattr(settings, "NOTIFICATION_HUB_DELIVERY_PIPELINE_ENABLED", False)
 
 
-def _create_dispatch(school, event_type, related_object_id, related_url, sent_by, intents):
+def _create_dispatch(
+    school, event_type, related_object_id, related_url, sent_by, intents, title, body
+):
     """[B4-2B] واقعة واحدة للنداء كلّه، وتسليم لكل (مستلم، قناة قابلة للتسليم).
 
     واقعة واحدة لا واحدة لكل مستلم: `NotificationHub.dispatch` نداءٌ يمثّل حدثاً
@@ -368,6 +386,28 @@ def _create_dispatch(school, event_type, related_object_id, related_url, sent_by
 
     if deliveries:
         NotificationDelivery.objects.bulk_create(deliveries)
+
+    # [B4-PRE4] نيّة طبر لكل مستلم **له تسليم فعليّ**.
+    #
+    # الواقعة قد تبقى بلا تسليمات — ساعات الهدوء أو إشعار منصّة وحده — لكن
+    # النيّة تعني عملاً خارجياً، فلا معنى لها بلا عمل. وتحمل النصّ لأن
+    # `NotificationDispatch` لا تحفظه، فبلا ذلك لا يعرف المُصالِح ماذا يُعيد.
+    with_deliveries = {delivery.recipient_id for delivery in deliveries}
+
+    if with_deliveries:
+        NotificationEnqueueIntent.objects.bulk_create(
+            [
+                NotificationEnqueueIntent(
+                    dispatch=dispatch,
+                    school=school,
+                    recipient=user,
+                    title=title,
+                    body=body,
+                )
+                for user, _ in intents
+                if user.id in with_deliveries
+            ]
+        )
 
     return dispatch
 
@@ -446,6 +486,81 @@ def _map_event_type(hub_event):
         "general": "general",
     }
     return mapping.get(hub_event, "general")
+
+
+def _enqueue_intent_after_commit(intent_id, school_id):
+    """[B4-PRE4] يُسجّل طبر نيّة دائمة — بمُعرِّفها وحده.
+
+    الفرق عن `_queue_external_after_commit` ليس أسلوبياً: ذاك يحمل النداء كلّه
+    في إغلاق، وهذا يحمل مفتاحاً إلى صفٍّ ملتزم. الإغلاق يموت مع العملية، فإن
+    سقط الطبر لم يبقَ في الدنيا نصُّ الرسالة — يجد المُصالِح تسليماً `pending`
+    ولا يعرف ماذا يُعيد إرساله. والصفّ يبقى بعد أي سقوط.
+    """
+    transaction.on_commit(lambda: _enqueue_intent_now(intent_id, school_id))
+
+
+def _enqueue_intent_now(intent_id, school_id):
+    """يُعيد بناء النداء من القاعدة ثم يُطابره — بعد الالتزام.
+
+    **القنوات تُشتقّ من صفوف التسليم** لا من عمود ثالث على النيّة. التفضيلات
+    مصدر، والتسليمات مصدرٌ مشتقّ منها، ونسخةٌ ثالثة كانت ستنحرف بلا قارئ
+    يحتاجها. وقصرُها على `pending` يجعل مجموعةَ التسليمات القائمة سقفاً لما
+    يُرسل: إعادةُ طبر بعد نجاح جزئي لا تُعيد ما نجح، وجهةُ اتصال أُضيفت بعد
+    إنشاء الواقعة لا تفتح قناةً جديدة.
+
+    و`context` يُعاد بناؤه من `related_url` وحده لأنه الحقل الوحيد الذي يقرأه
+    العامل منه — ولو قرأ غيره لوجب حفظه، لا تخمينه.
+
+    والمحاولة تُسجَّل نجحت أم فشلت. مُصالِحٌ يقيس بحالة التسليم وحدها سيُعيد
+    الطبر فوراً بعد كل فشل لأن التسليم لم ينتقل — `last_enqueue_attempt_at` هي
+    ما يمنع تلك الحلقة الساخنة.
+    """
+    from .enqueue_state import claim_enqueue_intent, finish_enqueue_attempt
+
+    intent = (
+        NotificationEnqueueIntent.objects.filter(id=intent_id, school_id=school_id)
+        .select_related("dispatch", "recipient", "school", "dispatch__sent_by")
+        .first()
+    )
+
+    if intent is None:
+        logger.warning("Enqueue intent %s not found — nothing to enqueue", intent_id)
+        return False
+
+    token = claim_enqueue_intent(intent.id, school_id)
+
+    if token is None:
+        # منتجٌ آخر يملك المحاولة الآن — والرسالة المكرّرة في الوسيط مقبولة،
+        # لكن لا داعي لإنتاجها عمداً.
+        logger.info("Enqueue intent %s already claimed — skipping", intent_id)
+        return False
+
+    channels = sorted(
+        NotificationDelivery.objects.filter(
+            dispatch_id=intent.dispatch_id,
+            recipient_id=intent.recipient_id,
+            school_id=school_id,
+            status="pending",
+        ).values_list("channel", flat=True)
+    )
+
+    try:
+        if not channels:
+            return False
+
+        return _queue_external_now(
+            intent.recipient,
+            intent.school,
+            channels,
+            intent.title,
+            intent.body,
+            intent.dispatch.event_type,
+            {"related_url": intent.dispatch.related_url},
+            intent.dispatch.sent_by,
+            str(intent.dispatch_id),
+        )
+    finally:
+        finish_enqueue_attempt(intent.id, school_id, token)
 
 
 def _queue_external_after_commit(
