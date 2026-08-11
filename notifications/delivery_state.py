@@ -31,10 +31,18 @@ from .models import NotificationDelivery
 #: الحالات التي يجوز الاستحواذ منها — بدايةٌ أو انتظارُ إعادة.
 CLAIMABLE = ("pending", "retry_wait")
 
-#: النهايات التي تستطيع هذه المرحلة تمثيلها.
+#: النهايات التي يكتبها **العامل** تحت السياج.
 #:
-#: `unknown_outcome` تنتظر B4-4 لأن العامل الميت لا يقول إنه مات — يكتشفه غيره.
+#: `unknown_outcome` ليست منها عمداً: العامل الميت لا يقول إنه مات — يكتشفه
+#: غيره، فكاتبها `mark_unknown_outcome` وحدها.
 FINALIZABLE = ("sent", "retry_wait", "dead_lettered", "undeliverable")
+
+#: [B4-4] ما لا يُلمس بعد بلوغه — لا استرداد ولا إعادة طبر.
+#:
+#: `unknown_outcome` هنا رغم أنها ليست نجاحاً: النهائية هنا نهائيةُ **أتمتة**
+#: لا نهائيةُ معرفة. وإخراجُها من الأتمتة هو بالضبط ما يجعلها قابلة للعرض على
+#: إنسان يقرّر.
+TERMINAL = ("sent", "dead_lettered", "undeliverable", "unknown_outcome")
 
 
 def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
@@ -104,6 +112,35 @@ def finalize_delivery(delivery_id, school_id, token, status, *, now=None):
     )
 
     return finalized == 1
+
+
+def mark_unknown_outcome(delivery_id, school_id, *, now=None):
+    """[B4-4] يُغلق تسليماً انقضى استئجاره وهو `in_progress` — بلا استرداد.
+
+    هذا هو الانتقال الوحيد الذي يكتبه المُصالِح على تسليم، وأخطر ما في السلسلة.
+
+    الشرط `lease_expires_at <= now` ليس تفصيلاً: عاملٌ استئجاره حيٌّ قد يكون في
+    منتصف نداء المزوّد، وسحبُ الصفّ من تحته يجعل نهايته المُسيَّجة ترتدّ فتضيع
+    نتيجةٌ كانت معروفة. والانقضاء وحده هو ما يسمح بهذا الإعلان.
+
+    ولا رمز يُشترط: المُصالِح ليس مالك الاستئجار بل من يُعلن أن مالكه لم يعد
+    موجوداً — فاشتراطُ رمزٍ لا يملكه أحدٌ حيّ يجعل الانتقال غير قابل للكتابة.
+    """
+    now = now or timezone.now()
+
+    marked = NotificationDelivery.objects.filter(
+        id=delivery_id,
+        school_id=school_id,
+        status="in_progress",
+        lease_expires_at__lte=now,
+    ).update(
+        status="unknown_outcome",
+        lease_token=None,
+        lease_expires_at=None,
+        status_changed_at=now,
+    )
+
+    return marked == 1
 
 
 def mark_undeliverable(delivery_id, school_id, *, now=None):

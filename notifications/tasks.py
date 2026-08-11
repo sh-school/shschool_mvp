@@ -108,6 +108,40 @@ def _resolve_dispatch_deliveries(dispatch_id, user_id, school_id, channels):
     return found
 
 
+def _close_unreachable_channels(dispatch_id, user_id, school_id, lost_channels):
+    """[B4-4] يُغلق تسليمات القنوات التي فقد المستلم وجهتها عليها.
+
+    `mark_undeliverable` لا يمسّ إلّا `pending` و`retry_wait`، فتسليمٌ نجح أو
+    يجري تنفيذه الآن لا يتأثّر. والقناة التي لا تسليم لها تُتجاهل بلا خطأ:
+    غيابُ التسليم هو نفسه المعنى — لم تكن ضمن السقف أصلاً.
+    """
+    if not lost_channels:
+        return 0
+
+    from notifications.delivery_state import mark_undeliverable
+    from notifications.models import NotificationDelivery
+
+    orphans = NotificationDelivery.objects.filter(
+        dispatch_id=dispatch_id,
+        recipient_id=user_id,
+        school_id=school_id,
+        channel__in=sorted(lost_channels),
+        status__in=("pending", "retry_wait"),
+    ).values_list("id", flat=True)
+
+    closed = sum(1 for delivery_id in list(orphans) if mark_undeliverable(delivery_id, school_id))
+
+    if closed:
+        logger.info(
+            "dispatch %s: %d delivery(ies) closed — contact removed for channels %s",
+            dispatch_id,
+            closed,
+            sorted(lost_channels),
+        )
+
+    return closed
+
+
 def _to_dlq(kind, school_id, payload, error, delivery_id=None):
     """
     [P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت.
@@ -1004,6 +1038,20 @@ def hub_send_notification_task(
             else {}
         )
 
+        # [B4-4] وجهة اتصال اختفت بعد إنشاء الواقعة.
+        #
+        # القناة طُلبت ولها تسليمٌ قائم، لكن المستلم لم يعد يملك ما يُوصَل إليه:
+        # حُذف هاتفه أو بريده بين إنشاء الواقعة وبلوغ العامل. تركُها `pending`
+        # كان يجعل المُصالِح يُعيد طبرها إلى الأبد بلا أن تتحرّك.
+        #
+        # وهذا هو النصف الآخر من قاعدة السقف: مجموعة التسليمات القائمة هي
+        # الحدّ الأعلى لما يُرسَل — فما فقد وجهته منها يُغلق، وما لم يكن فيها
+        # لا يُفتح ولو ظهرت له وجهة الآن.
+        if dispatch_id:
+            _close_unreachable_channels(
+                dispatch_id, user_id, school_id, set(channels) - set(deliverable)
+            )
+
         # ── Email ──────────────────────────────────────────────
         if "email" in channels and user.email:
             # [P2-B3] تسليم مستقلّ لا إرسال داخل هذه المهمة. كان البريد وSMS
@@ -1178,3 +1226,29 @@ def _send_whatsapp(school, phone, title, body, delivery=None):
     log.status = "sent"
     log.save(update_fields=["status"])
     return message.sid
+
+
+@shared_task(
+    base=TenantRLSTask,
+    bind=True,
+    max_retries=0,
+    name="notifications.reconcile_deliveries",
+)
+def reconcile_deliveries_task(self, school_id):
+    """[B4-4] يُصالح تسليمات مدرسة واحدة.
+
+    `TenantRLSTask` يفرض `school_id` ويضبط السياق المستأجَر حوله — وهو نفسه
+    السبب الذي جعل نطاق المُصالِح مدرسةً واحدة لكل استدعاء: عبورُ المدارس في
+    نداءٍ واحد يحتاج إمّا تجاوز RLS وإمّا تبديل السياق داخل حلقة، والأول يهدم
+    الحدّ والثاني يجعل خطأً واحداً يترك السياق على مدرسة غير المقصودة.
+
+    `max_retries=0` عمداً: المُصالِح دوريّ بطبعه، والفشل اليوم يُعالَج في المسح
+    التالي. وإعادةُ محاولته فوراً تعني مُصالِحَين على نفس المدرسة يتنافسان على
+    نفس الصفوف بلا فائدة.
+
+    ولا جدولة Beat هنا: `BEAT_DEPLOY` غير مصرَّح به، والمهمّة تبقى بلا مُشغّل
+    دوريّ حتى يُصرَّح.
+    """
+    from .reconciler import reconcile_school
+
+    return reconcile_school(school_id)
