@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -93,6 +94,31 @@ from .services import (
     BehaviorPermissions,
     BehaviorService,
 )
+
+
+def _notify_behavior_after_commit(infraction, school, reporter):
+    """[B4-PRE3] إشعار وليّ الأمر بمخالفة — بعد أن تُصبح المخالفة نهائية.
+
+    هذان المساران يُطابران المهمّة مباشرةً لا عبر `NotificationHub`، فلا يشملهما
+    التأجيل الذي أُدخل في B4-PRE2. ووضعُ حدٍّ معامليّ حول إنشاء المخالفة بلا
+    تأجيل هذا الطبر كان سيُعيد العطب نفسه من باب آخر: طبرٌ داخل معاملة مفتوحة،
+    ومع `CELERY_TASK_ALWAYS_EAGER` إرسالٌ فعليّ قبل الالتزام.
+
+    والمؤجَّل هو **المحاولة وارتدادها معاً** لا `.delay` وحدها. لو بقي الـ
+    `except` خارج الـcallback لما أمسك خطأ وسيطٍ يقع بعد الالتزام، فيسقط
+    الارتداد المباشر بصمت — إصلاحُ التراجع على حساب الإتاحة القديمة.
+    """
+    try:
+        from notifications.tasks import notify_behavior_task
+
+        notify_behavior_task.delay(
+            infraction_id=str(infraction.id),
+            reporter_id=str(reporter.id),
+            school_id=str(school.id),
+        )
+    except (ImportError, OSError, RuntimeError) as exc:
+        logger.warning("Celery غير متاح — إشعار مباشر: %s", exc)
+        BehaviorService.notify_parents(infraction, school, reporter)
 
 
 # ── لوحة التحكم ──────────────────────────────────────────────
@@ -224,20 +250,34 @@ def report_infraction(request):
                 student = get_object_or_404(CustomUser, id=student_id)
 
                 try:
-                    # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-                    # نظام النقاط ملغى — نُمرر 0 لتوافق DB (الحقل NOT NULL)
-                    infraction = BehaviorService.create_infraction(
-                        school=school,
-                        student=student,
-                        reporter=request.user,
-                        level=level,
-                        description=description,
-                        action_taken=action,
-                        points_deducted=0,
-                        violation_category=violation_cat if violation_cat else None,
-                        disciplinary_action_type=disciplinary_action_type,
-                        violation_description=violation_description,
-                    )
+                    # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد.
+                    #
+                    # `create_infraction` مزيَّنة بـ`@transaction.atomic`، فتصير
+                    # هنا نقطةَ حفظ داخلية؛ والالتزام الذي يُطلق الـcallback هو
+                    # نهاية المعاملة الخارجية. فإن تراجعت، لا مخالفة ولا إشعار.
+                    with transaction.atomic():
+                        # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+                        # نظام النقاط ملغى — نُمرر 0 لتوافق DB (الحقل NOT NULL)
+                        infraction = BehaviorService.create_infraction(
+                            school=school,
+                            student=student,
+                            reporter=request.user,
+                            level=level,
+                            description=description,
+                            action_taken=action,
+                            points_deducted=0,
+                            violation_category=violation_cat if violation_cat else None,
+                            disciplinary_action_type=disciplinary_action_type,
+                            violation_description=violation_description,
+                        )
+
+                        transaction.on_commit(
+                            lambda infraction=infraction,
+                            school=school,
+                            reporter=request.user: _notify_behavior_after_commit(
+                                infraction, school, reporter
+                            )
+                        )
                 except ValueError as e:
                     messages.error(request, str(e))
                     return redirect("behavior:dashboard")
@@ -245,18 +285,6 @@ def report_infraction(request):
                 messages.success(
                     request, f"تم تسجيل مخالفة من الدرجة {level} للطالب {student.full_name}"
                 )
-                # إشعار غير متزامن عبر Celery
-                try:
-                    from notifications.tasks import notify_behavior_task
-
-                    notify_behavior_task.delay(
-                        infraction_id=str(infraction.id),
-                        reporter_id=str(request.user.id),
-                        school_id=str(school.id),
-                    )
-                except (ImportError, OSError, RuntimeError) as e:
-                    logger.warning("Celery غير متاح — إشعار مباشر: %s", e)
-                    BehaviorService.notify_parents(infraction, school, request.user)
 
                 if level >= 3:
                     messages.warning(
@@ -340,31 +368,26 @@ def quick_log(request):
 
         student = get_object_or_404(CustomUser, id=student_id)
 
-        # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
-        # نظام النقاط ملغى — points_deducted=0 للحفاظ على توافق DB
-        infraction = BehaviorService.create_infraction(
-            school=school,
-            student=student,
-            reporter=request.user,
-            level=level,
-            description=description,
-            action_taken=action,
-            points_deducted=0,
-            violation_category=violation_cat,
-        )
-
-        # إشعار غير متزامن
-        try:
-            from notifications.tasks import notify_behavior_task
-
-            notify_behavior_task.delay(
-                infraction_id=str(infraction.id),
-                reporter_id=str(request.user.id),
-                school_id=str(school.id),
+        # [B4-PRE3] المخالفة ونيّة إشعارها في حدٍّ واحد — انظر report_infraction.
+        with transaction.atomic():
+            # ✅ v5.4: BehaviorService.create_infraction — atomic + escalation حسابي
+            # نظام النقاط ملغى — points_deducted=0 للحفاظ على توافق DB
+            infraction = BehaviorService.create_infraction(
+                school=school,
+                student=student,
+                reporter=request.user,
+                level=level,
+                description=description,
+                action_taken=action,
+                points_deducted=0,
+                violation_category=violation_cat,
             )
-        except (ImportError, OSError, RuntimeError) as exc:
-            logger.warning("Celery unavailable for quick_log notify: %s", exc)
-            BehaviorService.notify_parents(infraction, school, request.user)
+
+            transaction.on_commit(
+                lambda infraction=infraction,
+                school=school,
+                reporter=request.user: _notify_behavior_after_commit(infraction, school, reporter)
+            )
 
         redirect_url = f"/behavior/student/{student.id}/"
         msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
@@ -770,15 +793,20 @@ def summon_parent(request, student_id=None):
         body_parts.append(f"من: {request.user.full_name}")
         body = "\n".join(body_parts)
 
-        result = NotificationHub.dispatch_to_parents(
-            event_type="parent_summon",
-            school=school,
-            student=student,
-            title=title,
-            body=body,
-            related_url=f"/behavior/student/{student.pk}/",
-            sent_by=request.user,
-        )
+        # [B4-PRE3] الاستدعاء نفسه هو الحدث — لا طفرة أعمال سابقة له.
+        #
+        # فالحدّ يضمّ أثره في القاعدة: إشعارات المنصّة لكل وليّ أمر تُكتب أو
+        # لا تُكتب معاً، ولا يخرج شيء خارجيّ إلا بعد أن تلتزم كلّها.
+        with transaction.atomic():
+            result = NotificationHub.dispatch_to_parents(
+                event_type="parent_summon",
+                school=school,
+                student=student,
+                title=title,
+                body=body,
+                related_url=f"/behavior/student/{student.pk}/",
+                sent_by=request.user,
+            )
 
         count = result.get("in_app", 0)
         if count:

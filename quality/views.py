@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -440,29 +441,32 @@ def update_procedure_status(request, proc_id):
         procedure.reviewed_at = None
         procedure.reviewed_by = None
 
-    procedure.save(
-        update_fields=[
-            "status",
-            "evaluation",
-            "deadline",
-            "reviewed_at",
-            "reviewed_by",
-            "updated_at",
-        ]
-    )
+    # [B4-PRE3] الحفظ ونيّة الإشعار في حدٍّ واحد: إجراءٌ لم يُحفظ لا يُخطَر به
+    # أحد، وإخطارٌ خرج عن حفظٍ تراجع لا يُسحب.
+    with transaction.atomic():
+        procedure.save(
+            update_fields=[
+                "status",
+                "evaluation",
+                "deadline",
+                "reviewed_at",
+                "reviewed_by",
+                "updated_at",
+            ]
+        )
 
-    if new_status == "Pending Review":
-        year = request.GET.get("year", _DEFAULT_YEAR)
-        review_members = QualityCommitteeMember.objects.review_committee(school, year)
-        recipients = [m.user for m in review_members if m.user]
-        if recipients:
-            NotificationHub.dispatch(
-                event_type="plan_update",
-                school=school,
-                recipients=recipients,
-                title=f"إجراء بانتظار المراجعة: {procedure.number}",
-                body=f'الإجراء "{procedure.text[:50]}" تم تقديمه للمراجعة',
-            )
+        if new_status == "Pending Review":
+            year = request.GET.get("year", _DEFAULT_YEAR)
+            review_members = QualityCommitteeMember.objects.review_committee(school, year)
+            recipients = [m.user for m in review_members if m.user]
+            if recipients:
+                NotificationHub.dispatch(
+                    event_type="plan_update",
+                    school=school,
+                    recipients=recipients,
+                    title=f"إجراء بانتظار المراجعة: {procedure.number}",
+                    body=f'الإجراء "{procedure.text[:50]}" تم تقديمه للمراجعة',
+                )
 
     return render(request, "quality/partials/procedure_status_badge.html", {"procedure": procedure})
 
@@ -497,30 +501,32 @@ def approve_procedure(request, proc_id):
         procedure.review_note = note
         messages.warning(request, f"↩️ تم إعادة الإجراء [{procedure.number}] للمنفذ")
 
-    procedure.save(
-        update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"]
-    )
-
-    # FIX-08: AuditLog
-    AuditLog.log(
-        user=request.user,
-        action="update",
-        model_name="other",
-        object_id=procedure.pk,
-        object_repr=f"Approve/Reject {procedure.number}",
-        request=request,
-        changes={"action": action, "status": procedure.status, "note": note},
-    )
-
-    if procedure.executor_user:
-        new_status = procedure.status
-        NotificationHub.dispatch(
-            event_type="plan_update",
-            school=school,
-            recipients=[procedure.executor_user],
-            title=f"{'تم اعتماد' if new_status == 'Completed' else 'تم إعادة'} الإجراء {procedure.number}",
-            body=note or "",
+    # [B4-PRE3] القرار وسجلّ تدقيقه ونيّة إشعاره حدٌّ واحد.
+    with transaction.atomic():
+        procedure.save(
+            update_fields=["status", "reviewed_by", "reviewed_at", "review_note", "updated_at"]
         )
+
+        # FIX-08: AuditLog
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=procedure.pk,
+            object_repr=f"Approve/Reject {procedure.number}",
+            request=request,
+            changes={"action": action, "status": procedure.status, "note": note},
+        )
+
+        if procedure.executor_user:
+            new_status = procedure.status
+            NotificationHub.dispatch(
+                event_type="plan_update",
+                school=school,
+                recipients=[procedure.executor_user],
+                title=f"{'تم اعتماد' if new_status == 'Completed' else 'تم إعادة'} الإجراء {procedure.number}",
+                body=note or "",
+            )
 
     return redirect("procedure_detail", proc_id=proc_id)
 
@@ -824,15 +830,17 @@ def toggle_evidence_request(request, proc_id):
     else:
         procedure.evidence_request_status = "requested"
 
-    procedure.save(update_fields=["evidence_request_status", "updated_at"])
+    # [B4-PRE3] تبديل الحالة ونيّة إشعاره حدٌّ واحد.
+    with transaction.atomic():
+        procedure.save(update_fields=["evidence_request_status", "updated_at"])
 
-    if procedure.evidence_request_status == "requested" and procedure.executor_user:
-        NotificationHub.dispatch(
-            event_type="plan_update",
-            school=school,
-            recipients=[procedure.executor_user],
-            title=f"مطلوب رفع دليل للإجراء {procedure.number}",
-            body=procedure.evidence_request_note or "يرجى رفع الأدلة المطلوبة",
-        )
+        if procedure.evidence_request_status == "requested" and procedure.executor_user:
+            NotificationHub.dispatch(
+                event_type="plan_update",
+                school=school,
+                recipients=[procedure.executor_user],
+                title=f"مطلوب رفع دليل للإجراء {procedure.number}",
+                body=procedure.evidence_request_note or "يرجى رفع الأدلة المطلوبة",
+            )
 
     return _safe_next_redirect(request, "review_list")

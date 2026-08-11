@@ -409,6 +409,15 @@ def test_all_tenant_notification_tasks_require_tenant_base_and_school_id():
 
 
 def test_all_notify_behavior_call_sites_propagate_school_id():
+    """[B4-PRE3] موضع واحد بعد أن اجتمع الطبر وارتداده في مساعد مؤجَّل.
+
+    كانا موضعين — `report_infraction` و`quick_log` — يُكرّران المحاولة نفسها.
+    وقد أُدخلا في حدٍّ معامليّ، فانتقل الطبر وارتداده معاً خلف الالتزام إلى
+    `_notify_behavior_after_commit`، فصار الموضع واحداً.
+
+    والعدد مثبَّت لا مفتوح: `>= 1` كان سيُخفي موضعاً جديداً يُضاف بلا
+    `school_id` ما دام واحدٌ قديم يحمله.
+    """
     path = ROOT / "behavior" / "views.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
 
@@ -428,7 +437,7 @@ def test_all_notify_behavior_call_sites_propagate_school_id():
         ):
             calls.append(node)
 
-    assert len(calls) == 2
+    assert len(calls) == 1
 
     for call in calls:
         keywords = {keyword.arg for keyword in call.keywords if keyword.arg}
