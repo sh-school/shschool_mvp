@@ -521,51 +521,152 @@ def _application_sources():
         yield path, path.read_text(encoding="utf-8")
 
 
-def _call_blocks(source, marker):
-    """نصّ كل استدعاء يبدأ بـmarker حتى قوس الإغلاق."""
-    blocks = []
-    lines = source.splitlines()
+#: أي مهمّة سلكيّة، وأي وسيطة يُمنع على المنتجين إرسالها بعد.
+WIRE_ARGUMENT = {
+    "hub_send_notification_task": "dispatch_id",
+    "send_email_task": "delivery_id",
+    "send_sms_task": "delivery_id",
+    "send_whatsapp_task": "delivery_id",
+    "send_push_task": "delivery_id",
+}
 
-    for index, line in enumerate(lines):
-        if marker not in line:
-            continue
-        depth = 0
-        collected = []
-        for candidate in lines[index:]:
-            collected.append(candidate)
-            depth += candidate.count("(") - candidate.count(")")
-            if depth <= 0 and collected:
-                break
-        blocks.append("\n".join(collected))
-
-    return blocks
+#: الاستثناء الوحيد المسمّى: تفويض الـHub إلى قنواته حين تصل رسالة تحمل
+#: `dispatch_id`. هذا استهلاك — توزيعُ ما وصل — لا إنتاج من شيفرة الأعمال.
+FORWARDING_HOST = "hub_send_notification_task"
 
 
-def _hub_producer_blocks():
-    blocks = []
-    for path, text in _application_sources():
-        for block in _call_blocks(text, "hub_send_notification_task.delay("):
-            blocks.append((path.relative_to(ROOT), block))
-    return blocks
+def _dispatched_task_name(func):
+    """اسم المهمّة في `X.delay(...)` أو `a.b.X.apply_async(...)`، أو None."""
+    import ast
+
+    if not isinstance(func, ast.Attribute) or func.attr not in {"delay", "apply_async"}:
+        return None
+
+    target = func.value
+    if isinstance(target, ast.Name):
+        return target.id
+    if isinstance(target, ast.Attribute):
+        return target.attr
+    return None
 
 
-def test_no_producer_sends_a_dispatch_id_yet():
+def _keyword_names(call):
+    """أسماء الوسائط المفتاحية، شاملةً `apply_async(kwargs={...})`."""
+    import ast
+
+    names = {keyword.arg for keyword in call.keywords if keyword.arg}
+
+    for keyword in call.keywords:
+        if keyword.arg == "kwargs" and isinstance(keyword.value, ast.Dict):
+            names |= {
+                key.value
+                for key in keyword.value.keys
+                if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            }
+
+    return names
+
+
+def _collect_calls(node, enclosing, path, found):
+    import ast
+
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+        enclosing = node.name
+
+    if isinstance(node, ast.Call):
+        task = _dispatched_task_name(node.func)
+        if task in WIRE_ARGUMENT:
+            found.append((path, enclosing, task, _keyword_names(node)))
+
+    for child in ast.iter_child_nodes(node):
+        _collect_calls(child, enclosing, path, found)
+
+
+def _wire_call_sites():
+    """كل استدعاء لمهمّة سلكيّة في شيفرة التطبيق، مع الدالّة الحاوية له.
+
+    التحليل نحويّ لا نصّي: الاستثناء المسموح يُعرَّف بموضعه داخل دالّة بعينها،
+    وهذا ما لا يستطيع البحث في النصّ أن يقوله.
     """
-    [B4-1] الإصدار مستهلك لا منتج.
+    import ast
+
+    found = []
+    for path, text in _application_sources():
+        _collect_calls(ast.parse(text), None, path.relative_to(ROOT), found)
+    return found
+
+
+def test_no_producer_sends_a_wire_identifier_yet():
+    """
+    [B4-1] الإصدار مستهلك لا منتج — على كل المهامّ لا الـHub وحده.
 
     الغرض من هذه الدفعة أن يفهم العامل السلك الجديد **قبل** أن يُرسله أحد.
-    منتجٌ يسبق ذلك يُبطل الترتيب كلّه، فيصير عاملٌ قديم قد يستقبل رسالة لا
-    يفهمها — وهي تُفقد بلا إعادة.
+    منتجٌ يسبق ذلك يُبطل الترتيب كلّه: عاملٌ قديم يستقبل رسالة لا يفهمها فتُفقد
+    بلا إعادة.
+
+    وحصرُ الحراسة في الـHub كان يترك الباب مفتوحاً حيث نعرف أنه مفتوح: لـPush
+    منتجان مباشران خارج الـHub، فلو مرّر أحدهما `delivery_id` غداً لبقي الحارس
+    أخضر بينما ينكسر ترتيب الإصدارين الذي بُني B4-1 كلّه لحمايته.
     """
-    offenders = [f"{path}" for path, block in _hub_producer_blocks() if "dispatch_id" in block]
+    offenders = [
+        f"{path}::{enclosing or '<module>'} → {task}({argument})"
+        for path, enclosing, task, keywords in _wire_call_sites()
+        if (argument := WIRE_ARGUMENT[task]) in keywords
+        and not (task != FORWARDING_HOST and enclosing == FORWARDING_HOST)
+    ]
 
     assert not offenders, "منتج سابق لأوانه: " + ", ".join(offenders)
 
 
-def test_the_producer_scanner_sees_the_real_call_site():
-    """ماسح لا يجد شيئاً يمرّ دائماً — نُثبت أنه يرى استدعاء الـHub الفعلي."""
-    blocks = _hub_producer_blocks()
+def test_the_producer_scanner_sees_every_kind_of_call_site():
+    """
+    ماسح لا يجد شيئاً يمرّ دائماً.
 
-    assert blocks, "لم يُعثر على أي استدعاء لـhub_send_notification_task.delay"
-    assert any(str(path).endswith("hub.py") for path, _ in blocks)
-    assert any("user_id=" in block for _, block in blocks)
+    نُثبت أنه يرى الأربعة التي تهمّ: منتج الـHub الحقيقي، ومنتجَي Push
+    المباشرين خارج الـHub، والتفويض المصرَّح به داخله. لو اختفى أحدها من
+    الماسح صار "صفر مخالفين" جملةً بلا معنى.
+    """
+    sites = _wire_call_sites()
+    seen = {(str(path), enclosing, task) for path, enclosing, task, _ in sites}
+
+    assert any(
+        path.name == "hub.py" and task == "hub_send_notification_task" for path, _, task, _ in sites
+    ), "منتج الـHub في hub.py غير مرئي"
+
+    assert any(
+        enclosing == "notify_absence_task" and task == "send_push_task"
+        for _, enclosing, task in seen
+    ), "منتج Push المباشر في notify_absence_task غير مرئي"
+
+    assert any(
+        enclosing == "send_push_to_school_task" and task == "send_push_task"
+        for _, enclosing, task in seen
+    ), "منتج Push المباشر في send_push_to_school_task غير مرئي"
+
+    forwarded = [
+        keywords
+        for _, enclosing, task, keywords in sites
+        if enclosing == FORWARDING_HOST and task != FORWARDING_HOST
+    ]
+    assert len(forwarded) == 4, f"تفويض الـHub غير مكتمل: {len(forwarded)} قنوات"
+    assert all(
+        "delivery_id" in keywords for keywords in forwarded
+    ), "التفويض المصرَّح به لا يمرّر delivery_id — الاستثناء يحرس شيئاً غير موجود"
+
+
+def test_the_direct_push_producers_are_still_legacy():
+    """
+    [B4-2] منتجا Push خارج الـHub بلا واقعة إطلاق — وهذا مقصود الآن.
+
+    توجيههما عبر `Dispatch` تغييرٌ في ملكيّة الحدث لا في توافق السلك، وقد
+    أُجّل. المطلوب هنا إثبات أنهما ما زالا legacy فعلاً: لا `delivery_id`.
+    """
+    direct = [
+        keywords
+        for _, enclosing, task, keywords in _wire_call_sites()
+        if task == "send_push_task"
+        and enclosing in {"notify_absence_task", "send_push_to_school_task"}
+    ]
+
+    assert len(direct) == 2
+    assert all("delivery_id" not in keywords for keywords in direct)
