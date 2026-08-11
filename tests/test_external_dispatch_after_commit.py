@@ -33,6 +33,17 @@ class _SentinelError(Exception):
     """يُجهض المعاملة بلا أن يختلط بخطأ حقيقي."""
 
 
+def _abort_the_business_transaction():
+    """يُحاكي فشلاً يقع بعد الإشعار ويُجهض الطفرة.
+
+    الرفع من دالّة لا من جسم `with` مباشرةً: محلّلات السكون لا تعرف أن
+    `pytest.raises` يبتلع الاستثناء، فتُبلّغ عن التأكيدات التالية كأنها غير
+    قابلة للبلوغ. المعنى واحد — استثناءٌ حقيقيّ يُنهي المعاملة — والشكل يُبقي
+    التقرير صادقاً بدل أن يُسكَت.
+    """
+    raise _SentinelError
+
+
 def _dispatch(school, recipients, event_type="absence"):
     return NotificationHub.dispatch(
         event_type=event_type,
@@ -126,7 +137,7 @@ def test_a_rollback_sends_nothing(queued):
     with patch("notifications.hub._send_sync") as sync, pytest.raises(_SentinelError):
         with transaction.atomic():
             _dispatch(school, [user])
-            raise _SentinelError
+            _abort_the_business_transaction()
 
     assert not queued.called, "خرج إلى الطابور رغم التراجع"
     assert not sync.called, "أرسل مباشرةً رغم التراجع"
@@ -146,7 +157,7 @@ def test_a_rollback_takes_the_in_app_notification_with_it(queued):
     with pytest.raises(_SentinelError), transaction.atomic():
         _dispatch(school, [user])
         assert InAppNotification.objects.filter(user=user).exists()
-        raise _SentinelError
+        _abort_the_business_transaction()
 
     assert not InAppNotification.objects.filter(user=user).exists()
 
