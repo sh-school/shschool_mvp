@@ -243,7 +243,7 @@ class TestUserNotificationPreference:
 
 @pytest.mark.django_db
 class TestNotificationHub:
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_creates_inapp(self, mock_queue, school, student_user):
         """dispatch يُنشئ InAppNotification فوراً (synchronous)"""
         result = NotificationHub.dispatch(
@@ -256,9 +256,9 @@ class TestNotificationHub:
         assert InAppNotification.objects.filter(user=student_user, title="إشعار تجريبي").exists()
         assert result["in_app"] == 1
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_queues_external(self, mock_queue, school, student_user):
-        """dispatch يستدعي _queue_external للقنوات الخارجية"""
+        """dispatch يستدعي _queue_external_after_commit للقنوات الخارجية"""
         NotificationHub.dispatch(
             event_type="general",
             school=school,
@@ -268,7 +268,7 @@ class TestNotificationHub:
         )
         assert mock_queue.called
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_multiple_recipients(self, mock_queue, db, school):
         u1 = UserFactory()
         u2 = UserFactory()
@@ -281,7 +281,7 @@ class TestNotificationHub:
         assert result["in_app"] == 2
         assert InAppNotification.objects.filter(title="إشعار جماعي").count() == 2
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_empty_recipients(self, mock_queue, school):
         result = NotificationHub.dispatch(
             event_type="general",
@@ -292,7 +292,7 @@ class TestNotificationHub:
         assert result["in_app"] == 0
         assert not mock_queue.called
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_priority_from_event(self, mock_queue, school, student_user):
         NotificationHub.dispatch(
             event_type="behavior_l4",
@@ -303,7 +303,7 @@ class TestNotificationHub:
         notif = InAppNotification.objects.get(user=student_user)
         assert notif.priority == "urgent"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_event_type_mapped(self, mock_queue, school, student_user):
         """behavior_l2 → event_type='behavior' في InAppNotification"""
         NotificationHub.dispatch(
@@ -315,7 +315,7 @@ class TestNotificationHub:
         notif = InAppNotification.objects.get(user=student_user)
         assert notif.event_type == "behavior"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_with_custom_priority(self, mock_queue, school, student_user):
         NotificationHub.dispatch(
             event_type="general",
@@ -327,7 +327,7 @@ class TestNotificationHub:
         notif = InAppNotification.objects.get(user=student_user)
         assert notif.priority == "urgent"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_to_parents(self, mock_queue, school, student_user, parent_user):
         """dispatch_to_parents يُرسل لأولياء الطالب"""
         result = NotificationHub.dispatch_to_parents(
@@ -340,7 +340,7 @@ class TestNotificationHub:
         assert InAppNotification.objects.filter(user=parent_user, event_type="absence").exists()
         assert result["in_app"] == 1
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_to_parents_no_parent(self, mock_queue, school, student_user):
         """طالب بدون ولي أمر — لا إشعار ولا خطأ"""
         result = NotificationHub.dispatch_to_parents(
@@ -351,7 +351,7 @@ class TestNotificationHub:
         )
         assert result["in_app"] == 0
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_to_role(self, mock_queue, db, school):
         role = RoleFactory(school=school, name="teacher")
         t1 = UserFactory()
@@ -367,7 +367,7 @@ class TestNotificationHub:
         )
         assert result["in_app"] == 2
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_related_url_stored(self, mock_queue, school, student_user):
         url = "/behavior/student/123/"
         NotificationHub.dispatch(
@@ -380,7 +380,7 @@ class TestNotificationHub:
         notif = InAppNotification.objects.get(user=student_user)
         assert notif.related_url == url
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_user_prefs_disable_inapp(self, mock_queue, db, school):
         """إذا أوقف المستخدم in_app → لا يُنشأ InAppNotification"""
         user = UserFactory()
@@ -394,7 +394,7 @@ class TestNotificationHub:
         assert result["in_app"] == 0
         assert not InAppNotification.objects.filter(user=user).exists()
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_quiet_hours_skips_external(self, mock_queue, db, school):
         """ساعات الهدوء تمنع القنوات الخارجية — in_app يُرسَل دائماً"""
         user = UserFactory()
@@ -478,7 +478,7 @@ class TestDefaultChannelsAndPriority:
 
 @pytest.mark.django_db
 class TestBehaviorHubIntegration:
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_creates_inapp(
         self, mock_queue, school, student_user, teacher_user, parent_user
     ):
@@ -499,7 +499,7 @@ class TestBehaviorHubIntegration:
             event_type="behavior",
         ).exists()
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_l4_urgent(
         self, mock_queue, school, student_user, teacher_user, parent_user
     ):
@@ -519,7 +519,7 @@ class TestBehaviorHubIntegration:
         assert notif is not None
         assert notif.priority == "urgent"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_l1_low(
         self, mock_queue, school, student_user, teacher_user, parent_user
     ):
@@ -539,7 +539,7 @@ class TestBehaviorHubIntegration:
         assert notif is not None
         assert notif.priority == "low"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_no_parent_no_error(
         self, mock_queue, school, student_user, teacher_user
     ):
@@ -556,7 +556,7 @@ class TestBehaviorHubIntegration:
         # لا استثناء = نجاح، لا إشعار لأنه لا يوجد ولي أمر
         assert InAppNotification.objects.filter(event_type="behavior").count() == 0
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_title_contains_student_name(
         self, mock_queue, school, student_user, teacher_user, parent_user
     ):
@@ -582,7 +582,7 @@ class TestBehaviorHubIntegration:
 
 @pytest.mark.django_db
 class TestAbsenceHubIntegration:
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_absence_alert_creates_inapp_for_parent(
         self, mock_queue, school, student_user, parent_user
     ):
@@ -605,7 +605,7 @@ class TestAbsenceHubIntegration:
             event_type="absence",
         ).exists()
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_absence_alert_sent_once_only(self, mock_queue, school, student_user, parent_user):
         """AbsenceAlert موجود مسبقاً → لا إشعار ثانٍ"""
         from operations.services import AttendanceService
@@ -622,7 +622,7 @@ class TestAbsenceHubIntegration:
         count = InAppNotification.objects.filter(user=parent_user, event_type="absence").count()
         assert count == 1, "إشعار الغياب يجب أن يُرسَل مرة واحدة فقط"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_absence_alert_no_parent_no_error(self, mock_queue, school, student_user):
         """طالب بدون ولي أمر → لا خطأ عند تجاوز عتبة الغياب"""
         from operations.services import AttendanceService

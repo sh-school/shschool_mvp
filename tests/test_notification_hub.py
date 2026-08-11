@@ -337,7 +337,7 @@ class TestNotificationHubDispatch:
         notif = InAppNotification.objects.get(user=teacher_user, title="درجات جديدة")
         assert notif.related_url == "/assessments/class/5/"
 
-    @patch("notifications.hub._queue_external")
+    @patch("notifications.hub._queue_external_after_commit")
     def test_dispatch_queues_external_channels(self, mock_queue, school, teacher_user):
         """التحقق من أن القنوات الخارجية تُرسل لـ Celery"""
         NotificationHub.dispatch(
