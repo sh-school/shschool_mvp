@@ -525,7 +525,15 @@ def test_delivery_statuses_do_not_yet_include_unknown():
     codes = {code for code, _ in NotificationDelivery.STATUS}
 
     assert "unknown_outcome" not in codes
-    assert codes == {"pending", "in_progress", "sent", "retry_wait", "dead_lettered"}
+    assert codes == {
+        "pending",
+        "in_progress",
+        "sent",
+        "retry_wait",
+        "dead_lettered",
+        # [B4-3B] دخلت مع منتجَيها في Push — لا قبلهما.
+        "undeliverable",
+    }
 
 
 DORMANT_MODELS = ("NotificationDispatch", "NotificationDelivery")

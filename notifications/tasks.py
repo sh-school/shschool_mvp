@@ -23,6 +23,7 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from notifications.channels import deliverable_external_channels
+from notifications.delivery_state import claim_delivery, finalize_delivery, mark_undeliverable
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +108,7 @@ def _resolve_dispatch_deliveries(dispatch_id, user_id, school_id, channels):
     return found
 
 
-def _to_dlq(kind, school_id, payload, error):
+def _to_dlq(kind, school_id, payload, error, delivery_id=None):
     """
     [P0-8] يحفظ رسالة فشلت نهائياً في Dead-Letter Queue بدل ضياعها بصمت.
 
@@ -127,12 +128,42 @@ def _to_dlq(kind, school_id, payload, error):
         DeadLetterMessage.objects.create(
             kind=kind,
             school_id=school_id,
+            # [B4-3B] الرابط الذي بقي فارغاً منذ B4-0 يصير ذا معنى هنا: صفّ
+            # الطابور يشير إلى التسليم الذي استنفد محاولاته، ويبقى `None`
+            # للمسار القديم الذي لا تسليم له.
+            delivery_id=delivery_id,
             payload=payload,
             error=_safe_error(error),
         )
         logger.error("DLQ: %s message dead-lettered", kind)
     except Exception:  # noqa: BLE001 — لا نُفشل المهمة بسبب فشل الكتابة في DLQ نفسه
         logger.exception("DLQ write failed for kind=%s", kind)
+
+
+def _tracked_failure(task, delivery, token, exc, *, kind, school_id, payload):
+    """[B4-3B] نهاية تنفيذٍ متتبَّع فشل — إعادةً أو استنفاداً.
+
+    الاستنفاد يُقرَّر **قبل** `self.retry()` بقراءة `request.retries`، لا
+    بالتقاط `MaxRetriesExceededError`. عقد Celery أن `retry(exc=exc)` عند تجاوز
+    الحدّ — ونحن داخل معالجة استثناء — قد يُعيد رفع الاستثناء الأصلي بدل
+    استثناء الاستنفاد، فبناءُ دورة حياة الصفّ على ذلك التفصيل يجعل صحّتها
+    رهينةَ تفاصيل إطار العمل.
+
+    وفقدانُ السياج يُنهي كل شيء: عاملٌ لم يعد يملك الصفّ لا يُعيد الإرسال ولا
+    يكتب حالة. الإعادة عندئذٍ تعويضٌ عن سلطة فُقدت، وهي بالضبط ما يُنتج
+    التكرار.
+    """
+    if task.request.retries >= task.max_retries:
+        if not finalize_delivery(delivery.id, school_id, token, "dead_lettered"):
+            return {"status": "lost_lease"}
+
+        _to_dlq(kind, school_id, payload, exc, delivery_id=str(delivery.id))
+        return {"status": "dead_letter"}
+
+    if not finalize_delivery(delivery.id, school_id, token, "retry_wait"):
+        return {"status": "lost_lease"}
+
+    raise task.retry(exc=exc)
 
 
 # ── إرسال بريد إلكتروني ─────────────────────────────────────────────
@@ -163,7 +194,12 @@ def send_email_task(
 
     [B4-1] `delivery_id` آخر وسيطة واختيارية: رسالة من إصدار سابق لا تحملها
     فتسلك المسار الحالي حرفياً، ورسالة تحملها تُربط محاولتها بتسليمها.
+
+    [B4-3B] وتُدير دورة حياته: استحواذ قبل المزوّد، وإنهاء مُسيَّج بعده.
     """
+    delivery = None
+    token = None
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -172,6 +208,17 @@ def send_email_task(
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
         delivery = _resolve_delivery(delivery_id, school_id, "email") if delivery_id else None
+
+        if delivery is not None:
+            # [B4-3B] الاستحواذ بعد الحلّ وقبل المزوّد. مهمّة تفشل عند حلّ
+            # المدرسة أو المستلم لم يكن للمزوّد فيها احتمال، فوسمُها "قيد
+            # التنفيذ" يجعل المُصالِح يراها لاحقاً كأن عاملاً مات فيها.
+            token = claim_delivery(delivery.id, school_id)
+
+            if token is None:
+                # التسليم انتهى أو يملكه تنفيذ آخر. لا مزوّد، ولا سجلّ محاولة،
+                # ولا إعادة — وهذا ما يجعل تكرار الرسالة في الطابور غير ضارّ.
+                return {"status": "not_claimed", "recipient": recipient_email}
 
         ok, err = NotificationService.send_email(
             school=school,
@@ -189,10 +236,29 @@ def send_email_task(
             logger.warning(f"Email failed to {recipient_email}: {err}")
             raise RuntimeError(err)  # نوع مُلتقَط ⇒ يدخل مسار retry ثم DLQ
 
+        if delivery is not None and not finalize_delivery(delivery.id, school_id, token, "sent"):
+            return {"status": "lost_lease", "recipient": recipient_email}
+
         return {"status": "sent", "recipient": recipient_email}
 
     except (OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_email_task error: %s", exc)
+
+        if delivery is not None and token is not None:
+            return _tracked_failure(
+                self,
+                delivery,
+                token,
+                exc,
+                kind="email",
+                school_id=school_id,
+                payload={
+                    "student_id": student_id,
+                    "notif_type": notif_type,
+                    "sent_by_id": sent_by_id,
+                },
+            )
+
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
@@ -235,7 +301,11 @@ def send_sms_task(
     """إرسال SMS بشكل غير متزامن عبر Twilio
 
     [B4-1] `delivery_id` آخر وسيطة واختيارية — انظر `send_email_task`.
+    [B4-3B] ودورة الحياة نفسها: استحواذ قبل المزوّد، وإنهاء مُسيَّج بعده.
     """
+    delivery = None
+    token = None
+
     try:
         from core.models import CustomUser, School
         from notifications.services import NotificationService
@@ -244,6 +314,12 @@ def send_sms_task(
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
         delivery = _resolve_delivery(delivery_id, school_id, "sms") if delivery_id else None
+
+        if delivery is not None:
+            token = claim_delivery(delivery.id, school_id)
+
+            if token is None:
+                return {"status": "not_claimed", "recipient": phone_number}
 
         ok, err = NotificationService.send_sms(
             school=school,
@@ -258,10 +334,29 @@ def send_sms_task(
         if not ok:
             raise RuntimeError(err)  # نوع مُلتقَط ⇒ يدخل مسار retry ثم DLQ
 
+        if delivery is not None and not finalize_delivery(delivery.id, school_id, token, "sent"):
+            return {"status": "lost_lease", "recipient": phone_number}
+
         return {"status": "sent", "recipient": phone_number}
 
     except (OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_sms_task error: %s", exc)
+
+        if delivery is not None and token is not None:
+            return _tracked_failure(
+                self,
+                delivery,
+                token,
+                exc,
+                kind="sms",
+                school_id=school_id,
+                payload={
+                    "student_id": student_id,
+                    "notif_type": notif_type,
+                    "sent_by_id": sent_by_id,
+                },
+            )
+
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
@@ -301,17 +396,42 @@ def send_whatsapp_task(
     وتنتهي مهمة الـHub بنجاح. قناة تُرسل بنفسها داخل المنسّق تُبطل عقد
     "الوحدة تسليم" بدل أن تستثني نفسها منه.
     """
+    delivery = None
+    token = None
+
     try:
         from core.models import School
 
         school = School.objects.get(id=school_id)
         delivery = _resolve_delivery(delivery_id, school_id, "whatsapp") if delivery_id else None
+
+        if delivery is not None:
+            token = claim_delivery(delivery.id, school_id)
+
+            if token is None:
+                return {"status": "not_claimed", "channel": "whatsapp"}
+
         _send_whatsapp(school, phone_number, title, body, delivery=delivery)
+
+        if delivery is not None and not finalize_delivery(delivery.id, school_id, token, "sent"):
+            return {"status": "lost_lease", "channel": "whatsapp"}
 
         return {"status": "sent", "channel": "whatsapp"}
 
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_whatsapp_task error: %s", exc)
+
+        if delivery is not None and token is not None:
+            return _tracked_failure(
+                self,
+                delivery,
+                token,
+                exc,
+                kind="whatsapp",
+                school_id=school_id,
+                payload={"notif_type": "whatsapp", "sent_by_id": sent_by_id, "user_id": None},
+            )
+
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:
@@ -626,6 +746,9 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
     بينهما يحتاج `NotificationDelivery` ولم تُبنَ بعد. وسلوك الإعادة وDLQ لم
     يتغيّر في هذه المرحلة: النجاح الجزئي يبقى نجاحاً للمهمّة كما قرّرنا في B3.
     """
+    delivery = None
+    token = None
+
     try:
         import json
 
@@ -649,7 +772,19 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             is_active=True,
         )
         if not subs.exists():
+            # [B4-3B] لا وجهة أصلاً — ولا استحواذ.
+            #
+            # المرور بـ`in_progress` هنا ادّعاءٌ بأن تنفيذاً جرى: لم ندخل منطقة
+            # مزوّد، ولا سجلّ محاولة يُكتب. فالانتقال مباشر من `pending`.
+            if delivery is not None:
+                mark_undeliverable(delivery.id, school_id)
             return {"status": "no_subscriptions", "user": str(user_id)}
+
+        if delivery is not None:
+            token = claim_delivery(delivery.id, school_id)
+
+            if token is None:
+                return {"status": "not_claimed", "user": str(user_id)}
 
         payload = json.dumps(
             {
@@ -733,15 +868,51 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
                 # كل التسليمات الصالحة فشلت ⇒ لا شيء نجح، فالإعادة لا تُكرّر شيئاً.
                 raise RuntimeError(f"push delivery failed for {len(transient)} subscription(s)")
 
+            # [B4-3B] نتيجة واحدة للتسليم بعد اكتمال الصورة — لا داخل الحلقة.
+            #
+            # التسليم `(dispatch, user, push)`، والحلقة تُنتج محاولةً لكل
+            # اشتراك. فقد تجتمع محاولة نجحت وأخرى فشلت وثالثة على اشتراك ميت،
+            # ولا تُحسم الحالة إلا بعد أن تُعرَف كلّها.
+            if delivery is not None:
+                if sent:
+                    # عقد B3: النجاح الجزئي نجاح ولا يُعاد — إعادةُ الإرسال
+                    # تُكرّر على الجهاز الذي وصلته الرسالة.
+                    outcome = "sent"
+                else:
+                    # لا نجاح ولا فشل عابر، وثمّة اشتراكات ردّ عليها المزوّد
+                    # بـ404/410: وجهات ميتة نهائياً، والإعادة لن تُحييها.
+                    outcome = "undeliverable"
+
+                if not finalize_delivery(delivery.id, school_id, token, outcome):
+                    return {"status": "lost_lease", "user": str(user_id)}
+
             return {"sent": sent, "invalidated": invalidated, "transient": len(transient)}
 
-        except ImportError:
-            # pywebpush غير مثبت — نسجّل فقط
+        except ImportError as exc:
+            # [B4-3B] المكتبة الغائبة عطلٌ تشغيلي لا "لا وجهة".
+            #
+            # المسار القديم يسجّل ويمضي كما كان؛ والمتتبَّع يدخل مسار الفشل،
+            # لأن الوجهة موجودة والنظام هو الذي لا يستطيع بلوغها.
+            if delivery is not None:
+                raise RuntimeError("مزوّد Push غير متاح على هذا العامل.") from exc
+
             logger.info(f"Push queued (pywebpush not installed): {title} → user {user_id}")
             return {"status": "queued_no_pywebpush", "user": str(user_id)}
 
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         logger.exception("send_push_task error: %s", exc)
+
+        if delivery is not None and token is not None:
+            return _tracked_failure(
+                self,
+                delivery,
+                token,
+                exc,
+                kind="push",
+                school_id=school_id,
+                payload={"user_id": str(user_id), "notif_type": "push", "sent_by_id": None},
+            )
+
         try:
             raise self.retry(exc=exc)
         except MaxRetriesExceededError:

@@ -33,9 +33,8 @@ CLAIMABLE = ("pending", "retry_wait")
 
 #: النهايات التي تستطيع هذه المرحلة تمثيلها.
 #:
-#: `undeliverable` تنتظر B4-3B لأنها هناك يُنتجها Push بلا اشتراكات، و
 #: `unknown_outcome` تنتظر B4-4 لأن العامل الميت لا يقول إنه مات — يكتشفه غيره.
-FINALIZABLE = ("sent", "retry_wait", "dead_lettered")
+FINALIZABLE = ("sent", "retry_wait", "dead_lettered", "undeliverable")
 
 
 def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
@@ -105,3 +104,29 @@ def finalize_delivery(delivery_id, school_id, token, status, *, now=None):
     )
 
     return finalized == 1
+
+
+def mark_undeliverable(delivery_id, school_id, *, now=None):
+    """[B4-3B] يُنهي تسليماً لم تبدأ له منطقة مزوّد أصلاً.
+
+    مسارٌ مستقلّ عن الاستحواذ عمداً. المرور بـ`in_progress` هنا ادّعاءٌ بأن
+    تنفيذاً جرى: مستخدم بلا اشتراكات فعّالة لا يدخل العامل معه منطقة مزوّد،
+    فوسمُه "قيد التنفيذ" ثم إنهاؤه يترك في التاريخ انتقالاً لم يقع.
+
+    أمّا الاشتراكات التي ردّ عليها المزوّد كلّها بـ404/410 فتلك محاولات جرت
+    فعلاً، ونهايتها تُكتب بـ`finalize_delivery` تحت السياج كغيرها.
+    """
+    now = now or timezone.now()
+
+    marked = NotificationDelivery.objects.filter(
+        id=delivery_id,
+        school_id=school_id,
+        status__in=CLAIMABLE,
+    ).update(
+        status="undeliverable",
+        lease_token=None,
+        lease_expires_at=None,
+        status_changed_at=now,
+    )
+
+    return marked == 1
