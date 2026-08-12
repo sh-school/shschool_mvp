@@ -434,3 +434,32 @@ def client_as(client):
         return client
 
     return _login
+
+
+@pytest.fixture
+def settings_broker_spy():
+    """[B4-6] يلتقط ما كان سيُشحن — بلا وسيط وبلا تنفيذ.
+
+    الاعتراض عند `apply_async` لا عند الوسيط: المطلوب إثبات أن الرسالة **لم
+    تُنشأ** أصلاً عند الرفض، لا أنها أُنشئت ثم لم تصل.
+    """
+    from unittest.mock import patch
+
+    from notifications.tasks import send_push_task
+
+    class _Spy:
+        def __init__(self):
+            self.published = []
+
+        def __call__(self, *args, **kwargs):
+            self.published.append(kwargs)
+
+            class _Result:
+                id = "spy-task-id"
+
+            return _Result()
+
+    spy = _Spy()
+
+    with patch.object(send_push_task, "apply_async", spy):
+        yield spy

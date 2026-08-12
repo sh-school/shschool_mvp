@@ -536,13 +536,16 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
             parents = ParentStudentLink.objects.filter(
                 student=alert.student, school=alert.school
             ).values_list("parent_id", flat=True)
+            from notifications.push_publisher import enqueue_push
+
             for pid in parents:
-                send_push_task.delay(
-                    str(pid),
+                # [B4-6] النشر عبر المالك: الحدّ اللين يسافر في الرسالة
+                # ويتغلّب على إعداد العامل، فمصدره يجب أن يكون موضعاً واحداً.
+                enqueue_push(
+                    user_id=pid,
+                    school_id=alert.school_id,
                     title=f"⚠️ غياب — {alert.student.full_name}",
                     body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
-                    url="/parents/",
-                    school_id=str(alert.school_id),
                 )
         except (ImportError, OSError, RuntimeError) as pe:
             logger.warning(f"Push notification failed: {pe}")
@@ -1029,8 +1032,10 @@ def send_push_to_school_task(school_id, title, body, url="/parents/"):
         .distinct()
     )
 
+    from notifications.push_publisher import enqueue_push
+
     for uid in users:
-        send_push_task.delay(str(uid), title, body, url, school_id=school_id)
+        enqueue_push(user_id=uid, school_id=school_id, title=title, body=body, url=url)
 
     return {"queued": len(users)}
 
@@ -1149,12 +1154,14 @@ def hub_send_notification_task(
         # ── Push ───────────────────────────────────────────────
         if "push" in channels:
             try:
-                send_push_task.delay(
-                    str(user.id),
-                    title,
-                    body,
-                    context.get("related_url", "/") if context else "/",
-                    school_id=str(school.id),
+                from notifications.push_publisher import enqueue_push
+
+                enqueue_push(
+                    user_id=user.id,
+                    school_id=school.id,
+                    title=title,
+                    body=body,
+                    url=context.get("related_url", "/") if context else "/",
                     delivery_id=delivery_ids.get("push"),
                 )
                 results.append(("push", True, None))

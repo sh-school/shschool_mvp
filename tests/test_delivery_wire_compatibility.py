@@ -534,10 +534,21 @@ WIRE_ARGUMENT = {
 #: `dispatch_id`. هذا استهلاك — توزيعُ ما وصل — لا إنتاج من شيفرة الأعمال.
 FORWARDING_HOST = "hub_send_notification_task"
 
+#: [B4-6] الناشر المملوك لقناة Push — بديل النداء المباشر في كل المنتجين.
+PUSH_PUBLISHER = "enqueue_push"
+
 
 def _dispatched_task_name(func):
-    """اسم المهمّة في `X.delay(...)` أو `a.b.X.apply_async(...)`، أو None."""
+    """اسم المهمّة في `X.delay(...)` أو `a.b.X.apply_async(...)`، أو None.
+
+    [B4-6] و`enqueue_push(...)` نداءٌ باسمٍ مجرّد لا سمة: صار الطريق إلى قناة
+    Push دالّةً مملوكة تفرض الحدّ الزمني المعتمد، فالماسح يتبع المُنتِج حيث
+    انتقل. والقاعدة المحروسة لم تتغيّر — مَن يُمرّر `delivery_id` هو المُنتِج.
+    """
     import ast
+
+    if isinstance(func, ast.Name) and func.id == PUSH_PUBLISHER:
+        return "send_push_task"
 
     if not isinstance(func, ast.Attribute) or func.attr not in {"delay", "apply_async"}:
         return None
@@ -601,6 +612,12 @@ def _wire_call_sites():
 #: ممنوعين من `delivery_id` كما كانا.
 TRACKED_PRODUCER = ("notifications/hub.py", "_queue_external_now")
 
+#: [B4-6] ومنتج Push المتتبَّع صار الناشر المملوك نفسه: هو الموضع الوحيد الذي
+#: ينشر `send_push`، فيمرّر `delivery_id` الذي وصله من مُستدعيه. ونقلُ الاستثناء
+#: إليه ليس توسيعاً للحظر بل اتّباعٌ للمنتج حيث انتقل — وما زال موضعاً واحداً
+#: مسمّى، يحرسه فوقه حارسُ B4-6 الذي يمنع أي ناشرٍ آخر أصلاً.
+TRACKED_PUSH_PRODUCER = ("notifications/push_publisher.py", "enqueue_push")
+
 
 def test_only_the_tracked_hub_path_sends_a_wire_identifier():
     """
@@ -624,8 +641,8 @@ def test_only_the_tracked_hub_path_sends_a_wire_identifier():
         if task != FORWARDING_HOST and enclosing == FORWARDING_HOST:
             continue
 
-        # المنتج المتتبَّع المسمّى.
-        if (str(path).replace("\\", "/"), enclosing) == TRACKED_PRODUCER:
+        # المنتجان المتتبَّعان المسمّيان.
+        if (str(path).replace("\\", "/"), enclosing) in (TRACKED_PRODUCER, TRACKED_PUSH_PRODUCER):
             continue
 
         offenders.append(f"{path}::{enclosing or '<module>'} → {task}({argument})")
