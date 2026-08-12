@@ -497,3 +497,34 @@ def test_the_state_owner_guard_reads_the_owner_itself():
     assert STATE_OWNER in sources
     assert all(field in sources[STATE_OWNER] for field in LEASE_FIELDS)
     assert _delivery_state_updates(sources[STATE_OWNER]), "المالك لا يُحرّك حالةً — الحارس بلا موضوع"
+
+
+def test_the_lease_guard_actually_fails_on_a_real_violation():
+    """[B4-4] ضبطٌ سالب: حارسٌ لا يسقط أمام مخالفة ليس حارساً.
+
+    تضييق الحارس من البحث النصّي إلى AST جعله يقبل القراءة المشروعة — وهذا
+    صحيح، لكنه يفتح سؤالاً: هل بقي يمسك الكتابة أصلاً؟ فيُعطى هنا ثلاثة أشكال
+    من الكتابة الحقيقية، ويجب أن يمسكها كلّها.
+
+    وهو حارسُ معماريّة لا مُتحقّقٌ ساكن كامل: `setattr` أو `**kwargs` مفكوكة
+    تمرّان. الغرض أن يوقف الانحراف المعتاد في مراجعةٍ عابرة، لا أن يُثبت
+    استحالته.
+    """
+    violations = (
+        "NotificationDelivery.objects.filter(id=x).update(lease_token=None)",
+        "delivery.lease_token = None",
+        "NotificationDelivery(lease_expires_at=later)",
+    )
+
+    for source in violations:
+        assert _lease_writes(source), f"الحارس لم يمسك مخالفة حقيقية: {source}"
+
+    # ولا يُعاقب القراءة — وهي ما أوقعه في الاتهام الكاذب.
+    reads = (
+        "NotificationDelivery.objects.filter(lease_expires_at__lte=now)",
+        "NotificationDelivery.objects.exclude(lease_token=None)",
+        "if delivery.lease_expires_at <= now: pass",
+    )
+
+    for source in reads:
+        assert not _lease_writes(source), f"الحارس عاقب قراءةً مشروعة: {source}"

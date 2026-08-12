@@ -11,6 +11,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.db import transaction
 from django.test import override_settings
 from django.utils import timezone
@@ -470,3 +471,180 @@ def test_recoverable_and_terminal_do_not_overlap():
     known = {value for value, _ in NotificationDelivery.STATUS}
     classified = set(reconciler.RECOVERABLE) | set(TERMINAL) | {"in_progress"}
     assert known == classified, f"حالة بلا تصنيف: {known ^ classified}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  المانع الأول — الميزانية الدائمة
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db(transaction=True)
+def test_recovering_retry_wait_does_not_reset_the_durable_budget(tracked_dispatch):
+    """كل استحواذ يستهلك محاولة — ولو جاء من رسالة Celery جديدة.
+
+    قبل هذا العمود كانت الميزانية `request.retries` داخل الرسالة وحدها، فرسالةٌ
+    ينشئها المُصالِح تبدأ من صفر. وذلك يعني أن فشلاً متكرّراً في نشر الإعادة
+    يمنح دورةً كاملة كلّ مرّة: **لا حدّ للمحاولات إطلاقاً**.
+    """
+    from notifications.delivery_state import attempts_used, claim_delivery, finalize_delivery
+
+    school, _, _, delivery = tracked_dispatch
+
+    assert attempts_used(delivery.id, school.id) == 0
+
+    # ثلاث دورات، كلٌّ منها استحواذٌ من عاملٍ في رسالة جديدة ثم `retry_wait`.
+    for expected in (1, 2, 3):
+        token = claim_delivery(delivery.id, school.id)
+        assert token is not None
+        assert attempts_used(delivery.id, school.id) == expected
+        assert finalize_delivery(delivery.id, school.id, token, "retry_wait")
+
+    # والعدّاد لم يعد إلى الصفر رغم أن كل دورة رسالةٌ مستقلّة.
+    assert attempts_used(delivery.id, school.id) == 3
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_budget_is_enforced_even_with_no_worker_to_enforce_it(tracked_dispatch):
+    """عاملٌ مات بعد `retry_wait` وقبل نشر إعادته — المُصالِح يُنهي الأمر."""
+    from notifications.models import DeadLetterMessage
+
+    school, _, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        status="retry_wait",
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    )
+
+    assert reconciler.close_exhausted_deliveries(school.id) == 1
+
+    delivery.refresh_from_db()
+    assert delivery.status == "dead_lettered"
+    assert DeadLetterMessage.objects.filter(delivery_id=delivery.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_exhausted_delivery_is_never_requeued(tracked_dispatch):
+    """المستنفدة تخرج من الأهلية — لا محاولة أخيرة بلا معنى عند المزوّد."""
+    school, _, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS
+    )
+    _age(delivery, PENDING_GRACE + 600, attempt_seconds=REQUEUE_INTERVAL + 600)
+
+    with patch.object(hub, "_enqueue_intent_now") as enqueue:
+        assert reconciler.requeue_stale_deliveries(school.id) == 0
+
+    enqueue.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_worker_decides_exhaustion_from_the_row_not_the_message(tracked_dispatch):
+    """`_tracked_failure` تقرأ العدّاد الدائم لا `request.retries`.
+
+    الرسالة الجديدة تحمل `retries = 0` دائماً، فلو بقي القرار عليها لما مات
+    تسليمٌ أبداً ما دام المُصالِح يُعيد طبره.
+    """
+    from notifications.delivery_state import claim_delivery
+    from notifications.tasks import _tracked_failure
+
+    school, _, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS - 1
+    )
+    token = claim_delivery(delivery.id, school.id)  # يبلغ بها الحدّ
+
+    task = type("_Task", (), {"request": type("_R", (), {"retries": 0})(), "max_retries": 3})()
+
+    result = _tracked_failure(
+        task,
+        delivery,
+        token,
+        OSError("provider down"),
+        kind="email",
+        school_id=str(school.id),
+        payload={"dispatch_id": str(delivery.dispatch_id)},
+    )
+
+    assert result == {"status": "dead_letter"}
+    delivery.refresh_from_db()
+    assert delivery.status == "dead_lettered"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  المانع الثاني — الأهلية مرتبطة بالمستلم
+# ═══════════════════════════════════════════════════════════════════
+
+
+@TRACKED
+@pytest.mark.django_db(transaction=True)
+def test_a_stale_recipient_does_not_make_a_fresh_recipient_eligible(
+    recipient, django_capture_on_commit_callbacks
+):
+    """واقعةٌ واحدة، مستلمان: القديم لا يجرّ الحديث معه.
+
+    الانضمام عبر `dispatch__deliveries` وحده كان يجعل تسليم «أ» القديم يُؤهّل
+    نيّة «ب»، فيُطابر تسليمَ «ب» الحديث وهو في مهلته — وتسقط `PENDING_GRACE`
+    عملياً في كل واقعة متعدّدة المستلمين.
+    """
+    school, _ = recipient
+    stale_user = UserFactory(email="stale@example.com", phone="")
+    fresh_user = UserFactory(email="fresh@example.com", phone="")
+
+    with patch("notifications.tasks.hub_send_notification_task.delay"):
+        with django_capture_on_commit_callbacks(execute=True):
+            with transaction.atomic():
+                NotificationHub.dispatch(
+                    event_type="plan_update",
+                    school=school,
+                    recipients=[stale_user, fresh_user],
+                    title="عنوان مشترك",
+                    body="نصّ مشترك",
+                )
+
+    assert NotificationEnqueueIntent.objects.count() == 2
+
+    stale = NotificationDelivery.objects.get(recipient=stale_user)
+    fresh = NotificationDelivery.objects.get(recipient=fresh_user)
+
+    # «أ» قديمٌ ومستحقّ، و«ب» وُلد الآن — وكلاهما في نفس الواقعة.
+    _age(stale, PENDING_GRACE + 600)
+    NotificationEnqueueIntent.objects.update(last_enqueue_attempt_at=None)
+    NotificationDelivery.objects.filter(id=fresh.id).update(status_changed_at=timezone.now())
+
+    with patch("notifications.tasks.hub_send_notification_task.delay") as delay:
+        assert reconciler.requeue_stale_deliveries(school.id) == 1
+
+    # ولم يُطابر إلا «أ».
+    assert delay.call_count == 1
+    assert delay.call_args.kwargs["user_id"] == str(stale_user.id)
+
+
+@TRACKED
+@pytest.mark.django_db(transaction=True)
+def test_scrub_is_scoped_to_the_recipient_not_the_dispatch(
+    recipient, django_capture_on_commit_callbacks
+):
+    """مستلمٌ انتهى أمرُه يُمسح محتواه ولو بقي شريكه في الواقعة مفتوحاً."""
+    school, _ = recipient
+    done_user = UserFactory(email="done@example.com", phone="")
+    open_user = UserFactory(email="open@example.com", phone="")
+
+    with patch("notifications.tasks.hub_send_notification_task.delay"):
+        with django_capture_on_commit_callbacks(execute=True):
+            with transaction.atomic():
+                NotificationHub.dispatch(
+                    event_type="plan_update",
+                    school=school,
+                    recipients=[done_user, open_user],
+                    title="عنوان مشترك",
+                    body="نصّ مشترك",
+                )
+
+    NotificationDelivery.objects.filter(recipient=done_user).update(status="sent")
+
+    assert reconciler.scrub_completed_intents(school.id) == 1
+
+    assert NotificationEnqueueIntent.objects.get(recipient=done_user).title is None
+    assert NotificationEnqueueIntent.objects.get(recipient=open_user).title == "عنوان مشترك"

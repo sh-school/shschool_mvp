@@ -24,6 +24,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import F
 from django.utils import timezone
 
 from .models import NotificationDelivery
@@ -81,9 +82,36 @@ def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
         lease_token=token,
         lease_expires_at=now + timedelta(seconds=seconds),
         status_changed_at=now,
+        # [B4-4] الاستحواذ **هو** المحاولة، فالعدّ يقع هنا لا عند النتيجة:
+        # عاملٌ مات بعد نداء المزوّد وقبل كتابة أي شيء يكون قد استهلك محاولةً
+        # فعلاً — ولو عددنا عند النهاية لما ظهرت تلك المحاولة أبداً.
+        #
+        # و`F` لا قراءة-ثمّ-كتابة: عاملان لا يستحوذان معاً، لكن العدّاد يشترك
+        # مع المُصالِح ومع كلّ من يقرأ الصفّ، والزيادة في القاعدة لا تفقد شيئاً.
+        attempt_count=F("attempt_count") + 1,
     )
 
     return token if claimed == 1 else None
+
+
+def attempts_used(delivery_id, school_id):
+    """[B4-4] الميزانية المستهلكة — من القاعدة لا من كائنٍ قديم في الذاكرة.
+
+    الكائن الذي حلّته المهمّة قبل الاستحواذ يحمل عدّاداً سابقاً للزيادة، فقراءته
+    منه تُنقص واحداً دائماً — وهي بالضبط الواحدة التي تفصل الاستنفاد عن دورةٍ
+    إضافية.
+    """
+    return (
+        NotificationDelivery.objects.filter(id=delivery_id, school_id=school_id)
+        .values_list("attempt_count", flat=True)
+        .first()
+        or 0
+    )
+
+
+def budget_exhausted(delivery_id, school_id):
+    """هل استُنفدت ميزانية هذا التسليم الدائمة؟"""
+    return attempts_used(delivery_id, school_id) >= settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS
 
 
 def finalize_delivery(delivery_id, school_id, token, status, *, now=None):
@@ -141,6 +169,34 @@ def mark_unknown_outcome(delivery_id, school_id, *, now=None):
     )
 
     return marked == 1
+
+
+def mark_budget_exhausted(delivery_id, school_id, *, now=None):
+    """[B4-4] يُميت تسليماً استنفد ميزانيته الدائمة ولا عاملَ حيٌّ يُغلقه.
+
+    الطريق الطبيعي أن يقرّر العامل الاستنفاد في `_tracked_failure` تحت سياجه.
+    لكن عاملاً مات بعد كتابة `retry_wait` وقبل نشر إعادته يترك صفّاً استنفد
+    ميزانيته ولا يعرف أحدٌ ذلك — فهذا هو الموضع الذي يجعل الميزانية دائمةً
+    بحقّ: حدٌّ يُطبَّق حتى حين لا يوجد من يُطبّقه.
+
+    والشرط يُعاد فحصه لحظة الكتابة: صفٌّ استحوذ عليه عاملٌ بين قرار المُصالِح
+    وكتابته يخرج من `CLAIMABLE`، وله مالكٌ يعرف نتيجته أكثر منّا.
+    """
+    now = now or timezone.now()
+
+    killed = NotificationDelivery.objects.filter(
+        id=delivery_id,
+        school_id=school_id,
+        status__in=CLAIMABLE,
+        attempt_count__gte=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    ).update(
+        status="dead_lettered",
+        lease_token=None,
+        lease_expires_at=None,
+        status_changed_at=now,
+    )
+
+    return killed == 1
 
 
 def mark_undeliverable(delivery_id, school_id, *, now=None):

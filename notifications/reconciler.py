@@ -32,11 +32,12 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
-from .delivery_state import TERMINAL, mark_unknown_outcome
+from .delivery_state import TERMINAL, mark_budget_exhausted, mark_unknown_outcome
 from .models import NotificationDelivery, NotificationEnqueueIntent
+from .tasks import _to_dlq
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +48,21 @@ RECOVERABLE = ("pending", "retry_wait")
 def reconcile_school(school_id, *, now=None, limit=None):
     """يُصالح مدرسةً واحدة، ويُعيد ملخّصاً لما فعله.
 
-    الترتيب مقصود: تُغلق المنقضية أولاً، ثم يُعاد طبر ما يستحقّ، ثم يُمسح محتوى
-    ما اكتمل. لو مسحنا قبل إعادة الطبر لأزلنا النصّ الذي تحتاجه.
+    الترتيب مقصود لا تجميليّاً:
+
+        ١  تُغلق المنقضية      فلا تُحسب لاحقاً على أنها قابلة للاسترداد
+        ٢  تُميت المستنفدة     فلا تُطابر محاولةً أخيرة بلا معنى
+        ٣  يُعاد طبر ما يستحقّ
+        ٤  يُمسح ما اكتمل      وقد صار الآن يشمل ما أُغلق في ١ و٢
+
+    ولو مسحنا قبل إعادة الطبر لأزلنا النصّ الذي تحتاجه.
     """
     now = now or timezone.now()
     limit = limit or settings.NOTIFICATION_RECONCILER_BATCH_SIZE
 
     summary = {
         "unknown_outcome": close_expired_leases(school_id, now=now, limit=limit),
+        "exhausted": close_exhausted_deliveries(school_id, now=now, limit=limit),
         "requeued": requeue_stale_deliveries(school_id, now=now, limit=limit),
         "scrubbed": scrub_completed_intents(school_id, now=now, limit=limit),
     }
@@ -95,34 +103,94 @@ def close_expired_leases(school_id, *, now=None, limit=None):
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ٢ — إعادة الطبر: معياران معاً لا واحد
+#  ٢ — الميزانية المستنفدة: حدٌّ دائم لا حدُّ رسالة
 # ═══════════════════════════════════════════════════════════════════
 
 
-def eligibility_filter(now):
-    """المعيار المزدوج — من جهة النيّة، لأنها وحدة الطبر.
+def close_exhausted_deliveries(school_id, *, now=None, limit=None):
+    """يُميت الرسائل التي استنفدت ميزانيتها الدائمة ولم يُغلقها عامل.
 
-    **عمرُ التسليم وحده** كان سيُعيد الطبر بعد كل فشل مباشرةً: الفشل لا يُحرّك
+    الطريق الطبيعي أن يقرّر العامل الاستنفاد بنفسه في `_tracked_failure`. لكن
+    عاملاً مات بعد كتابة `retry_wait` وقبل نشر إعادته يترك صفّاً استنفد ميزانيته
+    ولا يعرف أحدٌ ذلك — فلو اكتفينا بالعامل لأعاد المُصالِح طبره إلى الأبد، أو
+    لأنفق محاولةً أخيرة عند المزوّد بلا معنى ليكتشف ما هو معروف سلفاً.
+
+    وهذا هو الموضع الذي يجعل الميزانية **دائمة** بحقّ: حدٌّ يُطبَّق حتى حين لا
+    يوجد عاملٌ حيٌّ ليُطبّقه.
+    """
+    now = now or timezone.now()
+    limit = limit or settings.NOTIFICATION_RECONCILER_BATCH_SIZE
+
+    exhausted = list(
+        NotificationDelivery.objects.filter(
+            school_id=school_id,
+            status__in=RECOVERABLE,
+            attempt_count__gte=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+        ).values_list("id", "channel", "dispatch_id")[:limit]
+    )
+
+    closed = 0
+
+    for delivery_id, channel, dispatch_id in exhausted:
+        # الانتقال يكتبه مالك الحالة لا المُصالِح — وهو يُعيد فحص الشرط لحظة
+        # الكتابة، فصفٌّ استحوذ عليه عاملٌ في هذه الأثناء يبقى له.
+        if not mark_budget_exhausted(delivery_id, school_id, now=now):
+            continue
+
+        _to_dlq(
+            channel,
+            school_id,
+            {"dispatch_id": str(dispatch_id), "reason": "attempt_budget_exhausted"},
+            "استنفدت الميزانية الدائمة بلا عاملٍ يُغلقها",
+            delivery_id=str(delivery_id),
+        )
+        closed += 1
+
+    return closed
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  ٣ — إعادة الطبر: معياران معاً لا واحد
+# ═══════════════════════════════════════════════════════════════════
+
+
+def eligible_delivery_exists(now):
+    """المعيار المزدوج كـ`Exists` مرتبطٍ بنفس المستلم.
+
+    **الارتباط بالمستلم ليس تفصيلاً.** هوية النيّة `(dispatch, recipient)`،
+    والواقعة الواحدة تحمل عدّة مستلمين. فالانضمام عبر `dispatch__deliveries`
+    وحده يجعل تسليم «أ» القديم يُؤهّل نيّة «ب»، فيُطابر `_enqueue_intent_now`
+    تسليم «ب» الحديث وهو في مهلته — وتسقط `PENDING_GRACE` عملياً في كل واقعة
+    متعدّدة المستلمين.
+
+    **وعمرُ التسليم وحده** كان سيُعيد الطبر بعد كل فشل مباشرةً: الفشل لا يُحرّك
     `status_changed_at`، فالصفّ يبدو قديماً أبداً — حلقةٌ ساخنة تُغرق الوسيط.
 
     **وعمرُ آخر محاولة وحده** كان سيلتقط صفّاً طُبر قبل ثانية ولم يبلغه العامل
     بعد، فيُنتج نداءً ثانياً لا داعي له.
 
     و`retry_wait` عتبتها أطول عمداً: العامل قرّر الإعادة وجدولها، فقد تكون
-    المهمّة المؤجَّلة ما تزال في الوسيط تنتظر موعدها. عتبةٌ قصيرة هنا تجعل
-    المُصالِح ينافس إعادة Celery على الصفّ نفسه.
+    المهمّة المؤجَّلة ما تزال في الوسيط تنتظر موعدها.
 
-    وشرطا كل فرع في `Q` واحد عمداً: فصلُهما يجعل Django يقبل تسليماً `pending`
-    حديثاً مع تسليمٍ آخر `retry_wait` قديم كأنهما صفٌّ واحد يستوفي الشرطين.
+    والمستنفدة ميزانيتها مستبعَدة هنا: تُغلق في مرحلةٍ سابقة، فلا تُطابر مرّةً
+    أخيرة بلا معنى.
     """
-    aged = Q(
-        dispatch__deliveries__status="pending",
-        dispatch__deliveries__status_changed_at__lte=now
-        - timedelta(seconds=settings.NOTIFICATION_PENDING_GRACE_SECONDS),
-    ) | Q(
-        dispatch__deliveries__status="retry_wait",
-        dispatch__deliveries__status_changed_at__lte=now
-        - timedelta(seconds=settings.NOTIFICATION_RETRY_WAIT_GRACE_SECONDS),
+    correlated = NotificationDelivery.objects.filter(
+        dispatch_id=OuterRef("dispatch_id"),
+        recipient_id=OuterRef("recipient_id"),
+        school_id=OuterRef("school_id"),
+        attempt_count__lt=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    ).filter(
+        Q(
+            status="pending",
+            status_changed_at__lte=now
+            - timedelta(seconds=settings.NOTIFICATION_PENDING_GRACE_SECONDS),
+        )
+        | Q(
+            status="retry_wait",
+            status_changed_at__lte=now
+            - timedelta(seconds=settings.NOTIFICATION_RETRY_WAIT_GRACE_SECONDS),
+        )
     )
 
     quiet = Q(last_enqueue_attempt_at__isnull=True) | Q(
@@ -130,7 +198,7 @@ def eligibility_filter(now):
         - timedelta(seconds=settings.NOTIFICATION_REQUEUE_INTERVAL_SECONDS)
     )
 
-    return aged & quiet
+    return Q(Exists(correlated)) & quiet
 
 
 def requeue_stale_deliveries(school_id, *, now=None, limit=None):
@@ -150,16 +218,15 @@ def requeue_stale_deliveries(school_id, *, now=None, limit=None):
 
     intent_ids = list(
         NotificationEnqueueIntent.objects.filter(school_id=school_id)
-        .filter(eligibility_filter(now))
-        .values_list("id", flat=True)
-        .distinct()[:limit]
+        .filter(eligible_delivery_exists(now))
+        .values_list("id", flat=True)[:limit]
     )
 
     return sum(1 for intent_id in intent_ids if _enqueue_intent_now(str(intent_id), str(school_id)))
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  ٣ — مسح المحتوى: بعد أن ينتهي كل شيء
+#  ٤ — مسح المحتوى: بعد أن ينتهي كل شيء
 # ═══════════════════════════════════════════════════════════════════
 
 
@@ -177,33 +244,46 @@ def scrub_completed_intents(school_id, *, now=None, limit=None):
 
     و`content_cleared_at` يبقى أثراً بأن نيّةً كانت هنا وأن محتواها أُزيل عمداً
     — الفرق بين "مُسح" و"لم يوجد" هو ما يجعل التدقيق ممكناً.
+
+    والنطاق تسليمات **هذا المستلم** لا الواقعة كلّها: العقد "كل تسليمات النيّة"،
+    وهويّتها `(dispatch, recipient)`. الفحص على الواقعة وحدها كان يُبقي محتوى
+    مستلمٍ انتهى أمرُه محفوظاً لأن مستلماً آخر ما زال مفتوحاً — أثرُه محافظ لا
+    خطير، لكنه يُطيل بقاء المحتوى بلا سبب، وهو عكس ما يخدمه المسح أصلاً.
     """
     now = now or timezone.now()
     limit = limit or settings.NOTIFICATION_RECONCILER_BATCH_SIZE
+
+    open_for_recipient = NotificationDelivery.objects.filter(
+        dispatch_id=OuterRef("dispatch_id"),
+        recipient_id=OuterRef("recipient_id"),
+        school_id=OuterRef("school_id"),
+    ).exclude(status__in=TERMINAL)
 
     candidates = list(
         NotificationEnqueueIntent.objects.filter(
             school_id=school_id,
             content_cleared_at__isnull=True,
         )
-        .exclude(
-            # نيّةٌ لها تسليمٌ واحد غير نهائيّ تخرج كلّها — لا مسح جزئيّ.
-            dispatch__deliveries__status__in=RECOVERABLE + ("in_progress",),
-        )
-        .values_list("id", "dispatch_id")[:limit]
+        .filter(~Q(Exists(open_for_recipient)))
+        .values_list("id", "dispatch_id", "recipient_id")[:limit]
     )
 
     scrubbed = 0
 
-    for intent_id, dispatch_id in candidates:
+    for intent_id, dispatch_id, recipient_id in candidates:
         # فحصٌ ثانٍ لحظة الكتابة: تسليمٌ عاد إلى `in_progress` بين الاستعلام
         # والمسح يعني نصّاً ما زال مطلوباً.
-        still_open = NotificationDelivery.objects.filter(
-            dispatch_id=dispatch_id,
-            school_id=school_id,
-        ).exclude(status__in=TERMINAL)
+        still_open = (
+            NotificationDelivery.objects.filter(
+                dispatch_id=dispatch_id,
+                recipient_id=recipient_id,
+                school_id=school_id,
+            )
+            .exclude(status__in=TERMINAL)
+            .exists()
+        )
 
-        if still_open.exists():
+        if still_open:
             continue
 
         scrubbed += NotificationEnqueueIntent.objects.filter(

@@ -532,6 +532,16 @@ NOTIFICATION_RETRY_WAIT_GRACE_SECONDS = config(
     "NOTIFICATION_RETRY_WAIT_GRACE_SECONDS", default=1800, cast=int
 )
 
+# ميزانية المحاولات الدائمة لكل تسليم.
+#
+# `max_retries=3` على مهامّ القنوات يعني أربع محاولات داخل رسالة واحدة، فهذه
+# القيمة تُطابقها — لكن المرجع الآن هو الصفّ لا الرسالة: رسالةٌ جديدة يُنشئها
+# المُصالِح تبدأ من `request.retries = 0` بينما `attempt_count` يُكمل من حيث
+# انتهى.
+NOTIFICATION_MAX_DELIVERY_ATTEMPTS = config(
+    "NOTIFICATION_MAX_DELIVERY_ATTEMPTS", default=4, cast=int
+)
+
 #: سقفُ ما يُعالَج في نداء واحد — المُصالِح مدرسةٌ واحدة لكل استدعاء.
 NOTIFICATION_RECONCILER_BATCH_SIZE = config(
     "NOTIFICATION_RECONCILER_BATCH_SIZE", default=200, cast=int
@@ -542,6 +552,7 @@ for _name in (
     "NOTIFICATION_REQUEUE_INTERVAL_SECONDS",
     "NOTIFICATION_RETRY_WAIT_GRACE_SECONDS",
     "NOTIFICATION_RECONCILER_BATCH_SIZE",
+    "NOTIFICATION_MAX_DELIVERY_ATTEMPTS",
 ):
     if locals()[_name] <= 0:
         from django.core.exceptions import ImproperlyConfigured

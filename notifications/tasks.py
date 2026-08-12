@@ -23,7 +23,12 @@ from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
 from notifications.channels import deliverable_external_channels
-from notifications.delivery_state import claim_delivery, finalize_delivery, mark_undeliverable
+from notifications.delivery_state import (
+    budget_exhausted,
+    claim_delivery,
+    finalize_delivery,
+    mark_undeliverable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,8 +191,19 @@ def _tracked_failure(task, delivery, token, exc, *, kind, school_id, payload):
     وفقدانُ السياج يُنهي كل شيء: عاملٌ لم يعد يملك الصفّ لا يُعيد الإرسال ولا
     يكتب حالة. الإعادة عندئذٍ تعويضٌ عن سلطة فُقدت، وهي بالضبط ما يُنتج
     التكرار.
+
+    [B4-4] والاستنفاد يُقرَّر بالعدّاد **الدائم** لا بـ`request.retries`.
+
+    الأخير يعيش في رسالة Celery وحدها، ويبدأ من صفر في كل رسالة جديدة. ومنذ
+    صار للمُصالِح أن يُعيد طبر `retry_wait`، صارت كلُّ إعادة طبرٍ دورةً كاملة
+    جديدة: لا حدّ فعليّ للمحاولات مهما تكرّر الفشل. العدّاد على الصفّ ينجو من
+    موت العملية ومن ضياع الرسالة معاً، فهو وحده يصلح ميزانيةً.
+
+    و`request.retries` يبقى مساراً سريعاً داخل الرسالة الواحدة: إن رفض Celery
+    الإعادة لاستنفاد ميزانيتها هو، بقي الصفّ `retry_wait` وأخذه المُصالِح لاحقاً
+    ضمن الميزانية الدائمة نفسها — لا محاولة تُكتسب ولا تُفقد.
     """
-    if task.request.retries >= task.max_retries:
+    if budget_exhausted(delivery.id, school_id):
         if not finalize_delivery(delivery.id, school_id, token, "dead_lettered"):
             return {"status": "lost_lease"}
 
@@ -197,7 +213,14 @@ def _tracked_failure(task, delivery, token, exc, *, kind, school_id, payload):
     if not finalize_delivery(delivery.id, school_id, token, "retry_wait"):
         return {"status": "lost_lease"}
 
-    raise task.retry(exc=exc)
+    try:
+        raise task.retry(exc=exc)
+    except MaxRetriesExceededError:
+        # ميزانية الرسالة نفدت، والدائمة لم تنفد. الصفّ `retry_wait` بالفعل،
+        # فيأخذه المُصالِح بمهلته — ورفعُ الاستثناء هنا كان سيُعلّم المهمّة
+        # فاشلةً عن حالةٍ مُدارة.
+        logger.info("delivery %s: message retries exhausted — left to the reconciler", delivery.id)
+        return {"status": "retry_wait"}
 
 
 # ── إرسال بريد إلكتروني ─────────────────────────────────────────────
