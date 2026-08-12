@@ -619,9 +619,15 @@ def _validate_push_budget():
     """
     from django.core.exceptions import ImproperlyConfigured
 
+    # كلُّ حدٍّ يدخل الحساب يجب أن يكون موجباً — وحدّان منها كانا خارج الفحص:
+    # `overhead` و`margin` يدخلان **جمعاً** في أسوأ حالة، فقيمةٌ سالبة فيهما
+    # تُقلّصها فتمرّ المتباينة كذباً. وذلك أسوأ من غياب الفحص: حارسٌ يشهد بأن
+    # الميزانية سليمة وهي ليست كذلك.
     positives = {
         "PUSH_PROVIDER_TIMEOUT_SECONDS": PUSH_PROVIDER_TIMEOUT_SECONDS,
         "PUSH_MAX_ACTIVE_SUBSCRIPTIONS": PUSH_MAX_ACTIVE_SUBSCRIPTIONS,
+        "PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS": PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS,
+        "PUSH_TASK_MARGIN_SECONDS": PUSH_TASK_MARGIN_SECONDS,
         "PUSH_SOFT_TIME_LIMIT_SECONDS": PUSH_SOFT_TIME_LIMIT_SECONDS,
         "PUSH_LEASE_SAFETY_MARGIN_SECONDS": PUSH_LEASE_SAFETY_MARGIN_SECONDS,
     }

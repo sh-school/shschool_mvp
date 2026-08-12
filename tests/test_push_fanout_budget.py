@@ -348,6 +348,13 @@ def test_the_worst_case_is_derived_from_the_cap_not_from_measurement():
         {"PUSH_SOFT_TIME_LIMIT_SECONDS": 5},  # أصغر من أسوأ حالة
         {"PUSH_MAX_ACTIVE_SUBSCRIPTIONS": 0},  # سقفٌ غير موجب
         {"PUSH_PROVIDER_TIMEOUT_SECONDS": 0},  # مهلةٌ غير موجبة
+        {"PUSH_LEASE_SAFETY_MARGIN_SECONDS": 0},  # هامشٌ غير موجب
+        # وحدّان يدخلان الحساب **جمعاً**، فالسالب فيهما يُقلّص أسوأ حالة
+        # فتمرّ المتباينة كذباً — وهو أخطر من تجاوزها صراحةً.
+        {"PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS": -5},
+        {"PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS": 0},
+        {"PUSH_TASK_MARGIN_SECONDS": -60},
+        {"PUSH_TASK_MARGIN_SECONDS": 0},
     ],
 )
 def test_a_broken_budget_chain_refuses_to_boot(broken):
