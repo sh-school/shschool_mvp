@@ -48,6 +48,10 @@ def test_hub_dispatches_deliveries_instead_of_sending_them():
 
     فكان فشل قناة واحدة يضيع صامتاً — المهمة تنتهي بنجاح ما دام أحدهما نجح.
     الآن كل قناة مهمة تسليم مستقلّة، لها retry الخاص بها ومسارها إلى DLQ.
+
+    [B4-6] وشكلُ التفويض في Push صار `enqueue_push(...)`: ناشرٌ مملوك يفرض الحدّ
+    الزمني المعتمد، لأن الحدّ يسافر في الرسالة ويتغلّب على إعداد العامل. والقاعدة
+    المحروسة لم تتغيّر — المنسّق يُفوّض ولا يُسلّم بنفسه.
     """
     hub = _hub_body()
 
@@ -55,8 +59,11 @@ def test_hub_dispatches_deliveries_instead_of_sending_them():
     assert "_send_whatsapp(" not in hub, "WhatsApp must not be sent inside the orchestrator"
     assert "send_email_task.delay" in hub
     assert "send_sms_task.delay" in hub
-    assert "send_push_task.delay" in hub
     assert "send_whatsapp_task.delay" in hub
+
+    # Push يُفوَّض عبر ناشره المملوك — والتفويض قائم كما هو.
+    assert "enqueue_push(" in hub
+    assert "webpush(" not in hub, "Push must not be sent inside the orchestrator"
 
 
 def test_partial_channel_failure_does_not_retry_the_dispatch():

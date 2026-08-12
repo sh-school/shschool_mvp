@@ -1,6 +1,7 @@
 """P2 guard tests for Celery/PostgreSQL RLS context isolation."""
 
 import ast
+import inspect
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -446,31 +447,40 @@ def test_all_notify_behavior_call_sites_propagate_school_id():
 
 
 def test_every_nested_push_task_call_propagates_school_id():
-    path = ROOT / "notifications" / "tasks.py"
-    tree = ast.parse(path.read_text(encoding="utf-8"))
+    """[B4-6] الثابت نفسه، لكن يفرضه التوقيع لا عدّ مواضع النداء.
+
+    كان الحارس يعدّ ثلاثة نداءات مباشرة ويتحقّق أن كلّاً منها يحمل `school_id`.
+    ثم صار الطريق إلى القناة ناشراً مملوكاً واحداً — فالعدّ لم يعد يصف شيئاً،
+    والضمان صار أقوى: `school_id` وسيطٌ **مطلوب** بالاسم في ذلك الناشر، فمُستدعٍ
+    يُغفله لا يُنشئ رسالةً بلا مستأجر بل يفشل عند النداء.
+
+    ويبقى فحصُ مواضع النداء فوق ذلك: توقيعٌ صارم لا ينفع إن مرّر أحدهم `None`.
+    """
+    from notifications import push_publisher
+
+    signature = inspect.signature(push_publisher.enqueue_push)
+    school = signature.parameters["school_id"]
+
+    assert school.kind is inspect.Parameter.KEYWORD_ONLY, "يجب أن يُمرَّر بالاسم"
+    assert school.default is inspect.Parameter.empty, "لا افتراضي — الإغفال يفشل"
 
     calls = []
 
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
+    for path in (ROOT / "notifications" / "tasks.py", ROOT / "notifications" / "hub.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "enqueue_push"
+            ):
+                calls.append((path.name, node))
 
-        func = node.func
+    assert calls, "لا منتج لـPush — تغيّر السلك ولم يتبعه الحارس"
 
-        if (
-            isinstance(func, ast.Attribute)
-            and func.attr == "delay"
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "send_push_task"
-        ):
-            calls.append(node)
-
-    assert len(calls) == 3
-
-    for call in calls:
+    for name, call in calls:
         keywords = {keyword.arg for keyword in call.keywords if keyword.arg}
 
-        assert "school_id" in keywords
+        assert "school_id" in keywords, f"{name}:{call.lineno} بلا school_id"
 
 
 def test_push_subscription_lookup_is_explicitly_school_scoped():
