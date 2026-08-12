@@ -267,7 +267,9 @@ def amqp_spy():
     messages = []
 
     def _spy(producer, name, message, **options):
-        messages.append({"task": name, "options": options})
+        # الجسم يُحفظ كذلك: `(args, kwargs, embed)` — فالمعرّفات المنشورة
+        # جزءٌ ممّا نُثبته، لا الخيارات وحدها.
+        messages.append({"task": name, "options": options, "body": message[2]})
 
         class _Result:
             id = "amqp-spy"
@@ -377,3 +379,89 @@ def test_publishing_by_task_name_is_caught_too():
 
     # ومهمّةٌ أخرى بالاسم لا تخصّ هذا الحارس.
     assert not _direct_publishes('app.send_task("notifications.send_email", args=("u",))')
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  المستأجر — مفروضٌ قيمةً لا شكلاً
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bad", [None, "", "   ", "not-a-uuid", 12345, "None"])
+def test_an_invalid_school_id_is_refused_before_the_broker(amqp_spy, bad):
+    """التوقيع يفرض التمرير لا القيمة — و`str(None)` سلسلةٌ **صادقة**.
+
+    فتُنشر رسالة بمستأجرٍ زائف يعبر فحص الفراغ عند العامل ثم يفشل بعد دخوله
+    الوسيط. والنظام يفشل مغلقاً فلا تُخترق حدود المستأجر، لكن الرفض موضعه هنا.
+    """
+    with pytest.raises(ValueError, match="school_id"):
+        enqueue_push(
+            user_id="00000000-0000-0000-0000-000000000001",
+            school_id=bad,
+            title="t",
+            body="b",
+        )
+
+    assert amqp_spy == [], "نُشرت رسالة بمستأجر غير صالح"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("bad", [None, "", "not-a-uuid"])
+def test_an_invalid_user_id_is_refused_too(amqp_spy, bad):
+    """المستلم مُعرِّفٌ كذلك — ورسالةٌ بلا مستلم صالح لا معنى لها."""
+    with pytest.raises(ValueError, match="user_id"):
+        enqueue_push(
+            user_id=bad,
+            school_id="00000000-0000-0000-0000-000000000002",
+            title="t",
+            body="b",
+        )
+
+    assert amqp_spy == []
+
+
+@pytest.mark.django_db
+def test_identifiers_are_published_in_canonical_form(amqp_spy):
+    """مُعرِّفان مختلفان شكلاً ومتطابقان قيمةً يُنشران سواءً."""
+    from uuid import UUID
+
+    school = UUID("12345678-1234-5678-1234-567812345678")
+
+    enqueue_push(user_id=school, school_id="12345678123456781234567812345678", title="t", body="b")
+
+    (message,) = amqp_spy
+
+    assert message["body"][1]["school_id"] == "12345678-1234-5678-1234-567812345678"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  الماسح المشترك — ما كسبه الحرّاس بالتوحيد
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_the_shared_scanner_sees_keywords_inside_a_kwargs_dict():
+    """`apply_async(kwargs={"delivery_id": ...})` صيغةٌ أخرى للشيء نفسه.
+
+    كانت هذه القدرة في الماسح المحلّي لحارس السلك وحده. ونقلُ الحرّاس إلى
+    الماسح المشترك بلا نقلها كان سيُفقدها — فانتقلت معها.
+    """
+    from tests.task_publish_scan import iter_publish_sites
+
+    (site,) = iter_publish_sites(
+        "send_push_task.apply_async(args=('u',), kwargs={'delivery_id': 'd'})"
+    )
+
+    assert "delivery_id" in site.keywords
+
+
+def test_the_shared_scanner_is_strictly_stronger_than_the_removed_one():
+    """الماسح المحذوف كان يفوته المستعار والنشر بالنصّ — والمشترك يمسكهما."""
+    from tests.task_publish_scan import iter_publish_sites
+
+    alias = "from notifications.tasks import send_push_task as sp\nsp.delay('u')"
+    (site,) = iter_publish_sites(alias)
+    assert site.task == "send_push_task"
+
+    by_name = "app.send_task('notifications.send_push', args=('u',))"
+    (site,) = iter_publish_sites(by_name)
+    assert site.task_name == "notifications.send_push"

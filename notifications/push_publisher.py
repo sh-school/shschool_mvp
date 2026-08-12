@@ -27,6 +27,7 @@
 """
 
 import logging
+from uuid import UUID
 
 from django.conf import settings
 
@@ -105,6 +106,31 @@ def _reject_protocol_time_headers(headers):
         )
 
 
+def _canonical_uuid(name, value):
+    """يرفض مُعرِّفاً غير صالح **قبل** أن تدخل رسالةٌ الوسيط.
+
+    التوقيع يفرض تمرير `school_id` ولا يفرض قيمته — وهذا لا يكفي: `str(None)`
+    يُنتج السلسلة `'None'` وهي **صادقة**، فتُنشر رسالة بمستأجرٍ زائف. والعامل
+    يفشل مغلقاً عندها (`canonical_school_id` يرفض ما لا يُحلَّل UUID)، فلا
+    تُخترق حدود المستأجر — لكن الفشل يقع بعد أن دخلت الرسالة الوسيط، بينما هذا
+    المالك كُتب ليرفض قبله.
+
+    ويُعاد النصّ المعياريّ لا الأصل: مُعرِّفان مختلفان شكلاً ومتطابقان قيمةً
+    يجب أن يُنشرا سواءً.
+    """
+    if value is None or value == "":
+        raise ValueError(f"{name} مطلوب لـnotifications.send_push — لا رسالة بلا مستأجر")
+
+    try:
+        return str(UUID(str(value)))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{name}={value!r} ليس UUID صالحاً. و`str()` عليه يُنتج سلسلةً صادقة "
+            "تعبر فحص الفراغ عند العامل، فتُنشر رسالة بمستأجرٍ زائف تفشل بعد "
+            "دخولها الوسيط بدل أن تُرفض عند مصدرها."
+        ) from exc
+
+
 def enqueue_push(
     *,
     user_id,
@@ -126,8 +152,11 @@ def enqueue_push(
     _reject_noncanonical(options)
 
     return send_push_task.apply_async(
-        args=(str(user_id), title, body, url),
-        kwargs={"school_id": str(school_id), "delivery_id": delivery_id},
+        args=(_canonical_uuid("user_id", user_id), title, body, url),
+        kwargs={
+            "school_id": _canonical_uuid("school_id", school_id),
+            "delivery_id": delivery_id,
+        },
         soft_time_limit=canonical_soft_time_limit(),
         **options,
     )

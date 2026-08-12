@@ -86,8 +86,28 @@ def iter_publish_sites(text, *, extra_publishers=None):
     return sites
 
 
+def _keyword_names(call):
+    """أسماء الوسائط المفتاحية، شاملةً ما داخل `apply_async(kwargs={...})`.
+
+    النزول داخل القاموس ليس تفصيلاً: `delay(delivery_id=...)` و
+    `apply_async(kwargs={"delivery_id": ...})` صيغتان للشيء نفسه، وحارسٌ يرى
+    الأولى دون الثانية يحرس شكلاً لا معنى.
+    """
+    names = {keyword.arg for keyword in call.keywords if keyword.arg}
+
+    for keyword in call.keywords:
+        if keyword.arg == "kwargs" and isinstance(keyword.value, ast.Dict):
+            names |= {
+                key.value
+                for key in keyword.value.keys
+                if isinstance(key, ast.Constant) and isinstance(key.value, str)
+            }
+
+    return names
+
+
 def _classify(node, enclosing, aliases, extra_publishers):
-    keywords = {keyword.arg for keyword in node.keywords if keyword.arg}
+    keywords = _keyword_names(node)
     func = node.func
 
     # ناشرٌ مملوك: `enqueue_push(...)`

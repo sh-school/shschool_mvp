@@ -36,6 +36,7 @@ from notifications.tasks import (
     send_whatsapp_task,
 )
 from tests.conftest import SchoolFactory, UserFactory
+from tests.task_publish_scan import iter_publish_sites
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -538,59 +539,14 @@ FORWARDING_HOST = "hub_send_notification_task"
 PUSH_PUBLISHER = "enqueue_push"
 
 
-def _dispatched_task_name(func):
-    """اسم المهمّة في `X.delay(...)` أو `a.b.X.apply_async(...)`، أو None.
-
-    [B4-6] و`enqueue_push(...)` نداءٌ باسمٍ مجرّد لا سمة: صار الطريق إلى قناة
-    Push دالّةً مملوكة تفرض الحدّ الزمني المعتمد، فالماسح يتبع المُنتِج حيث
-    انتقل. والقاعدة المحروسة لم تتغيّر — مَن يُمرّر `delivery_id` هو المُنتِج.
-    """
-    import ast
-
-    if isinstance(func, ast.Name) and func.id == PUSH_PUBLISHER:
-        return "send_push_task"
-
-    if not isinstance(func, ast.Attribute) or func.attr not in {"delay", "apply_async"}:
-        return None
-
-    target = func.value
-    if isinstance(target, ast.Name):
-        return target.id
-    if isinstance(target, ast.Attribute):
-        return target.attr
-    return None
-
-
-def _keyword_names(call):
-    """أسماء الوسائط المفتاحية، شاملةً `apply_async(kwargs={...})`."""
-    import ast
-
-    names = {keyword.arg for keyword in call.keywords if keyword.arg}
-
-    for keyword in call.keywords:
-        if keyword.arg == "kwargs" and isinstance(keyword.value, ast.Dict):
-            names |= {
-                key.value
-                for key in keyword.value.keys
-                if isinstance(key, ast.Constant) and isinstance(key.value, str)
-            }
-
-    return names
-
-
-def _collect_calls(node, enclosing, path, found):
-    import ast
-
-    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-        enclosing = node.name
-
-    if isinstance(node, ast.Call):
-        task = _dispatched_task_name(node.func)
-        if task in WIRE_ARGUMENT:
-            found.append((path, enclosing, task, _keyword_names(node)))
-
-    for child in ast.iter_child_nodes(node):
-        _collect_calls(child, enclosing, path, found)
+#: اسمُ كل مهمّة سلكيّة كما هو مسجَّل في Celery — لمن ينشر بالنصّ لا بالهويّة.
+TASK_NAMES = {
+    "notifications.hub_send": "hub_send_notification_task",
+    "notifications.send_email": "send_email_task",
+    "notifications.send_sms": "send_sms_task",
+    "notifications.send_whatsapp": "send_whatsapp_task",
+    "notifications.send_push": "send_push_task",
+}
 
 
 def _wire_call_sites():
@@ -598,12 +554,21 @@ def _wire_call_sites():
 
     التحليل نحويّ لا نصّي: الاستثناء المسموح يُعرَّف بموضعه داخل دالّة بعينها،
     وهذا ما لا يستطيع البحث في النصّ أن يقوله.
-    """
-    import ast
 
+    [B4-6] والماسح مشترك مع حارس ملكيّة الناشر. كان هنا ماسحٌ محلّي، فصار
+    الاثنان بقدرتين مختلفتين: هذا يمسك المسار المنقّط ويفوته الاسم المستعار
+    والنشر بالنصّ، وذاك يمسكها. وماسحان للغرض نفسه ينحرف أحدهما عن الآخر — وقد
+    وقع ذلك فعلاً — فحُذف المحلّي ولم يُترك مساراً ثانياً أضعف.
+    """
     found = []
+
     for path, text in _application_sources():
-        _collect_calls(ast.parse(text), None, path.relative_to(ROOT), found)
+        for site in iter_publish_sites(text, extra_publishers={PUSH_PUBLISHER: "send_push_task"}):
+            task = site.task if site.task_name is None else TASK_NAMES.get(site.task_name)
+
+            if task in WIRE_ARGUMENT:
+                found.append((path.relative_to(ROOT), site.enclosing, task, site.keywords))
+
     return found
 
 
