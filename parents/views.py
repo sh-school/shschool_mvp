@@ -533,18 +533,20 @@ def push_subscribe(request):
         school = _get_parent_school(request) or request.user.get_school()
         if not school:
             return JsonResponse({"error": "مدرسة غير معروفة"}, status=400)
-        _, created = PushSubscription.objects.update_or_create(
+        # [B4-5] التسجيل يمرّ بمالك السقف لا بـ`update_or_create` مباشرةً:
+        # عددُ الاشتراكات الفعّالة هو المُعامل الذي تُحسب به ميزانية زمن Push،
+        # فتركُه بلا حدّ يجعل أسوأ حالة غير قابلة للحساب.
+        from notifications.push_subscriptions import register_subscription
+
+        _, created, evicted = register_subscription(
+            user=request.user,
+            school=school,
             endpoint=endpoint,
-            defaults={
-                "user": request.user,
-                "school": school,
-                "p256dh": p256dh,
-                "auth": auth,
-                "user_agent": request.META.get("HTTP_USER_AGENT", "")[:300],
-                "is_active": True,
-            },
+            p256dh=p256dh,
+            auth=auth,
+            user_agent=request.META.get("HTTP_USER_AGENT", ""),
         )
-        return JsonResponse({"status": "subscribed", "new": created})
+        return JsonResponse({"status": "subscribed", "new": created, "evicted": evicted})
     except (KeyError, ValueError, TypeError, OSError):
         logger.error("فشل تسجيل اشتراك Push لولي الأمر")
         return JsonResponse({"error": "تعذر تسجيل اشتراك الإشعارات."}, status=500)

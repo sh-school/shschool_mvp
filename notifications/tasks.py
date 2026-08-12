@@ -16,9 +16,10 @@ notifications/tasks.py
 
 import logging
 import re
+from time import monotonic
 
 from celery import shared_task
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
@@ -788,6 +789,11 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
     bind=True,
     max_retries=2,
     default_retry_delay=30,
+    # [B4-5] مهلةٌ لينة لا صلبة: اللينة تُرفع كاستثناء **داخل** المسار المالك
+    # للاستئجار، فيكتب العامل نهايته بنفسه. والصلبة تقتل العملية بـSIGKILL
+    # فتترك التسليم `in_progress` بلا كاتب — وهو بالضبط ما يُنتج
+    # `unknown_outcome` عن حالةٍ كانت معروفة.
+    soft_time_limit=settings.PUSH_SOFT_TIME_LIMIT_SECONDS,
     name="notifications.send_push",
 )
 def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, delivery_id=None):
@@ -863,7 +869,22 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             sent = invalidated = 0
             transient = []
 
+            # [B4-5] موعدٌ نهائيّ محسوب من ميزانية أسوأ حالة، يُقاس بساعةٍ
+            # أحاديّة الاتجاه لا بساعة الحائط: تعديلُ وقت النظام أثناء التنفيذ
+            # يجعل الثانية تسبق التي قبلها، فينهار الحساب في اللحظة التي نحتاجه
+            # فيها أكثر ما نحتاج.
+            deadline = monotonic() + settings.PUSH_WORST_CASE_BUDGET_SECONDS
+            provider_timeout = settings.PUSH_PROVIDER_TIMEOUT_SECONDS
+
             for sub in subs:
+                # الميزانية تُفحص **قبل** النداء لا بعده: بعده يكون النداء قد
+                # وقع، وهو ما نمنعه أصلاً.
+                if monotonic() >= deadline:
+                    raise RuntimeError(
+                        f"push fanout budget exhausted after {sent + invalidated + len(transient)} "
+                        "subscription(s) — remaining calls skipped"
+                    )
+
                 # [B4-PRE1] محاولة لكل نداء مزوّد — لا واحدة للمهمّة كلّها.
                 #
                 # المهمّة تنادي webpush مرّة لكل اشتراك فعّال، ووليّ أمر بهاتف
@@ -890,6 +911,10 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
                         data=payload,
                         vapid_private_key=vapid_private,
                         vapid_claims={"sub": f"mailto:{vapid_email}"},
+                        # [B4-5] بلا هذه، `requests` ينتظر بلا حدّ. وهي مهلةُ
+                        # انتظارٍ على الاتصال والقراءة لا سقفٌ إجماليّ، فلذلك
+                        # لا يُحسب بها وحدها — يحرسها الموعد النهائي أعلاه.
+                        timeout=provider_timeout,
                     )
                 except WebPushException as e:
                     log.status = "failed"
@@ -956,7 +981,11 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             logger.info(f"Push queued (pywebpush not installed): {title} → user {user_id}")
             return {"status": "queued_no_pywebpush", "user": str(user_id)}
 
-    except (ImportError, OSError, RuntimeError, ValueError) as exc:
+    except (ImportError, OSError, RuntimeError, ValueError, SoftTimeLimitExceeded) as exc:
+        # [B4-5] `SoftTimeLimitExceeded` هنا عمداً: لو خرجت فوق هذا المستوى
+        # لانتهت المهمّة بلا `finalize_delivery`، فبقي التسليم `in_progress`
+        # حتى ينقضي استئجاره — أي عدنا إلى `unknown_outcome` نفسه باسمٍ آخر.
+        # المسار هنا ما زال يملك السياج، فيكتب `retry_wait` أو `dead_lettered`.
         logger.exception("send_push_task error: %s", exc)
 
         if delivery is not None and token is not None:
