@@ -18,7 +18,6 @@
 كانت معروفة. أي علّة B4-5 نفسها، عائدةً من باب النشر.
 """
 
-import ast
 import pathlib
 
 import pytest
@@ -27,6 +26,7 @@ from django.test import override_settings
 
 from notifications.push_publisher import canonical_soft_time_limit, enqueue_push
 from notifications.tasks import send_push_task
+from tests.task_publish_scan import iter_publish_sites
 
 OWNER = "notifications/push_publisher.py"
 
@@ -172,23 +172,22 @@ def test_the_shipped_limit_follows_the_setting_not_a_constant(settings_broker_sp
 # ═══════════════════════════════════════════════════════════════════
 
 
+#: اسمُ المهمّة المسجَّل في Celery — ما ينشر به مَن لا يمرّ بكائن المهمّة.
+PUSH_TASK_NAME = "notifications.send_push"
+
+
 def _direct_publishes(text):
-    """`send_push_task.delay(...)` أو `.apply_async(...)` أو `.s(...)`."""
-    published = []
+    """كل نشرٍ لـ`send_push` لا يمرّ بالمالك — بأي صيغةٍ من صيغه الأربع.
 
-    for node in ast.walk(ast.parse(text)):
-        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
-            continue
-
-        if node.func.attr not in ("delay", "apply_async", "s", "signature"):
-            continue
-
-        target = node.func.value
-
-        if isinstance(target, ast.Name) and target.id == "send_push_task":
-            published.append(f"{node.lineno} .{node.func.attr}()")
-
-    return published
+    الماسح مشترك مع حارس السلك في `test_delivery_wire_compatibility.py`: ماسحان
+    للغرض نفسه ينحرف أحدهما عن الآخر، وقد وقع ذلك فعلاً — وُلد هذا الحارس
+    يشترط `ast.Name` فمرّت من تحته ثلاثُ صيغ من أربع.
+    """
+    return [
+        f"{site.lineno} {site.method}({site.task or site.task_name})"
+        for site in iter_publish_sites(text)
+        if site.task == "send_push_task" or site.task_name == PUSH_TASK_NAME
+    ]
 
 
 def test_no_producer_publishes_send_push_directly():
@@ -218,15 +217,21 @@ def test_no_producer_publishes_send_push_directly():
 
 def test_the_producer_guard_catches_a_real_violation():
     """ضبطٌ سالب: حارسٌ لا يسقط أمام مخالفة ليس حارساً."""
-    violations = (
-        "send_push_task.delay('u', 't', 'b')",
-        "send_push_task.apply_async(args=('u',), soft_time_limit=300)",
-        "send_push_task.s('u', 't', 'b')",
-        "send_push_task.signature(('u',))",
-    )
+    violations = {
+        "اسمٌ مباشر": "send_push_task.delay('u', 't', 'b')",
+        "apply_async": "send_push_task.apply_async(args=('u',), soft_time_limit=300)",
+        "توقيع": "send_push_task.s('u', 't', 'b')",
+        "signature": "send_push_task.signature(('u',))",
+        "اسمٌ مستعار": (
+            "from notifications.tasks import send_push_task as sp\nsp.delay('u', 't', 'b')"
+        ),
+        "مسارٌ منقّط": (
+            "import notifications.tasks\n" "notifications.tasks.send_push_task.delay('u', 't', 'b')"
+        ),
+    }
 
-    for source in violations:
-        assert _direct_publishes(source), f"لم يُمسك: {source}"
+    for label, source in violations.items():
+        assert _direct_publishes(source), f"لم يُمسك: {label}"
 
     # ولا يُعاقب النشر عبر المالك ولا استيراد المهمّة لقراءتها.
     for source in (
@@ -304,3 +309,71 @@ def test_an_accepted_publish_does_reach_the_broker_layer(amqp_spy):
 
     assert len(amqp_spy) == 1
     assert amqp_spy[0]["task"] == "notifications.send_push"
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  ترويسة البروتوكول — الباب الذي كشفته المراجعة
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("timelimit", [[None, 300], [None, 120], [60, None], [None, None]])
+def test_a_caller_supplied_protocol_timelimit_is_refused(amqp_spy, timelimit):
+    """`headers={"timelimit": ...}` ممنوعة — **حتى المطابقة منها**.
+
+    Celery يدمج ترويسة المُستدعي فوق ترويسة البروتوكول بعد بنائها
+    (`amqp.py:469`)، فتتجاوز `soft_time_limit` كلّه. وقد وصلت `[None, 300]` إلى
+    Redis فعلاً قبل هذا الإصلاح.
+
+    والمطابقة تُرفض كذلك: السماح بها يفتح طريقاً ثانياً لامتلاك الحقيقة نفسها،
+    فيصير مصدرها موضعين — ويكفي أن ينحرف أحدهما ليصير الثابت كذبة.
+    """
+    with pytest.raises(ValueError, match="timelimit"):
+        enqueue_push(
+            user_id="00000000-0000-0000-0000-000000000001",
+            school_id="00000000-0000-0000-0000-000000000002",
+            title="t",
+            body="b",
+            headers={"timelimit": timelimit},
+        )
+
+    assert amqp_spy == [], "بُنيت رسالة رغم الرفض"
+
+
+@pytest.mark.django_db
+def test_an_innocent_header_still_publishes(amqp_spy):
+    """الممنوع مفتاحٌ بعينه لا التمرير نفسه — وبقيّة الترويسات تمرّ."""
+    enqueue_push(
+        user_id="00000000-0000-0000-0000-000000000001",
+        school_id="00000000-0000-0000-0000-000000000002",
+        title="t",
+        body="b",
+        headers={"x_correlation_id": "abc-123"},
+    )
+
+    assert len(amqp_spy) == 1
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  النشر بالاسم النصّي — يتجاوز هويّة الكائن كلّها
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_publishing_by_task_name_is_caught_too():
+    """`app.send_task("notifications.send_push", ...)` لا يمرّ بكائن المهمّة.
+
+    فلا سمة `soft_time_limit` تُقرأ، ولا `extract_exec_options` تعمل — تُنشر
+    الرسالة بترويسة `[None, None]`. العامل يسقط عندها إلى إعداده فليست خطراً
+    مباشراً، لكنها طريقٌ كامل حول المالك، ولا تُلتقط بالهويّة بل بالنصّ وحده.
+    """
+    by_name = (
+        'app.send_task("notifications.send_push", args=("u",))',
+        'current_app.send_task("notifications.send_push", kwargs={"school_id": "s"})',
+        'self.app.send_task(name="notifications.send_push")',
+    )
+
+    for source in by_name:
+        assert _direct_publishes(source), f"لم يُمسك: {source}"
+
+    # ومهمّةٌ أخرى بالاسم لا تخصّ هذا الحارس.
+    assert not _direct_publishes('app.send_task("notifications.send_email", args=("u",))')

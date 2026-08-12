@@ -35,6 +35,20 @@ logger = logging.getLogger(__name__)
 #: الوسائط التي يمنع هذا المالك تمريرها بقيمةٍ تخالف المعتمد.
 _GOVERNED = ("soft_time_limit", "time_limit")
 
+#: مفاتيح ترويسة البروتوكول التي تتحكّم في عقد الزمن — تُرفض مهما كانت قيمتها.
+#:
+#: `apply_async(headers=...)` لا يُبنى منه شيء عند تكوين الرسالة، بل يُدمج
+#: **فوقها** لاحقاً — `amqp.py:469`:
+#:
+#:     headers2, properties, body, sent_event = message
+#:     if headers:
+#:         headers2.update(headers)
+#:
+#: فحراسةُ `soft_time_limit` وحدها تترك باباً مفتوحاً: مُستدعٍ يمرّر
+#: `headers={"timelimit": [None, 300]}` يتجاوز الفحص كلّه، وتصل الرسالة إلى
+#: الوسيط بحدٍّ 300 ثانية. أُثبت ذلك على Redis حقيقي قبل هذا الإصلاح.
+_PROTOCOL_TIME_KEYS = ("timelimit",)
+
 
 def canonical_soft_time_limit():
     """المصدر الواحد — نفس ما تفحصه `_validate_push_budget` عند الإقلاع."""
@@ -62,6 +76,33 @@ def _reject_noncanonical(options):
                 "الحدّ يسافر في الرسالة ويتغلّب على إعداد العامل، فقيمةٌ أطول تجعل "
                 "الاستئجار ينقضي والعامل حيٌّ — وهي علّة `unknown_outcome` نفسها."
             )
+
+    _reject_protocol_time_headers(options.get("headers"))
+
+
+def _reject_protocol_time_headers(headers):
+    """يرفض أي ترويسة يمرّرها المُستدعي وتتحكّم في عقد الزمن.
+
+    **حتى القيمة المطابقة تُرفض.** ليست تشدّداً: السماح بها يفتح طريقاً ثانياً
+    لامتلاك الحقيقة نفسها، فيصير مصدرها موضعين — الإعداد وهذا المُستدعي — ويكفي
+    أن ينحرف أحدهما ليصير الثابت كذبة. والمصدر يبقى `settings` عبر هذا المالك.
+
+    وبقيّة الترويسات مسموحة: الممنوع مفتاحٌ بعينه يُغيّر العقد، لا التمرير نفسه.
+
+    ولا تصحيح صامت إلى المعتمد: مُستدعٍ يحاول تجاوز الحدّ يجب أن يُبلَّغ لا
+    أن يُسكَت — التصحيح يُخفي المحاولة ويترك النيّة قائمة إلى المرّة القادمة.
+    """
+    if not headers:
+        return
+
+    present = [key for key in _PROTOCOL_TIME_KEYS if key in headers]
+
+    if present:
+        raise ValueError(
+            f"headers={present} ممنوعة لـnotifications.send_push: تُدمج فوق ترويسة "
+            "البروتوكول بعد بنائها (amqp.py:469) فتتجاوز الحدّ المعتمد. ومصدر الحدّ "
+            "الوحيد هو settings.PUSH_SOFT_TIME_LIMIT_SECONDS عبر هذا المالك."
+        )
 
 
 def enqueue_push(
