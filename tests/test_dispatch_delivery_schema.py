@@ -515,16 +515,17 @@ def test_delivery_channels_exclude_in_app():
     assert codes == {"email", "sms", "whatsapp", "push"}
 
 
-def test_delivery_statuses_do_not_yet_include_unknown():
+def test_every_delivery_status_has_a_producer():
     """
-    [B4-0] `unknown_outcome` تنتظر الاستئجار في B4-3.
+    [B4-0] كل حالة تدخل مع مَن يكتبها — لا قبله.
 
-    حالة لا يُنتجها انتقال هي دلالة ميتة، وإضافتها الآن تدّعي أننا نميّز
-    النتيجة المجهولة ونحن لا نملك بعد ما يكتشفها.
+    حالة لا يُنتجها انتقال هي دلالة ميتة تدّعي تمييزاً لا نملكه. ولذلك ظلّت
+    `unknown_outcome` خارج القائمة ثلاث دفعات: لا شيء كان يكتشف العامل الميت.
+
+    [B4-4] ودخلت الآن مع المُصالِح — كاتبها الوحيد.
     """
     codes = {code for code, _ in NotificationDelivery.STATUS}
 
-    assert "unknown_outcome" not in codes
     assert codes == {
         "pending",
         "in_progress",
@@ -533,6 +534,8 @@ def test_delivery_statuses_do_not_yet_include_unknown():
         "dead_lettered",
         # [B4-3B] دخلت مع منتجَيها في Push — لا قبلهما.
         "undeliverable",
+        # [B4-4] دخلت مع المُصالِح، ولا يكتبها عاملٌ أبداً.
+        "unknown_outcome",
     }
 
 

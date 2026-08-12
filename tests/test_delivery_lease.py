@@ -281,8 +281,8 @@ def test_the_model_carries_no_state_without_a_producer():
     """
     كل حالة موجودة يكتبها شيء.
 
-    `undeliverable` دخلت مع منتجَيها في B4-3B، و`unknown_outcome` تنتظر مكتشفها
-    في B4-4 — والقاعدة واحدة: الاسم يصل مع من يعنيه لا قبله.
+    `undeliverable` دخلت مع منتجَيها في B4-3B، و`unknown_outcome` مع مكتشفها في
+    B4-4 — والقاعدة واحدة: الاسم يصل مع من يعنيه لا قبله.
     """
     codes = {code for code, _ in NotificationDelivery.STATUS}
 
@@ -293,8 +293,14 @@ def test_the_model_carries_no_state_without_a_producer():
         "retry_wait",
         "dead_lettered",
         "undeliverable",
+        "unknown_outcome",
     }
-    assert "unknown_outcome" not in codes
+
+    # ومَن يكتبها ليس العامل: `FINALIZABLE` هي ما يُسمح للعامل بكتابته تحت
+    # السياج، وبقاؤها خارجها هو الحدّ الذي يمنع تسليماً من إعلان جهله بنفسه.
+    from notifications.delivery_state import FINALIZABLE
+
+    assert "unknown_outcome" not in FINALIZABLE
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -381,6 +387,53 @@ def _application_sources():
         yield str(path.relative_to(root)).replace("\\", "/"), path.read_text(encoding="utf-8")
 
 
+def _lease_writes(text):
+    """[B4-4] كتابةُ حقل استئجار — لا ذِكرُه.
+
+    الحارس كان يبحث عن اسم الحقل نصّاً، فاتّهم المُصالِح الذي **يقرأ**
+    `lease_expires_at` في شرط `filter(...)` ليعرف أيّ استئجار انقضى. والقاعدة
+    التي يحرسها ليست "لا أحد يذكر الاستئجار" بل "لا أحد يكتبه".
+
+    فالمقياس الآن وسيطٌ مُسمّى في نداء يكتب: `update` أو `create` أو
+    `bulk_create` أو بناء نموذج. أمّا `filter` و`exclude` و`get` فقراءة.
+    """
+    import ast
+
+    reading = {"filter", "exclude", "get", "values", "values_list", "order_by"}
+    found = []
+
+    for node in ast.walk(ast.parse(text)):
+        if not isinstance(node, ast.Call):
+            continue
+
+        called = node.func.attr if isinstance(node.func, ast.Attribute) else None
+
+        if called in reading:
+            continue
+
+        for kw in node.keywords:
+            if kw.arg in LEASE_FIELDS:
+                found.append(f"{node.lineno} {kw.arg}=")
+
+    # والإسناد المباشر `delivery.lease_token = ...` كتابةٌ أيضاً — لا نداء فيها
+    # حتى تُلتقط بالوسائط، وهي أخطر لأنها تتجاوز الاستحواذ الذرّي إلى قراءةٍ
+    # ثمّ كتابة.
+    for node in ast.walk(ast.parse(text)):
+        targets = (
+            node.targets
+            if isinstance(node, ast.Assign)
+            else [node.target]
+            if isinstance(node, ast.AugAssign | ast.AnnAssign)
+            else []
+        )
+
+        for target in targets:
+            if isinstance(target, ast.Attribute) and target.attr in LEASE_FIELDS:
+                found.append(f"{node.lineno} .{target.attr} =")
+
+    return found
+
+
 def _delivery_state_updates(text):
     """`NotificationDelivery.objects...update(...)` — تعديلُ حالة لا إنشاء.
 
@@ -414,6 +467,9 @@ def test_only_the_state_owner_writes_the_lease():
 
     المهامّ الأربع ستُوصَّل في B4-3B، ولو كتب كلٌّ منها استحواذه بنفسه لتكرّر
     المنطق أربع مرّات وانحرفت نسخة عن أخرى في الدفعة التي لا ينتبه فيها أحد.
+
+    [B4-4] والمقياس صار الكتابة لا الذِّكر: المُصالِح يقرأ `lease_expires_at`
+    ليعرف أيّ استئجار انقضى، وهي قراءةٌ مشروعة كان الحارس النصّي يتّهمها.
     """
     offenders = []
 
@@ -421,7 +477,7 @@ def test_only_the_state_owner_writes_the_lease():
         if path in (STATE_OWNER, "notifications/models.py"):
             continue
 
-        offenders += [f"{path}: {field}" for field in LEASE_FIELDS if field in text]
+        offenders += [f"{path}:{write}" for write in _lease_writes(text)]
         offenders += [f"{path}:{line} update()" for line in _delivery_state_updates(text)]
 
     assert not offenders, "كتابةُ حالة خارج مالكها: " + ", ".join(offenders)
@@ -441,3 +497,34 @@ def test_the_state_owner_guard_reads_the_owner_itself():
     assert STATE_OWNER in sources
     assert all(field in sources[STATE_OWNER] for field in LEASE_FIELDS)
     assert _delivery_state_updates(sources[STATE_OWNER]), "المالك لا يُحرّك حالةً — الحارس بلا موضوع"
+
+
+def test_the_lease_guard_actually_fails_on_a_real_violation():
+    """[B4-4] ضبطٌ سالب: حارسٌ لا يسقط أمام مخالفة ليس حارساً.
+
+    تضييق الحارس من البحث النصّي إلى AST جعله يقبل القراءة المشروعة — وهذا
+    صحيح، لكنه يفتح سؤالاً: هل بقي يمسك الكتابة أصلاً؟ فيُعطى هنا ثلاثة أشكال
+    من الكتابة الحقيقية، ويجب أن يمسكها كلّها.
+
+    وهو حارسُ معماريّة لا مُتحقّقٌ ساكن كامل: `setattr` أو `**kwargs` مفكوكة
+    تمرّان. الغرض أن يوقف الانحراف المعتاد في مراجعةٍ عابرة، لا أن يُثبت
+    استحالته.
+    """
+    violations = (
+        "NotificationDelivery.objects.filter(id=x).update(lease_token=None)",
+        "delivery.lease_token = None",
+        "NotificationDelivery(lease_expires_at=later)",
+    )
+
+    for source in violations:
+        assert _lease_writes(source), f"الحارس لم يمسك مخالفة حقيقية: {source}"
+
+    # ولا يُعاقب القراءة — وهي ما أوقعه في الاتهام الكاذب.
+    reads = (
+        "NotificationDelivery.objects.filter(lease_expires_at__lte=now)",
+        "NotificationDelivery.objects.exclude(lease_token=None)",
+        "if delivery.lease_expires_at <= now: pass",
+    )
+
+    for source in reads:
+        assert not _lease_writes(source), f"الحارس عاقب قراءةً مشروعة: {source}"

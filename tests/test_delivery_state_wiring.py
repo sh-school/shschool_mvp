@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 
 from notifications.delivery_state import claim_delivery, finalize_delivery
 from notifications.models import (
@@ -106,11 +107,15 @@ def _status_of(delivery):
 
 @contextmanager
 def _no_retries_left(task):
-    """يجعل الميزانية مستنفدة.
+    """يستنفد ميزانية **الرسالة** — لا ميزانية التسليم.
 
     `patch.object(type(task), ...)` لا يعمل: `task` وكيلٌ من Celery ونوعه
     `celery.local` لا يحمل السمة. الضبط على الوكيل نفسه يصل إلى المهمّة
     المسجَّلة.
+
+    [B4-4] وهذه لم تعد تُنتج `dead_letter`: القرار انتقل إلى العدّاد الدائم على
+    الصفّ، لأن رسالةً جديدة يُنشئها المُصالِح تبدأ من `retries = 0` فلا تصلح
+    ميزانيةً. استنفادُ الرسالة وحده يترك التسليم `retry_wait` ليأخذه المُصالِح.
     """
     original = task.max_retries
     task.max_retries = 0
@@ -118,6 +123,13 @@ def _no_retries_left(task):
         yield
     finally:
         task.max_retries = original
+
+
+def _spend_the_durable_budget(delivery):
+    """يُقرّب التسليم من حدّه الدائم بحيث يبلغه استحواذُ المحاولة القادمة."""
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS - 1
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -266,10 +278,16 @@ def test_an_exhausted_delivery_is_dead_lettered_and_linked():
     استثناء — قد يُعيد رفع الاستثناء الأصلي، فبناءُ دورة الحياة على ذلك يجعل
     صحّتها رهينة تفاصيل إطار العمل.
 
+    [B4-4] والمرجع صار العدّاد الدائم على الصفّ لا `request.retries`: رسالةٌ
+    ينشئها المُصالِح تبدأ من صفر، فلو بقي القرار على الرسالة لما مات تسليمٌ
+    أبداً ما دام يُعاد طبره. فالاختبار يستنفد الميزانيتين معاً — الدائمة هي
+    التي تقتل، والرسالة تُثبت أنها لم تعد ذات سلطة.
+
     والربط بالطابور يصير ذا معنى لأول مرّة: صفّ DLQ يشير إلى تسليمه.
     """
     school = SchoolFactory()
     delivery = _delivery(school, "email")
+    _spend_the_durable_budget(delivery)
 
     with (
         patch("django.core.mail.send_mail", _Provider(fail=True)),

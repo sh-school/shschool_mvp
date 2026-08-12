@@ -503,3 +503,58 @@ if NOTIFICATION_ENQUEUE_LEASE_SECONDS <= 0:
     from django.core.exceptions import ImproperlyConfigured
 
     raise ImproperlyConfigured("NOTIFICATION_ENQUEUE_LEASE_SECONDS يجب أن تكون موجبة")
+
+
+# ── [B4-4] عتبات المُصالِح ───────────────────────────────────────────
+#
+# ثلاث عتبات لا واحدة، لأن ثلاثة أسئلة مختلفة تُطرح على الصفّ:
+#
+#   PENDING_GRACE     هل التسليم قديمٌ فعلاً؟ يُقاس بـ`status_changed_at`.
+#   REQUEUE_INTERVAL  هل طُبر قريباً؟ يُقاس بـ`last_enqueue_attempt_at`.
+#   RETRY_WAIT_GRACE  هل `retry_wait` يتيمة؟ عتبة محافظة عمداً.
+#
+# الأولى وحدها كانت ستُعيد الطبر بعد كل فشل مباشرةً — التسليم لم ينتقل فيبدو
+# قديماً أبداً. والثانية وحدها كانت ستلتقط صفّاً طُبر قبل ثانية ولم يصل العامل
+# إليه بعد.
+NOTIFICATION_PENDING_GRACE_SECONDS = config(
+    "NOTIFICATION_PENDING_GRACE_SECONDS", default=600, cast=int
+)
+
+NOTIFICATION_REQUEUE_INTERVAL_SECONDS = config(
+    "NOTIFICATION_REQUEUE_INTERVAL_SECONDS", default=900, cast=int
+)
+
+# أطول من الأولى عمداً: `retry_wait` تعني أن العامل قرّر الإعادة وجدولها، فقد
+# تكون المهمة المؤجَّلة ما تزال في الوسيط تنتظر موعدها. عتبةٌ قصيرة هنا تُنتج
+# تنفيذين لنفس التسليم — أحدهما من إعادة Celery والآخر من المُصالِح — ولا يمنع
+# التكرار عند المزوّد إلا سباقُهما على الاستحواذ.
+NOTIFICATION_RETRY_WAIT_GRACE_SECONDS = config(
+    "NOTIFICATION_RETRY_WAIT_GRACE_SECONDS", default=1800, cast=int
+)
+
+# ميزانية المحاولات الدائمة لكل تسليم.
+#
+# `max_retries=3` على مهامّ القنوات يعني أربع محاولات داخل رسالة واحدة، فهذه
+# القيمة تُطابقها — لكن المرجع الآن هو الصفّ لا الرسالة: رسالةٌ جديدة يُنشئها
+# المُصالِح تبدأ من `request.retries = 0` بينما `attempt_count` يُكمل من حيث
+# انتهى.
+NOTIFICATION_MAX_DELIVERY_ATTEMPTS = config(
+    "NOTIFICATION_MAX_DELIVERY_ATTEMPTS", default=4, cast=int
+)
+
+#: سقفُ ما يُعالَج في نداء واحد — المُصالِح مدرسةٌ واحدة لكل استدعاء.
+NOTIFICATION_RECONCILER_BATCH_SIZE = config(
+    "NOTIFICATION_RECONCILER_BATCH_SIZE", default=200, cast=int
+)
+
+for _name in (
+    "NOTIFICATION_PENDING_GRACE_SECONDS",
+    "NOTIFICATION_REQUEUE_INTERVAL_SECONDS",
+    "NOTIFICATION_RETRY_WAIT_GRACE_SECONDS",
+    "NOTIFICATION_RECONCILER_BATCH_SIZE",
+    "NOTIFICATION_MAX_DELIVERY_ATTEMPTS",
+):
+    if locals()[_name] <= 0:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured(f"{_name} يجب أن تكون موجبة")

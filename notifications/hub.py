@@ -26,6 +26,7 @@ from django.conf import settings
 from django.db import transaction
 
 from .channels import deliverable_external_channels
+from .delivery_state import CLAIMABLE
 from .models import (
     InAppNotification,
     NotificationDelivery,
@@ -506,7 +507,7 @@ def _enqueue_intent_now(intent_id, school_id):
     مصدر، والتسليمات مصدرٌ مشتقّ منها، ونسخةٌ ثالثة كانت ستنحرف بلا قارئ
     يحتاجها. وقصرُها على `pending` يجعل مجموعةَ التسليمات القائمة سقفاً لما
     يُرسل: إعادةُ طبر بعد نجاح جزئي لا تُعيد ما نجح، وجهةُ اتصال أُضيفت بعد
-    إنشاء الواقعة لا تفتح قناةً جديدة.
+    إنشاء الواقعة لا تفتح قناةً جديدة، وتسليمٌ يملكه عاملٌ حيٌّ لا يُطابر ثانيةً.
 
     و`context` يُعاد بناؤه من `related_url` وحده لأنه الحقل الوحيد الذي يقرأه
     العامل منه — ولو قرأ غيره لوجب حفظه، لا تخمينه.
@@ -535,12 +536,20 @@ def _enqueue_intent_now(intent_id, school_id):
         logger.info("Enqueue intent %s already claimed — skipping", intent_id)
         return False
 
+    # [B4-4] `CLAIMABLE` لا `pending` وحدها.
+    #
+    # هذه هي بالضبط الحالات التي يقبلها `claim_delivery`، فالمجموعتان يجب أن
+    # تتطابقا: قصرُها على `pending` كان يجعل `retry_wait` اليتيمة — عاملٌ كتبها
+    # ثم مات قبل أن تبلغ إعادتُه الوسيط — غيرَ قابلة للاسترداد أبداً، لأن
+    # المُصالِح يختارها ثم لا يجد لها قناةً يُرسلها.
+    #
+    # و`in_progress` خارجها لأن لها مالكاً حيّاً، والنهائيات خارجها لأنها انتهت.
     channels = sorted(
         NotificationDelivery.objects.filter(
             dispatch_id=intent.dispatch_id,
             recipient_id=intent.recipient_id,
             school_id=school_id,
-            status="pending",
+            status__in=CLAIMABLE,
         ).values_list("channel", flat=True)
     )
 

@@ -24,6 +24,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import F
 from django.utils import timezone
 
 from .models import NotificationDelivery
@@ -31,18 +32,29 @@ from .models import NotificationDelivery
 #: الحالات التي يجوز الاستحواذ منها — بدايةٌ أو انتظارُ إعادة.
 CLAIMABLE = ("pending", "retry_wait")
 
-#: النهايات التي تستطيع هذه المرحلة تمثيلها.
+#: النهايات التي يكتبها **العامل** تحت السياج.
 #:
-#: `unknown_outcome` تنتظر B4-4 لأن العامل الميت لا يقول إنه مات — يكتشفه غيره.
+#: `unknown_outcome` ليست منها عمداً: العامل الميت لا يقول إنه مات — يكتشفه
+#: غيره، فكاتبها `mark_unknown_outcome` وحدها.
 FINALIZABLE = ("sent", "retry_wait", "dead_lettered", "undeliverable")
+
+#: [B4-4] ما لا يُلمس بعد بلوغه — لا استرداد ولا إعادة طبر.
+#:
+#: `unknown_outcome` هنا رغم أنها ليست نجاحاً: النهائية هنا نهائيةُ **أتمتة**
+#: لا نهائيةُ معرفة. وإخراجُها من الأتمتة هو بالضبط ما يجعلها قابلة للعرض على
+#: إنسان يقرّر.
+TERMINAL = ("sent", "dead_lettered", "undeliverable", "unknown_outcome")
 
 
 def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
     """يستحوذ على التسليم لتنفيذ واحد، ويُعيد رمز السياج — أو `None`.
 
     `None` تعني أن الاستحواذ رُفض: التسليم انتهى، أو يملكه تنفيذ آخر، أو ليس
-    لهذه المدرسة. والرفض ليس خطأً بل الجواب المطلوب — عاملان على صفّ واحد
-    أحدهما يخسر.
+    لهذه المدرسة، أو **استنفد ميزانيته**. والرفض ليس خطأً بل الجواب المطلوب —
+    عاملان على صفّ واحد أحدهما يخسر.
+
+    والاستحواذ هو الحدّ الأخير قبل المزوّد: كل ما بعده نداءٌ خارجيّ لا يُسحب،
+    فمنعُ تجاوز الميزانية يقع هنا لا في طبقةٍ أعلى تستطيع رسالةٌ قديمة تخطّيها.
 
     والمدرسة شرطٌ صريح رغم وجود RLS: الاعتماد على أن المُعرِّف وحده لن يقود إلى
     مستأجر آخر يجعل التوقّع ضمنياً في مكان يجب أن يكون فيه مكتوباً.
@@ -68,14 +80,51 @@ def claim_delivery(delivery_id, school_id, *, now=None, lease_seconds=None):
         id=delivery_id,
         school_id=school_id,
         status__in=CLAIMABLE,
+        # [B4-4] الميزانية شرطٌ في الـCAS نفسه لا فحصٌ قبله.
+        #
+        # المُصالِح يمنع إعادة طبر صفٍّ مستنفد، لكنه لا يملك شيئاً تجاه رسالةٍ
+        # قديمة موجودة في الوسيط سلفاً: تصل إلى العامل مباشرةً فتستحوذ وتنفق
+        # محاولةً خامسة عند المزوّد قبل أن يكتشف أحدٌ شيئاً.
+        #
+        # وموضعُه هنا لا في فحصٍ سابق للنداء: بين الفحص والتحديث نافذة يمرّ
+        # منها استحواذٌ آخر، والشرط داخل `WHERE` يُقيَّم مع الزيادة في نفس
+        # العبارة الذرّية.
+        attempt_count__lt=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
     ).update(
         status="in_progress",
         lease_token=token,
         lease_expires_at=now + timedelta(seconds=seconds),
         status_changed_at=now,
+        # [B4-4] الاستحواذ **هو** المحاولة، فالعدّ يقع هنا لا عند النتيجة:
+        # عاملٌ مات بعد نداء المزوّد وقبل كتابة أي شيء يكون قد استهلك محاولةً
+        # فعلاً — ولو عددنا عند النهاية لما ظهرت تلك المحاولة أبداً.
+        #
+        # و`F` لا قراءة-ثمّ-كتابة: عاملان لا يستحوذان معاً، لكن العدّاد يشترك
+        # مع المُصالِح ومع كلّ من يقرأ الصفّ، والزيادة في القاعدة لا تفقد شيئاً.
+        attempt_count=F("attempt_count") + 1,
     )
 
     return token if claimed == 1 else None
+
+
+def attempts_used(delivery_id, school_id):
+    """[B4-4] الميزانية المستهلكة — من القاعدة لا من كائنٍ قديم في الذاكرة.
+
+    الكائن الذي حلّته المهمّة قبل الاستحواذ يحمل عدّاداً سابقاً للزيادة، فقراءته
+    منه تُنقص واحداً دائماً — وهي بالضبط الواحدة التي تفصل الاستنفاد عن دورةٍ
+    إضافية.
+    """
+    return (
+        NotificationDelivery.objects.filter(id=delivery_id, school_id=school_id)
+        .values_list("attempt_count", flat=True)
+        .first()
+        or 0
+    )
+
+
+def budget_exhausted(delivery_id, school_id):
+    """هل استُنفدت ميزانية هذا التسليم الدائمة؟"""
+    return attempts_used(delivery_id, school_id) >= settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS
 
 
 def finalize_delivery(delivery_id, school_id, token, status, *, now=None):
@@ -104,6 +153,63 @@ def finalize_delivery(delivery_id, school_id, token, status, *, now=None):
     )
 
     return finalized == 1
+
+
+def mark_unknown_outcome(delivery_id, school_id, *, now=None):
+    """[B4-4] يُغلق تسليماً انقضى استئجاره وهو `in_progress` — بلا استرداد.
+
+    هذا هو الانتقال الوحيد الذي يكتبه المُصالِح على تسليم، وأخطر ما في السلسلة.
+
+    الشرط `lease_expires_at <= now` ليس تفصيلاً: عاملٌ استئجاره حيٌّ قد يكون في
+    منتصف نداء المزوّد، وسحبُ الصفّ من تحته يجعل نهايته المُسيَّجة ترتدّ فتضيع
+    نتيجةٌ كانت معروفة. والانقضاء وحده هو ما يسمح بهذا الإعلان.
+
+    ولا رمز يُشترط: المُصالِح ليس مالك الاستئجار بل من يُعلن أن مالكه لم يعد
+    موجوداً — فاشتراطُ رمزٍ لا يملكه أحدٌ حيّ يجعل الانتقال غير قابل للكتابة.
+    """
+    now = now or timezone.now()
+
+    marked = NotificationDelivery.objects.filter(
+        id=delivery_id,
+        school_id=school_id,
+        status="in_progress",
+        lease_expires_at__lte=now,
+    ).update(
+        status="unknown_outcome",
+        lease_token=None,
+        lease_expires_at=None,
+        status_changed_at=now,
+    )
+
+    return marked == 1
+
+
+def mark_budget_exhausted(delivery_id, school_id, *, now=None):
+    """[B4-4] يُميت تسليماً استنفد ميزانيته الدائمة ولا عاملَ حيٌّ يُغلقه.
+
+    الطريق الطبيعي أن يقرّر العامل الاستنفاد في `_tracked_failure` تحت سياجه.
+    لكن عاملاً مات بعد كتابة `retry_wait` وقبل نشر إعادته يترك صفّاً استنفد
+    ميزانيته ولا يعرف أحدٌ ذلك — فهذا هو الموضع الذي يجعل الميزانية دائمةً
+    بحقّ: حدٌّ يُطبَّق حتى حين لا يوجد من يُطبّقه.
+
+    والشرط يُعاد فحصه لحظة الكتابة: صفٌّ استحوذ عليه عاملٌ بين قرار المُصالِح
+    وكتابته يخرج من `CLAIMABLE`، وله مالكٌ يعرف نتيجته أكثر منّا.
+    """
+    now = now or timezone.now()
+
+    killed = NotificationDelivery.objects.filter(
+        id=delivery_id,
+        school_id=school_id,
+        status__in=CLAIMABLE,
+        attempt_count__gte=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    ).update(
+        status="dead_lettered",
+        lease_token=None,
+        lease_expires_at=None,
+        status_changed_at=now,
+    )
+
+    return killed == 1
 
 
 def mark_undeliverable(delivery_id, school_id, *, now=None):
