@@ -648,3 +648,67 @@ def test_scrub_is_scoped_to_the_recipient_not_the_dispatch(
 
     assert NotificationEnqueueIntent.objects.get(recipient=done_user).title is None
     assert NotificationEnqueueIntent.objects.get(recipient=open_user).title == "عنوان مشترك"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_stale_broker_message_cannot_overspend_the_budget(tracked_dispatch):
+    """رسالةٌ قديمة في الوسيط تصل إلى العامل مباشرةً — والاستحواذ يرفضها.
+
+    المُصالِح يمنع **إعادة الطبر**، ولا يملك شيئاً تجاه رسالةٍ نُشرت سلفاً
+    وتنتظر عاملاً. فلو لم يكن الحدّ داخل شرط الـCAS، لاستحوذت تلك الرسالة على
+    صفٍّ عند حدّه وأنفقت محاولةً زائدة **عند المزوّد** قبل أن يكتشف أحدٌ شيئاً.
+    """
+    from notifications.delivery_state import attempts_used, claim_delivery
+
+    school, _, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        status="retry_wait",
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    )
+
+    assert claim_delivery(delivery.id, school.id) is None
+
+    delivery.refresh_from_db()
+    assert delivery.status == "retry_wait"  # لم يُنقل إلى `in_progress`
+    assert attempts_used(delivery.id, school.id) == settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_last_attempt_within_budget_is_still_claimable(tracked_dispatch):
+    """الحدّ سقفٌ لا يُتجاوَز، لا خصمٌ من المسموح: المحاولة الأخيرة تُنفَّذ."""
+    from notifications.delivery_state import attempts_used, claim_delivery
+
+    school, _, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS - 1
+    )
+
+    assert claim_delivery(delivery.id, school.id) is not None
+    assert attempts_used(delivery.id, school.id) == settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_provider_is_never_called_for_an_exhausted_delivery(tracked_dispatch):
+    """البرهان من طرف المهمّة لا من طرف البدائيّة: لا نداء مزوّد إطلاقاً."""
+    from notifications.tasks import send_email_task
+
+    school, user, _, delivery = tracked_dispatch
+
+    NotificationDelivery.objects.filter(id=delivery.id).update(
+        status="retry_wait",
+        attempt_count=settings.NOTIFICATION_MAX_DELIVERY_ATTEMPTS,
+    )
+
+    with patch("django.core.mail.send_mail") as provider:
+        result = send_email_task(
+            school_id=str(school.id),
+            recipient_email=user.email,
+            subject="عنوان",
+            body_text="نصّ",
+            delivery_id=str(delivery.id),
+        )
+
+    provider.assert_not_called()
+    assert result["status"] == "not_claimed"
