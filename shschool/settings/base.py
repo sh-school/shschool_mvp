@@ -558,3 +558,101 @@ for _name in (
         from django.core.exceptions import ImproperlyConfigured
 
         raise ImproperlyConfigured(f"{_name} يجب أن تكون موجبة")
+
+
+# ── [B4-5] ميزانية زمن Push — حدٌّ بنيويّ لا رقمٌ مُختار ─────────────
+#
+# `webpush()` يمرّر `timeout` إلى `requests`، وبلا تمريره لا مهلة إطلاقاً:
+# اتصالٌ واحد يبتلع الحزم يُعلّق المهمّة بلا حدّ. وحينها ينقضي استئجار التسليم
+# والعامل حيٌّ يعمل، فيكتب المُصالِح `unknown_outcome` على تسليمٍ لم يُحسم بعد —
+# ثم يعود العامل فيجد سياجه ساقطاً فلا يكتب شيئاً. فنخسر نتيجةً كانت **معروفة**
+# ونُسجّل جهلاً لم يكن قائماً، وهي نهايةٌ لا تُسترَدّ بالأتمتة.
+#
+# ورفعُ مدّة الاستئجار لا يُصلح ذلك بل يؤجّله: العلّة أن الحدّ الأعلى للتنفيذ
+# **غير معرَّف** بينما الاستئجار يفترض أنه معرَّف.
+PUSH_PROVIDER_TIMEOUT_SECONDS = config("PUSH_PROVIDER_TIMEOUT_SECONDS", default=10, cast=float)
+
+#: سقفٌ **مفروض** لا مقيس. القياس اليوم صفر ولا يحمي الغد: لو صار لمستخدم
+#: عشرون اشتراكاً فعّالاً انكسرت متباينة الميزانية صامتةً. والسقف يجعل أسوأ حالة
+#: قابلة للحساب سلفاً — وهو ما يجعل هذا العقد عقداً لا تقديراً.
+PUSH_MAX_ACTIVE_SUBSCRIPTIONS = config("PUSH_MAX_ACTIVE_SUBSCRIPTIONS", default=4, cast=int)
+
+#: ما لا يُغطّيه `timeout` المزوّد: DNS وTLS والتشفير وثلاث كتابات قاعدة لكل
+#: اشتراك والانتقال بينها. مهلةُ `requests` مهلةُ انتظارٍ على الاتصال والقراءة
+#: لا سقفٌ إجماليّ لزمن العملية، فحسابُ الميزانية بها وحدها يُنتج رقماً أصغر من
+#: الواقع. القيمة تُقاس محلياً ثم تُختار فوق القياس بهامش.
+PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS = config(
+    "PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS", default=5, cast=float
+)
+
+#: كلفةٌ ثابتة لا تتكرّر مع الاشتراكات: حلّ التسليم، والاستحواذ، وبناء الحمولة.
+PUSH_TASK_MARGIN_SECONDS = config("PUSH_TASK_MARGIN_SECONDS", default=15, cast=float)
+
+#: المهلة اللينة — تُرفع كاستثناء **داخل** المسار المالك للاستئجار، فيكتب العامل
+#: نهايته بنفسه بدل أن يتركها للمُصالِح.
+PUSH_SOFT_TIME_LIMIT_SECONDS = config("PUSH_SOFT_TIME_LIMIT_SECONDS", default=120, cast=int)
+
+#: الفارق الواجب بين المهلة اللينة وانقضاء الاستئجار: زمنُ رفع الاستثناء وكتابة
+#: النهاية المُسيَّجة. بدونه قد تقع المهلة وينقضي الاستئجار في اللحظة نفسها.
+PUSH_LEASE_SAFETY_MARGIN_SECONDS = config(
+    "PUSH_LEASE_SAFETY_MARGIN_SECONDS", default=60, cast=float
+)
+
+#: أسوأ حالةٍ محسوبة — لا مقيسة. تُشتقّ من السقف والمهل، فتبقى صادقة مهما تغيّر
+#: سلوك الشبكة.
+PUSH_WORST_CASE_BUDGET_SECONDS = (
+    PUSH_MAX_ACTIVE_SUBSCRIPTIONS
+    * (PUSH_PROVIDER_TIMEOUT_SECONDS + PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS)
+    + PUSH_TASK_MARGIN_SECONDS
+)
+
+
+def _validate_push_budget():
+    """يرفض الإقلاع إن اختلّت سلسلة الحدود.
+
+    الترتيب الواجب:
+
+        أسوأ حالة  <  المهلة اللينة  <  ( الاستئجار − هامش الأمان )
+
+    وكسرُها لا ينكشف في الاختبارات بل في الإنتاج على هيئة `unknown_outcome`
+    متفرّقة لا يعرف أحد سببها — فيُفحص هنا حيث يُقرأ الإعداد، لا حيث يُستعمل.
+    """
+    from django.core.exceptions import ImproperlyConfigured
+
+    # كلُّ حدٍّ يدخل الحساب يجب أن يكون موجباً — وحدّان منها كانا خارج الفحص:
+    # `overhead` و`margin` يدخلان **جمعاً** في أسوأ حالة، فقيمةٌ سالبة فيهما
+    # تُقلّصها فتمرّ المتباينة كذباً. وذلك أسوأ من غياب الفحص: حارسٌ يشهد بأن
+    # الميزانية سليمة وهي ليست كذلك.
+    positives = {
+        "PUSH_PROVIDER_TIMEOUT_SECONDS": PUSH_PROVIDER_TIMEOUT_SECONDS,
+        "PUSH_MAX_ACTIVE_SUBSCRIPTIONS": PUSH_MAX_ACTIVE_SUBSCRIPTIONS,
+        "PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS": PUSH_PER_SUBSCRIPTION_OVERHEAD_SECONDS,
+        "PUSH_TASK_MARGIN_SECONDS": PUSH_TASK_MARGIN_SECONDS,
+        "PUSH_SOFT_TIME_LIMIT_SECONDS": PUSH_SOFT_TIME_LIMIT_SECONDS,
+        "PUSH_LEASE_SAFETY_MARGIN_SECONDS": PUSH_LEASE_SAFETY_MARGIN_SECONDS,
+    }
+
+    for name, value in positives.items():
+        if value <= 0:
+            raise ImproperlyConfigured(f"{name} يجب أن تكون موجبة — {value}")
+
+    if PUSH_WORST_CASE_BUDGET_SECONDS >= PUSH_SOFT_TIME_LIMIT_SECONDS:
+        raise ImproperlyConfigured(
+            "ميزانية أسوأ حالة لـPush "
+            f"({PUSH_WORST_CASE_BUDGET_SECONDS:.0f}s) تبلغ المهلة اللينة "
+            f"({PUSH_SOFT_TIME_LIMIT_SECONDS}s) أو تتجاوزها — "
+            "فقد تُقطع المهمّة قبل أن تُكمل عملاً مشروعاً"
+        )
+
+    ceiling = NOTIFICATION_DELIVERY_LEASE_SECONDS - PUSH_LEASE_SAFETY_MARGIN_SECONDS
+
+    if PUSH_SOFT_TIME_LIMIT_SECONDS >= ceiling:
+        raise ImproperlyConfigured(
+            f"المهلة اللينة ({PUSH_SOFT_TIME_LIMIT_SECONDS}s) لا تترك هامشاً قبل "
+            f"انقضاء الاستئجار ({NOTIFICATION_DELIVERY_LEASE_SECONDS}s − "
+            f"{PUSH_LEASE_SAFETY_MARGIN_SECONDS:.0f}s = {ceiling:.0f}s) — "
+            "فقد ينقضي الاستئجار قبل أن يكتب العامل نهايته"
+        )
+
+
+_validate_push_budget()
