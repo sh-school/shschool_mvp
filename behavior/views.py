@@ -116,9 +116,27 @@ def _notify_behavior_after_commit(infraction, school, reporter):
             reporter_id=str(reporter.id),
             school_id=str(school.id),
         )
-    except (ImportError, OSError, RuntimeError) as exc:
-        logger.warning("Celery غير متاح — إشعار مباشر: %s", exc)
-        BehaviorService.notify_parents(infraction, school, reporter)
+    except (ImportError, OSError, RuntimeError):
+        # [B4-7A.3] لا ارتداد متزامن — الفشل يُرصد ولا يُعوَّض هنا.
+        #
+        # كان هذا الموضع يستدعي `BehaviorService.notify_parents` مباشرةً، وهي
+        # تعود إلى `NotificationHub`، والـHub بدوره يرتدّ إلى `_send_sync` —
+        # فينتهي الأمر بنداءات مزوّد داخل طلب HTTP، بلا مهلة ولا إعادة ولا
+        # استئجار ولا شيء ممّا بنيناه في B4-5/B4-6.
+        #
+        # وأخطر من البطء: فشلُ النشر **غامض**. قد يكون الوسيط قبِل الرسالة ثم
+        # انقطع الاتصال قبل الإقرار — فيعمل العامل والويب معاً، ويصل الإشعار
+        # مرّتين، ويُكتب صفّا `InAppNotification` لحدثٍ واحد. ولا سياج يمنع ذلك
+        # في هذا المسار القديم: لا `NotificationDispatch` ولا استحواذ.
+        #
+        # فنختار خسارة محاولة إشعار نادرة عند عطل الوسيط على تكرارٍ يكسر
+        # الدلالة. و`logger.error` — لا `warning` — لأن `LoggingIntegration`
+        # يرفع `ERROR` فأعلى إلى Sentry، فيصير العطل مرئياً لا مدفوناً.
+        logger.error(
+            "broker publish failed — إشعار المخالفة %s لم يُطابر ولن يُرسل",
+            infraction.pk,
+            exc_info=True,
+        )
 
 
 # ── لوحة التحكم ──────────────────────────────────────────────
@@ -271,12 +289,18 @@ def report_infraction(request):
                             violation_description=violation_description,
                         )
 
+                        # [B4-7A.3] `robust=True` شرطٌ لا زينة: استثناءٌ في
+                        # callback عاديّ يُرفع من `run_and_clear_commit_hooks`
+                        # **بعد** الالتزام — فتُحفظ المخالفة ويرى المستخدم 500،
+                        # فيُعيد التسجيل ويُنشئ ثانية. وكان الارتدادُ المحذوف
+                        # هو ما يبتلع ذلك بالمصادفة.
                         transaction.on_commit(
                             lambda infraction=infraction,
                             school=school,
                             reporter=request.user: _notify_behavior_after_commit(
                                 infraction, school, reporter
-                            )
+                            ),
+                            robust=True,
                         )
                 except ValueError as e:
                     messages.error(request, str(e))
@@ -386,7 +410,8 @@ def quick_log(request):
             transaction.on_commit(
                 lambda infraction=infraction,
                 school=school,
-                reporter=request.user: _notify_behavior_after_commit(infraction, school, reporter)
+                reporter=request.user: _notify_behavior_after_commit(infraction, school, reporter),
+                robust=True,
             )
 
         redirect_url = f"/behavior/student/{student.id}/"

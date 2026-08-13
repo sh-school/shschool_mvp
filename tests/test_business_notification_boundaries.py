@@ -123,14 +123,24 @@ def test_a_failed_infraction_notifies_nobody(behavior_queued):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_broker_failure_after_commit_still_reaches_the_parent():
+def test_a_broker_failure_after_commit_is_contained_not_compensated(caplog):
     """
-    [B4-PRE3] لم نُصلح التراجع على حساب الإتاحة القديمة.
+    [B4-7A.3] انقلابٌ مقصود في عقد B4-PRE3.
 
-    الارتداد المباشر انتقل خلف الالتزام كاملاً — المحاولة و`except` معاً — فلو
-    بقي الـ`except` خارج الـcallback لما أمسك خطأ وسيطٍ يقع بعده، ولسقط
-    الارتداد بصمت.
+    كان الارتداد المباشر يُعدّ حفاظاً على الإتاحة. وقد صحّ ذلك ما دام الوسيط
+    غائباً أصلاً (`ALWAYS_EAGER`) فلا يقع الارتداد قطّ. أمّا مع وسيطٍ حقيقي
+    فيصير مساراً حيّاً، وفيه خاصيّتان لا تُقبلان:
+
+    **الأولى** أنه يُنفّذ نداءات مزوّد داخل طلب HTTP — عبر `notify_parents` ثم
+    الـHub ثم `_send_sync` — بلا مهلة ولا إعادة ولا استئجار.
+
+    **والثانية** أن فشل النشر **غامض**: قد يكون الوسيط قبِل الرسالة ثم انقطع
+    الاتصال قبل الإقرار. فيعمل العامل والويب معاً ويصل الإشعار مرّتين.
+
+    فنختار خسارة محاولة نادرة عند العطل على تكرارٍ يكسر الدلالة.
     """
+    import logging
+
     school = SchoolFactory()
     student = UserFactory()
     reporter = UserFactory()
@@ -141,11 +151,15 @@ def test_a_broker_failure_after_commit_still_reaches_the_parent():
             side_effect=RuntimeError("broker down"),
         ),
         patch("behavior.services.BehaviorService.notify_parents") as direct,
+        caplog.at_level(logging.ERROR, logger="behavior.views"),
     ):
         infraction = _record_infraction(school, student, reporter)
 
-    assert BehaviorInfraction.objects.filter(id=infraction.id).exists()
-    assert direct.called, "سقط الارتداد المباشر بعد فشل الوسيط"
+    assert BehaviorInfraction.objects.filter(id=infraction.id).exists(), "تراجعت الطفرة"
+    assert not direct.called, "أرسل مباشرةً من الويب رغم الاحتواء"
+    assert any(
+        "broker publish failed" in record.message for record in caplog.records
+    ), "فشل النشر لم يُرصد — و`ERROR` هي ما يرفعه Sentry"
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -466,12 +480,16 @@ def test_the_infraction_views_defer_their_own_enqueue(view_name):
     assert _defers_to("behavior/views.py", view_name, "_notify_behavior_after_commit")
 
 
-def test_the_deferred_helper_carries_its_own_fallback():
+def test_the_deferred_helper_contains_its_own_failure():
     """
-    المؤجَّل هو المحاولة وارتدادها معاً.
+    المؤجَّل هو المحاولة **واحتواء فشلها** معاً.
 
-    `except` خارج الـcallback لا يُمسك خطأ وسيطٍ يقع بعد الالتزام، فيسقط
-    الارتداد المباشر بصمت — إصلاحُ التراجع على حساب الإتاحة القائمة.
+    كان هذا الحارس يفرض بقاء الارتداد المباشر — لأن `except` خارج الـcallback
+    لا يُمسك خطأ وسيطٍ يقع بعد الالتزام. والشقّ الأول ما زال صحيحاً: الـ`except`
+    يجب أن يبقى داخل الـcallback.
+
+    [B4-7A.3] لكن ما يفعله الـ`except` انقلب: كان يُعوّض بإرسالٍ متزامن، فصار
+    يرصد ويصمت. والاسم تبع الوظيفة.
     """
     import inspect
 
@@ -481,7 +499,15 @@ def test_the_deferred_helper_carries_its_own_fallback():
 
     assert "notify_behavior_task.delay(" in source
     assert "except" in source
-    assert "notify_parents(" in source
+
+    # [B4-7A.3] وانقلب الشرط الثالث: كان يفرض بقاء الارتداد، فصار يمنع عودته.
+    #
+    # المنعُ نحويٌّ عمداً: مُعيدٌ حسن النيّة قد يُرجعه ظنّاً أنه يُصلح إتاحةً
+    # ضائعة، فيُعيد معه احتمال التكرار ونداءَ المزوّد داخل الطلب.
+    assert (
+        "notify_parents(" not in source
+    ), "عاد الارتداد المتزامن — وهو ما يُنتج إشعاراً مكرّراً عند فشل نشرٍ غامض"
+    assert "logger.error(" in source, "الاحتواء بلا رصد يدفن العطل"
 
 
 def test_the_boundary_scanner_can_tell_the_difference():
@@ -492,3 +518,82 @@ def test_the_boundary_scanner_can_tell_the_difference():
     معنى.
     """
     assert not _encloses_in_atomic("behavior/views.py", "behavior_dashboard")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  [B4-7A.3] الاحتواء — بعد الالتزام لا ينقلب شيء
+# ═══════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_post_commit_failure_does_not_turn_the_response_into_a_500():
+    """`robust=True` شرطٌ للاحتواء لا زينة.
+
+    من مصدر Django (`base.py:752`): callback غير `robust` يُنفَّذ بلا حماية،
+    فاستثناؤه يُرفع من `run_and_clear_commit_hooks` — **بعد** الالتزام. النتيجة
+    صفوفٌ محفوظة واستجابةٌ 500، فيُعيد المستخدم التسجيل ويُنشئ مخالفةً ثانية.
+
+    وكان الارتدادُ المحذوف هو ما يبتلع ذلك بالمصادفة، فنزعُه بلا `robust`
+    يُنتج عطباً أسوأ ممّا يُعالج.
+    """
+    from django.db import transaction as db_transaction
+
+    class _CallbackError(RuntimeError):
+        """يُحاكي انفجاراً داخل الـcallback بعد الالتزام."""
+
+    exploded = []
+
+    def _explode():
+        exploded.append(True)
+        raise _CallbackError("post-commit boom")
+
+    with db_transaction.atomic():
+        db_transaction.on_commit(_explode, robust=True)
+
+    assert exploded, "لم يُنفَّذ الـcallback أصلاً"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_without_robust_the_same_failure_would_escape():
+    """ضبطٌ سالب: يُثبت أن `robust=True` هو ما يمنع الخروج، لا شيء آخر."""
+    from django.db import transaction as db_transaction
+
+    class _CallbackError(RuntimeError):
+        pass
+
+    def _explode():
+        raise _CallbackError("post-commit boom")
+
+    with pytest.raises(_CallbackError):
+        with db_transaction.atomic():
+            db_transaction.on_commit(_explode)  # بلا robust
+
+
+def test_both_behavior_registrations_are_robust():
+    """كلا موضعي التسجيل — لا أحدهما.
+
+    موضعٌ واحد بلا `robust` يكفي لإعادة العطب من الباب الآخر، والاثنان يسجّلان
+    نفس الـcallback من مسارَي طلبٍ مختلفين.
+    """
+    import ast
+    import inspect
+    import pathlib
+
+    from behavior import views as behavior_views
+
+    source = pathlib.Path(inspect.getsourcefile(behavior_views)).read_text(encoding="utf-8")
+
+    registrations = [
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "on_commit"
+    ]
+
+    assert len(registrations) == 2, f"تغيّر عدد مواضع التسجيل: {len(registrations)}"
+
+    for call in registrations:
+        robust = next((k for k in call.keywords if k.arg == "robust"), None)
+        assert robust is not None, f"تسجيلٌ بلا robust عند السطر {call.lineno}"
+        assert robust.value.value is True, f"robust ليست True عند السطر {call.lineno}"
