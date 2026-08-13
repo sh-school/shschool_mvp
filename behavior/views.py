@@ -109,6 +109,12 @@ def _notify_behavior_after_commit(infraction, school, reporter):
     الارتداد المباشر بصمت — إصلاحُ التراجع على حساب الإتاحة القديمة.
     """
     try:
+        # [B4-7A.3] `OperationalError` هو ما يرفعه Kombu فعلاً عند سقوط الوسيط،
+        # ونسبُه `KombuError → Exception` — خارج الثلاثة الأخرى تماماً. فبدونه
+        # كان الاستثناء يخرج من هنا، فتضيع رسالتنا ويصير الرصد سطراً عامّاً من
+        # Django لا يذكر مخالفةً ولا إشعاراً. أُثبت ذلك سلوكياً قبل الإضافة.
+        from kombu.exceptions import OperationalError
+
         from notifications.tasks import notify_behavior_task
 
         notify_behavior_task.delay(
@@ -116,7 +122,7 @@ def _notify_behavior_after_commit(infraction, school, reporter):
             reporter_id=str(reporter.id),
             school_id=str(school.id),
         )
-    except (ImportError, OSError, RuntimeError):
+    except (ImportError, OSError, RuntimeError, OperationalError):
         # [B4-7A.3] لا ارتداد متزامن — الفشل يُرصد ولا يُعوَّض هنا.
         #
         # كان هذا الموضع يستدعي `BehaviorService.notify_parents` مباشرةً، وهي

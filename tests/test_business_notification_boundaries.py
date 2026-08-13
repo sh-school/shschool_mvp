@@ -597,3 +597,75 @@ def test_both_behavior_registrations_are_robust():
         robust = next((k for k in call.keywords if k.arg == "robust"), None)
         assert robust is not None, f"تسجيلٌ بلا robust عند السطر {call.lineno}"
         assert robust.value.value is True, f"robust ليست True عند السطر {call.lineno}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_type_kombu_actually_raises_is_caught(caplog):
+    """[B4-7A.3] `OperationalError` — ما يرفعه الوسيط فعلاً حين يسقط.
+
+    نسبُه `KombuError → Exception`، فهو خارج `(ImportError, OSError,
+    RuntimeError)` تماماً. وقبل إضافته كان يخرج من الـcallback: لا رسالتنا
+    تُكتب، ولا الاحتواء الذي بنيناه يقع — بل تلتقطه طبقة `robust` فتُسجّل نصّاً
+    عامّاً من Django لا يذكر مخالفةً ولا إشعاراً.
+
+    والفحص سلوكيّ لا نَسَبيّ: مقارنةُ الأنساب تُثبت أنه ليس منها، وهذا يُثبت
+    أن الـ`except` يلتقطه فعلاً.
+    """
+    import logging
+
+    from kombu.exceptions import OperationalError
+
+    school = SchoolFactory()
+    student = UserFactory()
+    reporter = UserFactory()
+
+    with (
+        patch(
+            "notifications.tasks.notify_behavior_task.delay",
+            side_effect=OperationalError("broker unreachable"),
+        ),
+        patch("behavior.services.BehaviorService.notify_parents") as direct,
+        caplog.at_level(logging.ERROR, logger="behavior.views"),
+    ):
+        infraction = _record_infraction(school, student, reporter)
+
+    assert BehaviorInfraction.objects.filter(id=infraction.id).exists()
+    assert not direct.called, "أرسل مباشرةً من الويب"
+    assert any(
+        "broker publish failed" in record.message for record in caplog.records
+    ), "خرج OperationalError من الـcallback — رسالتنا لم تُكتب"
+
+
+def test_the_caught_types_cover_what_the_broker_raises():
+    """حارس: أنواع الالتقاط تُقارَن بما ترفعه المكتبة، لا بما نظنّه.
+
+    ترقيةُ Kombu قد تُغيّر النسب — فيسقط هذا الحارس قبل أن يسقط الرصد في
+    الإنتاج صامتاً.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    from kombu.exceptions import OperationalError
+
+    from behavior.views import _notify_behavior_after_commit
+
+    # البحث النصّي في مصدر الدالّة لا يكفي: الاستيراد الداخلي يذكر الاسم، فيمرّ
+    # الحارس ولو نُزع النوع من بند `except` نفسه — جرّبتُه فمرّ.
+    tree = ast.parse(textwrap.dedent(inspect.getsource(_notify_behavior_after_commit)))
+
+    caught = set()
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ExceptHandler) and node.type is not None:
+            types = node.type.elts if isinstance(node.type, ast.Tuple) else [node.type]
+            caught |= {t.id for t in types if isinstance(t, ast.Name)}
+
+    assert (
+        "OperationalError" in caught
+    ), f"النوع الذي يرفعه الوسيط ليس في بند except — الملتقَط: {sorted(caught)}"
+
+    # ولو صار من نسل الثلاثة يوماً، لم يعد ذكره لازماً — لكنه لا يضرّ.
+    assert not issubclass(
+        OperationalError, (ImportError, OSError, RuntimeError)
+    ), "تغيّر نسب OperationalError — أعد تقييم قائمة الالتقاط"

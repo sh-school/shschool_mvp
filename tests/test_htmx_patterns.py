@@ -312,3 +312,89 @@ class TestHtmxHeadersIntegration:
         content = response.content.decode()
         # Full page response يحتوي على DOCTYPE أو html tag
         assert "<!DOCTYPE" in content or "<html" in content or "SchoolOS" in content
+
+
+# ══════════════════════════════════════════════════════════
+#  5. [B4-7A.3] عقد الاستجابة عند فشل النشر بعد الالتزام
+# ══════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db(transaction=True)
+class TestBehaviorCommitContract:
+    """آخر عقدٍ مرئيّ للمستخدم في هذه الدفعة.
+
+    الصفوف تُلتزم، ثم يفشل نشر الإشعار **بعد** الالتزام — ومع ذلك يجب أن تبقى
+    الاستجابة نجاحاً. واختبار `on_commit` المباشر لا يُثبت ذلك: يُثبت دلالة
+    Django لا سلسلة الطلب/الاستجابة كاملةً بوسائطها ومعالج الاستثناءات فيها.
+
+    فالدخول من مسار طلبٍ حقيقي — `quick_log` — هو ما يجعل الادّعاء ادّعاءً عن
+    المستخدم لا عن دالّة.
+    """
+
+    @pytest.fixture
+    def recorder(self, db, school):
+        role = RoleFactory(school=school, name="social_worker")
+        user = UserFactory(full_name="أخصائي اجتماعي")
+        MembershipFactory(user=user, school=school, role=role)
+        return user
+
+    @pytest.fixture
+    def student(self, db, school):
+        role = RoleFactory(school=school, name="student")
+        user = UserFactory(full_name="طالب اختبار")
+        MembershipFactory(user=user, school=school, role=role)
+        return user
+
+    def _post(self, client, student):
+        return client.post(
+            "/behavior/quick-log/",
+            data={
+                "student_id": str(student.id),
+                "level": "2",
+                "description": "وصف مخالفة اختبارية كافٍ الطول",
+                "action_taken": "تنبيه",
+            },
+            **HTMX_HEADERS,
+        )
+
+    def test_a_broker_failure_after_commit_keeps_the_response_successful(
+        self, client_as, recorder, student
+    ):
+        """`OperationalError` بعد الالتزام ⇒ لا 500، والمخالفة محفوظة."""
+        from unittest.mock import patch
+
+        from kombu.exceptions import OperationalError
+
+        from behavior.models import BehaviorInfraction
+
+        client = client_as(recorder)
+
+        with (
+            patch(
+                "notifications.tasks.notify_behavior_task.delay",
+                side_effect=OperationalError("broker unreachable"),
+            ),
+            patch("behavior.services.BehaviorService.notify_parents") as direct,
+        ):
+            response = self._post(client, student)
+
+        assert response.status_code < 500, f"انقلبت الاستجابة إلى {response.status_code}"
+        assert BehaviorInfraction.objects.filter(student=student).exists(), "لم تُلتزم المخالفة"
+        assert not direct.called, "أرسل مباشرةً من الويب"
+
+    def test_the_same_request_succeeds_when_the_broker_is_healthy(
+        self, client_as, recorder, student
+    ):
+        """ضبطٌ موجب: الاختبار أعلاه يُثبت شيئاً فقط إن كان المسار يعمل أصلاً."""
+        from unittest.mock import patch
+
+        from behavior.models import BehaviorInfraction
+
+        client = client_as(recorder)
+
+        with patch("notifications.tasks.notify_behavior_task.delay") as queued:
+            response = self._post(client, student)
+
+        assert response.status_code < 500
+        assert BehaviorInfraction.objects.filter(student=student).exists()
+        assert queued.called, "لم يُطابر شيء — المسار لا يصل إلى النشر أصلاً"
