@@ -24,6 +24,7 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
+from kombu.exceptions import OperationalError
 
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
@@ -36,6 +37,18 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+#: [B4-7G] ما يمكن أن يخرج فعلاً من نشر مهمّة بعد الالتزام.
+#:
+#: الثلاثة الأولى كانت وحدها، و`OperationalError` **هو ما يرفعه Kombu حقيقةً**
+#: عند سقوط الوسيط — ونسبُه `KombuError → Exception`، خارجها تماماً. فبقي بند
+#: `except` يحرس أنواعاً لا تقع، ويمرّ من تحته النوع الوحيد الذي يقع.
+#:
+#: وأوسع من الوسيط: `send_task` تلفّ كل ما يجري داخلها بهذا النوع، فعطبٌ في
+#: خلفية النتائج يصل بالصورة نفسها — وهو ما وقع في canary الإنتاج فعلاً. أي أن
+#: النوع الواحد يغطّي الطبقتين، فلا داعي لتوسيعٍ إلى `Exception`.
+_PUBLISH_FAILURES = (ImportError, OSError, RuntimeError, OperationalError)
 
 
 # ── مصفوفة القنوات الافتراضية حسب الحدث والأولوية ────────────
@@ -496,8 +509,14 @@ def _enqueue_intent_after_commit(intent_id, school_id):
     في إغلاق، وهذا يحمل مفتاحاً إلى صفٍّ ملتزم. الإغلاق يموت مع العملية، فإن
     سقط الطبر لم يبقَ في الدنيا نصُّ الرسالة — يجد المُصالِح تسليماً `pending`
     ولا يعرف ماذا يُعيد إرساله. والصفّ يبقى بعد أي سقوط.
+
+    و[B4-7G] `robust=True` شرطٌ لا زينة. `run_and_clear_commit_hooks` تُعيد رفع
+    استثناء الـcallback العاديّ **بعد** الالتزام، ومواضع النداء نقاط HTTP داخل
+    `transaction.atomic` — فيرى المستخدم 500 عن عمليةٍ قبلتها القاعدة، فيُعيدها
+    ظنّاً أنها فشلت. أُثبت ذلك في الإنتاج: canary سقط طبره فخرج الاستثناء وأنهى
+    العملية، بينما الواقعة والتسليم والنيّة كلّها ملتزمة وسليمة.
     """
-    transaction.on_commit(lambda: _enqueue_intent_now(intent_id, school_id))
+    transaction.on_commit(lambda: _enqueue_intent_now(intent_id, school_id), robust=True)
 
 
 def _enqueue_intent_now(intent_id, school_id):
@@ -568,6 +587,25 @@ def _enqueue_intent_now(intent_id, school_id):
             intent.dispatch.sent_by,
             str(intent.dispatch_id),
         )
+    except _PUBLISH_FAILURES:
+        # [B4-7G] احتواءٌ ورصد — بلا تعويض وبلا إعادة رفع.
+        #
+        # خطّة التعافي مكتوبة في القاعدة لا في هذا النداء: النيّة دائمة بمحتواها،
+        # والتسليم يبقى `pending`، والمُصالِح يلتقطهما. فرفعُ الاستثناء هنا لا
+        # يُنقذ شيئاً ويُفسد استجابةً عن معاملةٍ التزمت.
+        #
+        # و`finish_enqueue_attempt` في `finally` تبقى كما هي: تحرير السياج
+        # وتسجيل المحاولة يجب أن يقعا سواء نجح الطبر أم سقط — وإلّا بقيت النيّة
+        # محجوزة حتى انقضاء مهلتها، أو أعاد المُصالِح الطبر فوراً في حلقة ساخنة.
+        logger.error(
+            "enqueue failed — intent %s (dispatch %s, school %s) لم يُطابر؛ "
+            "التسليم يبقى pending للمُصالِح",
+            intent.id,
+            intent.dispatch_id,
+            school_id,
+            exc_info=True,
+        )
+        return False
     finally:
         finish_enqueue_attempt(intent.id, school_id, token)
 
@@ -590,14 +628,21 @@ def _queue_external_after_commit(
     خارج أي معاملة يُنفّذ Django الـcallback فوراً، فالمسارات غير المعامليّة
     تسلك كما كانت بلا تغيير.
 
-    و`robust` تُترك على قيمتها الافتراضية عمداً: جعلُها `True` يبتلع الاستثناءات
-    ويُصعّب التشخيص، وسياسة "الطبر best-effort" تنتظر مصدرَ حقيقة في القاعدة
-    ومُصالِحاً يلتقط ما سقط — وكلاهما لم يوجد بعد.
+    و[B4-7G] `robust=True` — وكان تعليقٌ هنا يُبرّر تركها افتراضية بأنها "تبتلع
+    الاستثناءات وتُصعّب التشخيص". هذا صحيحٌ لو كانت وحدها؛ لكن الاحتواء الحقيقيّ
+    يقع في `_queue_external_now` مع رصدٍ يذكر الواقعة والمستلم، و`robust` هنا
+    شبكةُ أمانٍ أخيرة لا سياسة. وبدونها يخرج ما لم يُلتقط **بعد** التزام
+    المعاملة، فتصير الاستجابة 500 عن عمليةٍ نجحت — وهذا وقع في الإنتاج.
+
+    ولا ينتظر هذا المسارُ مصدرَ حقيقةٍ ومُصالِحاً كما قال التعليق القديم: الفرع
+    القديم بلا واقعة ولا تسليم، فتعافيه ارتدادُه المتزامن — وشرطُ عمله أن يبلغه
+    الاستثناء أصلاً.
     """
     transaction.on_commit(
         lambda: _queue_external_now(
             user, school, channels, title, body, event_type, context, sent_by, dispatch_id
-        )
+        ),
+        robust=True,
     )
 
 
@@ -634,7 +679,14 @@ def _queue_external_now(
             dispatch_id=dispatch_id,
         )
         return True
-    except (ImportError, OSError, RuntimeError) as e:
+    except _PUBLISH_FAILURES as e:
+        # [B4-7G] `OperationalError` أُضيفت هنا — وهي أهمّ ما في الإصلاح.
+        #
+        # الارتداد أدناه مكتوبٌ لحالة "Celery غير متاح" بعينها، وكان لا يمكن أن
+        # يعمل أبداً: النوع الذي يُعلن عدم التوفّر لم يكن في البند الذي يحرسه.
+        # فبقي حارساً على أنواعٍ لا تقع، وخرج من تحته النوع الوحيد الذي يقع.
+        #
+        # وصار المسار القديم يبلغ ارتداده فعلاً بدل أن يسقط الإشعار بلا أثر.
         if dispatch_id:
             logger.exception(
                 "Tracked dispatch %s: enqueue failed — deliveries stay pending", dispatch_id
