@@ -12,22 +12,51 @@ core/sentry_config.py
 
 import re
 
+
 # ══════════════════════════════════════════════════════════════
 # 1. قائمة الأخطاء المتجاهلة — ضوضاء لا تحتاج تتبع
 # ══════════════════════════════════════════════════════════════
-SENTRY_IGNORE_ERRORS = [
-    # Django security — هجمات bots وscanners
-    "django.security.DisallowedHost",
-    "django.security.SuspiciousOperation",
-    # اتصالات مقطوعة — المستخدم أغلق المتصفح
-    "ConnectionResetError",
-    "BrokenPipeError",
-    # أخطاء HTTP عادية — ليست bugs
-    "django.http.Http404",
-    # مهلة الاتصال — مشاكل شبكة مؤقتة
-    "ConnectionError",
-    "TimeoutError",
-]
+#: [B4-7N] الأخطاء المُتجاهَلة — **بهويّة الصنف لا بمطابقة نصّية**.
+#:
+#: القائمة السابقة كانت نصوصاً تُطابَق بالاحتواء (`if ignored in exc_name`)،
+#: وأخطأت في الاتجاهين معاً:
+#:
+#:     تحت-مطابقة   "django.security.DisallowedHost" لا يقع في
+#:                  "django.core.exceptions.DisallowedHost" — والاسم الحقيقي
+#:                  هو الثاني. فثلاثة بنودٍ من سبعة لم تُسقط شيئاً قطّ.
+#:     فوق-مطابقة   "ConnectionError" يقع في "redis.exceptions.ConnectionError"،
+#:                  فكان عطبُ الوسيط يُبتلَع صامتاً — وهو أوّل ما نحتاج رؤيته
+#:                  على العامل.
+#:
+#: و`ConnectionError`/`TimeoutError` العامّان أُسقطا من القائمة عمداً: قد يكونان
+#: Redis أو SMTP أو قاعدةً أو مزوّداً، وكلّها أحداثٌ تشغيلية نريدها لا ضوضاء.
+#: والباقي انقطاعُ عميلٍ حقيقيّ — أغلق المتصفّح — ولا يُفيد تتبّعه.
+def ignored_exception_types():
+    """أصناف الاستثناءات التي لا تُرسَل إلى Sentry.
+
+    دالّةٌ لا ثابت — وليس لأن الاستيراد على مستوى الوحدة يسقط: جُرِّب فعمل قبل
+    `django.setup()` وبعده. بل لأن هذه الوحدة تُستورَد من `production.py`
+    **أثناء تحميل الإعدادات نفسها**، فإبقاء استيراد Django داخل الدالّة يمنع
+    ارتباط ترتيبٍ لا نحتاجه، ويُبقي القائمة موضعاً واحداً يُقرأ ويُختبَر.
+    """
+    from django.core.exceptions import DisallowedHost, SuspiciousOperation
+    from django.http import Http404
+
+    return (
+        # هجمات bots وscanners — لا تخصّ الكود
+        DisallowedHost,
+        SuspiciousOperation,
+        # طلبٌ لمسارٍ غير موجود — ليس عطباً
+        Http404,
+        # انقطاع العميل: أغلق المتصفّح قبل اكتمال الردّ.
+        #
+        # ويبقى فيهما احتمالٌ مقبول: مقبسٌ إلى Redis أو مزوّدٍ قد يُنتج النوع
+        # نفسه فيُسقَط. وهما فرعان من `OSError` ونادران خارج سياق الطلب، ولم
+        # نرَ لهما أثراً في الإنتاج — فالمقايضة معلومة لا مجهولة.
+        ConnectionResetError,
+        BrokenPipeError,
+    )
+
 
 # مسارات URL لا تُسجّل أخطاؤها (health probes, static, media)
 _IGNORED_URL_PATTERNS = re.compile(
@@ -58,14 +87,19 @@ def before_send(event, hint):
     ✅ يُرجع event = يُرسل بعد التنظيف
     """
     # ── 1. تصفية أنواع الأخطاء المتجاهلة ──
-    if "exc_info" in hint:
-        exc_type = hint["exc_info"][0]
-        exc_module = getattr(exc_type, "__module__", "")
-        exc_name = f"{exc_module}.{exc_type.__name__}" if exc_module else exc_type.__name__
+    #
+    # [B4-7N] `issubclass` لا مطابقة نصّية: الهويّة تُقرَّر من شجرة الأصناف،
+    # فلا تُسقط ما لم يُقصد ولا تُبقي ما قُصد إسقاطه.
+    # والاستخراج دفاعيّ: `hint["exc_info"]` قد يأتي `None` أو ثلاثيّاً فارغاً،
+    # وقراءته مباشرةً ترفع داخل `before_send` نفسه — فتُسقط المكتبةُ الحدث بلا
+    # أن يعرف أحد. أي أن هشاشةً هنا تُنتج **فقداناً صامتاً** لا خطأً مرئياً.
+    exc_info = hint.get("exc_info") or ()
+    exc_type = exc_info[0] if exc_info else None
 
-        for ignored in SENTRY_IGNORE_ERRORS:
-            if ignored in exc_name:
-                return None
+    # `isinstance(exc_type, type)` شرطٌ لازم: `issubclass` ترفع `TypeError` على
+    # ما ليس صنفاً، وSentry يُمرّر أحياناً ما ليس استثناءً.
+    if isinstance(exc_type, type) and issubclass(exc_type, ignored_exception_types()):
+        return None
 
     # ── 2. تصفية أخطاء مسارات monitoring ──
     request_data = event.get("request", {})
@@ -139,8 +173,10 @@ def configure_sentry_scope(scope, request):
     try:
         school = user.get_school() if hasattr(user, "get_school") else None
         if school:
+            # [B4-7N] المُعرِّف وحده. اسم المدرسة بيانُ مستأجِر لا بيانُ شخص،
+            # لكنه يذهب إلى وجهةٍ لا نتحكّم في حفظها ولا مدّة بقائها — ولا
+            # يُضيف إلى التشخيص ما لا يُعطيه المُعرِّف.
             scope.set_tag("school.id", str(school.id))
-            scope.set_tag("school.name", school.name_en or school.name or "unknown")
     except Exception:
         pass
 
@@ -157,6 +193,28 @@ def _scrub_event_pii(event):
     # ── Message ──
     if "message" in event:
         event["message"] = _scrub_text(event["message"])
+
+    # ── [B4-7N] LogEntry — المسار الذي نعتمده فعلاً ──
+    #
+    # `LoggingIntegration(event_level="ERROR")` لا تضع رسالة السجلّ في
+    # `event["message"]` بل في `event["logentry"]` بحقولٍ ثلاثة. فكان المنقّي
+    # مبنيّاً للمفتاح الذي لا يُستعمل، وغائباً عن الذي يُستعمل — أي أن كل
+    # `logger.error` نُنتجه عمداً كان يصل Sentry بلا تنقية.
+    logentry = event.get("logentry")
+
+    if isinstance(logentry, dict):
+        for field in ("message", "formatted"):
+            if field in logentry:
+                logentry[field] = _scrub_text(logentry[field])
+
+        # الوسائط تُنقّى كلٌّ على حدة: القالب `%s` وحده لا يحمل شيئاً، والقيمة
+        # هي التي تحمل البريد أو الهاتف.
+        params = logentry.get("params")
+
+        if isinstance(params, list | tuple):
+            logentry["params"] = type(params)(_scrub_value(item) for item in params)
+        elif isinstance(params, dict):
+            logentry["params"] = _scrub_dict(params)
 
     # ── Exception values ──
     for exc in event.get("exception", {}).get("values", []):
@@ -181,6 +239,17 @@ def _scrub_event_pii(event):
     return event
 
 
+def _scrub_value(value):
+    """[B4-7N] يُنقّي قيمةً مهما كان نوعها — النصّ وحده يُنقّى، وغيره يمرّ."""
+    if isinstance(value, str):
+        return _scrub_text(value)
+    if isinstance(value, dict):
+        return _scrub_dict(value)
+    if isinstance(value, list | tuple):
+        return type(value)(_scrub_value(item) for item in value)
+    return value
+
+
 def _scrub_text(text):
     """يُخفي PII في نص واحد."""
     if not isinstance(text, str):
@@ -190,33 +259,68 @@ def _scrub_text(text):
     return text
 
 
+#: مفاتيح تُحجب بالاحتواء — أسرارٌ لا تُقرأ جزئياً، وصيغُها كثيرة:
+#: `api_key`, `access_token`, `HTTP_AUTHORIZATION`… فالاحتواء هنا هو الصواب.
+_SENSITIVE_KEY_FRAGMENTS = frozenset(
+    {
+        "password",
+        "secret",
+        "token",
+        "api_key",
+        "authorization",
+        "national_id",
+        "qid",
+        "phone",
+        "email",
+        "ssn",
+        "credit_card",
+        "card_number",
+    }
+)
+
+#: [B4-7N] مفاتيح تُحجب بالمطابقة **التامّة** — بياناتٌ بشرية دلالية.
+#:
+#: والفرق عن المجموعة أعلاه مقصود: `name` كمقطعٍ كان سيحجب `task_name` و
+#: `event_name` و`filename` و`school_name`، فنخسر رصداً نافعاً بلا أن نكسب
+#: خصوصية. والمطابقة التامّة تحجب ما نقصده وحده.
+#:
+#: وهذه المجموعة هي الجواب عن حدٍّ بنيويّ في الأنماط: البريد والهاتف والهوية
+#: لها أشكال تُلتقط، أمّا الاسم وعنوان الإشعار ونصّه فلا شكل لها — خصوصاً
+#: بالعربية — فلا يحرسها إلا اسم المفتاح.
+_SEMANTIC_PII_KEYS = frozenset(
+    {
+        "full_name",
+        "student_name",
+        "parent_name",
+        "recipient_name",
+        "display_name",
+        "title",
+        "subject",
+        "body",
+        "body_text",
+        "body_html",
+        "message_text",
+        "notification_title",
+        "notification_body",
+    }
+)
+
+
 def _scrub_dict(data):
     """يُخفي PII في dictionary (recursive)."""
     if not isinstance(data, dict):
         return data
+
     result = {}
+
     for key, value in data.items():
-        # حقول حساسة بالاسم — تُخفى بالكامل
-        sensitive_keys = {
-            "password",
-            "secret",
-            "token",
-            "api_key",
-            "authorization",
-            "national_id",
-            "qid",
-            "phone",
-            "email",
-            "ssn",
-            "credit_card",
-            "card_number",
-        }
-        if any(sk in key.lower() for sk in sensitive_keys):
+        lowered = key.lower()
+
+        if lowered in _SEMANTIC_PII_KEYS or any(
+            fragment in lowered for fragment in _SENSITIVE_KEY_FRAGMENTS
+        ):
             result[key] = "[REDACTED]"
-        elif isinstance(value, str):
-            result[key] = _scrub_text(value)
-        elif isinstance(value, dict):
-            result[key] = _scrub_dict(value)
         else:
-            result[key] = value
+            result[key] = _scrub_value(value)
+
     return result
