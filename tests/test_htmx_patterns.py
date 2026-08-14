@@ -398,3 +398,70 @@ class TestBehaviorCommitContract:
         assert response.status_code < 500
         assert BehaviorInfraction.objects.filter(student=student).exists()
         assert queued.called, "لم يُطابر شيء — المسار لا يصل إلى النشر أصلاً"
+
+
+@pytest.mark.django_db(transaction=True)
+class TestHubLegacyCommitContract:
+    """[B4-7G] المسار الحيّ اليوم — `NotificationHub` والراية مطفأة.
+
+    `summon_parent` نقطة POST تلفّ نداء الـHub بـ`transaction.atomic`، فيقع الطبر
+    بعد الالتزام. وهذا هو الطريق الذي تمرّ منه كل إشعارات المنصّة في الإنتاج ما
+    دامت راية الخطّ المتتبَّع مطفأة.
+    """
+
+    @pytest.fixture
+    def summoner(self, db, school):
+        role = RoleFactory(school=school, name="psychologist")
+        user = UserFactory(full_name="أخصائي نفسي")
+        MembershipFactory(user=user, school=school, role=role)
+        return user
+
+    def _post(self, client, student):
+        return client.post(
+            "/behavior/summon/",
+            data={
+                "student_id": str(student.id),
+                "reason": "سبب استدعاء اختباريّ",
+                "category": "behavior",
+                "urgency": "normal",
+            },
+        )
+
+    def test_a_broker_failure_after_commit_keeps_the_response_successful(
+        self, client_as, summoner, student_user, parent_user
+    ):
+        """`OperationalError` بعد الالتزام ⇒ لا 500، وإشعار المنصّة محفوظ."""
+        from unittest.mock import patch
+
+        from kombu.exceptions import OperationalError
+
+        from notifications.models import InAppNotification
+
+        client = client_as(summoner)
+
+        with (
+            patch(
+                "notifications.tasks.hub_send_notification_task.delay",
+                side_effect=OperationalError("broker unreachable"),
+            ),
+            patch("notifications.hub._send_sync") as fallback,
+        ):
+            response = self._post(client, student_user)
+
+        assert response.status_code < 500, f"انقلبت الاستجابة إلى {response.status_code}"
+        assert InAppNotification.objects.filter(user=parent_user).exists(), "لم يُلتزم الإشعار"
+        assert fallback.call_count == 1, "الارتداد المقصود لهذه الحالة لم يُنادَ"
+
+    def test_the_same_request_succeeds_when_the_broker_is_healthy(
+        self, client_as, summoner, student_user, parent_user
+    ):
+        """ضبطٌ موجب: بدونه قد يمرّ الاختبار أعلاه لأن المسار لا ينشر أصلاً."""
+        from unittest.mock import patch
+
+        client = client_as(summoner)
+
+        with patch("notifications.tasks.hub_send_notification_task.delay") as queued:
+            response = self._post(client, student_user)
+
+        assert response.status_code < 500
+        assert queued.called, "لم يُطابر شيء — المسار لا يبلغ النشر"

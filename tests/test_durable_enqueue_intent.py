@@ -390,3 +390,106 @@ def test_enqueue_intent_now_takes_identifiers_only():
     """توقيعُ الطبر نفسه يمنع تمرير كائنات حيّة أو نصّ الرسالة."""
     params = list(inspect.signature(hub._enqueue_intent_now).parameters)
     assert params == ["intent_id", "school_id"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  [B4-7G] الاحتواء بعد الالتزام — العائلة كلّها لا موضعٌ واحد
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_both_hub_registrations_are_robust():
+    """حارسٌ ساكن: كلا تسجيلَي `on_commit` في الـHub يحملان `robust=True`.
+
+    الشجرة لا النصّ: البحث عن "robust" في المصدر يمرّ على تعليقٍ يذكرها، وقد
+    مرّ عليّ ذلك فعلاً في حارسٍ سابق.
+    """
+    import ast
+    import pathlib
+
+    tree = ast.parse(pathlib.Path(hub.__file__).read_text(encoding="utf-8"))
+    registrations = []
+
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        func = node.func
+
+        if isinstance(func, ast.Attribute) and func.attr == "on_commit":
+            robust = [kw for kw in node.keywords if kw.arg == "robust"]
+            value = robust[0].value.value if robust else False
+            registrations.append((node.lineno, value))
+
+    assert len(registrations) == 2, f"عدد تسجيلات on_commit تغيّر: {registrations}"
+
+    unguarded = [lineno for lineno, robust in registrations if robust is not True]
+
+    assert unguarded == [], f"تسجيلٌ بلا robust=True عند الأسطر {unguarded}"
+
+
+def test_the_caught_publish_failures_include_what_kombu_raises():
+    """`OperationalError` نسبُها `KombuError → Exception` — لا يغطّيها غيرها."""
+    from kombu.exceptions import OperationalError
+
+    assert OperationalError in hub._PUBLISH_FAILURES
+    assert not issubclass(OperationalError, (OSError, RuntimeError, ImportError))
+
+
+@TRACKED
+@pytest.mark.django_db(transaction=True)
+def test_tracked_broker_failure_is_contained_after_commit(
+    recipient, django_capture_on_commit_callbacks, caplog
+):
+    """المسار المتتبَّع: `OperationalError` بعد الالتزام لا تخرج، والتعافي محفوظ."""
+    from kombu.exceptions import OperationalError
+
+    school, user = recipient
+
+    with patch(
+        "notifications.tasks.hub_send_notification_task.delay",
+        side_effect=OperationalError("broker down"),
+    ):
+        with caplog.at_level("ERROR"):
+            # لو خرج الاستثناء لانفجر هذا السياق — فالنجاح هو ألّا يقع شيء.
+            with django_capture_on_commit_callbacks(execute=True):
+                with transaction.atomic():
+                    _dispatch(school, user)
+
+    intent = NotificationEnqueueIntent.objects.get()
+
+    assert intent.title == "عنوان دائم"  # التعافي ما زال ممكناً
+    assert intent.body == "نصّ دائم"
+    assert intent.enqueue_token is None  # السياج حُرّر رغم الفشل
+    assert intent.last_enqueue_attempt_at is not None
+    assert set(NotificationDelivery.objects.values_list("status", flat=True)) == {"pending"}
+
+    assert "enqueue failed" in caplog.text
+    assert str(intent.dispatch_id) in caplog.text
+
+
+@pytest.mark.django_db(transaction=True)
+def test_legacy_broker_failure_reaches_its_own_fallback(
+    recipient, django_capture_on_commit_callbacks
+):
+    """المسار القديم: الارتداد المتزامن مكتوبٌ لهذه الحالة — ويجب أن يبلغه.
+
+    والراية مطفأة هنا عمداً: هذا هو المسار الحيّ في الإنتاج اليوم.
+    """
+    from kombu.exceptions import OperationalError
+
+    school, user = recipient
+
+    with patch(
+        "notifications.tasks.hub_send_notification_task.delay",
+        side_effect=OperationalError("broker down"),
+    ) as publish:
+        with patch("notifications.hub._send_sync") as fallback:
+            with django_capture_on_commit_callbacks(execute=True):
+                with transaction.atomic():
+                    _dispatch(school, user)
+
+    assert publish.call_count == 1, "محاولة نشرٍ مكرّرة"
+    assert fallback.call_count == 1, "الارتداد لم يُنادَ مرّة واحدة بالضبط"
+
+    # ولا واقعة ولا تسليم في هذا المسار — التعافي هو الارتداد نفسه.
+    assert NotificationEnqueueIntent.objects.count() == 0
