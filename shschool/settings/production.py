@@ -221,6 +221,22 @@ LOGGING = {
         "django.request": {"handlers": ["file", "console"], "level": "WARNING", "propagate": False},
         "notifications": {"handlers": ["file"], "level": "INFO", "propagate": False},
         "notifications.hub": {"handlers": ["file"], "level": "INFO", "propagate": False},
+        # [B4-7P] المُصالِح وحده على stdout — لا `notifications` كلّها.
+        #
+        # مُعالِج `file` يكتب في حاويةٍ زائلة لا تُقرأ بأي أداة عندنا، فسجلٌّ
+        # يذهب إليه سجلٌّ لا يوجد عملياً. وstdout هو ما يلتقطه Railway.
+        #
+        # والنطاق ضيّق عمداً: فتحُ `notifications` كلّها كان يُظهر سجلّات مهامّ
+        # التسليم، وهي — رغم B4-7O — تحمل تتبّعات استثناءات المزوّدين. أمّا
+        # المُصالِح فلا يُسجّل إلا مُعرِّفاً وأعداداً.
+        #
+        # و`propagate: False` يمنع الازدواج: بدونه يصعد السجلّ إلى `notifications`
+        # فيُكتب في الملفّ أيضاً — نسخةٌ ثانية لا يقرؤها أحد.
+        "notifications.reconciler": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "core": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
         # ✅ v5.1: Channels & WebSocket logging
