@@ -195,7 +195,15 @@ class NotificationHub:
                     if external_channels:
                         _register(user, external_channels, None)
                 except (OSError, RuntimeError, ValueError, KeyError) as e:
-                    logger.error(f"NotificationHub error for {user}: {e}", exc_info=True)
+                    # [B4-7O] `{user}` يستدعي `__str__` فيُسرّب الاسم الكامل.
+                    # والمُعرِّف يكفي للتتبّع، ونوعُ الاستثناء يكفي للتصنيف —
+                    # وتفصيلُه يبقى في التتبّع لا في نصّ الرسالة.
+                    logger.error(
+                        "hub dispatch failed recipient_id=%s error=%s",
+                        user.pk,
+                        type(e).__name__,
+                        exc_info=True,
+                    )
 
         else:
             # ── المسار المتتبَّع — مرحلتان داخل حدٍّ واحد ──────────────
@@ -217,7 +225,13 @@ class NotificationHub:
                         if external_channels:
                             intents.append((user, external_channels))
                     except (OSError, RuntimeError, ValueError, KeyError) as e:
-                        logger.error(f"NotificationHub error for {user}: {e}", exc_info=True)
+                        # [B4-7O] كما أعلاه — مُعرِّفٌ ونوع، لا اسمٌ ولا نصّ خطأ.
+                        logger.error(
+                            "hub dispatch failed recipient_id=%s error=%s",
+                            user.pk,
+                            type(e).__name__,
+                            exc_info=True,
+                        )
 
                 dispatch = _create_dispatch(
                     school=school,
@@ -348,7 +362,9 @@ def _prepare_recipient(user, prepared, results):
     # التحقق من ساعات الهدوء
     if prefs and prefs.is_quiet_hours():
         # في ساعات الهدوء: in_app فقط (أُرسل أعلاه)
-        logger.info(f"Quiet hours for {user.full_name} — skipping external channels")
+        # [B4-7O] مُعرِّفٌ لا اسم — السجلّ يقول «مَن» بما يكفي للتتبّع، ولا يحمل
+        # هويّةً دلالية إلى وجهةٍ لا نتحكّم في حفظها.
+        logger.info("quiet hours — external channels skipped recipient_id=%s", user.pk)
         return None
 
     for channel in external_channels:
@@ -694,7 +710,9 @@ def _queue_external_now(
             return False
 
         # Fallback: إرسال مباشر لو Celery غير متاح — المسار القديم وحده
-        logger.warning(f"Celery unavailable, sending sync: {e}")
+        # [B4-7O] نوعُ الاستثناء لا نصّه — نصوص أخطاء الوسيط والمزوّد قد تحمل
+        # عناوين اتصال.
+        logger.warning("broker unavailable — sending sync error=%s", type(e).__name__)
         _send_sync(user, school, channels, title, body, event_type, context, sent_by)
         return False
 
@@ -729,7 +747,14 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
                 sent_by=sent_by,
             )
         except (OSError, RuntimeError, ValueError) as e:
-            logger.error(f"Sync email failed: {e}")
+            # [B4-7O] نصّ خطأ SMTP يحمل عنوان المستلم عادةً — نوعُه وحده يكفي هنا،
+            # والتفصيل في التتبّع.
+            logger.error(
+                "sync email failed recipient_id=%s error=%s",
+                user.pk,
+                type(e).__name__,
+                exc_info=True,
+            )
 
     if "sms" in channels and user.phone:
         try:

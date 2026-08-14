@@ -291,7 +291,13 @@ def send_email_task(
         )
 
         if not ok:
-            logger.warning(f"Email failed to {recipient_email}: {err}")
+            # [B4-7O] لا عنوان بريدٍ في السجلّ — التسليم يُعرَّف بمُعرِّفه، ونصّ الخطأ
+            # يُستبدَل بنوعه لأن ردّ SMTP يحمل العنوان عادةً.
+            logger.warning(
+                "email attempt failed delivery_id=%s error=%s",
+                getattr(delivery, "id", None),
+                type(err).__name__ if isinstance(err, BaseException) else "provider_error",
+            )
             raise RuntimeError(err)  # نوع مُلتقَط ⇒ يدخل مسار retry ثم DLQ
 
         if delivery is not None and not finalize_delivery(delivery.id, school_id, token, "sent"):
@@ -527,7 +533,13 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
 
         results = NotificationService.notify_absence(alert, sent_by=sent_by)
         sent = sum(1 for r in results if r["ok"])
-        logger.info(f"Absence notification for {alert.student}: {sent}/{len(results)} sent")
+        # [B4-7O] `{alert.student}` يستدعي `__str__` فيُسرّب اسم الطالب.
+        logger.info(
+            "absence notification student_id=%s sent=%d/%d",
+            alert.student_id,
+            sent,
+            len(results),
+        )
 
         # ✅ v5: إرسال Push للوالدين المشتركين
         try:
@@ -548,7 +560,13 @@ def notify_absence_task(self, absence_alert_id, sent_by_id=None, school_id=None)
                     body="تم تسجيل غياب اليوم. اضغط للتفاصيل.",
                 )
         except (ImportError, OSError, RuntimeError) as pe:
-            logger.warning(f"Push notification failed: {pe}")
+            # [B4-7O] نصّ استثناء Push يحمل عنوان الاشتراك (endpoint) — وهو مُعرِّف
+            # جهازٍ قرّرنا في B4-PRE1 ألّا نُخزّنه. فالنوع وحده.
+            logger.warning(
+                "push fan-out failed student_id=%s error=%s",
+                alert.student_id,
+                type(pe).__name__,
+            )
 
         return {"sent": sent, "total": len(results)}
 
@@ -620,9 +638,11 @@ def send_pending_absence_alerts_task():
             total_sent += sent
             total_failed += failed
 
+            # [B4-7O] مُعرِّف المدرسة لا اسمها — بيانات مستأجِر في وجهةٍ
+            # لا نتحكّم في حفظها.
             logger.info(
-                "School %s: %d sent, %d failed",
-                school.name,
+                "school_id=%s sent=%d failed=%d",
+                school.id,
                 sent,
                 failed,
             )
@@ -781,7 +801,7 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
                 fail_silently=True,
             )
         except (OSError, RuntimeError, ValueError) as e:
-            logger.error(f"breach alert email failed: {e}")
+            logger.error("breach alert email failed error=%s", type(e).__name__, exc_info=True)
 
 
 # ── Push Notification — VAPID (v5) ───────────────────────────────────
@@ -981,7 +1001,9 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             if delivery is not None:
                 raise RuntimeError("مزوّد Push غير متاح على هذا العامل.") from exc
 
-            logger.info(f"Push queued (pywebpush not installed): {title} → user {user_id}")
+            # [B4-7O] العنوان محتوى إشعار — وعناوين أحداث السلوك تحمل اسم الطالب
+            # بالبناء. المُعرِّف وحده يكفي لمعرفة أيّ إشعارٍ لم يخرج.
+            logger.info("push skipped (pywebpush missing) recipient_id=%s", user_id)
             return {"status": "queued_no_pywebpush", "user": str(user_id)}
 
     except (ImportError, OSError, RuntimeError, ValueError, SoftTimeLimitExceeded) as exc:
@@ -1183,23 +1205,29 @@ def hub_send_notification_task(
                 user_id,
             )
 
+        # [B4-7O] هذا المسار الساخن — سطرٌ لكل إشعارٍ يخرج. كان يحمل الاسم
+        # الكامل لكل وليّ أمر، وهو أوسع تسريبٍ في الوحدة كلّها.
         logger.info(
-            f"hub_send: {user.full_name} | "
-            f"success={[r[0] for r in results if r[1]]} | "
-            f"failed={[r[0] for r in results if not r[1]]}"
+            "hub_send recipient_id=%s success=%s failed=%s",
+            user_id,
+            [r[0] for r in results if r[1]],
+            [r[0] for r in results if not r[1]],
         )
         return {"user": str(user_id), "results": [(r[0], r[1]) for r in results]}
 
     except (CustomUser.DoesNotExist, School.DoesNotExist) as e:
-        logger.error(f"hub_send: object not found: {e}")
+        logger.error("hub_send: object not found error=%s", type(e).__name__)
         return {"error": str(e)}
 
     except (OSError, RuntimeError, ValueError, KeyError) as exc:
         # Exponential backoff: 60s, 120s, 240s
         countdown = 60 * (2**self.request.retries)
         logger.warning(
-            f"hub_send retry {self.request.retries + 1}/3 "
-            f"for {user_id}: {exc} (next in {countdown}s)"
+            "hub_send retry %d/3 recipient_id=%s error=%s next_in=%ds",
+            self.request.retries + 1,
+            user_id,
+            type(exc).__name__,
+            countdown,
         )
         raise self.retry(exc=exc, countdown=countdown)
 
