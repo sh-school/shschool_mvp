@@ -67,8 +67,49 @@ def reconcile_school(school_id, *, now=None, limit=None):
         "scrubbed": scrub_completed_intents(school_id, now=now, limit=limit),
     }
 
-    logger.info("Reconciler school=%s %s", school_id, summary)
+    saturated = _warn_on_saturation(school_id, summary, limit)
+
+    # [B4-7P] حقولٌ مسمّاة لا قاموسٌ مطبوع: السطر يُقرأ ويُبحَث فيه، ولا يحمل
+    # إلا مُعرِّفاً وأعداداً — لا اسم ولا عنوان ولا نصّ.
+    logger.info(
+        "reconcile school_id=%s unknown_outcome=%d exhausted=%d requeued=%d "
+        "scrubbed=%d batch=%d saturated=%s",
+        school_id,
+        summary["unknown_outcome"],
+        summary["exhausted"],
+        summary["requeued"],
+        summary["scrubbed"],
+        limit,
+        ",".join(saturated) or "none",
+    )
+
     return summary
+
+
+def _warn_on_saturation(school_id, summary, limit):
+    """[B4-7P] تحذيرٌ لكل مرحلةٍ بلغت حدّ الدفعة — ويُعيد أسماءها.
+
+    بلوغُ الحدّ لا يعني فشلاً، بل أن العمل **تجاوز ما تسع له مسحةٌ واحدة**: ما
+    زاد لا يُفقد بل يتأخّر إلى المسحة التالية. لكنه إن تكرّر فالتراكم يسبق
+    المعالجة، وهي الحالة التي لا تظهر في أي عدّاد آخر — كل مسحةٍ تبدو ناجحة
+    وهي تُخلّف وراءها أكثر ممّا تُنجز.
+
+    وتحذيرٌ لكل مرحلة لا واحدٌ عامّ: «المُصالِح مشبع» لا يقول أين، والمراحل
+    الأربع لها أسبابٌ مختلفة تماماً — تشبّع `requeued` يعني وسيطاً يسقط، وتشبّع
+    `scrubbed` يعني تراكم محتوىً لم يُمسح. وعلاجهما مختلف.
+    """
+    saturated = [stage for stage, count in summary.items() if count >= limit]
+
+    for stage in saturated:
+        logger.warning(
+            "reconcile saturated school_id=%s stage=%s count=%d batch=%d",
+            school_id,
+            stage,
+            summary[stage],
+            limit,
+        )
+
+    return saturated
 
 
 # ═══════════════════════════════════════════════════════════════════
