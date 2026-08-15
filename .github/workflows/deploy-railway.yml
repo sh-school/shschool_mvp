@@ -4,10 +4,19 @@ on:
   push:
     branches: [main]
 
-# Prevent concurrent deploys
+# التحقّق البَعدي يُثبت **آخر حالة لـmain**، لا حالةً عبَرت.
+#
+# Railway ينشر خارج Actions. فحين يصل `B` بينما canary(A) ما زال يدور:
+#
+#     canary(A) يرى  served=B  want=A
+#     └─> ينتظر A الذي لن يعود ── ثم يُعلن فشل نشرٍ لم يقع
+#
+# و`cancel-in-progress: false` كان يضمن بقاء التشغيل الجاري إلى نهايته — أي
+# أنه كان يضمن وقوع هذا البلاغ الكاذب لا يمنعه. والإلغاء هو الصواب هنا: نتيجة
+# `A` لم تعد مطلوبة أصلاً حين صار `B` رأسَ `main`.
 concurrency:
-  group: railway-deploy
-  cancel-in-progress: false
+  group: railway-post-deploy-main
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -209,46 +218,47 @@ jobs:
             coverage.xml
 
   # ══════════════════════════════════════════════════════
-  #  3. Deploy to Railway via webhook
+  #  3. Post-deploy canary — يُثبت أن الـcommit صار حيّاً
   # ══════════════════════════════════════════════════════
-  deploy:
-    name: Deploy to Railway
+  #
+  # لا `needs` على `preflight` ولا على `test`، وهذا مقصود.
+  #
+  # Railway ينشر من تكامل GitHub لحظةَ وصول الـcommit إلى `main` — قبل هذه
+  # الوظيفة بثوانٍ، ومستقلاً عنها تماماً. فحين كانت مربوطة بـ`[preflight, test]`
+  # كان سقوط `pytest` — أو تجاوزُه مهلته — **يمنع التحقّق من النشر لا النشرَ
+  # نفسه**. أي أن الإنتاج يتغيّر ولا أحد يتحقّق: الضمانة الوحيدة التي تكشف
+  # نشراً ميتاً تُلغى في الحالة التي يُرجَّح فيها أن يكون النشر معطوباً.
+  #
+  # ولم تعد ثمّة وظيفة «تنشر» هنا. أُزيل `RAILWAY_DEPLOY_WEBHOOK` لأنه مصدر
+  # نشرٍ ثانٍ مخبّأ داخل سير عملٍ اسمه تحقّقٌ بَعدي — ومصدران للنشر يعنيان
+  # سباقاً وبناءين لنفس الـcommit.
+  #
+  # وأُزيل `sleep 90` كذلك: الحلقة تُميّز النسخة القديمة من الجديدة بمقارنة
+  # `served` بـ`want`، فالانتظار الأعمى قبلها يُنفق تسعين ثانية من ميزانية
+  # الوظيفة على شيءٍ تفعله المقارنة مجّاناً.
+  #
+  # الميزانية: ١٨ محاولة × (١٥ث curl + ٢٥ث فاصل) ≈ ١١ د ٣٥ ث، و`timeout-minutes`
+  # خمس عشرة. وكانت عشراً بينما مسارها الداخلي يقارب ثلاث عشرة — فتقتلها GitHub
+  # في المنتصف وتُسجّلها `cancelled`، وهي حالةٌ لا يقرأها أحد فشلاً.
+  post-deploy-canary:
+    name: Post-Deploy Canary
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: [preflight, test]
+    timeout-minutes: 15
     environment: production
 
     steps:
-      - name: Trigger Railway deploy
-        run: |
-          echo "Triggering Railway deploy for commit ${{ github.sha }}..."
-          # Railway auto-deploys from GitHub. Webhook is optional extra trigger.
-          if [ -n "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}" ]; then
-            HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
-              -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
-            echo "Railway webhook response: HTTP $HTTP_CODE"
-            cat /tmp/railway_response.txt || true
-            if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-              echo "::warning::Railway webhook returned HTTP $HTTP_CODE (auto-deploy still active)"
-            fi
-          else
-            echo "::notice::No RAILWAY_DEPLOY_WEBHOOK secret set. Railway auto-deploys from GitHub push."
-            echo "Railway will auto-deploy this commit via GitHub integration."
-          fi
-          echo "Deploy triggered successfully"
-
-      - name: Wait for Railway build + deploy
-        run: |
-          echo "Waiting 90s for Railway to build and deploy..."
-          sleep 90
-
-      # ── v5.5: Canary health gate — verify before marking success ──
       - name: "Canary: Health check gate"
         id: canary
         run: |
           PROD_URL="${{ env.PRODUCTION_URL }}"
           EXPECTED="$(echo '${{ github.sha }}' | cut -c1-7)"
           echo "Canary: التحقّق من أن commit $EXPECTED حيّ على $PROD_URL/health/"
+
+          # fail-closed: يُكتب `false` قبل أي محاولة، فلا يُقلب إلى `true` إلا
+          # ببرهان. وأي خروجٍ غير متوقّع — انقطاع، أو قتلٌ عند المهلة — يترك
+          # المخرَج على الفشل بدل أن يتركه فارغاً، والفارغ يُقرأ «ليس false»
+          # في خطوة الإغلاق فتُغلق قضية فشلٍ لم يُثبت شفاؤها.
+          echo "canary_passed=false" >> $GITHUB_OUTPUT
           PASSED=false
 
           # ينتظر حتى يخدم الإنتاج commit الجديد فعلاً (لا النسخة القديمة) ثم يتحقّق من الصحة.
@@ -260,12 +270,12 @@ jobs:
 
             if [ "$HTTP_CODE" = "200" ]; then
               VERSION=$(cat /tmp/canary_health.txt | python3 -c "import sys,json; print(json.load(sys.stdin).get('version','?'))" 2>/dev/null || echo "?")
+              # غياب `commit` = UNKNOWN لا PASS. السؤال هنا ليس «أتتنفّس
+              # الخدمة؟» بل «أصار الـSHA الذي دُفع حيّاً؟» — وخدمةٌ سليمة تخدم
+              # النسخة السابقة تُجيب بنعم على الأوّل وبلا على الثاني، وهي
+              # بالضبط صورةُ النشر الفاشل الذي وُضع هذا الفحص لالتقاطه.
               if [ -z "$COMMIT" ]; then
-                echo "::warning::/health/ بلا حقل commit (RAILWAY_GIT_COMMIT_SHA غير متاح) — رجوع لفحص الصحة فقط"
-                echo "canary_passed=true" >> $GITHUB_OUTPUT
-                echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
-                echo "✅ Canary PASSED (health-only) — version $VERSION"
-                PASSED=true; break
+                echo "  ↳ /health/ بلا حقل commit — لا يُثبت شيئاً، تُعاد المحاولة"
               elif [ "$COMMIT" = "$EXPECTED" ]; then
                 echo "canary_passed=true" >> $GITHUB_OUTPUT
                 echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
@@ -434,7 +444,7 @@ jobs:
     name: Post-Deploy Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [deploy]
+    needs: [post-deploy-canary]
 
     steps:
       - name: "Smoke test: /health/ endpoint (HTTP 200)"
