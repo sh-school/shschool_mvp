@@ -5,24 +5,29 @@
 أربع، فيعبرها أمران:
 
     وظيفةٌ أُلغيت أو تجاوزت مهلتها  ⇒ `cancelled` لا `failure`
-    `safety` و`django-check`        ⇒ تُطبَعان ولا تحكمان
+    و`safety` و`django-check`       ⇒ تُطبَعان ولا تحكمان
 
 والأولى ليست افتراضاً: وقعت لوظيفة pytest في خطّ النشر (15:22 مقابل مهلة 15).
 
-ومعها كان حَكَمُ تقرير Safety يفشل مفتوحاً — تقريرٌ غائب أو غير قابلٍ للتحليل
-يخرج بنجاح. «لم أفحص» كانت تُقرأ «لم أجد».
+**وأوّل تشغيلٍ للبوابة المُغلقة كشف عطباً كان مخفياً:** `safety==3.2.3` تنهار
+عند الاستيراد — `AttributeError: module 'typer' has no attribute 'rich_utils'`
+— فتُنتج صفر فحص. وكان `|| true` ومُحلِّلٌ متساهل يُخفيان ذلك، فبدت خضراء وهي
+لم تفحص حزمةً واحدة.
+
+فتُقوعدت `safety check` — وتوثيق أداتها يُصنّفها deprecated لصالح `safety scan`
+التي تتطلّب مصادقةً وترسل النتائج إلى منصّتها، وذلك قرار خدمةٍ خارجية لا ترقية
+مكتبة. وحلّ محلّها **مصدر بياناتٍ ثانٍ** عبر `pip-audit`: PyPI وOSV.
 """
 
-import json
 import pathlib
-import subprocess
-import sys
 
 import pytest
 import yaml
 
 WORKFLOW = pathlib.Path(".github/workflows/security-scan.yml")
-REQUIRED_JOBS = ("pip-audit", "bandit", "safety", "django-check")
+
+#: الوظائف التي تحكم البوابة — تُطابق `needs` و`if` في الملخّص.
+REQUIRED_JOBS = ("pip-audit-pypi", "pip-audit-osv", "bandit", "django-check")
 
 
 def _workflow():
@@ -53,13 +58,13 @@ def test_the_summary_job_name_is_the_protected_context():
     assert _workflow()["jobs"]["summary"]["name"] == "Security Summary"
 
 
-def test_the_summary_waits_for_all_four_security_jobs():
+def test_the_summary_waits_for_every_gating_job():
     assert set(_workflow()["jobs"]["summary"]["needs"]) == set(REQUIRED_JOBS)
 
 
 @pytest.mark.parametrize("job", REQUIRED_JOBS)
 def test_every_required_job_can_block_the_merge(job):
-    """الأربع كلّها تحكم — لا اثنتان تحكمان واثنتان تُطبَعان."""
+    """الأربع كلّها تحكم — لا بعضها يحكم وبعضها يُطبَع."""
     condition = f'"${{{{ needs.{job}.result }}}}" != "success"'
 
     assert condition in _summary_gate_step(), f"{job} لا يُغلق البوابة"
@@ -77,123 +82,86 @@ def test_the_gate_accepts_success_only_not_a_list_of_failures():
     assert gate.count('!= "success"') == len(REQUIRED_JOBS)
 
 
-def test_the_gate_reports_which_check_failed():
-    """رسالةٌ بلا تفصيل تُجبر القارئ على فتح أربع وظائف ليعرف أيّها سقط."""
-    gate = _summary_gate_step()
+@pytest.mark.parametrize("job", REQUIRED_JOBS)
+def test_the_gate_reports_which_check_failed(job):
+    """رسالةٌ بلا تفصيل تُجبر القارئ على فتح الوظائف واحدةً واحدة."""
+    message = _summary_gate_step().split("then")[1]
 
-    for job in REQUIRED_JOBS:
-        assert f"needs.{job}.result }}}}" in gate.split("exit 1")[0].split("then")[1]
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  حَكَم تقرير Safety — أربع حالات
-# ═══════════════════════════════════════════════════════════════════
-
-SCRIPT = pathlib.Path("scripts/check_safety_report.py")
-
-
-def _run(report_path):
-    return subprocess.run(
-        [sys.executable, str(SCRIPT), str(report_path)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-
-def _write(tmp_path, payload):
-    report = tmp_path / "safety-report.json"
-    report.write_text(
-        payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8"
-    )
-    return report
-
-
-def test_a_missing_report_fails_the_check(tmp_path):
-    """«لم أفحص» يجب أن تُغلق البوابة كما تُغلقها «وجدتُ ثغرة»."""
-    result = _run(tmp_path / "does-not-exist.json")
-
-    assert result.returncode == 1, result.stdout
-
-
-def test_an_unparseable_report_fails_the_check(tmp_path):
-    """تقريرٌ مبتور — من أداةٍ سقطت في منتصفها — ليس تقريراً نظيفاً."""
-    result = _run(_write(tmp_path, "{not json"))
-
-    assert result.returncode == 1, result.stdout
-
-
-def test_an_empty_report_fails_the_check(tmp_path):
-    result = _run(_write(tmp_path, ""))
-
-    assert result.returncode == 1, result.stdout
-
-
-def test_a_report_without_the_expected_structure_fails(tmp_path):
-    """بنيةٌ لا نعرفها — تغيّرت الأداة مثلاً — لا تُقرأ على أنها سلامة."""
-    result = _run(_write(tmp_path, {"unexpected": "shape"}))
-
-    assert result.returncode == 1, result.stdout
-
-
-@pytest.mark.parametrize("severity", ["HIGH", "CRITICAL", "high", "critical"])
-def test_a_blocking_finding_fails_the_check(tmp_path, severity):
-    """والحساسية لحالة الأحرف مقصودة: الأداة لا تضمن صيغةً واحدة."""
-    report = _write(
-        tmp_path,
-        {
-            "vulnerabilities": [
-                {
-                    "package_name": "example",
-                    "vulnerability_id": "PYSEC-0000",
-                    "severity": severity,
-                }
-            ]
-        },
-    )
-
-    result = _run(report)
-
-    assert result.returncode == 1, result.stdout
-    assert "example" in result.stdout, "الرسالة لا تُسمّي الحزمة"
-
-
-def test_a_clean_valid_report_passes(tmp_path):
-    """الضبط الموجب: حارسٌ يرفض كل شيء لا يحرس شيئاً."""
-    result = _run(_write(tmp_path, {"vulnerabilities": []}))
-
-    assert result.returncode == 0, result.stdout
-
-
-def test_low_severity_findings_do_not_block(tmp_path):
-    """السياسة الحالية تحجب HIGH/CRITICAL وحدها — والباقي يُسجَّل ولا يُوقف."""
-    report = _write(
-        tmp_path,
-        {"vulnerabilities": [{"package_name": "x", "severity": "MEDIUM"}]},
-    )
-
-    assert _run(report).returncode == 0
+    assert f"needs.{job}.result }}}}" in message
 
 
 # ═══════════════════════════════════════════════════════════════════
-#  الوظيفة نفسها — لا تبتلع فشل الأداة
+#  مصدرا البيانات — لا ماسحٌ واحد يُصدّق نفسه
 # ═══════════════════════════════════════════════════════════════════
 
 
-def _safety_steps():
-    return _workflow()["jobs"]["safety"]["steps"]
+def _run_of(job):
+    steps = _workflow()["jobs"][job]["steps"]
+    scans = [s["run"] for s in steps if "pip-audit -r" in s.get("run", "")]
+
+    assert len(scans) == 1, f"{job}: نداء فحصٍ ليس واحداً"
+
+    return scans[0]
 
 
-def test_the_safety_run_does_not_swallow_tool_failure():
+@pytest.mark.parametrize(
+    ("job", "service"),
+    [("pip-audit-pypi", "pypi"), ("pip-audit-osv", "osv")],
+)
+def test_each_audit_job_declares_its_advisory_source(job, service):
+    """المصدر يُصرَّح ولا يُترك للافتراض.
+
+    وظيفتان بلا تصريح تقرآن القاعدة نفسها، فتبدوان تغطيةً مزدوجة وهما واحدة.
+    """
+    assert f"--vulnerability-service {service}" in _run_of(job)
+
+
+def test_the_two_audit_jobs_do_not_read_the_same_database():
+    """الازدواج في **مصدر البيانات** لا في الأداة — وهو المقصود هنا.
+
+    قاعدة PyPI وقاعدة OSV قد تسبق إحداهما الأخرى في نشر تحذير، فالقراءة منهما
+    تُضيّق النافذة التي تمرّ فيها ثغرةٌ منشورةٌ في واحدةٍ دون الأخرى.
+    """
+    assert _run_of("pip-audit-pypi") != _run_of("pip-audit-osv")
+
+
+@pytest.mark.parametrize("job", ["pip-audit-pypi", "pip-audit-osv"])
+def test_no_audit_job_swallows_its_own_failure(job):
     """`|| true` كان يجعل سقوط الأداة يبدو فحصاً ناجحاً بلا ثغرات."""
-    check = [s for s in _safety_steps() if s.get("name") == "Safety check"][0]
-
-    assert "|| true" not in check["run"]
+    assert "|| true" not in _run_of(job)
 
 
-def test_the_verdict_lives_in_a_tested_script_not_in_yaml():
-    """منطقٌ داخل YAML لا يُشغّله إلا CI — فلا يُكتشف عطبه إلا حين يُحتاج."""
-    verdict = [s for s in _safety_steps() if s.get("name") == "Check for HIGH severity"][0]
+@pytest.mark.parametrize("job", ["pip-audit-pypi", "pip-audit-osv"])
+def test_each_audit_job_writes_its_own_report(job):
+    """تقريران باسمين: اسمٌ واحد يجعل الأثر الثاني يطمس الأوّل."""
+    assert f"{job}-report.json" in _run_of(job)
 
-    assert "scripts/check_safety_report.py" in verdict["run"]
-    assert "import json" not in verdict["run"], "عاد المنطق إلى YAML"
+
+# ═══════════════════════════════════════════════════════════════════
+#  تقاعُد Safety — وحارسٌ يمنع عودتها صامتةً
+# ═══════════════════════════════════════════════════════════════════
+
+
+def test_the_broken_safety_check_is_gone():
+    """`safety check` deprecated وتنهار عند الاستيراد — ولا تعود بلا قرار.
+
+    وعودتها بلا نقاشٍ تعني بوابةً تعتمد أمراً متقاعداً، أو انتقالاً إلى
+    `safety scan` بمصادقةٍ وإرسال نتائج إلى منصّةٍ خارجية — وذاك قرارٌ مستقلّ.
+    """
+    jobs = _workflow()["jobs"]
+
+    assert "safety" not in jobs, "عادت وظيفة safety"
+
+    # الأوامر المُنفَّذة لا نصّ الملفّ: البحث النصّي يلتقط التعليق الذي يشرح
+    # **لماذا** تقاعدت — وقد أسقط هذا الحارسَ نفسه قبل تصحيحه. التعليق ليس أمراً.
+    commands = "\n".join(
+        step.get("run", "") for job in jobs.values() for step in job.get("steps", [])
+    )
+
+    assert "safety check" not in commands, "عاد نداء `safety check`"
+    assert "check_safety_report" not in commands, "عاد نداء الحَكَم المتقاعد"
+
+
+def test_the_retired_parser_is_gone():
+    """الحَكَم الخاصّ بـSafety ذهب معها — لا شيفرة ميتة تُوهم بأنها تحرس."""
+    assert not pathlib.Path("scripts/check_safety_report.py").exists()
