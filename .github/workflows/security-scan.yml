@@ -142,33 +142,23 @@ jobs:
       - name: Install safety
         run: pip install safety==3.2.3
 
+      # لا `|| true`: فشلُ الأداة نفسها — شبكةٌ ساقطة أو معامِلات خاطئة —
+      # كان يُبتلع، فيُنتج «لا ثغرات» بدل «لم أفحص». و`safety` تُرجع رمزاً غير
+      # صفريّ حين تجد ثغرات أيضاً، فنسمح بذلك ونترك الحكم للمُحلِّل أدناه.
       - name: Safety check
+        id: safety
+        continue-on-error: true
         run: |
           safety check \
             -r requirements.txt \
             --output json \
-            --save-json safety-report.json || true
+            --save-json safety-report.json
 
+      # الحَكَم في `scripts/check_safety_report.py` لا في هذا الملفّ: منطقٌ
+      # داخل YAML لا يُشغّله إلا CI، فلا يُكتشف عطبه إلا حين يُحتاج إليه.
+      # وله اختباراتٌ تُثبت أنه يفشل عند غياب التقرير وعند تعذّر تحليله.
       - name: Check for HIGH severity
-        run: |
-          python3 -c "
-          import json, sys
-          try:
-              with open('safety-report.json') as f:
-                  data = json.load(f)
-              vulns = data.get('vulnerabilities', [])
-              high = [v for v in vulns if v.get('severity', '').upper() in ('HIGH', 'CRITICAL')]
-              if high:
-                  print(f'FAIL: {len(high)} HIGH/CRITICAL vulnerabilities found:')
-                  for v in high:
-                      print(f'  - {v.get(\"package_name\")}: {v.get(\"vulnerability_id\")} ({v.get(\"severity\")})')
-                  sys.exit(1)
-              print(f'PASS: No HIGH/CRITICAL vulnerabilities ({len(vulns)} total findings)')
-          except FileNotFoundError:
-              print('No safety report generated')
-          except (json.JSONDecodeError, KeyError):
-              print('WARNING: Could not parse safety report — manual review needed')
-          "
+        run: python3 scripts/check_safety_report.py safety-report.json
 
       - name: Upload Safety Report
         uses: actions/upload-artifact@v4
@@ -256,10 +246,28 @@ jobs:
           echo "| Safety (deps) | ${{ needs.safety.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Django --deploy | ${{ needs.django-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
-      - name: Fail if any critical check failed
+      # هذه الوظيفة أحد سياقين مطلوبين في حماية `main` — أي أنها بوابة دمج
+      # فعلية لا تقريراً.
+      #
+      # وكانت تفشل على `== "failure"` لوظيفتين من أربع، فيعبرها أمران:
+      #
+      #   - وظيفةٌ أُلغيت أو تجاوزت مهلتها تُنتج `cancelled` لا `failure`،
+      #     فتمرّ البوابة وهي لم تفحص شيئاً. وليس هذا افتراضاً: وقع فعلاً
+      #     لوظيفة pytest في خطّ النشر (15:22 مقابل timeout-minutes: 15).
+      #   - و`safety` و`django-check` كانتا تُطبَعان في الجدول ولا تحكمان.
+      #
+      # فالشرط الآن `!= "success"` للأربع. ولا نُعدّد صيغ الفشل — نقبل النجاح
+      # وحده، فصيغةٌ جديدة من GitHub غداً تُغلق البوابة بدل أن تفتحها.
+      - name: Fail if any required security check did not succeed
         run: |
-          if [[ "${{ needs.pip-audit.result }}" == "failure" ]] || \
-             [[ "${{ needs.bandit.result }}" == "failure" ]]; then
-            echo "CRITICAL: Security checks failed — blocking merge"
+          if [[ "${{ needs.pip-audit.result }}" != "success" ]] || \
+             [[ "${{ needs.bandit.result }}" != "success" ]] || \
+             [[ "${{ needs.safety.result }}" != "success" ]] || \
+             [[ "${{ needs.django-check.result }}" != "success" ]]; then
+            echo "CRITICAL: one or more required security checks did not succeed"
+            echo "  pip-audit    = ${{ needs.pip-audit.result }}"
+            echo "  bandit       = ${{ needs.bandit.result }}"
+            echo "  safety       = ${{ needs.safety.result }}"
+            echo "  django-check = ${{ needs.django-check.result }}"
             exit 1
           fi
