@@ -12,6 +12,22 @@ METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.
 # ✅ v5.5: Sentry — مراقبة أذكياء (PDPPL + smart sampling + context)
 # ══════════════════════════════════════════════════════════════
 SENTRY_DSN = config("SENTRY_DSN", default="")
+
+# [B4-7Q.1] فصلُ رصد الأخطاء عن قياس الأداء — بإعدادٍ صريح لا باستنتاج.
+#
+# العامل يحتاج **الأخطاء**: مهمّة تسقط، ووسيط ينقطع، ومزوّد يرفض. أمّا قياس
+# الأداء فيُرسل أثراً لثلاثين بالمئة من كل مهمّة (`traces_sampler` يُعيد 0.3
+# لـ`op == "celery.task"`) ومعه تحليلٌ لعُشرها — حجمٌ وكلفةٌ لم يُقرّرا، ولا
+# يخدمان ما نريده اليوم.
+#
+# **ولا اكتشاف ضمنيّ للعملية.** استنتاجُ «هذا عامل» من `sys.argv` أو من اسم
+# الخدمة يبدو ذكياً ويكسر بصمت: أمرُ إدارةٍ يُشغَّل من العامل يصير ويباً، وإعادةُ
+# تسمية خدمةٍ تُغيّر سلوك الرصد بلا أن يلمس أحدٌ الشيفرة. فالراية تُقرأ من
+# البيئة، وكلُّ خدمةٍ تُصرّح بما تريد.
+#
+# والافتراض `True` كي لا يتغيّر سلوك الويب بمجرّد وجود هذا الإعداد.
+SENTRY_PERFORMANCE_ENABLED = config("SENTRY_PERFORMANCE_ENABLED", default=True, cast=bool)
+
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.celery import CeleryIntegration
@@ -20,6 +36,24 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.redis import RedisIntegration
 
     from core.sentry_config import before_send, traces_sampler
+
+    # [B4-7Q.1] خياراتُ الأداء كتلةٌ واحدة تُبدَّل، لا ثلاثة أسطر تُنسى واحدةً.
+    #
+    # `enable_tracing` وحدها لا تكفي: `traces_sampler` مضبوطاً يُفعّل التتبّع
+    # ضمناً في بعض إصدارات المكتبة. فالوضعان صريحان ومتقابلان.
+    _sentry_performance = (
+        {
+            "traces_sampler": traces_sampler,  # يتخطى health/static/media
+            "profiles_sample_rate": 0.1,  # 10% profiling
+            "enable_tracing": True,
+        }
+        if SENTRY_PERFORMANCE_ENABLED
+        else {
+            "traces_sample_rate": 0.0,
+            "profiles_sample_rate": 0.0,
+            "enable_tracing": False,
+        }
+    )
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -39,9 +73,8 @@ if SENTRY_DSN:
                 event_level="ERROR",  # سجّل ERROR+ كـ Sentry events
             ),
         ],
-        # ── Performance: sampling ذكي بدل flat rate ──
-        traces_sampler=traces_sampler,  # يتخطى health/static/media
-        profiles_sample_rate=0.1,  # 10% profiling
+        # ── Performance: مضبوطة بالراية أعلاه ──
+        **_sentry_performance,
         # ── Privacy: PDPPL م.13 ──
         send_default_pii=False,  # ← لا بيانات شخصية
         before_send=before_send,  # ← scrubbing + noise filter
@@ -51,8 +84,6 @@ if SENTRY_DSN:
         # ── Error grouping ──
         max_breadcrumbs=50,  # 50 فتات بدل 100 (توفير حصة)
         attach_stacktrace=True,  # stack trace حتى للـ messages
-        # ── Performance budgets ──
-        enable_tracing=True,
     )
 
 # ── التحقق من المفاتيح الحرجة قبل تشغيل الإنتاج ──────────────
