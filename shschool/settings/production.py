@@ -365,14 +365,38 @@ if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
         "ALLOWED_HOSTS=schoolos.qa,www.schoolos.qa"
     )
 
-# ── التحقق من CORS في الإنتاج ────────────────────────────────
-# يمنع CORS_ALLOWED_ORIGINS الافتراضي (localhost) في الإنتاج
-_unsafe_cors = [o for o in CORS_ALLOWED_ORIGINS if "localhost" in o or "127.0.0.1" in o]
+# ── CORS في الإنتاج — إعادة قراءةٍ بفرضيةٍ آمنة ────────────────
+#
+# `base.py` يقرأ `CORS_ALLOWED_ORIGINS` بافتراضٍ صالحٍ للتطوير:
+# `http://localhost:3000,http://localhost:8000`. و`production.py` كان يرث
+# القائمة كما هي ويكتفي بتحذيرٍ عند رؤية أصلٍ محلّيّ — **والتحذير لا يُغلق
+# باباً**. فمنصّةٌ حكومية بلا `CORS_ALLOWED_ORIGINS` في بيئتها كانت تسمح
+# لصفحةٍ على `localhost` بقراءة استجابات الـAPI مع الاعتماد (`CORS_ALLOW_
+# CREDENTIALS = True`) — أي جلسةُ مستخدمٍ مسجَّل تُقرأ من صفحةٍ يفتحها هو على
+# جهازه بلا علمه.
+#
+# فيُعاد القراءة هنا بافتراض **فارغ**: غيابُ الإعداد يعني «لا أصل مسموح» لا
+# «أصولُ التطوير». والفشل مغلق: API بلا CORS يمنع متصفّحاً، وCORS مفتوحٌ خطأً
+# يمنح ما لا يُسترجَع.
+_production_cors = [
+    origin.strip()
+    for origin in config("CORS_ALLOWED_ORIGINS", default="").split(",")
+    if origin.strip()
+]
+
+_unsafe_cors = [o for o in _production_cors if "localhost" in o or "127.0.0.1" in o]
+
+# ولا `raise` هنا رغم أنه الأصحّ نظرياً: `staging.py` يستورد هذه الوحدة **قبل**
+# أن يُعيد تعريف قائمته الخاصة، وهو يُدرج `localhost:3000` عمداً لأغراض الفحص.
+# فرفعُ استثناء يكسر staging على إعدادٍ مقصودٍ فيه. والإقصاء يُحقّق الغاية —
+# الأصل المحلّيّ لا يصل الإنتاج — بلا كسرٍ جانبيّ.
+CORS_ALLOWED_ORIGINS = [o for o in _production_cors if o not in _unsafe_cors]
+
 if _unsafe_cors:
     import logging
 
     logging.getLogger(__name__).warning(
-        "⚠️ CORS_ALLOWED_ORIGINS يحتوي على origins محلية في الإنتاج: %s — "
-        "عيّن CORS_ALLOWED_ORIGINS في .env بالنطاقات الصحيحة (https://...)",
+        "⚠️ CORS_ALLOWED_ORIGINS يحتوي على origins محلية — أُقصيت من إعداد "
+        "الإنتاج: %s. عيّنها بالنطاقات الصحيحة (https://...)",
         _unsafe_cors,
     )
