@@ -46,10 +46,10 @@ jobs:
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
-  #  2. pip-audit — Known CVEs in Dependencies
+  #  2. pip-audit — PyPI advisory database
   # ══════════════════════════════════════════════════════
-  pip-audit:
-    name: pip-audit — CVE Scan
+  pip-audit-pypi:
+    name: pip-audit — PyPI advisories
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,8 +68,9 @@ jobs:
       - name: Scan for known CVEs
         run: |
           pip-audit -r requirements.txt \
+            --vulnerability-service pypi \
             --format json \
-            --output pip-audit-report.json \
+            --output pip-audit-pypi-report.json \
             --desc \
             --progress-spinner off
 
@@ -77,8 +78,8 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pip-audit-report
-          path: pip-audit-report.json
+          name: pip-audit-pypi-report
+          path: pip-audit-pypi-report.json
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
@@ -126,10 +127,24 @@ jobs:
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
-  #  4. Safety — Vulnerable Dependencies
+  #  4. pip-audit — OSV advisory database
   # ══════════════════════════════════════════════════════
-  safety:
-    name: Safety — Dependency Vulnerabilities
+  #
+  # مصدرُ بياناتٍ ثانٍ لا أداةٌ ثانية. `pip-audit` يقرأ افتراضياً قاعدة
+  # Python Packaging Advisory عبر PyPI، و`--vulnerability-service osv` يقرأ
+  # OSV.dev — فتغطيتان قد تسبق إحداهما الأخرى في نشر تحذير.
+  #
+  # وحلّ هذا محلّ `safety check`، وهي تُصنَّف deprecated في توثيق أداتها لصالح
+  # `safety scan` — والأخيرة تتطلّب مصادقةً وترسل نتائج المسح إلى منصّتها.
+  # وذلك قرار خدمةٍ خارجية وسياسة بيانات، لا ترقية مكتبة، فلا يُتخذ داخل إصلاح
+  # بوابة.
+  #
+  # وكانت `safety==3.2.3` تنهار عند الاستيراد أصلاً:
+  #     AttributeError: module 'typer' has no attribute 'rich_utils'
+  # فتُنتج صفر فحص. وأخفى ذلك `|| true` ومُحلِّلٌ يخرج بنجاح عند غياب التقرير —
+  # حتى كشفته البوابة المُغلقة في PR #52.
+  pip-audit-osv:
+    name: pip-audit — OSV advisories
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -139,33 +154,27 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install safety
-        run: pip install safety==3.2.3
+      - name: Install system dependencies for native packages
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev pkg-config
 
-      # لا `|| true`: فشلُ الأداة نفسها — شبكةٌ ساقطة أو معامِلات خاطئة —
-      # كان يُبتلع، فيُنتج «لا ثغرات» بدل «لم أفحص». و`safety` تُرجع رمزاً غير
-      # صفريّ حين تجد ثغرات أيضاً، فنسمح بذلك ونترك الحكم للمُحلِّل أدناه.
-      - name: Safety check
-        id: safety
-        continue-on-error: true
+      - name: Install pip-audit
+        run: pip install pip-audit==2.7.3
+
+      - name: Scan against OSV
         run: |
-          safety check \
-            -r requirements.txt \
-            --output json \
-            --save-json safety-report.json
+          pip-audit -r requirements.txt \
+            --vulnerability-service osv \
+            --format json \
+            --output pip-audit-osv-report.json \
+            --desc \
+            --progress-spinner off
 
-      # الحَكَم في `scripts/check_safety_report.py` لا في هذا الملفّ: منطقٌ
-      # داخل YAML لا يُشغّله إلا CI، فلا يُكتشف عطبه إلا حين يُحتاج إليه.
-      # وله اختباراتٌ تُثبت أنه يفشل عند غياب التقرير وعند تعذّر تحليله.
-      - name: Check for HIGH severity
-        run: python3 scripts/check_safety_report.py safety-report.json
-
-      - name: Upload Safety Report
+      - name: Upload OSV Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: safety-report
-          path: safety-report.json
+          name: pip-audit-osv-report
+          path: pip-audit-osv-report.json
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
@@ -233,7 +242,7 @@ jobs:
   summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [pip-audit, bandit, safety, django-check]
+    needs: [pip-audit-pypi, pip-audit-osv, bandit, django-check]
     if: always()
     steps:
       - name: Security scan results
@@ -241,9 +250,9 @@ jobs:
           echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pip-audit (CVEs) | ${{ needs.pip-audit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pip-audit (PyPI) | ${{ needs.pip-audit-pypi.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pip-audit (OSV) | ${{ needs.pip-audit-osv.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Bandit (SAST) | ${{ needs.bandit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Safety (deps) | ${{ needs.safety.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Django --deploy | ${{ needs.django-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       # هذه الوظيفة أحد سياقين مطلوبين في حماية `main` — أي أنها بوابة دمج
@@ -260,14 +269,14 @@ jobs:
       # وحده، فصيغةٌ جديدة من GitHub غداً تُغلق البوابة بدل أن تفتحها.
       - name: Fail if any required security check did not succeed
         run: |
-          if [[ "${{ needs.pip-audit.result }}" != "success" ]] || \
+          if [[ "${{ needs.pip-audit-pypi.result }}" != "success" ]] || \
+             [[ "${{ needs.pip-audit-osv.result }}" != "success" ]] || \
              [[ "${{ needs.bandit.result }}" != "success" ]] || \
-             [[ "${{ needs.safety.result }}" != "success" ]] || \
              [[ "${{ needs.django-check.result }}" != "success" ]]; then
             echo "CRITICAL: one or more required security checks did not succeed"
-            echo "  pip-audit    = ${{ needs.pip-audit.result }}"
-            echo "  bandit       = ${{ needs.bandit.result }}"
-            echo "  safety       = ${{ needs.safety.result }}"
-            echo "  django-check = ${{ needs.django-check.result }}"
+            echo "  pip-audit-pypi = ${{ needs.pip-audit-pypi.result }}"
+            echo "  pip-audit-osv  = ${{ needs.pip-audit-osv.result }}"
+            echo "  bandit         = ${{ needs.bandit.result }}"
+            echo "  django-check   = ${{ needs.django-check.result }}"
             exit 1
           fi
