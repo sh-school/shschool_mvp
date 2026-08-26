@@ -18,11 +18,29 @@
   .mark { text-align: center; font-weight: bold; }
   .sign { margin-top: 16px; display: flex; justify-content: space-between; font-size: 9pt; }
   .sign div { width: 45%; border-top: 1px solid #888; padding-top: 4px; text-align: center; }
+
+  /* ── ترويسة المدرسة ─────────────────────────────────────────────
+     البيانات من obs.school لا نصّاً مُثبَّتاً: المنصّة متعدّدة المدارس،
+     واسمٌ مكتوبٌ في القالب يطبع ترويسة مدرسةٍ أخرى على وثيقة هذه. */
+  .doc-header { text-align: center; padding-bottom: 8px; margin-bottom: 10px;
+                border-bottom: 2px solid #8A1538; }
+  .doc-header-logo { width: 52px; height: 52px; margin: 0 auto 4px; display: block;
+                     object-fit: contain; }
+  .doc-header-ministry { font-size: 8.5pt; color: #555; font-weight: 600; margin-bottom: 2px; }
+  .doc-header-school { font-size: 12pt; font-weight: 700; color: #8A1538; line-height: 1.35; }
+  .doc-footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #ccc;
+                text-align: center; font-size: 7.5pt; color: #666; line-height: 1.5; }
 </style>
 </head>
 <body>
+  <div class="doc-header">
+    <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="">
+    <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    <div class="doc-header-school">{{ obs.school.name }}</div>
+  </div>
+
   <h1>{% if obs.kind == "self" %}استمارة التقييم الذاتي للمعلّم{% else %}استمارة الإشراف على أداء المعلّم{% endif %}</h1>
-  <div class="sub">{{ obs.school.name }} — العام الأكاديميّ {{ obs.school.current_academic_year|default:"2025/2026" }}</div>
+  <div class="sub">العام الأكاديميّ {{ obs.school.current_academic_year|default:"2025/2026" }}</div>
 
   <table class="info">
     <tr><td><b>المعلّم:</b> {{ obs.teacher.full_name }}</td><td><b>المادّة:</b> {{ obs.subject.name_ar|default:"—" }}</td><td><b>الصّف:</b> {{ obs.class_group|default:"—" }}</td></tr>
@@ -66,6 +84,10 @@
     <div>توقيع المعلّم{% if obs.status == "acknowledged" %}<br><small>أقرّ إلكترونياً: {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}</small>{% endif %}</div>
     <div>توقيع الزائر<br><small>{{ obs.observer.full_name }}</small></div>
     {% endif %}
+  </div>
+
+  <div class="doc-footer">
+    {{ obs.school.name }}{% if obs.school.phone %} · هاتف: {{ obs.school.phone }}{% endif %}{% if obs.school.email %} · {{ obs.school.email }}{% endif %}{% if obs.school.city %} · {{ obs.school.city }}، قطر{% endif %}
   </div>
 </body>
 </html>

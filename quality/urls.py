@@ -55,6 +55,16 @@ urlpatterns = [
         observation_views.observation_pdf,
         name="observation_pdf",
     ),
+    path(
+        "observations/<uuid:obs_id>/pdf/view/",
+        observation_views.observation_pdf_view,
+        name="observation_pdf_view",
+    ),
+    path(
+        "observations/<uuid:obs_id>/send/",
+        observation_views.observation_send,
+        name="observation_send",
+    ),
     # ── Phase 6: تقييم الموظفين ─────────────────────────────
     path("evaluations/", evaluation_views.evaluation_dashboard, name="evaluation_dashboard"),
     path(

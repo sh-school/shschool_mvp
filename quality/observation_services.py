@@ -218,6 +218,96 @@ class ObservationService:
             cond |= Q(kind="self")
         return qs.filter(cond)
 
+    # ── إرسال نسخة إلى الجهات الأكاديميّة ───────────────────────────
+    @staticmethod
+    def recipient_options(observation):
+        """المستلمون المرشَّحون الأربعة، بترتيبٍ ثابت ومفاتيح مستقرّة.
+
+        يُعيد قائمة `(key, label, user)`؛ و`user` قد يكون `None` حين لا يوجد
+        شاغل للدور — قسمٌ بلا رئيس، أو مدرسةٌ بلا نائبٍ أكاديميّ مسجَّل. تُعرض
+        هذه الحالة في الواجهة معطَّلةً بدل إخفائها، لأن غياب المنسّق معلومةٌ
+        تخصّ من يُرسل، لا تفصيلٌ داخليّ يُطوى عنه.
+        """
+        return [
+            ("teacher", "المعلّم", observation.teacher),
+            ("coordinator", "منسّق المادّة", ObservationService._coordinator_of(observation.teacher)),
+            (
+                "vice_academic",
+                "النائب الأكاديميّ",
+                ObservationService._role_holder(observation.school, "vice_academic"),
+            ),
+            (
+                "principal",
+                "مدير المدرسة",
+                ObservationService._role_holder(observation.school, "principal"),
+            ),
+        ]
+
+    @staticmethod
+    def _coordinator_of(teacher):
+        """منسّق المعلّم = رئيس قسمه.
+
+        لا يوجد ربطٌ مباشر معلّم↔منسّق في النموذج؛ الرابط هو القسم:
+        عضويّة المعلّم النشطة → `department_obj` → `head`.
+        """
+        membership = teacher.active_membership
+        department = membership.department_obj if membership else None
+        return department.head if department else None
+
+    @staticmethod
+    def _role_holder(school, role_name):
+        """أوّل شاغلٍ نشط للدور في هذه المدرسة."""
+        from core.models import CustomUser
+
+        return (
+            CustomUser.objects.filter(
+                is_active=True,
+                memberships__school=school,
+                memberships__is_active=True,
+                memberships__role__name=role_name,
+            )
+            .distinct()
+            .first()
+        )
+
+    @staticmethod
+    def send_copy(observation, by_user, keys):
+        """يُرسل نسخةً من الزيارة إلى من اختاره المُرسِل.
+
+        لا يمسّ الحالة (`draft`/`submitted`/`acknowledged`) ولا يُعدّ إرسالاً
+        في سير العمل: هذا توزيعٌ إداريّ للاطّلاع، وخلطُه بـ`submit` يجعل زرّاً
+        للمشاركة يُغيّر حالةً رسميّة بلا أن يقصد المستخدم ذلك.
+
+        يُعيد أسماء من وصلهم الإشعار فعلاً — لا من طُلب إرسالهم. والفرق يظهر
+        حين يكون المستلم هو المُرسِل نفسه، أو حين لا يوجد شاغلٌ للدور.
+        """
+        wanted = set(keys or ())
+        sent, seen = [], set()
+
+        for key, label, user in ObservationService.recipient_options(observation):
+            if key not in wanted or user is None:
+                continue
+            if user.id == by_user.id or user.id in seen:
+                continue
+            seen.add(user.id)
+            ObservationService._notify_copy(observation, user, label, by_user)
+            sent.append(user.full_name)
+
+        return sent
+
+    @staticmethod
+    def _notify_copy(observation, recipient, label, by_user):
+        kind = "التقييم الذاتي" if observation.kind == "self" else "الزيارة الصفّية"
+        title = f"نسخة من {kind}"
+        body = (
+            f"شارك {by_user.full_name} معك نسخةً من {kind} "
+            f"لـ{observation.teacher.full_name} بتاريخ {observation.observation_date}"
+        )
+        if observation.score_percent is not None:
+            body += f" — النسبة الإجماليّة {observation.score_percent}%"
+        body += "."
+        ObservationService._dispatch(observation, recipient, title, body)
+
     # ── الإشعارات (لا تُسقط العملية الأساسية أبداً) ──────────────────
     @staticmethod
     def _dispatch(observation, recipient, title, body):

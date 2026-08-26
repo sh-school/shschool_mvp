@@ -91,7 +91,7 @@
         <td style="white-space:nowrap">
           <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>
           {% if p.can_edit %}<a href="{% url 'observation_edit' o.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
-          <a href="{% url 'observation_pdf' o.id %}" class="btn-secondary btn-sm">PDF</a>
+          <a href="{% url 'observation_pdf_view' o.id %}" class="btn-secondary btn-sm">PDF</a>
           {% if p.can_delete and o.status == "draft" %}
           <form method="post" action="{% url 'observation_delete' o.id %}" style="display:inline"
                 onsubmit="return confirm('حذف هذه المسودة؟')">
