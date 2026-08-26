@@ -160,7 +160,7 @@ def test_the_viewer_page_offers_a_way_back(client, school, principal_user, teach
 
     html = client.get(reverse("observation_pdf_view", args=[obs.id])).content.decode()
 
-    assert reverse("observation_detail", args=[obs.id]) in html
+    assert reverse("observation_list") in html
     assert reverse("observation_pdf", args=[obs.id]) in html
 
 
