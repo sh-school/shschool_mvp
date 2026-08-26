@@ -278,19 +278,21 @@ LOGGING = {
     },
 }
 
-# ── CSP في الإنتاج — enforce ──────────────────────────────────
+# ── CSP في الإنتاج ────────────────────────────────────────────
 # Tailwind مصرَّف محلّياً، فلا حاجة إلى CDN للأنماط.
 #
-# وهذه أوّل مرّة تُفرَض فيها السياسة فعلاً: الصيغة القديمة `CSP_*` لم تكن
-# تُقرأ منذ `django-csp 4.0`، فلم تُرسَل ترويسةٌ قطّ. ولذلك تُفرَض بسياسةٍ
-# تُطابق الواقع لا بالنسخة المثالية: `'unsafe-inline'` باقٍ في `style-src`
-# حتى تُنقل سمات `style="…"` إلى أصناف CSS — وإزالتُه قبل ذلك تكسر الواجهة
-# لا تحميها.
-# base قد يكون ضبط النسخة report-only حين `CSP_REPORT_ONLY=True` في البيئة؛
-# تركُها يُرسل ترويستين متعارضتين. والإنتاج يفرض دائماً.
-CONTENT_SECURITY_POLICY_REPORT_ONLY = None
-
-CONTENT_SECURITY_POLICY = {
+# **report-only حتى تُنقل معالِجات الأحداث.** السياسة تحمل `nonce` في
+# `script-src`، ووجودُه يجعل المتصفّح يتجاهل `'unsafe-inline'` تماماً — فتُحجب
+# سمات `onclick`/`onchange` وأمثالها. وفي القوالب ٨٦ منها في ٤٣ صفحة، ففرضُ
+# السياسة قبل نقلها يُطفئ تفاعل تلك الصفحات لا يحميها.
+#
+# وقد وقع ذلك فعلاً: فُرضت في أوّل نشرةٍ بعد الترحيل فحُجبت كلّها.
+#
+# و`'unsafe-inline'` باقٍ في `style-src` للسبب نفسه: ٧٣٢ سمة `style="…"`
+# لا يُغنّي عنها nonce.
+#
+# الترتيب: نقل المعالِجات إلى `addEventListener` → حارسٌ يمنع عودتها → الفرض.
+_CSP_PRODUCTION = {
     "DIRECTIVES": {
         **CSP_BASE_DIRECTIVES,
         "script-src": [SELF, NONCE, "https://cdn.jsdelivr.net", "https://unpkg.com"],
@@ -300,7 +302,17 @@ CONTENT_SECURITY_POLICY = {
 
 _csp_report_uri = config("CSP_REPORT_URI", default="")
 if _csp_report_uri:
-    CONTENT_SECURITY_POLICY["DIRECTIVES"]["report-uri"] = [_csp_report_uri]
+    _CSP_PRODUCTION["DIRECTIVES"]["report-uri"] = [_csp_report_uri]
+
+# ترويسةٌ واحدة لا اثنتان: `CSP_ENFORCE` هي الراية الوحيدة التي تقلبها.
+CSP_ENFORCE = config("CSP_ENFORCE", default=False, cast=bool)
+
+if CSP_ENFORCE:
+    CONTENT_SECURITY_POLICY = _CSP_PRODUCTION
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = None
+else:
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = _CSP_PRODUCTION
+    CONTENT_SECURITY_POLICY = None
 
 
 # ── WhiteNoise: static files مع Brotli/GZip + cache forever ──

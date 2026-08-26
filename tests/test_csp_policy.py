@@ -101,3 +101,42 @@ def test_inline_styles_remain_allowed_until_they_are_migrated():
 def test_the_restrictive_directives_survive(directive):
     assert _directives()[directive] == ["'self'"] if directive == "default-src" else True
     assert _directives()["object-src"] == ["'none'"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  الفرض مشروطٌ بنقل معالِجات الأحداث
+# ═══════════════════════════════════════════════════════════════════
+
+_EVENT_ATTR = re.compile(r"""\son[a-z]+\s*=\s*["']""", re.I)
+
+
+def _inline_event_handlers():
+    return {
+        f.as_posix()
+        for f in TEMPLATES.rglob("*.html")
+        if _EVENT_ATTR.search(f.read_text(encoding="utf-8", errors="ignore"))
+    }
+
+
+def test_enforcement_waits_until_inline_handlers_are_gone():
+    """`nonce` في `script-src` يُلغي `'unsafe-inline'` للسكربتات كلّها — بما
+    فيها سمات `onclick` و`onchange`، ولا ينفعها nonce لأنها سمات لا وسوم.
+
+    فُرضت السياسة في أوّل نشرةٍ بعد الترحيل بينما في القوالب ٨٦ منها، فأُطفئ
+    تفاعل ٤٣ صفحة في الإنتاج. والفرض من الآن مشروطٌ بخلوّ القوالب منها.
+    """
+    # يُقرأ النصّ ولا تُستورد الوحدة: استيراد إعدادات الإنتاج يتطلّب أسرارها.
+    src = pathlib.Path("shschool/settings/production.py").read_text(encoding="utf-8")
+    default_off = 'CSP_ENFORCE = config("CSP_ENFORCE", default=False, cast=bool)'
+
+    if default_off in src:
+        return  # الفرض مطفأ افتراضاً — الشرط غير مُفعَّل بعد
+
+    assert not _inline_event_handlers(), "لا يجوز الفرض وفي القوالب معالِجات أحداث داخلية"
+
+
+def test_the_migration_target_is_measured_not_guessed():
+    """الرقم يُقاس من الشجرة لا يُقدَّر — وهو ما يحكم متى يجوز الفرض."""
+    remaining = _inline_event_handlers()
+
+    assert isinstance(remaining, set)
