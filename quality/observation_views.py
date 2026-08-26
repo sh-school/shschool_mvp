@@ -16,6 +16,7 @@ from core.pdf_utils import render_pdf
 from core.permissions import (
     OBSERVATION_CREATE,
     OBSERVATION_SELF_CREATE,
+    OBSERVATION_SEND,
     OBSERVATION_VIEW_ALL,
     role_required,
 )
@@ -38,6 +39,10 @@ _SORT_MAP = {"date": "-observation_date", "score": "-score_percent", "status": "
 # ══════════════════════════ مساعدات ══════════════════════════════════
 def _is_leadership(user):
     return user.is_superuser or user.get_role() in OBSERVATION_VIEW_ALL
+
+
+def _can_send(user):
+    return user.is_superuser or user.get_role() in OBSERVATION_SEND
 
 
 def _grouped_criteria(school):
@@ -469,3 +474,55 @@ def observation_pdf(request, obs_id):
         {"obs": obs, "grouped": _groups_with_scores(obs), "rating_choices": RATING_CHOICES},
     )
     return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
+
+
+@login_required
+def observation_pdf_view(request, obs_id):
+    """صفحةٌ عارضة حول ملفّ الـPDF — شريط أدوات فوقه.
+
+    الـPDF يُعاد بـ`Content-Disposition: inline`، فيفتحه المتصفّح بعارضه الخاصّ
+    ويحلّ محلّ الصفحة كاملةً: لا رجوع ولا إجراء. وحقنُ زرٍّ داخل الملفّ نفسه
+    غير ممكن، فالحلّ أن يُعرض الملفّ داخل هذه الصفحة ويبقى شريط الأدوات لنا.
+    """
+    obs, allowed = _get_observation(request, obs_id)
+    if not allowed:
+        return render(request, "403.html", status=403)
+    return render(
+        request,
+        "quality/observation_pdf_view.html",
+        {
+            "obs": obs,
+            "can_send": _can_send(request.user),
+            "recipients": ObservationService.recipient_options(obs),
+        },
+    )
+
+
+@login_required
+@require_POST
+def observation_send(request, obs_id):
+    """إرسال نسخةٍ إلى من اختاره المُرسِل — بلا مساسٍ بحالة الزيارة."""
+    obs, allowed = _get_observation(request, obs_id)
+    if not allowed or not _can_send(request.user):
+        return render(request, "403.html", status=403)
+
+    keys = request.POST.getlist("recipients")
+    if not keys:
+        messages.warning(request, "اختر مستلماً واحداً على الأقلّ.")
+        return redirect("observation_pdf_view", obs_id=obs.pk)
+
+    sent = ObservationService.send_copy(obs, request.user, keys)
+    if sent:
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=obs.pk,
+            object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+            changes={"action": "send_copy", "recipients": len(sent)},
+            request=request,
+        )
+        messages.success(request, "أُرسلت نسخة إلى: " + "، ".join(sent) + ".")
+    else:
+        messages.warning(request, "لم يصل الإشعار إلى أحد — تحقّق من شاغلي الأدوار المختارة.")
+    return redirect("observation_pdf_view", obs_id=obs.pk)

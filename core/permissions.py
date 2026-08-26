@@ -211,6 +211,19 @@ OBSERVATION_SELF_CREATE = {
     "coordinator",
     "activities_coordinator",
 }
+# من يُرسل نسخةً من الزيارة إلى الجهات الأكاديميّة — الكادر الأكاديميّ والمدير.
+# مقيَّدٌ فوق ذلك بالرؤية: من لا يرى الزيارة لا يصل إلى صفحتها أصلاً، فالمعلّم
+# هنا يُشارك ما يخصّه هو لا ما يخصّ غيره.
+OBSERVATION_SEND = {
+    "principal",
+    "vice_academic",
+    "coordinator",
+    "activities_coordinator",
+    "academic_advisor",
+    "teacher",
+    "ese_teacher",
+    "specialist",
+}
 
 QUALITY_VIEW = {
     "coordinator",

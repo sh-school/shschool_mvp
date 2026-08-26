@@ -8,7 +8,7 @@
       {% if obs.kind == "self" %}التقييم الذاتي{% else %}الزيارة الصفّية{% endif %}: {{ obs.teacher.full_name }}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% if can_edit %}<a href="{% url 'observation_edit' obs.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
-      <a href="{% url 'observation_pdf' obs.id %}" class="btn-secondary btn-sm">PDF</a>
+      <a href="{% url 'observation_pdf_view' obs.id %}" class="btn-secondary btn-sm">PDF</a>
       <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
     </div>
   </div>
