@@ -98,7 +98,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   var search = document.getElementById('searchInput');
   var gradeSelect = document.getElementById('gradeFilter');

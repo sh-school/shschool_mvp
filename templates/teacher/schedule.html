@@ -188,7 +188,7 @@
 </div>{# end .exec-dash #}
 
 {% if is_leader %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
     window.smartFilter('session-search', '#sessions-tbody tr[data-filter-row]', {

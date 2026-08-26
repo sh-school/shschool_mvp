@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#8A1538" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
   {# ── Dark Mode: تطبيق مبكر لمنع وميض الأبيض (FOUC) ── #}
-  <script>
+  <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   {% block extra_head %}{% endblock %}

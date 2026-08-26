@@ -161,7 +161,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ request.csp_nonce }}">
 function closeModal() {
   document.getElementById('modal-container').innerHTML = '';
 }

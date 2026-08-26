@@ -215,7 +215,7 @@
 </div>
 
 {% if is_today %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function() {
   'use strict';
 

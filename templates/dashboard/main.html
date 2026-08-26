@@ -982,7 +982,7 @@
 {% if view_type == "director" %}
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family = 'Tajawal, sans-serif';
 Chart.defaults.font.size = 10;
 

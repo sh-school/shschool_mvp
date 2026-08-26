@@ -198,7 +198,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 (function() {
   var ctx = document.getElementById('attendanceChart');
   if (!ctx) return;

@@ -278,24 +278,30 @@ LOGGING = {
     },
 }
 
-# ── CSP في الإنتاج — Enforce (لا Report-Only) ─────────────────
-# Tailwind مصرَّف محلياً — لا حاجة لـ CDN للـ CSS
-CSP_SCRIPT_SRC = (
-    "'self'",
-    "https://cdn.jsdelivr.net",
-    "https://unpkg.com",
-)
-# ✅ v5.2: nonce-based style-src — إزالة unsafe-inline
-# style attributes في القوالب يجب أن تُنقل إلى CSS classes
-# أو تُضاف عبر <style nonce="{{ request.csp_nonce }}">
-CSP_STYLE_SRC = (
-    "'self'",
-    "https://fonts.googleapis.com",
-)
-CSP_INCLUDE_NONCE_IN = ["script-src", "style-src"]  # ✅ nonce لكليهما
-CSP_REPORT_ONLY = False  # ← Enforce: أي script/style بلا nonce سيُحجب
-# ✅ v5.2: CSP Reporting — تسجيل الانتهاكات
-CSP_REPORT_URI = config("CSP_REPORT_URI", default="")
+# ── CSP في الإنتاج — enforce ──────────────────────────────────
+# Tailwind مصرَّف محلّياً، فلا حاجة إلى CDN للأنماط.
+#
+# وهذه أوّل مرّة تُفرَض فيها السياسة فعلاً: الصيغة القديمة `CSP_*` لم تكن
+# تُقرأ منذ `django-csp 4.0`، فلم تُرسَل ترويسةٌ قطّ. ولذلك تُفرَض بسياسةٍ
+# تُطابق الواقع لا بالنسخة المثالية: `'unsafe-inline'` باقٍ في `style-src`
+# حتى تُنقل سمات `style="…"` إلى أصناف CSS — وإزالتُه قبل ذلك تكسر الواجهة
+# لا تحميها.
+# base قد يكون ضبط النسخة report-only حين `CSP_REPORT_ONLY=True` في البيئة؛
+# تركُها يُرسل ترويستين متعارضتين. والإنتاج يفرض دائماً.
+CONTENT_SECURITY_POLICY_REPORT_ONLY = None
+
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        **CSP_BASE_DIRECTIVES,
+        "script-src": [SELF, NONCE, "https://cdn.jsdelivr.net", "https://unpkg.com"],
+        "style-src": [SELF, "'unsafe-inline'", "https://fonts.googleapis.com"],
+    }
+}
+
+_csp_report_uri = config("CSP_REPORT_URI", default="")
+if _csp_report_uri:
+    CONTENT_SECURITY_POLICY["DIRECTIVES"]["report-uri"] = [_csp_report_uri]
+
 
 # ── WhiteNoise: static files مع Brotli/GZip + cache forever ──
 # يعمل دائماً في الإنتاج بغض النظر عن USE_S3

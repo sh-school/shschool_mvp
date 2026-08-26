@@ -60,7 +60,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   /* فلتر خيارات <select> — يخفي الخيارات غير المطابقة */
   function filterSelect(inputId, selectId){
