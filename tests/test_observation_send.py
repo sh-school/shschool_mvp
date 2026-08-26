@@ -243,3 +243,39 @@ def test_the_letterhead_markup_reads_the_school_not_a_hardcoded_name(
     assert "doc-header" in html
     assert "وزارة التربية والتعليم والتعليم العالي" in html
     assert school.name in html
+
+
+# ══════════════════════ الصفحة تُعرض فعلاً ══════════════════════════
+
+
+@pytest.mark.django_db
+def test_the_pdf_may_be_framed_by_its_own_viewer(client, school, principal_user, teacher_user):
+    """`X_FRAME_OPTIONS = "DENY"` عامٌّ، فكان يمنع الملفّ من الظهور داخل صفحته.
+
+    والمتصفّح لا يُبلّغ عن ذلك في السجلّ — يضع «refused to connect» مكان الملفّ،
+    فتبدو الصفحة سليمةً وهي فارغة. والاستثناء `sameorigin` لهذه الاستجابة وحدها،
+    وكلّ ما عداها يبقى على `DENY`.
+    """
+    obs = _make_obs(school, principal_user, teacher_user)
+    client.force_login(principal_user)
+
+    resp = client.get(reverse("observation_pdf", args=[obs.id]))
+
+    assert resp.headers.get("X-Frame-Options") == "SAMEORIGIN"
+
+
+@pytest.mark.django_db
+def test_the_viewer_page_renders_no_stray_template_syntax(
+    client, school, principal_user, teacher_user
+):
+    """`{# … #}` في Django سطرٌ واحد — والمتعدّد يُطبع نصّاً فوق الصفحة.
+
+    وقع ذلك فعلاً وظهر التعليق للمستخدمين. والصيغة الصحيحة `{% comment %}`.
+    """
+    obs = _make_obs(school, principal_user, teacher_user)
+    client.force_login(principal_user)
+
+    html = client.get(reverse("observation_pdf_view", args=[obs.id])).content.decode()
+
+    assert "{#" not in html
+    assert "{%" not in html
