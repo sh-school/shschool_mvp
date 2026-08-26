@@ -166,7 +166,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   var studentInput = document.getElementById('filter-student');
   var statusSel    = document.getElementById('filter-status');

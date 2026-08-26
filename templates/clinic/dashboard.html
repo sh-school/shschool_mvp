@@ -160,7 +160,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
-<script>
+<script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family="'Tajawal','Segoe UI',Tahoma,sans-serif";
 Chart.defaults.font.size=10;
 Chart.defaults.plugins.legend.position='bottom';

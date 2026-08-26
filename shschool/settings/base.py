@@ -371,37 +371,48 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@schoolos.qa")
 
-# ── Content Security Policy (nonce-based) ─────────────────
-# ✅ v6: unsafe-inline أُزيل من script-src — نستخدم nonce لكل <script>
-# style-src تحتفظ بـ unsafe-inline بسبب style="" attributes في القوالب
-# CSP_REPORT_ONLY = True في التطوير — Enforce في الإنتاج (production.py)
-CSP_DEFAULT_SRC = ("'self'",)
-CSP_SCRIPT_SRC = (
-    "'self'",
-    "https://cdn.jsdelivr.net",
-    "https://cdnjs.cloudflare.com",
-    "https://unpkg.com",
-)
-CSP_STYLE_SRC = (
-    "'self'",
-    "'unsafe-inline'",
-    "https://fonts.googleapis.com",
-    "https://cdn.jsdelivr.net",
-)
-CSP_FONT_SRC = (
-    "'self'",
-    "https://fonts.gstatic.com",
-)
-CSP_IMG_SRC = (
-    "'self'",
-    "data:",
-    "blob:",
-)
-CSP_CONNECT_SRC = ("'self'", "wss:", "ws:")  # wss: مطلوب للـ WebSocket
-CSP_FRAME_SRC = ("'none'",)
-CSP_OBJECT_SRC = ("'none'",)
-CSP_INCLUDE_NONCE_IN = ["script-src"]  # يُضيف nonce تلقائياً لكل <script nonce="...">
-CSP_REPORT_ONLY = config("CSP_REPORT_ONLY", default=True, cast=bool)  # الإنتاج: False
+# ── Content Security Policy ───────────────────────────────
+# `django-csp==4.0` يقرأ `CONTENT_SECURITY_POLICY` وحده. وكانت الإعدادات هنا
+# بصيغة `CSP_*` القديمة التي تخلّت عنها المكتبة، فلم تُقرأ منذ الترقية: لا
+# ترويسةَ CSP تُرسَل أصلاً — والإعدادات قائمةٌ تُوهم من يقرأها بأن الحماية مفعّلة.
+#
+# و`NONCE` في `script-src` يعني أن المتصفّح **يتجاهل `'unsafe-inline'` للسكربتات
+# تماماً**، فكل `<script>` داخليّ يلزمه `nonce="{{ request.csp_nonce }}"`.
+#
+# و`'unsafe-inline'` باقٍ في `style-src` عن قصد لا عن تساهل: القوالب تحمل ٧٣٢
+# سمة `style="…"`، والسمات لا يُغنّي عنها nonce. ونقلُها إلى أصناف CSS عملٌ
+# مستقلّ يسبق إزالتها.
+from csp.constants import NONCE, SELF
+
+CSP_BASE_DIRECTIVES = {
+    "default-src": [SELF],
+    "script-src": [
+        SELF,
+        NONCE,
+        "https://cdn.jsdelivr.net",
+        "https://cdnjs.cloudflare.com",
+        "https://unpkg.com",
+    ],
+    "style-src": [
+        SELF,
+        "'unsafe-inline'",
+        "https://fonts.googleapis.com",
+        "https://cdn.jsdelivr.net",
+    ],
+    "font-src": [SELF, "https://fonts.gstatic.com"],
+    "img-src": [SELF, "data:", "blob:"],
+    "connect-src": [SELF, "wss:", "ws:"],  # wss: مطلوب للـWebSocket
+    # 'self' لا 'none': صفحة استمارة الزيارة تعرض ملفّ الـPDF في إطارٍ من الأصل نفسه.
+    "frame-src": [SELF],
+    "object-src": ["'none'"],
+}
+
+CSP_REPORT_ONLY = config("CSP_REPORT_ONLY", default=True, cast=bool)
+
+if CSP_REPORT_ONLY:
+    CONTENT_SECURITY_POLICY_REPORT_ONLY = {"DIRECTIVES": CSP_BASE_DIRECTIVES}
+else:
+    CONTENT_SECURITY_POLICY = {"DIRECTIVES": CSP_BASE_DIRECTIVES}
 
 
 # ✅ v5: VAPID Push Notifications

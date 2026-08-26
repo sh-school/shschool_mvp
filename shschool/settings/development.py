@@ -36,18 +36,9 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# ── تطوير: تعطيل CSP لتجنب تعارضه مع Tailwind CDN ──────────
+# ── تطوير: CSP معطّلة — Tailwind CDN يتعارض معها ──────────
+# نزعُ الوسيط يكفي؛ وأيّ توجيهات هنا لا تُقرأ بعد ذلك، فلا تُترك موهِمة.
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
-
-CSP_SCRIPT_SRC = (
-    "'self'",
-    "'unsafe-inline'",
-    "'unsafe-eval'",
-    "https://cdn.jsdelivr.net",
-    "https://cdnjs.cloudflare.com",
-    "https://cdn.tailwindcss.com",
-    "https://unpkg.com",
-)
 
 # ── Celery — وضع التطوير ─────────────────────────────────────
 # CELERY_TASK_ALWAYS_EAGER = True يُشغّل المهام مباشرة بدون broker

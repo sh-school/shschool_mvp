@@ -76,7 +76,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof window.smartFilter === 'function') {
     window.smartFilter('bus-search', '#bus-tbody .filterable-row', { textAttr: 'data-text' });

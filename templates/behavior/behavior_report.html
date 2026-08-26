@@ -121,7 +121,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   var descInput  = document.getElementById('filter-description');
   var dateFrom   = document.getElementById('filter-date-from');
