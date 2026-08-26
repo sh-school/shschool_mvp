@@ -2,8 +2,13 @@
 {% block title %}استمارة {{ obs.teacher.full_name }} — PDF{% endblock %}
 
 {% block content %}
-{# الملفّ يُعاد inline فيحلّ محلّ الصفحة في عارض المتصفّح؛ عرضُه داخل إطارٍ
-   هنا يُبقي شريط الأدوات لنا — رجوعاً وتحميلاً وإرسالاً. #}
+{% comment %}
+الملفّ يُعاد inline فيحلّ محلّ الصفحة في عارض المتصفّح؛ عرضُه داخل إطارٍ هنا
+يُبقي شريط الأدوات لنا — رجوعاً وتحميلاً وإرسالاً.
+
+و`{# … #}` لا يصلح هنا: صيغة التعليق تلك في Django **سطرٌ واحد**، والمتعدّد
+يُطبع نصّاً ظاهراً فوق الصفحة. وقد وقع ذلك فعلاً.
+{% endcomment %}
 <div class="card-qatar" style="max-width:1100px;margin-inline:auto">
   <div class="exec-header">
     <h1>{% include "components/icon.html" with name="file-text" %}

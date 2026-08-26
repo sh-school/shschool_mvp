@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.models import AuditLog, CustomUser
@@ -465,7 +466,14 @@ def observation_delete(request, obs_id):
 
 # ══════════════════════════ PDF ══════════════════════════════════════
 @login_required
+@xframe_options_sameorigin
 def observation_pdf(request, obs_id):
+    """`X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض هذا الملفّ داخل
+    إطار صفحته العارضة — والمتصفّح يُظهر «refused to connect» مكانه.
+
+    والاستثناء `sameorigin` لهذه الاستجابة وحدها لا تخفيفٌ عامّ: الصفحة
+    المُضمِّنة من الأصل نفسه، وكلّ ما عداها يبقى على `DENY`.
+    """
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
         return render(request, "403.html", status=403)
