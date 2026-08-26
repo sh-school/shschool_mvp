@@ -22,7 +22,11 @@
       </button>
       {% endif %}
       <a href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
-      <a href="{% url 'observation_detail' obs.id %}" class="btn-secondary btn-sm">← رجوع</a>
+      {% comment %}
+      الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
+      ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.
+      {% endcomment %}
+      <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
     </div>
   </div>
 
