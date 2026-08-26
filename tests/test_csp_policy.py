@@ -17,7 +17,9 @@ from django.urls import reverse
 
 TEMPLATES = pathlib.Path("templates")
 
-_SCRIPT_TAG = re.compile(r"<script\b[^>]*>", re.S)
+# `re.I` ليست تجميلاً: بدونها لا يلتقط الحارس <SCRIPT> بأحرفٍ كبيرة، فيمرّ
+# سكربتٌ بلا nonce بمجرّد تغيير حالة الأحرف. كشفه CodeQL: py/bad-tag-filter.
+_SCRIPT_TAG = re.compile(r"<script\b[^>]*>", re.S | re.I)
 
 
 def _directives():
