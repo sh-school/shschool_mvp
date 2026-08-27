@@ -148,8 +148,6 @@ _ACTION_ATTR = re.compile(
 
 _EXTENDS = re.compile(r'{%\s*extends\s+"([^"]+)"')
 
-_BASE = "templates/base/base.html"
-
 
 def _reaches_actions_js(path, seen=frozenset()):
     """يتتبّع سلسلة `extends` حتى القالب الذي يُحمّل `actions.js`."""
