@@ -84,7 +84,7 @@
 <!-- الغلاف -->
 <div class="cover">
   <h1>لائحة السلوك والانضباط</h1>
-  <h2>{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</h2>
+  <h2>{{ school.name|default:"المدرسة" }}</h2>
   <div class="meta">
     دولة قطر — وزارة التربية والتعليم والتعليم العالي<br>
     تاريخ الإصدار: {{ generated_at|date:"Y/m/d" }}
@@ -195,7 +195,7 @@
 <!-- 7. التوقيعات -->
 <div class="section">
   <h2>7. الاعتماد الرسمي</h2>
-  <p>اعتُمدت هذه اللائحة من إدارة {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }} وتسري اعتباراً من تاريخ التوقيع.</p>
+  <p>اعتُمدت هذه اللائحة من إدارة {{ school.name|default:"المدرسة" }} وتسري اعتباراً من تاريخ التوقيع.</p>
   <table class="sig-grid">
     <tr>
     <td><div class="sig-box">مدير المدرسة<br><br>سلطان ناصر الهاجري<br>___________________<br>التاريخ: 19/3/2026</div></td>
@@ -207,7 +207,7 @@
 </div>
 
 <div class="footer-note">
-  لائحة السلوك والانضباط — {{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }} | الإصدار 1.0 | {{ academic_year }}<br>
+  لائحة السلوك والانضباط — {{ school.name|default:"المدرسة" }} | الإصدار 1.0 | {{ academic_year }}<br>
   أُنشئت بواسطة SchoolOS v5 | {{ generated_at|date:"Y/m/d H:i" }}<br>
   <span style="color:#6B1029;font-weight:600;">{% include "components/ministry_vision.html" %}</span>
 </div>
