@@ -205,11 +205,29 @@ class ObservationService:
         المشرفون (OBSERVATION_CREATE) يطّلعون أيضاً على التقييمات الذاتية (قراءة فقط).
         (المؤرشَف مُستبعَد تلقائياً عبر الـmanager الافتراضي.)
         """
+        return ObservationService._scoped(
+            ClassroomObservation.objects.filter(school=school), user
+        )
+
+    @staticmethod
+    def archived_for(user, school):
+        """المؤرشَف بنفس نطاق الرؤية — عبر `all_objects` لأن الافتراضي يستبعده.
+
+        كان `archive()` يُنادى من زرّ الحذف و`restore()` مكتوبةً لا تُنادى، ولا
+        مسار يعرض المؤرشَف. فالرسالة تَعِد المستخدم بأن الملاحظة «ستُحفظ في
+        الأرشيف» — وهو صادقٌ في القاعدة ولا سبيل إليه من الواجهة، فيتصرّف الحذف
+        الناعم كنهائيّ في نظر من يستعمله.
+        """
+        return ObservationService._scoped(
+            ClassroomObservation.all_objects.filter(school=school, is_deleted=True), user
+        ).order_by("-deleted_at")
+
+    @staticmethod
+    def _scoped(qs, user):
+        """نطاق الرؤية نفسه للحيّ والمؤرشَف — مصدرٌ واحد فلا يفترقان."""
         from core.permissions import OBSERVATION_CREATE, OBSERVATION_VIEW_ALL
 
-        qs = ClassroomObservation.objects.filter(school=school).select_related(
-            "teacher", "observer", "subject", "class_group"
-        )
+        qs = qs.select_related("teacher", "observer", "subject", "class_group")
         role = user.get_role()
         if user.is_superuser or role in OBSERVATION_VIEW_ALL:
             return qs

@@ -1,0 +1,70 @@
+{% extends "base/base.html" %}
+{% block title %}أرشيف الزيارات الصفية{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent2_url="/quality/" parent2_label="ضمان الجودة" parent_url="/quality/observations/" parent_label="الزيارات الصفية" current="الأرشيف" %}
+{% endblock %}
+
+{% block content %}
+<div class="card-qatar">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="inbox" %} أرشيف الزيارات الصفية</h1>
+    <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← الزيارات</a>
+  </div>
+
+  {% comment %}
+  الحذف ناعمٌ دائماً: الزيارة وتقييماتها تبقى للتدقيق. وهذه الصفحة هي ما يجعل
+  وعد رسالة الحذف — «محفوظة في الأرشيف ويمكن استرجاعها» — قابلاً للتحقّق.
+  {% endcomment %}
+  <p style="color:var(--text-muted);font-size:.9rem;margin:0 0 12px">
+    الزيارات المحذوفة محفوظة هنا بتقييماتها كاملةً. الاستعادة متاحة لمن يملك حذفها.
+  </p>
+
+  {% if page_obj.object_list %}
+  <table class="table table-qatar" style="font-size:.9rem">
+    <thead>
+      <tr>
+        <th>المعلّم</th><th>الزائر</th><th>المادّة</th><th class="col-num">تاريخ الزيارة</th>
+        <th>النوع</th><th class="col-num">النسبة</th><th class="col-num">تاريخ الأرشفة</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in page_obj %}
+      <tr>
+        <td>{{ o.teacher.full_name }}</td>
+        <td>{{ o.observer.full_name }}</td>
+        <td>{{ o.subject.name_ar|default:"—" }}</td>
+        <td class="col-num">{{ o.observation_date }}</td>
+        <td>
+          {% if o.kind == "self" %}<span class="badge" style="background:#ede9fe;color:#6d28d9">تقييم ذاتي</span>
+          {% else %}<span class="badge" style="background:#e0f2fe;color:#0369a1">إشرافية</span>{% endif %}
+        </td>
+        <td class="col-num">{% if o.score_percent != None %}{{ o.score_percent }}%{% else %}—{% endif %}</td>
+        <td class="col-num">{{ o.deleted_at|date:"Y-m-d H:i"|default:"—" }}</td>
+        <td style="white-space:nowrap">
+          {% if o.perms.can_delete %}
+          <form method="post" action="{% url 'observation_restore' o.id %}" style="display:inline"
+                data-confirm="إعادة هذه الملاحظة من الأرشيف؟">
+            {% csrf_token %}
+            <button type="submit" class="btn-primary btn-sm">استعادة</button>
+          </form>
+          {% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if page_obj.has_other_pages %}
+  <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+    {% if page_obj.has_previous %}<a class="btn-secondary btn-sm" href="?page={{ page_obj.previous_page_number }}">السابق</a>{% endif %}
+    <span style="align-self:center;color:var(--text-muted)">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="btn-secondary btn-sm" href="?page={{ page_obj.next_page_number }}">التالي</a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p style="text-align:center;color:var(--text-muted);padding:24px 0">لا زيارات مؤرشَفة.</p>
+  {% endif %}
+</div>
+{% endblock %}
