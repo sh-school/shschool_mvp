@@ -50,19 +50,19 @@
   {# ════════ شريط الإجراءات حسب الحالة والصلاحية ════════ #}
   <div class="action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-color,#e5e7eb)">
     {% if can_submit %}
-    <form method="post" action="{% url 'observation_submit' obs.id %}" onsubmit="return confirm('إرسال الملاحظة للمعلّم وإشعاره؟')">
+    <form method="post" action="{% url 'observation_submit' obs.id %}" data-confirm="إرسال الملاحظة للمعلّم وإشعاره؟">
       {% csrf_token %}<button type="submit" class="btn-primary">إرسال للمعلّم</button>
     </form>
     {% endif %}
 
     {% if can_withdraw %}
-    <form method="post" action="{% url 'observation_withdraw' obs.id %}" onsubmit="return confirm('سحب الملاحظة وإعادتها إلى مسودة؟ سيُخطَر المعلّم.')">
+    <form method="post" action="{% url 'observation_withdraw' obs.id %}" data-confirm="سحب الملاحظة وإعادتها إلى مسودة؟ سيُخطَر المعلّم.">
       {% csrf_token %}<button type="submit" class="btn-secondary">سحب (إعادة لمسودة)</button>
     </form>
     {% endif %}
 
     {% if can_delete and obs.status == "draft" %}
-    <form method="post" action="{% url 'observation_delete' obs.id %}" onsubmit="return confirm('حذف هذه المسودة؟')">
+    <form method="post" action="{% url 'observation_delete' obs.id %}" data-confirm="حذف هذه المسودة؟">
       {% csrf_token %}<button type="submit" class="btn-danger">حذف</button>
     </form>
     {% endif %}
@@ -91,7 +91,7 @@
       <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">إجراءات القيادة على ملاحظة مُقَرّة:</div>
       {% if can_reopen %}
       <form method="post" action="{% url 'observation_reopen' obs.id %}" style="margin-bottom:10px"
-            onsubmit="return confirm('إعادة فتح الملاحظة؟ سيُلغى إقرار المعلّم الحالي ويُعاد إشعاره.')">
+            data-confirm="إعادة فتح الملاحظة؟ سيُلغى إقرار المعلّم الحالي ويُعاد إشعاره.">
         {% csrf_token %}
         <input type="text" name="reason" class="form-control" placeholder="سبب إعادة الفتح (اختياري)" style="max-width:420px">
         <button type="submit" class="btn-secondary" style="margin-top:6px">إعادة فتح للتعديل</button>
@@ -99,7 +99,7 @@
       {% endif %}
       {% if can_delete %}
       <form method="post" action="{% url 'observation_delete' obs.id %}"
-            onsubmit="return confirm('حذف ملاحظة مُقَرّة؟ ستُحفظ في الأرشيف.')">
+            data-confirm="حذف ملاحظة مُقَرّة؟ ستُحفظ في الأرشيف.">
         {% csrf_token %}
         <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" style="max-width:420px">
         <button type="submit" class="btn-danger" style="margin-top:6px">حذف (أرشفة)</button>
@@ -113,7 +113,7 @@
   {% if obs.status == "submitted" and can_delete %}
   <div style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:6px">
     <form method="post" action="{% url 'observation_delete' obs.id %}"
-          onsubmit="return confirm('حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.')">
+          data-confirm="حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.">
       {% csrf_token %}
       <input type="text" name="reason" required class="form-control" placeholder="سبب الحذف (إلزامي)" style="max-width:420px">
       <button type="submit" class="btn-danger" style="margin-top:6px">حذف (أرشفة)</button>

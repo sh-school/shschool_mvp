@@ -17,7 +17,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% if can_send %}
       <button type="button" class="btn-primary btn-sm"
-              onclick="document.getElementById('send-box').hidden = !document.getElementById('send-box').hidden">
+              data-toggle="#send-box">
         إرسال نسخة
       </button>
       {% endif %}
@@ -51,7 +51,7 @@
     <div style="margin-top:10px;display:flex;gap:8px">
       <button type="submit" class="btn-primary btn-sm">إرسال</button>
       <button type="button" class="btn-secondary btn-sm"
-              onclick="document.getElementById('send-box').hidden = true">إلغاء</button>
+              data-hide="#send-box">إلغاء</button>
     </div>
   </form>
   {% endif %}

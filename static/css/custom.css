@@ -25,6 +25,10 @@
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
   img, svg { display: block; max-width: 100%; }
+
+  /* `hidden` يجب أن يغلب أصناف العرض (flex/grid) وإلا بقي العنصر ظاهراً.
+     تعتمد عليه مفردات data-toggle/data-hide في actions.js. */
+  [hidden] { display: none !important; }
 }
 
 @layer base {

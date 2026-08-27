@@ -25,7 +25,7 @@
       <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="download" %} تصدير Excel
       </a>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 

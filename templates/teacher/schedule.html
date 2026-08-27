@@ -55,7 +55,7 @@
   <input type="hidden" name="date" value="{{ selected_date }}">
   <div class="filter-field">
     <label class="filter-label">المعلم</label>
-    <select name="teacher" class="form-control form-control-sm" onchange="this.form.submit()">
+    <select name="teacher" class="form-control form-control-sm" data-autosubmit>
       <option value="">— كل المعلمين —</option>
       {% for m in filter_teachers %}
       <option value="{{ m.user_id }}" {% if teacher_filter == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }}</option>
@@ -64,7 +64,7 @@
   </div>
   <div class="filter-field">
     <label class="filter-label">الفصل</label>
-    <select name="class" class="form-control form-control-sm" onchange="this.form.submit()">
+    <select name="class" class="form-control form-control-sm" data-autosubmit>
       <option value="">— كل الفصول —</option>
       {% for cg in filter_classes %}
       <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
@@ -73,14 +73,14 @@
   </div>
   <div class="filter-field">
     <label class="filter-label">الحصة</label>
-    <select name="period" class="form-control form-control-sm" onchange="this.form.submit()">
+    <select name="period" class="form-control form-control-sm" data-autosubmit>
       <option value="">— الكل —</option>
       {% for p in "1234567" %}<option value="{{ p }}" {% if period_filter == p %}selected{% endif %}>الحصة {{ p }}</option>{% endfor %}
     </select>
   </div>
   <div class="filter-field">
     <label class="filter-label">الحالة</label>
-    <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+    <select name="status" class="form-control form-control-sm" data-autosubmit>
       <option value="">— الكل —</option>
       <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>لم يُسجَّل</option>
       <option value="in_progress" {% if status_filter == "in_progress" %}selected{% endif %}>جارٍ</option>

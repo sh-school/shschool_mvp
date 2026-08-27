@@ -17,7 +17,7 @@
     </div>
     <div class="exec-meta">
       <form method="get">
-        <select name="semester" onchange="this.form.submit()" class="exec-year-select">
+        <select name="semester" data-autosubmit class="exec-year-select">
           {% for val, label in SEMESTERS %}
           <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}

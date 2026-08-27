@@ -10,7 +10,7 @@
 {% endcomment %}
 <nav class="breadcrumbs" aria-label="مسار التصفح">
   {% if not no_back %}
-  <button type="button" class="bc-back" onclick="history.back()" aria-label="رجوع للصفحة السابقة" title="رجوع">
+  <button type="button" class="bc-back" data-action="back" aria-label="رجوع للصفحة السابقة" title="رجوع">
     <svg width="14" height="14" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
   </button>
   <span class="bc-sep" aria-hidden="true">/</span>

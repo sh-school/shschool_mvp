@@ -25,7 +25,7 @@
 
   {# ══ Add Member Form ═══════════════════════════════════════ #}
   <div class="q-add-form">
-    <button type="button" class="q-add-form-header" onclick="toggleForm()">
+    <button type="button" class="q-add-form-header" data-call="toggleForm">
       <span>{% include "components/icon.html" with name="plus" %} إضافة عضو جديد للجنة</span>
       <span id="form-toggle-icon" class="toggle-icon">＋</span>
     </button>
@@ -38,7 +38,7 @@
         <div class="q-add-form-grid">
           <div class="q-add-form-field">
             <label>الموظف</label>
-            <select name="user_id" onchange="fillJobTitle(this)">
+            <select name="user_id" data-call-change="fillJobTitle">
               <option value="">— اختر موظف —</option>
               {% for emp in staff %}
                 <option value="{{ emp.id }}" data-name="{{ emp.full_name }}">{{ emp.full_name }}</option>

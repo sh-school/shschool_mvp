@@ -24,7 +24,7 @@
           {% endif %}
         {% endfor %}
         <label>عرض:</label>
-        <select name="per_page" onchange="this.form.submit()">
+        <select name="per_page" data-autosubmit>
           <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25</option>
           <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50</option>
           <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100</option>

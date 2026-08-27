@@ -1,6 +1,6 @@
 {# Modal: تقييم الأداء والمراجعة الذاتية — يُحمَّل عبر HTMX في #modal-container #}
 
-<div class="q-modal-overlay" onclick="if(event.target===this){closeModal();this.remove()}"
+<div class="q-modal-overlay" data-close-on-backdrop
      role="dialog" aria-modal="true" aria-label="تقييم الأداء والمراجعة الذاتية">
   <div class="q-modal">
 
@@ -13,7 +13,7 @@
           <p class="sub">رقم الإجراء: <span dir="ltr">{{ task.number }}</span></p>
         </div>
       </div>
-      <button class="close-btn" onclick="closeModal();this.closest('.q-modal-overlay').remove()" aria-label="إغلاق">
+      <button class="close-btn" data-close-modal="closest:.q-modal-overlay" aria-label="إغلاق">
         {% include "components/icon.html" with name="x" %}
       </button>
     </div>
@@ -104,10 +104,7 @@
               <input type="hidden" name="evidence_request_status" value="not_requested">
               <input type="checkbox" id="req-evidence-cb"
                      {% if task.evidence_request_status == 'requested' %}checked{% endif %}
-                     onchange="
-                       document.getElementById('evidence-note-section').classList.toggle('hidden', !this.checked);
-                       this.previousElementSibling.value = this.checked ? 'requested' : 'not_requested';
-                     ">
+>
               {% include "components/icon.html" with name="file-warning" %}
               طلب أدلة إضافية من المنفذ
             </label>
@@ -150,7 +147,7 @@
 
         {# ═══ Footer ═══ #}
         <div class="q-modal-footer">
-          <button type="button" class="btn-cancel" onclick="closeModal();this.closest('.q-modal-overlay').remove()">إلغاء</button>
+          <button type="button" class="btn-cancel" data-close-modal="closest:.q-modal-overlay">إلغاء</button>
           <button type="submit" class="btn-save">
             {% include "components/icon.html" with name="check-double" %} حفظ واعتماد
           </button>
@@ -165,4 +162,22 @@
 function closeModal() {
   document.getElementById('modal-container').innerHTML = '';
 }
+</script>
+
+{% comment %}
+سلوكٌ مركّب — قلبُ صنفٍ وضبط قيمة حقلٍ مجاور معاً — فلا تسعه مفردةٌ معلنة
+واحدة. ونُقل من سمة `onchange` لأن CSP تحجب معالِجات الأحداث الداخلية.
+{% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    var cb = document.getElementById("req-evidence-cb");
+    var section = document.getElementById("evidence-note-section");
+    if (!cb || !section) return;
+    cb.addEventListener("change", function () {
+      section.classList.toggle("hidden", !cb.checked);
+      if (cb.previousElementSibling) {
+        cb.previousElementSibling.value = cb.checked ? "requested" : "not_requested";
+      }
+    });
+  })();
 </script>

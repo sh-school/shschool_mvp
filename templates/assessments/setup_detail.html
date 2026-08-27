@@ -100,7 +100,7 @@
 
       <!-- إضافة تقييم -->
       <div class="border-t px-5 py-3 bg-gray-50">
-        <button onclick="document.getElementById('form-{{ pkg.id }}').classList.toggle('hidden')"
+        <button data-toggle-class="#form-{{ pkg.id }}|hidden"
                 class="text-xs text-blue-600 hover:underline">+ إضافة تقييم</button>
         <form id="form-{{ pkg.id }}" method="post" action="{% url 'create_assessment' pkg.id %}"
               class="hidden mt-3 space-y-2">
@@ -123,7 +123,7 @@
           </div>
           <div class="flex gap-2">
             <button type="submit" class="px-4 py-1.5 bg-skyline text-white rounded text-sm hover:bg-maroon">حفظ</button>
-            <button type="button" onclick="document.getElementById('form-{{ pkg.id }}').classList.add('hidden')"
+            <button type="button" data-toggle-class="#form-{{ pkg.id }}|hidden"
                     class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm">إلغاء</button>
           </div>
         </form>

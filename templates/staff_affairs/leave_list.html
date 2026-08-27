@@ -14,14 +14,14 @@
   <form method="get" class="filter-bar">
     <div class="filter-field">
       <label class="filter-label">الحالة</label>
-      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="status" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in status_choices %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </div>
     <div class="filter-field">
       <label class="filter-label">النوع</label>
-      <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="type" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in type_choices %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>

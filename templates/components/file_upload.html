@@ -35,7 +35,7 @@
     <button
       type="button"
       class="btn-secondary text-sm"
-      onclick="document.getElementById('file-input-{{ field_name|default:'file' }}').click()"
+      data-click="#file-input-{{ field_name|default:'file' }}"
     >اختر ملفًا</button>
     <div class="dropzone-hint">
       {% if accept %}الصيغ المقبولة: {{ accept }}{% endif %}

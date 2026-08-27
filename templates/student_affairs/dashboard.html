@@ -18,7 +18,7 @@
     </div>
     <div class="exec-meta">
       <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 

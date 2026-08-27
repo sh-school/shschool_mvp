@@ -44,7 +44,7 @@
 
       <div class="form-group mb-0">
         <label class="form-label text-xs">نوع التفريغ</label>
-        <select name="exemption_type" id="exemption-type" class="form-control" onchange="document.getElementById('period-field').style.display = this.value === 'specific_period' ? '' : 'none'">
+        <select name="exemption_type" id="exemption-type" class="form-control" data-show-when="#period-field|specific_period">
           <option value="full_day">يوم كامل</option>
           <option value="specific_period">حصة محددة</option>
         </select>
