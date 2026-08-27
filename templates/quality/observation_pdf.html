@@ -30,6 +30,7 @@
   .doc-header-school { font-size: 12pt; font-weight: 700; color: #8A1538; line-height: 1.35; }
   .doc-footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #ccc;
                 text-align: center; font-size: 7.5pt; color: #666; line-height: 1.5; }
+  .doc-footer-vision { color: #6B1029; font-weight: 600; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -88,6 +89,7 @@
 
   <div class="doc-footer">
     {{ obs.school.name }}{% if obs.school.phone %} · هاتف: {{ obs.school.phone }}{% endif %}{% if obs.school.email %} · {{ obs.school.email }}{% endif %}{% if obs.school.city %} · {{ obs.school.city }}، قطر{% endif %}
+    <div class="doc-footer-vision">{% include "components/ministry_vision.html" %}</div>
   </div>
 </body>
 </html>

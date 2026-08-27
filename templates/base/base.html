@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=141">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=142">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -497,6 +497,7 @@
   <p class="site-footer-version">
     SchoolOS v{{ platform_version }} &ensp;·&ensp; &copy; {% now "Y" %}
   </p>
+  <p class="site-footer-vision">{% include "components/ministry_vision.html" %}</p>
   {# Azkia brand attribution — شعار + اسم الشركة في نفس السطر #}
   <div class="site-footer-brand" aria-label="Azkia brand attribution">
     <span class="site-footer-brand-label">طُوِّر بواسطة</span>
