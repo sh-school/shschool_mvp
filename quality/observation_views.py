@@ -464,7 +464,6 @@ def observation_delete(request, obs_id):
     return redirect("observation_list")
 
 
-
 # ══════════════════════════ الأرشيف ══════════════════════════════════
 @login_required
 def observation_archive(request):
@@ -496,9 +495,7 @@ def observation_restore(request, obs_id):
     أن يُرجع ما أرشفته القيادة.
     """
     school = request.user.active_membership.school
-    obs = get_object_or_404(
-        ObservationService.archived_for(request.user, school), pk=obs_id
-    )
+    obs = get_object_or_404(ObservationService.archived_for(request.user, school), pk=obs_id)
     if not _obs_perms(request.user, obs)["can_delete"]:
         return render(request, "403.html", status=403)
 

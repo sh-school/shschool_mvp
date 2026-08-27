@@ -205,9 +205,7 @@ class ObservationService:
         المشرفون (OBSERVATION_CREATE) يطّلعون أيضاً على التقييمات الذاتية (قراءة فقط).
         (المؤرشَف مُستبعَد تلقائياً عبر الـmanager الافتراضي.)
         """
-        return ObservationService._scoped(
-            ClassroomObservation.objects.filter(school=school), user
-        )
+        return ObservationService._scoped(ClassroomObservation.objects.filter(school=school), user)
 
     @staticmethod
     def archived_for(user, school):
