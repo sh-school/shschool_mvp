@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models import AuditLog
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 from notifications.hub import NotificationHub
@@ -59,7 +60,10 @@ def _safe_next_redirect(request, fallback):
 
 
 # ── ثوابت ────────────────────────────────────────────────────
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+#: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
+def _default_year(request=None):
+    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+
 
 # Allowed sort fields mapping (GET param → ORM field)
 _SORT_FIELDS = {
@@ -92,7 +96,7 @@ def _can_edit_procedure(user, procedure):
     return user.is_admin() or procedure.executor_user == user
 
 
-def _get_reviewer_domain(user, school, year=_DEFAULT_YEAR):
+def _get_reviewer_domain(user, school, year=None):
     """الحصول على مجال المراجع (أو None إذا لم يكن مراجعاً)."""
     membership = (
         QualityCommitteeMember.objects.filter(
@@ -107,7 +111,7 @@ def _get_reviewer_domain(user, school, year=_DEFAULT_YEAR):
     return membership.domain if membership else None
 
 
-def _can_review_procedure(user, school, procedure, year=_DEFAULT_YEAR):
+def _can_review_procedure(user, school, procedure, year=None):
     """هل يحق للمراجع مراجعة هذا الإجراء (مجاله فقط)؟"""
     if user.is_admin():
         return True
@@ -120,7 +124,7 @@ def _can_review_procedure(user, school, procedure, year=_DEFAULT_YEAR):
     return proc_domain == reviewer_domain
 
 
-def _can_view_procedure(user, school, procedure, year=_DEFAULT_YEAR):
+def _can_view_procedure(user, school, procedure, year=None):
     """هل يحق للمستخدم رؤية هذا الإجراء؟"""
     if user.is_admin():
         return True
@@ -249,7 +253,7 @@ def _list_context(request, school, year, page_obj, per_page, sort, direction):
 @role_required(_QUALITY_ALL)
 def plan_dashboard(request):
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     is_admin = request.user.is_admin()
     is_reviewer = _is_review_member(request.user, school, year)
@@ -404,7 +408,7 @@ def procedure_detail(request, proc_id):
             "evidences": evidences,
             "can_edit": _can_edit_procedure(request.user, procedure),
             "is_reviewer": _is_review_member(
-                request.user, school, request.GET.get("year", _DEFAULT_YEAR)
+                request.user, school, request.GET.get("year") or _default_year(request)
             ),
             "status_logs": status_logs,
             "STATUS_CHOICES": OperationalProcedure.STATUS,
@@ -456,7 +460,7 @@ def update_procedure_status(request, proc_id):
         )
 
         if new_status == "Pending Review":
-            year = request.GET.get("year", _DEFAULT_YEAR)
+            year = request.GET.get("year") or _default_year(request)
             review_members = QualityCommitteeMember.objects.review_committee(school, year)
             recipients = [m.user for m in review_members if m.user]
             if recipients:
@@ -577,7 +581,7 @@ def upload_evidence(request, proc_id):
 @role_required(_QUALITY_ALL)
 def my_procedures(request):
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
     status_filter = request.GET.get("status", "")
 
     qs = QualityService.get_my_procedures(request.user, school, year)
@@ -623,7 +627,7 @@ def execution_list(request):
         return HttpResponse("غير مسموح — للمدير فقط", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     qs, sort, direction = _build_procedure_qs(request, school, year)
     page_obj, per_page = _paginate(request, qs)
@@ -637,7 +641,7 @@ def execution_list(request):
 def review_list(request):
     """قائمة المراجعة — لأعضاء لجنة المراجعة والمدير."""
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     is_admin = request.user.is_admin()
     is_reviewer = _is_review_member(request.user, school, year)

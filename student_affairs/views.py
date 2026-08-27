@@ -9,7 +9,6 @@ import os
 from datetime import timedelta
 from urllib.parse import quote
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -23,6 +22,7 @@ from django.views.decorators.http import require_POST
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
+from core.academic_calendar import academic_year_for
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -61,7 +61,7 @@ def student_dashboard(request):
 
     school = request.user.get_school()
     today = timezone.localdate()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
     ctx = StudentService.get_dashboard_context(school, year, today=today)
@@ -104,7 +104,7 @@ def student_dashboard(request):
 def student_list(request):
     """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
     students = (
@@ -252,7 +252,7 @@ def student_export_excel(request):
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
     school = request.user.get_school()
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for(request)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
@@ -378,7 +378,7 @@ def student_add(request):
     from .services import StudentService
 
     school = request.user.get_school()
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for(request)
 
     if request.method == "POST":
         form = StudentAddForm(request.POST)
@@ -463,7 +463,7 @@ def student_edit(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for(request)
     profile = getattr(student, "profile", None)
     enrollment = (
         StudentEnrollment.objects.filter(
@@ -576,7 +576,7 @@ def student_profile(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ── 1. البيانات الشخصية (core) ──
     profile = getattr(student, "profile", None)
@@ -751,7 +751,7 @@ def transfer_create(request):
                 to_grade=cd.get("to_grade", ""),
                 transfer_date=cd["transfer_date"],
                 reason=cd.get("reason", ""),
-                academic_year=settings.CURRENT_ACADEMIC_YEAR,
+                academic_year=academic_year_for(request),
                 created_by=request.user,
                 updated_by=request.user,
             )
@@ -836,7 +836,7 @@ def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
     school = request.user.get_school()
     today = timezone.localdate()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     grade_filter = request.GET.get("grade", "")
 
     # ── إحصائيات اليوم ──
@@ -1159,7 +1159,7 @@ def behavior_overview(request):
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     activities = (
         StudentActivity.objects.filter(school=school, academic_year=year)
         .select_related("student")
@@ -1213,7 +1213,7 @@ def activity_add(request):
                 description=cd.get("description", ""),
                 scope=cd["scope"],
                 date=cd["date"],
-                academic_year=settings.CURRENT_ACADEMIC_YEAR,
+                academic_year=academic_year_for(request),
                 recorded_by=request.user,
                 attachment=cd.get("attachment"),
             )
@@ -1318,7 +1318,7 @@ def parent_add(request):
     from .forms import ParentAddForm
 
     school = request.user.get_school()
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for(request)
 
     # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
     students = (
@@ -1425,7 +1425,7 @@ def student_profile_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # enrollment
     enrollment = (
@@ -1589,7 +1589,7 @@ def tardiness_list(request):
         StudentAttendance.objects.filter(
             school=school,
             status="late",
-            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
+            session__class_group__academic_year=academic_year_for(request),
         )
         .values("student_id")
         .annotate(total=Count("id"))
@@ -1780,7 +1780,7 @@ def tardiness_export_excel(request):
         StudentAttendance.objects.filter(
             school=school,
             status="late",
-            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
+            session__class_group__academic_year=academic_year_for(request),
         )
         .values("student_id")
         .annotate(total=Count("id"))
@@ -2098,7 +2098,7 @@ def tardiness_pdf(request):
         StudentAttendance.objects.filter(
             school=school,
             status="late",
-            session__class_group__academic_year=settings.CURRENT_ACADEMIC_YEAR,
+            session__class_group__academic_year=academic_year_for(request),
         )
         .values("student_id")
         .annotate(total=Count("id"))

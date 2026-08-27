@@ -5,7 +5,6 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 import django.db
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -15,6 +14,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models import CustomUser, Membership
 from core.permissions import role_required
 
@@ -91,7 +91,7 @@ def weekly_schedule(request):
     user = request.user
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     target_teacher = None
     if teacher_id:
@@ -149,7 +149,7 @@ def schedule_print(request):
     from core.models import ClassGroup
 
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     view_type = request.GET.get("view", "school")  # school, teacher, class
     paper = request.GET.get("paper", "a4")  # a4, a3
     teacher_id = request.GET.get("teacher")
@@ -224,7 +224,7 @@ def schedule_slot_create(request):
                 period_number=int(request.POST["period_number"]),
                 start_time=request.POST["start_time"],
                 end_time=request.POST["end_time"],
-                academic_year=request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
+                academic_year=request.POST.get("academic_year") or academic_year_for(request),
             )
             messages.success(request, f"تمت إضافة الحصة: {slot}")
         except (ValueError, TypeError, django.db.IntegrityError) as e:
@@ -486,7 +486,7 @@ def substitute_report(request):
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     assignments = (
         SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
@@ -524,7 +524,7 @@ def smart_generate(request):
     from .scheduler import generate_schedule
 
     school = request.user.get_school()
-    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.POST.get("year") or academic_year_for(request)
 
     try:
         result = generate_schedule(school, year, user=request.user)
@@ -575,7 +575,7 @@ def teacher_load_report(request):
     from core.permissions import get_department_teacher_ids
 
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     dept_ids = get_department_teacher_ids(request.user)
     if dept_ids is not None:
@@ -609,7 +609,7 @@ def teacher_load_report(request):
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     pref, _created = TeacherPreference.objects.get_or_create(
         teacher=request.user,
         school=school,
@@ -694,7 +694,7 @@ def approve_schedule(request, generation_id):
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     exemptions = TeacherExemption.objects.filter(
         school=school, academic_year=year, is_active=True
@@ -734,7 +734,7 @@ def schedule_settings(request):
 def add_exemption(request):
     """إضافة تفريغ معلم — POST"""
     school = request.user.get_school()
-    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.POST.get("year") or academic_year_for(request)
     teacher = get_object_or_404(CustomUser, id=request.POST["teacher"])
     exemption_type = request.POST.get("exemption_type", "full_day")
     day_of_week = int(request.POST["day_of_week"])

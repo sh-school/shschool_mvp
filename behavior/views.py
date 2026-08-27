@@ -89,6 +89,8 @@ def _get_scoped_students(user, school):
     return CustomUser.objects.filter(id__in=student_ids).order_by("full_name")
 
 
+from core.academic_calendar import academic_year_for
+
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
@@ -551,7 +553,7 @@ def behavior_report(request, student_id):
             "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
             "هذا الطالب ليس من طلابك.</h2>"
         )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     period = request.GET.get("period", "full")
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
@@ -616,7 +618,7 @@ def behavior_statistics(request):
     """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
     role = request.user.get_role()
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
     if role in _STATS_TEACHER_ROLES:
@@ -916,7 +918,7 @@ def student_behavior_pdf(request, student_id):
             "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي.</h2>"
         )
 
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     period = request.GET.get("period", "full")
 
     report = BehaviorService.get_student_report_data(student, school, period, year)

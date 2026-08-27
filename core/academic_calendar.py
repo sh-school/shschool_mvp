@@ -88,6 +88,26 @@ class AcademicCalendar:
         return qs
 
 
+def academic_year_for(request) -> str:
+    """العام الجاري لمدرسة الطلب — البديل المباشر لـ`settings.CURRENT_ACADEMIC_YEAR`.
+
+    يرتدّ إلى الثابت حين لا تقويمَ مبذوراً بعد أو لا مدرسةَ للمستخدم، كي لا
+    تنكسر شاشةٌ قبل أن تمتلئ الجداول. والارتداد مؤقّت: متى بُذر التقويم صار
+    الاشتقاق هو المسار الوحيد.
+    """
+    from django.conf import settings
+
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return settings.CURRENT_ACADEMIC_YEAR
+
+    school = user.get_school()
+    if school is None:
+        return settings.CURRENT_ACADEMIC_YEAR
+
+    return AcademicCalendar.year_name(school) or settings.CURRENT_ACADEMIC_YEAR
+
+
 #: الصفوف كما تُصنّفها نوافذ اختبارات الوزارة.
 _GRADE_BANDS = (
     (range(1, 10), "g1_9"),

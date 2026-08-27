@@ -6,7 +6,6 @@ reports/views.py — HTTP layer فقط (thin views)
 PDF               → core.pdf_utils.render_pdf
 """
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -18,6 +17,7 @@ from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
+from core.academic_calendar import academic_year_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.pdf_utils import render_pdf
 from core.permissions import leadership_required, role_required
@@ -136,7 +136,7 @@ def _get_paper_size(request) -> str:
 def reports_index(request):
     """فهرس التقارير — تبويبات + فلاتر + بطاقات فصول."""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     tab = request.GET.get("tab", "results")
     grade_filter = request.GET.get("grade", "")
     level_filter = request.GET.get("level", "")
@@ -198,7 +198,7 @@ def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
     if not _teacher_can_access_class(request, school, class_grp, year):
         from django.core.exceptions import PermissionDenied
@@ -238,7 +238,7 @@ def class_certificates_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -284,7 +284,7 @@ def attendance_report_pdf(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -319,7 +319,7 @@ def student_result_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -353,7 +353,7 @@ def student_annual_result_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -389,7 +389,7 @@ def student_certificate_pdf(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
@@ -427,7 +427,7 @@ def class_results_excel(request, class_id):
 
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
     if not _teacher_can_access_class(request, school, class_grp, year):
         from django.core.exceptions import PermissionDenied
@@ -450,7 +450,7 @@ def attendance_excel(request, class_id):
     return ExcelService.attendance_excel(
         class_grp,
         school,
-        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        request.GET.get("year") or academic_year_for(request),
         paper=paper,
     )
 
@@ -466,6 +466,6 @@ def behavior_excel(request):
     paper = _get_paper_size(request).lower()
     return ExcelService.behavior_excel(
         school,
-        request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR),
+        request.GET.get("year") or academic_year_for(request),
         paper=paper,
     )

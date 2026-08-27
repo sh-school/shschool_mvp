@@ -5,7 +5,6 @@ notifications/views.py
 
 import logging
 
-from django.conf import settings
 from django.contrib import messages
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ from .services import NotificationService
 @leadership_required
 def notifications_dashboard(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # آخر الإشعارات — paginated
     from django.core.paginator import Paginator
@@ -78,7 +77,7 @@ def send_absence_alerts(request):
 def send_fail_alerts(request):
     """إرسال إشعارات الرسوب للسنة الدراسية"""
     school = request.user.get_school()
-    year = request.POST.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.POST.get("year") or academic_year_for(request)
     sent, failed = NotificationService.send_fail_alerts_for_year(
         school=school, year=year, sent_by=request.user
     )
@@ -157,6 +156,8 @@ def save_settings(request):
 # ════════════════════════════════════════════════════════════════════
 # ✅ v6: إشعارات المنصة — الجرس + الصندوق + التفضيلات
 # ════════════════════════════════════════════════════════════════════
+
+from core.academic_calendar import academic_year_for
 
 from .models import InAppNotification, UserNotificationPreference
 
