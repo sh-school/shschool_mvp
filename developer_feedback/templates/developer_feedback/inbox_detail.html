@@ -22,6 +22,10 @@
 </div>
 {% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent2_url="/developer-feedback/" parent2_label="تواصل مع المطوّر" parent_url="/developer-feedback/inbox/" parent_label="صندوق الوارد" current="تفصيل الرسالة" %}
+{% endblock %}
+
 {% block content %}
 <main id="main-content" class="df-container" role="main">
 
