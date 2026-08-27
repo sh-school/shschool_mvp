@@ -11,7 +11,9 @@ v7: Professional headers/footers on every page
 import logging
 import os
 import re
+import unicodedata
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -755,6 +757,30 @@ def _strip_page_rules(html: str) -> str:
     return "".join(out)
 
 
+def _content_disposition(filename: str, as_attachment: bool) -> str:
+    """يبني الترويسة بترميز RFC 5987 حين يحمل الاسم محارف غير ASCII.
+
+    Django يُرمّز قيمة الترويسة كاملةً بـRFC 2047 (`=?utf-8?b?…?=`) إن حوت
+    محارف عربية — والمتصفّحات **لا تفهم ذلك الترميز في `Content-Disposition`**،
+    فلا ترى `attachment` وتعود إلى العرض داخل الصفحة. أي أن التنزيل كان
+    يُطلَب في الخادم ولا يصل إلى المتصفّح.
+
+    الصواب اسمٌ لاتينيّ في `filename` للمتصفّحات القديمة، و`filename*` مُرمَّزاً
+    بـUTF-8 للحديثة — وكلاهما ASCII، فلا تُرمَّز الترويسة.
+    """
+    disposition = "attachment" if as_attachment else "inline"
+
+    # الامتداد يُفصل أوّلاً، فتنظيفُ الاسم لا يبتلع النقطة ويُنتج «pdf.pdf».
+    stem = re.sub(r"\.pdf$", "", filename, flags=re.I)
+    ascii_stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode()
+    ascii_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_stem).strip("._-")
+    # اسمٌ عربيّ بالكامل لا يُبقي حرفاً لاتينياً — فالبديل اسمٌ عامّ لا امتدادٌ عارٍ.
+    ascii_name = f"{ascii_stem or 'document'}.pdf"
+
+    encoded = quote(filename, safe="")
+    return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}"
+
+
 def render_pdf(
     html_str: str,
     filename: str,
@@ -772,8 +798,7 @@ def render_pdf(
     try:
         pdf_bytes = _generate_pdf_bytes(html_str, paper_size=paper_size)
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
-        disposition = "attachment" if as_attachment else "inline"
-        resp["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+        resp["Content-Disposition"] = _content_disposition(filename, as_attachment)
         return resp
     except Exception as e:  # noqa: BLE001 — تدهور لطيف بدل انهيار 500 غير مُعالَج
         logger.error("render_pdf فشل نهائياً: %s", e)
