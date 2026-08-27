@@ -305,7 +305,14 @@ if _csp_report_uri:
     _CSP_PRODUCTION["DIRECTIVES"]["report-uri"] = [_csp_report_uri]
 
 # ترويسةٌ واحدة لا اثنتان: `CSP_ENFORCE` هي الراية الوحيدة التي تقلبها.
-CSP_ENFORCE = config("CSP_ENFORCE", default=False, cast=bool)
+#
+# الافتراض `True` الآن: المعالِجات الداخلية الستّة والثمانون نُقلت إلى مفردات
+# `data-*` معلنة، وكل `<script>` داخليّ يحمل nonce — والحارسان يمنعان عودة
+# أيٍّ منهما. فبقاء السياسة report-only بعد ذلك يعني حمايةً تُبلّغ ولا تمنع.
+#
+# والتراجع لا يحتاج نشراً: `CSP_ENFORCE=False` في بيئة Railway يُعيدها
+# report-only فوراً.
+CSP_ENFORCE = config("CSP_ENFORCE", default=True, cast=bool)
 
 if CSP_ENFORCE:
     CONTENT_SECURITY_POLICY = _CSP_PRODUCTION

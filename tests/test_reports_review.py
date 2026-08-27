@@ -149,3 +149,19 @@ def test_an_empty_class_returns_to_the_reports_page(client, principal_user, scho
 
     assert resp.status_code == 302
     assert resp.url == reverse("reports_index")
+
+
+@pytest.mark.parametrize(
+    "viewer",
+    [
+        "templates/reports/report_viewer.html",
+        "templates/quality/observation_pdf_view.html",
+    ],
+)
+def test_no_viewer_offers_an_escape_to_a_new_tab(viewer):
+    """المطلوب الفتح **في نفس الصفحة**.
+
+    وُضع زرّ «فتح في تبويب» في الصفحة العارضة كخيارٍ إضافي لم يُطلب، فصار
+    أقرب زرٍّ إلى ما اعتاده المستخدم — وأعاد السلوك الذي بُنيت الصفحة لإزالته.
+    """
+    assert 'target="_blank"' not in pathlib.Path(viewer).read_text(encoding="utf-8")
