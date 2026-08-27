@@ -15,7 +15,6 @@
     <h1>{% include "components/icon.html" with name="file-text" %} {{ report_title }}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a href="{{ report_url }}&download=1" class="btn-primary btn-sm">تحميل PDF</a>
-      <a href="{{ report_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">فتح في تبويب</a>
       <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← التقارير</a>
     </div>
   </div>
