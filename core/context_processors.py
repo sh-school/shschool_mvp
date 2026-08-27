@@ -13,11 +13,23 @@ def school_context(request):
         role = None
         dept_obj = None
         department = ""
+    # الزمن الأكاديمي يُشتقّ من تقويم الوزارة لا من ثابتٍ في الإعدادات:
+    # `CURRENT_ACADEMIC_YEAR` تجاوزه الزمن فعلاً — ظلّ يقول «2025-2026» بعد
+    # بدء عام 2026-2027 — ولا شيء يكشف ذلك لأن القيمة صحيحةٌ نحوياً.
+    now = None
+    if school is not None:
+        from core.academic_calendar import AcademicCalendar
+
+        now = AcademicCalendar.current(school)
+
     return {
         "current_school": school,
         "current_role": role,
         "current_department": department,
         "current_department_obj": dept_obj,
+        "current_year": now.year if now else None,
+        "current_year_name": now.year_name if now else "",
+        "current_semester": now.semester if now else None,
         "platform_version": getattr(settings, "PLATFORM_VERSION", "5.1"),
     }
 
