@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("", views.reports_index, name="reports_index"),
+    path("view/", views.report_viewer, name="report_viewer"),
     path("class/<uuid:class_id>/results/", views.class_results_pdf, name="class_results_pdf"),
     path(
         "class/<uuid:class_id>/certificates/",

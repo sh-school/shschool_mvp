@@ -140,23 +140,23 @@
       <div class="pt-2 border-t flex gap-2 flex-wrap">
 
         {% if tab == "results" %}
-          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+          <a href="{% url 'report_viewer' %}?r=class_results_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_results_pdf' cls.id %}?year={{ year }}&paper={{ paper }}&download=1"
              class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
           <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
              class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>
 
         {% elif tab == "certificates" %}
-          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+          <a href="{% url 'report_viewer' %}?r=class_certificates_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'class_certificates_pdf' cls.id %}?year={{ year }}&paper={{ paper }}&download=1"
              class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
 
         {% elif tab == "attendance" %}
-          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&preview=1&paper={{ paper }}"
-             target="_blank" class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
-          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&paper={{ paper }}"
+          <a href="{% url 'report_viewer' %}?r=attendance_report_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
+             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="search" %} معاينة</a>
+          <a href="{% url 'attendance_report_pdf' cls.id %}?year={{ year }}&paper={{ paper }}&download=1"
              class="btn-secondary btn-sm text-xs no-underline report-export-link">PDF</a>
           <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
              class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>

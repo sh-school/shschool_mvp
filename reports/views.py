@@ -7,11 +7,15 @@ PDF               → core.pdf_utils.render_pdf
 """
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
 from core.models import ClassGroup, CustomUser, StudentEnrollment
@@ -19,6 +23,45 @@ from core.pdf_utils import render_pdf
 from core.permissions import leadership_required, role_required
 
 from .services import ExcelService, ReportDataService
+
+
+@login_required
+def report_viewer(request):
+    """يعرض تقريراً داخل صفحةٍ لها فتات خبز وزرّ رجوع وتحميل.
+
+    كانت «المعاينة» تفتح تبويباً جديداً وتُعيد وثيقة الطباعة نفسها — قالبٌ
+    يمتدّ من `base_qatar_report` بلا قائمة ولا فتات خبز ولا رجوع. طريقٌ مسدود.
+
+    و`r` يُطابَق على قائمةٍ بيضاء ثم يُعكَس بـ`reverse`: لا يُبنى مسارٌ من نصّ
+    المستخدم، فلا يصير الحقل باباً لإعادة توجيهٍ إلى أيّ عنوان.
+    """
+    name = request.GET.get("r", "")
+    if name not in VIEWABLE_REPORTS:
+        messages.error(request, "تقرير غير معروف.")
+        return redirect("reports_index")
+
+    obj_id = request.GET.get("id", "")
+    try:
+        target = reverse(name, args=[obj_id])
+    except Exception:  # noqa: BLE001 — معرّف غير صالح: رسالةٌ لا انهيار
+        messages.error(request, "معرّف غير صالح.")
+        return redirect("reports_index")
+
+    passthrough = [
+        (k, v) for k, v in request.GET.items() if k in ("year", "paper", "tab", "level", "grade")
+    ]
+    query = urlencode(passthrough)
+
+    return render(
+        request,
+        "reports/report_viewer.html",
+        {
+            "report_title": VIEWABLE_REPORTS[name],
+            "report_url": f"{target}?{query}" if query else f"{target}?",
+            "back_query": f"?{query}" if query else "",
+        },
+    )
+
 
 # ── helpers مشتركة ──────────────────────────────────────────────────
 
@@ -51,6 +94,22 @@ def _teacher_can_access_class(request, school, class_grp, year) -> bool:
     return SubjectClassSetup.objects.filter(
         school=school, teacher=user, class_group=class_grp, academic_year=year
     ).exists()
+
+
+def _wants_download(request) -> bool:
+    """`download=1` يجعل المتصفّح ينزّل الملفّ بدل أن يحلّ محلّ الصفحة."""
+    return request.GET.get("download") == "1"
+
+
+#: التقارير التي تُعرض في الصفحة العارضة — قائمةٌ بيضاء لا يُبنى منها مسارٌ حرّ.
+VIEWABLE_REPORTS = {
+    "class_results_pdf": "كشف نتائج الفصل",
+    "class_certificates_pdf": "شهادات الفصل",
+    "attendance_report_pdf": "تقرير الحضور والغياب",
+    "student_result_pdf": "نتيجة الطالب",
+    "student_annual_result_pdf": "كشف نتائج الطالب",
+    "student_certificate_pdf": "شهادة الطالب",
+}
 
 
 def _set_final_status(ctx: dict) -> None:
@@ -134,6 +193,7 @@ def reports_index(request):
 
 @login_required
 @role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
+@xframe_options_sameorigin
 def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
     school = request.user.get_school()
@@ -152,13 +212,9 @@ def class_results_pdf(request, class_id):
 
     # ── Guard: لا توليد PDF عند عدم وجود طلاب (reportlab يفشل مع جدول فارغ) ──
     if not ctx.get("student_rows"):
-        if preview:
-            return render(request, "reports/class_results.html", ctx)
-        return render(
-            request,
-            "reports/class_results.html",
-            {**ctx, "_empty_msg": "لا يوجد طلاب في هذا الفصل لتوليد التقرير."},
-        )
+        # وثيقة الطباعة صفحةٌ بلا قائمة ولا رجوع، فعرضُها كرسالة خطأ طريقٌ مسدود.
+        messages.warning(request, "لا يوجد طلاب في هذا الفصل لتوليد التقرير.")
+        return redirect("reports_index")
 
     if preview:
         return render(request, "reports/class_results.html", ctx)
@@ -168,11 +224,13 @@ def class_results_pdf(request, class_id):
         html,
         f"نتائج_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
+        as_attachment=_wants_download(request),
     )
 
 
 @login_required
 @leadership_required
+@xframe_options_sameorigin
 def class_certificates_pdf(request, class_id):
     """PDF: شهادات جميع طلاب فصل في ملف واحد"""
     if not request.user.is_admin():
@@ -212,11 +270,13 @@ def class_certificates_pdf(request, class_id):
         html,
         f"شهادات_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
+        as_attachment=_wants_download(request),
     )
 
 
 @login_required
 @leadership_required
+@xframe_options_sameorigin
 def attendance_report_pdf(request, class_id):
     """PDF: تقرير حضور وغياب الفصل"""
     if not request.user.is_admin():
@@ -238,6 +298,7 @@ def attendance_report_pdf(request, class_id):
         html,
         f"غياب_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
+        as_attachment=_wants_download(request),
     )
 
 
@@ -248,6 +309,7 @@ def attendance_report_pdf(request, class_id):
 
 @login_required
 @role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
+@xframe_options_sameorigin
 def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
     school = request.user.get_school()
@@ -271,11 +333,17 @@ def student_result_pdf(request, student_id):
         return render(request, "reports/student_result.html", ctx)
 
     html = render_to_string("reports/student_result.html", ctx, request=request)
-    return render_pdf(html, f"نتيجة_{student.full_name}_{year}.pdf", paper_size=paper)
+    return render_pdf(
+        html,
+        f"نتيجة_{student.full_name}_{year}.pdf",
+        paper_size=paper,
+        as_attachment=_wants_download(request),
+    )
 
 
 @login_required
 @role_required("principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher")
+@xframe_options_sameorigin
 def student_annual_result_pdf(request, student_id):
     """كشف نتائج الطالب السنوي — PDF للطباعة الرسمية"""
     school = request.user.get_school()
@@ -301,11 +369,17 @@ def student_annual_result_pdf(request, student_id):
         return render(request, "reports/student_result_pdf.html", ctx)
 
     html = render_to_string("reports/student_result_pdf.html", ctx, request=request)
-    return render_pdf(html, f"كشف_نتائج_{student.full_name}_{year}.pdf", paper_size=paper)
+    return render_pdf(
+        html,
+        f"كشف_نتائج_{student.full_name}_{year}.pdf",
+        paper_size=paper,
+        as_attachment=_wants_download(request),
+    )
 
 
 @login_required
 @leadership_required
+@xframe_options_sameorigin
 def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
     school = request.user.get_school()
@@ -331,7 +405,12 @@ def student_certificate_pdf(request, student_id):
         return render(request, "reports/certificate.html", ctx)
 
     html = render_to_string("reports/certificate.html", ctx, request=request)
-    return render_pdf(html, f"شهادة_{student.full_name}_{year}.pdf", paper_size=paper)
+    return render_pdf(
+        html,
+        f"شهادة_{student.full_name}_{year}.pdf",
+        paper_size=paper,
+        as_attachment=_wants_download(request),
+    )
 
 
 # ══════════════════════════════════════════════════════════════════════

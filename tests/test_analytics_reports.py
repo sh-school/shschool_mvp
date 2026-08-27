@@ -126,10 +126,16 @@ class TestReportsViews:
         assert resp.status_code == 403
 
     def test_class_results_pdf(self, client_as, principal_user, class_group):
+        """فصلٌ بلا طلاب يعود إلى صفحة التقارير برسالة.
+
+        كان يُعيد قالب الطباعة نفسه برسالة داخله — وهو يمتدّ من
+        `base_qatar_report`: صفحةٌ بلا قائمة ولا فتات خبز ولا رجوع. والاختبار
+        كان يوثّق ذلك بتعليق «200 = HTML fallback عند عدم وجود طلاب».
+        """
         c = client_as(principal_user)
         resp = c.get(f"/reports/class/{class_group.id}/results/")
-        # 200 = HTML fallback عند عدم وجود طلاب، أو PDF عند وجود بيانات
-        assert resp.status_code == 200
+        assert resp.status_code == 302
+        assert resp.url == "/reports/"
 
     def test_attendance_report(self, client_as, principal_user, class_group):
         c = client_as(principal_user)

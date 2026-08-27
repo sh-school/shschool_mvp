@@ -299,8 +299,13 @@ body {
 
 <!-- فوتر متكرر -->
 <div class="running-footer">
-  <div class="ft-school">{{ school_name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }} · هاتف: 44994205 · ashahanyia-pb@edu.gov.qa · الشحانية، قطر</div>
-  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © 2026</div>
+  {% comment %}
+  البيانات من `school` لا نصّاً: كان الذيل يطلب `school_name` ولا أحد يمرّره —
+  الخدمة تُعيد `school` — فكان البديل المُثبَّت هو المسار الوحيد دائماً، وتُطبع
+  بيانات مدرسةٍ بعينها على وثائق كل مدرسة في منصّةٍ متعدّدة المدارس.
+  {% endcomment %}
+  <div class="ft-school">{{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}</div>
+  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
 </div>
 
 <!-- الإطار -->
@@ -309,7 +314,7 @@ body {
   <div class="doc-header">
     <img src="static/brand/logoMaroon.png" class="emblem" alt="">
     <div class="ministry-name">{% block ministry_line %}{{ ministry|default:"وزارة التربية والتعليم والتعليم العالي — دولة قطر" }}{% endblock %}</div>
-    <div class="school-name">{% block school_name %}{{ school_name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</div>
+    <div class="school-name">{% block school_name %}{{ school.name }}{% endblock %}</div>
   </div>
   <div class="ornament-hr"></div>
 
