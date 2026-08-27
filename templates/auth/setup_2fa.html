@@ -64,7 +64,7 @@
       </summary>
       <div class="mt-3 bg-[var(--surface-alt)] rounded-lg px-4 py-3 flex items-center justify-between gap-2">
         <code class="text-sm font-mono text-[var(--text)] tracking-wider select-all">{{ secret }}</code>
-        <button onclick="navigator.clipboard.writeText('{{ secret }}')"
+        <button data-copy="{{ secret }}"
                 class="text-xs text-maroon dark:text-maroon-light hover:underline flex-shrink-0">نسخ</button>
       </div>
     </details>

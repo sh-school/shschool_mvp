@@ -22,7 +22,7 @@
         {% else %}status-gray{% endif %}">
         {{ transfer.get_status_display }}
       </span>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 

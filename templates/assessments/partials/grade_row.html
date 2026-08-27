@@ -27,11 +27,7 @@
       <input type="checkbox" name="is_absent" value="1"
              {% if grade_obj and grade_obj.is_absent %}checked{% endif %}
              class="w-4 h-4 accent-red-600"
-             onchange="
-               const gr = document.getElementById('grade_inp_{{ student.id }}');
-               gr.disabled = this.checked;
-               gr.style.opacity = this.checked ? '0.3' : '1';
-             ">
+             data-disables="#grade_inp_{{ student.id }}">
     </td>
 
     <td class="px-4 py-2 text-center">

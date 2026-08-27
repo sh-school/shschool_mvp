@@ -196,7 +196,7 @@
     <input type="hidden" name="paper" value="{{ paper }}">
     <input type="hidden" name="year" value="{{ year }}">
 
-    <select id="schedule-view-select" onchange="submitScheduleView(this)" title="نوع العرض">
+    <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
       <option data-view="school"
         {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
       <option disabled>── معلم ──</option>
@@ -217,7 +217,7 @@
     {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
     {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
     <input type="hidden" name="year" value="{{ year }}">
-    <select name="paper" onchange="this.form.submit()" title="حجم الورق">
+    <select name="paper" data-autosubmit title="حجم الورق">
       <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4 عمودي</option>
       <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>
     </select>
@@ -235,7 +235,7 @@
     }
   </script>
 
-  <button onclick="window.print()">طباعة</button>
+  <button data-action="print">طباعة</button>
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
 
@@ -286,5 +286,10 @@
   </div>
 </div>
 
+{% comment %}
+صفحةٌ قائمة بذاتها لا تمتدّ من `base`، فلا تصلها `actions.js` منها. ومفردات
+`data-*` هنا كانت ستصمت بلا أثر — لا خطأ في وحدة التحكّم ولا سلوك.
+{% endcomment %}
+<script src="{% static 'js/actions.js' %}?v=1" defer></script>
 </body>
 </html>

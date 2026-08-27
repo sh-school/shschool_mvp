@@ -29,7 +29,7 @@
       </form>
       <a href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
       <a href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
@@ -191,7 +191,7 @@
             </a>
             {% if is_today %}
             <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
-                  style="display:inline" onsubmit="return confirm('هل تريد إلغاء تسجيل التأخير؟')">
+                  style="display:inline" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
               {% csrf_token %}
               <button type="submit" class="btn-secondary btn-xs" style="color:var(--red)"
                       aria-label="إلغاء تأخير {{ rec.student.full_name }}">

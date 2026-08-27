@@ -28,8 +28,8 @@
     <p class="font-bold text-sm m-0 mb-0.5">ثبّت تطبيق المدرسة</p>
     <p class="text-xs m-0 pwa-subtitle">وصول سريع بدون متصفح</p>
   </div>
-  <button onclick="installPWA()" class="btn-secondary text-xs px-3 py-1 flex-shrink-0">تثبيت</button>
-  <button onclick="document.getElementById('pwa-banner').style.display='none'"
+  <button data-call="installPWA" class="btn-secondary text-xs px-3 py-1 flex-shrink-0">تثبيت</button>
+  <button data-hide="#pwa-banner"
           class="pwa-close-btn">{% include "components/icon.html" with name="x-circle" %}</button>
 </div>
 

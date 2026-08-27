@@ -61,7 +61,7 @@
       <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="bar-chart" %} كشف الدرجات
       </a>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 

@@ -123,15 +123,9 @@ def test_enforcement_waits_until_inline_handlers_are_gone():
     فيها سمات `onclick` و`onchange`، ولا ينفعها nonce لأنها سمات لا وسوم.
 
     فُرضت السياسة في أوّل نشرةٍ بعد الترحيل بينما في القوالب ٨٦ منها، فأُطفئ
-    تفاعل ٤٣ صفحة في الإنتاج. والفرض من الآن مشروطٌ بخلوّ القوالب منها.
+    تفاعل ٤٣ صفحة في الإنتاج. وقد نُقلت كلّها إلى مفردات `data-*` معلنة، فصار
+    الشرط قابلاً للقياس — ويبقى مقيساً: أيّ `onclick` جديد يُسقط هذا الحارس.
     """
-    # يُقرأ النصّ ولا تُستورد الوحدة: استيراد إعدادات الإنتاج يتطلّب أسرارها.
-    src = pathlib.Path("shschool/settings/production.py").read_text(encoding="utf-8")
-    default_off = 'CSP_ENFORCE = config("CSP_ENFORCE", default=False, cast=bool)'
-
-    if default_off in src:
-        return  # الفرض مطفأ افتراضاً — الشرط غير مُفعَّل بعد
-
     assert not _inline_event_handlers(), "لا يجوز الفرض وفي القوالب معالِجات أحداث داخلية"
 
 
@@ -140,3 +134,55 @@ def test_the_migration_target_is_measured_not_guessed():
     remaining = _inline_event_handlers()
 
     assert isinstance(remaining, set)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  المفردات المعلنة تصل إلى من يستعملها
+# ═══════════════════════════════════════════════════════════════════
+
+_ACTION_ATTR = re.compile(
+    r"data-(autosubmit|action|confirm|toggle|toggle-class|toggle-class-when"
+    r"|hide|show|remove|click|copy|call|call-change|mirror|mirror-next|set-value"
+    r"|close-modal|close-on-backdrop|file-name|show-when|toast|disables)"
+)
+
+_EXTENDS = re.compile(r'{%\s*extends\s+"([^"]+)"')
+
+_BASE = "templates/base/base.html"
+
+
+def _reaches_actions_js(path, seen=frozenset()):
+    """يتتبّع سلسلة `extends` حتى القالب الذي يُحمّل `actions.js`."""
+    if path in seen:
+        return False
+    src = pathlib.Path(path)
+    if not src.exists():
+        return False
+    text = src.read_text(encoding="utf-8", errors="ignore")
+    if "js/actions.js" in text:
+        return True
+    parent = _EXTENDS.search(text)
+    if not parent:
+        return False
+    return _reaches_actions_js("templates/" + parent.group(1), seen | {path})
+
+
+def test_pages_using_the_vocabulary_load_the_module_that_implements_it():
+    """صفحةٌ لا تمتدّ من `base` ولا تُحمّل `actions.js` تجعل `data-*` صامتة.
+
+    ولا أثر لذلك في وحدة التحكّم: لا خطأ ولا تحذير — الزرّ لا يفعل شيئاً فحسب.
+    وقد وقع في ثلاث صفحاتٍ قائمة بذاتها (صفحتا عدم الاتّصال وصفحة الطباعة).
+
+    الجزئيّات مستثناة: مستمعُها مفوَّض على `document`، فتكفيها الصفحة الحاضنة.
+    """
+    orphans = []
+    for f in TEMPLATES.rglob("*.html"):
+        text = f.read_text(encoding="utf-8", errors="ignore")
+        if not _ACTION_ATTR.search(text):
+            continue
+        if "<body" not in text:  # جزئيّة تُحقن في صفحةٍ أخرى
+            continue
+        if not _reaches_actions_js(f.as_posix()):
+            orphans.append(f.as_posix())
+
+    assert not orphans, f"تستعمل data-* ولا تصلها actions.js: {sorted(orphans)}"

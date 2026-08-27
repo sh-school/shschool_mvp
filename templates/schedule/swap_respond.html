@@ -91,10 +91,7 @@
         </form>
         <form method="post" id="reject-form">{% csrf_token %}
           <input type="hidden" name="action" value="reject">
-          <button type="button" class="btn-respond btn-decline" onclick="
-            var sec = document.getElementById('reject-section');
-            if (sec.style.display === 'none') { sec.style.display = 'block'; this.textContent = 'تأكيد الرفض'; this.type = 'submit'; }
-          ">رفض التبديل</button>
+          <button type="button" id="reject-btn" class="btn-respond btn-decline">رفض التبديل</button>
         </form>
       </div>
       {% else %}
@@ -106,3 +103,21 @@
   </div>
 </div>
 {% endblock %}
+
+{% comment %}
+رفضٌ على مرحلتين: النقرة الأولى تكشف حقل السبب وتقلب الزرّ إلى زرّ إرسال،
+والثانية تُرسل. نُقل من `onclick` لأن CSP تحجب معالِجات الأحداث الداخلية.
+{% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    var btn = document.getElementById("reject-btn");
+    var section = document.getElementById("reject-section");
+    if (!btn || !section) return;
+    btn.addEventListener("click", function () {
+      if (section.style.display !== "none") return;
+      section.style.display = "block";
+      btn.textContent = "تأكيد الرفض";
+      btn.type = "submit";
+    });
+  })();
+</script>

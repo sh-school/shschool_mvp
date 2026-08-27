@@ -94,7 +94,7 @@
           <a href="{% url 'observation_pdf_view' o.id %}" class="btn-secondary btn-sm">PDF</a>
           {% if p.can_delete and o.status == "draft" %}
           <form method="post" action="{% url 'observation_delete' o.id %}" style="display:inline"
-                onsubmit="return confirm('حذف هذه المسودة؟')">
+                data-confirm="حذف هذه المسودة؟">
             {% csrf_token %}
             <button type="submit" class="btn-danger btn-sm">حذف</button>
           </form>

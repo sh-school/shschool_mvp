@@ -58,7 +58,7 @@
 {% if tab != "behavior" %}
 <div class="filter-bar mb-4">
   <select name="level" class="form-control w-auto min-w-[140px] m-0"
-          onchange="applyFilter('level', this.value)">
+          data-call-change="applyFilter" data-filter="level">
     <option value="">كل المراحل</option>
     {% for val, label in LEVELS %}
     <option value="{{ val }}" {% if level_filter == val %}selected{% endif %}>{{ label }}</option>
@@ -66,7 +66,7 @@
   </select>
 
   <select name="grade" class="form-control w-auto min-w-[150px] m-0"
-          onchange="applyFilter('grade', this.value)">
+          data-call-change="applyFilter" data-filter="grade">
     <option value="">كل الصفوف</option>
     {% for val, label in GRADES %}
       {% if val in available_grades %}
@@ -82,7 +82,7 @@
     <input type="hidden" name="grade" value="{{ grade_filter }}">
     <select name="paper"
             class="form-control w-auto min-w-[100px] m-0"
-            onchange="this.form.submit()">
+            data-autosubmit>
       <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
       <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
     </select>
@@ -101,7 +101,7 @@
     <input type="hidden" name="year" value="{{ year }}">
     <select name="paper"
             class="form-control w-auto min-w-[100px] m-0"
-            onchange="this.form.submit()">
+            data-autosubmit>
       <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
       <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
     </select>

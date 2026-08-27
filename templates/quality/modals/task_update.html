@@ -1,6 +1,6 @@
 {# Modal: تحديث بيانات التنفيذ — يُحمَّل عبر HTMX في #modal-container #}
 
-<div class="q-modal-overlay" onclick="if(event.target===this){closeModal();this.remove()}"
+<div class="q-modal-overlay" data-close-on-backdrop
      role="dialog" aria-modal="true" aria-label="تحديث بيانات التنفيذ">
   <div class="q-modal">
 
@@ -13,7 +13,7 @@
           <p class="sub">رقم الإجراء: <span dir="ltr">{{ task.number }}</span></p>
         </div>
       </div>
-      <button class="close-btn" onclick="closeModal();this.closest('.q-modal-overlay').remove()" aria-label="إغلاق">
+      <button class="close-btn" data-close-modal="closest:.q-modal-overlay" aria-label="إغلاق">
         {% include "components/icon.html" with name="x" %}
       </button>
     </div>
@@ -128,9 +128,9 @@
           {# Upload area #}
           <label class="q-upload-area cursor-pointer" for="evidence-file-input" role="button" tabindex="0">
             <input type="file" name="evidence_file" id="evidence-file-input" class="hidden"
-                   onchange="document.getElementById('file-name-display').textContent = this.files[0] ? this.files[0].name : 'PDF, Word, Images (Max 10MB)'">
+                   data-file-name="#file-name-display|PDF, Word, Images (Max 10MB)">
             <input type="text" name="evidence_title" placeholder="عنوان الدليل (اختياري)"
-                   onclick="event.stopPropagation()"
+                   data-action="stop"
                    class="q-modal-field">
             <div class="upload-icon">
               {% include "components/icon.html" with name="cloud-upload" %}
@@ -142,7 +142,7 @@
 
         {# ═══ Footer ═══ #}
         <div class="q-modal-footer">
-          <button type="button" class="btn-cancel" onclick="closeModal();this.closest('.q-modal-overlay').remove()">إلغاء</button>
+          <button type="button" class="btn-cancel" data-close-modal="closest:.q-modal-overlay">إلغاء</button>
           {% if is_executor %}
           <button type="submit" class="btn-save">
             {% include "components/icon.html" with name="floppy-disk" %} حفظ التغييرات

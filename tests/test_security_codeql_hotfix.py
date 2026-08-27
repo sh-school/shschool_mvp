@@ -29,7 +29,11 @@ def test_student_search_uses_dom_text_nodes_for_api_data():
 
     # Paper selection is server-side and allowlisted.
     assert source.count('name="paper"') == 2
-    assert source.count('onchange="this.form.submit()"') == 2
+    # `data-autosubmit` حلّت محلّ `onchange="this.form.submit()"` حين مُنعت
+    # معالِجات الأحداث الداخلية بـCSP. والمعنى واحد — الإرسال عبر النموذج —
+    # والمقصد المحروس هو ألّا يُبنى مسارٌ من قيمة DOM ويُسنَد إلى location.
+    assert source.count("data-autosubmit") == 2
+    assert "onchange=" not in source
     assert "var paper = '{{ paper|escapejs }}';" in source
 
     views = read("reports/views.py")
@@ -43,8 +47,10 @@ def test_schedule_controls_do_not_assign_dom_values_to_location_href():
 
     assert 'onchange="location.href=this.value"' not in source
     assert "location.href='?view=" not in source
-    assert "submitScheduleView(this)" in source
-    assert 'onchange="this.form.submit()"' in source
+    # المعالِج نُقل إلى مفردةٍ معلنة تُنادي الدالّة نفسها من قائمةٍ بيضاء.
+    assert 'data-call-change="submitScheduleView"' in source
+    assert "data-autosubmit" in source
+    assert "onchange=" not in source
 
 
 def test_kpi_pdf_link_uses_allowlisted_values_and_urlsearchparams():

@@ -36,7 +36,7 @@
 
   <div class="mb-3 flex flex-wrap gap-3 items-end">
     <form method="get" class="inline">
-      <select name="status" onchange="this.form.submit()" class="form-control px-2.5 py-1.5 rounded-md text-sm">
+      <select name="status" data-autosubmit class="form-control px-2.5 py-1.5 rounded-md text-sm">
         <option value="">كل الحالات</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>

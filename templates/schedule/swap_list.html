@@ -49,7 +49,7 @@
 
   <div class="swap-filters">
     <form method="get">
-      <select name="status" onchange="this.form.submit()">
+      <select name="status" data-autosubmit>
         <option value="">كل الحالات</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>

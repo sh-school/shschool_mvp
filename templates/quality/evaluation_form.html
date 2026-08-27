@@ -37,7 +37,7 @@
             <input type="range" name="{{ field_name }}" min="0" max="{{ max_val }}"
                    value="{% if field_name == 'axis_professional' %}{{ obj.axis_professional }}{% elif field_name == 'axis_commitment' %}{{ obj.axis_commitment }}{% elif field_name == 'axis_teamwork' %}{{ obj.axis_teamwork }}{% elif field_name == 'axis_development' %}{{ obj.axis_development }}{% else %}0{% endif %}"
                    class="flex-1 accent-adaam"
-                   oninput="this.nextElementSibling.textContent=this.value">
+                   data-mirror-next>
             <span class="text-lg font-bold text-maroon w-8 text-center">
               {% if field_name == 'axis_professional' %}{{ obj.axis_professional }}{% elif field_name == 'axis_commitment' %}{{ obj.axis_commitment }}{% elif field_name == 'axis_teamwork' %}{{ obj.axis_teamwork }}{% elif field_name == 'axis_development' %}{{ obj.axis_development }}{% else %}0{% endif %}
             </span>

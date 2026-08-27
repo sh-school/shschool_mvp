@@ -16,7 +16,7 @@
       <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">
         {% include "components/icon.html" with name="file-pen" %} طلب انتقال جديد
       </a>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
@@ -24,7 +24,7 @@
   <form method="get" class="filter-bar">
     <div class="filter-field">
       <label class="filter-label">الحالة</label>
-      <select name="status" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="status" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
@@ -33,7 +33,7 @@
     </div>
     <div class="filter-field">
       <label class="filter-label">الاتجاه</label>
-      <select name="direction" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="direction" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in direction_choices %}
         <option value="{{ val }}" {% if direction_filter == val %}selected{% endif %}>{{ label }}</option>

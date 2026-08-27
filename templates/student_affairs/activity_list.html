@@ -18,7 +18,7 @@
         {% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد
       </a>
       <a href="{% url 'student_affairs:activities_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-      <button onclick="window.print()" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </div>
   </div>
 
@@ -26,7 +26,7 @@
   <form method="get" class="filter-bar">
     <div class="filter-field">
       <label class="filter-label">النوع</label>
-      <select name="type" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="type" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in type_choices %}
         <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>
@@ -35,7 +35,7 @@
     </div>
     <div class="filter-field">
       <label class="filter-label">النطاق</label>
-      <select name="scope" class="form-control form-control-sm" onchange="this.form.submit()">
+      <select name="scope" class="form-control form-control-sm" data-autosubmit>
         <option value="">— الكل —</option>
         {% for val, label in scope_choices %}
         <option value="{{ val }}" {% if scope_filter == val %}selected{% endif %}>{{ label }}</option>
@@ -87,7 +87,7 @@
             <td class="col-actions">
               <div style="display:flex;gap:4px;justify-content:center">
                 <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% include "components/icon.html" with name="file-pen" %}</a>
-                <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" onsubmit="return confirm('حذف النشاط «{{ act.title }}»؟')">
+                <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" data-confirm="حذف النشاط «{{ act.title }}»؟">
                   {% csrf_token %}
                   <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
                 </form>

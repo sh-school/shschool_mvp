@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -26,10 +27,15 @@
       يبدو أنك غير متصل بالإنترنت.<br>
       تحقق من اتصالك وحاول مجدداً.
     </p>
-    <button onclick="window.location.reload()">إعادة المحاولة</button>
+    <button data-action="reload">إعادة المحاولة</button>
   </div>
   <script nonce="{{ request.csp_nonce }}">
     window.addEventListener('online', () => window.location.reload());
   </script>
+{% comment %}
+صفحةٌ قائمة بذاتها لا تمتدّ من `base`، فلا تصلها `actions.js` منها. ومفردات
+`data-*` هنا كانت ستصمت بلا أثر — لا خطأ في وحدة التحكّم ولا سلوك.
+{% endcomment %}
+<script src="{% static 'js/actions.js' %}?v=1" defer></script>
 </body>
 </html>

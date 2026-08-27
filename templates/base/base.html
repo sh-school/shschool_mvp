@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=140">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=141">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -414,7 +414,7 @@
   <a href="/auth/choose-role/">{% include "components/icon.html" with name="refresh" %} تبديل الدور</a>
   {% endif %}
   <a href="{% url 'notification_inbox' %}">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
-  <a href="#" id="theme-toggle-menu" onclick="document.getElementById('theme-toggle').click();return false;">
+  <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon">{% include "components/icon.html" with name="moon" %}</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
   {% if is_admin_role %}
@@ -518,6 +518,8 @@
 <script nonce="{{ request.csp_nonce }}">
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
+{# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
+<script src="{% static 'js/actions.js' %}?v=1" defer></script>
 <script src="{% static 'js/base.js' %}?v=106" defer></script>
 <script src="{% static 'js/app.js' %}?v=101" defer></script>
 
