@@ -10,6 +10,7 @@
   <div class="exec-header">
     <h1>{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'observation_archive' %}" class="btn-secondary btn-sm">الأرشيف</a>
       {% if can_create %}<a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>{% endif %}
       {% if can_self %}<a href="{% url 'observation_self_create' %}" class="btn-secondary btn-sm">+ تقييم ذاتي جديد</a>{% endif %}
     </div>

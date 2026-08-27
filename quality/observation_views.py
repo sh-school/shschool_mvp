@@ -464,6 +464,58 @@ def observation_delete(request, obs_id):
     return redirect("observation_list")
 
 
+
+# ══════════════════════════ الأرشيف ══════════════════════════════════
+@login_required
+def observation_archive(request):
+    """المؤرشَف بنفس نطاق رؤية المستخدم للحيّ.
+
+    الحذف ناعمٌ منذ البداية، لكن لم يكن ثمّة ما يعرضه — فرسالة «محفوظة في
+    الأرشيف ويمكن استرجاعها» صادقةٌ في القاعدة وغير قابلة للتحقّق من الواجهة.
+    """
+    school = request.user.active_membership.school
+    rows = ObservationService.archived_for(request.user, school)
+
+    page = Paginator(rows, 25).get_page(request.GET.get("page"))
+    for obs in page:
+        obs.perms = _obs_perms(request.user, obs)
+
+    return render(
+        request,
+        "quality/observation_archive.html",
+        {"page_obj": page, "total": page.paginator.count},
+    )
+
+
+@login_required
+@require_POST
+def observation_restore(request, obs_id):
+    """الاستعادة لمن كان يملك الحذف — من أرشفها يُرجعها.
+
+    ولا تُشتقّ من صلاحية القراءة: المعلّم يرى ملاحظته ولا يحذفها، فلا يُعقل
+    أن يُرجع ما أرشفته القيادة.
+    """
+    school = request.user.active_membership.school
+    obs = get_object_or_404(
+        ObservationService.archived_for(request.user, school), pk=obs_id
+    )
+    if not _obs_perms(request.user, obs)["can_delete"]:
+        return render(request, "403.html", status=403)
+
+    ObservationService.restore(obs, request.user)
+    AuditLog.log(
+        user=request.user,
+        action="update",
+        model_name="other",
+        object_id=obs.pk,
+        object_repr=f"إشراف صفّي — {obs.teacher.full_name}",
+        changes={"action": "restore"},
+        request=request,
+    )
+    messages.success(request, "أُعيدت الملاحظة من الأرشيف.")
+    return redirect("observation_detail", obs_id=obs.pk)
+
+
 # ══════════════════════════ PDF ══════════════════════════════════════
 @login_required
 @xframe_options_sameorigin
