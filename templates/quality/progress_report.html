@@ -13,7 +13,7 @@
   <div class="exec-header">
     <div>
       <h1>{% include "components/icon.html" with name="activity" %} تقرير التقدم الكلي</h1>
-      <p class="exec-date">{{ year }} — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+      <p class="exec-date">{{ year }} — {{ current_school.name|default:"المدرسة" }}</p>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
       <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">

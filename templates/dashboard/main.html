@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
-{% block title %}لوحة التحكم — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
+{% block title %}لوحة التحكم — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="الرئيسية" %}
@@ -952,7 +952,7 @@
   {% else %}
   <div class="card-qatar text-center py-8 col-span-3 text-[var(--muted)]">
     <span class="emoji-icon-lg">{% include "components/icon.html" with name="building" size="icon-2xl" %}</span>
-    <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية" }}</p>
+    <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"المدرسة" }}</p>
     <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
   </div>
   {% endif %}
@@ -973,7 +973,7 @@
 
 <div class="card-qatar text-center py-8 text-[var(--muted)]">
   <span class="emoji-icon-lg">{% include "components/icon.html" with name="building" size="icon-2xl" %}</span>
-  <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</p>
+  <p class="mt-3 font-medium text-[var(--text-secondary)]">مرحباً بك في {{ current_school.name|default:"المدرسة" }}</p>
   <p class="text-sm mt-1">تواصل مع مدير النظام لتفعيل صلاحياتك</p>
 </div>
 

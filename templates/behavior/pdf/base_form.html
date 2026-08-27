@@ -165,16 +165,20 @@
 <div class="doc-header">
   <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="شعار المدرسة">
   <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي – دولة قطر</div>
-  <div class="doc-header-school">{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</div>
+  <div class="doc-header-school">{{ school.name|default:"المدرسة" }}</div>
 </div>
 
 <!-- ===== CHILD TEMPLATE CONTENT ===== -->
 {% block content %}{% endblock %}
 
 <!-- ===== DOCUMENT FOOTER ===== -->
+{% comment %}
+هوية المدرسة متغيّرة لا ثابتة: كان الذيل يحمل اسم مدرسةٍ بعينها وهاتفها
+وبريدها نصّاً عارياً، فتُطبع على وثائق كل مدرسة في المنصّة.
+{% endcomment %}
 <div class="doc-footer">
-  مدرسة الشحانية الإعدادية الثانوية للبنين · هاتف: 44994205 · ashahanyia-pb@edu.gov.qa · الشحانية، قطر
-  <div style="color:#6B1029; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © 2026</div>
+  {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
+  <div style="color:#6B1029; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
 </div>
 
 </div>

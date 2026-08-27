@@ -34,7 +34,7 @@ pre {
 {% block report_meta %}
 <table class="report-meta">
   <tr>
-    <td>المدرسة: <strong>{{ school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</strong></td>
+    <td>المدرسة: <strong>{{ school.name|default:"المدرسة" }}</strong></td>
     <td>تاريخ الإصدار: <strong>{{ generated_at|date:"Y/m/d H:i" }}</strong></td>
     <td>أُعدّ بواسطة: <strong>{{ generated_by.full_name }}</strong></td>
   </tr>

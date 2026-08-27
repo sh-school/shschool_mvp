@@ -8,7 +8,7 @@
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
-  <title>تسجيل الدخول — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</title>
+  <title>تسجيل الدخول — {{ current_school.name|default:"المدرسة" }}</title>
   {% load static %}
 
   {# ── Favicon ── #}
@@ -32,10 +32,10 @@
     {# ── Header Strip (maroon) ── #}
     <div class="login-card-header">
       <div class="login-logo">
-        <img src="{% static 'icons/favicon.png' %}" alt="مدرسة الشحانية"
+        <img src="{% static 'icons/favicon.png' %}" alt="شعار المدرسة"
              width="72" height="72" fetchpriority="high">
       </div>
-      <h1 class="login-school-name">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</h1>
+      <h1 class="login-school-name">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="login-platform-name">منصة الإدارة المدرسية</p>
       <p class="login-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
     </div>

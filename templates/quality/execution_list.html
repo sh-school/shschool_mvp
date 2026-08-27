@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}تنفيذ الخطة التشغيلية — {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}
+{% block title %}تنفيذ الخطة التشغيلية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with items="الرئيسية:/,ضمان الجودة:quality_dashboard,تنفيذ الخطة التشغيلية:" %}

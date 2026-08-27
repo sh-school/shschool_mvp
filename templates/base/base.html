@@ -10,7 +10,7 @@
     (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   {% block extra_head %}{% endblock %}
-  <title>{% block title %}{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}{% endblock %}</title>
+  <title>{% block title %}{{ current_school.name|default:"المدرسة" }}{% endblock %}</title>
   {% load static %}
 
   {# ── Favicon & PWA ── #}
@@ -63,8 +63,8 @@
     {# ── Logo + اسم المدرسة ── #}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
       <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
-           alt="مدرسة الشحانية" class="nav-logo-img">
-      <span class="nav-logo-text">{{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}</span>
+           alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
+      <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
 
     <div class="nav-spacer"></div>
@@ -491,7 +491,7 @@
 {% load tz %}
 <footer class="site-footer" role="contentinfo">
   <p class="site-footer-text">
-    {{ current_school.name|default:"مدرسة الشحانية الإعدادية الثانوية للبنين" }}
+    {{ current_school.name|default:"المدرسة" }}
     &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
   </p>
   <p class="site-footer-version">
