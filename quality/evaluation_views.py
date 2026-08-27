@@ -13,6 +13,7 @@ from django.db.models import Avg, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.academic_calendar import academic_year_for
 from core.models import AuditLog, CustomUser, Membership
 from core.permissions import role_required
 
@@ -23,7 +24,11 @@ from .models import (
     RoleEvaluationTemplate,
 )
 
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+
+#: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
+def _default_year(request=None):
+    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+
 
 # المحاور الافتراضية (تُستخدم عندما لا يوجد قالب مخصص)
 _DEFAULT_AXES = [
@@ -115,7 +120,7 @@ def evaluation_dashboard(request):
         return HttpResponse("غير مسموح — للمدير ونائبيه فقط", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     cycles = EvaluationCycle.objects.filter(school=school, academic_year=year)
     cycle_stats = [{"cycle": c, "completion_rate": c.completion_rate} for c in cycles]
@@ -189,7 +194,7 @@ def create_evaluation(request, employee_id):
 
     school = request.user.get_school()
     employee = get_object_or_404(CustomUser, id=employee_id)
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
     period = request.GET.get("period", "S1")
 
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():

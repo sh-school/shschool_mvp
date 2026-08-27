@@ -14,12 +14,16 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models import CustomUser, Membership
 from core.permissions import QUALITY_MANAGE, role_required
 
 from .models import ExecutorMapping, OperationalProcedure
 
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+
+#: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
+def _default_year(request=None):
+    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
 
 
 def _executor_mapping_redirect(request, year):
@@ -44,7 +48,7 @@ def executor_mapping(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     all_executors = (
         OperationalProcedure.objects.filter(school=school, academic_year=year)
@@ -112,7 +116,7 @@ def save_executor_mapping(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", _DEFAULT_YEAR)
+    year = request.POST.get("year") or _default_year(request)
     executor_norm = request.POST.get("executor_norm", "").strip()
     user_id = request.POST.get("user_id", "").strip()
 
@@ -150,7 +154,7 @@ def apply_all_mappings(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", _DEFAULT_YEAR)
+    year = request.POST.get("year") or _default_year(request)
     mappings = ExecutorMapping.objects.filter(school=school, academic_year=year, user__isnull=False)
     total = 0
     for m in mappings:

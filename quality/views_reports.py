@@ -9,6 +9,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for
 from core.pdf_utils import render_pdf
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 
@@ -18,14 +19,17 @@ _QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
 from .models import ExecutorMapping, OperationalProcedure, QualityCommitteeMember
 from .services import QualityService
 
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+
+#: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
+def _default_year(request=None):
+    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
 
 
 @login_required
 @role_required(_QUALITY_ALL)
 def progress_report(request):
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
     data = QualityService.get_progress_report_data(school, year)
     overall = data["overall"]
 
@@ -100,7 +104,7 @@ def progress_report(request):
 @role_required(_QUALITY_ALL)
 def progress_report_pdf(request):
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
     data = QualityService.get_progress_report_data(school, year)
     overall = data["overall"]
 

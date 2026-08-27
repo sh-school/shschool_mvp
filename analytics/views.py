@@ -1,5 +1,3 @@
-from django.conf import settings
-
 # analytics/views.py — thin views (Phase 4)
 """
 لوحة الإحصاءات المتقدمة — SchoolOS V2
@@ -18,6 +16,7 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 
 from assessments.models import StudentSubjectResult
+from core.academic_calendar import academic_year_for
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -44,7 +43,7 @@ from .services import KPIService
 def analytics_dashboard(request):
     """لوحة الإحصاءات المتقدمة للمدير"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     today = timezone.now().date()
 
     # ── KPIs الأساسية ─────────────────────────────────────────
@@ -194,7 +193,7 @@ def api_attendance_trend(request):
 @vary_on_cookie
 def api_grades_distribution(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     grades = StudentSubjectResult.objects.filter(
         setup__school=school, setup__academic_year=year
@@ -242,7 +241,7 @@ def api_grades_distribution(request):
 @vary_on_cookie
 def api_class_comparison(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     classes = (
         StudentSubjectResult.objects.filter(setup__school=school, setup__academic_year=year)
@@ -280,7 +279,7 @@ def api_class_comparison(request):
 @vary_on_cookie
 def api_subject_comparison(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     subjects = (
         StudentSubjectResult.objects.filter(setup__school=school, setup__academic_year=year)
@@ -330,7 +329,7 @@ def api_subject_comparison(request):
 @vary_on_cookie
 def api_plan_progress(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
 
@@ -438,7 +437,7 @@ def api_behavior_trend(request):
 @vary_on_cookie
 def api_failing_by_class(request):
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     qs = (
         StudentSubjectResult.objects.filter(
@@ -520,7 +519,7 @@ def api_clinic_stats(request):
 def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     return render(request, "analytics/kpi_dashboard.html", {"school": school, "year": year})
 
 
@@ -531,7 +530,7 @@ def kpi_dashboard(request):
 def api_kpis_all(request):
     """JSON: 10 KPIs — يُعيد بيانات KPIService.compute()"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     data = KPIService.compute(school, year)
 
     # Serialize school to string for JSON
@@ -554,7 +553,7 @@ def api_kpis_all(request):
 def kpi_monthly_pdf(request):
     """PDF: تقرير KPIs الشهري"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = request.GET.get("paper", "A4")
     data = KPIService.compute(school, year)

@@ -2,7 +2,6 @@ import logging
 from decimal import Decimal
 
 import django.db
-from django.conf import settings
 from django.contrib import messages
 
 logger = logging.getLogger(__name__)
@@ -13,6 +12,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.permissions import leadership_required, role_required, teacher_can_access_student
 from operations.models import Subject
@@ -45,7 +45,7 @@ def assessments_dashboard(request):
     """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
     school = request.user.get_school()
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     if request.user.is_admin():
         # المدير: كل الفصول
@@ -110,7 +110,7 @@ def assessments_dashboard(request):
 def api_assessment_charts(request):
     """بيانات الرسوم البيانية للتقييمات"""
     school = request.user.get_school()
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for(request)
 
     # ✅ v5.4: GradeService.get_chart_data — business logic في service layer
     data = GradeService.get_chart_data(school, year)
@@ -677,7 +677,7 @@ def student_report(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id) and request.user != student:
@@ -717,7 +717,7 @@ def failing_students(request):
 
     school = request.user.get_school()
     semester = request.GET.get("semester", "S1")
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     failing = GradeService.get_failing_students(school, year)
 
@@ -763,7 +763,7 @@ def setup_subject(request):
         subject_id = request.POST.get("subject")
         class_id = request.POST.get("class_group")
         teacher_id = request.POST.get("teacher")
-        year = request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR)
+        year = request.POST.get("academic_year") or academic_year_for(request)
 
         subject = get_object_or_404(Subject, id=subject_id, school=school)
         class_group = get_object_or_404(ClassGroup, id=class_id, school=school)

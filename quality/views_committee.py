@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models import CustomUser, Membership
 from core.permissions import QUALITY_MANAGE, role_required
 
@@ -23,7 +24,10 @@ from .models import (
 )
 from .services import QualityService
 
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
+
+#: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
+def _default_year(request=None):
+    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
 
 
 def _committee_redirect(request, committee_type, year):
@@ -50,7 +54,7 @@ def _committee_redirect(request, committee_type, year):
 @role_required(QUALITY_MANAGE)
 def quality_committee(request):
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     # فحص الصلاحيات — المدير أو أعضاء لجنة المراجعة فقط
     is_admin = request.user.is_admin()
@@ -152,7 +156,7 @@ def add_committee_member(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.POST.get("year", _DEFAULT_YEAR)
+    year = request.POST.get("year") or _default_year(request)
     user_id = request.POST.get("user_id", "").strip()
     job_title = request.POST.get("job_title", "").strip()
     responsibility = request.POST.get("responsibility", "عضو")
@@ -211,7 +215,7 @@ def executor_committee(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
 
     data = QualityService.get_executor_committee_data(school, year)
     staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
@@ -252,7 +256,7 @@ def executor_member_detail(request, member_id):
         committee_type=QualityCommitteeMember.EXECUTOR,
     )
 
-    year = request.GET.get("year", _DEFAULT_YEAR)
+    year = request.GET.get("year") or _default_year(request)
     status_filter = request.GET.get("status", "")
     domain_filter = request.GET.get("domain", "")
 

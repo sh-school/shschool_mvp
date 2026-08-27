@@ -1,6 +1,5 @@
 import logging
 
-from django.conf import settings
 from django.contrib import admin
 
 logger = logging.getLogger(__name__)
@@ -100,8 +99,11 @@ class QualityCommitteeMemberAdmin(admin.ModelAdmin):
 
 
 from django import forms as _forms
+from django.conf import settings
 from django.http import JsonResponse as _JsonResponse
 from django.urls import path as _path
+
+from core.academic_calendar import academic_year_for
 
 
 class ExecutorMappingAdminForm(_forms.ModelForm):
@@ -119,6 +121,8 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         school = None
+        # نموذج إدارةٍ بلا `request` — والاشتقاق يحتاج مدرسةً.
+        # يبقى الثابت هنا حتى تُنقل النماذج في المرحلة التالية.
         year = settings.CURRENT_ACADEMIC_YEAR
 
         if self.instance and self.instance.pk:
@@ -193,7 +197,7 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
     def norms_ajax(self, request):
         """AJAX: إرجاع قائمة executor_norm لمدرسة وسنة محددتين"""
         school_id = request.GET.get("school")
-        year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+        year = request.GET.get("year") or academic_year_for(request)
         norms = []
         if school_id:
             norms = list(
