@@ -14,8 +14,8 @@
   <div class="exec-header">
     <h1>{% include "components/icon.html" with name="file-text" %} {{ report_title }}</h1>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{{ report_url }}&download=1" class="btn-primary btn-sm">تحميل PDF</a>
-      <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← التقارير</a>
+      <a href="{{ report_url }}&download=1" class="btn-secondary btn-sm">تحميل</a>
+      <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← رجوع للتقارير</a>
     </div>
   </div>
 

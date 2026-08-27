@@ -71,10 +71,17 @@ def test_previews_open_in_the_viewer_not_a_blank_tab():
     assert "report_viewer" in src
 
 
-def test_the_pdf_button_downloads_instead_of_replacing_the_page():
+def test_the_pdf_button_opens_the_viewer_not_a_download():
+    """مدخلٌ واحد: الزرّ يفتح العارض، والتنزيل من داخله.
+
+    كان في الصفحة زرّان — «معاينة» يفتح العارض و«PDF» يُنزّل مباشرةً — فبقي
+    مسارٌ يغادر الصفحة. والنمط المعتمد هو نمط استمارة الزيارة: عرضٌ في المكان،
+    وتحميلٌ من شريط أدواته.
+    """
     src = INDEX.read_text(encoding="utf-8")
 
-    assert src.count("download=1") >= 3
+    assert "download=1" not in src
+    assert src.count("report_viewer") >= 3
 
 
 @pytest.mark.django_db
@@ -165,3 +172,11 @@ def test_no_viewer_offers_an_escape_to_a_new_tab(viewer):
     أقرب زرٍّ إلى ما اعتاده المستخدم — وأعاد السلوك الذي بُنيت الصفحة لإزالته.
     """
     assert 'target="_blank"' not in pathlib.Path(viewer).read_text(encoding="utf-8")
+
+
+def test_the_viewer_toolbar_offers_download_and_back():
+    """التنزيل لم يُلغَ — انتقل إلى داخل العارض كما في استمارة الزيارة."""
+    src = pathlib.Path("templates/reports/report_viewer.html").read_text(encoding="utf-8")
+
+    assert "download=1" in src
+    assert "reports_index" in src
