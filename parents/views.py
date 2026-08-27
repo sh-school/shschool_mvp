@@ -51,7 +51,7 @@ def parent_dashboard(request):
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     today = timezone.now().date()
     children = ParentService.get_children_data(request.user, school, year)
 
@@ -83,7 +83,7 @@ def student_grades(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     link = ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
@@ -127,7 +127,7 @@ def student_attendance(request, student_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     link = ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
@@ -178,7 +178,7 @@ def parent_all_grades(request):
     if not school:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط", status=403)
 
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
         "student"
     )
@@ -323,7 +323,7 @@ def manage_parent_links(request):
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
     search = request.GET.get("q", "").strip()
     rel_filter = request.GET.get("rel", "").strip()
 
@@ -516,6 +516,7 @@ def consent_view(request):
 
 # ── Push Subscription endpoints (VAPID) ─────────────────────
 
+from core.academic_calendar import academic_year_for
 from notifications.models import PushSubscription
 
 

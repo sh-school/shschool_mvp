@@ -6,8 +6,6 @@ staging/views.py
 import io
 import logging
 
-from django.conf import settings
-
 logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -17,6 +15,7 @@ from django.utils import timezone
 
 from assessments.models import Assessment
 from assessments.services import GradeService
+from core.academic_calendar import academic_year_for
 from core.models import CustomUser, StudentEnrollment
 from core.permissions import role_required
 
@@ -48,7 +47,7 @@ except ImportError:
 def import_grades_select(request):
     """اختيار التقييم المراد استيراد درجاته"""
     school = request.user.get_school()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     if request.user.is_admin():
         assessments = (
