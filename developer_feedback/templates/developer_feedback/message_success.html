@@ -8,6 +8,10 @@
 <link rel="stylesheet" href="{% static 'developer_feedback/css/feedback.css' %}?v=1">
 {% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/developer-feedback/" parent_label="تواصل مع المطوّر" current="تم الإرسال" %}
+{% endblock %}
+
 {% block content %}
 <main id="main-content" class="df-container" role="main">
 

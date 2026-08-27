@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}استمارة الإشراف على أداء المعلّم{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent2_url="/quality/" parent2_label="ضمان الجودة" parent_url="/quality/observations/" parent_label="الزيارات الصفية" current="الاستمارة" %}
+{% endblock %}
+
 {% block content %}
 <div class="card-qatar" style="max-width:1100px;margin-inline:auto">
   <div class="exec-header">

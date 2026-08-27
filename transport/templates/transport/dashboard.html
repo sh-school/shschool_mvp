@@ -3,6 +3,10 @@
 
 {% block title %}لوحة تحكم النقل والمواصلات{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="النقل المدرسي" %}
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-maroon-50 to-maroon-100">
     <!-- Header -->

@@ -1,6 +1,10 @@
 {% extends "base/base.html" %}
 {% block title %}استمارة {{ obs.teacher.full_name }} — PDF{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent2_url="/quality/" parent2_label="ضمان الجودة" parent_url="/quality/observations/" parent_label="الزيارات الصفية" current="نسخة PDF" %}
+{% endblock %}
+
 {% block content %}
 {% comment %}
 الملفّ يُعاد inline فيحلّ محلّ الصفحة في عارض المتصفّح؛ عرضُه داخل إطارٍ هنا
