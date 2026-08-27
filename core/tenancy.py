@@ -40,6 +40,8 @@ PARENT_DERIVED = {
     "core_behaviorpointrecovery": "infraction -> core_behaviorinfraction.school_id",
     # core
     "core_studentenrollment": "class_group -> core_classgroup.school_id",
+    "core_semester": "academic_year -> core_academicyear.school_id",
+    "core_calendarevent": "academic_year -> core_academicyear.school_id",
     # exam_control — six tables, all resolving to ExamSession.school
     "exam_control_examroom": "session -> exam_control_examsession.school_id",
     "exam_control_examschedule": "session -> exam_control_examsession.school_id (+ room consistency)",

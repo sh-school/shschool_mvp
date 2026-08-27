@@ -166,3 +166,135 @@ class ParentStudentLink(models.Model):
             f"{self.parent.full_name} ← {self.student.full_name} "
             f"({self.get_relationship_display()})"
         )
+
+
+class Semester(models.Model):
+    """الفصل الدراسي — حدودُه تواريخُ تقويم الوزارة، لا رايةٌ يُبدّلها أحد.
+
+    «الفصل الحالي» يُشتقّ من التاريخ (`AcademicCalendar.current`)، فلا يوجد
+    `is_current` هنا عمداً: رايةٌ كهذه تُنسى، فتُسجَّل درجاتٌ في الفصل الخطأ
+    ولا شيء يكشف ذلك.
+
+    والفصلان متلاصقان بلا فجوة — إجازة منتصف العام تُلحق بالفصل المنتهي —
+    كي لا يأتي يومٌ بلا فصلٍ فتضطرّ كل شاشة إلى اختراع سلوكٍ لتلك الحالة.
+    """
+
+    CODES = [
+        ("S1", "الفصل الدراسي الأول"),
+        ("S2", "الفصل الدراسي الثاني"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    academic_year = models.ForeignKey(
+        AcademicYear,
+        on_delete=models.CASCADE,
+        related_name="semesters",
+        verbose_name="العام الدراسي",
+    )
+    code = models.CharField(max_length=2, choices=CODES, verbose_name="الفصل")
+    start_date = models.DateField(verbose_name="تاريخ البداية")
+    end_date = models.DateField(verbose_name="تاريخ النهاية")
+    max_grade = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        verbose_name="الدرجة القصوى",
+        help_text="٤٠ للفصل الأول و٦٠ للثاني — وزن الفصل بياناتٌ لا ثابتٌ في الشيفرة",
+    )
+
+    class Meta:
+        verbose_name = "فصل دراسي"
+        verbose_name_plural = "الفصول الدراسية"
+        ordering = ["academic_year", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["academic_year", "code"],
+                name="unique_semester_code_per_year",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(end_date__gt=models.F("start_date")),
+                name="semester_ends_after_it_starts",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.get_code_display()} — {self.academic_year.name}"
+
+    def covers(self, day):
+        return self.start_date <= day <= self.end_date
+
+
+class CalendarEvent(models.Model):
+    """حدثٌ في تقويم الوزارة — اختبارٌ أو إجازةٌ أو بدء دوام.
+
+    ثلاثة حقول تفصله عن «تاريخٍ ونصّ»، وكلٌّ منها فرضه التقويم نفسه:
+
+      `grade_scope`   نوافذ الاختبارات تختلف: الصفوف ١–٩ · ١٠–١١ · ١٢
+      `audience`      الموظفون يبدأون قبل الطلبة بأسبوع
+      `academic_year` اختبارات الدور الثاني لعامٍ تقع في تقويم العام التالي،
+                      فالحدث ينتمي إلى عامٍ قد لا يكون عام تاريخه
+    """
+
+    TYPES = [
+        ("staff_start", "بدء دوام الموظفين"),
+        ("students_start", "بدء دوام الطلبة"),
+        ("midterm_exam", "اختبارات منتصف الفصل"),
+        ("final_exam", "اختبارات نهاية الفصل"),
+        ("makeup_exam", "ملحق الاختبارات"),
+        ("second_round", "اختبارات الدور الثاني"),
+        ("break", "إجازة"),
+        ("resume", "استئناف الدوام"),
+    ]
+
+    GRADE_SCOPES = [
+        ("all", "جميع الصفوف"),
+        ("g1_9", "الصفوف ١–٩"),
+        ("g10_11", "الصفّان ١٠–١١"),
+        ("g12", "الصف ١٢"),
+    ]
+
+    AUDIENCES = [
+        ("both", "الجميع"),
+        ("staff", "الموظفون"),
+        ("students", "الطلبة"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    academic_year = models.ForeignKey(
+        AcademicYear,
+        on_delete=models.CASCADE,
+        related_name="calendar_events",
+        verbose_name="العام الدراسي",
+    )
+    semester = models.ForeignKey(
+        Semester,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="calendar_events",
+        verbose_name="الفصل",
+    )
+    event_type = models.CharField(max_length=20, choices=TYPES, verbose_name="النوع")
+    name = models.CharField(max_length=200, verbose_name="البيان")
+    start_date = models.DateField(verbose_name="من")
+    end_date = models.DateField(verbose_name="إلى")
+    grade_scope = models.CharField(
+        max_length=10, choices=GRADE_SCOPES, default="all", verbose_name="نطاق الصفوف"
+    )
+    audience = models.CharField(
+        max_length=10, choices=AUDIENCES, default="both", verbose_name="الجمهور"
+    )
+
+    class Meta:
+        verbose_name = "حدث تقويم"
+        verbose_name_plural = "أحداث التقويم"
+        ordering = ["start_date", "event_type"]
+        indexes = [models.Index(fields=["academic_year", "start_date"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(end_date__gte=models.F("start_date")),
+                name="calendar_event_ends_after_it_starts",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.start_date} → {self.end_date})"
