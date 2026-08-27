@@ -752,6 +752,15 @@ div#header h1 a {
   font-family: 'IBM Plex Mono', 'Tajawal', monospace;
   letter-spacing: 0.03em;
 }
+/* رؤية الوزارة — تحت سطر الإصدار، بلون الهوية لا برماديّ الإصدار */
+.site-footer-vision {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--maroon);
+  margin: 6px 0 0;
+  letter-spacing: 0.01em;
+}
 /* Azkia brand attribution — horizontal flex row, same line */
 .site-footer-brand {
   display: flex;
