@@ -17,7 +17,6 @@ PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 #: قوالب الطباعة المستقلّة — لا ترث ذيلاً من غيرها.
 STANDALONE_DOCS = [
     "templates/quality/observation_pdf.html",
-    "templates/reports/base_report.html",
     "templates/schedule/print_schedule.html",
     "templates/behavior/pdf/policy_doc.html",
     "templates/behavior/pdf/base_form.html",

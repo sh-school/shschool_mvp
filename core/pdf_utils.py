@@ -755,15 +755,25 @@ def _strip_page_rules(html: str) -> str:
     return "".join(out)
 
 
-def render_pdf(html_str: str, filename: str, paper_size: str = "A4") -> HttpResponse:
+def render_pdf(
+    html_str: str,
+    filename: str,
+    paper_size: str = "A4",
+    *,
+    as_attachment: bool = False,
+) -> HttpResponse:
     """HTML → PDF HttpResponse — للاستخدام في Django views
 
     paper_size: "A4" (default) أو "A3" (landscape)
+
+    `as_attachment=True` يجعل المتصفّح **ينزّل** الملفّ بدل عرضه محلّ الصفحة.
+    والافتراض `inline` لأن الصفحات العارضة تُضمّنه في إطار.
     """
     try:
         pdf_bytes = _generate_pdf_bytes(html_str, paper_size=paper_size)
         resp = HttpResponse(pdf_bytes, content_type="application/pdf")
-        resp["Content-Disposition"] = f'inline; filename="{filename}"'
+        disposition = "attachment" if as_attachment else "inline"
+        resp["Content-Disposition"] = f'{disposition}; filename="{filename}"'
         return resp
     except Exception as e:  # noqa: BLE001 — تدهور لطيف بدل انهيار 500 غير مُعالَج
         logger.error("render_pdf فشل نهائياً: %s", e)

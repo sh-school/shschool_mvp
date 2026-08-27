@@ -1,0 +1,26 @@
+{% extends "base/base.html" %}
+{% block title %}{{ report_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/reports/" parent_label="التقارير والشهادات" current=report_title %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+المعاينة كانت تفتح تبويباً جديداً وتُعيد وثيقة طباعة عارية — بلا قائمة ولا
+فتات خبز ولا رجوع. وهنا تُعرض داخل الصفحة ويبقى شريط الأدوات لنا.
+{% endcomment %}
+<div class="card-qatar" style="max-width:1200px;margin-inline:auto">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="file-text" %} {{ report_title }}</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{{ report_url }}&download=1" class="btn-primary btn-sm">تحميل PDF</a>
+      <a href="{{ report_url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">فتح في تبويب</a>
+      <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← التقارير</a>
+    </div>
+  </div>
+
+  <iframe src="{{ report_url }}" title="{{ report_title }}"
+          style="width:100%;height:78vh;border:1px solid var(--border);border-radius:8px"></iframe>
+</div>
+{% endblock %}
