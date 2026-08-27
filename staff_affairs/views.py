@@ -3,7 +3,6 @@ staff_affairs/views.py — شؤون الموظفين
 8 views — يتبع أنماط المشروع.
 """
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
@@ -11,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for
 from core.models.access import Membership
 from core.models.user import CustomUser
 from core.permissions import role_required
@@ -54,7 +54,7 @@ def staff_dashboard(request):
     """لوحة شؤون الموظفين — KPIs + روابط سريعة."""
     school = request.user.get_school()
     today = timezone.localdate()
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ✅ v5.4: StaffService.get_dashboard_stats — 7 KPIs في service layer
     stats = StaffService.get_dashboard_stats(school, year, today=today)
@@ -171,7 +171,7 @@ def staff_profile(request, user_id):
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year", settings.CURRENT_ACADEMIC_YEAR)
+    year = request.GET.get("year") or academic_year_for(request)
 
     # ✅ v5.4: StaffService.get_staff_profile_data — 7 نماذج في طبقة خدمة واحدة
     profile_data = StaffService.get_staff_profile_data(user, school, year)
