@@ -78,8 +78,12 @@ class ClassGroup(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        verbose_name = "فصل دراسي"
-        verbose_name_plural = "الفصول الدراسية"
+        # «الفصل الدراسي» مصطلحُ الوزارة للمدّة الزمنية (الأول/الثاني)، وهو
+        # اسم `Semester`. وهذا النموذج يحمل `grade` و`section` معاً — أي
+        # الشعبة داخل الصف — فكانت التسميتان متطابقتين في لوحة الإدارة
+        # وتقودان إلى شيئين لا صلة بينهما.
+        verbose_name = "شعبة دراسية"
+        verbose_name_plural = "الشُّعب الدراسية"
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "grade", "section", "academic_year"],
