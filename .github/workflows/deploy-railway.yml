@@ -202,13 +202,18 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
+          pip install pytest pytest-django pytest-cov pytest-asyncio pytest-xdist factory-boy
 
       - name: Apply migrations
         run: python manage.py migrate --noinput
 
       - name: Run tests
-        run: pytest tests/ -v --junit-xml=test-results.xml
+        # قياس ٢٨ أغسطس ٢٠٢٦ على أربع عمليات ناجحة: 11:55 / 12:22 / 12:22 / 14:59
+        # مقابل ميزانية ١٥:٠٠ — أي أن أسوأ ما رُصد ترك ثانيةً واحدة. والفارق عن
+        # `ci.yml` (8:37 / 9:19 / 9:50) لم يكن في المحتوى بل في الاستدعاء: هناك
+        # `-n auto` وهنا تسلسلٌ محض. والمجموعة مُثبتةُ الصلاحية للتوازي — CI
+        # يُجريها هكذا في كل طلب دمج.
+        run: pytest tests/ -n auto --junit-xml=test-results.xml --tb=short
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
