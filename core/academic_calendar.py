@@ -139,10 +139,6 @@ def academic_year_window(school, on=None):
     return date(start, 9, 1), date(end, 6, 30)
 
 
-#: العام المشتقّ ليوم بعينه — يسقط تلقائياً عند منتصف الليل، فلا يتجمّد.
-_by_day: dict = {}
-
-
 def default_academic_year() -> str:
     """العام الجاري بلا مدرسةٍ معلومة — لأوامر الإدارة وقيم النماذج الافتراضية.
 
@@ -152,14 +148,19 @@ def default_academic_year() -> str:
 
     وتقويم الوزارة وطنيّ: التواريخ واحدة لكل المدارس. فإن اختلف عامان على
     اليوم نفسه فذلك خللٌ في البذر، والارتداد أصدق من اختيارٍ عشوائيّ.
+
+    ولا يُخزَّن الجواب. جرّبتُ ذاكرةً مفتاحها اليومُ وحده فكانت تنقض ما
+    تحرسه من وجهين: تُقدّم جوابَ مستأجرٍ لمن بعده في العملية نفسها، وإن وقع
+    أوّل نداءٍ خارج طلبٍ — أمرٍ إداريّ أو فحص صحّة — خزّنت الارتدادَ إلى
+    الثابت المُجمَّد وقدّمته يوماً كاملاً لكل من جاء بعده. أي أنها تُعيد
+    الثابت من البابِ الذي أُغلق. واستعلامٌ واحدٌ مفهرس أرخص من هذا الخطر.
     """
     from django.db import Error
     from django.utils import timezone
 
-    day = timezone.localdate()
-    if day in _by_day:
-        return _by_day[day]
+    from core.models import AcademicYear
 
+    day = timezone.localdate()
     try:
         names = set(
             AcademicYear.objects.filter(start_date__lte=day, end_date__gte=day)
@@ -170,10 +171,7 @@ def default_academic_year() -> str:
         # الجداول غير موجودة بعد — أثناء هجرةٍ أو قاعدةٍ جديدة.
         return _frozen()
 
-    year = names.pop() if len(names) == 1 else _frozen()
-    _by_day.clear()  # يومٌ واحد يكفي — لا نُراكم
-    _by_day[day] = year
-    return year
+    return names.pop() if len(names) == 1 else _frozen()
 
 
 def _frozen() -> str:
