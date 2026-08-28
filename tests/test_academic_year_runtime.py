@@ -164,16 +164,14 @@ def test_the_default_helper_keeps_no_answer_between_calls(db, school):
     from django.conf import settings
     from django.core.management import call_command
 
-    from core.academic_calendar import default_academic_year
+    from core import academic_calendar as cal
 
-    before = default_academic_year()
+    before = cal.default_academic_year()
     assert before == settings.CURRENT_ACADEMIC_YEAR, "لا تقويمَ بعد — الارتداد متوقّع"
 
     call_command("seed_academic_calendar", school=school.code, verbosity=0)
 
-    import core.academic_calendar as cal
-
-    after = default_academic_year()
+    after = cal.default_academic_year()
 
     assert after != before, "النداء الثاني ما زال يرى الجواب الأوّل — عادت الذاكرة"
     assert not any(name.startswith("_by_") for name in vars(cal))

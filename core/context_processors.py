@@ -66,14 +66,13 @@ def quality_nav_context(request):
     if not request.user.is_authenticated:
         return {}
 
-    from core.academic_calendar import academic_year_for_school
     from quality.models import QualityCommitteeMember
 
     school = request.user.get_school()
     if not school:
         return {}
 
-    year = academic_year_for_school(school)
+    # الاستعلام لا يُرشّح بالعام — وكان هنا إسنادٌ ميّت له، فحُذف.
     # MTG-2026-005: merged 2 queries into 1
     member_types = set(
         QualityCommitteeMember.objects.filter(
