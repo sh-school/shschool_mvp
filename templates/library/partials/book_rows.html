@@ -1,8 +1,8 @@
-{#
+{% comment %}
   Partial: قائمة الكتب — SchoolOS v5.1
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترقيم)
   Target: #books-container
-#}
+{% endcomment %}
 {% if books %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="books-grid">
   {% for book in books %}
@@ -43,9 +43,5 @@
 {% endif %}
 
 {% else %}
-{% include "components/empty_state.html" with
-   icon="book-open"
-   title="لا توجد نتائج"
-   subtitle=query|yesno:"لا توجد كتب مطابقة للبحث,لا توجد كتب مسجلة في النظام"
-%}
+{% include "components/empty_state.html" with icon="book-open" title="لا توجد نتائج" subtitle=query|yesno:"لا توجد كتب مطابقة للبحث,لا توجد كتب مسجلة في النظام" %}
 {% endif %}

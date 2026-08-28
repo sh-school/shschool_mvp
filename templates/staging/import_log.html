@@ -83,12 +83,7 @@
       </table>
     </div>
     {% else %}
-      {% include "components/empty_state.html" with
-         icon="folder-open"
-         title="لا توجد عمليات استيراد"
-         subtitle="لم يتم تنفيذ أي عمليات استيراد بعد."
-         compact=True
-      %}
+      {% include "components/empty_state.html" with icon="folder-open" title="لا توجد عمليات استيراد" subtitle="لم يتم تنفيذ أي عمليات استيراد بعد." compact=True %}
     {% endif %}
   </div>
 
