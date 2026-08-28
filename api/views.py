@@ -28,7 +28,6 @@ SchoolOS REST API v1 — ViewSets + APIViews
 
 import logging
 
-from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -42,6 +41,7 @@ from rest_framework.views import APIView
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
+from core.academic_calendar import academic_year_for
 from core.models import (
     ClassGroup,
     CustomUser,
@@ -93,8 +93,9 @@ def _school(request):
     return request.user.get_school()
 
 
-def _year(request, default=settings.CURRENT_ACADEMIC_YEAR):
-    return request.query_params.get("year", default)
+def _year(request):
+    """العام المطلوب أو الجاري — و`?year=` الفارغة تُعامَل كغائبة."""
+    return request.query_params.get("year") or academic_year_for(request)
 
 
 # ══════════════════════════════════════════════════════════════════════

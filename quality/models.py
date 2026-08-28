@@ -20,6 +20,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, Membership, School
 
 
@@ -28,8 +29,6 @@ def _uuid():
 
 
 # ── ثوابت وحدة الجودة ── Clean Code: G25 لا أرقام سحرية ──────
-_DEFAULT_YEAR = settings.CURRENT_ACADEMIC_YEAR
-
 # عتبات تقييم الأداء (القرار الأميري 9/2016)
 _SCORE_EXCELLENT = 90
 _SCORE_VERY_GOOD = 75
@@ -451,8 +450,9 @@ class ExecutorMapping(models.Model):
 class CommitteeManager(models.Manager):
     """Manager يُوفّر استعلامات جاهزة على لجان الجودة"""
 
-    def executor_committee(self, school, year=_DEFAULT_YEAR):
+    def executor_committee(self, school, year=None):
         """أعضاء لجنة منفذي الخطة التشغيلية"""
+        year = year or academic_year_for_school(school)
         return self.filter(
             school=school,
             academic_year=year,
@@ -460,8 +460,9 @@ class CommitteeManager(models.Manager):
             is_active=True,
         ).select_related("user", "domain")
 
-    def review_committee(self, school, year=_DEFAULT_YEAR):
+    def review_committee(self, school, year=None):
         """أعضاء لجنة المراجعة الذاتية"""
+        year = year or academic_year_for_school(school)
         return self.filter(
             school=school,
             academic_year=year,

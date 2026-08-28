@@ -4,10 +4,10 @@ import logging
 from datetime import date
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db import models, transaction
 from django.db.models import Count, QuerySet
 
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.models import StudentEnrollment
 from operations.models import (
     AbsenceAlert,
@@ -97,9 +97,10 @@ class AttendanceService:
         العتبة القانونية: تجاوز 10% من أيام الدراسة (≈19 يوماً من 190).
         تُخطر المدرسة ولي الأمر، وإذا عاود الغياب تُخطر الوزارة خلال أسبوع.
         """
-        school_year = settings.CURRENT_ACADEMIC_YEAR
-        year_start = date(2025, 9, 1)
-        year_end = date(2026, 6, 30)
+        window = academic_year_window(school)
+        if window is None:
+            return
+        year_start, year_end = window
 
         # إجمالي الحصص المسجَّلة للطالب في هذه السنة
         total_sessions = StudentAttendance.objects.filter(
@@ -222,13 +223,14 @@ class ScheduleService:
         school: School,
         teacher: CustomUser | None = None,
         class_group: ClassGroup | None = None,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> dict:
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة.
 
         - مع فلتر معلم أو فصل: {يوم: {حصة: slot}} (backward compat)
         - بدون فلتر (school-wide): {يوم: {حصة: [slot, ...]}}
         """
+        academic_year = academic_year or academic_year_for_school(school)
         qs = ScheduleSlot.objects.filter(
             school=school, academic_year=academic_year, is_active=True
         ).select_related("teacher", "class_group", "subject")
@@ -254,10 +256,9 @@ class ScheduleService:
         return grid
 
     @staticmethod
-    def detect_conflicts(
-        school: School, academic_year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> list:
+    def detect_conflicts(school: School, academic_year: str | None = None) -> list:
         """كشف التعارضات في الجدول"""
+        academic_year = academic_year or academic_year_for_school(school)
         conflicts: list = []
 
         # تعارض المعلم: نفس المعلم في نفس اليوم والحصة
@@ -313,9 +314,10 @@ class ScheduleService:
     def generate_daily_sessions(
         school: School,
         date: date,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> int:
         """توليد Session يومية من ScheduleSlot للتاريخ المحدد"""
+        academic_year = academic_year or academic_year_for_school(school)
         day_of_week = date.weekday()  # Python: 0=Mon … لكننا نريد 0=Sun
         # تحويل: Sun=6 في Python → 0 عندنا
         mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
@@ -380,7 +382,7 @@ class ScheduleService:
     def ensure_sessions_for_date(
         school: School,
         target_date: date,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> int:
         """
         تأكد من وجود حصص لأسبوع التاريخ المطلوب — ولّدها إن لم تكن موجودة.
@@ -392,6 +394,7 @@ class ScheduleService:
 
         Returns: عدد الحصص المُنشأة (0 إذا كانت موجودة مسبقاً).
         """
+        academic_year = academic_year or academic_year_for_school(school)
         from datetime import timedelta
 
         week_sun, week_thu = ScheduleService._get_week_bounds(target_date)
@@ -512,7 +515,7 @@ class ScheduleService:
         period_number: int,
         start_time,
         end_time,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> ScheduleSlot:
         """
         إنشاء حصة جديدة في الجدول الأسبوعي.
@@ -534,6 +537,7 @@ class ScheduleService:
         Raises:
             IntegrityError: إذا كانت هناك تعارض في الجدول
         """
+        academic_year = academic_year or academic_year_for_school(school)
         slot = ScheduleSlot.objects.create(
             school=school,
             teacher=teacher,
@@ -823,13 +827,14 @@ class FreeSlotService:
     @transaction.atomic
     def build_registry(
         school: School,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
         max_periods: int = 7,
     ) -> int:
         """
         بناء/إعادة بناء سجل الحصص الحرة لكل معلمي المدرسة.
         يمسح القديم ويبني من جديد بناءً على ScheduleSlot.
         """
+        academic_year = academic_year or academic_year_for_school(school)
         from core.models import Membership
 
         # حذف السجل القديم
@@ -885,9 +890,10 @@ class FreeSlotService:
     def get_teacher_free_slots(
         teacher: CustomUser,
         school: School,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> QuerySet:
         """حصص المعلم الفارغة — مرتبة حسب اليوم والحصة."""
+        academic_year = academic_year or academic_year_for_school(school)
         return FreeSlotRegistry.objects.filter(
             teacher=teacher,
             school=school,
@@ -900,13 +906,14 @@ class FreeSlotService:
         school: School,
         day_of_week: int,
         period_number: int,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
         department=None,
     ) -> QuerySet:
         """
         المعلمون المتاحون في وقت معيّن.
         department: كائن Department أو اسم نصي — يُرشّح حسب القسم.
         """
+        academic_year = academic_year or academic_year_for_school(school)
         from core.models import CustomUser, Membership
 
         qs = FreeSlotRegistry.objects.filter(
@@ -1446,13 +1453,14 @@ class CompensatoryService:
         teacher: CustomUser,
         school: School,
         target_date: date,
-        academic_year: str = settings.CURRENT_ACADEMIC_YEAR,
+        academic_year: str | None = None,
     ) -> list:
         """
         الأوقات المتاحة للتعويض — حصص حرة للمعلم في اليوم المطلوب.
         يتحقق أيضاً أن الشعبة ليست مشغولة.
         """
 
+        academic_year = academic_year or academic_year_for_school(school)
         mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
         day = mapping.get(target_date.weekday(), -1)
         if day == -1:

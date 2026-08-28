@@ -9,6 +9,8 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
+
 
 def generate_export_filename(module: str, report_type: str, ext: str) -> str:
     """
@@ -62,7 +64,7 @@ def get_export_context(request, title: str) -> dict:
         "export_time": now.strftime("%H:%M"),
         "export_datetime": now.strftime("%d/%m/%Y %H:%M"),
         "title": title,
-        "academic_year": getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026"),
+        "academic_year": academic_year_for_school(school),
         "ministry": "وزارة التربية والتعليم والتعليم العالي — دولة قطر",
     }
 

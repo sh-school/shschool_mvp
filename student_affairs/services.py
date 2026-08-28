@@ -16,11 +16,11 @@ student_affairs/services.py — Business Logic لشؤون الطلاب
 import logging
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
 from core.models.access import Membership, Role
 from core.models.user import CustomUser, Profile
@@ -630,7 +630,7 @@ class StudentService:
         Raises:
             ValueError: إذا طُلبت إعادة تسجيل لشعبة غير موجودة في المدرسة (يُلغى كل التحديث).
         """
-        year = settings.CURRENT_ACADEMIC_YEAR
+        year = academic_year_for_school(school)
 
         # ── 1. تحديث المستخدم ──
         student.full_name = data["full_name"]
@@ -999,7 +999,7 @@ class TransferService:
             reason=data.get("reason", ""),
             notes=data.get("notes", ""),
             status="pending",
-            academic_year=data.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
+            academic_year=data.get("academic_year") or academic_year_for_school(school),
             created_by=created_by,
         )
 

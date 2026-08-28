@@ -1,7 +1,8 @@
 """exam_control/forms.py — نماذج لجان الاختبارات"""
 
 from django import forms
-from django.conf import settings
+
+from core.academic_calendar import default_academic_year
 
 from .models import ExamIncident, ExamSession, ExamStaffAssignment
 
@@ -15,7 +16,7 @@ class ExamSessionForm(forms.Form):
     )
     academic_year = forms.CharField(
         max_length=9,
-        initial=getattr(settings, "CURRENT_ACADEMIC_YEAR", ""),
+        initial=default_academic_year,  # دالّةٌ لا قيمة — وإلّا تجمّدت عند استيراد الوحدة
         label="العام الدراسي",
     )
     start_date = forms.DateField(

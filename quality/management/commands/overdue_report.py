@@ -23,10 +23,10 @@ import csv
 from collections import defaultdict
 from datetime import date
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db.models import Count
 
+from core.academic_calendar import default_academic_year
 from quality.models import OperationalProcedure
 
 
@@ -43,7 +43,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--year",
             type=str,
-            default=settings.CURRENT_ACADEMIC_YEAR,
+            default=None,
             help="السنة الدراسية (افتراضي: 2025-2026)",
         )
         parser.add_argument(
@@ -78,7 +78,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         school_code = options["school"]
-        year = options["year"]
+        year = options["year"] or default_academic_year()
         export = options["export"]
         status = options["status"]
 

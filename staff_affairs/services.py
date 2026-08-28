@@ -14,10 +14,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from staff_affairs.models import LeaveBalance, LeaveRequest
 
 logger = logging.getLogger(__name__)
@@ -315,7 +315,7 @@ class LeaveService:
             days_count=days_count,
             reason=reason,
             attachment=attachment,
-            academic_year=settings.CURRENT_ACADEMIC_YEAR,
+            academic_year=academic_year_for_school(school),
             created_by=creator,
             updated_by=creator,
         )

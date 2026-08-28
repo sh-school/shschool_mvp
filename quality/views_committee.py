@@ -4,7 +4,6 @@ quality/views_committee.py — لجنة المراجعة الذاتية + لجن
 
 from urllib.parse import urlencode
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
@@ -13,7 +12,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, default_academic_year
 from core.models import CustomUser, Membership
 from core.permissions import QUALITY_MANAGE, role_required
 
@@ -27,7 +26,7 @@ from .services import QualityService
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
 def _default_year(request=None):
-    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+    return academic_year_for(request) if request is not None else default_academic_year()
 
 
 def _committee_redirect(request, committee_type, year):

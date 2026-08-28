@@ -6,14 +6,13 @@ Phase 6 — واجهات تقييم الموظفين
 إصلاح: ربط RoleEvaluationTemplate + EvaluationScore + قائمة الموظفين
 """
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, default_academic_year
 from core.models import AuditLog, CustomUser, Membership
 from core.permissions import role_required
 
@@ -27,7 +26,7 @@ from .models import (
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
 def _default_year(request=None):
-    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+    return academic_year_for(request) if request is not None else default_academic_year()
 
 
 # المحاور الافتراضية (تُستخدم عندما لا يوجد قالب مخصص)

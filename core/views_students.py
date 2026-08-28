@@ -21,6 +21,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.permissions import role_required
 
 logger = logging.getLogger(__name__)
@@ -116,9 +117,8 @@ def _setup_workbook(sheet_title, school_name, report_title):
 
     styles = _make_styles()
     today_str = timezone.now().strftime("%Y/%m/%d")
-    from django.conf import settings
 
-    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "")
+    year = default_academic_year()
 
     # دعم get_column_letter ديناميكياً
 
@@ -218,12 +218,11 @@ def student_import_export(request):
     GET  → صفحة الاستيراد/التصدير
     POST → معالجة ملف الاستيراد
     """
-    from django.conf import settings
 
     from core.models import Membership, Role
 
     school = request.user.get_school()
-    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "")
+    year = academic_year_for_school(school)
 
     # ── إحصائيات سريعة ──────────────────────────────────────────────
     student_role = Role.objects.filter(name="student").first()
@@ -528,12 +527,11 @@ def student_export_excel(request):
     GET → تنزيل ملف Excel بكل بيانات الطلاب في المدرسة.
     الأعمدة: الرقم الشخصي | الاسم | الصف | الشعبة | الجوال | البريد
     """
-    from django.conf import settings
 
     from core.models import Membership, Role, StudentEnrollment
 
     school = request.user.get_school()
-    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "")
+    year = academic_year_for_school(school)
 
     if not school:
         return HttpResponse("المدرسة غير محددة", status=400)

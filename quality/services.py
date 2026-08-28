@@ -14,8 +14,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db.models import Count, Prefetch, QuerySet
+
+from core.academic_calendar import academic_year_for_school
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -52,8 +53,9 @@ class QualityService:
 
     # ── إحصائيات لوحة التحكم ────────────────────────────────
     @staticmethod
-    def get_plan_stats(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def get_plan_stats(school: School, year: str | None = None) -> dict:
         """إحصائيات الخطة التشغيلية"""
+        year = year or academic_year_for_school(school)
         base = OperationalProcedure.objects.filter(school=school, academic_year=year)
         stats = QualityService._calc_stats(base)
         # alias للتوافق مع القوالب القديمة
@@ -62,8 +64,9 @@ class QualityService:
 
     # ── عدد المنفذين غير المربوطين ──────────────────────────
     @staticmethod
-    def get_unmapped_count(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> int:
+    def get_unmapped_count(school: School, year: str | None = None) -> int:
         """عدد المنفذين الذين ليس لهم مستخدم مربوط"""
+        year = year or academic_year_for_school(school)
         all_executors = set(
             OperationalProcedure.objects.filter(school=school, academic_year=year)
             .values_list("executor_norm", flat=True)
@@ -81,9 +84,10 @@ class QualityService:
     def get_my_procedures(
         user: CustomUser,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> QuerySet:
         """الإجراءات المسندة للمستخدم الحالي"""
+        year = year or academic_year_for_school(school)
         return (
             OperationalProcedure.objects.filter(
                 school=school, executor_user=user, academic_year=year
@@ -142,10 +146,9 @@ class QualityService:
 
     # ── تقرير التقدم ────────────────────────────────────────
     @staticmethod
-    def get_progress_report_data(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def get_progress_report_data(school: School, year: str | None = None) -> dict:
         """بيانات تقرير التقدم الشامل"""
+        year = year or academic_year_for_school(school)
         domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
             "order"
         )
@@ -190,10 +193,9 @@ class QualityService:
 
     # ── بيانات لجنة المنفذين ────────────────────────────────
     @staticmethod
-    def get_executor_committee_data(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def get_executor_committee_data(school: School, year: str | None = None) -> dict:
         """بيانات لجنة المنفذين مع إحصائيات كل عضو"""
+        year = year or academic_year_for_school(school)
         members = QualityCommitteeMember.objects.executor_committee(school, year)
 
         mapped_norms = set(
@@ -264,9 +266,10 @@ class QualityService:
     def get_executor_detail(
         member: QualityCommitteeMember,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """بيانات الإنجاز التفصيلية لمنفذ واحد"""
+        year = year or academic_year_for_school(school)
         procs = (
             OperationalProcedure.objects.filter(
                 school=school, executor_user=member.user, academic_year=year

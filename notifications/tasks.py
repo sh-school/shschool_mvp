@@ -590,7 +590,7 @@ def notify_fail_task(
     student_id,
     school_id,
     failed_subjects,
-    year=settings.CURRENT_ACADEMIC_YEAR,
+    year=None,
     sent_by_id=None,
 ):
     """إشعار ولي الأمر برسوب ابنه"""

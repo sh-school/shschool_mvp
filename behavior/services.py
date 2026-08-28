@@ -18,11 +18,12 @@ import logging
 from datetime import date
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
+
+from core.academic_calendar import academic_year_for_school, default_academic_year
 
 logger = logging.getLogger(__name__)
 
@@ -459,8 +460,9 @@ class BehaviorService:
 
     # ── بيانات التقرير الدوري ───────────────────────────────
     @staticmethod
-    def get_report_period(period: str, year: str = settings.CURRENT_ACADEMIC_YEAR) -> tuple:
+    def get_report_period(period: str, year: str | None = None) -> tuple:
         """يحسب نطاق التاريخ والعنوان حسب الفترة والعام الدراسي"""
+        year = year or default_academic_year()
         try:
             start_year, end_year = (int(y) for y in str(year).split("-"))
         except (ValueError, AttributeError):
@@ -480,9 +482,10 @@ class BehaviorService:
         student: CustomUser,
         school: School,
         period: str = "full",
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """بيانات التقرير السلوكي الدوري الكامل"""
+        year = year or academic_year_for_school(school)
         date_from, date_to, period_label = BehaviorService.get_report_period(period, year)
 
         infractions = (
@@ -553,7 +556,7 @@ class BehaviorService:
             "student_grade": cg.get_grade_display() if cg else None,
             "student_section": cg.section if cg else None,
             "infraction_count": infraction_count,
-            "academic_year": settings.CURRENT_ACADEMIC_YEAR,
+            "academic_year": academic_year_for_school(school),
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
             "parent_id": parent.national_id if parent else None,

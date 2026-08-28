@@ -17,10 +17,10 @@ from collections import defaultdict
 from datetime import time
 
 import fitz  # PyMuPDF
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, School
 
 
@@ -363,7 +363,7 @@ class Command(BaseCommand):
 
         # ─── 5. تنفيذ التنظيف + الحقن في transaction ───
         school = School.objects.first()
-        academic_year = settings.CURRENT_ACADEMIC_YEAR
+        academic_year = academic_year_for_school(school)
 
         with transaction.atomic():
             # حذف

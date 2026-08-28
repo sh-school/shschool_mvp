@@ -14,7 +14,6 @@ import logging
 from io import BytesIO
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -23,6 +22,7 @@ from assessments.models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
+from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
 from operations.models import StudentAttendance
 
@@ -44,9 +44,10 @@ class ReportDataService:
     def get_student_report(
         student: CustomUser,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """بيانات تقرير الطالب السنوي الكاملة"""
+        year = year or academic_year_for_school(school)
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
             .select_related("setup__subject")
@@ -111,9 +112,10 @@ class ReportDataService:
     def get_class_results(
         class_group: ClassGroup,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """بيانات كشف نتائج الفصل الكامل مع ترتيب + ملخص"""
+        year = year or academic_year_for_school(school)
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
             .select_related("student")
@@ -191,9 +193,10 @@ class ReportDataService:
     def get_attendance_report(
         class_group: ClassGroup,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """بيانات تقرير الغياب لفصل"""
+        year = year or academic_year_for_school(school)
         enrollments = list(
             StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
             .select_related("student")
@@ -248,8 +251,9 @@ class ReportDataService:
         }
 
     @staticmethod
-    def get_behavior_report(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def get_behavior_report(school: School, year: str | None = None) -> dict:
         """بيانات تقرير السلوك العام"""
+        year = year or academic_year_for_school(school)
         from behavior.models import BehaviorInfraction
 
         infractions = (
@@ -784,7 +788,7 @@ class AcademicReportsExcel:
             ws,
             school.name if school else "SchoolOS",
             title,
-            settings.CURRENT_ACADEMIC_YEAR,
+            academic_year_for_school(school),
             num_cols,
         )
         ExcelService._add_header_row(ws, styles, 4, columns)
@@ -1192,7 +1196,7 @@ class ExcelService:
         cls,
         class_group: ClassGroup,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
         paper: str = "a4",
     ) -> HttpResponse:
         """
@@ -1203,6 +1207,7 @@ class ExcelService:
         - تلوين الحالة (ناجح/راسب)
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
+        year = year or academic_year_for_school(school)
         from openpyxl.styles import Font
 
         data = ReportDataService.get_class_results(class_group, school, year)
@@ -1288,7 +1293,7 @@ class ExcelService:
         cls,
         class_group: ClassGroup,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
         paper: str = "a4",
     ) -> HttpResponse:
         """
@@ -1298,6 +1303,7 @@ class ExcelService:
         - أحمر/أخضر لنسبة الحضور
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
+        year = year or academic_year_for_school(school)
         from openpyxl.styles import Font
 
         data = ReportDataService.get_attendance_report(class_group, school, year)
@@ -1367,7 +1373,7 @@ class ExcelService:
     def behavior_excel(
         cls,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
         paper: str = "a4",
     ) -> HttpResponse:
         """
@@ -1376,6 +1382,7 @@ class ExcelService:
         - تلوين درجة المخالفة (1→4 ألوان متصاعدة)
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
+        year = year or academic_year_for_school(school)
         from openpyxl.styles import Font
 
         data = ReportDataService.get_behavior_report(school, year)

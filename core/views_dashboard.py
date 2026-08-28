@@ -1,6 +1,5 @@
 import datetime
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
@@ -10,6 +9,7 @@ from django.utils import timezone
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
+from core.academic_calendar import academic_year_for_school
 from core.models.access import ALL_STAFF_ROLES
 from core.permissions import role_required
 from library.models import BookBorrowing
@@ -32,7 +32,7 @@ def _get_student_ctx(user, school, today):
     """بيانات لوحة تحكم الطالب: حضور + حصص اليوم + نتائج سنوية."""
     from core.models import StudentEnrollment
 
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for_school(school)
 
     # حضور الطالب (aggregate واحد)
     att = StudentAttendance.objects.filter(school=school, student=user).aggregate(
@@ -85,7 +85,7 @@ def _get_student_ctx(user, school, today):
 
 def _get_director_ctx(school, today):
     """بيانات لوحة تحكم الإدارة: حصص + حضور + تقييمات + سلوك + عيادة + مكتبة + عمليات."""
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for_school(school)
     yesterday = today - datetime.timedelta(days=1)
 
     # حصص اليوم — aggregate واحد
@@ -200,7 +200,7 @@ def _get_director_ctx(school, today):
 
 def _get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for_school(school)
 
     sessions = (
         Session.objects.filter(school=school, teacher=user, date=today)
@@ -254,7 +254,7 @@ def _get_specialist_social_ctx(user, school, today):
     يُركّز على: الغياب المتكرر + مخالفات السلوك + حالات الطلاب.
     """
 
-    year = settings.CURRENT_ACADEMIC_YEAR
+    year = academic_year_for_school(school)
 
     # طلاب الغياب المتكرر (أكثر من 3 أيام هذا الشهر)
     month_start = today.replace(day=1)
@@ -357,7 +357,7 @@ def _get_activities_ctx(user, school, today):
     from student_affairs.models import StudentActivity
 
     month_start = today.replace(day=1)
-    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026")
+    year = academic_year_for_school(school)
 
     behavior_monthly = BehaviorInfraction.objects.filter(
         school=school,

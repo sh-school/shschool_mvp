@@ -6,9 +6,9 @@ python manage.py send_notifications --type fail --year 2025-2026
 python manage.py send_notifications --type all
 """
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from core.academic_calendar import default_academic_year
 from core.models import School
 from notifications.services import NotificationService
 
@@ -20,12 +20,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--type", default="all", choices=["absence", "fail", "all"], help="نوع الإشعار"
         )
-        parser.add_argument("--year", default=settings.CURRENT_ACADEMIC_YEAR)
+        parser.add_argument("--year", default=None, help="افتراضياً العام الجاري")
         parser.add_argument("--school", default=None, help="كود المدرسة (اتركه فارغاً للكل)")
 
     def handle(self, *args, **options):
         notif_type = options["type"]
-        year = options["year"]
+        year = options["year"] or default_academic_year()
         school_code = options["school"]
 
         schools = School.objects.filter(is_active=True)

@@ -5,7 +5,6 @@ quality/views.py — Core views: لوحة التحكم + المجال + الإج
 
 from datetime import date as _date
 
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -16,7 +15,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, default_academic_year
 from core.models import AuditLog
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 from notifications.hub import NotificationHub
@@ -62,7 +61,7 @@ def _safe_next_redirect(request, fallback):
 # ── ثوابت ────────────────────────────────────────────────────
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
 def _default_year(request=None):
-    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+    return academic_year_for(request) if request is not None else default_academic_year()
 
 
 # Allowed sort fields mapping (GET param → ORM field)
