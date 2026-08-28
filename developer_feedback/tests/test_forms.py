@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 
 from django.test import TestCase
 
@@ -146,17 +145,14 @@ class ContextOrderTests(TestCase):
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["context_json_raw"]["url_path"], "/page")
 
-    @unittest.expectedFailure
     def test_a_real_path_containing_the_word_survives(self):
-        """مقصودٌ ولم يتحقّق بعد — سؤالُ سياسةٍ لا عطبُ شيفرة.
+        """‏/exam_control/session/<pk>/ مسارٌ حقيقيّ — والشكوى منه تحتاج موضعها.
 
-        الاقتطاع يُنقذ `?token=abc`، ولا يُنقذ الكلمة حين تكون في المسار
-        نفسه. وخمسة مسارات في `exam_control` تحملها: ‏/exam_control/session/<pk>/‎.
-
-        وإعفاء `url_path` من فحص الكلمات بعد الاقتطاع يبدو بلا ثمن — فالسرّ
-        في المسار قيمةٌ معتِمة لا الكلمةُ الإنجليزية نفسها، حتى في مسار
-        استعادة كلمة المرور في جانغو. لكنه تخفيفُ ضابطٍ يمسّ بياناتٍ
-        شخصية، فلا يُقرَّر من طرفٍ واحد.
+        كان هذا معلَّقاً `expectedFailure` بانتظار قرارٍ في السياسة. وقد
+        رُوجعت مسارات المنصّة كلّها فتبيّن أن كل ما يحمل إحدى الكلمات
+        المحجوبة يحمل بعدها `<uuid:…>` أو لا شيء — لا سرّاً. فأُعفي
+        `url_path` من الفحص بعد الاقتطاع، ويحرس المقدّمةَ
+        `test_no_route_puts_a_secret_after_a_blocked_word`.
         """
         path = "/exam_control/session/7/"
         form = DeveloperMessageForm(data=self._data({"url_path": path}))

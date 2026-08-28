@@ -120,7 +120,19 @@ class DeveloperMessageForm(forms.ModelForm):
         if "url_path" in cleaned and isinstance(cleaned["url_path"], str):
             cleaned["url_path"] = cleaned["url_path"].split("?", 1)[0]
 
-        # منع القيم المشبوهة (tokens/passwords/keys في القيم النصية)
+        # منع القيم المشبوهة (tokens/passwords/keys في القيم النصية) —
+        # ما عدا `url_path`، وقد سبقه الاقتطاع.
+        #
+        # السرّ يسكن سلسلة الاستعلام، وقد حُذفت في السطر أعلاه. والباقي مسارٌ
+        # لا يحوي السرّ نفسه بل اسم الصفحة. والسرّ حين يقع في مسارٍ يكون
+        # **قيمةً معتِمة** لا الكلمة الإنجليزية — حتى مسار استعادة كلمة المرور
+        # في جانغو يُرسَم `/reset/<uidb64>/<token>/` فيُطبع رمزاً لا كلمة.
+        # فالفحص هنا لا يلتقط سرّاً قطّ، ويلتقط أسماء صفحاتٍ بريئة.
+        #
+        # ورُوجعت مسارات المنصّة كلّها: كل ما يحمل إحدى هذه الكلمات يحمل
+        # بعدها `<uuid:…>` أو لا شيء — لا سرّاً. ويحرس ذلك
+        # `test_no_route_puts_a_secret_after_a_blocked_word`، فإن أُضيف مسارٌ
+        # يخالفه سقط الاختبار وعاد القرار للمراجعة.
         blocked_substrings = (
             "token",
             "password",
@@ -130,6 +142,8 @@ class DeveloperMessageForm(forms.ModelForm):
             "session",
         )
         for k, v in list(cleaned.items()):
+            if k == "url_path":
+                continue
             if isinstance(v, str) and any(b in v.lower() for b in blocked_substrings):
                 cleaned.pop(k, None)
 
