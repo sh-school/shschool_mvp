@@ -321,6 +321,9 @@ class AbsenceAlert(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE)
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="absence_alerts")
     absence_count = models.IntegerField()
+    #: مفتاح العتبة في «سياسة تقييم الطلبة» — تنبيهٌ واحد لكل عتبةٍ في العام.
+    #: كان التنبيه واحداً للعام كلّه، فلا يُنذَر أحدٌ عند العتبات التالية.
+    gate = models.CharField(max_length=20, blank=True, verbose_name="العتبة")
     period_start = models.DateField()
     period_end = models.DateField()
     status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
