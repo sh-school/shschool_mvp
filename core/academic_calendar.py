@@ -95,17 +95,92 @@ def academic_year_for(request) -> str:
     تنكسر شاشةٌ قبل أن تمتلئ الجداول. والارتداد مؤقّت: متى بُذر التقويم صار
     الاشتقاق هو المسار الوحيد.
     """
-    from django.conf import settings
-
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return settings.CURRENT_ACADEMIC_YEAR
+        return _frozen()
 
-    school = user.get_school()
+    return academic_year_for_school(user.get_school())
+
+
+def academic_year_for_school(school, on=None) -> str:
+    """العام الجاري لمدرسةٍ بعينها — لخدماتٍ تستقبل المدرسة ولا تستقبل طلباً.
+
+    عشرات الخدمات تُوقّع `f(school, year=...)`، وكانت القيمة الافتراضية تُقرأ
+    من الثابت **عند استيراد الوحدة** لا عند النداء. فحتى لو صحّ الثابت في
+    الإعدادات لم يكن ليصل إليها قبل إعادة تشغيل العملية.
+    """
     if school is None:
-        return settings.CURRENT_ACADEMIC_YEAR
+        return default_academic_year()
 
-    return AcademicCalendar.year_name(school) or settings.CURRENT_ACADEMIC_YEAR
+    return AcademicCalendar.year_name(school, on) or _frozen()
+
+
+def academic_year_window(school, on=None):
+    """تاريخا بداية العام ونهايته — لا اسمه.
+
+    عتبة الغياب القانونية (المادة ٧ من قانون التعليم الإلزامي ٢٥/٢٠٠١) تُحسب
+    على نافذة العام. وكانت النافذة مكتوبةً بالتواريخ: ٢٠٢٥/٩/١ إلى ٢٠٢٦/٦/٣٠.
+    فلمّا بدأ عام ٢٠٢٦-٢٠٢٧ صارت النافذة خاليةً من كل حصّة — فلا حصص تُعدّ،
+    ولا غيابَ يُحسب، ولا تنبيهَ ينطلق لأيّ طالب. عطبٌ صامت في التزامٍ قانونيّ.
+
+    ويرتدّ إلى سبتمبر–يونيو المشتقّين من اسم العام حين لا يكون التقويم مبذوراً.
+    """
+    from datetime import date
+
+    now = AcademicCalendar.current(school, on)
+    if now.year is not None:
+        return now.year.start_date, now.year.end_date
+
+    name = academic_year_for_school(school, on)
+    try:
+        start, end = (int(part) for part in str(name).split("-"))
+    except ValueError:
+        return None
+    return date(start, 9, 1), date(end, 6, 30)
+
+
+#: العام المشتقّ ليوم بعينه — يسقط تلقائياً عند منتصف الليل، فلا يتجمّد.
+_by_day: dict = {}
+
+
+def default_academic_year() -> str:
+    """العام الجاري بلا مدرسةٍ معلومة — لأوامر الإدارة وقيم النماذج الافتراضية.
+
+    وليس هذا تنازلاً عن الفصل بين المستأجرين: أمان الصفوف يُقيّد الاستعلام
+    بمدرسة الجلسة تلقائياً، فيُعيد عامَها هي. وخارج الطلب — في أمرٍ إداريّ أو
+    هجرة — لا جلسةَ ولا صفوف، فيرتدّ إلى الثابت.
+
+    وتقويم الوزارة وطنيّ: التواريخ واحدة لكل المدارس. فإن اختلف عامان على
+    اليوم نفسه فذلك خللٌ في البذر، والارتداد أصدق من اختيارٍ عشوائيّ.
+    """
+    from django.db import Error
+    from django.utils import timezone
+
+    day = timezone.localdate()
+    if day in _by_day:
+        return _by_day[day]
+
+    try:
+        names = set(
+            AcademicYear.objects.filter(start_date__lte=day, end_date__gte=day)
+            .values_list("name", flat=True)
+            .distinct()[:2]
+        )
+    except Error:
+        # الجداول غير موجودة بعد — أثناء هجرةٍ أو قاعدةٍ جديدة.
+        return _frozen()
+
+    year = names.pop() if len(names) == 1 else _frozen()
+    _by_day.clear()  # يومٌ واحد يكفي — لا نُراكم
+    _by_day[day] = year
+    return year
+
+
+def _frozen() -> str:
+    """الثابت المُجمَّد — الملاذ الأخير، ولا يُقرأ من موضعٍ آخر."""
+    from django.conf import settings
+
+    return settings.CURRENT_ACADEMIC_YEAR
 
 
 #: الصفوف كما تُصنّفها نوافذ اختبارات الوزارة.

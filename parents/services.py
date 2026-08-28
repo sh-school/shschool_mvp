@@ -9,11 +9,11 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db.models import Count, Q
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
+from core.academic_calendar import academic_year_for_school
 from core.models import ParentStudentLink, StudentEnrollment
 from operations.models import StudentAttendance
 
@@ -26,13 +26,14 @@ class ParentService:
     def get_children_data(
         user: CustomUser,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> list:
         """
         يعيد قائمة بأبناء ولي الأمر مع إحصائيات كل طالب.
         كل عنصر: {link, student, enrollment, total_subj, passed,
                    failed, incomplete, absent_30, late_30}
         """
+        year = year or academic_year_for_school(school)
         links = (
             ParentStudentLink.objects.filter(parent=user, school=school)
             .select_related("student")
@@ -106,9 +107,10 @@ class ParentService:
     def get_student_grades(
         student: CustomUser,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> dict:
         """ملخص الدرجات لطالب"""
+        year = year or academic_year_for_school(school)
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
             .select_related("setup__subject", "setup__class_group")

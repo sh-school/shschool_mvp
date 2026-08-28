@@ -9,9 +9,9 @@ seed_class_subjects.py — توزيع المواد على الفصول حسب أ
 - G12-1: علمي | G12-2,3,4: آداب
 """
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 
+from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, School
 from operations.models import Subject, SubjectClassAssignment
 
@@ -150,7 +150,7 @@ class Command(BaseCommand):
             self.stderr.write("لا توجد مدرسة!")
             return
 
-        year = settings.CURRENT_ACADEMIC_YEAR
+        year = academic_year_for_school(school)
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
         ).order_by("grade", "section")

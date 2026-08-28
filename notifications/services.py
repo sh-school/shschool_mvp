@@ -16,6 +16,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for_school
 from core.models import ParentStudentLink
 
 from .models import NotificationLog, NotificationSettings
@@ -246,10 +247,11 @@ class NotificationService:
         student: CustomUser,
         school: School,
         failed_subjects: list,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
         sent_by: CustomUser | None = None,
     ) -> list:
         """إشعار ولي الأمر بنتيجة الرسوب"""
+        year = year or academic_year_for_school(school)
         cfg = NotificationSettings.objects.filter(school=school).first()
         if cfg and not cfg.fail_email_enabled and not cfg.sms_enabled:
             return []
@@ -337,10 +339,11 @@ class NotificationService:
     @staticmethod
     def send_fail_alerts_for_year(
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
         sent_by: CustomUser | None = None,
     ) -> tuple:
         """إرسال إشعارات الرسوب لكل الطلاب الراسبين"""
+        year = year or academic_year_for_school(school)
         from assessments.models import AnnualSubjectResult
 
         # الطلاب الراسبون في مادة أو أكثر

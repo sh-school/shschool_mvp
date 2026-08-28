@@ -2,6 +2,8 @@ import logging
 
 from django.contrib import admin
 
+from core.academic_calendar import academic_year_for, default_academic_year
+
 logger = logging.getLogger(__name__)
 
 from .models import (
@@ -99,11 +101,8 @@ class QualityCommitteeMemberAdmin(admin.ModelAdmin):
 
 
 from django import forms as _forms
-from django.conf import settings
 from django.http import JsonResponse as _JsonResponse
 from django.urls import path as _path
-
-from core.academic_calendar import academic_year_for
 
 
 class ExecutorMappingAdminForm(_forms.ModelForm):
@@ -121,9 +120,8 @@ class ExecutorMappingAdminForm(_forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         school = None
-        # نموذج إدارةٍ بلا `request` — والاشتقاق يحتاج مدرسةً.
-        # يبقى الثابت هنا حتى تُنقل النماذج في المرحلة التالية.
-        year = settings.CURRENT_ACADEMIC_YEAR
+        # نموذج إدارةٍ بلا `request` — وأمان الصفوف يقيّد الاشتقاق بمدرسة الجلسة.
+        year = default_academic_year()
 
         if self.instance and self.instance.pk:
             try:

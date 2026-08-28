@@ -17,8 +17,6 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from django.conf import settings
-
 logger = logging.getLogger(__name__)
 
 from django.db.models import Avg, Count, Q
@@ -29,6 +27,7 @@ from assessments.models import (
     AnnualSubjectResult,
     SubjectClassSetup,
 )
+from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup
 from operations.models import Session, StudentAttendance
 
@@ -68,8 +67,9 @@ class AnalyticsService:
 
     # ── توزيع الدرجات ───────────────────────────────────────
     @staticmethod
-    def grades_distribution(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def grades_distribution(school: School, year: str | None = None) -> dict:
         """توزيع الطلاب على نطاقات الدرجات"""
+        year = year or academic_year_for_school(school)
         results = AnnualSubjectResult.objects.filter(
             school=school,
             academic_year=year,
@@ -88,8 +88,9 @@ class AnalyticsService:
 
     # ── مقارنة الفصول ───────────────────────────────────────
     @staticmethod
-    def class_comparison(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
+    def class_comparison(school: School, year: str | None = None) -> list:
         """مقارنة نسب النجاح بين الفصول — استعلام واحد بدلاً من N*3"""
+        year = year or academic_year_for_school(school)
         result_filter = Q(
             enrollments__is_active=True,
             enrollments__student__annual_results__school=school,
@@ -124,8 +125,9 @@ class AnalyticsService:
 
     # ── مقارنة المواد ───────────────────────────────────────
     @staticmethod
-    def subject_comparison(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
+    def subject_comparison(school: School, year: str | None = None) -> list:
         """مقارنة متوسط الدرجات بين المواد"""
+        year = year or academic_year_for_school(school)
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
             .select_related("subject")
@@ -155,8 +157,9 @@ class AnalyticsService:
 
     # ── الراسبون حسب الفصل ──────────────────────────────────
     @staticmethod
-    def failing_by_class(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> list:
+    def failing_by_class(school: School, year: str | None = None) -> list:
         """عدد الراسبين في كل فصل — استعلام واحد بدلاً من N*2"""
+        year = year or academic_year_for_school(school)
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
         ).annotate(
@@ -231,8 +234,9 @@ class AnalyticsService:
 
     # ── تقدم الخطة التشغيلية ────────────────────────────────
     @staticmethod
-    def plan_progress(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def plan_progress(school: School, year: str | None = None) -> dict:
         """تقدم الخطة التشغيلية حسب المجال"""
+        year = year or academic_year_for_school(school)
         from quality.services import QualityService
 
         return QualityService.get_progress_report_data(school, year)
@@ -250,13 +254,14 @@ class KPIService:
     """
 
     @staticmethod
-    def compute(school: School, year: str = settings.CURRENT_ACADEMIC_YEAR) -> dict:
+    def compute(school: School, year: str | None = None) -> dict:
         """
         يعيد dict يحتوي على:
           - kpis        : قاموس المؤشرات العشرة مع traffic light
           - summary     : إحصاء (green/yellow/red/grey)
           - school, year, generated_at, month_label
         """
+        year = year or academic_year_for_school(school)
         from django.utils import timezone
 
         from behavior.models import BehaviorInfraction

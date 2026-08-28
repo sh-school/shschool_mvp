@@ -7,10 +7,10 @@
 
 from collections import defaultdict
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from core.academic_calendar import academic_year_for_school
 from core.models import School
 from operations.models import ScheduleSlot
 
@@ -49,7 +49,7 @@ class Command(BaseCommand):
 
         dry_run = options["dry_run"]
         school = School.objects.first()
-        year = settings.CURRENT_ACADEMIC_YEAR
+        year = academic_year_for_school(school)
 
         self.stdout.write(self.style.WARNING("=" * 60))
         self.stdout.write(

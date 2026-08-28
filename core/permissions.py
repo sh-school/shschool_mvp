@@ -18,6 +18,8 @@ from functools import wraps
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 
+from core.academic_calendar import academic_year_for_school
+
 from .models.access import (
     ACADEMIC_ROLES,
     ALL_STAFF_ROLES,
@@ -592,7 +594,6 @@ def get_teacher_student_ids(user):
         else:
             qs = Student.objects.filter(id__in=student_ids)
     """
-    from django.conf import settings
 
     from core.models import StudentEnrollment
 
@@ -622,8 +623,8 @@ def get_teacher_student_ids(user):
     if role in ALL_STUDENTS_ROLES:
         return None
 
-    year = getattr(settings, "CURRENT_ACADEMIC_YEAR", "2025-2026")
     school = user.get_school()
+    year = academic_year_for_school(school)
 
     from operations.models import ScheduleSlot, SubstituteAssignment
 

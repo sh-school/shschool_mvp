@@ -3,11 +3,11 @@ exam_control/views.py  ·  SchoolOS v5
 لوحة رئيس الكنترول — تشكيل + إدارة + محاضر + PDF
 """
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
+from core.academic_calendar import academic_year_for
 from core.permissions import role_required
 
 from .models import (
@@ -57,7 +57,7 @@ def session_create(request):
             school=school,
             name=request.POST["name"],
             session_type=request.POST.get("session_type", "final"),
-            academic_year=request.POST.get("academic_year", settings.CURRENT_ACADEMIC_YEAR),
+            academic_year=request.POST.get("academic_year") or academic_year_for(request),
             start_date=request.POST["start_date"],
             end_date=request.POST["end_date"],
             created_by=request.user,

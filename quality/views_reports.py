@@ -2,14 +2,13 @@
 quality/views_reports.py — تقرير التقدم + PDF
 """
 
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, default_academic_year
 from core.pdf_utils import render_pdf
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 
@@ -22,7 +21,7 @@ from .services import QualityService
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
 def _default_year(request=None):
-    return academic_year_for(request) if request is not None else settings.CURRENT_ACADEMIC_YEAR
+    return academic_year_for(request) if request is not None else default_academic_year()
 
 
 @login_required

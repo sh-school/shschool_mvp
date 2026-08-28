@@ -13,10 +13,10 @@ from __future__ import annotations
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
+from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
 
 from .models import (
@@ -513,10 +513,9 @@ class GradeService:
         }
 
     @staticmethod
-    def get_class_results_summary(
-        setup: SubjectClassSetup, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> dict:
+    def get_class_results_summary(setup: SubjectClassSetup, year: str | None = None) -> dict:
         """ملخص النتائج السنوية للفصل في مادة — استعلام واحد"""
+        year = year or academic_year_for_school(setup.school)
         stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
             total=Count("id"),
             passed=Count("id", filter=Q(status="pass")),
@@ -541,9 +540,10 @@ class GradeService:
     def get_student_annual_report(
         student: CustomUser,
         school: School,
-        year: str = settings.CURRENT_ACADEMIC_YEAR,
+        year: str | None = None,
     ) -> QuerySet:
         """كشف الدرجات السنوية الكامل للطالب"""
+        year = year or academic_year_for_school(school)
         return (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
             .select_related("setup__subject", "setup__class_group")
@@ -551,10 +551,9 @@ class GradeService:
         )
 
     @staticmethod
-    def get_failing_students(
-        school: School, year: str = settings.CURRENT_ACADEMIC_YEAR
-    ) -> QuerySet:
+    def get_failing_students(school: School, year: str | None = None) -> QuerySet:
         """الطلاب الراسبون سنوياً"""
+        year = year or academic_year_for_school(school)
         return (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
             .select_related("student", "setup__subject", "setup__class_group")
