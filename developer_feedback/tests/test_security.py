@@ -18,6 +18,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
+from core.models import Membership, Role, School
 from developer_feedback.forms import DeveloperMessageForm
 from developer_feedback.models import DeveloperMessage, LegalOnboardingConsent
 
@@ -28,11 +29,13 @@ class SecurityTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user_a = User.objects.create_user(
-            username="sec_user_a",
+            national_id="28800000001",
+            full_name="مستخدم الاختبار أ",
             password="password-A-123",
         )
         cls.user_b = User.objects.create_user(
-            username="sec_user_b",
+            national_id="28800000002",
+            full_name="مستخدم الاختبار ب",
             password="password-B-123",
         )
         # أكمل onboarding للمستخدم أ
@@ -88,19 +91,32 @@ class SecurityTests(TestCase):
             self.assertNotIn(bad_key, ctx)
 
     def test_3_student_role_cannot_access_send_page(self):
-        """Student (user with role=student) ممنوع."""
+        """الطالب ممنوع من صفحة مراسلة المطوّر.
+
+        كان هذا الاختبار يقول:
+
+            if hasattr(student, "role"):
+                student.role = "student"
+
+        و`role` خاصّيةٌ مشتقّة من العضوية لا حقلٌ يُكتب — فـ`hasattr` صادقة
+        والإسناد يرفع `AttributeError`. ولو مرّ الإسناد صامتاً لكان أسوأ:
+        يبقى المستخدم **بلا دورٍ أصلاً**، فيُحجب لانعدام الدور لا لكونه
+        طالباً — ويمرّ الاختبار وهو لا يفحص ما يزعم.
+        """
+        school = School.objects.create(name="مدرسة الاختبار", code="TST01")
+        role = Role.objects.create(school=school, name="student")
         student = User.objects.create_user(
-            username="test_student_xx",
+            national_id="28800000003",
+            full_name="طالب الاختبار",
             password="password-123",
         )
-        # محاولة تعيين role إذا كان متاحاً
-        if hasattr(student, "role"):
-            student.role = "student"
-            student.save()
+        Membership.objects.create(user=student, school=school, role=role, is_active=True)
+        self.assertEqual(student.get_role(), "student", "المقدّمة نفسها يجب أن تصحّ")
+
         client = Client()
         client.force_login(student)
         resp = client.get(reverse("developer_feedback:message_create"))
-        # إما 403 أو redirect (عدم 200)
+
         self.assertNotEqual(resp.status_code, 200)
 
     def test_4_unauthenticated_user_redirected_to_login(self):

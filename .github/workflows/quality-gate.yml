@@ -84,7 +84,7 @@ jobs:
         # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 60% أرضية حالية (التغطية
         # الفعلية ≈63%)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
         run: |
-          python -m pytest tests/ -v --junit-xml=test-results.xml \
+          python -m pytest -v --junit-xml=test-results.xml \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov \
             --cov-fail-under=60
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import unittest
 
 from django.test import TestCase
 
@@ -115,3 +116,64 @@ class OnboardingQuizFormTests(TestCase):
     def test_all_wrong_fails(self):
         form = OnboardingQuizForm(data={"q1": "yes", "q2": "a", "q3": "no"})
         self.assertFalse(form.is_valid())
+
+
+class ContextOrderTests(TestCase):
+    """[PRIVACY] الاقتطاع يسبق الفحص — وإلّا سقط المسار بدل أن يُنظَّف.
+
+    مرشِّحان يعملان على `url_path`: أحدهما يقتطع سلسلة الاستعلام، والآخر
+    يُسقط المفتاح إن حوت قيمتُه «token» أو «session» أو أخواتها. وكان
+    الثاني يسبق الأوّل، فيرى الكلمة داخل `?token=abc` ويُلقي المسار كلّه
+    قبل أن يصل إلى الاقتطاع — أي أن الاقتطاع لم يكن يعمل قطّ.
+
+    وأثره أوسع من الرمز المسرَّب: خمسة مسارات في `exam_control` تحمل كلمة
+    «session» في نصّها، فكانت الشكوى تصل بلا موضعٍ يدلّ على مصدرها.
+    """
+
+    def _data(self, payload):
+        return {
+            "message_type": "bug",
+            "priority": "normal",
+            "subject": "اختبار عنوان صالح",
+            "body": "وصف طويل كفاية لاختبار النموذج.",
+            "consent_privacy": True,
+            "context_json_raw": json.dumps(payload),
+        }
+
+    def test_the_query_string_is_cut_not_the_whole_path(self):
+        form = DeveloperMessageForm(data=self._data({"url_path": "/page?token=abc&sid=xyz"}))
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["context_json_raw"]["url_path"], "/page")
+
+    @unittest.expectedFailure
+    def test_a_real_path_containing_the_word_survives(self):
+        """مقصودٌ ولم يتحقّق بعد — سؤالُ سياسةٍ لا عطبُ شيفرة.
+
+        الاقتطاع يُنقذ `?token=abc`، ولا يُنقذ الكلمة حين تكون في المسار
+        نفسه. وخمسة مسارات في `exam_control` تحملها: ‏/exam_control/session/<pk>/‎.
+
+        وإعفاء `url_path` من فحص الكلمات بعد الاقتطاع يبدو بلا ثمن — فالسرّ
+        في المسار قيمةٌ معتِمة لا الكلمةُ الإنجليزية نفسها، حتى في مسار
+        استعادة كلمة المرور في جانغو. لكنه تخفيفُ ضابطٍ يمسّ بياناتٍ
+        شخصية، فلا يُقرَّر من طرفٍ واحد.
+        """
+        path = "/exam_control/session/7/"
+        form = DeveloperMessageForm(data=self._data({"url_path": path}))
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["context_json_raw"]["url_path"], path)
+
+    def test_the_secret_itself_never_reaches_the_cleaned_data(self):
+        """الاقتطاع أوّلاً لا يعني تسرّباً — القيمة تُقطع قبل أن تُخزَّن."""
+        form = DeveloperMessageForm(data=self._data({"url_path": "/p?token=SECRETVALUE"}))
+        form.is_valid()
+
+        self.assertNotIn("SECRETVALUE", json.dumps(form.cleaned_data["context_json_raw"]))
+
+    def test_a_path_that_embeds_the_word_outside_a_query_is_still_dropped(self):
+        """الفحص باقٍ بعد الاقتطاع — لم يُستبدل بالترتيب بل تأخّر عنه."""
+        form = DeveloperMessageForm(data=self._data({"view_name": "auth:password_reset"}))
+        form.is_valid()
+
+        self.assertNotIn("view_name", form.cleaned_data["context_json_raw"])

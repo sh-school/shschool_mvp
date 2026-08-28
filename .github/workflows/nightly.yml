@@ -90,7 +90,7 @@ jobs:
         # أعلام --cov صريحة: pytest.ini كان يحجب إعداد pyproject فلا تُقَس التغطية.
         # العتبة 60% أرضية حالية (≈63%)؛ تُرفَع تدريجياً نحو 85%.
         run: |
-          pytest tests/ \
+          pytest \
             --junit-xml=test-results.xml \
             --tb=short \
             -p no:cacheprovider \

@@ -164,7 +164,7 @@ jobs:
         # --cov-fail-under=0: يعطّل الـ gate في الـ fast CI (fail-under مفعّل في nightly.yml على full suite)
         # التغطية الكاملة + fail-under=85 محفوظة في nightly.yml (safety net)
         run: |
-          pytest tests/ -n auto \
+          pytest -n auto \
             --junit-xml=test-results.xml \
             --cov-fail-under=0 \
             --tb=short

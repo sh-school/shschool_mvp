@@ -16,14 +16,37 @@
 """
 
 import pathlib
+import re
 
 import pytest
 import yaml
 
 WORKFLOWS = pathlib.Path(".github/workflows")
 
-#: الوظائف التي تُجري المجموعة الكاملة — لا مجموعةً جزئية.
-FULL_SUITE = "pytest tests/"
+#: نداء `pytest` وما يليه حتى نهاية الأمر.
+_CALL = re.compile(r"\bpytest\s+(?P<rest>[^|&;\n]*)")
+
+
+def _looks_like_a_path(token: str) -> bool:
+    """`tests/` و`tests/test_x.py` و`.` مسارات — و`auto` قيمةُ راية.
+
+    التمييز بالشكل لا بالموضع: `-n auto` يضع `auto` موضعَ المسار، فمَن عدّ
+    كلَّ ما لا يبدأ بشرطةٍ مساراً ظنّ المجموعةَ الكاملة مقيَّدةً بملفّ.
+    """
+    return token == "." or token.endswith(".py") or "/" in token
+
+
+def runs_the_whole_suite(text: str) -> bool:
+    """نداءٌ بلا مسارٍ يجمع كل شيء — والمقيَّد بملفٍّ لا يعنينا.
+
+    كان التمييز هنا بالسلسلة `pytest tests/`، فلمّا زال قيدُ المجلّد صار
+    الحارس يمسح لا شيء وهو يبدو أخضر. والمعنى أثبتُ من النصّ.
+    """
+    joined = text.replace("\\\n", " ")
+    for m in _CALL.finditer(joined):
+        if not any(_looks_like_a_path(t) for t in m.group("rest").split()):
+            return True
+    return False
 
 
 def _joined(job) -> str:
@@ -44,7 +67,7 @@ def _steps():
 
 def test_the_sweep_finds_the_suite_runners():
     """حارسٌ يمسح لا شيء يمرّ دائماً."""
-    runners = {w for w, _, run in _steps() if FULL_SUITE in run}
+    runners = {w for w, _, run in _steps() if runs_the_whole_suite(run)}
 
     assert len(runners) >= 3, f"لم يُعثر إلّا على {runners}"
 
@@ -61,7 +84,7 @@ def test_a_full_suite_job_that_declares_a_budget_runs_in_parallel():
         doc = yaml.safe_load(f.read_text(encoding="utf-8"))
         for name, job in (doc.get("jobs") or {}).items():
             runs = _joined(job)
-            if FULL_SUITE not in runs or job.get("timeout-minutes") is None:
+            if not runs_the_whole_suite(runs) or job.get("timeout-minutes") is None:
                 continue
             if "-n auto" not in runs:
                 broken.append(f"{f.name}:{name} timeout={job['timeout-minutes']}")
@@ -76,7 +99,7 @@ def test_the_deploy_job_is_the_one_that_declares_a_budget():
         doc = yaml.safe_load(f.read_text(encoding="utf-8"))
         for name, job in (doc.get("jobs") or {}).items():
             runs = _joined(job)
-            if FULL_SUITE in runs and job.get("timeout-minutes") is not None:
+            if runs_the_whole_suite(runs) and job.get("timeout-minutes") is not None:
                 budgeted.add(f"{f.name}:{name}")
 
     assert budgeted == {"deploy-railway.yml:test"}, budgeted
