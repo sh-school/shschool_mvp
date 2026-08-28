@@ -3,6 +3,8 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
 
 from .models import (
+    AcademicYear,
+    CalendarEvent,
     ClassGroup,
     CustomUser,
     Membership,
@@ -10,6 +12,7 @@ from .models import (
     Profile,
     Role,
     School,
+    Semester,
     StudentEnrollment,
 )
 
@@ -174,7 +177,62 @@ class StudentEnrollmentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("student", "class_group")
 
 
-admin.site.site_header = "SchoolOS — مدرسة الشحانية"
+# اسمُ مدرسةٍ بعينها هنا يظهر لكل مستأجر — واللوحة واحدةٌ للجميع.
+
+# ══════════════════════ التقويم الأكاديمي ═══════════════════════════
+# كانت النماذج بلا واجهة: `AcademicYear` مبنيّاً ومهجوراً، والفصول والأحداث
+# تُبذر بأمرٍ ولا تُرى. فما لا يُعرض لا يُراجَع — وتقويم الوزارة يُعدَّل أحياناً
+# في أثناء العام.
+
+
+class SemesterInline(admin.TabularInline):
+    model = Semester
+    extra = 0
+    fields = ("code", "start_date", "end_date", "max_grade")
+
+
+@admin.register(AcademicYear)
+class AcademicYearAdmin(admin.ModelAdmin):
+    list_display = ("name", "school", "start_date", "end_date", "is_current")
+    list_filter = ("school", "is_current")
+    search_fields = ("name",)
+    ordering = ("-start_date",)
+    inlines = [SemesterInline]
+
+
+@admin.register(Semester)
+class SemesterAdmin(admin.ModelAdmin):
+    list_display = ("academic_year", "code", "start_date", "end_date", "max_grade")
+    list_filter = ("code", "academic_year__school", "academic_year__name")
+    list_select_related = ("academic_year",)
+    ordering = ("-start_date",)
+
+
+@admin.register(CalendarEvent)
+class CalendarEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "event_type",
+        "start_date",
+        "end_date",
+        "grade_scope",
+        "audience",
+        "academic_year",
+    )
+    list_filter = (
+        "academic_year__school",
+        "academic_year__name",
+        "event_type",
+        "grade_scope",
+        "audience",
+    )
+    list_select_related = ("academic_year", "semester")
+    search_fields = ("name",)
+    date_hierarchy = "start_date"
+    ordering = ("start_date",)
+
+
+admin.site.site_header = "SchoolOS — لوحة الإدارة"
 admin.site.site_title = "SchoolOS Admin"
 admin.site.index_title = "لوحة إدارة النظام"
 

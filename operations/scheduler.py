@@ -1,7 +1,7 @@
 """
 scheduler.py — خوارزمية التوليد الذكية للجدول الأسبوعي
 Greedy + Backtracking + Local Search
-مدرسة الشحانية — قطر 2025-2026
+قطر
 """
 
 from __future__ import annotations

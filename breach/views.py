@@ -24,7 +24,7 @@ def _admin_only(user):
 NCSA_TEMPLATE = """إلى: المركز الوطني للأمن السيبراني (NCSA)
 الموضوع: إشعار بخرق بيانات — PDPPL م.11
 
-المؤسسة: مدرسة الشحانية الإعدادية الثانوية للبنين
+المؤسسة: {organization}
 التاريخ: {date}
 
 1. طبيعة الخرق: {title}
@@ -111,6 +111,7 @@ def create(request):
         {
             "now": now_str,
             "ncsa_template": NCSA_TEMPLATE.format(
+                organization=school.name,
                 date=timezone.now().date(),
                 title="",
                 discovered_at="",

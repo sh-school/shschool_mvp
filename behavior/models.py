@@ -1,6 +1,6 @@
 """
 behavior/models.py
-نماذج السلوك الطلابي — v6 (لائحة مدرسة الشحانية)
+نماذج السلوك الطلابي — v6
 ✅ ViolationCategory: 40 مخالفة رسمية × 4 درجات
 ✅ BehaviorInfraction: حقول الإحالة الأمنية + التشهير الرقمي + الإجراء التصاعدي
 ✅ BehaviorPointRecovery: استعادة النقاط (التعزيز الإيجابي)
@@ -31,7 +31,7 @@ def _uuid():
 # ─────────────────────────────────────────────────────────────────
 class ViolationCategory(models.Model):
     """
-    فئة مخالفة سلوكية وفق لائحة مدرسة الشحانية (SOS-20260420-1E01)
+    فئة مخالفة سلوكية وفق لائحة السلوك المُعتمدة (SOS-20260420-1E01)
     4 درجات × 40 مخالفة — يُحقن بأمر: python manage.py seed_violations_2025
     """
 
@@ -187,7 +187,7 @@ class ViolationCategory(models.Model):
 
     @classmethod
     def seed_2025(cls):
-        """حقن 40 مخالفة رسمية وفق لائحة مدرسة الشحانية (SOS-20260420-1E01)"""
+        """حقن 40 مخالفة رسمية وفق لائحة السلوك المُعتمدة (SOS-20260420-1E01)"""
         created = 0
         for degree, code, name, pts, tag_list in VIOLATIONS_2025:
             obj, made = cls.objects.get_or_create(

@@ -300,7 +300,7 @@ class ClinicService:
                 if not parent.email:
                     continue
                 msg = (
-                    f"مدرسة الشحانية: تم إرسال ابنكم/ابنتكم {visit.student.full_name} "
+                    f"{school.name}: تم إرسال ابنكم/ابنتكم {visit.student.full_name} "
                     f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
                     f"يُرجى التواصل مع المدرسة للاستفسار."
                 )
