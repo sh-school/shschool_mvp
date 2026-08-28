@@ -2,13 +2,7 @@
 {% block title %}تقييم أداء الموظفين — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
-<nav class="breadcrumbs max-w-7xl mx-auto px-4 pt-4">
-  <a href="/dashboard/">الرئيسية</a>
-  <span class="bc-sep">◂</span>
-  <a href="/quality/">الجودة</a>
-  <span class="bc-sep">◂</span>
-  <span class="bc-current">تقييم أداء الموظفين</span>
-</nav>
+{% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تقييم أداء الموظفين" %}
 {% endblock %}
 
 {% block content %}
