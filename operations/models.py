@@ -1,9 +1,9 @@
 import uuid
 
-from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from core.academic_calendar import default_academic_year
 from core.models import ClassGroup, CustomUser, School
 from core.validators import FileTypeValidator
 
@@ -191,7 +191,7 @@ class ScheduleSlot(models.Model):
     period_number = models.IntegerField(verbose_name="رقم الحصة")  # 1..7
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -396,7 +396,7 @@ class SubjectClassAssignment(models.Model):
         verbose_name="المعلم",
     )
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
     is_active = models.BooleanField(default=True)
@@ -425,7 +425,7 @@ class TeacherPreference(models.Model):
         CustomUser, on_delete=models.CASCADE, related_name="schedule_preferences"
     )
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_preferences")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
     free_day = models.IntegerField(
@@ -466,7 +466,7 @@ class TeacherExemption(models.Model):
         related_name="schedule_exemptions",
         verbose_name="المعلم/المنسق",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     exemption_type = models.CharField(
         max_length=20,
         choices=EXEMPTION_TYPE,
@@ -818,7 +818,7 @@ class FreeSlotRegistry(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="free_slots")
     day_of_week = models.IntegerField(choices=ScheduleSlot.DAYS, verbose_name="اليوم")
     period_number = models.IntegerField(verbose_name="رقم الحصة")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     is_available = models.BooleanField(
         default=True,
         verbose_name="متاح؟",
@@ -913,7 +913,7 @@ class StaffEvaluation(models.Model):
     # ── الفترة ─────────────────────────────────────────────────────
     academic_year = models.CharField(
         max_length=9,
-        default=settings.CURRENT_ACADEMIC_YEAR,
+        default=default_academic_year,
         verbose_name="العام الأكاديمي",
         db_index=True,
     )

@@ -4,9 +4,9 @@ staff_affairs/models.py — نماذج شؤون الموظفين
 (TeacherAbsence, StaffEvaluation, TeacherSwap, CompensatorySession).
 """
 
-from django.conf import settings
 from django.db import models
 
+from core.academic_calendar import default_academic_year
 from core.models.base import AuditedModel, SchoolScopedModel
 from core.models.school import School
 from core.models.user import CustomUser
@@ -53,7 +53,7 @@ class LeaveBalance(SchoolScopedModel):
     )
     academic_year = models.CharField(
         max_length=9,
-        default=settings.CURRENT_ACADEMIC_YEAR,
+        default=default_academic_year,
         verbose_name="العام الدراسي",
     )
     leave_type = models.CharField(
@@ -143,7 +143,7 @@ class LeaveRequest(AuditedModel):
     rejection_reason = models.TextField(blank=True, verbose_name="سبب الرفض")
     academic_year = models.CharField(
         max_length=9,
-        default=settings.CURRENT_ACADEMIC_YEAR,
+        default=default_academic_year,
         verbose_name="العام الدراسي",
     )
 

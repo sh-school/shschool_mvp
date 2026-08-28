@@ -1,6 +1,7 @@
-from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+from core.academic_calendar import default_academic_year
 
 from .school import School, _uuid
 from .user import CustomUser
@@ -67,7 +68,7 @@ class ClassGroup(models.Model):
     grade = models.CharField(max_length=3, choices=GRADES)
     section = models.CharField(max_length=10, verbose_name="الشعبة")
     level_type = models.CharField(max_length=4, choices=LEVELS, default="prep")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     supervisor = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,

@@ -13,10 +13,12 @@ core/academic_calendar.py — مصدر الحقيقة الوحيد للزمن ا
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from django.utils import timezone
 
-from core.models import AcademicYear, CalendarEvent, Semester
+if TYPE_CHECKING:  # النماذج تستورد هذه الوحدة لقيمها الافتراضية — فلا نستوردها هنا وقت التشغيل
+    from core.models import AcademicYear, Semester
 
 
 @dataclass(frozen=True)
@@ -44,6 +46,8 @@ class AcademicCalendar:
 
         `on` للاختبار وللتقارير بأثرٍ رجعيّ — لا يُمرَّر في الاستعمال العاديّ.
         """
+        from core.models import AcademicYear
+
         day = on or timezone.localdate()
 
         year = (
@@ -73,6 +77,8 @@ class AcademicCalendar:
         نوافذ الاختبارات تختلف بين الصفوف ١–٩ و١٠–١١ و١٢، فحدثٌ بلا نطاقٍ
         يُعرض لمن لا يعنيه.
         """
+        from core.models import CalendarEvent
+
         day = on or timezone.localdate()
         now = AcademicCalendar.current(school, day)
         if now.year is None:
@@ -156,7 +162,6 @@ def default_academic_year() -> str:
     الثابت من البابِ الذي أُغلق. واستعلامٌ واحدٌ مفهرس أرخص من هذا الخطر.
     """
     from django.db import Error
-    from django.utils import timezone
 
     from core.models import AcademicYear
 
