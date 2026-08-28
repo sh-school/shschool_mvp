@@ -152,18 +152,31 @@ def test_the_school_helper_tolerates_no_school(db):
     assert academic_year_for_school(None)
 
 
-def test_the_default_helper_is_not_frozen_at_import(db):
-    """الذاكرة المؤقّتة بيوم، لا بعمر العملية."""
-    import datetime
+def test_the_default_helper_keeps_no_answer_between_calls(db, school):
+    """ذاكرةٌ مفتاحها اليومُ وحده تنقض ما تحرسه من وجهين.
 
-    from core.academic_calendar import _by_day, default_academic_year
+    تُقدّم جوابَ مستأجرٍ لمن بعده في العملية نفسها؛ وإن وقع أوّل نداءٍ خارج
+    طلبٍ — أمرٍ إداريّ أو فحص صحّة — خزّنت الارتدادَ إلى الثابت المُجمَّد
+    وقدّمته يوماً كاملاً. أي أنها تُعيد الثابت من البابِ الذي أُغلق.
 
-    _by_day.clear()
-    first = default_academic_year()
-    assert list(_by_day) == [datetime.date.today()] or _by_day
+    فالحارس هنا يمنع عودتها: النداء الثاني يجب أن يرى ما بُذر بعد الأوّل.
+    """
+    from django.conf import settings
+    from django.core.management import call_command
 
-    _by_day.clear()
-    assert default_academic_year() == first
+    from core.academic_calendar import default_academic_year
+
+    before = default_academic_year()
+    assert before == settings.CURRENT_ACADEMIC_YEAR, "لا تقويمَ بعد — الارتداد متوقّع"
+
+    call_command("seed_academic_calendar", school=school.code, verbosity=0)
+
+    import core.academic_calendar as cal
+
+    after = default_academic_year()
+
+    assert after != before, "النداء الثاني ما زال يرى الجواب الأوّل — عادت الذاكرة"
+    assert not any(name.startswith("_by_") for name in vars(cal))
 
 
 @pytest.mark.parametrize(
