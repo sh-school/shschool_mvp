@@ -52,7 +52,7 @@ def get_export_context(request, title: str) -> dict:
     logo_path = str(Path(settings.BASE_DIR) / "static" / "brand" / "logoMaroon.png")
 
     return {
-        "school_name": school.name if school else "مدرسة الشحانية الإعدادية الثانوية للبنين",
+        "school_name": school.name if school else "المدرسة",
         "school_logo_path": str(Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"),
         "logo_path": logo_path,
         "exported_by": user.full_name,
