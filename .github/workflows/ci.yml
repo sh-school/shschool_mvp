@@ -124,6 +124,7 @@ jobs:
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
         run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             libcairo2-dev \
@@ -215,6 +216,7 @@ jobs:
 
       - name: تثبيت مكتبات النظام (Cairo)
         run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 
@@ -253,6 +255,7 @@ jobs:
 
       - name: تثبيت مكتبات النظام (Cairo)
         run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 

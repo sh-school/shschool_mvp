@@ -51,6 +51,7 @@ jobs:
 
       - name: Install system libraries (Cairo + WeasyPrint)
         run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
@@ -192,6 +193,7 @@ jobs:
 
       - name: Install system libraries
         run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
