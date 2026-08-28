@@ -108,6 +108,18 @@ class DeveloperMessageForm(forms.ModelForm):
         }
         cleaned = {k: v for k, v in data.items() if k in allowed}
 
+        # الاقتطاع أوّلاً ثم الفحص — والترتيب هنا هو الفرق كلّه.
+        #
+        # كان الفحص يسبق الاقتطاع، فيرى «token» داخل `?token=abc` ويُسقط
+        # المفتاح كلّه قبل أن يصل إلى الاقتطاع. والنتيجة أن سلسلة الاستعلام
+        # لم تكن تُقتطع قطّ — بل يُلقى المسار بأكمله.
+        #
+        # وأثره أوسع من ذلك: خمسة مسارات في `exam_control` تحمل كلمة
+        # «session» في نصّها (‏/exam_control/session/<pk>/‎)، فكانت شكوى
+        # المستخدم تصل بلا موضعٍ يدلّ على مصدرها — صامتةً، بلا خطأ.
+        if "url_path" in cleaned and isinstance(cleaned["url_path"], str):
+            cleaned["url_path"] = cleaned["url_path"].split("?", 1)[0]
+
         # منع القيم المشبوهة (tokens/passwords/keys في القيم النصية)
         blocked_substrings = (
             "token",
@@ -120,10 +132,6 @@ class DeveloperMessageForm(forms.ModelForm):
         for k, v in list(cleaned.items()):
             if isinstance(v, str) and any(b in v.lower() for b in blocked_substrings):
                 cleaned.pop(k, None)
-
-        # حذف query string من url_path احتياطياً
-        if "url_path" in cleaned and isinstance(cleaned["url_path"], str):
-            cleaned["url_path"] = cleaned["url_path"].split("?", 1)[0]
 
         return cleaned
 

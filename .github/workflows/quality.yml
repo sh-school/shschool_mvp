@@ -184,7 +184,7 @@ jobs:
 
       - name: تشغيل الاختبارات مع تقرير HTML شامل
         run: |
-          pytest tests/ \
+          pytest \
             --cov=. \
             --cov-report=html:htmlcov \
             --cov-report=term-missing \

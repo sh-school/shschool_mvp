@@ -21,7 +21,8 @@ class DeveloperMessageModelTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
-            username="testuser_df_1",
+            national_id="28800000011",
+            full_name="مستخدم النماذج أ",
             password="test-password-123",
         )
 
@@ -74,7 +75,8 @@ class AuditLogModelTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = User.objects.create_user(
-            username="testuser_df_2",
+            national_id="28800000012",
+            full_name="مستخدم النماذج ب",
             password="test-password-123",
         )
 

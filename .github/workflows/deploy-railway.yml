@@ -213,7 +213,7 @@ jobs:
         # `ci.yml` (8:37 / 9:19 / 9:50) لم يكن في المحتوى بل في الاستدعاء: هناك
         # `-n auto` وهنا تسلسلٌ محض. والمجموعة مُثبتةُ الصلاحية للتوازي — CI
         # يُجريها هكذا في كل طلب دمج.
-        run: pytest tests/ -n auto --junit-xml=test-results.xml --tb=short
+        run: pytest -n auto --junit-xml=test-results.xml --tb=short
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
