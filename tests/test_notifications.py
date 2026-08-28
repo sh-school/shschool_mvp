@@ -12,7 +12,7 @@ tests/test_notifications.py
 """
 
 from datetime import time as dt_time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -582,23 +582,76 @@ class TestBehaviorHubIntegration:
 
 @pytest.mark.django_db
 class TestAbsenceHubIntegration:
+    """[LEGAL] إشعار الغياب يصل لوليّ الأمر مرّةً واحدة لكل عتبة.
+
+    كانت هذه الاختبارات تُحاكي `StudentAttendance.objects.filter` وتُغذّي
+    `.count()` بقيمتين — أي أنها تفحص **آليّة** الشيفرة لا سلوكها. فلمّا صار
+    العدّ بالأيام عبر `absence_standing` لم يعد المُحاكي يعترض شيئاً، وصارت
+    تُراقب مساراً لا يُنفَّذ. فأُعيدت على بياناتٍ حقيقية.
+    """
+
+    @staticmethod
+    def _enrol(school, student, grade="G7"):
+        from core.academic_calendar import academic_year_for_school
+        from core.models import ClassGroup, StudentEnrollment
+
+        cg = ClassGroup.objects.create(
+            school=school,
+            grade=grade,
+            section="1",
+            academic_year=academic_year_for_school(school),
+        )
+        StudentEnrollment.objects.create(student=student, class_group=cg, is_active=True)
+        return cg
+
+    @staticmethod
+    def _absent_days(school, cg, teacher, student, start, days):
+        from datetime import time, timedelta
+
+        from operations.models import Session, StudentAttendance, Subject
+
+        subject = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+        for offset in range(days):
+            session = Session.objects.create(
+                school=school,
+                class_group=cg,
+                teacher=teacher,
+                subject=subject,
+                date=start + timedelta(days=offset),
+                start_time=time(8, 0),
+                end_time=time(8, 45),
+                status="scheduled",
+            )
+            StudentAttendance.objects.create(
+                session=session,
+                student=student,
+                school=school,
+                status="absent",
+                excuse_type="",
+            )
+
+    def _reach_a_gate(self, school, student, teacher_user):
+        """ستّةُ أيامٍ غياب: يفصله يومٌ عن العتبة الأولى — فيُنذَر."""
+        from datetime import timedelta
+
+        from django.core.management import call_command
+
+        from core.academic_calendar import academic_year_window
+
+        call_command("seed_academic_calendar", school=school.code, verbosity=0)
+        start, _ = academic_year_window(school)
+        cg = self._enrol(school, student)
+        self._absent_days(school, cg, teacher_user, student, start, 6)
+        return start + timedelta(days=30)
+
     @patch("notifications.hub._queue_external_after_commit")
     def test_absence_alert_creates_inapp_for_parent(
-        self, mock_queue, school, student_user, parent_user
+        self, mock_queue, school, student_user, parent_user, teacher_user
     ):
-        """
-        check_absence_threshold → AbsenceAlert جديد → InAppNotification لولي الأمر
-        نستخدم mock لسجلات الحضور لتجاوز العتبة بدون إنشاء بيانات كاملة.
-        """
         from operations.services import AttendanceService
 
-        with patch("operations.services.StudentAttendance.objects.filter") as mock_filter:
-            mock_qs = MagicMock()
-            # total_sessions=20, unexcused_absent=2 (10% → تجاوز العتبة)
-            mock_qs.count.side_effect = [20, 2]
-            mock_filter.return_value = mock_qs
-
-            AttendanceService.check_absence_threshold(student_user, school)
+        on = self._reach_a_gate(school, student_user, teacher_user)
+        AttendanceService.check_absence_threshold(student_user, school, on=on)
 
         assert InAppNotification.objects.filter(
             user=parent_user,
@@ -606,31 +659,23 @@ class TestAbsenceHubIntegration:
         ).exists()
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_absence_alert_sent_once_only(self, mock_queue, school, student_user, parent_user):
-        """AbsenceAlert موجود مسبقاً → لا إشعار ثانٍ"""
+    def test_absence_alert_sent_once_only(
+        self, mock_queue, school, student_user, parent_user, teacher_user
+    ):
+        """الدالّة تُنادى عند كل تسجيل حضور — فالتكرار يُغرق وليّ الأمر."""
         from operations.services import AttendanceService
 
-        with patch("operations.services.StudentAttendance.objects.filter") as mock_filter:
-            mock_qs = MagicMock()
-            # استدعاءان: الأول ينشئ، الثاني يجد موجوداً
-            mock_qs.count.side_effect = [20, 2, 20, 2]
-            mock_filter.return_value = mock_qs
-
-            AttendanceService.check_absence_threshold(student_user, school)
-            AttendanceService.check_absence_threshold(student_user, school)
+        on = self._reach_a_gate(school, student_user, teacher_user)
+        AttendanceService.check_absence_threshold(student_user, school, on=on)
+        AttendanceService.check_absence_threshold(student_user, school, on=on)
 
         count = InAppNotification.objects.filter(user=parent_user, event_type="absence").count()
         assert count == 1, "إشعار الغياب يجب أن يُرسَل مرة واحدة فقط"
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_absence_alert_no_parent_no_error(self, mock_queue, school, student_user):
-        """طالب بدون ولي أمر → لا خطأ عند تجاوز عتبة الغياب"""
+    def test_absence_alert_no_parent_no_error(self, mock_queue, school, student_user, teacher_user):
+        """طالب بدون ولي أمر → لا خطأ عند بلوغ العتبة."""
         from operations.services import AttendanceService
 
-        with patch("operations.services.StudentAttendance.objects.filter") as mock_filter:
-            mock_qs = MagicMock()
-            mock_qs.count.side_effect = [20, 2]
-            mock_filter.return_value = mock_qs
-
-            AttendanceService.check_absence_threshold(student_user, school)
-        # لا استثناء = نجاح
+        on = self._reach_a_gate(school, student_user, teacher_user)
+        AttendanceService.check_absence_threshold(student_user, school, on=on)
