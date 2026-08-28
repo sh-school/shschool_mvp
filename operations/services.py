@@ -133,6 +133,13 @@ class AttendanceService:
         grade = enrollment.class_group.grade if enrollment else None
         if not gates_for(grade):
             # الصفوف ١–٣ لها قسمٌ مستقلّ في الدليل لم يُشفَّر — فلا إنذار.
+            # وطالبٌ بلا تسجيلٍ نشط يقع هنا أيضاً، فيفقد إنذاراته كلّها. وذاك
+            # نقصٌ في البيانات لا حكمٌ من السياسة — فيُسجَّل كي يُرى.
+            if enrollment is None:
+                logger.warning(
+                    "check_absence_threshold: لا تسجيل نشط للطالب %s — لا إنذار غياب",
+                    student.pk,
+                )
             return
 
         standing = standing_for(student, school, grade=grade, on=on)
