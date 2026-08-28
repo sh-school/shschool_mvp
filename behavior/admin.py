@@ -20,7 +20,7 @@ class ViolationCategoryAdmin(admin.ModelAdmin):
 
     def seed_2025_action(self, request, queryset):
         created = ViolationCategory.seed_2025()
-        self.message_user(request, f"✅ تم إضافة {created} مخالفة — لائحة مدرسة الشحانية")
+        self.message_user(request, f"✅ تم إضافة {created} مخالفة — لائحة السلوك المُعتمدة")
 
     seed_2025_action.short_description = "🔄 حقن لائحة الشحانية (40 مخالفة)"
 

@@ -571,7 +571,7 @@ def behavior_report(request, student_id):
                     f"الفترة: {report['period_label']} — {year}\n\n"
                     f"نقاط السلوك: {report['net_score']}/100 ({report['rating']})\n"
                     f"المخالفات: {report['infractions'].count()}\n\n"
-                    f"مدرسة الشحانية الإعدادية الثانوية للبنين"
+                    f"{school.name}"
                 )
                 try:
                     NotificationService.send_email(

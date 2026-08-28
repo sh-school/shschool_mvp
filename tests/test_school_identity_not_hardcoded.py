@@ -78,3 +78,48 @@ def test_document_footers_do_not_freeze_the_year(doc):
     src = pathlib.Path(doc).read_text(encoding="utf-8")
 
     assert "© 2026" not in src
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  بايثون كذلك — لا القوالب وحدها
+# ═══════════════════════════════════════════════════════════════════
+
+_PY_SKIP = ("/.venv/", "/node_modules/", "/worktrees/", "/migrations/", "/tests/")
+
+#: بذورُ بياناتٍ لمدرسةٍ بعينها — بياناتٌ لا شيفرةُ تشغيل، فذكرُ الاسم فيها هو
+#: المقصود. وما عداها يُحرَس.
+_PY_ALLOWED = (
+    "core/management/commands/full_seed.py",
+    "core/management/commands/seed.py",
+    "scripts/real_seed.py",
+    "scripts/seed_data.py",
+    "scripts/seed_all.py",
+    "operations/management/commands/seed_class_subjects.py",
+)
+
+
+def _python_sources():
+    for f in pathlib.Path(".").rglob("*.py"):
+        path = "/" + f.as_posix()
+        if any(x in path for x in _PY_SKIP) or f.as_posix() in _PY_ALLOWED:
+            continue
+        yield f, f.read_text(encoding="utf-8", errors="ignore")
+
+
+@pytest.mark.parametrize("literal", TENANT_LITERALS)
+def test_no_python_module_hardcodes_tenant_identity(literal):
+    """الحارس الأوّل مسح القوالب وحدها، فمرّت ترويسة لوحة الإدارة:
+
+        admin.site.site_header = "SchoolOS — مدرسة الشحانية"
+
+    وهي تظهر لكل مستأجرٍ يفتح اللوحة. والدرس أن نطاق الفحص جزءٌ من الحارس:
+    ما لا يُمسح لا يُحرَس.
+    """
+    hits = [
+        f"{f.as_posix()}:{i}"
+        for f, src in _python_sources()
+        for i, line in enumerate(src.splitlines(), 1)
+        if literal in line and not line.strip().startswith("#")
+    ]
+
+    assert not hits, f"«{literal}» مُثبَّتة في: {hits}"
