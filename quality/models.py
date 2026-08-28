@@ -15,12 +15,11 @@ import uuid
 from datetime import timedelta
 from functools import cached_property
 
-from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.models import CustomUser, Membership, School
 
 
@@ -75,7 +74,7 @@ class OperationalDomain(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="op_domains")
     name = models.CharField(max_length=200, verbose_name="اسم المجال")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     order = models.IntegerField(default=0)
 
     # ربط QuerySet الموجود
@@ -256,7 +255,7 @@ class OperationalProcedure(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
     review_note = models.TextField(blank=True, verbose_name="ملاحظة المراجعة")
 
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -411,7 +410,7 @@ class ExecutorMapping(models.Model):
         related_name="executor_mappings",
         verbose_name="الموظف",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -539,7 +538,7 @@ class QualityCommitteeMember(models.Model):
         related_name="committee_members",
         verbose_name="المجال المسؤول عنه",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     is_active = models.BooleanField(default=True)
 
     # صلاحيات على مستوى الفرد (كانت على مستوى اللجنة كلها سابقاً)
@@ -600,7 +599,7 @@ class RoleEvaluationTemplate(models.Model):
         verbose_name="الدور الوظيفي",
         help_text="يطابق Role.name — مثل teacher, nurse, librarian",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -694,7 +693,7 @@ class EmployeeEvaluation(models.Model):
         verbose_name="قالب التقييم",
         help_text="يُحدَّد تلقائياً حسب دور الموظف. null = المحاور الافتراضية",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     period = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
     status = models.CharField(max_length=15, choices=STATUS, default="draft")
 
@@ -898,7 +897,7 @@ class EvaluationScore(models.Model):
 class EvaluationCycle(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_cycles")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     period = models.CharField(max_length=2, choices=EmployeeEvaluation.PERIODS)
     deadline = models.DateField(verbose_name="الموعد النهائي للتقييم")
     is_closed = models.BooleanField(default=False)

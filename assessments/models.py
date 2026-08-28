@@ -21,10 +21,10 @@ assessments/models.py
 import uuid
 from decimal import Decimal
 
-from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from core.academic_calendar import default_academic_year
 from core.models import ClassGroup, CustomUser, School
 from operations.models import Subject
 
@@ -59,7 +59,7 @@ class SubjectClassSetup(models.Model):
         related_name="subject_setups",
         verbose_name="المعلم المسؤول",
     )
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -458,7 +458,7 @@ class AnnualSubjectResult(models.Model):
         SubjectClassSetup, on_delete=models.CASCADE, related_name="annual_results"
     )
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="annual_results")
-    academic_year = models.CharField(max_length=9, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
 
     # مجاميع الفصلين (من نتائجهما المحسوبة)
     s1_total = models.DecimalField(

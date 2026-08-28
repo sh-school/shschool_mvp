@@ -5,8 +5,9 @@ exam_control/models.py  ·  SchoolOS v5
 
 import uuid
 
-from django.conf import settings
 from django.db import models
+
+from core.academic_calendar import default_academic_year
 
 
 def _uuid():
@@ -25,7 +26,7 @@ class ExamSession(models.Model):
     )
     name = models.CharField(max_length=200, verbose_name="اسم دورة الاختبار")
     session_type = models.CharField(max_length=10, choices=SESSION_TYPES, default="final")
-    academic_year = models.CharField(max_length=20, default=settings.CURRENT_ACADEMIC_YEAR)
+    academic_year = models.CharField(max_length=20, default=default_academic_year)
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=15, choices=STATUS, default="planned")

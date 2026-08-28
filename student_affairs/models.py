@@ -3,9 +3,9 @@ student_affairs/models.py — نماذج شؤون الطلاب
 نموذجان جديدان فقط — الباقي استعلامات من نماذج موجودة.
 """
 
-from django.conf import settings
 from django.db import models
 
+from core.academic_calendar import default_academic_year
 from core.models.base import AuditedModel, SchoolScopedModel
 from core.models.school import School
 from core.models.user import CustomUser
@@ -85,7 +85,7 @@ class StudentTransfer(AuditedModel):
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
     academic_year = models.CharField(
         max_length=9,
-        default=settings.CURRENT_ACADEMIC_YEAR,
+        default=default_academic_year,
         verbose_name="العام الدراسي",
     )
 
@@ -159,7 +159,7 @@ class StudentActivity(SchoolScopedModel):
     date = models.DateField(verbose_name="التاريخ")
     academic_year = models.CharField(
         max_length=9,
-        default=settings.CURRENT_ACADEMIC_YEAR,
+        default=default_academic_year,
         verbose_name="العام الدراسي",
     )
     recorded_by = models.ForeignKey(
