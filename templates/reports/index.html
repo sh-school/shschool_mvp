@@ -162,12 +162,7 @@
   </div>
 
 {% else %}
-  {% include "components/empty_state.html" with
-     icon="list-checks"
-     title="لا توجد فصول"
-     subtitle="لا توجد فصول تطابق الفلاتر المحددة. جرّب تغيير المرحلة أو الصف."
-     compact=True
-  %}
+  {% include "components/empty_state.html" with icon="list-checks" title="لا توجد فصول" subtitle="لا توجد فصول تطابق الفلاتر المحددة. جرّب تغيير المرحلة أو الصف." compact=True %}
 {% endif %}
 
 <script nonce="{{ request.csp_nonce }}">

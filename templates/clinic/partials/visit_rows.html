@@ -1,8 +1,8 @@
-{#
+{% comment %}
   Partial: صفوف جدول الزيارات — SchoolOS v5.1
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترشيح)
   Target: #visits-container
-#}
+{% endcomment %}
 {% if visits %}
 <div class="card-qatar overflow-hidden">
   <table class="w-full text-sm text-right">
@@ -61,9 +61,5 @@
 </p>
 
 {% else %}
-{% include "components/empty_state.html" with
-   icon="list-checks"
-   title="لا توجد زيارات"
-   subtitle="لا توجد زيارات مطابقة للمعايير المحددة"
-%}
+{% include "components/empty_state.html" with icon="list-checks" title="لا توجد زيارات" subtitle="لا توجد زيارات مطابقة للمعايير المحددة" %}
 {% endif %}

@@ -1,8 +1,8 @@
-{#
+{% comment %}
  نموذج تسجيل المخالفة السريعة — SchoolOS v5.1
  يُستخدم داخل مكوّن modal.html
  hx-post="{% url 'behavior:quick_log' %}" hx-target="#modal-quick-log .modal-body"
-#}
+{% endcomment %}
 <form
  id="quick-log-form"
  hx-post="{% url 'behavior:quick_log' %}"

@@ -19,13 +19,7 @@
 
   {# ── HTMX Live Search ── #}
   <div class="filter-bar">
-    {% include "components/search_input.html" with
-       search_url=request.path
-       target="#books-container"
-       placeholder="بحث بالعنوان أو المؤلف أو ISBN أو التصنيف..."
-       name="q"
-       value=query
-    %}
+    {% include "components/search_input.html" with search_url=request.path target="#books-container" placeholder="بحث بالعنوان أو المؤلف أو ISBN أو التصنيف..." name="q" value=query %}
   </div>
 
   {# ── Skeleton على التحميل الأولي ── #}
