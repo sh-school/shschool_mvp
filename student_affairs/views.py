@@ -22,7 +22,7 @@ from django.views.decorators.http import require_POST
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, academic_year_window
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -39,6 +39,7 @@ from core.models.user import CustomUser, Profile
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
 from library.models import BookBorrowing
+from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer
@@ -595,10 +596,16 @@ def student_profile(request, student_id):
     ).select_related("parent")
 
     # ── 2. الحضور (operations) ──
+    # كان الترشيح `session__date__year=` — أي **السنة الميلادية**. والعام
+    # الدراسي يمتدّ من أغسطس إلى يونيو، فكانت الصفحة تعرض شطره الواقع في
+    # السنة الجارية وحده: في سبتمبر ترى ثلاثة أسابيع، وفي يناير تفقد الفصل
+    # الأول كلّه. ولا شيء يقول إن الرقم ناقص.
+    window = academic_year_window(school)
     attendance_qs = StudentAttendance.objects.filter(
         student=student,
         school=school,
-        session__date__year=timezone.localdate().year,
+        session__date__gte=window[0],
+        session__date__lte=window[1],
     )
     attendance_summary = {
         "present": attendance_qs.filter(status="present").count(),
@@ -613,6 +620,14 @@ def student_profile(request, student_id):
         )
     else:
         attendance_summary["pct"] = 0
+
+    # ── 2ب. موقفه من عتبات الغياب (سياسة تقييم الطلبة) ──
+    # عرضٌ محض: كم يوماً، وأيّ عتبةٍ قادمة، وكم يفصله عنها. لا حجبَ ولا إشعار.
+    absence_standing = standing_for(
+        student,
+        school,
+        grade=enrollment.class_group.grade if enrollment else None,
+    )
 
     # ── 3. السلوك (behavior) ──
     infractions = (
@@ -675,6 +690,7 @@ def student_profile(request, student_id):
             "enrollment": enrollment,
             "parent_links": parent_links,
             "attendance": attendance_summary,
+            "absence_standing": absence_standing,
             "behavior": behavior_summary,
             "clinic_visits": clinic_visits,
             "health_record": health_record,

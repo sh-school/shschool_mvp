@@ -178,6 +178,51 @@
       <div style="text-align:center;font-size:var(--text-xs);color:var(--text-muted);margin-top:4px">{{ attendance.pct }}% حضور</div>
       {% endif %}
     </div>
+
+    {% comment %}
+      موقفه من عتبات «سياسة تقييم الطلبة» (القرار الوزاري 22/2015).
+      عرضٌ محض: لا حجبَ ولا إشعار — والحرمان قرارٌ بشريّ.
+    {% endcomment %}
+    {% if absence_standing.gates %}
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="scale" %} عتبات الغياب — سياسة تقييم الطلبة</div>
+
+      <dl class="detail-dl">
+        <dt>أيام غياب بلا عذر</dt><dd><strong>{{ absence_standing.unexcused_days }}</strong> يوماً</dd>
+        <dt>أيام بعذر</dt><dd>{{ absence_standing.excused_days }}</dd>
+        <dt>غياب جزئي (حصص متفرقة)</dt><dd>{{ absence_standing.partial_days }} — لا تُحتسب يوماً</dd>
+      </dl>
+
+      <table class="data-table" style="margin-top:12px">
+        <thead>
+          <tr><th>الاختبار</th><th>الحدّ</th><th>الموقف</th></tr>
+        </thead>
+        <tbody>
+          {% for gate in absence_standing.gates %}
+          <tr>
+            <td>{{ gate.label }}</td>
+            <td>{{ gate.max_days }} يوماً</td>
+            <td>
+              {% if gate in absence_standing.breached %}
+                <span class="attend-low">تجاوز الحدّ</span>
+              {% elif gate == absence_standing.upcoming %}
+                <span class="attend-medium">يفصله {{ absence_standing.days_to_next }} يوماً</span>
+              {% else %}
+                <span class="attend-high">ضمن الحدّ</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <p style="font-size:var(--text-xs);color:var(--text-muted);margin-top:8px">
+        تُحتسب تراكمياً من بداية العام، متصلةً أو غير متصلة. والعذر المقبول:
+        مرضٌ بشهادة طبية حكومية معتمدة، أو ظرفٌ قهريّ، أو مهمّة رسمية بشهادة من جهة العمل.
+        وهذا عرضٌ للاطّلاع — قرار الحرمان لإدارة المدرسة.
+      </p>
+    </div>
+    {% endif %}
   </div>
 
   {# ── السلوك ── #}
