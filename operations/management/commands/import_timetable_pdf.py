@@ -247,6 +247,35 @@ DAY_NAMES = ["الأحد", "الإثنين", "الثلاثاء", "الأربعا
 DOUBLE_PERIOD_SUBJECTS = {"الفنون البصرية", "تكنولوجيا المعلومات", "علوم الحاسب"}
 
 
+def _merge_runs(items, gap=60.0):
+    """يضمّ كلمتين متجاورتين حين تُكوّنان معاً اسم مادّةٍ معروفة.
+
+    «علوم عامة» و«علوم الحاسب» و«تكنولوجيا المعلومات» تُرسم كلماتٍ منفصلة،
+    وإسنادُ كلٍّ منها وحدها يُسقط الثانية خارج نافذة خليّتها فتصير المادّة
+    «علوم» — وهي مادّةٌ أخرى تماماً.
+
+    والحكمُ للمفردات لا للمسافة: جُرّب الضمُّ بالتجاور وحده فضمّ خليّتين
+    متجاورتين تحملان المادّة نفسها («رياضيات رياضيات»)، وضمّ تاريخَ إنشاء
+    الجدول إلى مادّة. فلا يُضمّ إلّا ما كان المضمومُ منه اسمَ مادّةٍ يعرفها
+    `SUBJECT_MAP` — والمسافة سياجٌ احتياطيّ لا أكثر.
+    """
+    runs = []
+    for i in sorted(items, key=lambda i: (round(i["y"], 1), -i["x"])):
+        if runs:
+            last = runs[-1]
+            joined = f"{last['t']} {i['t']}"
+            if (
+                abs(last["y"] - i["y"]) < 2
+                and 0 < last["x"] - i["x"] < gap
+                and joined in SUBJECT_MAP
+            ):
+                last["t"] = joined
+                last["x"] = i["x"]
+                continue
+        runs.append(dict(i))
+    return runs
+
+
 class Command(BaseCommand):
     help = "تنظيف + إعادة حقن الجدول الدراسي من PDF المعلمين"
 
@@ -619,13 +648,19 @@ class Command(BaseCommand):
                             "y": i["y"],
                             "x": i["x"],
                             "subject_raw": "",
+                            "reach": float("inf"),
                             "room": "",
                         }
                     )
 
-            for i in items:
-                if not (8 < i["s"] < 12) or i["t"].startswith("Ash-Shahaniya"):
-                    continue
+            #: «علوم عامة» و«علوم الحاسب» تُرسمان كلمتين منفصلتين على السطر
+            #: نفسه. وإسنادُ كلٍّ منهما وحدها يُسقط الثانية خارج نافذة خليّتها،
+            #: فتصير المادّة «علوم» — وهي مادّةٌ أخرى تماماً. فتُضمّ الكلمات
+            #: المتجاورة أوّلاً، ثمّ يُسنَد السطر كلُّه.
+            #: حدود الشبكة: فوقها ترويسةٌ وأوقاتُ حصص، وتحتها تذييلٌ فيه
+            #: تاريخُ إنشاء الجدول — وقد ضُمّ إلى مادّةٍ حين غابت هذه الحدود.
+            inside = [i for i in items if 8 < i["s"] < 12 and i["x"] < 990 and 150 < i["y"] < 760]
+            for i in _merge_runs(inside):
                 #: الخلية المدمجة (حصّتان متتاليتان) ضعفُ عرض العمود، واسمُ
                 #: مادّتها عند حافّتها لا وسطها — فنافذةٌ بعرض عمودٍ واحد
                 #: تُسقطها. وهكذا ضاعت حصص الفنون البصرية في ثلاث عشرة شعبة.
@@ -634,11 +669,15 @@ class Command(BaseCommand):
                 ]
                 if not near:
                     continue
+                distance = min(abs(c["y"] - i["y"]) + abs(c["x"] - i["x"]) for c in near)
                 cell = min(near, key=lambda c: abs(c["y"] - i["y"]) + abs(c["x"] - i["x"]))
                 if ROOM_CODE.match(i["t"]):
                     cell["room"] = i["t"]
-                else:
-                    cell["subject_raw"] = (cell["subject_raw"] + " " + i["t"]).strip()
+                elif distance < cell["reach"]:
+                    #: تُؤخذ أقربُ مادّةٍ لا تُجمع المواد: خليّةٌ مدمجة تجاور
+                    #: خليّةً تحمل المادّة نفسها كانت تُنتج «رياضيات رياضيات».
+                    cell["subject_raw"] = i["t"]
+                    cell["reach"] = distance
 
             schedule = [
                 {k: c[k] for k in ("day_idx", "period", "section", "subject_raw", "room")}
@@ -699,6 +738,13 @@ class Command(BaseCommand):
                     if normalize_arabic(k) == norm_pdf:
                         platform_name = v
                         break
+
+            if not platform_name and (pdf_name in teacher_id_map or norm_pdf in teacher_id_map):
+                # `TEACHER_MAP` جدولُ الأسماء المختلفة وحدها. ومعلّمٌ اسمُه في
+                # الجدول كاسمه في المنصّة لا موضع له فيه — فكان يسقط لأنّه
+                # ليس مذكوراً، لا لأنّه غير موجود. ومنه سقط معلّمان جديدان
+                # أُدخلا باسميهما كما في الجدول.
+                platform_name = pdf_name
 
             if not platform_name:
                 # يُقال عددُ حصصه: معلّمٌ جديدٌ لم يُدخل بعد يعني شعباً

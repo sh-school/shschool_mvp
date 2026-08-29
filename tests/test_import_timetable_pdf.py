@@ -23,6 +23,7 @@ from operations.management.commands.import_timetable_pdf import (
     SUBJECT_CODES,
     SUBJECT_MAP,
     Command,
+    _merge_runs,
 )
 
 SOURCE = pathlib.Path("operations/management/commands/import_timetable_pdf.py")
@@ -153,3 +154,39 @@ def test_an_unmatched_teacher_is_counted_not_only_named():
     src = SOURCE.read_text(encoding="utf-8")
 
     assert src.count("حصة لن تُحقن") == 2, "كلا مسارَي عدم المطابقة يذكر عدد حصصه"
+
+
+# ── ضمُّ الكلمات ───────────────────────────────────────────────────────
+
+
+def _piece(text, x, y=200.0):
+    return {"t": text, "x": x, "y": y, "s": 9.9}
+
+
+def test_a_two_word_subject_is_joined():
+    """«علوم عامة» تُرسم كلمتين، وإسنادُ كلٍّ وحدها يجعلها «علوم» —
+    وهي مادّةٌ أخرى تماماً."""
+    runs = _merge_runs([_piece("علوم", 500.0), _piece("عامة", 470.0)])
+
+    assert [r["t"] for r in runs] == ["علوم عامة"]
+
+
+def test_two_neighbouring_cells_of_one_subject_are_not_joined():
+    """الحكمُ للمفردات لا للمسافة: جُرّب الضمُّ بالتجاور وحده فأنتج
+    «رياضيات رياضيات» من خليّتين متجاورتين."""
+    runs = _merge_runs([_piece("رياضيات", 500.0), _piece("رياضيات", 470.0)])
+
+    assert [r["t"] for r in runs] == ["رياضيات", "رياضيات"]
+
+
+def test_a_room_code_is_never_joined_to_a_subject():
+    runs = _merge_runs([_piece("علوم", 500.0), _piece("LAB1", 470.0)])
+
+    assert {r["t"] for r in runs} == {"علوم", "LAB1"}
+
+
+def test_distant_words_are_not_joined():
+    """المسافة سياجٌ احتياطيّ: كلمتان تفصلهما عرضُ عمودٍ ليستا مادّةً واحدة."""
+    runs = _merge_runs([_piece("علوم", 500.0), _piece("عامة", 300.0)])
+
+    assert len(runs) == 2
