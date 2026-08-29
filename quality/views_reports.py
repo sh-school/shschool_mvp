@@ -59,6 +59,7 @@ def progress_report(request):
     for m in QualityCommitteeMember.objects.filter(
         school=school,
         committee_type=QualityCommitteeMember.REVIEW,
+        academic_year=year,
         is_active=True,
         domain__isnull=False,
     ).select_related("user", "domain"):

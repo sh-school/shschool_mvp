@@ -15,7 +15,11 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for, default_academic_year
+from core.academic_calendar import (
+    academic_year_for,
+    academic_year_for_school,
+    default_academic_year,
+)
 from core.models import AuditLog
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
 from notifications.hub import NotificationHub
@@ -80,12 +84,18 @@ _SORT_FIELDS = {
 # ── مساعدات داخلية ───────────────────────────────────────────
 
 
-def _is_review_member(user, school, year):
-    """هل المستخدم عضو نشط في لجنة المراجعة؟ — Clean Code: G5 لا تكرار"""
+def _is_review_member(user, school, year=None):
+    """هل المستخدم عضو نشط في لجنة المراجعة **لهذا العام**؟
+
+    كانت `year` مُمرَّرةً ولا تُستعمل — معاملٌ ميّت يشهد أن الكاتب قصد التقييد
+    بالعام ثم نسيه. ولا شيء يُطفئ `is_active` عند دوران العام، فعضو المراجعة
+    في عامٍ مضى يبقى مصرَّحاً له إلى الأبد.
+    """
     return QualityCommitteeMember.objects.filter(
         school=school,
         user=user,
         committee_type=QualityCommitteeMember.REVIEW,
+        academic_year=year or academic_year_for_school(school),
         is_active=True,
     ).exists()
 
@@ -102,6 +112,7 @@ def _get_reviewer_domain(user, school, year=None):
             school=school,
             user=user,
             committee_type=QualityCommitteeMember.REVIEW,
+            academic_year=year or academic_year_for_school(school),
             is_active=True,
         )
         .select_related("domain")
@@ -656,6 +667,7 @@ def review_list(request):
                 school=school,
                 user=request.user,
                 committee_type=QualityCommitteeMember.REVIEW,
+                academic_year=year,
                 is_active=True,
             )
             .select_related("domain")

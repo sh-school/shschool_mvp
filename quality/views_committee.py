@@ -57,10 +57,12 @@ def quality_committee(request):
 
     # فحص الصلاحيات — المدير أو أعضاء لجنة المراجعة فقط
     is_admin = request.user.is_admin()
+    # بوّابةُ وصولٍ تُعيد 403 — فعضو العام الماضي كان يحتفظ بها إلى الأبد.
     is_reviewer = QualityCommitteeMember.objects.filter(
         school=school,
         user=request.user,
         committee_type=QualityCommitteeMember.REVIEW,
+        academic_year=year,
         is_active=True,
     ).exists()
     if not (is_admin or is_reviewer):
