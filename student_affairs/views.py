@@ -1073,8 +1073,6 @@ def attendance_export_excel(request):
     return excel_to_response(wb, filename)
 
 
-@login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
 def _behaviour_window(school, today):
     """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
     from datetime import date
@@ -1085,6 +1083,8 @@ def _behaviour_window(school, today):
     return date(today.year, 1, 1), date(today.year, 12, 31)
 
 
+@login_required
+@role_required(STUDENT_AFFAIRS_MANAGE)
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
     school = request.user.get_school()
