@@ -190,3 +190,17 @@ def test_distant_words_are_not_joined():
     runs = _merge_runs([_piece("علوم", 500.0), _piece("عامة", 300.0)])
 
     assert len(runs) == 2
+
+
+def test_a_subject_is_read_from_the_line_above_its_section():
+    """المادّة والقاعة فوق اسم الشعبة دائماً، فلا يُنظر إلّا إلى ما تحتها.
+
+    والنظر في الجهتين يجعل خليّةً تسرق مادّة جارتها: مادّةُ 8/2 كانت أقربَ
+    إلى الشعبة التي فوقها (٦٦ + ٩٥) منها إلى شعبتها (٥٥ + ١٠٨)، فأخذتها
+    الجارة وسقطت 8/2 بلا مادّة. وكشفه الجدولُ العام: مصدرٌ ثالث عدّ ٨٤٩
+    حصة، والاستخراج ٨٤٦.
+    """
+    src = SOURCE.read_text(encoding="utf-8")
+
+    assert '0 < c["y"] - i["y"] < 70' in src, "المسافة موجَّهة لا مطلقة"
+    assert 'abs(c["y"] - i["y"]) < 70 and' not in src
