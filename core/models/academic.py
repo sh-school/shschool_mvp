@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
@@ -63,11 +64,23 @@ class ClassGroup(models.Model):
     ]
     LEVELS = [("prep", "إعدادي"), ("sec", "ثانوي")]
 
+    #: مسارات المرحلة الثانوية في مدارس قطر. يختارها الطالب بعد نجاحه في
+    #: العاشر، فتبدأ من الحادي عشر — والصفوف دونها بلا مسار.
+    TRACKS = [
+        ("science", "علمي"),
+        ("humanities", "آداب وإنسانيات"),
+        ("technology", "تكنولوجي"),
+    ]
+
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="class_groups")
     grade = models.CharField(max_length=3, choices=GRADES)
     section = models.CharField(max_length=10, verbose_name="الشعبة")
     level_type = models.CharField(max_length=4, choices=LEVELS, default="prep")
+    #: فارغٌ في الإعدادي وفي العاشر — والشعبة الثانوية بلا مسار حالةٌ مشروعة
+    #: حتى تُحدَّد. ولا يُقيَّد بالصف في قاعدة البيانات: القيد في
+    #: كي يُخبر المُدخِل بالخطأ بدل أن يرفضه المحرّك بلا بيان.
+    track = models.CharField(max_length=12, choices=TRACKS, blank=True, verbose_name="المسار")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
     supervisor = models.ForeignKey(
         CustomUser,
@@ -93,8 +106,15 @@ class ClassGroup(models.Model):
         ]
         indexes = [models.Index(fields=["school", "grade", "academic_year"])]
 
+    def clean(self):
+        """المسار للثانوي وحده — ومن أخطأ يُخبَر لا يُرفض بلا بيان."""
+        super().clean()
+        if self.track and self.level_type != "sec":
+            raise ValidationError({"track": "المسار للمرحلة الثانوية وحدها."})
+
     def __str__(self):
-        return f"{self.get_grade_display()} / {self.section} ({self.academic_year})"
+        track = f" — {self.get_track_display()}" if self.track else ""
+        return f"{self.get_grade_display()} / {self.section}{track} ({self.academic_year})"
 
 
 class StudentEnrollment(models.Model):

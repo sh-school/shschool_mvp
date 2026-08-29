@@ -162,8 +162,8 @@ class MembershipAdmin(admin.ModelAdmin):
 
 @admin.register(ClassGroup)
 class ClassGroupAdmin(admin.ModelAdmin):
-    list_display = ("school", "grade", "section", "academic_year", "is_active")
-    list_filter = ("school", "grade", "academic_year", "is_active")
+    list_display = ("school", "grade", "section", "track", "academic_year", "is_active")
+    list_filter = ("school", "grade", "track", "academic_year", "is_active")
     search_fields = ("grade", "section")
     autocomplete_fields = ("supervisor",)
 
