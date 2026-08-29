@@ -340,6 +340,7 @@ class AcademicReportsService:
         Report 1 — Quiz results by subject at student or section scope.
         Uses StudentAssessmentGrade filtered by assessment_type='quiz'.
         """
+        year = academic_year_for_school(school)
         from assessments.models import StudentAssessmentGrade
         from core.models import ClassGroup
         from operations.models import Subject
@@ -392,7 +393,9 @@ class AcademicReportsService:
         # lookups for filter dropdowns (scoped to the school)
         subjects = list(Subject.objects.filter(school=school).order_by("name_ar"))
         classes = list(
-            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
+                "grade", "section"
+            )
         )
 
         return {
@@ -432,9 +435,11 @@ class AcademicReportsService:
         from assessments.models import AssessmentPackage, StudentSubjectResult
         from core.models import ClassGroup
 
-        pkg_qs = AssessmentPackage.objects.filter(school=school).select_related(
-            "setup__subject", "setup__class_group"
-        )
+        # الباقات مقيَّدةٌ بالعام عبر `setup` — وبدونه تُقارَن شُعبةُ عامٍ بشُعبة آخر.
+        year = academic_year_for_school(school)
+        pkg_qs = AssessmentPackage.objects.filter(
+            school=school, setup__academic_year=year
+        ).select_related("setup__subject", "setup__class_group")
         if package_type:
             pkg_qs = pkg_qs.filter(package_type=package_type)
         if semester:
@@ -511,7 +516,9 @@ class AcademicReportsService:
             )
 
         classes = list(
-            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
+                "grade", "section"
+            )
         )
 
         return {
@@ -548,6 +555,7 @@ class AcademicReportsService:
         from assessments.models import StudentAssessmentGrade
         from core.models import ClassGroup, StudentEnrollment
 
+        year = academic_year_for_school(school)
         d_from = cls._safe_date(date_from)
         d_to = cls._safe_date(date_to)
 
@@ -606,7 +614,9 @@ class AcademicReportsService:
                 s["rank"] = i
 
         classes = list(
-            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
+                "grade", "section"
+            )
         )
 
         overall_pcts = [s["avg_pct"] for s in students if s["avg_pct"] is not None]
@@ -738,7 +748,9 @@ class AcademicReportsService:
         total_infractions = sum(r["behavior_count"] for r in rows)
 
         classes = list(
-            ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
+                "grade", "section"
+            )
         )
 
         return {

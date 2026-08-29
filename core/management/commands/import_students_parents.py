@@ -130,7 +130,11 @@ class Command(BaseCommand):
                 if grade and section:
                     try:
                         class_group = ClassGroup.objects.filter(
-                            school=school, grade__icontains=grade, section=section, is_active=True
+                            school=school,
+                            grade__icontains=grade,
+                            section=section,
+                            academic_year=academic_year_for_school(school),
+                            is_active=True,
                         ).first()
                         if class_group:
                             StudentEnrollment.objects.get_or_create(

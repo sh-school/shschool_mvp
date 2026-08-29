@@ -12,7 +12,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.permissions import leadership_required, role_required, teacher_can_access_student
 from operations.models import Subject
@@ -787,7 +787,9 @@ def setup_subject(request):
 
     # GET
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
-    classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+    classes = ClassGroup.objects.filter(
+        school=school, academic_year=academic_year_for_school(school), is_active=True
+    ).order_by("grade", "section")
     from core.models import Membership
 
     t_ids = Membership.objects.filter(
