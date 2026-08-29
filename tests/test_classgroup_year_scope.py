@@ -35,6 +35,29 @@ SKIP = (
 BY_IDENTITY = {"id", "id__in", "pk", "pk__in"}
 
 
+def _is_link(node):
+    """نداءُ `filter` أو `exclude` — حلقةٌ في سلسلة استعلام."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in ("filter", "exclude")
+    )
+
+
+def _chain_keys(node):
+    """مفاتيح السلسلة كلّها، لا حلقةً منها.
+
+    فـ`filter(school=…).exclude(academic_year=…)` مُقيَّدةٌ بالعام وإن خلت
+    منه حلقتُها الأولى. وفحصُ الحلقات منفصلةً يجعل الحارس يُدين سلسلةً سليمة —
+    وقد أدان أمرَ التدقيق الذي كتبتُه بنفسي.
+    """
+    keys, cur = set(), node
+    while _is_link(cur):
+        keys |= {k.arg or "" for k in cur.keywords}
+        cur = cur.func.value
+    return keys
+
+
 def _classgroup_filters():
     for f in sorted(pathlib.Path(".").rglob("*.py")):
         if any(x in "/" + f.as_posix() for x in SKIP):
@@ -46,15 +69,19 @@ def _classgroup_filters():
             tree = ast.parse(src)
         except SyntaxError:
             continue
+
+        #: الحلقات الداخلية تُفحص مع سلسلتها، فلا تُبلَّغ وحدها.
+        inner = set()
         for n in ast.walk(tree):
-            if not isinstance(n, ast.Call):
-                continue
-            fn = n.func
-            if not (isinstance(fn, ast.Attribute) and fn.attr in ("filter", "exclude")):
+            if _is_link(n) and _is_link(n.func.value):
+                inner.add(id(n.func.value))
+
+        for n in ast.walk(tree):
+            if not _is_link(n) or id(n) in inner:
                 continue
             if "ClassGroup" not in ast.unparse(n):
                 continue
-            yield f"{f.as_posix()}:{n.lineno}", {k.arg or "" for k in n.keywords}
+            yield f"{f.as_posix()}:{n.lineno}", _chain_keys(n)
 
 
 def test_the_sweep_finds_the_queries():
