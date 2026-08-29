@@ -149,8 +149,6 @@ def _notify_behavior_after_commit(infraction, school, reporter):
 
 
 # ── لوحة التحكم ──────────────────────────────────────────────
-@login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
 def _behaviour_year_window(school):
     """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
     from datetime import date
@@ -164,6 +162,8 @@ def _behaviour_year_window(school):
     return date(today.year, 1, 1), date(today.year, 12, 31)
 
 
+@login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
 def behavior_dashboard(request):
     """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
