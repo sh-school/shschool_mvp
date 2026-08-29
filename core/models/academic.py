@@ -64,8 +64,11 @@ class ClassGroup(models.Model):
     ]
     LEVELS = [("prep", "إعدادي"), ("sec", "ثانوي")]
 
-    #: مسارات المرحلة الثانوية في مدارس قطر. يختارها الطالب بعد نجاحه في
-    #: العاشر، فتبدأ من الحادي عشر — والصفوف دونها بلا مسار.
+    #: مسارات المرحلة الثانوية. يختارها الطالب بعد نجاحه في العاشر، فتبدأ من
+    #: الحادي عشر وتشمل الثاني عشر.
+    #:
+    #: والمدرسة مدمجة: ٧–٩ إعدادي، و١٠–١٢ ثانوي. **والعاشر ثانويٌّ بلا مسار** —
+    #: وهو ما يجعل `level_type == "sec"` قيداً غير كافٍ، لأن العاشر يجتازه.
     TRACKS = [
         ("science", "علمي"),
         ("humanities", "آداب وإنسانيات"),
@@ -77,9 +80,11 @@ class ClassGroup(models.Model):
     grade = models.CharField(max_length=3, choices=GRADES)
     section = models.CharField(max_length=10, verbose_name="الشعبة")
     level_type = models.CharField(max_length=4, choices=LEVELS, default="prep")
-    #: فارغٌ في الإعدادي وفي العاشر — والشعبة الثانوية بلا مسار حالةٌ مشروعة
-    #: حتى تُحدَّد. ولا يُقيَّد بالصف في قاعدة البيانات: القيد في
-    #: كي يُخبر المُدخِل بالخطأ بدل أن يرفضه المحرّك بلا بيان.
+    #: فارغٌ في الإعدادي وفي العاشر. وشعبةُ الحادي عشر أو الثاني عشر بلا مسار
+    #: حالةٌ مشروعة حتى يُحدَّد — فلا يُجبَر المُدخِل على اختيارٍ لم يُتّخذ بعد.
+    #:
+    #: ولا يُقيَّد بالصفّ في قاعدة البيانات: القيد في `clean()` كي يبلغ الخطأُ
+    #: الحقلَ نفسه في الاستمارة، بدل رفضٍ من المحرّك بلا بيان.
     track = models.CharField(max_length=12, choices=TRACKS, blank=True, verbose_name="المسار")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
     supervisor = models.ForeignKey(
@@ -106,11 +111,14 @@ class ClassGroup(models.Model):
         ]
         indexes = [models.Index(fields=["school", "grade", "academic_year"])]
 
+    #: الصفوف التي تحمل مساراً — والعاشر ليس منها وإن كان ثانوياً.
+    TRACKED_GRADES = ("G11", "G12")
+
     def clean(self):
-        """المسار للثانوي وحده — ومن أخطأ يُخبَر لا يُرفض بلا بيان."""
+        """المسار للحادي عشر والثاني عشر — ومن أخطأ يُخبَر لا يُرفض بلا بيان."""
         super().clean()
-        if self.track and self.level_type != "sec":
-            raise ValidationError({"track": "المسار للمرحلة الثانوية وحدها."})
+        if self.track and self.grade not in self.TRACKED_GRADES:
+            raise ValidationError({"track": "المسار للصفّين الحادي عشر والثاني عشر وحدهما."})
 
     def __str__(self):
         track = f" — {self.get_track_display()}" if self.track else ""
