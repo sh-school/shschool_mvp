@@ -5,6 +5,8 @@ import os
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
+from core.academic_calendar import academic_year_for_school
+
 logger = logging.getLogger(__name__)
 from django.db import transaction
 
