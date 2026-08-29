@@ -61,14 +61,33 @@ def test_a_section_without_a_track_is_legitimate(sec):
     assert group.track == ""
 
 
-def test_a_preparatory_section_may_not_carry_a_track(db, school):
-    """المسار للثانوي وحده — ومن أخطأ يُخبَر لا يُرفض بلا بيان."""
-    group = ClassGroup(school=school, grade="G8", section="1", level_type="prep", track="science")
+@pytest.mark.parametrize(
+    ("grade", "level"),
+    [("G8", "prep"), ("G10", "sec")],
+)
+def test_a_grade_without_tracks_may_not_carry_one(db, school, grade, level):
+    """العاشر ثانويٌّ بلا مسار — وهو ما يجعل "sec" قيداً غير كافٍ.
+
+    المدرسة مدمجة: ٧–٩ إعدادي و١٠–١٢ ثانوي. فقيدٌ على "level_type" وحده
+    يجتازه العاشر، والمسارات تبدأ من الحادي عشر.
+    """
+    group = ClassGroup(school=school, grade=grade, section="1", level_type=level, track="science")
 
     with pytest.raises(ValidationError) as exc:
         group.full_clean()
 
     assert "track" in exc.value.error_dict
+
+
+@pytest.mark.parametrize("grade", ["G11", "G12"])
+def test_both_tracked_grades_accept_one(db, school, grade):
+    group = ClassGroup(
+        school=school, grade=grade, section="1", level_type="sec", track="technology"
+    )
+
+    group.full_clean()
+
+    assert group.track == "technology"
 
 
 def test_the_display_name_says_the_track(sec):
