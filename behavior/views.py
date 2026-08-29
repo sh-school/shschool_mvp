@@ -151,6 +151,19 @@ def _notify_behavior_after_commit(infraction, school, reporter):
 # ── لوحة التحكم ──────────────────────────────────────────────
 @login_required
 @role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+def _behaviour_year_window(school):
+    """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
+    from datetime import date
+
+    from core.academic_calendar import academic_year_window
+
+    window = academic_year_window(school)
+    if window is not None:
+        return window
+    today = _tz.localdate()
+    return date(today.year, 1, 1), date(today.year, 12, 31)
+
+
 def behavior_dashboard(request):
     """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
@@ -191,9 +204,14 @@ def behavior_dashboard(request):
         .order_by("month")
     )
 
-    # Level distribution (current year)
+    # توزيع المستويات — على العام الدراسي لا السنة الميلادية.
+    #
+    # سجلّ الطالب السلوكيّ يدور مع العام الدراسي (أغسطس–يونيو). والترشيح
+    # بالسنة الميلادية يخلط شطرَ العام الماضي بشطر الحالي في سبتمبر، ثم
+    # يُسقط الفصل الأول كلّه في يناير — واللوحة تقول «السنة الحالية».
+    year_start, year_end = _behaviour_year_window(school)
     level_dist = (
-        base_qs.filter(created_at__year=today.year)
+        base_qs.filter(created_at__date__gte=year_start, created_at__date__lte=year_end)
         .values("level")
         .annotate(count=Count("id"))
         .order_by("level")
@@ -208,9 +226,9 @@ def behavior_dashboard(request):
         .order_by("day")
     )
 
-    # Top violation categories (current year)
+    # أعلى فئات المخالفات — على العام الدراسي كذلك.
     top_violations = (
-        base_qs.filter(created_at__year=today.year)
+        base_qs.filter(created_at__date__gte=year_start, created_at__date__lte=year_end)
         .values("violation_category__name_ar")
         .annotate(count=Count("id"))
         .order_by("-count")[:5]
