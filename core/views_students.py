@@ -303,17 +303,40 @@ _IMPORT_GRADE_NORMALIZE = {
 # ── مساعدات الاستيراد ─────────────────────────────────────────────────
 
 
+def _split_class_notation(grade_cell, section_cell):
+    """يقبل «7/1» في خانة الصف كما يقبل عمودين منفصلين.
+
+    الشُّعب في المدرسة تُسمّى «7/1» و«11/2» — اسمٌ واحد لا حقلان. وكان
+    الاستيراد يتوقّع عمودين، فخانةٌ مكتوبٌ فيها «7/1» لا تُطابق مفتاحاً في
+    `_IMPORT_GRADE_NORMALIZE`، فيُتخطّى الطالب بلا تسجيل.
+
+    ولا يُخفق الاستيراد: يُنشئ الطالب ويُدرج سطراً في الأخطاء، فيسهل أن يمرّ
+    مئةُ طالبٍ بلا شعبة دون أن ينتبه أحد.
+
+    فإن حوت خانة الصف فاصلاً (‏/ أو . أو -) قُسّمت، وإلّا بقي العمودان كما هما.
+    """
+    if section_cell:
+        return grade_cell, section_cell
+    for sep in ("/", ".", "-"):
+        if sep in grade_cell:
+            head, _, tail = grade_cell.partition(sep)
+            return head.strip(), tail.strip()
+    return grade_cell, section_cell
+
+
 def _parse_import_row(row):
     """يحوّل tuple الصف الخام إلى قاموس بأسماء واضحة."""
 
     def _cell(pos, default=""):
         return str(row[pos]).strip() if len(row) > pos and row[pos] else default
 
+    grade_raw, section = _split_class_notation(_cell(2), _cell(3))
+
     return {
         "student_nid": _cell(0),
         "full_name": _cell(1),
-        "grade_raw": _cell(2),
-        "section": _cell(3),
+        "grade_raw": grade_raw,
+        "section": section,
         "phone": _cell(4),
         "email": _cell(5),
         "parent_nid": _cell(6),
