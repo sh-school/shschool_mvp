@@ -66,18 +66,23 @@ def quality_nav_context(request):
     if not request.user.is_authenticated:
         return {}
 
+    from core.academic_calendar import academic_year_for_school
     from quality.models import QualityCommitteeMember
 
     school = request.user.get_school()
     if not school:
         return {}
 
-    # الاستعلام لا يُرشّح بالعام — وكان هنا إسنادٌ ميّت له، فحُذف.
+    # العضويّة موقوتةٌ بعامها: الصفّ يُنشأ بـ`academic_year` ويبقى `is_active=True`
+    # إلى الأبد — لا شيء في المنصّة يُطفئه عند دوران العام. فاستعلامٌ لا يُرشّح
+    # بالعام يُبقي عضو لجنةٍ سابقٍ يرى روابط المراجعة والتنفيذ عاماً بعد عام.
+    # وهو ما يفعله المديران `review_committee` و`executor_committee` أصلاً.
     # MTG-2026-005: merged 2 queries into 1
     member_types = set(
         QualityCommitteeMember.objects.filter(
             school=school,
             user=request.user,
+            academic_year=academic_year_for_school(school),
             is_active=True,
         ).values_list("committee_type", flat=True)
     )
