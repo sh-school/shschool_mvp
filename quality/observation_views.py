@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import (
@@ -32,7 +33,6 @@ from .observation_models import (
     ClassroomObservation,
 )
 from .observation_services import ObservationService
-from core.academic_calendar import academic_year_for_school
 
 _TEACHER_ROLES = ["teacher", "ese_teacher", "coordinator", "activities_coordinator"]
 _SORT_MAP = {"date": "-observation_date", "score": "-score_percent", "status": "status"}
