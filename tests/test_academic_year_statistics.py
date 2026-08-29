@@ -2,13 +2,19 @@
 
 عثرتُ على هذا النمط أوّلاً في صفحة الطالب: ملخّص الحضور كان يُرشَّح
 بـ`session__date__year`، فيعرض شطر العام الواقع في السنة الميلادية وحده.
-ثم مسحتُ المنصّة عن أشباهه فوجدت ثلاثة:
+ثم مسحتُ المنصّة عن أشباهه فوجدت خمسة:
 
-    behavior/views.py   توزيع مستويات المخالفات «السنة الحالية»
-    behavior/views.py   أعلى فئات المخالفات «السنة الحالية»
-    analytics/services  استعارة المكتبة لكل طالب
+    behavior/views.py          توزيع مستويات المخالفات «السنة الحالية»
+    behavior/views.py          أعلى فئات المخالفات «السنة الحالية»
+    student_affairs/views.py   شاشة ملخّص السلوك
+    student_affairs/views.py   تصدير ملخّص السلوك PDF
+    analytics/services.py      استعارة المكتبة لكل طالب
 
-والعام الدراسي يمتدّ من أغسطس إلى يونيو. فالترشيح الميلاديّ:
+والأخيران لم يجدهما بحثي النصّي — لأن `__month` و`__year` قد يقعان في سطرين
+من نداءٍ واحد. فصار الفحص على `ast.Call`.
+
+والعام الدراسي يمتدّ من أغسطس إلى أغسطس — التدريس ينتهي في يونيو، والعام
+الإداريّ يمتدّ حتى بداية الذي يليه كي لا يقع يومٌ خارج عام. فالترشيح الميلاديّ:
 
     في سبتمبر    يخلط شطر العام الماضي بشطر الحالي
     في يناير     يُسقط الفصل الأول كلّه
@@ -93,18 +99,29 @@ def test_the_behaviour_window_follows_the_seeded_calendar(db, school, year_windo
 
 
 def test_the_behaviour_window_spans_two_calendar_years(db, school, year_window):
-    """وهو بيت الداء: نافذةٌ تعبر رأس السنة لا يحدّها `__year`."""
+    """وهو بيت الداء: نافذةٌ تعبر رأس السنة لا يحدّها `__year`.
+
+    وكتبتُ هذه الدعوى أوّلاً `(8, 6)` من ذاكرتي — «أغسطس إلى يونيو» — فأسقطتني
+    البوابة. والعام المبذور يمتدّ **أغسطس إلى أغسطس** (٢٠٢٦/٨/٢٣ → ٢٠٢٧/٨/٢١)
+    كي لا يقع يومٌ خارج عامٍ بين عامين. يونيو نهاية التدريس لا نهاية العام.
+    """
     start, end = _window(school)
 
-    assert start.year != end.year
-    assert (start.month, end.month) == (8, 6)
+    assert start.year != end.year, "لا يحدّها __year"
+    assert start.month == 8
+    assert (end - start).days > 350, "عامٌ كامل — لا فجوة بين عامين"
 
 
 def test_the_behaviour_window_falls_back_before_seeding(db, school):
-    """بلا تقويمٍ لا تنكسر اللوحة — ترتدّ إلى السنة الميلادية."""
+    """بلا تقويمٍ لا تنكسر اللوحة — ترتدّ إلى سبتمبر–يونيو المشتقّين من الاسم.
+
+    وكتبتُها أوّلاً بـ`or` تقبل الاحتمالين — ودعوى تقبل كلّ شيء لا تُثبت شيئاً.
+    """
     start, end = _window(school)
 
-    assert (start.month, start.day) == (1, 1) or start.month == 8
+    assert (start.month, start.day) == (9, 1)
+    assert (end.month, end.day) == (6, 30)
+    assert end.year == start.year + 1
 
 
 def _window(school):
