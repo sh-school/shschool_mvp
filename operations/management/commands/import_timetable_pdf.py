@@ -16,9 +16,9 @@ import unicodedata
 from collections import defaultdict
 from datetime import time
 
-import fitz  # PyMuPDF
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from pypdf import PdfReader
 
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, School
@@ -78,28 +78,31 @@ except ImportError:
 # ──────────────────────────────────────────────────
 # مطابقة أسماء المواد: PDF (عربي معكوس) -> اسم نظيف
 # ──────────────────────────────────────────────────
+#: اسم المادة كما يكتبه الجدول -> اسمها في المنصّة.
+#: كان هذا الجدول مكتوباً بحروفٍ معكوسة («ةيمﻼسا ةيبرت») لأنّ المستخرج القديم
+#: كان يقرأ الحروف بترتيب الرسم لا بترتيب اللغة. و`pypdf` يقرأها كما تُقرأ،
+#: فصار المفتاح نصّاً يفهمه من يصونه.
 SUBJECT_MAP = {
-    "ةيمﻼسا ةيبرت": "التربية الإسلامية",
-    "ةيبرعلا ةغللا": "اللغة العربية",
-    "ةيزيلجنإ ةغل": "اللغة الإنجليزية",
-    "تايــــضاير": "الرياضيات",
-    "موـــــــــلع": "العلوم",
-    "ةـماع مولع": "العلوم العامة",
-    "ةيندب ةيبرت": "التربية البدنية",
-    "ةيرصب نونف": "الفنون البصرية",
-    "ةيتايحلا تاراهملا": "المهارات الحياتية والمهنية",
-    "ةيعامتجا مولع": "الدراسات الاجتماعية",
-    "اــــيجولونكت": "التكنولوجيا",
-    "تامولعملا ايجولونكت": "تكنولوجيا المعلومات",
-    "بساحلا مولع": "علوم الحاسب",
-    "ءاـــــــــــيميك": "الكيمياء",
-    "ءاـــــــــيزيف": "الفيزياء",
-    "ءاــــــــــــيحأ": "الأحياء",
-    "خــــــــيرات": "التاريخ",
-    "اــــيفارغج": "الجغرافيا",
-    "ايفارغج": "الجغرافيا",
-    "اــــــيفارغج": "الجغرافيا",
-    "لامعا ةرادا": "إدارة الأعمال",
+    "تربية اسلامية": "التربية الإسلامية",
+    "اللغة العربية": "اللغة العربية",
+    "لغة إنجليزية": "اللغة الإنجليزية",
+    "رياضيات": "الرياضيات",
+    "علوم": "العلوم",
+    "علوم عامة": "العلوم العامة",
+    "تربية بدنية": "التربية البدنية",
+    "فنون بصرية": "الفنون البصرية",
+    "المهارات الحياتية": "المهارات الحياتية والمهنية",
+    "علوم اجتماعية": "الدراسات الاجتماعية",
+    "تكنولوجيا": "التكنولوجيا",
+    "تكنولوجيا المعلومات": "تكنولوجيا المعلومات",
+    "علوم الحاسب": "علوم الحاسب",
+    "كيمياء": "الكيمياء",
+    "فيزياء": "الفيزياء",
+    "أحياء": "الأحياء",
+    "احياء": "الأحياء",
+    "تاريخ": "التاريخ",
+    "جغرافيا": "الجغرافيا",
+    "ادارة اعمال": "إدارة الأعمال",
 }
 
 # أكواد المواد
@@ -165,6 +168,7 @@ TEACHER_MAP = {
     "ابراهيم  سليمان حمد": "ابراهيم سليمان طه حمد",
     "عزام احمد الزعبي": "عزام احمد يوسف الزعبى",
     "عماد محمد قاسم": "عمادالدين محمد الحبشى قاسم",
+    "عماد الدين قاسم": "عمادالدين محمد الحبشى قاسم",
     "محمد عبدالوهاب عويس": "محمد عبدالوهاب عبدالبديع عويس",
     "عثمان الفاروسي": "عثمان عبدالرحمن فاروسي",
     "محمد اسماعيل السيد": "محمد اسماعيل عبدالحميد السيد",
@@ -190,6 +194,7 @@ TEACHER_MAP = {
     "وجدي يوسف": "وجدي بن محمد بن عمارة يوسفي",
     "مرتضى أمين": "مرتضي امين ابوالبشر عبدالله",
     "عبدالرحمن رجب": "عبدالرحمن فيصل اسماعيل راجه",
+    "عبدالرحمن رجا": "عبدالرحمن فيصل اسماعيل راجه",
     "مؤيد احمد المومني": "مؤيد احمد محمد المومني",
     "عربي السيد رجب": "عربى السيد يوسف السيد رجب",
     "محمد عبدالله العجلوني": "محمد عبدالله عارف العجلوني",
@@ -226,6 +231,12 @@ PERIOD_TIMES = {
 }
 
 # خريطة أعمدة الجدول إلى أرقام الحصص (RTL)
+#: «11.4» أو «11/4» — الشعبة كما يكتبها الجدول في وسط الخلية.
+SECTION_LABEL = re.compile(r"^\d{1,2}[./]\w+$")
+
+#: أكواد القاعات: HC.11.2 قاعةُ صفٍّ، وLAB1 وART2 وSPORT1 قاعاتٌ متخصّصة.
+ROOM_CODE = re.compile(r"^(HC\.[\d.]+|LAB\d*|ART\d*|SPORT\d*)$", re.IGNORECASE)
+
 COL_TO_PERIOD = {8: 1, 6: 2, 5: 3, 4: 4, 2: 5, 1: 6, 0: 7}
 
 # أيام الأسبوع
@@ -236,6 +247,35 @@ DAY_NAMES = ["الأحد", "الإثنين", "الثلاثاء", "الأربعا
 DOUBLE_PERIOD_SUBJECTS = {"الفنون البصرية", "تكنولوجيا المعلومات", "علوم الحاسب"}
 
 
+def _merge_runs(items, gap=60.0):
+    """يضمّ كلمتين متجاورتين حين تُكوّنان معاً اسم مادّةٍ معروفة.
+
+    «علوم عامة» و«علوم الحاسب» و«تكنولوجيا المعلومات» تُرسم كلماتٍ منفصلة،
+    وإسنادُ كلٍّ منها وحدها يُسقط الثانية خارج نافذة خليّتها فتصير المادّة
+    «علوم» — وهي مادّةٌ أخرى تماماً.
+
+    والحكمُ للمفردات لا للمسافة: جُرّب الضمُّ بالتجاور وحده فضمّ خليّتين
+    متجاورتين تحملان المادّة نفسها («رياضيات رياضيات»)، وضمّ تاريخَ إنشاء
+    الجدول إلى مادّة. فلا يُضمّ إلّا ما كان المضمومُ منه اسمَ مادّةٍ يعرفها
+    `SUBJECT_MAP` — والمسافة سياجٌ احتياطيّ لا أكثر.
+    """
+    runs = []
+    for i in sorted(items, key=lambda i: (round(i["y"], 1), -i["x"])):
+        if runs:
+            last = runs[-1]
+            joined = f"{last['t']} {i['t']}"
+            if (
+                abs(last["y"] - i["y"]) < 2
+                and 0 < last["x"] - i["x"] < gap
+                and joined in SUBJECT_MAP
+            ):
+                last["t"] = joined
+                last["x"] = i["x"]
+                continue
+        runs.append(dict(i))
+    return runs
+
+
 class Command(BaseCommand):
     help = "تنظيف + إعادة حقن الجدول الدراسي من PDF المعلمين"
 
@@ -244,6 +284,16 @@ class Command(BaseCommand):
             "--pdf",
             required=True,
             help="مسار ملف PDF المعلمين (75 صفحة)",
+        )
+        parser.add_argument(
+            "--elective",
+            action="append",
+            default=[],
+            metavar="اسم المعلّم=المادة",
+            help=(
+                "مادّة المعلّم في الحصص المنقسمة — تُكرَّر لكل معلّم. "
+                'مثال: --elective "أحمد شاهين=الكيمياء"'
+            ),
         )
         parser.add_argument(
             "--dry-run",
@@ -265,6 +315,12 @@ class Command(BaseCommand):
         pdf_path = options["pdf"]
         dry_run = options["dry_run"]
         validate_only = options["validate_only"]
+        electives = {}
+        for item in options["elective"]:
+            if "=" not in item:
+                raise CommandError(f"صيغة غير مفهومة: {item} — المتوقَّع «معلّم=مادة»")
+            name, _, subject = item.partition("=")
+            electives[name.strip()] = subject.strip()
 
         mode_label = (
             "وضع التحقق فقط"
@@ -293,8 +349,10 @@ class Command(BaseCommand):
 
         # بناء خريطة عكسية: classgroup_id -> grade number
         cg_grade_map = {}
+        cg_label = {}
         for cg in ClassGroup.objects.filter(academic_year=self._year(), is_active=True):
             grade_num = str(cg.grade).replace("G", "").replace("g", "")
+            cg_label[str(cg.id)] = f"{grade_num}/{cg.section}"
             try:
                 cg_grade_map[str(cg.id)] = int(grade_num)
             except (ValueError, TypeError):
@@ -302,14 +360,31 @@ class Command(BaseCommand):
 
         # ─── 4. تجهيز البيانات ───
         self.stdout.write("\nتجهيز البيانات...")
-        schedule_rows, assignment_map, errors = self._prepare_data(
-            teachers_data, teacher_id_map, classgroup_map
+        schedule_rows, assignment_map, errors, parallel = self._prepare_data(
+            teachers_data, teacher_id_map, classgroup_map, electives
         )
         self.stdout.write(f"   {len(schedule_rows)} حصة جاهزة للحقن")
         self.stdout.write(f"   {len(assignment_map)} توزيع (معلم+مادة+شعبة)")
         if errors:
             for e in errors:
                 self.stdout.write(self.style.ERROR(f"   {e}"))
+
+        if parallel:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"\n[!] {len(parallel)} حصة متوازية لا يسعها الجدول — "
+                    "المادّتان تبقيان في توزيع المواد، والحصّة الثانية لا تُحقن:"
+                )
+            )
+            for kept, dropped in parallel:
+                day = DAY_NAMES[kept["day_idx"]]
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"   {cg_label.get(kept['classgroup_id'], kept['classgroup_id'][:8])} "
+                        f"{day} ح{kept['period']}: "
+                        f"{kept['subject_name']} ‖ {dropped['subject_name']} (لم تُحقن)"
+                    )
+                )
 
         # ─── 4a+. ملء الحصص المزدوجة المفقودة (merged cells) ───
         schedule_rows, filled_count = self._fill_double_periods(schedule_rows, cg_grade_map)
@@ -341,7 +416,7 @@ class Command(BaseCommand):
 
         # ─── 4c. ملخص التحقق ───
         total_errors = len(errors)
-        total_warnings = len(thursday_warnings)
+        total_warnings = len(thursday_warnings) + len(parallel)
         if validate_only:
             self.stdout.write("\n" + "=" * 60)
             if total_errors == 0 and total_warnings == 0:
@@ -366,32 +441,39 @@ class Command(BaseCommand):
         academic_year = academic_year_for_school(school)
 
         with transaction.atomic():
-            # حذف
-            self.stdout.write("\nتنظيف الجداول...")
-            n1 = ScheduleSlot.objects.filter(school=school).delete()[0]
+            # حذف — عامَ الاستيراد وحده. الحذف بلا عامٍ يمحو جدول العام
+            # المنقضي وتوزيعاته معه، وهو أرشيفٌ لا مسوّدة.
+            self.stdout.write(f"\nتنظيف جداول {academic_year}...")
+            n1 = ScheduleSlot.objects.filter(school=school, academic_year=academic_year).delete()[0]
             self.stdout.write(f"   ScheduleSlot: {n1} سجل محذوف")
 
-            n2 = SubjectClassAssignment.objects.filter(school=school).delete()[0]
+            n2 = SubjectClassAssignment.objects.filter(
+                school=school, academic_year=academic_year
+            ).delete()[0]
             self.stdout.write(f"   SubjectClassAssignment: {n2} سجل محذوف")
 
             if SubjectClassSetup:
-                n3 = SubjectClassSetup.objects.filter(school=school).delete()[0]
+                n3 = SubjectClassSetup.objects.filter(
+                    school=school, academic_year=academic_year
+                ).delete()[0]
                 self.stdout.write(f"   SubjectClassSetup: {n3} سجل محذوف")
 
-            n4 = Subject.objects.filter(school=school).delete()[0]
-            self.stdout.write(f"   Subject: {n4} سجل محذوف")
-
-            # إنشاء المواد
-            self.stdout.write("\nإنشاء المواد...")
+            # المواد لا تُحذف: مفرداتٌ مشتركةٌ بين الأعوام، وحذفُها يجرف معه
+            # إعدادات التقييم (`SubjectClassSetup` بالتتالي) ويفكّ الزيارات
+            # الصفّية عن مادّتها. فتُستحدث الناقصةُ وحدها.
+            self.stdout.write("\nالمواد...")
             subject_objs = {}
+            created_subjects = 0
             for name, code in SUBJECT_CODES.items():
-                s = Subject.objects.create(
-                    school=school,
-                    name_ar=name,
-                    code=code,
+                subject, made = Subject.objects.get_or_create(
+                    school=school, name_ar=name, defaults={"code": code}
                 )
-                subject_objs[name] = s
-                self.stdout.write(f"   {name} ({code})")
+                subject_objs[name] = subject
+                created_subjects += made
+            self.stdout.write(
+                f"   {len(subject_objs)} مادة — {created_subjects} مستحدثة، "
+                f"{len(subject_objs) - created_subjects} قائمة"
+            )
 
             # إنشاء SubjectClassAssignment
             self.stdout.write("\nإنشاء SubjectClassAssignment...")
@@ -507,71 +589,105 @@ class Command(BaseCommand):
         self.stdout.write(f"  ScheduleSlot: {len(slots)}")
 
     def _extract_pdf(self, pdf_path):
-        """استخراج بيانات جميع المعلمين من PDF (75 صفحة)"""
-        doc = fitz.open(pdf_path)
+        """استخراج جدول كل معلّم من صفحته.
+
+        القراءة بالإحداثيات لا بكشف الجداول: `aSc` يرسم الشبكة خطوطاً لا
+        خلايا، فالموضع أصدق من البنية. وأحجام الخطّ تفصل المعاني:
+
+            ٩٫٩    اسم المادة وكود القاعة
+            ٢٦     اسم الشعبة (11.4)
+            ١٨٫٤   أرقام الحصص في الترويسة — ومنها تُؤخذ مراكز الأعمدة
+            ٣٦–٤٠  أسماء الأيام، وأكبرها في الترويسة اسم المعلّم
+
+        ومراكز الأعمدة تُقرأ من الترويسة ولا تُخمَّن: صفحةٌ بعرضٍ مختلف
+        تُزيح كل عمود، وجدولُ رقمٍ ثابتٍ يصمت عن ذلك ويُسند الحصة إلى جارتها.
+        """
+        reader = PdfReader(pdf_path)
         teachers = []
 
-        for page_num in range(len(doc)):
-            page = doc[page_num]
+        for page_num, page in enumerate(reader.pages):
+            items = []
 
-            # اسم المعلم (خط كبير حجم ~29.9 في y<60)
-            teacher_name = ""
-            blocks = page.get_text("dict")["blocks"]
-            for b in blocks:
-                if "lines" in b:
-                    for line in b["lines"]:
-                        for span in line["spans"]:
-                            if 28 < span["size"] < 32 and span["origin"][1] < 60:
-                                teacher_name = span["text"].strip()
+            def visit(text, cm, tm, font, size, items=items):
+                cleaned = normalize_arabic(text)
+                if cleaned:
+                    items.append({"t": cleaned, "x": tm[4], "y": tm[5], "s": size})
 
-            # جدول الحصص
-            tables = page.find_tables()
-            if not tables.tables:
+            page.extract_text(visitor_text=visit)
+
+            periods = sorted(
+                (
+                    (i["x"], int(i["t"]))
+                    for i in items
+                    if 17 < i["s"] < 20 and i["t"].isascii() and i["t"].isdigit()
+                ),
+                key=lambda p: -p[0],
+            )
+            days = sorted(
+                (i for i in items if i["t"] in DAY_NAMES and i["x"] > 990),
+                key=lambda i: i["y"],
+            )
+            header = [i for i in items if i["s"] > 30 and i["x"] < 990]
+            teacher_name = max(header, key=lambda i: i["s"])["t"] if header else ""
+
+            if len(periods) != 7 or len(days) != len(DAY_NAMES):
+                self.stdout.write(f"  ⚠ صفحة {page_num + 1}: ترويسةٌ غير مفهومة — تُخطّى")
                 continue
 
-            table = tables.tables[0]
-            data = table.extract()
+            #: الخلية = اسم شعبةٍ كبير، وحوله مادّتُه وقاعتُه فوقه.
+            cells = []
+            for i in items:
+                if 24 < i["s"] < 28 and SECTION_LABEL.match(i["t"]):
+                    cells.append(
+                        {
+                            "day_idx": min(
+                                range(len(days)), key=lambda d: abs(i["y"] - days[d]["y"])
+                            ),
+                            "period": min(periods, key=lambda p: abs(i["x"] - p[0]))[1],
+                            "section": i["t"].replace("/", "."),
+                            "y": i["y"],
+                            "x": i["x"],
+                            "subject_raw": "",
+                            "reach": float("inf"),
+                            "room": "",
+                        }
+                    )
 
-            schedule = []
-            for row_idx in range(2, min(7, len(data))):
-                day_idx = row_idx - 2
-                row = data[row_idx]
-                for col_idx in range(len(row)):
-                    if col_idx in COL_TO_PERIOD and row[col_idx] and row[col_idx].strip():
-                        cell = row[col_idx].strip()
-                        parts = cell.split("\n")
-                        if len(parts) >= 2:
-                            section = parts[-1].strip()
-                            info = parts[0].strip()
-                            room = ""
-                            subject_raw = info
-                            match = re.match(r"^([A-Za-z0-9.]+)\s+(.*)", info)
-                            if match:
-                                room = match.group(1)
-                                subject_raw = match.group(2)
+            #: «علوم عامة» و«علوم الحاسب» تُرسمان كلمتين منفصلتين على السطر
+            #: نفسه. وإسنادُ كلٍّ منهما وحدها يُسقط الثانية خارج نافذة خليّتها،
+            #: فتصير المادّة «علوم» — وهي مادّةٌ أخرى تماماً. فتُضمّ الكلمات
+            #: المتجاورة أوّلاً، ثمّ يُسنَد السطر كلُّه.
+            #: حدود الشبكة: فوقها ترويسةٌ وأوقاتُ حصص، وتحتها تذييلٌ فيه
+            #: تاريخُ إنشاء الجدول — وقد ضُمّ إلى مادّةٍ حين غابت هذه الحدود.
+            inside = [i for i in items if 8 < i["s"] < 12 and i["x"] < 990 and 150 < i["y"] < 760]
+            for i in _merge_runs(inside):
+                #: الخلية المدمجة (حصّتان متتاليتان) ضعفُ عرض العمود، واسمُ
+                #: مادّتها عند حافّتها لا وسطها — فنافذةٌ بعرض عمودٍ واحد
+                #: تُسقطها. وهكذا ضاعت حصص الفنون البصرية في ثلاث عشرة شعبة.
+                #: المادّة والقاعة على السطر الذي فوق اسم الشعبة دائماً، فلا
+                #: يُنظر إلّا إلى ما تحتها. والنظر في الجهتين يجعل خليّةً
+                #: تسرق مادّة جارتها: مادّةُ 8/2 كانت أقربَ إلى الشعبة التي
+                #: فوقها منها إلى شعبتها، فسقطت 8/2 بلا مادّة.
+                near = [c for c in cells if 0 < c["y"] - i["y"] < 70 and abs(c["x"] - i["x"]) < 120]
+                if not near:
+                    continue
+                distance = min(abs(c["y"] - i["y"]) + abs(c["x"] - i["x"]) for c in near)
+                cell = min(near, key=lambda c: abs(c["y"] - i["y"]) + abs(c["x"] - i["x"]))
+                if ROOM_CODE.match(i["t"]):
+                    cell["room"] = i["t"]
+                elif distance < cell["reach"]:
+                    #: تُؤخذ أقربُ مادّةٍ لا تُجمع المواد: خليّةٌ مدمجة تجاور
+                    #: خليّةً تحمل المادّة نفسها كانت تُنتج «رياضيات رياضيات».
+                    cell["subject_raw"] = i["t"]
+                    cell["reach"] = distance
 
-                            # تنظيف اسم المادة من المسافات الزائدة
-                            subject_raw = re.sub(r"\s+", " ", subject_raw).strip()
+            schedule = [
+                {k: c[k] for k in ("day_idx", "period", "section", "subject_raw", "room")}
+                for c in cells
+                if c["subject_raw"]
+            ]
+            teachers.append({"pdf_name": teacher_name, "page": page_num + 1, "schedule": schedule})
 
-                            schedule.append(
-                                {
-                                    "day_idx": day_idx,
-                                    "period": COL_TO_PERIOD[col_idx],
-                                    "section": section,
-                                    "subject_raw": subject_raw,
-                                    "room": room,
-                                }
-                            )
-
-            teachers.append(
-                {
-                    "pdf_name": teacher_name,
-                    "page": page_num + 1,
-                    "schedule": schedule,
-                }
-            )
-
-        doc.close()
         return teachers
 
     def _build_teacher_map(self):
@@ -603,7 +719,7 @@ class Command(BaseCommand):
             self.stdout.write(f"   {key} -> {cg}")
         return cg_map
 
-    def _prepare_data(self, teachers_data, teacher_id_map, classgroup_map):
+    def _prepare_data(self, teachers_data, teacher_id_map, classgroup_map, electives):
         """تجهيز بيانات الحقن"""
         schedule_rows = []
         # key = (subject_name, classgroup_id, teacher_id)
@@ -625,8 +741,20 @@ class Command(BaseCommand):
                         platform_name = v
                         break
 
+            if not platform_name and (pdf_name in teacher_id_map or norm_pdf in teacher_id_map):
+                # `TEACHER_MAP` جدولُ الأسماء المختلفة وحدها. ومعلّمٌ اسمُه في
+                # الجدول كاسمه في المنصّة لا موضع له فيه — فكان يسقط لأنّه
+                # ليس مذكوراً، لا لأنّه غير موجود. ومنه سقط معلّمان جديدان
+                # أُدخلا باسميهما كما في الجدول.
+                platform_name = pdf_name
+
             if not platform_name:
-                errors.append(f"معلم بدون مطابقة: '{pdf_name}' (ص{t['page']})")
+                # يُقال عددُ حصصه: معلّمٌ جديدٌ لم يُدخل بعد يعني شعباً
+                # كاملةً بلا مادّة، والاسم وحده لا يُنبئ عن حجم الفقد.
+                errors.append(
+                    f"معلم بدون مطابقة: '{pdf_name}' (ص{t['page']}) — "
+                    f"{len(t['schedule'])} حصة لن تُحقن"
+                )
                 continue
 
             teacher_uid = teacher_id_map.get(platform_name)
@@ -635,7 +763,10 @@ class Command(BaseCommand):
                 teacher_uid = teacher_id_map.get(norm_platform)
 
             if not teacher_uid:
-                errors.append(f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}')")
+                errors.append(
+                    f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}') — "
+                    f"{len(t['schedule'])} حصة لن تُحقن"
+                )
                 continue
 
             for slot in t["schedule"]:
@@ -676,12 +807,19 @@ class Command(BaseCommand):
                         "subject_name": subject_name,
                         "day_idx": slot["day_idx"],
                         "period": slot["period"],
+                        "pdf_name": pdf_name,
                     }
                 )
 
-                # عداد الحصص الأسبوعية لكل (مادة، شعبة، معلم)
-                akey = (subject_name, cg_id, teacher_uid)
-                assignment_counter[akey] += 1
+        self._relabel_parallel_by_teacher(schedule_rows, electives)
+
+        # النصاب الأسبوعي يُحسب بعد إعادة تسمية المنقسمة وقبل إسقاط نصفها:
+        # المادّتان كلتاهما تستحقّان نصابهما في التوزيع، وإن لم يسع الجدولَ
+        # إلّا إحداهما.
+        for row in schedule_rows:
+            assignment_counter[(row["subject_name"], row["classgroup_id"], row["teacher_id"])] += 1
+
+        parallel = self._separate_parallel_periods(schedule_rows)
 
         # تحويل العداد: نجمع حسب (مادة، شعبة) ونختار المعلم ذو الحصص الأكثر
         # key = (subject_name, cg_id) -> {teacher_id: count}
@@ -696,7 +834,65 @@ class Command(BaseCommand):
             total = sum(teachers.values())
             assignment_map[(subj, cg, main_teacher)] = {"weekly_periods": total}
 
-        return schedule_rows, assignment_map, errors
+        return schedule_rows, assignment_map, errors, parallel
+
+    def _relabel_parallel_by_teacher(self, schedule_rows, electives):
+        """في الحصّة المنقسمة يُعيد لكلّ معلّمٍ مادّته التي أعلنتها المدرسة.
+
+        الجدول يكتب في الخلية المنقسمة اسم مادّةٍ واحدة ومعلّمَين، فتظهر
+        المادّة نفسها مرّتين وتختفي الأخرى: «الكيمياء ‖ الكيمياء» وقد كانت
+        كيمياءً وفنوناً بصرية. ولو تُركت لتضاعف نصابُ الأولى وسقطت الثانية من
+        توزيع المواد كلّه.
+
+        ولا يُستدلّ عليها من الجدول: جُرّب أن تُؤخذ مادّةُ المعلّم الغالبة في
+        بقيّة صفحاته فأخطأت — معلّم الكيمياء في الحادي عشر يدرّس العلوم في
+        العاشر، فغلبت العلومُ عليه. ومن يدرّس مادّتين لا تُخمَّن مادّتُه.
+
+        فتُعلَن في السطر: `--elective "أحمد شاهين=الكيمياء"`. والإعلان أصدق من
+        الاستدلال، ويتبدّل مع اختيارات الطلاب في كل عام.
+        """
+        if not electives:
+            return
+        from collections import defaultdict
+
+        collisions = defaultdict(list)
+        for row in schedule_rows:
+            collisions[(row["classgroup_id"], row["day_idx"], row["period"])].append(row)
+
+        for rows in collisions.values():
+            if len(rows) < 2:
+                continue
+            for row in rows:
+                declared = electives.get(row.get("pdf_name", ""))
+                if declared:
+                    row["subject_name"] = declared
+
+    def _separate_parallel_periods(self, schedule_rows):
+        """يفصل الحصص المتوازية عن الجدول ويُسمّيها بدل أن تُفقد صامتة.
+
+        شُعبٌ أربع تنقسم في حصّةٍ واحدة: 11/1 و12/1 بين التكنولوجيا والفنون
+        البصرية، و11/4 و12/4 بين الكيمياء والفنون البصرية. القسمان في التوقيت
+        نفسه، ويذهب أحدهما إلى معمل الحاسب أو غرفة الفنون ويبقى الآخر.
+
+        و`ScheduleSlot` لا يسع ذلك: قيد `no_class_period_overlap` يمنع حصّتين
+        لشعبةٍ في اليوم والحصّة نفسيهما. فلو مضى الحقن لسقط النصف الثاني على
+        القيد — أو، وهو أسوأ، لمرّ في `bulk_create(ignore_conflicts=True)` بلا
+        صوت. فيُفصل هنا ويُقال، ويبقى في `SubjectClassAssignment` كاملاً:
+        قيدُه `(شعبة، مادة، عام)` يسع المادّتين معاً.
+
+        وحلُّه الصحيح حقلُ مجموعةٍ اختيارية في القيد — قرارُ مخطَّطٍ لا يُتَّخذ
+        في أمر استيراد.
+        """
+        seen, kept, parallel = {}, [], []
+        for row in schedule_rows:
+            key = (row["classgroup_id"], row["day_idx"], row["period"])
+            if key in seen:
+                parallel.append((seen[key], row))
+            else:
+                seen[key] = row
+                kept.append(row)
+        schedule_rows[:] = kept
+        return parallel
 
     def _fill_double_periods(self, schedule_rows, cg_grade_map):
         """
