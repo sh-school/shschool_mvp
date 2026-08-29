@@ -401,8 +401,21 @@ class KPIService:
         }
 
         # ── 7: استعارة المكتبة / طالب ────────────────────────────────
+        # الاستعارة لكل طالب تُقاس على العام الدراسي لا السنة الميلادية.
+        # فالمقياس ينهار إلى الصفر في يناير ويبدو انهياراً في استعمال المكتبة،
+        # بينما العام الدراسي ما زال في منتصفه.
+        from datetime import date
+
+        from core.academic_calendar import academic_year_window
+
+        window = academic_year_window(school) or (
+            date(today.year, 1, 1),
+            date(today.year, 12, 31),
+        )
         borrows = BookBorrowing.objects.filter(
-            book__school=school, borrow_date__year=today.year
+            book__school=school,
+            borrow_date__gte=window[0],
+            borrow_date__lte=window[1],
         ).count()
         kpis["library_borrows_per_student"] = {
             "label": "استعارة المكتبة / طالب",

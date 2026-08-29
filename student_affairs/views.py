@@ -1075,16 +1075,30 @@ def attendance_export_excel(request):
 
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
+def _behaviour_window(school, today):
+    """نافذة العام الدراسي — وترتدّ إلى السنة الميلادية إن لم يُبذر تقويم."""
+    from datetime import date
+
+    window = academic_year_window(school)
+    if window is not None:
+        return window
+    return date(today.year, 1, 1), date(today.year, 12, 31)
+
+
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
     school = request.user.get_school()
     today = timezone.localdate()
     grade_filter = request.GET.get("grade", "")
 
-    # ── مخالفات السنة الحالية ──
+    # ── مخالفات العام الدراسي ──
+    # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
+    # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
+    _start, _end = _behaviour_window(school, today)
     year_infractions = BehaviorInfraction.objects.filter(
         school=school,
-        date__year=today.year,
+        date__gte=_start,
+        date__lte=_end,
     )
     total_infractions = year_infractions.count()
     unresolved = year_infractions.filter(is_resolved=False).count()
@@ -2018,10 +2032,14 @@ def behavior_overview_pdf(request):
     school = request.user.get_school()
     today = timezone.localdate()
 
-    # ── مخالفات السنة الحالية ──
+    # ── مخالفات العام الدراسي ──
+    # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
+    # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
+    _start, _end = _behaviour_window(school, today)
     year_infractions = BehaviorInfraction.objects.filter(
         school=school,
-        date__year=today.year,
+        date__gte=_start,
+        date__lte=_end,
     )
     total_infractions = year_infractions.count()
     unresolved = year_infractions.filter(is_resolved=False).count()
