@@ -701,7 +701,12 @@ class Command(BaseCommand):
                         break
 
             if not platform_name:
-                errors.append(f"معلم بدون مطابقة: '{pdf_name}' (ص{t['page']})")
+                # يُقال عددُ حصصه: معلّمٌ جديدٌ لم يُدخل بعد يعني شعباً
+                # كاملةً بلا مادّة، والاسم وحده لا يُنبئ عن حجم الفقد.
+                errors.append(
+                    f"معلم بدون مطابقة: '{pdf_name}' (ص{t['page']}) — "
+                    f"{len(t['schedule'])} حصة لن تُحقن"
+                )
                 continue
 
             teacher_uid = teacher_id_map.get(platform_name)
@@ -710,7 +715,10 @@ class Command(BaseCommand):
                 teacher_uid = teacher_id_map.get(norm_platform)
 
             if not teacher_uid:
-                errors.append(f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}')")
+                errors.append(
+                    f"معلم غير موجود في DB: '{platform_name}' (PDF: '{pdf_name}') — "
+                    f"{len(t['schedule'])} حصة لن تُحقن"
+                )
                 continue
 
             for slot in t["schedule"]:
