@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for
+from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import CustomUser, Membership
 from core.permissions import role_required
 
@@ -120,9 +120,9 @@ def weekly_schedule(request):
             school=school, is_active=True, role__name__in=("teacher", "coordinator")
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-        classes = ClassGroup.objects.filter(school=school, is_active=True).order_by(
-            "grade", "section"
-        )
+        classes = ClassGroup.objects.filter(
+            school=school, academic_year=academic_year_for_school(school), is_active=True
+        ).order_by("grade", "section")
 
     return render(
         request,
@@ -173,7 +173,9 @@ def schedule_print(request):
         school=school, is_active=True, role__name__in=("teacher", "coordinator")
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
-    classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+    classes = ClassGroup.objects.filter(
+        school=school, academic_year=academic_year_for_school(school), is_active=True
+    ).order_by("grade", "section")
 
     title = "الجدول الدراسي العام"
     if target_teacher:
@@ -236,7 +238,9 @@ def schedule_slot_create(request):
         school=school, is_active=True, role__name__in=("teacher", "coordinator")
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-    classes = ClassGroup.objects.filter(school=school, is_active=True).order_by("grade", "section")
+    classes = ClassGroup.objects.filter(
+        school=school, academic_year=academic_year_for_school(school), is_active=True
+    ).order_by("grade", "section")
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
 
     return render(

@@ -32,6 +32,7 @@ from .observation_models import (
     ClassroomObservation,
 )
 from .observation_services import ObservationService
+from core.academic_calendar import academic_year_for_school
 
 _TEACHER_ROLES = ["teacher", "ese_teacher", "coordinator", "activities_coordinator"]
 _SORT_MAP = {"date": "-observation_date", "score": "-score_percent", "status": "status"}
@@ -70,7 +71,9 @@ def _form_lists(school):
         .distinct()
         .order_by("full_name"),
         "subjects": Subject.objects.filter(school=school).order_by("name_ar"),
-        "class_groups": ClassGroup.objects.filter(school=school).order_by("grade", "section"),
+        "class_groups": ClassGroup.objects.filter(
+            school=school, academic_year=academic_year_for_school(school)
+        ).order_by("grade", "section"),
     }
 
 

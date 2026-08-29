@@ -293,7 +293,7 @@ class Command(BaseCommand):
 
         # بناء خريطة عكسية: classgroup_id -> grade number
         cg_grade_map = {}
-        for cg in ClassGroup.objects.filter(is_active=True):
+        for cg in ClassGroup.objects.filter(academic_year=self._year(), is_active=True):
             grade_num = str(cg.grade).replace("G", "").replace("g", "")
             try:
                 cg_grade_map[str(cg.id)] = int(grade_num)
@@ -584,10 +584,16 @@ class Command(BaseCommand):
             name_to_id[clean] = str(u.id)
         return name_to_id
 
+    def _year(self):
+        """عام الاستيراد — الشُّعب مرتبطةٌ بعامها، ولولاه لاختلط جدولا عامين."""
+        from core.models import School
+
+        return academic_year_for_school(School.objects.first())
+
     def _build_classgroup_map(self):
         """بناء خريطة: section (e.g. '11.4') -> ClassGroup ID"""
         cg_map = {}
-        for cg in ClassGroup.objects.filter(is_active=True):
+        for cg in ClassGroup.objects.filter(academic_year=self._year(), is_active=True):
             # section format: "7.1" -> grade=G7, section=1
             key = f"{cg.grade}.{cg.section}"
             # grade might have 'G' prefix or just number

@@ -372,13 +372,17 @@ def _enroll_student_in_class(student, school, grade_raw, section, stats, row_num
     if not (grade and section):
         return False
 
+    # الشُّعب مرتبطةٌ بعامها، فمع وجود عامين تُعيد `first()` واحدةً عشوائية —
+    # ويُسجَّل الطالب في شعبة العام الماضي. والتقييد بالعام يمنع ذلك.
+    year = academic_year_for_school(school)
     class_group = ClassGroup.objects.filter(
-        school=school, grade=grade, section=section, is_active=True
+        school=school, grade=grade, section=section, academic_year=year, is_active=True
     ).first()
 
     if not class_group:
         stats["errors"].append(
-            f"سطر {row_num}: الفصل {grade}/{section} غير موجود — تم إنشاء الطالب بدون تسجيل"
+            f"سطر {row_num}: الفصل {grade}/{section} غير موجود في {year} "
+            f"— تم إنشاء الطالب بدون تسجيل"
         )
         return False
 

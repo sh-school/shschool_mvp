@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
 from core.permissions import role_required
 
@@ -124,9 +125,9 @@ def schedule(request):
         )
         from core.models.academic import ClassGroup
 
-        filter_classes = ClassGroup.objects.filter(school=school, is_active=True).order_by(
-            "grade", "section"
-        )
+        filter_classes = ClassGroup.objects.filter(
+            school=school, academic_year=academic_year_for_school(school), is_active=True
+        ).order_by("grade", "section")
 
     return render(
         request,
