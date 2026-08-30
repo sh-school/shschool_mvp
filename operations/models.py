@@ -192,6 +192,17 @@ class ScheduleSlot(models.Model):
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
+    #: مجموعة الاختيار حين تنقسم الشعبة في الحصّة الواحدة.
+    #:
+    #: أربعُ شعبٍ يتفرّق طلابها بين مادّتين في التوقيت نفسه: 11/1 و12/1 بين
+    #: التكنولوجيا والفنون البصرية، و11/4 و12/4 بين الكيمياء والفنون. قسمٌ
+    #: يذهب إلى معمل الحاسب أو غرفة الفنون، وقسمٌ يبقى.
+    #:
+    #: وهي فارغةٌ في حصص الشعبة كاملةً — وهي الغالبة — فيبقى القيد عليها
+    #: كما كان: حصّةٌ واحدة لشعبةٍ في التوقيت الواحد.
+    elective_group = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
+    )
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -206,7 +217,13 @@ class ScheduleSlot(models.Model):
                 name="no_teacher_period_overlap",
             ),
             models.UniqueConstraint(
-                fields=["class_group", "day_of_week", "period_number", "academic_year"],
+                fields=[
+                    "class_group",
+                    "day_of_week",
+                    "period_number",
+                    "academic_year",
+                    "elective_group",
+                ],
                 condition=models.Q(is_active=True),
                 name="no_class_period_overlap",
             ),

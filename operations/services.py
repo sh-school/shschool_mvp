@@ -267,8 +267,15 @@ class ScheduleService:
     ) -> dict:
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة.
 
-        - مع فلتر معلم أو فصل: {يوم: {حصة: slot}} (backward compat)
-        - بدون فلتر (school-wide): {يوم: {حصة: [slot, ...]}}
+        الشكل واحدٌ في كل الأحوال: `{يوم: {حصة: [slot, ...]}}`.
+
+        وكان يُعيد حصّةً مفردة مع فلتر المعلّم أو الفصل، وقائمةً بلا فلتر.
+        والشعبة **تكون** في حصّتين معاً حين يتفرّق طلابها بين مادّتين
+        اختياريّتين في التوقيت نفسه، فكانت الثانية تُكتب فوق الأولى في
+        القاموس وتختفي صامتة.
+
+        ونوعُ الإرجاع المتبدّل فخٌّ في ذاته: قالبٌ يقرأ `slot.subject` من
+        قائمةٍ لا يُخطئ — يطبع فراغاً. فوُحِّد الشكل.
         """
         academic_year = academic_year or academic_year_for_school(school)
         qs = ScheduleSlot.objects.filter(
@@ -279,20 +286,9 @@ class ScheduleService:
         if class_group:
             qs = qs.filter(class_group=class_group)
 
-        # مع فلتر معلم أو فصل → single-slot dict (backward compat)
-        if teacher or class_group:
-            grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
-            for slot in qs:
-                grid[slot.day_of_week][slot.period_number] = slot
-            return grid
-
-        # School-wide: list of slots per cell (لا يكتب فوق بعض)
-        grid = {d: {} for d in range(5)}
+        grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
         for slot in qs:
-            key = slot.period_number
-            if key not in grid[slot.day_of_week]:
-                grid[slot.day_of_week][key] = []
-            grid[slot.day_of_week][key].append(slot)
+            grid[slot.day_of_week].setdefault(slot.period_number, []).append(slot)
         return grid
 
     @staticmethod

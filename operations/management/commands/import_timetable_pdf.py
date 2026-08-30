@@ -371,20 +371,15 @@ class Command(BaseCommand):
 
         if parallel:
             self.stdout.write(
-                self.style.WARNING(
-                    f"\n[!] {len(parallel)} حصة متوازية لا يسعها الجدول — "
-                    "المادّتان تبقيان في توزيع المواد، والحصّة الثانية لا تُحقن:"
-                )
+                f"\n[i] {len(parallel)} حصة منقسمة — الشعبة تتفرّق بين مادّتين "
+                "في التوقيت نفسه، وكلا النصفين يُحقن:"
             )
-            for kept, dropped in parallel:
-                day = DAY_NAMES[kept["day_idx"]]
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"   {cg_label.get(kept['classgroup_id'], kept['classgroup_id'][:8])} "
-                        f"{day} ح{kept['period']}: "
-                        f"{kept['subject_name']} ‖ {dropped['subject_name']} (لم تُحقن)"
-                    )
-                )
+            for rows in parallel:
+                first = rows[0]
+                day = DAY_NAMES[first["day_idx"]]
+                halves = " ‖ ".join(f"{r['subject_name']} ({r['pdf_name']})" for r in rows)
+                label = cg_label.get(first["classgroup_id"], first["classgroup_id"][:8])
+                self.stdout.write(f"   {label} {day} ح{first['period']}: {halves}")
 
         # ─── 4a+. ملء الحصص المزدوجة المفقودة (merged cells) ───
         schedule_rows, filled_count = self._fill_double_periods(schedule_rows, cg_grade_map)
@@ -528,7 +523,12 @@ class Command(BaseCommand):
             thursday_prep_skipped = 0  # حصص خميس ح7 إعدادي محذوفة
             for row in schedule_rows:
                 t_key = (row["teacher_id"], row["day_idx"], row["period"])
-                c_key = (row["classgroup_id"], row["day_idx"], row["period"])
+                c_key = (
+                    row["classgroup_id"],
+                    row["day_idx"],
+                    row["period"],
+                    row.get("elective_group", ""),
+                )
 
                 # تخطي الحصة السابعة يوم الخميس للشعب الإعدادية
                 if row["day_idx"] == 4 and row["period"] == 7:
@@ -563,6 +563,7 @@ class Command(BaseCommand):
                         start_time=start_t,
                         end_time=end_t,
                         academic_year=academic_year,
+                        elective_group=row.get("elective_group", ""),
                         is_active=True,
                     )
                 )
@@ -819,7 +820,7 @@ class Command(BaseCommand):
         for row in schedule_rows:
             assignment_counter[(row["subject_name"], row["classgroup_id"], row["teacher_id"])] += 1
 
-        parallel = self._separate_parallel_periods(schedule_rows)
+        parallel = self._label_parallel_periods(schedule_rows)
 
         # تحويل العداد: نجمع حسب (مادة، شعبة) ونختار المعلم ذو الحصص الأكثر
         # key = (subject_name, cg_id) -> {teacher_id: count}
@@ -867,31 +868,35 @@ class Command(BaseCommand):
                 if declared:
                     row["subject_name"] = declared
 
-    def _separate_parallel_periods(self, schedule_rows):
-        """يفصل الحصص المتوازية عن الجدول ويُسمّيها بدل أن تُفقد صامتة.
+    def _label_parallel_periods(self, schedule_rows):
+        """يُسمّي مجموعةَ كلّ نصفٍ من الحصّة المنقسمة، ويُبقي النصفين.
 
         شُعبٌ أربع تنقسم في حصّةٍ واحدة: 11/1 و12/1 بين التكنولوجيا والفنون
-        البصرية، و11/4 و12/4 بين الكيمياء والفنون البصرية. القسمان في التوقيت
-        نفسه، ويذهب أحدهما إلى معمل الحاسب أو غرفة الفنون ويبقى الآخر.
+        البصرية، و11/4 و12/4 بين الكيمياء والفنون. القسمان في التوقيت نفسه،
+        ويذهب أحدهما إلى معمل الحاسب أو غرفة الفنون ويبقى الآخر.
 
-        و`ScheduleSlot` لا يسع ذلك: قيد `no_class_period_overlap` يمنع حصّتين
-        لشعبةٍ في اليوم والحصّة نفسيهما. فلو مضى الحقن لسقط النصف الثاني على
-        القيد — أو، وهو أسوأ، لمرّ في `bulk_create(ignore_conflicts=True)` بلا
-        صوت. فيُفصل هنا ويُقال، ويبقى في `SubjectClassAssignment` كاملاً:
-        قيدُه `(شعبة، مادة، عام)` يسع المادّتين معاً.
+        وكان `no_class_period_overlap` يمنع النصف الثاني — حصّةٌ واحدة لشعبةٍ
+        في التوقيت الواحد — فكان يُفصل ويُقال ولا يُحقن، فيرى المعلّم والطالب
+        خليّةً ناقصة. فدخلت `elective_group` في القيد: فارغةٌ في حصص الشعبة
+        كاملةً فيبقى المنع كما كان، ومُسمّاةٌ باسم المادّة في المنقسمة فيسع
+        القيدُ نصفيها.
 
-        وحلُّه الصحيح حقلُ مجموعةٍ اختيارية في القيد — قرارُ مخطَّطٍ لا يُتَّخذ
-        في أمر استيراد.
+        والمعلّمان لا يتعارضان: قيدُهما على المعلّم لا على الشعبة، وكلٌّ منهما
+        في حصّةٍ واحدة.
         """
-        seen, kept, parallel = {}, [], []
+        seen, groups, parallel = {}, {}, []
         for row in schedule_rows:
             key = (row["classgroup_id"], row["day_idx"], row["period"])
             if key in seen:
-                parallel.append((seen[key], row))
+                first = seen[key]
+                first["elective_group"] = first["subject_name"]
+                row["elective_group"] = row["subject_name"]
+                groups.setdefault(key, [first]).append(row)
             else:
                 seen[key] = row
-                kept.append(row)
-        schedule_rows[:] = kept
+                row.setdefault("elective_group", "")
+        for key, rows in groups.items():
+            parallel.append(tuple(rows))
         return parallel
 
     def _fill_double_periods(self, schedule_rows, cg_grade_map):
