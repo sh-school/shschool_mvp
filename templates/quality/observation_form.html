@@ -9,14 +9,15 @@
 <div class="card-qatar" style="max-width:1100px;margin-inline:auto">
   <div class="exec-header">
     <h1>{% include "components/icon.html" with name="clipboard-check" %}
-      {% if is_self %}{% if mode == "edit" %}تعديل التقييم الذاتي{% else %}التقييم الذاتي لأدائي{% endif %}
+      {% if is_peer %}{% if mode == "edit" %}تعديل زيارة الزميل{% else %}زيارة زميل{% endif %}
+      {% elif is_self %}{% if mode == "edit" %}تعديل التقييم الذاتي{% else %}التقييم الذاتي لأدائي{% endif %}
       {% elif mode == "edit" %}تعديل زيارة صفّية{% else %}استمارة الإشراف على أداء المعلّم{% endif %}</h1>
     <a href="{% if mode == 'edit' %}{% url 'observation_detail' obs.id %}{% else %}{% url 'observation_list' %}{% endif %}"
        class="btn-secondary btn-sm">← رجوع</a>
   </div>
 
   <form method="post"
-        action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% elif is_self %}{% url 'observation_self_create' %}{% else %}{% url 'observation_create' %}{% endif %}">
+        action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% elif is_peer %}{% url 'observation_peer_create' %}{% elif is_self %}{% url 'observation_self_create' %}{% else %}{% url 'observation_create' %}{% endif %}">
     {% csrf_token %}
 
     {# ── المعلومات الأساسية ── #}
@@ -25,7 +26,7 @@
       {% if is_self %}
       <div><b>المعلّم:</b> أنت <span style="color:var(--text-muted)">(تقييم ذاتي لأدائك)</span></div>
       {% else %}
-      <label>المعلّم *
+      <label>{% if is_peer %}الزميل الذي أزوره *{% else %}المعلّم *{% endif %}
         <select name="teacher" required class="form-control">
           <option value="">— اختر —</option>
           {% for t in teachers %}
@@ -110,10 +111,10 @@
       {% if mode == "edit" and obs.status != "draft" %}
         <button type="submit" name="action" value="save" class="btn-primary">حفظ التعديلات</button>
         <span style="align-self:center;color:var(--text-muted);font-size:.85rem">
-          {% if is_self %}تقييم ذاتي معتمد.{% else %}الملاحظة مُرسَلة — سيرى المعلّم أحدث نسخة.{% endif %}</span>
+          {% if is_self %}تقييم ذاتي معتمد.{% elif is_peer %}زيارة الزميل مُرسَلة — سيراها.{% else %}الملاحظة مُرسَلة — سيرى المعلّم أحدث نسخة.{% endif %}</span>
       {% else %}
         <button type="submit" name="action" value="submit" class="btn-primary">
-          {% if is_self %}اعتماد التقييم الذاتي{% else %}إرسال للمعلّم وإشعاره{% endif %}</button>
+          {% if is_self %}اعتماد التقييم الذاتي{% elif is_peer %}إرسال إلى الزميل وإشعاره{% else %}إرسال للمعلّم وإشعاره{% endif %}</button>
         <button type="submit" name="action" value="draft" class="btn-secondary">حفظ كمسودة</button>
       {% endif %}
     </div>

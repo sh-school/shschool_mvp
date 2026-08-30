@@ -19,6 +19,7 @@ from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import (
     OBSERVATION_CREATE,
+    OBSERVATION_PEER_CREATE,
     OBSERVATION_SELF_CREATE,
     OBSERVATION_SEND,
     OBSERVATION_VIEW_ALL,
@@ -124,12 +125,14 @@ def _obs_perms(user, obs):
         "can_submit": can_edit and status == "draft",
         "can_withdraw": (is_observer or lead) and status == "submitted",
         "can_reopen": lead and status == "acknowledged",
-        "can_ack": is_teacher and status == "submitted" and obs.kind == "supervision",
+        # الزيارة الإشرافية وزيارة الزميل يُقرّهما المزور — والتقييم
+        # الذاتيّ لا إقرارَ فيه، فصاحبُه هو كاتبُه.
+        "can_ack": is_teacher and status == "submitted" and obs.kind != "self",
         "can_delete": can_delete,
     }
 
 
-def _form_context(school, *, obs=None, scores_map=None, is_self=False):
+def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=False):
     """grouped_criteria = [(domain_label, [(criterion, score|None)])] — score للتعبئة عند التعديل."""
     scores_map = scores_map or {}
     grouped = [
@@ -146,6 +149,7 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False):
             "mode": "edit" if obs else "create",
             "obs": obs,
             "is_self": is_self or bool(obs and obs.kind == "self"),
+            "is_peer": is_peer or bool(obs and obs.kind == "peer"),
         }
     )
     return ctx
@@ -212,9 +216,10 @@ def _pdf_context(obs):
         "domains": grouped,
         "ratings": RATING_CHOICES,
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
-        "form_subject": (
-            "التقييم الذاتي للمعلّم" if obs.kind == "self" else "الإشراف على أداء المعلّم"
-        ),
+        "form_subject": {
+            "self": "التقييم الذاتي للمعلّم",
+            "peer": "تبادل الزيارات بين المعلّمين",
+        }.get(obs.kind, "الإشراف على أداء المعلّم"),
     }
 
 
@@ -297,6 +302,66 @@ def observation_self_create(request):
         )
         return redirect("observation_detail", obs_id=obs.pk)
     return render(request, "quality/observation_form.html", _form_context(school, is_self=True))
+
+
+@login_required
+@role_required(OBSERVATION_PEER_CREATE)
+def observation_peer_create(request):
+    """تبادل الزيارات — معلّمٌ يزور زميله.
+
+    الزائرُ هو صاحبُ الحساب دائماً ولا يُقرأ من النموذج: زيارةٌ تُنسب إلى
+    غير من كتبها ليست تبادلاً بل انتحال. والمزور يُختار من زملائه.
+
+    ولا يزور المرءُ نفسه هنا — لذلك التقييم الذاتي.
+    """
+    school = request.user.get_school()
+    if request.method == "POST":
+        header, ratings, recs = _collect_post(request, school)
+        teacher_id = request.POST.get("teacher")
+        colleague = _colleague(request, school, teacher_id)
+        if colleague is None:
+            messages.error(request, "اختر زميلاً من المدرسة غيرَك.")
+            return render(
+                request,
+                "quality/observation_form.html",
+                _form_context(school, is_peer=True),
+            )
+        obs = ClassroomObservation.objects.create(
+            school=school,
+            teacher=colleague,
+            observer=request.user,
+            kind="peer",
+            created_by=request.user,
+            **header,
+        )
+        ObservationService.save_scores(obs, ratings, recs)
+        if request.POST.get("action") == "submit":
+            ObservationService.submit(obs, request.user)
+            messages.success(request, "أُرسلت زيارة الزميل إليه.")
+        else:
+            messages.success(request, "حُفظت كمسودة.")
+        AuditLog.log(
+            user=request.user,
+            action="create",
+            model_name="other",
+            object_id=obs.pk,
+            object_repr=f"زيارة زميل — {colleague.full_name}",
+            request=request,
+        )
+        return redirect("observation_detail", obs_id=obs.pk)
+    return render(request, "quality/observation_form.html", _form_context(school, is_peer=True))
+
+
+def _colleague(request, school, teacher_id):
+    """الزميل المزور — من المدرسة نفسها، وليس صاحب الحساب."""
+    if not teacher_id or str(teacher_id) == str(request.user.id):
+        return None
+    return CustomUser.objects.filter(
+        id=teacher_id,
+        memberships__school=school,
+        memberships__is_active=True,
+        memberships__role__name__in=_TEACHER_ROLES,
+    ).first()
 
 
 @login_required
@@ -398,6 +463,7 @@ def observation_list(request):
             "can_create": request.user.get_role() in OBSERVATION_CREATE
             or request.user.is_superuser,
             "can_self": request.user.get_role() in OBSERVATION_SELF_CREATE,
+            "can_peer": request.user.get_role() in OBSERVATION_PEER_CREATE,
             "is_leadership": lead,
             "status_choices": OBSERVATION_STATUS,
             "kind_choices": OBSERVATION_KIND,

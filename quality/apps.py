@@ -50,11 +50,18 @@ class QualityConfig(AppConfig):
             label="الجودة والتطوير",
             url_prefix="/quality/",
             icon="bi-award",
+            # بوّابةُ الوحدة يجب أن تسع من تسمّيه صلاحياتُها: كان
+            # `academic_advisor` في `OBSERVATION_CREATE` — أي يُنشئ زيارةً
+            # إشرافية — و`activities_coordinator` في `OBSERVATION_SELF_CREATE`،
+            # وكلاهما محجوبٌ عن `/quality/` كلّها. فالإذنُ مكتوبٌ في موضعٍ
+            # وممنوعٌ في آخر، والوسيطُ يسبق الدالّة فيردّهما قبل أن تُقرأ.
             allowed_roles={
                 "principal",
                 "vice_admin",
                 "vice_academic",
                 "coordinator",
+                "activities_coordinator",
+                "academic_advisor",
                 "teacher",
                 "ese_teacher",
                 "specialist",

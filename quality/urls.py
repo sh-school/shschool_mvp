@@ -26,6 +26,11 @@ urlpatterns = [
         name="observation_self_create",
     ),
     path(
+        "observations/peer/new/",
+        observation_views.observation_peer_create,
+        name="observation_peer_create",
+    ),
+    path(
         "observations/<uuid:obs_id>/",
         observation_views.observation_detail,
         name="observation_detail",
