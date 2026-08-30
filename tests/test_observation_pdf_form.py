@@ -57,10 +57,32 @@ def observation(db, school, criteria):
 # ── ما نُقل من الأصل حرفياً ───────────────────────────────────────────
 
 
-def test_the_paper_and_margins_come_from_the_original(source):
-    """12240×15840 twip = 8.5×11 بوصة، والهوامش 1620/720/1170/720."""
+def test_the_paper_comes_from_the_original(source):
+    """12240×15840 twip = 8.5×11 بوصة."""
     assert "size: 8.5in 11in" in source
-    assert "margin: 1.125in 0.5in 0.8125in 0.5in" in source
+
+
+def test_the_side_margins_come_from_the_original(source):
+    """الجانبيّان 720 twip = نصف بوصة، كما في الأصل."""
+    import re
+
+    margin = re.search(r"margin: ([\d.]+)in ([\d.]+)in ([\d.]+)in ([\d.]+)in", source)
+
+    assert margin, "هوامشُ الصفحة مكتوبةٌ بالبوصة"
+    assert margin.group(2) == margin.group(4) == "0.5"
+
+
+def test_the_vertical_margins_hold_the_bands_and_no_more(source):
+    """هامشا الأصل 1.125 و0.8125 بوصة، والشريطان أقصر: 0.878 و0.405 عند
+    عرض 7.5 بوصة. فضُبطا على ارتفاعهما وفضلةٍ يسيرة، والفائض رُدّ إلى
+    المتن — فالصفحة تمتلئ ولا يبقى بياضٌ فوق التذييل."""
+    import re
+
+    margin = re.search(r"margin: ([\d.]+)in ([\d.]+)in ([\d.]+)in ([\d.]+)in", source)
+    top, bottom = float(margin.group(1)), float(margin.group(3))
+
+    assert 0.878 < top < 1.125, "يسع الترويسة ولا يزيد كثيراً"
+    assert 0.405 < bottom < 0.8125, "يسع التذييل ولا يزيد كثيراً"
 
 
 @pytest.mark.parametrize(
@@ -168,25 +190,29 @@ def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
 # ── قسمة الصفحتين ────────────────────────────────────────────────────
 
 
-def test_the_criteria_are_split_by_domain_not_by_length(db, observation, criteria):
-    """الأصل يبدأ الصفحة الثانية بـ«التقويم». ولو تُركت للتدفّق لانقطع
-    مجالٌ في منتصفه."""
+def test_all_four_domains_sit_in_one_table(db, observation, criteria):
+    """الأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فلا قسمة ولا فاصل."""
     from quality.observation_views import _pdf_context
 
-    blocks = _pdf_context(observation)["blocks"]
+    ctx = _pdf_context(observation)
 
-    assert len(blocks) == 2
-    assert [d for d, _ in blocks[0]] == ["التخطيط", "تنفيذ الدرس"]
-    assert [d for d, _ in blocks[1]] == ["التقويم", "الإدارة الصفية وبيئة التعلم"]
+    assert [d for d, _ in ctx["domains"]] == [
+        "التخطيط",
+        "تنفيذ الدرس",
+        "التقويم",
+        "الإدارة الصفية وبيئة التعلم",
+    ]
 
 
-def test_the_title_repeats_on_the_second_page(db, observation, criteria):
-    """الأصل يُعيد العنوان ورؤوس الأعمدة في الصفحة الثانية."""
+def test_nothing_forces_a_second_page(db, observation, criteria):
+    """عنوانٌ واحد، وجدولٌ واحد للمعايير، ولا `break-before`."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert html.count('class="subject"') == 2, "العنوان مرّتان — لا ثلاثاً مع وسم <title>"
+    assert html.count('class="subject"') == 1
+    assert "break-before" not in html
+    assert html.count('class="grid"') == 1
 
 
 def test_a_self_assessment_is_titled_as_one(db, observation, criteria):
@@ -331,3 +357,16 @@ def test_a_missing_stored_font_is_simply_absent(db):
 
     assert "Traditional Arabic" not in css
     assert "Noto Naskh Arabic" in css
+
+
+def test_the_vision_is_included_never_written_here(source):
+    """نصُّ الرؤية في هذه الاستمارة يأتي من صورة المدرسة التي ترفعها هي،
+    ومن لم يرفعها يُذيَّل من المصدر الواحد.
+
+    وكان القالب يحمل نصّاً كتبتُه في جلسةٍ سابقة لا سندَ لديّ عليه، ويخالف
+    نصَّ رؤية المدرسة. سألت عنه المدرسةُ واعتمدت نصَّها، فحلّ في الجزئيّة
+    وحدها. ووثيقةٌ رسميةٌ لا تنسب إلى وزارةٍ قولاً بلا مصدر، ولا تكتبه
+    مرّتين فيختلفان.
+    """
+    assert 'include "components/ministry_vision.html"' in source
+    assert "الريادة في توفير" not in source, "يُضمَّن ولا يُنسخ"

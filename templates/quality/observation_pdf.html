@@ -7,8 +7,15 @@
     الورق        12240 × 15840 twip  =  Letter (8.5 × 11 بوصة)
     الهوامش      علوي 1620 · سفلي 1170 · يمين ويسار 720 twip
 
+والهامشان العلويّ والسفليّ ضُبطا على ارتفاع شريطَي الورق الرسميّ لا على
+رقمَي الأصل: الشريطان أقصر منهما بنحو نصف بوصة مجتمعةً، والفائض رُدّ إلى
+المتن ليكبُر خطُّه — والصفحةُ واحدة.
+
 واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لكل خليّة عنوان
 — عناوينِ الأعمدة وعناوينِ الحقول معاً؛ وقد أُحصيت سبعاً وخمسين مرّة فيه.
+
+والأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فجُمعت المجالات الأربعة في
+جدولٍ واحد، وصُغِّرت الأحجام حتى تسعها الصفحة.
 
 وخلايا التقدير فارغةٌ تُؤشَّر باليد كما في الأصل — فإن كان التقدير مُدخَلاً
 وُضعت علامته في خانته وحدها.
@@ -41,7 +48,13 @@
 <style>
 @page {
   size: 8.5in 11in;
-  margin: 1.125in 0.5in 0.8125in 0.5in;
+  /* هامشا الأصل 1.125 و0.8125 بوصة، والشريطان أقصر منهما بكثير
+     (0.878 و0.405). فضُبطا على ارتفاعهما وفضلةٍ يسيرة، والفائض
+     رُدَّ إلى المتن فكبُر خطُّه. */
+  /* الهامشان يسعان الشريطين وفسحةً حولهما: الترويسة 0.878 بوصة
+     والتذييل 0.367 عند عرض 6.8، وحول كلٍّ منهما 0.14 من فوقه
+     ومثلها من تحته — فلا يلتصق شريطٌ بحافّة ولا بمتن. */
+  margin: 1.08in 0.5in 0.65in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -57,15 +70,21 @@
 body {
   direction: rtl;
   font-family: 'Traditional Arabic', 'Noto Naskh Arabic', 'Amiri', serif;
-  font-size: 12pt;
-  line-height: 1.12;
+  font-size: 11.6pt;
+  line-height: 1.15;
   color: #000;
   background: #fff;
 }
 
-#sheet-header { position: running(sheet-header); width: 100%; }
-#sheet-footer { position: running(sheet-footer); width: 100%; }
-#sheet-header img, #sheet-footer img { width: 100%; display: block; }
+/* صندوق الهامش بلا عرضٍ محدَّد، فـ`width: 100%` لا تُحلّ عليه: تعود
+   الصورة إلى عرضها الطبيعيّ (٢٤١٠ بكسل ≈ ٢٥ بوصة) فتفيض ولا يظهر شيء —
+   وهو ما خرج من الإنتاج: صفرُ صورٍ في الملفّ بلا خطأٍ ولا شكوى.
+   فالعرض مطلق: ٨٫٥ بوصة ناقص هامشَين نصفِ بوصة. */
+/* الشريطان أضيق من المتن قليلاً ومتوسّطان، وحولهما فسحة — أهدأ من أن
+   يمتدّا بعرض الورقة كلّها ويلتصقا بحوافّها. */
+#sheet-header { position: running(sheet-header); width: 7.5in; padding: 0.14in 0; }
+#sheet-footer { position: running(sheet-footer); width: 7.5in; padding: 0.14in 0; }
+#sheet-header img, #sheet-footer img { width: 6.8in; display: block; margin: 0 auto; }
 
 /* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
 .plain-head { text-align: center; border-bottom: 2pt solid #943634; padding-bottom: 4pt; }
@@ -81,17 +100,17 @@ body {
 
 .form-title {
   text-align: center;
-  font-size: 15pt;
+  font-size: 14.5pt;
   font-weight: 700;
-  margin: 2pt 0 6pt;
+  margin: 2pt 0 5pt;
 }
 .form-title .subject { color: #943634; }
 
-table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 6pt; }
+table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 3pt; }
 td {
   border: 0.5pt solid #000;
-  padding: 0.5pt 3pt;
-  font-size: 11pt;
+  padding: 1pt 3.5pt;
+  font-size: 10.7pt;
   vertical-align: middle;
   text-align: right;
 }
@@ -104,8 +123,8 @@ td {
 .head {
   background: #DDD9C3;
   font-weight: 700;
-  font-size: 8.5pt;
-  line-height: 1.15;
+  font-size: 8.2pt;
+  line-height: 1.1;
   text-align: center;
   vertical-align: middle;
   /* رؤوسٌ ضيّقةٌ بنصٍّ طويل: بلا هذا يفيض النصّ خارج خليّته ويتراكب مع
@@ -115,6 +134,10 @@ td {
 }
 .center { text-align: center; }
 
+/* خطٌّ أسمك يفصل مجالاً عن مجال — الحدُّ العاديّ نصفُ نقطة،
+   فلا تكاد العينُ ترى أين ينتهي «التخطيط» ويبدأ «تنفيذ الدرس». */
+.domain-start td { border-top: 1.5pt solid #000; }
+
 /* الأصل يكتب رؤوس الأعمدة وعمود المجال عمودياً. وجُرّب
    `writing-mode: vertical-rl` فأخرج WeasyPrint حروفاً عربيةً مُشوَّهة
    ونفخ الجدول إلى خمس صفحات — فالكتابة العمودية ليست في وسعه مع العربية.
@@ -122,8 +145,8 @@ td {
 .vert { text-align: center; vertical-align: middle; padding: 2pt 1pt; }
 
 .rate { text-align: center; font-weight: 700; }
-.crit { font-size: 10pt; line-height: 1.15; }
-.rec { font-size: 10pt; }
+.crit { font-size: 9.7pt; line-height: 1.1; }
+.rec { font-size: 9.5pt; }
 
 /* عرضٌ مثبَّت: الخليّة الضيّقة لا تسحب عرض جارتها، وعمودُ المعايير
    يحتفظ بعرضه فلا تنكسر كل كلمةٍ على سطر. */
@@ -133,8 +156,10 @@ td {
 .c-rate   { width: 8.4%; }
 .c-rec    { width: 24%; }
 
-.notes { height: 120pt; vertical-align: top; }
-.sign { height: 30pt; }
+/* صندوق الملاحظات يمتصّ ما يفضل من الصفحة: هو موضع الكتابة
+   باليد، فكِبَرُه نفعٌ لا فراغ. */
+.notes { height: 38pt; vertical-align: top; }
+.sign { height: 22pt; }
 </style>
 </head>
 <body data-pdf-own-page>
@@ -154,7 +179,10 @@ td {
   {% if letterfoot %}
     <img src="{{ letterfoot }}" alt="">
   {% else %}
-    <div class="plain-foot">{% include "components/ministry_vision.html" %}</div>
+    {# تذييل المدرسة صورةٌ ترفعها هي، وفيها رؤيتها. ومن لم يرفعها يُذيَّل باسمه ورؤية الوزارة. #}
+    <div class="plain-foot">
+      {{ obs.school.name }} — {% include "components/ministry_vision.html" %}
+    </div>
   {% endif %}
 </div>
 
@@ -208,49 +236,39 @@ td {
   </tr>
 </table>
 
-{# ══ المجالات ومعايير الأداء ══ #}
-{% for block in blocks %}
-  {% if not forloop.first %}
-    <div style="break-before: page;"></div>
-    <div class="form-title">
-      استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
-    </div>
-  {% endif %}
-  <table class="grid">
-    <tr>
-      <td class="head c-domain">المجال</td>
-      <td class="head c-crit">معايير الأداء</td>
-      {% for value, label in ratings %}
-        <td class="head c-rate">{{ label }}</td>
-      {% endfor %}
-      <td class="head c-rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
-    </tr>
-    {% for domain, rows in block %}
-      {% for row in rows %}
-        <tr>
-          {% if forloop.first %}
-            <td class="head vert" rowspan="{{ rows|length }}">{{ domain }}</td>
-          {% endif %}
-          <td class="crit">{{ row.criterion.text }}</td>
-          {% for value, label in ratings %}
-            <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
-          {% endfor %}
-          <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
-        </tr>
-      {% endfor %}
+{# ══ المجالات ومعايير الأداء — جدولٌ واحدٌ في صفحةٍ واحدة ══ #}
+<table class="grid">
+  <tr>
+    <td class="head c-domain">المجال</td>
+    <td class="head c-crit">معايير الأداء</td>
+    {% for value, label in ratings %}
+      <td class="head c-rate">{{ label }}</td>
     {% endfor %}
-    {% if forloop.last %}
-      <tr><td class="head" colspan="8">ملاحظات وتوصيات عامّة</td></tr>
-      <tr><td class="notes" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
-      <tr>
-        <td class="band sign" colspan="2">توقيع المعلم</td>
-        <td class="sign" colspan="2"></td>
-        <td class="band sign" colspan="2">توقيع الزائر</td>
-        <td class="sign" colspan="2"></td>
+    <td class="head c-rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
+  </tr>
+  {% for domain, rows in domains %}
+    {% for row in rows %}
+      <tr{% if forloop.first %} class="domain-start"{% endif %}>
+        {% if forloop.first %}
+          <td class="head vert" rowspan="{{ rows|length }}">{{ domain }}</td>
+        {% endif %}
+        <td class="crit">{{ row.criterion.text }}</td>
+        {% for value, label in ratings %}
+          <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
+        {% endfor %}
+        <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
       </tr>
-    {% endif %}
-  </table>
-{% endfor %}
+    {% endfor %}
+  {% endfor %}
+  <tr><td class="head" colspan="8">ملاحظات وتوصيات عامّة</td></tr>
+  <tr><td class="notes" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
+  <tr>
+    <td class="band sign" colspan="2">توقيع المعلم</td>
+    <td class="sign" colspan="2"></td>
+    <td class="band sign" colspan="2">توقيع الزائر</td>
+    <td class="sign" colspan="2"></td>
+  </tr>
+</table>
 
 </body>
 </html>

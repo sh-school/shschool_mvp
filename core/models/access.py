@@ -60,7 +60,14 @@ ACADEMIC_ROLES = {
     "activities_coordinator",
 }
 # أدوار الطاقم بالكامل (بدون طلاب وأولياء أمور)
-ALL_STAFF_ROLES = TIER_1_LEADERSHIP | TIER_2_DEPUTIES | TIER_3_SUPERVISORS | TIER_4_STAFF
+#
+# ومعها `TIER_SYSTEM`: كان `platform_developer` خارجها، فيُردّ عن لوحة
+# التحكّم نفسها برسالة «ليس لديك صلاحية الوصول — دورك: platform_developer».
+# ولم يظهر ذلك لأنّ حساب المطوّر `superuser` و`role_required` يُمرّره —
+# فالدور معطَّلٌ في ذاته، ويعمل بصفةٍ أخرى.
+ALL_STAFF_ROLES = (
+    TIER_1_LEADERSHIP | TIER_2_DEPUTIES | TIER_3_SUPERVISORS | TIER_4_STAFF | TIER_SYSTEM
+)
 
 
 class Role(models.Model):

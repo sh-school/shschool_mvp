@@ -259,6 +259,29 @@ class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
+    def period_times(school: School, academic_year: str | None = None) -> dict:
+        """توقيت كل حصة — {رقم: (بداية، نهاية)}.
+
+        المصدر الأوّل `TimeSlotConfig`، فهو ما تُعلنه المدرسة. وهو فارغٌ في
+        هذه المنصّة، والأوقات موجودةٌ في الحصص نفسها ومتّسقة — فتُشتقّ منها
+        بالأكثر شيوعاً لكل حصة، لا من رقمٍ مكتوبٍ في الشيفرة يصير كذبةً يوم
+        تُغيّر المدرسة توقيتها.
+        """
+        from collections import Counter
+
+        academic_year = academic_year or academic_year_for_school(school)
+        rows = TimeSlotConfig.objects.filter(school=school, day_type="regular")
+        if rows.exists():
+            return {r.period_number: (r.start_time, r.end_time) for r in rows}
+
+        tally: dict[int, Counter] = {}
+        for period, start, end in ScheduleSlot.objects.filter(
+            school=school, academic_year=academic_year, is_active=True
+        ).values_list("period_number", "start_time", "end_time"):
+            tally.setdefault(period, Counter())[(start, end)] += 1
+        return {p: c.most_common(1)[0][0] for p, c in tally.items()}
+
+    @staticmethod
     def get_weekly_schedule(
         school: School,
         teacher: CustomUser | None = None,

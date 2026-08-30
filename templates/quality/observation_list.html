@@ -13,6 +13,7 @@
       <a href="{% url 'observation_archive' %}" class="btn-secondary btn-sm">الأرشيف</a>
       {% if can_create %}<a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>{% endif %}
       {% if can_self %}<a href="{% url 'observation_self_create' %}" class="btn-secondary btn-sm">+ تقييم ذاتي جديد</a>{% endif %}
+      {% if can_peer %}<a href="{% url 'observation_peer_create' %}" class="btn-secondary btn-sm">+ زيارة زميل</a>{% endif %}
     </div>
   </div>
 
@@ -80,7 +81,7 @@
         <td>{{ o.observer.full_name }}</td>
         <td>{{ o.subject.name_ar|default:"—" }}</td>
         <td class="col-num">{{ o.observation_date }}</td>
-        <td>{% if o.kind == "self" %}<span class="badge" style="background:#ede9fe;color:#6d28d9">تقييم ذاتي</span>{% else %}<span class="badge" style="background:#e0f2fe;color:#0369a1">إشرافية</span>{% endif %}</td>
+        <td>{% if o.kind == "self" %}<span class="badge" style="background:#ede9fe;color:#6d28d9">تقييم ذاتي</span>{% elif o.kind == "peer" %}<span class="badge" style="background:#dcfce7;color:#15803d">زيارة زميل</span>{% else %}<span class="badge" style="background:#e0f2fe;color:#0369a1">إشرافية</span>{% endif %}</td>
         <td class="col-num">
           {% if o.score_percent != None %}
             {% if o.score_percent >= 75 %}<span style="color:#15803d;font-weight:600">{{ o.score_percent }}%</span>

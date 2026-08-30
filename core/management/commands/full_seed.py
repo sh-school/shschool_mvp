@@ -193,7 +193,11 @@ class Command(BaseCommand):
                 continue
             user, c = CustomUser.objects.get_or_create(
                 national_id=nat_id,
-                defaults={"full_name": name, "email": email, "phone": phone, "is_staff": True},
+                # لا `is_staff` هنا: هو بابُ لوحة إدارة جانغو لا دورٌ في
+                # المنصّة، ومنحُه لكل موظّفٍ فتحه على ١٢٩ حساباً في
+                # الإنتاج — منهم اثنان وستّون معلّماً وتسعةُ أولياء أمور.
+                # ومن يلزمه البابُ يُفتح له بدوره لا بوظيفته.
+                defaults={"full_name": name, "email": email, "phone": phone},
             )
             if c:
                 user.set_password(self._seed_password)
@@ -202,8 +206,7 @@ class Command(BaseCommand):
             else:
                 user.full_name = name
                 user.email = email or user.email
-                user.is_staff = True
-                user.save(update_fields=["full_name", "email", "is_staff"])
+                user.save(update_fields=["full_name", "email"])
 
             Profile.objects.get_or_create(user=user)
             if "مدير المدرسه" in job_norm or "مدير المدرسة" in job_norm:
