@@ -298,8 +298,7 @@ td:has(.slot-empty) {
           {% with cell=grid|get_item:day_num|get_item:period %}
           <td>
             {% if cell %}
-              {# الخانة قائمةٌ دائماً. وحصّتان فيها تعنيان شعبةً انقسم طلابها
-                 بين مادّتين اختياريّتين في التوقيت نفسه. #}
+              {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
               {% for slot in cell %}
               <div class="slot-card slot-p{{ period }}{% if slot.elective_group %} slot-elective{% endif %}"
                    {% if not forloop.last %}style="margin-bottom:2px;"{% endif %}>

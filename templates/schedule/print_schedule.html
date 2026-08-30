@@ -265,8 +265,7 @@
         {% with cell=grid|get_item:day_num|get_item:period %}
         <td>
           {% if cell %}
-          {# الخانة قائمةٌ دائماً — وحصّتان فيها شعبةٌ انقسم طلابها بين
-             مادّتين اختياريّتين في التوقيت نفسه. #}
+          {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
           {% for slot in cell %}
           <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
