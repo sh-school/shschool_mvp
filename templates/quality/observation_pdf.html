@@ -152,8 +152,8 @@ td {
 <body data-pdf-own-page>
 
 <div id="sheet-header">
-  {% if obs.school.letterhead %}
-    <img src="{{ obs.school.letterhead.url }}" alt="">
+  {% if letterhead %}
+    <img src="{{ letterhead }}" alt="">
   {% else %}
     <div class="plain-head">
       <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
@@ -163,8 +163,8 @@ td {
 </div>
 
 <div id="sheet-footer">
-  {% if obs.school.letterfoot %}
-    <img src="{{ obs.school.letterfoot.url }}" alt="">
+  {% if letterfoot %}
+    <img src="{{ letterfoot }}" alt="">
   {% else %}
     <div class="plain-foot">{% include "components/ministry_vision.html" %}</div>
   {% endif %}

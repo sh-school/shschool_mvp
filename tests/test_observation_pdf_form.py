@@ -105,9 +105,34 @@ def test_no_school_name_is_written_into_the_template(source):
     assert "الشحانية" not in source
 
 
-def test_the_letterhead_is_read_from_the_school(source):
-    assert "obs.school.letterhead" in source
-    assert "obs.school.letterfoot" in source
+def test_the_letterhead_is_embedded_not_linked(source):
+    """الملفّات المرفوعة في القاعدة لا على قرص، و WeasyPrint يحلّ الروابط
+    النسبية على القرص من `BASE_DIR` — فيبحث عن ملفٍّ لا وجود له ويطبع
+    الصفحة بلا ترويسة، بلا خطأٍ ولا شكوى. فتُضمَّن الصورة."""
+    assert "{{ letterhead }}" in source
+    assert "letterhead.url" not in source
+    assert "letterfoot.url" not in source
+
+
+def test_the_embedded_letterhead_is_a_data_uri(db, observation):
+    """الترويسة تُقرأ من القاعدة وتُضمَّن — لا رابطَ يُحلّ على قرصٍ لا يحملها."""
+    import base64
+    import io
+
+    from django.core.files.base import ContentFile
+
+    from quality.observation_views import _pdf_context
+
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    observation.school.letterhead.save("head.png", ContentFile(png), save=True)
+
+    ctx = _pdf_context(observation)
+
+    assert ctx["letterhead"].startswith("data:image/png;base64,")
+    assert ctx["letterfoot"] == "", "ما لم يُرفع يبقى فارغاً"
+    assert io  # noqa: B018 — الاستيراد يوثّق أنّ القراءة ثنائية
 
 
 def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
