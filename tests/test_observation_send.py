@@ -232,15 +232,15 @@ def test_the_letterhead_markup_reads_the_school_not_a_hardcoded_name(
 ):
     from django.template.loader import render_to_string
 
-    from quality.observation_views import _groups_with_scores
+    from quality.observation_views import _pdf_context
 
     obs = _make_obs(school, principal_user, teacher_user)
-    html = render_to_string(
-        "quality/observation_pdf.html",
-        {"obs": obs, "grouped": _groups_with_scores(obs), "rating_choices": []},
-    )
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
 
-    assert "doc-header" in html
+    # صارت الاستمارة طبق الأصل من نموذج المدرسة، وشريطاها صورتان في
+    # بياناتها. ومن لم يرفعهما — كهذه المدرسة في الاختبار — يُبنَ له
+    # عنوانٌ نصّيّ من اسمه هو، لا ترويسةُ مدرسةٍ أخرى.
+    assert "plain-head" in html
     assert "وزارة التربية والتعليم والتعليم العالي" in html
     assert school.name in html
 

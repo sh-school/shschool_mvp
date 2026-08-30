@@ -85,6 +85,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         verbose_name="تاريخ انتهاء الرخصة المهنية",
     )
 
+    #: الرقم الوظيفي الذي تعرف به الوزارةُ الموظّف — غير الرقم الشخصي وغير
+    #: الرخصة المهنية. وبه تُراسَل الوزارةُ في شؤون الموظّف، ولم يكن له موضعٌ
+    #: في المنصّة فكان يُحفظ خارجها.
+    employee_number = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        db_index=True,
+        verbose_name="الرقم الوظيفي",
+        help_text="رقم الموظّف لدى وزارة التربية والتعليم والتعليم العالي",
+    )
+
     # ── v5.1.1: HMAC + Fernet encryption for national_id (PDPPL) ──
     national_id_encrypted = models.TextField(
         blank=True,
@@ -106,6 +118,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     class Meta:
         verbose_name = "مستخدم"
         verbose_name_plural = "المستخدمون"
+        constraints = [
+            # رقمان وظيفيّان متطابقان خطأُ إدخالٍ لا واقع. والشرط يستثني
+            # الفراغ: أكثرُ السجلّات بلا رقمٍ وظيفيّ بعد.
+            models.UniqueConstraint(
+                fields=["employee_number"],
+                condition=~models.Q(employee_number=""),
+                name="unique_employee_number",
+            ),
+        ]
 
     def __str__(self):
         # PDPPL [PII-02]: لا نُدرج الرقم الشخصي في التمثيل النصّي لأنه يتسرّب

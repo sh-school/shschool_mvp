@@ -262,12 +262,15 @@
       <tr>
         <td class="period-cell">{{ period }}</td>
         {% for day_num, day_name in days %}
-        {% with slot=grid|get_item:day_num|get_item:period %}
+        {% with cell=grid|get_item:day_num|get_item:period %}
         <td>
-          {% if slot %}
+          {% if cell %}
+          {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
+          {% for slot in cell %}
           <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
           {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
+          {% endfor %}
           {% else %}
           <div class="slot-empty">—</div>
           {% endif %}

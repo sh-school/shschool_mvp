@@ -43,24 +43,27 @@ def _row(cg="cg", day=0, period=1, subject="الكيمياء", teacher="t1", nam
 # ── الحصة المنقسمة ────────────────────────────────────────────────────
 
 
-def test_the_second_half_of_a_split_is_named_not_swallowed():
-    """حصّتان لشعبةٍ في التوقيت نفسه: القيد يرفض الثانية، فتُقال."""
+def test_both_halves_of_a_split_are_kept_and_named():
+    """كلا النصفين يُحقن، ولكلٍّ مجموعتُه — فيسعهما القيد.
+
+    كانت الثانية تُفصل وتُقال ولا تُحقن، فيرى المعلّم والطالب خليّةً ناقصة.
+    """
     rows = [_row(period=1), _row(period=1, subject="الفنون البصرية"), _row(period=2)]
 
-    parallel = Command()._separate_parallel_periods(rows)
+    parallel = Command()._label_parallel_periods(rows)
 
-    assert len(rows) == 2, "الثانية أُخرجت من الحقن"
+    assert len(rows) == 3, "لم يُفصل شيء"
     assert len(parallel) == 1
-    kept, dropped = parallel[0]
-    assert (kept["subject_name"], dropped["subject_name"]) == ("الكيمياء", "الفنون البصرية")
+    assert [r["subject_name"] for r in parallel[0]] == ["الكيمياء", "الفنون البصرية"]
+    assert [r["elective_group"] for r in parallel[0]] == ["الكيمياء", "الفنون البصرية"]
 
 
-def test_an_ordinary_timetable_has_nothing_parallel():
-    """حارسٌ يُبلّغ دائماً لا يُبلّغ عن شيء."""
+def test_an_ordinary_period_carries_no_elective_group():
+    """المجموعة فارغةٌ في حصص الشعبة كاملةً — وعليها يبقى القيد كما كان."""
     rows = [_row(period=p) for p in (1, 2, 3)]
 
-    assert Command()._separate_parallel_periods(rows) == []
-    assert len(rows) == 3
+    assert Command()._label_parallel_periods(rows) == []
+    assert {r["elective_group"] for r in rows} == {""}
 
 
 def test_each_teacher_gets_the_subject_the_school_declared():

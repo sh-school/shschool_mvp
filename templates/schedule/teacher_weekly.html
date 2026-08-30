@@ -46,10 +46,13 @@
         <td class="font-bold bg-gray-50">ح{{ p }}</td>
         {% for d_num, d_name in days %}
         <td class="{% if grid|default_if_none:"" %}{% with day_data=grid|default_if_none:"" %}{% endwith %}{% endif %}">
-          {% with slot=grid|dictkey:d_num|dictkey:p %}
-            {% if slot %}
+          {% with cell=grid|dictkey:d_num|dictkey:p %}
+            {% if cell %}
+              {# الخانة قائمةٌ دائماً — والمعلّم لا يكون في حصّتين معاً. #}
+              {% for slot in cell %}
               <span class="slot-subject">{{ slot.subject|default:"—" }}</span>
               <span class="slot-class">{{ slot.class_group }}</span>
+              {% endfor %}
             {% else %}
               <span class="text-xs text-emerald-600">حرة</span>
             {% endif %}

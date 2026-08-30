@@ -96,6 +96,20 @@ def _inject_fonts(html_str: str) -> str:
 # ── WeasyPrint: حقن CSS الهيدر/الفوتر على كل صفحة ───────────────────────
 
 
+#: علامةٌ يضعها قالبٌ يتولّى صفحته كاملةً — ورقَها وهوامشها وترويستها
+#: وخطّها. فلا يُحقن فوقه شيء.
+#:
+#: وكان الاستثناء مربوطاً باسم صنفٍ في الترويسة القديمة (`doc-header`)،
+#: فحين أُعيدت كتابة استمارة الإشراف لتطابق نموذج المدرسة سقط الاسم
+#: وعاد الحقن: ترويسةُ المنصّة فوق ترويسة المدرسة، وخطُّها فوق خطّها،
+#: وهوامشُ A4 فوق ورق Letter. والعلامةُ المُعلَنة أصدق من اسمٍ عابر.
+OWN_PAGE_FURNITURE = "data-pdf-own-page"
+
+
+def _owns_its_page(html_str: str) -> bool:
+    return OWN_PAGE_FURNITURE in html_str or "doc-header" in html_str
+
+
 def _inject_wp_page_header_css(
     html_str: str, school: str, title: str, paper_size: str = "A4"
 ) -> str:
@@ -105,8 +119,7 @@ def _inject_wp_page_header_css(
     2. div running header في body
     (لا يؤثر على xhtml2pdf لأن هذا الكود يُنفَّذ فقط في مسار WeasyPrint)
     """
-    # القوالب التي لديها هيدر/فوتر خاص بها لا تحتاج حقن إضافي
-    if "doc-header" in html_str:
+    if _owns_its_page(html_str):
         return html_str
     today_str = timezone.now().strftime("%Y/%m/%d")
     title_part = f" — {title}" if title else ""
