@@ -84,12 +84,11 @@ def test_the_header_repeats_on_every_page(source):
     assert "@bottom-center" in source and "running(sheet-footer)" in source
 
 
-def test_the_checkbox_is_drawn_not_a_glyph(source):
-    """الأصل يرسمها بحرف Webdings، وخطُّ الرموز غيرُ مضمونٍ على الخادم —
-    وحرفٌ لا يجد خطّه يطبع مربّعاً فارغاً في موضع علامةٍ مُثبتة."""
-    assert "font-family: 'Webdings'" not in source
+def test_the_rating_cells_are_left_empty_to_be_ticked(source):
+    """الأصل يترك خلايا التقدير فارغةً تُؤشَّر باليد، ولا يرسم فيها مربّعات.
+    فإن كان التقدير مُدخَلاً وُضعت علامته في خانته وحدها."""
     assert "Webdings'," not in source
-    assert ".box" in source and "border: 0.75pt solid #000" in source
+    assert ".box" not in source, "خلايا التقدير فارغةٌ تُؤشَّر باليد كما في الأصل"
 
 
 # ── الترويسة بيانات مدرسةٍ لا ثابتُ قالب ──────────────────────────────
@@ -136,7 +135,7 @@ def test_the_title_repeats_on_the_second_page(db, observation, criteria):
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert html.count("استمارة الإشراف على أداء المعلّم —") == 2
+    assert html.count('class="subject"') == 2, "العنوان مرّتان — لا ثلاثاً مع وسم <title>"
 
 
 def test_a_self_assessment_is_titled_as_one(db, observation, criteria):
@@ -144,7 +143,7 @@ def test_a_self_assessment_is_titled_as_one(db, observation, criteria):
 
     observation.kind = "self"
 
-    assert "التقييم الذاتي" in _pdf_context(observation)["form_title"]
+    assert "التقييم الذاتي" in _pdf_context(observation)["form_subject"]
 
 
 # ── القيم المُدخلة تظهر ───────────────────────────────────────────────
@@ -165,5 +164,41 @@ def test_the_chosen_rating_is_the_only_ticked_box(db, observation, criteria):
 
     # ثلاث علاماتٍ لا واحدة: تقديرُ المعيار، ومعهما «ميدانيّة» و«كلّيّة»
     # في جدول المعلومات — وكلاهما مُدخَلٌ في الزيارة نفسها.
-    assert html.count('class="box on"') == 3
+    assert html.count("✓") == 3
     assert "توصيةٌ محدّدة." in html
+
+
+# ── لا تُحقن ترويسةُ المنصّة فوق ترويسة المدرسة ───────────────────────
+
+
+def test_the_template_declares_that_it_owns_its_page(source):
+    """`pdf_utils` يحقن ترويسة المنصّة وخطّها وهوامش A4 في كل ملفّ إلّا ما
+    أعلن أنّه يتولّى صفحته.
+
+    وكان الاستثناء مربوطاً باسم صنفٍ في الترويسة القديمة (`doc-header`)،
+    فلمّا أُعيدت كتابة الاستمارة سقط الاسم وعاد الحقن صامتاً: ترويسةُ
+    المنصّة فوق ترويسة المدرسة، وخطُّ Tajawal فوق الخطّ المطلوب، وهوامشُ
+    A4 فوق ورق Letter. ولم يشكُ شيء — خرج الملفّ وهو غيرُ الاستمارة.
+    """
+    from core.pdf_utils import OWN_PAGE_FURNITURE, _owns_its_page
+
+    assert OWN_PAGE_FURNITURE in source
+    assert _owns_its_page(source), "لا يُحقن فوق هذا القالب شيء"
+
+
+def test_the_platform_furniture_is_not_injected(db, observation):
+    from core.pdf_utils import _inject_wp_page_header_css
+    from quality.observation_views import _pdf_context
+
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+
+    assert _inject_wp_page_header_css(html, "مدرسة", "عنوان") == html
+
+
+def test_an_ordinary_template_still_gets_the_furniture():
+    """الاستثناء لهذا القالب وحده — لا تخفيفٌ عامّ."""
+    from core.pdf_utils import _inject_wp_page_header_css
+
+    plain = "<html><head><style></style></head><body><p>تقرير</p></body></html>"
+
+    assert _inject_wp_page_header_css(plain, "مدرسة", "عنوان") != plain

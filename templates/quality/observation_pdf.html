@@ -6,20 +6,21 @@
 
     الورق        12240 × 15840 twip  =  Letter (8.5 × 11 بوصة)
     الهوامش      علوي 1620 · سفلي 1170 · يمين ويسار 720 twip
-    الترويسة     720 twip من الحافّة · التذييل 187
 
-واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لأرضيّة رؤوس
-الأعمدة. والشريطان العلويّ والسفليّ صورتا المدرسة بأصلهما — من بياناتها
-لا من هذا القالب، فالمنصّة متعدّدة المدارس وصورةٌ مكتوبةٌ هنا تطبع ترويسة
-مدرسةٍ على وثيقة أخرى. ومن لم يرفعهما يُبنَ له عنوانٌ نصّيّ.
+واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لكل خليّة عنوان
+— عناوينِ الأعمدة وعناوينِ الحقول معاً؛ وقد أُحصيت سبعاً وخمسين مرّة فيه.
 
-والخطّ: الأصل بـ«Traditional Arabic» و«Sakkal Majalla»، وكلاهما مرخَّصٌ
-لمايكروسوفت لا يُوزَّع مع تطبيق. فيُطلبان أوّلاً — فيظهران حيث كانا
-مثبَّتَين — ويُسقَط إلى Amiri، وهو نسخيٌّ حرٌّ قريبُ الملامح.
+ورؤوس أعمدة التقدير وعمودُ المجال مكتوبةٌ عمودياً كما في الأصل، وخلايا
+التقدير فارغةٌ تُؤشَّر باليد — فإن كان التقدير مُدخَلاً وُضعت علامته في
+خانته وحدها.
 
-وخانة الاختيار مربّعٌ مرسومٌ بالحدود لا حرفُ Webdings كما في الأصل: خطُّ
-الرموز غيرُ مضمونٍ على الخادم، وحرفٌ لا يجد خطّه يطبع مربّعاً فارغاً في
-موضع علامةٍ مُثبتة.
+و`data-pdf-own-page` تُعلن أنّ هذا القالب يتولّى صفحته كاملةً: ورقَها
+وهوامشها وترويستها وخطّها. فلا يحقن `pdf_utils` فوقه ترويسة المنصّة.
+
+والخطّ: الأصل بـ«Traditional Arabic». وهو مرخَّصٌ لمايكروسوفت، فلا يُودَع
+في المستودع — لكنّ `@font-face` أدناه يشير إلى موضعه: فمتى وُضع الملفّ في
+`static/fonts/trado.ttf` عمل بلا تغيير شيفرة. ودونه يسقط إلى Amiri، وهو
+نسخيٌّ حرٌّ قريبُ الملامح.
 {% endcomment %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -27,6 +28,16 @@
 <meta charset="UTF-8">
 <title>استمارة الإشراف على أداء المعلّم</title>
 <style>
+@font-face {
+  font-family: 'Traditional Arabic';
+  src: url('{% static "fonts/trado.ttf" %}') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Traditional Arabic';
+  src: url('{% static "fonts/tradbdo.ttf" %}') format('truetype');
+  font-weight: 700;
+}
 @font-face {
   font-family: 'Amiri';
   src: url('{% static "fonts/Amiri-Regular.ttf" %}') format('truetype');
@@ -56,8 +67,8 @@
 body {
   direction: rtl;
   font-family: 'Traditional Arabic', 'Sakkal Majalla', 'Amiri', serif;
-  font-size: 12pt;
-  line-height: 1.3;
+  font-size: 13pt;
+  line-height: 1.15;
   color: #000;
   background: #fff;
 }
@@ -67,11 +78,7 @@ body {
 #sheet-header img, #sheet-footer img { width: 100%; display: block; }
 
 /* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
-.plain-head {
-  text-align: center;
-  border-bottom: 2pt solid #943634;
-  padding-bottom: 4pt;
-}
+.plain-head { text-align: center; border-bottom: 2pt solid #943634; padding-bottom: 4pt; }
 .plain-head .ministry { font-size: 10pt; color: #444; }
 .plain-head .school { font-size: 14pt; font-weight: 700; color: #943634; }
 .plain-foot {
@@ -84,66 +91,48 @@ body {
 
 .form-title {
   text-align: center;
-  font-size: 17pt;
+  font-size: 15pt;
   font-weight: 700;
-  color: #943634;
-  margin-bottom: 6pt;
+  margin: 2pt 0 6pt;
 }
+.form-title .subject { color: #943634; }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  direction: rtl;
-  margin-bottom: 8pt;
-}
-th, td {
+table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 6pt; }
+td {
   border: 0.5pt solid #000;
-  padding: 2pt 4pt;
+  padding: 1pt 3pt;
   font-size: 12pt;
   vertical-align: middle;
   text-align: right;
 }
 
-/* شريط عنوان القسم: أبيضُ على العنّابي، كما في الأصل */
-.band {
-  background: #943634;
-  color: #FFFFFF;
-  font-weight: 700;
-  font-size: 13pt;
-  text-align: center;
-}
+/* شريط القسم: أبيضُ على العنّابي */
+.band { background: #943634; color: #FFFFFF; font-weight: 700; text-align: center; }
 
-/* رؤوس أعمدة التقدير: أرضيّةٌ رمليّة */
-.head {
-  background: #DDD9C3;
-  font-weight: 700;
-  font-size: 11pt;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.label { font-weight: 700; white-space: nowrap; }
-.domain { font-weight: 700; text-align: center; vertical-align: middle; }
+/* كل خليّة عنوان: أرضيّةٌ رمليّة — عناوين الحقول والأعمدة معاً */
+.key { background: #DDD9C3; font-weight: 700; white-space: nowrap; }
+.head { background: #DDD9C3; font-weight: 700; text-align: center; vertical-align: middle; }
 .center { text-align: center; }
 
-.box {
-  display: inline-block;
-  width: 10pt;
-  height: 10pt;
-  border: 0.75pt solid #000;
-  vertical-align: -1pt;
+/* الكتابة العمودية في رؤوس الأعمدة وعمود المجال — كما في الأصل.
+   والدوران 180 يجعلها تُقرأ من الأسفل إلى الأعلى كالورقة. */
+.vert {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
   text-align: center;
-  line-height: 9pt;
-  font-size: 9pt;
-  font-weight: 700;
+  padding: 3pt 1pt;
 }
-.box.on::after { content: "\2713"; }
 
-.notes { height: 72pt; vertical-align: top; text-align: right; }
-.sign { height: 42pt; vertical-align: top; }
+.rate { width: 6%; text-align: center; font-weight: 700; }
+.crit { font-size: 11.5pt; line-height: 1.2; }
+.rec { width: 24%; font-size: 11pt; }
+
+.notes { height: 150pt; vertical-align: top; }
+.sign { height: 30pt; }
 </style>
 </head>
-<body>
+<body data-pdf-own-page>
 
 <div id="sheet-header">
   {% if obs.school.letterhead %}
@@ -164,50 +153,53 @@ th, td {
   {% endif %}
 </div>
 
-<div class="form-title">{{ form_title }} — العام الأكاديميّ {{ academic_year }}</div>
+<div class="form-title">
+  استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
+</div>
 
 {# ══ المعلومات الأساسيّة ══ #}
 <table>
-  <tr><td class="band" colspan="8">المعلومات الأساسيّة</td></tr>
+  <tr><td class="band" colspan="12">المعلومات الأساسيّة</td></tr>
   <tr>
-    <td class="label">المــدرسة</td>
-    <td colspan="3">{{ obs.school.name }}</td>
-    <td class="label">اليوم/التاريخ</td>
-    <td colspan="3">{{ obs.observation_date|date:"Y/m/d" }}</td>
+    <td class="key" style="width:8%">المــدرسة</td>
+    <td colspan="5">{{ obs.school.name }}</td>
+    <td class="key" colspan="2" style="width:11%">اليوم/التاريخ</td>
+    <td colspan="4">{{ obs.observation_date|date:"Y/m/d" }}</td>
   </tr>
   <tr>
-    <td class="label">المادّة</td>
+    <td class="key">المادّة</td>
     <td colspan="3">{{ obs.subject.name_ar|default:"" }}</td>
-    <td class="label">الصّف</td>
-    <td>{{ obs.class_group|default:"" }}</td>
-    <td class="label">الحصة</td>
-    <td>{{ obs.period|default:"" }}</td>
+    <td class="key">الصّف</td>
+    <td colspan="3">{{ obs.class_group|default:"" }}</td>
+    <td class="key">الحصة</td>
+    <td colspan="3">{{ obs.period|default:"" }}</td>
   </tr>
   <tr>
-    <td class="label">الموضوع</td>
-    <td colspan="5">{{ obs.topic }}</td>
-    <td class="label">الزائر</td>
-    <td>{{ obs.observer.full_name }}</td>
+    <td class="key">الموضوع</td>
+    <td colspan="6">{{ obs.topic }}</td>
+    <td class="key">الزائر</td>
+    <td colspan="4">{{ obs.observer.full_name }}</td>
+  </tr>
+  {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
+  <tr>
+    <td class="key" rowspan="2">المعلّم</td>
+    <td colspan="2" rowspan="2">{{ obs.teacher.full_name }}</td>
+    <td class="key">نوع المتابعة</td>
+    <td class="key center">ميدانيّة</td>
+    <td class="center">{% if obs.follow_up_mode == 'field' %}✓{% endif %}</td>
+    <td class="key center">عن بُعد</td>
+    <td class="center">{% if obs.follow_up_mode == 'remote' %}✓{% endif %}</td>
+    <td class="key center">جزئيّة</td>
+    <td class="center">{% if obs.follow_up_scope == 'partial' %}✓{% endif %}</td>
+    <td class="key center">كلّيّة</td>
+    <td class="center">{% if obs.follow_up_scope == 'full' %}✓{% endif %}</td>
   </tr>
   <tr>
-    <td class="label">المعلّم</td>
-    <td colspan="3">{{ obs.teacher.full_name }}</td>
-    <td class="label">نوع المتابعة</td>
-    <td class="center">
-      <span class="box{% if obs.follow_up_mode == 'field' %} on{% endif %}"></span> ميدانيّة
-      &nbsp;
-      <span class="box{% if obs.follow_up_mode == 'remote' %} on{% endif %}"></span> عن بُعد
-    </td>
-    <td class="center" colspan="2">
-      <span class="box{% if obs.follow_up_scope == 'partial' %} on{% endif %}"></span> جزئيّة
-      &nbsp;
-      <span class="box{% if obs.follow_up_scope == 'full' %} on{% endif %}"></span> كليّة
-    </td>
-  </tr>
-  <tr>
-    <td colspan="4"></td>
-    <td class="label">ملاحظات</td>
-    <td colspan="3">{{ obs.broadcast_note }}</td>
+    <td class="key">ملاحظات</td>
+    <td class="key center" colspan="2">بث مباشر مدمج</td>
+    <td class="center">{% if obs.broadcast_note == 'بث مباشر مدمج' %}✓{% endif %}</td>
+    <td class="key center" colspan="3">بث مباشر غير مدمج</td>
+    <td class="center" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
   </tr>
 </table>
 
@@ -215,49 +207,45 @@ th, td {
 {% for block in blocks %}
   {% if not forloop.first %}
     <div style="break-before: page;"></div>
-    <div class="form-title">{{ form_title }} — العام الأكاديميّ {{ academic_year }}</div>
+    <div class="form-title">
+      استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
+    </div>
   {% endif %}
   <table>
     <tr>
-      <td class="head" style="width:11%">المجال</td>
-      <td class="head" style="width:32%">معايير الأداء</td>
+      <td class="head vert" style="width:4%">المجال</td>
+      <td class="head" style="width:36%">معايير الأداء</td>
       {% for value, label in ratings %}
-        <td class="head" style="width:7%">{{ label }}</td>
+        <td class="head vert rate">{{ label }}</td>
       {% endfor %}
-      <td class="head" style="width:22%">
-        التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)
-      </td>
+      <td class="head rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
     </tr>
     {% for domain, rows in block %}
       {% for row in rows %}
         <tr>
           {% if forloop.first %}
-            <td class="domain" rowspan="{{ rows|length }}">{{ domain }}</td>
+            <td class="head vert" rowspan="{{ rows|length }}">{{ domain }}</td>
           {% endif %}
-          <td>{{ row.criterion.text }}</td>
+          <td class="crit">{{ row.criterion.text }}</td>
           {% for value, label in ratings %}
-            <td class="center">
-              <span class="box{% if row.score and row.score.rating == value %} on{% endif %}"></span>
-            </td>
+            <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
           {% endfor %}
-          <td>{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
+          <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
         </tr>
       {% endfor %}
     {% endfor %}
+    {% if forloop.last %}
+      <tr><td class="head" colspan="8">ملاحظات وتوصيات عامّة</td></tr>
+      <tr><td class="notes" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
+      <tr>
+        <td class="band sign" colspan="2">توقيع المعلم</td>
+        <td class="sign" colspan="2"></td>
+        <td class="band sign" colspan="2">توقيع الزائر</td>
+        <td class="sign" colspan="2"></td>
+      </tr>
+    {% endif %}
   </table>
 {% endfor %}
-
-{# ══ الملاحظات والتواقيع ══ #}
-<table>
-  <tr><td class="band" colspan="4">ملاحظات وتوصيات عامّة</td></tr>
-  <tr><td class="notes" colspan="4">{{ obs.general_notes|linebreaksbr }}</td></tr>
-  <tr>
-    <td class="label" style="width:15%">توقيع المعلم</td>
-    <td class="sign" style="width:35%"></td>
-    <td class="label" style="width:15%">توقيع الزائر</td>
-    <td class="sign" style="width:35%"></td>
-  </tr>
-</table>
 
 </body>
 </html>

@@ -188,10 +188,8 @@ def _pdf_context(obs):
         "blocks": [b for b in (first, rest) if b],
         "ratings": RATING_CHOICES,
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
-        "form_title": (
-            "استمارة التقييم الذاتي للمعلّم"
-            if obs.kind == "self"
-            else "استمارة الإشراف على أداء المعلّم"
+        "form_subject": (
+            "التقييم الذاتي للمعلّم" if obs.kind == "self" else "الإشراف على أداء المعلّم"
         ),
     }
 
