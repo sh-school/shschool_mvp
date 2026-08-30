@@ -165,6 +165,37 @@ def _get_observation(request, obs_id):
     return obs, allowed
 
 
+#: المجالات المطبوعة على الصفحة الأولى — كما في نموذج المدرسة الورقيّ.
+#: الأصل يفصل بعد «تنفيذ الدرس» ويُعيد العنوان ورؤوس الأعمدة في الثانية،
+#: فالقسمة قصدٌ لا نتيجةَ امتلاء صفحة.
+FIRST_PAGE_DOMAINS = ("التخطيط", "تنفيذ الدرس")
+
+
+def _pdf_context(obs):
+    """سياق الاستمارة المطبوعة — طبق الأصل من نموذج المدرسة.
+
+    والمعايير تُقسَّم صفحتين بالمجال لا بالطول: الأصل يبدأ الصفحة الثانية
+    بـ«التقويم»، ولو تُركت للتدفّق لانقطع مجالٌ في منتصفه.
+    """
+    grouped = [
+        (label, [{"criterion": c, "score": s} for c, s in rows])
+        for label, rows in _groups_with_scores(obs)
+    ]
+    first = [g for g in grouped if g[0] in FIRST_PAGE_DOMAINS]
+    rest = [g for g in grouped if g[0] not in FIRST_PAGE_DOMAINS]
+    return {
+        "obs": obs,
+        "blocks": [b for b in (first, rest) if b],
+        "ratings": RATING_CHOICES,
+        "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
+        "form_title": (
+            "استمارة التقييم الذاتي للمعلّم"
+            if obs.kind == "self"
+            else "استمارة الإشراف على أداء المعلّم"
+        ),
+    }
+
+
 def _groups_with_scores(obs):
     scores = {str(s.criterion_id): s for s in obs.scores.select_related("criterion")}
     return [
@@ -529,10 +560,7 @@ def observation_pdf(request, obs_id):
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
         return render(request, "403.html", status=403)
-    html = render_to_string(
-        "quality/observation_pdf.html",
-        {"obs": obs, "grouped": _groups_with_scores(obs), "rating_choices": RATING_CHOICES},
-    )
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
     return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
 
 

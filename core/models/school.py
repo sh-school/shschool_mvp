@@ -104,6 +104,25 @@ class School(models.Model):
         help_text="يُفضل PNG شفاف بحجم 200x200 بكسل على الأقل",
     )
 
+    # شريطا الورق الرسميّ كما تعتمدهما المدرسة: الوزارة والشعار واسمها في
+    # الأعلى، والرؤية في الأسفل. وهما بيانات مدرسةٍ لا ثوابتُ قالب —
+    # فالمنصّة متعدّدة المدارس، وصورةٌ مكتوبةٌ في القالب تطبع ترويسة مدرسةٍ
+    # على وثيقة أخرى. ومن لم يرفعهما يُبنَ له عنوانٌ نصّيٌّ من اسمه.
+    letterhead = models.ImageField(
+        upload_to="schools/letterhead/",
+        blank=True,
+        null=True,
+        verbose_name="ترويسة المطبوعات",
+        help_text="شريط عرضيّ يعلو كل صفحة — يُفضّل PNG بعرض 2400 بكسل",
+    )
+    letterfoot = models.ImageField(
+        upload_to="schools/letterhead/",
+        blank=True,
+        null=True,
+        verbose_name="تذييل المطبوعات",
+        help_text="شريط عرضيّ يُذيّل كل صفحة — يُفضّل PNG بعرض 2400 بكسل",
+    )
+
     # ── النظام ────────────────────────────────────────────────────
     is_active = models.BooleanField(default=True, verbose_name="نشطة")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")

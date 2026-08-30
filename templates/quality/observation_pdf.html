@@ -1,95 +1,263 @@
+{% load static %}
+{% comment %}
+استمارة الإشراف على أداء المعلّم — طبق الأصل من نموذج المدرسة (docx).
+
+القياسات من `sectPr` في الملفّ الأصل لا مُقدَّرةً بالعين:
+
+    الورق        12240 × 15840 twip  =  Letter (8.5 × 11 بوصة)
+    الهوامش      علوي 1620 · سفلي 1170 · يمين ويسار 720 twip
+    الترويسة     720 twip من الحافّة · التذييل 187
+
+واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لأرضيّة رؤوس
+الأعمدة. والشريطان العلويّ والسفليّ صورتا المدرسة بأصلهما — من بياناتها
+لا من هذا القالب، فالمنصّة متعدّدة المدارس وصورةٌ مكتوبةٌ هنا تطبع ترويسة
+مدرسةٍ على وثيقة أخرى. ومن لم يرفعهما يُبنَ له عنوانٌ نصّيّ.
+
+والخطّ: الأصل بـ«Traditional Arabic» و«Sakkal Majalla»، وكلاهما مرخَّصٌ
+لمايكروسوفت لا يُوزَّع مع تطبيق. فيُطلبان أوّلاً — فيظهران حيث كانا
+مثبَّتَين — ويُسقَط إلى Amiri، وهو نسخيٌّ حرٌّ قريبُ الملامح.
+
+وخانة الاختيار مربّعٌ مرسومٌ بالحدود لا حرفُ Webdings كما في الأصل: خطُّ
+الرموز غيرُ مضمونٍ على الخادم، وحرفٌ لا يجد خطّه يطبع مربّعاً فارغاً في
+موضع علامةٍ مُثبتة.
+{% endcomment %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
+<title>استمارة الإشراف على أداء المعلّم</title>
 <style>
-  @page { size: A4; margin: 1.4cm 1.2cm; }
-  * { box-sizing: border-box; }
-  body { font-family: 'Tajawal','Amiri',sans-serif; font-size: 10pt; color: #1a1a1a; }
-  h1 { font-size: 14pt; text-align: center; color: #8A1538; margin: 0 0 2px; }
-  .sub { text-align: center; font-size: 9pt; color: #555; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  th, td { border: 1px solid #888; padding: 3px 5px; vertical-align: top; }
-  th { background: #8A1538; color: #fff; font-size: 8.5pt; text-align: center; }
-  .info td { font-size: 9pt; }
-  .info b { color: #8A1538; }
-  .domain { background: #f3e6ea; font-weight: bold; color: #8A1538; }
-  .crit td { font-size: 8.5pt; }
-  .mark { text-align: center; font-weight: bold; }
-  .sign { margin-top: 16px; display: flex; justify-content: space-between; font-size: 9pt; }
-  .sign div { width: 45%; border-top: 1px solid #888; padding-top: 4px; text-align: center; }
+@font-face {
+  font-family: 'Amiri';
+  src: url('{% static "fonts/Amiri-Regular.ttf" %}') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Amiri';
+  src: url('{% static "fonts/Amiri-Bold.ttf" %}') format('truetype');
+  font-weight: 700;
+}
 
-  /* ── ترويسة المدرسة ─────────────────────────────────────────────
-     البيانات من obs.school لا نصّاً مُثبَّتاً: المنصّة متعدّدة المدارس،
-     واسمٌ مكتوبٌ في القالب يطبع ترويسة مدرسةٍ أخرى على وثيقة هذه. */
-  .doc-header { text-align: center; padding-bottom: 8px; margin-bottom: 10px;
-                border-bottom: 2px solid #8A1538; }
-  .doc-header-logo { width: 52px; height: 52px; margin: 0 auto 4px; display: block;
-                     object-fit: contain; }
-  .doc-header-ministry { font-size: 8.5pt; color: #555; font-weight: 600; margin-bottom: 2px; }
-  .doc-header-school { font-size: 12pt; font-weight: 700; color: #8A1538; line-height: 1.35; }
-  .doc-footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #ccc;
-                text-align: center; font-size: 7.5pt; color: #666; line-height: 1.5; }
-  .doc-footer-vision { color: #6B1029; font-weight: 600; margin-top: 2px; }
+@page {
+  size: 8.5in 11in;
+  margin: 1.125in 0.5in 0.8125in 0.5in;
+  @top-center { content: element(sheet-header); }
+  @bottom-center { content: element(sheet-footer); }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+body {
+  direction: rtl;
+  font-family: 'Traditional Arabic', 'Sakkal Majalla', 'Amiri', serif;
+  font-size: 12pt;
+  line-height: 1.3;
+  color: #000;
+  background: #fff;
+}
+
+#sheet-header { position: running(sheet-header); width: 100%; }
+#sheet-footer { position: running(sheet-footer); width: 100%; }
+#sheet-header img, #sheet-footer img { width: 100%; display: block; }
+
+/* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
+.plain-head {
+  text-align: center;
+  border-bottom: 2pt solid #943634;
+  padding-bottom: 4pt;
+}
+.plain-head .ministry { font-size: 10pt; color: #444; }
+.plain-head .school { font-size: 14pt; font-weight: 700; color: #943634; }
+.plain-foot {
+  text-align: center;
+  border-top: 1pt solid #943634;
+  padding-top: 3pt;
+  font-size: 9pt;
+  color: #943634;
+}
+
+.form-title {
+  text-align: center;
+  font-size: 17pt;
+  font-weight: 700;
+  color: #943634;
+  margin-bottom: 6pt;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  direction: rtl;
+  margin-bottom: 8pt;
+}
+th, td {
+  border: 0.5pt solid #000;
+  padding: 2pt 4pt;
+  font-size: 12pt;
+  vertical-align: middle;
+  text-align: right;
+}
+
+/* شريط عنوان القسم: أبيضُ على العنّابي، كما في الأصل */
+.band {
+  background: #943634;
+  color: #FFFFFF;
+  font-weight: 700;
+  font-size: 13pt;
+  text-align: center;
+}
+
+/* رؤوس أعمدة التقدير: أرضيّةٌ رمليّة */
+.head {
+  background: #DDD9C3;
+  font-weight: 700;
+  font-size: 11pt;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.label { font-weight: 700; white-space: nowrap; }
+.domain { font-weight: 700; text-align: center; vertical-align: middle; }
+.center { text-align: center; }
+
+.box {
+  display: inline-block;
+  width: 10pt;
+  height: 10pt;
+  border: 0.75pt solid #000;
+  vertical-align: -1pt;
+  text-align: center;
+  line-height: 9pt;
+  font-size: 9pt;
+  font-weight: 700;
+}
+.box.on::after { content: "\2713"; }
+
+.notes { height: 72pt; vertical-align: top; text-align: right; }
+.sign { height: 42pt; vertical-align: top; }
 </style>
 </head>
 <body>
-  <div class="doc-header">
-    <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="">
-    <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
-    <div class="doc-header-school">{{ obs.school.name }}</div>
-  </div>
 
-  <h1>{% if obs.kind == "self" %}استمارة التقييم الذاتي للمعلّم{% else %}استمارة الإشراف على أداء المعلّم{% endif %}</h1>
-  <div class="sub">العام الأكاديميّ {{ obs.school.current_academic_year|default:"2025/2026" }}</div>
-
-  <table class="info">
-    <tr><td><b>المعلّم:</b> {{ obs.teacher.full_name }}</td><td><b>المادّة:</b> {{ obs.subject.name_ar|default:"—" }}</td><td><b>الصّف:</b> {{ obs.class_group|default:"—" }}</td></tr>
-    <tr><td><b>الزائر:</b> {{ obs.observer.full_name }}</td><td><b>التاريخ:</b> {{ obs.observation_date }}</td><td><b>الحصة:</b> {{ obs.period|default:"—" }}</td></tr>
-    <tr><td><b>الموضوع:</b> {{ obs.topic|default:"—" }}</td><td><b>نوع المتابعة:</b> {{ obs.get_follow_up_mode_display }} {{ obs.get_follow_up_scope_display }}</td><td><b>النسبة:</b> {% if obs.score_percent != None %}{{ obs.score_percent }}%{% else %}—{% endif %}</td></tr>
-  </table>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:38%">معيار الأداء</th>
-        {% for v,l in rating_choices %}<th>{{ l }}</th>{% endfor %}
-        <th style="width:18%">التوصية</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for domain_label, rows in grouped %}
-      <tr><td class="domain" colspan="7">{{ domain_label }}</td></tr>
-      {% for c, sc in rows %}
-      <tr class="crit">
-        <td>{{ c.text }}</td>
-        {% for v,l in rating_choices %}
-        <td class="mark">{% if sc and sc.rating == v %}✓{% endif %}</td>
-        {% endfor %}
-        <td>{{ sc.recommendation|default:"" }}</td>
-      </tr>
-      {% endfor %}
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {% if obs.general_notes %}
-  <p><b style="color:#8A1538">ملاحظات وتوصيات عامّة:</b> {{ obs.general_notes }}</p>
+<div id="sheet-header">
+  {% if obs.school.letterhead %}
+    <img src="{{ obs.school.letterhead.url }}" alt="">
+  {% else %}
+    <div class="plain-head">
+      <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+      <div class="school">{{ obs.school.name }}</div>
+    </div>
   {% endif %}
+</div>
 
-  <div class="sign">
-    {% if obs.kind == "self" %}
-    <div>توقيع المعلّم (تقييم ذاتي)<br><small>{{ obs.teacher.full_name }}</small></div>
-    <div>&nbsp;</div>
-    {% else %}
-    <div>توقيع المعلّم{% if obs.status == "acknowledged" %}<br><small>أقرّ إلكترونياً: {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}</small>{% endif %}</div>
-    <div>توقيع الزائر<br><small>{{ obs.observer.full_name }}</small></div>
-    {% endif %}
-  </div>
+<div id="sheet-footer">
+  {% if obs.school.letterfoot %}
+    <img src="{{ obs.school.letterfoot.url }}" alt="">
+  {% else %}
+    <div class="plain-foot">{% include "components/ministry_vision.html" %}</div>
+  {% endif %}
+</div>
 
-  <div class="doc-footer">
-    {{ obs.school.name }}{% if obs.school.phone %} · هاتف: {{ obs.school.phone }}{% endif %}{% if obs.school.email %} · {{ obs.school.email }}{% endif %}{% if obs.school.city %} · {{ obs.school.city }}، قطر{% endif %}
-    <div class="doc-footer-vision">{% include "components/ministry_vision.html" %}</div>
-  </div>
+<div class="form-title">{{ form_title }} — العام الأكاديميّ {{ academic_year }}</div>
+
+{# ══ المعلومات الأساسيّة ══ #}
+<table>
+  <tr><td class="band" colspan="8">المعلومات الأساسيّة</td></tr>
+  <tr>
+    <td class="label">المــدرسة</td>
+    <td colspan="3">{{ obs.school.name }}</td>
+    <td class="label">اليوم/التاريخ</td>
+    <td colspan="3">{{ obs.observation_date|date:"Y/m/d" }}</td>
+  </tr>
+  <tr>
+    <td class="label">المادّة</td>
+    <td colspan="3">{{ obs.subject.name_ar|default:"" }}</td>
+    <td class="label">الصّف</td>
+    <td>{{ obs.class_group|default:"" }}</td>
+    <td class="label">الحصة</td>
+    <td>{{ obs.period|default:"" }}</td>
+  </tr>
+  <tr>
+    <td class="label">الموضوع</td>
+    <td colspan="5">{{ obs.topic }}</td>
+    <td class="label">الزائر</td>
+    <td>{{ obs.observer.full_name }}</td>
+  </tr>
+  <tr>
+    <td class="label">المعلّم</td>
+    <td colspan="3">{{ obs.teacher.full_name }}</td>
+    <td class="label">نوع المتابعة</td>
+    <td class="center">
+      <span class="box{% if obs.follow_up_mode == 'field' %} on{% endif %}"></span> ميدانيّة
+      &nbsp;
+      <span class="box{% if obs.follow_up_mode == 'remote' %} on{% endif %}"></span> عن بُعد
+    </td>
+    <td class="center" colspan="2">
+      <span class="box{% if obs.follow_up_scope == 'partial' %} on{% endif %}"></span> جزئيّة
+      &nbsp;
+      <span class="box{% if obs.follow_up_scope == 'full' %} on{% endif %}"></span> كليّة
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4"></td>
+    <td class="label">ملاحظات</td>
+    <td colspan="3">{{ obs.broadcast_note }}</td>
+  </tr>
+</table>
+
+{# ══ المجالات ومعايير الأداء ══ #}
+{% for block in blocks %}
+  {% if not forloop.first %}
+    <div style="break-before: page;"></div>
+    <div class="form-title">{{ form_title }} — العام الأكاديميّ {{ academic_year }}</div>
+  {% endif %}
+  <table>
+    <tr>
+      <td class="head" style="width:11%">المجال</td>
+      <td class="head" style="width:32%">معايير الأداء</td>
+      {% for value, label in ratings %}
+        <td class="head" style="width:7%">{{ label }}</td>
+      {% endfor %}
+      <td class="head" style="width:22%">
+        التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)
+      </td>
+    </tr>
+    {% for domain, rows in block %}
+      {% for row in rows %}
+        <tr>
+          {% if forloop.first %}
+            <td class="domain" rowspan="{{ rows|length }}">{{ domain }}</td>
+          {% endif %}
+          <td>{{ row.criterion.text }}</td>
+          {% for value, label in ratings %}
+            <td class="center">
+              <span class="box{% if row.score and row.score.rating == value %} on{% endif %}"></span>
+            </td>
+          {% endfor %}
+          <td>{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    {% endfor %}
+  </table>
+{% endfor %}
+
+{# ══ الملاحظات والتواقيع ══ #}
+<table>
+  <tr><td class="band" colspan="4">ملاحظات وتوصيات عامّة</td></tr>
+  <tr><td class="notes" colspan="4">{{ obs.general_notes|linebreaksbr }}</td></tr>
+  <tr>
+    <td class="label" style="width:15%">توقيع المعلم</td>
+    <td class="sign" style="width:35%"></td>
+    <td class="label" style="width:15%">توقيع الزائر</td>
+    <td class="sign" style="width:35%"></td>
+  </tr>
+</table>
+
 </body>
 </html>
