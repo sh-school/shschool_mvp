@@ -359,11 +359,14 @@ def test_a_missing_stored_font_is_simply_absent(db):
     assert "Noto Naskh Arabic" in css
 
 
-def test_no_ministry_vision_is_asserted_by_the_platform(source):
-    """نصُّ الرؤية في هذه الاستمارة يأتي من صورة المدرسة التي ترفعها هي.
+def test_the_vision_is_included_never_written_here(source):
+    """نصُّ الرؤية في هذه الاستمارة يأتي من صورة المدرسة التي ترفعها هي،
+    ومن لم يرفعها يُذيَّل من المصدر الواحد.
 
-    وكان القالب يُضمّن نصّاً كتبتُه في جلسةٍ سابقة («تعليم ريادي مبتكر
-    لمجتمع واعٍ ومنتج») لا سندَ لديّ عليه، ويخالف نصَّ رؤية المدرسة في
-    تذييلها. ووثيقةٌ رسميةٌ لا تنسب إلى وزارةٍ قولاً بلا مصدر.
+    وكان القالب يحمل نصّاً كتبتُه في جلسةٍ سابقة لا سندَ لديّ عليه، ويخالف
+    نصَّ رؤية المدرسة. سألت عنه المدرسةُ واعتمدت نصَّها، فحلّ في الجزئيّة
+    وحدها. ووثيقةٌ رسميةٌ لا تنسب إلى وزارةٍ قولاً بلا مصدر، ولا تكتبه
+    مرّتين فيختلفان.
     """
-    assert "ministry_vision" not in source
+    assert 'include "components/ministry_vision.html"' in source
+    assert "الريادة في توفير" not in source, "يُضمَّن ولا يُنسخ"

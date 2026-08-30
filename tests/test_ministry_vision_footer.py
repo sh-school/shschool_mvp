@@ -10,7 +10,10 @@ import pytest
 from django.template.loader import render_to_string
 from django.urls import reverse
 
-VISION = "تعليم ريادي مبتكر لمجتمع واعٍ ومنتج"
+#: نصُّ الرؤية الذي اعتمدته المدرسة. وكان هنا نصٌّ آخر كتبتُه بلا
+#: مصدر، فسألت عنه المدرسةُ واعتمدت نصَّ تذييل مطبوعاتها.
+#: ونصٌّ يُنسب إلى وزارةٍ يُؤخذ عنها لا يُصاغ.
+VISION = "الريادة في توفير فرص تعلم دائمة ومبتكرة وذات جودة عالية للمجتمع القطري"
 
 PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 

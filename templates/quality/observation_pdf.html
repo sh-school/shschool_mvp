@@ -179,9 +179,10 @@ td {
   {% if letterfoot %}
     <img src="{{ letterfoot }}" alt="">
   {% else %}
-    {# لا رؤيةَ تُنسب إلى الوزارة من عندنا: نصُّ الرؤية في تذييل المدرسة
-       صورةٌ ترفعها هي. ومن لم يرفعها يُذيَّل باسمه لا بنصٍّ لا سندَ له. #}
-    <div class="plain-foot">{{ obs.school.name }}</div>
+    {# تذييل المدرسة صورةٌ ترفعها هي، وفيها رؤيتها. ومن لم يرفعها يُذيَّل باسمه ورؤية الوزارة. #}
+    <div class="plain-foot">
+      {{ obs.school.name }} — {% include "components/ministry_vision.html" %}
+    </div>
   {% endif %}
 </div>
 
