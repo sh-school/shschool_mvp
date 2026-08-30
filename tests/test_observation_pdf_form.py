@@ -57,10 +57,32 @@ def observation(db, school, criteria):
 # ── ما نُقل من الأصل حرفياً ───────────────────────────────────────────
 
 
-def test_the_paper_and_margins_come_from_the_original(source):
-    """12240×15840 twip = 8.5×11 بوصة، والهوامش 1620/720/1170/720."""
+def test_the_paper_comes_from_the_original(source):
+    """12240×15840 twip = 8.5×11 بوصة."""
     assert "size: 8.5in 11in" in source
-    assert "margin: 1.125in 0.5in 0.8125in 0.5in" in source
+
+
+def test_the_side_margins_come_from_the_original(source):
+    """الجانبيّان 720 twip = نصف بوصة، كما في الأصل."""
+    import re
+
+    margin = re.search(r"margin: ([\d.]+)in ([\d.]+)in ([\d.]+)in ([\d.]+)in", source)
+
+    assert margin, "هوامشُ الصفحة مكتوبةٌ بالبوصة"
+    assert margin.group(2) == margin.group(4) == "0.5"
+
+
+def test_the_vertical_margins_hold_the_bands_and_no_more(source):
+    """هامشا الأصل 1.125 و0.8125 بوصة، والشريطان أقصر: 0.878 و0.405 عند
+    عرض 7.5 بوصة. فضُبطا على ارتفاعهما وفضلةٍ يسيرة، والفائض رُدّ إلى
+    المتن — فالصفحة تمتلئ ولا يبقى بياضٌ فوق التذييل."""
+    import re
+
+    margin = re.search(r"margin: ([\d.]+)in ([\d.]+)in ([\d.]+)in ([\d.]+)in", source)
+    top, bottom = float(margin.group(1)), float(margin.group(3))
+
+    assert 0.878 < top < 1.125, "يسع الترويسة ولا يزيد كثيراً"
+    assert 0.405 < bottom < 0.8125, "يسع التذييل ولا يزيد كثيراً"
 
 
 @pytest.mark.parametrize(
