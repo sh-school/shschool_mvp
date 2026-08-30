@@ -3,6 +3,8 @@ quality/observation_views.py — الإشراف على أداء المعلّم (
 Skinny Views — المنطق في ObservationService. الصلاحيات في _obs_perms (مصدر واحد).
 """
 
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -33,6 +35,8 @@ from .observation_models import (
     ClassroomObservation,
 )
 from .observation_services import ObservationService
+
+logger = logging.getLogger(__name__)
 
 _TEACHER_ROLES = ["teacher", "ese_teacher", "coordinator", "activities_coordinator"]
 _SORT_MAP = {"date": "-observation_date", "score": "-score_percent", "status": "status"}
@@ -171,6 +175,32 @@ def _get_observation(request, obs_id):
 FIRST_PAGE_DOMAINS = ("التخطيط", "تنفيذ الدرس")
 
 
+def _as_data_uri(image_field):
+    """صورة المدرسة مضمَّنةً في الصفحة لا مُشاراً إليها برابط.
+
+    الملفّات المرفوعة تُخزَّن في القاعدة لا على قرص (Railway بلا قرصٍ
+    دائم)، فرابطها `/dbmedia/...` يُخدَم بعرضٍ يتطلّب جلسة. وWeasyPrint
+    يحلّ الروابط النسبية على **القرص** من `BASE_DIR`، فيبحث عن ملفٍّ لا
+    وجود له ويطبع الصفحة بلا ترويسة — بلا خطأٍ ولا شكوى.
+
+    فتُقرأ الصورة وتُضمَّن. وحجمُها عشراتُ الكيلوبايتات، والوثيقة تُولَّد
+    مرّةً عند الطلب.
+    """
+    if not image_field:
+        return ""
+    import base64
+    import mimetypes
+
+    kind = mimetypes.guess_type(image_field.name)[0] or "image/png"
+    try:
+        with image_field.open("rb") as fh:
+            payload = base64.b64encode(fh.read()).decode("ascii")
+    except (OSError, ValueError):
+        logger.warning("تعذّرت قراءة %s — تُطبع الوثيقة بعنوانٍ نصّيّ", image_field.name)
+        return ""
+    return f"data:{kind};base64,{payload}"
+
+
 def _pdf_context(obs):
     """سياق الاستمارة المطبوعة — طبق الأصل من نموذج المدرسة.
 
@@ -185,6 +215,8 @@ def _pdf_context(obs):
     rest = [g for g in grouped if g[0] not in FIRST_PAGE_DOMAINS]
     return {
         "obs": obs,
+        "letterhead": _as_data_uri(obs.school.letterhead),
+        "letterfoot": _as_data_uri(obs.school.letterfoot),
         "blocks": [b for b in (first, rest) if b],
         "ratings": RATING_CHOICES,
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),

@@ -21,6 +21,10 @@
 و`data-pdf-own-page` تُعلن أنّ هذا القالب يتولّى صفحته كاملةً: ورقَها
 وهوامشها وترويستها وخطّها. فلا يحقن `pdf_utils` فوقه ترويسة المنصّة.
 
+وخطوط الوثيقة يحقنها `pdf_utils` بمسارات مطلقة على القرص، ولا تُطلب هنا
+بـ`@font-face`: `{% static %}` يُخرج رابطاً نسبياً يحمل بصمةً في الإنتاج،
+وWeasyPrint يحلّه على القرص فلا يجده ويسقط إلى DejaVu Sans — بلا شكوى.
+
 والخطّ: الأصل بـ«Traditional Arabic»، وهو ملكيّةُ Monotype — ومستودع هذا
 المشروع عامّ، فإيداعُه فيه نشرٌ لبرمجيّةٍ مرخَّصة لا حقَّ لنا فيه.
 
@@ -35,27 +39,6 @@
 <meta charset="UTF-8">
 <title>استمارة الإشراف على أداء المعلّم</title>
 <style>
-@font-face {
-  font-family: 'Noto Naskh Arabic';
-  src: url('{% static "fonts/NotoNaskhArabic-Regular.ttf" %}') format('truetype');
-  font-weight: 400;
-}
-@font-face {
-  font-family: 'Noto Naskh Arabic';
-  src: url('{% static "fonts/NotoNaskhArabic-Bold.ttf" %}') format('truetype');
-  font-weight: 700;
-}
-@font-face {
-  font-family: 'Amiri';
-  src: url('{% static "fonts/Amiri-Regular.ttf" %}') format('truetype');
-  font-weight: 400;
-}
-@font-face {
-  font-family: 'Amiri';
-  src: url('{% static "fonts/Amiri-Bold.ttf" %}') format('truetype');
-  font-weight: 700;
-}
-
 @page {
   size: 8.5in 11in;
   margin: 1.125in 0.5in 0.8125in 0.5in;
@@ -121,9 +104,14 @@ td {
 .head {
   background: #DDD9C3;
   font-weight: 700;
-  font-size: 10pt;
+  font-size: 8.5pt;
+  line-height: 1.15;
   text-align: center;
   vertical-align: middle;
+  /* رؤوسٌ ضيّقةٌ بنصٍّ طويل: بلا هذا يفيض النصّ خارج خليّته ويتراكب مع
+     جارته — وهو ما خرج في أوّل نسخةٍ من الإنتاج. */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 .center { text-align: center; }
 
@@ -140,10 +128,10 @@ td {
 /* عرضٌ مثبَّت: الخليّة الضيّقة لا تسحب عرض جارتها، وعمودُ المعايير
    يحتفظ بعرضه فلا تنكسر كل كلمةٍ على سطر. */
 .grid { table-layout: fixed; }
-.c-domain { width: 9%; }
-.c-crit   { width: 29%; }
-.c-rate   { width: 7.4%; }
-.c-rec    { width: 25%; }
+.c-domain { width: 8%; }
+.c-crit   { width: 26%; }
+.c-rate   { width: 8.4%; }
+.c-rec    { width: 24%; }
 
 .notes { height: 120pt; vertical-align: top; }
 .sign { height: 30pt; }
@@ -152,8 +140,8 @@ td {
 <body data-pdf-own-page>
 
 <div id="sheet-header">
-  {% if obs.school.letterhead %}
-    <img src="{{ obs.school.letterhead.url }}" alt="">
+  {% if letterhead %}
+    <img src="{{ letterhead }}" alt="">
   {% else %}
     <div class="plain-head">
       <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
@@ -163,8 +151,8 @@ td {
 </div>
 
 <div id="sheet-footer">
-  {% if obs.school.letterfoot %}
-    <img src="{{ obs.school.letterfoot.url }}" alt="">
+  {% if letterfoot %}
+    <img src="{{ letterfoot }}" alt="">
   {% else %}
     <div class="plain-foot">{% include "components/ministry_vision.html" %}</div>
   {% endif %}

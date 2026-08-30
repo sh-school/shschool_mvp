@@ -83,6 +83,26 @@ def test_the_original_font_is_asked_for_first_but_never_shipped(source):
     assert pathlib.Path("static/fonts/NotoNaskhArabic-OFL.txt").exists(), "الرخصة معه"
 
 
+def test_the_template_asks_for_no_font_by_relative_url(source):
+    """`{% static %}` يُخرج رابطاً نسبياً — وفي الإنتاج يحمل بصمةً لا وجود
+    لها إلّا في `staticfiles/`. وWeasyPrint يحلّ النسبيّ على القرص من
+    `BASE_DIR` فلا يجده، ويسقط إلى DejaVu Sans بلا شكوى.
+
+    وقد خرجت الاستمارة من الإنتاج بـDejaVu فعلاً — والخطوط تُحقن من
+    `pdf_utils` بمسارات مطلقة.
+    """
+    assert "@font-face" not in source.split("{% endcomment %}", 1)[-1]
+
+
+def test_the_pdf_toolchain_provides_the_free_naskh():
+    from core.pdf_utils import _font_face_css_weasyprint
+
+    css = _font_face_css_weasyprint()
+
+    assert "Noto Naskh Arabic" in css
+    assert "file:///" in css, "مسارٌ مطلق لا رابطٌ نسبيّ"
+
+
 def test_the_header_repeats_on_every_page(source):
     """الأصل يضع الشريطين في `header1.xml` و`footer1.xml` — أي على كل صفحة.
     و`running()` هي مقابلها في CSS للطباعة."""
@@ -105,9 +125,34 @@ def test_no_school_name_is_written_into_the_template(source):
     assert "الشحانية" not in source
 
 
-def test_the_letterhead_is_read_from_the_school(source):
-    assert "obs.school.letterhead" in source
-    assert "obs.school.letterfoot" in source
+def test_the_letterhead_is_embedded_not_linked(source):
+    """الملفّات المرفوعة في القاعدة لا على قرص، و WeasyPrint يحلّ الروابط
+    النسبية على القرص من `BASE_DIR` — فيبحث عن ملفٍّ لا وجود له ويطبع
+    الصفحة بلا ترويسة، بلا خطأٍ ولا شكوى. فتُضمَّن الصورة."""
+    assert "{{ letterhead }}" in source
+    assert "letterhead.url" not in source
+    assert "letterfoot.url" not in source
+
+
+def test_the_embedded_letterhead_is_a_data_uri(db, observation):
+    """الترويسة تُقرأ من القاعدة وتُضمَّن — لا رابطَ يُحلّ على قرصٍ لا يحملها."""
+    import base64
+    import io
+
+    from django.core.files.base import ContentFile
+
+    from quality.observation_views import _pdf_context
+
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    observation.school.letterhead.save("head.png", ContentFile(png), save=True)
+
+    ctx = _pdf_context(observation)
+
+    assert ctx["letterhead"].startswith("data:image/png;base64,")
+    assert ctx["letterfoot"] == "", "ما لم يُرفع يبقى فارغاً"
+    assert io  # noqa: B018 — الاستيراد يوثّق أنّ القراءة ثنائية
 
 
 def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
@@ -230,3 +275,59 @@ def test_the_criteria_column_keeps_its_width(source):
     كلمةٍ على سطر — وهو ما حدث."""
     assert "table-layout: fixed" in source
     assert ".c-crit" in source
+
+
+# ── الخطّ المملوك يصل الخادم ولا يدخل المستودع ───────────────────────
+
+
+def test_the_proprietary_font_is_never_committed():
+    """مستودع المشروع عامّ، و«Traditional Arabic» ملكيّةُ Monotype."""
+    import pathlib
+    import subprocess
+
+    tracked = subprocess.run(
+        ["git", "ls-files", "static/fonts"], capture_output=True, text=True, check=False
+    ).stdout.lower()
+
+    assert "trado" not in tracked and "tradbdo" not in tracked
+    ignored = pathlib.Path(".gitignore").read_text(encoding="utf-8")
+    assert "static/fonts/trado.ttf" in ignored
+
+
+def test_a_stored_font_reaches_the_stylesheet(db):
+    """الخطّ المحفوظ في القاعدة يُخرَج إلى القرص ويُطلب بمسارٍ مطلق.
+
+    وWeasyPrint لا يقرأ من قاعدة بيانات ولا يحلّ رابطاً نسبياً على الويب —
+    يريد مساراً على القرص، وإلّا سقط إلى DejaVu Sans بلا شكوى.
+    """
+    from core.models.stored_file import StoredFile
+    from core.pdf_utils import _MATERIALISED, _font_face_css_weasyprint, stored_font_key
+
+    _MATERIALISED.clear()
+    key = stored_font_key("Traditional Arabic", "400")
+    StoredFile.objects.update_or_create(
+        name=key,
+        defaults={"content": bytes([0, 1, 116, 116, 102]), "size": 5, "content_type": "font/ttf"},
+    )
+
+    css = _font_face_css_weasyprint()
+
+    assert "Traditional Arabic" in css
+    assert "file:///" in css
+    _MATERIALISED.clear()
+
+
+def test_a_missing_stored_font_is_simply_absent(db):
+    """من لم يُثبّت خطّه لا تنكسر وثيقته — تُطبع بالبديل الحرّ."""
+    from core.models.stored_file import StoredFile
+    from core.pdf_utils import _MATERIALISED, _font_face_css_weasyprint, stored_font_key
+
+    _MATERIALISED.clear()
+    StoredFile.objects.filter(
+        name__startswith=stored_font_key("Traditional Arabic", "400")[:9]
+    ).delete()
+
+    css = _font_face_css_weasyprint()
+
+    assert "Traditional Arabic" not in css
+    assert "Noto Naskh Arabic" in css
