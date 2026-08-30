@@ -169,12 +169,6 @@ def _get_observation(request, obs_id):
     return obs, allowed
 
 
-#: المجالات المطبوعة على الصفحة الأولى — كما في نموذج المدرسة الورقيّ.
-#: الأصل يفصل بعد «تنفيذ الدرس» ويُعيد العنوان ورؤوس الأعمدة في الثانية،
-#: فالقسمة قصدٌ لا نتيجةَ امتلاء صفحة.
-FIRST_PAGE_DOMAINS = ("التخطيط", "تنفيذ الدرس")
-
-
 def _as_data_uri(image_field):
     """صورة المدرسة مضمَّنةً في الصفحة لا مُشاراً إليها برابط.
 
@@ -204,20 +198,18 @@ def _as_data_uri(image_field):
 def _pdf_context(obs):
     """سياق الاستمارة المطبوعة — طبق الأصل من نموذج المدرسة.
 
-    والمعايير تُقسَّم صفحتين بالمجال لا بالطول: الأصل يبدأ الصفحة الثانية
-    بـ«التقويم»، ولو تُركت للتدفّق لانقطع مجالٌ في منتصفه.
+    والأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فالمجالات الأربعة تُعرض في
+    جدولٍ واحد بلا قسمة.
     """
     grouped = [
         (label, [{"criterion": c, "score": s} for c, s in rows])
         for label, rows in _groups_with_scores(obs)
     ]
-    first = [g for g in grouped if g[0] in FIRST_PAGE_DOMAINS]
-    rest = [g for g in grouped if g[0] not in FIRST_PAGE_DOMAINS]
     return {
         "obs": obs,
         "letterhead": _as_data_uri(obs.school.letterhead),
         "letterfoot": _as_data_uri(obs.school.letterfoot),
-        "blocks": [b for b in (first, rest) if b],
+        "domains": grouped,
         "ratings": RATING_CHOICES,
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
         "form_subject": (

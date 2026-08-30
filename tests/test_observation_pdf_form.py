@@ -168,25 +168,29 @@ def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
 # ── قسمة الصفحتين ────────────────────────────────────────────────────
 
 
-def test_the_criteria_are_split_by_domain_not_by_length(db, observation, criteria):
-    """الأصل يبدأ الصفحة الثانية بـ«التقويم». ولو تُركت للتدفّق لانقطع
-    مجالٌ في منتصفه."""
+def test_all_four_domains_sit_in_one_table(db, observation, criteria):
+    """الأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فلا قسمة ولا فاصل."""
     from quality.observation_views import _pdf_context
 
-    blocks = _pdf_context(observation)["blocks"]
+    ctx = _pdf_context(observation)
 
-    assert len(blocks) == 2
-    assert [d for d, _ in blocks[0]] == ["التخطيط", "تنفيذ الدرس"]
-    assert [d for d, _ in blocks[1]] == ["التقويم", "الإدارة الصفية وبيئة التعلم"]
+    assert [d for d, _ in ctx["domains"]] == [
+        "التخطيط",
+        "تنفيذ الدرس",
+        "التقويم",
+        "الإدارة الصفية وبيئة التعلم",
+    ]
 
 
-def test_the_title_repeats_on_the_second_page(db, observation, criteria):
-    """الأصل يُعيد العنوان ورؤوس الأعمدة في الصفحة الثانية."""
+def test_nothing_forces_a_second_page(db, observation, criteria):
+    """عنوانٌ واحد، وجدولٌ واحد للمعايير، ولا `break-before`."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert html.count('class="subject"') == 2, "العنوان مرّتان — لا ثلاثاً مع وسم <title>"
+    assert html.count('class="subject"') == 1
+    assert "break-before" not in html
+    assert html.count('class="grid"') == 1
 
 
 def test_a_self_assessment_is_titled_as_one(db, observation, criteria):
@@ -331,3 +335,13 @@ def test_a_missing_stored_font_is_simply_absent(db):
 
     assert "Traditional Arabic" not in css
     assert "Noto Naskh Arabic" in css
+
+
+def test_no_ministry_vision_is_asserted_by_the_platform(source):
+    """نصُّ الرؤية في هذه الاستمارة يأتي من صورة المدرسة التي ترفعها هي.
+
+    وكان القالب يُضمّن نصّاً كتبتُه في جلسةٍ سابقة («تعليم ريادي مبتكر
+    لمجتمع واعٍ ومنتج») لا سندَ لديّ عليه، ويخالف نصَّ رؤية المدرسة في
+    تذييلها. ووثيقةٌ رسميةٌ لا تنسب إلى وزارةٍ قولاً بلا مصدر.
+    """
+    assert "ministry_vision" not in source
