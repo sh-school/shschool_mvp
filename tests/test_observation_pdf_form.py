@@ -202,3 +202,25 @@ def test_an_ordinary_template_still_gets_the_furniture():
     plain = "<html><head><style></style></head><body><p>تقرير</p></body></html>"
 
     assert _inject_wp_page_header_css(plain, "مدرسة", "عنوان") != plain
+
+
+def test_no_vertical_writing_mode(source):
+    """الأصل يكتب رؤوس الأعمدة عمودياً، وجُرّب `writing-mode` فأخرج
+    WeasyPrint حروفاً عربيةً مُشوَّهة ونفخ الجدول من صفحتين إلى خمس.
+
+    والمحرّك هو الحَكَم لا المتصفّح: عاينتُ التدوير في Chromium فبدا
+    سليماً، وأنتجه WeasyPrint خرابةً — وهو مَن يطبع.
+    """
+    # الشرحُ يذكرها ليقول لِمَ تُركت — والعبرة بما يُنفَّذ لا بما يُشرح.
+    css = source.split("{% endcomment %}", 1)[-1]
+    css = chr(10).join(l for l in css.splitlines() if not l.lstrip().startswith("`"))
+
+    assert "writing-mode" not in css
+    assert "rotate(" not in css
+
+
+def test_the_criteria_column_keeps_its_width(source):
+    """بلا عرضٍ مثبَّت تسحب الأعمدةُ الضيّقة عرضَ عمود المعايير فتنكسر كل
+    كلمةٍ على سطر — وهو ما حدث."""
+    assert "table-layout: fixed" in source
+    assert ".c-crit" in source

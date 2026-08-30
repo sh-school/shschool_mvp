@@ -10,9 +10,13 @@
 واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لكل خليّة عنوان
 — عناوينِ الأعمدة وعناوينِ الحقول معاً؛ وقد أُحصيت سبعاً وخمسين مرّة فيه.
 
-ورؤوس أعمدة التقدير وعمودُ المجال مكتوبةٌ عمودياً كما في الأصل، وخلايا
-التقدير فارغةٌ تُؤشَّر باليد — فإن كان التقدير مُدخَلاً وُضعت علامته في
-خانته وحدها.
+وخلايا التقدير فارغةٌ تُؤشَّر باليد كما في الأصل — فإن كان التقدير مُدخَلاً
+وُضعت علامته في خانته وحدها.
+
+والأصل يكتب رؤوس أعمدة التقدير وعمودَ المجال عمودياً. وجُرّب
+`writing-mode: vertical-rl` فأخرج WeasyPrint حروفاً عربيةً مُشوَّهة ونفخ
+الجدول إلى خمس صفحات — فالكتابة العمودية ليست في وسعه مع العربية. فبقيت
+أفقيةً في أعمدةٍ ضيّقة مثبَّتة العرض: أقربُ ما يُنال بلا تشويه.
 
 و`data-pdf-own-page` تُعلن أنّ هذا القالب يتولّى صفحته كاملةً: ورقَها
 وهوامشها وترويستها وخطّها. فلا يحقن `pdf_utils` فوقه ترويسة المنصّة.
@@ -114,19 +118,23 @@ td {
 .head { background: #DDD9C3; font-weight: 700; text-align: center; vertical-align: middle; }
 .center { text-align: center; }
 
-/* الكتابة العمودية في رؤوس الأعمدة وعمود المجال — كما في الأصل.
-   والدوران 180 يجعلها تُقرأ من الأسفل إلى الأعلى كالورقة. */
-.vert {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  white-space: nowrap;
-  text-align: center;
-  padding: 3pt 1pt;
-}
+/* الأصل يكتب رؤوس الأعمدة وعمود المجال عمودياً. وجُرّب
+   `writing-mode: vertical-rl` فأخرج WeasyPrint حروفاً عربيةً مُشوَّهة
+   ونفخ الجدول إلى خمس صفحات — فالكتابة العمودية ليست في وسعه مع العربية.
+   فبقيت أفقيةً في أعمدةٍ ضيّقة: أقربُ ما يُنال بلا تشويه. */
+.vert { text-align: center; vertical-align: middle; padding: 2pt 1pt; }
 
-.rate { width: 6%; text-align: center; font-weight: 700; }
-.crit { font-size: 11.5pt; line-height: 1.2; }
-.rec { width: 24%; font-size: 11pt; }
+.rate { text-align: center; font-weight: 700; }
+.crit { font-size: 11pt; line-height: 1.25; }
+.rec { font-size: 10.5pt; }
+
+/* عرضٌ مثبَّت: الخليّة الضيّقة لا تسحب عرض جارتها، وعمودُ المعايير
+   يحتفظ بعرضه فلا تنكسر كل كلمةٍ على سطر. */
+.grid { table-layout: fixed; }
+.c-domain { width: 7%; }
+.c-crit   { width: 31%; }
+.c-rate   { width: 7.4%; }
+.c-rec    { width: 25%; }
 
 .notes { height: 150pt; vertical-align: top; }
 .sign { height: 30pt; }
@@ -211,14 +219,14 @@ td {
       استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
     </div>
   {% endif %}
-  <table>
+  <table class="grid">
     <tr>
-      <td class="head vert" style="width:4%">المجال</td>
-      <td class="head" style="width:36%">معايير الأداء</td>
+      <td class="head c-domain">المجال</td>
+      <td class="head c-crit">معايير الأداء</td>
       {% for value, label in ratings %}
-        <td class="head vert rate">{{ label }}</td>
+        <td class="head c-rate">{{ label }}</td>
       {% endfor %}
-      <td class="head rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
+      <td class="head c-rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
     </tr>
     {% for domain, rows in block %}
       {% for row in rows %}
