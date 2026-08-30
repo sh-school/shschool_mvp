@@ -61,10 +61,58 @@ def _extract_pdf_meta(html_str: str) -> dict:
 # ── WeasyPrint @font-face ────────────────────────────────────────────────
 
 
+#: مفتاح الخطّ في مخزن الملفّات — عائلةٌ ووزن.
+def stored_font_key(family: str, weight: str) -> str:
+    return f"pdf-fonts/{family.replace(' ', '-').lower()}-{weight}.ttf"
+
+
+#: خطوطٌ لا تُودَع في المستودع تُقرأ من القاعدة وتُخرَج إلى قرصٍ مؤقّت.
+#:
+#: «Traditional Arabic» ملكيّةُ Monotype ومستودع المشروع عامّ، فلا يُنشر
+#: فيه. ويصل إلى الخادم عبر `install_pdf_font` الذي يحفظه في `StoredFile`.
+_STORED_FONTS = (("Traditional Arabic", "400"), ("Traditional Arabic", "700"))
+_MATERIALISED: dict[str, Path] = {}
+
+
+def _materialise_stored_fonts() -> list[tuple[str, str, Path]]:
+    """يُخرج الخطوط المحفوظة في القاعدة إلى ملفّاتٍ مؤقّتة، مرّةً لكل عملية.
+
+    وWeasyPrint لا يقرأ من القاعدة ولا يحلّ رابطاً نسبياً على الويب — يريد
+    مساراً على القرص. فيُكتب الملفّ مرّةً ويُعاد استعماله.
+    """
+    import tempfile
+
+    out = []
+    for family, weight in _STORED_FONTS:
+        key = stored_font_key(family, weight)
+        cached = _MATERIALISED.get(key)
+        if cached is not None and cached.exists():
+            out.append((family, weight, cached))
+            continue
+        try:
+            from core.models.stored_file import StoredFile
+
+            row = StoredFile.objects.filter(name=key).only("content").first()
+        except Exception:  # noqa: BLE001 — القاعدة قد لا تكون جاهزة وقت الاستيراد
+            row = None
+        if row is None:
+            continue
+        target = Path(tempfile.gettempdir()) / "schoolos-pdf-fonts" / key.replace("/", "_")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(bytes(row.content))
+        _MATERIALISED[key] = target
+        out.append((family, weight, target))
+    return out
+
+
 def _font_face_css_weasyprint() -> str:
     fd = _fonts_dir()
     parts = []
     for family, weight, filename in [
+        # نسخيٌّ حرّ (SIL OFL) — أقربُ ما يُوجد إلى «Traditional Arabic»
+        # الذي تُكتب به استمارات الوزارة، وهو مملوكٌ لا يُوزَّع.
+        ("Noto Naskh Arabic", "400", "NotoNaskhArabic-Regular.ttf"),
+        ("Noto Naskh Arabic", "700", "NotoNaskhArabic-Bold.ttf"),
         ("Amiri", "400", "Amiri-Regular.ttf"),
         ("Amiri", "700", "Amiri-Bold.ttf"),
         ("Tajawal", "400", "Tajawal-Regular.ttf"),
@@ -77,12 +125,26 @@ def _font_face_css_weasyprint() -> str:
                 f"@font-face {{ font-family: '{family}'; font-weight: {weight}; "
                 f"src: url('{p.as_uri()}') format('truetype'); }}"
             )
+    for family, weight, p in _materialise_stored_fonts():
+        parts.append(
+            f"@font-face {{ font-family: '{family}'; font-weight: {weight}; "
+            f"src: url('{p.as_uri()}') format('truetype'); }}"
+        )
     if not parts:
         return "@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700&display=swap');"
     return "\n".join(parts)
 
 
 def _inject_fonts(html_str: str) -> str:
+    """يحقن `@font-face` بمسارات **مطلقة** على القرص.
+
+    و`{% static %}` لا يصلح لها: يُخرج رابطاً نسبياً (`/static/…`)، وفي
+    الإنتاج يحمل بصمةً (`…​.a1b2c3.ttf`) لا وجود لها إلّا في `staticfiles/`.
+    وWeasyPrint يحلّ الروابط النسبية على القرص من `BASE_DIR` فلا يجد شيئاً،
+    ويسقط إلى DejaVu Sans — بلا خطأٍ ولا شكوى، فتخرج الوثيقة بخطٍّ آخر.
+
+    فمن أراد خطّاً في وثيقة PDF فليطلبه هنا، لا بـ`@font-face` في قالبه.
+    """
     # تخطّي فقط إذا Tajawal/Amiri محلّي موجود فعلاً — لا تتخطى بسبب @import خارجي
     lower = html_str.lower()
     if "@font-face" in lower and ("tajawal" in lower or "amiri" in lower):

@@ -56,3 +56,12 @@ _*.txt
 
 # Local archive — مجلد محلي للملفات القديمة/المبعثرة (لا يُرفع)
 _archive/
+
+# ── خطوطٌ مملوكة لا تُنشر ────────────────────────────────────────────
+# «Traditional Arabic» ملكيّةُ Monotype، ومستودع هذا المشروع عامّ.
+# فتُثبَّت على الخادم عبر `install_pdf_font` الذي يحفظها في القاعدة،
+# ولا تدخل الشيفرة المنشورة.
+static/fonts/trado.ttf
+static/fonts/tradbdo.ttf
+static/fonts/TRADO.TTF
+static/fonts/TRADBDO.TTF
