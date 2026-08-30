@@ -68,6 +68,18 @@ def _safe_schedule_settings_redirect(request, fallback_year=None):
     return redirect("schedule_settings")
 
 
+#: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
+#: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
+SCHEDULE_BROWSE_ROLES = {
+    "principal",
+    "vice_academic",
+    "vice_admin",
+    "coordinator",
+    "admin_supervisor",
+    "admin",
+}
+
+
 # ── الجدول الأسبوعي ──────────────────────────────────────────────
 
 
@@ -93,19 +105,24 @@ def weekly_schedule(request):
     class_id = request.GET.get("class")
     year = request.GET.get("year") or academic_year_for(request)
 
+    # المعلّم يرى جدوله هو. وكان `?teacher=` يُقرأ لكلّ من طلبه، فيقرأ
+    # المعلّمُ جدول زميله وجدول أيّ شعبةٍ بتغيير رقمٍ في الرابط — والقصدُ
+    # المكتوب في وصف الدالّة خلافُه: «للمعلم أو كل المعلمين للمدير».
+    may_browse = user.is_admin() or user.get_role() in SCHEDULE_BROWSE_ROLES
+
     target_teacher = None
-    if teacher_id:
+    if teacher_id and may_browse:
         target_teacher = get_object_or_404(
             CustomUser,
             id=teacher_id,
             memberships__school=school,
             memberships__is_active=True,
         )
-    elif user.is_teacher() and not user.is_admin():
+    elif user.is_teacher() and not may_browse:
         target_teacher = user
 
     target_class = None
-    if class_id:
+    if class_id and may_browse:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
     grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
@@ -143,7 +160,7 @@ def weekly_schedule(request):
 
 
 @login_required
-@role_required("principal", "vice_academic", "vice_admin", "coordinator", "admin")
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_print(request):
     """طباعة الجدول الأسبوعي — A4/A3"""
     from core.models import ClassGroup
@@ -158,24 +175,46 @@ def schedule_print(request):
     target_teacher = None
     target_class = None
 
-    if view_type == "teacher" and teacher_id:
-        target_teacher = get_object_or_404(CustomUser, id=teacher_id)
+    # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
+    # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
+    # جدولُ معلّمٍ في مدرسةٍ أخرى.
+    may_browse = request.user.is_admin() or request.user.get_role() in SCHEDULE_BROWSE_ROLES
+
+    if not may_browse:
+        view_type = "teacher"
+        target_teacher = request.user
+    elif view_type == "teacher" and teacher_id:
+        target_teacher = get_object_or_404(
+            CustomUser,
+            id=teacher_id,
+            memberships__school=school,
+            memberships__is_active=True,
+        )
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
     grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    PERIODS = range(1, 8)
+    # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
+    # وكانت الخلايا بلا توقيتٍ أصلاً.
+    times = ScheduleService.period_times(school, year)
+    PERIODS = [
+        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
+        for n in range(1, 8)
+    ]
 
-    # Teachers and classes for selector
-    teacher_ids_qs = Membership.objects.filter(
-        school=school, is_active=True, role__name__in=("teacher", "coordinator")
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
-    classes = ClassGroup.objects.filter(
-        school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).order_by("grade", "section")
+    # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
+    # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
+    teachers, classes = [], []
+    if may_browse:
+        teacher_ids_qs = Membership.objects.filter(
+            school=school, is_active=True, role__name__in=("teacher", "coordinator")
+        ).values_list("user_id", flat=True)
+        teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
+        classes = ClassGroup.objects.filter(
+            school=school, academic_year=academic_year_for_school(school), is_active=True
+        ).order_by("grade", "section")
 
     title = "الجدول الدراسي العام"
     if target_teacher:
@@ -197,6 +236,7 @@ def schedule_print(request):
             "teachers": teachers,
             "classes": classes,
             "title": title,
+            "may_browse": may_browse,
             "school": school,
             "year": year,
         },

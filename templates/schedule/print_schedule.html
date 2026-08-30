@@ -107,7 +107,7 @@
     border: 1px solid #6b1030;
   }
   .schedule-grid th:first-child {
-    width: 54px;
+    width: 62px;
   }
   .schedule-grid td {
     padding: 5px 4px;
@@ -116,13 +116,22 @@
     vertical-align: top;
     height: 54px;
   }
+  .period-time {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    color: #8A1538;
+    direction: ltr;
+    line-height: 1.25;
+    margin-top: 2px;
+  }
   .schedule-grid .period-cell {
     background: #f0e6e9;
     font-weight: 800;
     color: #8A1538;
     font-size: 15px;
     vertical-align: middle;
-    width: 54px;
+    width: 62px;
   }
   .schedule-grid tr:nth-child(even) td:not(.period-cell) {
     background: #fdf8f9;
@@ -189,6 +198,8 @@
 <div class="print-controls">
   <span class="print-label">طباعة الجدول</span>
 
+  {# قائمة الاختيار لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
+  {% if may_browse %}
   <form id="schedule-view-form" method="get" style="display:inline">
     <input type="hidden" name="view" value="{{ view_type }}">
     <input type="hidden" name="teacher" value="{% if target_teacher %}{{ target_teacher.id }}{% endif %}">
@@ -211,6 +222,18 @@
       {% endfor %}
     </select>
   </form>
+  <script nonce="{{ request.csp_nonce }}">
+    function submitScheduleView(select) {
+      var form = document.getElementById('schedule-view-form');
+      var option = select.options[select.selectedIndex];
+
+      form.elements.view.value = option.dataset.view || 'school';
+      form.elements.teacher.value = option.dataset.teacher || '';
+      form.elements['class'].value = option.dataset.class || '';
+      form.submit();
+    }
+  </script>
+  {% endif %}
 
   <form method="get" style="display:inline">
     <input type="hidden" name="view" value="{{ view_type }}">
@@ -223,17 +246,6 @@
     </select>
   </form>
 
-  <script nonce="{{ request.csp_nonce }}">
-    function submitScheduleView(select) {
-      var form = document.getElementById('schedule-view-form');
-      var option = select.options[select.selectedIndex];
-
-      form.elements.view.value = option.dataset.view || 'school';
-      form.elements.teacher.value = option.dataset.teacher || '';
-      form.elements['class'].value = option.dataset.class || '';
-      form.submit();
-    }
-  </script>
 
   <button data-action="print">طباعة</button>
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
@@ -260,9 +272,12 @@
     <tbody>
       {% for period in periods %}
       <tr>
-        <td class="period-cell">{{ period }}</td>
+        <td class="period-cell">
+          {{ period.number }}
+          {% if period.start %}<span class="period-time">{{ period.start|time:"H:i" }}<br>{{ period.end|time:"H:i" }}</span>{% endif %}
+        </td>
         {% for day_num, day_name in days %}
-        {% with cell=grid|get_item:day_num|get_item:period %}
+        {% with cell=grid|get_item:day_num|get_item:period.number %}
         <td>
           {% if cell %}
           {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
