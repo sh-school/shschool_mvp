@@ -21,10 +21,13 @@
 و`data-pdf-own-page` تُعلن أنّ هذا القالب يتولّى صفحته كاملةً: ورقَها
 وهوامشها وترويستها وخطّها. فلا يحقن `pdf_utils` فوقه ترويسة المنصّة.
 
-والخطّ: الأصل بـ«Traditional Arabic». وهو مرخَّصٌ لمايكروسوفت، فلا يُودَع
-في المستودع — لكنّ `@font-face` أدناه يشير إلى موضعه: فمتى وُضع الملفّ في
-`static/fonts/trado.ttf` عمل بلا تغيير شيفرة. ودونه يسقط إلى Amiri، وهو
-نسخيٌّ حرٌّ قريبُ الملامح.
+والخطّ: الأصل بـ«Traditional Arabic»، وهو ملكيّةُ Monotype — ومستودع هذا
+المشروع عامّ، فإيداعُه فيه نشرٌ لبرمجيّةٍ مرخَّصة لا حقَّ لنا فيه.
+
+فالمُودَع «Noto Naskh Arabic» برخصة SIL OFL: نسخيٌّ حرٌّ، أقربُ ما يُوجد
+إلى ملامح الأصل. ويُطلب Traditional Arabic أوّلاً فيظهر على الأجهزة التي
+هو مثبَّتٌ عليها؛ ومن أراده في ملفّ الخادم ثبّته في نظام الخادم نفسه — لا
+في المستودع.
 {% endcomment %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -33,13 +36,13 @@
 <title>استمارة الإشراف على أداء المعلّم</title>
 <style>
 @font-face {
-  font-family: 'Traditional Arabic';
-  src: url('{% static "fonts/trado.ttf" %}') format('truetype');
+  font-family: 'Noto Naskh Arabic';
+  src: url('{% static "fonts/NotoNaskhArabic-Regular.ttf" %}') format('truetype');
   font-weight: 400;
 }
 @font-face {
-  font-family: 'Traditional Arabic';
-  src: url('{% static "fonts/tradbdo.ttf" %}') format('truetype');
+  font-family: 'Noto Naskh Arabic';
+  src: url('{% static "fonts/NotoNaskhArabic-Bold.ttf" %}') format('truetype');
   font-weight: 700;
 }
 @font-face {
@@ -70,9 +73,9 @@
 
 body {
   direction: rtl;
-  font-family: 'Traditional Arabic', 'Sakkal Majalla', 'Amiri', serif;
-  font-size: 13pt;
-  line-height: 1.15;
+  font-family: 'Traditional Arabic', 'Noto Naskh Arabic', 'Amiri', serif;
+  font-size: 12pt;
+  line-height: 1.12;
   color: #000;
   background: #fff;
 }
@@ -104,8 +107,8 @@ body {
 table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 6pt; }
 td {
   border: 0.5pt solid #000;
-  padding: 1pt 3pt;
-  font-size: 12pt;
+  padding: 0.5pt 3pt;
+  font-size: 11pt;
   vertical-align: middle;
   text-align: right;
 }
@@ -115,7 +118,13 @@ td {
 
 /* كل خليّة عنوان: أرضيّةٌ رمليّة — عناوين الحقول والأعمدة معاً */
 .key { background: #DDD9C3; font-weight: 700; white-space: nowrap; }
-.head { background: #DDD9C3; font-weight: 700; text-align: center; vertical-align: middle; }
+.head {
+  background: #DDD9C3;
+  font-weight: 700;
+  font-size: 10pt;
+  text-align: center;
+  vertical-align: middle;
+}
 .center { text-align: center; }
 
 /* الأصل يكتب رؤوس الأعمدة وعمود المجال عمودياً. وجُرّب
@@ -125,18 +134,18 @@ td {
 .vert { text-align: center; vertical-align: middle; padding: 2pt 1pt; }
 
 .rate { text-align: center; font-weight: 700; }
-.crit { font-size: 11pt; line-height: 1.25; }
-.rec { font-size: 10.5pt; }
+.crit { font-size: 10pt; line-height: 1.15; }
+.rec { font-size: 10pt; }
 
 /* عرضٌ مثبَّت: الخليّة الضيّقة لا تسحب عرض جارتها، وعمودُ المعايير
    يحتفظ بعرضه فلا تنكسر كل كلمةٍ على سطر. */
 .grid { table-layout: fixed; }
-.c-domain { width: 7%; }
-.c-crit   { width: 31%; }
+.c-domain { width: 9%; }
+.c-crit   { width: 29%; }
 .c-rate   { width: 7.4%; }
 .c-rec    { width: 25%; }
 
-.notes { height: 150pt; vertical-align: top; }
+.notes { height: 120pt; vertical-align: top; }
 .sign { height: 30pt; }
 </style>
 </head>

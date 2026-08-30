@@ -71,10 +71,16 @@ def test_the_colours_come_from_the_original(source, colour, where):
     assert colour in source, where
 
 
-def test_the_original_fonts_are_asked_for_first(source):
-    """الأصل بخطّي مايكروسوفت، وهما لا يُوزَّعان مع تطبيق. فيُطلبان أوّلاً
-    — فيظهران حيث كانا مثبَّتَين — ويُسقَط إلى Amiri الحرّ."""
-    assert "'Traditional Arabic', 'Sakkal Majalla', 'Amiri'" in source
+def test_the_original_font_is_asked_for_first_but_never_shipped(source):
+    """«Traditional Arabic» ملكيّةُ Monotype، ومستودع المشروع عامّ — فإيداعُه
+    فيه نشرٌ لبرمجيّةٍ مرخَّصة. فيُطلب أوّلاً فيظهر حيث هو مثبَّت، والمُودَع
+    بديلٌ حرٌّ برخصة SIL OFL."""
+    import pathlib
+
+    assert "'Traditional Arabic', 'Noto Naskh Arabic', 'Amiri'" in source
+    assert not pathlib.Path("static/fonts/trado.ttf").exists(), "لا يُودَع خطٌّ مملوك"
+    assert pathlib.Path("static/fonts/NotoNaskhArabic-Regular.ttf").exists()
+    assert pathlib.Path("static/fonts/NotoNaskhArabic-OFL.txt").exists(), "الرخصة معه"
 
 
 def test_the_header_repeats_on_every_page(source):
