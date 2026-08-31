@@ -39,18 +39,18 @@ def student_health_record(request, student_id):
     except HealthRecord.DoesNotExist:
         health_record = HealthRecord.objects.create(student=student)
 
-    # ── [مهمة 5] حفظ الحقول الحساسة مشفّرة ──────────────────────────
+    # ── الحفظ ───────────────────────────────────────────────────────
+    # لا تشفيرَ هنا: الحقولُ الطبّيّةُ `EncryptedTextField`، والنموذجُ يتولّاه.
+    # وكان المسارُ القديم يشفّر يدوياً بـ`save_encrypted()`، والقالبُ يطبع
+    # الحقلَ الخام — فتُعرض الطلاسمُ في المربّع ويُعاد تشفيرُها مع كلّ حفظ.
     if request.method == "POST":
-        # استخدام save_encrypted() الموجودة في models.py
-        # تُشفّر الحقول الثلاثة بـ Fernet قبل الحفظ
         health_record.blood_type = request.POST.get("blood_type", "")
         health_record.emergency_contact_name = request.POST.get("emergency_contact_name", "")
         health_record.emergency_contact_phone = request.POST.get("emergency_contact_phone", "")
-        health_record.save_encrypted(
-            allergies=request.POST.get("allergies", ""),
-            chronic_diseases=request.POST.get("chronic_diseases", ""),
-            medications=request.POST.get("medications", ""),
-        )
+        health_record.allergies = request.POST.get("allergies", "")
+        health_record.chronic_diseases = request.POST.get("chronic_diseases", "")
+        health_record.medications = request.POST.get("medications", "")
+        health_record.save()
         # ملاحظة: تدقيق التعديل يتم تلقائياً عبر post_save signal (core/signals.py)
         from django.contrib import messages
 
@@ -59,16 +59,12 @@ def student_health_record(request, student_id):
 
     visits = ClinicVisit.objects.filter(student=student).order_by("-visit_date")
 
-    # ── [مهمة 5] فك التشفير عند العرض ───────────────────────────────
-    # نمرّر القيم المفكوكة للقالب بدلاً من الحقول الخام المشفّرة
+    # القراءةُ تفكّ من تلقائها، فلا مفاتيحَ موازيةً في السياق. وكان القالبُ
+    # يتجاهل المفكوكةَ ويطبع الخام — والمفتاحان المتوازيان هما ما سمح بذلك.
     context = {
         "student": student,
         "health_record": health_record,
         "visits": visits,
-        # قيم مفكوكة التشفير للعرض في النموذج
-        "allergies": health_record.get_allergies(),
-        "chronic_diseases": health_record.get_chronic_diseases(),
-        "medications": health_record.get_medications(),
     }
 
     # PDPPL م.19: تدقيق الوصول للسجل الصحي الحساس (يُفكّ تشفير الحساسية/الأمراض/الأدوية)

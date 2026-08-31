@@ -100,11 +100,22 @@ class TestHealthRecord:
         record = HealthRecordFactory(student=student_user, allergies="")
         assert record.allergies == ""
 
-    def test_chronic_diseases_stored(self, db, student_user):
+    def test_chronic_diseases_survive_a_round_trip(self, db, student_user):
+        """كانت هذه الدعوى تقرأ الحقلَ الخام، فكانت تمرّ لأنّ النصَّ خُزّن
+        عارياً — أي أنّها كانت توثّق العيبَ لا تكشفه.
+
+        وبعد توحيد الحقول على `EncryptedTextField` صار المقياسُ الرحلةَ: يُكتب
+        ويُقرأ من القاعدة فيعود كما هو. والتحقّقُ من أنّه لا يُخزَّن عارياً
+        موضعُه `tests/test_health_record_round_trip.py`.
+        """
         record = HealthRecordFactory(
             student=student_user, chronic_diseases="ربو", medications="بخاخ الربو"
         )
-        assert "ربو" in record.chronic_diseases
+
+        record.refresh_from_db()
+
+        assert record.chronic_diseases == "ربو"
+        assert record.medications == "بخاخ الربو"
 
 
 # ══════════════════════════════════════════════

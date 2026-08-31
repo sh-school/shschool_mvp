@@ -35,9 +35,16 @@ class HealthRecord(models.Model):
         "core.CustomUser", on_delete=models.CASCADE, related_name="health_record"
     )
     blood_type = models.CharField(max_length=3, choices=BLOOD_TYPES, blank=True)
-    allergies = models.TextField(blank=True, verbose_name="الحساسية")
-    chronic_diseases = models.TextField(blank=True, verbose_name="الأمراض المزمنة")
-    medications = models.TextField(blank=True, verbose_name="الأدوية المستمرة")
+    # [PII-11] الحقولُ الطبّيّةُ الثلاثة كانت `TextField` تُشفَّر يدوياً عبر
+    # `save_encrypted()`، بينما جهةُ الطوارئ تحتها `EncryptedTextField`. ومن
+    # هذا الازدواج نشأ عيبٌ منشور: القالبُ يطبع الحقلَ الخام فتُعرض الطلاسمُ
+    # في مربّع الإدخال، وأيُّ حفظٍ بعده يشفّرها من جديد.
+    #
+    # فوُحّدت على الحقل الشفّاف: النموذجُ يشفّر ويفكّ، ولا يبقى الأمرُ معلَّقاً
+    # بانضباط كلّ شاشةٍ تكتب أو تقرأ.
+    allergies = EncryptedTextField(blank=True, verbose_name="الحساسية")
+    chronic_diseases = EncryptedTextField(blank=True, verbose_name="الأمراض المزمنة")
+    medications = EncryptedTextField(blank=True, verbose_name="الأدوية المستمرة")
     # [PII-04] بيانات جهة اتصال الطوارئ (طرف ثالث بجوار سجل صحي لقاصر) — مشفّرة at-rest
     emergency_contact_name = EncryptedTextField(blank=True)
     emergency_contact_phone = EncryptedTextField(blank=True)
@@ -50,41 +57,6 @@ class HealthRecord(models.Model):
 
     def __str__(self):
         return f"Health Record: {self.student.full_name}"
-
-    # ── Fernet encryption helpers ─────────────────────────────────
-    def _encrypt(self, value):
-        from core.models import encrypt_field
-
-        return encrypt_field(value)
-
-    def _decrypt(self, value):
-        from core.models import decrypt_field
-
-        return decrypt_field(value)
-
-    def get_allergies(self):
-        return self._decrypt(self.allergies)
-
-    def set_allergies(self, value):
-        self.allergies = self._encrypt(value)
-
-    def get_chronic_diseases(self):
-        return self._decrypt(self.chronic_diseases)
-
-    def set_chronic_diseases(self, value):
-        self.chronic_diseases = self._encrypt(value)
-
-    def get_medications(self):
-        return self._decrypt(self.medications)
-
-    def set_medications(self, value):
-        self.medications = self._encrypt(value)
-
-    def save_encrypted(self, allergies="", chronic_diseases="", medications="", **kwargs):
-        self.set_allergies(allergies)
-        self.set_chronic_diseases(chronic_diseases)
-        self.set_medications(medications)
-        self.save(**kwargs)
 
 
 class ClinicVisit(models.Model):
