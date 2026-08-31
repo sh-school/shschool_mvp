@@ -81,18 +81,24 @@ class Command(BaseCommand):
                 errors += 1
                 self.stderr.write(f"  خطأ NotificationSettings {ns.id}: {e}")
 
-        # ── 3. HealthRecord (clinic) — أسماء الحقول الصحيحة (بلا شرطة سفلية) ──
+        # ── 3. HealthRecord — صار كله EncryptedTextField ([PII-11]) ──
+        # كانت الحقولُ الطبّيّةُ الثلاثة تُشفَّر يدوياً فتحتاج فكّاً وإعادةَ
+        # تشفيرٍ صريحين. وبعد توحيدها على الحقل الشفّاف صارت كـ`ClinicVisit`:
+        # القراءةُ تفكّ بأيّ مفتاحٍ من المفاتيح، والحفظُ يشفّر بالحالي.
         from clinic.models import HealthRecord
 
-        for hr in HealthRecord.objects.all():
+        for hr in HealthRecord.objects.all().iterator():
             try:
-                changed = False
-                for attr in ("allergies", "chronic_diseases", "medications"):
-                    if self._reencrypt_attr(hr, attr):
-                        changed = True
-                if changed:
-                    hr.save()
-                    total += 1
+                hr.save(
+                    update_fields=[
+                        "allergies",
+                        "chronic_diseases",
+                        "medications",
+                        "emergency_contact_name",
+                        "emergency_contact_phone",
+                    ]
+                )
+                total += 1
             except (InvalidToken, ValueError, OSError) as e:
                 errors += 1
                 self.stderr.write(f"  خطأ HealthRecord {hr.id}: {e}")
