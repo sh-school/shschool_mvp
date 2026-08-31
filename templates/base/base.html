@@ -109,12 +109,14 @@
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <a href="{% url 'clinic:dashboard' %}" class="nb">{% include "components/icon.html" with name="hospital" %} العيادة</a>
       <a href="{% url 'clinic:visits_list' %}" class="nb">سجل الزيارات</a>
       <a href="{% url 'clinic:record_visit' %}" class="nb">تسجيل زيارة</a>
@@ -135,6 +137,7 @@
 
     {% elif role == "coordinator" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
       <a href="{% url 'student_affairs:student_list' %}" class="nb">{% include "components/icon.html" with name="users" %} طلاب قسمي</a>
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
@@ -148,6 +151,7 @@
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
@@ -160,6 +164,7 @@
 
     {% elif role == "social_worker" or role == "psychologist" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <button class="nb" id="btn-sw-behavior" data-sd="m-sw-behavior" aria-expanded="false" aria-controls="m-sw-behavior">{% include "components/icon.html" with name="scale" %} السلوك <span class="chv">▼</span></button>
       <button class="nb" id="btn-sw-students" data-sd="m-sw-students" aria-expanded="false" aria-controls="m-sw-students">{% include "components/icon.html" with name="users" %} متابعة الطلاب <span class="chv">▼</span></button>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
@@ -167,6 +172,7 @@
 
     {% elif role == "academic_advisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
@@ -181,6 +187,7 @@
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% if role == "admin_supervisor" %}<a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -200,6 +207,7 @@
     {% elif role == "activities_coordinator" %}
       {# منسق الأنشطة المدرسية — يُدير الأنشطة اللاصفية ومشاركة الطلاب #}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <a href="{% url 'student_affairs:activity_list' %}" class="nb">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
       <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
@@ -237,6 +245,7 @@
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
+      <button class="nb" id="btn-student-info" data-sd="m-student-info" aria-expanded="false" aria-controls="m-student-info">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة <span class="chv">▼</span></button>
       <button class="nb" id="btn-quality"  data-sd="m-quality"  aria-expanded="false" aria-controls="m-quality">{% include "components/icon.html" with name="list-checks" %} الجودة <span class="chv">▼</span></button>
       <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% include "components/icon.html" with name="hospital" %} الخدمات <span class="chv">▼</span></button>
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
@@ -352,6 +361,23 @@
   <a href="{% url 'student_affairs:tardiness_list' %}">{% include "components/icon.html" with name="clock" %} التأخر الصباحي</a>
   <a href="{% url 'behavior:report_infraction' %}">{% include "components/icon.html" with name="alert-triangle" %} تسجيل سلوك</a>
   <a href="{% url 'behavior:committee' %}">{% include "components/icon.html" with name="users" %} فريق سلوك الطلبة</a>
+</div>
+
+<div class="sd-menu" id="m-student-info" role="menu" aria-label="مركز معلومات الطلبة">
+  <div class="sd-label">التحصيل</div>
+  <a href="{% url 'student_info:levels' %}">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية وتحصيل الطلبة</a>
+  <hr>
+  <div class="sd-label">ملاحظات الجهات</div>
+  <a href="{% url 'student_info:notes' 'teacher' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات المعلمين</a>
+  <a href="{% url 'student_info:notes' 'social_worker' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات الأخصائي الاجتماعي</a>
+  <a href="{% url 'student_info:notes' 'psychologist' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات الأخصائي النفسي</a>
+  <a href="{% url 'student_info:notes' 'nurse' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات الممرض</a>
+  <a href="{% url 'student_info:notes' 'student_affairs' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات منسق شؤون الطلاب</a>
+  <hr>
+  <div class="sd-label">الأنشطة</div>
+  <a href="{% url 'student_info:activities' %}">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+  <hr>
+  <a href="{% url 'student_info:sections' %}">{% include "components/icon.html" with name="users" %} تصفّح الشُّعب والطلاب</a>
 </div>
 
 {% endif %}

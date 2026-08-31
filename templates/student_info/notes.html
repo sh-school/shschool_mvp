@@ -1,0 +1,62 @@
+{% extends "base/base.html" %}
+
+{% block title %}{{ label }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current=label %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} {{ label }}</h1>
+      <p class="exec-subtitle">{{ page.paginator.count }} ملاحظة — {{ year }}</p>
+    </div>
+    <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
+  </div>
+
+  <div class="table-wrap">
+    {% if page.object_list %}
+    <div class="table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:110px" class="col-center">التاريخ</th>
+            <th>الطالب</th>
+            <th style="width:200px">العنوان</th>
+            <th>النصّ</th>
+            <th class="col-center" style="width:160px">الكاتب</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for n in page.object_list %}
+          <tr>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ n.occurred_on|date:"d/m/Y" }}</td>
+            <td>
+              <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" style="color:var(--maroon);text-decoration:none;font-weight:600">
+                {{ n.student.full_name }}
+              </a>
+            </td>
+            <td style="font-weight:600">{{ n.title }}</td>
+            <td style="white-space:pre-line">{{ n.body }}</td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ n.created_by.full_name|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page.has_other_pages %}
+    <div class="pagination">
+      {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}" class="btn-secondary btn-xs">السابق</a>{% endif %}
+      <span>صفحة {{ page.number }} من {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?page={{ page.next_page_number }}" class="btn-secondary btn-xs">التالي</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    {% include "components/empty_state.html" with title="لا ملاحظات من هذه الجهة هذا العام" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

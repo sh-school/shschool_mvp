@@ -1,0 +1,54 @@
+{% extends "base/base.html" %}
+
+{% block title %}طلاب {{ group.grade|slice:"1:" }}/{{ group.section }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current=group %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="users" %} {{ group.get_grade_display }} — الشعبة {{ group.section }}</h1>
+      <p class="exec-subtitle">{% if group.track %}{{ group.get_track_display }} · {% endif %}{{ year }}</p>
+    </div>
+    <a href="{% url 'student_info:sections' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} كل الشُّعب</a>
+  </div>
+
+  <div class="table-wrap">
+    {% if enrollments %}
+    <div class="table-wrap-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:60px" class="col-center">#</th>
+            <th>الطالب</th>
+            <th class="col-center">الرقم الشخصي</th>
+            <th class="col-actions">الملفّ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in enrollments %}
+          <tr>
+            <td class="col-center">{{ forloop.counter }}</td>
+            <td>
+              <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" style="color:var(--maroon);text-decoration:none;font-weight:600">
+                {{ e.student.full_name }}
+              </a>
+            </td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ e.student.national_id }}</td>
+            <td class="col-actions">
+              <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا طلاب مسجَّلين في هذه الشعبة" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
