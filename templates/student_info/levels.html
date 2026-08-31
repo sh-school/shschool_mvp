@@ -1,0 +1,78 @@
+{% extends "base/base.html" %}
+{% load dict_filters %}
+
+{% block title %}المستويات التعليمية وتحصيل الطلبة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current="المستويات التعليمية" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية وتحصيل الطلبة</h1>
+      <p class="exec-subtitle">{{ data.total }} نتيجةً مرصودة — {{ year }}</p>
+    </div>
+    <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
+  </div>
+
+  {# المرشِّحات: الصفّ والمسار #}
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label">الصفّ</label>
+      <select name="grade" class="form-control form-control-sm" data-autosubmit>
+        <option value="">— كل الصفوف —</option>
+        {% for val, label in grades %}
+        <option value="{{ val }}" {% if grade == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="filter-label">المسار</label>
+      <select name="track" class="form-control form-control-sm" data-autosubmit>
+        <option value="">— كل المسارات —</option>
+        {% for val, label in tracks %}
+        <option value="{{ val }}" {% if track == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-actions">
+      <a href="{% url 'student_info:levels' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    </div>
+  </form>
+
+  {% if data.total %}
+  {# الإجمال #}
+  <div class="stat-row">
+    {% for key, label, floor, color in bands %}
+    <div class="stat-card">
+      <div class="stat-card-value" style="color:{{ color }}">{{ data.overall|dictkey:key }}</div>
+      <div class="stat-card-label">{{ label }}</div>
+      <div class="stat-card-trend">{{ floor }} فأعلى من 100</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# لكلّ صفّ #}
+  <div class="form-card" style="margin-bottom:var(--sp-4)">
+    <div class="card-header">
+      <div class="card-header-icon">{% include "components/icon.html" with name="list-checks" %}</div>
+      <h3 class="card-header-title">المستوى حسب الصفّ</h3>
+    </div>
+    {% include "student_info/_band_table.html" with rows=data.by_grade bands=bands head="الصفّ" %}
+  </div>
+
+  {# لكلّ مادّة #}
+  <div class="form-card">
+    <div class="card-header">
+      <div class="card-header-icon">{% include "components/icon.html" with name="book-open" %}</div>
+      <h3 class="card-header-title">المستوى حسب المادّة</h3>
+    </div>
+    {% include "student_info/_band_table.html" with rows=data.by_subject bands=bands head="المادّة" %}
+  </div>
+  {% else %}
+  {% include "components/empty_state.html" with title="لا نتائج سنوية مرصودة بهذه المرشِّحات" %}
+  {% endif %}
+</div>
+{% endblock %}

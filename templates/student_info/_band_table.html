@@ -1,0 +1,40 @@
+{% load dict_filters %}
+{% comment %}
+جدولُ توزيعٍ على الشرائح — يُستعمل للصفوف وللمواد بالبنية نفسها.
+والصفوفُ مرتَّبةٌ من `_sorted_rows` بنسبة «دون مستوى النجاح» تنازلياً:
+الأحوجُ إلى النظر أوّلاً، لا أبجدياً.
+{% endcomment %}
+{% if rows %}
+<div class="table-wrap-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>{{ head }}</th>
+        {% for key, label, floor, color in bands %}
+        <th class="col-center">{{ label }}</th>
+        {% endfor %}
+        <th class="col-center">المجموع</th>
+        <th class="col-center">نسبة دون المستوى</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td style="font-weight:600">{{ row.name }}</td>
+        {% for key, label, floor, color in bands %}
+        <td class="col-center" style="color:{{ color }};font-weight:600">{{ row.counts|dictkey:key }}</td>
+        {% endfor %}
+        <td class="col-center">{{ row.total }}</td>
+        <td class="col-center">
+          <span class="status-badge {% if row.below_pct >= 25 %}status-danger{% elif row.below_pct >= 10 %}status-warning{% else %}status-success{% endif %}">
+            {{ row.below_pct }}%
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p style="margin:0;padding:var(--sp-4);color:var(--text-secondary)">لا بيانات.</p>
+{% endif %}

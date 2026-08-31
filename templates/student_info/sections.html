@@ -1,0 +1,36 @@
+{% extends "base/base.html" %}
+
+{% block title %}مركز معلومات الطلبة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current="الشُّعب" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="users" %} مركز معلومات الطلبة</h1>
+      <p class="exec-subtitle">اختر شعبةً ثمّ طالباً — {{ year }}</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية</a>
+      <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+    </div>
+  </div>
+
+  {% if groups %}
+  <div class="stat-row">
+    {% for g in groups %}
+    <a href="{% url 'student_info:section_students' g.id %}?year={{ year }}" class="stat-card" style="text-decoration:none;display:block">
+      <div class="stat-card-value">{{ g.grade|slice:"1:" }}/{{ g.section }}</div>
+      <div class="stat-card-label">{{ g.get_grade_display }}{% if g.track %} — {{ g.get_track_display }}{% endif %}</div>
+      <div class="stat-card-trend">{{ g.student_count }} طالباً{% if g.supervisor %} · {{ g.supervisor.full_name }}{% endif %}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% include "components/empty_state.html" with title="لا شُعب في نطاقك لهذا العام" %}
+  {% endif %}
+</div>
+{% endblock %}

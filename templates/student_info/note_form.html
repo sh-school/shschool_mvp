@@ -1,0 +1,65 @@
+{% extends "base/base.html" %}
+
+{% block title %}ملاحظة على {{ student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current="إضافة ملاحظة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} ملاحظة على {{ student.full_name }}</h1>
+      <p class="exec-subtitle">{{ year }}</p>
+    </div>
+    <a href="{% url 'student_info:student_file' student.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للملفّ</a>
+  </div>
+
+  <div class="form-card">
+    <div class="card-header">
+      <div class="card-header-icon">{% include "components/icon.html" with name="file-pen" %}</div>
+      <h3 class="card-header-title">بيانات الملاحظة</h3>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.category.id_for_label }}">الجهة <span class="required">*</span></label>
+        {{ form.category }}
+        {% if form.category.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.category.errors|striptags }}</p>{% endif %}
+        <p class="form-hint">لا تظهر هنا إلّا الجهةُ التي تكتب باسمها.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.title.id_for_label }}">العنوان <span class="required">*</span></label>
+        {{ form.title }}
+        {% if form.title.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.title.errors|striptags }}</p>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.occurred_on.id_for_label }}">التاريخ <span class="required">*</span></label>
+        {{ form.occurred_on }}
+        {% if form.occurred_on.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.occurred_on.errors|striptags }}</p>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="{{ form.body.id_for_label }}">نصّ الملاحظة <span class="required">*</span></label>
+        {{ form.body }}
+        {% if form.body.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.body.errors|striptags }}</p>{% endif %}
+        <p class="form-hint">يُحفظ النصّ مشفَّراً في قاعدة البيانات، ويُسجَّل اسمُك كاتباً له.</p>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn-primary">حفظ الملاحظة</button>
+        <a href="{% url 'student_info:student_file' student.id %}?year={{ year }}" class="btn-secondary">إلغاء</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
