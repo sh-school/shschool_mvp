@@ -9,8 +9,16 @@
 «‑» فقرارُه لم يُتّخذ بعد — يُعرَض ولا يُقيَّد.
 
 بنيةُ الملفّ: ورقةٌ لكلّ صفّ («الصف- 07») وورقةٌ لكلّ شعبة، ورؤوسُها في السطر
-الثالث. وأوراقُ الصفوف هي المرجع لأنّها تضمّ من لا شعبةَ له، وأوراقُ الشُّعب
-تُقرأ لمسارها المكتوب في اسمها («…- 11-2-Technology-»).
+الثالث. وأوراقُ الصفوف هي المرجع لأنّها تضمّ من لا شعبةَ له.
+
+**ولا يُؤخَذ المسارُ من هذا الملفّ.** أسماءُ أوراقه تكتب «11-2-Technology»
+و«11-4-Humanities»، والجدولُ المدرسيّ يقول عكسَه: 11/4 و12/4 وحدهما فيهما
+علومُ الحاسب وتكنولوجيا المعلومات. فالمسارُ يُضبط بـ`set_class_tracks` ويُقاس
+بما يُدرَّس فعلاً، وهذا الأمر يُنبّه على الخلاف ولا يكتبه.
+
+**وترقيمُ الشُّعب قد يختلف بين السجلّ والمدرسة.** في الثاني عشر يضع السجلُّ
+سبعةَ طلاب التكنولوجي في «12/2» وتسمّيهم المدرسة «12/4»، فتُمرَّر المطابقةُ
+في `--map` صريحةً: بلا تخمينٍ ولا اشتقاقٍ من الأعداد.
 
 ولا يمسّ من كان في المنصّة وليس في السجلّ: خرّيجٌ أو منتقلٌ، وإغلاقُ قيده
 قرارٌ إداريٌّ لا يُتّخذ من سطر أوامر — يُعرَض عددُهم وحدَه.
@@ -75,9 +83,12 @@ class Command(BaseCommand):
             help="يُنشئ حساباً لمن في السجلّ ولا حسابَ له",
         )
         parser.add_argument(
-            "--fix-tracks",
-            action="store_true",
-            help="يُصحّح مسار الشعبة إن خالف السجلّ",
+            "--map",
+            nargs="+",
+            default=[],
+            dest="section_map",
+            metavar="شعبةُ‑السجلّ=شعبةُ‑المدرسة",
+            help="مطابقةُ ترقيمٍ صريحة، مثل 12/2=12/4",
         )
         parser.add_argument("--apply", action="store_true", help="بدونه يعرض ولا يكتب")
 
@@ -88,9 +99,17 @@ class Command(BaseCommand):
         year = options["year"]
         roster, tracks = self._read(options["path"])
 
+        # ترقيمُ السجلّ قد يخالف ترقيم المدرسة — والمطابقةُ تُكتب ولا تُخمَّن.
+        mapping = self._mapping(options["section_map"])
+        roster = {
+            nid: (name, mapping.get(section, section)) for nid, (name, section) in roster.items()
+        }
+
         self.stdout.write(f"\n{school.name} · العام {year}")
         self.stdout.write("═" * 60)
         self.stdout.write(f"  في السجلّ: {len(roster)} طالباً")
+        for register_label, school_label in sorted(mapping.items()):
+            self.stdout.write(f"  مطابقة: {register_label} في السجلّ ← {school_label} في المدرسة")
 
         sections = self._plan_sections(school, year, roster, tracks)
         students = self._plan_students(school, year, roster, sections["labels"])
@@ -101,11 +120,6 @@ class Command(BaseCommand):
             self.stdout.write("\nعرضٌ فقط. أضف --apply للكتابة.\n")
             return
 
-        if sections["wrong_track"] and not options["fix_tracks"]:
-            raise CommandError(
-                "مساراتٌ تخالف السجلّ — أضف --fix-tracks لتصحيحها أو صحّحها "
-                "بـ set_class_tracks قبل القيد."
-            )
         if students["unknown"] and not options["create_missing"]:
             raise CommandError(
                 f"{len(students['unknown'])} طالباً في السجلّ بلا حساب — أضف "
@@ -245,12 +259,18 @@ class Command(BaseCommand):
         w(f"  في السجلّ: {len(sections['wanted'])}")
         if sections["missing"]:
             w(self.style.WARNING(f"  تُنشأ ({len(sections['missing'])}):"))
-            for label, track in sections["missing"]:
-                w(f"      {label}{'  مسار: ' + track if track else ''}")
+            for label, _track in sections["missing"]:
+                w(f"      {label}   (بلا مسار — يُضبط بـ set_class_tracks إن لزم)")
         if sections["wrong_track"]:
-            w(self.style.ERROR(f"  مسارٌ يخالف السجلّ ({len(sections['wrong_track'])}):"))
-            for label, was, should, _ in sections["wrong_track"]:
-                w(f"      {label}: «{was or '—'}»  ←  «{should}»")
+            w(
+                self.style.WARNING(
+                    f"  اسمُ ورقة السجلّ يخالف مسارَ المنصّة في "
+                    f"{len(sections['wrong_track'])} شعبة — ولا يُغيَّر شيء:"
+                )
+            )
+            for label, ours, theirs, _ in sections["wrong_track"]:
+                w(f"      {label}: المنصّة «{ours or '—'}» · ورقةُ السجلّ «{theirs}»")
+            w("      (الحَكَمُ ما يُدرَّس فعلاً — والضبطُ بـ set_class_tracks)")
 
         w("\n── الطلاب ──")
         w(f"  قيدُهم مطابقٌ أصلاً: {len(students['already'])}")
@@ -285,7 +305,7 @@ class Command(BaseCommand):
     def _write(self, school, year, roster, sections, students, options):
         w = self.stdout.write
 
-        for label, track in sections["missing"]:
+        for label, _track in sections["missing"]:
             grade, section = SECTION_LABEL.match(label).groups()
             grade_key = f"G{grade}"
             group = ClassGroup.objects.create(
@@ -293,7 +313,6 @@ class Command(BaseCommand):
                 grade=grade_key,
                 section=section,
                 level_type="prep" if grade_key in PREP_GRADES else "sec",
-                track=track,
                 academic_year=year,
                 is_active=True,
             )
@@ -301,15 +320,8 @@ class Command(BaseCommand):
         if sections["missing"]:
             w(self.style.SUCCESS(f"أُنشئت {len(sections['missing'])} شعبة."))
 
-        if options["fix_tracks"]:
-            for label, _was, should, group in sections["wrong_track"]:
-                group.track = should
-                group.save(update_fields=["track"])
-            if sections["wrong_track"]:
-                w(self.style.SUCCESS(f"صُحّح مسارُ {len(sections['wrong_track'])} شعبة."))
-
-        # الشُّعبُ صارت قائمةً الآن — فيُعاد تخطيطُ الطلاب عليها كي يلحق بها
-        # من كانت شعبتُه معلَّقة. والتخطيطُ الأوّل كان للعرض، وهذا للكتابة.
+        # الشُّعبُ صارت قائمةً الآن — فيُعاد تخطيطُ الطلاب عليها كي يلحق بها من
+        # كانت شعبتُه معلَّقة. والتخطيطُ الأوّل كان للعرض، وهذا للكتابة.
         students = self._plan_students(school, year, roster, sections["labels"])
 
         created = 0
@@ -345,6 +357,25 @@ class Command(BaseCommand):
             )
 
     # ── مساعدات ──────────────────────────────────────────────────────
+
+    def _mapping(self, pairs):
+        """مطابقةُ ترقيمٍ صريحةٌ بين السجلّ والمدرسة: «12/2=12/4».
+
+        لا تُشتقّ من الأعداد ولا من المسار: اشتقاقٌ كهذا يضع سبعةَ طلابٍ في
+        جدول شعبةٍ أخرى إن أخطأ، ولا يُخبر أحداً. فمن أراد المطابقة كتبها.
+        """
+        mapping = {}
+        for pair in pairs:
+            if pair.count("=") != 1:
+                raise CommandError(f"مطابقةٌ بصيغةٍ غير مفهومة: «{pair}» — الصيغة 12/2=12/4")
+            register_label, school_label = (canonical(x) for x in pair.split("="))
+            if not SECTION_LABEL.match(register_label) or not SECTION_LABEL.match(school_label):
+                raise CommandError(f"مطابقةٌ بصيغةٍ غير مفهومة: «{pair}» — الصيغة 12/2=12/4")
+            mapping[register_label] = school_label
+        collisions = [v for v, n in Counter(mapping.values()).items() if n > 1]
+        if collisions:
+            raise CommandError(f"شعبتان في السجلّ تُطابقان شعبةً واحدة: {', '.join(collisions)}")
+        return mapping
 
     def _school(self, code):
         if code:

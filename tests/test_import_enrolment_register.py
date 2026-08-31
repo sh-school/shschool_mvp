@@ -184,53 +184,101 @@ def test_staff_are_not_counted_as_missing_from_the_student_register(
     assert "في المنصّة وليسوا في السجلّ" not in out
 
 
-# ── المسارات: السجلُّ هو المرجع ──────────────────────────────────────
+# ── المسارُ لا يُؤخَذ من هذا الملفّ ───────────────────────────────────
 
 
-def test_a_track_that_contradicts_the_register_is_refused_without_the_flag(
-    db, school, student, tmp_path
+@pytest.fixture
+def eleven_two(db, school):
+    return ClassGroup.objects.create(
+        school=school,
+        grade="G11",
+        section="2",
+        level_type="sec",
+        track="humanities",
+        academic_year=YEAR,
+    )
+
+
+@pytest.fixture
+def contradicting(tmp_path, student):
+    """ورقةٌ تسمّي 11/2 «تكنولوجي» — وهو ما تكذّبه موادُّ الجدول."""
+    return _register(
+        tmp_path,
+        {"11": [("31463401932", "تميم سعد", "11", "11/2")]},
+        tracks=["الشعبة الصفية- 11-2-Technology-"],
+    )
+
+
+def test_the_register_sheet_names_never_overwrite_a_track(
+    db, school, student, eleven_two, contradicting
 ):
-    """أربعُ شُعبٍ كان مسارُها معكوساً في المنصّة، ومصدرُ الخطأ القائمةُ التي
-    أُنشئت منها لا الجدولُ ولا الاستيراد. فالسجلُّ الرسميّ هو الحَكَم — ولا
-    يُغيَّر مسارٌ بصمت."""
-    ClassGroup.objects.create(
-        school=school,
-        grade="G11",
-        section="2",
-        level_type="sec",
-        track="humanities",
-        academic_year=YEAR,
-    )
+    """أسماءُ أوراق السجلّ تكتب «11-2-Technology» و«11-4-Humanities»، وجدولُ
+    المدرسة يقول عكسَه: 11/4 و12/4 وحدهما فيهما علومُ الحاسب وتكنولوجيا
+    المعلومات، والباقي إدارةُ أعمالٍ وتاريخٌ وجغرافيا.
+
+    فالحَكَمُ ما يُدرَّس فعلاً، والمنصّةُ كانت مصيبةً — ولو كتب هذا الأمرُ
+    المسارَ من الملفّ لأفسد أربعَ شُعب.
+    """
+    _run(contradicting, "--apply")
+
+    eleven_two.refresh_from_db()
+    assert eleven_two.track == "humanities"
+
+
+def test_a_contradicting_track_is_announced_not_applied(
+    db, school, student, eleven_two, contradicting
+):
+    """يُنبّه ولا يأمر: الخلافُ إشارةٌ تستحقّ النظر، لا سبباً للكتابة."""
+    out = _run(contradicting)
+
+    assert "ولا يُغيَّر شيء" in out
+    assert "المنصّة «humanities» · ورقةُ السجلّ «technology»" in out
+
+
+def test_a_section_created_here_gets_no_track_from_the_file(db, school, student, tmp_path):
+    """شعبةٌ جديدةٌ تُنشأ بلا مسار — وحالةُ «بلا مسار» مشروعةٌ في النموذج
+    حتى يُضبط بـ`set_class_tracks` مقيساً بما يُدرَّس."""
     path = _register(
         tmp_path,
         {"11": [("31463401932", "تميم سعد", "11", "11/2")]},
         tracks=["الشعبة الصفية- 11-2-Technology-"],
     )
 
-    assert "11/2: «humanities»  ←  «technology»" in _run(path)
-    with pytest.raises(CommandError, match="--fix-tracks"):
-        _run(path, "--apply")
+    _run(path, "--apply")
+
+    assert ClassGroup.objects.get(academic_year=YEAR, grade="G11", section="2").track == ""
 
 
-def test_with_the_flag_the_track_follows_the_register(db, school, student, tmp_path):
-    group = ClassGroup.objects.create(
+# ── مطابقةُ الترقيم: تُكتب ولا تُخمَّن ────────────────────────────────
+
+
+def test_the_register_numbering_can_be_mapped_onto_the_schools(db, school, student, tmp_path):
+    """في الثاني عشر يضع السجلُّ سبعةَ طلاب التكنولوجي في «12/2» وتسمّيهم
+    المدرسة «12/4». ولولا المطابقةُ لدرس التكنولوجيّون جدولَ الإنسانيات."""
+    target = ClassGroup.objects.create(
         school=school,
-        grade="G11",
-        section="2",
+        grade="G12",
+        section="4",
         level_type="sec",
-        track="humanities",
+        track="technology",
         academic_year=YEAR,
     )
-    path = _register(
-        tmp_path,
-        {"11": [("31463401932", "تميم سعد", "11", "11/2")]},
-        tracks=["الشعبة الصفية- 11-2-Technology-"],
-    )
+    path = _register(tmp_path, {"12": [("31463401932", "تميم", "12-Technology", "12/2")]})
 
-    _run(path, "--fix-tracks", "--apply")
+    _run(path, "--map", "12/2=12/4", "--apply")
 
-    group.refresh_from_db()
-    assert group.track == "technology"
+    assert StudentEnrollment.objects.get(student=student, is_active=True).class_group == target
+
+
+def test_a_mapping_that_sends_two_sections_to_one_is_refused(db, school, student, simple):
+    with pytest.raises(CommandError, match="شعبتان"):
+        _run(simple, "--map", "12/2=12/4", "12/3=12/4")
+
+
+@pytest.mark.parametrize("bad", ["12/2", "12/2=12/4=12/1", "اثنعشر=12/4"])
+def test_a_malformed_mapping_is_refused(db, school, student, simple, bad):
+    with pytest.raises(CommandError, match="غير مفهومة"):
+        _run(simple, "--map", bad)
 
 
 # ── الحدود: ما لا يفعله ──────────────────────────────────────────────
