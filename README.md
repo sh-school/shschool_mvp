@@ -116,9 +116,19 @@ npm install && npm run build
 # http://localhost:8000
 ```
 
-> للبيئة المحلية بدون Docker:
+> للبيئة المحلية بدون Docker (Windows PowerShell):
+> ```powershell
+> py -3.11 -m venv .venv
+> .\.venv\Scripts\Activate.ps1
+> pip install -r requirements.txt
+> copy .env.example .env   # ثم عدّل القيم
+> python manage.py migrate
+> python manage.py runserver
+> ```
+>
+> للبيئة المحلية بدون Docker (macOS/Linux):
 > ```bash
-> python -m venv venv && source venv/bin/activate
+> python3.11 -m venv .venv && source .venv/bin/activate
 > pip install -r requirements.txt
 > cp .env.example .env   # ثم عدّل القيم
 > python manage.py migrate && python manage.py runserver
