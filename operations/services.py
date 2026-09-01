@@ -1746,7 +1746,6 @@ class CapacityCheckService:
         """
         from collections import defaultdict
 
-        from operations.scheduler import _grade_to_level
         from operations.scheduler_constraints import get_max_periods_for_day
 
         class_demand: dict = defaultdict(int)
@@ -1754,7 +1753,11 @@ class CapacityCheckService:
         for a in assignments:
             cid = str(a.class_group_id)
             class_demand[cid] += a.weekly_periods
-            class_levels[cid] = _grade_to_level(a.class_group.grade)
+            # `ClassGroup.level_type` حقلٌ قائمٌ يحمل «prep»/«sec» — يُقرأ ولا
+            # يُشتقّ من `grade`. وكان هنا `_grade_to_level` وقد حُذف من المولّد
+            # حين صُحّح الاشتقاقُ هناك، فبقي الاستيرادُ معلّقاً وسقطت الصفحةُ
+            # كلُّها بـ`ImportError` — لا الفحصُ وحدَه.
+            class_levels[cid] = a.class_group.level_type or ""
 
         overcapacity = []
         for cid, demand in class_demand.items():
