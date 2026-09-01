@@ -51,11 +51,6 @@ def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) ->
     return grid.class_at(day, period) != class_id
 
 
-def check_day_capacity(grid: ScheduleGrid, day: int, class_id, max_periods: int) -> bool:
-    """HC4: لا يتجاوز عدد حصص الفصل في اليوم الحد الأقصى"""
-    return grid.class_periods_on_day(class_id, day) < max_periods
-
-
 def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
     """
     HC5 (جديد): الحد الأقصى 3 حصص متتالية للمعلم.
@@ -75,6 +70,13 @@ def check_high_weekly_daily_limit(grid: ScheduleGrid, day: int, task: Task) -> b
     return count < 2
 
 
+#: سقفُ حصص الشعبة في اليوم مصونٌ بهذا المدى وحده.
+#:
+#: كان هنا `check_day_capacity` تعدّ حصصَ الشعبة وتقارنها بالسقف، ولم تكن
+#: تُستدعى من أيّ موضع. وحُذفت لأنّها لا تضيف ثابتاً مستقلّاً: الشعبةُ لا تشغل
+#: خانتين في الحصّة الواحدة (`check_class_conflict`)، والحصصُ محدودةٌ بالمدى
+#: أدناه — فعددُها في اليوم لا يتجاوزه بحال. ودالّةٌ تبدو حارساً وليست في
+#: المسار فخٌّ لمن يقرأ بعدنا.
 def get_max_periods_for_day(day: int, level_type: str = "") -> int:
     """
     HC4 (تحديث): الحد الأقصى لحصص اليوم.
@@ -146,7 +148,7 @@ def evaluate_soft_constraints(
     # ── SC3: توزيع المادة — لا حصتين نفس المادة نفس اليوم للفصل ──
     same_subject_today = grid.subject_on_day(task.class_id, task.subject_id, day)
     # SC7: مكافأة الحصة المزدوجة — من إعدادات المادة أو الكود
-    is_double = getattr(task, "requires_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
+    is_double = getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
     if is_double:
         # حصتان بنفس اليوم مرغوبة — لا عقوبة على الأولى
         penalty.add("subject_spread", 6, same_subject_today > 1)

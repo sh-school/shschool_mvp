@@ -50,7 +50,10 @@ class Task:
     teacher_name: str
     weekly_periods: int
     requires_lab: bool = False
-    requires_double: bool = False  # حصة مزدوجة (من إعدادات المادة)
+    #: **تفضيلٌ لا اشتراط.** لا قيدَ صلباً يفرض تجاور الحصّتين؛ أثرُه
+    #: عقوبةٌ مرنةٌ ترجّح التجاور وتُلغي عقوبةَ تكرار المادّة في اليوم.
+    #: (وحقلُ القاعدة `Subject.requires_double_period` يحمل الاسمَ القديم.)
+    prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
 
@@ -198,14 +201,17 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         if not a.teacher_id or a.teacher is None:
             continue
 
-        # تحديد level_type من الصف (grade)
-        grade = a.class_group.grade
-        if grade in (7, 8, 9):
-            level_type = "prep"  # إعدادي
-        elif grade in (10, 11, 12):
-            level_type = "sec"  # ثانوي
-        else:
-            level_type = ""
+        # المرحلةُ تُقرأ من الشعبة ولا تُشتقّ من الصفّ.
+        #
+        # كان هنا `if grade in (7, 8, 9)` و`ClassGroup.grade` نصٌّ («G7»…«G12»)
+        # لا عدد، فلا تصدق المقارنةُ أبداً ويخرج `level_type` فارغاً لكلّ شعبةٍ
+        # في المدرسة. وأثرُه أنّ `get_max_periods_for_day` يأخذ الخميسَ بالأضيق
+        # — ستُّ حصصٍ — للثانويّ أيضاً، فيخسر حصّتَه السابعة ويضيق الجدولُ من
+        # حيث لا يُرى: لا تعارضَ ظاهرٌ، بل طاقةٌ أقلُّ وحصصٌ تتعذّر.
+        #
+        # و`ClassGroup.level_type` حقلٌ قائمٌ يحمل «prep»/«sec»، فيُقرأ ولا
+        # يُعاد اشتقاقُه: اشتقاقٌ ثانٍ لحقيقةٍ محفوظةٍ يفترق عنها يوماً.
+        level_type = a.class_group.level_type or ""
 
         # حصة مزدوجة: من إعدادات المادة في DB أو من الكود القديم
         is_double = a.subject_id in double_period_subjects or a.subject.code in {"ART", "TECH"}
@@ -222,7 +228,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
                     teacher_name=a.teacher.full_name,
                     weekly_periods=a.weekly_periods,
                     requires_lab=a.requires_lab,
-                    requires_double=is_double,
+                    prefers_double=is_double,
                     preferred_periods=a.preferred_periods or [],
                     level_type=level_type,
                 )
@@ -344,9 +350,20 @@ def generate_schedule(
     placed = []
     i = 0
 
+    # الخاناتُ التي جُرِّبت لكلّ مهمّةٍ ثمّ تراجعنا عنها.
+    #
+    # كان التراجعُ يُزيل آخرَ حصّةٍ ثمّ يعود إلى المهمّة نفسها، فيُعيد ترتيبَ
+    # الخانات فيجد الترتيبَ نفسه فيضعها في الخانة نفسها — بلا تقدّمٍ ولا تغيير.
+    # فتُستهلَك المحاولاتُ الخمسمئة كلُّها في دورةٍ عقيمة، ثمّ يُعلَن التعذّر
+    # وللأسبوع حلٌّ قائم. و«تعذّرٌ» كاذبٌ عيبُ صحّةٍ لا أداء: يُخرج جدولاً
+    # ناقصاً ويُلقي باللوم على النصاب.
+    tried: dict[int, set[tuple[int, int]]] = defaultdict(set)
+
     while i < len(sorted_tasks):
         task = sorted_tasks[i]
-        available = get_available_slots(grid, task, blocked_slots)
+        available = [
+            slot for slot in get_available_slots(grid, task, blocked_slots) if slot not in tried[i]
+        ]
         ranked = rank_slots(grid, task, available, preferences)
 
         if ranked:
@@ -365,7 +382,13 @@ def generate_schedule(
             backtrack_count += 1
             last_i, last_day, last_period = placed.pop()
             grid.remove(last_day, last_period)
-            i = last_i  # إعادة محاولة
+            # لا يُعاد إليها: هذا الاختيارُ أفضى إلى طريقٍ مسدود.
+            tried[last_i].add((last_day, last_period))
+            # وما بُني بعدها قراراتٌ سقطت معها، فتُستأنف نظيفةً.
+            for deeper in range(last_i + 1, len(sorted_tasks)):
+                if deeper in tried:
+                    tried[deeper].clear()
+            i = last_i
 
     elapsed_ms = int((time.time() - start_time) * 1000)
 
