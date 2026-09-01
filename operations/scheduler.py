@@ -526,7 +526,13 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
 
     for entries in grouped.values():
         members = [member(a) for a, _, _, _ in entries]
-        lead, level_type, is_double, _ = entries[0]
+        lead, level_type, _, _ = entries[0]
+        # والازدواجُ لا يُفرض على شريكٍ لا يطلبه: الفنّيّةُ مزدوجةٌ والكيمياءُ
+        # ليست كذلك، وهما متوازيتان في الحادي عشر/4 والثاني عشر/4. فلو أُخذ
+        # الوصفُ من أوّل العضوين لجرّت الفنّيّةُ الكيمياءَ إلى يومٍ واحد —
+        # والأولى بالكيمياء يومان. فالمجموعةُ تُزدوَج إن طلب الازدواجَ
+        # أعضاؤها **جميعاً**، وإلّا فحصصٌ مفردةٌ تُفرّقها القسمةُ على الأيّام.
+        is_double = all(d for _, _, d, _ in entries)
         # المجموعةُ المتوازيةُ تأخذ أضيقَ أيّامِ أعضائها: من فُرّغ يومان
         # فأيّامُ المجموعةِ أيّامُه.
         available = min(av for _, _, _, av in entries)

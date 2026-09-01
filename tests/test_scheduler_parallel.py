@@ -146,6 +146,44 @@ def test_the_generator_places_both_subjects_in_the_same_slot(school, split):
     assert second == first + 1, "متلاصقتان"
 
 
+def test_the_group_doubles_only_when_every_member_asks_for_it(school, group, teachers, subjects):
+    """الازدواجُ لا يُفرض على شريكٍ لا يطلبه.
+
+    الفنّيّةُ مزدوجةٌ والكيمياءُ ليست كذلك، وهما متوازيتان في الحادي عشر/4
+    والثاني عشر/4. فلو جرّت الفنّيّةُ الكيمياءَ إلى خانتين متلاصقتين لاجتمعت
+    حصّتا الكيمياء في يومٍ واحد — والأولى بها يومان. فتُبنى المجموعةُ حصصاً
+    مفردةً تُفرّقها القسمةُ على الأيّام.
+    """
+    from operations.models import Subject
+    from operations.scheduler import build_tasks
+
+    art = Subject.objects.create(
+        school=school, name_ar="الفنون البصرية", code="ART2", requires_double_period=True
+    )
+    chemistry = Subject.objects.create(school=school, name_ar="الكيمياء", code="CHE")
+    assign(school, group, teachers[0], art, periods=2, parallel="اختياري-2")
+    assign(school, group, teachers[1], chemistry, periods=2, parallel="اختياري-2")
+
+    tasks = [t for t in build_tasks(school, YEAR) if t.is_split]
+
+    assert len(tasks) == 2, "حصّتان مفردتان لا مهمّةٌ مزدوجة"
+    assert all(t.span == 1 for t in tasks)
+
+
+def test_a_group_whose_members_all_ask_for_it_still_doubles(school, split):
+    """وشريكانِ كلاهما مزدوج — الفنّيّةُ والتكنولوجيا — يبقيان متلاصقين."""
+    from operations.models import Subject
+    from operations.scheduler import build_tasks
+
+    Subject.objects.filter(school=school, code__in=("ART", "TECH")).update(
+        requires_double_period=True
+    )
+
+    [parallel] = [t for t in build_tasks(school, YEAR) if t.is_split]
+
+    assert parallel.span == 2
+
+
 def test_each_row_carries_its_elective_group(school, split):
     """الصفُّ يحمل وسمَ مجموعته، وإلّا رفضه قيدُ «شعبةٌ واحدةٌ في التوقيت»."""
     from operations.models import ScheduleSlot
