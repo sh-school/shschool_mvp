@@ -7,6 +7,7 @@ Greedy + Backtracking + Local Search
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -71,6 +72,10 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: أيّامُ المعلّم المتاحةُ في الأسبوع — خمسةٌ ما لم يكن مفرَّغاً يوماً.
+    #: وهي مقامُ القسمة في توزيع المادّة، فمعلّمٌ يعمل أربعةَ أيّامٍ يلزم
+    #: مادّتَه السداسيّةَ يومان مزدوجان لا يومٌ واحد.
+    available_days: int = 5
     #: وسمُ المجموعة المتوازية — فارغٌ في الغالبيّة العظمى.
     parallel_group: str = ""
     #: ساكنو الخانة: واحدٌ عادةً، واثنان في الشعبة المنقسمة. والحقولُ المفردةُ
@@ -92,6 +97,31 @@ class Task:
     @property
     def is_split(self) -> bool:
         return len(self.members) > 1
+
+    @property
+    def per_day_cap(self) -> int:
+        """أكثرُ ما يجوز لهذه المادّة في يومٍ واحدٍ لهذه الشعبة.
+
+            perDayCap = ⌈W / D⌉
+
+        فستُّ حصصٍ على خمسة أيّامٍ سقفُها حصّتان، وعلى أربعةٍ سقفُها حصّتان
+        أيضاً — والفرقُ في **عدد** الأيّام التي تبلغ السقف لا في السقف نفسه.
+        """
+        days = max(1, self.available_days)
+        return max(1, math.ceil(self.weekly_periods / days))
+
+    @property
+    def days_allowed_at_cap(self) -> int:
+        """كم يوماً يجوز أن يبلغ السقف.
+
+            daysAtCap = W mod D    (وإن قسمت بلا باقٍ فالأيّامُ كلُّها سواء)
+
+        فستٌّ على خمسةٍ: يومٌ واحدٌ مزدوج. وستٌّ على أربعةٍ: يومان. وخمسٌ على
+        خمسةٍ: لا مزدوجَ البتّة، والأيّامُ الخمسةُ كلُّها «عند السقف» وهو واحد.
+        """
+        days = max(1, self.available_days)
+        remainder = self.weekly_periods % days
+        return remainder if remainder else days
 
 
 class ScheduleGrid:
@@ -245,6 +275,15 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         school=school, academic_year=academic_year, is_active=True
     ).select_related("class_group", "subject", "teacher")
 
+    # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
+    from operations.models import TeacherExemption
+
+    exempt_days = defaultdict(set)
+    for ex in TeacherExemption.objects.filter(
+        school=school, academic_year=academic_year, is_active=True, exemption_type="full_day"
+    ):
+        exempt_days[str(ex.teacher_id)].add(ex.day_of_week)
+
     rows = []
     for a in assignments:
         # تجاوز المواد التي لم يُعيّن لها معلم بعد
@@ -266,7 +305,8 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         # حصة مزدوجة: من إعدادات المادة في DB أو من الكود القديم
         is_double = a.subject_id in double_period_subjects or a.subject.code in {"ART", "TECH"}
 
-        rows.append((a, level_type, is_double))
+        available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
+        rows.append((a, level_type, is_double, max(1, available)))
 
     return _to_tasks(rows)
 
@@ -289,7 +329,7 @@ def _to_tasks(rows) -> list[Task]:
             subject_code=a.subject.code,
         )
 
-    def build(a, level_type, is_double, members):
+    def build(a, level_type, is_double, members, available):
         return Task(
             class_id=str(a.class_group_id),
             class_name=str(a.class_group),
@@ -303,27 +343,31 @@ def _to_tasks(rows) -> list[Task]:
             prefers_double=is_double,
             preferred_periods=a.preferred_periods or [],
             level_type=level_type,
+            available_days=available,
             parallel_group=(a.parallel_group or "").strip(),
             members=members,
         )
 
     grouped = _dd(list)
     tasks = []
-    for a, level_type, is_double in rows:
+    for a, level_type, is_double, available in rows:
         label = (a.parallel_group or "").strip()
         if label:
-            grouped[(str(a.class_group_id), label)].append((a, level_type, is_double))
+            grouped[(str(a.class_group_id), label)].append((a, level_type, is_double, available))
             continue
         for _ in range(a.weekly_periods):
-            tasks.append(build(a, level_type, is_double, [member(a)]))
+            tasks.append(build(a, level_type, is_double, [member(a)], available))
 
     for entries in grouped.values():
-        members = [member(a) for a, _, _ in entries]
-        lead, level_type, is_double = entries[0]
+        members = [member(a) for a, _, _, _ in entries]
+        lead, level_type, is_double, _ = entries[0]
+        # المجموعةُ المتوازيةُ تأخذ أضيقَ أيّامِ أعضائها: من فُرّغ يومان
+        # فأيّامُ المجموعةِ أيّامُه.
+        available = min(av for _, _, _, av in entries)
         # الخاناتُ بأكبرِ نصابٍ في المجموعة: لو كانت الفنونُ حصّتين
         # والتكنولوجيا ثلاثاً فالخاناتُ ثلاث.
-        for _ in range(max(a.weekly_periods for a, _, _ in entries)):
-            tasks.append(build(lead, level_type, is_double, list(members)))
+        for _ in range(max(a.weekly_periods for a, _, _, _ in entries)):
+            tasks.append(build(lead, level_type, is_double, list(members), available))
 
     return tasks
 

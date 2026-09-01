@@ -55,6 +55,40 @@ def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) ->
     return not grid.class_busy(class_id, day, period)
 
 
+def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool:
+    """HC6: المادّةُ تُوزَّع على أيّام الأسبوع بالقسمة، لا تُكدَّس.
+
+        perDayCap = ⌈W / D⌉        daysAtCap = W mod D
+
+    فمادّةٌ بستّ حصصٍ في أسبوعٍ خماسيّ: أربعةُ أيّامٍ بحصّة، ويومٌ واحدٌ
+    بحصّتين. ومعلّمٌ مفرَّغٌ يوماً يعمل أربعةَ أيّام، فيصير المزدوجُ يومين.
+
+    وشرطان لا واحد: لا يومَ يتجاوز السقف، ولا عددَ الأيّام البالغةِ السقفَ
+    يتجاوز حصّتَه. فبالأوّل وحدَه يجوز 2+2+2 في ثلاثة أيّامٍ ويومان فارغان —
+    توزيعٌ يستوفي السقفَ ويُخالف القسمة.
+
+    وكان هنا قيدٌ أضيق: «مادّةُ 5+ حصصٍ لا تتجاوز حصّتين في اليوم». وهو صحيحٌ
+    في نتيجته لهذه الحالة، وصامتٌ عمّا دونها وعن عدد الأيّام.
+    """
+    cap = task.per_day_cap
+    today = grid.subject_on_day(task.class_id, task.subject_id, day)
+    if today + 1 > cap:
+        return False
+
+    if today + 1 < cap:
+        return True
+
+    # هذه الحصّةُ تُبلغ اليومَ سقفَه — فهل بقي في الحصّة يومٌ يبلغه؟
+    from .scheduler import DAYS
+
+    at_cap = sum(
+        1
+        for d in DAYS
+        if d != day and grid.subject_on_day(task.class_id, task.subject_id, d) >= cap
+    )
+    return at_cap + 1 <= task.days_allowed_at_cap
+
+
 def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
     """
     HC5 (جديد): الحد الأقصى 3 حصص متتالية للمعلم.
@@ -108,7 +142,7 @@ def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
         return False
     if not check_max_consecutive(grid, day, period, task):
         return False
-    if not check_high_weekly_daily_limit(grid, day, task):
+    if not check_subject_distribution(grid, day, task):
         return False
     return True
 
@@ -149,15 +183,34 @@ def evaluate_soft_constraints(
     creates_gap = grid.would_create_gap(task.teacher_id, day, period)
     penalty.add("gap", 8, creates_gap)
 
-    # ── SC3: توزيع المادة — لا حصتين نفس المادة نفس اليوم للفصل ──
+    # ── SC3: التوزيعُ يملأ الأيّامَ الفارغةَ قبل أن يُضاعف ──
+    #
+    # كان يعاقب **كلَّ** حصّةٍ ثانيةٍ في اليوم، فسجّل ٧٩٢ «مخالفة» في جدولٍ
+    # صحيح: لأنّ كلَّ مادّةٍ سداسيّةٍ يلزمها يومٌ مزدوجٌ بالضرورة، فكان
+    # المقياسُ يعاقب الصوابَ ويسمّيه خطأً.
+    #
+    # والقسمةُ الآن قيدٌ صلب (`check_subject_distribution`)، فلم يبقَ لهذا
+    # الوزن إلّا ترتيبُ الأفضليّة: املأ يوماً فارغاً قبل أن تُضاعف يوماً عامراً.
+    # العدُّ يستثني المهمّةَ نفسَها حين تكون موضوعةً سلفاً.
+    #
+    # فالدالّةُ تُستدعى مرّتين: قبل الوضع لترجيح الخانة — والمهمّةُ حينها ليست
+    # في الشبكة — وبعد التوليد لحساب الجودة، وهي حينها فيها. فبلا هذا
+    # الاستثناء يصير «عندي حصّةٌ اليوم» صادقاً عن نفسه دائماً، فتُحسب مخالفةٌ
+    # لكلّ حصّةٍ في المدرسة.
     same_subject_today = grid.subject_on_day(task.class_id, task.subject_id, day)
-    # SC7: مكافأة الحصة المزدوجة — من إعدادات المادة أو الكود
+    if grid.get_task_at(task.class_id, day, period) is task:
+        same_subject_today -= 1
+
     is_double = getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
-    if is_double:
-        # حصتان بنفس اليوم مرغوبة — لا عقوبة على الأولى
-        penalty.add("subject_spread", 6, same_subject_today > 1)
-    else:
-        penalty.add("subject_spread", 6, same_subject_today > 0)
+    if not is_double:
+        from .scheduler import DAYS
+
+        empty_days = sum(
+            1
+            for d in DAYS
+            if grid.subject_on_day(task.class_id, task.subject_id, d) == 0 and d != day
+        )
+        penalty.add("subject_spread", 6, same_subject_today > 0 and empty_days > 0)
 
     # ── SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم ──
     teacher_today = grid.teacher_periods_on_day(task.teacher_id, day)
