@@ -53,7 +53,7 @@
     <ul class="list-disc pr-6 text-sm space-y-1">
       {% for oc in overcapacity_classes %}
       <li class="text-status-danger font-semibold">
-        مطلوب {{ oc.demand }} حصة — السعة {{ oc.capacity }} فقط — فائض {{ oc.overflow }} حصة
+        {{ oc.class_name }} — مطلوب {{ oc.demand }} حصة، والسعة {{ oc.capacity }} — فائض {{ oc.overflow }}
       </li>
       {% endfor %}
     </ul>

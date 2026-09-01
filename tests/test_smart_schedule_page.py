@@ -177,6 +177,7 @@ def test_a_class_beyond_its_week_is_flagged_with_the_overflow(school, teacher, s
     [flagged] = CapacityCheckService.get_overcapacity_classes([row])
 
     assert (flagged["demand"], flagged["capacity"], flagged["overflow"]) == (36, 34, 2)
+    assert flagged["class_name"] == str(row.class_group), "التحذيرُ يُسمّي شعبتَه"
 
 
 def test_a_secondary_class_keeps_its_seventh_thursday_period(school, teacher, subject):

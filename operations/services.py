@@ -1750,9 +1750,13 @@ class CapacityCheckService:
 
         class_demand: dict = defaultdict(int)
         class_levels: dict = {}
+        class_names: dict = {}
         for a in assignments:
             cid = str(a.class_group_id)
             class_demand[cid] += a.weekly_periods
+            # التحذيرُ بلا اسمِ الشعبة لا يُصلحه أحد: «مطلوب 37» مرّتين لا
+            # تقول أيَّ شعبةٍ تُراجَع.
+            class_names[cid] = str(a.class_group)
             # `ClassGroup.level_type` حقلٌ قائمٌ يحمل «prep»/«sec» — يُقرأ ولا
             # يُشتقّ من `grade`. وكان هنا `_grade_to_level` وقد حُذف من المولّد
             # حين صُحّح الاشتقاقُ هناك، فبقي الاستيرادُ معلّقاً وسقطت الصفحةُ
@@ -1768,6 +1772,7 @@ class CapacityCheckService:
                 overcapacity.append(
                     {
                         "class_id": cid,
+                        "class_name": class_names.get(cid, cid),
                         "demand": demand,
                         "capacity": weekly_capacity,
                         "overflow": demand - weekly_capacity,
