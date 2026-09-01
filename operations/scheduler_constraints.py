@@ -104,7 +104,9 @@ def check_resource_capacity(grid: ScheduleGrid, day: int, period: int, task: Tas
     )
 
 
-def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
+def check_last_period_share(
+    grid: ScheduleGrid, period: int, task: Task, allow_dense: bool = False
+) -> bool:
     """HC8: لا تتكدّس الحصّةُ السابعةُ على معلّمٍ بعينه.
 
     والقاعدةُ المطلوبةُ «سابعةٌ واحدةٌ في الأسبوع»، ولا تُبلَغ بالمنع: في
@@ -114,12 +116,13 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     """
     if period != LAST_PERIOD:
         return True
-    return all(
-        grid.teacher_last_periods(m.teacher_id) < MAX_LAST_PERIODS for m in task.members
-    )
+    limit = MAX_LAST_PERIODS + (1 if allow_dense else 0)
+    return all(grid.teacher_last_periods(m.teacher_id) < limit for m in task.members)
 
 
-def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool:
+def check_subject_distribution(
+    grid: ScheduleGrid, day: int, task: Task, allow_dense: bool = False
+) -> bool:
     """HC6: المادّةُ تُوزَّع على أيّام الأسبوع بالقسمة، لا تُكدَّس.
 
         perDayCap = ⌈W / D⌉        daysAtCap = W mod D
@@ -134,7 +137,10 @@ def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool
     وكان هنا قيدٌ أضيق: «مادّةُ 5+ حصصٍ لا تتجاوز حصّتين في اليوم». وهو صحيحٌ
     في نتيجته لهذه الحالة، وصامتٌ عمّا دونها وعن عدد الأيّام.
     """
-    cap = task.per_day_cap
+    #: `allow_dense` رخصةٌ تُصرَف في الجولة الأخيرة وحدَها: تسمح ليومٍ واحدٍ
+    #: بحصّةٍ زائدةٍ عن القسمة — مادّةٌ مرّتين في يومٍ ولا شيءَ منها في آخر.
+    #: وهي أغلى من رخصة التلاصق، فلا تُصرَف إلّا بعد أن تعجز تلك.
+    cap = task.per_day_cap + (1 if allow_dense else 0)
     today = grid.subject_on_day(task.class_id, task.subject_id, day)
     if today + 1 > cap:
         return False
@@ -313,7 +319,12 @@ def get_max_periods_for_day(day: int, level_type: str = "") -> int:
 
 
 def is_slot_valid(
-    grid: ScheduleGrid, day: int, period: int, task: Task, allow_adjacent: bool = False
+    grid: ScheduleGrid,
+    day: int,
+    period: int,
+    task: Task,
+    allow_adjacent: bool = False,
+    allow_dense: bool = False,
 ) -> bool:
     """تحقق من كل القيود الصلبة لخانة معينة"""
     level_type = getattr(task, "level_type", "")
@@ -326,11 +337,11 @@ def is_slot_valid(
         return False
     if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False
-    if not check_subject_distribution(grid, day, task):
+    if not check_subject_distribution(grid, day, task, allow_dense):
         return False
     if not check_period_variety(grid, period, task):
         return False
-    if not check_last_period_share(grid, period, task):
+    if not check_last_period_share(grid, period, task, allow_dense):
         return False
     if not check_resource_capacity(grid, day, period, task):
         return False
