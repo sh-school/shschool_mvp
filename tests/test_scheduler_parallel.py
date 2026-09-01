@@ -123,20 +123,27 @@ def test_the_generator_places_both_subjects_in_the_same_slot(school, split):
     from operations.scheduler import build_tasks, generate_schedule
 
     tasks = build_tasks(school, YEAR)
-    assert len(tasks) == 6, "ستُّ مهامّ: أربعُ رياضياتٍ ومهمّتانِ مزدوجتان"
+    #: الفنونُ والتكنولوجيا مادّتان مزدوجتان ومتوازيتان معاً، فهما مهمّةٌ
+    #: واحدةٌ بساكنَين تشغل خانتين متلاصقتين — لا مهمّتانِ مفردتان.
+    assert len(tasks) == 5, "أربعُ رياضياتٍ ومهمّةٌ متوازيةٌ مزدوجة"
+    [parallel] = [t for t in tasks if t.is_split]
+    assert parallel.span == 2
 
     result = generate_schedule(school, YEAR)
 
     assert result["success"], result["errors"][:3]
     rows = ScheduleSlot.objects.filter(school=school, academic_year=YEAR, is_active=True)
-    assert rows.count() == 8, "ثمانِ حصصٍ تُكتب، وإن شغلت ستَّ خانات"
+    assert rows.count() == 8, "ثمانِ حصصٍ تُكتب: خانتان × مادّتان + أربعُ رياضيات"
 
-    shared = [
+    shared = sorted(
         (r.day_of_week, r.period_number)
         for r in rows
         if r.subject.code in ("ART", "TECH")
-    ]
-    assert len(shared) == 4 and len(set(shared)) == 2, "كلُّ خانةٍ تحمل المادّتين"
+    )
+    assert len(shared) == 4, "حصّتان لكلّ مادّة"
+    assert len(set(shared)) == 2, "في خانتين اثنتين"
+    (day, first), (_, second) = sorted(set(shared))
+    assert second == first + 1, "متلاصقتان"
 
 
 def test_each_row_carries_its_elective_group(school, split):
@@ -166,7 +173,9 @@ def test_both_teachers_are_busy_in_that_slot(school, split, teachers):
     grid = result["grid"]
     entry = next(e for e in grid.all_entries() if len(e["task"].members) > 1)
 
+    #: المعلّمانِ مشغولان في **كلتا** خانتَي المزدوجة، لا في أولاهما وحدَها.
     for member in entry["task"].members:
-        assert grid.teacher_busy(member.teacher_id, entry["day"], entry["period"])
+        for slot in entry["task"].slots(entry["period"]):
+            assert grid.teacher_busy(member.teacher_id, entry["day"], slot)
 
-    assert len(build_tasks(school, YEAR)) == 6
+    assert len(build_tasks(school, YEAR)) == 5

@@ -529,7 +529,19 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
         available = min(av for _, _, _, av in entries)
         # الخاناتُ بأكبرِ نصابٍ في المجموعة: لو كانت الفنونُ حصّتين
         # والتكنولوجيا ثلاثاً فالخاناتُ ثلاث.
-        for _ in range(max(a.weekly_periods for a, _, _, _ in entries)):
+        slots = max(a.weekly_periods for a, _, _, _ in entries)
+        # والمجموعةُ المزدوجةُ تُزدوَج كغيرها: تكنولوجيا الحادي عشر/1 حصّتان
+        # متلاصقتان وإن شاركتها الفنونُ في التوقيت نفسه. وكانت تُبنى مفردةً
+        # لأنّ الازدواجَ كان مقصوراً على غير المتوازي.
+        if is_double and slots >= 2:
+            for _ in range(slots // 2):
+                task = build(lead, level_type, is_double, list(members), available)
+                task.span = 2
+                tasks.append(task)
+            for _ in range(slots % 2):
+                tasks.append(build(lead, level_type, is_double, list(members), available))
+            continue
+        for _ in range(slots):
             tasks.append(build(lead, level_type, is_double, list(members), available))
 
     return tasks
