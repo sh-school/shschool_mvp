@@ -81,6 +81,38 @@ def test_the_settings_page_opens(client_as, principal):
     assert client_as(principal).get(reverse("schedule_settings")).status_code == 200
 
 
+# ── البابُ في الواجهة ────────────────────────────────────────────────
+
+
+def test_the_menu_shows_the_way_in_for_leadership(client_as, principal):
+    """صفحةٌ بلا رابطٍ في القائمة لا يبلغها إلّا من يحفظ مسارَها."""
+    body = client_as(principal).get(reverse("dashboard")).content.decode()
+
+    assert reverse("smart_schedule") in body
+    assert reverse("schedule_settings") in body
+
+
+def test_a_teacher_is_not_offered_the_generator(client_as, teacher):
+    """وأخطرُ صفحةٍ في المنصّة لا تُعرض على من لا يملك اعتمادَها."""
+    body = client_as(teacher).get(reverse("dashboard")).content.decode()
+
+    assert reverse("smart_schedule") not in body
+
+
+def test_the_developer_account_sees_it_too(client_as, school):
+    """حسابُ المطوّر دورُه `platform_developer` لا `principal` — وأوّلُ صياغةٍ
+    للشرط أغفلته، فبقيت الصفحةُ بلا بابٍ لمن يفتحها كلَّ يوم."""
+    from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+    role = RoleFactory(school=school, name="platform_developer")
+    dev = UserFactory(full_name="المطوّر", is_superuser=True)
+    MembershipFactory(user=dev, school=school, role=role)
+
+    body = client_as(dev).get(reverse("dashboard")).content.decode()
+
+    assert reverse("smart_schedule") in body
+
+
 # ── الاعتمادُ يُشعر، ولا يقع نصفَ فعل ────────────────────────────────
 
 
