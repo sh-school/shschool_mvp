@@ -29,6 +29,7 @@ from .models import (
 from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
+    get_max_periods_for_day,
     is_slot_valid,
 )
 
@@ -435,6 +436,117 @@ def rank_slots(
     return ranked
 
 
+def _greedy_pass(grid, tasks, blocked, preferences):
+    """يضع ما يستطيع، ويُعيد ما تعذّر — بلا تراجعٍ ولا محاولاتٍ ضائعة.
+
+    وكان هنا تراجعٌ أعمى: يرفع **آخرَ** ما وُضع وقد لا يكون له بالانسداد صلة،
+    ثمّ يعود فيجرّب. فاستُهلكت المحاولاتُ في دورةٍ لا تُقرّب من حلّ — ورفعُ
+    حدّها من خمسمئةٍ إلى ثلاثين ألفاً أعطى نتيجةً **أسوأ** على بيانات المدرسة.
+    فالبحثُ الأعمى لا يُصلحه الإكثارُ منه.
+    """
+    leftovers = []
+    for task in tasks:
+        ranked = rank_slots(grid, task, get_available_slots(grid, task, blocked), preferences)
+        if ranked:
+            day, period, _ = ranked[0]
+            grid.place(day, period, task)
+        else:
+            leftovers.append(task)
+    return leftovers
+
+
+def _blockers(grid, task, day, period, blocked):
+    """مَن يسدّ هذه الخانةَ عن هذه المهمّة — أو `None` إن كان السدُّ لا يُرفع.
+
+    فتفريغُ المعلّم قرارٌ إداريٌّ لا يُزاح، وتجاوزُ سقف اليوم أو التوزيع قيدٌ
+    لا يُحلّ بإخراج ساكن. أمّا الشاغلُ — شعبةً أو معلّماً — فيُزاح إن وُجد له
+    بديل.
+    """
+    if any((m.teacher_id, day, period) in blocked for m in task.members):
+        return None
+
+    occupants = []
+    seen = set()
+    occupant = grid.get_task_at(task.class_id, day, period)
+    if occupant is not None:
+        occupants.append(occupant)
+        seen.add(id(occupant))
+    for member in task.members:
+        busy = grid.teacher_task_at(member.teacher_id, day, period)
+        if busy is not None and id(busy) not in seen:
+            occupants.append(busy)
+            seen.add(id(busy))
+    return occupants
+
+
+def _repair_pass(grid, leftovers, blocked, preferences, budget):
+    """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
+
+    والفرقُ عن التراجع الأعمى أنّ الإزاحةَ تعرف **من** يسدّ الطريق بعينه: خانةٌ
+    واحدةٌ ممكنةٌ لمعلّمٍ مقيَّد، شغلها زميلٌ يملك أربعاً وثلاثين غيرَها.
+
+    والحركةُ ذرّيّة: إن تعذّر إعادةُ أحد المُزاحين رُدَّ كلُّ شيءٍ إلى مكانه.
+    فلا تُبدَّل حصّةٌ متعذّرةٌ بأخرى.
+    """
+    still = []
+    for task in leftovers:
+        if budget <= 0 or not _try_eject(grid, task, blocked, preferences):
+            still.append(task)
+        else:
+            budget -= 1
+    return still
+
+
+def _try_eject(grid, task, blocked, preferences):
+    for day in DAYS:
+        for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
+            evicted = _blockers(grid, task, day, period, blocked)
+            #: إزاحةُ أكثرَ من ساكنَين تُقلّب الجدولَ أكثرَ ممّا تُصلح.
+            if evicted is None or not evicted or len(evicted) > 2:
+                continue
+
+            homes = [(e, _home_of(grid, e)) for e in evicted]
+            if any(home is None for _, home in homes):
+                continue
+            for occupant, home in homes:
+                grid.remove(occupant.class_id, home[0], home[1])
+
+            if is_slot_valid(grid, day, period, task) and not any(
+                grid.teacher_busy(m.teacher_id, day, period) for m in task.members
+            ):
+                grid.place(day, period, task)
+                if _rehome_all(grid, [e for e, _ in homes], blocked, preferences):
+                    return True
+                grid.remove(task.class_id, day, period)
+
+            for occupant, home in homes:
+                grid.place(home[0], home[1], occupant)
+    return False
+
+
+def _home_of(grid, task):
+    for day in DAYS:
+        for period in range(1, 8):
+            if grid.get_task_at(task.class_id, day, period) is task:
+                return (day, period)
+    return None
+
+
+def _rehome_all(grid, tasks, blocked, preferences):
+    """يُعيد المُزاحين إلى خاناتٍ صحيحة — أو يتراجع عن الجميع."""
+    settled = []
+    for task in tasks:
+        ranked = rank_slots(grid, task, get_available_slots(grid, task, blocked), preferences)
+        if not ranked:
+            for done in settled:
+                grid.remove(done.class_id, *_home_of(grid, done))
+            return False
+        day, period, _ = ranked[0]
+        grid.place(day, period, task)
+        settled.append(task)
+    return True
+
+
 def generate_schedule(
     school: School,
     academic_year: str,
@@ -487,53 +599,16 @@ def generate_schedule(
     # 3. ترتيب المهام
     sorted_tasks = sort_tasks(tasks)
 
-    # 4. التوليد
+    # 4. التوليد: وضعٌ جشعٌ، ثمّ إزاحةٌ موجَّهةٌ لما تعذّر
     grid = ScheduleGrid()
-    backtrack_count = 0
-    placed = []
-    i = 0
+    leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences)
+    before_repair = len(leftovers)
+    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack)
+    #: كم حصّةً أنقذتها الإزاحةُ ممّا عجز عنه الوضعُ الجشع.
+    repaired = before_repair - len(leftovers)
 
-    # الخاناتُ التي جُرِّبت لكلّ مهمّةٍ ثمّ تراجعنا عنها.
-    #
-    # كان التراجعُ يُزيل آخرَ حصّةٍ ثمّ يعود إلى المهمّة نفسها، فيُعيد ترتيبَ
-    # الخانات فيجد الترتيبَ نفسه فيضعها في الخانة نفسها — بلا تقدّمٍ ولا تغيير.
-    # فتُستهلَك المحاولاتُ الخمسمئة كلُّها في دورةٍ عقيمة، ثمّ يُعلَن التعذّر
-    # وللأسبوع حلٌّ قائم. و«تعذّرٌ» كاذبٌ عيبُ صحّةٍ لا أداء: يُخرج جدولاً
-    # ناقصاً ويُلقي باللوم على النصاب.
-    tried: dict[int, set[tuple[int, int]]] = defaultdict(set)
-
-    while i < len(sorted_tasks):
-        task = sorted_tasks[i]
-        available = [
-            slot for slot in get_available_slots(grid, task, blocked_slots) if slot not in tried[i]
-        ]
-        ranked = rank_slots(grid, task, available, preferences)
-
-        if ranked:
-            day, period, penalty = ranked[0]
-            grid.place(day, period, task)
-            placed.append((i, day, period))
-            i += 1
-        else:
-            # Backtrack
-            if not placed or backtrack_count >= max_backtrack:
-                errors.append(
-                    f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})"
-                )
-                i += 1
-                continue
-            backtrack_count += 1
-            last_i, last_day, last_period = placed.pop()
-            # الرفعُ بالشعبة: الخانةُ الواحدةُ يسكنها الآن خمسٌ وعشرون شعبةً،
-            # فلا يُرفع «ساكنُ التوقيت» بل ساكنُ خانةِ هذه الشعبة بعينها.
-            grid.remove(sorted_tasks[last_i].class_id, last_day, last_period)
-            # لا يُعاد إليها: هذا الاختيارُ أفضى إلى طريقٍ مسدود.
-            tried[last_i].add((last_day, last_period))
-            # وما بُني بعدها قراراتٌ سقطت معها، فتُستأنف نظيفةً.
-            for deeper in range(last_i + 1, len(sorted_tasks)):
-                if deeper in tried:
-                    tried[deeper].clear()
-            i = last_i
+    for task in leftovers:
+        errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
 
     elapsed_ms = int((time.time() - start_time) * 1000)
 
@@ -617,7 +692,7 @@ def generate_schedule(
                     generation_time_ms=elapsed_ms,
                     config_snapshot={
                         "total_tasks": len(tasks),
-                        "backtrack_count": backtrack_count,
+                        "repaired": repaired,
                         "preferences_count": len(preferences),
                     },
                 )
@@ -633,5 +708,5 @@ def generate_schedule(
         "errors": errors,
         "elapsed_ms": elapsed_ms,
         "total_tasks": len(tasks),
-        "backtrack_count": backtrack_count,
+        "repaired": repaired,
     }

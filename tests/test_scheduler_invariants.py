@@ -647,16 +647,21 @@ def test_a_solvable_week_is_not_declared_impossible(solvable_only_by_revising):
     assert result["success"] is True
 
 
-def test_backtracking_makes_progress_instead_of_repeating_itself(solvable_only_by_revising):
-    """الدليلُ على أنّ العلّة عولجت في أصلها لا في عرضها: عددُ التراجعات صغير.
+def test_the_search_does_not_burn_its_budget_going_nowhere(solvable_only_by_revising):
+    """الدليلُ على أنّ العلّة عولجت في أصلها لا في عرضها.
 
-    كانت الدورةُ العقيمة تستهلك الخمسمئةَ كلَّها قبل أن تستسلم.
+    كان التراجعُ الأعمى يستهلك الخمسمئةَ كلَّها في دورةٍ لا تُقرّب من حلّ. وقد
+    حلّت محلَّه إزاحةٌ موجَّهة، فصار المقياسُ عددَ ما أنقذته لا عددَ ما جرّبه.
+
+    وهذه الحالةُ اسمُها «لا تُحلّ إلّا بمراجعة»: الوضعُ الجشعُ يسدّ الطريقَ على
+    نفسه، فتُنقذها إزاحةٌ واحدةٌ موجَّهة.
     """
     from operations.scheduler import generate_schedule
 
     result = generate_schedule(solvable_only_by_revising, "2026-2027")
 
-    assert result["backtrack_count"] < 500, "لم تُستهلك الميزانيّة في دورةٍ عقيمة"
+    assert result["repaired"] == 1, "حصّةٌ واحدةٌ أنقذتها الإزاحة — وهي بيتُ القصيد"
+    assert result["errors"] == [], "فلم يبقَ متعذّر"
 
 
 def test_the_generated_week_holds_every_invariant_at_once(db, school):
