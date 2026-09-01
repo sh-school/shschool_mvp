@@ -151,13 +151,70 @@ class Role(models.Model):
 # ══════════════════════════════════════════════════════════════════════
 
 
+def _as_date(value):
+    """يقبل `date` و`datetime` معاً — فالافتراضُ القديم كان يُخزّن لحظة."""
+    return value.date() if hasattr(value, "date") else value
+
+
+#: أسبابُ مغادرة الكادر — والنقلُ أشيعُها في المدارس الحكوميّة.
+DEPARTURE_REASONS = [
+    ("transfer", "نقلٌ إلى مدرسةٍ أخرى"),
+    ("end_of_service", "انتهاءُ خدمة"),
+    ("resignation", "استقالة"),
+    ("retirement", "تقاعد"),
+    ("other", "أخرى"),
+]
+
+
+class MembershipQuerySet(models.QuerySet):
+    """العضويّةُ مدّةٌ لا حالة — فالسؤالُ عنها يحتاج تاريخاً."""
+
+    def current(self):
+        """من هو في الكادر الآن."""
+        return self.active_on(timezone.localdate())
+
+    def active_on(self, on):
+        """من كان في الكادر في يومٍ بعينه — ولو غادر بعده.
+
+        وهذا ما يجعل تاريخَ العام الماضي مقروءاً: معلّمٌ نُقل هذا الصيفَ له
+        خمسٌ وعشرون حصّةً في جدول 2025-2026، ولا يجوز أن تُقطع عن صاحبها.
+        """
+        return self.filter(joined_at__lte=on).filter(
+            models.Q(left_at__isnull=True) | models.Q(left_at__gt=on)
+        )
+
+    def departed(self):
+        return self.filter(left_at__isnull=False)
+
+
 class Membership(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="memberships")
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="memberships")
     role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="memberships")
     is_active = models.BooleanField(default=True)
-    joined_at = models.DateField(default=timezone.now)
+    #: `timezone.now` تُرجع لحظةً لا يوماً، فيحمل الكائنُ غيرَ المحفوظ
+    #: `datetime` في حقلِ `date` — وتنكسر أيُّ مقارنةٍ قبل أوّل حفظ.
+    joined_at = models.DateField(default=timezone.localdate)
+
+    # ── المغادرة: تاريخٌ لا محو ───────────────────────────────────
+    #
+    # كان `joined_at` بلا نظير، فمن نُقل لا يُقال عنه إلّا «غيرُ نشط» — وذلك
+    # يمحو السؤالَ لا يجيبه: أكان في كادر العام الماضي؟ نعم. أهو في كادر هذا
+    # العام؟ لا. وبوليانٌ واحدٌ لا يحمل الجوابين.
+    #
+    # و`is_active` يُطفأ مع التاريخ، فتصير مئةُ استعلامٍ قائمةٍ تسأل عن
+    # النشطين صحيحةً بلا تعديلِ سطرٍ فيها.
+    left_at = models.DateField(null=True, blank=True, verbose_name="تاريخ المغادرة")
+    departure_reason = models.CharField(
+        max_length=16, choices=DEPARTURE_REASONS, blank=True, verbose_name="سبب المغادرة"
+    )
+    departure_reference = models.CharField(
+        max_length=200, blank=True, verbose_name="مرجع قرار المغادرة"
+    )
+    departure_note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
+
+    objects = MembershipQuerySet.as_manager()
 
     # ── القسم/التخصص — FK إلى Department model ──────────────────
     department_obj = models.ForeignKey(
@@ -183,6 +240,41 @@ class Membership(models.Model):
                 name="unique_active_membership",
             )
         ]
+
+    def record_departure(self, *, on, reason, reference, note=""):
+        """يُسجّل مغادرةَ الكادر — تاريخاً وسبباً ومرجعاً، ثمّ يُطفئ العضويّة.
+
+        والمرجعُ لازمٌ كما لزم في التفريغ وفي خطّة النصاب: نقلُ معلّمٍ قرارٌ
+        إداريٌّ، ورقمٌ بلا مرجعٍ لا يُراجَع.
+        """
+        from django.core.exceptions import ValidationError
+
+        if not (reference or "").strip():
+            raise ValidationError({"departure_reference": "مغادرةُ الكادر قرارٌ — ومرجعُه لازم."})
+        if on < _as_date(self.joined_at):
+            raise ValidationError({"left_at": "المغادرةُ قبل الالتحاق — تاريخٌ لا يستقيم."})
+
+        self.left_at = on
+        self.departure_reason = reason
+        self.departure_reference = reference
+        self.departure_note = note
+        self.is_active = False
+        self.save(
+            update_fields=[
+                "left_at",
+                "departure_reason",
+                "departure_reference",
+                "departure_note",
+                "is_active",
+            ]
+        )
+        return self
+
+    def was_member_on(self, on) -> bool:
+        """أكان في الكادر في هذا اليوم؟ — ويومُ المغادرة أوّلُ أيّام الغياب."""
+        if on < _as_date(self.joined_at):
+            return False
+        return self.left_at is None or on < self.left_at
 
     @property
     def department_name(self):
