@@ -376,6 +376,19 @@ class TestTeacherDepartments:
         assert department_of_subject("الكيمياء", "G11") == "chemistry"
         assert department_of_subject("الفيزياء", "G11") == "physics"
 
+    def test_business_studies_stands_alone(self):
+        """إدارةُ الأعمال قسمٌ برجلٍ واحد — لا ذيلٌ لقسم الحاسب.
+
+        مادّةُ تجارةٍ لا مادّةُ حاسب، ومعلّمُها لا يُدرّس شيئاً من موادّ ذلك
+        القسم (قرارُ الإدارة، 2026-09-01).
+        """
+        from operations.departments import department_of_subject
+
+        assert department_of_subject("إدارة الأعمال", "G11") == "business"
+        assert department_of_subject("علوم الحاسب", "G11") == "tech"
+        assert department_of_subject("تكنولوجيا المعلومات", "G12") == "tech"
+        assert department_of_subject("التكنولوجيا", "G8") == "tech"
+
     def test_specialisation_beats_generic_science_on_a_tie(self):
         """ستُّ حصص كيمياءَ وستٌّ علومَ — الرجلُ من قسم الكيمياء لا العلوم."""
         from collections import Counter
