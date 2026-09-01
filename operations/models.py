@@ -517,8 +517,26 @@ class TeacherPreference(models.Model):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
 
 
+#: قيودٌ شخصيّةٌ دائمةٌ سكنت جدولَ التفريغات لأنّه الوحيدُ الذي يقرأه المولّد.
+#: وهي ليست تفريغاً: التفريغُ غيابٌ لسببٍ خارجيٍّ له تاريخٌ ومرجع، وهذه صفةٌ
+#: لازمةٌ لصاحبها لا تنقضي. فتُستثنى من شاشة «تفريغات المعلمين والمنسقين»
+#: ويبقى أثرُها في الجدول كاملاً.
+PERSONAL_RULE_MARKERS = ("لا أولى ولا سابعة",)
+
+
+class TeacherExemptionQuerySet(models.QuerySet):
+    def releases(self):
+        """التفريغاتُ وحدَها — دون القيود الشخصيّة الدائمة."""
+        qs = self
+        for marker in PERSONAL_RULE_MARKERS:
+            qs = qs.exclude(reason__icontains=marker)
+        return qs
+
+
 class TeacherExemption(models.Model):
     """تفريغ معلم/منسق من حصص معينة أو يوم كامل — يُعيّنه النائب الأكاديمي"""
+
+    objects = TeacherExemptionQuerySet.as_manager()
 
     EXEMPTION_TYPE = [
         ("full_day", "يوم كامل"),

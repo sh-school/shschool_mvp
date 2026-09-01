@@ -759,9 +759,14 @@ def schedule_settings(request):
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
 
-    exemptions = TeacherExemption.objects.filter(
-        school=school, academic_year=year, is_active=True
-    ).select_related("teacher", "created_by")
+    # الشاشةُ للتفريغات وحدَها. والقيودُ الشخصيّةُ الدائمةُ — «لا أولى ولا
+    # سابعة» — تسكن الجدولَ نفسَه لأنّ المولّدَ لا يقرأ غيرَه، وليست منه:
+    # التفريغُ غيابٌ لسببٍ خارجيٍّ له مرجعٌ وتاريخ، وتلك صفةٌ لازمة.
+    exemptions = (
+        TeacherExemption.objects.filter(school=school, academic_year=year, is_active=True)
+        .releases()
+        .select_related("teacher", "created_by")
+    )
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
