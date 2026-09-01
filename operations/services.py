@@ -344,9 +344,14 @@ class ScheduleService:
             )
 
         # تعارض الفصل: نفس الفصل في نفس اليوم والحصة
+        #
+        # و`elective_group` جزءٌ من المفتاح: الشعبةُ المنقسمةُ تأخذ مادّتين في
+        # التوقيت نفسه لقسمَي طلابها — كالفنون والتكنولوجيا في 11/1 — وذلك
+        # توازٍ لا تعارض. وبدونه كان الكشفُ يُنذر بثمانية «تعارضات» كلُّها
+        # حصصٌ مقصودةٌ يحرسها القيدُ الفريدُ في القاعدة نفسِها.
         class_dups = (
             ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
-            .values("class_group", "day_of_week", "period_number")
+            .values("class_group", "day_of_week", "period_number", "elective_group")
             .annotate(cnt=Count("id"))
             .filter(cnt__gt=1)
         )
@@ -356,6 +361,7 @@ class ScheduleService:
                 class_group_id=dup["class_group"],
                 day_of_week=dup["day_of_week"],
                 period_number=dup["period_number"],
+                elective_group=dup["elective_group"],
                 is_active=True,
             ).select_related("teacher", "class_group")
             conflicts.append(

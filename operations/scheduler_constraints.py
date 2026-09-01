@@ -50,6 +50,11 @@ WEIGHTS = {
     "pe_after_break": 2,
     "double_bonus": -5,
     "high_weekly_adjacent": 7,
+    #: الحصّةُ السابعةُ آخرُ اليوم وأثقلُه. والقاعدةُ المطلوبة «سابعةٌ واحدةٌ
+    #: للمعلّم في الأسبوع»، ولا تُبلَغ بالمنع: في المدرسة مئةٌ واثنتا عشرةَ
+    #: خانةً سابعةً وثلاثةٌ وسبعون معلّماً — أي سابعةٌ ونصفٌ لكلٍّ في المتوسّط،
+    #: فالواحدةُ مستحيلةٌ حسابيّاً. فيُثقَّل الوزنُ ليقترب منها ما أمكن.
+    "extra_last_period": 12,
 }
 
 
@@ -70,6 +75,35 @@ def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) ->
     خانةِ الشعبة وحدَها، لا عن ساكنِ التوقيت في المدرسة كلِّها.
     """
     return not grid.class_busy(class_id, day, period)
+
+
+def check_period_variety(grid: ScheduleGrid, period: int, task: Task) -> bool:
+    """HC7: لا تُكدَّس المادّةُ في حصّةٍ واحدةٍ من اليوم طوالَ الأسبوع.
+
+    كان الجدولُ يُخرج الرياضياتِ للثاني عشر/4 في الحصّة الخامسة **كلَّ يوم** —
+    وذلك لأنّ لا شيءَ كان يمنعه: القيودُ تنظر إلى اليوم ولا تنظر إلى موقع
+    الحصّة فيه.
+
+    والحدُّ مرّتان لا مرّة: أسبوعٌ بخمسة أيّامٍ ونصابٌ ستُّ حصصٍ لا يسع تنويعاً
+    كاملاً حين تضيق الخانات، ومنعُ التكرار بالكلّيّة يجعل الجدولَ متعذّراً في
+    مدرسةٍ إشغالُها ثمانيةٌ وتسعون بالمئة.
+    """
+    return grid.subject_at_period(task.class_id, task.subject_id, period) < MAX_SAME_PERIOD
+
+
+def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
+    """HC8: لا تتكدّس الحصّةُ السابعةُ على معلّمٍ بعينه.
+
+    والقاعدةُ المطلوبةُ «سابعةٌ واحدةٌ في الأسبوع»، ولا تُبلَغ بالمنع: في
+    المدرسة مئةٌ واثنتا عشرةَ خانةً سابعةً وثلاثةٌ وسبعون معلّماً، فالواحدةُ
+    مستحيلةٌ حسابيّاً. فالحدُّ اثنتان — وهو أقربُ ما يُبلَغ — والوزنُ المرنُ
+    المتصاعدُ يدفع نحو الواحدة داخل هذا الحدّ.
+    """
+    if period != LAST_PERIOD:
+        return True
+    return all(
+        grid.teacher_last_periods(m.teacher_id) < MAX_LAST_PERIODS for m in task.members
+    )
 
 
 def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool:
@@ -115,6 +149,19 @@ def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool
 #: والاستثناءُ الوحيد الحصّةُ المزدوجةُ المقصودة (فنونٌ وتكنولوجيا): المعلّمُ
 #: باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا عَرَضٌ يُتعب.
 MAX_CONSECUTIVE = 1
+
+#: أكثرُ ما تتكرّر المادّةُ الواحدةُ في الموضع نفسِه من اليوم خلال الأسبوع.
+MAX_SAME_PERIOD = 2
+
+#: آخرُ حصّةٍ في اليوم.
+LAST_PERIOD = 7
+
+#: أكثرُ ما يُقبل من حصصٍ سابعةٍ للمعلّم في الأسبوع.
+#:
+#: المطلوبُ واحدة، وهي مستحيلةٌ حسابيّاً في هذه المدرسة: مئةٌ واثنتا عشرةَ
+#: خانةً سابعةً وثلاثةٌ وسبعون معلّماً — أي سابعةٌ ونصفٌ لكلٍّ في المتوسّط.
+#: فالحدُّ اثنتان، والوزنُ المتصاعدُ يدفع نحو الواحدة ما أمكن.
+MAX_LAST_PERIODS = 2
 
 
 def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
@@ -206,6 +253,10 @@ def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
     if not check_max_consecutive(grid, day, period, task):
         return False
     if not check_subject_distribution(grid, day, task):
+        return False
+    if not check_period_variety(grid, period, task):
+        return False
+    if not check_last_period_share(grid, period, task):
         return False
     return True
 
@@ -300,6 +351,13 @@ def evaluate_soft_constraints(
     if preferences and task.teacher_id in preferences:
         max_daily = preferences[task.teacher_id].get("max_daily", 5)
     penalty.add("daily_load", WEIGHTS["daily_load"], teacher_today >= max_daily)
+
+    # ── SC9: سابعةٌ واحدةٌ للمعلّم ما أمكن ──
+    if period == LAST_PERIOD:
+        # العقوبةُ تتصاعد: من عنده ثلاثُ سوابعَ يُثقَّل أكثرَ ممّن عنده واحدة،
+        # فتنساب السوابعُ على الكادر بدل أن تتكدّس على قلّةٍ منه.
+        already = max(grid.teacher_last_periods(m.teacher_id) for m in task.members)
+        penalty.add("extra_last_period", WEIGHTS["extra_last_period"] * already, already >= 1)
 
     # ── SC5: المواد الأساسية في الحصص الأولى ──
     is_core = task.subject_code in CORE_CODES

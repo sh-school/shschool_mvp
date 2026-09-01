@@ -36,6 +36,8 @@ from .scheduler_constraints import (
 logger = logging.getLogger(__name__)
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
+#: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
+LAST_PERIOD = 7
 DAY_NAMES = {0: "الأحد", 1: "الاثنين", 2: "الثلاثاء", 3: "الأربعاء", 4: "الخميس"}
 
 
@@ -153,6 +155,8 @@ class ScheduleGrid:
         #: مَن يُدرّس لهذا المعلّم في هذا التوقيت — للتتابع وللتعارض معاً.
         self._teacher_at: dict[tuple[str, int, int], Task] = {}
         self._subject_class_day: dict[tuple[str, str, int], int] = defaultdict(int)
+        #: (مادّة · شعبة · رقم الحصّة) — لتنويع مواقع المادّة في اليوم.
+        self._subject_period: dict[tuple[str, str, int], int] = defaultdict(int)
         self._entries: list[dict] = []
         #: سجلُّ التراجع: كلُّ محاولةِ إزاحةٍ تفتح إطاراً، وتُغلقه بقبولٍ أو ردّ.
         #: والردُّ يعكس ما جرى بعينه — لا «أعِد ما تظنّه كان»، فالتساهلُ في
@@ -203,6 +207,7 @@ class ScheduleGrid:
             self._teacher_slots[member.teacher_id].append((day, period))
             self._teacher_at[(member.teacher_id, day, period)] = task
         self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
+        self._subject_period[(task.subject_id, task.class_id, period)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
     def remove(self, class_id: str, day: int, period: int):
@@ -221,6 +226,7 @@ class ScheduleGrid:
             self._teacher_at.pop((member.teacher_id, day, period), None)
         key = (task.subject_id, task.class_id, day)
         self._subject_class_day[key] -= 1
+        self._subject_period[(task.subject_id, task.class_id, period)] -= 1
         self._entries = [e for e in self._entries if e["task"] is not task]
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
@@ -247,6 +253,18 @@ class ScheduleGrid:
     def subject_on_day(self, class_id: str, subject_id: str, day: int) -> int:
         """عدد حصص مادة لفصل في يوم"""
         return self._subject_class_day.get((subject_id, class_id, day), 0)
+
+    def subject_at_period(self, class_id: str, subject_id: str, period: int) -> int:
+        """كم مرّةً وقعت هذه المادّةُ في هذه الحصّة من اليوم خلال الأسبوع.
+
+        فمادّةٌ كلُّ حصصها في الحصّة الخامسة جدولٌ لا يقبله أحد: الطالبُ يلقاها
+        في التوقيت نفسه كلَّ يوم، والمعلّمُ كذلك. والتنوّعُ مقصودٌ لا مصادفة.
+        """
+        return self._subject_period.get((subject_id, class_id, period), 0)
+
+    def teacher_last_periods(self, teacher_id: str) -> int:
+        """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
+        return sum(1 for _, period in self._teacher_slots[teacher_id] if period == LAST_PERIOD)
 
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
         """تتابعُ المعلّم عبر الشُّعب — و`PE`/`SCI` تُعيد العدّاد.
@@ -514,13 +532,15 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget):
     والحركةُ ذرّيّة: إن تعذّر إعادةُ أحد المُزاحين رُدَّ كلُّ شيءٍ إلى مكانه.
     فلا تُبدَّل حصّةٌ متعذّرةٌ بأخرى.
     """
-    #: جولتان: الجولةُ الأولى تُغيّر الشبكةَ فتفتح للثانية ما كان مغلقاً.
-    #: وثالثةٌ لم تُضف شيئاً على بيانات المدرسة، فوُقِف عند اثنتين.
+    #: ثلاثُ جولاتٍ بعمقِ ثلاث. والعمقُ يُقاس ولا يُخمَّن: بعمقين يبقى أربعَ
+    #: عشرةَ متعذّرةً في ثانية، وبثلاثةٍ خمسٌ في ستّ ثوانٍ — وستُّ ثوانٍ ثمنٌ
+    #: مقبولٌ لعمليّةٍ تُجرى مرّةً في الفصل. وبأربعةٍ يبلغ الزمنُ دقيقةً بلا
+    #: مكسبٍ يُذكر.
     remaining = list(leftovers)
-    for _ in range(2):
+    for _ in range(3):
         still = []
         for task in remaining:
-            if budget <= 0 or not _try_eject(grid, task, blocked, preferences, depth=2):
+            if budget <= 0 or not _try_eject(grid, task, blocked, preferences, depth=3):
                 still.append(task)
             else:
                 budget -= 1

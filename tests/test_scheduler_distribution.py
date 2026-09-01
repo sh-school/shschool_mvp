@@ -146,6 +146,40 @@ def test_another_subject_is_not_constrained_by_this_one():
     assert is_slot_valid(grid, 0, 6, other), "لكلّ مادّةٍ توزيعُها"
 
 
+# ── التنويعُ في موقع الحصّة من اليوم ─────────────────────────────────
+
+
+def test_a_subject_may_not_own_the_same_period_all_week():
+    """مادّةٌ كلُّ حصصها في الخامسة جدولٌ لا يقبله أحد — والطالبُ يلقاها في
+    التوقيت نفسه كلَّ يوم.
+
+    وكان يقع فعلاً: رياضياتُ الثاني عشر/4 في الحصّة الخامسة أربعةَ أيّام،
+    لأنّ القيودَ تنظر إلى اليوم ولا تنظر إلى موقع الحصّة فيه.
+    """
+    grid = ScheduleGrid()
+    grid.place(0, 5, task(weekly=6))
+    grid.place(1, 5, task(weekly=6))
+
+    assert not is_slot_valid(grid, 2, 5, task(weekly=6)), "ثالثةٌ في الموضع نفسه"
+    assert is_slot_valid(grid, 2, 4, task(weekly=6)), "وموضعٌ آخرُ مفتوح"
+
+
+def test_the_last_period_is_shared_not_stacked():
+    """سابعةٌ واحدةٌ للمعلّم ما أمكن — والحدُّ اثنتان لأنّ الواحدةَ مستحيلةٌ
+    حسابيّاً: مئةٌ واثنتا عشرةَ خانةً سابعةً وثلاثةٌ وسبعون معلّماً.
+    """
+    from operations.scheduler_constraints import check_last_period_share
+
+    grid = ScheduleGrid()
+    grid.place(0, 7, task(weekly=2, subject="s-1"))
+    assert check_last_period_share(grid, 7, task(weekly=2, subject="s-2")), "الثانيةُ مقبولة"
+
+    grid.place(1, 7, task(weekly=2, subject="s-2"))
+    assert not check_last_period_share(grid, 7, task(weekly=2, subject="s-3")), "والثالثةُ لا"
+
+    assert check_last_period_share(grid, 3, task(weekly=2, subject="s-3")), "وغيرُ السابعة حرّ"
+
+
 # ── على مولّدٍ كامل ──────────────────────────────────────────────────
 
 
