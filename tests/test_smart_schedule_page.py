@@ -70,6 +70,48 @@ def test_the_settings_page_opens(client_as, principal):
     assert client_as(principal).get(reverse("schedule_settings")).status_code == 200
 
 
+# ── الاعتمادُ يُشعر، ولا يقع نصفَ فعل ────────────────────────────────
+
+
+def test_approving_notifies_the_teachers_with_their_school_on_the_row(
+    client_as, principal, school, teacher, subject
+):
+    """`school` لازمٌ لا زينة: الإشعارُ صفٌّ مستأجِرٌ ترفضه RLS بلا مدرسة."""
+    from notifications.models import InAppNotification
+    from operations.models import ScheduleGeneration
+
+    assign(school, teacher, subject, periods=6)
+    gen = ScheduleGeneration.objects.create(
+        school=school, academic_year=YEAR, status="draft", total_slots_created=6
+    )
+
+    response = client_as(principal).post(
+        reverse("approve_schedule", args=[gen.pk]), follow=True
+    )
+
+    assert response.status_code == 200
+    gen.refresh_from_db()
+    assert gen.status == "approved"
+    rows = InAppNotification.objects.filter(school=school)
+    assert rows.count() >= 1
+    assert all(r.school_id == school.id for r in rows), "لا صفَّ بلا مدرسة"
+
+
+def test_an_already_approved_generation_is_refused_politely(client_as, principal, school):
+    from operations.models import ScheduleGeneration
+
+    gen = ScheduleGeneration.objects.create(
+        school=school, academic_year=YEAR, status="approved", total_slots_created=6
+    )
+
+    response = client_as(principal).post(
+        reverse("approve_schedule", args=[gen.pk]), follow=True
+    )
+
+    assert response.status_code == 200
+    assert "ليس مسودة" in response.content.decode()
+
+
 # ── فحصُ الطاقة نفسُه ────────────────────────────────────────────────
 
 

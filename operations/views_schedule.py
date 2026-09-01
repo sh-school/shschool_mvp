@@ -8,6 +8,7 @@ import django.db
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -697,15 +698,6 @@ def approve_schedule(request, generation_id):
         messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
         return redirect("smart_schedule")
 
-    # Archive any previously approved generation
-    ScheduleGeneration.objects.filter(
-        school=school, academic_year=gen.academic_year, status="approved"
-    ).update(status="archived")
-
-    gen.status = "approved"
-    gen.save(update_fields=["status"])
-
-    # Notify all teachers
     from notifications.models import InAppNotification
 
     teacher_ids = Membership.objects.filter(
@@ -714,18 +706,35 @@ def approve_schedule(request, generation_id):
         role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
     ).values_list("user_id", flat=True)
 
-    notifs = [
-        InAppNotification(
-            user_id=tid,
-            title="تم اعتماد الجدول الدراسي",
-            body=f"تم اعتماد الجدول للعام {gen.academic_year}. راجع جدولك من صفحة الجدول الأسبوعي.",
-            event_type="general",
-            priority="normal",
-            related_url="/teacher/weekly-schedule/",
-        )
-        for tid in teacher_ids
-    ]
-    InAppNotification.objects.bulk_create(notifs)
+    # الاعتمادُ والإشعارُ فعلٌ واحد. كان الحفظُ يسبق `bulk_create` بلا معاملة،
+    # فحين سقط الإدراجُ بقي الجدولُ «معتمَداً» ولم يعلم به معلّمٌ واحد — نصفُ
+    # فعلٍ لا يُرى نصفُه الناقص.
+    with transaction.atomic():
+        ScheduleGeneration.objects.filter(
+            school=school, academic_year=gen.academic_year, status="approved"
+        ).update(status="archived")
+
+        gen.status = "approved"
+        gen.save(update_fields=["status"])
+
+        # `school` لازمٌ لا زينة: الإشعارُ صفٌّ مستأجِرٌ تحرسه RLS، وصفٌّ بلا
+        # مدرسةٍ ترفضه السياسةُ fail-closed — فتسقط العمليّةُ كلُّها.
+        notifs = [
+            InAppNotification(
+                user_id=tid,
+                school=school,
+                title="تم اعتماد الجدول الدراسي",
+                body=(
+                    f"تم اعتماد الجدول للعام {gen.academic_year}. "
+                    "راجع جدولك من صفحة الجدول الأسبوعي."
+                ),
+                event_type="general",
+                priority="normal",
+                related_url="/teacher/weekly-schedule/",
+            )
+            for tid in teacher_ids
+        ]
+        InAppNotification.objects.bulk_create(notifs)
 
     messages.success(request, f"تم اعتماد الجدول وإشعار {len(notifs)} معلم")
     return redirect("smart_schedule")
