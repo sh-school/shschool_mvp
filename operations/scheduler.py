@@ -337,6 +337,14 @@ class ScheduleGrid:
         """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
         return sum(1 for _, period in self._teacher_slots[teacher_id] if period == LAST_PERIOD)
 
+    def teacher_last_period_classes(self, teacher_id: str) -> set[str]:
+        """شُعبُ المعلّم في الحصّة السابعة — أيّامَ الأسبوع كلَّها."""
+        return {
+            task.class_id
+            for (tid, _, period), task in self._teacher_at.items()
+            if tid == teacher_id and period == LAST_PERIOD
+        }
+
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
         """تتابعُ المعلّم عبر الشُّعب — و`PE`/`SCI` تُعيد العدّاد.
 

@@ -114,9 +114,15 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     """
     if period != LAST_PERIOD:
         return True
-    return all(
-        grid.teacher_last_periods(m.teacher_id) < MAX_LAST_PERIODS for m in task.members
-    )
+    for m in task.members:
+        if grid.teacher_last_periods(m.teacher_id) >= MAX_LAST_PERIODS:
+            return False
+        #: وسابعتا المعلّم لا تقعان على شعبةٍ واحدة: آخرُ اليوم أثقلُ ما فيه،
+        #: فإن تكرّر على الشعبة نفسها حمَلت وحدَها ضعفَ ما تحمله أخواتُها من
+        #: تعبِ ذلك المعلّم. فالثقلُ يُقسَم على الشُّعب كما يُقسَم على الأيّام.
+        if task.class_id in grid.teacher_last_period_classes(m.teacher_id):
+            return False
+    return True
 
 
 def check_subject_distribution(

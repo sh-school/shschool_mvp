@@ -170,14 +170,45 @@ def test_the_last_period_is_shared_not_stacked():
     """
     from operations.scheduler_constraints import check_last_period_share
 
+    #: وكلُّ سابعةٍ في شعبةٍ غيرِ أختها — فذاك قيدٌ آخرُ يُختبَر وحدَه.
+    grid = ScheduleGrid()
+    grid.place(0, 7, task(weekly=2, subject="s-1", klass="c-1"))
+    second = task(weekly=2, subject="s-2", klass="c-2")
+    assert check_last_period_share(grid, 7, second), "الثانيةُ مقبولة"
+
+    grid.place(1, 7, second)
+    third = task(weekly=2, subject="s-3", klass="c-3")
+    assert not check_last_period_share(grid, 7, third), "والثالثةُ لا"
+
+    assert check_last_period_share(grid, 3, third), "وغيرُ السابعة حرّ"
+
+
+def test_a_teacher_never_takes_two_last_periods_with_one_class():
+    """سابعتا المعلّم على شعبتين مختلفتين — لا على شعبةٍ واحدة.
+
+    آخرُ اليوم أثقلُ ما فيه، فإن تكرّر على الشعبة نفسها حمَلت وحدَها ضعفَ ما
+    تحمله أخواتُها من تعبِ ذلك المعلّم.
+    """
+    from operations.scheduler_constraints import check_last_period_share
+
     grid = ScheduleGrid()
     grid.place(0, 7, task(weekly=2, subject="s-1"))
-    assert check_last_period_share(grid, 7, task(weekly=2, subject="s-2")), "الثانيةُ مقبولة"
 
-    grid.place(1, 7, task(weekly=2, subject="s-2"))
-    assert not check_last_period_share(grid, 7, task(weekly=2, subject="s-3")), "والثالثةُ لا"
+    same_class = task(weekly=2, subject="s-2")
+    other_class = task(weekly=2, subject="s-2", klass="c-2")
 
-    assert check_last_period_share(grid, 3, task(weekly=2, subject="s-3")), "وغيرُ السابعة حرّ"
+    assert not check_last_period_share(grid, 7, same_class), "الشعبةُ نفسُها ممنوعة"
+    assert check_last_period_share(grid, 7, other_class), "وشعبةٌ أخرى مقبولة"
+
+
+def test_the_ban_is_on_the_last_period_alone():
+    """وما دون السابعة لا يُقيَّد بهذا: التكرارُ في الشعبة نفسها مقبول."""
+    from operations.scheduler_constraints import check_last_period_share
+
+    grid = ScheduleGrid()
+    grid.place(0, 7, task(weekly=2, subject="s-1"))
+
+    assert check_last_period_share(grid, 4, task(weekly=2, subject="s-2"))
 
 
 # ── الملاذُ الأخير: رخصةٌ تُصرَف بعد عجز ما دونها ────────────────────
