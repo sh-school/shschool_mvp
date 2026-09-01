@@ -169,8 +169,11 @@ def schedule_print(request):
 
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    view_type = request.GET.get("view", "school")  # school, teacher, class
-    paper = request.GET.get("paper", "a4")  # a4, a3
+    # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
+    # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
+    # فيها ألفُ حصّةٍ فلا تُقرأ ولا تُطبع.
+    view_type = request.GET.get("view", "all_teachers")  # all_teachers, school, teacher, class
+    paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
 
@@ -195,7 +198,14 @@ def schedule_print(request):
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
-    grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
+    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
+    # إلى جدوله قبل هذا السطر.
+    grid, matrix, matrix_totals = {}, [], None
+    if view_type == "all_teachers":
+        matrix = ScheduleService.get_teachers_matrix(school, year)
+        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
+    else:
+        grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
@@ -219,7 +229,9 @@ def schedule_print(request):
         ).order_by("grade", "section")
 
     title = "الجدول الدراسي العام"
-    if target_teacher:
+    if view_type == "all_teachers":
+        title = "الجدول العام للمعلمين"
+    elif target_teacher:
         title = f"جدول المعلم: {target_teacher.full_name}"
     elif target_class:
         title = f"جدول الفصل: {target_class}"
@@ -229,8 +241,11 @@ def schedule_print(request):
         "schedule/print_schedule.html",
         {
             "grid": grid,
+            "matrix": matrix,
+            "matrix_totals": matrix_totals,
             "days": DAYS,
             "periods": PERIODS,
+            "period_numbers": range(1, 8),
             "paper": paper,
             "view_type": view_type,
             "target_teacher": target_teacher,

@@ -78,11 +78,24 @@
 .sched-table tbody tr:hover td { background: #faf5ff; }
 .sched-table tbody tr:hover td:first-child { background: #f3e8ff; }
 
+/* الخانةُ في العرض العامّ تحمل شعبَ المدرسة كلَّها في التوقيت الواحد — خمساً
+   وعشرين بطاقة. فتُحصر البطاقاتُ في علوٍّ يُمرَّر داخله، وإلّا صار السطرُ ألفاً
+   وسبعمئة بكسل والصفحةُ اثني عشر ألفاً — وهو ما كان. */
+.slot-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* Slot Card */
 .slot-card {
   border-radius: 8px;
   padding: 6px 8px;
-  height: 100%;
+  /* بطاقةٌ بعلوّ محتواها. وكانت `height: 100%` فتتمدّد البطاقةُ الواحدة إلى
+     علوّ سطرٍ رفعته خانةٌ أخرى مزدحمة، فتخرج كتلةً فارغةً في وسطها سطر. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -299,9 +312,9 @@ td:has(.slot-empty) {
           <td>
             {% if cell %}
               {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
+              <div class="slot-stack">
               {% for slot in cell %}
-              <div class="slot-card slot-p{{ period }}{% if slot.elective_group %} slot-elective{% endif %}"
-                   {% if not forloop.last %}style="margin-bottom:2px;"{% endif %}>
+              <div class="slot-card slot-p{{ period }}{% if slot.elective_group %} slot-elective{% endif %}">
                 <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
                 {% if not target_class %}
                 <div class="slot-class">{{ slot.class_group }}</div>
@@ -321,6 +334,7 @@ td:has(.slot-empty) {
                 {% endif %}
               </div>
               {% endfor %}
+              </div>
             {% else %}
             <div class="slot-empty">—</div>
             {% endif %}
