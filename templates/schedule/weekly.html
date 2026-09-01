@@ -234,10 +234,26 @@ td:has(.slot-empty) {
 {% block content %}
 <div class="sched-page">
 
+  {% if preview %}
+  {# معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً. #}
+  <div role="status" class="p-4 rounded-lg mb-2"
+       style="border:2px solid var(--status-warning);background:var(--surface-alt)">
+    <p class="font-semibold text-status-warning">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
+    </p>
+    <p class="text-sm text-secondary mt-1">
+      هذه ليست الجدول المعتمد. الحصص هنا لا يراها المعلّمون حتى تُعتمد المسودّة من
+      <a href="{% url 'smart_schedule' %}?year={{ academic_year }}" class="link-maroon">الجدولة الذكية</a>.
+      <a href="{% url 'weekly_schedule' %}?year={{ academic_year }}" class="link-maroon">عرض الجدول الحيّ</a>
+    </p>
+  </div>
+  {% endif %}
+
   {# ── Header ── #}
   <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي{% if preview %} — مسودّة{% endif %}</h1>
       <span class="sched-year">{{ academic_year }}
         {% if target_teacher %} — {{ target_teacher.full_name }}{% endif %}
         {% if target_class %} — {{ target_class }}{% endif %}

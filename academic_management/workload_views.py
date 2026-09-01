@@ -15,6 +15,8 @@
 شاشةٍ واحدةٍ يُغري بتعديل الواقع كي يوافق الورقة.
 """
 
+from functools import wraps
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -41,6 +43,7 @@ from academic_management.workload_forms import (
     ReductionForm,
 )
 from core.academic_calendar import academic_year_for
+from core.permissions import SCHEDULE_MANAGE, _forbidden_response
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
 
@@ -94,12 +97,49 @@ def _command(request, plan, action, success):
     return redirect("academic_management:plan_editor", plan_id=plan.pk)
 
 
+#: من يقرأ خطّةَ النصاب: من يُدير الجدولَ، ومن له في الخطّة قدرةٌ — أيّاً كان
+#: دورُه — لأنّ المدرسةَ تُبدّل أدوارَ القدرات من `WorkloadGovernance`، فقائمةُ
+#: أدوارٍ ثابتةٌ هنا تحجب مَن أُذن له هناك.
+_READ_ROLES = SCHEDULE_MANAGE | {"coordinator"}
+
+
+def _may_read(user, school):
+    if user.is_superuser or user.get_role() in _READ_ROLES:
+        return True
+    return any(
+        flow.has_capability(user, school, cap) for cap in (flow.EDIT, flow.REVIEW, flow.APPROVE)
+    )
+
+
+def workload_reader_required(view):
+    """كانت صفحاتُ الخطّة بـ`login_required` وحدَه، والمرصدُ بـ`role_required`.
+
+    فأيُّ حسابٍ مسجَّل — طالبٌ أو معلّمٌ — يفتح بطاقةَ نصاب أيّ معلّم: نصابَه
+    وتخفيضَه وسببَه ومرجعَ القرار. والحمايةُ كانت إخفاءَ الرابط من القائمة،
+    وإخفاءُ البابِ ليس قفلاً.
+    """
+
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        school = _school(request)
+        if not _may_read(request.user, school):
+            return _forbidden_response(
+                request,
+                f"ليس لديك صلاحية الاطّلاع على خطط النصاب — دورك: "
+                f"{request.user.get_role() or 'غير محدد'}",
+            )
+        return view(request, *args, **kwargs)
+
+    return wrapper
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  القراءة
 # ══════════════════════════════════════════════════════════════════════
 
 
 @login_required
+@workload_reader_required
 def teacher_workload(request, teacher_id):
     """بطاقةُ معلّمٍ واحد: نسخُ خطّته، والمعتمَدُ منها، وأين يقف الإسنادُ منه."""
     school = _school(request)
@@ -131,6 +171,7 @@ def teacher_workload(request, teacher_id):
 
 
 @login_required
+@workload_reader_required
 def plan_editor(request, plan_id):
     """محرّرُ الخطّة بترتيبه: نصابٌ، فتخفيضٌ، فهدفٌ محسوب، فتوزيعٌ، فمؤهّلات،
     فإسنادٌ للقراءة، فبوّابةٌ بنداً بنداً."""
@@ -167,6 +208,7 @@ def _editor_context(request, plan):
 
 
 @login_required
+@workload_reader_required
 def plan_review(request, plan_id):
     """منظورُ المراجع: النسخةُ المقترحةُ إلى جانب المعتمَدةِ قبلها.
 
@@ -364,6 +406,7 @@ def add_qualification(request, plan_id):
 
 
 @login_required
+@workload_reader_required
 def validate_plan(request, plan_id):
     """بوّابةُ التحقّق بنداً بنداً — تشخيصٌ لا حكمٌ واحد.
 

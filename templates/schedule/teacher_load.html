@@ -1,15 +1,15 @@
 {% extends "base/base.html" %}
-{% block title %}تقرير أحمال المعلمين — {{ year }}{% endblock %}
+{% block title %}تقرير أعباء المعلمين — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="أحمال المعلمين" %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="أعباء المعلمين" %}
 {% endblock %}
 
 {% block content %}
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} تقرير أحمال المعلمين</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</h1>
     <p class="page-subtitle">توزيع الحصص والعدالة — {{ year }}</p>
   </div>
   <div class="page-actions">

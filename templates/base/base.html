@@ -29,7 +29,7 @@
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}?v=8") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=146">
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=147">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -264,7 +264,13 @@
   <a href="{% url 'academic_management:evaluations' %}" role="menuitem">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
   <a href="{% url 'academic_management:departments' %}" role="menuitem">{% include "components/icon.html" with name="settings" %} إدارة الأقسام التعليمية</a>
   <a href="{% url 'academic_management:test_analytics' %}" role="menuitem">{% include "components/icon.html" with name="activity" %} تحليلات الاختبارات</a>
+  {% comment %}
+  بابُ الأنصبة على قدر صلاحيّته: الصفحةُ تقبل المديرَ والنائبَ الأكاديميَّ
+  والمنسّق، وكان الرابطُ يظهر للنائب الإداريّ فيُصدَم بـ403.
+  {% endcomment %}
+  {% if role == "principal" or role == "vice_academic" or user.is_superuser %}
   <a href="{% url 'academic_management:workload' %}" role="menuitem">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
+  {% endif %}
   {% comment %}
   الجدولةُ الذكيّةُ كانت بلا بابٍ في الواجهة: الصفحةُ تعمل والدورُ يصل إليها،
   ولا رابطَ إليها في أيّ قائمة — فلا يبلغها إلّا من يعرف مسارَها. وهي أخطرُ
@@ -401,6 +407,8 @@
   <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
   <hr>
   <div class="sd-label">إدارة التخصص</div>
+  {# المنسّقُ له صلاحيّةُ مرصد الأنصبة (قراءةً، ومحرّرُ الخطّة إن مُنح قدرةَ التحرير) — وكان بلا رابطٍ إليه. #}
+  <a href="{% url 'academic_management:workload' %}">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
@@ -555,8 +563,8 @@
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
-<script src="{% static 'js/actions.js' %}?v=1" defer></script>
-<script src="{% static 'js/base.js' %}?v=106" defer></script>
+<script src="{% static 'js/actions.js' %}?v=2" defer></script>
+<script src="{% static 'js/base.js' %}?v=107" defer></script>
 <script src="{% static 'js/app.js' %}?v=101" defer></script>
 
 {% block extra_js %}{% endblock %}

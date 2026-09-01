@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from datetime import time as dt_time
 
 from django.db import transaction
+from django.utils import timezone
 
 from core.models import School
 
@@ -846,14 +847,51 @@ def _rehome_all(
     return True
 
 
+#: شكلُ النتيجة حين لا يبلغ التوليدُ مداه. والمفاتيحُ كلُّها حاضرةٌ عمداً:
+#: كان الخروجُ المبكّرُ يعود بمفتاحين، ويقرأ المُستدعي `result["quality"]`
+#: فيسقط بـ`KeyError` وصفحةِ خطأ — عقوبةُ الحالة المتوقَّعة أن تُعامَل كعطب.
+def _empty_result(errors: list[str]) -> dict:
+    return {
+        "success": False,
+        "grid": None,
+        "quality": {
+            "score": 0,
+            "total_slots": 0,
+            "total_required": 0,
+            "placed_ratio": 0,
+            "violations": {},
+        },
+        "generation": None,
+        "errors": errors,
+        "elapsed_ms": 0,
+        "total_tasks": 0,
+        "repaired": 0,
+        "relaxed": 0,
+        "densed": 0,
+    }
+
+
 def generate_schedule(
     school: School,
     academic_year: str,
     user=None,
     max_backtrack: int = 500,
+    generation=None,
+    publish: bool = True,
 ) -> dict:
     """
     التوليد الرئيسي — Greedy + Backtracking
+
+    Args:
+        generation: صفُّ `ScheduleGeneration` أُنشئ قبل البدء ليحمل حالةَ
+            «قيد التوليد». إن مُرِّر حُدِّث مكانَه، وإلّا أُنشئ صفٌّ جديدٌ عند
+            النجاح — والحالتان قائمتان: الاستدعاءُ من العامل يمرّره، ومن
+            سطر الأوامر لا يمرّره.
+        publish: أتُفعَّل الحصصُ المولَّدةُ فوراً محلَّ الجدول القائم؟
+            `True` هو السلوكُ القديم (سطرُ الأوامر والاختبارات). و`False`
+            هو ما تفعله الواجهة: مسودّةٌ مربوطةٌ بصفّ التوليد، لا تمسّ
+            الجدولَ الحيَّ حتّى يعتمدها من يملك اعتمادَها — فكان المعلّمون
+            يرون الجدولَ الجديدَ قبل أن يُقرَّر فيه شيء.
 
     Returns:
         dict with keys: success, grid, quality, generation, errors
@@ -864,10 +902,9 @@ def generate_schedule(
     # 1. بناء المهام
     tasks = build_tasks(school, academic_year)
     if not tasks:
-        return {
-            "success": False,
-            "errors": ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."],
-        }
+        return _empty_result(
+            ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."]
+        )
 
     # 2. تحميل التفضيلات
     prefs_qs = TeacherPreference.objects.filter(school=school, academic_year=academic_year)
@@ -890,7 +927,7 @@ def generate_schedule(
         tid = str(ex.teacher_id)
         if ex.exemption_type == "full_day":
             # حظر كل حصص اليوم
-            for p in range(1, 8):
+            for p in ScheduleSlot.PERIODS:
                 blocked_slots.add((tid, ex.day_of_week, p))
         else:
             blocked_slots.add((tid, ex.day_of_week, ex.period_number))
@@ -974,14 +1011,24 @@ def generate_schedule(
     quality = calculate_quality_score(grid, preferences, total_required=len(sorted_tasks))
 
     # 6. حفظ النتائج
-    generation = None
     if not errors or quality["total_slots"] > 0:
         try:
             with transaction.atomic():
-                # حذف الجدول القديم
-                ScheduleSlot.objects.filter(
-                    school=school, academic_year=academic_year, is_active=True
-                ).update(is_active=False)
+                # صفُّ التوليد قبل حصصه: الحصّةُ تحمل مرجعَ توليدها، فلا بدّ أن
+                # يكون له مفتاحٌ قبل `bulk_create`.
+                if generation is None:
+                    generation = ScheduleGeneration.objects.create(
+                        school=school,
+                        academic_year=academic_year,
+                        generated_by=user,
+                        status="running",
+                    )
+
+                if publish:
+                    # حذف الجدول القديم — النشرُ الفوريّ
+                    ScheduleSlot.objects.filter(
+                        school=school, academic_year=academic_year, is_active=True
+                    ).update(is_active=False)
 
                 # إنشاء الحصص الجديدة — تحميل أوقات الحصص (regular + thursday)
                 time_config = {}
@@ -1033,30 +1080,33 @@ def generate_schedule(
                                     end_time=end,
                                     academic_year=academic_year,
                                     elective_group=member.subject_name if t.is_split else "",
-                                    is_active=True,
+                                    is_active=publish,
+                                    generation=generation,
                                 )
                             )
                 ScheduleSlot.objects.bulk_create(bulk)
 
-                # سجل التوليد
-                generation = ScheduleGeneration.objects.create(
-                    school=school,
-                    academic_year=academic_year,
-                    generated_by=user,
-                    status="draft",
-                    quality_score=quality["score"],
-                    hard_violations=len(errors),
-                    soft_violations=quality["violations"],
-                    total_slots_created=quality["total_slots"],
-                    generation_time_ms=elapsed_ms,
-                    config_snapshot={
+                # سجل التوليد — تحديثُ الصفّ القائم إن مُرِّر، وإنشاؤه إن لم يُمرَّر.
+                fields = {
+                    "status": "draft",
+                    "quality_score": quality["score"],
+                    "hard_violations": len(errors),
+                    "soft_violations": quality["violations"],
+                    "total_slots_created": quality["total_slots"],
+                    "generation_time_ms": elapsed_ms,
+                    "finished_at": timezone.now(),
+                    "error_message": "",
+                    "config_snapshot": {
                         "total_tasks": len(tasks),
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,
                         "preferences_count": len(preferences),
                     },
-                )
+                }
+                for key, value in fields.items():
+                    setattr(generation, key, value)
+                generation.save(update_fields=list(fields))
         except Exception as exc:
             logger.exception("فشل حفظ الجدول المولَّد: %s", exc)
             errors.append(f"فشل حفظ الجدول: {exc}")

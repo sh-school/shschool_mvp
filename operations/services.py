@@ -294,10 +294,15 @@ class ScheduleService:
         teacher: CustomUser | None = None,
         class_group: ClassGroup | None = None,
         academic_year: str | None = None,
+        generation=None,
     ) -> dict:
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة.
 
         الشكل واحدٌ في كل الأحوال: `{يوم: {حصة: [slot, ...]}}`.
+
+        و`generation` يُعاين مسودّةً بعينها بدل الجدول الحيّ: حصصُها مطفأةٌ
+        حتّى تُعتمد فلا يجدها فلترُ `is_active` — ومن يعتمد جدولاً لم يرَه
+        يعتمد رقماً لا جدولاً.
 
         وكان يُعيد حصّةً مفردة مع فلتر المعلّم أو الفصل، وقائمةً بلا فلتر.
         والشعبة **تكون** في حصّتين معاً حين يتفرّق طلابها بين مادّتين
@@ -308,9 +313,12 @@ class ScheduleService:
         قائمةٍ لا يُخطئ — يطبع فراغاً. فوُحِّد الشكل.
         """
         academic_year = academic_year or academic_year_for_school(school)
-        qs = ScheduleSlot.objects.filter(
-            school=school, academic_year=academic_year, is_active=True
-        ).select_related("teacher", "class_group", "subject")
+        qs = ScheduleSlot.objects.filter(school=school, academic_year=academic_year)
+        if generation is not None:
+            qs = qs.filter(generation=generation)
+        else:
+            qs = qs.filter(is_active=True)
+        qs = qs.select_related("teacher", "class_group", "subject")
         if teacher:
             qs = qs.filter(teacher=teacher)
         if class_group:

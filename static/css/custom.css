@@ -932,6 +932,38 @@ tr.active {
   background: #fce8ee;
 }
 
+/* ── زر شبحيّ — لأفعال الصفّ داخل الجداول (حذف، تبديل) ──────────
+   كان مستعملاً في القوالب بلا تعريف، فظهر زرّاً عارياً بلا حدود ولا مساحة
+   لمس. الحدُّ الأدنى 36px يُبقي الهدفَ قابلاً للنقر باللمس. */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  padding: 6px 10px;
+  min-height: 36px;
+  border-radius: 8px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  font-family: inherit;
+}
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  background: var(--surface-alt);
+  color: var(--maroon);
+  border-color: var(--border);
+  outline: none;
+}
+.btn-ghost.text-danger,
+.btn-ghost.text-danger:hover {
+  color: var(--status-danger);
+}
+.btn-ghost .icon { width: 16px; height: 16px; }
+
 /* ── زر نجاح ─────────────────────────────────────────────────── */
 .btn-success {
   background: #16a34a;
@@ -1536,7 +1568,9 @@ html.dark .free-slot-badge { background: #052e16; color: #86efac; }
   margin-bottom: 6px;
 }
 .form-label .required { color: #dc2626; margin-inline-end: 3px; }
-.form-control {
+.form-control,
+.form-input,
+.form-select {
   width: 100%;
   padding: 10px 14px;
   border: 1.5px solid var(--border-strong);
@@ -1548,12 +1582,15 @@ html.dark .free-slot-badge { background: #052e16; color: #86efac; }
   outline: none;
   transition: border-color .12s, box-shadow .12s, background .12s;
 }
-.form-control:focus {
+.form-control:focus,
+.form-input:focus,
+.form-select:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px rgba(138,21,56,.10);
   background: var(--surface);
 }
-.form-control::placeholder { color: #b3bac5; }
+.form-control::placeholder,
+.form-input::placeholder { color: #b3bac5; }
 .form-hint {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1636,7 +1673,9 @@ html.dark .free-slot-badge { background: #052e16; color: #86efac; }
 }
 
 /* Validation states */
-.form-group.has-error .form-control {
+.form-group.has-error .form-control,
+.form-group.has-error .form-input,
+.form-group.has-error .form-select {
   border-color: var(--status-danger);
   box-shadow: 0 0 0 3px rgba(220,38,38,.1);
 }
@@ -2123,12 +2162,12 @@ textarea:focus-visible {
 .mobile-bottom-nav { display: block; }
 body { padding-bottom: 72px; }
 .btn-primary, .btn-secondary, .btn-danger { min-height: 44px; }
-.form-control { min-height: 44px; font-size: 16px; }  /* منع zoom على iOS */
+.form-control, .form-input, .form-select { min-height: 44px; font-size: 16px; }  /* منع zoom على iOS */
 @media (min-width: 641px) {
   .mobile-bottom-nav { display: none; }
   body { padding-bottom: 0; }
   .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
-  .form-control { min-height: auto; font-size: inherit; }
+  .form-control, .form-input, .form-select { min-height: auto; font-size: inherit; }
 }
 
 /* ── Progress Ring (SVG) for Quality ──────────────────────── */
@@ -4736,16 +4775,21 @@ html.dark tr.active {
 
 /* ── 10. Forms & Inputs ─────────────────────────────────────────── */
 html.dark .form-control,
+html.dark .form-input,
+html.dark .form-select,
 html.dark .filter-bar select,
 html.dark .filter-bar input {
   background: #0f172a;
   border-color: #475569;
   color: var(--text-primary);
 }
-html.dark .form-control:focus {
+html.dark .form-control:focus,
+html.dark .form-input:focus,
+html.dark .form-select:focus {
   background: #1e293b;
 }
-html.dark .form-control::placeholder { color: #64748b; }
+html.dark .form-control::placeholder,
+html.dark .form-input::placeholder { color: #64748b; }
 html.dark .form-card .form-footer { border-top-color: #334155; }
 html.dark .filter-bar {
   background: var(--surface);

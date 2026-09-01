@@ -29,6 +29,7 @@ urlpatterns = [
     # -- المرحلة 3: الجدولة الذكية --
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
+    path("smart-schedule/status/", views.smart_generate_status, name="smart_generate_status"),
     path(
         "smart-schedule/<uuid:generation_id>/approve/",
         views.approve_schedule,

@@ -179,6 +179,10 @@ class ScheduleSlot(models.Model):
         (3, "الأربعاء"),
         (4, "الخميس"),
     ]
+    #: حصصُ اليوم — مصدرٌ واحدٌ يقرؤه المولّدُ واستمارةُ التفريغ وقوائمُ الحصص.
+    #: وكان الرقمُ سبعةً مكتوباً في ثلاثة مواضع، فمدرسةٌ بثمانٍ تكسر أحدَها صامتاً.
+    PERIODS_PER_DAY = 7
+    PERIODS = list(range(1, PERIODS_PER_DAY + 1))
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_slots")
@@ -204,6 +208,17 @@ class ScheduleSlot(models.Model):
         max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
     )
     is_active = models.BooleanField(default=True)
+    #: أيُّ توليدٍ أنتج هذه الحصّة — فارغٌ للحصص اليدويّة ولِما سبق هذا الحقل.
+    #: وبه يصير الاعتمادُ فعلاً: تُفعَّل حصصُ التوليد المعتمَد وتُطفأ سواها،
+    #: وكانت الحصصُ تُفعَّل لحظةَ التوليد فيراها المعلّمون قبل أن يُقرَّر شيء.
+    generation = models.ForeignKey(
+        "ScheduleGeneration",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="slots",
+        verbose_name="التوليد المصدر",
+    )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -624,12 +639,25 @@ class TeacherExemption(models.Model):
 
 
 class ScheduleGeneration(models.Model):
-    """سجل عمليات التوليد التلقائي للجدول"""
+    """سجل عمليات التوليد التلقائي للجدول.
+
+    والحالاتُ تبدأ قبل النتيجة لا بعدها: التوليدُ يستغرق دقائق، فلا يجوز أن
+    يكون أوّلَ أثرٍ له صفٌّ يظهر عند نجاحه. فالصفُّ يُنشأ «في الانتظار» عند
+    الضغط، ويصير «قيد التوليد» حين يلتقطه العامل، ثمّ «مسودّة» أو «فشل».
+    وبهذا يرى المستخدمُ ما يجري، ويعرف النظامُ أنّ توليداً جارياً فلا يُشغّل
+    ثانياً فوقه.
+    """
+
+    #: الحالاتُ العابرة — لا نتيجةَ لها بعد، ولا تُحسب جدولاً.
+    PENDING_STATUSES = ("queued", "running")
 
     STATUS = [
+        ("queued", "في الانتظار"),
+        ("running", "قيد التوليد"),
         ("draft", "مسودة"),
         ("approved", "معتمد"),
         ("archived", "مؤرشف"),
+        ("failed", "فشل"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
@@ -646,16 +674,30 @@ class ScheduleGeneration(models.Model):
     total_slots_created = models.IntegerField(default=0)
     generation_time_ms = models.IntegerField(default=0, verbose_name="زمن التوليد (مللي ثانية)")
     config_snapshot = models.JSONField(default=dict, verbose_name="نسخة الإعدادات")
+    #: متى انتهى — لا يُقاس من `generated_at` لأنّ الانتظارَ في الطابور ليس توليداً.
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="انتهى في")
+    #: سببُ الفشل كما يُقال للمستخدم — وصمتُ الفشل أسوأُ من الفشل.
+    error_message = models.TextField(blank=True, verbose_name="سبب الفشل")
 
     class Meta:
         verbose_name = "عملية توليد جدول"
         verbose_name_plural = "عمليات توليد الجدول"
         ordering = ["-generated_at"]
+        indexes = [
+            models.Index(
+                fields=["school", "academic_year", "status"],
+                name="schedgen_school_year_stat",
+            ),
+        ]
 
     def __str__(self):
         return (
             f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
         )
+
+    @property
+    def is_pending(self):
+        return self.status in self.PENDING_STATUSES
 
 
 # ═════════════════════════════════════════════════════════════════════

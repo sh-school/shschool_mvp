@@ -1,16 +1,16 @@
 {% extends "base/base.html" %}
-{% block title %}إعدادات الجدول الذكي — {{ year }}{% endblock %}
+{% block title %}إعدادات الجدول والتفريغات — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'smart_schedule' as smart_url %}
-{% include "components/breadcrumbs.html" with parent_url=smart_url parent_label="الجدولة الذكية" current="إعدادات الجدول" %}
+{% include "components/breadcrumbs.html" with parent_url=smart_url parent_label="الجدولة الذكية" current="إعدادات الجدول والتفريغات" %}
 {% endblock %}
 
 {% block content %}
 
 <div class="page-header">
   <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول الذكي</h1>
+    <h1 class="page-title">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول والتفريغات</h1>
     <p class="page-subtitle">تفريغات المعلمين + الحصص المزدوجة + تفضيلات المعلمين — {{ year }}</p>
   </div>
   <div class="page-actions">
@@ -63,7 +63,7 @@
         <label class="form-label text-xs">رقم الحصة</label>
         <select name="period_number" class="form-control">
           <option value="">—</option>
-          {% for p in "1234567" %}
+          {% for p in periods %}
           <option value="{{ p }}">الحصة {{ p }}</option>
           {% endfor %}
         </select>
@@ -133,7 +133,7 @@
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
                 {% csrf_token %}
-                <button type="submit" class="btn-ghost text-xs text-danger">{% include "components/icon.html" with name="trash-2" size="icon-sm" %}</button>
+                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء التفريغ">{% include "components/icon.html" with name="trash-2" size="icon-sm" %} إلغاء</button>
               </form>
             </td>
           </tr>
@@ -143,6 +143,49 @@
     </div>
     {% else %}
     <p class="text-sm text-muted text-center py-3">لا توجد تفريغات حالياً</p>
+    {% endif %}
+
+    {% comment %}
+    القيودُ الشخصيّةُ الدائمة كانت تُستبعد من هذه الشاشة كلّيّاً، والمولّدُ
+    يقرؤها ويقيّد بها الجدول — فيرى المستخدمُ قيوداً لا يعرف مصدرَها ولا
+    يستطيع حذفَها من أيّ مكان. فتُعرض هنا في قسمها، بزرّ حذفها.
+    {% endcomment %}
+    {% if personal_rules %}
+    <h3 class="text-sm font-semibold mt-6 mb-2">
+      {% include "components/icon.html" with name="shield" size="icon-sm" %}
+      قيود شخصيّة دائمة ({{ personal_rules|length }}) — يقرؤها المولّد أيضاً
+    </h3>
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">المعلم</th>
+            <th scope="col">اليوم</th>
+            <th scope="col">الحصة</th>
+            <th scope="col">القيد</th>
+            <th scope="col">المرجع</th>
+            <th scope="col"><span class="sr-only">إجراءات</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ex in personal_rules %}
+          <tr>
+            <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
+            <td>{{ ex.get_day_of_week_display }}</td>
+            <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}يوم كامل{% endif %}</td>
+            <td class="text-sm">{{ ex.reason }}</td>
+            <td class="text-sm">{{ ex.get_source_display }}{% if ex.source_reference %} — {{ ex.source_reference }}{% endif %}</td>
+            <td>
+              <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء هذا القيد عن {{ ex.teacher.full_name }}؟">
+                {% csrf_token %}
+                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء القيد">{% include "components/icon.html" with name="trash-2" size="icon-sm" %} إلغاء</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
   </div>
 </div>
