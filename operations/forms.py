@@ -2,7 +2,7 @@
 
 from django import forms
 
-from .models import ScheduleSlot, TeacherAbsence, TeacherExemption
+from .models import ScheduleSlot, SubjectClassAssignment, TeacherAbsence, TeacherExemption
 
 
 class TeacherExemptionForm(forms.Form):
@@ -126,3 +126,60 @@ class CompensatoryRequestForm(forms.Form):
         required=False,
         label="ملاحظات",
     )
+
+
+class SubjectClassAssignmentForm(forms.ModelForm):
+    """توزيعُ مادّةٍ على شعبةٍ بمعلّمٍ وعددِ حصص — وقودُ المولّد الوحيد.
+
+    كان بلا شاشةٍ في المنصّة، وبابُه الوحيدُ لوحةُ Django التي لا يبلغها مديرُ
+    المدرسة. والقوائمُ مقيّدةٌ بالمدرسة والعام: شعبةٌ من مدرسةٍ أخرى لا تظهر
+    ولا تُقبل.
+    """
+
+    class Meta:
+        model = SubjectClassAssignment
+        fields = ["class_group", "subject", "teacher", "weekly_periods", "requires_lab", "parallel_group"]
+        labels = {
+            "class_group": "الشعبة",
+            "subject": "المادة",
+            "teacher": "المعلم",
+            "weekly_periods": "الحصص/أسبوع",
+            "requires_lab": "معمل",
+            "parallel_group": "مجموعة التوازي",
+        }
+        widgets = {
+            "class_group": forms.Select(attrs={"class": "form-control", "required": True}),
+            "subject": forms.Select(attrs={"class": "form-control", "required": True}),
+            "teacher": forms.Select(attrs={"class": "form-control"}),
+            "weekly_periods": forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 35}),
+            "requires_lab": forms.CheckboxInput(),
+            "parallel_group": forms.TextInput(attrs={"class": "form-control", "placeholder": "اختياري"}),
+        }
+
+    def __init__(self, *args, school, year, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.models import ClassGroup, CustomUser
+
+        from .models import Subject
+
+        self.school, self.year = school, year
+        self.fields["class_group"].queryset = ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).order_by("grade", "section")
+        self.fields["subject"].queryset = Subject.objects.filter(school=school).order_by("name_ar")
+        self.fields["teacher"].queryset = CustomUser.objects.teachers(school).order_by("full_name")
+        self.fields["teacher"].required = False
+        self.fields["teacher"].empty_label = "— بلا معلّم بعد —"
+
+    def clean(self):
+        cleaned = super().clean()
+        cg, subj = cleaned.get("class_group"), cleaned.get("subject")
+        if cg and subj:
+            clash = SubjectClassAssignment.objects.filter(
+                school=self.school, academic_year=self.year, class_group=cg, subject=subj
+            ).exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise forms.ValidationError(
+                    f"يوجد توزيعٌ لمادّة {subj.name_ar} في شعبة {cg} هذا العام — عدّله بدل إضافة آخر."
+                )
+        return cleaned

@@ -279,6 +279,7 @@
   {% if role == "principal" or role == "vice_academic" or role == "admin" or user.is_superuser %}
   <a href="{% url 'smart_schedule' %}" role="menuitem">{% include "components/icon.html" with name="calendar" %} الجدولة الذكية (توليد الجدول)</a>
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول والتفريغات</a>
+  <a href="{% url 'subject_assignments' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الشُّعب</a>
   {% endif %}
   <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} التكاليف</a>
   <a href="{% url 'academic_management:department_reports' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} التقارير الخاصة بالقسم</a>

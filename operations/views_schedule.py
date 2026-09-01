@@ -43,6 +43,8 @@ _REPORT_ROLES = {
     "admin",
 }
 _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
+#: من يكتب توزيعاتِ المواد — الوقودَ الذي يقرؤه المولّد.
+SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
@@ -1008,3 +1010,125 @@ def toggle_double_period(request, subject_id):
     status = "مفعّلة" if subject.requires_double_period else "معطّلة"
     messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
     return _safe_schedule_settings_redirect(request)
+
+
+# ── توزيعات المواد على الشُّعب — وقودُ المولّد ────────────────────
+
+
+def _assignment_redirect(year, class_id=""):
+    query = {"year": year}
+    if class_id:
+        query["class"] = class_id
+    return redirect(f"{reverse('subject_assignments')}?{urlencode(query)}")
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+def subject_assignments(request):
+    """قائمةُ التوزيعات واستمارةُ الإضافة — وكلُّ صفٍّ يُعدَّل في مكانه."""
+    from .forms import SubjectClassAssignmentForm
+
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+    class_id = request.GET.get("class", "")
+
+    qs = SubjectClassAssignment.objects.filter(
+        school=school, academic_year=year, is_active=True
+    ).select_related("class_group", "subject", "teacher")
+    if class_id:
+        qs = qs.filter(class_group_id=class_id)
+    assignments = list(qs)
+
+    # استمارةٌ أُعيدت بأخطائها: تُعرض بما كُتب فيها، لا فارغةً.
+    rejected = request.session.pop("assignment_form_data", None)
+    form = SubjectClassAssignmentForm(rejected or None, school=school, year=year)
+    if rejected:
+        form.is_valid()
+
+    return render(
+        request,
+        "schedule/subject_assignments.html",
+        {
+            "year": year,
+            "assignments": assignments,
+            "form": form,
+            "classes": form.fields["class_group"].queryset,
+            "teachers": CustomUser.objects.teachers(school).order_by("full_name"),
+            "selected_class_id": class_id,
+            "totals": {
+                "count": len(assignments),
+                "periods": sum(a.weekly_periods for a in assignments),
+                "unstaffed": sum(1 for a in assignments if a.teacher_id is None),
+            },
+        },
+    )
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_add(request):
+    from .forms import SubjectClassAssignmentForm
+
+    school = request.user.get_school()
+    year = request.POST.get("year") or academic_year_for(request)
+    form = SubjectClassAssignmentForm(request.POST, school=school, year=year)
+    if not form.is_valid():
+        # تُعاد المدخلاتُ لا تُطمس: يرى المُدخِل ما كتب وما رُفض منه.
+        request.session["assignment_form_data"] = {
+            k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"
+        }
+        for err in form.non_field_errors():
+            messages.error(request, err)
+        return _assignment_redirect(year)
+    obj = form.save(commit=False)
+    obj.school, obj.academic_year = school, year
+    obj.save()
+    messages.success(request, f"أُضيف: {obj}")
+    return _assignment_redirect(year, str(obj.class_group_id))
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_edit(request, assignment_id):
+    """تعديلُ الصفّ في مكانه: المعلّم والحصص والمعمل والتوازي — لا الشعبةُ ولا المادّة."""
+    school = request.user.get_school()
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, school=school, is_active=True)
+    year = obj.academic_year
+
+    teacher_id = request.POST.get("teacher") or None
+    teacher = None
+    if teacher_id:
+        teacher = CustomUser.objects.teachers(school).filter(pk=teacher_id).first()
+        if teacher is None:
+            messages.error(request, "المعلّم المختار ليس من معلّمي مدرستك.")
+            return _assignment_redirect(year, str(obj.class_group_id))
+    try:
+        periods = int(request.POST.get("weekly_periods", obj.weekly_periods))
+    except (TypeError, ValueError):
+        periods = 0
+    if not 1 <= periods <= 35:
+        messages.error(request, "عدد الحصص الأسبوعيّة يجب أن يكون بين ١ و٣٥.")
+        return _assignment_redirect(year, str(obj.class_group_id))
+
+    obj.teacher = teacher
+    obj.weekly_periods = periods
+    obj.requires_lab = bool(request.POST.get("requires_lab"))
+    obj.parallel_group = (request.POST.get("parallel_group") or "").strip()[:40]
+    obj.save(update_fields=["teacher", "weekly_periods", "requires_lab", "parallel_group"])
+    messages.success(request, f"حُفظ: {obj}")
+    return _assignment_redirect(year, str(obj.class_group_id))
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_delete(request, assignment_id):
+    """حذفٌ ناعم — يبقى الصفُّ أثراً، ويخرج من عين المولّد."""
+    school = request.user.get_school()
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, school=school, is_active=True)
+    obj.is_active = False
+    obj.save(update_fields=["is_active"])
+    messages.success(request, f"حُذف توزيع {obj.subject.name_ar} لشعبة {obj.class_group}.")
+    return _assignment_redirect(obj.academic_year, str(obj.class_group_id))
