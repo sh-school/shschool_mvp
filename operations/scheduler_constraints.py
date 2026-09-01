@@ -35,6 +35,23 @@ CORE_CODES = {"ARA", "ENG", "MAT", "SCI", "CHM", "PHY", "BIO"}
 # عتبة المادة ذات النصاب العالي (5+ حصص/أسبوع)
 HIGH_WEEKLY_THRESHOLD = 5
 
+#: أوزانُ القيود المرنة — تُقاس ولا تُخمَّن.
+#:
+#: كانت محفورةً في مواضعها، فلم يكن أحدٌ يستطيع أن يجرّب وزناً ويقيس أثرَه.
+#: وأوّلُ قياسٍ بعد جمعها هنا كشف أنّ الجدولَ المولَّد يفوق المستوردَ في
+#: التتابع (249 زوجاً مقابل 142) — أي أنّ وزنَ عشرةٍ للتتابع لم يكن كافياً
+#: لمقاومة ترتيبٍ جشعٍ يملأ اليومَ حصّةً إثر حصّة.
+WEIGHTS = {
+    "consecutive": 10,
+    "gap": 8,
+    "subject_spread": 6,
+    "daily_load": 5,
+    "core_early": 3,
+    "pe_after_break": 2,
+    "double_bonus": -5,
+    "high_weekly_adjacent": 7,
+}
+
 
 # ══════════════════════════════════════════════════════════════
 # 1. القيود الصلبة (Hard Constraints)
@@ -89,13 +106,59 @@ def check_subject_distribution(grid: ScheduleGrid, day: int, task: Task) -> bool
     return at_cap + 1 <= task.days_allowed_at_cap
 
 
+#: أقصى ما يُقبل من حصصٍ متلاصقةٍ للمعلّم الواحد — واحدةٌ أي: لا تلاصقَ.
+#:
+#: كان ثلاثاً، فأخرج المولّدُ إحدى وعشرين ثلاثيّةً بينما في الجدول المستورد —
+#: الذي وضعه بشرٌ — أربع. فصار اثنتين فسقطت الثلاثيّاتُ كلُّها، ثمّ قرّرت
+#: الإدارةُ ألّا تلاصقَ أصلاً فصار واحدة.
+#:
+#: والاستثناءُ الوحيد الحصّةُ المزدوجةُ المقصودة (فنونٌ وتكنولوجيا): المعلّمُ
+#: باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا عَرَضٌ يُتعب.
+MAX_CONSECUTIVE = 1
+
+
+def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
+    """الحصّةُ المزدوجةُ المقصودة: نفسُ المادّةِ لنفس الشعبة، ومادّةٌ تُزاوَج.
+
+    فالمعلّمُ يبقى مع شعبته في غرفته — وهذا هو الغرضُ لا عَرَضٌ يُتعب.
+    """
+    if not (
+        getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
+    ):
+        return False
+    return _neighbour_is_same_lesson(grid, task, day, period)
+
+
 def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC5: لا أكثرَ من حصّتين متلاصقتين للمعلّم.
+
+    و`PE`/`SCI` تُعيد العدّاد: البدنيّةُ والعلومُ المعمليّةُ تغيّران المكانَ
+    والنشاطَ، فلا تُحسبان امتداداً لما قبلهما.
+
+    ويُسأل عن كلّ ساكنٍ في الشعبة المنقسمة: المعلّمانِ يعملان معاً، فتتابعُ
+    كلٍّ منهما تتابعُه هو.
     """
-    HC5 (جديد): الحد الأقصى 3 حصص متتالية للمعلم.
-    PE والعلوم المعملية تُعيد العدّاد (لا تُحسب ضمن التتابع).
+    if _wants_adjacency(grid, task, day, period):
+        return True
+    return all(
+        _run_length(grid, m.teacher_id, day, period) < MAX_CONSECUTIVE for m in task.members
+    )
+
+
+def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> int:
+    """طولُ التلاصق حول هذه الخانة — بلا استثناءِ مادّةٍ ولا صنف.
+
+    و`teacher_consecutive_counted` تُعفي `PE`/`SCI` من العدّ، وهو تخفيفٌ يليق
+    بترجيحٍ مرن. أمّا المنعُ الصلبُ فيسأل سؤالاً واحداً: أيقف المعلّمُ حصّتين
+    متلاصقتين أم لا؟ والبدنيّةُ حصّةٌ يقفها كغيرها.
     """
-    consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
-    return consecutive < 3
+    count = 0
+    for step in (-1, 1):
+        neighbour = period + step
+        while 1 <= neighbour <= 7 and grid.teacher_busy(teacher_id, day, neighbour):
+            count += 1
+            neighbour += step
+    return count
 
 
 def check_high_weekly_daily_limit(grid: ScheduleGrid, day: int, task: Task) -> bool:
@@ -165,6 +228,17 @@ class SoftPenalty:
             self.details[name] = weight
 
 
+def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
+    """هل جارُ هذه الخانة — قبلَها أو بعدَها — نفسُ المادّة لنفس الشعبة؟"""
+    for step in (-1, 1):
+        neighbour = period + step
+        if 1 <= neighbour <= 7:
+            other = grid.get_task_at(task.class_id, day, neighbour)
+            if other is not None and other.subject_id == task.subject_id:
+                return True
+    return False
+
+
 def evaluate_soft_constraints(
     grid: ScheduleGrid,
     day: int,
@@ -177,11 +251,17 @@ def evaluate_soft_constraints(
 
     # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
     consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
-    penalty.add("consecutive", 10, consecutive >= 2)
+    # الحصّةُ المزدوجةُ استثناءٌ مقصود: الفنونُ والتكنولوجيا تُرجَّح متجاورةً
+    # لأنّ المعلّمَ يبقى مع الشعبة نفسها في الغرفة نفسها — فليست تتابعاً
+    # يُتعب، بل هي الغرضُ نفسُه. وما عداها يُعاقَب من أوّل تلاصق.
+    wants_adjacent = (
+        getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
+    ) and _neighbour_is_same_lesson(grid, task, day, period)
+    penalty.add("consecutive", WEIGHTS["consecutive"], consecutive >= 1 and not wants_adjacent)
 
     # ── SC2: فراغات المعلم — تقليل الفجوات ──
     creates_gap = grid.would_create_gap(task.teacher_id, day, period)
-    penalty.add("gap", 8, creates_gap)
+    penalty.add("gap", WEIGHTS["gap"], creates_gap)
 
     # ── SC3: التوزيعُ يملأ الأيّامَ الفارغةَ قبل أن يُضاعف ──
     #
@@ -210,22 +290,24 @@ def evaluate_soft_constraints(
             for d in DAYS
             if grid.subject_on_day(task.class_id, task.subject_id, d) == 0 and d != day
         )
-        penalty.add("subject_spread", 6, same_subject_today > 0 and empty_days > 0)
+        penalty.add(
+            "subject_spread", WEIGHTS["subject_spread"], same_subject_today > 0 and empty_days > 0
+        )
 
     # ── SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم ──
     teacher_today = grid.teacher_periods_on_day(task.teacher_id, day)
     max_daily = 5
     if preferences and task.teacher_id in preferences:
         max_daily = preferences[task.teacher_id].get("max_daily", 5)
-    penalty.add("daily_load", 5, teacher_today >= max_daily)
+    penalty.add("daily_load", WEIGHTS["daily_load"], teacher_today >= max_daily)
 
     # ── SC5: المواد الأساسية في الحصص الأولى ──
     is_core = task.subject_code in CORE_CODES
-    penalty.add("core_early", 3, is_core and period >= 6)
+    penalty.add("core_early", WEIGHTS["core_early"], is_core and period >= 6)
 
     # ── SC6: البدنية بعد الاستراحة ──
     is_pe = task.subject_code == "PE"
-    penalty.add("pe_after_break", 2, is_pe and period not in (4, 5))
+    penalty.add("pe_after_break", WEIGHTS["pe_after_break"], is_pe and period not in (4, 5))
 
     # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
     if is_double and same_subject_today == 1:
@@ -233,7 +315,7 @@ def evaluate_soft_constraints(
         # المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
         prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
         if prev_task and prev_task.subject_id == task.subject_id:
-            penalty.add("double_bonus", -5, True)  # مكافأة (قيمة سالبة)
+            penalty.add("double_bonus", WEIGHTS["double_bonus"], True)  # مكافأة (قيمة سالبة)
 
     # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
     if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
@@ -242,7 +324,7 @@ def evaluate_soft_constraints(
         is_adj_same = (prev_task and prev_task.subject_id == task.subject_id) or (
             next_task and next_task.subject_id == task.subject_id
         )
-        penalty.add("high_weekly_adjacent", 7, is_adj_same)
+        penalty.add("high_weekly_adjacent", WEIGHTS["high_weekly_adjacent"], is_adj_same)
 
     return penalty
 
@@ -286,8 +368,9 @@ def calculate_quality_score(
             violations[k] = violations.get(k, 0) + 1
 
     # نقاط الجودة: 100 - (العقوبات المرجحة / العدد الكلي)
-    # مجموع أوزان كل القيود المرنة: 10+8+6+5+3+2+5+7 = 46
-    max_possible = total_slots * 46
+    # مجموعُ الأوزان الموجبة — يتبع `WEIGHTS` ولا يُكتب رقماً جامداً.
+    ceiling = sum(w for w in WEIGHTS.values() if w > 0)
+    max_possible = total_slots * ceiling
     if max_possible == 0:
         score = 100.0
     else:

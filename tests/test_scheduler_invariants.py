@@ -74,11 +74,13 @@ def test_a_teacher_may_not_stand_before_two_sections_at_once():
     assert not is_slot_valid(grid, 0, 1, intruder)
 
 
-def test_the_same_teacher_may_teach_the_next_period():
+def test_the_same_teacher_may_not_teach_the_next_period():
+    """لا حصّتين متلاصقتين لمعلّمٍ — قرارُ الإدارة، وقيدٌ صلبٌ لا ترجيح."""
     grid = ScheduleGrid()
     grid.place(0, 1, make_task())
 
-    assert is_slot_valid(grid, 0, 2, make_task(klass=OTHER_CLASS))
+    assert not is_slot_valid(grid, 0, 2, make_task(klass=OTHER_CLASS))
+    assert is_slot_valid(grid, 0, 3, make_task(klass=OTHER_CLASS)), "وحصّةٌ بينهما تكفي"
 
 
 def test_another_teacher_may_not_take_an_occupied_slot():
@@ -320,14 +322,19 @@ def test_a_teacher_is_capped_at_three_consecutive_periods():
     assert not check_max_consecutive(grid, 0, 4, make_task(klass="c-9"))
 
 
-def test_physical_education_resets_the_consecutive_count():
-    """البدنيّةُ والعلومُ المعمليّة تُعيد العدّاد — قرارٌ تربويٌّ مكتوب."""
+def test_physical_education_softens_the_run_but_does_not_permit_adjacency():
+    """البدنيّةُ تُعيد عدّادَ الترجيح، ولا تُبيح التلاصقَ الممنوع.
+
+    فالإعفاءُ قرارٌ تربويٌّ يليق بوزنٍ مرن: حصّةٌ تغيّر المكانَ والنشاط. أمّا
+    المنعُ الصلبُ فيسأل: أيقف المعلّمُ حصّتين متلاصقتين؟ والبدنيّةُ حصّةٌ
+    يقفها كغيرها.
+    """
     grid = ScheduleGrid()
     grid.place(0, 1, make_task(klass="c-a", code="MAT", subject="s-a"))
     grid.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b"))
-    grid.place(0, 3, make_task(klass="c-c", code="MAT", subject="s-c"))
 
-    assert check_max_consecutive(grid, 0, 4, make_task(klass="c-d"))
+    assert grid.teacher_consecutive_counted(TEACHER, 0, 3) == 0, "العدّادُ المرنُ صُفِّر"
+    assert not check_max_consecutive(grid, 0, 3, make_task(klass="c-d")), "والتلاصقُ ممنوع"
 
 
 def test_a_heavy_subject_gets_at_most_two_periods_a_day():

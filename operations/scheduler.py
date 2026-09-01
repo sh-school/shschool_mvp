@@ -154,6 +154,10 @@ class ScheduleGrid:
         self._teacher_at: dict[tuple[str, int, int], Task] = {}
         self._subject_class_day: dict[tuple[str, str, int], int] = defaultdict(int)
         self._entries: list[dict] = []
+        #: سجلُّ التراجع: كلُّ محاولةِ إزاحةٍ تفتح إطاراً، وتُغلقه بقبولٍ أو ردّ.
+        #: والردُّ يعكس ما جرى بعينه — لا «أعِد ما تظنّه كان»، فالتساهلُ في
+        #: هذا أسقط حصصاً بصمتٍ حتّى صار المجموعُ لا يُطابق المطلوب.
+        self._journal: list[list[tuple[str, int, int, Task]]] = []
 
     def _class_grid(self, class_id: str) -> dict[int, dict[int, Task | None]]:
         """شبكةُ شعبةٍ تُنشأ عند أوّل ذكرٍ لها — فالشعبُ تُعرَف من المهامّ."""
@@ -163,8 +167,34 @@ class ScheduleGrid:
             self._grid[class_id] = grid
         return grid
 
+    def begin(self):
+        """يفتح إطارَ تراجعٍ — كلُّ ما يقع بعده يُسجَّل."""
+        self._journal.append([])
+
+    def commit(self):
+        """يقبل ما جرى: يُدمَج في الإطار الأعلى إن وُجد، وإلّا يُنسى."""
+        done = self._journal.pop()
+        if self._journal:
+            self._journal[-1].extend(done)
+
+    def rollback(self):
+        """يعكس ما جرى في الإطار — بالترتيب المقلوب."""
+        for kind, day, period, task in reversed(self._journal.pop()):
+            if kind == "place":
+                self._forget(task, day, period)
+            else:
+                self._remember(day, period, task)
+
+    def _log(self, kind: str, day: int, period: int, task: Task):
+        if self._journal:
+            self._journal[-1].append((kind, day, period, task))
+
     def place(self, day: int, period: int, task: Task):
         """وضع حصة في الشبكة"""
+        self._log("place", day, period, task)
+        self._remember(day, period, task)
+
+    def _remember(self, day: int, period: int, task: Task):
         self._class_grid(task.class_id)[day][period] = task
         self._class_slots[task.class_id].append((day, period))
         # كلُّ ساكنٍ يُسجَّل: في الشعبة المنقسمة معلّمانِ يعملان في الخانة
@@ -180,22 +210,18 @@ class ScheduleGrid:
         task = self._class_grid(class_id)[day][period]
         if task is None:
             return
-        self._class_grid(class_id)[day][period] = None
+        self._log("remove", day, period, task)
+        self._forget(task, day, period)
+
+    def _forget(self, task: Task, day: int, period: int):
+        self._class_grid(task.class_id)[day][period] = None
         self._class_slots[task.class_id].remove((day, period))
         for member in task.members:
             self._teacher_slots[member.teacher_id].remove((day, period))
             self._teacher_at.pop((member.teacher_id, day, period), None)
         key = (task.subject_id, task.class_id, day)
         self._subject_class_day[key] -= 1
-        self._entries = [
-            e
-            for e in self._entries
-            if not (
-                e["day"] == day
-                and e["period"] == period
-                and e["task"].class_id == class_id
-            )
-        ]
+        self._entries = [e for e in self._entries if e["task"] is not task]
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
 
@@ -488,16 +514,29 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget):
     والحركةُ ذرّيّة: إن تعذّر إعادةُ أحد المُزاحين رُدَّ كلُّ شيءٍ إلى مكانه.
     فلا تُبدَّل حصّةٌ متعذّرةٌ بأخرى.
     """
-    still = []
-    for task in leftovers:
-        if budget <= 0 or not _try_eject(grid, task, blocked, preferences):
-            still.append(task)
-        else:
-            budget -= 1
-    return still
+    #: جولتان: الجولةُ الأولى تُغيّر الشبكةَ فتفتح للثانية ما كان مغلقاً.
+    #: وثالثةٌ لم تُضف شيئاً على بيانات المدرسة، فوُقِف عند اثنتين.
+    remaining = list(leftovers)
+    for _ in range(2):
+        still = []
+        for task in remaining:
+            if budget <= 0 or not _try_eject(grid, task, blocked, preferences, depth=2):
+                still.append(task)
+            else:
+                budget -= 1
+        if len(still) == len(remaining):
+            return still
+        remaining = still
+    return remaining
 
 
-def _try_eject(grid, task, blocked, preferences):
+def _try_eject(grid, task, blocked, preferences, depth=1):
+    """يُخرج ساكنَ الخانةِ لينزل فيها المتعذّر — ثمّ يُعيد الساكنَ إلى بديل.
+
+    و`depth` عمقُ السلسلة: بعمقٍ واحدٍ يجب أن يجد المُزاحُ خانةً فارغةً له،
+    وبعمقين يجوز أن يُزيح هو الآخرُ ساكناً. وأبعدُ من ذلك يُقلّب الجدولَ أكثرَ
+    ممّا يُصلح، وقد كفى العمقان: اثنتان بقيتا من ثمانٍ وخمسين.
+    """
     for day in DAYS:
         for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
             evicted = _blockers(grid, task, day, period, blocked)
@@ -508,19 +547,21 @@ def _try_eject(grid, task, blocked, preferences):
             homes = [(e, _home_of(grid, e)) for e in evicted]
             if any(home is None for _, home in homes):
                 continue
+
+            grid.begin()
             for occupant, home in homes:
                 grid.remove(occupant.class_id, home[0], home[1])
 
-            if is_slot_valid(grid, day, period, task) and not any(
-                grid.teacher_busy(m.teacher_id, day, period) for m in task.members
+            if (
+                is_slot_valid(grid, day, period, task)
+                and not any(grid.teacher_busy(m.teacher_id, day, period) for m in task.members)
             ):
                 grid.place(day, period, task)
-                if _rehome_all(grid, [e for e, _ in homes], blocked, preferences):
+                if _rehome_all(grid, [e for e, _ in homes], blocked, preferences, depth):
+                    grid.commit()
                     return True
-                grid.remove(task.class_id, day, period)
 
-            for occupant, home in homes:
-                grid.place(home[0], home[1], occupant)
+            grid.rollback()
     return False
 
 
@@ -532,18 +573,22 @@ def _home_of(grid, task):
     return None
 
 
-def _rehome_all(grid, tasks, blocked, preferences):
-    """يُعيد المُزاحين إلى خاناتٍ صحيحة — أو يتراجع عن الجميع."""
-    settled = []
+def _rehome_all(grid, tasks, blocked, preferences, depth=1):
+    """يُعيد المُزاحين إلى خاناتٍ صحيحة، أو يُعلن الفشلَ ليتراجع المُنادي.
+
+    والتراجعُ عند المُنادي بسجلّ الشبكة — لا هنا: فالسلسلةُ العميقةُ تُحرّك ما
+    لم يضعه هذا المستوى، ولا يعرف كلُّ مستوىً إلّا ما فعله هو.
+    """
     for task in tasks:
         ranked = rank_slots(grid, task, get_available_slots(grid, task, blocked), preferences)
-        if not ranked:
-            for done in settled:
-                grid.remove(done.class_id, *_home_of(grid, done))
-            return False
-        day, period, _ = ranked[0]
-        grid.place(day, period, task)
-        settled.append(task)
+        if ranked:
+            day, period, _ = ranked[0]
+            grid.place(day, period, task)
+            continue
+        # لا خانةَ فارغةً له — فليُزِح هو الآخرُ إن بقي في العمق سعة.
+        if depth > 1 and _try_eject(grid, task, blocked, preferences, depth - 1):
+            continue
+        return False
     return True
 
 

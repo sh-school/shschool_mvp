@@ -48,12 +48,18 @@ def task(*, weekly=6, days=5, teacher="t-1", subject=SUBJECT, klass=CLASS, code=
 
 
 def fill(grid, *, weekly, days, per_day):
-    """يضع حصصاً بحسب خريطةٍ {يوم: عدد} — للتهيئة لا للاختبار."""
-    period = 1
+    """يضع حصصاً بحسب خريطةٍ {يوم: عدد} — للتهيئة لا للاختبار.
+
+    والخاناتُ متباعدةٌ عمداً (1، 3، 5…): التلاصقُ ممنوعٌ للمعلّم الواحد، فلو
+    وُضعت متتاليةً لسقط التهيئُ نفسُه على قيدٍ لا شأنَ له بالتوزيع.
+    """
     for day, count in per_day.items():
+        period = 1
         for _ in range(count):
+            while grid.class_busy(CLASS, day, period):
+                period += 2
             grid.place(day, period, task(weekly=weekly, days=days))
-            period += 1
+            period += 2
 
 
 # ── الصيغةُ نفسُها ───────────────────────────────────────────────────

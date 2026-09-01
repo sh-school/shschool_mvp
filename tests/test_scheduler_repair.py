@@ -130,6 +130,38 @@ def test_the_evicted_lesson_lands_somewhere_legal(school, cornered):
     assert sorted(per_day.values()) == [1, 1, 1, 1, 2], "والتوزيعُ باقٍ على قاعدته"
 
 
+def test_no_teacher_gets_two_lessons_back_to_back(school):
+    """لا حصّتين متلاصقتين لمعلّمٍ — قرارُ إدارة المدرسة، وقيدٌ صلبٌ لا تفضيل.
+
+    وكان الحدُّ ثلاثاً ثمّ اثنتين ثمّ صار واحدة. والمقايضةُ معلومةٌ ومقبولة:
+    ستُّ حصصٍ من ثمانمئةٍ وواحدٍ وأربعين تُترك للإدخال اليدويّ، مقابل ألّا
+    يقف معلّمٌ حصّتين متلاصقتين.
+    """
+    from collections import defaultdict
+
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    only = teacher(school, "معلّمٌ وحيد")
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=only,
+        class_group=group,
+        subject=Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT"),
+        weekly_periods=6,
+        is_active=True,
+    )
+
+    result = generate_schedule(school, YEAR)
+
+    per_day = defaultdict(list)
+    for entry in result["grid"].all_entries():
+        per_day[entry["day"]].append(entry["period"])
+    for day, periods in per_day.items():
+        periods.sort()
+        for i in range(1, len(periods)):
+            assert periods[i] != periods[i - 1] + 1, f"تلاصقٌ في اليوم {day}: {periods}"
+
+
 def test_an_impossible_lesson_is_still_reported(school):
     """والإزاحةُ لا تُخفي المستحيل: معلّمانِ لخانةٍ واحدةٍ لا يجتمعان."""
     group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
