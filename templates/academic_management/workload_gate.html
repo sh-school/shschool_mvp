@@ -1,0 +1,48 @@
+{% extends "base/base.html" %}
+
+{% comment %}
+بوّابةُ التحقّق بنداً بنداً — وهذه هي أداةُ التشخيص لا شهادةُ صلاحية.
+
+«الخطّةُ غيرُ صالحة» جملةٌ لا تُصلح شيئاً. أمّا «الإسنادُ ١٤ من ١٦» فتقول
+للمُدخِل أين يذهب، وتقول للمراجع ما الذي يسأل عنه.
+{% endcomment %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_label=module_name current="تحقّق" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="shield" %} تحقّقٌ — {{ plan.teacher.full_name }}</h1>
+      <p class="exec-subtitle">
+        {{ plan.academic_year }} · نسخة {{ plan.plan_version }} · {{ plan.get_status_display }}
+      </p>
+    </div>
+    <a href="{% url 'academic_management:plan_editor' plan.pk %}" class="btn-secondary btn-sm">عودةٌ للمحرّر</a>
+  </div>
+
+  <section class="card">
+    <h2 class="card-title">
+      {% if blocking %}{{ blocking|length }} بنداً غيرَ مثبت{% else %}كلُّ البنود مثبتة{% endif %}
+    </h2>
+    <ul class="check-list">
+      {% for c in checks %}
+      <li class="{% if c.passed %}ok{% else %}warn{% endif %}">
+        {% if c.passed %}✓{% else %}✗{% endif %} <strong>{{ c.label }}</strong>
+        <div class="muted">{{ c.detail }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="muted">
+      التحقّقُ لا يغيّر حالةَ الخطّة. وتُعاد البوّابةُ كاملةً عند الاعتماد،
+      لأنّ الإسنادَ قد يتغيّر بين اللحظتين.
+    </p>
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+{% extends "base/base.html" %}
+
+{% comment %}
+منظورُ المراجع: النسخةُ المقترحةُ إلى جانب المعتمَدةِ قبلها.
+
+فالمراجعُ لا يسأل «هل هذا الرقمُ سليم؟» بل «ما الذي تغيّر ولماذا؟». وعرضُ
+النسخة الجديدة وحدَها يُخفي السؤالَ الثاني، فيصير التوقيعُ إجراءً لا مراجعة.
+{% endcomment %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_label=module_name current=page_title %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="check-square" %} {{ plan.teacher.full_name }}</h1>
+      <p class="exec-subtitle">
+        {{ plan.academic_year }} · نسخة {{ plan.plan_version }} · {{ plan.get_status_display }}
+      </p>
+    </div>
+    <a href="{% url 'academic_management:plan_editor' plan.pk %}" class="btn-secondary btn-sm">المحرّر</a>
+  </div>
+
+  <section class="card">
+    <h2 class="card-title">ما الذي تغيّر</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>{% if previous %}v{{ previous.plan_version }} معتمدة{% else %}لا سابقة{% endif %}</th>
+          <th>v{{ plan.plan_version }} مقترحة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="{% if r.changed %}warn{% endif %}">
+          <td>{{ r.label }}</td>
+          <td>{% if r.before is None %}—{% else %}{{ r.before }}{% endif %}</td>
+          <td><strong>{% if r.after is None %}—{% else %}{{ r.after }}{% endif %}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not previous %}
+      <p class="muted">أوّلُ نسخةٍ لهذا المعلّم — فلا شيءَ يُقارَن به، ولا يُملأ الفراغُ بصفر.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">المؤهّلات</h2>
+    {% if qualification_rows %}
+      <table class="data-table">
+        <thead><tr><th>المادّة</th><th>النطاق</th><th>الحالة</th><th>المرجع</th><th>السريان</th></tr></thead>
+        <tbody>
+          {% for q in qualification_rows %}
+          <tr>
+            <td>{{ q.subject }}</td>
+            <td>{{ q.scope }}</td>
+            <td>{{ q.status }}</td>
+            <td>{{ q.reference|default:"— بلا مرجع —" }}</td>
+            <td class="{% if q.valid %}ok{% else %}warn{% endif %}">{% if q.valid %}سارٍ{% else %}غيرُ سارٍ{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">لا مؤهّلَ مسجَّل.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">بوّابةُ التحقّق</h2>
+    <ul class="check-list">
+      {% for c in checks %}
+      <li class="{% if c.passed %}ok{% else %}warn{% endif %}">
+        {% if c.passed %}✓{% else %}✗{% endif %} {{ c.label }} — <span class="muted">{{ c.detail }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      {% if plan.status == "submitted" and can_review %}
+      <form method="post" action="{% url 'academic_management:review_plan' plan.pk %}">
+        {% csrf_token %}
+        <input type="text" name="comment" class="form-input" placeholder="ملاحظة المراجع">
+        <button type="submit" class="btn-primary btn-sm">تسجيلُ المراجعة</button>
+      </form>
+      <form method="post" action="{% url 'academic_management:return_plan' plan.pk %}">
+        {% csrf_token %}<button type="submit" class="btn-secondary btn-sm">ردٌّ إلى المسودّة</button>
+      </form>
+      {% endif %}
+      {% if plan.status == "reviewed" and can_approve %}
+      <form method="post" action="{% url 'academic_management:approve_plan' plan.pk %}">
+        {% csrf_token %}<button type="submit" class="btn-primary btn-sm">اعتماد</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+
+</div>
+{% endblock %}
