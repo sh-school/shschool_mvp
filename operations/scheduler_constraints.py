@@ -104,9 +104,7 @@ def check_resource_capacity(grid: ScheduleGrid, day: int, period: int, task: Tas
     )
 
 
-def check_last_period_share(
-    grid: ScheduleGrid, period: int, task: Task, allow_dense: bool = False
-) -> bool:
+def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
     """HC8: لا تتكدّس الحصّةُ السابعةُ على معلّمٍ بعينه.
 
     والقاعدةُ المطلوبةُ «سابعةٌ واحدةٌ في الأسبوع»، ولا تُبلَغ بالمنع: في
@@ -116,8 +114,9 @@ def check_last_period_share(
     """
     if period != LAST_PERIOD:
         return True
-    limit = MAX_LAST_PERIODS + (1 if allow_dense else 0)
-    return all(grid.teacher_last_periods(m.teacher_id) < limit for m in task.members)
+    return all(
+        grid.teacher_last_periods(m.teacher_id) < MAX_LAST_PERIODS for m in task.members
+    )
 
 
 def check_subject_distribution(
@@ -341,7 +340,7 @@ def is_slot_valid(
         return False
     if not check_period_variety(grid, period, task):
         return False
-    if not check_last_period_share(grid, period, task, allow_dense):
+    if not check_last_period_share(grid, period, task):
         return False
     if not check_resource_capacity(grid, day, period, task):
         return False

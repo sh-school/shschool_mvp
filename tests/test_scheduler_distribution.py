@@ -204,23 +204,6 @@ def test_the_licence_grants_one_period_not_a_free_hand():
     assert not is_slot_valid(grid, 0, 6, task(weekly=5), False, True), "والثالثةُ ممنوعةٌ ولو بالرخصة"
 
 
-def test_the_licence_also_buys_a_third_last_period():
-    """وقيدُ السابعة يُرفع بالرخصة نفسها — فقد كان هو العائقَ الثاني."""
-    from operations.scheduler_constraints import check_last_period_share
-
-    grid = ScheduleGrid()
-    grid.place(0, 7, task(weekly=2, subject="s-1"))
-    grid.place(1, 7, task(weekly=2, subject="s-2"))
-    third = task(weekly=2, subject="s-3")
-
-    assert not check_last_period_share(grid, 7, third)
-    assert check_last_period_share(grid, 7, third, allow_dense=True)
-    grid.place(2, 7, third)
-    assert not check_last_period_share(
-        grid, 7, task(weekly=2, subject="s-4"), allow_dense=True
-    ), "والرابعةُ ممنوعةٌ ولو بالرخصة"
-
-
 # ── على مولّدٍ كامل ──────────────────────────────────────────────────
 
 

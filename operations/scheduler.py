@@ -47,7 +47,10 @@ ADJACENCY_ALLOWED_WEEKLY = 6
 #: وتتوقّف السلسلةُ عند أوّل محاولةٍ كاملة، فالثمنُ لا يُدفع إلّا عند الحاجة:
 #: بقيودٍ يسعها الجدولُ تنتهي المحاولةُ الأولى في ثانية، وبقيودٍ تضيق عنه
 #: تُجرَّب الثلاثُ في نحوِ دقيقة.
-RESTARTS = 3
+#: ثمانِ محاولات. والعددُ مقيسٌ لا مُخمَّن: بثلاثٍ بقيت مزدوجةُ التكنولوجيا
+#: في الثامن/4 بلا موضعٍ فاحتاجت رخصةً غالية، وبثمانٍ ظهرت بذرةٌ تُغلق الجدولَ
+#: كلَّه بالتلاصق وحدَه — بلا كثافةٍ ولا سابعةٍ ثالثة. فالبحثُ أرخصُ من التنازل.
+RESTARTS = 8
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
 #: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
@@ -936,12 +939,17 @@ def generate_schedule(
             )
             densed = before - len(leftovers)
 
-        if best is None or len(leftovers) < len(best[1]):
-            best = (grid, leftovers, repaired, relaxed, densed)
-        if not best[1]:
+        # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
+        # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
+        # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
+        cost = (len(leftovers), densed, relaxed)
+        if best is None or cost < best[0]:
+            best = (cost, grid, leftovers, repaired, relaxed, densed)
+        # ويتوقّف البحثُ عند جدولٍ تامٍّ لم يُصرَف فيه ملاذٌ أخير — لا عند أوّل تامّ.
+        if best[0][0] == 0 and best[0][1] == 0:
             break
 
-    grid, leftovers, repaired, relaxed, densed = best
+    _, grid, leftovers, repaired, relaxed, densed = best
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
