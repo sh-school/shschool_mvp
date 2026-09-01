@@ -82,6 +82,10 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: سقفُ التلاصق الخاصُّ بمعلّم هذه المهمّة — صفرٌ يعني «خُذ العامّ».
+    #: والخاصُّ لا يُرفع في جولة الاسترخاء: قرارٌ في حقّ معلّمٍ بعينه أثقلُ من
+    #: سقفٍ عامٍّ وُضع ليُقارَب.
+    consecutive_cap: int = 0
     #: الموارد التي تستهلكها هذه المهمّة: (معرّف المورد · سعته).
     resources: tuple = ()
     #: كم خانةً متلاصقةً تشغل هذه المهمّة: واحدةً عادةً، واثنتين في المزدوجة.
@@ -356,10 +360,18 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         school=school, academic_year=academic_year, is_active=True
     ).select_related("class_group", "subject", "teacher")
 
-    # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
-    from operations.models import SchedulingResource, TeacherExemption
+    from operations.models import SchedulingResource, TeacherExemption, TeacherPreference
 
-    # مواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
+    # سقوفُ التلاصق الخاصّة — حقلٌ في `TeacherPreference` كان يُحمَّل ولا
+    # يُستعمَل قطّ، شأنَ `requires_double_period` قبله.
+    personal_cap = {
+        str(p.teacher_id): p.max_consecutive
+        for p in TeacherPreference.objects.filter(school=school, academic_year=academic_year)
+        if p.max_consecutive
+    }
+
+    # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
+    # ومواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
     resources_by_subject = defaultdict(list)
     for resource in SchedulingResource.objects.filter(
         school=school, is_active=True
@@ -397,10 +409,10 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject)
+    return _to_tasks(rows, resources_by_subject, personal_cap)
 
 
-def _to_tasks(rows, resources_by_subject=None) -> list[Task]:
+def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
     فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
@@ -419,6 +431,7 @@ def _to_tasks(rows, resources_by_subject=None) -> list[Task]:
         )
 
     resources_by_subject = resources_by_subject or {}
+    personal_cap = personal_cap or {}
 
     def build(a, level_type, is_double, members, available):
         #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
@@ -441,6 +454,11 @@ def _to_tasks(rows, resources_by_subject=None) -> list[Task]:
             preferred_periods=a.preferred_periods or [],
             level_type=level_type,
             available_days=available,
+            #: أضيقُ سقفٍ بين ساكني المهمّة — فالمنقسمةُ يحكمها أشدُّ معلّمَيها.
+            consecutive_cap=min(
+                (personal_cap[m.teacher_id] for m in members if m.teacher_id in personal_cap),
+                default=0,
+            ),
             resources=tuple(used),
             parallel_group=(a.parallel_group or "").strip(),
             members=members,

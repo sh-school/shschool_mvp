@@ -127,6 +127,50 @@ def test_two_subjects_share_one_pair_of_labs(school):
     assert max(load.values()) <= 2, "المعملانِ لا يسعان أكثرَ من حصّتين"
 
 
+# ── قيدٌ في حقّ معلّمٍ بعينه ─────────────────────────────────────────
+
+
+def test_a_personal_consecutive_cap_is_never_relaxed(school):
+    """قرارٌ في حقّ معلّمٍ أثقلُ من سقفٍ عامٍّ وُضع ليُقارَب.
+
+    فالسقفُ العامُّ يُرفع درجةً في جولة الاسترخاء لتنزل حصّةٌ لا مكانَ لها.
+    أمّا من مُنع من التجاور بقرارٍ في حقّه فيبقى ممنوعاً ولو بقيت حصّةٌ.
+    """
+    from operations.models import TeacherPreference
+    from operations.scheduler_constraints import check_max_consecutive
+
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    strict = teacher(school, "معلّمٌ ممنوعُ التجاور")
+    assign(school, group, strict, maths, periods=4)
+    TeacherPreference.objects.create(
+        teacher=strict, school=school, academic_year=YEAR, max_consecutive=1
+    )
+
+    tasks = build_tasks(school, YEAR)
+    assert all(t.consecutive_cap == 1 for t in tasks)
+
+    from operations.scheduler import ScheduleGrid
+
+    grid = ScheduleGrid()
+    grid.place(0, 1, tasks[0])
+
+    assert not check_max_consecutive(grid, 0, 2, tasks[1]), "ممنوعٌ في الأصل"
+    assert not check_max_consecutive(
+        grid, 0, 2, tasks[1], allow_adjacent=True
+    ), "وممنوعٌ في الاسترخاء أيضاً"
+
+
+def test_a_teacher_without_a_preference_follows_the_general_cap(school):
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    assign(school, group, teacher(school, "معلّمٌ عاديّ"), maths, periods=4)
+
+    tasks = build_tasks(school, YEAR)
+
+    assert all(t.consecutive_cap == 0 for t in tasks), "صفرٌ يعني: خُذ العامّ"
+
+
 def test_an_inactive_resource_stops_constraining(school, gym):
     """موردٌ عُطِّل لا يُقيّد — فالمدرسةُ قد تفتح ملعباً ثالثاً."""
     SchedulingResource.objects.filter(school=school).update(is_active=False)

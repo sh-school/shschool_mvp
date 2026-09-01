@@ -240,7 +240,13 @@ def check_max_consecutive(
         return True
     #: `allow_adjacent` تُرفع للمتعذّرات وحدَها في الجولة الأخيرة: زوجٌ يُسمح
     #: به هنا خيرٌ من حصّةٍ تُترك بلا مكان — والثلاثيّةُ ممنوعةٌ في الحالين.
-    limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
+    #:
+    #: أمّا سقفُ معلّمٍ بعينه فلا يُرفع بحال: قرارٌ في حقّه أثقلُ من سقفٍ عامٍّ
+    #: وُضع ليُقارَب. فمن مُنع من التجاور مُنع ولو بقيت حصّةٌ بلا مكان.
+    if task.consecutive_cap:
+        limit = task.consecutive_cap
+    else:
+        limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
     return all(_run_length(grid, m.teacher_id, day, period) < limit for m in task.members)
 
 
