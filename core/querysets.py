@@ -72,6 +72,24 @@ class UserQuerySet(models.QuerySet):
         q = query.strip()[:100]
         return self.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
 
+    # ── الانتماء إلى مدرسة ─────────────────────────────────────────────────
+
+    def in_school(self, school) -> UserQuerySet:
+        """من له عضويّةٌ فاعلةٌ في هذه المدرسة — مرّةً واحدةً مهما تعدّدت.
+
+        و`filter(memberships__school=…)` ضمٌّ لا ترشيح: من له عضويّتان في
+        المدرسة — معلّمٌ ومنسّقُ مادّةٍ مثلاً — يعود صفَّين. فيصحّ العدُّ
+        خطأً، ويرفع `get()` استثناءَ «أكثرَ من واحد» على شخصٍ واحد.
+
+        والترشيحُ باستعلامٍ داخليٍّ لا ضمّ: صفٌّ واحدٌ لكلّ إنسان، بلا
+        `distinct()` تُخفي العلّةَ ولا تُزيلها.
+        """
+        from core.models import Membership
+
+        return self.filter(
+            id__in=Membership.objects.filter(school=school, is_active=True).values("user_id")
+        )
+
     # ── الفلترة حسب الدور ──────────────────────────────────────────────────
 
     def students(self, school=None) -> UserQuerySet:

@@ -115,10 +115,7 @@ def weekly_schedule(request):
     target_teacher = None
     if teacher_id and may_browse:
         target_teacher = get_object_or_404(
-            CustomUser,
-            id=teacher_id,
-            memberships__school=school,
-            memberships__is_active=True,
+            CustomUser.objects.in_school(school), id=teacher_id
         )
     elif user.is_teacher() and not may_browse:
         target_teacher = user
@@ -190,10 +187,7 @@ def schedule_print(request):
         target_teacher = request.user
     elif view_type == "teacher" and teacher_id:
         target_teacher = get_object_or_404(
-            CustomUser,
-            id=teacher_id,
-            memberships__school=school,
-            memberships__is_active=True,
+            CustomUser.objects.in_school(school), id=teacher_id
         )
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
@@ -382,7 +376,7 @@ def register_teacher_absence(request):
 
     if request.method == "POST":
         teacher = get_object_or_404(
-            CustomUser, id=request.POST["teacher"], memberships__school=school
+            CustomUser.objects.in_school(school), id=request.POST["teacher"]
         )
         raw_date = request.POST.get("date", timezone.now().date().isoformat())
         try:
