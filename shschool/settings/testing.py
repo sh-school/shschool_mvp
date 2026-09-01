@@ -19,15 +19,19 @@ SECRET_KEY = _os.environ.get(
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
 # ── قاعدة البيانات — PostgreSQL من CI env vars ─────────────────
+# القيمُ الافتراضيّةُ هي قيمُ CI حرفيّاً (خدمةُ postgres على localhost)، فلا
+# يتغيّر شيءٌ هناك. وإنّما فُتحت للبيئة كي تعمل الاختباراتُ محلّيّاً داخل
+# docker حيث القاعدةُ مضيفٌ اسمُه `db` لا `localhost`.
+TEST_DB_NAME = _os.environ.get("TEST_DB_NAME", "test_db")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "test_db",
-        "USER": "test_user",
-        "PASSWORD": "test_pass",
-        "HOST": "localhost",
-        "PORT": "5432",
-        "TEST": {"NAME": "test_db"},
+        "NAME": TEST_DB_NAME,
+        "USER": _os.environ.get("TEST_DB_USER", "test_user"),
+        "PASSWORD": _os.environ.get("TEST_DB_PASSWORD", "test_pass"),
+        "HOST": _os.environ.get("TEST_DB_HOST", "localhost"),
+        "PORT": _os.environ.get("TEST_DB_PORT", "5432"),
+        "TEST": {"NAME": TEST_DB_NAME},
     }
 }
 

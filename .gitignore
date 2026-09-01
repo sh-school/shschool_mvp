@@ -65,3 +65,7 @@ static/fonts/trado.ttf
 static/fonts/tradbdo.ttf
 static/fonts/TRADO.TTF
 static/fonts/TRADBDO.TTF
+
+# بيئةُ pip داخل الحاوية: `docker compose exec web pip install` يكتب في
+# /app/.local وهو مُجلَّدٌ مشتركٌ مع الشجرة — أدواتُ التطوير لا تُودَع.
+.local/
