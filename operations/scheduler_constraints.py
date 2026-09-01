@@ -243,11 +243,25 @@ def check_max_consecutive(
     #:
     #: أمّا سقفُ معلّمٍ بعينه فلا يُرفع بحال: قرارٌ في حقّه أثقلُ من سقفٍ عامٍّ
     #: وُضع ليُقارَب. فمن مُنع من التجاور مُنع ولو بقيت حصّةٌ بلا مكان.
+    #: قرارٌ في حقّ الشخص يسبق كلَّ رخصةٍ عامّةٍ أو موضعيّة.
     if task.consecutive_cap:
-        limit = task.consecutive_cap
-    else:
-        limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
-    return all(_run_length(grid, m.teacher_id, day, period) < limit for m in task.members)
+        return all(
+            _run_length(grid, m.teacher_id, day, period) < task.consecutive_cap
+            for m in task.members
+        )
+
+    limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
+    for member in task.members:
+        run = _run_length(grid, member.teacher_id, day, period)
+        if run < limit:
+            continue
+        # الرخصةُ الموضعيّة: زوجٌ واحدٌ في الأسبوع لمن استحقّها — ولا ثلاثيّة.
+        allowance = task.adjacency_allowance
+        if not allowance or run >= MAX_CONSECUTIVE + 1:
+            return False
+        if grid.teacher_adjacent_pairs(member.teacher_id) >= allowance:
+            return False
+    return True
 
 
 def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> int:

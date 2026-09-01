@@ -35,6 +35,13 @@ from .scheduler_constraints import (
 
 logger = logging.getLogger(__name__)
 
+#: من يُسمح له بزوجٍ متلاصقٍ واحدٍ في الأسبوع — قرارُ إدارة المدرسة.
+#:
+#: والشرطانِ **معاً** لا أحدُهما: معلّمُ اللغة العربيّة في شعبةٍ نصابُها ستُّ
+#: حصص. فلا تدخل فيها رياضياتٌ سداسيّةٌ ولا عربيّةٌ بخمس.
+ADJACENCY_ALLOWED_SUBJECTS = {"اللغة العربية"}
+ADJACENCY_ALLOWED_WEEKLY = 6
+
 #: كم محاولةً تُجرَّب قبل اختيار أفضلها.
 #:
 #: وتتوقّف السلسلةُ عند أوّل محاولةٍ كاملة، فالثمنُ لا يُدفع إلّا عند الحاجة:
@@ -82,6 +89,10 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: كم زوجاً متلاصقاً يُسمح لصاحب هذه المهمّة في الأسبوع — عن طيبِ خاطرٍ
+    #: لا عن ضرورة. قرّرت الإدارةُ زوجاً واحداً لمعلّمي اللغة العربيّة ولمن
+    #: نصابُه في الشعبة ستُّ حصص: نصابٌ ثقيلٌ في أسبوعٍ ضيّقٍ يصعب تفريقُه.
+    adjacency_allowance: int = 0
     #: سقفُ التلاصق الخاصُّ بمعلّم هذه المهمّة — صفرٌ يعني «خُذ العامّ».
     #: والخاصُّ لا يُرفع في جولة الاسترخاء: قرارٌ في حقّ معلّمٍ بعينه أثقلُ من
     #: سقفٍ عامٍّ وُضع ليُقارَب.
@@ -302,6 +313,23 @@ class ScheduleGrid:
         """كم حصّةً تشغل هذا المورد في هذا التوقيت — ملعباً كان أو معملاً."""
         return self._resource_at.get((resource_id, day, period), 0)
 
+    def teacher_adjacent_pairs(self, teacher_id: str) -> int:
+        """كم زوجاً متلاصقاً لهذا المعلّم في الأسبوع كلِّه.
+
+        يُحسب على الخانات لا على المهامّ، فالمزدوجةُ المقصودةُ تُعدّ زوجاً —
+        وهي كذلك في نظر المعلّم: حصّتان يقفهما متتاليتين.
+        """
+        by_day = defaultdict(list)
+        for day, period in self._teacher_slots[teacher_id]:
+            by_day[day].append(period)
+        pairs = 0
+        for periods in by_day.values():
+            ordered = sorted(periods)
+            pairs += sum(
+                1 for i in range(1, len(ordered)) if ordered[i] == ordered[i - 1] + 1
+            )
+        return pairs
+
     def teacher_last_periods(self, teacher_id: str) -> int:
         """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
         return sum(1 for _, period in self._teacher_slots[teacher_id] if period == LAST_PERIOD)
@@ -454,6 +482,15 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
             preferred_periods=a.preferred_periods or [],
             level_type=level_type,
             available_days=available,
+            #: زوجٌ واحدٌ مسموحٌ لمعلّمي العربيّة ولأصحاب النصاب السداسيّ.
+            adjacency_allowance=(
+                1
+                if (
+                    a.subject.name_ar in ADJACENCY_ALLOWED_SUBJECTS
+                    and a.weekly_periods == ADJACENCY_ALLOWED_WEEKLY
+                )
+                else 0
+            ),
             #: أضيقُ سقفٍ بين ساكني المهمّة — فالمنقسمةُ يحكمها أشدُّ معلّمَيها.
             consecutive_cap=min(
                 (personal_cap[m.teacher_id] for m in members if m.teacher_id in personal_cap),

@@ -178,3 +178,69 @@ def test_an_inactive_resource_stops_constraining(school, gym):
     tasks = build_tasks(school, YEAR)
 
     assert all(t.resources == () for t in tasks)
+
+
+# ── الموارد المقرَّرة في المدرسة ────────────────────────────────────
+
+
+def test_the_seed_command_declares_the_two_computer_labs(school):
+    """معملان اثنان تتقاسمهما موادُّ الحاسب الثلاث — قرارُ المدرسة لا اجتهاد.
+
+    والبنيةُ كانت قائمةً والقيدُ صامتاً: `SchedulingResource` موجودٌ و`HC9`
+    يقرؤه، ولا سطرَ بياناتٍ لموادّ الحاسب — فمَن لم يُسجَّل مورده لم يُقيَّد.
+    """
+    from django.core.management import call_command
+
+    names = ("التكنولوجيا", "علوم الحاسب", "تكنولوجيا المعلومات", "التربية البدنية")
+    for name in names:
+        Subject.objects.create(school=school, name_ar=name)
+
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+
+    labs = SchedulingResource.objects.get(school=school, name="معملا الحاسب")
+    assert labs.capacity == 2
+    assert {s.name_ar for s in labs.subjects.all()} == {
+        "التكنولوجيا",
+        "علوم الحاسب",
+        "تكنولوجيا المعلومات",
+    }
+    assert SchedulingResource.objects.get(school=school, name="الملاعب").capacity == 2
+
+
+def test_the_seed_command_is_idempotent(school):
+    """يُعاد فلا يُراكم — والأمرُ مُعلِنٌ لحالٍ، لا مُضيفٌ في كلّ مرّة."""
+    from django.core.management import call_command
+
+    Subject.objects.create(school=school, name_ar="علوم الحاسب")
+
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+
+    assert SchedulingResource.objects.filter(school=school, name="معملا الحاسب").count() == 1
+
+
+def test_the_labs_cap_three_computer_lessons_down_to_two(school):
+    """ثلاثُ شعبٍ تطلب المعملَ في التوقيت نفسه — فلا تقع إلّا اثنتان."""
+    from django.core.management import call_command
+
+    from operations.scheduler import ScheduleGrid
+    from operations.scheduler_constraints import check_resource_capacity
+
+    tech = Subject.objects.create(school=school, name_ar="التكنولوجيا", code="TECH")
+    computing = Subject.objects.create(school=school, name_ar="علوم الحاسب", code="CS")
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+
+    for index, subject in enumerate((tech, tech, computing)):
+        group = ClassGroupFactory(school=school, grade="G9", level_type="prep", academic_year=YEAR)
+        assign(school, group, teacher(school, f"معلّمُ معمل {index}"), subject, periods=2)
+
+    tasks = build_tasks(school, YEAR)
+    grid = ScheduleGrid()
+    grid.place(0, 1, tasks[0])
+    grid.place(0, 1, tasks[1])
+
+    # المعلّمُ فارغٌ والشعبةُ فارغة — والمعملانِ مشغولان.
+    assert not check_resource_capacity(grid, 0, 1, tasks[2])
+    # والتكنولوجيا تقع مزدوجةً فتشغل الثانيةَ مع الأولى — والثالثةُ خالية.
+    assert not check_resource_capacity(grid, 0, 2, tasks[2])
+    assert check_resource_capacity(grid, 0, 3, tasks[2])
