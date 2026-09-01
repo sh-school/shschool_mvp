@@ -266,6 +266,31 @@ def test_an_approved_plan_shows_the_number_its_source_and_the_discrepancy(db):
 
 
 @pytest.mark.django_db
+def test_a_qualification_gap_is_measured_once_any_qualification_exists(db):
+    """«لا جوابَ بعد» يليق بالغياب، لا بالنقص.
+
+    فما دام في المدرسة مؤهّلٌ واحدٌ مسجَّل، صار السؤالُ «كم إسناداً بلا مؤهّل؟»
+    سؤالاً له جواب — ولا يجوز أن يبقى معلّقاً بحجّة أنّ الكيانَ لم يُبنَ.
+    """
+    from academic_management.workload_service import gate
+
+    lessons = [lesson(day=d) for d in range(5)]
+    rows = [assignment(weekly=5)]
+
+    silent = next(c for c in gate(lessons, rows)["checks"] if "غير مؤهَّل" in c["label"])
+    assert silent["passed"] is None
+
+    covered = gate(lessons, rows, quals={(rows[0]["teacher_id"], rows[0]["subject_id"])})
+    measured = next(c for c in covered["checks"] if "غير مؤهَّل" in c["label"])
+    assert measured["passed"] is True
+
+    stranger = gate(lessons, rows, quals={("someone-else", "another-subject")})
+    failing = next(c for c in stranger["checks"] if "غير مؤهَّل" in c["label"])
+    assert failing["passed"] is False
+    assert "1 إسناداً بلا مؤهّلٍ سارٍ" in failing["detail"]
+
+
+@pytest.mark.django_db
 def test_the_approved_plan_check_stays_pending_while_no_plan_is_approved(db):
     from academic_management.workload_service import NEEDS_MODELS, gate
 

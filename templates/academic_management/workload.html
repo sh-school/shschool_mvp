@@ -59,9 +59,9 @@
   <section class="wl-card" aria-labelledby="gate-heading" style="margin-block:16px">
     <h2 id="gate-heading" class="wl-card-title">بوّابةُ الإسناد</h2>
     <p class="muted" style="margin-bottom:12px">
-      أربعةُ شروطٍ تُفحَص اليومَ من البيانات القائمة، وأربعةٌ تنتظر كيانَي
-      النصاب المعتمد والمؤهّلات. وخلطُ الطرفين يجعل سلامةَ الواقع رهينةً
-      لنظامِ تخطيطٍ لم يُبنَ بعد.
+      أربعةُ شروطٍ تُقاس من الجدول والإسنادات، وأربعةٌ من الخطّة المعتمَدة
+      والمؤهّلات. وخلطُ الطرفين يجعل سلامةَ الواقع القائم رهينةً لخطّةٍ لم
+      تُعتمد بعد.
     </p>
 
     <h3 class="wl-section-title">قابلٌ للفحص الآن — {{ gate.enforceable_passed }}/{{ gate.enforceable_total }}</h3>
@@ -75,12 +75,17 @@
       {% endif %}{% endfor %}
     </ul>
 
-    <h3 class="wl-section-title">موقوفٌ حتى تُبنى النماذج — {{ gate.blocked_total }}</h3>
+    {% comment %}
+    كان عنوانُ هذا القسم «موقوفٌ حتى تُبنى النماذج»، فبقي بعد أن بُنيت — يقول
+    للمستخدم إنّ النظامَ ناقصٌ وقد اكتمل. والبنودُ الآن تُقاس متى وُجدت خطّةٌ
+    معتمَدةٌ ومؤهّلات، و«○» تعني «لا جوابَ بعد» لا «لم يُبنَ بعد».
+    {% endcomment %}
+    <h3 class="wl-section-title">من الخطّة المعتمَدة والمؤهّلات — {{ gate.blocked_total }}</h3>
     <ul class="wl-checks">
-      {% for c in gate.checks %}{% if c.layer == "REQUIRES_NEW_MODELS" %}
-        <li class="wl-check is-pending">
-          <span aria-hidden="true">○</span>
-          <span class="sr-only">موقوف</span>
+      {% for c in gate.checks %}{% if c.layer == "REQUIRES_APPROVED_PLAN" %}
+        <li class="wl-check {% if c.passed %}is-pass{% elif c.passed is False %}is-fail{% else %}is-pending{% endif %}">
+          <span aria-hidden="true">{% if c.passed %}✓{% elif c.passed is False %}✗{% else %}○{% endif %}</span>
+          <span class="sr-only">{% if c.passed %}مستوفٍ{% elif c.passed is False %}غير مستوفٍ{% else %}لا جوابَ بعد{% endif %}</span>
           {{ c.label }} <span class="muted">— {{ c.detail }}</span>
         </li>
       {% endif %}{% endfor %}

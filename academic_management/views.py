@@ -84,7 +84,9 @@ def workload(request):
     lessons, rows = workload_service.load(school, year)
     plans = workload_service.plans_by_teacher(school, year)
     context["totals"] = workload_service.totals(lessons, rows)
-    context["gate"] = workload_service.gate(lessons, rows, plans)
+    context["gate"] = workload_service.gate(
+        lessons, rows, plans, quals=workload_service.permitting_pairs(school)
+    )
     if perspective == "teachers":
         context["teachers"] = workload_service.teacher_view(lessons, rows, plans)
     elif perspective == "subjects":

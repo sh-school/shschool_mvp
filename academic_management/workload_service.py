@@ -27,6 +27,7 @@ from academic_management.models import (
     LOCKED,
     REVIEWED,
     SUBMITTED,
+    TeacherSubjectQualification,
     TeacherWorkloadPlan,
 )
 from operations import schedule_profile as base
@@ -34,8 +35,10 @@ from operations import workload_profile as wl
 
 #: ما تستطيع الشاشةُ التحقّقَ منه اليومَ من البيانات القائمة.
 ENFORCEABLE = "CURRENTLY_ENFORCEABLE"
-#: ما يحتاج `TeacherWorkloadPlan` و`TeacherSubjectQualification`.
-NEEDS_MODELS = "REQUIRES_NEW_MODELS"
+#: ما يعتمد على الخطّة المعتمَدة والمؤهّلات — يُقاس متى وُجدت، ويُقال «لا جوابَ
+#: بعد» متى غابت. وكان اسمُه «موقوفٌ حتى تُبنى النماذج» فبقي بعد أن بُنيت،
+#: يقول للمستخدم إنّ النظامَ ناقصٌ وقد اكتمل.
+NEEDS_MODELS = "REQUIRES_APPROVED_PLAN"
 
 #: الحقولُ التي لا مصدرَ لها بعد — تُعرض «غير محدَّدة» ولا تُشتقّ من الجدول.
 UNKNOWN = "غير محدَّد"
@@ -315,7 +318,22 @@ def section_view(lessons, rows):
 # ══════════════════════════════════════════════════════════════════════
 
 
-def gate(lessons, rows, plans=None):
+def permitting_pairs(school):
+    """أزواجُ (معلّم · مادّة) التي يُجيزها مؤهّلٌ سارٍ — تُقرأ مرّةً وتُمرَّر.
+
+    وتُقرأ هنا لا داخل `gate`: البوّابةُ دالّةٌ على بياناتٍ محمَّلةٍ سلفاً، ولو
+    استعلمت بنفسها لصارت تعتمد على قاعدةٍ لا على وسائطها — فيصعب اختبارُها
+    ويتضاعف الاستعلامُ مع كلّ منظور.
+    """
+    rows = TeacherSubjectQualification.objects.filter(school=school)
+    return {
+        (str(q.teacher_id), str(q.subject_id))
+        for q in rows
+        if q.permits_teaching and q.is_valid_on()
+    }
+
+
+def gate(lessons, rows, plans=None, quals=None):
     """شروطُ الإسناد الثمانية، مفصولةً بما تملك القاعدةُ اليومَ الإجابةَ عنه.
 
     وخلطُ الطرفين يجعل «سلامةَ الواقع القائم» رهينةً لنظامِ تخطيطٍ لم يُبنَ:
@@ -327,6 +345,17 @@ def gate(lessons, rows, plans=None):
     teachers = wl.reconcile_teachers(observed, rows)
     plans = plans or {}
     approved = {k: p for k, p in plans.items() if p.status in FROZEN_STATUSES}
+
+    # إسنادٌ لا يغطّيه مؤهّلٌ سارٍ — يُقاس متى وُجد مؤهّلٌ واحدٌ في المدرسة.
+    permitting = quals or set()
+    unqualified = [
+        r
+        for r in rows
+        if r["teacher_id"] and (r["teacher_id"], r["subject_id"]) not in permitting
+    ]
+
+    #: خطّةٌ معتمَدةٌ ينقص رقماً من أرقامها منبعُه.
+    undocumented = [p for p in approved.values() if p.provenance_gaps()]
 
     missing_cells = [c for c in cells if c["status"] != wl.MATCH]
     unstaffed = [r for r in rows if not r["teacher_id"]]
@@ -395,14 +424,22 @@ def gate(lessons, rows, plans=None):
         {
             "layer": NEEDS_MODELS,
             "label": "لا مادّةَ مُسنَدةً لمعلّمٍ غير مؤهَّل",
-            "passed": None,
-            "detail": "يحتاج TeacherSubjectQualification",
+            "passed": (not unqualified) if quals else None,
+            "detail": (
+                f"{len(unqualified)} إسناداً بلا مؤهّلٍ سارٍ من {len(rows)}"
+                if quals
+                else "لا مؤهّلَ مسجَّلٌ بعد — وغيابُ السجلّ ليس إذناً بالتدريس"
+            ),
         },
         {
             "layer": NEEDS_MODELS,
-            "label": "كلُّ التخفيضات والإعفاءات معتمَدة",
-            "passed": None,
-            "detail": "يحتاج TeacherWorkloadPlan.reduction_* + approved_by",
+            "label": "كلُّ تخفيضٍ له سببُه ومرجعُه",
+            "passed": (not undocumented) if approved else None,
+            "detail": (
+                f"{len(undocumented)} خطّةً معتمَدةً ينقصها مصدرُ رقمٍ من {len(approved)}"
+                if approved
+                else "لا يصير شرطاً حتى تُعتمد خطّةُ المعلّم"
+            ),
         },
     ]
     return {
