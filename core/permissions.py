@@ -191,6 +191,14 @@ ANALYTICS_VIEW = {
     "transport_officer",  # v7: إحصائيات النقل
 }
 
+# ── أنصبة المعلّمين — قدراتٌ لا مسمّياتٌ وظيفيّة ─────────────────
+# لم نجد نصّاً وزاريّاً منشوراً يُسنِد اعتمادَ الأنصبة إلى وظيفةٍ بعينها، فهذه
+# افتراضاتٌ موصى بها تُهيّئها المدرسةُ عبر `WorkloadGovernance`، لا حقيقةٌ
+# تنظيميّةٌ محفورةٌ في الكود.
+WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal"}
+WORKLOAD_REVIEW = {"vice_academic", "principal"}
+WORKLOAD_APPROVE = {"principal"}
+
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
 USER_MANAGE = {"principal"}
 SYSTEM_ADMIN = {"platform_developer"}
