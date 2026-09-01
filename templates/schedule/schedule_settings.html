@@ -69,9 +69,26 @@
         </select>
       </div>
 
-      <div class="form-group mb-0 sm:col-span-2 lg:col-span-3">
+      <div class="form-group mb-0 sm:col-span-2">
         <label class="form-label text-xs">السبب</label>
-        <input type="text" name="reason" class="form-control" placeholder="مثال: مهمة وزارية خارجية" required>
+        <input type="text" name="reason" class="form-control" placeholder="مثال: دورة تدريبية خارج المدرسة" required>
+      </div>
+
+      {# جهةُ القرار ومرجعُه: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً
+         في الأسبوع كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب. #}
+      <div class="form-group mb-0">
+        <label class="form-label text-xs">جهة القرار</label>
+        <select name="source" class="form-control">
+          <option value="ministry">قرار الوزارة</option>
+          <option value="school" selected>قرار إدارة المدرسة</option>
+          <option value="department">قرار القسم الأكاديمي</option>
+          <option value="other">أخرى</option>
+        </select>
+      </div>
+
+      <div class="form-group mb-0 sm:col-span-2">
+        <label class="form-label text-xs">مرجع القرار</label>
+        <input type="text" name="source_reference" class="form-control" placeholder="رقم التعميم أو المحضر" required>
       </div>
 
       <div class="form-group mb-0 flex items-end">
@@ -90,6 +107,7 @@
             <th>اليوم</th>
             <th>الحصة</th>
             <th>السبب</th>
+            <th>المرجع</th>
             <th>بواسطة</th>
             <th></th>
           </tr>
@@ -108,6 +126,7 @@
             <td>{{ ex.get_day_of_week_display }}</td>
             <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}—{% endif %}</td>
             <td class="text-sm">{{ ex.reason }}</td>
+            <td class="text-sm">{{ ex.get_source_display }}{% if ex.source_reference %} — {{ ex.source_reference }}{% endif %}</td>
             <td class="text-sm text-muted">{{ ex.created_by.full_name|default:"—" }}</td>
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">

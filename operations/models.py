@@ -502,6 +502,23 @@ class TeacherExemption(models.Model):
         verbose_name="رقم الحصة (إذا حصة محددة)",
     )
     reason = models.CharField(max_length=200, verbose_name="السبب")
+    #: تفريغُ يومٍ كاملٍ قرارٌ أثقلُ من مؤهّل: يُخرج المعلّمَ من الجدول يوماً في
+    #: الأسبوع كلَّه. فيُسأل عن جهته ومرجعه كما تُسأل خطّةُ النصاب — والسببُ
+    #: وحدَه نصٌّ حرٌّ لا يُراجَع.
+    source = models.CharField(
+        max_length=12,
+        choices=[
+            ("ministry", "قرارُ الوزارة"),
+            ("school", "قرارُ إدارة المدرسة"),
+            ("department", "قرارُ القسم الأكاديميّ"),
+            ("other", "أخرى"),
+        ],
+        default="school",
+        verbose_name="جهة القرار",
+    )
+    source_reference = models.CharField(
+        max_length=200, blank=True, verbose_name="مرجع القرار"
+    )
     created_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -522,6 +539,23 @@ class TeacherExemption(models.Model):
         if self.exemption_type == "full_day":
             return f"تفريغ {self.teacher.full_name} — {day_name} (يوم كامل)"
         return f"تفريغ {self.teacher.full_name} — {day_name} ح{self.period_number}"
+
+    def clean(self):
+        """قرارُ التفريغ لا يُقبل بلا مرجع، والحصّةُ المحدّدةُ لا تُقبل بلا رقم.
+
+        ولا يمسّ هذا النصابَ في شيء: التفريغُ يقول *متى لا يُجدَّل*، والنصابُ
+        يقول *كم يُدرّس*. فمن فُرّغ يومَ الأحد يُحشر نصابُه في بقيّة الأيّام،
+        وإن خُفّف فبقرارٍ آخرَ له مرجعُه.
+        """
+        super().clean()
+        from django.core.exceptions import ValidationError
+
+        if not (self.source_reference or "").strip():
+            raise ValidationError(
+                {"source_reference": "تفريغُ المعلّم قرارٌ إداريّ — ورقمٌ بلا مرجعٍ لا يُراجَع."}
+            )
+        if self.exemption_type == "specific_period" and not self.period_number:
+            raise ValidationError({"period_number": "تفريغُ حصّةٍ بعينها يحتاج رقمَها."})
 
 
 class ScheduleGeneration(models.Model):

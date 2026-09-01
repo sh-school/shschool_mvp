@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 import django.db
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -786,17 +787,24 @@ def add_exemption(request):
     reason = request.POST.get("reason", "")
 
     # ✅ v5.4: ScheduleService.create_exemption — atomic + logging
-    ScheduleService.create_exemption(
-        school=school,
-        teacher=teacher,
-        academic_year=year,
-        exemption_type=exemption_type,
-        day_of_week=day_of_week,
-        period_number=period_number,
-        reason=reason,
-        created_by=request.user,
-    )
-    messages.success(request, f"تم تفريغ {teacher.full_name}")
+    try:
+        ScheduleService.create_exemption(
+            school=school,
+            teacher=teacher,
+            academic_year=year,
+            exemption_type=exemption_type,
+            day_of_week=day_of_week,
+            period_number=period_number,
+            reason=reason,
+            created_by=request.user,
+            source=request.POST.get("source", "school"),
+            source_reference=request.POST.get("source_reference", ""),
+        )
+    except DjangoValidationError as exc:
+        # تفريغُ يومٍ كاملٍ قرارٌ إداريّ — ورفضُه يُقال، ولا يصير 500.
+        messages.error(request, "؛ ".join(exc.messages))
+    else:
+        messages.success(request, f"تم تفريغ {teacher.full_name}")
     return _safe_schedule_settings_redirect(request, year)
 
 
