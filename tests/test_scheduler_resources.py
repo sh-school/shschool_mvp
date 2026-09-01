@@ -171,6 +171,38 @@ def test_a_teacher_without_a_preference_follows_the_general_cap(school):
     assert all(t.consecutive_cap == 0 for t in tasks), "صفرٌ يعني: خُذ العامّ"
 
 
+def test_a_double_period_consumes_the_room_for_both_slots(school):
+    """الفنّيّةُ حالةٌ مركّبة: مزدوجةٌ متلاصقةٌ تشغل المرسمَ خانتين لا خانة.
+
+    فلو حُسب المورد على المهمّة لا على خاناتها لظنّ النظامُ أنّ المرسمَ شاغرٌ
+    في الخانة الثانية — وهو مشغولٌ بها بعينها.
+    """
+    from operations.scheduler import ScheduleGrid
+    from operations.scheduler_constraints import check_resource_capacity
+
+    art = Subject.objects.create(
+        school=school, name_ar="الفنون البصرية", code="", requires_double_period=True
+    )
+    rooms = SchedulingResource.objects.create(school=school, name="مرسما الفنّيّة", capacity=2)
+    rooms.subjects.set([art])
+    for index in range(3):
+        group = ClassGroupFactory(
+            school=school, grade="G7", level_type="prep", academic_year=YEAR
+        )
+        assign(school, group, teacher(school, f"معلّمُ فنون {index}"), art, periods=2)
+
+    tasks = build_tasks(school, YEAR)
+    assert all(t.span == 2 for t in tasks), "مزدوجةٌ لا مفردة"
+
+    grid = ScheduleGrid()
+    grid.place(0, 1, tasks[0])
+    grid.place(0, 1, tasks[1])
+
+    assert not check_resource_capacity(grid, 0, 1, tasks[2]), "المرسمانِ مشغولان في الأولى"
+    assert not check_resource_capacity(grid, 0, 2, tasks[2]), "وفي الثانية كذلك — المزدوجةُ خانتان"
+    assert check_resource_capacity(grid, 1, 1, tasks[2]), "ويومٌ آخرُ شاغر"
+
+
 def test_an_inactive_resource_stops_constraining(school, gym):
     """موردٌ عُطِّل لا يُقيّد — فالمدرسةُ قد تفتح ملعباً ثالثاً."""
     SchedulingResource.objects.filter(school=school).update(is_active=False)
