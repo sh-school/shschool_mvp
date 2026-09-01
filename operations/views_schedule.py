@@ -579,37 +579,37 @@ def smart_generate(request):
         messages.error(request, f"خطأ في التوليد: {exc}")
         return redirect("smart_schedule")
 
-    ps = result.get("phase_stats", {})
-    total_placed = ps.get("phase1", 0) + ps.get("phase2", 0) + ps.get("phase3", 0)
-    total_tasks = result.get("total_tasks", 0)
+    # الرسالةُ كانت تقرأ `phase_stats` و`total_tasks` — ومفتاحان لا يُرجعهما
+    # المحرّك. فكانت تُعلن «0/0 حصة» على جدولٍ وُلِّد فعلاً، وتذكر ثلاثَ مراحلَ
+    # لا وجودَ لها. ورسالةٌ تصف ما لم يقع أسوأُ من غياب الرسالة.
+    quality = result["quality"]
+    placed = quality["total_slots"]
+    required = quality["total_required"]
+    ratio = quality["placed_ratio"]
+    failed = len(result["errors"])
+
+    # رقمان لا واحد: كم وُضِع من المطلوب، وكم هو جميلٌ ما وُضِع. فـ«جودة 85%»
+    # على أربعةٍ بالمئة من الحصص رقمٌ يكذب حين يقف وحدَه.
+    summary = (
+        f"{placed}/{required} حصّة ({ratio}%) — جودةُ التوزيع {quality['score']}% "
+        f"في {result['elapsed_ms']}ms"
+    )
 
     if result["success"]:
-        messages.success(
-            request,
-            f"✅ تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
-            f"{total_placed}/{total_tasks} حصة في {result['elapsed_ms']}ms "
-            f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
-        )
+        messages.success(request, f"✅ وُلِّد الجدول: {summary}")
     else:
-        failed = ps.get("failed", len(result["errors"]))
-        # Show capacity warnings as error-level messages first
-        capacity_errors = [e for e in result.get("errors", []) if e.startswith("⚠️")]
-        other_errors = [e for e in result.get("errors", []) if not e.startswith("⚠️")]
+        # تحذيراتُ الطاقة أوّلاً — فهي سببٌ لا عَرَض.
+        for capacity_error in [e for e in result["errors"] if e.startswith("⚠️")]:
+            messages.error(request, capacity_error)
 
-        for ce in capacity_errors:
-            messages.error(request, ce)
-
-        for err in other_errors[:5]:
+        others = [e for e in result["errors"] if not e.startswith("⚠️")]
+        for err in others[:5]:
             messages.warning(request, err)
-        if total_placed > 0:
-            messages.info(
-                request,
-                f"تم توليد {total_placed}/{total_tasks} حصة (جودة: {result['quality']['score']}%) "
-                f"— {failed} تعذّر "
-                f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
-            )
-        if len(result["errors"]) > 5:
-            messages.warning(request, f"... و{len(result['errors']) - 5} أخطاء أخرى")
+        if len(others) > 5:
+            messages.warning(request, f"… و{len(others) - 5} حصّةً أخرى تعذّرت")
+
+        level = messages.info if ratio >= 90 else messages.error
+        level(request, f"{summary} — تعذّرت {failed} حصّة")
 
     return redirect("smart_schedule")
 

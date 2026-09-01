@@ -37,6 +37,17 @@ def teacher(school):
 
 
 @pytest.fixture
+def teachers_pool(school):
+    role = RoleFactory(school=school, name="teacher")
+    out = []
+    for index in range(2):
+        user = UserFactory(full_name=f"معلّم {index}")
+        MembershipFactory(user=user, school=school, role=role)
+        out.append(user)
+    return out
+
+
+@pytest.fixture
 def subject(school):
     from operations.models import Subject
 
@@ -110,6 +121,44 @@ def test_an_already_approved_generation_is_refused_politely(client_as, principal
 
     assert response.status_code == 200
     assert "ليس مسودة" in response.content.decode()
+
+
+# ── الرسالةُ تقول ما وقع ─────────────────────────────────────────────
+
+
+def test_the_message_reports_what_was_actually_placed(client_as, principal, school, teachers_pool):
+    """كانت تقول «0/0 حصة» على جدولٍ وُلِّد — لأنّها تقرأ مفاتيحَ لا يُرجعها المحرّك."""
+    from operations.models import SubjectClassAssignment
+
+    groups = [
+        ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+        for _ in range(2)
+    ]
+    from operations.models import Subject
+
+    subjects = [
+        Subject.objects.create(school=school, name_ar=f"مادّة {i}", code=f"X{i}") for i in range(2)
+    ]
+    for group in groups:
+        for t, subj in zip(teachers_pool, subjects, strict=True):
+            SubjectClassAssignment.objects.create(
+                school=school,
+                academic_year=YEAR,
+                teacher=t,
+                class_group=group,
+                subject=subj,
+                weekly_periods=3,
+                is_active=True,
+            )
+
+    response = client_as(principal).post(
+        reverse("smart_generate"), {"year": YEAR}, follow=True
+    )
+    body = response.content.decode()
+
+    assert "0/0" not in body, "لا رقمَ يصف ما لم يقع"
+    assert "12/12" in body and "100.0%" in body
+    assert "م1:" not in body, "ولا ذكرَ لمراحلَ لا وجودَ لها"
 
 
 # ── فحصُ الطاقة نفسُه ────────────────────────────────────────────────
