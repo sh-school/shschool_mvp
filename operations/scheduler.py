@@ -59,54 +59,85 @@ class Task:
 
 
 class ScheduleGrid:
-    """شبكة الجدول: 5 أيام × 7 حصص"""
+    """شبكةُ الجدول: خانةٌ لكلّ شعبةٍ في كلّ توقيت.
+
+        SchoolCapacity = Classes × SlotsPerWeek
+
+    كانت الشبكةُ `_grid[day][period]` — خانةً واحدةً للمدرسة بأسرها. فمتى وُضعت
+    حصّةٌ في (الأحد · ح1) امتلأت الخانةُ في نظر الشُّعب كلِّها، وصار سقفُ المولّد
+    خمساً وثلاثين حصّةً مهما كانت البيانات. وهذا ليس ضيقاً في القيود بل خطأٌ في
+    وصف المدرسة: خمسٌ وعشرون شعبةً تعمل في التوقيت نفسه، وذلك توازٍ لا تعارض.
+
+    فالفهرسةُ الآن بالشعبة، والتعارضُ نوعان لا واحد:
+
+        شعبةٌ بمادّتين في التوقيت    ← تُمنع بخانة الشعبة
+        معلّمٌ في شعبتين في التوقيت   ← يُمنع بفهرس المعلّم
+
+    والتتابعُ صفةُ معلّمٍ يقطع الشُّعب، والمزاوجةُ صفةُ شعبةٍ ومادّة — فلكلٍّ
+    فهرسُه.
+    """
 
     def __init__(self):
-        # grid[day][period] = list of {task, ...}
-        self._grid: dict[int, dict[int, dict | None]] = {}
+        #: _grid[class_id][day][period] = Task
+        self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
         # فهارس سريعة
         self._teacher_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
         self._class_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
+        #: مَن يُدرّس لهذا المعلّم في هذا التوقيت — للتتابع وللتعارض معاً.
+        self._teacher_at: dict[tuple[str, int, int], Task] = {}
         self._subject_class_day: dict[tuple[str, str, int], int] = defaultdict(int)
         self._entries: list[dict] = []
 
-        for d in DAYS:
-            self._grid[d] = {}
-            # الخميس يدعم 7 حصص (ثانوي) — is_slot_valid يحدد حسب level_type
-            for p in range(1, 8):
-                self._grid[d][p] = None
+    def _class_grid(self, class_id: str) -> dict[int, dict[int, Task | None]]:
+        """شبكةُ شعبةٍ تُنشأ عند أوّل ذكرٍ لها — فالشعبُ تُعرَف من المهامّ."""
+        grid = self._grid.get(class_id)
+        if grid is None:
+            grid = {d: dict.fromkeys(range(1, 8)) for d in DAYS}
+            self._grid[class_id] = grid
+        return grid
 
     def place(self, day: int, period: int, task: Task):
         """وضع حصة في الشبكة"""
-        self._grid[day][period] = task
+        self._class_grid(task.class_id)[day][period] = task
         self._teacher_slots[task.teacher_id].append((day, period))
         self._class_slots[task.class_id].append((day, period))
+        self._teacher_at[(task.teacher_id, day, period)] = task
         self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
-    def remove(self, day: int, period: int):
-        """إزالة حصة (للتراجع)"""
-        task = self._grid[day][period]
+    def remove(self, class_id: str, day: int, period: int):
+        """إزالةُ حصّةِ شعبةٍ بعينها — ولا تمسّ جاراتِها في التوقيت نفسه."""
+        task = self._class_grid(class_id)[day][period]
         if task is None:
             return
-        self._grid[day][period] = None
+        self._class_grid(class_id)[day][period] = None
         self._teacher_slots[task.teacher_id].remove((day, period))
         self._class_slots[task.class_id].remove((day, period))
+        self._teacher_at.pop((task.teacher_id, day, period), None)
         key = (task.subject_id, task.class_id, day)
         self._subject_class_day[key] -= 1
         self._entries = [
-            e for e in self._entries if not (e["day"] == day and e["period"] == period)
+            e
+            for e in self._entries
+            if not (
+                e["day"] == day
+                and e["period"] == period
+                and e["task"].class_id == class_id
+            )
         ]
 
-    def teacher_at(self, day: int, period: int) -> str | None:
-        """معرف المعلم في خانة معينة"""
-        t = self._grid.get(day, {}).get(period)
-        return t.teacher_id if t else None
+    # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
 
-    def class_at(self, day: int, period: int) -> str | None:
-        """معرف الفصل في خانة معينة"""
-        t = self._grid.get(day, {}).get(period)
-        return t.class_id if t else None
+    def teacher_busy(self, teacher_id: str, day: int, period: int) -> bool:
+        """هل هذا المعلّمُ مشغولٌ في هذا التوقيت — في أيّ شعبةٍ كانت؟"""
+        return (teacher_id, day, period) in self._teacher_at
+
+    def class_busy(self, class_id: str, day: int, period: int) -> bool:
+        """هل لهذه الشعبة حصّةٌ في هذا التوقيت؟"""
+        return self._class_grid(class_id)[day][period] is not None
+
+    def teacher_task_at(self, teacher_id: str, day: int, period: int) -> Task | None:
+        return self._teacher_at.get((teacher_id, day, period))
 
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
         """عدد حصص المعلم في يوم"""
@@ -120,45 +151,23 @@ class ScheduleGrid:
         """عدد حصص مادة لفصل في يوم"""
         return self._subject_class_day.get((subject_id, class_id, day), 0)
 
-    def teacher_consecutive_at(self, teacher_id: str, day: int, period: int) -> int:
-        """عدد الحصص المتتالية للمعلم عند إضافة حصة في period"""
-        count = 0
-        for p in range(period - 1, 0, -1):
-            if self.teacher_at(day, p) == teacher_id:
-                count += 1
-            else:
-                break
-        for p in range(period + 1, 8):
-            if self.teacher_at(day, p) == teacher_id:
-                count += 1
-            else:
-                break
-        return count
-
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
-        """
-        عدد الحصص المتتالية مع استثناء PE والعلوم المعملية.
-        PE/SCI تُعيد العدّاد (لا تُحسب ضمن التتابع).
+        """تتابعُ المعلّم عبر الشُّعب — و`PE`/`SCI` تُعيد العدّاد.
+
+        والتتابعُ صفةُ معلّمٍ لا صفةُ شعبة: حصّتان متتاليتان في شعبتين
+        مختلفتين تتابعٌ يُتعب صاحبَه كما يُتعبه التتابعُ في شعبةٍ واحدة.
         """
         from .scheduler_constraints import CONSECUTIVE_RESET_CODES
 
         count = 0
-        # عدّ للخلف
-        for p in range(period - 1, 0, -1):
-            task = self.get_task_at(day, p)
-            if task is None or task.teacher_id != teacher_id:
-                break
-            if task.subject_code in CONSECUTIVE_RESET_CODES:
-                break  # PE/SCI تُعيد العدّاد
-            count += 1
-        # عدّ للأمام
-        for p in range(period + 1, 8):
-            task = self.get_task_at(day, p)
-            if task is None or task.teacher_id != teacher_id:
-                break
-            if task.subject_code in CONSECUTIVE_RESET_CODES:
-                break
-            count += 1
+        for step in (-1, 1):
+            p = period + step
+            while 1 <= p <= 7:
+                task = self.teacher_task_at(teacher_id, day, p)
+                if task is None or task.subject_code in CONSECUTIVE_RESET_CODES:
+                    break
+                count += 1
+                p += step
         return count
 
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
@@ -178,8 +187,9 @@ class ScheduleGrid:
     def all_entries(self) -> list[dict]:
         return self._entries
 
-    def get_task_at(self, day: int, period: int) -> Task | None:
-        return self._grid.get(day, {}).get(period)
+    def get_task_at(self, class_id: str, day: int, period: int) -> Task | None:
+        """ساكنُ خانةِ شعبةٍ بعينها — تقرؤه المزاوجةُ وتوزيعُ المادّة."""
+        return self._class_grid(class_id)[day][period]
 
 
 def build_tasks(school: School, academic_year: str) -> list[Task]:
@@ -267,7 +277,8 @@ def get_available_slots(
     for day in DAYS:
         max_p = get_max_periods_for_day(day, level_type)
         for period in range(1, max_p + 1):
-            if grid.get_task_at(day, period) is not None:
+            # الفراغُ صفةُ خانةِ الشعبة، لا صفةُ التوقيت في المدرسة كلِّها.
+            if grid.class_busy(task.class_id, day, period):
                 continue
             # تحقق من تفريغات المعلم
             if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
@@ -381,7 +392,9 @@ def generate_schedule(
                 continue
             backtrack_count += 1
             last_i, last_day, last_period = placed.pop()
-            grid.remove(last_day, last_period)
+            # الرفعُ بالشعبة: الخانةُ الواحدةُ يسكنها الآن خمسٌ وعشرون شعبةً،
+            # فلا يُرفع «ساكنُ التوقيت» بل ساكنُ خانةِ هذه الشعبة بعينها.
+            grid.remove(sorted_tasks[last_i].class_id, last_day, last_period)
             # لا يُعاد إليها: هذا الاختيارُ أفضى إلى طريقٍ مسدود.
             tried[last_i].add((last_day, last_period))
             # وما بُني بعدها قراراتٌ سقطت معها، فتُستأنف نظيفةً.
@@ -393,7 +406,7 @@ def generate_schedule(
     elapsed_ms = int((time.time() - start_time) * 1000)
 
     # 5. حساب الجودة
-    quality = calculate_quality_score(grid, preferences)
+    quality = calculate_quality_score(grid, preferences, total_required=len(sorted_tasks))
 
     # 6. حفظ النتائج
     generation = None

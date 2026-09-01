@@ -43,12 +43,16 @@ HIGH_WEEKLY_THRESHOLD = 5
 
 def check_teacher_conflict(grid: ScheduleGrid, day: int, period: int, teacher_id) -> bool:
     """HC1: المعلم لا يُدرّس فصلين في نفس الوقت"""
-    return grid.teacher_at(day, period) != teacher_id
+    return not grid.teacher_busy(teacher_id, day, period)
 
 
 def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) -> bool:
-    """HC2: الفصل لا يأخذ مادتين في نفس الوقت"""
-    return grid.class_at(day, period) != class_id
+    """HC2: الفصل لا يأخذ مادتين في نفس الوقت
+
+    والشعبتانِ في التوقيت نفسه توازٍ لا تعارض: هذا هو معنى المدرسة. فيُسأل عن
+    خانةِ الشعبة وحدَها، لا عن ساكنِ التوقيت في المدرسة كلِّها.
+    """
+    return not grid.class_busy(class_id, day, period)
 
 
 def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
@@ -173,26 +177,17 @@ def evaluate_soft_constraints(
     # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
     if is_double and same_subject_today == 1:
         # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
-        prev_task = grid.get_task_at(day, period - 1)
-        if (
-            prev_task
-            and prev_task.subject_id == task.subject_id
-            and prev_task.class_id == task.class_id
-        ):
+        # المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
+        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+        if prev_task and prev_task.subject_id == task.subject_id:
             penalty.add("double_bonus", -5, True)  # مكافأة (قيمة سالبة)
 
     # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
     if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
-        prev_task = grid.get_task_at(day, period - 1)
-        next_task = grid.get_task_at(day, period + 1) if period < 7 else None
-        is_adj_same = (
-            prev_task
-            and prev_task.subject_id == task.subject_id
-            and prev_task.class_id == task.class_id
-        ) or (
-            next_task
-            and next_task.subject_id == task.subject_id
-            and next_task.class_id == task.class_id
+        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+        next_task = grid.get_task_at(task.class_id, day, period + 1) if period < 7 else None
+        is_adj_same = (prev_task and prev_task.subject_id == task.subject_id) or (
+            next_task and next_task.subject_id == task.subject_id
         )
         penalty.add("high_weekly_adjacent", 7, is_adj_same)
 
@@ -204,8 +199,16 @@ def evaluate_soft_constraints(
 # ══════════════════════════════════════════════════════════════
 
 
-def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None) -> dict:
-    """حساب نقاط جودة الجدول بعد التوليد الكامل"""
+def calculate_quality_score(
+    grid: ScheduleGrid, preferences: dict | None = None, total_required: int | None = None
+) -> dict:
+    """نقاطُ الجودة، ونسبةُ ما وُضِع من المطلوب — رقمان لا واحد.
+
+    فالنقاطُ تقيس جمالَ ما وُضع: تتابعاً وفجواتٍ وتوزيعاً. وجدولٌ فيه خمسٌ
+    وثلاثون حصّةً من ثمانمئةٍ وتسعٍ وأربعين قد يكون «جميلاً» بهذا المقياس —
+    وأُعلن مرّةً بـ«85.1%» وهو أربعةٌ في المئة من المطلوب. فالنسبةُ تُعلن
+    مستقلّةً كي لا يستر أحدُ الرقمين الآخر.
+    """
     violations = {
         "consecutive": 0,
         "gap": 0,
@@ -237,9 +240,14 @@ def calculate_quality_score(grid: ScheduleGrid, preferences: dict | None = None)
     else:
         score = max(0, 100 * (1 - total_penalty / max_possible))
 
+    required = total_required if total_required is not None else total_slots
+    placed_ratio = round(100 * total_slots / required, 1) if required else 100.0
+
     return {
         "score": round(score, 1),
         "total_slots": total_slots,
+        "total_required": required,
+        "placed_ratio": placed_ratio,
         "total_penalty": round(total_penalty, 1),
         "violations": violations,
     }

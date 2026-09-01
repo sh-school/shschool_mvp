@@ -360,9 +360,9 @@ def test_removing_a_period_restores_the_grid_exactly():
     grid = ScheduleGrid()
     task = make_task()
     grid.place(0, 1, task)
-    grid.remove(0, 1)
+    grid.remove(CLASS, 0, 1)
 
-    assert grid.get_task_at(0, 1) is None
+    assert grid.get_task_at(CLASS, 0, 1) is None
     assert grid.teacher_periods_on_day(TEACHER, 0) == 0
     assert grid.class_periods_on_day(CLASS, 0) == 0
     assert grid.subject_on_day(CLASS, "s-1", 0) == 0
@@ -374,7 +374,7 @@ def test_removing_an_empty_slot_is_harmless():
     grid = ScheduleGrid()
     grid.place(0, 1, make_task())
 
-    grid.remove(0, 2)
+    grid.remove(CLASS, 0, 2)
 
     assert len(grid.all_entries()) == 1
 
@@ -720,28 +720,17 @@ def test_the_generated_week_holds_every_invariant_at_once(db, school):
 
 
 # ══════════════════════════════════════════════════════════════
-#  عيبٌ معلومٌ: الشبكةُ خانةٌ واحدةٌ للمدرسة كلِّها
+#  عيبٌ كان معلوماً ثمّ أُصلح: الشبكةُ صارت خانةً لكلّ شعبة
 # ══════════════════════════════════════════════════════════════
+#
+# كانت الدعويانِ التاليتان `xfail(strict=True)` تحرسان عيباً قائماً: شبكةٌ
+# بخانةٍ واحدةٍ للمدرسة كلِّها، وسقفٌ خمسٌ وثلاثون حصّةً مهما كانت البيانات.
+# ثمّ أُصلحت البنيةُ فسقطت العلامةُ — وهذا ما أُريد منها: أن تُنبّه يوم يُصلَح
+# العيب، فلا يصير الدينُ عقداً يحرسه اختبار.
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "`ScheduleGrid._grid[day][period]` يحمل مهمّةً واحدةً للمدرسة كلِّها لا "
-        "لكلّ شعبة، و`get_available_slots` يرفض أيَّ خانةٍ مشغولةٍ مهما كانت "
-        "الشعبةُ والمعلّم. فسقفُ المحرّك ٣٥ حصّةً في الأسبوع — ومدرسةُ الشحانية "
-        "تحتاج ٨٧٠. وإصلاحُه إعادةُ تصميمٍ للبنية لا تعديلُ سطر."
-    ),
-)
 def test_two_sections_can_be_taught_in_the_same_period():
-    """الصوابُ المطلوب: شعبتان مختلفتان بمعلّمين مختلفين تُدرَّسان معاً.
-
-    و`is_slot_valid` يُجيزه فعلاً — القيودُ الصلبةُ سليمة. لكنّ
-    `get_available_slots` لا يعرض الخانةَ أصلاً، فلا يبلغها القرار.
-
-    وهذه الدعوى `xfail(strict=True)`: تُبقي العيبَ ظاهراً، وتفشل يوم يُصلَح
-    فتُنبّه إلى رفع العلامة — فلا يصير الدينُ عقداً يحرسه اختبار.
-    """
+    """شعبتان مختلفتان بمعلّمين مختلفين تُدرَّسان معاً — وهذا هو معنى المدرسة."""
     grid = ScheduleGrid()
     grid.place(0, 1, make_task())
 
@@ -750,15 +739,16 @@ def test_two_sections_can_be_taught_in_the_same_period():
     parallel = make_task(teacher=OTHER_TEACHER, klass=OTHER_CLASS)
 
     assert is_slot_valid(grid, 0, 1, parallel), "القيودُ الصلبةُ تُجيزه"
-    assert (0, 1) in get_available_slots(grid, parallel), "والمحرّكُ لا يعرضه"
+    assert (0, 1) in get_available_slots(grid, parallel), "والمحرّكُ يعرضه"
 
 
-def test_the_engine_capacity_is_one_lesson_per_period_school_wide():
-    """قياسُ السقف عدداً — ليُقارَن بحاجة المدرسة الحقيقيّة.
+def test_the_engine_capacity_is_a_week_per_class():
+    """السقفُ الآن أسبوعٌ لكلّ شعبة — لا أسبوعٌ للمدرسة بأسرها.
 
-    خمسةُ أيّامٍ × سبعُ حصص = ٣٥ للمدرسة كلِّها. وجدولُ الشحانية المستورد
-    ٨٧٠ حصّة. أي أنّ المحرّك يبلغ أربعةً بالمئة ممّا يلزم — وهذا يفسّر لماذا
-    يُستورَد الجدولُ من برنامجٍ خارجيّ ولا يُولَّد.
+        SchoolCapacity = Classes × SlotsPerWeek
+
+    وخانةٌ مشغولةٌ لشعبةٍ لا تُنقص من جاراتها شيئاً: خمسٌ وثلاثون تبقى خمساً
+    وثلاثين للشعبة الثانية، وإن امتلأ الأسبوعُ كلُّه عند الأولى.
     """
     from operations.scheduler import get_available_slots
 
@@ -766,3 +756,11 @@ def test_the_engine_capacity_is_one_lesson_per_period_school_wide():
     task = make_task(level_type="sec")
 
     assert len(get_available_slots(grid, task)) == 35
+
+    for day in DAYS:
+        for period in range(1, 8):
+            grid.place(day, period, make_task(level_type="sec"))
+
+    other = make_task(teacher=OTHER_TEACHER, klass=OTHER_CLASS, level_type="sec")
+    assert len(get_available_slots(grid, other)) == 35, "شعبةٌ ملأت أسبوعَها لا تُغلق أسبوعَ غيرها"
+    assert get_available_slots(grid, make_task(level_type="sec")) == [], "وأسبوعُها هي امتلأ"
