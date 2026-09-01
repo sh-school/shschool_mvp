@@ -162,6 +162,41 @@ def test_no_teacher_gets_two_lessons_back_to_back(school):
             assert periods[i] != periods[i - 1] + 1, f"تلاصقٌ في اليوم {day}: {periods}"
 
 
+def test_the_relaxation_is_spent_only_where_it_is_needed(school):
+    """الرخصةُ تُصرَف عند الحاجة لا قبلها.
+
+    والقياسُ هو الذي فرض هذا الترتيب: السماحُ بالتلاصق من البداية أنتج ثمانيةً
+    وتسعين زوجاً عند خمسةٍ وأربعين معلّماً؛ والاسترخاءُ في آخر خطوةٍ — للمتعذّرات
+    وحدَها — أنتج عشرين زوجاً عند ثلاثةَ عشر. والنتيجةُ واحدة: جدولٌ كامل.
+    """
+    from collections import defaultdict
+
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    only = teacher(school, "معلّمٌ وحيد")
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=only,
+        class_group=group,
+        subject=Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT"),
+        weekly_periods=6,
+        is_active=True,
+    )
+
+    result = generate_schedule(school, YEAR)
+
+    assert result["errors"] == []
+    assert result["relaxed"] == 0, "جدولٌ واسعٌ لا يحتاج رخصة"
+
+    per_day = defaultdict(list)
+    for entry in result["grid"].all_entries():
+        per_day[entry["day"]].append(entry["period"])
+    for periods in per_day.values():
+        periods.sort()
+        for i in range(1, len(periods)):
+            assert periods[i] != periods[i - 1] + 1, "ولا تلاصقَ حيث لا ضرورة"
+
+
 def test_an_impossible_lesson_is_still_reported(school):
     """والإزاحةُ لا تُخفي المستحيل: معلّمانِ لخانةٍ واحدةٍ لا يجتمعان."""
     group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)

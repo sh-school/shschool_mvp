@@ -212,7 +212,9 @@ def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> b
     return _neighbour_is_same_lesson(grid, task, day, period)
 
 
-def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+def check_max_consecutive(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_adjacent: bool = False
+) -> bool:
     """HC5: لا أكثرَ من حصّتين متلاصقتين للمعلّم.
 
     و`PE`/`SCI` تُعيد العدّاد: البدنيّةُ والعلومُ المعمليّةُ تغيّران المكانَ
@@ -223,9 +225,10 @@ def check_max_consecutive(grid: ScheduleGrid, day: int, period: int, task: Task)
     """
     if _wants_adjacency(grid, task, day, period):
         return True
-    return all(
-        _run_length(grid, m.teacher_id, day, period) < MAX_CONSECUTIVE for m in task.members
-    )
+    #: `allow_adjacent` تُرفع للمتعذّرات وحدَها في الجولة الأخيرة: زوجٌ يُسمح
+    #: به هنا خيرٌ من حصّةٍ تُترك بلا مكان — والثلاثيّةُ ممنوعةٌ في الحالين.
+    limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
+    return all(_run_length(grid, m.teacher_id, day, period) < limit for m in task.members)
 
 
 def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> int:
@@ -276,7 +279,9 @@ def get_max_periods_for_day(day: int, level_type: str = "") -> int:
     return 6  # default = 6 (الأكثر تقييداً)
 
 
-def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+def is_slot_valid(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_adjacent: bool = False
+) -> bool:
     """تحقق من كل القيود الصلبة لخانة معينة"""
     level_type = getattr(task, "level_type", "")
     max_p = get_max_periods_for_day(day, level_type)
@@ -286,7 +291,7 @@ def is_slot_valid(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
         return False
     if not check_class_conflict(grid, day, period, task.class_id):
         return False
-    if not check_max_consecutive(grid, day, period, task):
+    if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False
     if not check_subject_distribution(grid, day, task):
         return False

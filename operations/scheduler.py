@@ -474,6 +474,7 @@ def get_available_slots(
     task: Task,
     blocked_slots: set[tuple[str, int, int | None]] | None = None,
     school=None,
+    allow_adjacent: bool = False,
 ) -> list[tuple[int, int]]:
     """الخانات المتاحة (تحقق قيود صلبة + تفريغات + كتلة المزدوجة)"""
     from .scheduler_constraints import get_max_periods_for_day, joinable_pairs
@@ -503,7 +504,7 @@ def get_available_slots(
                 for slot in slots
             ):
                 continue
-            if all(is_slot_valid(grid, day, slot, task) for slot in slots):
+            if all(is_slot_valid(grid, day, slot, task, allow_adjacent) for slot in slots):
                 available.append((day, period))
     return available
 
@@ -531,7 +532,7 @@ def rank_slots(
     return ranked
 
 
-def _greedy_pass(grid, tasks, blocked, preferences, school=None, rng=None):
+def _greedy_pass(grid, tasks, blocked, preferences, school=None, rng=None, allow_adjacent=False):
     """يضع ما يستطيع، ويُعيد ما تعذّر — بلا تراجعٍ ولا محاولاتٍ ضائعة.
 
     وكان هنا تراجعٌ أعمى: يرفع **آخرَ** ما وُضع وقد لا يكون له بالانسداد صلة،
@@ -542,7 +543,11 @@ def _greedy_pass(grid, tasks, blocked, preferences, school=None, rng=None):
     leftovers = []
     for task in tasks:
         ranked = rank_slots(
-            grid, task, get_available_slots(grid, task, blocked, school), preferences, rng
+            grid,
+            task,
+            get_available_slots(grid, task, blocked, school, allow_adjacent),
+            preferences,
+            rng,
         )
         if ranked:
             day, period, _ = ranked[0]
@@ -580,7 +585,7 @@ def _blockers(grid, task, day, period, blocked):
     return occupants
 
 
-def _repair_pass(grid, leftovers, blocked, preferences, budget, school=None):
+def _repair_pass(grid, leftovers, blocked, preferences, budget, school=None, allow_adjacent=False):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
     والفرقُ عن التراجع الأعمى أنّ الإزاحةَ تعرف **من** يسدّ الطريق بعينه: خانةٌ
@@ -598,7 +603,7 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget, school=None):
         still = []
         for task in remaining:
             if budget <= 0 or not _try_eject(
-                grid, task, blocked, preferences, depth=3, school=school
+                grid, task, blocked, preferences, 3, school, allow_adjacent
             ):
                 still.append(task)
             else:
@@ -609,7 +614,7 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget, school=None):
     return remaining
 
 
-def _try_eject(grid, task, blocked, preferences, depth=1, school=None):
+def _try_eject(grid, task, blocked, preferences, depth=1, school=None, allow_adjacent=False):
     """يُخرج ساكنَ الخانةِ لينزل فيها المتعذّر — ثمّ يُعيد الساكنَ إلى بديل.
 
     و`depth` عمقُ السلسلة: بعمقٍ واحدٍ يجب أن يجد المُزاحُ خانةً فارغةً له،
@@ -631,11 +636,15 @@ def _try_eject(grid, task, blocked, preferences, depth=1, school=None):
             grid.remove(occupant.class_id, home[0], home[1])
 
         slots = list(task.slots(period))
-        if all(is_slot_valid(grid, day, slot, task) for slot in slots) and not any(
+        if all(
+            is_slot_valid(grid, day, slot, task, allow_adjacent) for slot in slots
+        ) and not any(
             grid.teacher_busy(m.teacher_id, day, slot) for m in task.members for slot in slots
         ):
             grid.place(day, period, task)
-            if _rehome_all(grid, [e for e, _ in homes], blocked, preferences, depth, school):
+            if _rehome_all(
+                grid, [e for e, _ in homes], blocked, preferences, depth, school, allow_adjacent
+            ):
                 grid.commit()
                 return True
 
@@ -674,7 +683,7 @@ def _home_of(grid, task):
     return None
 
 
-def _rehome_all(grid, tasks, blocked, preferences, depth=1, school=None):
+def _rehome_all(grid, tasks, blocked, preferences, depth=1, school=None, allow_adjacent=False):
     """يُعيد المُزاحين إلى خاناتٍ صحيحة، أو يُعلن الفشلَ ليتراجع المُنادي.
 
     والتراجعُ عند المُنادي بسجلّ الشبكة — لا هنا: فالسلسلةُ العميقةُ تُحرّك ما
@@ -682,14 +691,19 @@ def _rehome_all(grid, tasks, blocked, preferences, depth=1, school=None):
     """
     for task in tasks:
         ranked = rank_slots(
-            grid, task, get_available_slots(grid, task, blocked, school), preferences
+            grid,
+            task,
+            get_available_slots(grid, task, blocked, school, allow_adjacent),
+            preferences,
         )
         if ranked:
             day, period, _ = ranked[0]
             grid.place(day, period, task)
             continue
         # لا خانةَ فارغةً له — فليُزِح هو الآخرُ إن بقي في العمق سعة.
-        if depth > 1 and _try_eject(grid, task, blocked, preferences, depth - 1, school):
+        if depth > 1 and _try_eject(
+            grid, task, blocked, preferences, depth - 1, school, allow_adjacent
+        ):
             continue
         return False
     return True
@@ -772,6 +786,25 @@ def generate_schedule(
             break
 
     grid, leftovers = best_grid, best_left
+
+    # جولةُ الاسترخاء: ما تعذّر بمنع التلاصق يُوضع بزوجٍ واحدٍ متلاصق.
+    #
+    # والقياسُ هو الذي فرض هذا الترتيب: السماحُ بالتلاصق من البداية يُنتج ثمانيةً
+    # وتسعين زوجاً عند خمسةٍ وأربعين معلّماً، والاسترخاءُ في آخر خطوةٍ يُنتج
+    # زوجاً لكلّ حصّةٍ تعذّرت وحدَها. فالرخصةُ تُصرَف عند الحاجة لا قبلها.
+    relaxed = 0
+    if leftovers:
+        before = len(leftovers)
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+        )
+        relaxed = before - len(leftovers)
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
@@ -860,6 +893,7 @@ def generate_schedule(
                     config_snapshot={
                         "total_tasks": len(tasks),
                         "repaired": repaired,
+                        "relaxed": relaxed,
                         "preferences_count": len(preferences),
                     },
                 )
@@ -876,4 +910,5 @@ def generate_schedule(
         "elapsed_ms": elapsed_ms,
         "total_tasks": len(tasks),
         "repaired": repaired,
+        "relaxed": relaxed,
     }
