@@ -156,6 +156,42 @@ MAX_SAME_PERIOD = 2
 #: آخرُ حصّةٍ في اليوم.
 LAST_PERIOD = 7
 
+#: أطولُ فاصلٍ بين حصّتين يبقيان معه في كتلةٍ واحدة (بالدقائق).
+#: فخمسُ دقائقَ انتقالٌ بين صفّين، وعشرون فسحةٌ وخمسَ عشرةَ صلاة.
+JOINABLE_GAP_MINUTES = 10
+
+
+def joinable_pairs(school) -> set:
+    """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس المدرسة لا من الكود.
+
+    الحصّةُ المزدوجةُ حصّتان لا تقطعهما فسحةٌ ولا صلاة. وبين الثالثة والرابعة
+    في الشحانية عشرون دقيقة، وبين الخامسة والسادسة خمسَ عشرة — فالتلاصقُ
+    عبرهما تلاصقٌ في الورق لا في اليوم.
+
+    ومدرسةٌ لم تُدخل أوقاتَها بعد: لا كتلَ تُعرَف، فلا يُمنع تجاورٌ بحجّة
+    فاصلٍ لا نعرفه. والصمتُ لا يُقرأ منعاً.
+    """
+    from operations.models import TimeSlotConfig
+
+    rows = list(
+        TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False).order_by(
+            "period_number"
+        )
+    )
+    if not rows:
+        return {(p, p + 1) for p in range(1, LAST_PERIOD)}
+
+    pairs = set()
+    for earlier, later in zip(rows, rows[1:], strict=False):
+        if later.period_number != earlier.period_number + 1:
+            continue
+        gap = (later.start_time.hour * 60 + later.start_time.minute) - (
+            earlier.end_time.hour * 60 + earlier.end_time.minute
+        )
+        if gap <= JOINABLE_GAP_MINUTES:
+            pairs.add((earlier.period_number, later.period_number))
+    return pairs
+
 #: أكثرُ ما يُقبل من حصصٍ سابعةٍ للمعلّم في الأسبوع.
 #:
 #: المطلوبُ واحدة، وهي مستحيلةٌ حسابيّاً في هذه المدرسة: مئةٌ واثنتا عشرةَ

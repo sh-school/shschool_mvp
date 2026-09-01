@@ -29,7 +29,6 @@ from .models import (
 from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
-    get_max_periods_for_day,
     is_slot_valid,
 )
 
@@ -75,6 +74,11 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: كم خانةً متلاصقةً تشغل هذه المهمّة: واحدةً عادةً، واثنتين في المزدوجة.
+    #: والمزدوجةُ مهمّةٌ واحدةٌ لا مهمّتان تلتقيان بالصدفة — فلو كانتا اثنتين
+    #: لاحتاج المحرّكُ أن يعرف عند وضع الأولى أين ستقع الثانية، وهو ما لا
+    #: يعرفه أحد.
+    span: int = 1
     #: أيّامُ المعلّم المتاحةُ في الأسبوع — خمسةٌ ما لم يكن مفرَّغاً يوماً.
     #: وهي مقامُ القسمة في توزيع المادّة، فمعلّمٌ يعمل أربعةَ أيّامٍ يلزم
     #: مادّتَه السداسيّةَ يومان مزدوجان لا يومٌ واحد.
@@ -100,6 +104,10 @@ class Task:
     @property
     def is_split(self) -> bool:
         return len(self.members) > 1
+
+    def slots(self, period: int):
+        """الخاناتُ التي تشغلها هذه المهمّةُ ابتداءً من هذه الحصّة."""
+        return range(period, period + self.span)
 
     @property
     def per_day_cap(self) -> int:
@@ -199,15 +207,14 @@ class ScheduleGrid:
         self._remember(day, period, task)
 
     def _remember(self, day: int, period: int, task: Task):
-        self._class_grid(task.class_id)[day][period] = task
-        self._class_slots[task.class_id].append((day, period))
-        # كلُّ ساكنٍ يُسجَّل: في الشعبة المنقسمة معلّمانِ يعملان في الخانة
-        # نفسها، فلا يُسنَد إلى أحدهما شيءٌ آخر فيها.
-        for member in task.members:
-            self._teacher_slots[member.teacher_id].append((day, period))
-            self._teacher_at[(member.teacher_id, day, period)] = task
-        self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
-        self._subject_period[(task.subject_id, task.class_id, period)] += 1
+        for slot in task.slots(period):
+            self._class_grid(task.class_id)[day][slot] = task
+            self._class_slots[task.class_id].append((day, slot))
+            for member in task.members:
+                self._teacher_slots[member.teacher_id].append((day, slot))
+                self._teacher_at[(member.teacher_id, day, slot)] = task
+            self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
+            self._subject_period[(task.subject_id, task.class_id, slot)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
     def remove(self, class_id: str, day: int, period: int):
@@ -215,18 +222,27 @@ class ScheduleGrid:
         task = self._class_grid(class_id)[day][period]
         if task is None:
             return
-        self._log("remove", day, period, task)
-        self._forget(task, day, period)
+        start = self._start_of(task, day, period)
+        self._log("remove", day, start, task)
+        self._forget(task, day, start)
+
+    def _start_of(self, task: Task, day: int, period: int) -> int:
+        """موضعُ بداية المهمّة — فالمزدوجةُ تُرفع من أوّلها لا من نصفها."""
+        start = period
+        while start > 1 and self._class_grid(task.class_id)[day].get(start - 1) is task:
+            start -= 1
+        return start
 
     def _forget(self, task: Task, day: int, period: int):
-        self._class_grid(task.class_id)[day][period] = None
-        self._class_slots[task.class_id].remove((day, period))
-        for member in task.members:
-            self._teacher_slots[member.teacher_id].remove((day, period))
-            self._teacher_at.pop((member.teacher_id, day, period), None)
-        key = (task.subject_id, task.class_id, day)
-        self._subject_class_day[key] -= 1
-        self._subject_period[(task.subject_id, task.class_id, period)] -= 1
+        start = self._start_of(task, day, period)
+        for slot in task.slots(start):
+            self._class_grid(task.class_id)[day][slot] = None
+            self._class_slots[task.class_id].remove((day, slot))
+            for member in task.members:
+                self._teacher_slots[member.teacher_id].remove((day, slot))
+                self._teacher_at.pop((member.teacher_id, day, slot), None)
+            self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
+            self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
         self._entries = [e for e in self._entries if e["task"] is not task]
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
@@ -400,6 +416,16 @@ def _to_tasks(rows) -> list[Task]:
         if label:
             grouped[(str(a.class_group_id), label)].append((a, level_type, is_double, available))
             continue
+        if is_double and a.weekly_periods >= 2:
+            # المزدوجةُ مهمّةٌ واحدةٌ تشغل خانتين — ونصابٌ فرديٌّ يترك حصّةً
+            # مفردةً في آخره، وهي حالةٌ مشروعةٌ لا تُقسَر على زوج.
+            for _ in range(a.weekly_periods // 2):
+                task = build(a, level_type, is_double, [member(a)], available)
+                task.span = 2
+                tasks.append(task)
+            for _ in range(a.weekly_periods % 2):
+                tasks.append(build(a, level_type, is_double, [member(a)], available))
+            continue
         for _ in range(a.weekly_periods):
             tasks.append(build(a, level_type, is_double, [member(a)], available))
 
@@ -439,28 +465,37 @@ def get_available_slots(
     grid: ScheduleGrid,
     task: Task,
     blocked_slots: set[tuple[str, int, int | None]] | None = None,
+    school=None,
 ) -> list[tuple[int, int]]:
-    """الخانات المتاحة (تحقق قيود صلبة + تفريغات)"""
-    from .scheduler_constraints import get_max_periods_for_day
+    """الخانات المتاحة (تحقق قيود صلبة + تفريغات + كتلة المزدوجة)"""
+    from .scheduler_constraints import get_max_periods_for_day, joinable_pairs
 
     available = []
     level_type = getattr(task, "level_type", "")
+    #: الحصّةُ المزدوجةُ لا تقطعها فسحةٌ ولا صلاة — والكتلُ من جرس المدرسة.
+    pairs = joinable_pairs(school) if task.span > 1 and school is not None else None
+
     for day in DAYS:
         max_p = get_max_periods_for_day(day, level_type)
-        for period in range(1, max_p + 1):
-            # الفراغُ صفةُ خانةِ الشعبة، لا صفةُ التوقيت في المدرسة كلِّها.
-            if grid.class_busy(task.class_id, day, period):
+        for period in range(1, max_p - task.span + 2):
+            slots = list(task.slots(period))
+            if pairs is not None and tuple(slots) not in pairs:
                 continue
-            # تحقق من تفريغات المعلم — ولكلّ ساكنٍ تفريغُه
+            if any(grid.class_busy(task.class_id, day, slot) for slot in slots):
+                continue
             if blocked_slots and any(
-                (m.teacher_id, day, period) in blocked_slots for m in task.members
+                (m.teacher_id, day, slot) in blocked_slots
+                for m in task.members
+                for slot in slots
             ):
                 continue
             if any(
-                grid.teacher_busy(m.teacher_id, day, period) for m in task.members
+                grid.teacher_busy(m.teacher_id, day, slot)
+                for m in task.members
+                for slot in slots
             ):
                 continue
-            if is_slot_valid(grid, day, period, task):
+            if all(is_slot_valid(grid, day, slot, task) for slot in slots):
                 available.append((day, period))
     return available
 
@@ -480,7 +515,7 @@ def rank_slots(
     return ranked
 
 
-def _greedy_pass(grid, tasks, blocked, preferences):
+def _greedy_pass(grid, tasks, blocked, preferences, school=None):
     """يضع ما يستطيع، ويُعيد ما تعذّر — بلا تراجعٍ ولا محاولاتٍ ضائعة.
 
     وكان هنا تراجعٌ أعمى: يرفع **آخرَ** ما وُضع وقد لا يكون له بالانسداد صلة،
@@ -490,7 +525,9 @@ def _greedy_pass(grid, tasks, blocked, preferences):
     """
     leftovers = []
     for task in tasks:
-        ranked = rank_slots(grid, task, get_available_slots(grid, task, blocked), preferences)
+        ranked = rank_slots(
+            grid, task, get_available_slots(grid, task, blocked, school), preferences
+        )
         if ranked:
             day, period, _ = ranked[0]
             grid.place(day, period, task)
@@ -506,24 +543,28 @@ def _blockers(grid, task, day, period, blocked):
     لا يُحلّ بإخراج ساكن. أمّا الشاغلُ — شعبةً أو معلّماً — فيُزاح إن وُجد له
     بديل.
     """
-    if any((m.teacher_id, day, period) in blocked for m in task.members):
+    slots = list(task.slots(period))
+    if any(
+        (m.teacher_id, day, slot) in blocked for m in task.members for slot in slots
+    ):
         return None
 
     occupants = []
     seen = set()
-    occupant = grid.get_task_at(task.class_id, day, period)
-    if occupant is not None:
-        occupants.append(occupant)
-        seen.add(id(occupant))
-    for member in task.members:
-        busy = grid.teacher_task_at(member.teacher_id, day, period)
-        if busy is not None and id(busy) not in seen:
-            occupants.append(busy)
-            seen.add(id(busy))
+    for slot in slots:
+        occupant = grid.get_task_at(task.class_id, day, slot)
+        if occupant is not None and id(occupant) not in seen:
+            occupants.append(occupant)
+            seen.add(id(occupant))
+        for member in task.members:
+            busy = grid.teacher_task_at(member.teacher_id, day, slot)
+            if busy is not None and id(busy) not in seen:
+                occupants.append(busy)
+                seen.add(id(busy))
     return occupants
 
 
-def _repair_pass(grid, leftovers, blocked, preferences, budget):
+def _repair_pass(grid, leftovers, blocked, preferences, budget, school=None):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
     والفرقُ عن التراجع الأعمى أنّ الإزاحةَ تعرف **من** يسدّ الطريق بعينه: خانةٌ
@@ -540,7 +581,9 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget):
     for _ in range(3):
         still = []
         for task in remaining:
-            if budget <= 0 or not _try_eject(grid, task, blocked, preferences, depth=3):
+            if budget <= 0 or not _try_eject(
+                grid, task, blocked, preferences, depth=3, school=school
+            ):
                 still.append(task)
             else:
                 budget -= 1
@@ -550,39 +593,61 @@ def _repair_pass(grid, leftovers, blocked, preferences, budget):
     return remaining
 
 
-def _try_eject(grid, task, blocked, preferences, depth=1):
+def _try_eject(grid, task, blocked, preferences, depth=1, school=None):
     """يُخرج ساكنَ الخانةِ لينزل فيها المتعذّر — ثمّ يُعيد الساكنَ إلى بديل.
 
     و`depth` عمقُ السلسلة: بعمقٍ واحدٍ يجب أن يجد المُزاحُ خانةً فارغةً له،
     وبعمقين يجوز أن يُزيح هو الآخرُ ساكناً. وأبعدُ من ذلك يُقلّب الجدولَ أكثرَ
     ممّا يُصلح، وقد كفى العمقان: اثنتان بقيتا من ثمانٍ وخمسين.
     """
-    for day in DAYS:
-        for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
-            evicted = _blockers(grid, task, day, period, blocked)
-            #: إزاحةُ أكثرَ من ساكنَين تُقلّب الجدولَ أكثرَ ممّا تُصلح.
-            if evicted is None or not evicted or len(evicted) > 2:
-                continue
+    for day, period in _candidate_starts(grid, task, blocked, school):
+        evicted = _blockers(grid, task, day, period, blocked)
+        #: إزاحةُ أكثرَ من ساكنَين تُقلّب الجدولَ أكثرَ ممّا تُصلح.
+        if evicted is None or not evicted or len(evicted) > 2:
+            continue
 
-            homes = [(e, _home_of(grid, e)) for e in evicted]
-            if any(home is None for _, home in homes):
-                continue
+        homes = [(e, _home_of(grid, e)) for e in evicted]
+        if any(home is None for _, home in homes):
+            continue
 
-            grid.begin()
-            for occupant, home in homes:
-                grid.remove(occupant.class_id, home[0], home[1])
+        grid.begin()
+        for occupant, home in homes:
+            grid.remove(occupant.class_id, home[0], home[1])
 
-            if (
-                is_slot_valid(grid, day, period, task)
-                and not any(grid.teacher_busy(m.teacher_id, day, period) for m in task.members)
-            ):
-                grid.place(day, period, task)
-                if _rehome_all(grid, [e for e, _ in homes], blocked, preferences, depth):
-                    grid.commit()
-                    return True
+        slots = list(task.slots(period))
+        if all(is_slot_valid(grid, day, slot, task) for slot in slots) and not any(
+            grid.teacher_busy(m.teacher_id, day, slot) for m in task.members for slot in slots
+        ):
+            grid.place(day, period, task)
+            if _rehome_all(grid, [e for e, _ in homes], blocked, preferences, depth, school):
+                grid.commit()
+                return True
 
-            grid.rollback()
+        grid.rollback()
     return False
+
+
+def _candidate_starts(grid, task, blocked, school):
+    """مواضعُ البدء الممكنةُ للإزاحة — بصرف النظر عمّن يشغلها الآن.
+
+    فالفرقُ عن `get_available_slots` أنّ هذه تشمل المشغولَ عمداً: الإزاحةُ
+    تبحث عمّن يسدّ الطريقَ لتُخرجه. أمّا التفريغُ وكتلةُ المزدوجة وسقفُ اليوم
+    فحدودٌ لا يرفعها إخراجُ ساكن.
+    """
+    from .scheduler_constraints import get_max_periods_for_day, joinable_pairs
+
+    pairs = joinable_pairs(school) if task.span > 1 and school is not None else None
+    for day in DAYS:
+        max_p = get_max_periods_for_day(day, task.level_type)
+        for period in range(1, max_p - task.span + 2):
+            slots = list(task.slots(period))
+            if pairs is not None and tuple(slots) not in pairs:
+                continue
+            if blocked and any(
+                (m.teacher_id, day, slot) in blocked for m in task.members for slot in slots
+            ):
+                continue
+            yield day, period
 
 
 def _home_of(grid, task):
@@ -593,20 +658,22 @@ def _home_of(grid, task):
     return None
 
 
-def _rehome_all(grid, tasks, blocked, preferences, depth=1):
+def _rehome_all(grid, tasks, blocked, preferences, depth=1, school=None):
     """يُعيد المُزاحين إلى خاناتٍ صحيحة، أو يُعلن الفشلَ ليتراجع المُنادي.
 
     والتراجعُ عند المُنادي بسجلّ الشبكة — لا هنا: فالسلسلةُ العميقةُ تُحرّك ما
     لم يضعه هذا المستوى، ولا يعرف كلُّ مستوىً إلّا ما فعله هو.
     """
     for task in tasks:
-        ranked = rank_slots(grid, task, get_available_slots(grid, task, blocked), preferences)
+        ranked = rank_slots(
+            grid, task, get_available_slots(grid, task, blocked, school), preferences
+        )
         if ranked:
             day, period, _ = ranked[0]
             grid.place(day, period, task)
             continue
         # لا خانةَ فارغةً له — فليُزِح هو الآخرُ إن بقي في العمق سعة.
-        if depth > 1 and _try_eject(grid, task, blocked, preferences, depth - 1):
+        if depth > 1 and _try_eject(grid, task, blocked, preferences, depth - 1, school):
             continue
         return False
     return True
@@ -666,9 +733,9 @@ def generate_schedule(
 
     # 4. التوليد: وضعٌ جشعٌ، ثمّ إزاحةٌ موجَّهةٌ لما تعذّر
     grid = ScheduleGrid()
-    leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences)
+    leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school)
     before_repair = len(leftovers)
-    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack)
+    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
     #: كم حصّةً أنقذتها الإزاحةُ ممّا عجز عنه الوضعُ الجشع.
     repaired = before_repair - len(leftovers)
 
@@ -722,26 +789,27 @@ def generate_schedule(
                     t = entry["task"]
                     d = entry["day"]
                     p = entry["period"]
-                    start, end = _get_time(d, p)
-                    # صفٌّ لكلّ ساكن: الشعبةُ المنقسمةُ خانةٌ واحدةٌ وحصّتان.
-                    # و`elective_group` هو ما يُجيز اجتماعَهما في القاعدة —
-                    # فالقيدُ الفريدُ يشمله، وبدونه يرفض الثانيةَ.
-                    for member in t.members:
-                        bulk.append(
-                            ScheduleSlot(
-                                school=school,
-                                teacher_id=member.teacher_id,
-                                class_group_id=t.class_id,
-                                subject_id=member.subject_id,
-                                day_of_week=d,
-                                period_number=p,
-                                start_time=start,
-                                end_time=end,
-                                academic_year=academic_year,
-                                elective_group=member.subject_name if t.is_split else "",
-                                is_active=True,
+                    # صفٌّ لكلّ (خانة × ساكن): المزدوجةُ تشغل خانتين، والشعبةُ
+                    # المنقسمةُ خانةً واحدةً بحصّتين. و`elective_group` هو ما
+                    # يُجيز اجتماعَ الحصّتين في القاعدة — فالقيدُ الفريدُ يشمله.
+                    for slot in t.slots(p):
+                        start, end = _get_time(d, slot)
+                        for member in t.members:
+                            bulk.append(
+                                ScheduleSlot(
+                                    school=school,
+                                    teacher_id=member.teacher_id,
+                                    class_group_id=t.class_id,
+                                    subject_id=member.subject_id,
+                                    day_of_week=d,
+                                    period_number=slot,
+                                    start_time=start,
+                                    end_time=end,
+                                    academic_year=academic_year,
+                                    elective_group=member.subject_name if t.is_split else "",
+                                    is_active=True,
+                                )
                             )
-                        )
                 ScheduleSlot.objects.bulk_create(bulk)
 
                 # سجل التوليد
