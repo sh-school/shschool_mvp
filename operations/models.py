@@ -449,6 +449,41 @@ class SubjectClassAssignment(models.Model):
         return f"{self.subject.name_ar} → {self.class_group} ({teacher_name}) [{self.weekly_periods}ح/أسبوع]"
 
 
+class SchedulingResource(models.Model):
+    """موردٌ محدودٌ تتنافس عليه الحصص: ملعبٌ أو معملٌ أو غرفةُ فنون.
+
+    القيدُ ليس على المعلّم ولا على الشعبة بل على **المكان**: في المدرسة معملا
+    حاسبٍ اثنان، فلا تقع أكثرُ من حصّتَي حاسبٍ في التوقيت الواحد مهما كثر
+    المعلّمون. وكذلك البدنيّة: خمسةُ معلّمين وملعبان.
+
+    ولا يُحلّ هذا بقيدٍ على المادّة وحدَها: المعملانِ يتقاسمهما «علوم الحاسب»
+    و«تكنولوجيا المعلومات» معاً، فالسقفُ على المورد لا على كلّ مادّةٍ بمفردها.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="scheduling_resources"
+    )
+    name = models.CharField(max_length=100, verbose_name="المورد")
+    capacity = models.PositiveIntegerField(default=1, verbose_name="كم حصّةً معاً")
+    subjects = models.ManyToManyField(
+        Subject, related_name="scheduling_resources", verbose_name="المواد التي تستعمله"
+    )
+    note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "مورد جدولة"
+        verbose_name_plural = "موارد الجدولة"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["school", "name"], name="unique_resource_per_school")
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.capacity})"
+
+
 class TeacherPreference(models.Model):
     """تفضيلات المعلم للجدولة الذكية"""
 

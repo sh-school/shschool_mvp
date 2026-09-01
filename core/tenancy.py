@@ -67,6 +67,11 @@ PARENT_DERIVED = {
     "quality_operationalindicator": "target -> domain -> quality_operationaldomain.school_id",
     "quality_procedureevidence": "procedure -> quality_operationalprocedure.school_id",
     "quality_procedurestatuslog": "procedure -> quality_operationalprocedure.school_id",
+    # operations
+    "operations_schedulingresource_subjects": (
+        "schedulingresource -> operations_schedulingresource.school_id "
+        "(+ subject must belong to the same school, on write)"
+    ),
     # academic_management
     "academic_management_teacherworkloadallocation": (
         "workload_plan -> academic_management_teacherworkloadplan.school_id"

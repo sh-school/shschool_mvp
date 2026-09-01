@@ -91,6 +91,19 @@ def check_period_variety(grid: ScheduleGrid, period: int, task: Task) -> bool:
     return grid.subject_at_period(task.class_id, task.subject_id, period) < MAX_SAME_PERIOD
 
 
+def check_resource_capacity(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC9: لا تتجاوز الحصصُ سعةَ المورد في التوقيت الواحد.
+
+    القيدُ على **المكان** لا على المعلّم ولا على الشعبة: خمسةُ معلّمي بدنيّةٍ
+    وملعبان، فلا تقع ثالثةٌ مهما كان المعلّمون فارغين. ومعملا حاسبٍ يتقاسمهما
+    أكثرُ من مادّة، فالسقفُ عليهما مجتمعَين.
+    """
+    return all(
+        grid.resource_load(resource_id, day, period) < capacity
+        for resource_id, capacity in task.resources
+    )
+
+
 def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
     """HC8: لا تتكدّس الحصّةُ السابعةُ على معلّمٍ بعينه.
 
@@ -298,6 +311,8 @@ def is_slot_valid(
     if not check_period_variety(grid, period, task):
         return False
     if not check_last_period_share(grid, period, task):
+        return False
+    if not check_resource_capacity(grid, day, period, task):
         return False
     return True
 

@@ -82,6 +82,8 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: الموارد التي تستهلكها هذه المهمّة: (معرّف المورد · سعته).
+    resources: tuple = ()
     #: كم خانةً متلاصقةً تشغل هذه المهمّة: واحدةً عادةً، واثنتين في المزدوجة.
     #: والمزدوجةُ مهمّةٌ واحدةٌ لا مهمّتان تلتقيان بالصدفة — فلو كانتا اثنتين
     #: لاحتاج المحرّكُ أن يعرف عند وضع الأولى أين ستقع الثانية، وهو ما لا
@@ -173,6 +175,8 @@ class ScheduleGrid:
         self._subject_class_day: dict[tuple[str, str, int], int] = defaultdict(int)
         #: (مادّة · شعبة · رقم الحصّة) — لتنويع مواقع المادّة في اليوم.
         self._subject_period: dict[tuple[str, str, int], int] = defaultdict(int)
+        #: (مورد · يوم · حصّة) — كم حصّةً تشغله في هذا التوقيت.
+        self._resource_at: dict[tuple[str, int, int], int] = defaultdict(int)
         self._entries: list[dict] = []
         #: سجلُّ التراجع: كلُّ محاولةِ إزاحةٍ تفتح إطاراً، وتُغلقه بقبولٍ أو ردّ.
         #: والردُّ يعكس ما جرى بعينه — لا «أعِد ما تظنّه كان»، فالتساهلُ في
@@ -223,6 +227,8 @@ class ScheduleGrid:
                 self._teacher_at[(member.teacher_id, day, slot)] = task
             self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
             self._subject_period[(task.subject_id, task.class_id, slot)] += 1
+            for resource_id, _ in task.resources:
+                self._resource_at[(resource_id, day, slot)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
     def remove(self, class_id: str, day: int, period: int):
@@ -251,6 +257,8 @@ class ScheduleGrid:
                 self._teacher_at.pop((member.teacher_id, day, slot), None)
             self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
             self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
+            for resource_id, _ in task.resources:
+                self._resource_at[(resource_id, day, slot)] -= 1
         self._entries = [e for e in self._entries if e["task"] is not task]
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
@@ -285,6 +293,10 @@ class ScheduleGrid:
         في التوقيت نفسه كلَّ يوم، والمعلّمُ كذلك. والتنوّعُ مقصودٌ لا مصادفة.
         """
         return self._subject_period.get((subject_id, class_id, period), 0)
+
+    def resource_load(self, resource_id: str, day: int, period: int) -> int:
+        """كم حصّةً تشغل هذا المورد في هذا التوقيت — ملعباً كان أو معملاً."""
+        return self._resource_at.get((resource_id, day, period), 0)
 
     def teacher_last_periods(self, teacher_id: str) -> int:
         """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
@@ -345,7 +357,15 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     ).select_related("class_group", "subject", "teacher")
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
-    from operations.models import TeacherExemption
+    from operations.models import SchedulingResource, TeacherExemption
+
+    # مواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
+    resources_by_subject = defaultdict(list)
+    for resource in SchedulingResource.objects.filter(
+        school=school, is_active=True
+    ).prefetch_related("subjects"):
+        for subject in resource.subjects.all():
+            resources_by_subject[str(subject.id)].append((str(resource.id), resource.capacity))
 
     exempt_days = defaultdict(set)
     for ex in TeacherExemption.objects.filter(
@@ -377,10 +397,10 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows)
+    return _to_tasks(rows, resources_by_subject)
 
 
-def _to_tasks(rows) -> list[Task]:
+def _to_tasks(rows, resources_by_subject=None) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
     فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
@@ -398,7 +418,15 @@ def _to_tasks(rows) -> list[Task]:
             subject_code=a.subject.code,
         )
 
+    resources_by_subject = resources_by_subject or {}
+
     def build(a, level_type, is_double, members, available):
+        #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
+        used = []
+        for member in members:
+            for entry in resources_by_subject.get(member.subject_id, ()):
+                if entry not in used:
+                    used.append(entry)
         return Task(
             class_id=str(a.class_group_id),
             class_name=str(a.class_group),
@@ -413,6 +441,7 @@ def _to_tasks(rows) -> list[Task]:
             preferred_periods=a.preferred_periods or [],
             level_type=level_type,
             available_days=available,
+            resources=tuple(used),
             parallel_group=(a.parallel_group or "").strip(),
             members=members,
         )
