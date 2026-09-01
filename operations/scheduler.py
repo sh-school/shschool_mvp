@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import math
+import random
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -33,6 +34,13 @@ from .scheduler_constraints import (
 )
 
 logger = logging.getLogger(__name__)
+
+#: كم محاولةً تُجرَّب قبل اختيار أفضلها.
+#:
+#: وتتوقّف السلسلةُ عند أوّل محاولةٍ كاملة، فالثمنُ لا يُدفع إلّا عند الحاجة:
+#: بقيودٍ يسعها الجدولُ تنتهي المحاولةُ الأولى في ثانية، وبقيودٍ تضيق عنه
+#: تُجرَّب الثلاثُ في نحوِ دقيقة.
+RESTARTS = 3
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
 #: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
@@ -505,17 +513,25 @@ def rank_slots(
     task: Task,
     available: list[tuple[int, int]],
     preferences: dict | None = None,
+    rng=None,
 ) -> list[tuple[int, int, float]]:
-    """ترتيب الخانات حسب أقل عقوبات مرنة"""
+    """ترتيب الخانات حسب أقلّ عقوباتٍ مرنة — والمتساوياتُ تُخلط.
+
+    والخلطُ ليس زينة: الخاناتُ المتساويةُ في العقوبة كثيرة، وترتيبُها الثابتُ
+    يجعل المحرّكَ يسلك الطريقَ نفسَه في كلّ محاولة. فإن أفضى إلى انسدادٍ أفضى
+    إليه دائماً — ولو أُعيد ألفَ مرّة.
+    """
     ranked = []
     for day, period in available:
         penalty = evaluate_soft_constraints(grid, day, period, task, preferences)
         ranked.append((day, period, penalty.total))
+    if rng is not None:
+        rng.shuffle(ranked)
     ranked.sort(key=lambda x: x[2])
     return ranked
 
 
-def _greedy_pass(grid, tasks, blocked, preferences, school=None):
+def _greedy_pass(grid, tasks, blocked, preferences, school=None, rng=None):
     """يضع ما يستطيع، ويُعيد ما تعذّر — بلا تراجعٍ ولا محاولاتٍ ضائعة.
 
     وكان هنا تراجعٌ أعمى: يرفع **آخرَ** ما وُضع وقد لا يكون له بالانسداد صلة،
@@ -526,7 +542,7 @@ def _greedy_pass(grid, tasks, blocked, preferences, school=None):
     leftovers = []
     for task in tasks:
         ranked = rank_slots(
-            grid, task, get_available_slots(grid, task, blocked, school), preferences
+            grid, task, get_available_slots(grid, task, blocked, school), preferences, rng
         )
         if ranked:
             day, period, _ = ranked[0]
@@ -731,13 +747,31 @@ def generate_schedule(
     # 3. ترتيب المهام
     sorted_tasks = sort_tasks(tasks)
 
-    # 4. التوليد: وضعٌ جشعٌ، ثمّ إزاحةٌ موجَّهةٌ لما تعذّر
-    grid = ScheduleGrid()
-    leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school)
-    before_repair = len(leftovers)
-    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
-    #: كم حصّةً أنقذتها الإزاحةُ ممّا عجز عنه الوضعُ الجشع.
-    repaired = before_repair - len(leftovers)
+    # 4. التوليد: محاولاتٌ متعدّدةٌ يُختار أفضلُها
+    #
+    # جدولُ هذه المدرسة إشغالُه تسعةٌ وتسعون بالمئة، وثلاثٌ وعشرون شعبةً من
+    # خمسٍ وعشرين ممتلئةٌ تماماً — أي أنّ كلَّ خانةٍ فيها يجب أن تُملأ بالحصّة
+    # الصحيحة. وفي مثل هذا الضيق تكون المحاولةُ الواحدةُ رهانَ حظّ: طريقٌ
+    # واحدٌ إن انسدّ انسدّ.
+    #
+    # والمحاولاتُ تختلف بخلطِ الخانات المتساوية في العقوبة وحدَها — فالقيودُ
+    # والأوزانُ لا تتغيّر، وإنّما يتغيّر أيُّ المتساويات يُجرَّب أوّلاً.
+    best_grid, best_left, repaired = None, None, 0
+    for attempt in range(RESTARTS):
+        rng = random.Random(attempt)
+        grid = ScheduleGrid()
+        leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
+        before_repair = len(leftovers)
+        leftovers = _repair_pass(
+            grid, leftovers, blocked_slots, preferences, max_backtrack, school
+        )
+        if best_left is None or len(leftovers) < len(best_left):
+            best_grid, best_left = grid, leftovers
+            repaired = before_repair - len(leftovers)
+        if not best_left:
+            break
+
+    grid, leftovers = best_grid, best_left
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
