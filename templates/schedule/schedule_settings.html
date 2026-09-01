@@ -74,8 +74,10 @@
         <input type="text" name="reason" class="form-control" placeholder="مثال: دورة تدريبية خارج المدرسة" required>
       </div>
 
-      {# جهةُ القرار ومرجعُه: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً
-         في الأسبوع كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب. #}
+      {% comment %}
+      جهةُ القرار ومرجعُه: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في
+      الأسبوع كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
+      {% endcomment %}
       <div class="form-group mb-0">
         <label class="form-label text-xs">جهة القرار</label>
         <select name="source" class="form-control">

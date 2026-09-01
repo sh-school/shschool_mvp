@@ -5875,6 +5875,29 @@ html.dark .wl-card-title { color: var(--gold); }
   border-block-end: 1px solid var(--border);
 }
 
+/* مفتاحُ القراءة — مصطلحٌ يسارَ شرحِه، وشبكةٌ تنهار إلى عمودٍ على الجوّال. */
+.wl-legend {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, max-content) 1fr;
+  gap: 6px var(--sp-4);
+  margin: 0;
+}
+.wl-legend dt {
+  font-weight: 700;
+  color: var(--maroon);
+}
+html.dark .wl-legend dt { color: var(--gold); }
+.wl-legend dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: .875rem;
+  line-height: 1.7;
+}
+@media (max-width: 40rem) {
+  .wl-legend { grid-template-columns: 1fr; gap: 2px var(--sp-2); }
+  .wl-legend dd { margin-block-end: var(--sp-2); }
+}
+
 .wl-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .wl-check {
   display: flex;
