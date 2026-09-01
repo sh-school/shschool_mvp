@@ -447,6 +447,9 @@ def gate(lessons, rows, plans=None, quals=None):
         "enforceable_passed": sum(1 for c in checks if c["layer"] == ENFORCEABLE and c["passed"]),
         "enforceable_total": sum(1 for c in checks if c["layer"] == ENFORCEABLE),
         "blocked_total": sum(1 for c in checks if c["layer"] == NEEDS_MODELS),
+        # ما استوفي فعلاً من طبقة الخطّة — و«لا جوابَ بعد» لا يُعدّ نجاحاً ولا فشلاً.
+        "plan_passed": sum(1 for c in checks if c["layer"] == NEEDS_MODELS and c["passed"] is True),
+        "plan_pending": sum(1 for c in checks if c["layer"] == NEEDS_MODELS and c["passed"] is None),
         "off_target": off_target[:50],
         "issues": missing_cells[:50],
         "teacher_issues": [t for t in teachers.values() if t["status"] != wl.MATCH][:50],
