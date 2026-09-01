@@ -418,6 +418,18 @@ class SubjectClassAssignment(models.Model):
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
     requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
+    #: وسمُ المجموعة المتوازية: مادّتان في الشعبة الواحدة تحملان الوسمَ نفسه
+    #: تُدرَّسان في التوقيت نفسه لقسمَي الطلاب — كالفنون والتكنولوجيا في 11/1.
+    #:
+    #: وكان هذا مسجّلاً في `ScheduleSlot.elective_group` وحدَه، أي في الجدول
+    #: المستورَد لا في الإسناد. فكان تحذيرُ الطاقة يعدّ الحصصَ ويقيسها
+    #: بالخانات فيُنذر كاذباً، والمولّدُ لا يعرف الازدواجَ فيعدّ إحدى
+    #: المادّتين متعذّرة:
+    #:
+    #:     InstructionalPeriods ≠ OccupiedSlots
+    parallel_group = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="مجموعة التوازي"
+    )
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
     is_active = models.BooleanField(default=True)
 

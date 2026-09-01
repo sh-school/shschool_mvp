@@ -1732,6 +1732,31 @@ class CapacityCheckService:
     """خدمة فحص طاقة الجداول — Pre-validation قبل التوليد الذكي."""
 
     @staticmethod
+    def slot_demand(assignments) -> int:
+        """الزمنُ الذي تستهلكه هذه الإسنادات — بالخانات لا بالحصص.
+
+            InstructionalPeriods ≠ OccupiedSlots
+
+        فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه: حصّتان تُدرَّسان،
+        وخانةٌ واحدةٌ تُستهلك. وعدُّ الحصص هنا يُنتج إنذاراً كاذباً — «مطلوب
+        37 والسعة 35» — وليس في الشعبة فائضٌ أصلاً.
+
+        والمجموعةُ المتوازيةُ تستهلك أكبرَ نصابٍ فيها: لو كانت الفنونُ حصّتين
+        والتكنولوجيا ثلاثاً، فالخاناتُ ثلاثٌ لا خمس.
+        """
+        from collections import defaultdict as _dd
+
+        plain = 0
+        groups: dict = _dd(int)
+        for a in assignments:
+            label = (a.parallel_group or "").strip()
+            if label:
+                groups[label] = max(groups[label], a.weekly_periods)
+            else:
+                plain += a.weekly_periods
+        return plain + sum(groups.values())
+
+    @staticmethod
     def get_overcapacity_classes(assignments) -> list[dict]:
         """
         يكتشف الفصول التي يتجاوز طلبها الأسبوعي طاقتها الاستيعابية.
@@ -1748,12 +1773,12 @@ class CapacityCheckService:
 
         from operations.scheduler_constraints import get_max_periods_for_day
 
-        class_demand: dict = defaultdict(int)
+        class_rows: dict = defaultdict(list)
         class_levels: dict = {}
         class_names: dict = {}
         for a in assignments:
             cid = str(a.class_group_id)
-            class_demand[cid] += a.weekly_periods
+            class_rows[cid].append(a)
             # التحذيرُ بلا اسمِ الشعبة لا يُصلحه أحد: «مطلوب 37» مرّتين لا
             # تقول أيَّ شعبةٍ تُراجَع.
             class_names[cid] = str(a.class_group)
@@ -1764,6 +1789,7 @@ class CapacityCheckService:
             class_levels[cid] = a.class_group.level_type or ""
 
         overcapacity = []
+        class_demand = {cid: CapacityCheckService.slot_demand(rows) for cid, rows in class_rows.items()}
         for cid, demand in class_demand.items():
             level = class_levels.get(cid, "")
             thu_max = get_max_periods_for_day(4, level)

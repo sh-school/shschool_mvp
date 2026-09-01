@@ -38,8 +38,23 @@ DAY_NAMES = {0: "الأحد", 1: "الاثنين", 2: "الثلاثاء", 3: "ا
 
 
 @dataclass
+class Member:
+    """معلّمٌ ومادّةٌ داخل مهمّةٍ واحدة.
+
+    فالمهمّةُ عادةً معلّمٌ واحدٌ ومادّةٌ واحدة، إلّا في الشعبة المنقسمة: مادّتان
+    ومعلّمان في الخانة نفسها لقسمَي الطلاب.
+    """
+
+    teacher_id: str
+    teacher_name: str
+    subject_id: str
+    subject_name: str
+    subject_code: str
+
+
+@dataclass
 class Task:
-    """مهمة جدولة: مادة × فصل × معلم"""
+    """مهمة جدولة: خانةٌ واحدةٌ لشعبةٍ واحدة — بمادّةٍ أو بمادّتين متوازيتين"""
 
     class_id: str
     class_name: str
@@ -56,6 +71,27 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: وسمُ المجموعة المتوازية — فارغٌ في الغالبيّة العظمى.
+    parallel_group: str = ""
+    #: ساكنو الخانة: واحدٌ عادةً، واثنان في الشعبة المنقسمة. والحقولُ المفردةُ
+    #: أعلاه تصف أوّلَهم، فتبقى القيودُ المرنةُ تقرأ ما كانت تقرأ.
+    members: list = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.members:
+            self.members = [
+                Member(
+                    teacher_id=self.teacher_id,
+                    teacher_name=self.teacher_name,
+                    subject_id=self.subject_id,
+                    subject_name=self.subject_name,
+                    subject_code=self.subject_code,
+                )
+            ]
+
+    @property
+    def is_split(self) -> bool:
+        return len(self.members) > 1
 
 
 class ScheduleGrid:
@@ -99,9 +135,12 @@ class ScheduleGrid:
     def place(self, day: int, period: int, task: Task):
         """وضع حصة في الشبكة"""
         self._class_grid(task.class_id)[day][period] = task
-        self._teacher_slots[task.teacher_id].append((day, period))
         self._class_slots[task.class_id].append((day, period))
-        self._teacher_at[(task.teacher_id, day, period)] = task
+        # كلُّ ساكنٍ يُسجَّل: في الشعبة المنقسمة معلّمانِ يعملان في الخانة
+        # نفسها، فلا يُسنَد إلى أحدهما شيءٌ آخر فيها.
+        for member in task.members:
+            self._teacher_slots[member.teacher_id].append((day, period))
+            self._teacher_at[(member.teacher_id, day, period)] = task
         self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
@@ -111,9 +150,10 @@ class ScheduleGrid:
         if task is None:
             return
         self._class_grid(class_id)[day][period] = None
-        self._teacher_slots[task.teacher_id].remove((day, period))
         self._class_slots[task.class_id].remove((day, period))
-        self._teacher_at.pop((task.teacher_id, day, period), None)
+        for member in task.members:
+            self._teacher_slots[member.teacher_id].remove((day, period))
+            self._teacher_at.pop((member.teacher_id, day, period), None)
         key = (task.subject_id, task.class_id, day)
         self._subject_class_day[key] -= 1
         self._entries = [
@@ -205,7 +245,7 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         school=school, academic_year=academic_year, is_active=True
     ).select_related("class_group", "subject", "teacher")
 
-    tasks = []
+    rows = []
     for a in assignments:
         # تجاوز المواد التي لم يُعيّن لها معلم بعد
         if not a.teacher_id or a.teacher is None:
@@ -226,23 +266,65 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         # حصة مزدوجة: من إعدادات المادة في DB أو من الكود القديم
         is_double = a.subject_id in double_period_subjects or a.subject.code in {"ART", "TECH"}
 
+        rows.append((a, level_type, is_double))
+
+    return _to_tasks(rows)
+
+
+def _to_tasks(rows) -> list[Task]:
+    """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
+
+    فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
+    المحرّكُ خانتين ولوقع في تعارضِ «شعبةٌ في مادّتين» — وهو تعارضٌ لا وجودَ
+    له في الواقع.
+    """
+    from collections import defaultdict as _dd
+
+    def member(a):
+        return Member(
+            teacher_id=str(a.teacher_id),
+            teacher_name=a.teacher.full_name,
+            subject_id=str(a.subject_id),
+            subject_name=a.subject.name_ar,
+            subject_code=a.subject.code,
+        )
+
+    def build(a, level_type, is_double, members):
+        return Task(
+            class_id=str(a.class_group_id),
+            class_name=str(a.class_group),
+            subject_id=str(a.subject_id),
+            subject_name=a.subject.name_ar,
+            subject_code=a.subject.code,
+            teacher_id=str(a.teacher_id),
+            teacher_name=a.teacher.full_name,
+            weekly_periods=a.weekly_periods,
+            requires_lab=a.requires_lab,
+            prefers_double=is_double,
+            preferred_periods=a.preferred_periods or [],
+            level_type=level_type,
+            parallel_group=(a.parallel_group or "").strip(),
+            members=members,
+        )
+
+    grouped = _dd(list)
+    tasks = []
+    for a, level_type, is_double in rows:
+        label = (a.parallel_group or "").strip()
+        if label:
+            grouped[(str(a.class_group_id), label)].append((a, level_type, is_double))
+            continue
         for _ in range(a.weekly_periods):
-            tasks.append(
-                Task(
-                    class_id=str(a.class_group_id),
-                    class_name=str(a.class_group),
-                    subject_id=str(a.subject_id),
-                    subject_name=a.subject.name_ar,
-                    subject_code=a.subject.code,
-                    teacher_id=str(a.teacher_id),
-                    teacher_name=a.teacher.full_name,
-                    weekly_periods=a.weekly_periods,
-                    requires_lab=a.requires_lab,
-                    prefers_double=is_double,
-                    preferred_periods=a.preferred_periods or [],
-                    level_type=level_type,
-                )
-            )
+            tasks.append(build(a, level_type, is_double, [member(a)]))
+
+    for entries in grouped.values():
+        members = [member(a) for a, _, _ in entries]
+        lead, level_type, is_double = entries[0]
+        # الخاناتُ بأكبرِ نصابٍ في المجموعة: لو كانت الفنونُ حصّتين
+        # والتكنولوجيا ثلاثاً فالخاناتُ ثلاث.
+        for _ in range(max(a.weekly_periods for a, _, _ in entries)):
+            tasks.append(build(lead, level_type, is_double, list(members)))
+
     return tasks
 
 
@@ -280,8 +362,14 @@ def get_available_slots(
             # الفراغُ صفةُ خانةِ الشعبة، لا صفةُ التوقيت في المدرسة كلِّها.
             if grid.class_busy(task.class_id, day, period):
                 continue
-            # تحقق من تفريغات المعلم
-            if blocked_slots and (task.teacher_id, day, period) in blocked_slots:
+            # تحقق من تفريغات المعلم — ولكلّ ساكنٍ تفريغُه
+            if blocked_slots and any(
+                (m.teacher_id, day, period) in blocked_slots for m in task.members
+            ):
+                continue
+            if any(
+                grid.teacher_busy(m.teacher_id, day, period) for m in task.members
+            ):
                 continue
             if is_slot_valid(grid, day, period, task):
                 available.append((day, period))
@@ -451,20 +539,25 @@ def generate_schedule(
                     d = entry["day"]
                     p = entry["period"]
                     start, end = _get_time(d, p)
-                    bulk.append(
-                        ScheduleSlot(
-                            school=school,
-                            teacher_id=t.teacher_id,
-                            class_group_id=t.class_id,
-                            subject_id=t.subject_id,
-                            day_of_week=d,
-                            period_number=p,
-                            start_time=start,
-                            end_time=end,
-                            academic_year=academic_year,
-                            is_active=True,
+                    # صفٌّ لكلّ ساكن: الشعبةُ المنقسمةُ خانةٌ واحدةٌ وحصّتان.
+                    # و`elective_group` هو ما يُجيز اجتماعَهما في القاعدة —
+                    # فالقيدُ الفريدُ يشمله، وبدونه يرفض الثانيةَ.
+                    for member in t.members:
+                        bulk.append(
+                            ScheduleSlot(
+                                school=school,
+                                teacher_id=member.teacher_id,
+                                class_group_id=t.class_id,
+                                subject_id=member.subject_id,
+                                day_of_week=d,
+                                period_number=p,
+                                start_time=start,
+                                end_time=end,
+                                academic_year=academic_year,
+                                elective_group=member.subject_name if t.is_split else "",
+                                is_active=True,
+                            )
                         )
-                    )
                 ScheduleSlot.objects.bulk_create(bulk)
 
                 # سجل التوليد
