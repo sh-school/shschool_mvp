@@ -19,7 +19,6 @@
 """
 
 import math
-
 from collections import Counter
 
 import pytest
@@ -102,7 +101,7 @@ def test_no_day_ever_takes_three():
 def test_an_exempt_teacher_gets_two_doubled_days():
     """ستُّ حصصٍ في أربعة أيّام: 2 + 2 + 1 + 1 — ويومان يبلغان السقف."""
     grid = ScheduleGrid()
-    four_days = dict(weekly=6, days=4)
+    four_days = {"weekly": 6, "days": 4}
     fill(grid, **four_days, per_day={1: 2, 2: 1, 3: 1})
 
     assert is_slot_valid(grid, 2, 6, task(weekly=6, days=4)), "اليومُ المزدوجُ الثاني مسموح"
