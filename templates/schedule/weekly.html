@@ -263,9 +263,8 @@ td:has(.slot-empty) {
       {% if request.user.is_admin %}
       <a href="{% url 'slot_create' %}" class="btn-primary btn-sm">+ إضافة حصة</a>
       {% endif %}
-      {# الشريطُ زرّان: «إضافة حصة» للمدير و«طباعة». وروابطُ التبديل والتعويض
-         لها شاشاتُها في القائمة الجانبيّة — قرارُ #108. والطباعةُ تمرّ بصفحة
-         العرض لا بالورق مباشرةً — قرارُ #106. #}
+      {# الشريطُ زرّان: «إضافة حصة» للمدير و«طباعة» — وروابطُ التبديل والتعويض لها شاشاتُها في القائمة الجانبيّة. #}
+      {# والطباعةُ تمرّ بصفحة العرض لا بالورق مباشرةً. #}
       <a href="{% url 'schedule_print_view' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</a>
     </div>
   </div>
