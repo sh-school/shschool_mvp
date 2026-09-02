@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
+from core.models.academic import grade_order
 from core.permissions import role_required
 
 from .models import Session, StudentAttendance
@@ -127,7 +128,7 @@ def schedule(request):
 
         filter_classes = ClassGroup.objects.filter(
             school=school, academic_year=academic_year_for_school(school), is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
 
     return render(
         request,
@@ -385,7 +386,7 @@ def daily_report(request):
             status__in=["absent", "late"],
         )
         .select_related("student", "session__class_group")
-        .order_by("session__class_group__grade", "student__full_name")
+        .order_by(grade_order("session__class_group__grade"), "student__full_name")
     )
     sessions = Session.objects.filter(school=school, date=report_date).select_related("teacher")
 

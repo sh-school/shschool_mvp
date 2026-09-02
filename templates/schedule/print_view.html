@@ -1,0 +1,87 @@
+{% extends "base/base.html" %}
+{% block title %}{{ title }} — طباعة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current="طباعة" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+كصفحة الزيارات الصفّية: الورقةُ في إطارٍ داخل المنصّة، فيبقى الهيدر والفوتر
+وشريطُ الأدوات لنا — اختياراً وطباعةً ورجوعاً — والمطبوعُ ورقةٌ مجرّدة وحدها.
+{% endcomment %}
+<div class="card-qatar" style="max-width:1400px;margin-inline:auto">
+  <div class="exec-header">
+    <h1>{% include "components/icon.html" with name="printer" %} {{ title }}</h1>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      {# قائمة الاختيار لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
+      {% if may_browse %}
+      <form id="schedule-view-form" method="get" style="display:inline">
+        <input type="hidden" name="view" value="{{ view_type }}">
+        <input type="hidden" name="teacher" value="{% if target_teacher %}{{ target_teacher.id }}{% endif %}">
+        <input type="hidden" name="class" value="{% if target_class %}{{ target_class.id }}{% endif %}">
+        <input type="hidden" name="paper" value="{{ paper }}">
+        <input type="hidden" name="year" value="{{ year }}">
+
+        <select id="schedule-view-select" class="form-select" data-call-change="submitScheduleView" title="نوع العرض">
+          <option data-view="all_teachers"
+            {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
+          <option data-view="school"
+            {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
+          <option disabled>── معلم ──</option>
+          {% for t in teachers %}
+          <option data-view="teacher" data-teacher="{{ t.id }}"
+            {% if target_teacher and target_teacher.id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
+          {% endfor %}
+          <option disabled>── فصل ──</option>
+          {% for c in classes %}
+          <option data-view="class" data-class="{{ c.id }}"
+            {% if target_class and target_class.id == c.id %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      {% endif %}
+
+      <form method="get" style="display:inline">
+        <input type="hidden" name="view" value="{{ view_type }}">
+        {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
+        {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
+          <option value="a4" {% if paper == 'a4' %}selected{% endif %}>{% if view_type == 'all_teachers' %}A4 أفقي{% else %}A4 عمودي{% endif %}</option>
+          <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>
+        </select>
+      </form>
+
+      <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
+      <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">← رجوع للجدول</a>
+    </div>
+  </div>
+
+  <iframe id="schedule-print-frame" title="{{ title }}"
+          src="{% url 'schedule_print' %}?embed=1&view={{ view_type }}&paper={{ paper }}&year={{ year }}{% if target_teacher %}&teacher={{ target_teacher.id }}{% endif %}{% if target_class %}&class={{ target_class.id }}{% endif %}"
+          style="width:100%;height:78vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+</div>
+
+<script nonce="{{ request.csp_nonce }}">
+  {% if may_browse %}
+  function submitScheduleView(select) {
+    var form = document.getElementById('schedule-view-form');
+    var option = select.options[select.selectedIndex];
+
+    form.elements.view.value = option.dataset.view || 'school';
+    form.elements.teacher.value = option.dataset.teacher || '';
+    form.elements['class'].value = option.dataset.class || '';
+    form.submit();
+  }
+  {% endif %}
+
+  // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده.
+  document.getElementById('schedule-print-btn').addEventListener('click', function () {
+    var frame = document.getElementById('schedule-print-frame');
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+  });
+</script>
+{% endblock %}

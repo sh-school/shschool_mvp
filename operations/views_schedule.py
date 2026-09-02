@@ -14,10 +14,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import CustomUser, Membership
+from core.models.academic import grade_order
+from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import role_required
 
 from .models import (
@@ -178,7 +181,7 @@ def weekly_schedule(request):
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
         classes = ClassGroup.objects.filter(
             school=school, academic_year=academic_year_for_school(school), is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
 
     return render(
         request,
@@ -199,10 +202,8 @@ def weekly_schedule(request):
     )
 
 
-@login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
-def schedule_print(request):
-    """طباعة الجدول الأسبوعي — A4/A3"""
+def _schedule_print_selection(request):
+    """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
     from core.models import ClassGroup
 
     school = request.user.get_school()
@@ -231,24 +232,6 @@ def schedule_print(request):
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
-    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
-    # إلى جدوله قبل هذا السطر.
-    grid, matrix, matrix_totals = {}, [], None
-    if view_type == "all_teachers":
-        matrix = ScheduleService.get_teachers_matrix(school, year)
-        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
-    else:
-        grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
-
-    DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
-    # وكانت الخلايا بلا توقيتٍ أصلاً.
-    times = ScheduleService.period_times(school, year)
-    PERIODS = [
-        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
-        for n in ScheduleSlot.PERIODS
-    ]
-
     # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
     # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
     teachers, classes = [], []
@@ -259,7 +242,7 @@ def schedule_print(request):
         teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
         classes = ClassGroup.objects.filter(
             school=school, academic_year=academic_year_for_school(school), is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
 
     title = "الجدول الدراسي العام"
     if view_type == "all_teachers":
@@ -269,28 +252,73 @@ def schedule_print(request):
     elif target_class:
         title = f"جدول الفصل: {target_class}"
 
+    return {
+        "school": school,
+        "year": year,
+        "view_type": view_type,
+        "paper": paper,
+        "target_teacher": target_teacher,
+        "target_class": target_class,
+        "may_browse": may_browse,
+        "teachers": teachers,
+        "classes": classes,
+        "title": title,
+    }
+
+
+# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
+# صفحة العرض في المنصّة — والمصدرُ هو الموقع نفسه، فـ sameorigin يكفي.
+@xframe_options_sameorigin
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+def schedule_print(request):
+    """ورقةُ الطباعة نفسها — A4/A3، بلا هيدر المنصّة ولا فوترها."""
+    ctx = _schedule_print_selection(request)
+    school, year = ctx["school"], ctx["year"]
+
+    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
+    # إلى جدوله في اختيار الطباعة.
+    grid, matrix, matrix_totals = {}, [], None
+    if ctx["view_type"] == "all_teachers":
+        matrix = ScheduleService.get_teachers_matrix(school, year)
+        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
+    else:
+        grid = ScheduleService.get_weekly_schedule(
+            school, ctx["target_teacher"], ctx["target_class"], year
+        )
+
+    DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
+    # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
+    # وكانت الخلايا بلا توقيتٍ أصلاً.
+    times = ScheduleService.period_times(school, year)
+    PERIODS = [
+        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
+        for n in ScheduleSlot.PERIODS
+    ]
+
     return render(
         request,
         "schedule/print_schedule.html",
         {
+            **ctx,
             "grid": grid,
             "matrix": matrix,
             "matrix_totals": matrix_totals,
             "days": DAYS,
             "periods": PERIODS,
             "period_numbers": range(1, 8),
-            "paper": paper,
-            "view_type": view_type,
-            "target_teacher": target_teacher,
-            "target_class": target_class,
-            "teachers": teachers,
-            "classes": classes,
-            "title": title,
-            "may_browse": may_browse,
-            "school": school,
-            "year": year,
+            # داخل الإطار: الورقةُ وحدها، وأدواتُها في الصفحة الحاضنة.
+            "embed": request.GET.get("embed") == "1",
         },
     )
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+def schedule_print_view(request):
+    """الورقةُ داخل المنصّة — كصفحة الزيارات الصفّية: هيدرٌ وفوترٌ وأدوات،
+    والورقةُ نفسها في إطارٍ يُطبع وحده."""
+    return render(request, "schedule/print_view.html", _schedule_print_selection(request))
 
 
 @login_required
@@ -330,7 +358,7 @@ def schedule_slot_create(request):
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
     classes = ClassGroup.objects.filter(
         school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).order_by("grade", "section")
+    ).in_school_order()
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
 
     return render(
@@ -585,7 +613,7 @@ def smart_schedule_view(request):
     assignments = (
         SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
         .select_related("class_group", "subject", "teacher")
-        .order_by("class_group__grade", "class_group__section", "subject__name_ar")
+        .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     )
     # التوليدُ الجاري — الصفحةُ تُخفي الزرَّ وتستطلع الحالةَ ما دام قائماً.
     # والقتلُ يسبق القراءة: صفٌّ متقادمٌ يُوسَم فاشلاً قبل أن يُعرض «جارياً».
@@ -797,6 +825,11 @@ def teacher_preferences(request):
         #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
         #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
         pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), 3)
+        #: سقفُ الفراغ اختياريّ: الفراغُ لعامّة الكادر ترجيحٌ مرن، ومن اختار
+        #: سقفاً صار في حقّه قيداً صلباً. فالفراغُ نصّاً لا يُقرأ افتراضيّاً
+        #: بل يُقرأ عدماً — و«0» قيمةٌ صحيحةٌ تعني «لا فراغَ البتّة».
+        max_gap = request.POST.get("max_gap", "")
+        pref.max_gap = _one_of(max_gap, range(0, 6), None) if max_gap != "" else None
         free_day = request.POST.get("free_day", "")
         pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
         pref.notes = request.POST.get("notes", "")
@@ -927,7 +960,7 @@ def schedule_settings(request):
     teacher_ids = Membership.objects.filter(
         school=school,
         is_active=True,
-        role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
+        role__name__in=EXEMPTABLE_ROLES,
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
@@ -1049,6 +1082,8 @@ def subject_assignments(request):
     ).select_related("class_group", "subject", "teacher")
     if class_id:
         qs = qs.filter(class_group_id=class_id)
+    # من 7/1 إلى 12/4 — ترتيبُ المدرسة لا ترتيبُ الحروف الذي يُقدّم «العاشر» على «السابع».
+    qs = qs.order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     assignments = list(qs)
     teachers = list(CustomUser.objects.teachers(school).order_by("full_name"))
 

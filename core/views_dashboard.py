@@ -10,6 +10,7 @@ from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
+from core.models.academic import grade_order
 from core.models.access import ALL_STAFF_ROLES
 from core.permissions import role_required
 from library.models import BookBorrowing
@@ -216,7 +217,7 @@ def _get_teacher_ctx(user, school, today, role):
             school=school, teacher=user, academic_year=year, is_active=True
         )
         .select_related("subject", "class_group")
-        .order_by("class_group__grade", "subject__name_ar")
+        .order_by(grade_order("class_group__grade"), "subject__name_ar")
     )
     my_pending_swaps = TeacherSwap.objects.filter(
         school=school, teacher_b=user, status="pending_b"

@@ -74,7 +74,8 @@ jobs:
       - name: تثبيت المتطلبات
         run: |
           pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy
+          pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \
+            pytest-xdist==3.8.0
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -83,8 +84,13 @@ jobs:
         # بوّابة تغطية حقيقية: pytest.ini كان يحجب أعلام --cov في pyproject فلم
         # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 60% أرضية حالية (التغطية
         # الفعلية ≈63%)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
+        #
+        # و`-n auto`: المجموعةُ نفسُها تمرّ في CI في اثنتي عشرةَ دقيقةً وتمرّ هنا
+        # في اثنتين وأربعين — والفرقُ أنّ تلك تُوزّعها على الأنوية وهذه تُسلسلها.
+        # ثلاثون دقيقةً تُهدر في كلّ دورة، وبوّابةٌ بهذا الطول تُغري بتخطّيها لا
+        # باحترامها. و`-v` أُسقط معها: ثلاثةُ آلافِ سطرٍ لا يقرؤها أحد.
         run: |
-          python -m pytest -v --junit-xml=test-results.xml \
+          python -m pytest -n auto --junit-xml=test-results.xml \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov \
             --cov-fail-under=60
 

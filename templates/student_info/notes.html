@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load sorting %}
 
 {% block title %}{{ label }}{% endblock %}
 
@@ -19,14 +20,15 @@
   <div class="table-wrap">
     {% if page.object_list %}
     <div class="table-wrap-scroll">
-      <table>
+      {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
+      <table data-no-sort>
         <thead>
           <tr>
-            <th style="width:110px" class="col-center">التاريخ</th>
-            <th>الطالب</th>
-            <th style="width:200px">العنوان</th>
+            {% sort_th sort "date" "التاريخ" "col-center" %}
+            {% sort_th sort "student" "الطالب" %}
+            {% sort_th sort "title" "العنوان" %}
             <th>النصّ</th>
-            <th class="col-center" style="width:160px">الكاتب</th>
+            {% sort_th sort "author" "الكاتب" "col-center" %}
           </tr>
         </thead>
         <tbody>

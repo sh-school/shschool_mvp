@@ -18,6 +18,7 @@ from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
+from core.models.academic import grade_order
 
 from .models import (
     AnnualSubjectResult,
@@ -557,7 +558,7 @@ class GradeService:
         return (
             AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
             .select_related("student", "setup__subject", "setup__class_group")
-            .order_by("setup__class_group__grade", "student__full_name")
+            .order_by(grade_order("setup__class_group__grade"), "student__full_name")
         )
 
     @staticmethod
@@ -627,9 +628,7 @@ class GradeService:
 
         # ── Class comparison — 2 queries ──
         classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year).order_by(
-                "grade", "section"
-            )[:15]
+            ClassGroup.objects.filter(school=school, academic_year=year).in_school_order()[:15]
         )
         class_ids = [cg.pk for cg in classes]
 

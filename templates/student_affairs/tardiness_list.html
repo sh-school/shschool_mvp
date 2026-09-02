@@ -150,7 +150,8 @@
         <tr>
           <th>#</th>
           <th>اسم الطالب</th>
-          <th>الفصل</th>
+          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+          <th data-sort="num" data-sort-first="asc">الفصل</th>
           <th>عدد التكرار</th>
           <th>التوقيت</th>
           <th>الملاحظات</th>
@@ -167,7 +168,7 @@
               {{ rec.student.full_name }}
             </a>
           </td>
-          <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
+          <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
           <td>
             <span style="background:var(--bg-muted);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--red);font-weight:600{% endif %}">
               {{ rec.cumulative_late }}

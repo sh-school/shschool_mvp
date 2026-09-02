@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import ClassGroup, CustomUser, StudentEnrollment
+from core.models.academic import grade_order
 from core.permissions import leadership_required, role_required, teacher_can_access_student
 from operations.models import Subject
 
@@ -52,7 +53,7 @@ def assessments_dashboard(request):
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
             .select_related("subject", "class_group", "teacher")
-            .order_by("class_group__grade", "class_group__section", "subject__name_ar")
+            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
         )
 
         # إحصائيات عامة — استعلام واحد بدل 3
@@ -76,7 +77,7 @@ def assessments_dashboard(request):
                 school=school, teacher=request.user, academic_year=year, is_active=True
             )
             .select_related("subject", "class_group", "teacher")
-            .order_by("class_group__grade", "class_group__section")
+            .order_by(grade_order("class_group__grade"), "class_group__section")
         )
         total_results = passed = failed = 0
         failing_list = []
@@ -789,7 +790,7 @@ def setup_subject(request):
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     classes = ClassGroup.objects.filter(
         school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).order_by("grade", "section")
+    ).in_school_order()
     from core.models import Membership
 
     t_ids = Membership.objects.filter(

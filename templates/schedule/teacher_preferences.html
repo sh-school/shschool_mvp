@@ -31,10 +31,23 @@
     <div class="form-group">
       <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
       <select name="max_consecutive" id="max_consecutive" class="form-control">
+        <option value="1" {% if pref.max_consecutive == 1 %}selected{% endif %}>حصة واحدة — لا تجاور</option>
         <option value="2" {% if pref.max_consecutive == 2 %}selected{% endif %}>2 حصص</option>
         <option value="3" {% if pref.max_consecutive == 3 %}selected{% endif %}>3 حصص (الافتراضي)</option>
       </select>
-      <p class="form-hint">الحد الأقصى المقبول للحصص المتتالية بدون استراحة</p>
+      <p class="form-hint">الحد الأقصى المقبول للحصص المتتالية بدون استراحة. و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان البتة.</p>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="max_gap">أقصى فجوة بين حصتين</label>
+      <select name="max_gap" id="max_gap" class="form-control">
+        <option value="" {% if pref.max_gap is None %}selected{% endif %}>— بدون حد (الافتراضي) —</option>
+        <option value="0" {% if pref.max_gap == 0 %}selected{% endif %}>بدون فجوة — حصص متصلة</option>
+        <option value="1" {% if pref.max_gap == 1 %}selected{% endif %}>حصة فارغة واحدة</option>
+        <option value="2" {% if pref.max_gap == 2 %}selected{% endif %}>حصتان فارغتان</option>
+        <option value="3" {% if pref.max_gap == 3 %}selected{% endif %}>3 حصص فارغة</option>
+      </select>
+      <p class="form-hint">أوسع فراغ مقبول بين حصتين في اليوم الواحد. و«حصة فارغة واحدة» تعني أن تكون حصصك متباعدة حصة حصة — الثانية فالرابعة فالسادسة.</p>
     </div>
 
     <div class="form-group">

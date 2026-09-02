@@ -161,3 +161,136 @@ def test_a_plain_subject_is_untouched(school, bell):
 
     assert len(tasks) == 4
     assert all(t.span == 1 for t in tasks)
+
+
+# ── الازدواجُ قرارُ الشاشة لا رمزُ المادّة ──────────────────────────────
+
+
+def test_technology_is_no_longer_doubled_by_its_code(school, bell):
+    """قرارُ الإدارة (2026-09-02): التكنولوجيا حصّتان متباعدتان لا مزدوجة.
+
+    وكان الرمزُ «TECH» محفوراً في الشيفرة إلى جانب حقل القاعدة، فيُزدوَج وإن
+    كان الحقلُ مطفأً — أي أنّ زرّ شاشة الإعدادات كان كذبةً في حقّه.
+    """
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ التكنولوجيا")
+    MembershipFactory(user=teacher, school=school, role=role)
+    group = ClassGroupFactory(school=school, grade="G8", level_type="prep", academic_year=YEAR)
+    tech = Subject.objects.create(
+        school=school, name_ar="التكنولوجيا", code="TECH", requires_double_period=False
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=group,
+        subject=tech,
+        weekly_periods=2,
+        is_active=True,
+    )
+
+    tasks = build_tasks(school, YEAR)
+
+    assert len(tasks) == 2, "حصّتان مفردتان لا خانةٌ مزدوجة"
+    assert all(task.span == 1 for task in tasks)
+    assert all(not task.prefers_double for task in tasks)
+
+
+def test_the_two_technology_periods_land_on_different_days(school, bell):
+    """وحصّتان في أسبوعٍ خماسيّ تُفرّقهما القسمةُ على الأيّام — فلا تتجاوران."""
+    from operations.models import ScheduleSlot
+
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ التكنولوجيا")
+    MembershipFactory(user=teacher, school=school, role=role)
+    group = ClassGroupFactory(school=school, grade="G9", level_type="prep", academic_year=YEAR)
+    tech = Subject.objects.create(
+        school=school, name_ar="التكنولوجيا", code="TECH", requires_double_period=False
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=group,
+        subject=tech,
+        weekly_periods=2,
+        is_active=True,
+    )
+
+    generate_schedule(school, YEAR)
+
+    placed = sorted(
+        (r.day_of_week, r.period_number)
+        for r in ScheduleSlot.objects.filter(school=school, academic_year=YEAR, is_active=True)
+    )
+    assert len(placed) == 2
+    assert placed[0][0] != placed[1][0], "يومان لا يومٌ واحد"
+
+
+def test_the_screen_switch_still_doubles_what_it_marks(school, bell):
+    """والزرُّ يعمل في الاتّجاه الآخر: مادّةٌ وُسِمت تُزدوَج ولو لم يكن لها رمز."""
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ ورشة")
+    MembershipFactory(user=teacher, school=school, role=role)
+    group = ClassGroupFactory(school=school, grade="G8", level_type="prep", academic_year=YEAR)
+    workshop = Subject.objects.create(
+        school=school, name_ar="ورشة", code="", requires_double_period=True
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=group,
+        subject=workshop,
+        weekly_periods=2,
+        is_active=True,
+    )
+
+    tasks = build_tasks(school, YEAR)
+
+    assert len(tasks) == 1 and tasks[0].span == 2
+
+
+def test_a_class_may_override_the_subject_decision(school, bell):
+    """قرارُ الشعبة يسبق قرارَ المادّة — فالمادّةُ الواحدةُ حالان بحسب الصفّ.
+
+    التكنولوجيا من السابع إلى العاشر حصّتان متباعدتان، وهي في الحادي عشر/1
+    نصفُ زوجٍ متوازٍ مع الفنّيّة المزدوجة — والمتوازيان في خانةٍ واحدة فشكلُهما
+    واحد. وحقلُ المادّة وحده لا يسع الحالين: إشعالُه يُلصق حصص السابع،
+    وإطفاؤه يفكّ زوجَ الحادي عشر.
+    """
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ التكنولوجيا")
+    MembershipFactory(user=teacher, school=school, role=role)
+    tech = Subject.objects.create(
+        school=school, name_ar="التكنولوجيا", code="TECH", requires_double_period=False
+    )
+
+    prep = ClassGroupFactory(school=school, grade="G8", level_type="prep", academic_year=YEAR)
+    senior = ClassGroupFactory(school=school, grade="G11", level_type="sec", academic_year=YEAR)
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=prep,
+        subject=tech,
+        weekly_periods=2,
+        is_active=True,
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=senior,
+        subject=tech,
+        weekly_periods=2,
+        double_period=True,
+        is_active=True,
+    )
+
+    spans = {}
+    for task in build_tasks(school, YEAR):
+        spans.setdefault(task.class_id, []).append(task.span)
+
+    assert sorted(spans[str(prep.id)]) == [1, 1], "الثامنُ حصّتان مفردتان"
+    assert spans[str(senior.id)] == [2], "والحادي عشر خانةٌ مزدوجة"

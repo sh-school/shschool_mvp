@@ -10,6 +10,7 @@ from django.db.models import Count, QuerySet
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.models import StudentEnrollment
+from core.models.academic import grade_order
 from operations.departments import (
     department_info,
     department_of_subject,
@@ -318,7 +319,12 @@ class ScheduleService:
             qs = qs.filter(generation=generation)
         else:
             qs = qs.filter(is_active=True)
-        qs = qs.select_related("teacher", "class_group", "subject")
+        # وداخلَ الخانة الواحدة ترتيبُ المدرسة: من 7/1 إلى 12/4. فخانةُ العرض
+        # العامّ تحمل شعبَ المدرسة كلَّها، وبلا ترتيبٍ صريحٍ يُخرجها المحرّك
+        # كيف اتّفق — فلا يجد القارئُ شعبتَه إلّا بمسحِ خمسٍ وعشرين بطاقة.
+        qs = qs.select_related("teacher", "class_group", "subject").order_by(
+            grade_order("class_group__grade"), "class_group__section"
+        )
         if teacher:
             qs = qs.filter(teacher=teacher)
         if class_group:

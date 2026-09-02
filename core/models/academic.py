@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.functions import Cast, Substr
 from django.utils import timezone
 
 from core.academic_calendar import default_academic_year
@@ -53,6 +54,57 @@ class AcademicYear(models.Model):
         return f"{self.name}{current} — {self.school.name}"
 
 
+#: ترتيبُ الصفّ عدداً لا حرفاً.
+#:
+#: `grade` نصٌّ («G7» … «G12»)، وترتيبُه الأبجديُّ يضع العاشرَ والحادي عشر
+#: والثاني عشر **قبل** السابع — فتخرج قوائمُ الشُّعب في الشاشات هكذا:
+#:
+#:     10/1 … 10/4 · 11/1 … 11/4 · 12/1 … 12/4 · 7/1 …
+#:
+#: وهو ترتيبٌ لا يقرؤه أحدٌ في مدرسة. فيُقتطع الحرفُ الأوّل ويُقرأ ما بعده
+#: عدداً: 7 ثمّ 8 … ثمّ 12.
+def grade_order(field: str = "grade"):
+    """ترتيبٌ تصاعديٌّ بالصفّ عبر أيّ مسار علاقة.
+
+        .order_by(grade_order("class_group__grade"), "class_group__section")
+
+    ولا يصلح لاستعلامٍ يجمع `values_list(...).distinct()`: الترتيبُ بتعبيرٍ
+    خارج قائمة الاختيار يرفضه المحرّك — فتلك تُفرَز بـ`grade_number` في
+    بايثون.
+    """
+    return Cast(Substr(field, 2), models.IntegerField()).asc()
+
+
+GRADE_ORDER = Cast(Substr("grade", 2), models.IntegerField())
+
+
+def grade_number(grade: str) -> int:
+    """رقمُ الصفّ من رمزه: «G12» → 12. وما لا يُقرأ يذهب إلى الذيل.
+
+    لفرزٍ في بايثون حيث يتعذّر في القاعدة — كقوائم الصفوف المميَّزة
+    (`distinct`)، فالترتيبُ بتعبيرٍ خارج قائمة الاختيار يرفضه المحرّك.
+    """
+    digits = (grade or "").removeprefix("G")
+    return int(digits) if digits.isdigit() else 99
+
+
+class ClassGroupQuerySet(models.QuerySet):
+    def in_school_order(self):
+        """من 7/1 إلى 12/4 — ترتيبُ المدرسة لا ترتيبُ الحروف."""
+        return self.order_by(GRADE_ORDER.asc(), "section")
+
+
+class ClassGroupManager(models.Manager.from_queryset(ClassGroupQuerySet)):
+    """الترتيبُ المدرسيُّ افتراضٌ لا استثناء — فمن نسي `order_by` أصاب.
+
+    و`Meta.ordering` لا يسعه: ترتيبُنا تعبيرٌ محسوبٌ لا اسمُ حقل، ووضعُه هناك
+    يمرّ على مُسلسِل الهجرات.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().order_by(GRADE_ORDER.asc(), "section")
+
+
 class ClassGroup(models.Model):
     GRADES = [
         ("G7", "الصف السابع"),
@@ -96,6 +148,8 @@ class ClassGroup(models.Model):
     )
     is_active = models.BooleanField(default=True)
 
+    objects = ClassGroupManager()
+
     class Meta:
         # «الفصل الدراسي» مصطلحُ الوزارة للمدّة الزمنية (الأول/الثاني)، وهو
         # اسم `Semester`. وهذا النموذج يحمل `grade` و`section` معاً — أي
@@ -132,6 +186,17 @@ class ClassGroup(models.Model):
         grade = self.grade.removeprefix("G")
         section = self.section.rsplit("/", 1)[-1]
         return f"{grade}.{section}"
+
+    @property
+    def school_order(self) -> int:
+        """مفتاحُ الترتيب المدرسيّ عدداً: 7/1 → 701 و12/4 → 1204.
+
+        الشاشاتُ تعرض «الصف السابع / 1» نصّاً، وفرزُ ذلك النصِّ يضع العاشرَ
+        قبل السابع. فيُعطى العمودُ مفتاحاً عدديّاً يُفرَز به بدل حروفه.
+        وشعبةُ التربية الخاصّة لا عددَ لها فتُلحق بذيل صفِّها لا بذيل المدرسة.
+        """
+        section = self.section.rsplit("/", 1)[-1]
+        return grade_number(self.grade) * 100 + (int(section) if section.isdigit() else 99)
 
     def __str__(self):
         track = f" — {self.get_track_display()}" if self.track else ""

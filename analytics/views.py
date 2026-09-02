@@ -27,6 +27,7 @@ from core.models import (
     SchoolBus,
     StudentEnrollment,
 )
+from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
 from core.permissions import leadership_required
 from operations.models import Session, StudentAttendance
@@ -247,7 +248,7 @@ def api_class_comparison(request):
         StudentSubjectResult.objects.filter(setup__school=school, setup__academic_year=year)
         .values("setup__class_group__grade", "setup__class_group__section")
         .annotate(avg=Avg("total"))
-        .order_by("setup__class_group__grade", "setup__class_group__section")
+        .order_by(grade_order("setup__class_group__grade"), "setup__class_group__section")
     )
 
     labels = [

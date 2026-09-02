@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load sorting %}
 {% block title %}الزيارات الصفية{% endblock %}
 
 {% block breadcrumbs %}
@@ -70,9 +71,15 @@
     </div>
   </form>
 
-  <table class="table table-qatar">
+  {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}
+  <table class="table table-qatar" data-no-sort>
     <thead>
-      <tr><th>المعلّم</th><th>الزائر</th><th>المادّة</th><th>التاريخ</th><th>النوع</th><th>النسبة</th><th>الحالة</th><th>إجراءات</th></tr>
+      <tr>
+        {% sort_th sort "teacher" "المعلّم" %}{% sort_th sort "observer" "الزائر" %}
+        {% sort_th sort "subject" "المادّة" %}{% sort_th sort "date" "التاريخ" %}
+        {% sort_th sort "kind" "النوع" %}{% sort_th sort "score" "النسبة" %}
+        {% sort_th sort "status" "الحالة" %}<th>إجراءات</th>
+      </tr>
     </thead>
     <tbody>
       {% for o, p in rows %}

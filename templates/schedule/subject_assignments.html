@@ -68,7 +68,8 @@
     <table>
       <thead>
         <tr>
-          <th scope="col">الشعبة</th>
+          {# مفتاحُه عددٌ، لكنّ قراءتَه تصاعديّةٌ: 7/1 ثمّ ما بعدها إلى 12/4. #}
+          <th scope="col" data-sort="num" data-sort-first="asc">الشعبة</th>
           <th scope="col">المادة</th>
           <th scope="col">المعلم</th>
           <th scope="col" class="text-center">الحصص/أسبوع</th>
@@ -82,7 +83,8 @@
         {% for a in assignments %}
         <tr data-filter-row data-text="{{ a.class_group }} {{ a.subject.name_ar }} {{ a.teacher.full_name|default:'' }}">
           {# صفٌّ واحد = استمارةٌ واحدة: التعديل في مكانه، لا صفحةَ تحرير لكلّ سطر. #}
-          <td class="font-semibold">{{ a.class_group }}</td>
+          {# الفرزُ بمفتاحٍ عدديّ: «الصف العاشر» نصّاً يسبق «السابع»، وعدداً يليه. #}
+          <td class="font-semibold" data-sort-value="{{ a.class_group.school_order }}">{{ a.class_group }}</td>
           <td>{{ a.subject.name_ar }}</td>
           <td>
             <select name="teacher" form="edit-{{ a.id }}" class="form-control form-control-sm" aria-label="معلّم {{ a.subject.name_ar }} لشعبة {{ a.class_group }}">

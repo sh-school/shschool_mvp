@@ -6197,3 +6197,53 @@ html.dark .wl-gap { color: #fbbf24; }
   .wl-chips { max-width: 14rem; }
   .table-wrap .wl-row-detail > td { padding-inline: var(--sp-3); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   فرزُ الأعمدة — ترويسةٌ قابلةٌ للنقر
+   الزرُّ يرث حجمَ الترويسة ولونَها؛ والسهمُ باهتٌ حتى يُفرَز به العمود.
+   ══════════════════════════════════════════════════════════════ */
+a.th-sort { text-decoration: none; }
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+th.col-center .th-sort, th.col-center > .th-sort { justify-content: center; }
+.th-sort-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.th-sort-arrow {
+  flex: none;
+  width: .75em;
+  font-size: .8em;
+  line-height: 1;
+  opacity: .35;
+}
+.th-sort-arrow::before { content: "⇅"; }
+.th-sort:hover .th-sort-arrow { opacity: .7; }
+/* حلقةُ التركيز تأخذ لونَ نصّ الترويسة نفسِه: العنّابيُّ الثابتُ كان يختفي على
+   ترويسةٍ عنّابيّة، فلا يرى المتنقّلُ بالمفاتيح أين هو. */
+.th-sort:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+th[aria-sort="ascending"] .th-sort-arrow::before  { content: "▲"; }
+th[aria-sort="descending"] .th-sort-arrow::before { content: "▼"; }
+
+/* العمودُ المفروزُ يُميَّز بلون الترويسة نفسِه لا بلونٍ ثابت: ترويسةُ المنصّة
+   عنّابيّةُ الخلفية بيضاءُ النصّ، ولو صُبغ العنوانُ عنّابيّاً لاختفى فيها. */
+th[aria-sort="ascending"] .th-sort-arrow,
+th[aria-sort="descending"] .th-sort-arrow { opacity: 1; }
+th[aria-sort="ascending"] .th-sort-label,
+th[aria-sort="descending"] .th-sort-label {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+}

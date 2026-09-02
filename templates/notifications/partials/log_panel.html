@@ -1,0 +1,86 @@
+{% load sorting %}
+{% comment %}
+  لوحُ سجلّ الإشعارات — الجزءُ الذي يُستبدَل وحدَه عند الفرز أو تغيير الصفحة.
+
+  نقرةُ الفرز كانت تُعيد تحميلَ الصفحة كلِّها، فيقفز القارئُ إلى رأسها وتغيب
+  عن عينيه الترويسةُ التي نقر عليها. فصار التبديلُ جزئيّاً: هذا العنصرُ وحدَه
+  يُستبدَل، والمكانُ لا يتزحزح. والروابطُ تبقى روابطَ صحيحةً لمن لا HTMX عنده.
+
+  السياق: logs (صفحةُ السجلّ)، logs_page (نفسها للتقسيم)، sort (حالةُ الفرز).
+{% endcomment %}
+<div id="notif-log-panel">
+  <div class="table-wrap-scroll" style="max-height:400px;overflow-y:auto">
+    {# السجلُّ مقسَّمٌ صفحاتٍ: الفرزُ من الخادم على الإشعارات كلِّها. #}
+    <table class="w-full text-sm" data-no-sort>
+      <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]" style="position:sticky;top:0;z-index:1">
+        <tr>
+          {% sort_th sort "date" "التاريخ" "px-3 py-2 text-right text-xs" target="#notif-log-panel" %}
+          {% sort_th sort "student" "الطالب" "px-3 py-2 text-right text-xs" target="#notif-log-panel" %}
+          {% sort_th sort "recipient" "المستلم" "px-3 py-2 text-right text-xs" target="#notif-log-panel" %}
+          {% sort_th sort "channel" "القناة" "px-3 py-2 text-center text-xs" target="#notif-log-panel" %}
+          {% sort_th sort "type" "النوع" "px-3 py-2 text-center text-xs" target="#notif-log-panel" %}
+          {% sort_th sort "status" "الحالة" "px-3 py-2 text-center text-xs" target="#notif-log-panel" %}
+          <th scope="col" class="px-3 py-2 text-center text-xs">إعادة</th>
+        </tr>
+      </thead>
+      <tbody id="notif-log-tbody" class="divide-y divide-[var(--border)]">
+        {% for log in logs %}
+        <tr class="hover:bg-[var(--surface-alt)]" data-filter-row
+            data-text="{{ log.student.full_name|default:'' }} {{ log.recipient }} {{ log.get_channel_display }} {{ log.get_notif_type_display }} {{ log.get_status_display }}">
+          <td class="px-3 py-2 text-xs text-[var(--muted)]">{{ log.sent_at|date:"d/m H:i" }}</td>
+          <td class="px-3 py-2 text-xs font-medium text-[var(--text)]">{{ log.student.full_name|default:"—" }}</td>
+          <td class="px-3 py-2 text-xs text-[var(--muted)] truncate max-w-[120px]">{{ log.recipient }}</td>
+          <td class="px-3 py-2 text-center">
+            <span class="status-badge text-[10px]
+              {% if log.channel == 'email' %}status-info{% else %}status-success{% endif %}">
+              {{ log.get_channel_display }}
+            </span>
+          </td>
+          <td class="px-3 py-2 text-center text-xs text-[var(--muted)]">{{ log.get_notif_type_display }}</td>
+          <td class="px-3 py-2 text-center">
+            {% if log.status == "sent" %}
+              <span class="status-badge text-[10px] status-success">أُرسل</span>
+            {% elif log.status == "failed" %}
+              <span class="status-badge text-[10px] status-danger"
+                    title="تعذر إرسال الإشعار">فشل</span>
+            {% else %}
+              <span class="px-2 py-0.5 rounded-full text-[10px] bg-[var(--surface-alt)] text-[var(--muted)]">معلّق</span>
+            {% endif %}
+          </td>
+          <td class="px-3 py-2 text-center">
+            {% if log.status == "failed" %}
+            <form method="post" action="{% url 'resend_notification' log.id %}">
+              {% csrf_token %}
+              <button type="submit" class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">
+                إعادة
+              </button>
+            </form>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# التنقّلُ بين الصفحات — يحمل الفرزَ معه، وإلّا عاد الترتيبُ إلى أصله بنقرة #}
+  {% if logs_page.has_other_pages %}
+  <div class="flex items-center justify-center gap-2 px-4 py-3 border-t border-[var(--border)]">
+    {% if logs_page.has_previous %}
+    <a href="{% querystring page=logs_page.previous_page_number %}"
+       hx-get="{% querystring page=logs_page.previous_page_number %}"
+       hx-target="#notif-log-panel" hx-swap="outerHTML" hx-push-url="true"
+       class="btn-secondary btn-sm text-xs" aria-label="الصفحة السابقة">&rarr; السابقة</a>
+    {% endif %}
+    <span class="text-xs text-[var(--muted)]">
+      صفحة {{ logs_page.number }} من {{ logs_page.paginator.num_pages }}
+    </span>
+    {% if logs_page.has_next %}
+    <a href="{% querystring page=logs_page.next_page_number %}"
+       hx-get="{% querystring page=logs_page.next_page_number %}"
+       hx-target="#notif-log-panel" hx-swap="outerHTML" hx-push-url="true"
+       class="btn-secondary btn-sm text-xs" aria-label="الصفحة التالية">التالية &larr;</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>

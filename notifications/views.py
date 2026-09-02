@@ -14,9 +14,20 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.permissions import leadership_required, role_required
+from core.sorting import apply_sort
 
 from .models import NotificationLog, NotificationSettings
 from .services import NotificationService
+
+# حقولُ الفرز المسموحة — `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى.
+LOG_SORTS = {
+    "date": ("sent_at",),
+    "student": ("student__full_name", "-sent_at"),
+    "recipient": ("recipient", "-sent_at"),
+    "channel": ("channel", "-sent_at"),
+    "type": ("notif_type", "-sent_at"),
+    "status": ("status", "-sent_at"),
+}
 
 
 @login_required
@@ -29,13 +40,22 @@ def notifications_dashboard(request):
     from django.core.paginator import Paginator
 
     page_num = request.GET.get("page", 1)
-    logs_qs = (
-        NotificationLog.objects.filter(school=school)
-        .select_related("student", "sent_by")
-        .order_by("-sent_at")
+    logs_qs = NotificationLog.objects.filter(school=school).select_related("student", "sent_by")
+    # الفرزُ على السجلّ كلِّه قبل التقسيم — لا على الصفحة الظاهرة وحدَها.
+    logs_qs, sort = apply_sort(
+        logs_qs, request, LOG_SORTS, "date", default_desc=True, desc_first=("date",)
     )
     paginator = Paginator(logs_qs, 25)
     logs_page = paginator.get_page(page_num)
+
+    # نقرةُ الفرز أو التنقّل تُبدّل لوحَ السجلّ وحدَه: لا إحصاءاتٍ تُعاد ولا
+    # صفحةً تُحمَّل من جديد، فلا يقفز القارئُ إلى رأسها وتغيب عنه ترويسته.
+    if getattr(request, "htmx", None) and request.htmx.target == "notif-log-panel":
+        return render(
+            request,
+            "notifications/partials/log_panel.html",
+            {"logs": logs_page, "logs_page": logs_page, "sort": sort},
+        )
 
     # ✅ v5.4: NotificationService.get_dashboard_stats — 5 queries في service layer
     stats = NotificationService.get_dashboard_stats(school, year=year)
@@ -49,6 +69,7 @@ def notifications_dashboard(request):
         {
             "logs": logs_page,
             "logs_page": logs_page,
+            "sort": sort,
             "cfg": cfg,
             "year": year,
             **stats,

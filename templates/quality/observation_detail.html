@@ -32,7 +32,8 @@
 
   {% for domain_label, rows in grouped %}
   <h3 class="section-title">{{ domain_label }}</h3>
-  <table class="table table-qatar" style="font-size:.9rem">
+  {# ترتيبُ المعايير كما في الاستمارة المعتمَدة — لا يُفرَز. #}
+  <table class="table table-qatar" style="font-size:.9rem" data-no-sort>
     <thead><tr><th style="width:45%">المعيار</th><th>التقييم</th><th>التوصية</th></tr></thead>
     <tbody>
       {% for c, sc in rows %}

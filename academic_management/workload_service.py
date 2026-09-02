@@ -30,6 +30,7 @@ from academic_management.models import (
     TeacherSubjectQualification,
     TeacherWorkloadPlan,
 )
+from core.models.academic import grade_number
 from operations import schedule_profile as base
 from operations import workload_profile as wl
 
@@ -192,7 +193,7 @@ def teacher_view(lessons, rows, plans=None):
                 "status": check.get("status", ""),
                 "subjects": list(row.subjects.values()),
                 "sections": sorted(row.sections),
-                "grades": sorted(row.grades),
+                "grades": sorted(row.grades, key=grade_number),
                 "per_day": row.per_day,
                 "cells": cells,
                 "multi_subject": row.multi_subject,
@@ -255,9 +256,15 @@ def subject_view(lessons, rows):
                 "covered": covered,
                 "delta": demand - covered,
                 "unstaffed": sum(1 for s in sections if s["assigned_teacher"] == UNKNOWN),
+                # رتبةُ الصفّ عدداً: «G10» يلي «G7» في القراءة لا يسبقُه.
+                "grade_order": grade_number(grade),
+                # شدّةُ الخلل: شعبةٌ بلا معلّمٍ أثقلُ من فرقِ حصّة، فتتقدّم عليه.
+                "severity": sum(1 for s in sections if s["assigned_teacher"] == UNKNOWN) * 1000
+                + abs(demand - covered),
             }
         )
-    return sorted(out, key=lambda s: (s["grade"], -s["demand"]))
+    # «G10» يسبق «G7» أبجديّاً — والقارئُ يقرأ 7 ثمّ 8 … ثمّ 12.
+    return sorted(out, key=lambda s: (grade_number(s["grade"]), -s["demand"]))
 
 
 def section_view(lessons, rows):
@@ -306,9 +313,11 @@ def section_view(lessons, rows):
                 "subjects": sorted(subjects, key=lambda s: -s["scheduled"]),
                 "weekly": sum(s["scheduled"] for s in subjects),
                 "teachers": len({s["teacher"] for s in subjects}),
+                # رتبةُ الصفّ عدداً — لفرزِ العمود لا لعرضه.
+                "grade_order": grade_number(grade),
             }
         )
-    return sorted(out, key=lambda s: (s["grade"], s["label"]))
+    return sorted(out, key=lambda s: (grade_number(s["grade"]), s["label"]))
 
 
 # ══════════════════════════════════════════════════════════════════════

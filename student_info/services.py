@@ -12,7 +12,7 @@ from collections import OrderedDict, defaultdict
 from django.db.models import Avg, Count, Q
 
 from assessments.models import AnnualSubjectResult
-from core.models.academic import ClassGroup, StudentEnrollment
+from core.models.academic import ClassGroup, StudentEnrollment, grade_number
 from student_affairs.models import StudentActivity
 from student_info.models import NOTE_CATEGORIES, StudentNote
 
@@ -119,7 +119,7 @@ def grade_and_track_choices(school, year):
     groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
     grades = [
         (g, dict(ClassGroup.GRADES).get(g, g))
-        for g in groups.values_list("grade", flat=True).distinct().order_by("grade")
+        for g in sorted(set(groups.values_list("grade", flat=True)), key=grade_number)
     ]
     tracks = [
         (t, dict(ClassGroup.TRACKS).get(t, t))

@@ -49,7 +49,8 @@
           <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
           <th scope="col" class="px-4 py-3 text-right">المعلم الأصلي</th>
           <th scope="col" class="px-4 py-3 text-right">المادة</th>
-          <th scope="col" class="px-4 py-3 text-right">الفصل</th>
+          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+          <th scope="col" class="px-4 py-3 text-right" data-sort="num" data-sort-first="asc">الفصل</th>
           <th scope="col" class="px-4 py-3 text-right">الحصة</th>
           <th scope="col" class="px-4 py-3 text-right">البديل</th>
           <th scope="col" class="px-4 py-3 text-right">الحالة</th>
@@ -61,7 +62,7 @@
           <td class="px-4 py-3">{{ a.absence.date }}</td>
           <td class="px-4 py-3 font-medium text-gray-700">{{ a.absence.teacher.full_name }}</td>
           <td class="px-4 py-3 text-gray-600">{{ a.slot.subject|default:"—" }}</td>
-          <td class="px-4 py-3 text-gray-600">{{ a.slot.class_group }}</td>
+          <td class="px-4 py-3 text-gray-600" data-sort-value="{{ a.slot.class_group.school_order }}">{{ a.slot.class_group }}</td>
           <td class="px-4 py-3 text-center">{{ a.slot.period_number }}</td>
           <td class="px-4 py-3 font-semibold text-skyline">{{ a.substitute.full_name }}</td>
           <td class="px-4 py-3">

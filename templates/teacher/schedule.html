@@ -132,7 +132,8 @@
       <tr>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
         {% if is_leadership %}<th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المعلم</th>{% endif %}
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الفصل</th>
+          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+          <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" data-sort="num" data-sort-first="asc">الفصل</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
@@ -147,7 +148,7 @@
           <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
         </td>
         {% if is_leadership %}<td class="px-4 py-3 text-sm text-gray-600">{{ session.teacher.full_name }}</td>{% endif %}
-        <td class="px-4 py-3 text-sm text-gray-600">{{ session.class_group }}</td>
+        <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group }}</td>
         <td class="px-4 py-3 text-sm text-gray-600 font-mono">
           {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
         </td>

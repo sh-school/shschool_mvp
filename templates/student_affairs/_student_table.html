@@ -7,7 +7,8 @@
       <tr>
         <th>الاسم</th>
         <th class="col-center">الرقم الشخصي</th>
-        <th class="col-center">الصف</th>
+        {# الصفُّ يُفرَز عدداً لا حرفاً: 7 ثمّ 8 … ثمّ 12. #}
+        <th class="col-center" data-sort="num" data-sort-first="asc">الصف</th>
         <th class="col-center">الشعبة</th>
         <th class="col-center">الجوال</th>
         <th class="col-actions">الإجراءات</th>
@@ -25,7 +26,7 @@
           {% endif %}
         </td>
         <td class="col-num col-center" style="font-family:monospace;font-size:var(--text-xs)">{{ s.national_id }}</td>
-        <td class="col-center">
+        <td class="col-center" data-sort-value="{{ s.grade_order }}">
           <span class="status-badge status-info">{{ s.grade }}</span>
         </td>
         <td class="col-center">{{ s.section }}</td>

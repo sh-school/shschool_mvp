@@ -473,3 +473,80 @@ class TestTeacherDepartments:
         codes = [r["department"]["code"] for r in rows]
         assert codes == ["sharia", "arabic"]
         assert DEPARTMENT_ORDER["sharia"] < DEPARTMENT_ORDER["arabic"]
+
+
+# ══════════════════════════════════════════════════
+#  ترتيبُ الشُّعب: من 7/1 إلى 12/4
+# ══════════════════════════════════════════════════
+
+
+class TestClassGroupOrdering:
+    """`grade` نصٌّ («G7» … «G12»)، وترتيبُه الأبجديُّ يضع العاشرَ قبل السابع."""
+
+    @pytest.fixture
+    def ladder(self, db, school):
+        from tests.conftest import ClassGroupFactory
+
+        rows = [("G12", "4"), ("G7", "1"), ("G10", "2"), ("G9", "3"), ("G7", "2")]
+        return [
+            ClassGroupFactory(
+                school=school, grade=grade, section=section, academic_year="2026-2027"
+            )
+            for grade, section in rows
+        ]
+
+    def test_the_default_order_reads_as_a_school_reads(self, school, ladder):
+        from core.models import ClassGroup
+
+        codes = [c.short_code for c in ClassGroup.objects.filter(school=school)]
+
+        assert codes == ["7.1", "7.2", "9.3", "10.2", "12.4"]
+
+    def test_in_school_order_survives_an_explicit_call(self, school, ladder):
+        from core.models import ClassGroup
+
+        codes = [c.short_code for c in ClassGroup.objects.filter(school=school).in_school_order()]
+
+        assert codes == ["7.1", "7.2", "9.3", "10.2", "12.4"]
+
+    def test_grade_number_reads_the_digits(self):
+        from core.models.academic import grade_number
+
+        assert [grade_number(g) for g in ("G7", "G9", "G10", "G12")] == [7, 9, 10, 12]
+        assert grade_number("") == 99, "وما لا يُقرأ إلى الذيل — ولا يسقط"
+
+    def test_the_weekly_grid_orders_the_sections_inside_a_cell(
+        self, school, class_group, teacher_user, subject
+    ):
+        """خانةُ العرض العامّ تحمل شعبَ المدرسة كلَّها — فتُقرأ بترتيبها."""
+        from operations.services import ScheduleService
+        from tests.conftest import ClassGroupFactory
+
+        senior = ClassGroupFactory(
+            school=school, grade="G12", section="1", academic_year=class_group.academic_year
+        )
+        for group, teacher in ((senior, teacher_user), (class_group, UserFactory(full_name="آخر"))):
+            if teacher is not teacher_user:
+                MembershipFactory(
+                    user=teacher, school=school, role=RoleFactory(school=school, name="teacher_b")
+                )
+            ScheduleSlot.objects.create(
+                school=school,
+                class_group=group,
+                teacher=teacher,
+                subject=subject,
+                day_of_week=0,
+                period_number=1,
+                start_time=time(7, 30),
+                end_time=time(8, 15),
+                academic_year=class_group.academic_year,
+            )
+
+        cell = ScheduleService.get_weekly_schedule(school, None, None, class_group.academic_year)[
+            0
+        ][1]
+
+        grades = [s.class_group.grade for s in cell]
+
+        assert grades == ["G7", "G12"], "السابعُ أوّلاً وإن جاء الثاني عشرَ قبله في القاعدة"
+        assert cell[-1].class_group_id == senior.id

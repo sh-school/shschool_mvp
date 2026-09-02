@@ -29,6 +29,7 @@
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
+from core.models.academic import grade_order
 from operations.schedule_profile import DAY_NAMES
 
 MATCH = "MATCH"
@@ -135,7 +136,7 @@ def assignment_rows(school, academic_year):
             school=school, academic_year=academic_year, is_active=True
         )
         .select_related("teacher", "class_group", "subject")
-        .order_by("class_group__grade", "class_group__section")
+        .order_by(grade_order("class_group__grade"), "class_group__section")
     )
     out = []
     for r in rows:

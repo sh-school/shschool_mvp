@@ -598,12 +598,13 @@
     <p class="section-label mb-3">{% include "components/icon.html" with name="calendar" %} جدول جلسات اليوم</p>
     <div class="resp-table-wrap">
       <table class="resp-table">
-        <thead><tr><th>الوقت</th><th>الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
+        {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+        <thead><tr><th>الوقت</th><th data-sort="num" data-sort-first="asc">الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
         <tbody>
           {% for s in sessions_today %}
           <tr>
             <td>{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
-            <td>{{ s.class_group }}</td>
+            <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group }}</td>
             <td>{{ s.subject|default:"جلسة" }}</td>
             <td><span class="badge-status {{ s.status }}">{{ s.get_status_display }}</span></td>
           </tr>
