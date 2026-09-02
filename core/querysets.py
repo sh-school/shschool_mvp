@@ -184,7 +184,9 @@ class MembershipQuerySet(models.QuerySet):
     def teachers(self, school=None) -> MembershipQuerySet:
         from core.models.access import TEACHING_ROLES
 
-        qs = self.filter(role__name__in=TEACHING_ROLES)
+        # العضويّةُ النشطةُ شرطٌ هنا كما في `UserQuerySet.teachers()` — فمن غادر
+        # لا يُعدّ مدرِّساً من أيّ باب.
+        qs = self.filter(role__name__in=TEACHING_ROLES, is_active=True)
         return qs.for_school(school) if school else qs
 
     def with_user(self) -> MembershipQuerySet:
