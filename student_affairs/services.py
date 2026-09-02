@@ -21,7 +21,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
-from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
+from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, grade_order
 from core.models.access import Membership, Role
 from core.models.user import CustomUser, Profile
 
@@ -173,7 +173,7 @@ class StudentService:
         grade_distribution = (
             active_enrollments.values("class_group__grade")
             .annotate(count=Count("id"))
-            .order_by("class_group__grade")
+            .order_by(grade_order("class_group__grade"))
         )
 
         # عدد أولياء الأمور المرتبطين
@@ -808,7 +808,7 @@ class AttendanceService:
                 excused=Count("id", filter=Q(status="excused")),
                 total=Count("id"),
             )
-            .order_by("session__class_group__grade", "session__class_group__section")
+            .order_by(grade_order("session__class_group__grade"), "session__class_group__section")
         )
 
         # ── 4. تنبيهات الغياب المتكرر (قيد المراجعة) ──
@@ -892,7 +892,7 @@ class AttendanceService:
             StudentAttendance.objects.filter(base_filter)
             .values("session__class_group__grade", "session__class_group__section")
             .annotate(count=Count("id"))
-            .order_by("session__class_group__grade")
+            .order_by(grade_order("session__class_group__grade"))
         )
 
         # ── مؤشرات KPI ──

@@ -81,8 +81,8 @@ def visible_class_groups(user, school, year):
     groups = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
     role = user.get_role()
     if user.is_superuser or role in SCHOOL_WIDE_READERS:
-        return groups.order_by("grade", "section")
-    return groups.filter(id__in=taught_class_ids(user, year)).order_by("grade", "section")
+        return groups.in_school_order()
+    return groups.filter(id__in=taught_class_ids(user, year)).in_school_order()
 
 
 def can_read_student(user, student, school, year):

@@ -176,7 +176,7 @@ class SubjectClassAssignmentForm(forms.ModelForm):
         self.school, self.year = school, year
         self.fields["class_group"].queryset = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
         self.fields["subject"].queryset = Subject.objects.filter(school=school).order_by("name_ar")
         self.fields["teacher"].queryset = CustomUser.objects.teachers(school).order_by("full_name")
         self.fields["teacher"].required = False
