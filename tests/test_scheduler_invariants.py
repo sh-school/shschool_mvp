@@ -291,7 +291,10 @@ def test_an_impossible_demand_is_reported_not_dropped(tiny_school):
 
     SubjectClassAssignment.objects.filter(school=tiny_school["school"]).update(weekly_periods=40)
 
-    result = generate_schedule(tiny_school["school"], "2026-2027")
+    # بلا ميزانيّةِ إزاحة: الثابتُ المُختبَر هو أنّ المتعذّرَ يُسمّى، لا كم
+    # يُنقذ الإصلاحُ منه. وبالميزانيّة الكاملة يُقضى ثلاثَ عشرةَ دقيقةً في
+    # إزاحاتٍ لا خانةَ لها أصلاً — خمسٌ وثلاثون خانةً لأربعين حصّة.
+    result = generate_schedule(tiny_school["school"], "2026-2027", max_backtrack=0)
 
     placed = len(result["grid"].all_entries())
     assert result["total_tasks"] == 40
