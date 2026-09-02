@@ -128,9 +128,9 @@ def test_the_observatory_stays_read_only(client_as, coordinator):
     """`/workload/` مرصدٌ — ولا يقبل أمراً."""
     response = client_as(coordinator).post(reverse("academic_management:workload"))
 
-    assert response.status_code in (403, 405) or response.status_code == 200, (
-        "المرصدُ لا يُنشئ شيئاً بالـPOST"
-    )
+    assert (
+        response.status_code in (403, 405) or response.status_code == 200
+    ), "المرصدُ لا يُنشئ شيئاً بالـPOST"
     assert TeacherWorkloadPlan.objects.count() == 0
 
 
@@ -163,8 +163,9 @@ def test_a_plan_from_another_school_is_404_not_403(client_as, coordinator, schoo
     assert response.status_code == 404
 
 
-def test_an_illegal_transition_is_a_message_not_a_500(client_as, head, coordinator, school,
-                                                      target_teacher):
+def test_an_illegal_transition_is_a_message_not_a_500(
+    client_as, head, coordinator, school, target_teacher
+):
     plan = a_draft(school, target_teacher, coordinator)
 
     response = client_as(head).post(
@@ -201,17 +202,20 @@ def test_a_stale_write_is_refused_not_merged(client_as, coordinator, school, tar
     assert plan.required_weekly_periods == 20, "لم يُطمَس ما كتبه غيرُه"
 
 
-def test_the_assignment_cannot_be_edited_from_the_plan_editor(client_as, coordinator, school,
-                                                              target_teacher, subject):
+def test_the_assignment_cannot_be_edited_from_the_plan_editor(
+    client_as, coordinator, school, target_teacher, subject
+):
     """معالجةُ فرقِ الإسناد عمليّةٌ مستقلّة — ولا مدخلَ لها من هنا."""
     from operations.models import SubjectClassAssignment
 
     plan = a_draft(school, target_teacher, coordinator)
     assign(school, target_teacher, subject, periods=14)
 
-    body = client_as(coordinator).get(
-        reverse("academic_management:plan_editor", args=[plan.pk])
-    ).content.decode()
+    body = (
+        client_as(coordinator)
+        .get(reverse("academic_management:plan_editor", args=[plan.pk]))
+        .content.decode()
+    )
 
     assert "14 / 16" in body, "الإسنادُ معروضٌ"
     assert 'name="weekly_periods"' not in body, "ولا حقلَ يُحرّر الإسناد"
@@ -224,15 +228,18 @@ def test_the_assignment_cannot_be_edited_from_the_plan_editor(client_as, coordin
 # ══════════════════════════════════════════════════════════════════════
 
 
-def test_the_gate_reports_item_by_item_not_one_verdict(client_as, coordinator, school,
-                                                       target_teacher, subject):
+def test_the_gate_reports_item_by_item_not_one_verdict(
+    client_as, coordinator, school, target_teacher, subject
+):
     plan = a_draft(school, target_teacher, coordinator)
     assign(school, target_teacher, subject, periods=14)
     qualify(school, target_teacher, subject)
 
-    body = client_as(coordinator).get(
-        reverse("academic_management:validate_plan", args=[plan.pk])
-    ).content.decode()
+    body = (
+        client_as(coordinator)
+        .get(reverse("academic_management:validate_plan", args=[plan.pk]))
+        .content.decode()
+    )
 
     assert "كلُّ رقمٍ يعرف من أين جاء" in body
     assert "المُسنَدُ فعلاً يساوي الهدفَ التدريسيّ" in body
@@ -258,9 +265,11 @@ def test_the_reviewer_sees_the_previous_version_beside_the_proposed_one(
     second.reduction_periods = 4
     second.save()
 
-    body = client_as(deputy).get(
-        reverse("academic_management:plan_review", args=[second.pk])
-    ).content.decode()
+    body = (
+        client_as(deputy)
+        .get(reverse("academic_management:plan_review", args=[second.pk]))
+        .content.decode()
+    )
 
     assert "v1 معتمدة" in body and "v2 مقترحة" in body
     assert "الهدف التدريسيّ" in body
@@ -371,9 +380,11 @@ def test_an_assignment_changed_after_validate_blocks_the_approval(
     plan = a_draft(school, target_teacher, coordinator)
 
     # التحقّقُ يمرّ الآن — والشاشةُ تقول ذلك
-    body = client_as(coordinator).get(
-        reverse("academic_management:validate_plan", args=[plan.pk])
-    ).content.decode()
+    body = (
+        client_as(coordinator)
+        .get(reverse("academic_management:validate_plan", args=[plan.pk]))
+        .content.decode()
+    )
     assert "16 مقابل 16" in body
 
     client_as(coordinator).post(reverse("academic_management:submit_plan", args=[plan.pk]))
@@ -409,9 +420,14 @@ def test_a_divergence_after_approval_is_named_a_divergence_not_an_error(
 
     assert flow.has_diverged(plan) is True
 
-    body = client_as(head).get(
-        reverse("academic_management:teacher_workload", args=[target_teacher.pk]) + f"?year={YEAR}"
-    ).content.decode()
+    body = (
+        client_as(head)
+        .get(
+            reverse("academic_management:teacher_workload", args=[target_teacher.pk])
+            + f"?year={YEAR}"
+        )
+        .content.decode()
+    )
 
     assert "تباعد الإسنادُ بعد الاعتماد" in body
     assert "ما فُحص عند الاعتماد" in body and "16" in body, "وما فُحص وقتَها معروضٌ كما كان"

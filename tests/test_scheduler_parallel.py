@@ -136,9 +136,7 @@ def test_the_generator_places_both_subjects_in_the_same_slot(school, split):
     assert rows.count() == 8, "ثمانِ حصصٍ تُكتب: خانتان × مادّتان + أربعُ رياضيات"
 
     shared = sorted(
-        (r.day_of_week, r.period_number)
-        for r in rows
-        if r.subject.code in ("ART", "TECH")
+        (r.day_of_week, r.period_number) for r in rows if r.subject.code in ("ART", "TECH")
     )
     assert len(shared) == 4, "حصّتان لكلّ مادّة"
     assert len(set(shared)) == 2, "في خانتين اثنتين"

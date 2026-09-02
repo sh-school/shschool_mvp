@@ -128,9 +128,7 @@ def test_approving_notifies_the_teachers_with_their_school_on_the_row(
         school=school, academic_year=YEAR, status="draft", total_slots_created=6
     )
 
-    response = client_as(principal).post(
-        reverse("approve_schedule", args=[gen.pk]), follow=True
-    )
+    response = client_as(principal).post(reverse("approve_schedule", args=[gen.pk]), follow=True)
 
     assert response.status_code == 200
     gen.refresh_from_db()
@@ -147,9 +145,7 @@ def test_an_already_approved_generation_is_refused_politely(client_as, principal
         school=school, academic_year=YEAR, status="approved", total_slots_created=6
     )
 
-    response = client_as(principal).post(
-        reverse("approve_schedule", args=[gen.pk]), follow=True
-    )
+    response = client_as(principal).post(reverse("approve_schedule", args=[gen.pk]), follow=True)
 
     assert response.status_code == 200
     assert "ليس مسودة" in response.content.decode()
@@ -183,9 +179,7 @@ def test_the_message_reports_what_was_actually_placed(client_as, principal, scho
                 is_active=True,
             )
 
-    response = client_as(principal).post(
-        reverse("smart_generate"), {"year": YEAR}, follow=True
-    )
+    response = client_as(principal).post(reverse("smart_generate"), {"year": YEAR}, follow=True)
     body = response.content.decode()
 
     assert "0/0" not in body, "لا رقمَ يصف ما لم يقع"

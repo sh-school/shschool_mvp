@@ -117,9 +117,7 @@ def test_the_evicted_lesson_lands_somewhere_legal(school, cornered):
     grid = result["grid"]
 
     free_slots = [
-        (e["day"], e["period"])
-        for e in grid.all_entries()
-        if e["task"].teacher_id == str(free.id)
+        (e["day"], e["period"]) for e in grid.all_entries() if e["task"].teacher_id == str(free.id)
     ]
     assert len(free_slots) == 6, "ستُّ حصصٍ للمادّة السداسيّة"
     assert len(set(free_slots)) == 6, "لا ازدواجَ في الخانات"
@@ -211,7 +209,9 @@ def test_an_impossible_lesson_is_still_reported(school):
             academic_year=YEAR,
             teacher=user,
             class_group=group,
-            subject=Subject.objects.create(school=school, name_ar=f"مادّة {index}", code=f"S{index}"),
+            subject=Subject.objects.create(
+                school=school, name_ar=f"مادّة {index}", code=f"S{index}"
+            ),
             weekly_periods=1,
             is_active=True,
         )

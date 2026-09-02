@@ -329,9 +329,7 @@ class ScheduleGrid:
         pairs = 0
         for periods in by_day.values():
             ordered = sorted(periods)
-            pairs += sum(
-                1 for i in range(1, len(ordered)) if ordered[i] == ordered[i - 1] + 1
-            )
+            pairs += sum(1 for i in range(1, len(ordered)) if ordered[i] == ordered[i - 1] + 1)
         return pairs
 
     def teacher_last_periods(self, teacher_id: str) -> int:
@@ -608,20 +606,15 @@ def get_available_slots(
             if any(grid.class_busy(task.class_id, day, slot) for slot in slots):
                 continue
             if blocked_slots and any(
-                (m.teacher_id, day, slot) in blocked_slots
-                for m in task.members
-                for slot in slots
+                (m.teacher_id, day, slot) in blocked_slots for m in task.members for slot in slots
             ):
                 continue
             if any(
-                grid.teacher_busy(m.teacher_id, day, slot)
-                for m in task.members
-                for slot in slots
+                grid.teacher_busy(m.teacher_id, day, slot) for m in task.members for slot in slots
             ):
                 continue
             if all(
-                is_slot_valid(grid, day, slot, task, allow_adjacent, allow_dense)
-                for slot in slots
+                is_slot_valid(grid, day, slot, task, allow_adjacent, allow_dense) for slot in slots
             ):
                 available.append((day, period))
     return available
@@ -683,9 +676,7 @@ def _blockers(grid, task, day, period, blocked):
     بديل.
     """
     slots = list(task.slots(period))
-    if any(
-        (m.teacher_id, day, slot) in blocked for m in task.members for slot in slots
-    ):
+    if any((m.teacher_id, day, slot) in blocked for m in task.members for slot in slots):
         return None
 
     occupants = []
@@ -902,9 +893,7 @@ def generate_schedule(
     # 1. بناء المهام
     tasks = build_tasks(school, academic_year)
     if not tasks:
-        return _empty_result(
-            ["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."]
-        )
+        return _empty_result(["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."])
 
     # 2. تحميل التفضيلات
     prefs_qs = TeacherPreference.objects.filter(school=school, academic_year=academic_year)
@@ -953,9 +942,7 @@ def generate_schedule(
         grid = ScheduleGrid()
         leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
         before_repair = len(leftovers)
-        leftovers = _repair_pass(
-            grid, leftovers, blocked_slots, preferences, max_backtrack, school
-        )
+        leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
         repaired = before_repair - len(leftovers)
 
         # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
@@ -965,7 +952,12 @@ def generate_schedule(
         if leftovers:
             before = len(leftovers)
             leftovers = _repair_pass(
-                grid, leftovers, blocked_slots, preferences, max_backtrack, school,
+                grid,
+                leftovers,
+                blocked_slots,
+                preferences,
+                max_backtrack,
+                school,
                 allow_adjacent=True,
             )
             relaxed = before - len(leftovers)
@@ -985,8 +977,14 @@ def generate_schedule(
         if leftovers:
             before = len(leftovers)
             leftovers = _repair_pass(
-                grid, leftovers, blocked_slots, preferences, max_backtrack, school,
-                allow_adjacent=True, allow_dense=True,
+                grid,
+                leftovers,
+                blocked_slots,
+                preferences,
+                max_backtrack,
+                school,
+                allow_adjacent=True,
+                allow_dense=True,
             )
             densed = before - len(leftovers)
 

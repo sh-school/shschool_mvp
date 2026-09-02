@@ -596,9 +596,7 @@ class TeacherExemption(models.Model):
         default="school",
         verbose_name="جهة القرار",
     )
-    source_reference = models.CharField(
-        max_length=200, blank=True, verbose_name="مرجع القرار"
-    )
+    source_reference = models.CharField(max_length=200, blank=True, verbose_name="مرجع القرار")
     created_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,

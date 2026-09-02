@@ -1966,7 +1966,9 @@ class CapacityCheckService:
             class_levels[cid] = a.class_group.level_type or ""
 
         overcapacity = []
-        class_demand = {cid: CapacityCheckService.slot_demand(rows) for cid, rows in class_rows.items()}
+        class_demand = {
+            cid: CapacityCheckService.slot_demand(rows) for cid, rows in class_rows.items()
+        }
         for cid, demand in class_demand.items():
             level = class_levels.get(cid, "")
             thu_max = get_max_periods_for_day(4, level)

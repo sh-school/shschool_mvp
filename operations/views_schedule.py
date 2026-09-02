@@ -145,9 +145,7 @@ def weekly_schedule(request):
 
     target_teacher = None
     if teacher_id and may_browse:
-        target_teacher = get_object_or_404(
-            CustomUser.objects.in_school(school), id=teacher_id
-        )
+        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
     elif user.is_teacher() and not may_browse:
         target_teacher = user
 
@@ -229,9 +227,7 @@ def schedule_print(request):
         view_type = "teacher"
         target_teacher = request.user
     elif view_type == "teacher" and teacher_id:
-        target_teacher = get_object_or_404(
-            CustomUser.objects.in_school(school), id=teacher_id
-        )
+        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
@@ -600,6 +596,12 @@ def smart_schedule_view(request):
         )[:5]
     )
     total_weekly = sum(a.weekly_periods for a in assignments)
+    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
+    # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
+    for g in generations:
+        ratio = 100 * g.total_slots_created / total_weekly if total_weekly else 0.0
+        # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
+        g.placed_ratio = f"{ratio:.1f}"
 
     # ✅ v5.4: CapacityCheckService.get_overcapacity_classes — validation في service layer
     from operations.services import CapacityCheckService
@@ -624,6 +626,16 @@ def smart_schedule_view(request):
             "overcapacity_classes": overcapacity_classes,
         },
     )
+
+
+def _smart_schedule_redirect(year):
+    """العودةُ إلى صفحة الجدولة للعام نفسِه الذي طُلب التوليدُ له.
+
+    كان الردُّ `redirect("smart_schedule")` بلا عام، فتُفتح الصفحةُ على العام
+    الافتراضيّ: من ولّد جدولَ العام القادم يرى سجلَّ توليدِ عامٍ آخر — ولا يرى
+    مسودّتَه، ولا الرقمَ الذي يقول كم حصّةً وُضعت.
+    """
+    return redirect(f"{reverse('smart_schedule')}?{urlencode({'year': year})}")
 
 
 @login_required
@@ -651,7 +663,7 @@ def smart_generate(request):
             request,
             "هناك توليدٌ جارٍ لهذا العام — انتظر انتهاءَه قبل أن تبدأ آخر.",
         )
-        return redirect("smart_schedule")
+        return _smart_schedule_redirect(year)
 
     generation = ScheduleGeneration.objects.create(
         school=school,
@@ -674,17 +686,16 @@ def smart_generate(request):
         generation.save(update_fields=["status", "error_message", "finished_at"])
         messages.error(
             request,
-            "عاملُ المهامّ الخلفيّة غيرُ متاح، ولم يبدأ التوليد. "
-            "راجع تشغيل Celery ثمّ أعد المحاولة.",
+            "عاملُ المهامّ الخلفيّة غيرُ متاح، ولم يبدأ التوليد. " "راجع تشغيل Celery ثمّ أعد المحاولة.",
         )
-        return redirect("smart_schedule")
+        return _smart_schedule_redirect(year)
 
     messages.success(
         request,
         "بدأ توليد الجدول في الخلفيّة — تُحدَّث الحالةُ في هذه الصفحة تلقائيّاً، "
         "ويصلك إشعارٌ عند انتهائه.",
     )
-    return redirect("smart_schedule")
+    return _smart_schedule_redirect(year)
 
 
 @login_required

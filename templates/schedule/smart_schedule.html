@@ -159,7 +159,12 @@
             </span>
             {% endif %}
           </td>
-          <td class="text-center">{% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}{{ g.total_slots_created }}{% endif %}</td>
+          <td class="text-center">
+            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
+            <span class="font-bold">{{ g.total_slots_created }}/{{ total_weekly }}</span>
+            <span class="text-xs text-muted">({{ g.placed_ratio }}%)</span>
+            {% endif %}
+          </td>
           <td class="text-center text-muted">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms }}ms{% endif %}</td>
           <td>{{ g.generated_by.full_name|default:"—" }}</td>
           <td class="text-center">

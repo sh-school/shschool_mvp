@@ -54,9 +54,7 @@ def gym(school):
     resource = SchedulingResource.objects.create(school=school, name="الملاعب", capacity=2)
     resource.subjects.set([pe])
     for index in range(4):
-        group = ClassGroupFactory(
-            school=school, grade="G7", level_type="prep", academic_year=YEAR
-        )
+        group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
         assign(school, group, teacher(school, f"معلّم بدنيّة {index}"), pe, periods=2)
     return pe
 
@@ -111,9 +109,7 @@ def test_two_subjects_share_one_pair_of_labs(school):
     labs.subjects.set([computing, info])
 
     for index, subject in enumerate((computing, computing, info, info)):
-        group = ClassGroupFactory(
-            school=school, grade="G9", level_type="prep", academic_year=YEAR
-        )
+        group = ClassGroupFactory(school=school, grade="G9", level_type="prep", academic_year=YEAR)
         assign(school, group, teacher(school, f"معلّمُ حاسب {index}"), subject, periods=2)
 
     result = generate_schedule(school, YEAR)
@@ -186,9 +182,7 @@ def test_a_double_period_consumes_the_room_for_both_slots(school):
     rooms = SchedulingResource.objects.create(school=school, name="مرسما الفنّيّة", capacity=2)
     rooms.subjects.set([art])
     for index in range(3):
-        group = ClassGroupFactory(
-            school=school, grade="G7", level_type="prep", academic_year=YEAR
-        )
+        group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
         assign(school, group, teacher(school, f"معلّمُ فنون {index}"), art, periods=2)
 
     tasks = build_tasks(school, YEAR)

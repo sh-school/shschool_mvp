@@ -47,8 +47,11 @@ class Command(BaseCommand):
 
         if opts["undo"]:
             rows = TeacherExemption.objects.filter(
-                school=school, academic_year=year, day_of_week=SUNDAY,
-                period_number=FIRST_PERIOD, reason=REASON,
+                school=school,
+                academic_year=year,
+                day_of_week=SUNDAY,
+                period_number=FIRST_PERIOD,
+                reason=REASON,
             )
             self.stdout.write(f"سيُلغى {rows.count()} تفريغاً.")
             if not opts["dry_run"]:

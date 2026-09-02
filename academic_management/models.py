@@ -189,9 +189,7 @@ class TeacherWorkloadPlan(AuditedModel):
     )
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاعتماد")
     #: جمعُ المراجعةِ والاعتمادِ في شخصٍ واحد — لا يقع صامتاً.
-    self_approval_override = models.BooleanField(
-        default=False, verbose_name="اعتُمدت بمن راجعها"
-    )
+    self_approval_override = models.BooleanField(default=False, verbose_name="اعتُمدت بمن راجعها")
 
     # ── بصمةُ ما فُحص لحظةَ الاعتماد ─────────────────────────────
     # المعاملةُ تمنع التغيّرَ **أثناء** الاعتماد، ولا تقول بعد ستّةِ أشهرٍ ما
@@ -329,7 +327,10 @@ class TeacherWorkloadPlan(AuditedModel):
             raise ValidationError(
                 {"reduction_reason": "التخفيضُ قرارٌ إداريّ — ورقمٌ بلا سببٍ لا يُراجَع."}
             )
-        if self.required_source_kind == FROM_PREVIOUS_PLAN and self.required_source_plan_id == self.pk:
+        if (
+            self.required_source_kind == FROM_PREVIOUS_PLAN
+            and self.required_source_plan_id == self.pk
+        ):
             raise ValidationError({"required_source_plan": "خطّةٌ لا تُنسخ عن نفسها."})
 
     #: ما يجوز تغييرُه بعد الاعتماد: الانتقالُ إلى القفل وحدَه.
@@ -423,7 +424,11 @@ class TeacherWorkloadAllocation(models.Model):
         """
         super().clean()
         target = self.workload_plan.teaching_target
-        others = self.workload_plan.allocations.exclude(pk=self.pk) if self.pk else self.workload_plan.allocations.all()
+        others = (
+            self.workload_plan.allocations.exclude(pk=self.pk)
+            if self.pk
+            else self.workload_plan.allocations.all()
+        )
         total = sum(a.target_periods for a in others) + (self.target_periods or 0)
         if total > target:
             raise ValidationError(

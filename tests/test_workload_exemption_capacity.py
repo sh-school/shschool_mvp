@@ -304,9 +304,11 @@ def test_the_editor_shows_the_exempt_days_so_the_approver_knows(
     assert qualify.pk
     plan = a_plan(school, target_teacher, coordinator)
 
-    body = client_as(coordinator).get(
-        reverse("academic_management:plan_editor", args=[plan.pk])
-    ).content.decode()
+    body = (
+        client_as(coordinator)
+        .get(reverse("academic_management:plan_editor", args=[plan.pk]))
+        .content.decode()
+    )
 
     assert "الأحد" in body
     assert "دورةٌ خارج المدرسة" in body

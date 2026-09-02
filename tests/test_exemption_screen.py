@@ -57,9 +57,7 @@ def test_a_real_release_is_still_listed(school, teacher):
 
 def test_the_generator_still_sees_the_personal_rule(school, teacher):
     """الحاسمُ: الإخفاءُ من الشاشة لا يرفع القيدَ عن الجدول."""
-    row = exempt(
-        school, teacher, day=0, period=7, reason="قرار إدارة المدرسة — لا أولى ولا سابعة"
-    )
+    row = exempt(school, teacher, day=0, period=7, reason="قرار إدارة المدرسة — لا أولى ولا سابعة")
 
     #: `objects` بلا `releases()` هو ما يقرؤه المولّد.
     assert row in TeacherExemption.objects.filter(school=school, academic_year=YEAR)

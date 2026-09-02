@@ -136,8 +136,9 @@ def test_the_schedule_comes_back_exactly_as_it_was(school, slots, tmp_path, monk
     assert fingerprint(school) == before
 
 
-def test_restoring_switches_off_whatever_replaced_it(school, slots, teacher, subject, tmp_path,
-                                                     monkeypatch):
+def test_restoring_switches_off_whatever_replaced_it(
+    school, slots, teacher, subject, tmp_path, monkeypatch
+):
     """الرجوعُ لا يجمع الجدولين — يُطفئ الحاضرَ ويُعيد الماضي."""
     directory = snapshot_path(tmp_path, school, monkeypatch)
     before = fingerprint(school)
@@ -165,7 +166,9 @@ def test_restoring_switches_off_whatever_replaced_it(school, slots, teacher, sub
     call_command("schedule_snapshot", restore=str(path), yes=True)
 
     assert fingerprint(school) == before, "لم يبقَ من المولَّد شيءٌ نشط"
-    assert ScheduleSlot.objects.filter(school=school, notes="جدولٌ مولَّد", is_active=True).count() == 0
+    assert (
+        ScheduleSlot.objects.filter(school=school, notes="جدولٌ مولَّد", is_active=True).count() == 0
+    )
 
 
 def test_restoring_twice_does_not_duplicate_the_week(school, slots, tmp_path, monkeypatch):

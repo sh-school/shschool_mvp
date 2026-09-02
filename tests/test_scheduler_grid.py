@@ -147,8 +147,7 @@ def subjects(school):
     from operations.models import Subject
 
     return [
-        Subject.objects.create(school=school, name_ar=f"مادّة {i}", code=f"S{i}")
-        for i in range(3)
+        Subject.objects.create(school=school, name_ar=f"مادّة {i}", code=f"S{i}") for i in range(3)
     ]
 
 

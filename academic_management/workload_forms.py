@@ -199,9 +199,7 @@ class QualificationForm(forms.ModelForm):
         widgets = {
             "subject": forms.Select(attrs=_SELECT),
             "level_type": forms.Select(attrs=_SELECT, choices=[("", "كلّ المراحل"), *LEVEL_TYPES]),
-            "qualification_status": forms.Select(
-                attrs=_SELECT, choices=QUALIFICATION_STATUSES
-            ),
+            "qualification_status": forms.Select(attrs=_SELECT, choices=QUALIFICATION_STATUSES),
             "source": forms.Select(attrs=_SELECT, choices=SOURCES),
             "source_reference": forms.TextInput(attrs=_TEXT),
             "valid_from": forms.DateInput(attrs={**_TEXT, "type": "date"}),

@@ -247,7 +247,9 @@ def test_a_generated_week_follows_the_rule(school):
     role = RoleFactory(school=school, name="teacher")
     teacher = UserFactory(full_name="معلّمُ الرياضيات")
     MembershipFactory(user=teacher, school=school, role=role)
-    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year="2026-2027")
+    group = ClassGroupFactory(
+        school=school, grade="G7", level_type="prep", academic_year="2026-2027"
+    )
     subject = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     SubjectClassAssignment.objects.create(
         school=school,

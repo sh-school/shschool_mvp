@@ -32,7 +32,9 @@ class TeacherExemptionForm(forms.Form):
         initial="school",
         label="جهة القرار",
     )
-    source_reference = forms.CharField(max_length=200, label="مرجع القرار")
+    # ليس مطلوباً هنا عمداً: شرطُ المرجع يعيش في `TeacherExemption.clean()` وحدَه،
+    # وتُبلّغه الخدمةُ عبر `full_clean()`. فبابانِ لحقيقةٍ واحدة أسوأُ من بابٍ مفتوح.
+    source_reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
 
     def __init__(self, *args, school, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,9 +54,7 @@ class TeacherExemptionForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("exemption_type") == "specific_period" and not cleaned.get(
-            "period_number"
-        ):
+        if cleaned.get("exemption_type") == "specific_period" and not cleaned.get("period_number"):
             self.add_error("period_number", "حدّد رقم الحصة لتفريغ حصةٍ بعينها.")
         if cleaned.get("exemption_type") == "full_day":
             cleaned["period_number"] = None
@@ -138,7 +138,14 @@ class SubjectClassAssignmentForm(forms.ModelForm):
 
     class Meta:
         model = SubjectClassAssignment
-        fields = ["class_group", "subject", "teacher", "weekly_periods", "requires_lab", "parallel_group"]
+        fields = [
+            "class_group",
+            "subject",
+            "teacher",
+            "weekly_periods",
+            "requires_lab",
+            "parallel_group",
+        ]
         labels = {
             "class_group": "الشعبة",
             "subject": "المادة",
@@ -151,9 +158,13 @@ class SubjectClassAssignmentForm(forms.ModelForm):
             "class_group": forms.Select(attrs={"class": "form-control", "required": True}),
             "subject": forms.Select(attrs={"class": "form-control", "required": True}),
             "teacher": forms.Select(attrs={"class": "form-control"}),
-            "weekly_periods": forms.NumberInput(attrs={"class": "form-control", "min": 1, "max": 35}),
+            "weekly_periods": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 35}
+            ),
             "requires_lab": forms.CheckboxInput(),
-            "parallel_group": forms.TextInput(attrs={"class": "form-control", "placeholder": "اختياري"}),
+            "parallel_group": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "اختياري"}
+            ),
         }
 
     def __init__(self, *args, school, year, **kwargs):

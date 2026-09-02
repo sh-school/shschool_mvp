@@ -145,9 +145,7 @@ def plan_display(plan, observed):
         "version": plan.plan_version,
         # مصدرُ كلِّ رقمٍ على حدة — فالنصابُ قد يأتي من تعميمٍ والتخفيضُ من قرارٍ آخر.
         "required_source": plan.get_required_source_kind_display(),
-        "required_source_reference": (
-            plan.required_source_reference or plan.required_policy_key
-        ),
+        "required_source_reference": (plan.required_source_reference or plan.required_policy_key),
         "reduction_source": plan.get_reduction_source_display() if plan.reduction_source else "",
         "reduction_source_reference": plan.reduction_source_reference,
         "allocations": [
@@ -333,41 +331,13 @@ def permitting_pairs(school):
     }
 
 
-def gate(lessons, rows, plans=None, quals=None):
-    """شروطُ الإسناد الثمانية، مفصولةً بما تملك القاعدةُ اليومَ الإجابةَ عنه.
-
-    وخلطُ الطرفين يجعل «سلامةَ الواقع القائم» رهينةً لنظامِ تخطيطٍ لم يُبنَ:
-    فتظهر أربعةُ شروطٍ خضراءَ فعلاً وكأنّها ناقصة. ولذلك تُفصل الطبقتان.
-    """
-    cells = wl.reconcile_cells(lessons, rows)
-    coverage = wl.demand_coverage(lessons, rows)
-    observed = wl.observed_workload(lessons)
-    teachers = wl.reconcile_teachers(observed, rows)
-    plans = plans or {}
-    approved = {k: p for k, p in plans.items() if p.status in FROZEN_STATUSES}
-
-    # إسنادٌ لا يغطّيه مؤهّلٌ سارٍ — يُقاس متى وُجد مؤهّلٌ واحدٌ في المدرسة.
-    permitting = quals or set()
-    unqualified = [
-        r
-        for r in rows
-        if r["teacher_id"] and (r["teacher_id"], r["subject_id"]) not in permitting
-    ]
-
-    #: خطّةٌ معتمَدةٌ ينقص رقماً من أرقامها منبعُه.
-    undocumented = [p for p in approved.values() if p.provenance_gaps()]
-
-    missing_cells = [c for c in cells if c["status"] != wl.MATCH]
-    unstaffed = [r for r in rows if not r["teacher_id"]]
-    zero_period = [r for r in rows if r["weekly_periods"] <= 0]
-    uncovered = [r for r in coverage if r["delta"]]
-
-    # ∑ AssignedInstructionalPeriods = TeachingTarget — بعد الاعتماد فقط.
-    off_target = []
+def _off_target(observed, approved):
+    """∑ AssignedInstructionalPeriods = TeachingTarget — بعد الاعتماد فقط."""
+    out = []
     for teacher_id, plan in approved.items():
         row = observed.get(teacher_id)
         if row and row.observed_weekly != plan.teaching_target:
-            off_target.append(
+            out.append(
                 {
                     "name": plan.teacher.full_name,
                     "observed": row.observed_weekly,
@@ -375,7 +345,15 @@ def gate(lessons, rows, plans=None, quals=None):
                     "delta": row.observed_weekly - plan.teaching_target,
                 }
             )
+    return out
 
+
+def _enforceable_checks(rows, cells, coverage):
+    """الشروطُ الأربعةُ التي تملك القاعدةُ اليومَ الإجابةَ عنها من الجدول والإسناد."""
+    missing_cells = [c for c in cells if c["status"] != wl.MATCH]
+    unstaffed = [r for r in rows if not r["teacher_id"]]
+    zero_period = [r for r in rows if r["weekly_periods"] <= 0]
+    uncovered = [r for r in coverage if r["delta"]]
     checks = [
         {
             "layer": ENFORCEABLE,
@@ -401,55 +379,83 @@ def gate(lessons, rows, plans=None, quals=None):
             "passed": not uncovered,
             "detail": f"{len(uncovered)} مجموعةً غيرَ مغطّاة من {len(coverage)}",
         },
-        {
-            "layer": NEEDS_MODELS,
-            "label": "لكلّ معلّمٍ نصابٌ معتمَد",
-            "passed": (len(approved) == len(observed)) if approved else None,
-            "detail": (
-                f"{len(approved)} من {len(observed)} معلّماً لهم خطّةٌ معتمَدة"
-                if approved
-                else "لا خطّةَ معتمَدةً بعد — TeacherWorkloadPlan فارغ"
-            ),
-        },
-        {
-            "layer": NEEDS_MODELS,
-            "label": "مجموعُ إسنادات المعلّم يساوي هدفَه التدريسيّ",
-            "passed": (not off_target) if approved else None,
-            "detail": (
-                f"{len(off_target)} معلّماً يخالف هدفَه من {len(approved)} معتمَداً"
-                if approved
-                else "لا يصير شرطاً حتى تُعتمد خطّةُ المعلّم"
-            ),
-        },
-        {
-            "layer": NEEDS_MODELS,
-            "label": "لا مادّةَ مُسنَدةً لمعلّمٍ غير مؤهَّل",
-            "passed": (not unqualified) if quals else None,
-            "detail": (
-                f"{len(unqualified)} إسناداً بلا مؤهّلٍ سارٍ من {len(rows)}"
-                if quals
-                else "لا مؤهّلَ مسجَّلٌ بعد — وغيابُ السجلّ ليس إذناً بالتدريس"
-            ),
-        },
-        {
-            "layer": NEEDS_MODELS,
-            "label": "كلُّ تخفيضٍ له سببُه ومرجعُه",
-            "passed": (not undocumented) if approved else None,
-            "detail": (
-                f"{len(undocumented)} خطّةً معتمَدةً ينقصها مصدرُ رقمٍ من {len(approved)}"
-                if approved
-                else "لا يصير شرطاً حتى تُعتمد خطّةُ المعلّم"
-            ),
-        },
     ]
+    return checks, missing_cells
+
+
+def _plan_check(label, passed, detail, pending):
+    """شرطٌ من طبقة الخطّة: `None` حين لا بياناتٍ يُقاس عليها — لا نجاحٌ ولا فشل."""
+    return {
+        "layer": NEEDS_MODELS,
+        "label": label,
+        "passed": passed if pending is None else None,
+        "detail": detail if pending is None else pending,
+    }
+
+
+def _plan_checks(rows, observed, approved, off_target, unqualified, quals):
+    """الشروطُ الأربعةُ التي لا تُقاس إلا بخطّةٍ معتمَدةٍ ومؤهّلاتٍ مسجَّلة."""
+    no_plan = None if approved else "لا يصير شرطاً حتى تُعتمد خطّةُ المعلّم"
+    return [
+        _plan_check(
+            "لكلّ معلّمٍ نصابٌ معتمَد",
+            len(approved) == len(observed),
+            f"{len(approved)} من {len(observed)} معلّماً لهم خطّةٌ معتمَدة",
+            None if approved else "لا خطّةَ معتمَدةً بعد — TeacherWorkloadPlan فارغ",
+        ),
+        _plan_check(
+            "مجموعُ إسنادات المعلّم يساوي هدفَه التدريسيّ",
+            not off_target,
+            f"{len(off_target)} معلّماً يخالف هدفَه من {len(approved)} معتمَداً",
+            no_plan,
+        ),
+        _plan_check(
+            "لا مادّةَ مُسنَدةً لمعلّمٍ غير مؤهَّل",
+            not unqualified,
+            f"{len(unqualified)} إسناداً بلا مؤهّلٍ سارٍ من {len(rows)}",
+            None if quals else "لا مؤهّلَ مسجَّلٌ بعد — وغيابُ السجلّ ليس إذناً بالتدريس",
+        ),
+        _plan_check(
+            "كلُّ تخفيضٍ له سببُه ومرجعُه",
+            not [p for p in approved.values() if p.provenance_gaps()],
+            f"{sum(1 for p in approved.values() if p.provenance_gaps())} خطّةً معتمَدةً"
+            f" ينقصها مصدرُ رقمٍ من {len(approved)}",
+            no_plan,
+        ),
+    ]
+
+
+def gate(lessons, rows, plans=None, quals=None):
+    """شروطُ الإسناد الثمانية، مفصولةً بما تملك القاعدةُ اليومَ الإجابةَ عنه.
+
+    وخلطُ الطرفين يجعل «سلامةَ الواقع القائم» رهينةً لنظامِ تخطيطٍ لم يُبنَ:
+    فتظهر أربعةُ شروطٍ خضراءَ فعلاً وكأنّها ناقصة. ولذلك تُفصل الطبقتان.
+    """
+    cells = wl.reconcile_cells(lessons, rows)
+    coverage = wl.demand_coverage(lessons, rows)
+    observed = wl.observed_workload(lessons)
+    teachers = wl.reconcile_teachers(observed, rows)
+    plans = plans or {}
+    approved = {k: p for k, p in plans.items() if p.status in FROZEN_STATUSES}
+
+    # إسنادٌ لا يغطّيه مؤهّلٌ سارٍ — يُقاس متى وُجد مؤهّلٌ واحدٌ في المدرسة.
+    permitting = quals or set()
+    unqualified = [
+        r for r in rows if r["teacher_id"] and (r["teacher_id"], r["subject_id"]) not in permitting
+    ]
+    off_target = _off_target(observed, approved)
+
+    enforceable, missing_cells = _enforceable_checks(rows, cells, coverage)
+    checks = enforceable + _plan_checks(rows, observed, approved, off_target, unqualified, quals)
+    plan_layer = [c for c in checks if c["layer"] == NEEDS_MODELS]
     return {
         "checks": checks,
-        "enforceable_passed": sum(1 for c in checks if c["layer"] == ENFORCEABLE and c["passed"]),
-        "enforceable_total": sum(1 for c in checks if c["layer"] == ENFORCEABLE),
-        "blocked_total": sum(1 for c in checks if c["layer"] == NEEDS_MODELS),
+        "enforceable_passed": sum(1 for c in enforceable if c["passed"]),
+        "enforceable_total": len(enforceable),
+        "blocked_total": len(plan_layer),
         # ما استوفي فعلاً من طبقة الخطّة — و«لا جوابَ بعد» لا يُعدّ نجاحاً ولا فشلاً.
-        "plan_passed": sum(1 for c in checks if c["layer"] == NEEDS_MODELS and c["passed"] is True),
-        "plan_pending": sum(1 for c in checks if c["layer"] == NEEDS_MODELS and c["passed"] is None),
+        "plan_passed": sum(1 for c in plan_layer if c["passed"] is True),
+        "plan_pending": sum(1 for c in plan_layer if c["passed"] is None),
         "off_target": off_target[:50],
         "issues": missing_cells[:50],
         "teacher_issues": [t for t in teachers.values() if t["status"] != wl.MATCH][:50],

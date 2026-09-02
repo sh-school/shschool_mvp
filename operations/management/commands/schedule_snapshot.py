@@ -142,10 +142,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             live.update(is_active=False)
             ScheduleSlot.objects.bulk_create(
-                [
-                    ScheduleSlot(school=school, is_active=True, **row)
-                    for row in data["slots"]
-                ]
+                [ScheduleSlot(school=school, is_active=True, **row) for row in data["slots"]]
             )
         self.stdout.write(self.style.SUCCESS(f"استُعيدت {len(data['slots'])} حصّة."))
 

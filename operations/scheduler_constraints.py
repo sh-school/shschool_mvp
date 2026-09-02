@@ -216,6 +216,7 @@ def joinable_pairs(school) -> set:
             pairs.add((earlier.period_number, later.period_number))
     return pairs
 
+
 #: أكثرُ ما يُقبل من حصصٍ سابعةٍ للمعلّم في الأسبوع.
 #:
 #: المطلوبُ واحدة، وهي مستحيلةٌ حسابيّاً في هذه المدرسة: مئةٌ واثنتا عشرةَ
@@ -229,9 +230,7 @@ def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> b
 
     فالمعلّمُ يبقى مع شعبته في غرفته — وهذا هو الغرضُ لا عَرَضٌ يُتعب.
     """
-    if not (
-        getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
-    ):
+    if not (getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES):
         return False
     return _neighbour_is_same_lesson(grid, task, day, period)
 

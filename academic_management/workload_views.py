@@ -78,8 +78,9 @@ def _teacher(request, teacher_id):
 
     school = _school(request)
     return get_object_or_404(
-        CustomUser.objects.filter(memberships__school=school, memberships__is_active=True)
-        .distinct(),
+        CustomUser.objects.filter(
+            memberships__school=school, memberships__is_active=True
+        ).distinct(),
         pk=teacher_id,
     )
 
@@ -253,12 +254,17 @@ def _comparison(previous, proposed):
     old_levels = _levels(previous) if previous else {}
     new_levels = _levels(proposed)
     rows = [
-        ("النصاب", previous.required_weekly_periods if previous else None,
-         proposed.required_weekly_periods),
-        ("التخفيض", previous.reduction_periods if previous else None,
-         proposed.reduction_periods),
-        ("الهدف التدريسيّ", previous.teaching_target if previous else None,
-         proposed.teaching_target),
+        (
+            "النصاب",
+            previous.required_weekly_periods if previous else None,
+            proposed.required_weekly_periods,
+        ),
+        ("التخفيض", previous.reduction_periods if previous else None, proposed.reduction_periods),
+        (
+            "الهدف التدريسيّ",
+            previous.teaching_target if previous else None,
+            proposed.teaching_target,
+        ),
     ]
     for level, label in (("prep", "إعدادي"), ("sec", "ثانوي")):
         if level in old_levels or level in new_levels:
@@ -354,27 +360,21 @@ def _save_section(request, plan, form_class, kwargs, success):
 @require_POST
 def edit_head(request, plan_id):
     plan = _plan(request, plan_id)
-    return _save_section(
-        request, plan, PlanHeadForm, {"instance": plan}, "حُفظ النصابُ ومرجعُه."
-    )
+    return _save_section(request, plan, PlanHeadForm, {"instance": plan}, "حُفظ النصابُ ومرجعُه.")
 
 
 @login_required
 @require_POST
 def edit_reduction(request, plan_id):
     plan = _plan(request, plan_id)
-    return _save_section(
-        request, plan, ReductionForm, {"instance": plan}, "حُفظ التخفيضُ ومرجعُه."
-    )
+    return _save_section(request, plan, ReductionForm, {"instance": plan}, "حُفظ التخفيضُ ومرجعُه.")
 
 
 @login_required
 @require_POST
 def add_allocation(request, plan_id):
     plan = _plan(request, plan_id)
-    return _save_section(
-        request, plan, AllocationForm, {"plan": plan}, "أُضيف توزيعُ المرحلة."
-    )
+    return _save_section(request, plan, AllocationForm, {"plan": plan}, "أُضيف توزيعُ المرحلة.")
 
 
 @login_required
@@ -385,9 +385,7 @@ def delete_allocation(request, plan_id, allocation_id):
     if not flow.is_editable(plan):
         messages.error(request, "لا تُحرَّر إلّا المسودّة.")
     else:
-        get_object_or_404(
-            TeacherWorkloadAllocation, pk=allocation_id, workload_plan=plan
-        ).delete()
+        get_object_or_404(TeacherWorkloadAllocation, pk=allocation_id, workload_plan=plan).delete()
         messages.success(request, "حُذف توزيعُ المرحلة.")
     return redirect("academic_management:plan_editor", plan_id=plan.pk)
 
@@ -445,7 +443,9 @@ def review_plan(request, plan_id):
     flow.require(request.user, plan.school, flow.REVIEW)
     comment = request.POST.get("comment", "")
     return _command(
-        request, plan, lambda: flow.record_review(plan, by=request.user, comment=comment),
+        request,
+        plan,
+        lambda: flow.record_review(plan, by=request.user, comment=comment),
         "سُجّلت المراجعة.",
     )
 
@@ -457,7 +457,9 @@ def return_plan(request, plan_id):
     flow.require(request.user, plan.school, flow.REVIEW)
     comment = request.POST.get("comment", "")
     return _command(
-        request, plan, lambda: flow.return_to_draft(plan, by=request.user, comment=comment),
+        request,
+        plan,
+        lambda: flow.return_to_draft(plan, by=request.user, comment=comment),
         "رُدّت إلى المسودّة.",
     )
 

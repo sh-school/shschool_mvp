@@ -96,9 +96,9 @@ def test_the_capability_is_configured_by_the_school_not_hard_coded(school, coord
 
     WorkloadGovernance.objects.create(school=school, approve_roles=["vice_academic"])
 
-    assert flow.capability_roles(school, flow.APPROVE) == {"vice_academic"}, (
-        "المدرسةُ تربط القدرةَ بدورها — والافتراضُ افتراضٌ لا قاعدةٌ محفورة"
-    )
+    assert flow.capability_roles(school, flow.APPROVE) == {
+        "vice_academic"
+    }, "المدرسةُ تربط القدرةَ بدورها — والافتراضُ افتراضٌ لا قاعدةٌ محفورة"
 
 
 def test_an_empty_configuration_means_the_default_not_nobody(school):

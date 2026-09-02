@@ -34,7 +34,9 @@ class Command(BaseCommand):
 
         total_inactive = ScheduleSlot.objects.filter(is_active=False).count()
         kept = total_inactive - qs.count()
-        self.stdout.write(f"مطفأة إجمالاً: {total_inactive} · للحذف: {qs.count()} · تُبقى (مسودّات/معتمَد): {kept}")
+        self.stdout.write(
+            f"مطفأة إجمالاً: {total_inactive} · للحذف: {qs.count()} · تُبقى (مسودّات/معتمَد): {kept}"
+        )
 
         if not options["apply"]:
             self.stdout.write(self.style.WARNING("عرضٌ فقط — أضف --apply للحذف."))

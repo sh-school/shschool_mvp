@@ -108,8 +108,7 @@ def assignment_fingerprint(plan):
     إسنادٌ نُقل من شعبةٍ إلى أخرى بالحصص نفسها لا يغيّر رقماً ويغيّر الحقيقة.
     """
     rows = sorted(
-        (str(r.subject_id), str(r.class_group_id), r.weekly_periods)
-        for r in _assignment_rows(plan)
+        (str(r.subject_id), str(r.class_group_id), r.weekly_periods) for r in _assignment_rows(plan)
     )
     payload = "|".join(f"{s}:{c}:{p}" for s, c, p in rows)
     return {
@@ -134,16 +133,17 @@ def _assignment_scopes(plan):
     """كلُّ (مادّة، مرحلة) أُسنِدت إليه — لأنّ المؤهّلَ قد يُقيَّد بمرحلة."""
     from operations.models import SubjectClassAssignment
 
-    rows = (
-        SubjectClassAssignment.objects.filter(
-            school=plan.school,
-            academic_year=plan.academic_year,
-            teacher=plan.teacher,
-            is_active=True,
+    rows = SubjectClassAssignment.objects.filter(
+        school=plan.school,
+        academic_year=plan.academic_year,
+        teacher=plan.teacher,
+        is_active=True,
+    ).select_related("subject", "class_group")
+    levels = dict(
+        ClassGroup.objects.filter(school=plan.school, academic_year=plan.academic_year).values_list(
+            "id", "level_type"
         )
-        .select_related("subject", "class_group")
     )
-    levels = dict(ClassGroup.objects.filter(school=plan.school).values_list("id", "level_type"))
     seen = {}
     for r in rows:
         level = levels.get(r.class_group_id, "")
@@ -185,9 +185,10 @@ def available_capacity(plan):
         else:
             blocked_periods += 1
 
-    capacity = sum(
-        get_max_periods_for_day(day, level) for day in DAY_NAMES if day not in days_off
-    ) - blocked_periods
+    capacity = (
+        sum(get_max_periods_for_day(day, level) for day in DAY_NAMES if day not in days_off)
+        - blocked_periods
+    )
 
     return {
         "level": level,
