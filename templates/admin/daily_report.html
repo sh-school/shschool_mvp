@@ -74,7 +74,8 @@
       <tr>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">اسم الطالب</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الرقم الشخصي</th>
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الفصل</th>
+          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+          <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500" data-sort="num" data-sort-first="asc">الفصل</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">الحالة</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">العذر</th>
         <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500">وقت التسجيل</th>
@@ -85,7 +86,7 @@
       <tr class="hover:bg-gray-50 transition">
         <td class="px-4 py-3 font-medium text-gray-900 text-sm">{{ record.student.full_name }}</td>
         <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id }}</td>
-        <td class="px-4 py-3 text-sm text-gray-600">{{ record.session.class_group }}</td>
+        <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ record.session.class_group.school_order }}">{{ record.session.class_group }}</td>
         <td class="px-4 py-3">
           <span class="status-badge
             {% if record.status == 'absent' %}status-danger

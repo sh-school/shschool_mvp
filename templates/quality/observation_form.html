@@ -78,7 +78,8 @@
     {# ── المعايير حسب المجال ── #}
     {% for domain_label, items in grouped_criteria %}
     <h3 class="section-title">{{ domain_label }}</h3>
-    <table class="table table-qatar" style="font-size:.9rem">
+    {# استمارةُ الإشراف: ترتيبُ معايير الأداء معتمَدٌ رسميّاً فلا يُعاد ترتيبُه. #}
+    <table class="table table-qatar" style="font-size:.9rem" data-no-sort>
       <thead>
         <tr>
           <th style="width:34%">معيار الأداء</th>

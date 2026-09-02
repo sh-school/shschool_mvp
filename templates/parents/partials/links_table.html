@@ -1,15 +1,17 @@
 {# partial: جدول ارتباطات أولياء الأمور — يُحدَّث بـ HTMX #}
+{% load sorting %}
 
 <div class="table-wrap">
 {% if page_obj.object_list %}
   <div class="overflow-x-auto">
-    <table class="w-full text-sm">
+    {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على الارتباطات كلِّها. #}
+    <table class="w-full text-sm" data-no-sort>
       <thead>
         <tr>
           <th scope="col" class="text-right">#</th>
-          <th scope="col" class="text-right">الطالب</th>
-          <th scope="col" class="text-right">ولي الأمر</th>
-          <th scope="col" class="text-center">صلة القرابة</th>
+          {% sort_th sort "student" "الطالب" "text-right" %}
+          {% sort_th sort "parent" "ولي الأمر" "text-right" %}
+          {% sort_th sort "relationship" "صلة القرابة" "text-center" %}
           <th scope="col" class="text-center">الدرجات</th>
           <th scope="col" class="text-center">الغياب</th>
           <th scope="col" class="text-center">حذف</th>

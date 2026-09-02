@@ -16,6 +16,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
+from core.models.academic import grade_number
 from operations import schedule_profile as base
 from operations import workload_profile as wl
 
@@ -114,7 +115,9 @@ class Command(BaseCommand):
                 if tid in observed
                 else [],
                 "sections": sorted(observed[tid].sections) if tid in observed else [],
-                "grades": sorted(observed[tid].grades) if tid in observed else [],
+                "grades": (
+                    sorted(observed[tid].grades, key=grade_number) if tid in observed else []
+                ),
                 "per_subject_class": observed[tid].per_subject_class if tid in observed else {},
                 "per_day": observed[tid].per_day if tid in observed else {},
                 "split_periods": observed[tid].split_periods if tid in observed else 0,

@@ -153,7 +153,7 @@ class Command(BaseCommand):
         year = academic_year_for_school(school)
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
 
         # تحميل المواد
         subjects = {s.name_ar: s for s in Subject.objects.filter(school=school)}

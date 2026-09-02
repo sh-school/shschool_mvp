@@ -19,6 +19,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from assessments.models import SubjectClassSetup
 from core.academic_calendar import academic_year_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
+from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
 from core.permissions import leadership_required, role_required
 
@@ -145,12 +146,12 @@ def reports_index(request):
     if request.user.is_admin():
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
     else:
         ids = SubjectClassSetup.objects.filter(
             school=school, teacher=request.user, academic_year=year
         ).values_list("class_group_id", flat=True)
-        classes = ClassGroup.objects.filter(id__in=ids).order_by("grade", "section")
+        classes = ClassGroup.objects.filter(id__in=ids).in_school_order()
 
     # فلترة
     if level_filter:
@@ -161,14 +162,12 @@ def reports_index(request):
     # الصفوف المتاحة فعلياً (للفلاتر)
     all_classes = ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
     if level_filter:
-        available_grades = (
-            all_classes.filter(level_type=level_filter)
-            .values_list("grade", flat=True)
-            .distinct()
-            .order_by("grade")
-        )
+        grades = all_classes.filter(level_type=level_filter).values_list("grade", flat=True)
     else:
-        available_grades = all_classes.values_list("grade", flat=True).distinct().order_by("grade")
+        grades = all_classes.values_list("grade", flat=True)
+    # الفرزُ في بايثون: «G10» قبل «G7» أبجديّاً، والترتيبُ بتعبيرٍ محسوبٍ
+    # يتعارض مع `DISTINCT` في المحرّك.
+    available_grades = sorted(set(grades), key=grade_number)
 
     ctx = {
         "classes": classes,

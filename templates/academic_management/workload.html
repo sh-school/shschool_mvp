@@ -175,7 +175,7 @@
     <div class="filter-bar wl-toolbar">
       <label for="wl-search" class="sr-only">بحث في المعلّمين</label>
       <input type="search" id="wl-search" class="form-control form-control-sm wl-search" placeholder="ابحث باسم المعلّم أو المادّة أو الشعبة…" autocomplete="off">
-      <span class="wl-toolbar-count"><strong id="wl-count">{{ teachers|length }}</strong> من {{ teachers|length }} معلّماً · مرتَّبون بالمرصود تنازليّاً</span>
+      <span class="wl-toolbar-count"><strong id="wl-count">{{ teachers|length }}</strong> من {{ teachers|length }} معلّماً · مرتَّبون بالمرصود تنازليّاً — وانقر ترويسةَ عمودٍ لتغيير الفرز</span>
       <span id="wl-none" class="wl-toolbar-none" hidden>لا نتائج</span>
     </div>
     <div class="table-wrap-scroll">
@@ -188,13 +188,14 @@
         <thead>
           <tr>
             <th scope="col" class="wl-col-idx">#</th>
-            <th scope="col">المعلّم</th>
-            <th scope="col" class="col-center">المرصود</th>
-            <th scope="col" class="col-center">المُسنَد</th>
-            <th scope="col" class="col-center">المعتمَد</th>
-            <th scope="col">المواد</th>
-            <th scope="col" class="wl-hide-sm">الشُّعب</th>
-            <th scope="col" class="wl-hide-sm">التوزيع اليوميّ</th>
+            <th scope="col" data-sort="text">المعلّم</th>
+            <th scope="col" class="col-center" data-sort="num">المرصود</th>
+            <th scope="col" class="col-center" data-sort="num">المُسنَد</th>
+            <th scope="col" class="col-center" data-sort="num">المعتمَد</th>
+            <th scope="col" data-sort="num">المواد</th>
+            <th scope="col" class="wl-hide-sm" data-sort="num">الشُّعب</th>
+            {# التوزيعُ اليوميّ خمسةُ أعدادٍ في خليّةٍ واحدة: لا مفتاحَ يُفرَز به. #}
+            <th scope="col" class="wl-hide-sm" data-sort="none">التوزيع اليوميّ</th>
             <th scope="col" class="col-actions"><span class="sr-only">التفاصيل</span></th>
           </tr>
         </thead>
@@ -202,7 +203,7 @@
           {% for t in teachers %}
           <tr class="wl-row" data-text="{{ t.name }} {% for s in t.subjects %}{{ s.name }} {{ s.code|default:"" }} {% endfor %}{{ t.sections|join:" " }}">
             <td class="wl-col-idx">{{ forloop.counter }}</td>
-            <th scope="row" class="wl-name">
+            <th scope="row" class="wl-name" data-sort-value="{{ t.name }}">
               {# المرصدُ لا يكتب — لكنّه يدلّ على المسار الذي يُكتب فيه. #}
               <a href="{% url 'academic_management:teacher_workload' t.teacher_id %}">{{ t.name }}</a>
               {% if t.multi_subject or t.multi_level or t.split_periods %}
@@ -213,21 +214,21 @@
               </span>
               {% endif %}
             </th>
-            <td class="col-center wl-num"><strong>{{ t.observed_weekly }}</strong></td>
-            <td class="col-center wl-num">
+            <td class="col-center wl-num" data-sort-value="{{ t.observed_weekly }}"><strong>{{ t.observed_weekly }}</strong></td>
+            <td class="col-center wl-num" data-sort-value="{{ t.assigned_weekly }}">
               {{ t.assigned_weekly }}
               {% if t.delta %}<span class="wl-gap is-fail">({{ t.delta|stringformat:"+d" }})</span>{% endif %}
             </td>
-            <td class="col-center wl-num{% if t.plan.state != 'approved' %} text-muted{% endif %}">
+            <td class="col-center wl-num{% if t.plan.state != 'approved' %} text-muted{% endif %}" data-sort-value="{% if t.plan.state == 'approved' %}{{ t.plan.approved }}{% endif %}">
               {{ t.plan.label }}
               {% if t.plan.state == "approved" and t.plan.delta %}
                 <span class="wl-gap">{{ t.plan.delta|stringformat:"+d" }}</span>
               {% endif %}
             </td>
-            <td class="wl-chips">
+            <td class="wl-chips" data-sort-value="{{ t.subjects|length }}">
               {% for s in t.subjects %}<span class="wl-chip" title="{{ s.name }}{% if s.code %} [{{ s.code }}]{% endif %}">{{ s.name }} <b>{{ s.periods }}</b></span>{% endfor %}
             </td>
-            <td class="wl-sections wl-hide-sm">{{ t.sections|join:"، " }}</td>
+            <td class="wl-sections wl-hide-sm" data-sort-value="{{ t.sections|length }}">{{ t.sections|join:"، " }}</td>
             <td class="wl-days wl-hide-sm">
               {% for d, n in t.per_day.items %}<span class="wl-day"><small>{{ d }}</small><b>{{ n }}</b></span>{% endfor %}
             </td>
@@ -297,7 +298,7 @@
     <div class="filter-bar wl-toolbar">
       <label for="wl-search" class="sr-only">بحث في المواد</label>
       <input type="search" id="wl-search" class="form-control form-control-sm wl-search" placeholder="ابحث باسم المادّة أو رمزها أو الصفّ…" autocomplete="off">
-      <span class="wl-toolbar-count"><strong id="wl-count">{{ subjects|length }}</strong> من {{ subjects|length }} (مادّة × صفّ) · مرتَّبة بالصفّ ثمّ الطلب</span>
+      <span class="wl-toolbar-count"><strong id="wl-count">{{ subjects|length }}</strong> من {{ subjects|length }} (مادّة × صفّ) · مرتَّبة بالصفّ ثمّ الطلب — وانقر ترويسةَ عمودٍ لتغيير الفرز</span>
       <span id="wl-none" class="wl-toolbar-none" hidden>لا نتائج</span>
     </div>
     <div class="table-wrap-scroll">
@@ -310,12 +311,12 @@
         <thead>
           <tr>
             <th scope="col" class="wl-col-idx">#</th>
-            <th scope="col">المادّة</th>
-            <th scope="col" class="col-center">الصفّ</th>
-            <th scope="col" class="col-center">الشُّعب</th>
-            <th scope="col" class="col-center">المطلوب</th>
-            <th scope="col" class="col-center">المُسنَد</th>
-            <th scope="col" class="col-center">الحالة</th>
+            <th scope="col" data-sort="text">المادّة</th>
+            <th scope="col" class="col-center" data-sort="num">الصفّ</th>
+            <th scope="col" class="col-center" data-sort="num">الشُّعب</th>
+            <th scope="col" class="col-center" data-sort="num">المطلوب</th>
+            <th scope="col" class="col-center" data-sort="num">المُسنَد</th>
+            <th scope="col" class="col-center" data-sort="num">الحالة</th>
             <th scope="col" class="col-actions"><span class="sr-only">التفاصيل</span></th>
           </tr>
         </thead>
@@ -323,12 +324,13 @@
           {% for s in subjects %}
           <tr class="wl-row" data-text="{{ s.name }} {{ s.code|default:"" }} {{ s.grade }}">
             <td class="wl-col-idx">{{ forloop.counter }}</td>
-            <th scope="row" class="wl-name">{{ s.name }} {% if s.code %}<span class="wl-code">[{{ s.code }}]</span>{% endif %}</th>
-            <td class="col-center wl-num">{{ s.grade }}</td>
-            <td class="col-center wl-num">{{ s.sections|length }}</td>
-            <td class="col-center wl-num">{{ s.demand }}</td>
-            <td class="col-center wl-num"><strong>{{ s.covered }}</strong></td>
-            <td class="col-center">
+            <th scope="row" class="wl-name" data-sort-value="{{ s.name }}">{{ s.name }} {% if s.code %}<span class="wl-code">[{{ s.code }}]</span>{% endif %}</th>
+            <td class="col-center wl-num" data-sort-value="{{ s.grade_order }}">{{ s.grade }}</td>
+            <td class="col-center wl-num" data-sort-value="{{ s.sections|length }}">{{ s.sections|length }}</td>
+            <td class="col-center wl-num" data-sort-value="{{ s.demand }}">{{ s.demand }}</td>
+            <td class="col-center wl-num" data-sort-value="{{ s.covered }}"><strong>{{ s.covered }}</strong></td>
+            {# قيمةُ فرزِ الحالة: خللٌ أكبرُ = رقمٌ أكبر، فيتصدّر التنازليّ ما يحتاج عملاً. #}
+            <td class="col-center" data-sort-value="{{ s.severity }}">
               {% if s.delta or s.unstaffed %}
                 <span class="status-badge status-danger">
                   {% if s.delta %}الفرق {{ s.delta|stringformat:"+d" }}{% endif %}{% if s.delta and s.unstaffed %} · {% endif %}{% if s.unstaffed %}{{ s.unstaffed }} بلا معلّم{% endif %}
@@ -381,7 +383,7 @@
     <div class="filter-bar wl-toolbar">
       <label for="wl-search" class="sr-only">بحث في الشُّعب</label>
       <input type="search" id="wl-search" class="form-control form-control-sm wl-search" placeholder="ابحث برمز الشعبة أو الصفّ أو المادّة…" autocomplete="off">
-      <span class="wl-toolbar-count"><strong id="wl-count">{{ sections|length }}</strong> من {{ sections|length }} شعبةً · مرتَّبة بالصفّ</span>
+      <span class="wl-toolbar-count"><strong id="wl-count">{{ sections|length }}</strong> من {{ sections|length }} شعبةً · مرتَّبة بالصفّ — وانقر ترويسةَ عمودٍ لتغيير الفرز</span>
       <span id="wl-none" class="wl-toolbar-none" hidden>لا نتائج</span>
     </div>
     <div class="table-wrap-scroll">
@@ -393,11 +395,11 @@
         <thead>
           <tr>
             <th scope="col" class="wl-col-idx">#</th>
-            <th scope="col">الشعبة</th>
-            <th scope="col" class="col-center">الصفّ</th>
-            <th scope="col" class="col-center">حصصٌ أسبوعيّة</th>
-            <th scope="col" class="col-center">المعلّمون</th>
-            <th scope="col">المواد</th>
+            <th scope="col" data-sort="text">الشعبة</th>
+            <th scope="col" class="col-center" data-sort="num">الصفّ</th>
+            <th scope="col" class="col-center" data-sort="num">حصصٌ أسبوعيّة</th>
+            <th scope="col" class="col-center" data-sort="num">المعلّمون</th>
+            <th scope="col" data-sort="num">المواد</th>
             <th scope="col" class="col-actions"><span class="sr-only">التفاصيل</span></th>
           </tr>
         </thead>
@@ -405,11 +407,11 @@
           {% for sec in sections %}
           <tr class="wl-row" data-text="{{ sec.label }} {{ sec.grade }} {% for row in sec.subjects %}{{ row.name }} {{ row.code|default:"" }} {% endfor %}">
             <td class="wl-col-idx">{{ forloop.counter }}</td>
-            <th scope="row" class="wl-name">{{ sec.label }}</th>
-            <td class="col-center wl-num">{{ sec.grade }}</td>
-            <td class="col-center wl-num"><strong>{{ sec.weekly }}</strong></td>
-            <td class="col-center wl-num">{{ sec.teachers }}</td>
-            <td class="wl-chips">
+            <th scope="row" class="wl-name" data-sort-value="{{ sec.label }}">{{ sec.label }}</th>
+            <td class="col-center wl-num" data-sort-value="{{ sec.grade_order }}">{{ sec.grade }}</td>
+            <td class="col-center wl-num" data-sort-value="{{ sec.weekly }}"><strong>{{ sec.weekly }}</strong></td>
+            <td class="col-center wl-num" data-sort-value="{{ sec.teachers }}">{{ sec.teachers }}</td>
+            <td class="wl-chips" data-sort-value="{{ sec.subjects|length }}">
               {% for row in sec.subjects %}<span class="wl-chip" title="{{ row.name }} — {{ row.teacher }}">{{ row.name }} <b>{{ row.scheduled }}</b></span>{% endfor %}
             </td>
             <td class="col-actions">
@@ -468,6 +470,9 @@ document.addEventListener('DOMContentLoaded', function () {
       btn.closest('tr').classList.toggle('is-open', !open);
     });
   });
+
+  /* الفرزُ بالنقر على ترويسة العمود يُهيّئه base.js تلقائيّاً لكلّ جداول المنصّة؛
+     وهنا تُصرَّح قيمُ الفرز في الخلايا حيث يخالف النصُّ المعنى (عددُ المواد، رتبةُ الصفّ). */
 
   /* البحثُ يُخفي صفَّ الملخّص وحدَه؛ فيُطوى تفصيلُه معه حتى لا يبقى يتيماً. */
   var search = document.getElementById('wl-search');

@@ -32,7 +32,13 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
-from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment
+from core.models.academic import (
+    ClassGroup,
+    ParentStudentLink,
+    StudentEnrollment,
+    grade_number,
+    grade_order,
+)
 from core.models.access import Membership, Role
 from core.models.audit import AuditLog
 from core.models.user import CustomUser, Profile
@@ -197,15 +203,23 @@ def student_list(request):
                 "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
                 "grade": enr.get("class_group__grade", "—"),
                 "section": enr.get("class_group__section", "—"),
+                # مفتاحُ فرزٍ مدرسيّ: «G10» نصّاً يسبق «G7»، وعدداً يليه.
+                # ومن لا قيدَ له لا صفَّ له: يُترك مفتاحُه فارغاً فيسقط إلى
+                # ذيل الجدول في الاتّجاهين، لا يتصدّره في التنازليّ.
+                "grade_order": (
+                    grade_number(enr["class_group__grade"]) if enr.get("class_group__grade") else ""
+                ),
             }
         )
 
     # ── خيارات الفلتر ──
-    available_grades = (
-        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-        .values_list("grade", flat=True)
-        .distinct()
-        .order_by("grade")
+    available_grades = sorted(
+        set(
+            ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).values_list("grade", flat=True)
+        ),
+        key=grade_number,
     )
     available_sections = (
         ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
@@ -896,7 +910,7 @@ def attendance_overview(request):
             absent_count=Count("id", filter=Q(status="absent")),
             late_count=Count("id", filter=Q(status="late")),
         )
-        .order_by("session__class_group__grade")
+        .order_by(grade_order("session__class_group__grade"))
     )
 
     # ── بيانات Chart (آخر 14 يوم) ──
@@ -971,7 +985,7 @@ def attendance_export_excel(request):
     today_records = (
         StudentAttendance.objects.filter(school=school, session__date=today)
         .select_related("student", "session__class_group")
-        .order_by("session__class_group__grade", "student__full_name")
+        .order_by(grade_order("session__class_group__grade"), "student__full_name")
     )
 
     # أنماط مشتركة
@@ -1608,7 +1622,9 @@ def tardiness_list(request):
 
     late_records = list(
         late_qs.select_related("student", "session__class_group", "session__subject").order_by(
-            "session__class_group__grade", "session__class_group__section", "student__full_name"
+            grade_order("session__class_group__grade"),
+            "session__class_group__section",
+            "student__full_name",
         )
     )
 
@@ -1644,7 +1660,7 @@ def tardiness_list(request):
     class_breakdown = (
         late_qs.values("session__class_group__grade", "session__class_group__section")
         .annotate(count=Count("id"))
-        .order_by("session__class_group__grade", "session__class_group__section")
+        .order_by(grade_order("session__class_group__grade"), "session__class_group__section")
     )
 
     # التأخر هذا الأسبوع
@@ -1798,7 +1814,7 @@ def tardiness_export_excel(request):
             session__date=selected_date,
         )
         .select_related("student", "session__class_group", "session__subject")
-        .order_by("session__class_group__grade", "student__full_name")
+        .order_by(grade_order("session__class_group__grade"), "student__full_name")
     )
 
     wb = openpyxl.Workbook()
@@ -2122,7 +2138,9 @@ def tardiness_pdf(request):
         )
         .select_related("student", "session__class_group", "session__subject")
         .order_by(
-            "session__class_group__grade", "session__class_group__section", "student__full_name"
+            grade_order("session__class_group__grade"),
+            "session__class_group__section",
+            "student__full_name",
         )
     )
 

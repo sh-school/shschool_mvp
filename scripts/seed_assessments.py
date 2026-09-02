@@ -178,7 +178,7 @@ def run():
         # ── 2. إعدادات المواد + الباقات ───────────────────────
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True
-        ).order_by("grade", "section")
+        ).in_school_order()
 
         setups_n = packages_n = 0
         for cg in classes:

@@ -25,6 +25,7 @@ from core.permissions import (
     OBSERVATION_VIEW_ALL,
     role_required,
 )
+from core.sorting import apply_sort
 
 from .observation_models import (
     FOLLOW_UP_MODE,
@@ -40,7 +41,30 @@ from .observation_services import ObservationService
 logger = logging.getLogger(__name__)
 
 _TEACHER_ROLES = ["teacher", "ese_teacher", "coordinator", "activities_coordinator"]
-_SORT_MAP = {"date": "-observation_date", "score": "-score_percent", "status": "status"}
+# حقولُ الفرز المسموحة: `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى،
+# ولكلٍّ حقلٌ ثانٍ يقطع التساوي فلا يتأرجح ترتيبُ الصفحات بين طلبين.
+OBSERVATION_SORTS = {
+    "teacher": ("teacher__full_name", "-observation_date"),
+    "observer": ("observer__full_name", "-observation_date"),
+    "subject": ("subject__name", "-observation_date"),
+    "date": ("observation_date", "-created_at"),
+    "kind": ("kind", "-observation_date"),
+    "score": ("score_percent", "-observation_date"),
+    "status": ("status", "-observation_date"),
+}
+# التاريخُ والنسبةُ يبدآن تنازليّاً: الأحدثُ والأعلى هو المقصودُ أوّلاً.
+OBSERVATION_DESC_FIRST = ("date", "score")
+
+ARCHIVE_SORTS = {
+    "teacher": ("teacher__full_name", "-observation_date"),
+    "observer": ("observer__full_name", "-observation_date"),
+    "subject": ("subject__name", "-observation_date"),
+    "date": ("observation_date", "-created_at"),
+    "kind": ("kind", "-observation_date"),
+    "score": ("score_percent", "-observation_date"),
+    "archived": ("deleted_at", "-observation_date"),
+}
+ARCHIVE_DESC_FIRST = ("date", "score", "archived")
 
 
 # ══════════════════════════ مساعدات ══════════════════════════════════
@@ -78,7 +102,7 @@ def _form_lists(school):
         "subjects": Subject.objects.filter(school=school).order_by("name_ar"),
         "class_groups": ClassGroup.objects.filter(
             school=school, academic_year=academic_year_for_school(school)
-        ).order_by("grade", "section"),
+        ).in_school_order(),
     }
 
 
@@ -435,7 +459,15 @@ def observation_list(request):
     q = g.get("q", "").strip()
     if q:
         qs = qs.filter(Q(topic__icontains=q) | Q(teacher__full_name__icontains=q))
-    qs = qs.order_by(_SORT_MAP.get(g.get("sort"), "-observation_date"))
+    # الفرزُ على الاستعلام كلِّه قبل التقسيم — لا على الصفحة الظاهرة وحدَها.
+    qs, sort = apply_sort(
+        qs,
+        request,
+        OBSERVATION_SORTS,
+        "date",
+        default_desc=True,
+        desc_first=OBSERVATION_DESC_FIRST,
+    )
 
     page = Paginator(qs, 25).get_page(g.get("page"))
     rows = [(o, _obs_perms(request.user, o)) for o in page]
@@ -460,6 +492,7 @@ def observation_list(request):
         {
             "rows": rows,
             "page_obj": page,
+            "sort": sort,
             "can_create": request.user.get_role() in OBSERVATION_CREATE
             or request.user.is_superuser,
             "can_self": request.user.get_role() in OBSERVATION_SELF_CREATE,
@@ -596,6 +629,14 @@ def observation_archive(request):
     """
     school = request.user.active_membership.school
     rows = ObservationService.archived_for(request.user, school)
+    rows, sort = apply_sort(
+        rows,
+        request,
+        ARCHIVE_SORTS,
+        "archived",
+        default_desc=True,
+        desc_first=ARCHIVE_DESC_FIRST,
+    )
 
     page = Paginator(rows, 25).get_page(request.GET.get("page"))
     for obs in page:
@@ -604,7 +645,7 @@ def observation_archive(request):
     return render(
         request,
         "quality/observation_archive.html",
-        {"page_obj": page, "total": page.paginator.count},
+        {"page_obj": page, "sort": sort, "total": page.paginator.count},
     )
 
 

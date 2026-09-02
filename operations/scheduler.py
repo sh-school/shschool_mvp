@@ -101,6 +101,11 @@ class Task:
     #: والخاصُّ لا يُرفع في جولة الاسترخاء: قرارٌ في حقّ معلّمٍ بعينه أثقلُ من
     #: سقفٍ عامٍّ وُضع ليُقارَب.
     consecutive_cap: int = 0
+    #: أوسعُ فراغٍ يُقبل بين حصّتين لصاحب هذه المهمّة — `None` يعني «لا قيدَ
+    #: شخصيّ، الفراغُ ترجيحٌ مرنٌ كما لعامّة الكادر». والصفرُ قيدٌ صحيحٌ لا
+    #: غيابُ قيد: «لا فراغَ البتّة». وهو كسقف التلاصق: قرارٌ في حقّ الشخص،
+    #: فلا يُرفع في جولة الاسترخاء.
+    gap_cap: int | None = None
     #: الموارد التي تستهلكها هذه المهمّة: (معرّف المورد · سعته).
     resources: tuple = ()
     #: كم خانةً متلاصقةً تشغل هذه المهمّة: واحدةً عادةً، واثنتين في المزدوجة.
@@ -363,6 +368,20 @@ class ScheduleGrid:
                 p += step
         return count
 
+    def teacher_widest_gap_with(self, teacher_id: str, day: int, periods) -> int:
+        """أوسعُ فراغٍ في يوم المعلّم لو شغل هذه الخانات — بعدد الحصص الفارغة.
+
+        و`would_create_gap` أدناه سؤالٌ آخر: أتنشأ فجوةٌ أم لا؟ وهو يكفي
+        ترجيحاً مرناً. أمّا القيدُ الشخصيُّ فيحتاج **مقدارَ** الفراغ ليقارنه
+        بسقفٍ لصاحبه، فلا يُقاس بنعم ولا.
+        """
+        occupied = {p for d, p in self._teacher_slots[teacher_id] if d == day}
+        occupied.update(periods)
+        ordered = sorted(occupied)
+        if len(ordered) < 2:
+            return 0
+        return max(b - a - 1 for a, b in zip(ordered, ordered[1:], strict=False))
+
     def would_create_gap(self, teacher_id: str, day: int, period: int) -> bool:
         """هل إضافة حصة ستخلق فجوة للمعلم؟"""
         periods_today = sorted(p for d, p in self._teacher_slots[teacher_id] if d == day)
@@ -402,11 +421,11 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
 
     # سقوفُ التلاصق الخاصّة — حقلٌ في `TeacherPreference` كان يُحمَّل ولا
     # يُستعمَل قطّ، شأنَ `requires_double_period` قبله.
-    personal_cap = {
-        str(p.teacher_id): p.max_consecutive
-        for p in TeacherPreference.objects.filter(school=school, academic_year=academic_year)
-        if p.max_consecutive
-    }
+    prefs = list(TeacherPreference.objects.filter(school=school, academic_year=academic_year))
+    personal_cap = {str(p.teacher_id): p.max_consecutive for p in prefs if p.max_consecutive}
+    #: سقوفُ الفراغ الخاصّة — `None` لا قيد، والصفرُ قيدٌ صحيح: «لا فراغَ
+    #: البتّة». فيُسأل عن العدم لا عن الصدق، وإلّا سقط الأشدُّ من القيدين.
+    personal_gap = {str(p.teacher_id): p.max_gap for p in prefs if p.max_gap is not None}
 
     # أيّامُ التفريغ الكاملة لكلّ معلّم — مقامُ القسمة في التوزيع.
     # ومواردُ المدرسة المحدودة: أيُّ مادّةٍ تستهلك أيَّ موردٍ وبأيّ سعة.
@@ -441,16 +460,26 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         # يُعاد اشتقاقُه: اشتقاقٌ ثانٍ لحقيقةٍ محفوظةٍ يفترق عنها يوماً.
         level_type = a.class_group.level_type or ""
 
-        # حصة مزدوجة: من إعدادات المادة في DB أو من الكود القديم
-        is_double = a.subject_id in double_period_subjects or a.subject.code in {"ART", "TECH"}
+        # الازدواجُ من القاعدة وحدَها — لا من رمزٍ محفورٍ في الشيفرة. وكان
+        # يُقرأ معها `code in {"ART", "TECH"}`، فيُطفئ النائبُ الازدواجَ في
+        # الشاشة ولا ينطفئ. ومصدرانِ لحقيقةٍ واحدةٍ يفترقان يوماً — وقد افترقا.
+        #
+        # وقرارُ الشعبة يسبق قرارَ المادّة: التكنولوجيا متباعدةٌ من السابع إلى
+        # العاشر، ومزدوجةٌ في الحادي عشر/1 والثاني عشر/1 حيث هي نصفُ زوجٍ
+        # متوازٍ مع الفنّيّة. وحقلُ المادّة وحده لا يسع الحالين.
+        is_double = (
+            a.double_period
+            if a.double_period is not None
+            else a.subject_id in double_period_subjects
+        )
 
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject, personal_cap)
+    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap)
 
 
-def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
+def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=None) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
     فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
@@ -470,6 +499,7 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
 
     resources_by_subject = resources_by_subject or {}
     personal_cap = personal_cap or {}
+    personal_gap = personal_gap or {}
 
     def build(a, level_type, is_double, members, available):
         #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
@@ -505,6 +535,12 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None) -> list[Task]:
             consecutive_cap=min(
                 (personal_cap[m.teacher_id] for m in members if m.teacher_id in personal_cap),
                 default=0,
+            ),
+            #: وأضيقُ سقفِ فراغٍ كذلك — و`None` غيابُ القيد لا أوسعُه، فلا
+            #: يدخل العدّ أصلاً.
+            gap_cap=min(
+                (personal_gap[m.teacher_id] for m in members if m.teacher_id in personal_gap),
+                default=None,
             ),
             resources=tuple(used),
             parallel_group=(a.parallel_group or "").strip(),
@@ -1107,7 +1143,10 @@ def generate_schedule(
                 generation.save(update_fields=list(fields))
         except Exception as exc:
             logger.exception("فشل حفظ الجدول المولَّد: %s", exc)
-            errors.append(f"فشل حفظ الجدول: {exc}")
+            # نصُّ الاستثناء للسجلّ لا للواجهة: هذه القائمةُ تصير `error_message`
+            # وتُبثّ JSON إلى المتصفّح، وقد تحمل مساراتٍ أو أسماءَ جداولَ أو
+            # جزءاً من تتبّع المكدّس. فيُقال للمستخدم ما يفعله لا ما رآه النظام.
+            errors.append("فشل حفظ الجدول المولَّد — سُجّلت التفاصيلُ للمشغّل.")
 
     return {
         "success": len(errors) == 0,

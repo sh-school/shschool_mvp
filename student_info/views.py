@@ -17,6 +17,7 @@ from core.academic_calendar import academic_year_for
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
 from core.permissions import role_required
+from core.sorting import apply_sort
 from student_info import services
 from student_info.access import (
     MODULE_ROLES,
@@ -28,6 +29,23 @@ from student_info.forms import StudentNoteForm
 from student_info.models import NOTE_CATEGORIES, SENSITIVE_CATEGORIES, StudentNote
 
 CATEGORY_LABELS = dict(NOTE_CATEGORIES)
+
+# حقولُ الفرز المسموحة: `?sort=` نصٌّ من المستخدم لا يُمرَّر إلى ORM إلّا مصفّى.
+# ولكلّ مفتاحٍ حقلٌ ثانٍ يقطع التساوي فلا يتأرجح ترتيبُ الصفحات بين طلبين.
+NOTE_SORTS = {
+    "date": ("occurred_on", "-created_at"),
+    "student": ("student__full_name", "-occurred_on"),
+    "title": ("title", "-occurred_on"),
+    "author": ("created_by__full_name", "-occurred_on"),
+}
+
+ACTIVITY_SORTS = {
+    "date": ("date", "-id"),
+    "student": ("student__full_name", "-date"),
+    "activity": ("title", "-date"),
+    "type": ("activity_type", "-date"),
+    "scope": ("scope", "-date"),
+}
 
 
 def _no_access(request):
@@ -163,11 +181,9 @@ def notes(request, category):
 
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    qs = (
-        StudentNote.objects.filter(school=school, category=category, academic_year=year)
-        .select_related("student", "created_by")
-        .order_by("-occurred_on", "-created_at")
-    )
+    qs = StudentNote.objects.filter(
+        school=school, category=category, academic_year=year
+    ).select_related("student", "created_by")
 
     # الاستعلامُ عن الشُّعب المرئيّة لا يُدفع ثمنُه إلّا لمن يحتاجه
     if not _sees_whole_school(request.user):
@@ -178,6 +194,8 @@ def notes(request, category):
             },
         ).distinct()
 
+    # الفرزُ قبل التقسيم: القائمةُ كلُّها تُرتَّب ثمّ تُقتطع صفحةٌ منها.
+    qs, sort = apply_sort(qs, request, NOTE_SORTS, "date")
     page = Paginator(qs, 40).get_page(request.GET.get("page"))
     if category in SENSITIVE_CATEGORIES:
         AuditLog.log(
@@ -196,6 +214,7 @@ def notes(request, category):
             "category": category,
             "label": CATEGORY_LABELS[category],
             "page": page,
+            "sort": sort,
             "year": year,
             "can_write": category in writable_categories(request.user),
         },
@@ -253,10 +272,8 @@ def activities(request):
 
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    qs = (
-        StudentActivity.objects.filter(school=school, academic_year=year)
-        .select_related("student", "recorded_by")
-        .order_by("-date")
+    qs = StudentActivity.objects.filter(school=school, academic_year=year).select_related(
+        "student", "recorded_by"
     )
     if not _sees_whole_school(request.user):
         visible_ids = {g.id for g in visible_class_groups(request.user, school, year)}
@@ -265,5 +282,10 @@ def activities(request):
             student__enrollments__class_group_id__in=visible_ids,
         ).distinct()
 
+    qs, sort = apply_sort(qs, request, ACTIVITY_SORTS, "date")
     page = Paginator(qs, 40).get_page(request.GET.get("page"))
-    return render(request, "student_info/activities.html", {"page": page, "year": year})
+    return render(
+        request,
+        "student_info/activities.html",
+        {"page": page, "sort": sort, "year": year},
+    )

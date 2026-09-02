@@ -68,6 +68,17 @@
     text-align: center;
     margin-bottom: 20px;
   }
+  /* الشعارُ فوق الاسم: ورقةٌ رسميّةٌ تُعرف من رأسها قبل أن تُقرأ. */
+  .print-emblem {
+    display: block;
+    height: 62px;
+    width: auto;
+    margin: 0 auto 6px;
+  }
+  .matrix-head .print-emblem { height: 44px; margin-bottom: 2px; }
+  @media print {
+    .print-emblem { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  }
   .schedule-header .ministry {
     font-size: 13px;
     color: #555;
@@ -323,6 +334,8 @@
 <body class="{% if paper == 'a3' %}paper-a3{% endif %}">
 
 {# ── Print Controls (hidden in print) ── #}
+{# داخل صفحة العرض في المنصّة تُخفى الأدوات: أدواتُ الصفحة الحاضنة تكفي. #}
+{% if not embed %}
 <div class="print-controls">
   <span class="print-label">طباعة الجدول</span>
 
@@ -380,6 +393,7 @@
   <button data-action="print">طباعة</button>
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
+{% endif %}
 
 {# ── Printable Content ── #}
 <div class="schedule-print">
@@ -387,6 +401,7 @@
 {% if view_type == 'all_teachers' %}
 {# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
   <div class="matrix-head">
+    <img class="print-emblem" src="{% static 'brand/logoMaroon.png' %}" alt="شعار {{ school.name }}">
     <div class="ministry">{{ school.name }}</div>
     <div class="title">الجدول العام للمعلمين</div>
     <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}</div>
@@ -467,6 +482,7 @@
 
 {% else %}
   <div class="schedule-header">
+    <img class="print-emblem" src="{% static 'brand/logoMaroon.png' %}" alt="شعار {{ school.name }}">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <div class="title">{{ title }}</div>

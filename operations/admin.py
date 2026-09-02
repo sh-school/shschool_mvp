@@ -123,12 +123,20 @@ class SubjectClassAssignmentAdmin(admin.ModelAdmin):
         "teacher",
         "weekly_periods",
         "requires_lab",
+        "double_period",
         "is_active",
     )
-    list_filter = ("school", "academic_year", "subject", "requires_lab", "is_active")
+    list_filter = (
+        "school",
+        "academic_year",
+        "subject",
+        "requires_lab",
+        "double_period",
+        "is_active",
+    )
     search_fields = ("teacher__full_name", "subject__name_ar", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
-    list_editable = ("weekly_periods", "requires_lab", "is_active")
+    list_editable = ("weekly_periods", "requires_lab", "double_period", "is_active")
     list_per_page = 50
 
 
@@ -156,7 +164,14 @@ class SchedulingResourceAdmin(admin.ModelAdmin):
 
 @admin.register(TeacherPreference)
 class TeacherPreferenceAdmin(admin.ModelAdmin):
-    list_display = ("teacher", "max_daily_periods", "max_consecutive", "free_day", "academic_year")
+    list_display = (
+        "teacher",
+        "max_daily_periods",
+        "max_consecutive",
+        "max_gap",
+        "free_day",
+        "academic_year",
+    )
     list_filter = ("school", "academic_year", "free_day")
     search_fields = ("teacher__full_name",)
     autocomplete_fields = ("teacher",)

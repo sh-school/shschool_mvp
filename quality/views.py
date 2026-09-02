@@ -22,6 +22,7 @@ from core.academic_calendar import (
 )
 from core.models import AuditLog
 from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
+from core.sorting import SortState
 from notifications.hub import NotificationHub
 
 # All roles that can access quality module (view + manage)
@@ -227,6 +228,12 @@ def _paginate(request, qs):
 
 def _list_context(request, school, year, page_obj, per_page, sort, direction):
     """Build shared context dict for execution_list / review_list."""
+    # حالةُ الفرز تُمرَّر للقالب ليرسم ترويسةً قابلةً للنقر بدل قائمةٍ منسدلة.
+    sort_state = SortState(
+        key=sort if sort in _SORT_FIELDS else "number",
+        descending=direction == "desc",
+        allowed={k: (v,) for k, v in _SORT_FIELDS.items()},
+    )
     timings = (
         OperationalProcedure.objects.filter(school=school, academic_year=year)
         .exclude(date_range="")
@@ -252,6 +259,7 @@ def _list_context(request, school, year, page_obj, per_page, sort, direction):
         "current_per_page": per_page,
         "current_sort": sort,
         "current_dir": direction,
+        "sort": sort_state,
         "year": year,
     }
 
