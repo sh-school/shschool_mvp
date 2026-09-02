@@ -333,7 +333,9 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "soft_time_limit"}
     except Exception as exc:  # noqa: BLE001 — يُسجَّل ويُقال، ولا يُبتلع
         logger.exception("generate_smart_schedule: فشل التوليد — %s", exc)
-        _fail(f"خطأ في التوليد: {exc}")
+        # نصُّ الاستثناء يُسجَّل للمشغّل لا للمستخدم: قد يحمل مساراتٍ أو أسماءَ
+        # جداول أو جزءاً من تتبّع المكدّس، وهذه الرسالةُ تُعرض في الواجهة وتُبثّ JSON.
+        _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
         return {"ok": False, "reason": "exception"}
 
     quality = result["quality"]

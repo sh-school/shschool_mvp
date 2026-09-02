@@ -681,7 +681,8 @@ def smart_generate(request):
         # صامتة. يُقال إنّ العاملَ غيرُ متاح، ويُقال ماذا يفعل المسؤول.
         logger.exception("تعذّر إرسال مهمّة توليد الجدول: %s", exc)
         generation.status = "failed"
-        generation.error_message = f"تعذّر إرسال المهمّة إلى عامل الخلفيّة: {exc}"
+        # سببُ السقوط في السجلّ أعلاه؛ والمعروضُ للمستخدم ما يفعله لا ما رآه النظام.
+        generation.error_message = "تعذّر إرسال المهمّة إلى عامل الخلفيّة — راجع تشغيل Celery."
         generation.finished_at = timezone.now()
         generation.save(update_fields=["status", "error_message", "finished_at"])
         messages.error(

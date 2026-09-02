@@ -31,6 +31,7 @@ def exempt(school, teacher, *, day, period, reason):
         period_number=period,
         reason=reason,
         source="school",
+        source_reference="قرار إدارة المدرسة 2026/1",
         is_active=True,
     )
 

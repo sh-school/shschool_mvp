@@ -50,7 +50,7 @@ class Command(BaseCommand):
 
         written = 0
         for (day_type, period), times in sorted(seen.items()):
-            (start, end), count = times.most_common(1)[0]
+            (start, end), _ = times.most_common(1)[0]
             spread = f" (من {sum(times.values())} حصّة، وفيها {len(times)} توقيتاً مختلفاً)"
             self.stdout.write(
                 f"{day_type} · ح{period}: {start:%H:%M} → {end:%H:%M}"

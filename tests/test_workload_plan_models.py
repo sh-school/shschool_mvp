@@ -466,7 +466,7 @@ def test_nothing_creates_a_plan_from_the_observed_schedule(school, teacher):
 
     HistoricalAssignment → Proposal        (وليس → Truth)
     """
-    import academic_management.models as models_module
+    from academic_management import models as models_module
 
     forbidden = [
         name
