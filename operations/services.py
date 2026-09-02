@@ -551,44 +551,6 @@ class ScheduleService:
 
         return conflicts
 
-    @staticmethod
-    @transaction.atomic
-    def generate_daily_sessions(
-        school: School,
-        date: date,
-        academic_year: str | None = None,
-    ) -> int:
-        """توليد Session يومية من ScheduleSlot للتاريخ المحدد"""
-        academic_year = academic_year or academic_year_for_school(school)
-        day_of_week = date.weekday()  # Python: 0=Mon … لكننا نريد 0=Sun
-        # تحويل: Sun=6 في Python → 0 عندنا
-        mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
-        our_day = mapping.get(day_of_week, -1)
-        if our_day == -1:
-            return 0  # جمعة أو سبت
-
-        slots = ScheduleSlot.objects.filter(
-            school=school, day_of_week=our_day, academic_year=academic_year, is_active=True
-        ).select_related("teacher", "class_group", "subject")
-
-        created = 0
-        for slot in slots:
-            _, was_created = Session.objects.get_or_create(
-                school=school,
-                teacher=slot.teacher,
-                class_group=slot.class_group,
-                date=date,
-                start_time=slot.start_time,
-                defaults={
-                    "subject": slot.subject,
-                    "end_time": slot.end_time,
-                    "status": "scheduled",
-                },
-            )
-            if was_created:
-                created += 1
-        return created
-
     # ──────────────────────────────────────────────────────────
     # نظام التوليد التلقائي — يعمل بدون Celery
     # ──────────────────────────────────────────────────────────

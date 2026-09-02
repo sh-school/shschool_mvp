@@ -5,7 +5,7 @@ tests/test_fixes.py
 الإصلاح 1: SchoolFactory بدون name_en
 الإصلاح 2: ClassGroupFactory بـ grade و section
 الإصلاح 3: Middleware — /api/ يتطلب مصادقة
-الإصلاح 4: generate_daily_sessions — logging واضح للإجازات
+الإصلاح 4: خريطة الأيام — الجمعة والسبت خارج التوليد التلقائيّ
 """
 
 from datetime import date
@@ -141,39 +141,70 @@ class TestMiddlewareAPIFix:
 
 @pytest.mark.django_db
 class TestDayMappingFix:
-    def test_friday_returns_zero_sessions(self, db, school):
-        """الجمعة (إجازة) تُعيد 0 حصص بدون خطأ"""
+    def test_the_weekend_never_receives_a_session(self, db, school):
+        """لا حصّةَ تُنشأ بتاريخ جمعةٍ أو سبت — ولو كان للمدرسة جدولٌ كامل.
+
+        وكان الاختبارُ يقيس `== 0` على مدرسةٍ بلا جدول، فيمرّ لسببٍ لا علاقةَ
+        له بالعطلة: لا شيءَ يُولَّد أصلاً. والدالّةُ لا تعرف «عطلة» البتّة —
+        تحسب حدودَ الأسبوع وتولّد الأحدَ إلى الخميس، فاستدعاؤها بجمعةٍ يُنشئ
+        أسبوعَها لا صفراً. فالمقياسُ الصحيح تاريخُ ما أُنشئ، لا عددُه.
+        """
+        import datetime as dt
+
+        from core.models import ClassGroup
+        from operations.models import ScheduleSlot, Session, Subject
+        from operations.services import ScheduleService
+        from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+        friday, saturday = date(2026, 3, 20), date(2026, 3, 21)
+        assert (friday.weekday(), saturday.weekday()) == (4, 5)
+        assert ScheduleService._PY_TO_QATAR.get(friday.weekday()) is None
+        assert ScheduleService._PY_TO_QATAR.get(saturday.weekday()) is None
+
+        teacher = UserFactory(full_name="معلّمُ الأسبوع")
+        MembershipFactory(
+            user=teacher, school=school, role=RoleFactory(school=school, name="teacher")
+        )
+        cg = ClassGroup.objects.create(
+            school=school, grade="G8", section="1", academic_year="2026-2027"
+        )
+        subject = Subject.objects.create(school=school, name_ar="الرياضيات")
+        # اليومُ 0 = الأحد في خريطة المدرسة — أوّلُ الأسبوع الدراسيّ.
+        ScheduleSlot.objects.create(
+            school=school,
+            teacher=teacher,
+            class_group=cg,
+            subject=subject,
+            day_of_week=0,
+            period_number=1,
+            start_time=dt.time(7, 10),
+            end_time=dt.time(7, 55),
+            academic_year="2026-2027",
+        )
+
+        # العامُ يُمرَّر صريحاً: الاختبارُ عن العطلة لا عن تقويم المدرسة.
+        ScheduleService.ensure_sessions_for_date(school, friday, academic_year="2026-2027")
+        ScheduleService.ensure_sessions_for_date(school, saturday, academic_year="2026-2027")
+
+        dates = set(Session.objects.filter(school=school).values_list("date", flat=True))
+        # الشرطُ الذي يمنع الفراغ: لو لم يُنشأ شيءٌ لمرّ ما بعده بلا معنًى.
+        assert dates, "لم يُنشأ شيءٌ أصلاً — فالاختبارُ لا يقيس العطلة"
+        assert friday not in dates and saturday not in dates
+        assert all(d.weekday() not in (4, 5) for d in dates)
+
+    def test_sunday_is_working_day(self):
+        """الأحد = أوّل أيام الأسبوع الدراسيّ (0) في خريطة الخدمة الحقيقيّة."""
         from operations.services import ScheduleService
 
-        # الجمعة: Python weekday = 4
-        friday = date(2026, 3, 20)  # جمعة
-        assert friday.weekday() == 4, "التاريخ المختار ليس جمعة"
-        result = ScheduleService.generate_daily_sessions(school, friday)
-        assert result == 0, f"الجمعة يجب أن تُعيد 0 — أعادت {result}"
-
-    def test_saturday_returns_zero_sessions(self, db, school):
-        """السبت (إجازة) تُعيد 0 حصص"""
-        from operations.services import ScheduleService
-
-        saturday = date(2026, 3, 21)  # سبت
-        assert saturday.weekday() == 5, "التاريخ المختار ليس سبتاً"
-        result = ScheduleService.generate_daily_sessions(school, saturday)
-        assert result == 0
-
-    def test_sunday_is_working_day(self, db, school):
-        """الأحد = يوم عمل (our_day=0) — يُعالَج بدون return 0"""
-        from operations.services import ScheduleService
-
-        # الأحد: Python weekday = 6
-        sunday = date(2026, 3, 22)  # أحد
+        sunday = date(2026, 3, 22)
         assert sunday.weekday() == 6, "التاريخ المختار ليس أحداً"
-        # لا توجد slots → يُعيد 0 لكن بسبب عدم وجود بيانات لا لأنه إجازة
-        result = ScheduleService.generate_daily_sessions(school, sunday)
-        assert result == 0  # لا slots في الـ test — طبيعي
+        assert ScheduleService._PY_TO_QATAR[sunday.weekday()] == 0
 
     def test_day_mapping_coverage(self):
-        """اختبار خريطة الأيام كاملة"""
-        mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
+        """اختبار خريطة الأيام كاملة — على ثابت الخدمة لا على نسخةٍ منه"""
+        from operations.services import ScheduleService
+
+        mapping = ScheduleService._PY_TO_QATAR
         days_python = {
             0: "الاثنين",
             1: "الثلاثاء",
