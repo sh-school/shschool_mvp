@@ -1143,7 +1143,10 @@ def generate_schedule(
                 generation.save(update_fields=list(fields))
         except Exception as exc:
             logger.exception("فشل حفظ الجدول المولَّد: %s", exc)
-            errors.append(f"فشل حفظ الجدول: {exc}")
+            # نصُّ الاستثناء للسجلّ لا للواجهة: هذه القائمةُ تصير `error_message`
+            # وتُبثّ JSON إلى المتصفّح، وقد تحمل مساراتٍ أو أسماءَ جداولَ أو
+            # جزءاً من تتبّع المكدّس. فيُقال للمستخدم ما يفعله لا ما رآه النظام.
+            errors.append("فشل حفظ الجدول المولَّد — سُجّلت التفاصيلُ للمشغّل.")
 
     return {
         "success": len(errors) == 0,

@@ -2,6 +2,8 @@
 
 from django import forms
 
+from core.models.access import EXEMPTABLE_ROLES
+
 from .models import ScheduleSlot, SubjectClassAssignment, TeacherAbsence, TeacherExemption
 
 
@@ -43,13 +45,20 @@ class TeacherExemptionForm(forms.Form):
     def clean_teacher(self):
         from core.models import CustomUser
 
+        # الشرطان في `filter()` واحدةٍ ليقعا على العضويّة نفسها: عضويّةٌ
+        # مدرِّسةٌ في مدرسةٍ أخرى لا تُجيز تفريغَ صاحبها هنا.
         teacher = (
-            CustomUser.objects.in_school(self.school)
-            .filter(pk=self.cleaned_data["teacher"])
+            CustomUser.objects.filter(
+                pk=self.cleaned_data["teacher"],
+                memberships__school=self.school,
+                memberships__is_active=True,
+                memberships__role__name__in=EXEMPTABLE_ROLES,
+            )
+            .distinct()
             .first()
         )
         if teacher is None:
-            raise forms.ValidationError("المعلّم المختار ليس من منسوبي مدرستك.")
+            raise forms.ValidationError("المعلّم المختار ليس من كادر الجدولة في مدرستك.")
         return teacher
 
     def clean(self):

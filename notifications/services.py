@@ -435,9 +435,9 @@ class NotificationService:
         )
 
         pending_absence = (
-            AbsenceAlert.objects.filter(school=school, status="pending")
-            .select_related("student")
-            .count()
+            # لا `select_related` قبل `count()`: لا كائناتٍ تُقرأ، وضمُّ الطالب
+            # كلفةٌ بلا مقابل.
+            AbsenceAlert.objects.filter(school=school, status="pending").count()
         )
 
         failing_students = (

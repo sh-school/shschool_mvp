@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
+from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import role_required
 
 from .models import (
@@ -959,7 +960,7 @@ def schedule_settings(request):
     teacher_ids = Membership.objects.filter(
         school=school,
         is_active=True,
-        role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
+        role__name__in=EXEMPTABLE_ROLES,
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 

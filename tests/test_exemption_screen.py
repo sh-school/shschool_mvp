@@ -62,3 +62,47 @@ def test_the_generator_still_sees_the_personal_rule(school, teacher):
 
     #: `objects` بلا `releases()` هو ما يقرؤه المولّد.
     assert row in TeacherExemption.objects.filter(school=school, academic_year=YEAR)
+
+
+# ── مَن يجوز تفريغُه: كادرُ الجدولة وحدَه ─────────────────────────────
+
+
+def _form(school, teacher_id):
+    from operations.forms import TeacherExemptionForm
+
+    return TeacherExemptionForm(
+        {
+            "teacher": str(teacher_id),
+            "exemption_type": "full_day",
+            "day_of_week": "0",
+            "reason": "دورةٌ في الوزارة",
+            "source": "school",
+        },
+        school=school,
+    )
+
+
+def test_a_scheduling_staff_member_may_be_released(school, teacher):
+    assert _form(school, teacher.id).is_valid()
+
+
+def test_a_parent_in_the_same_school_may_not_be_released(school):
+    """الشاشةُ لا تعرضه، والحدُّ يجب أن يمنعه — فالطلبُ يُبدَّل بيدٍ واحدة."""
+    parent = UserFactory(full_name="وليُّ أمر")
+    MembershipFactory(user=parent, school=school, role=RoleFactory(school=school, name="parent"))
+
+    form = _form(school, parent.id)
+
+    assert not form.is_valid()
+    assert "teacher" in form.errors
+
+
+def test_a_teacher_of_another_school_may_not_be_released(school):
+    """عضويّةٌ مدرِّسةٌ هناك ليست إذناً هنا."""
+    from tests.conftest import SchoolFactory
+
+    other = SchoolFactory()
+    stranger = UserFactory(full_name="معلّمُ مدرسةٍ أخرى")
+    MembershipFactory(user=stranger, school=other, role=RoleFactory(school=other, name="teacher"))
+
+    assert not _form(school, stranger.id).is_valid()
