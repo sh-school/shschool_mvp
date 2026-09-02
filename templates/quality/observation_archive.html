@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load sorting %}
 {% block title %}أرشيف الزيارات الصفية{% endblock %}
 
 {% block breadcrumbs %}
@@ -21,11 +22,14 @@
   </p>
 
   {% if page_obj.object_list %}
-  <table class="table table-qatar" style="font-size:.9rem">
+  {# الأرشيفُ مقسَّمٌ صفحاتٍ: الفرزُ من الخادم على الأرشيف كلِّه. #}
+  <table class="table table-qatar" style="font-size:.9rem" data-no-sort>
     <thead>
       <tr>
-        <th>المعلّم</th><th>الزائر</th><th>المادّة</th><th class="col-num">تاريخ الزيارة</th>
-        <th>النوع</th><th class="col-num">النسبة</th><th class="col-num">تاريخ الأرشفة</th><th></th>
+        {% sort_th sort "teacher" "المعلّم" %}{% sort_th sort "observer" "الزائر" %}
+        {% sort_th sort "subject" "المادّة" %}{% sort_th sort "date" "تاريخ الزيارة" "col-num" %}
+        {% sort_th sort "kind" "النوع" %}{% sort_th sort "score" "النسبة" "col-num" %}
+        {% sort_th sort "archived" "تاريخ الأرشفة" "col-num" %}<th></th>
       </tr>
     </thead>
     <tbody>

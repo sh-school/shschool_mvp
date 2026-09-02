@@ -22,6 +22,7 @@ from django.views.decorators.http import require_POST
 from behavior.models import BehaviorInfraction
 from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
 from core.permissions import role_required
+from core.sorting import apply_sort
 from operations.models import AbsenceAlert
 
 # ── أدوار مسموح لها بالوصول لبوابة ولي الأمر ──
@@ -315,6 +316,14 @@ def parent_behavior(request):
 # ══════════════════════════════════════════════════════════════
 
 
+# حقولُ الفرز المسموحة — `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى.
+LINK_SORTS = {
+    "student": ("student__full_name", "parent__full_name"),
+    "parent": ("parent__full_name", "student__full_name"),
+    "relationship": ("relationship", "student__full_name"),
+}
+
+
 @login_required
 @role_required(_ADMIN_ROLES)
 def manage_parent_links(request):
@@ -353,12 +362,16 @@ def manage_parent_links(request):
     parent_count = links.values("parent").distinct().count()
     student_count = links.values("student").distinct().count()
 
+    # الفرزُ قبل التقسيم: القائمةُ كلُّها تُرتَّب ثمّ تُقتطع صفحةٌ منها.
+    links, sort = apply_sort(links, request, LINK_SORTS, "student")
+
     # Pagination
     paginator = Paginator(links, 25)
     page_obj = paginator.get_page(request.GET.get("page", 1))
 
     ctx = {
         "page_obj": page_obj,
+        "sort": sort,
         "total_count": total_count,
         "parent_count": parent_count,
         "student_count": student_count,

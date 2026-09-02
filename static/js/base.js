@@ -61,15 +61,18 @@
     var input = document.getElementById(inputId);
     if (!input) return;
     opts = opts || {};
-    var parent = opts.parent ? document.querySelector(opts.parent) : document;
-    var rows = parent.querySelectorAll(selector);
     var countEl = opts.countEl ? document.querySelector(opts.countEl) : null;
     var noEl = opts.noResults ? document.querySelector(opts.noResults) : null;
 
-    input.addEventListener('input', function(){
-      var q = this.value;
+    /* الصفوفُ تُقرأ عند كلّ تصفيةٍ لا مرّةً واحدة: جدولٌ يُبدّله HTMX يأتي
+       بصفوفٍ جديدةٍ كلَّ مرّة، والقائمةُ المحفوظةُ سلفاً تُصفّي عقداً هجرها
+       المستندُ فيبدو البحثُ معطَّلاً بعد أوّل فرزٍ أو تنقّل. */
+    function apply() {
+      var parent = opts.parent ? document.querySelector(opts.parent) : document;
+      if (!parent) return;
+      var q = input.value;
       var shown = 0;
-      rows.forEach(function(r){
+      parent.querySelectorAll(selector).forEach(function(r){
         var text = opts.textAttr ? r.getAttribute(opts.textAttr) : r.textContent;
         var ok = match(q, text || '');
         r.style.display = ok ? '' : 'none';
@@ -77,7 +80,12 @@
       });
       if (countEl) countEl.textContent = shown;
       if (noEl) noEl.style.display = (shown === 0 && q) ? '' : 'none';
-    });
+    }
+
+    input.addEventListener('input', apply);
+    /* وبعد كلّ تبديلٍ من HTMX تُعاد التصفيةُ على الصفوف الواردة، فلا يرى
+       القارئُ صفوفاً استبعدها بحثُه ما زال مكتوباً في الحقل. */
+    document.addEventListener('htmx:afterSwap', function(){ if (input.value) apply(); });
   }
 
   /* تصدير عام */
@@ -587,4 +595,294 @@ document.addEventListener('click', function(e) {
       updateIcon();
     }
   });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   الفرزُ الجدوليّ — Sortable table columns
+   ══════════════════════════════════════════════════════════════
+   جداولُ المنصّة تُفرَز من غير أن يُكتب في قالبها شيء: المحرّكُ يقرأ
+   الترويسةَ والخلايا فيستنتج نوعَ كلّ عمود، ويُهيّئ نفسَه عند تحميل
+   الصفحة وبعد كلّ تبديلٍ من HTMX.
+
+   والاستثناءُ صريحٌ لا ضمنيّ:
+     <table data-no-sort>            الجدولُ كلُّه لا يُفرَز
+     <th data-sort="none">           عمودٌ بعينه لا يُفرَز
+     <th data-sort="text|num">       نوعٌ مفروضٌ بدل المستنتَج
+     <th data-sort-first="asc|desc"> اتّجاهُ النقرة الأولى بدل الطبيعيّ
+     <td data-sort-value="…">        قيمةُ الفرز حين يخالف النصُّ المعنى
+     <tr data-sort-pin>              صفٌّ يبقى في الذيل (الإجماليّات)
+
+   والدورةُ: تصاعديٌّ ← تنازليٌّ ← الترتيبُ الأصليّ. والأعمدةُ الرقميّةُ
+   تبدأ تنازليّاً لأنّ الأكبرَ هو المقصودُ أوّلاً في أعمدة الأعداد.
+   ────────────────────────────────────────────────────────────── */
+(function () {
+  var COLLATOR = (typeof Intl !== 'undefined' && Intl.Collator)
+    ? new Intl.Collator('ar', { numeric: true, sensitivity: 'base' })
+    : null;
+
+  var MIN_ROWS = 3;          /* أقلُّ من ثلاثةِ صفوفٍ لا يُفرَز: لا فائدةَ تُرتجى. */
+  var NUM_SHARE = 0.7;       /* عمودٌ جُلُّ خلاياه أعدادٌ عمودٌ رقميّ. */
+  var PIN_RE = /(^|[\s_-])(total|totals|summary|sum-row|footer-row)([\s_-]|$)/i;
+  var TOTAL_TEXT_RE = /^\s*(الإجمالي|الاجمالي|المجموع|الكلي|الكلّي)/;
+  var LETTERS_RE = /[A-Za-zء-ي]{3,}/;
+
+  /* أرقامٌ عربيّة-هنديّة → لاتينيّة، ثمّ أوّلُ عددٍ في النصّ. */
+  function toNumber(text) {
+    var t = (text || '').replace(/[٠-٩]/g, function (d) {
+      return String.fromCharCode(d.charCodeAt(0) - 0x0660 + 48);
+    }).replace(/[٫٬,]/g, '').replace(/[−–—]/g, '-');
+    var m = t.match(/-?\d+(?:\.\d+)?/);
+    return m ? parseFloat(m[0]) : null;
+  }
+
+  /* نصُّ الخليّة كما يقرؤه الإنسان: القيمةُ المصرَّحة، ثمّ حقلُ الإدخال، ثمّ النصّ. */
+  function cellText(cell) {
+    if (!cell) return '';
+    if (cell.hasAttribute('data-sort-value')) return cell.getAttribute('data-sort-value');
+    var field = cell.querySelector('input, select, textarea');
+    if (field) {
+      if (field.type === 'checkbox' || field.type === 'radio') return field.checked ? '1' : '0';
+      if (field.tagName === 'SELECT' && field.selectedIndex >= 0) return field.options[field.selectedIndex].text;
+      return field.value || '';
+    }
+    return cell.textContent || '';
+  }
+
+  function cellValue(row, index, kind) {
+    var raw = cellText(row.children[index]);
+    if (kind === 'num') return toNumber(raw);
+    return (window.smartNorm ? window.smartNorm(raw) : (raw || '').trim().toLowerCase());
+  }
+
+  function isBlank(v, kind) {
+    return kind === 'num' ? (v === null) : !v;
+  }
+
+  function compare(a, b, kind) {
+    if (kind === 'num') return a - b;
+    return COLLATOR ? COLLATOR.compare(a, b) : (a < b ? -1 : a > b ? 1 : 0);
+  }
+
+  /* ── استنتاجُ بنية الجدول ──────────────────────────────────── */
+
+  /* صفُّ تفصيلٍ: خليّةٌ واحدةٌ ممدودةٌ على الجدول، تتبع صفَّها فتُنقل معه. */
+  function isDetailRow(row, ncols) {
+    if (row.cells.length !== 1) return false;
+    var span = parseInt(row.cells[0].getAttribute('colspan') || '1', 10);
+    return span >= Math.min(ncols, 2);
+  }
+
+  /* صفُّ إجماليٍّ يبقى في الذيل مهما فُرز الجدول. */
+  function isPinned(row) {
+    if (row.hasAttribute('data-sort-pin')) return true;
+    if (PIN_RE.test(row.className)) return true;
+    var first = row.cells[0];
+    return !!first && TOTAL_TEXT_RE.test((first.textContent || '').trim());
+  }
+
+  /* نوعُ العمود: مفروضٌ من القالب، أو مستنتَجٌ من خلاياه — وإلّا فلا يُفرَز. */
+  function columnKind(th, rows, index) {
+    var forced = th.getAttribute('data-sort');
+    if (forced === 'none') return null;
+    if (forced === 'num' || forced === 'text') return forced;
+
+    var srOnly = th.querySelector('.sr-only');
+    var label = (th.textContent || '').replace(/\s+/g, ' ').trim();
+    if (srOnly) label = label.replace((srOnly.textContent || '').replace(/\s+/g, ' ').trim(), '').trim();
+    if (!label || label === '#') return null;
+    if (th.querySelector('input, button')) return null;
+
+    var nums = 0, filled = 0, controls = 0;
+    for (var i = 0; i < rows.length; i++) {
+      var cell = rows[i].children[index];
+      if (!cell) continue;
+      if (!cell.hasAttribute('data-sort-value') &&
+          cell.querySelector('button, .btn, input[type="checkbox"]')) controls++;
+      var raw = cellText(cell).replace(/\s+/g, ' ').trim();
+      if (!raw || raw === '—' || raw === '-') continue;
+      filled++;
+      if (toNumber(raw) !== null && !LETTERS_RE.test(raw)) nums++;
+    }
+    if (controls > rows.length / 2) return null;   /* عمودُ إجراءاتٍ لا بيانات */
+    if (!filled) return null;
+    return (nums / filled >= NUM_SHARE) ? 'num' : 'text';
+  }
+
+  /* ── المحرّك ───────────────────────────────────────────────── */
+
+  function sortable(table, opts) {
+    table = (typeof table === 'string') ? document.querySelector(table) : table;
+    if (!table || table.__sortBound) return false;
+    opts = opts || {};
+
+    var tbody = table.tBodies[0];
+    var head = (table.tHead && table.tHead.rows.length === 1) ? table.tHead.rows[0] : null;
+    if (!tbody || !head || !head.cells.length) return false;
+    if (table.hasAttribute('data-no-sort')) return false;
+    if (table.closest && table.closest('[data-no-sort]')) return false;
+
+    var ncols = 0;
+    Array.prototype.forEach.call(head.cells, function (th) {
+      ncols += parseInt(th.getAttribute('colspan') || '1', 10);
+    });
+    if (ncols !== head.cells.length) return false;   /* ترويسةٌ مدموجةٌ لا يقابلها عمود */
+
+    /* الصفوفُ الصالحة: خلاياها بعدد الترويسة؛ وما دونها إمّا تفصيلٌ يتبع أو مانعٌ للفرز. */
+    var all = Array.prototype.slice.call(tbody.rows);
+    var groups = [], pinned = [], i, row;
+    for (i = 0; i < all.length; i++) {
+      row = all[i];
+      if (isDetailRow(row, ncols)) {
+        if (!groups.length) return false;            /* تفصيلٌ بلا صفٍّ قبله: بنيةٌ لا تُفهم */
+        groups[groups.length - 1].nodes.push(row);
+        continue;
+      }
+      if (row.querySelector('[rowspan]') || row.cells.length !== ncols) return false;
+      if (isPinned(row)) { pinned.push(row); continue; }
+      groups.push({ row: row, nodes: [row], order: groups.length });
+    }
+    if (groups.length < MIN_ROWS) return false;
+
+    var plain = groups.map(function (g) { return g.row; });
+    var kinds = [], sortableCount = 0;
+    Array.prototype.forEach.call(head.cells, function (th, index) {
+      var kind = columnKind(th, plain, index);
+      kinds.push(kind);
+      if (kind) sortableCount++;
+    });
+    if (sortableCount < 2) return false;
+
+    /* عمودُ الترقيم: أوّلُ عمودٍ عنوانُه «#» أو «م» تُعاد أرقامُه فيصير رتبةً. */
+    var firstLabel = (head.cells[0].textContent || '').trim();
+    var renumber = (firstLabel === '#' || firstLabel === 'م');
+
+    var state = { index: -1, dir: 0 };
+
+    /* الفرزُ يُغيّر الترتيبَ لا المعروض؛ فيُطوى التفصيلُ المفتوحُ حتى لا يُقرأ في غير موضعه. */
+    function collapseDetails() {
+      groups.forEach(function (g) {
+        for (var n = 1; n < g.nodes.length; n++) {
+          var d = g.nodes[n];
+          if (d.hidden) continue;
+          d.hidden = true;
+          var btn = d.id ? table.querySelector('[aria-controls="' + d.id + '"]') : null;
+          if (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            var owner = btn.closest('tr');
+            if (owner) owner.classList.remove('is-open');
+          }
+        }
+      });
+    }
+
+    function apply() {
+      var list = groups.slice();
+      if (state.dir !== 0) {
+        var kind = kinds[state.index];
+        var keyed = list.map(function (g) {
+          return { g: g, key: cellValue(g.row, state.index, kind) };
+        });
+        keyed.sort(function (x, y) {
+          /* الخليّةُ الخاليةُ لا قيمةَ لها يُفرَز بها: تُدفَع إلى الذيل في الاتّجاهين
+             كليهما — قبل الاتّجاه لا بعده، وإلّا تصدّرَ الفراغُ الفرزَ التنازليّ. */
+          var ax = isBlank(x.key, kind), ay = isBlank(y.key, kind);
+          if (ax || ay) {
+            if (ax && ay) return x.g.order - y.g.order;
+            return ax ? 1 : -1;
+          }
+          var c = compare(x.key, y.key, kind);
+          if (c !== 0) return state.dir === 1 ? c : -c;
+          return x.g.order - y.g.order; /* ثباتُ الترتيب عند التساوي */
+        });
+        list = keyed.map(function (k) { return k.g; });
+      }
+
+      var frag = document.createDocumentFragment();
+      list.forEach(function (g) {
+        g.nodes.forEach(function (n) { frag.appendChild(n); });
+      });
+      pinned.forEach(function (n) { frag.appendChild(n); });
+      tbody.appendChild(frag);
+      collapseDetails();
+
+      if (renumber) {
+        list.forEach(function (g, n) {
+          var cell = g.row.children[0];
+          if (cell && !cell.querySelector('*')) cell.textContent = n + 1;
+        });
+      }
+      if (opts.onSort) opts.onSort(state);
+    }
+
+    Array.prototype.forEach.call(head.cells, function (th, index) {
+      var kind = kinds[index];
+      if (!kind) return;
+      var label = (th.textContent || '').replace(/\s+/g, ' ').trim();
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'th-sort';
+      btn.innerHTML = '<span class="th-sort-label"></span><span class="th-sort-arrow" aria-hidden="true"></span>';
+      btn.querySelector('.th-sort-label').textContent = label;
+      btn.setAttribute('aria-label', 'رتّب حسب ' + label);
+      /* محاذاةُ الزرّ تتبع محاذاةَ الترويسة، فلا ينزاح عنوانُ عمودٍ عن موضعه. */
+      var align = window.getComputedStyle ? window.getComputedStyle(th).textAlign : '';
+      if (align === 'center') btn.style.justifyContent = 'center';
+      else if (align === 'left' || align === 'end') btn.style.justifyContent = 'flex-end';
+      th.textContent = '';
+      th.appendChild(btn);
+      th.setAttribute('aria-sort', 'none');
+      th.classList.add('is-sortable');
+
+      /* الاتّجاهُ الأوّل: تنازليٌّ في الأعداد لأنّ الأكبرَ هو المقصودُ أوّلاً،
+         ما لم يُصرّح القالبُ بغيره — كعمود الشعبة الذي يُقرأ من 7/1 صعوداً. */
+      var firstDir = th.getAttribute('data-sort-first');
+      var startDesc = firstDir ? (firstDir === 'desc') : (kind === 'num');
+
+      btn.addEventListener('click', function () {
+        if (state.index !== index) {
+          state.index = index;
+          state.dir = startDesc ? -1 : 1;
+        } else if (startDesc) {
+          state.dir = state.dir === -1 ? 1 : (state.dir === 1 ? 0 : -1);
+        } else {
+          state.dir = state.dir === 1 ? -1 : (state.dir === -1 ? 0 : 1);
+        }
+        if (state.dir === 0) state.index = -1;
+
+        Array.prototype.forEach.call(head.cells, function (other) {
+          if (other.classList.contains('is-sortable')) other.setAttribute('aria-sort', 'none');
+        });
+        th.setAttribute('aria-sort', state.dir === 1 ? 'ascending' : state.dir === -1 ? 'descending' : 'none');
+        apply();
+      });
+    });
+
+    table.__sortBound = true;
+    table.classList.add('is-sortable-table');
+    return true;
+  }
+
+  /* ── التهيئةُ التلقائيّة ───────────────────────────────────── */
+
+  function initAll(root) {
+    var scope = (root && root.querySelectorAll) ? root : document;
+    var tables = Array.prototype.slice.call(scope.querySelectorAll('table'));
+    if (scope.tagName === 'TABLE') tables.push(scope);
+    tables.forEach(function (t) {
+      /* جدولٌ داخل جدولٍ تابعٌ لأمّه: يُفرَز الأصلُ لا الفرع. */
+      if (t.parentElement && t.parentElement.closest('table')) return;
+      sortable(t);
+    });
+  }
+
+  window.sortableTable = sortable;
+  window.initSortableTables = initAll;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { initAll(document); });
+  } else {
+    initAll(document);
+  }
+  /* HTMX يستبدل أجزاءً من الصفحة، والجدولُ الجديدُ يحتاج ترويسةً جديدة. */
+  document.addEventListener('htmx:afterSwap', function (e) { initAll(e.target); });
 })();

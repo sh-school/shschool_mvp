@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load sorting %}
 
 {% block title %}الأنشطة — مركز معلومات الطلبة{% endblock %}
 
@@ -19,14 +20,15 @@
   <div class="table-wrap">
     {% if page.object_list %}
     <div class="table-wrap-scroll">
-      <table>
+      {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
+      <table data-no-sort>
         <thead>
           <tr>
-            <th style="width:110px" class="col-center">التاريخ</th>
-            <th>الطالب</th>
-            <th>النشاط</th>
-            <th class="col-center">النوع</th>
-            <th class="col-center">النطاق</th>
+            {% sort_th sort "date" "التاريخ" "col-center" %}
+            {% sort_th sort "student" "الطالب" %}
+            {% sort_th sort "activity" "النشاط" %}
+            {% sort_th sort "type" "النوع" "col-center" %}
+            {% sort_th sort "scope" "النطاق" "col-center" %}
           </tr>
         </thead>
         <tbody>

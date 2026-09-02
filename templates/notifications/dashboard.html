@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load sorting %}
 {% load static %}
 {% block title %}الإشعارات{% endblock %}
 
@@ -189,76 +190,7 @@
     </div>
 
     {% if logs %}
-    <div class="table-wrap-scroll" style="max-height:400px;overflow-y:auto">
-      <table class="w-full text-sm">
-        <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]" style="position:sticky;top:0;z-index:1">
-          <tr>
-            <th scope="col" class="px-3 py-2 text-right text-xs">التاريخ</th>
-            <th scope="col" class="px-3 py-2 text-right text-xs">الطالب</th>
-            <th scope="col" class="px-3 py-2 text-right text-xs">المستلم</th>
-            <th scope="col" class="px-3 py-2 text-center text-xs">القناة</th>
-            <th scope="col" class="px-3 py-2 text-center text-xs">النوع</th>
-            <th scope="col" class="px-3 py-2 text-center text-xs">الحالة</th>
-            <th scope="col" class="px-3 py-2 text-center text-xs">إعادة</th>
-          </tr>
-        </thead>
-        <tbody id="notif-log-tbody" class="divide-y divide-[var(--border)]">
-          {% for log in logs %}
-          <tr class="hover:bg-[var(--surface-alt)]" data-filter-row
-              data-text="{{ log.student.full_name|default:'' }} {{ log.recipient }} {{ log.get_channel_display }} {{ log.get_notif_type_display }} {{ log.get_status_display }}">
-            <td class="px-3 py-2 text-xs text-[var(--muted)]">{{ log.sent_at|date:"d/m H:i" }}</td>
-            <td class="px-3 py-2 text-xs font-medium text-[var(--text)]">{{ log.student.full_name|default:"—" }}</td>
-            <td class="px-3 py-2 text-xs text-[var(--muted)] truncate max-w-[120px]">{{ log.recipient }}</td>
-            <td class="px-3 py-2 text-center">
-              <span class="status-badge text-[10px]
-                {% if log.channel == 'email' %}status-info{% else %}status-success{% endif %}">
-                {{ log.get_channel_display }}
-              </span>
-            </td>
-            <td class="px-3 py-2 text-center text-xs text-[var(--muted)]">{{ log.get_notif_type_display }}</td>
-            <td class="px-3 py-2 text-center">
-              {% if log.status == "sent" %}
-                <span class="status-badge text-[10px] status-success">أُرسل</span>
-              {% elif log.status == "failed" %}
-                <span class="status-badge text-[10px] status-danger"
-                      title="تعذر إرسال الإشعار">فشل</span>
-              {% else %}
-                <span class="px-2 py-0.5 rounded-full text-[10px] bg-[var(--surface-alt)] text-[var(--muted)]">معلّق</span>
-              {% endif %}
-            </td>
-            <td class="px-3 py-2 text-center">
-              {% if log.status == "failed" %}
-              <form method="post" action="{% url 'resend_notification' log.id %}">
-                {% csrf_token %}
-                <button type="submit" class="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition">
-                  إعادة
-                </button>
-              </form>
-              {% else %}—{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {# Pagination #}
-    {% if logs_page.has_other_pages %}
-    <div class="flex items-center justify-center gap-2 px-4 py-3 border-t border-[var(--border)]">
-      {% if logs_page.has_previous %}
-      <a href="?page={{ logs_page.previous_page_number }}"
-         class="btn-secondary btn-sm text-xs" aria-label="الصفحة السابقة">&rarr; السابقة</a>
-      {% endif %}
-      <span class="text-xs text-[var(--muted)]">
-        صفحة {{ logs_page.number }} من {{ logs_page.paginator.num_pages }}
-      </span>
-      {% if logs_page.has_next %}
-      <a href="?page={{ logs_page.next_page_number }}"
-         class="btn-secondary btn-sm text-xs" aria-label="الصفحة التالية">التالية &larr;</a>
-      {% endif %}
-    </div>
-    {% endif %}
-
+    {% include "notifications/partials/log_panel.html" %}
     {% else %}
     <div class="py-12 text-center text-[var(--muted)]">
       <p class="text-3xl mb-2">{% include "components/icon.html" with name="mail" size="icon-2xl" %}</p>

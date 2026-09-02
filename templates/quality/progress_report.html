@@ -118,7 +118,8 @@
   <div class="card-qatar">
     <div class="card-bar">الإجراءات المتأخرة <span class="badge">{{ overdue_count }}</span></div>
     <div class="table-wrap">
-      <table>
+      {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
+      <table data-no-sort>
         <thead>
           <tr>
             <th scope="col">رقم</th>
@@ -153,7 +154,8 @@
   <div class="card-qatar">
     <div class="card-bar">طلبات الدليل المعلقة <span class="badge">{{ evidence_requests|length }}</span></div>
     <div class="table-wrap">
-      <table>
+      {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
+      <table data-no-sort>
         <thead>
           <tr>
             <th scope="col">رقم</th>

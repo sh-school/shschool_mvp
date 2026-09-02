@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load sorting %}
 
 {% block title %}تنفيذ الخطة التشغيلية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -152,24 +153,25 @@
   {# ══ Table ═══════════════════════════════════════════════ #}
   <div class="quality-table-wrap">
     <div class="quality-table-scroll">
-      <table class="plans-table">
+      {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على الخطّة كلِّها. #}
+      <table class="plans-table" data-no-sort>
         <thead>
           <tr>
             <th>تحديث</th>
-            <th>المجال</th>
-            <th>رقم الهدف</th>
+            {% sort_th sort "domain" "المجال" %}
+            {% sort_th sort "target" "رقم الهدف" %}
             <th>الهدف</th>
-            <th>رقم الإجراء</th>
+            {% sort_th sort "number" "رقم الإجراء" %}
             <th>الإجراء</th>
-            <th>الشهر</th>
-            <th>المنفذ</th>
-            <th>رقم المؤشر</th>
+            {% sort_th sort "timing" "الشهر" %}
+            {% sort_th sort "executor" "المنفذ" %}
+            {% sort_th sort "indicator" "رقم المؤشر" %}
             <th>المؤشر</th>
             <th>الدليل</th>
             <th>ملاحظات التنفيذ</th>
-            <th>التقييم</th>
+            {% sort_th sort "status" "التقييم" %}
             <th>ملاحظات التقييم</th>
-            <th>المتابعة</th>
+            {% sort_th sort "follow_up" "المتابعة" %}
           </tr>
         </thead>
         <tbody>
