@@ -5,7 +5,7 @@ tests/test_fixes.py
 الإصلاح 1: SchoolFactory بدون name_en
 الإصلاح 2: ClassGroupFactory بـ grade و section
 الإصلاح 3: Middleware — /api/ يتطلب مصادقة
-الإصلاح 4: generate_daily_sessions — logging واضح للإجازات
+الإصلاح 4: خريطة الأيام — الجمعة والسبت خارج التوليد التلقائيّ
 """
 
 from datetime import date
@@ -69,9 +69,9 @@ class TestClassGroupFactory:
     def test_class_group_no_grade_level_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي grade_level"""
         cg = ClassGroupFactory(school=school)
-        assert not hasattr(
-            cg, "grade_level"
-        ), "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
+        assert not hasattr(cg, "grade_level"), (
+            "grade_level موجود في الموديل — Factory يجب أن تستخدم grade"
+        )
 
     def test_class_group_no_name_field(self, db, school):
         """تأكيد أن ClassGroup لا يحتوي name كحقل مباشر"""
@@ -104,9 +104,9 @@ class TestMiddlewareAPIFix:
     def test_api_unauthenticated_not_redirect(self, client):
         """/api/ لا يُعيد redirect (302) لصفحة Login"""
         response = client.get("/api/schedule/today/")
-        assert (
-            response.status_code != 302
-        ), "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
+        assert response.status_code != 302, (
+            "الـ /api/ يُعيد redirect — يعني لا يزال في EXEMPT. الإصلاح مطلوب."
+        )
 
     def test_exempt_list_excludes_api(self):
         """التحقق المباشر أن /api/ غير موجود في EXEMPT"""
@@ -141,39 +141,33 @@ class TestMiddlewareAPIFix:
 
 @pytest.mark.django_db
 class TestDayMappingFix:
-    def test_friday_returns_zero_sessions(self, db, school):
-        """الجمعة (إجازة) تُعيد 0 حصص بدون خطأ"""
+    def test_weekend_generates_nothing(self, db, school):
+        """الجمعة والسبت خارج خريطة أيام المدرسة — التوليد التلقائيّ لا يُنشئ شيئاً
+        لهما، ويُعيد 0 بلا خطأ (مدرسةٌ بلا جدول → الأسبوع كلّه صفر)."""
+        from operations.models import Session
         from operations.services import ScheduleService
 
-        # الجمعة: Python weekday = 4
-        friday = date(2026, 3, 20)  # جمعة
-        assert friday.weekday() == 4, "التاريخ المختار ليس جمعة"
-        result = ScheduleService.generate_daily_sessions(school, friday)
-        assert result == 0, f"الجمعة يجب أن تُعيد 0 — أعادت {result}"
+        friday, saturday = date(2026, 3, 20), date(2026, 3, 21)
+        assert (friday.weekday(), saturday.weekday()) == (4, 5)
+        assert ScheduleService._PY_TO_QATAR.get(friday.weekday()) is None
+        assert ScheduleService._PY_TO_QATAR.get(saturday.weekday()) is None
+        assert ScheduleService.ensure_sessions_for_date(school, friday) == 0
+        assert ScheduleService.ensure_sessions_for_date(school, saturday) == 0
+        assert not Session.objects.filter(school=school).exists()
 
-    def test_saturday_returns_zero_sessions(self, db, school):
-        """السبت (إجازة) تُعيد 0 حصص"""
+    def test_sunday_is_working_day(self):
+        """الأحد = أوّل أيام الأسبوع الدراسيّ (0) في خريطة الخدمة الحقيقيّة."""
         from operations.services import ScheduleService
 
-        saturday = date(2026, 3, 21)  # سبت
-        assert saturday.weekday() == 5, "التاريخ المختار ليس سبتاً"
-        result = ScheduleService.generate_daily_sessions(school, saturday)
-        assert result == 0
-
-    def test_sunday_is_working_day(self, db, school):
-        """الأحد = يوم عمل (our_day=0) — يُعالَج بدون return 0"""
-        from operations.services import ScheduleService
-
-        # الأحد: Python weekday = 6
-        sunday = date(2026, 3, 22)  # أحد
+        sunday = date(2026, 3, 22)
         assert sunday.weekday() == 6, "التاريخ المختار ليس أحداً"
-        # لا توجد slots → يُعيد 0 لكن بسبب عدم وجود بيانات لا لأنه إجازة
-        result = ScheduleService.generate_daily_sessions(school, sunday)
-        assert result == 0  # لا slots في الـ test — طبيعي
+        assert ScheduleService._PY_TO_QATAR[sunday.weekday()] == 0
 
     def test_day_mapping_coverage(self):
-        """اختبار خريطة الأيام كاملة"""
-        mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
+        """اختبار خريطة الأيام كاملة — على ثابت الخدمة لا على نسخةٍ منه"""
+        from operations.services import ScheduleService
+
+        mapping = ScheduleService._PY_TO_QATAR
         days_python = {
             0: "الاثنين",
             1: "الثلاثاء",

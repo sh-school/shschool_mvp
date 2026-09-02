@@ -561,7 +561,6 @@ def test_all_multi_school_tasks_enter_per_school_scope():
     expected = {
         "operations/tasks.py": {
             "revoke_expired_temp_permissions",
-            "generate_daily_sessions_task",
             "check_license_expiry_task",
         },
         "behavior/tasks.py": {
@@ -628,7 +627,6 @@ def test_all_current_beat_targets_are_in_multi_school_scope_set():
         "notifications.send_pending_absence_alerts_all_schools",
         "notifications.check_breach_deadlines",
         "analytics.send_monthly_kpi_report",
-        "operations.generate_daily_sessions",
         "operations.revoke_expired_temp_permissions",
         "behavior.weekly_risk_check",
     }

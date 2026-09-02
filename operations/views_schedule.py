@@ -357,24 +357,6 @@ def schedule_slot_delete(request, slot_id):
     return redirect("weekly_schedule")
 
 
-@login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
-def generate_sessions(request):
-    """توليد حصص يومية من الجدول — للمدير"""
-    if request.method == "POST":
-        school = request.user.get_school()
-        raw = request.POST.get("date", timezone.now().date().isoformat())
-        try:
-            gen_date = date.fromisoformat(raw)
-        except ValueError:
-            gen_date = timezone.now().date()
-        count = ScheduleService.generate_daily_sessions(school, gen_date)
-        messages.success(request, f"تم توليد {count} حصة ليوم {gen_date}")
-        return redirect("weekly_schedule")
-
-    return render(request, "schedule/generate_form.html", {"today": timezone.now().date()})
-
-
 # ── نظام البديل ──────────────────────────────────────────────────
 
 
@@ -687,14 +669,13 @@ def smart_generate(request):
         generation.save(update_fields=["status", "error_message", "finished_at"])
         messages.error(
             request,
-            "عاملُ المهامّ الخلفيّة غيرُ متاح، ولم يبدأ التوليد. " "راجع تشغيل Celery ثمّ أعد المحاولة.",
+            "عاملُ المهامّ الخلفيّة غيرُ متاح، ولم يبدأ التوليد. راجع تشغيل Celery ثمّ أعد المحاولة.",
         )
         return _smart_schedule_redirect(year)
 
     messages.success(
         request,
-        "بدأ توليد الجدول في الخلفيّة — تُحدَّث الحالةُ في هذه الصفحة تلقائيّاً، "
-        "ويصلك إشعارٌ عند انتهائه.",
+        "بدأ توليد الجدول في الخلفيّة — تُحدَّث الحالةُ في هذه الصفحة تلقائيّاً، ويصلك إشعارٌ عند انتهائه.",
     )
     return _smart_schedule_redirect(year)
 

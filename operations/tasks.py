@@ -4,23 +4,16 @@ operations/tasks.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 المهام:
-    1. توليد الحصص اليومية (أحد–خميس 6:00 صباحاً) — BACKUP فقط
-    2. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
-    3. توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم لا بجدولٍ زمنيّ
+    1. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
+    2. توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم لا بجدولٍ زمنيّ
 
-⚠️ ملاحظة مهمة:
-    توليد الحصص لم يعد يعتمد على Celery كمسار أساسي.
-    النظام الأساسي هو SessionAutoGenerateMiddleware + ensure_sessions_for_date()
-    الذي يولّد الحصص تلقائياً عند أول طلب من أي مستخدم.
-
-    مهمة Celery هنا تبقى كـ backup اختياري:
-    - إذا Celery يعمل → يولّد الحصص مسبقاً 6:00 صباحاً (جيد)
-    - إذا Celery لا يعمل → الـ middleware يتكفل بالتوليد (المنصة تعمل عادي)
+ملاحظة:
+    توليدُ حصص اليوم ليس مهمّةَ Celery: يتكفّل به SessionAutoGenerateMiddleware
+    عبر ensure_sessions_for_date() عند أوّل طلبٍ من أيّ مستخدم، وهو idempotent
+    ويحتمل التكرار. وكانت هنا مهمّةُ backup تستدعي مساراً ثانياً يُدرج بمفتاحٍ
+    يضمّ المعلّم بينما قيدُ القاعدة بلا معلّم، فتسقط على حصص الاختيار — فأُزيلت.
 
 الاستخدام:
-    # يدوي (من shell أو view):
-    generate_daily_sessions_task.delay()                  # كل المدارس
-    generate_daily_sessions_task.delay(school_id="...")    # مدرسة واحدة
     check_license_expiry_task.delay()                     # فحص كل الرخص
 """
 
@@ -72,7 +65,7 @@ def revoke_expired_temp_permissions():
                 PermissionAuditLog.objects.create(
                     temp_permission=perm,
                     action="auto_revoked",
-                    notes=("انتهت صلاحية الإذن تلقائياً عند " f"{now.strftime('%H:%M')}"),
+                    notes=(f"انتهت صلاحية الإذن تلقائياً عند {now.strftime('%H:%M')}"),
                 )
 
                 school_count += 1
@@ -80,7 +73,7 @@ def revoke_expired_temp_permissions():
 
             if school_count:
                 logger.info(
-                    "revoke_expired_temp_permissions: " "%d permissions auto-revoked for %s",
+                    "revoke_expired_temp_permissions: %d permissions auto-revoked for %s",
                     school_count,
                     school.name,
                 )
@@ -89,65 +82,6 @@ def revoke_expired_temp_permissions():
         "revoked": total_count,
         "checked_at": str(now),
     }
-
-
-@shared_task(
-    name="operations.generate_daily_sessions",
-    bind=True,
-    max_retries=2,
-    default_retry_delay=120,
-)
-def generate_daily_sessions_task(self, school_id=None):
-    """Generate daily sessions inside one RLS scope per school."""
-    try:
-        from django.utils import timezone
-
-        from core.models import School
-        from operations.services import ScheduleService
-
-        today = timezone.localdate()
-
-        schools = School.objects.filter(is_active=True)
-
-        if school_id:
-            schools = schools.filter(id=school_id)
-
-        total = 0
-
-        for school in schools.iterator(chunk_size=100):
-            with school_rls_scope(school.id):
-                count = ScheduleService.generate_daily_sessions(
-                    school,
-                    today,
-                )
-
-                total += count
-
-                if count > 0:
-                    logger.info(
-                        "generate_daily_sessions: " "%d sessions for %s on %s",
-                        count,
-                        school.name,
-                        today,
-                    )
-
-        logger.info(
-            "generate_daily_sessions_task complete: " "%d sessions total on %s",
-            total,
-            today,
-        )
-
-        return {
-            "date": str(today),
-            "total_sessions": total,
-        }
-
-    except Exception as exc:
-        logger.exception(
-            "generate_daily_sessions_task error: %s",
-            exc,
-        )
-        raise self.retry(exc=exc)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -232,7 +166,7 @@ def check_license_expiry_task():
                         user=principal_membership.user,
                         school=school,
                         event_type="license_expiry",
-                        title=(f"تنبيه: رخصة {user.full_name} " "تقترب من الانتهاء"),
+                        title=(f"تنبيه: رخصة {user.full_name} تقترب من الانتهاء"),
                         body=(
                             f"الرخصة المهنية للموظف "
                             f"{user.full_name} "
@@ -253,7 +187,7 @@ def check_license_expiry_task():
                 )
 
     logger.info(
-        "check_license_expiry_task: " "%d staff alerted (expiring within 60 days)",
+        "check_license_expiry_task: %d staff alerted (expiring within 60 days)",
         alerted,
     )
 
