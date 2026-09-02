@@ -1050,6 +1050,14 @@ def subject_assignments(request):
     if class_id:
         qs = qs.filter(class_group_id=class_id)
     assignments = list(qs)
+    teachers = list(CustomUser.objects.teachers(school).order_by("full_name"))
+
+    # معلّمٌ مُسنَدٌ وليس في القائمة (دورٌ خارج الأدوار المدرِّسة، أو عضويّةٌ
+    # أُطفئت) يُعرض باسمه لا «بلا معلّم»: فالرأسُ يعدّه مُسنَداً والقائمةُ لا
+    # تعرفه، وكان حفظُ الصفّ على هذه الحال يُرسل معلّماً فارغاً فيمحوه بصمت.
+    listed = {t.id for t in teachers}
+    for a in assignments:
+        a.teacher_outside_list = a.teacher_id is not None and a.teacher_id not in listed
 
     # استمارةٌ أُعيدت بأخطائها: تُعرض بما كُتب فيها، لا فارغةً.
     rejected = request.session.pop("assignment_form_data", None)
@@ -1065,7 +1073,7 @@ def subject_assignments(request):
             "assignments": assignments,
             "form": form,
             "classes": form.fields["class_group"].queryset,
-            "teachers": CustomUser.objects.teachers(school).order_by("full_name"),
+            "teachers": teachers,
             "selected_class_id": class_id,
             "totals": {
                 "count": len(assignments),
@@ -1111,7 +1119,11 @@ def subject_assignment_edit(request, assignment_id):
 
     teacher_id = request.POST.get("teacher") or None
     teacher = None
-    if teacher_id:
+    if teacher_id and obj.teacher_id and teacher_id == str(obj.teacher_id):
+        # لم يتغيّر — فلا يُعاد التحقّق: معلّمٌ خارج القائمة يبقى ولا يُمحى
+        # لأنّ المُدخِل عدّل الحصصَ أو المعمل. أمّا الفراغُ الصريح فتفريغٌ مقصود.
+        teacher = obj.teacher
+    elif teacher_id:
         teacher = CustomUser.objects.teachers(school).filter(pk=teacher_id).first()
         if teacher is None:
             messages.error(request, "المعلّم المختار ليس من معلّمي مدرستك.")
