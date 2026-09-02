@@ -108,6 +108,18 @@ CHILD_SQL = _policy(ALLOCATION_TABLE, ALLOCATION_PREDICATE) + _policy(
     RESOURCE_SUBJECTS_TABLE, RESOURCE_SUBJECTS_PREDICATE
 )
 
+# التراجعُ يُسقط سياسةَ هذه الهجرة ويعيد ما كان قبلها حرفاً: صيغةَ 0002 و0024.
+# فالحالتان متكافئتان سلوكاً (`app_rls_bypass()` ثابتةُ false)، والتراجعُ لا يوسّع
+# شيئاً ولا يترك الجدولَ بلا سياسة.
+_BYPASS = "app_rls_bypass() OR "
+CHILD_REVERSE_SQL = _policy(
+    ALLOCATION_TABLE,
+    ALLOCATION_PREDICATE.replace("parent.school_id = ", _BYPASS + "parent.school_id = "),
+) + _policy(
+    RESOURCE_SUBJECTS_TABLE,
+    RESOURCE_SUBJECTS_PREDICATE.replace("parent.school_id = ", _BYPASS + "parent.school_id = "),
+)
+
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -117,8 +129,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # لا عكسَ لهذه الهجرة: التراجعُ عنها يعني إعادةَ سياساتٍ تسمّي تجاوزاً
-        # لم يعد له وجود، وهذا ليس حالةً يُرغب في العودة إليها.
+        # حلقةُ التسوية متعادلةٌ ولا عكسَ لها: التراجعُ عن تسويةٍ عامّةٍ لا معنى له.
         migrations.RunSQL(sql=RECONCILE_SQL, reverse_sql=migrations.RunSQL.noop),
-        migrations.RunSQL(sql=CHILD_SQL, reverse_sql=migrations.RunSQL.noop),
+        migrations.RunSQL(sql=CHILD_SQL, reverse_sql=CHILD_REVERSE_SQL),
     ]
