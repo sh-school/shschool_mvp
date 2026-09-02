@@ -141,19 +141,56 @@ class TestMiddlewareAPIFix:
 
 @pytest.mark.django_db
 class TestDayMappingFix:
-    def test_weekend_generates_nothing(self, db, school):
-        """الجمعة والسبت خارج خريطة أيام المدرسة — التوليد التلقائيّ لا يُنشئ شيئاً
-        لهما، ويُعيد 0 بلا خطأ (مدرسةٌ بلا جدول → الأسبوع كلّه صفر)."""
-        from operations.models import Session
+    def test_the_weekend_never_receives_a_session(self, db, school):
+        """لا حصّةَ تُنشأ بتاريخ جمعةٍ أو سبت — ولو كان للمدرسة جدولٌ كامل.
+
+        وكان الاختبارُ يقيس `== 0` على مدرسةٍ بلا جدول، فيمرّ لسببٍ لا علاقةَ
+        له بالعطلة: لا شيءَ يُولَّد أصلاً. والدالّةُ لا تعرف «عطلة» البتّة —
+        تحسب حدودَ الأسبوع وتولّد الأحدَ إلى الخميس، فاستدعاؤها بجمعةٍ يُنشئ
+        أسبوعَها لا صفراً. فالمقياسُ الصحيح تاريخُ ما أُنشئ، لا عددُه.
+        """
+        import datetime as dt
+
+        from core.models import ClassGroup
+        from operations.models import ScheduleSlot, Session, Subject
         from operations.services import ScheduleService
+        from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
         friday, saturday = date(2026, 3, 20), date(2026, 3, 21)
         assert (friday.weekday(), saturday.weekday()) == (4, 5)
         assert ScheduleService._PY_TO_QATAR.get(friday.weekday()) is None
         assert ScheduleService._PY_TO_QATAR.get(saturday.weekday()) is None
-        assert ScheduleService.ensure_sessions_for_date(school, friday) == 0
-        assert ScheduleService.ensure_sessions_for_date(school, saturday) == 0
-        assert not Session.objects.filter(school=school).exists()
+
+        teacher = UserFactory(full_name="معلّمُ الأسبوع")
+        MembershipFactory(
+            user=teacher, school=school, role=RoleFactory(school=school, name="teacher")
+        )
+        cg = ClassGroup.objects.create(
+            school=school, grade="G8", section="1", academic_year="2026-2027"
+        )
+        subject = Subject.objects.create(school=school, name_ar="الرياضيات")
+        # اليومُ 0 = الأحد في خريطة المدرسة — أوّلُ الأسبوع الدراسيّ.
+        ScheduleSlot.objects.create(
+            school=school,
+            teacher=teacher,
+            class_group=cg,
+            subject=subject,
+            day_of_week=0,
+            period_number=1,
+            start_time=dt.time(7, 10),
+            end_time=dt.time(7, 55),
+            academic_year="2026-2027",
+        )
+
+        # العامُ يُمرَّر صريحاً: الاختبارُ عن العطلة لا عن تقويم المدرسة.
+        ScheduleService.ensure_sessions_for_date(school, friday, academic_year="2026-2027")
+        ScheduleService.ensure_sessions_for_date(school, saturday, academic_year="2026-2027")
+
+        dates = set(Session.objects.filter(school=school).values_list("date", flat=True))
+        # الشرطُ الذي يمنع الفراغ: لو لم يُنشأ شيءٌ لمرّ ما بعده بلا معنًى.
+        assert dates, "لم يُنشأ شيءٌ أصلاً — فالاختبارُ لا يقيس العطلة"
+        assert friday not in dates and saturday not in dates
+        assert all(d.weekday() not in (4, 5) for d in dates)
 
     def test_sunday_is_working_day(self):
         """الأحد = أوّل أيام الأسبوع الدراسيّ (0) في خريطة الخدمة الحقيقيّة."""
