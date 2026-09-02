@@ -87,6 +87,10 @@
           <td>
             <select name="teacher" form="edit-{{ a.id }}" class="form-control form-control-sm" aria-label="معلّم {{ a.subject.name_ar }} لشعبة {{ a.class_group }}">
               <option value="">— بلا معلّم —</option>
+              {% if a.teacher_outside_list %}
+              {# مُسنَدٌ وليس في القائمة: يُعرض باسمه مختاراً، فلا يُحفظ الصفُّ فارغاً بلا قصد. #}
+              <option value="{{ a.teacher_id }}" selected>{{ a.teacher.full_name }} — خارج قائمة المدرِّسين</option>
+              {% endif %}
               {% for t in teachers %}
               <option value="{{ t.id }}" {% if a.teacher_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
               {% endfor %}

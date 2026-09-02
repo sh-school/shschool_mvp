@@ -99,10 +99,15 @@ class UserQuerySet(models.QuerySet):
         return qs.distinct()
 
     def teachers(self, school=None) -> UserQuerySet:
-        qs = self.filter(memberships__role__name="teacher")
+        """مَن يحمل نصاباً: الأدوارُ المدرِّسة بعضويّةٍ نشطة — لا دورُ `teacher` حرفيّاً."""
+        from core.models.access import TEACHING_ROLES
+
+        # الشروطُ في `filter()` واحدةٍ لتقع على العضويّة نفسها — لا عضويّةٍ
+        # مدرِّسةٍ في مدرسةٍ وعضويّةٍ أخرى في هذه.
+        membership = {"memberships__role__name__in": TEACHING_ROLES, "memberships__is_active": True}
         if school:
-            qs = qs.filter(memberships__school=school)
-        return qs.distinct()
+            membership["memberships__school"] = school
+        return self.filter(**membership).distinct()
 
     def parents(self) -> UserQuerySet:
         return self.filter(memberships__role__name="parent").distinct()
@@ -177,7 +182,9 @@ class MembershipQuerySet(models.QuerySet):
         return qs.for_school(school) if school else qs
 
     def teachers(self, school=None) -> MembershipQuerySet:
-        qs = self.with_role("teacher")
+        from core.models.access import TEACHING_ROLES
+
+        qs = self.filter(role__name__in=TEACHING_ROLES)
         return qs.for_school(school) if school else qs
 
     def with_user(self) -> MembershipQuerySet:
