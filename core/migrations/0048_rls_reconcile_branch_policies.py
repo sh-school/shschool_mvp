@@ -80,18 +80,18 @@ END $$;
 # ══════════════════════════════════════════════════════════════════
 
 ALLOCATION_TABLE = "academic_management_teacherworkloadallocation"
-ALLOCATION_PREDICATE = f"""EXISTS (  # noqa: S608 — ثوابتُ أسماءٍ لا مدخلات
+ALLOCATION_PREDICATE = f"""EXISTS (
     SELECT 1 FROM public.academic_management_teacherworkloadplan AS parent
     WHERE parent.id = {ALLOCATION_TABLE}.workload_plan_id
       AND parent.school_id = public.app_rls_school()
-)"""
+)"""  # noqa: S608 — ثوابتُ أسماءِ جداول، لا مدخلاتٌ من مستخدم
 
 RESOURCE_SUBJECTS_TABLE = "operations_schedulingresource_subjects"
-RESOURCE_SUBJECTS_PREDICATE = f"""EXISTS (  # noqa: S608 — ثوابتُ أسماءٍ لا مدخلات
+RESOURCE_SUBJECTS_PREDICATE = f"""EXISTS (
     SELECT 1 FROM public.operations_schedulingresource AS parent
     WHERE parent.id = {RESOURCE_SUBJECTS_TABLE}.schedulingresource_id
       AND parent.school_id = public.app_rls_school()
-)"""
+)"""  # noqa: S608 — ثوابتُ أسماءِ جداول، لا مدخلاتٌ من مستخدم
 
 
 def _policy(table: str, predicate: str) -> str:
