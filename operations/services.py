@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,12 @@ from django.db.models import Count, QuerySet
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.models import StudentEnrollment
+from operations.departments import (
+    department_info,
+    department_of_subject,
+    is_fill_subject,
+    resolve_department,
+)
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -287,10 +294,15 @@ class ScheduleService:
         teacher: CustomUser | None = None,
         class_group: ClassGroup | None = None,
         academic_year: str | None = None,
+        generation=None,
     ) -> dict:
         """إرجاع الجدول الأسبوعي مرتّباً حسب اليوم والحصة.
 
         الشكل واحدٌ في كل الأحوال: `{يوم: {حصة: [slot, ...]}}`.
+
+        و`generation` يُعاين مسودّةً بعينها بدل الجدول الحيّ: حصصُها مطفأةٌ
+        حتّى تُعتمد فلا يجدها فلترُ `is_active` — ومن يعتمد جدولاً لم يرَه
+        يعتمد رقماً لا جدولاً.
 
         وكان يُعيد حصّةً مفردة مع فلتر المعلّم أو الفصل، وقائمةً بلا فلتر.
         والشعبة **تكون** في حصّتين معاً حين يتفرّق طلابها بين مادّتين
@@ -301,9 +313,12 @@ class ScheduleService:
         قائمةٍ لا يُخطئ — يطبع فراغاً. فوُحِّد الشكل.
         """
         academic_year = academic_year or academic_year_for_school(school)
-        qs = ScheduleSlot.objects.filter(
-            school=school, academic_year=academic_year, is_active=True
-        ).select_related("teacher", "class_group", "subject")
+        qs = ScheduleSlot.objects.filter(school=school, academic_year=academic_year)
+        if generation is not None:
+            qs = qs.filter(generation=generation)
+        else:
+            qs = qs.filter(is_active=True)
+        qs = qs.select_related("teacher", "class_group", "subject")
         if teacher:
             qs = qs.filter(teacher=teacher)
         if class_group:
@@ -313,6 +328,162 @@ class ScheduleService:
         for slot in qs:
             grid[slot.day_of_week].setdefault(slot.period_number, []).append(slot)
         return grid
+
+    @staticmethod
+    def get_teachers_matrix(school: School, academic_year: str | None = None) -> list[dict]:
+        """الجدول العام: صفٌّ لكل معلّم، وخمسةُ أيامٍ في كلٍّ منها سبعُ حصص.
+
+        هذه صيغةُ ورقة «الجدول العام للمعلمين» التي تُعلَّق في المدرسة:
+        المعلّمون سطوراً، والأسبوعُ كلُّه عرضاً، وفي الخانة رمزُ الشعبة
+        وحده — لأنّ خانةً عرضُها سنتيمترٌ لا تحتمل اسم مادّةٍ ولا معلّم.
+
+        والمعلّمُ بلا حصّةٍ لا سطر له: سطرٌ فارغٌ في ورقةٍ من ستّين سطراً
+        يأكل مساحةً ولا يُفيد قارئه.
+
+        والسطورُ مرتّبةٌ بالقسم الأكاديميّ ثمّ بالاسم — فالورقةُ تُقرأ قسماً
+        قسماً، ومن أراد نصاب قسمٍ وجد معلّميه متجاورين. والقسمُ مشتقٌّ من
+        الحصص نفسها، انظر `operations.departments`.
+
+        الشكل: `[{"teacher": …, "days": [[خانة × ٧] × ٥], "total": عدد,
+        "department": {رمز، اسم، ترتيب}}]`
+        والخانةُ قائمةٌ لا حصّةٌ مفردة — والقيدُ يمنع تعدُّدها اليوم، فإن
+        رُفع غداً ظهر ما فيها بدل أن يُكتب أحدهما فوق الآخر.
+        """
+        academic_year = academic_year or academic_year_for_school(school)
+        slots = (
+            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
+            .select_related("teacher", "class_group", "subject")
+            .order_by("teacher__full_name", "day_of_week", "period_number")
+        )
+
+        rows: dict = {}
+        for slot in slots:
+            row = rows.get(slot.teacher_id)
+            if row is None:
+                row = rows[slot.teacher_id] = {
+                    "teacher": slot.teacher,
+                    "days": [[[] for _ in range(7)] for _ in range(5)],
+                    "total": 0,
+                    "weights": Counter(),
+                    "fill_weights": Counter(),
+                }
+
+            subject_name = slot.subject.name_ar if slot.subject else ""
+            code = department_of_subject(subject_name, slot.class_group.grade)
+            if code:
+                # المادّةُ التكميليّة في دلوٍ على حدة: تُرجَّح حين لا سواها.
+                bucket = "fill_weights" if is_fill_subject(subject_name) else "weights"
+                row[bucket][code] += 1
+            # الحصص من ١ إلى ٧، والفهرسُ من صفر. وحصّةٌ خارج المدى بيانٌ
+            # معطوب لا سببَ لإسقاط الورقة كلّها من أجله.
+            if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
+                row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
+                row["total"] += 1
+
+        for row in rows.values():
+            weights = row.pop("weights")
+            fill = row.pop("fill_weights")
+            row["department"] = department_info(resolve_department(weights or fill))
+
+        return sorted(
+            rows.values(),
+            key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
+        )
+
+    @staticmethod
+    def matrix_totals(rows: list[dict], school: School, academic_year: str | None = None) -> dict:
+        """مجموعُ الحصص أسفل الجدول العام، والمخطَّطُ الذي يُقاس إليه.
+
+        في الخانة الواحدة (يومٌ وحصّة) يُعرض عددُ الحصص المنعقدة. وإلى جانبه
+        يُقاس **تغطيةُ الشُّعب** لا عددُ الحصص: كم شعبةً في درسٍ حينها من
+        الشُّعب التي تُسمح لها تلك الحصّة.
+
+        والفرقُ بين المقياسين ليس تدقيقاً لفظياً: شعبةٌ ينقسم طلابها بين
+        مادّتين اختياريّتين تشغل خانتين في العمود الواحد، فتستر بزيادتها
+        شعبةً أخرى بلا درس — فيخرج العمودُ خمسةً وعشرين وفيه ثقب. فقياسُ
+        الشُّعب يكشفه وقياسُ الحصص يخفيه.
+
+        والمخطَّطُ في الأسبوع = الخاناتُ المسموحة لكلّ شعبة (`get_max_periods_
+        for_day`: أربعٌ وثلاثون للإعدادي وخمسٌ وثلاثون للثانوي) + زيادةُ
+        التوازي **من خطّة الإسناد** (`SubjectClassAssignment.parallel_group`)
+        لا من الجدول المنفَّذ — وإلّا قِيس الشيءُ بنفسه فوافق دائماً.
+
+        دالّةٌ على المصفوفة القائمة، واستعلامٌ واحدٌ للخطّة.
+        """
+        from operations.scheduler_constraints import get_max_periods_for_day
+
+        counts = [[0] * 7 for _ in range(5)]
+        covered: list[list[set]] = [[set() for _ in range(7)] for _ in range(5)]
+        levels: dict = {}
+        for row in rows:
+            for day_index, day in enumerate(row["days"]):
+                for period_index, cell in enumerate(day):
+                    counts[day_index][period_index] += len(cell)
+                    for slot in cell:
+                        levels[slot.class_group_id] = slot.class_group.level_type or ""
+                        covered[day_index][period_index].add(slot.class_group_id)
+
+        days = []
+        for day_index, day_counts in enumerate(counts):
+            columns = []
+            for period_index, count in enumerate(day_counts):
+                expected = sum(
+                    1
+                    for level in levels.values()
+                    if period_index + 1 <= get_max_periods_for_day(day_index, level)
+                )
+                sections = len(covered[day_index][period_index])
+                columns.append(
+                    {
+                        "count": count,
+                        "sections": sections,
+                        "expected": expected,
+                        "short": sections < expected,
+                    }
+                )
+            days.append(columns)
+
+        planned_cells = sum(
+            sum(get_max_periods_for_day(day, level) for day in range(5))
+            for level in levels.values()
+        )
+        parallel = ScheduleService.parallel_extra(school, academic_year, set(levels))
+        planned = planned_cells + parallel
+        total = sum(row["total"] for row in rows)
+
+        return {
+            "days": days,
+            "total": total,
+            "planned": planned,
+            "parallel": parallel,
+            "missing": max(planned - total, 0),
+            "sections": len(levels),
+        }
+
+    @staticmethod
+    def parallel_extra(
+        school: School, academic_year: str | None = None, class_ids: set | None = None
+    ) -> int:
+        """الحصصُ الزائدةُ على الخانات بحكم التوازي — من الخطّة لا من الجدول.
+
+        مادّتان في الشعبة الواحدة تحملان وسمَ التوازي نفسه تُدرَّسان في
+        التوقيت ذاته لقسمَي الطلاب: الخانةُ واحدةٌ والحصصُ اثنتان. فالزيادةُ
+        في المجموعة = مجموعُ حصصها ناقصَ أطولِها.
+        """
+        academic_year = academic_year or academic_year_for_school(school)
+        qs = SubjectClassAssignment.objects.filter(
+            school=school, academic_year=academic_year, is_active=True
+        ).exclude(parallel_group="")
+        if class_ids is not None:
+            qs = qs.filter(class_group_id__in=class_ids)
+
+        groups: dict = {}
+        for class_id, group, periods in qs.values_list(
+            "class_group_id", "parallel_group", "weekly_periods"
+        ):
+            groups.setdefault((class_id, group), []).append(periods)
+
+        return sum(sum(periods) - max(periods) for periods in groups.values())
 
     @staticmethod
     def detect_conflicts(school: School, academic_year: str | None = None) -> list:
@@ -344,9 +515,14 @@ class ScheduleService:
             )
 
         # تعارض الفصل: نفس الفصل في نفس اليوم والحصة
+        #
+        # و`elective_group` جزءٌ من المفتاح: الشعبةُ المنقسمةُ تأخذ مادّتين في
+        # التوقيت نفسه لقسمَي طلابها — كالفنون والتكنولوجيا في 11/1 — وذلك
+        # توازٍ لا تعارض. وبدونه كان الكشفُ يُنذر بثمانية «تعارضات» كلُّها
+        # حصصٌ مقصودةٌ يحرسها القيدُ الفريدُ في القاعدة نفسِها.
         class_dups = (
             ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
-            .values("class_group", "day_of_week", "period_number")
+            .values("class_group", "day_of_week", "period_number", "elective_group")
             .annotate(cnt=Count("id"))
             .filter(cnt__gt=1)
         )
@@ -356,6 +532,7 @@ class ScheduleService:
                 class_group_id=dup["class_group"],
                 day_of_week=dup["day_of_week"],
                 period_number=dup["period_number"],
+                elective_group=dup["elective_group"],
                 is_active=True,
             ).select_related("teacher", "class_group")
             conflicts.append(
@@ -628,6 +805,8 @@ class ScheduleService:
         period_number,
         reason: str = "",
         created_by: CustomUser | None = None,
+        source: str = "school",
+        source_reference: str = "",
     ):
         """
         إضافة تفريغ معلم من حصص الجدول.
@@ -641,11 +820,20 @@ class ScheduleService:
             period_number: رقم الحصة (None لكامل اليوم)
             reason: سبب التفريغ
             created_by: المستخدم الذي أضاف التفريغ
+            source: جهة القرار
+            source_reference: مرجع القرار — إلزاميّ
 
         Returns:
             TeacherExemption: سجل التفريغ
+
+        Raises:
+            ValidationError: تفريغٌ بلا مرجعِ قرار، أو حصّةٌ بعينها بلا رقمها.
+
+        ويُستدعى `full_clean()` هنا عمداً: `objects.create()` لا يُشغّل
+        `clean()`، فلو اكتفينا به لصار في النظام بابانِ لحقيقةٍ واحدة —
+        بابٌ يشترط المرجعَ وبابٌ يقبل بلا مرجع.
         """
-        exemption = TeacherExemption.objects.create(
+        exemption = TeacherExemption(
             school=school,
             teacher=teacher,
             academic_year=academic_year,
@@ -653,8 +841,12 @@ class ScheduleService:
             day_of_week=day_of_week,
             period_number=int(period_number) if period_number else None,
             reason=reason,
+            source=source,
+            source_reference=source_reference,
             created_by=created_by,
         )
+        exemption.full_clean(exclude=["created_by"])
+        exemption.save()
         logger.info(
             "تفريغ جديد: معلم=%s نوع=%s يوم=%d بواسطة=%s",
             teacher.full_name,
@@ -1717,6 +1909,31 @@ class CapacityCheckService:
     """خدمة فحص طاقة الجداول — Pre-validation قبل التوليد الذكي."""
 
     @staticmethod
+    def slot_demand(assignments) -> int:
+        """الزمنُ الذي تستهلكه هذه الإسنادات — بالخانات لا بالحصص.
+
+            InstructionalPeriods ≠ OccupiedSlots
+
+        فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه: حصّتان تُدرَّسان،
+        وخانةٌ واحدةٌ تُستهلك. وعدُّ الحصص هنا يُنتج إنذاراً كاذباً — «مطلوب
+        37 والسعة 35» — وليس في الشعبة فائضٌ أصلاً.
+
+        والمجموعةُ المتوازيةُ تستهلك أكبرَ نصابٍ فيها: لو كانت الفنونُ حصّتين
+        والتكنولوجيا ثلاثاً، فالخاناتُ ثلاثٌ لا خمس.
+        """
+        from collections import defaultdict as _dd
+
+        plain = 0
+        groups: dict = _dd(int)
+        for a in assignments:
+            label = (a.parallel_group or "").strip()
+            if label:
+                groups[label] = max(groups[label], a.weekly_periods)
+            else:
+                plain += a.weekly_periods
+        return plain + sum(groups.values())
+
+    @staticmethod
     def get_overcapacity_classes(assignments) -> list[dict]:
         """
         يكتشف الفصول التي يتجاوز طلبها الأسبوعي طاقتها الاستيعابية.
@@ -1731,17 +1948,27 @@ class CapacityCheckService:
         """
         from collections import defaultdict
 
-        from operations.scheduler import _grade_to_level
         from operations.scheduler_constraints import get_max_periods_for_day
 
-        class_demand: dict = defaultdict(int)
+        class_rows: dict = defaultdict(list)
         class_levels: dict = {}
+        class_names: dict = {}
         for a in assignments:
             cid = str(a.class_group_id)
-            class_demand[cid] += a.weekly_periods
-            class_levels[cid] = _grade_to_level(a.class_group.grade)
+            class_rows[cid].append(a)
+            # التحذيرُ بلا اسمِ الشعبة لا يُصلحه أحد: «مطلوب 37» مرّتين لا
+            # تقول أيَّ شعبةٍ تُراجَع.
+            class_names[cid] = str(a.class_group)
+            # `ClassGroup.level_type` حقلٌ قائمٌ يحمل «prep»/«sec» — يُقرأ ولا
+            # يُشتقّ من `grade`. وكان هنا `_grade_to_level` وقد حُذف من المولّد
+            # حين صُحّح الاشتقاقُ هناك، فبقي الاستيرادُ معلّقاً وسقطت الصفحةُ
+            # كلُّها بـ`ImportError` — لا الفحصُ وحدَه.
+            class_levels[cid] = a.class_group.level_type or ""
 
         overcapacity = []
+        class_demand = {
+            cid: CapacityCheckService.slot_demand(rows) for cid, rows in class_rows.items()
+        }
         for cid, demand in class_demand.items():
             level = class_levels.get(cid, "")
             thu_max = get_max_periods_for_day(4, level)
@@ -1750,6 +1977,7 @@ class CapacityCheckService:
                 overcapacity.append(
                     {
                         "class_id": cid,
+                        "class_name": class_names.get(cid, cid),
                         "demand": demand,
                         "capacity": weekly_capacity,
                         "overflow": demand - weekly_capacity,

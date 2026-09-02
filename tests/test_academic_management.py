@@ -10,13 +10,16 @@ from django.urls import reverse
 
 @pytest.mark.django_db
 class TestAcademicManagementStubs:
-    """Verify all 9 stub pages render correctly for authenticated users."""
+    """Verify the remaining stub pages render correctly for authenticated users.
+
+    `workload` غادر هذه القائمة: صار صفحةً حقيقيّةً تقرأ الجدولَ وتقيسه، فلم
+    يعد فيها «قيد التطوير» — وتغطّيها `tests/test_workload_screen.py`.
+    """
 
     STUB_URLS = [
         ("academic_management:evaluations", "التقييمات والدرجات"),
         ("academic_management:departments", "إدارة الأقسام التعليمية"),
         ("academic_management:test_analytics", "تحليلات الاختبارات"),
-        ("academic_management:workload", "إسناد الأنصبة"),
         ("academic_management:assignments", "التكاليف"),
         ("academic_management:department_reports", "التقارير الخاصة بالقسم"),
         ("academic_management:elearning", "التعليم الإلكتروني"),
@@ -25,7 +28,7 @@ class TestAcademicManagementStubs:
     ]
 
     def test_all_stub_pages_render_for_principal(self, client_as, principal_user):
-        """All 9 stub pages return HTTP 200 with correct Arabic label + 'قيد التطوير'."""
+        """Every remaining stub returns HTTP 200 with its Arabic label + 'قيد التطوير'."""
         c = client_as(principal_user)
 
         for url_name, expected_label in self.STUB_URLS:
@@ -62,9 +65,8 @@ class TestAcademicManagementStubs:
         assert "إدارة الشؤون الأكاديمية" in content
 
     def test_all_nine_routes_exist(self):
-        """Ensure exactly 9 URL patterns are registered (classroom_visits consolidated into quality:observation_list)."""
-        assert len(self.STUB_URLS) == 9, "9 stub items remain after classroom_visits consolidation"
-        # Verify all reverse
-        for url_name, _ in self.STUB_URLS:
+        """القائمةُ تسعةُ أبواب: ثمانيةٌ قيد التطوير وبابُ الأنصبة صار حقيقيّاً."""
+        assert len(self.STUB_URLS) == 8, "ثمانيةٌ بقيت قيد التطوير بعد إنجاز صفحة الأنصبة"
+        for url_name, _ in [*self.STUB_URLS, ("academic_management:workload", "")]:
             url = reverse(url_name)
             assert url.startswith("/academic/"), f"{url_name} should be under /academic/, got {url}"

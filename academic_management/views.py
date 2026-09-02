@@ -11,7 +11,10 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
+from academic_management import workload_service
+from core.academic_calendar import academic_year_for
 from core.pdf_utils import render_pdf
+from core.permissions import SCHEDULE_MANAGE, role_required
 from reports.services import AcademicReportsExcel, AcademicReportsService
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
@@ -51,8 +54,46 @@ def test_analytics(request):
 
 
 @login_required
+@role_required(SCHEDULE_MANAGE | {"coordinator"})
 def workload(request):
-    return _stub_view(request, "إسناد الأنصبة", "⚖️")
+    """أساسُ إسناد الأنصبة — قراءةً محضة، وثلاثةُ مناظير.
+
+    تجيب الشاشةُ عن: مَن يُدرّس ماذا، ولأيّ شعبة، وكم حصّة. أمّا سؤالُ
+    «ما الفرقُ بين المرصود والمعتمد؟» فمعروضٌ بلا جواب — لأنّ المعتمَدَ ليس
+    في القاعدة، ولا يُشتقّ من الجدول:
+
+        HistoricalAssignment → Proposal        (وليس → Truth)
+    """
+    school = _get_school(request)
+    year = request.GET.get("year") or academic_year_for(request)
+    perspective = request.GET.get("view", "teachers")
+    if perspective not in ("teachers", "subjects", "sections"):
+        perspective = "teachers"
+
+    context = {
+        "page_title": "إسناد الأنصبة",
+        "module_name": MODULE_NAME,
+        "year": year,
+        "perspective": perspective,
+        "plan": workload_service.plan_context(school, year),
+        "unknown": workload_service.UNKNOWN,
+    }
+    if school is None:
+        return render(request, "academic_management/workload.html", context)
+
+    lessons, rows = workload_service.load(school, year)
+    plans = workload_service.plans_by_teacher(school, year)
+    context["totals"] = workload_service.totals(lessons, rows)
+    context["gate"] = workload_service.gate(
+        lessons, rows, plans, quals=workload_service.permitting_pairs(school)
+    )
+    if perspective == "teachers":
+        context["teachers"] = workload_service.teacher_view(lessons, rows, plans)
+    elif perspective == "subjects":
+        context["subjects"] = workload_service.subject_view(lessons, rows)
+    else:
+        context["sections"] = workload_service.section_view(lessons, rows)
+    return render(request, "academic_management/workload.html", context)
 
 
 @login_required

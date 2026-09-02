@@ -445,32 +445,53 @@ document.addEventListener('keydown', function(e) {
 });
 
 
-/* ── Custom Confirm Dialog (replaces browser confirm()) ──── */
+/* ── Custom Confirm Dialog (replaces browser confirm()) ────
+   المالكُ الوحيد لـ`data-confirm` في المنصّة. وكان في `actions.js` مستمعٌ
+   ثانٍ بـ`window.confirm` يسبقه في طور الالتقاط، فيُسأل المستخدمُ مرّتين،
+   ويُرسَل ما ألغاه: أُزيل هناك وبقي هنا.
+
+   والسمةُ تُقرأ من النموذج ومن الزرّ المُرسِل كليهما — كما كانت تُقرأ في
+   `actions.js` — كي لا يسقط سلوكٌ موثَّقٌ بإزالة المستمع. */
 (function() {
+  var open = false;   // نافذةٌ واحدةٌ في المرّة: إرسالان متسابقان لا يفتحان اثنتين
+
   document.addEventListener('submit', function(e) {
     var form = e.target;
-    var msg = form.getAttribute('data-confirm');
-    if (!msg) return; // no data-confirm → normal submit
     if (form._confirmed) { form._confirmed = false; return; } // already confirmed
+
+    var holder = form.hasAttribute('data-confirm') ? form : null;
+    if (!holder && e.submitter && e.submitter.closest) {
+      holder = e.submitter.closest('[data-confirm]');
+    }
+    if (!holder) return; // no data-confirm → normal submit
+    var msg = holder.getAttribute('data-confirm');
+    if (!msg) return;
+
     e.preventDefault();
+    if (open) return;
+    open = true;
+
+    var submitter = e.submitter || null;
+    var opener = document.activeElement;
 
     // Build confirm overlay
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('role', 'alertdialog');
     overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'confirm-dlg-title');
     overlay.style.display = 'flex';
     overlay.innerHTML =
       '<div class="modal-box modal-sm" role="document">' +
-      '  <div class="modal-header"><span style="color:#dc2626">' +
+      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:#dc2626">' +
       '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
-      '    <button class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
+      '    <button type="button" class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
       '  </div>' +
       '  <div class="modal-body"><p data-confirm-message style="color:var(--text-secondary);line-height:1.7"></p></div>' +
       '  <div class="modal-footer">' +
-      '    <button class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
-      '    <button class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
+      '    <button type="button" class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
+      '    <button type="button" class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
       '  </div>' +
       '</div>';
 
@@ -479,18 +500,33 @@ document.addEventListener('keydown', function(e) {
     document.body.appendChild(overlay);
     overlay.querySelector('[data-action="confirm"]').focus();
 
+    function dismiss() {
+      overlay.remove();
+      open = false;
+      if (opener && opener.focus) opener.focus();
+    }
+
     overlay.addEventListener('click', function(ev) {
-      var action = ev.target.getAttribute('data-action');
+      // click target may be the icon inside the button \u2014 ask the nearest [data-action] host
+      var btn = ev.target.closest ? ev.target.closest('[data-action]') : null;
+      var action = btn ? btn.getAttribute('data-action') : null;
       if (action === 'confirm') {
         overlay.remove();
+        open = false;
         form._confirmed = true;
-        form.submit();
+        // requestSubmit keeps native validation + the submitter's name/value;
+        // submit() drops both, so a two-button form loses which one was pressed.
+        if (form.requestSubmit) form.requestSubmit(submitter || undefined);
+        else form.submit();
+        // guard: if no submit actually happened, do not leave the flag raised
+        // (the next submit would then skip its confirmation).
+        setTimeout(function() { form._confirmed = false; }, 0);
       } else if (action === 'cancel' || ev.target === overlay) {
-        overlay.remove();
+        dismiss();
       }
     });
     overlay.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Escape') overlay.remove();
+      if (ev.key === 'Escape') dismiss();
     });
   });
 })();

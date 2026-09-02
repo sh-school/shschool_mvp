@@ -120,14 +120,19 @@ https://schoolos-mvp-production.up.railway.app/admin/
 ```
 + New → Empty Service
   Name: worker
-  Start Command: celery -A shschool worker --loglevel=info
+  Config file: railway.worker.json   ← يشغّل bash scripts/railway-worker.sh (يتحقّق من دور shschool_app ثمّ يبدأ العامل)
 
 + New → Empty Service
   Name: beat
-  Start Command: celery -A shschool beat --loglevel=info
+  Start Command: celery -A shschool beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 ```
 
-**ملاحظة:** كلاهما يحتاج نفس environment variables + DATABASE_URL + REDIS_URL.
+**ملاحظة:** كلاهما يحتاج نفس environment variables + REDIS_URL + APP_DB_PASSWORD + DB_HOST/DB_NAME/DB_PORT
+(العامل يتعمّد تجاهل DATABASE_URL كي لا يعمل بدور المالك).
+
+> **مطلوب منذ 2026-09-02:** توليد الجدول الذكي (`operations.generate_smart_schedule`) يعمل في العامل
+> لا في طلب الويب — قِيس بين ٤٢ و٢٧٩ ثانية، فوق مهلة ١٢٠ ثانية. **بلا خدمة worker يبقى الطلب
+> «في الانتظار» ثمّ يُوسم فاشلاً بعد ٢٠ دقيقة** برسالةٍ تقول ذلك للمستخدم.
 
 ---
 

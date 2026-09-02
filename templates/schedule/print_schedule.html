@@ -174,6 +174,111 @@
   .paper-a3 .schedule-grid td { padding: 4px 3px; height: 48px; }
   .paper-a3 .schedule-grid th { font-size: 12px; padding: 6px 4px; }
 
+  /* ── الجدول العام للمعلمين — مصفوفة: سطرٌ لكل معلّم، والأسبوعُ عرضاً ──
+     ورقةٌ من ثلاثٍ وسبعين سطراً وستٍّ وثلاثين خانة: كلُّ زخرفةٍ فيها تأكل
+     من عرض الخانة، فبقيت بالأسود والأبيض كورقة المدرسة. ── */
+  .matrix-wrap { overflow-x: auto; }
+  .schedule-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8px;
+    color: #000;
+  }
+  .schedule-matrix th,
+  .schedule-matrix td {
+    border: 1px solid #000;
+    text-align: center;
+    padding: 0;
+    line-height: 1.35;
+    height: 13px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .schedule-matrix .m-day {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 0;
+    background: #fff;
+  }
+  .schedule-matrix .m-period {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 0;
+  }
+  /* عمودُ الاسم: أعرضُ الأعمدة. وأطولُ اسمٍ ثمانيةٌ وثلاثون حرفاً، فسُدُسُ
+     العرض يسعه كاملاً — ومن قُصَّ اسمه بنقاطٍ ثلاثٍ لم يجد سطره. */
+  .schedule-matrix .m-name {
+    width: 15%;
+    text-align: right;
+    padding: 0 4px;
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .schedule-matrix .m-cell { width: 2.328%; direction: ltr; }
+  .schedule-matrix .m-total { width: 3.5%; font-weight: 700; }
+  /* حدُّ اليوم أغلظُ من حدِّ الحصّة — وإلّا ضاعت الأيامُ في خمسٍ وثلاثين
+     خانةً متشابهة. والجهةُ هنا ماديّةٌ (يمين) لا منطقيّة: خانةُ الحصّة
+     `direction: ltr` كي لا يقلب المحرّكُ رمز الشعبة، و`inline-start`
+     تنقلب معها فيقع حدُّ اليوم بين الحصّة الأولى والثانية — أي خارج
+     اليوم الذي يحدّه. */
+  .schedule-matrix .m-day-start { border-right-width: 2px; }
+  .schedule-matrix thead th { border-bottom-width: 2px; }
+  .schedule-matrix .m-name,
+  .schedule-matrix .m-total { border-right-width: 2px; }
+  /* ── فرزُ الأقسام لوناً ──
+     السطورُ مرتّبةٌ بالقسم أصلاً، واللونُ يفصل بينها بلا شريطِ عنوانٍ يأكل
+     سطراً ولا عمودٍ يأكل عرضاً. والألوانُ فاتحةٌ كي يبقى الأسودُ مقروءاً
+     فوقها، ومتباعدةٌ في الدرجة بين كلّ قسمين متجاورين في الترتيب. */
+  .schedule-matrix tbody tr.dept-sharia       td { background: #d9ead3; }
+  .schedule-matrix tbody tr.dept-arabic       td { background: #fce5cd; }
+  .schedule-matrix tbody tr.dept-math         td { background: #cfe2f3; }
+  .schedule-matrix tbody tr.dept-english      td { background: #ead1dc; }
+  .schedule-matrix tbody tr.dept-science_prep td { background: #d0e8e4; }
+  .schedule-matrix tbody tr.dept-science_sec  td { background: #eef3cf; }
+  .schedule-matrix tbody tr.dept-chemistry    td { background: #fad4d0; }
+  .schedule-matrix tbody tr.dept-physics      td { background: #dcd8f0; }
+  .schedule-matrix tbody tr.dept-social       td { background: #fdedb3; }
+  .schedule-matrix tbody tr.dept-tech         td { background: #d8e2e6; }
+  .schedule-matrix tbody tr.dept-pe           td { background: #cfe8d8; }
+  .schedule-matrix tbody tr.dept-arts         td { background: #f4d9e8; }
+  .schedule-matrix tbody tr.dept-life_skills  td { background: #e8ded0; }
+  .schedule-matrix tbody tr.dept-other        td { background: #e8e8e8; }
+  /* سطرُ المجموع: أبيضُ بلا لونِ قسمٍ — فهو للجدول كلّه لا لقسمٍ منه. */
+  .schedule-matrix tfoot td {
+    background: #fff;
+    font-weight: 700;
+    border-top-width: 2px;
+  }
+  /* خانةٌ دون المتوقَّع = شعبةٌ بلا معلّم في تلك الحصّة. والعلامةُ لونٌ
+     وخطٌّ تحته معاً: اللونُ يضيع على طابعةٍ بالأبيض والأسود، والخطُّ يبقى. */
+  .schedule-matrix tfoot td.m-short {
+    color: #b00020;
+    text-decoration: underline;
+  }
+  .matrix-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: #666;
+    font-size: 14px;
+  }
+  /* ترويسةُ الجدول العام: اسمُ المدرسة سطرٌ صغير، والعنوانُ كبيرٌ تحته. */
+  .matrix-head { text-align: center; margin-bottom: 8px; }
+  .matrix-head .ministry { font-size: 11px; color: #333; }
+  .matrix-head .title { font-size: 26px; font-weight: 700; color: #000; margin: 2px 0; }
+  .matrix-head .sub { font-size: 11px; color: #333; }
+  .matrix-foot .foot-short { color: #b00020; font-weight: 700; }
+  .matrix-foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #333;
+    margin-top: 6px;
+  }
+
   /* ── Print Styles ── */
   @media print {
     .print-controls { display: none !important; }
@@ -184,6 +289,29 @@
       margin: 12mm;
     }
   }
+
+  {% if view_type == 'all_teachers' %}
+  /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
+  @page { size: {% if paper == 'a4' %}A4{% else %}A3{% endif %} landscape; margin: 7mm; }
+  @media print {
+    .schedule-print { padding: 0; }
+    /* التمريرُ الأفقيّ للشاشة وحدها — وهو في الورق يحجز علوّاً فارغاً
+       فوق الجدول فيدفع آخره إلى ورقةٍ ثانية. */
+    .matrix-wrap { overflow: visible; }
+    /* ثلاثةٌ وسبعون سطراً على ورقة A3 عرضيّة: القياسُ محسوبٌ ليملأ الورقة
+       ولا يفيض عنها — ومن زاد عددُ معلّميه انتقل الفائضُ إلى ورقةٍ ثانية
+       بترويسةٍ متكرّرة. */
+    .schedule-matrix { font-size: 7.5px; }
+    .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.3; }
+    .schedule-matrix .m-name { font-size: 8px; }
+    .schedule-matrix .m-day { font-size: 12px; padding: 2px 0; }
+    .schedule-matrix .m-period { font-size: 9px; }
+    /* ترويسةُ الأيام والحصص تتكرّر مع الصفحة إن فاض الجدول عن ورقة. */
+    .schedule-matrix thead { display: table-header-group; }
+    .schedule-matrix tr { break-inside: avoid; }
+    .matrix-foot { font-size: 8px; }
+  }
+  {% endif %}
 </style>
 <!-- Tajawal font for Arabic -->
   <style>
@@ -208,6 +336,8 @@
     <input type="hidden" name="year" value="{{ year }}">
 
     <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
+      <option data-view="all_teachers"
+        {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
       <option data-view="school"
         {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
       <option disabled>── معلم ──</option>
@@ -241,7 +371,7 @@
     {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
     <input type="hidden" name="year" value="{{ year }}">
     <select name="paper" data-autosubmit title="حجم الورق">
-      <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4 عمودي</option>
+      <option value="a4" {% if paper == 'a4' %}selected{% endif %}>{% if view_type == 'all_teachers' %}A4 أفقي{% else %}A4 عمودي{% endif %}</option>
       <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>
     </select>
   </form>
@@ -253,6 +383,89 @@
 
 {# ── Printable Content ── #}
 <div class="schedule-print">
+
+{% if view_type == 'all_teachers' %}
+{# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
+  <div class="matrix-head">
+    <div class="ministry">{{ school.name }}</div>
+    <div class="title">الجدول العام للمعلمين</div>
+    <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}</div>
+  </div>
+
+  {% if matrix %}
+  <div class="matrix-wrap">
+  <table class="schedule-matrix">
+    <thead>
+      <tr>
+        <th class="m-name" rowspan="2">المعلّم</th>
+        {% for day_num, day_name in days %}
+        <th class="m-day m-day-start" colspan="7">{{ day_name }}</th>
+        {% endfor %}
+        <th class="m-total" rowspan="2">النصاب</th>
+      </tr>
+      <tr>
+        {% for day_num, day_name in days %}
+          {% for n in period_numbers %}
+          <th class="m-period{% if forloop.first %} m-day-start{% endif %}">{{ n }}</th>
+          {% endfor %}
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in matrix %}
+      {# لونُ السطر هو قسمُ المعلّم — والسطورُ آتيةٌ مرتّبةً بالقسم من الخدمة. #}
+      <tr class="dept-{{ row.department.code }}">
+        <td class="m-name" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}">{{ row.teacher.full_name }}</td>
+        {% for day in row.days %}
+          {% for cell in day %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}">
+            {% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}
+          </td>
+          {% endfor %}
+        {% endfor %}
+        <td class="m-total">{{ row.total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if matrix_totals %}
+    <tfoot>
+      {% comment %}
+        العددُ حصصٌ منعقدة، والتعليمُ على تغطية الشُّعب لا على العدد: عمودٌ فيه
+        ازدواجٌ اختياريٌّ يبلغ خمسةً وعشرين وفيه شعبةٌ بلا درس — فيُعلَّم وإن
+        بلغ العدد. و`{# #}` لا تمتدّ سطرين في Django، فما امتدّ منها تسرّب
+        نصّاً داخل الجدول ورفعه المحلّلُ فوقه.
+      {% endcomment %}
+      <tr>
+        <td class="m-name" title="عدد الشعب المجدولة: {{ matrix_totals.sections }}">مجموع الحصص</td>
+        {% for day in matrix_totals.days %}
+          {% for column in day %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if column.short %} m-short{% endif %}"
+              title="حصص: {{ column.count }} — شُعب في درس: {{ column.sections }} من {{ column.expected }}">{{ column.count }}</td>
+          {% endfor %}
+        {% endfor %}
+        <td class="m-total">{{ matrix_totals.total }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+  </div>
+
+  <div class="matrix-foot">
+    <span>
+      المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}
+      {% if matrix_totals %}&nbsp;·&nbsp;
+      الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة
+      (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %}<span class="foot-short">
+      — ناقص {{ matrix_totals.missing }}</span>{% endif %}{% endif %}
+    </span>
+    <span>{% include "components/ministry_vision.html" %}</span>
+    <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
+  </div>
+  {% else %}
+  <div class="matrix-empty">لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.</div>
+  {% endif %}
+
+{% else %}
   <div class="schedule-header">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
@@ -303,6 +516,7 @@
     تاريخ الطباعة: {% now "Y/m/d" %}<br>
     {% include "components/ministry_vision.html" %}
   </div>
+{% endif %}
 </div>
 
 {% comment %}

@@ -1,0 +1,141 @@
+{% extends "base/base.html" %}
+{% block title %}توزيعات المواد على الشُّعب — {{ year }}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'smart_schedule' as smart_url %}
+{% include "components/breadcrumbs.html" with parent_url=smart_url parent_label="الجدولة الذكية" current="توزيعات المواد" %}
+{% endblock %}
+
+{% block content %}
+{% comment %}
+وقودُ المولّد الوحيد: مَن يُدرّس أيَّ مادّةٍ لأيّ شعبةٍ وكم حصّة. وكان بلا شاشةٍ
+في المنصّة إطلاقاً — بابُه الوحيدُ لوحةُ Django التي لا يبلغها مديرُ المدرسة.
+{% endcomment %}
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الشُّعب</h1>
+    <p class="page-subtitle">{{ totals.count }} توزيعاً · {{ totals.periods }} حصّة أسبوعيّة · {{ totals.unstaffed }} بلا معلّم — {{ year }}</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'smart_schedule' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
+  </div>
+</div>
+
+{# ── إضافة توزيع ── #}
+<div class="card-qatar mb-6">
+  <div class="card-bar">{% include "components/icon.html" with name="plus" %} إضافة توزيع</div>
+  <div class="p-5">
+    {% if form.non_field_errors %}
+    <div class="text-sm text-status-danger mb-3" role="alert">{{ form.non_field_errors|join:" · " }}</div>
+    {% endif %}
+    <form method="post" action="{% url 'subject_assignment_add' %}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 p-4 bg-surface-alt rounded-lg border border-border">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      {% for field in form.visible_fields %}
+      <div class="form-group mb-0{% if field.name == 'requires_lab' %} flex items-end{% endif %}">
+        <label class="form-label text-xs" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}<div class="text-xs text-status-danger mt-1">{{ field.errors|join:" · " }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      <div class="form-group mb-0 flex items-end">
+        <button type="submit" class="btn-primary w-full">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── القائمة ── #}
+<div class="table-wrap">
+  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between">
+    <span>{% include "components/icon.html" with name="list-checks" %} التوزيعات (<span id="shown-count">{{ assignments|length }}</span> / {{ assignments|length }})</span>
+  </div>
+  <div class="filter-bar" style="border-top:0;border-radius:0;margin-bottom:0">
+    <input type="text" id="assign-search" class="form-control" placeholder="بحث بالشعبة أو المادة أو المعلم..." style="flex:1;min-width:200px">
+    <form method="get" class="flex gap-2 items-center">
+      <input type="hidden" name="year" value="{{ year }}">
+      <select name="class" class="form-control" data-autosubmit>
+        <option value="">كلّ الشُّعب</option>
+        {% for c in classes %}
+        <option value="{{ c.id }}" {% if c.id == selected_class_id %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  {% if assignments %}
+  <div class="table-wrap-scroll" style="max-height:640px">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">الشعبة</th>
+          <th scope="col">المادة</th>
+          <th scope="col">المعلم</th>
+          <th scope="col" class="text-center">الحصص/أسبوع</th>
+          <th scope="col" class="text-center">معمل</th>
+          <th scope="col">توازٍ</th>
+          <th scope="col" class="text-center">حفظ</th>
+          <th scope="col"><span class="sr-only">حذف</span></th>
+        </tr>
+      </thead>
+      <tbody id="assign-tbody">
+        {% for a in assignments %}
+        <tr data-filter-row data-text="{{ a.class_group }} {{ a.subject.name_ar }} {{ a.teacher.full_name|default:'' }}">
+          {# صفٌّ واحد = استمارةٌ واحدة: التعديل في مكانه، لا صفحةَ تحرير لكلّ سطر. #}
+          <td class="font-semibold">{{ a.class_group }}</td>
+          <td>{{ a.subject.name_ar }}</td>
+          <td>
+            <select name="teacher" form="edit-{{ a.id }}" class="form-control form-control-sm" aria-label="معلّم {{ a.subject.name_ar }} لشعبة {{ a.class_group }}">
+              <option value="">— بلا معلّم —</option>
+              {% for t in teachers %}
+              <option value="{{ t.id }}" {% if a.teacher_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="text-center">
+            <input type="number" name="weekly_periods" form="edit-{{ a.id }}" value="{{ a.weekly_periods }}" min="1" max="35" class="form-control form-control-sm text-center" style="width:5rem" aria-label="حصص الأسبوع">
+          </td>
+          <td class="text-center">
+            <input type="checkbox" name="requires_lab" form="edit-{{ a.id }}" {% if a.requires_lab %}checked{% endif %} aria-label="يحتاج معملاً">
+          </td>
+          <td>
+            <input type="text" name="parallel_group" form="edit-{{ a.id }}" value="{{ a.parallel_group }}" class="form-control form-control-sm" style="width:7rem" placeholder="—" aria-label="مجموعة التوازي">
+          </td>
+          <td class="text-center">
+            <form id="edit-{{ a.id }}" method="post" action="{% url 'subject_assignment_edit' a.id %}">
+              {% csrf_token %}
+              <input type="hidden" name="year" value="{{ year }}">
+              <button type="submit" class="btn-secondary btn-sm">حفظ</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" action="{% url 'subject_assignment_delete' a.id %}" data-confirm="حذف توزيع {{ a.subject.name_ar }} لشعبة {{ a.class_group }}؟ لن يُولَّد له حصص بعد الآن.">
+              {% csrf_token %}
+              <input type="hidden" name="year" value="{{ year }}">
+              <button type="submit" class="btn-ghost text-xs text-danger" aria-label="حذف التوزيع">{% include "components/icon.html" with name="trash-2" size="icon-sm" %} حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <p class="empty-title">لا توزيعات بعد</p>
+    <p class="empty-sub">أضف أوّل توزيعٍ من الاستمارة أعلاه.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  if (typeof window.smartFilter === 'function') {
+    window.smartFilter('assign-search', '#assign-tbody tr[data-filter-row]', {
+      textAttr: 'data-text',
+      countEl: '#shown-count'
+    });
+  }
+});
+</script>
+{% endblock %}

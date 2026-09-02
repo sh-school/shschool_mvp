@@ -7,7 +7,9 @@ from urllib.parse import urlencode
 import django.db
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -41,6 +43,37 @@ _REPORT_ROLES = {
     "admin",
 }
 _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
+#: من يكتب توزيعاتِ المواد — الوقودَ الذي يقرؤه المولّد.
+SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
+
+#: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
+#: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
+#: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
+_GENERATION_STALE_AFTER = timedelta(minutes=20)
+
+
+def _reap_stale_generations(school, year):
+    """يُنهي التوليداتِ المعلّقةَ التي لا عاملَ لها — ويعيد ما بقي حيّاً.
+
+    فالعاملُ قد يكون مطفأً أو ساقطاً، و`delay()` تنجح لأنّ الوسيطَ قَبِل
+    الرسالة ولا أحدَ يقرؤها. وصفٌّ «في الانتظار» إلى الأبد يقفل الزرَّ ويقول
+    للمستخدم إنّ شيئاً يجري — وليس شيءٌ يجري.
+    """
+    cutoff = timezone.now() - _GENERATION_STALE_AFTER
+    pending = ScheduleGeneration.objects.filter(
+        school=school,
+        academic_year=year,
+        status__in=ScheduleGeneration.PENDING_STATUSES,
+    )
+    pending.filter(generated_at__lt=cutoff).update(
+        status="failed",
+        finished_at=timezone.now(),
+        error_message=(
+            "لم يلتقط عاملُ الخلفيّة هذه المهمّة خلال عشرين دقيقة — "
+            "غالباً لأنّ Celery متوقّف. راجع تشغيلَه ثمّ أعد المحاولة."
+        ),
+    )
+    return pending.filter(generated_at__gte=cutoff).first()
 
 
 def _safe_schedule_settings_redirect(request, fallback_year=None):
@@ -112,12 +145,7 @@ def weekly_schedule(request):
 
     target_teacher = None
     if teacher_id and may_browse:
-        target_teacher = get_object_or_404(
-            CustomUser,
-            id=teacher_id,
-            memberships__school=school,
-            memberships__is_active=True,
-        )
+        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
     elif user.is_teacher() and not may_browse:
         target_teacher = user
 
@@ -125,11 +153,22 @@ def weekly_schedule(request):
     if class_id and may_browse:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
-    grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
+    # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
+    # ليست جدولَ أحدٍ بعد.
+    preview = None
+    generation_id = request.GET.get("generation")
+    if generation_id and may_browse:
+        preview = get_object_or_404(
+            ScheduleGeneration, id=generation_id, school=school, academic_year=year
+        )
+
+    grid = ScheduleService.get_weekly_schedule(
+        school, target_teacher, target_class, year, generation=preview
+    )
     conflicts = ScheduleService.detect_conflicts(school, year) if user.is_admin() else []
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    PERIODS = range(1, 8)
+    PERIODS = ScheduleSlot.PERIODS
 
     teachers, classes = [], []
     if user.is_admin():
@@ -155,6 +194,7 @@ def weekly_schedule(request):
             "classes": classes,
             "academic_year": year,
             "user_role": user.get_role(),
+            "preview": preview,
         },
     )
 
@@ -167,8 +207,11 @@ def schedule_print(request):
 
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    view_type = request.GET.get("view", "school")  # school, teacher, class
-    paper = request.GET.get("paper", "a4")  # a4, a3
+    # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
+    # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
+    # فيها ألفُ حصّةٍ فلا تُقرأ ولا تُطبع.
+    view_type = request.GET.get("view", "all_teachers")  # all_teachers, school, teacher, class
+    paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
 
@@ -184,16 +227,18 @@ def schedule_print(request):
         view_type = "teacher"
         target_teacher = request.user
     elif view_type == "teacher" and teacher_id:
-        target_teacher = get_object_or_404(
-            CustomUser,
-            id=teacher_id,
-            memberships__school=school,
-            memberships__is_active=True,
-        )
+        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
-    grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
+    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
+    # إلى جدوله قبل هذا السطر.
+    grid, matrix, matrix_totals = {}, [], None
+    if view_type == "all_teachers":
+        matrix = ScheduleService.get_teachers_matrix(school, year)
+        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
+    else:
+        grid = ScheduleService.get_weekly_schedule(school, target_teacher, target_class, year)
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
@@ -201,7 +246,7 @@ def schedule_print(request):
     times = ScheduleService.period_times(school, year)
     PERIODS = [
         {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
-        for n in range(1, 8)
+        for n in ScheduleSlot.PERIODS
     ]
 
     # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
@@ -217,7 +262,9 @@ def schedule_print(request):
         ).order_by("grade", "section")
 
     title = "الجدول الدراسي العام"
-    if target_teacher:
+    if view_type == "all_teachers":
+        title = "الجدول العام للمعلمين"
+    elif target_teacher:
         title = f"جدول المعلم: {target_teacher.full_name}"
     elif target_class:
         title = f"جدول الفصل: {target_class}"
@@ -227,8 +274,11 @@ def schedule_print(request):
         "schedule/print_schedule.html",
         {
             "grid": grid,
+            "matrix": matrix,
+            "matrix_totals": matrix_totals,
             "days": DAYS,
             "periods": PERIODS,
+            "period_numbers": range(1, 8),
             "paper": paper,
             "view_type": view_type,
             "target_teacher": target_teacher,
@@ -365,7 +415,7 @@ def register_teacher_absence(request):
 
     if request.method == "POST":
         teacher = get_object_or_404(
-            CustomUser, id=request.POST["teacher"], memberships__school=school
+            CustomUser.objects.in_school(school), id=request.POST["teacher"]
         )
         raw_date = request.POST.get("date", timezone.now().date().isoformat())
         try:
@@ -537,8 +587,21 @@ def smart_schedule_view(request):
         .select_related("class_group", "subject", "teacher")
         .order_by("class_group__grade", "class_group__section", "subject__name_ar")
     )
-    generations = ScheduleGeneration.objects.filter(school=school, academic_year=year)[:5]
+    # التوليدُ الجاري — الصفحةُ تُخفي الزرَّ وتستطلع الحالةَ ما دام قائماً.
+    # والقتلُ يسبق القراءة: صفٌّ متقادمٌ يُوسَم فاشلاً قبل أن يُعرض «جارياً».
+    pending_generation = _reap_stale_generations(school, year)
+    generations = list(
+        ScheduleGeneration.objects.filter(school=school, academic_year=year).select_related(
+            "generated_by"
+        )[:5]
+    )
     total_weekly = sum(a.weekly_periods for a in assignments)
+    # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
+    # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
+    for g in generations:
+        ratio = 100 * g.total_slots_created / total_weekly if total_weekly else 0.0
+        # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
+        g.placed_ratio = f"{ratio:.1f}"
 
     # ✅ v5.4: CapacityCheckService.get_overcapacity_classes — validation في service layer
     from operations.services import CapacityCheckService
@@ -551,6 +614,11 @@ def smart_schedule_view(request):
         {
             "assignments": assignments,
             "generations": generations,
+            "pending_generation": pending_generation,
+            # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
+            # يضغطه فيُصدَم بـ403.
+            "can_approve": request.user.is_superuser
+            or request.user.get_role() in ("principal", "vice_academic"),
             "year": year,
             "total_weekly": total_weekly,
             "classes_count": assignments.values("class_group").distinct().count(),
@@ -560,56 +628,118 @@ def smart_schedule_view(request):
     )
 
 
+def _smart_schedule_redirect(year):
+    """العودةُ إلى صفحة الجدولة للعام نفسِه الذي طُلب التوليدُ له.
+
+    كان الردُّ `redirect("smart_schedule")` بلا عام، فتُفتح الصفحةُ على العام
+    الافتراضيّ: من ولّد جدولَ العام القادم يرى سجلَّ توليدِ عامٍ آخر — ولا يرى
+    مسودّتَه، ولا الرقمَ الذي يقول كم حصّةً وُضعت.
+    """
+    return redirect(f"{reverse('smart_schedule')}?{urlencode({'year': year})}")
+
+
 @login_required
 @role_required(_ADMIN_SCHEDULE_ROLES)
 @require_POST
 def smart_generate(request):
-    """توليد الجدول الذكي — POST فقط"""
-    from .scheduler import generate_schedule
+    """يضع التوليدَ في الطابور — ولا يُولّد داخل الطلب.
 
+    قِيس زمنُ التوليد في هذه المدرسة على ثلاثةٍ وثلاثين عمليّةً فكان بين
+    ٤٢ ثانيةً و٢٧٩، و`gunicorn` يقطع الطلبَ عند مئةٍ وعشرين ثانيةً و`nginx`
+    مثلَه. فالزرُّ المتزامنُ كان يَعِد بجدولٍ ويُسلّم «502» بعد دقيقتين،
+    والتوليدُ يمضي في عاملٍ لا أحدَ ينتظره.
+
+    والصفُّ يُنشأ هنا قبل الإرسال لا في العامل: هو ما يراه المستخدمُ حالةً،
+    وهو ما يمنع توليداً ثانياً فوق جارٍ.
+    """
     school = request.user.get_school()
     year = request.POST.get("year") or academic_year_for(request)
 
-    try:
-        result = generate_schedule(school, year, user=request.user)
-    except Exception as exc:
-        logger.exception("خطأ في توليد الجدول: %s", exc)
-        messages.error(request, f"خطأ في التوليد: {exc}")
-        return redirect("smart_schedule")
-
-    ps = result.get("phase_stats", {})
-    total_placed = ps.get("phase1", 0) + ps.get("phase2", 0) + ps.get("phase3", 0)
-    total_tasks = result.get("total_tasks", 0)
-
-    if result["success"]:
-        messages.success(
+    # حارسُ التزامن — توليدان متوازيان يتنازعان جدولاً واحداً، وآخرُهما يفوز
+    # بلا أن يعلم أحدٌ أنّ أوّلَهما كان.
+    running = _reap_stale_generations(school, year)
+    if running is not None:
+        messages.info(
             request,
-            f"✅ تم توليد الجدول بنجاح! الجودة: {result['quality']['score']}% — "
-            f"{total_placed}/{total_tasks} حصة في {result['elapsed_ms']}ms "
-            f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
+            "هناك توليدٌ جارٍ لهذا العام — انتظر انتهاءَه قبل أن تبدأ آخر.",
         )
-    else:
-        failed = ps.get("failed", len(result["errors"]))
-        # Show capacity warnings as error-level messages first
-        capacity_errors = [e for e in result.get("errors", []) if e.startswith("⚠️")]
-        other_errors = [e for e in result.get("errors", []) if not e.startswith("⚠️")]
+        return _smart_schedule_redirect(year)
 
-        for ce in capacity_errors:
-            messages.error(request, ce)
+    generation = ScheduleGeneration.objects.create(
+        school=school,
+        academic_year=year,
+        generated_by=request.user,
+        status="queued",
+    )
 
-        for err in other_errors[:5]:
-            messages.warning(request, err)
-        if total_placed > 0:
-            messages.info(
-                request,
-                f"تم توليد {total_placed}/{total_tasks} حصة (جودة: {result['quality']['score']}%) "
-                f"— {failed} تعذّر "
-                f"(م1: {ps.get('phase1', 0)} | م2: {ps.get('phase2', 0)} | م3: {ps.get('phase3', 0)})",
-            )
-        if len(result["errors"]) > 5:
-            messages.warning(request, f"... و{len(result['errors']) - 5} أخطاء أخرى")
+    from .tasks import generate_smart_schedule_task
 
-    return redirect("smart_schedule")
+    try:
+        generate_smart_schedule_task.delay(str(generation.id))
+    except Exception as exc:  # وسيطُ الرسائل ساقطٌ أو غيرُ مهيّأ
+        # ولا يُترك الصفُّ «في الانتظار» إلى الأبد: انتظارٌ بلا عاملٍ كذبةٌ
+        # صامتة. يُقال إنّ العاملَ غيرُ متاح، ويُقال ماذا يفعل المسؤول.
+        logger.exception("تعذّر إرسال مهمّة توليد الجدول: %s", exc)
+        generation.status = "failed"
+        # سببُ السقوط في السجلّ أعلاه؛ والمعروضُ للمستخدم ما يفعله لا ما رآه النظام.
+        generation.error_message = "تعذّر إرسال المهمّة إلى عامل الخلفيّة — راجع تشغيل Celery."
+        generation.finished_at = timezone.now()
+        generation.save(update_fields=["status", "error_message", "finished_at"])
+        messages.error(
+            request,
+            "عاملُ المهامّ الخلفيّة غيرُ متاح، ولم يبدأ التوليد. " "راجع تشغيل Celery ثمّ أعد المحاولة.",
+        )
+        return _smart_schedule_redirect(year)
+
+    messages.success(
+        request,
+        "بدأ توليد الجدول في الخلفيّة — تُحدَّث الحالةُ في هذه الصفحة تلقائيّاً، "
+        "ويصلك إشعارٌ عند انتهائه.",
+    )
+    return _smart_schedule_redirect(year)
+
+
+@login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
+def smart_generate_status(request):
+    """حالةُ آخر توليدٍ — تسألها الصفحةُ كلَّ بضع ثوانٍ ما دام هناك جارٍ.
+
+    وحدُّ ما تُرجعه مقصود: حالةٌ ونصٌّ مختصر. فصفحةٌ تُعيد تحميلَ نفسها كلَّ
+    ثلاثِ ثوانٍ على مئاتِ الصفوف تُثقل الخادمَ لتقول «ما زال يعمل».
+    """
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+
+    # ما تقادم لا يُقال عنه «جارٍ» — وإلّا استطلعت الصفحةُ إلى الأبد.
+    _reap_stale_generations(school, year)
+
+    generation = (
+        ScheduleGeneration.objects.filter(school=school, academic_year=year)
+        .only(
+            "id",
+            "status",
+            "quality_score",
+            "total_slots_created",
+            "generation_time_ms",
+            "error_message",
+        )
+        .first()
+    )
+    if generation is None:
+        return JsonResponse({"status": None, "pending": False})
+
+    return JsonResponse(
+        {
+            "id": str(generation.id),
+            "status": generation.status,
+            "status_label": generation.get_status_display(),
+            "pending": generation.is_pending,
+            "quality": round(generation.quality_score),
+            "slots": generation.total_slots_created,
+            "elapsed_ms": generation.generation_time_ms,
+            "error": generation.error_message,
+        }
+    )
 
 
 @login_required
@@ -661,10 +791,14 @@ def teacher_preferences(request):
     )
 
     if request.method == "POST":
-        pref.max_daily_periods = int(request.POST.get("max_daily_periods", 5))
-        pref.max_consecutive = int(request.POST.get("max_consecutive", 3))
+        # القيمُ من قائمةٍ مغلقة، و`int()` على نصٍّ حرٍّ يُسقط الصفحةَ بـ500
+        # ويقبل ما لا معنى له. فما خرج عن المدى يعود إلى الافتراضيّ.
+        pref.max_daily_periods = _one_of(request.POST.get("max_daily_periods"), range(1, 8), 5)
+        #: و«حصّةٌ واحدة» سقفٌ مشروع: أي لا حصّتين متجاورتين البتّة — وهو
+        #: قيدٌ قائمٌ لمعلّمٍ في المدرسة، والمحرّكُ يقرؤه ولا يرفعه في الاسترخاء.
+        pref.max_consecutive = _one_of(request.POST.get("max_consecutive"), range(1, 8), 3)
         free_day = request.POST.get("free_day", "")
-        pref.free_day = int(free_day) if free_day else None
+        pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
         pref.notes = request.POST.get("notes", "")
         pref.save()
         messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
@@ -696,15 +830,6 @@ def approve_schedule(request, generation_id):
         messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
         return redirect("smart_schedule")
 
-    # Archive any previously approved generation
-    ScheduleGeneration.objects.filter(
-        school=school, academic_year=gen.academic_year, status="approved"
-    ).update(status="archived")
-
-    gen.status = "approved"
-    gen.save(update_fields=["status"])
-
-    # Notify all teachers
     from notifications.models import InAppNotification
 
     teacher_ids = Membership.objects.filter(
@@ -713,21 +838,60 @@ def approve_schedule(request, generation_id):
         role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
     ).values_list("user_id", flat=True)
 
-    notifs = [
-        InAppNotification(
-            user_id=tid,
-            title="تم اعتماد الجدول الدراسي",
-            body=f"تم اعتماد الجدول للعام {gen.academic_year}. راجع جدولك من صفحة الجدول الأسبوعي.",
-            event_type="general",
-            priority="normal",
-            related_url="/teacher/weekly-schedule/",
-        )
-        for tid in teacher_ids
-    ]
-    InAppNotification.objects.bulk_create(notifs)
+    # الاعتمادُ والإشعارُ فعلٌ واحد. كان الحفظُ يسبق `bulk_create` بلا معاملة،
+    # فحين سقط الإدراجُ بقي الجدولُ «معتمَداً» ولم يعلم به معلّمٌ واحد — نصفُ
+    # فعلٍ لا يُرى نصفُه الناقص.
+    with transaction.atomic():
+        # الاعتمادُ هو النشر: حصصُ هذه المسودّة تُفعَّل ويُطفأ ما سواها في
+        # العام نفسه. وكان الاعتمادُ يقلب حقلَ حالةٍ لا غير، والحصصُ حيّةٌ
+        # منذ لحظة التوليد — فلم يكن الزرُّ يقرّر شيئاً.
+        #
+        # والمسودّاتُ الأقدمُ من هذا الحقل حصصُها حيّةٌ أصلاً وبلا مرجع توليد،
+        # فإطفاءُ الحيّ لها يمحو الجدولَ كلَّه: تُعامَل كما كانت — قلبَ حالةٍ.
+        draft_slots = ScheduleSlot.objects.filter(generation=gen)
+        if draft_slots.exists():
+            ScheduleSlot.objects.filter(
+                school=school, academic_year=gen.academic_year, is_active=True
+            ).exclude(generation=gen).update(is_active=False)
+            draft_slots.update(is_active=True)
+
+        ScheduleGeneration.objects.filter(
+            school=school, academic_year=gen.academic_year, status="approved"
+        ).update(status="archived")
+
+        gen.status = "approved"
+        gen.save(update_fields=["status"])
+
+        # `school` لازمٌ لا زينة: الإشعارُ صفٌّ مستأجِرٌ تحرسه RLS، وصفٌّ بلا
+        # مدرسةٍ ترفضه السياسةُ fail-closed — فتسقط العمليّةُ كلُّها.
+        notifs = [
+            InAppNotification(
+                user_id=tid,
+                school=school,
+                title="تم اعتماد الجدول الدراسي",
+                body=(
+                    f"تم اعتماد الجدول للعام {gen.academic_year}. "
+                    "راجع جدولك من صفحة الجدول الأسبوعي."
+                ),
+                event_type="general",
+                priority="medium",
+                related_url="/teacher/weekly-schedule/",
+            )
+            for tid in teacher_ids
+        ]
+        InAppNotification.objects.bulk_create(notifs)
 
     messages.success(request, f"تم اعتماد الجدول وإشعار {len(notifs)} معلم")
     return redirect("smart_schedule")
+
+
+def _one_of(raw, allowed, fallback):
+    """رقمٌ من مدىً مغلق — وما خرج عنه يعود إلى الافتراضيّ بلا سقوط."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return fallback
+    return value if value in allowed else fallback
 
 
 # ── إعدادات الجدول — النائب الأكاديمي ───────────────────────────
@@ -740,9 +904,18 @@ def schedule_settings(request):
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
 
-    exemptions = TeacherExemption.objects.filter(
+    # الشاشةُ للتفريغات وحدَها. والقيودُ الشخصيّةُ الدائمةُ — «لا أولى ولا
+    # سابعة» — تسكن الجدولَ نفسَه لأنّ المولّدَ لا يقرأ غيرَه، وليست منه:
+    # التفريغُ غيابٌ لسببٍ خارجيٍّ له مرجعٌ وتاريخ، وتلك صفةٌ لازمة.
+    active = TeacherExemption.objects.filter(
         school=school, academic_year=year, is_active=True
     ).select_related("teacher", "created_by")
+    exemptions = active.releases()
+    # القيودُ الشخصيّةُ الدائمة — «لا أولى ولا سابعة» — تُميَّز اليوم بنصّ السبب
+    # لا بحقلٍ صريح. وكانت تُستبعد من الشاشة كلّيّاً بينما المولّدُ يقرؤها
+    # ويقيّد بها الجدول: قيودٌ لا يراها أحد ولا يستطيع أحدٌ حذفَها. فتُعرض في
+    # قسمها، لا تُخفى.
+    personal_rules = active.exclude(pk__in=exemptions.values("pk"))
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
@@ -763,10 +936,12 @@ def schedule_settings(request):
         "schedule/schedule_settings.html",
         {
             "exemptions": exemptions,
+            "personal_rules": personal_rules,
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
             "days": ScheduleSlot.DAYS,
+            "periods": ScheduleSlot.PERIODS,
             "year": year,
         },
     )
@@ -776,27 +951,46 @@ def schedule_settings(request):
 @role_required("principal", "vice_academic")
 @require_POST
 def add_exemption(request):
-    """إضافة تفريغ معلم — POST"""
+    """إضافة تفريغ معلم — POST.
+
+    المدخلاتُ تمرّ على `TeacherExemptionForm` أوّلاً: هي التي تقيّد المعلّمَ
+    بمدرسة المُدخِل، وتحوّل الأرقامَ، وتردّ الناقصَ رسالةً لا صفحةَ خطأ.
+    """
+    from .forms import TeacherExemptionForm
+
     school = request.user.get_school()
     year = request.POST.get("year") or academic_year_for(request)
-    teacher = get_object_or_404(CustomUser, id=request.POST["teacher"])
-    exemption_type = request.POST.get("exemption_type", "full_day")
-    day_of_week = int(request.POST["day_of_week"])
-    period_number = request.POST.get("period_number")
-    reason = request.POST.get("reason", "")
+
+    form = TeacherExemptionForm(request.POST, school=school)
+    if not form.is_valid():
+        for field, errors in form.errors.items():
+            label = form.fields[field].label if field in form.fields else ""
+            for error in errors:
+                messages.error(request, f"{label}: {error}" if label else error)
+        return _safe_schedule_settings_redirect(request, year)
+
+    data = form.cleaned_data
+    teacher = data["teacher"]
 
     # ✅ v5.4: ScheduleService.create_exemption — atomic + logging
-    ScheduleService.create_exemption(
-        school=school,
-        teacher=teacher,
-        academic_year=year,
-        exemption_type=exemption_type,
-        day_of_week=day_of_week,
-        period_number=period_number,
-        reason=reason,
-        created_by=request.user,
-    )
-    messages.success(request, f"تم تفريغ {teacher.full_name}")
+    try:
+        ScheduleService.create_exemption(
+            school=school,
+            teacher=teacher,
+            academic_year=year,
+            exemption_type=data["exemption_type"],
+            day_of_week=data["day_of_week"],
+            period_number=data["period_number"],
+            reason=data["reason"],
+            created_by=request.user,
+            source=data["source"],
+            source_reference=data["source_reference"],
+        )
+    except DjangoValidationError as exc:
+        # تفريغُ يومٍ كاملٍ قرارٌ إداريّ — ورفضُه يُقال، ولا يصير 500.
+        messages.error(request, "؛ ".join(exc.messages))
+    else:
+        messages.success(request, f"تم تفريغ {teacher.full_name}")
     return _safe_schedule_settings_redirect(request, year)
 
 
@@ -828,3 +1022,125 @@ def toggle_double_period(request, subject_id):
     status = "مفعّلة" if subject.requires_double_period else "معطّلة"
     messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
     return _safe_schedule_settings_redirect(request)
+
+
+# ── توزيعات المواد على الشُّعب — وقودُ المولّد ────────────────────
+
+
+def _assignment_redirect(year, class_id=""):
+    query = {"year": year}
+    if class_id:
+        query["class"] = class_id
+    return redirect(f"{reverse('subject_assignments')}?{urlencode(query)}")
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+def subject_assignments(request):
+    """قائمةُ التوزيعات واستمارةُ الإضافة — وكلُّ صفٍّ يُعدَّل في مكانه."""
+    from .forms import SubjectClassAssignmentForm
+
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+    class_id = request.GET.get("class", "")
+
+    qs = SubjectClassAssignment.objects.filter(
+        school=school, academic_year=year, is_active=True
+    ).select_related("class_group", "subject", "teacher")
+    if class_id:
+        qs = qs.filter(class_group_id=class_id)
+    assignments = list(qs)
+
+    # استمارةٌ أُعيدت بأخطائها: تُعرض بما كُتب فيها، لا فارغةً.
+    rejected = request.session.pop("assignment_form_data", None)
+    form = SubjectClassAssignmentForm(rejected or None, school=school, year=year)
+    if rejected:
+        form.is_valid()
+
+    return render(
+        request,
+        "schedule/subject_assignments.html",
+        {
+            "year": year,
+            "assignments": assignments,
+            "form": form,
+            "classes": form.fields["class_group"].queryset,
+            "teachers": CustomUser.objects.teachers(school).order_by("full_name"),
+            "selected_class_id": class_id,
+            "totals": {
+                "count": len(assignments),
+                "periods": sum(a.weekly_periods for a in assignments),
+                "unstaffed": sum(1 for a in assignments if a.teacher_id is None),
+            },
+        },
+    )
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_add(request):
+    from .forms import SubjectClassAssignmentForm
+
+    school = request.user.get_school()
+    year = request.POST.get("year") or academic_year_for(request)
+    form = SubjectClassAssignmentForm(request.POST, school=school, year=year)
+    if not form.is_valid():
+        # تُعاد المدخلاتُ لا تُطمس: يرى المُدخِل ما كتب وما رُفض منه.
+        request.session["assignment_form_data"] = {
+            k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"
+        }
+        for err in form.non_field_errors():
+            messages.error(request, err)
+        return _assignment_redirect(year)
+    obj = form.save(commit=False)
+    obj.school, obj.academic_year = school, year
+    obj.save()
+    messages.success(request, f"أُضيف: {obj}")
+    return _assignment_redirect(year, str(obj.class_group_id))
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_edit(request, assignment_id):
+    """تعديلُ الصفّ في مكانه: المعلّم والحصص والمعمل والتوازي — لا الشعبةُ ولا المادّة."""
+    school = request.user.get_school()
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, school=school, is_active=True)
+    year = obj.academic_year
+
+    teacher_id = request.POST.get("teacher") or None
+    teacher = None
+    if teacher_id:
+        teacher = CustomUser.objects.teachers(school).filter(pk=teacher_id).first()
+        if teacher is None:
+            messages.error(request, "المعلّم المختار ليس من معلّمي مدرستك.")
+            return _assignment_redirect(year, str(obj.class_group_id))
+    try:
+        periods = int(request.POST.get("weekly_periods", obj.weekly_periods))
+    except (TypeError, ValueError):
+        periods = 0
+    if not 1 <= periods <= 35:
+        messages.error(request, "عدد الحصص الأسبوعيّة يجب أن يكون بين ١ و٣٥.")
+        return _assignment_redirect(year, str(obj.class_group_id))
+
+    obj.teacher = teacher
+    obj.weekly_periods = periods
+    obj.requires_lab = bool(request.POST.get("requires_lab"))
+    obj.parallel_group = (request.POST.get("parallel_group") or "").strip()[:40]
+    obj.save(update_fields=["teacher", "weekly_periods", "requires_lab", "parallel_group"])
+    messages.success(request, f"حُفظ: {obj}")
+    return _assignment_redirect(year, str(obj.class_group_id))
+
+
+@login_required
+@role_required(SCHEDULE_MANAGE_ROLES)
+@require_POST
+def subject_assignment_delete(request, assignment_id):
+    """حذفٌ ناعم — يبقى الصفُّ أثراً، ويخرج من عين المولّد."""
+    school = request.user.get_school()
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, school=school, is_active=True)
+    obj.is_active = False
+    obj.save(update_fields=["is_active"])
+    messages.success(request, f"حُذف توزيع {obj.subject.name_ar} لشعبة {obj.class_group}.")
+    return _assignment_redirect(obj.academic_year, str(obj.class_group_id))

@@ -2,7 +2,63 @@
 
 from django import forms
 
-from .models import TeacherAbsence
+from .models import ScheduleSlot, SubjectClassAssignment, TeacherAbsence, TeacherExemption
+
+
+class TeacherExemptionForm(forms.Form):
+    """مدخلاتُ التفريغ — تُفحص قبل أن تبلغ الخدمة.
+
+    كان العرضُ يقرأ `request.POST["teacher"]` و`int(request.POST["day_of_week"])`
+    مباشرةً: مفتاحٌ ناقصٌ أو رقمٌ غيرُ صالحٍ = صفحةُ خطأٍ لا رسالة. والمعلّمُ
+    يُقيَّد بمدرسة المُدخِل في `clean_teacher` — فكان أيُّ UUID يُقبل، ومديرُ
+    مدرسةٍ يُفرّغ معلّمَ مدرسةٍ أخرى بتغيير رقمٍ في الطلب.
+    """
+
+    teacher = forms.UUIDField(label="المعلم/المنسق")
+    exemption_type = forms.ChoiceField(
+        choices=TeacherExemption.EXEMPTION_TYPE, initial="full_day", label="نوع التفريغ"
+    )
+    day_of_week = forms.TypedChoiceField(choices=ScheduleSlot.DAYS, coerce=int, label="اليوم")
+    period_number = forms.TypedChoiceField(
+        choices=[(p, f"الحصة {p}") for p in ScheduleSlot.PERIODS],
+        coerce=int,
+        required=False,
+        empty_value=None,
+        label="رقم الحصة",
+    )
+    reason = forms.CharField(max_length=200, label="السبب")
+    source = forms.ChoiceField(
+        choices=TeacherExemption._meta.get_field("source").choices,
+        initial="school",
+        label="جهة القرار",
+    )
+    # ليس مطلوباً هنا عمداً: شرطُ المرجع يعيش في `TeacherExemption.clean()` وحدَه،
+    # وتُبلّغه الخدمةُ عبر `full_clean()`. فبابانِ لحقيقةٍ واحدة أسوأُ من بابٍ مفتوح.
+    source_reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
+
+    def __init__(self, *args, school, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.school = school
+
+    def clean_teacher(self):
+        from core.models import CustomUser
+
+        teacher = (
+            CustomUser.objects.in_school(self.school)
+            .filter(pk=self.cleaned_data["teacher"])
+            .first()
+        )
+        if teacher is None:
+            raise forms.ValidationError("المعلّم المختار ليس من منسوبي مدرستك.")
+        return teacher
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("exemption_type") == "specific_period" and not cleaned.get("period_number"):
+            self.add_error("period_number", "حدّد رقم الحصة لتفريغ حصةٍ بعينها.")
+        if cleaned.get("exemption_type") == "full_day":
+            cleaned["period_number"] = None
+        return cleaned
 
 
 class SwapRequestForm(forms.Form):
@@ -70,3 +126,71 @@ class CompensatoryRequestForm(forms.Form):
         required=False,
         label="ملاحظات",
     )
+
+
+class SubjectClassAssignmentForm(forms.ModelForm):
+    """توزيعُ مادّةٍ على شعبةٍ بمعلّمٍ وعددِ حصص — وقودُ المولّد الوحيد.
+
+    كان بلا شاشةٍ في المنصّة، وبابُه الوحيدُ لوحةُ Django التي لا يبلغها مديرُ
+    المدرسة. والقوائمُ مقيّدةٌ بالمدرسة والعام: شعبةٌ من مدرسةٍ أخرى لا تظهر
+    ولا تُقبل.
+    """
+
+    class Meta:
+        model = SubjectClassAssignment
+        fields = [
+            "class_group",
+            "subject",
+            "teacher",
+            "weekly_periods",
+            "requires_lab",
+            "parallel_group",
+        ]
+        labels = {
+            "class_group": "الشعبة",
+            "subject": "المادة",
+            "teacher": "المعلم",
+            "weekly_periods": "الحصص/أسبوع",
+            "requires_lab": "معمل",
+            "parallel_group": "مجموعة التوازي",
+        }
+        widgets = {
+            "class_group": forms.Select(attrs={"class": "form-control", "required": True}),
+            "subject": forms.Select(attrs={"class": "form-control", "required": True}),
+            "teacher": forms.Select(attrs={"class": "form-control"}),
+            "weekly_periods": forms.NumberInput(
+                attrs={"class": "form-control", "min": 1, "max": 35}
+            ),
+            "requires_lab": forms.CheckboxInput(),
+            "parallel_group": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "اختياري"}
+            ),
+        }
+
+    def __init__(self, *args, school, year, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.models import ClassGroup, CustomUser
+
+        from .models import Subject
+
+        self.school, self.year = school, year
+        self.fields["class_group"].queryset = ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).order_by("grade", "section")
+        self.fields["subject"].queryset = Subject.objects.filter(school=school).order_by("name_ar")
+        self.fields["teacher"].queryset = CustomUser.objects.teachers(school).order_by("full_name")
+        self.fields["teacher"].required = False
+        self.fields["teacher"].empty_label = "— بلا معلّم بعد —"
+
+    def clean(self):
+        cleaned = super().clean()
+        cg, subj = cleaned.get("class_group"), cleaned.get("subject")
+        if cg and subj:
+            clash = SubjectClassAssignment.objects.filter(
+                school=self.school, academic_year=self.year, class_group=cg, subject=subj
+            ).exclude(pk=self.instance.pk)
+            if clash.exists():
+                raise forms.ValidationError(
+                    f"يوجد توزيعٌ لمادّة {subj.name_ar} في شعبة {cg} هذا العام — عدّله بدل إضافة آخر."
+                )
+        return cleaned

@@ -1,0 +1,163 @@
+"""[SCHEDULE] الحصّةُ المزدوجة: حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة.
+
+الفنّيّةُ في المرحلة الإعداديّة حصّتان متلاصقتان — والعملُ الفنّيُّ لا يُبدأ
+ويُطوى في خمسٍ وأربعين دقيقة. وهذا موصوفٌ في نموذجنا منذ زمن:
+
+    Subject.requires_double_period → «يتطلب حصتين متتاليتين بدون استراحة»
+
+ولم يكن يُنفَّذ: المحرّكُ يُرجّح التجاورَ بوزنٍ مرنٍ ولا يشترطه، فتقع الحصّتان
+متباعدتين ولا شيءَ يعترض.
+
+وينقص الوصفَ شرطٌ لم يُذكر: **أيُّ** تجاورٍ يصلح. فبين الثالثة والرابعة فسحةٌ
+عشرون دقيقة، وبين الخامسة والسادسة صلاةٌ خمسَ عشرة — فالتلاصقُ عبرهما تلاصقٌ
+في الورق لا في اليوم:
+
+    ح1–ح2  ✓      ح3–ح4  ✗ فسحة
+    ح2–ح3  ✓      ح5–ح6  ✗ صلاة
+    ح4–ح5  ✓
+    ح6–ح7  ✓
+
+والكتلُ تُقرأ من `TimeSlotConfig` — من جرس المدرسة — ولا تُحفر في الكود.
+"""
+
+import pytest
+
+from operations.models import Subject, SubjectClassAssignment, TimeSlotConfig
+from operations.scheduler import build_tasks, generate_schedule
+from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
+
+pytestmark = pytest.mark.django_db
+
+YEAR = "2026-2027"
+
+#: جرسُ الشحانية الحقيقيّ — فسحةٌ بعد الثالثة وصلاةٌ بعد الخامسة.
+BELL = [
+    (1, "07:10", "07:55"),
+    (2, "08:00", "08:45"),
+    (3, "08:50", "09:35"),
+    (4, "09:55", "10:40"),
+    (5, "10:45", "11:30"),
+    (6, "11:45", "12:30"),
+    (7, "12:35", "13:20"),
+]
+
+
+@pytest.fixture
+def bell(school):
+    from datetime import time
+
+    def _t(text):
+        hour, minute = text.split(":")
+        return time(int(hour), int(minute))
+
+    for period, start, end in BELL:
+        for day_type in ("regular", "thursday"):
+            TimeSlotConfig.objects.create(
+                school=school,
+                period_number=period,
+                start_time=_t(start),
+                end_time=_t(end),
+                day_type=day_type,
+            )
+    return school
+
+
+@pytest.fixture
+def art_class(school, bell):
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ الفنون")
+    MembershipFactory(user=teacher, school=school, role=role)
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    art = Subject.objects.create(
+        school=school, name_ar="الفنون البصرية", code="", requires_double_period=True
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=group,
+        subject=art,
+        weekly_periods=2,
+        is_active=True,
+    )
+    return group, teacher, art
+
+
+# ── الكتلُ تُقرأ من الجرس ────────────────────────────────────────────
+
+
+def test_the_blocks_come_from_the_school_bell(bell):
+    """الفاصلُ الطويلُ يقطع، والقصيرُ لا — والحدُّ يُقرأ من الأوقات لا يُحفر."""
+    from operations.scheduler_constraints import joinable_pairs
+
+    assert joinable_pairs(bell) == {(1, 2), (2, 3), (4, 5), (6, 7)}
+
+
+def test_without_a_bell_every_neighbour_joins(school):
+    """ومدرسةٌ لم تُدخل أوقاتَها بعد: لا كتلَ تُعرَف، فلا يُمنع تجاور."""
+    from operations.scheduler_constraints import joinable_pairs
+
+    assert (3, 4) in joinable_pairs(school)
+
+
+# ── المزدوجةُ تُبنى مهمّةً واحدة ─────────────────────────────────────
+
+
+def test_a_double_subject_becomes_one_two_period_task(art_class, school):
+    """حصّتان في مهمّةٍ واحدةٍ تشغل خانتين — لا مهمّتان تلتقيان بالصدفة."""
+    tasks = build_tasks(school, YEAR)
+
+    assert len(tasks) == 1, "مهمّةٌ واحدةٌ لا اثنتان"
+    assert tasks[0].span == 2
+
+
+def test_the_pair_lands_adjacent_and_inside_one_block(art_class, school):
+    from operations.models import ScheduleSlot
+
+    result = generate_schedule(school, YEAR)
+
+    assert result["errors"] == [], result["errors"]
+    rows = sorted(
+        ScheduleSlot.objects.filter(school=school, academic_year=YEAR, is_active=True),
+        key=lambda r: r.period_number,
+    )
+    assert len(rows) == 2
+    assert rows[0].day_of_week == rows[1].day_of_week, "في يومٍ واحد"
+    assert rows[1].period_number == rows[0].period_number + 1, "ومتلاصقتان"
+    assert (rows[0].period_number, rows[1].period_number) in {(1, 2), (2, 3), (4, 5), (6, 7)}
+
+
+def test_the_pair_never_straddles_the_break(art_class, school):
+    """الاختبارُ الحاسم: لا تقع الحصّتان على طرفَي الفسحة أو الصلاة."""
+    from operations.models import ScheduleSlot
+
+    generate_schedule(school, YEAR)
+
+    periods = sorted(
+        r.period_number
+        for r in ScheduleSlot.objects.filter(school=school, academic_year=YEAR, is_active=True)
+    )
+    assert tuple(periods) not in {(3, 4), (5, 6)}, "الفسحةُ والصلاةُ تقطعان"
+
+
+def test_a_plain_subject_is_untouched(school, bell):
+    """وغيرُ المزدوجة تبقى حصصاً مفردةً كما كانت."""
+    role = RoleFactory(school=school, name="teacher")
+    teacher = UserFactory(full_name="معلّمُ الرياضيات")
+    MembershipFactory(user=teacher, school=school, role=role)
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        teacher=teacher,
+        class_group=group,
+        subject=maths,
+        weekly_periods=4,
+        is_active=True,
+    )
+
+    tasks = build_tasks(school, YEAR)
+
+    assert len(tasks) == 4
+    assert all(t.span == 1 for t in tasks)

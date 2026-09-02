@@ -4,6 +4,7 @@ from .models import (
     AbsenceAlert,
     ScheduleGeneration,
     ScheduleSlot,
+    SchedulingResource,
     Session,
     StudentAttendance,
     Subject,
@@ -129,6 +130,28 @@ class SubjectClassAssignmentAdmin(admin.ModelAdmin):
     autocomplete_fields = ("teacher", "class_group", "subject")
     list_editable = ("weekly_periods", "requires_lab", "is_active")
     list_per_page = 50
+
+
+@admin.register(SchedulingResource)
+class SchedulingResourceAdmin(admin.ModelAdmin):
+    """المكانُ المحدود: معملان وملعبان — والسعةُ كم حصّةً تقع فيه معاً.
+
+    ويُدار من هنا لا من سطر أوامر: عددُ المعامل شأنُ المدرسة، يتبدّل ببناءٍ
+    جديدٍ أو معملٍ يُغلق، فلا يُحبس في ترحيلٍ يحتاج مبرمجاً.
+    """
+
+    list_display = ("name", "capacity", "subject_names", "is_active")
+    list_filter = ("school", "is_active")
+    search_fields = ("name", "note")
+    filter_horizontal = ("subjects",)
+    list_editable = ("capacity", "is_active")
+
+    @admin.display(description="المواد التي تستعمله")
+    def subject_names(self, obj):
+        return "، ".join(subject.name_ar for subject in obj.subjects.all()) or "—"
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("subjects")
 
 
 @admin.register(TeacherPreference)

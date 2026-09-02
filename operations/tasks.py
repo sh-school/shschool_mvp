@@ -6,6 +6,7 @@ operations/tasks.py
 المهام:
     1. توليد الحصص اليومية (أحد–خميس 6:00 صباحاً) — BACKUP فقط
     2. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
+    3. توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم لا بجدولٍ زمنيّ
 
 ⚠️ ملاحظة مهمة:
     توليد الحصص لم يعد يعتمد على Celery كمسار أساسي.
@@ -260,3 +261,118 @@ def check_license_expiry_task():
         "alerted": alerted,
         "checked_date": str(today),
     }
+
+
+# ═════════════════════════════════════════════════════════════════════
+# توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(
+    name="operations.generate_smart_schedule",
+    bind=True,
+    max_retries=0,
+    soft_time_limit=900,
+    time_limit=960,
+)
+def generate_smart_schedule_task(self, generation_id):
+    """يُشغّل مولّد الجدول خارج دورة الطلب، ويكتب مصيرَه في صفّ التوليد.
+
+    قِيس زمنُ التوليد في هذه المدرسة فكان بين ٤٢ ثانيةً و٢٧٩ — و`gunicorn`
+    يقطع عند مئةٍ وعشرين، و`nginx` كذلك. فالزرُّ المتزامنُ كان يَعِد بجدولٍ
+    ويُسلّم خطأَ بوّابةٍ بعد دقيقتين، والتوليدُ يمضي في عاملٍ مقطوعِ الصلة.
+
+    ولا إعادةَ محاولةٍ تلقائيّة (`max_retries=0`): التوليدُ يستبدل جدولَ
+    المدرسة كلَّه، وإعادتُه بلا طلبٍ صريحٍ فعلٌ لا يُؤذَن به مرّتين بإذنٍ واحد.
+    """
+    from celery.exceptions import SoftTimeLimitExceeded
+    from django.utils import timezone
+
+    from operations.models import ScheduleGeneration
+
+    try:
+        generation = ScheduleGeneration.objects.select_related("school", "generated_by").get(
+            pk=generation_id
+        )
+    except ScheduleGeneration.DoesNotExist:
+        logger.warning("generate_smart_schedule: صفُّ التوليد %s غير موجود", generation_id)
+        return {"ok": False, "reason": "generation_not_found"}
+
+    if generation.status not in ScheduleGeneration.PENDING_STATUSES:
+        # التقاطٌ مكرَّرٌ لرسالةٍ واحدة — والتوليدُ لا يُعاد على نتيجةٍ قائمة.
+        logger.info("generate_smart_schedule: %s ليس في الانتظار — يُتخطّى", generation_id)
+        return {"ok": False, "reason": "not_pending", "status": generation.status}
+
+    school = generation.school
+    generation.status = "running"
+    generation.save(update_fields=["status"])
+
+    def _fail(message):
+        generation.status = "failed"
+        generation.error_message = message[:2000]
+        generation.finished_at = timezone.now()
+        generation.save(update_fields=["status", "error_message", "finished_at"])
+        _notify_generation_done(generation, ok=False, summary=message)
+
+    try:
+        with school_rls_scope(school.id):
+            from operations.scheduler import generate_schedule
+
+            # مسودّةٌ لا نشر: الحصصُ تُربط بصفّ التوليد وتبقى مطفأةً حتّى
+            # يعتمدها المدير — وعندها فقط تحلّ محلَّ الجدول الحيّ.
+            result = generate_schedule(
+                school,
+                generation.academic_year,
+                user=generation.generated_by,
+                generation=generation,
+                publish=False,
+            )
+    except SoftTimeLimitExceeded:
+        logger.error("generate_smart_schedule: تجاوز الزمنَ المسموح — %s", generation_id)
+        _fail("تجاوز التوليدُ الزمنَ المسموح (خمس عشرة دقيقة) فأُوقف.")
+        return {"ok": False, "reason": "soft_time_limit"}
+    except Exception as exc:  # noqa: BLE001 — يُسجَّل ويُقال، ولا يُبتلع
+        logger.exception("generate_smart_schedule: فشل التوليد — %s", exc)
+        # نصُّ الاستثناء يُسجَّل للمشغّل لا للمستخدم: قد يحمل مساراتٍ أو أسماءَ
+        # جداول أو جزءاً من تتبّع المكدّس، وهذه الرسالةُ تُعرض في الواجهة وتُبثّ JSON.
+        _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
+        return {"ok": False, "reason": "exception"}
+
+    quality = result["quality"]
+    summary = (
+        f"{quality['total_slots']}/{quality['total_required']} حصّة "
+        f"({quality['placed_ratio']}%) — جودةُ التوزيع {quality['score']}% "
+        f"في {result['elapsed_ms']}ms"
+    )
+
+    if result["generation"] is None:
+        # لم يُحفَظ شيء — والصفُّ ما زال «قيد التوليد»، فلا يُترك معلّقاً أبداً.
+        _fail("؛ ".join(result["errors"]) or "تعذّر حفظ الجدول المولَّد.")
+        return {"ok": False, "reason": "not_saved"}
+
+    if result["errors"]:
+        generation.error_message = "؛ ".join(result["errors"])[:2000]
+        generation.save(update_fields=["error_message"])
+
+    _notify_generation_done(generation, ok=result["success"], summary=summary)
+    return {"ok": result["success"], "summary": summary, "failed": len(result["errors"])}
+
+
+def _notify_generation_done(generation, *, ok, summary):
+    """يُخبر من ضغط الزرَّ بالنتيجة — فقد يمضي على التوليد دقائقُ يغادر فيها."""
+    if generation.generated_by_id is None:
+        return
+    try:
+        from notifications.models import InAppNotification
+
+        InAppNotification.objects.create(
+            user_id=generation.generated_by_id,
+            school=generation.school,
+            title="انتهى توليد الجدول" if ok else "تعذّر توليد الجدول",
+            body=summary,
+            event_type="general",
+            priority="medium" if ok else "high",
+            related_url="/teacher/smart-schedule/",
+        )
+    except Exception as exc:  # noqa: BLE001 — الإشعارُ خدمةٌ لا شرطٌ للنجاح
+        logger.warning("تعذّر إشعارُ صاحب التوليد: %s", exc)

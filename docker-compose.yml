@@ -62,5 +62,30 @@ services:
       redis:
         condition: service_healthy
 
+  # عاملُ المهامّ الخلفيّة — توليدُ الجدول وحده يستغرق دقائقَ لا تحتملها دورةُ الطلب.
+  # وبدونه يبقى الطلبُ «في الانتظار» حتّى يُوسمَ فاشلاً بعد عشرين دقيقة.
+  worker:
+    build: .
+    container_name: shschool-dev-worker
+    restart: unless-stopped
+    command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD celery -A shschool worker -l info --concurrency=2"
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.development
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_URL: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   shschool_pgdata:

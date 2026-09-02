@@ -1,0 +1,94 @@
+{% extends "base/base.html" %}
+
+{% comment %}
+بطاقةُ معلّمٍ واحد: نسخُ خطّته، وأيُّها المعتمَدُ الجاري، وهل تباعد الإسنادُ
+عمّا فُحص لحظةَ الاعتماد.
+
+والتباعدُ يُقال بلفظه: خطّةٌ صحّت ثمّ تغيّر الإسنادُ بعدها ليست خطّةً وُلدت
+خاطئة، والفرقُ بين العبارتين هو الفرقُ بين تعويضٍ وإدانة.
+{% endcomment %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_label=module_name current=page_title %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="user" %} {{ teacher.full_name }}</h1>
+      <p class="exec-subtitle">{{ year }} · {{ plans|length }} نسخة</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a href="{% url 'academic_management:workload' %}?year={{ year }}" class="btn-secondary btn-sm">المرصد</a>
+      {% if can_edit %}
+      <form method="post" action="{% url 'academic_management:open_draft' teacher.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-primary btn-sm">افتح مسودّةَ نصاب</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="card">
+    <h2 class="card-title">النسخةُ الجارية</h2>
+    {% if current %}
+      <p class="stat-value">{{ current.teaching_target }}</p>
+      <p class="muted">
+        نسخة {{ current.plan_version }} · {{ current.get_status_display }} ·
+        اعتمدها {{ current.approved_by.full_name|default:"—" }} في {{ current.approved_at|date:"Y-m-d" }}
+      </p>
+      <dl class="def-list">
+        <dt>المُسنَدُ الآن</dt><dd>{{ assigned }} / {{ current.teaching_target }}</dd>
+        <dt>ما فُحص عند الاعتماد</dt>
+        <dd>
+          {% if current.validated_at %}
+            {{ current.validated_assignment_periods }} حصّة في
+            {{ current.validated_assignment_count }} إسناداً
+          {% else %}— لم تُحفظ بصمة —{% endif %}
+        </dd>
+        <dt>الحالة</dt>
+        <dd>
+          {% if diverged %}
+            <span class="warn">تباعد الإسنادُ بعد الاعتماد — الخطّةُ صحّت حينها، والفرقُ حادثٌ بعدها.</span>
+          {% elif diverged is False %}
+            <span class="ok">الإسنادُ كما فُحص.</span>
+          {% else %}
+            <span class="muted">لا بصمةَ للمقارنة.</span>
+          {% endif %}
+        </dd>
+      </dl>
+    {% else %}
+      {% include "components/empty_state.html" with title="لا نسخةَ معتمدةً بعد" %}
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">كلُّ النسخ</h2>
+    {% if plans %}
+      <table class="data-table">
+        <thead><tr><th>النسخة</th><th>الحالة</th><th>النصاب</th><th>التخفيض</th><th>الهدف</th><th></th></tr></thead>
+        <tbody>
+          {% for p in plans %}
+          <tr>
+            <td>v{{ p.plan_version }}</td>
+            <td>{{ p.get_status_display }}</td>
+            <td>{{ p.required_weekly_periods }}</td>
+            <td>{{ p.reduction_periods }}</td>
+            <td>{{ p.teaching_target }}</td>
+            <td><a href="{% url 'academic_management:plan_editor' p.pk %}" class="btn-secondary btn-sm">فتح</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">لا خطّةَ لهذا المعلّم في {{ year }} — ولا تُملأ من الجدول.</p>
+    {% endif %}
+  </section>
+
+</div>
+{% endblock %}

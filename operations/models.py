@@ -179,6 +179,10 @@ class ScheduleSlot(models.Model):
         (3, "الأربعاء"),
         (4, "الخميس"),
     ]
+    #: حصصُ اليوم — مصدرٌ واحدٌ يقرؤه المولّدُ واستمارةُ التفريغ وقوائمُ الحصص.
+    #: وكان الرقمُ سبعةً مكتوباً في ثلاثة مواضع، فمدرسةٌ بثمانٍ تكسر أحدَها صامتاً.
+    PERIODS_PER_DAY = 7
+    PERIODS = list(range(1, PERIODS_PER_DAY + 1))
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_slots")
@@ -204,6 +208,17 @@ class ScheduleSlot(models.Model):
         max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
     )
     is_active = models.BooleanField(default=True)
+    #: أيُّ توليدٍ أنتج هذه الحصّة — فارغٌ للحصص اليدويّة ولِما سبق هذا الحقل.
+    #: وبه يصير الاعتمادُ فعلاً: تُفعَّل حصصُ التوليد المعتمَد وتُطفأ سواها،
+    #: وكانت الحصصُ تُفعَّل لحظةَ التوليد فيراها المعلّمون قبل أن يُقرَّر شيء.
+    generation = models.ForeignKey(
+        "ScheduleGeneration",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="slots",
+        verbose_name="التوليد المصدر",
+    )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -418,6 +433,18 @@ class SubjectClassAssignment(models.Model):
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
     requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
+    #: وسمُ المجموعة المتوازية: مادّتان في الشعبة الواحدة تحملان الوسمَ نفسه
+    #: تُدرَّسان في التوقيت نفسه لقسمَي الطلاب — كالفنون والتكنولوجيا في 11/1.
+    #:
+    #: وكان هذا مسجّلاً في `ScheduleSlot.elective_group` وحدَه، أي في الجدول
+    #: المستورَد لا في الإسناد. فكان تحذيرُ الطاقة يعدّ الحصصَ ويقيسها
+    #: بالخانات فيُنذر كاذباً، والمولّدُ لا يعرف الازدواجَ فيعدّ إحدى
+    #: المادّتين متعذّرة:
+    #:
+    #:     InstructionalPeriods ≠ OccupiedSlots
+    parallel_group = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="مجموعة التوازي"
+    )
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
     is_active = models.BooleanField(default=True)
 
@@ -435,6 +462,41 @@ class SubjectClassAssignment(models.Model):
     def __str__(self):
         teacher_name = self.teacher.full_name if self.teacher else "غير محدد"
         return f"{self.subject.name_ar} → {self.class_group} ({teacher_name}) [{self.weekly_periods}ح/أسبوع]"
+
+
+class SchedulingResource(models.Model):
+    """موردٌ محدودٌ تتنافس عليه الحصص: ملعبٌ أو معملٌ أو غرفةُ فنون.
+
+    القيدُ ليس على المعلّم ولا على الشعبة بل على **المكان**: في المدرسة معملا
+    حاسبٍ اثنان، فلا تقع أكثرُ من حصّتَي حاسبٍ في التوقيت الواحد مهما كثر
+    المعلّمون. وكذلك البدنيّة: خمسةُ معلّمين وملعبان.
+
+    ولا يُحلّ هذا بقيدٍ على المادّة وحدَها: المعملانِ يتقاسمهما «علوم الحاسب»
+    و«تكنولوجيا المعلومات» معاً، فالسقفُ على المورد لا على كلّ مادّةٍ بمفردها.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="scheduling_resources"
+    )
+    name = models.CharField(max_length=100, verbose_name="المورد")
+    capacity = models.PositiveIntegerField(default=1, verbose_name="كم حصّةً معاً")
+    subjects = models.ManyToManyField(
+        Subject, related_name="scheduling_resources", verbose_name="المواد التي تستعمله"
+    )
+    note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "مورد جدولة"
+        verbose_name_plural = "موارد الجدولة"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["school", "name"], name="unique_resource_per_school")
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.capacity})"
 
 
 class TeacherPreference(models.Model):
@@ -470,8 +532,26 @@ class TeacherPreference(models.Model):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
 
 
+#: قيودٌ شخصيّةٌ دائمةٌ سكنت جدولَ التفريغات لأنّه الوحيدُ الذي يقرأه المولّد.
+#: وهي ليست تفريغاً: التفريغُ غيابٌ لسببٍ خارجيٍّ له تاريخٌ ومرجع، وهذه صفةٌ
+#: لازمةٌ لصاحبها لا تنقضي. فتُستثنى من شاشة «تفريغات المعلمين والمنسقين»
+#: ويبقى أثرُها في الجدول كاملاً.
+PERSONAL_RULE_MARKERS = ("لا أولى ولا سابعة",)
+
+
+class TeacherExemptionQuerySet(models.QuerySet):
+    def releases(self):
+        """التفريغاتُ وحدَها — دون القيود الشخصيّة الدائمة."""
+        qs = self
+        for marker in PERSONAL_RULE_MARKERS:
+            qs = qs.exclude(reason__icontains=marker)
+        return qs
+
+
 class TeacherExemption(models.Model):
     """تفريغ معلم/منسق من حصص معينة أو يوم كامل — يُعيّنه النائب الأكاديمي"""
+
+    objects = TeacherExemptionQuerySet.as_manager()
 
     EXEMPTION_TYPE = [
         ("full_day", "يوم كامل"),
@@ -502,6 +582,21 @@ class TeacherExemption(models.Model):
         verbose_name="رقم الحصة (إذا حصة محددة)",
     )
     reason = models.CharField(max_length=200, verbose_name="السبب")
+    #: تفريغُ يومٍ كاملٍ قرارٌ أثقلُ من مؤهّل: يُخرج المعلّمَ من الجدول يوماً في
+    #: الأسبوع كلَّه. فيُسأل عن جهته ومرجعه كما تُسأل خطّةُ النصاب — والسببُ
+    #: وحدَه نصٌّ حرٌّ لا يُراجَع.
+    source = models.CharField(
+        max_length=12,
+        choices=[
+            ("ministry", "قرارُ الوزارة"),
+            ("school", "قرارُ إدارة المدرسة"),
+            ("department", "قرارُ القسم الأكاديميّ"),
+            ("other", "أخرى"),
+        ],
+        default="school",
+        verbose_name="جهة القرار",
+    )
+    source_reference = models.CharField(max_length=200, blank=True, verbose_name="مرجع القرار")
     created_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -523,14 +618,44 @@ class TeacherExemption(models.Model):
             return f"تفريغ {self.teacher.full_name} — {day_name} (يوم كامل)"
         return f"تفريغ {self.teacher.full_name} — {day_name} ح{self.period_number}"
 
+    def clean(self):
+        """قرارُ التفريغ لا يُقبل بلا مرجع، والحصّةُ المحدّدةُ لا تُقبل بلا رقم.
+
+        ولا يمسّ هذا النصابَ في شيء: التفريغُ يقول *متى لا يُجدَّل*، والنصابُ
+        يقول *كم يُدرّس*. فمن فُرّغ يومَ الأحد يُحشر نصابُه في بقيّة الأيّام،
+        وإن خُفّف فبقرارٍ آخرَ له مرجعُه.
+        """
+        super().clean()
+        from django.core.exceptions import ValidationError
+
+        if not (self.source_reference or "").strip():
+            raise ValidationError(
+                {"source_reference": "تفريغُ المعلّم قرارٌ إداريّ — ورقمٌ بلا مرجعٍ لا يُراجَع."}
+            )
+        if self.exemption_type == "specific_period" and not self.period_number:
+            raise ValidationError({"period_number": "تفريغُ حصّةٍ بعينها يحتاج رقمَها."})
+
 
 class ScheduleGeneration(models.Model):
-    """سجل عمليات التوليد التلقائي للجدول"""
+    """سجل عمليات التوليد التلقائي للجدول.
+
+    والحالاتُ تبدأ قبل النتيجة لا بعدها: التوليدُ يستغرق دقائق، فلا يجوز أن
+    يكون أوّلَ أثرٍ له صفٌّ يظهر عند نجاحه. فالصفُّ يُنشأ «في الانتظار» عند
+    الضغط، ويصير «قيد التوليد» حين يلتقطه العامل، ثمّ «مسودّة» أو «فشل».
+    وبهذا يرى المستخدمُ ما يجري، ويعرف النظامُ أنّ توليداً جارياً فلا يُشغّل
+    ثانياً فوقه.
+    """
+
+    #: الحالاتُ العابرة — لا نتيجةَ لها بعد، ولا تُحسب جدولاً.
+    PENDING_STATUSES = ("queued", "running")
 
     STATUS = [
+        ("queued", "في الانتظار"),
+        ("running", "قيد التوليد"),
         ("draft", "مسودة"),
         ("approved", "معتمد"),
         ("archived", "مؤرشف"),
+        ("failed", "فشل"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
@@ -547,16 +672,30 @@ class ScheduleGeneration(models.Model):
     total_slots_created = models.IntegerField(default=0)
     generation_time_ms = models.IntegerField(default=0, verbose_name="زمن التوليد (مللي ثانية)")
     config_snapshot = models.JSONField(default=dict, verbose_name="نسخة الإعدادات")
+    #: متى انتهى — لا يُقاس من `generated_at` لأنّ الانتظارَ في الطابور ليس توليداً.
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="انتهى في")
+    #: سببُ الفشل كما يُقال للمستخدم — وصمتُ الفشل أسوأُ من الفشل.
+    error_message = models.TextField(blank=True, verbose_name="سبب الفشل")
 
     class Meta:
         verbose_name = "عملية توليد جدول"
         verbose_name_plural = "عمليات توليد الجدول"
         ordering = ["-generated_at"]
+        indexes = [
+            models.Index(
+                fields=["school", "academic_year", "status"],
+                name="schedgen_school_year_stat",
+            ),
+        ]
 
     def __str__(self):
         return (
             f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
         )
+
+    @property
+    def is_pending(self):
+        return self.status in self.PENDING_STATUSES
 
 
 # ═════════════════════════════════════════════════════════════════════

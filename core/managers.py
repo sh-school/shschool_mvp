@@ -47,6 +47,10 @@ class CustomUserManager(BaseUserManager):
 
     # ── الفلترة حسب الدور ──────────────────────────────────────────────────
 
+    def in_school(self, school):
+        """منسوبو المدرسة — بلا تكرارٍ لمن له أكثرُ من عضويّة."""
+        return self.get_queryset().in_school(school)
+
     def students(self, school=None):
         return self.get_queryset().students(school)
 

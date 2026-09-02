@@ -10,9 +10,10 @@
 <div class="page-header">
   <div>
     <h1 class="page-title">{% include "components/icon.html" with name="bot" %} الجدولة الذكية</h1>
-    <p class="page-subtitle">توليد تلقائي للجدول الأسبوعي — {{ year }}</p>
+    <p class="page-subtitle">توليد الجدول الأسبوعي تلقائياً — {{ year }}</p>
   </div>
   <div class="page-actions">
+    <a href="{% url 'subject_assignments' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="book-open" %} توزيعات المواد</a>
     <a href="{% url 'schedule_settings' %}" class="btn-secondary">{% include "components/icon.html" with name="settings-2" %} الإعدادات</a>
     <a href="{% url 'weekly_schedule' %}" class="btn-secondary">عرض الجدول الحالي</a>
   </div>
@@ -29,8 +30,8 @@
     <div class="kpi-label">حصة أسبوعية إجمالية</div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-value text-status-info">{{ classes_count }} فصل / {{ teachers_count }} معلم</div>
-    <div class="kpi-label">فصول ومعلمون مشاركون</div>
+    <div class="kpi-value text-status-info">{{ classes_count }} شعبة · {{ teachers_count }} معلماً</div>
+    <div class="kpi-label">شُعب ومعلمون مشاركون</div>
   </div>
   {% if overcapacity_classes %}
   <div class="kpi-card" style="border-color:var(--status-danger)">
@@ -53,7 +54,7 @@
     <ul class="list-disc pr-6 text-sm space-y-1">
       {% for oc in overcapacity_classes %}
       <li class="text-status-danger font-semibold">
-        مطلوب {{ oc.demand }} حصة — السعة {{ oc.capacity }} فقط — فائض {{ oc.overflow }} حصة
+        {{ oc.class_name }} — مطلوب {{ oc.demand }} حصة، والسعة {{ oc.capacity }} — فائض {{ oc.overflow }}
       </li>
       {% endfor %}
     </ul>
@@ -68,18 +69,37 @@
     {% include "components/icon.html" with name="bot" %} توليد الجدول التلقائي
   </div>
   <div class="p-5">
-    <p class="text-sm text-secondary mb-4">
-      سيقوم النظام بتوليد جدول أسبوعي كامل بناءً على توزيعات المواد أدناه.
-      الجدول القديم سيُعطَّل تلقائياً ويُنشأ جدول جديد.
-    </p>
-    <form method="post" action="{% url 'smart_generate' %}"
-          data-confirm="هل تريد توليد جدول جديد؟ سيحل محل الجدول الحالي.">
-      {% csrf_token %}
-      <input type="hidden" name="year" value="{{ year }}">
-      <button type="submit" class="btn-primary px-8 py-3 text-sm">
-        توليد الجدول الآن
-      </button>
-    </form>
+    {% comment %}
+    التوليدُ يستغرق دقائقَ لا ثوانيَ — قِيس في هذه المدرسة بين ٤٢ و٢٧٩ ثانية.
+    فلا يُترك المستخدمُ أمام صفحةٍ جامدةٍ يظنّ الزرَّ لم يعمل: الحالةُ معروضةٌ
+    وتُسأل كلَّ ثلاثِ ثوانٍ، والزرُّ محجوبٌ ما دام هناك توليدٌ جارٍ.
+    {% endcomment %}
+    <div id="gen-running" class="mb-4 p-4 rounded-lg"
+         style="border:1px solid var(--status-info);background:var(--surface-alt)"
+         {% if not pending_generation %}hidden{% endif %}>
+      <p class="text-sm font-semibold text-status-info" id="gen-running-label" aria-live="polite">
+        {% if pending_generation %}{{ pending_generation.get_status_display }} — قد يستغرق عدّة دقائق…{% else %}جارٍ التوليد…{% endif %}
+      </p>
+      <p class="text-xs text-muted mt-1">
+        تُحدَّث الحالةُ تلقائيّاً، ويصلك إشعارٌ عند الانتهاء. يمكنك مغادرةُ الصفحة.
+      </p>
+    </div>
+
+    <div id="gen-idle" {% if pending_generation %}hidden{% endif %}>
+      <p class="text-sm text-secondary mb-4">
+        يولّد النظام <strong>مسودّة</strong> جدول أسبوعي كامل بناءً على توزيعات المواد أدناه.
+        الجدول القائم لا يتغيّر حتى تعتمد المسودّة من سجلّ التوليد أدناه — وعندها تحلّ محلّه ويُشعَر المعلّمون.
+        <strong>التوليد يجري في الخلفية وقد يستغرق عدّة دقائق.</strong>
+      </p>
+      <form method="post" action="{% url 'smart_generate' %}"
+            data-confirm="بدء توليد مسودّة جدول جديدة؟ الجدول القائم يبقى كما هو حتى تعتمدها.">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-primary px-8 py-3 text-sm">
+          بدء التوليد
+        </button>
+      </form>
+    </div>
   </div>
 </div>
 {% else %}
@@ -87,9 +107,9 @@
   <div class="empty-state">
     <span class="empty-icon">{% include "components/icon.html" with name="list-checks" size="icon-2xl" %}</span>
     <p class="empty-title">لا توجد توزيعات مواد</p>
-    <p class="empty-sub">أضف توزيعات المواد على الفصول من
-      <a href="/admin/operations/subjectclassassignment/" class="link-maroon">لوحة الإدارة</a>
-      أولاً
+    <p class="empty-sub">
+      لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب (أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة).
+      أدخلها من <a href="{% url 'subject_assignments' %}?year={{ year }}" class="link-maroon">شاشة توزيعات المواد</a>.
     </p>
   </div>
 </div>
@@ -117,27 +137,47 @@
         <tr>
           <td>{{ g.generated_at|date:"d/m/Y H:i" }}</td>
           <td class="text-center">
-            <span class="status-badge {% if g.status == 'approved' %}status-success{% elif g.status == 'draft' %}status-warning{% else %}status-gray{% endif %}">
+            <span class="status-badge {% if g.status == 'approved' %}status-success{% elif g.status == 'draft' %}status-warning{% elif g.status == 'failed' %}status-danger{% elif g.is_pending %}status-info{% else %}status-gray{% endif %}">
               {{ g.get_status_display }}
             </span>
+            {% comment %}
+            الفشلُ يُقال بسببه لا بكلمة «فشل» وحدَها — فمن لا يعرف السببَ
+            يعيد الضغطَ على الزرّ نفسه منتظراً نتيجةً أخرى.
+            {% endcomment %}
+            {% if g.error_message %}
+            <div class="text-xs text-status-danger mt-1" style="max-width:32ch;white-space:normal">{{ g.error_message|truncatechars:160 }}</div>
+            {% endif %}
           </td>
+          {# الأرقامُ لا تُعرض قبل وجودها: «0%» على توليدٍ لم ينتهِ رقمٌ كاذب. #}
           <td class="text-center">
+            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
             <span class="font-bold
               {% if g.quality_score >= 80 %}text-[var(--status-success)]
               {% elif g.quality_score >= 60 %}text-[var(--status-warning)]
               {% else %}text-[var(--status-danger)]{% endif %}">
               {{ g.quality_score|floatformat:0 }}%
             </span>
+            {% endif %}
           </td>
-          <td class="text-center">{{ g.total_slots_created }}</td>
-          <td class="text-center text-muted">{{ g.generation_time_ms }}ms</td>
+          <td class="text-center">
+            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
+            <span class="font-bold">{{ g.total_slots_created }}/{{ total_weekly }}</span>
+            <span class="text-xs text-muted">({{ g.placed_ratio }}%)</span>
+            {% endif %}
+          </td>
+          <td class="text-center text-muted">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms }}ms{% endif %}</td>
           <td>{{ g.generated_by.full_name|default:"—" }}</td>
           <td class="text-center">
             {% if g.status == "draft" %}
-            <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="هل تريد اعتماد هذا الجدول وإشعار المعلمين؟" style="display:inline">
+            <a href="{% url 'weekly_schedule' %}?year={{ year }}&amp;generation={{ g.id }}" class="btn-secondary text-xs px-3 py-1">معاينة</a>
+            {% if can_approve %}
+            <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="اعتماد هذه المسودّة؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون." style="display:inline">
               {% csrf_token %}
               <button type="submit" class="btn-primary text-xs px-3 py-1">اعتماد</button>
             </form>
+            {% endif %}
+            {% elif g.status == "approved" %}
+            <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="btn-secondary text-xs px-3 py-1">الجدول الحيّ</a>
             {% else %}—{% endif %}
           </td>
         </tr>
@@ -196,6 +236,35 @@ document.addEventListener('DOMContentLoaded', function(){
       countEl: '#shown-count'
     });
   }
+
+  /* استطلاعُ حالة التوليد — يبدأ فقط إن كان هناك توليدٌ جارٍ، ويتوقّف عند
+     انتهائه فيُعاد تحميلُ الصفحة مرّةً واحدةً لتظهر النتيجةُ في السجلّ.
+     ولا استطلاعَ في صفحةٍ ساكنة: طلبٌ كلَّ ثلاثِ ثوانٍ بلا سببٍ ثمنُه خادم. */
+  var running = document.getElementById('gen-running');
+  if (!running || running.hidden) return;
+
+  var label = document.getElementById('gen-running-label');
+  var url = "{% url 'smart_generate_status' %}?year={{ year|escapejs }}";
+  var misses = 0;
+
+  function poll() {
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) { if (++misses < 5) setTimeout(poll, 5000); return; }
+        misses = 0;
+        if (data.pending) {
+          if (label && data.status_label) {
+            label.textContent = data.status_label + ' — قد يستغرق عدّة دقائق…';
+          }
+          setTimeout(poll, 3000);
+        } else {
+          window.location.reload();
+        }
+      })
+      .catch(function () { if (++misses < 5) setTimeout(poll, 5000); });
+  }
+  setTimeout(poll, 3000);
 });
 </script>
 

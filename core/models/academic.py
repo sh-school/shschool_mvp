@@ -120,6 +120,19 @@ class ClassGroup(models.Model):
         if self.track and self.grade not in self.TRACKED_GRADES:
             raise ValidationError({"track": "المسار للصفّين الحادي عشر والثاني عشر وحدهما."})
 
+    @property
+    def short_code(self):
+        """رمز الشعبة المختصر كما في الجدول العام: «12.4» و«7.ESE».
+
+        الصفُّ رقمٌ لا رمزٌ في ورقة الجدول — سبعٌ وثمانٍ لا `G7` و`G8` —
+        والشعبةُ عددُها وحده. وشعبُ التربية الخاصة تحمل بادئةَ صفٍّ في
+        `section` نفسه («07/ESE»)، فتكرارُها بعد رقم الصفّ حشوٌ يضيّق
+        خانةً عرضُها حرفان.
+        """
+        grade = self.grade.removeprefix("G")
+        section = self.section.rsplit("/", 1)[-1]
+        return f"{grade}.{section}"
+
     def __str__(self):
         track = f" — {self.get_track_display()}" if self.track else ""
         return f"{self.get_grade_display()} / {self.section}{track} ({self.academic_year})"

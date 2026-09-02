@@ -78,11 +78,24 @@
 .sched-table tbody tr:hover td { background: #faf5ff; }
 .sched-table tbody tr:hover td:first-child { background: #f3e8ff; }
 
+/* الخانةُ في العرض العامّ تحمل شعبَ المدرسة كلَّها في التوقيت الواحد — خمساً
+   وعشرين بطاقة. فتُحصر البطاقاتُ في علوٍّ يُمرَّر داخله، وإلّا صار السطرُ ألفاً
+   وسبعمئة بكسل والصفحةُ اثني عشر ألفاً — وهو ما كان. */
+.slot-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* Slot Card */
 .slot-card {
   border-radius: 8px;
   padding: 6px 8px;
-  height: 100%;
+  /* بطاقةٌ بعلوّ محتواها. وكانت `height: 100%` فتتمدّد البطاقةُ الواحدة إلى
+     علوّ سطرٍ رفعته خانةٌ أخرى مزدحمة، فتخرج كتلةً فارغةً في وسطها سطر. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -221,10 +234,26 @@ td:has(.slot-empty) {
 {% block content %}
 <div class="sched-page">
 
+  {% if preview %}
+  {# معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً. #}
+  <div role="status" class="p-4 rounded-lg mb-2"
+       style="border:2px solid var(--status-warning);background:var(--surface-alt)">
+    <p class="font-semibold text-status-warning">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
+    </p>
+    <p class="text-sm text-secondary mt-1">
+      هذه ليست الجدول المعتمد. الحصص هنا لا يراها المعلّمون حتى تُعتمد المسودّة من
+      <a href="{% url 'smart_schedule' %}?year={{ academic_year }}" class="link-maroon">الجدولة الذكية</a>.
+      <a href="{% url 'weekly_schedule' %}?year={{ academic_year }}" class="link-maroon">عرض الجدول الحيّ</a>
+    </p>
+  </div>
+  {% endif %}
+
   {# ── Header ── #}
   <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</h1>
+      <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي{% if preview %} — مسودّة{% endif %}</h1>
       <span class="sched-year">{{ academic_year }}
         {% if target_teacher %} — {{ target_teacher.full_name }}{% endif %}
         {% if target_class %} — {{ target_class }}{% endif %}
@@ -299,9 +328,9 @@ td:has(.slot-empty) {
           <td>
             {% if cell %}
               {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
+              <div class="slot-stack">
               {% for slot in cell %}
-              <div class="slot-card slot-p{{ period }}{% if slot.elective_group %} slot-elective{% endif %}"
-                   {% if not forloop.last %}style="margin-bottom:2px;"{% endif %}>
+              <div class="slot-card slot-p{{ period }}{% if slot.elective_group %} slot-elective{% endif %}">
                 <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
                 {% if not target_class %}
                 <div class="slot-class">{{ slot.class_group }}</div>
@@ -321,6 +350,7 @@ td:has(.slot-empty) {
                 {% endif %}
               </div>
               {% endfor %}
+              </div>
             {% else %}
             <div class="slot-empty">—</div>
             {% endif %}
