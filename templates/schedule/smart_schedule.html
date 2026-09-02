@@ -201,7 +201,8 @@
     <table>
       <thead>
         <tr>
-          <th scope="col">الفصل</th>
+          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+          <th scope="col" data-sort="num" data-sort-first="asc">الفصل</th>
           <th scope="col">المادة</th>
           <th scope="col">المعلم</th>
           <th scope="col" class="text-center">الحصص/أسبوع</th>
@@ -211,7 +212,7 @@
       <tbody id="assign-tbody">
         {% for a in assignments %}
         <tr data-filter-row data-text="{{ a.class_group }} {{ a.subject.name_ar }} {{ a.teacher.full_name }}">
-          <td class="font-semibold">{{ a.class_group }}</td>
+          <td class="font-semibold" data-sort-value="{{ a.class_group.school_order }}">{{ a.class_group }}</td>
           <td>{{ a.subject.name_ar }}</td>
           <td class="text-maroon">{{ a.teacher.full_name }}</td>
           <td class="text-center font-bold">{{ a.weekly_periods }}</td>

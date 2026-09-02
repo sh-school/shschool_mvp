@@ -252,6 +252,7 @@
             <th>المعلم</th>
             <th class="text-center">أقصى يومي</th>
             <th class="text-center">أقصى متتالي</th>
+            <th class="text-center">أقصى فجوة</th>
             <th class="text-center">يوم التفريغ</th>
             <th>ملاحظات</th>
           </tr>
@@ -262,6 +263,7 @@
             <td class="font-semibold text-maroon">{{ p.teacher.full_name }}</td>
             <td class="text-center">{{ p.max_daily_periods }}</td>
             <td class="text-center">{{ p.max_consecutive }}</td>
+            <td class="text-center">{% if p.max_gap is None %}—{% else %}{{ p.max_gap }}{% endif %}</td>
             <td class="text-center">{{ p.get_free_day_display|default:"—" }}</td>
             <td class="text-sm text-muted">{{ p.notes|truncatewords:10|default:"—" }}</td>
           </tr>

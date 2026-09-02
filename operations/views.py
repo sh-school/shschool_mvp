@@ -30,6 +30,7 @@ from .views_schedule import (
     register_teacher_absence,
     remove_exemption,
     schedule_print,
+    schedule_print_view,
     schedule_settings,
     schedule_slot_create,
     schedule_slot_delete,
@@ -76,6 +77,7 @@ __all__ = [
     # schedule
     "weekly_schedule",
     "schedule_print",
+    "schedule_print_view",
     "schedule_slot_create",
     "schedule_slot_delete",
     "generate_sessions",

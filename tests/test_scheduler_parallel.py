@@ -47,9 +47,16 @@ def teachers(school):
 def subjects(school):
     from operations.models import Subject
 
+    # الازدواجُ يُطلب بالحقل لا بالرمز: كان `code in {"ART", "TECH"}` محفوراً
+    # في المحرّك فيُزدوجان بلا طلب، فلمّا صار الحقلُ وحدَه الحكمَ لزم أن
+    # يُصرّح به الاختبار — وهذا اختبارُ التوازي لا اختبارُ من يقرّر الازدواج.
     return [
-        Subject.objects.create(school=school, name_ar="الفنون البصرية", code="ART"),
-        Subject.objects.create(school=school, name_ar="التكنولوجيا", code="TECH"),
+        Subject.objects.create(
+            school=school, name_ar="الفنون البصرية", code="ART", requires_double_period=True
+        ),
+        Subject.objects.create(
+            school=school, name_ar="التكنولوجيا", code="TECH", requires_double_period=True
+        ),
         Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT"),
     ]
 

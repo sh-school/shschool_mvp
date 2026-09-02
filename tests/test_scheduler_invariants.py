@@ -44,6 +44,7 @@ def make_task(
     code="MAT",
     weekly=4,
     level_type="prep",
+    prefers_double=False,
 ):
     return Task(
         class_id=klass,
@@ -55,6 +56,7 @@ def make_task(
         teacher_name="معلّم",
         weekly_periods=weekly,
         level_type=level_type,
+        prefers_double=prefers_double,
     )
 
 
@@ -517,10 +519,13 @@ def test_a_double_period_is_preferred_not_required():
 
     وكان اسمُه `requires_double` فيوحي بضرورةٍ لا وجودَ لها. وأثرُه الحقيقيّ
     عقوبةٌ مرنة: تُلغى عقوبةُ تكرار المادّة في اليوم، وتُمنَح مكافأةٌ للتجاور.
+
+    والطلبُ يُقرأ من `prefers_double` وحدَه — وكان رمزُ المادّة يُقرأ معه،
+    فتُزدوَج مادّةٌ لم تُوسَم لأنّ رمزَها في مجموعةٍ محفورةٍ في الشيفرة.
     """
     from operations.scheduler_constraints import evaluate_soft_constraints
 
-    art = make_task(code="ART", subject="s-art")
+    art = make_task(code="ART", subject="s-art", prefers_double=True)
     grid = ScheduleGrid()
     grid.place(0, 1, art)
 

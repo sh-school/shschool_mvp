@@ -11,6 +11,7 @@ scheduler_constraints.py — القيود الصلبة والمرنة للجدو
   SC1b (جديد): PE والعلوم المعملية لا تُحسب ضمن المتتالية
   SC7 (جديد): حصة مزدوجة لـ ART و TECH فقط
   SC8 (جديد): مادة 5+/أسبوع بنفس اليوم يجب ألا تكون متتالية
+  HC10 (جديد): فراغُ المعلّم بين حصّتين لا يتجاوز سقفَه الشخصيّ (صلب لصاحبه)
 """
 
 from __future__ import annotations
@@ -26,8 +27,15 @@ if TYPE_CHECKING:
 # المواد التي تُعيد عدّاد الحصص المتتالية (لا تُحسب ضمن التتابع)
 CONSECUTIVE_RESET_CODES = {"PE", "SCI"}  # بدنية + علوم معملية
 
-# المواد المسموح لها بحصة مزدوجة
-DOUBLE_PERIOD_CODES = {"ART", "TECH"}
+#: الازدواجُ يُقرأ من `Subject.requires_double_period` وحدَه — أي من شاشة
+#: إعدادات الجدول التي يملكها النائبُ الأكاديميّ.
+#:
+#: وكانت هنا مجموعةُ رموزٍ محفورةٌ `{"ART", "TECH"}` تُقرأ إلى جانب الحقل،
+#: فيصير زرُّ الشاشة كذبةً في حقّ مادّتين: يُطفئه النائبُ فلا ينطفئ الازدواج.
+#: وقرّرت الإدارةُ (2026-09-02) ألّا تُزدوَج التكنولوجيا، فلم يكن للقرار
+#: طريقٌ إلى الجدول ما دام الرمزُ يفرضه من الشيفرة.
+#:
+#: فمصدرٌ واحدٌ لا مصدران: ما في القاعدة هو الحكم.
 
 # المواد الأساسية (تُفضّل في الحصص الأولى)
 CORE_CODES = {"ARA", "ENG", "MAT", "SCI", "CHM", "PHY", "BIO"}
@@ -170,8 +178,9 @@ def check_subject_distribution(
 #: الذي وضعه بشرٌ — أربع. فصار اثنتين فسقطت الثلاثيّاتُ كلُّها، ثمّ قرّرت
 #: الإدارةُ ألّا تلاصقَ أصلاً فصار واحدة.
 #:
-#: والاستثناءُ الوحيد الحصّةُ المزدوجةُ المقصودة (فنونٌ وتكنولوجيا): المعلّمُ
-#: باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا عَرَضٌ يُتعب.
+#: والاستثناءُ الوحيد الحصّةُ المزدوجةُ المقصودة — أي مادّةٌ وُسِمت بالازدواج
+#: في إعدادات الجدول: المعلّمُ باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا
+#: عَرَضٌ يُتعب.
 MAX_CONSECUTIVE = 1
 
 #: أكثرُ ما تتكرّر المادّةُ الواحدةُ في الموضع نفسِه من اليوم خلال الأسبوع.
@@ -230,7 +239,7 @@ def _wants_adjacency(grid: ScheduleGrid, task: Task, day: int, period: int) -> b
 
     فالمعلّمُ يبقى مع شعبته في غرفته — وهذا هو الغرضُ لا عَرَضٌ يُتعب.
     """
-    if not (getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES):
+    if not getattr(task, "prefers_double", False):
         return False
     return _neighbour_is_same_lesson(grid, task, day, period)
 
@@ -272,6 +281,27 @@ def check_max_consecutive(
         if grid.teacher_adjacent_pairs(member.teacher_id) >= allowance:
             return False
     return True
+
+
+def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC10: فراغُ المعلّم بين حصّتين لا يتجاوز سقفَه الشخصيّ.
+
+    والفراغُ لعامّة الكادر ترجيحٌ مرنٌ (SC2): يُثقَّل ولا يُمنع، لأنّ منعَه
+    للجميع يُغلق جدولاً إشغالُه ثمانيةٌ وتسعون بالمئة. أمّا من قرّرت الإدارةُ
+    في حقّه سقفاً فسقفُه صلبٌ لا يُرفع في الاسترخاء — شأنَ `consecutive_cap`.
+
+    ومعلّمٌ سقفُه فراغٌ واحدٌ ولا تلاصقَ له: حصصُه في اليوم تتباعد حصّةً حصّة
+    — الثانيةُ فالرابعةُ فالسادسة، لا الثالثةُ فالسادسة.
+
+    والقياسُ على اليوم كلِّه بعد الوضع، لا على الجارِ وحدَه: خانةٌ تُوضع بين
+    حصّتين متباعدتين تُضيّق الفراغَ ولا توسّعه، فلا يصحّ أن تُمنع.
+    """
+    if task.gap_cap is None:
+        return True
+    slots = list(task.slots(period))
+    return all(
+        grid.teacher_widest_gap_with(m.teacher_id, day, slots) <= task.gap_cap for m in task.members
+    )
 
 
 def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> int:
@@ -349,6 +379,8 @@ def is_slot_valid(
         return False
     if not check_resource_capacity(grid, day, period, task):
         return False
+    if not check_max_gap(grid, day, period, task):
+        return False
     return True
 
 
@@ -393,12 +425,12 @@ def evaluate_soft_constraints(
 
     # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
     consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
-    # الحصّةُ المزدوجةُ استثناءٌ مقصود: الفنونُ والتكنولوجيا تُرجَّح متجاورةً
+    # الحصّةُ المزدوجةُ استثناءٌ مقصود: مادّةٌ وُسِمت بالازدواج تُرجَّح متجاورةً
     # لأنّ المعلّمَ يبقى مع الشعبة نفسها في الغرفة نفسها — فليست تتابعاً
     # يُتعب، بل هي الغرضُ نفسُه. وما عداها يُعاقَب من أوّل تلاصق.
-    wants_adjacent = (
-        getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
-    ) and _neighbour_is_same_lesson(grid, task, day, period)
+    wants_adjacent = getattr(task, "prefers_double", False) and _neighbour_is_same_lesson(
+        grid, task, day, period
+    )
     penalty.add("consecutive", WEIGHTS["consecutive"], consecutive >= 1 and not wants_adjacent)
 
     # ── SC2: فراغات المعلم — تقليل الفجوات ──
@@ -423,7 +455,7 @@ def evaluate_soft_constraints(
     if grid.get_task_at(task.class_id, day, period) is task:
         same_subject_today -= 1
 
-    is_double = getattr(task, "prefers_double", False) or task.subject_code in DOUBLE_PERIOD_CODES
+    is_double = getattr(task, "prefers_double", False)
     if not is_double:
         from .scheduler import DAYS
 

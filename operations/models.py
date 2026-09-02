@@ -445,6 +445,21 @@ class SubjectClassAssignment(models.Model):
     parallel_group = models.CharField(
         max_length=40, blank=True, default="", verbose_name="مجموعة التوازي"
     )
+    #: قرارُ الازدواج لهذه الشعبة وحدَها — و`None` يعني «اتبع المادّة».
+    #:
+    #: فالازدواجُ ليس صفةَ المادّة بإطلاق بل صفةَ تدريسها في صفٍّ بعينه:
+    #: التكنولوجيا في السابع إلى العاشر حصّتان متباعدتان (قرارُ الإدارة،
+    #: 2026-09-02)، وهي في الحادي عشر/1 والثاني عشر/1 نصفُ زوجٍ متوازٍ مع
+    #: الفنّيّة المزدوجة — والمتوازيان في خانةٍ واحدة، فشكلُهما واحد.
+    #:
+    #: وكان القرارُ في `Subject.requires_double_period` وحده، فلا يسع الحالين
+    #: معاً: إشعالُه يُلصق حصص السابع، وإطفاؤه يفكّ زوجَ الحادي عشر.
+    double_period = models.BooleanField(
+        null=True,
+        blank=True,
+        verbose_name="حصّة مزدوجة لهذه الشعبة",
+        help_text="فارغٌ = اتبع إعداد المادّة",
+    )
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
     is_active = models.BooleanField(default=True)
 
@@ -510,6 +525,20 @@ class TeacherPreference(models.Model):
     academic_year = models.CharField(max_length=9, default=default_academic_year)
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
+    #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
+    #:
+    #: فالمعلّمُ الذي بين حصّتيه ثلاثُ فراغاتٍ يقضي يومَه في المدرسة ليعمل
+    #: ساعتين. و«فراغٌ واحد» يعني أن تكون حصصُه في اليوم متباعدةً حصّةً حصّة:
+    #: الثانيةُ فالرابعةُ فالسادسة — لا الثالثةُ فالسادسة.
+    #:
+    #: و`null` تعني «لا قيدَ شخصيّ»: يبقى الفراغُ ترجيحاً مرناً كما هو لعامّة
+    #: الكادر. أمّا العددُ فقيدٌ صلبٌ في حقّ صاحبه لا يُرفع في جولة الاسترخاء.
+    max_gap = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="أقصى فجوة بين حصتين",
+        help_text="بعدد الحصص الفارغة — اتركه فارغاً لبقاء الفجوة ترجيحاً مرناً",
+    )
     free_day = models.IntegerField(
         null=True,
         blank=True,

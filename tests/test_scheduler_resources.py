@@ -157,6 +157,46 @@ def test_a_personal_consecutive_cap_is_never_relaxed(school):
     ), "وممنوعٌ في الاسترخاء أيضاً"
 
 
+def test_a_personal_gap_cap_is_measured_over_the_whole_day(school):
+    """فراغُ المعلّم قيدٌ صلبٌ لمن قُرِّر في حقّه سقفٌ — والقياسُ على اليوم كلِّه.
+
+    فمن سقفُه فراغٌ واحدٌ تتباعد حصصُه حصّةً حصّة: الثانيةُ فالرابعة، لا
+    الثانيةُ فالخامسة. والخانةُ الواقعةُ **بين** حصّتين متباعدتين تُضيّق
+    الفراغَ فتُقبل — إذ القياسُ على اليوم بعد الوضع لا على الجارِ وحدَه.
+    """
+    from operations.models import TeacherPreference
+    from operations.scheduler import ScheduleGrid
+    from operations.scheduler_constraints import check_max_gap
+
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    spaced = teacher(school, "معلّمٌ فراغُه واحد")
+    assign(school, group, spaced, maths, periods=4)
+    TeacherPreference.objects.create(teacher=spaced, school=school, academic_year=YEAR, max_gap=1)
+
+    tasks = build_tasks(school, YEAR)
+    assert all(t.gap_cap == 1 for t in tasks)
+
+    grid = ScheduleGrid()
+    grid.place(0, 2, tasks[0])
+
+    assert check_max_gap(grid, 0, 4, tasks[1]), "فراغٌ واحدٌ — مقبول"
+    assert not check_max_gap(grid, 0, 5, tasks[1]), "فراغان — ممنوع"
+
+    grid.place(0, 6, tasks[1])
+    assert check_max_gap(grid, 0, 4, tasks[2]), "الواقعةُ بينهما تُضيّق الفراغَ لا توسّعه"
+
+
+def test_a_teacher_without_a_gap_preference_keeps_the_soft_weight(school):
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    assign(school, group, teacher(school, "معلّمٌ بلا سقفِ فراغ"), maths, periods=4)
+
+    tasks = build_tasks(school, YEAR)
+
+    assert all(t.gap_cap is None for t in tasks), "لا قيدَ شخصيّ — الفراغُ ترجيحٌ مرن"
+
+
 def test_a_teacher_without_a_preference_follows_the_general_cap(school):
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     group = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
@@ -256,17 +296,23 @@ def test_the_labs_cap_three_computer_lessons_down_to_two(school):
     computing = Subject.objects.create(school=school, name_ar="علوم الحاسب", code="CS")
     call_command("seed_scheduling_resources", school=school.code, verbosity=0)
 
+    groups = []
     for index, subject in enumerate((tech, tech, computing)):
         group = ClassGroupFactory(school=school, grade="G9", level_type="prep", academic_year=YEAR)
+        groups.append(group)
         assign(school, group, teacher(school, f"معلّمُ معمل {index}"), subject, periods=2)
 
     tasks = build_tasks(school, YEAR)
+
+    def lesson(group):
+        return next(t for t in tasks if t.class_id == str(group.id))
+
     grid = ScheduleGrid()
-    grid.place(0, 1, tasks[0])
-    grid.place(0, 1, tasks[1])
+    grid.place(0, 1, lesson(groups[0]))
+    grid.place(0, 1, lesson(groups[1]))
 
     # المعلّمُ فارغٌ والشعبةُ فارغة — والمعملانِ مشغولان.
-    assert not check_resource_capacity(grid, 0, 1, tasks[2])
-    # والتكنولوجيا تقع مزدوجةً فتشغل الثانيةَ مع الأولى — والثالثةُ خالية.
-    assert not check_resource_capacity(grid, 0, 2, tasks[2])
-    assert check_resource_capacity(grid, 0, 3, tasks[2])
+    assert not check_resource_capacity(grid, 0, 1, lesson(groups[2]))
+    # والتكنولوجيا حصصٌ مفردةٌ لا مزدوجة، فالثانيةُ خاليةٌ لا تشغلها الأولى.
+    assert all(t.span == 1 for t in tasks)
+    assert check_resource_capacity(grid, 0, 2, lesson(groups[2]))
