@@ -269,6 +269,13 @@ LOGGING = {
             "propagate": False,
         },
         "celery": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        # مهامُّ الجدولة على stdout بمستوى INFO — بالحجّة نفسِها التي فتحت
+        # `notifications.reconciler`: العاملُ في حاويةٍ لا نرى منها إلّا stdout.
+        #
+        # وبلا هذا كان توليدُ الجدول يبدأ وينتهي ويسقط بلا سطرٍ واحد، فاضطُررنا
+        # (2026-09-03) إلى قياس أحجام ردود الويب بالبايت لنعرف متى تغيّرت حالتُه.
+        # وما يُسجَّل هنا أعدادٌ ومعرِّفاتٌ لا بياناتُ أشخاص.
+        "operations": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "core": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
         # ✅ v5.1: Channels & WebSocket logging
         "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},

@@ -24,6 +24,11 @@ ALLOWED = {"core/management/commands/seed_academic_calendar.py"}
 
 SKIP = (
     "/.venv/",
+    # أيُّ بيئةٍ مثبَّتةٍ داخلَ المشروع، لا `.venv` وحدَها: مجلَّدُ `.local/` من
+    # بناءٍ سابقٍ حمل `site-packages` لبايثون 3.11 فاشتكى الاختبارُ من تواريخَ
+    # في `_pytest/timing.py` و`faker` — مكتباتٌ ليست لنا. وهو مُستثنًى من git
+    # فلا يظهر في CI، ويسقط عند كلّ من يبني بيئةً في المجلَّد.
+    "/site-packages/",
     "/node_modules/",
     "/.claude/",
     "/.mypy_cache/",
