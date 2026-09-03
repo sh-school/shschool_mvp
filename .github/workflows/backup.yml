@@ -64,18 +64,33 @@ jobs:
           if [ -z "${DATABASE_URL:-}" ] || [ -z "${PASSPHRASE:-}" ]; then
             echo "::error::DATABASE_PUBLIC_URL و BACKUP_PASSPHRASE إلزاميان"; exit 1
           fi
+          # المستودعُ عامّ: الملفُّ قد يقع في يد أيّ أحد، فالتشفيرُ هو الحصنُ الوحيد.
+          # عبارةٌ قصيرةٌ تُسقط النسخَ كلَّها — نرفض ما دون 32 حرفاً بلا استثناء.
+          if [ "${#PASSPHRASE}" -lt 32 ]; then
+            echo "::error::BACKUP_PASSPHRASE أقصر من 32 حرفاً — ارفض النسخ حتى تُقوَّى"; exit 1
+          fi
           FILE="schoolos-${{ steps.prep.outputs.stamp }}.sql.gz.gpg"
+          # AES-256 مع اشتقاقِ مفتاحٍ مُكلِف (s2k mode 3، ~65M تكرار، SHA-512)
+          # ليصير التخمينُ على العبارة أبطأَ بآلاف المرّات من الافتراضيّ.
           pg_dump --no-owner --no-privileges "$DATABASE_URL" \
             | gzip -9 \
             | gpg --batch --yes --symmetric --cipher-algo AES256 \
+                  --s2k-mode 3 --s2k-count 65011712 --s2k-digest-algo SHA512 \
                   --pinentry-mode loopback --passphrase-fd 3 -o "$FILE" 3<<<"$PASSPHRASE"
           test -s "$FILE" # سلامة: حجم غير صفري
           SIZE=$(stat -c%s "$FILE")
           echo "تمّ: $FILE ($SIZE بايت)"
           [ "$SIZE" -gt 1024 ] || { echo "::error::النسخة صغيرة جداً — فشل محتمل"; exit 1; }
+          # تحقّقٌ فوريّ: يُفكّ التشفيرُ ويُفحص الضغطُ بلا كتابة البيانات على القرص.
+          gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 \
+              --decrypt "$FILE" 3<<<"$PASSPHRASE" | gunzip -t
+          echo "النسخةُ قابلةٌ لفكّ التشفير."
 
-      - name: رفع كـ GitHub artifact (احتفاظ 90 يوماً)
+      # المستودعُ عامّ، وartifacts العامّةُ يُنزّلها أيُّ حسابٍ على GitHub. فإن كان R2
+      # مضبوطاً فلا نُبقي للبيانات أثراً هنا؛ وإلّا يبقى الرفعُ احتياطاً انتقاليّاً.
+      - name: رفع كـ GitHub artifact (احتفاظ 90 يوماً — فقط حين لا يتوفّر R2)
         id: artifact
+        if: steps.prep.outputs.r2 != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ steps.prep.outputs.stamp }}

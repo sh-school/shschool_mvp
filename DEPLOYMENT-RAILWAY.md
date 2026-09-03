@@ -237,3 +237,10 @@ CSRF_TRUSTED_ORIGINS = [
 **تاريخ الإعداد:** 2026-04-05
 **المسؤول:** Azkia-devops
 **الإصدار:** v5.4
+
+## النسخ الاحتياطي للقاعدة (محدَّث 2026-09-03)
+
+- **يوميّاً 01:00 UTC** عبر `.github/workflows/backup.yml`: `pg_dump` 18 → gzip → gpg AES-256 (s2k mode 3، SHA-512) بعبارة `BACKUP_PASSPHRASE` (**32 حرفاً فأكثر، وإلّا يرفض الـworkflow النسخ**) → تحقّقُ فكِّ التشفير → رفع.
+- **الوجهة:** Cloudflare R2 (خاصّ، lifecycle 400 يوم) حين تكون أسرار `R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT / R2_BUCKET` مضبوطة؛ وإلّا GitHub artifact (90 يوماً) احتياطاً انتقاليّاً فقط — المستودعُ عامّ، وartifacts العامّة يُنزّلها أيُّ حساب.
+- **اختبار الاستعادة:** كلَّ سبت 02:30 UTC (`backup-restore-test.yml`) يجلب الأحدثَ من R2 (أو من artifact) ويستعيده في PostgreSQL 18 مؤقّت.
+- **الاسترجاع يدويّاً:** `gpg --decrypt schoolos-….sql.gz.gpg | gunzip | psql "$DATABASE_URL"` — بلا `BACKUP_PASSPHRASE` لا استرجاع؛ احفظها في مدير كلمات المرور لا في المستودع.
