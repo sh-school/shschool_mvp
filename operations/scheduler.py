@@ -32,6 +32,7 @@ from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
     is_slot_valid,
+    joinable_pairs_cached,
 )
 
 logger = logging.getLogger(__name__)
@@ -898,6 +899,8 @@ def _empty_result(errors: list[str]) -> dict:
     }
 
 
+#: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة.
+@joinable_pairs_cached()
 def generate_schedule(
     school: School,
     academic_year: str,
@@ -1132,6 +1135,9 @@ def generate_schedule(
                     "error_message": "",
                     "config_snapshot": {
                         "total_tasks": len(tasks),
+                        # كم محاولةً من الثماني أُنفقت — فالزمنُ يُقرأ بها لا بالثواني
+                        # وحدَها: محاولتان في ستّين ثانيةً غيرُ ثمانٍ في اثنتي عشرةَ دقيقة.
+                        "attempts": attempt + 1,
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,

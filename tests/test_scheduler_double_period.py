@@ -100,6 +100,40 @@ def test_without_a_bell_every_neighbour_joins(school):
     assert (3, 4) in joinable_pairs(school)
 
 
+def test_the_bell_is_read_once_per_generation(bell, django_assert_num_queries):
+    """داخلَ التوليد يُسأل الجرسُ مرّةً — وكان يُسأل عند كلّ مرشَّح.
+
+    آلافُ الاستعلامات في التوليد الواحد، نحوَ ثلث زمنه — والرقمُ بعينه في
+    تعليق `_PAIRS_CACHE`. والجرسُ لا يتغيّر في أثناء التوليد.
+    """
+    from operations.scheduler_constraints import joinable_pairs, joinable_pairs_cached
+
+    with joinable_pairs_cached(), django_assert_num_queries(1):
+        first = joinable_pairs(bell)
+        second = joinable_pairs(bell)
+
+    assert first == second == {(1, 2), (2, 3), (4, 5), (6, 7)}
+
+
+def test_outside_a_generation_every_call_reads_the_bell(bell, django_assert_num_queries):
+    """والذاكرةُ سياقٌ لا حالةٌ عامّة: خارجَه تُقرأ القاعدةُ كما كانت."""
+    from operations.scheduler_constraints import joinable_pairs
+
+    with django_assert_num_queries(2):
+        joinable_pairs(bell)
+        joinable_pairs(bell)
+
+
+def test_the_cache_does_not_outlive_its_block(bell, django_assert_num_queries):
+    """وما حُفظ داخلَ التوليد يُنسى بانتهائه — لا يُورَّث لتوليدٍ لاحق."""
+    from operations.scheduler_constraints import joinable_pairs, joinable_pairs_cached
+
+    with joinable_pairs_cached():
+        joinable_pairs(bell)
+    with django_assert_num_queries(1):
+        joinable_pairs(bell)
+
+
 # ── المزدوجةُ تُبنى مهمّةً واحدة ─────────────────────────────────────
 
 

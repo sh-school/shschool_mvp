@@ -16,6 +16,8 @@ scheduler_constraints.py — القيود الصلبة والمرنة للجدو
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -193,6 +195,29 @@ LAST_PERIOD = 7
 #: فخمسُ دقائقَ انتقالٌ بين صفّين، وعشرون فسحةٌ وخمسَ عشرةَ صلاة.
 JOINABLE_GAP_MINUTES = 10
 
+#: أزواجُ الجرس المحفوظةُ لمدّة توليدٍ واحد — `None` خارجَ التوليد.
+#:
+#: `joinable_pairs` تُسأل عند كلّ مرشَّحٍ لحصّةٍ مزدوجة: في الوضع الجشع،
+#: وفي كلّ إزاحةٍ بعمقٍ ثلاث، وفي كلّ محاولةٍ من الثماني. وعددُها يتبع
+#: ضيقَ البحث لا حجمَ المدرسة — على صورةٍ مطابقةٍ لبيانات الإنتاج
+#: (2026-09-03) كانت 6,168 استعلاماً في التوليد الواحد، نحوَ ثلث زمنه.
+#: والجرسُ لا يتغيّر في أثناء التوليد، فيُقرأ مرّةً عند بدئه ويُنسى عند
+#: انتهائه.
+#:
+#: وهو سياقٌ لا ذاكرةٌ عامّة: مَن ينادي الدالّةَ منفردةً — الاختباراتُ
+#: تُبدّل الجرسَ بين نداءين — يقرأ القاعدةَ كما كان.
+_PAIRS_CACHE: ContextVar[dict | None] = ContextVar("joinable_pairs_cache", default=None)
+
+
+@contextmanager
+def joinable_pairs_cached():
+    """يفتح ذاكرةَ أزواج الجرس لمدّة الكتلة — يستدعيه `generate_schedule`."""
+    token = _PAIRS_CACHE.set({})
+    try:
+        yield
+    finally:
+        _PAIRS_CACHE.reset(token)
+
 
 def joinable_pairs(school) -> set:
     """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس المدرسة لا من الكود.
@@ -204,6 +229,17 @@ def joinable_pairs(school) -> set:
     ومدرسةٌ لم تُدخل أوقاتَها بعد: لا كتلَ تُعرَف، فلا يُمنع تجاورٌ بحجّة
     فاصلٍ لا نعرفه. والصمتُ لا يُقرأ منعاً.
     """
+    cache = _PAIRS_CACHE.get()
+    key = getattr(school, "pk", school)
+    if cache is not None and key in cache:
+        return cache[key]
+    pairs = _joinable_pairs_from_bell(school)
+    if cache is not None:
+        cache[key] = pairs
+    return pairs
+
+
+def _joinable_pairs_from_bell(school) -> set:
     from operations.models import TimeSlotConfig
 
     rows = list(
