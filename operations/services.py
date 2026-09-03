@@ -604,10 +604,14 @@ class ScheduleService:
         week_sun, week_thu = ScheduleService._get_week_bounds(target_date)
 
         # ── فحص سريع: أي أيام في هذا الأسبوع لديها حصص؟ ──
+        # جلساتُ عامٍ آخرَ لا تُعَدّ: الأسبوعُ الأوّل من 2026-2027 وُلّد على الإنتاج
+        # من شُعب 2025-2026 قبل اعتماد الجدول الجديد، فرآه هذا الفحصُ «كاملاً»
+        # وبقيت 845 جلسةً لعامٍ منقضٍ أسبوعاً كاملاً.
         existing_days = set(
             Session.objects.filter(
                 school=school,
                 date__range=(week_sun, week_thu),
+                class_group__academic_year=academic_year,
             )
             .values_list("date", flat=True)
             .distinct()
@@ -675,6 +679,91 @@ class ScheduleService:
                 week_thu,
             )
         return count
+
+    @staticmethod
+    @transaction.atomic
+    def resync_sessions_for_date(
+        school: School,
+        target_date: date,
+        academic_year: str | None = None,
+    ) -> dict[str, int]:
+        """مصالحةُ جلسات يومٍ مع الجدول النشط — بعد اعتماد جدولٍ جديد.
+
+        `ensure_sessions_for_date` تملأ الفراغ ولا تصحّح: يومٌ فيه جلساتٌ من
+        جدولٍ سابق (أو عامٍ سابق) يبقى كما هو. هنا:
+          - تُحذف الجلساتُ التي لا تطابق حصّةً نشطة (المعلّم، الشعبة، الوقت)
+            **بشرط** أنّها `scheduled` وبلا سجلّ حضور — ما مُسَّ يُبقى ويُعَدّ.
+          - تُنشأ الجلساتُ الناقصة من الحصص النشطة بمجموعة الاختيار.
+        Returns: {"deleted", "created", "kept"}.
+        """
+        from django.db.models import Count
+
+        academic_year = academic_year or academic_year_for_school(school)
+        qatar_day = ScheduleService._PY_TO_QATAR.get(target_date.weekday())
+        if qatar_day is None:
+            return {"deleted": 0, "created": 0, "kept": 0}
+
+        slots = ScheduleSlot.objects.filter(
+            school=school, academic_year=academic_year, day_of_week=qatar_day, is_active=True
+        ).select_related("teacher", "class_group", "subject")
+        wanted = {(s.teacher_id, s.class_group_id, s.start_time): s for s in slots}
+
+        existing = list(
+            Session.objects.filter(school=school, date=target_date).annotate(
+                att=Count("attendances")
+            )
+        )
+        have = {(s.teacher_id, s.class_group_id, s.start_time) for s in existing}
+        stale = [
+            s for s in existing if (s.teacher_id, s.class_group_id, s.start_time) not in wanted
+        ]
+        deletable = [s.id for s in stale if s.status == "scheduled" and s.att == 0]
+        kept = len(stale) - len(deletable)
+        deleted = Session.objects.filter(id__in=deletable).delete()[0] if deletable else 0
+
+        to_create = [
+            Session(
+                school=school,
+                teacher=slot.teacher,
+                class_group=slot.class_group,
+                subject=slot.subject,
+                date=target_date,
+                start_time=slot.start_time,
+                end_time=slot.end_time,
+                status="scheduled",
+                elective_group=slot.elective_group,
+            )
+            for key, slot in wanted.items()
+            if key not in have
+        ]
+        Session.objects.bulk_create(to_create, ignore_conflicts=True)
+        if deleted or to_create:
+            logger.info(
+                "resync_sessions %s %s: deleted=%d created=%d kept=%d",
+                school.name,
+                target_date,
+                deleted,
+                len(to_create),
+                kept,
+            )
+        return {"deleted": deleted, "created": len(to_create), "kept": kept}
+
+    @staticmethod
+    def resync_current_week(school: School, academic_year: str | None = None) -> dict[str, int]:
+        """مصالحةُ أيّام الأسبوع الجاري (الأحد → الخميس) — تُستدعى عند الاعتماد."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        week_sun, _ = ScheduleService._get_week_bounds(timezone.localdate())
+        totals = {"deleted": 0, "created": 0, "kept": 0}
+        for i in range(5):
+            r = ScheduleService.resync_sessions_for_date(
+                school, week_sun + timedelta(days=i), academic_year
+            )
+            for k in totals:
+                totals[k] += r[k]
+        return totals
 
     @staticmethod
     def ensure_sessions_for_range(
