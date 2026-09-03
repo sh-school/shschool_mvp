@@ -600,16 +600,40 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
     return tasks
 
 
-def sort_tasks(tasks: list[Task]) -> list[Task]:
-    """ترتيب المهام: الأصعب أولاً (Most Constrained First)"""
+#: خاناتُ الأسبوع للمعلّم الواحد — خمسةُ أيّامٍ في سبع حصص.
+WEEK_SLOTS = len(DAYS) * LAST_PERIOD
+
+
+def sort_tasks(tasks: list[Task], blocked_slots: set | None = None) -> list[Task]:
+    """ترتيب المهام: الأصعب أولاً (Most Constrained First).
+
+    والأصعبُ يُقاس أوّلاً بضيق خانات المعلّم لا بمادّته: معلّمٌ حُجبت عنه
+    إحدى وعشرون خانةً من خمسٍ وثلاثين ونصابُه اثنتا عشرةَ حصّةً — له خانتان
+    فائضتان في الأسبوع كلِّه. وكان الترتيبُ يبدأ بعدد معلّمي المادّة، فتأتي
+    مهامُّه — والرياضياتُ كثيرةُ المعلّمين — بعد أن تأخذ شُعبُه خاناتِه
+    القليلةَ لموادَّ أخرى، فتبقى له حصّةٌ بلا موضع (10/3، 2026-09-03) ويُصرَف
+    عليها ملاذُ الكثافة. والمعلّمُ بلا حجبٍ فائضُه ثلاثٌ وعشرون فأكثر، فلا
+    يتقدّم على أحد.
+    """
     # عد كم معلم فريد لكل مادة
     subject_teacher_count = defaultdict(set)
+    teacher_load: dict[str, int] = defaultdict(int)
     for t in tasks:
         subject_teacher_count[t.subject_id].add(t.teacher_id)
+        for m in t.members:
+            teacher_load[m.teacher_id] += t.span
+
+    blocked_count: dict[str, int] = defaultdict(int)
+    for teacher_id, _day, _period in blocked_slots or ():
+        blocked_count[teacher_id] += 1
+
+    def slack(teacher_id: str) -> int:
+        return WEEK_SLOTS - blocked_count[teacher_id] - teacher_load[teacher_id]
 
     def priority(task: Task) -> tuple:
         teacher_count = len(subject_teacher_count[task.subject_id])
         return (
+            min(slack(m.teacher_id) for m in task.members),  # أضيقُ المعلّمين خاناتٍ أوّلاً
             teacher_count,  # معلم وحيد أولاً (1 < 2 < ...)
             -task.weekly_periods,  # نصاب أعلى أولاً
             -int(task.requires_lab),  # المعامل أولاً
@@ -960,8 +984,8 @@ def generate_schedule(
         else:
             blocked_slots.add((tid, ex.day_of_week, ex.period_number))
 
-    # 3. ترتيب المهام
-    sorted_tasks = sort_tasks(tasks)
+    # 3. ترتيب المهام — والتفريغاتُ تدخل في الترتيب: الأضيقُ خاناتٍ أوّلاً
+    sorted_tasks = sort_tasks(tasks, blocked_slots)
 
     # 4. التوليد: محاولاتٌ متعدّدةٌ يُختار أفضلُها
     #
