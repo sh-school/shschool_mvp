@@ -35,8 +35,37 @@ jobs:
           --health-retries 10
 
     steps:
+      - name: كشف توفّر R2
+        id: prep
+        run: |
+          set -euo pipefail
+          if [ -n "${{ secrets.R2_ACCESS_KEY_ID }}" ] && [ -n "${{ secrets.R2_BUCKET }}" ]; then
+            echo "r2=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "r2=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # حين يكون R2 مضبوطاً لا تُرفع artifacts أصلاً (المستودعُ عامّ)، فالنسخةُ
+      # الأحدثُ تُجلب من الحاوية الخاصّة.
+      - name: تنزيل أحدث نسخة من Cloudflare R2
+        if: steps.prep.outputs.r2 == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          LATEST="$(aws s3 ls "s3://${{ secrets.R2_BUCKET }}/db-backups/" \
+            --endpoint-url "${{ secrets.R2_ENDPOINT }}" | sort | tail -1 | awk '{print $4}')"
+          [ -n "$LATEST" ] || { echo "::error::لا نسخَ في R2"; exit 1; }
+          mkdir -p backup
+          aws s3 cp "s3://${{ secrets.R2_BUCKET }}/db-backups/$LATEST" "backup/$LATEST" \
+            --endpoint-url "${{ secrets.R2_ENDPOINT }}" --only-show-errors
+          echo "سيتم اختبار النسخة $LATEST من R2"
+
       - name: تحديد أحدث تشغيل ناجح للنسخ الاحتياطي
         id: latest
+        if: steps.prep.outputs.r2 != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -63,6 +92,7 @@ jobs:
           echo "سيتم اختبار النسخة من التشغيل ${RUN_ID}"
 
       - name: تنزيل أحدث Artifact للنسخة الاحتياطية
+        if: steps.prep.outputs.r2 != 'true'
         uses: actions/download-artifact@v4
         with:
           pattern: db-backup-*
