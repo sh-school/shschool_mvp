@@ -10,7 +10,7 @@ import logging
 import math
 import random
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import time as dt_time
 
@@ -202,6 +202,8 @@ class ScheduleGrid:
         self._subject_period: dict[tuple[str, str, int], int] = defaultdict(int)
         #: (مورد · يوم · حصّة) — كم حصّةً تشغله في هذا التوقيت.
         self._resource_at: dict[tuple[str, int, int], int] = defaultdict(int)
+        #: أيُّ مراحلَ تشغل المورد في التوقيت — لموردٍ لا يجمع إعداديّاً وثانويّاً.
+        self._resource_levels: dict[tuple[str, int, int], Counter] = defaultdict(Counter)
         self._entries: list[dict] = []
         #: سجلُّ التراجع: كلُّ محاولةِ إزاحةٍ تفتح إطاراً، وتُغلقه بقبولٍ أو ردّ.
         #: والردُّ يعكس ما جرى بعينه — لا «أعِد ما تظنّه كان»، فالتساهلُ في
@@ -252,8 +254,9 @@ class ScheduleGrid:
                 self._teacher_at[(member.teacher_id, day, slot)] = task
             self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
             self._subject_period[(task.subject_id, task.class_id, slot)] += 1
-            for resource_id, _ in task.resources:
+            for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
+                self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
         self._entries.append({"day": day, "period": period, "task": task})
 
     def remove(self, class_id: str, day: int, period: int):
@@ -282,8 +285,9 @@ class ScheduleGrid:
                 self._teacher_at.pop((member.teacher_id, day, slot), None)
             self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
             self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
-            for resource_id, _ in task.resources:
+            for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
+                self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
         self._entries = [e for e in self._entries if e["task"] is not task]
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
@@ -322,6 +326,11 @@ class ScheduleGrid:
     def resource_load(self, resource_id: str, day: int, period: int) -> int:
         """كم حصّةً تشغل هذا المورد في هذا التوقيت — ملعباً كان أو معملاً."""
         return self._resource_at.get((resource_id, day, period), 0)
+
+    def resource_levels(self, resource_id: str, day: int, period: int) -> set[str]:
+        """أيُّ مراحلَ (prep/sec) تشغل المورد في هذا التوقيت الآن."""
+        counts = self._resource_levels.get((resource_id, day, period))
+        return {level for level, n in counts.items() if n > 0} if counts else set()
 
     def teacher_adjacent_pairs(self, teacher_id: str) -> int:
         """كم زوجاً متلاصقاً لهذا المعلّم في الأسبوع كلِّه.
@@ -435,7 +444,9 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         school=school, is_active=True
     ).prefetch_related("subjects"):
         for subject in resource.subjects.all():
-            resources_by_subject[str(subject.id)].append((str(resource.id), resource.capacity))
+            resources_by_subject[str(subject.id)].append(
+                (str(resource.id), resource.capacity, resource.same_level_only)
+            )
 
     exempt_days = defaultdict(set)
     for ex in TeacherExemption.objects.filter(

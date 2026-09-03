@@ -148,11 +148,11 @@ class SchedulingResourceAdmin(admin.ModelAdmin):
     جديدٍ أو معملٍ يُغلق، فلا يُحبس في ترحيلٍ يحتاج مبرمجاً.
     """
 
-    list_display = ("name", "capacity", "subject_names", "is_active")
-    list_filter = ("school", "is_active")
+    list_display = ("name", "capacity", "same_level_only", "subject_names", "is_active")
+    list_filter = ("school", "is_active", "same_level_only")
     search_fields = ("name", "note")
     filter_horizontal = ("subjects",)
-    list_editable = ("capacity", "is_active")
+    list_editable = ("capacity", "same_level_only", "is_active")
 
     @admin.display(description="المواد التي تستعمله")
     def subject_names(self, obj):

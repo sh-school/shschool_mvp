@@ -110,8 +110,25 @@ def check_resource_capacity(grid: ScheduleGrid, day: int, period: int, task: Tas
     """
     return all(
         grid.resource_load(resource_id, day, period) < capacity
-        for resource_id, capacity in task.resources
+        for resource_id, capacity, *_ in task.resources
     )
+
+
+def check_resource_level_homogeneity(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC11: موردٌ لا يجمع مرحلتين في التوقيت الواحد.
+
+    الملعبانِ يتقاسمهما الإعداديّ والثانويّ، لكنّ حصّتَي بدنيّةٍ متزامنتين
+    تكونان من مرحلةٍ واحدة (قرار الإدارة 2026-09-03). السعةُ تقول «اثنتان»،
+    وهذا يقول «اثنتان من جنسٍ واحد». والمهمّةُ بلا مرحلةٍ معروفة تُعامَل
+    جنساً قائماً بذاته، فلا تُخلط بغيرها.
+    """
+    for resource_id, _capacity, same_level in task.resources:
+        if not same_level:
+            continue
+        others = grid.resource_levels(resource_id, day, period) - {task.level_type}
+        if others:
+            return False
+    return True
 
 
 def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool:
@@ -414,6 +431,8 @@ def is_slot_valid(
     if not check_last_period_share(grid, period, task):
         return False
     if not check_resource_capacity(grid, day, period, task):
+        return False
+    if not check_resource_level_homogeneity(grid, day, period, task):
         return False
     if not check_max_gap(grid, day, period, task):
         return False
