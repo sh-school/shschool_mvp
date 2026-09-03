@@ -103,8 +103,8 @@ def test_without_a_bell_every_neighbour_joins(school):
 def test_the_bell_is_read_once_per_generation(bell, django_assert_num_queries):
     """داخلَ التوليد يُسأل الجرسُ مرّةً — وكان يُسأل عند كلّ مرشَّح.
 
-    قِيس على بيانات المدرسة: 8,265 استعلاماً في توليدٍ واحد، أكثرُ من ثلث
-    زمنه. والجرسُ لا يتغيّر في أثناء التوليد.
+    آلافُ الاستعلامات في التوليد الواحد، نحوَ ثلث زمنه — والرقمُ بعينه في
+    تعليق `_PAIRS_CACHE`. والجرسُ لا يتغيّر في أثناء التوليد.
     """
     from operations.scheduler_constraints import joinable_pairs, joinable_pairs_cached
 
