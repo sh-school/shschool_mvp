@@ -62,6 +62,12 @@ class Session(models.Model):
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
     status = models.CharField(max_length=15, choices=STATUS, default="scheduled", db_index=True)
+    #: تُورَّث من `ScheduleSlot.elective_group`: شعبةٌ تتفرّق بين مادّتين في
+    #: التوقيت نفسه تحتاج جلستين بمعلّمَين، والقيدُ الفريد بلا هذا الحقل كان
+    #: يُسقط الثانيةَ بصمت في `bulk_create(ignore_conflicts=True)`.
+    elective_group = models.CharField(
+        max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -78,7 +84,8 @@ class Session(models.Model):
                 fields=["teacher", "date", "start_time"], name="no_teacher_time_overlap"
             ),
             models.UniqueConstraint(
-                fields=["class_group", "date", "start_time"], name="no_class_time_overlap"
+                fields=["class_group", "date", "start_time", "elective_group"],
+                name="no_class_time_overlap",
             ),
         ]
 

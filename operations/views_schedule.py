@@ -4,7 +4,6 @@ import logging
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
-import django.db
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -319,70 +318,6 @@ def schedule_print_view(request):
     """الورقةُ داخل المنصّة — كصفحة الزيارات الصفّية: هيدرٌ وفوترٌ وأدوات،
     والورقةُ نفسها في إطارٍ يُطبع وحده."""
     return render(request, "schedule/print_view.html", _schedule_print_selection(request))
-
-
-@login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
-def schedule_slot_create(request):
-    """إضافة حصة جديدة للجدول"""
-    from core.models import ClassGroup
-
-    school = request.user.get_school()
-
-    if request.method == "POST":
-        try:
-            from core.models import CustomUser as _CU
-
-            teacher = get_object_or_404(_CU, id=request.POST["teacher"])
-            # ✅ v5.4: ScheduleService.create_slot — atomic + logging
-            slot = ScheduleService.create_slot(
-                school=school,
-                teacher=teacher,
-                class_group_id=request.POST["class_group"],
-                subject_id=request.POST.get("subject"),
-                day_of_week=int(request.POST["day_of_week"]),
-                period_number=int(request.POST["period_number"]),
-                start_time=request.POST["start_time"],
-                end_time=request.POST["end_time"],
-                academic_year=request.POST.get("academic_year") or academic_year_for(request),
-            )
-            messages.success(request, f"تمت إضافة الحصة: {slot}")
-        except (ValueError, TypeError, django.db.IntegrityError) as e:
-            logger.exception("فشل إضافة حصة في الجدول الأسبوعي: %s", e)
-            messages.error(request, f"خطأ: {e}")
-        return redirect("weekly_schedule")
-
-    teacher_ids = Membership.objects.filter(
-        school=school, is_active=True, role__name__in=("teacher", "coordinator")
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-    classes = ClassGroup.objects.filter(
-        school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).in_school_order()
-    subjects = Subject.objects.filter(school=school).order_by("name_ar")
-
-    return render(
-        request,
-        "schedule/slot_form.html",
-        {
-            "teachers": teachers,
-            "classes": classes,
-            "subjects": subjects,
-            "days": ScheduleSlot.DAYS,
-        },
-    )
-
-
-@login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
-def schedule_slot_delete(request, slot_id):
-    """حذف حصة من الجدول (soft delete)"""
-    school = request.user.get_school()
-    slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school)
-    slot.is_active = False
-    slot.save(update_fields=["is_active"])
-    messages.success(request, "تم حذف الحصة من الجدول")
-    return redirect("weekly_schedule")
 
 
 # ── نظام البديل ──────────────────────────────────────────────────

@@ -14,8 +14,6 @@ urlpatterns = [
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
     path("weekly-schedule/print/view/", views.schedule_print_view, name="schedule_print_view"),
-    path("weekly-schedule/add/", views.schedule_slot_create, name="slot_create"),
-    path("weekly-schedule/delete/<uuid:slot_id>/", views.schedule_slot_delete, name="slot_delete"),
     # -- المرحلة 2: نظام البديل --
     path("absences/", views.teacher_absence_list, name="absence_list"),
     path("absences/register/", views.register_teacher_absence, name="register_absence"),
