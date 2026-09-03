@@ -11,9 +11,14 @@ SchoolOS يستخدم استراتيجية ثنائية (two-tier) لاختبا�
 
 ---
 
-## Tier 1: Fast CI — على كل push
+## Tier 1: بوّابة الجودة — على كل PR وعلى main
 
-**الملف:** `.github/workflows/ci.yml` (job: `test`)
+**الملف:** `.github/workflows/quality-gate.yml` (job: `test-coverage`) + `security-scan.yml`
+
+> منذ 2026-09-03 أُزيل `ci.yml`: كان يشغّل ruff وbandit وpytest وmypy وpip-audit
+> مرّةً على `push` ومرّةً على `pull_request` لكلّ فرع، وكلُّها تجري أصلاً في
+> `quality-gate.yml` و`security-scan.yml` (السياقان المطلوبان في حماية `main`).
+> فحصا `makemigrations --check` و`manage.py check` انتقلا إلى بوّابة الجودة.
 
 **الأدوات:**
 - **pytest-xdist** (`-n auto`) — parallel execution على كل CPU cores المتوفرة
