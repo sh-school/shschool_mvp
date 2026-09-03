@@ -301,6 +301,35 @@
     }
   }
 
+  {% if view_type == 'teacher' or view_type == 'class' %}
+  /* جدولُ معلّمٍ أو شعبةٍ: ورقةٌ واحدةٌ مهما كان الحجم — A4 عموديّة أو A3
+     عرضيّة. الشاشةُ تُقاس بالبكسل، والورقُ بالملّيمتر: سبعةُ سطورٍ بارتفاعٍ
+     محسوبٍ من ارتفاع الورقة بعد الرأس والذيل، لا من الشاشة. وكانت الأسطرُ
+     بارتفاع الشاشة والهوامشُ مضاعفةً فيفيض السطرُ الأخير إلى ورقةٍ ثانية. */
+  @page { size: {% if paper == 'a3' %}A3 landscape{% else %}A4 portrait{% endif %}; margin: 8mm; }
+  @media print {
+    html, body { height: auto; }
+    .schedule-print { padding: 0; }
+    .schedule-header { margin-bottom: 3mm; }
+    .print-emblem { height: 12mm; margin-bottom: 1mm; }
+    .schedule-header .school-name { font-size: 15pt; margin: 1mm 0; }
+    .schedule-header .title { font-size: 12pt; }
+    .schedule-header .ministry, .schedule-header .year { font-size: 8pt; margin: 0.5mm 0; }
+    .schedule-grid { break-inside: avoid; page-break-inside: avoid; }
+    .schedule-grid tr { break-inside: avoid; page-break-inside: avoid; }
+    .schedule-grid th { padding: 1.5mm 1mm; font-size: 10pt; }
+    /* A4 عموديّة: 297 − 16 هامشاً − ~40 رأساً وذيلاً وترويسةً = 241mm لسبعة سطور. */
+    .schedule-grid td { height: 30mm; padding: 1mm; overflow: hidden; }
+    /* A3 عرضيّة: الارتفاعُ 297 أيضاً — فالسطورُ لا تُطال، والعرضُ وحده يتّسع. */
+    .paper-a3 .schedule-grid td { height: 29mm; }
+    .schedule-grid .period-cell { font-size: 12pt; }
+    .slot-subject { font-size: 9.5pt; line-height: 1.25; }
+    .slot-teacher, .slot-class { font-size: 8pt; }
+    .period-time { font-size: 7pt; }
+    .schedule-footer { margin-top: 2mm; padding-top: 1.5mm; font-size: 8pt; }
+  }
+  {% endif %}
+
   {% if view_type == 'all_teachers' %}
   /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
   @page { size: {% if paper == 'a4' %}A4{% else %}A3{% endif %} landscape; margin: 7mm; }
