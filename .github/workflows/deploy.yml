@@ -29,8 +29,9 @@ jobs:
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref:              ${{ github.sha }}
-          # ✅ v5.4: يتطابق مع اسم job "summary" في ci.yml (ملخص CI)
-          check-name:       "ملخص CI"
+          # يتطابق مع اسم job "gate-summary" في quality-gate.yml — وهو السياقُ
+          # المطلوب في حماية main؛ ci.yml أُزيل لأنّه كان تكراراً لهذه البوّابة.
+          check-name:       "ملخص بوابة الجودة"
           repo-token:       ${{ secrets.GITHUB_TOKEN }}
           wait-interval:    10
           allowed-conclusions: success

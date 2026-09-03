@@ -80,6 +80,13 @@ jobs:
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
+      # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
+      - name: التحقق من عدم وجود migrations غير مطبّقة
+        run: python manage.py makemigrations --check --noinput
+
+      - name: فحص إعدادات Django
+        run: python manage.py check --fail-level WARNING
+
       - name: "pytest + Coverage Gate"
         # بوّابة تغطية حقيقية: pytest.ini كان يحجب أعلام --cov في pyproject فلم
         # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 60% أرضية حالية (التغطية
