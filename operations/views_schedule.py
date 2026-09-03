@@ -830,7 +830,18 @@ def approve_schedule(request, generation_id):
         ]
         InAppNotification.objects.bulk_create(notifs)
 
-    messages.success(request, f"تم اعتماد الجدول وإشعار {len(notifs)} معلم")
+    # الجلساتُ المولَّدة لهذا الأسبوع تحمل الجدولَ القديم، والتوليدُ لا يعيد
+    # يوماً فيه جلسات. فالاعتمادُ يُصالحها: يُحذف ما لا يطابق ولا حضورَ عليه،
+    # ويُنشأ الناقص — وما مُسَّ بحضورٍ يُبقى.
+    sync = {"deleted": 0, "created": 0, "kept": 0}
+    if gen.academic_year == academic_year_for_school(school):
+        sync = ScheduleService.resync_current_week(school, gen.academic_year)
+
+    messages.success(
+        request,
+        f"تم اعتماد الجدول وإشعار {len(notifs)} معلم — جلساتُ الأسبوع: "
+        f"حُذف {sync['deleted']}، أُنشئ {sync['created']}، أُبقي {sync['kept']}",
+    )
     return redirect("smart_schedule")
 
 
