@@ -655,6 +655,7 @@ class ScheduleService:
                     start_time=slot.start_time,
                     end_time=slot.end_time,
                     status="scheduled",
+                    elective_group=slot.elective_group,
                 )
             )
 
@@ -707,60 +708,6 @@ class ScheduleService:
         from django.utils import timezone
 
         return ScheduleService.ensure_sessions_for_date(school, timezone.localdate())
-
-    @staticmethod
-    @transaction.atomic
-    def create_slot(
-        school: School,
-        teacher: CustomUser,
-        class_group_id,
-        subject_id,
-        day_of_week: int,
-        period_number: int,
-        start_time,
-        end_time,
-        academic_year: str | None = None,
-    ) -> ScheduleSlot:
-        """
-        إنشاء حصة جديدة في الجدول الأسبوعي.
-
-        Args:
-            school: كائن المدرسة
-            teacher: المعلم
-            class_group_id: PK الفصل الدراسي
-            subject_id: PK المادة (اختياري)
-            day_of_week: رقم اليوم (0=أحد … 4=خميس)
-            period_number: رقم الحصة
-            start_time: وقت البداية
-            end_time: وقت النهاية
-            academic_year: العام الدراسي
-
-        Returns:
-            ScheduleSlot: الحصة المنشأة
-
-        Raises:
-            IntegrityError: إذا كانت هناك تعارض في الجدول
-        """
-        academic_year = academic_year or academic_year_for_school(school)
-        slot = ScheduleSlot.objects.create(
-            school=school,
-            teacher=teacher,
-            class_group_id=class_group_id,
-            subject_id=subject_id or None,
-            day_of_week=day_of_week,
-            period_number=period_number,
-            start_time=start_time,
-            end_time=end_time,
-            academic_year=academic_year,
-        )
-        logger.info(
-            "حصة جديدة في الجدول: %s — معلم=%s يوم=%d حصة=%d",
-            slot.pk,
-            teacher.full_name,
-            day_of_week,
-            period_number,
-        )
-        return slot
 
     @staticmethod
     @transaction.atomic

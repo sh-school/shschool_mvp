@@ -137,22 +137,6 @@
   direction: ltr;
   text-align: right;
 }
-.slot-delete {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px; height: 16px;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-size: 10px;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0;
-  transition: opacity .15s;
-  cursor: pointer;
-}
-.slot-card:hover .slot-delete { opacity: 1; }
 
 /* Empty cell — dashed border on entire td */
 td:has(.slot-empty) {
@@ -261,7 +245,6 @@ td:has(.slot-empty) {
     </div>
     <div class="flex gap-2 flex-wrap">
       {% if request.user.is_admin %}
-      <a href="{% url 'slot_create' %}" class="btn-primary btn-sm">+ إضافة حصة</a>
       {% endif %}
       {# الشريطُ زرّان: «إضافة حصة» للمدير و«طباعة» — وروابطُ التبديل والتعويض لها شاشاتُها في القائمة الجانبيّة. #}
       {# والطباعةُ تمرّ بصفحة العرض لا بالورق مباشرةً. #}
@@ -337,13 +320,6 @@ td:has(.slot-empty) {
                 {% endif %}
                 {% if cell|length == 1 %}
                 <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
-                {% endif %}
-                {% if request.user.is_admin %}
-                <form method="post" action="{% url 'slot_delete' slot.id %}"
-                      data-confirm="حذف هذه الحصة؟">
-                  {% csrf_token %}
-                  <button type="submit" class="slot-delete" title="حذف">×</button>
-                </form>
                 {% endif %}
               </div>
               {% endfor %}
