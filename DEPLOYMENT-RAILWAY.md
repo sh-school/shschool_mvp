@@ -1,7 +1,7 @@
 # 🚀 نشر SchoolOS على Railway — دليل خطوة بخطوة
 
 > **وقت النشر المتوقع:** 30-45 دقيقة
-> **الدومين التجريبي:** `schoolos-mvp-production.up.railway.app` (يُنشأ تلقائياً)
+> **الدومين التجريبي:** `shschoolmvp-production.up.railway.app` (يُنشأ تلقائياً)
 
 ---
 
@@ -93,7 +93,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
    - Migrations
    - Collectstatic
 3. يُشغّل gunicorn
-4. يولّد domain: schoolos-mvp-production.up.railway.app
+4. يولّد domain: shschoolmvp-production.up.railway.app
 ```
 
 راقب Logs في Railway Dashboard → Deployments → View Logs
@@ -102,13 +102,13 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 ```bash
 # Health check
-curl https://schoolos-mvp-production.up.railway.app/health/
+curl https://shschoolmvp-production.up.railway.app/health/
 
 # Ready check
-curl https://schoolos-mvp-production.up.railway.app/ready/
+curl https://shschoolmvp-production.up.railway.app/ready/
 
 # Admin (بعد createsuperuser)
-https://schoolos-mvp-production.up.railway.app/admin/
+https://shschoolmvp-production.up.railway.app/admin/
 ```
 
 ---
@@ -143,7 +143,7 @@ https://schoolos-mvp-production.up.railway.app/admin/
 2. Click "Generate Domain" (للتجريبي) أو "Custom Domain"
 3. أدخل: schoolos.qa (مثال)
 4. أضف DNS record (CNAME) في مزوّد الدومين:
-   CNAME @  → schoolos-mvp-production.up.railway.app
+   CNAME @  → shschoolmvp-production.up.railway.app
 5. انتظر 5-60 دقيقة لـ DNS propagation
 6. Railway يُصدر SSL certificate تلقائياً (Let's Encrypt)
 ```
