@@ -19,19 +19,18 @@
 \set ON_ERROR_STOP on
 
 -- 1) الدور (idempotent) — غير superuser، غير bypassrls
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'shschool_app') THEN
-        EXECUTE format(
-            'CREATE ROLE shschool_app LOGIN PASSWORD %L '
-            'NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE',
-            :'app_password');
-    ELSE
-        EXECUTE format(
-            'ALTER ROLE shschool_app WITH LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS',
-            :'app_password');
-    END IF;
-END $$;
+-- ملاحظة: متغيّرات psql (:'app_password') لا تُستبدل داخل كتل $$ … $$،
+-- فكانت الكتلةُ السابقة تسقط بخطأ نحويّ. الحلّ: توليدُ الأمر بـ format ثمّ تنفيذه بـ \gexec.
+SELECT format(
+    'CREATE ROLE shschool_app LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE',
+    :'app_password')
+WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'shschool_app')
+\gexec
+
+SELECT format(
+    'ALTER ROLE shschool_app WITH LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS',
+    :'app_password')
+\gexec
 
 -- 2) الصلاحيات على المخطّط الحالي
 GRANT CONNECT ON DATABASE :"DBNAME" TO shschool_app;
