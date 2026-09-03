@@ -604,7 +604,9 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
 WEEK_SLOTS = len(DAYS) * LAST_PERIOD
 
 
-def sort_tasks(tasks: list[Task], blocked_slots: set | None = None) -> list[Task]:
+def sort_tasks(
+    tasks: list[Task], blocked_slots: set[tuple[str, int, int | None]] | None = None
+) -> list[Task]:
     """ترتيب المهام: الأصعب أولاً (Most Constrained First).
 
     والأصعبُ يُقاس أوّلاً بضيق خانات المعلّم لا بمادّته: معلّمٌ حُجبت عنه
