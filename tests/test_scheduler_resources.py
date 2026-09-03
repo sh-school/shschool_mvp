@@ -79,7 +79,7 @@ def test_the_tasks_know_which_resource_they_consume(school, gym):
     tasks = build_tasks(school, YEAR)
 
     assert all(len(t.resources) == 1 for t in tasks)
-    assert {capacity for _, capacity in tasks[0].resources} == {2}
+    assert {capacity for _, capacity, _same in tasks[0].resources} == {2}
 
 
 def test_a_subject_outside_the_resource_is_unconstrained(school, gym):
@@ -316,3 +316,66 @@ def test_the_labs_cap_three_computer_lessons_down_to_two(school):
     # والتكنولوجيا حصصٌ مفردةٌ لا مزدوجة، فالثانيةُ خاليةٌ لا تشغلها الأولى.
     assert all(t.span == 1 for t in tasks)
     assert check_resource_capacity(grid, 0, 2, lesson(groups[2]))
+
+
+# ── مرحلةٌ واحدةٌ في التوقيت ────────────────────────────────────────
+
+
+def _levels_per_cell(result):
+    cells = {}
+    for entry in result["grid"].all_entries():
+        for slot in entry["task"].slots(entry["period"]):
+            cells.setdefault((entry["day"], slot), set()).add(entry["task"].level_type)
+    return cells
+
+
+def test_a_same_level_resource_never_mixes_prep_and_secondary(school):
+    """ملعبان يتقاسمهما الإعداديّ والثانويّ — لا في التوقيت نفسه.
+
+    قرارُ الإدارة 2026-09-03: حصّتا بدنيّةٍ معاً من مرحلةٍ واحدة. السعةُ وحدها
+    تُجيز إعداديّاً مع ثانويّ؛ التجانسُ يمنعه.
+    """
+    pe = Subject.objects.create(school=school, name_ar="التربية البدنية", code="PE")
+    fields = SchedulingResource.objects.create(
+        school=school, name="الملاعب", capacity=2, same_level_only=True
+    )
+    fields.subjects.set([pe])
+    for index, (grade, level) in enumerate(
+        (("G7", "prep"), ("G8", "prep"), ("G10", "sec"), ("G11", "sec"))
+    ):
+        group = ClassGroupFactory(school=school, grade=grade, level_type=level, academic_year=YEAR)
+        assign(school, group, teacher(school, f"معلّم بدنيّة {index}"), pe, periods=3)
+
+    result = generate_schedule(school, YEAR)
+
+    assert result["errors"] == [], result["errors"]
+    cells = _levels_per_cell(result)
+    assert cells, "لم يُجدوَل شيء"
+    assert all(len(levels) == 1 for levels in cells.values()), f"توقيتٌ يخلط المرحلتين: {cells}"
+    load = Counter(
+        (entry["day"], slot)
+        for entry in result["grid"].all_entries()
+        for slot in entry["task"].slots(entry["period"])
+    )
+    assert max(load.values()) <= 2
+
+
+def test_without_the_flag_the_stages_may_share_the_period(school):
+    """والسعةُ وحدها لا تمنع الخلط — الرايةُ هي القرار."""
+    from operations.scheduler_constraints import check_resource_level_homogeneity
+
+    pe = Subject.objects.create(school=school, name_ar="التربية البدنية", code="PE")
+    fields = SchedulingResource.objects.create(school=school, name="الملاعب", capacity=2)
+    fields.subjects.set([pe])
+    prep = ClassGroupFactory(school=school, grade="G7", level_type="prep", academic_year=YEAR)
+    sec = ClassGroupFactory(school=school, grade="G10", level_type="sec", academic_year=YEAR)
+    assign(school, prep, teacher(school, "بدنيّة إعداديّ"), pe, periods=1)
+    assign(school, sec, teacher(school, "بدنيّة ثانويّ"), pe, periods=1)
+
+    from operations.scheduler import ScheduleGrid
+
+    t_prep, t_sec = sorted(build_tasks(school, YEAR), key=lambda t: t.level_type)
+    grid = ScheduleGrid()
+    grid.place(0, 1, t_prep)
+
+    assert check_resource_level_homogeneity(grid, 0, 1, t_sec) is True

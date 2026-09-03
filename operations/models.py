@@ -507,6 +507,12 @@ class SchedulingResource(models.Model):
         Subject, related_name="scheduling_resources", verbose_name="المواد التي تستعمله"
     )
     note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
+    #: الملعبانِ يتقاسمهما الإعداديّ والثانويّ، لكن لا في التوقيت نفسه: حصّتا
+    #: بدنيّةٍ معاً تكونان من مرحلةٍ واحدة (قرار الإدارة 2026-09-03). فالسعةُ
+    #: وحدها لا تكفي — يُضاف تجانسُ المرحلة على من يشغل المورد معاً.
+    same_level_only = models.BooleanField(
+        default=False, verbose_name="مرحلةٌ واحدةٌ في التوقيت (لا يجتمع إعداديّ وثانويّ)"
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
