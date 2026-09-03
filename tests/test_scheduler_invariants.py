@@ -517,6 +517,38 @@ def test_requiring_a_lab_reserves_no_room_because_rooms_are_not_modelled():
     assert is_slot_valid(grid, 0, 1, lab), "ولا قيدَ يمنعها من أيّ خانة"
 
 
+def test_the_teacher_with_the_fewest_free_slots_is_scheduled_first():
+    """معلّمٌ حُجبت عنه إحدى وعشرون خانةً ونصابُه اثنتا عشرةَ حصّةً: خانتان
+    فائضتان في الأسبوع. يُجدوَل قبل زميلٍ حرٍّ مهما كثر معلّمو مادّته.
+
+    وكان الترتيبُ يبدأ بعدد معلّمي المادّة، فتأتي مهامُّ المقيَّد بعد أن تأخذ
+    شُعبُه خاناتِه القليلةَ لموادَّ أخرى — وتبقى له حصّةٌ بلا موضع.
+    """
+    from operations.scheduler import sort_tasks
+
+    # المادّةُ الواحدةُ لمعلّمَين — فبمقياس «معلّم وحيد أوّلاً» هما سواء.
+    tight = [make_task(teacher="t-tight", klass=f"c{i}", subject="s-math") for i in range(12)]
+    free = [make_task(teacher="t-free", klass=f"d{i}", subject="s-math") for i in range(12)]
+    blocked = {("t-tight", day, period) for day in range(5) for period in (1, 3, 5, 7)} | {
+        ("t-tight", 4, 6)
+    }
+
+    ordered = sort_tasks(free + tight, blocked)
+
+    assert [t.teacher_id for t in ordered[:12]] == ["t-tight"] * 12
+
+
+def test_without_exemptions_the_old_order_still_holds():
+    """وبلا حجبٍ يبقى الترتيبُ كما كان: المعلّمُ الوحيدُ لمادّته أوّلاً."""
+    from operations.scheduler import sort_tasks
+
+    shared = make_task(teacher="t-a", subject="s-shared")
+    also_shared = make_task(teacher="t-b", subject="s-shared", klass="c-2")
+    sole = make_task(teacher="t-c", subject="s-sole")
+
+    assert sort_tasks([shared, also_shared, sole])[0] is sole
+
+
 def test_a_double_period_is_preferred_not_required():
     """`prefers_double` تفضيلٌ لا اشتراط — ولا قيدَ صلبٌ يفرض التجاور.
 
