@@ -86,6 +86,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    # الصورةُ تحمل HEALTHCHECK للويب (wget على /health/) فيرثه العامل ويُعلَن
+    # «unhealthy» أبداً رغم أنّه يعمل. فحصُ العامل الصحيح: يُجيب على ping عبر Redis.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A shschool inspect ping -d celery@$$(hostname) --timeout 10 | grep -q pong || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 40s
 
 volumes:
   shschool_pgdata18:
