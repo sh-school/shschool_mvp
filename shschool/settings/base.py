@@ -669,3 +669,7 @@ def _validate_push_budget():
 
 
 _validate_push_budget()
+
+# ── الجدولة الذكيّة ──
+#: ميزانيةُ زمن التوليد بالثواني: محاولاتٌ متعاقبةٌ حتّى تنفد (3 على الأقلّ، 20 على الأكثر).
+SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS", "60"))
