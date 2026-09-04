@@ -248,6 +248,9 @@ def check_last_period_share(grid: ScheduleGrid, period: int, task: Task) -> bool
     return True
 
 
+THURSDAY = 4
+
+
 def check_subject_distribution(
     grid: ScheduleGrid, day: int, task: Task, allow_dense: bool = False
 ) -> bool:
@@ -269,6 +272,11 @@ def check_subject_distribution(
     #: بحصّةٍ زائدةٍ عن القسمة — مادّةٌ مرّتين في يومٍ ولا شيءَ منها في آخر.
     #: وهي أغلى من رخصة التلاصق، فلا تُصرَف إلّا بعد أن تعجز تلك.
     cap = task.per_day_cap + (1 if allow_dense else 0)
+    # HC15 (قرار الإدارة 2026-09-04): يومُ الحصّتين للمادّة أيُّ يومٍ عدا الخميس —
+    # فالخميسُ أقصرُ الأيّام وآخرُها، ولا تُكدَّس فيه مادّة. والمزدوجةُ المطلوبةُ
+    # (كتلةٌ بحكم المادّة) خارجُ هذا، وكذا الرخصةُ الأخيرة لا تفتحه.
+    if day == THURSDAY and not getattr(task, "prefers_double", False):
+        cap = 1
     today = grid.subject_on_day(task.class_id, task.subject_id, day)
     if today + 1 > cap:
         return False

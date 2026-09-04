@@ -538,6 +538,21 @@ class ScheduleLab:
             },
         )
 
+    def doubles_on_thursday(self) -> dict:
+        """(شعبة، مادّة) لها حصّتان أو أكثر يومَ الخميس — والمزدوجةُ المطلوبةُ مستثناة (HC15)."""
+        counts: dict[tuple[str, str], int] = defaultdict(int)
+        doubles: dict[tuple[str, str], bool] = {}
+        names: dict[tuple[str, str], str] = {}
+        for s in self.slots:
+            if s.day != 4:
+                continue
+            key = (s.class_id, s.subject_id)
+            counts[key] += 1
+            doubles[key] = s.requires_double
+            names[key] = f"{s.class_name} — {s.subject_code or s.subject_id[:6]}"
+        hits = [names[k] for k, n in counts.items() if n >= 2 and not doubles[k]]
+        return {"value": len(hits), "detail": {h: 2 for h in hits[:10]}}
+
     def pedagogy_timing(self) -> tuple[dict, dict]:
         heavy = [s for s in self.slots if s.pedagogy == "heavy"]
         activity = [s for s in self.slots if s.pedagogy == "activity"]
@@ -629,6 +644,7 @@ class ScheduleLab:
             "fairness.preference_satisfaction": self.preference_satisfaction(),
             "subject.pattern_match": pattern,
             "subject.same_period_max": same_period,
+            "subject.double_on_thursday": self.doubles_on_thursday(),
             "subject.heavy_morning": heavy_am,
             "subject.activity_afternoon": activity_pm,
             "class.heavy_streak_days": streaks,
@@ -662,6 +678,7 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "fairness.preference_satisfaction": ("تلبية التفضيلات", "%", "high"),
     "subject.pattern_match": ("توزيع المادّة على الأسبوع", "% مطابقة", "high"),
     "subject.same_period_max": ("تكرار الحصّة نفسها للمادّة (متوسّط الأقصى)", "عدد", "low"),
+    "subject.double_on_thursday": ("موادّ لها حصّتان يوم الخميس", "عدد", "zero"),
     "subject.heavy_morning": ("الموادّ الثقيلة في النصف الأوّل", "%", "high"),
     "subject.activity_afternoon": ("موادّ النشاط في النصف الثاني", "%", "high"),
     "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "عدد", "low"),

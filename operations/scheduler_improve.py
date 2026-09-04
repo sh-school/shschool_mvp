@@ -216,9 +216,43 @@ class Improver:
                         return True
         return False
 
+    def _thursday_pairs(self) -> list:
+        """حصصٌ ثانيةٌ لمادّةٍ في شعبةٍ يومَ الخميس — تُنقل إلى يومٍ آخر (HC15)."""
+        seen: dict[tuple[str, str], list] = {}
+        for task in self.tasks:
+            home = self.grid.home_of(task)
+            if home is None or home[0] != 4 or getattr(task, "prefers_double", False):
+                continue
+            seen.setdefault((task.class_id, task.subject_id), []).append(task)
+        return [group[1] for group in seen.values() if len(group) >= 2]
+
+    def _move_off_thursday(self, task) -> bool:
+        for day in (0, 1, 2, 3):
+            for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
+                if time.time() >= self.deadline:
+                    return False
+                if self.grid.get_task_at(task.class_id, day, period) is not None:
+                    continue
+                self.grid.begin()
+                delta = self._try_move(task, day, period)
+                # الخروجُ من الخميس مكسبٌ بذاته: يكفي ألّا تسوءَ كلفةُ الأيّام.
+                if delta is not None and delta >= -1e-9:
+                    new_score, _ = self._lab(self.grid, self.lab_ctx)
+                    self.evaluations += 1
+                    if new_score + 1e-9 >= self.score:
+                        self.grid.commit()
+                        self.score, self.moves = new_score, self.moves + 1
+                        return True
+                self.grid.rollback()
+        return False
+
     def run(self) -> dict:
         stale = 0
         rounds = 0
+        for task in self._thursday_pairs():
+            if time.time() >= self.deadline:
+                break
+            self._move_off_thursday(task)
         while time.time() < self.deadline and stale < STALE_ROUNDS + 1:
             rounds += 1
             improved = False
