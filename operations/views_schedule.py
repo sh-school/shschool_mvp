@@ -614,16 +614,22 @@ def smart_schedule_view(request):
     # التوليدُ الجاري — الصفحةُ تُخفي الزرَّ وتستطلع الحالةَ ما دام قائماً.
     # والقتلُ يسبق القراءة: صفٌّ متقادمٌ يُوسَم فاشلاً قبل أن يُعرض «جارياً».
     pending_generation = _reap_stale_generations(school, year)
+    from django.db.models import Count
+
+    # حصصُ التوليد تُعَدّ من صفوفها لا من رقمٍ خُزّن يومَ التوليد: الرقمُ المخزَّن
+    # كان يَعُدّ خانات الشبكة (839) والتوزيعاتُ تُعَدّ بالحصص (870) — فالتاريخُ
+    # كلُّه كان يقول «96.4%» عن جداولَ كاملة.
     generations = list(
-        ScheduleGeneration.objects.filter(school=school, academic_year=year).select_related(
-            "generated_by"
-        )[:5]
+        ScheduleGeneration.objects.filter(school=school, academic_year=year)
+        .select_related("generated_by")
+        .annotate(slot_rows=Count("slots"))[:5]
     )
     total_weekly = sum(a.weekly_periods for a in assignments)
     # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
     # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
     for g in generations:
-        ratio = 100 * g.total_slots_created / total_weekly if total_weekly else 0.0
+        g.placed = g.slot_rows or g.total_slots_created
+        ratio = 100 * g.placed / total_weekly if total_weekly else 0.0
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
 

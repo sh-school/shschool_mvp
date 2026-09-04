@@ -656,10 +656,15 @@ def calculate_quality_score(
     }
     total_penalty = 0.0
     total_slots = 0
+    # ما وُضع يُعَدّ بحصص التوزيعات لا بخانات الشبكة: الخانةُ المنقسمةُ بين
+    # مادّتين اختياريّتين حصّتان في التوزيعات، والمزدوجةُ خانتان. وكان العدُّ
+    # بالخانات فيقول «839/870» عن جدولٍ كامل.
+    placed_periods = 0
 
     for entry in grid.all_entries():
         total_slots += 1
         task = entry["task"]
+        placed_periods += task.span * len(task.members)
         day = entry["day"]
         period = entry["period"]
         p = evaluate_soft_constraints(grid, day, period, task, preferences)
@@ -676,12 +681,12 @@ def calculate_quality_score(
     else:
         score = max(0, 100 * (1 - total_penalty / max_possible))
 
-    required = total_required if total_required is not None else total_slots
-    placed_ratio = round(100 * total_slots / required, 1) if required else 100.0
+    required = total_required if total_required is not None else placed_periods
+    placed_ratio = round(100 * placed_periods / required, 1) if required else 100.0
 
     return {
         "score": round(score, 1),
-        "total_slots": total_slots,
+        "total_slots": placed_periods,
         "total_required": required,
         "placed_ratio": placed_ratio,
         "total_penalty": round(total_penalty, 1),
