@@ -52,7 +52,13 @@ ADJACENCY_ALLOWED_WEEKLY = 6
 #: ثمانِ محاولات. والعددُ مقيسٌ لا مُخمَّن: بثلاثٍ بقيت مزدوجةُ التكنولوجيا
 #: في الثامن/4 بلا موضعٍ فاحتاجت رخصةً غالية، وبثمانٍ ظهرت بذرةٌ تُغلق الجدولَ
 #: كلَّه بالتلاصق وحدَه — بلا كثافةٍ ولا سابعةٍ ثالثة. فالبحثُ أرخصُ من التنازل.
-RESTARTS = 8
+#: محاولاتُ التوليد: بذورٌ متعاقبةٌ داخل ميزانيةٍ زمنيّة — لا عددٌ ثابت.
+#: أقلُّها ثلاثٌ (للمقارنة)، وأكثرُها عشرون، وتتوقّف حين لا يتحسّن الأفضلُ في
+#: ثلاثٍ متتالية أو تنفد الميزانية (`SCHEDULE_TIME_BUDGET_SECONDS`، 60 افتراضاً).
+#: فالجدولُ الكاملُ ليس بالضرورة الأفضل — وكان البحثُ يقف عند أوّل كامل.
+MIN_ATTEMPTS = 3
+MAX_ATTEMPTS = 20
+PATIENCE = 3
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
 #: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
@@ -1060,6 +1066,18 @@ def bell_lookup(school: School):
     return lookup
 
 
+def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, complete: bool) -> bool:
+    """متى يقف البحثُ عن محاولةٍ أفضل.
+
+    بعد الحدّ الأدنى: حين تنفد الميزانيةُ أو يُبلغ الأقصى، أو يثبت الأفضلُ
+    ثلاثَ محاولاتٍ متتالية وهو تامّ. وما دام في الأفضل متعذّرٌ لا يُقطع البحثُ
+    على الصبر وحده — بل على الميزانية.
+    """
+    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= budget):
+        return True
+    return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
+
+
 def _day_coverage(tasks: list[Task], blocked_slots: set) -> dict:
     """{معلّم: (نصابُه، أيّامُه المتاحة)} — واليومُ المفرَّغُ كاملاً ليس متاحاً.
 
@@ -1223,7 +1241,18 @@ def generate_schedule(
     best = None
     band_times = load_band_times(school)
     coverage = _day_coverage(tasks, blocked_slots)
-    for attempt in range(RESTARTS):
+    from django.conf import settings as _settings
+
+    from operations.schedule_lab import grid_lab_score, load_context
+
+    budget = float(getattr(_settings, "SCHEDULE_TIME_BUDGET_SECONDS", 60))
+    lab_ctx = load_context(school, academic_year)
+    attempt_log: list[dict] = []
+    since_improvement = 0
+    attempt = -1
+    while True:
+        attempt += 1
+        attempt_started = time.time()
         rng = random.Random(attempt)
         grid = ScheduleGrid(band_times=band_times, coverage=coverage)
         leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
@@ -1282,14 +1311,33 @@ def generate_schedule(
         uncovered = len(
             _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
         )
-        cost = (len(leftovers), uncovered, densed, relaxed)
-        if best is None or cost < best[0]:
-            best = (cost, grid, leftovers, repaired, relaxed, densed)
-        # ويتوقّف البحثُ عند جدولٍ تامٍّ يغطّي الأيّامَ ولم يُصرَف فيه ملاذٌ أخير.
-        if best[0][0] == 0 and best[0][1] == 0 and best[0][2] == 0:
+        # ثمّ درجةُ المختبر نفسِه الذي يقيس الجدولَ الحيّ — لا عددُ الرخص وحدَه:
+        # محاولتان تامّتان بلا كثافةٍ تتفاضلان بما يراه النائبُ في المختبر.
+        lab_score, _metrics = grid_lab_score(grid, lab_ctx)
+        cost = (len(leftovers), uncovered, densed, -lab_score)
+        improved = best is None or cost < best[0]
+        if improved:
+            best = (cost, grid, leftovers, repaired, relaxed, densed, attempt)
+            since_improvement = 0
+        else:
+            since_improvement += 1
+        attempt_log.append(
+            {
+                "seed": attempt,
+                "leftovers": len(leftovers),
+                "uncovered": uncovered,
+                "densed": densed,
+                "relaxed": relaxed,
+                "score": lab_score,
+                "ms": int((time.time() - attempt_started) * 1000),
+            }
+        )
+        if _search_exhausted(
+            attempt + 1, time.time() - start_time, budget, since_improvement, best[0][0] == 0
+        ):
             break
 
-    _, grid, leftovers, repaired, relaxed, densed = best
+    _, grid, leftovers, repaired, relaxed, densed, chosen = best
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
@@ -1373,6 +1421,9 @@ def generate_schedule(
                         # كم محاولةً من الثماني أُنفقت — فالزمنُ يُقرأ بها لا بالثواني
                         # وحدَها: محاولتان في ستّين ثانيةً غيرُ ثمانٍ في اثنتي عشرةَ دقيقة.
                         "attempts": attempt + 1,
+                        "chosen_attempt": chosen,
+                        "budget_seconds": budget,
+                        "attempt_log": attempt_log,
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,

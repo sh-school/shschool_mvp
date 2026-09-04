@@ -73,6 +73,8 @@ class Context:
     bells: dict = field(default_factory=dict)
     #: السقفُ العامُّ للتتابع حين لا سقفَ شخصيّ.
     general_run_cap: int = 1
+    #: مادّة ← طبيعتُها — لقياس الشبكة في الذاكرة حيث لا صفوفَ من القاعدة.
+    subject_pedagogy: dict = field(default_factory=dict)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -144,6 +146,12 @@ def load_context(school, academic_year) -> Context:
             res.capacity,
             {str(s.id) for s in res.subjects.all()},
         )
+    from operations.models import Subject
+
+    ctx.subject_pedagogy = {
+        str(sid): pedagogy or "regular"
+        for sid, pedagogy in Subject.objects.filter(school=school).values_list("id", "pedagogy")
+    }
     table = load_band_times(school)
     for (band, day_type), periods in table.items():
         for period, (start, end) in periods.items():
@@ -763,3 +771,48 @@ def grouped_rows(current: dict, baseline: dict | None) -> list[dict]:
         for code, label in SECTIONS.items()
         if groups.get(code)
     ]
+
+
+# ══════════════════════════════════════════════════════════════════
+# قياسُ شبكةٍ في الذاكرة — لمفاضلة محاولات التوليد قبل أن تُكتب
+# ══════════════════════════════════════════════════════════════════
+
+
+def slots_from_grid(grid, ctx: Context) -> list[Slot]:
+    """حصصُ الشبكة صفوفاً كصفوف القاعدة — الحصّةُ المزدوجةُ صفّان، والمنقسمةُ صفٌّ لكلّ معلّم."""
+    out = []
+    for entry in grid.all_entries():
+        task, day, period = entry["task"], entry["day"], entry["period"]
+        for slot in task.slots(period):
+            for member in task.members:
+                out.append(
+                    Slot(
+                        teacher_id=member.teacher_id,
+                        teacher_name=member.teacher_name,
+                        class_id=task.class_id,
+                        class_name=task.class_name,
+                        subject_id=member.subject_id,
+                        subject_code=member.subject_code,
+                        pedagogy=ctx.subject_pedagogy.get(member.subject_id, "regular"),
+                        requires_double=bool(getattr(task, "prefers_double", False)),
+                        day=day,
+                        period=slot,
+                        band_id=getattr(task, "band_id", "") or "",
+                        elective_group=member.subject_name
+                        if getattr(task, "is_split", False)
+                        else "",
+                    )
+                )
+    return out
+
+
+def overall_score(metrics: dict) -> float:
+    """درجةٌ واحدةٌ من 100: متوسّطُ درجات المجموعات المتاحة."""
+    scores = [v for v in section_scores(metrics).values() if v is not None]
+    return round(mean(scores), 2) if scores else 0.0
+
+
+def grid_lab_score(grid, ctx: Context) -> tuple[float, dict]:
+    """(الدرجةُ الكلّية، المؤشرات) لشبكةٍ في الذاكرة — بالمختبر نفسِه الذي يقيس الجدولَ الحيّ."""
+    metrics = ScheduleLab(slots_from_grid(grid, ctx), ctx).compute()
+    return overall_score(metrics), metrics
