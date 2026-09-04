@@ -1015,27 +1015,52 @@ def add_exemption(request):
         return _safe_schedule_settings_redirect(request, year)
 
     data = form.cleaned_data
-    teacher = data["teacher"]
+    teachers, days, periods = data["teacher"], data["day_of_week"], data["period_number"]
 
-    # ✅ v5.4: ScheduleService.create_exemption — atomic + logging
+    # معلّمون × أيّام × حصص في معاملةٍ واحدة: إمّا الكلُّ وإمّا لا شيء. والمكرَّرُ
+    # (المعلّمُ نفسُه، اليومُ نفسُه، الحصّةُ نفسُها) يُتخطّى ويُعَدّ — فتفريغُ
+    # «كلّ المنسّقين» بعد شهرٍ يضيف من استجدّ منهم ولا يكرّر القدماء.
+    created, skipped = 0, 0
     try:
-        ScheduleService.create_exemption(
-            school=school,
-            teacher=teacher,
-            academic_year=year,
-            exemption_type=data["exemption_type"],
-            day_of_week=data["day_of_week"],
-            period_number=data["period_number"],
-            reason=data["reason"],
-            created_by=request.user,
-            source=data["source"],
-            source_reference=data["source_reference"],
-        )
+        with transaction.atomic():
+            for teacher in teachers:
+                for day in days:
+                    for period in periods:
+                        exists = TeacherExemption.objects.filter(
+                            school=school,
+                            teacher=teacher,
+                            academic_year=year,
+                            day_of_week=day,
+                            period_number=period,
+                            is_active=True,
+                        ).exists()
+                        if exists:
+                            skipped += 1
+                            continue
+                        ScheduleService.create_exemption(
+                            school=school,
+                            teacher=teacher,
+                            academic_year=year,
+                            exemption_type=data["exemption_type"],
+                            day_of_week=day,
+                            period_number=period,
+                            reason=data["reason"],
+                            created_by=request.user,
+                            source=data["source"],
+                        )
+                        created += 1
     except DjangoValidationError as exc:
         # تفريغُ يومٍ كاملٍ قرارٌ إداريّ — ورفضُه يُقال، ولا يصير 500.
         messages.error(request, "؛ ".join(exc.messages))
+        return _safe_schedule_settings_redirect(request, year)
+
+    who = teachers[0].full_name if len(teachers) == 1 else f"{len(teachers)} معلّمين"
+    when = "يوم واحد" if len(days) == 1 else f"{len(days)} أيّام"
+    note = f" — و{skipped} مكرَّرٌ تُخطّي" if skipped else ""
+    if created:
+        messages.success(request, f"تم تفريغ {who} في {when}: {created} تفريغاً{note}")
     else:
-        messages.success(request, f"تم تفريغ {teacher.full_name}")
+        messages.info(request, f"لا جديد: التفريغاتُ المطلوبة ({skipped}) مسجَّلةٌ سلفاً")
     return _safe_schedule_settings_redirect(request, year)
 
 

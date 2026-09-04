@@ -64,7 +64,6 @@ def exempt(school, teacher, by, *, day=SUNDAY, kind="full_day", period=None, **k
         period_number=period,
         reason=kw.pop("reason", "دورةٌ خارج المدرسة"),
         source=kw.pop("source", "ministry"),
-        source_reference=kw.pop("source_reference", "تعميم التدريب 19"),
         created_by=by,
         is_active=True,
     )
@@ -139,49 +138,11 @@ def test_a_reduction_still_comes_from_its_own_decision(school, coordinator, targ
 # ── مصدرُ قرار التفريغ ──────────────────────────────────────────────
 
 
-def test_an_exemption_without_a_reference_is_refused(school, coordinator, target_teacher):
-    """تفريغُ يومٍ كاملٍ قرارٌ أثقلُ من مؤهّل — فلا يُقبل بلا مرجع."""
-    from django.core.exceptions import ValidationError
-
-    with pytest.raises(ValidationError):
-        exempt(school, target_teacher, coordinator, source_reference="")
-
-
 def test_a_specific_period_exemption_needs_its_period(school, coordinator, target_teacher):
     from django.core.exceptions import ValidationError
 
     with pytest.raises(ValidationError):
         exempt(school, target_teacher, coordinator, kind="specific_period", period=None)
-
-
-def test_the_settings_screen_cannot_bypass_the_reference_rule(client_as, school, target_teacher):
-    """بابانِ لحقيقةٍ واحدةٍ أسوأُ من بابٍ مفتوح.
-
-    فـ`objects.create()` لا يُشغّل `clean()`، ولولا `full_clean()` في الخدمة
-    لصار في النظام مسارٌ يشترط المرجعَ وشاشةٌ تقبل بلا مرجع.
-    """
-    from django.urls import reverse
-
-    from operations.models import TeacherExemption
-
-    principal = actor(school, "principal", "مدير المدرسة")
-    response = client_as(principal).post(
-        reverse("add_exemption"),
-        {
-            "year": YEAR,
-            "teacher": str(target_teacher.pk),
-            "exemption_type": "full_day",
-            "day_of_week": SUNDAY,
-            "reason": "دورةٌ خارج المدرسة",
-            "source": "ministry",
-            "source_reference": "",
-        },
-        follow=True,
-    )
-
-    assert response.status_code == 200, "رفضٌ مفهومٌ لا 500"
-    assert TeacherExemption.objects.count() == 0
-    assert "مرجعٍ" in response.content.decode()
 
 
 def test_the_settings_screen_accepts_a_documented_exemption(client_as, school, target_teacher):
@@ -199,17 +160,12 @@ def test_the_settings_screen_accepts_a_documented_exemption(client_as, school, t
             "day_of_week": SUNDAY,
             "reason": "دورةٌ خارج المدرسة",
             "source": "ministry",
-            "source_reference": "تعميم التدريب 19",
         },
         follow=True,
     )
 
     row = TeacherExemption.objects.get()
-    assert (row.day_of_week, row.source, row.source_reference) == (
-        SUNDAY,
-        "ministry",
-        "تعميم التدريب 19",
-    )
+    assert (row.day_of_week, row.source) == (SUNDAY, "ministry")
 
 
 # ── المقابلةُ الجديدة: هل تسع الأيّامُ الهدف؟ ────────────────────────

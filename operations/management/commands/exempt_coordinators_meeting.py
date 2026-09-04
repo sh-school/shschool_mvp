@@ -26,7 +26,6 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--school", default="SHH")
         parser.add_argument("--year", default="")
-        parser.add_argument("--reference", default="تأكيد إدارة المدرسة")
         parser.add_argument("--undo", action="store_true", help="إلغاءُ التفريغ")
         parser.add_argument("--dry-run", action="store_true")
 
@@ -84,7 +83,6 @@ class Command(BaseCommand):
                 period_number=FIRST_PERIOD,
                 reason=REASON,
                 source="school",
-                source_reference=opts["reference"],
                 is_active=True,
             )
             row.full_clean(exclude=["created_by"])
