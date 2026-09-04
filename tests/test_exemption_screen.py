@@ -124,9 +124,9 @@ def test_the_period_field_hides_by_attribute_not_by_inline_style():
     assert "display:none" not in field
 
     js = pathlib.Path("static/js/actions.js").read_text(encoding="utf-8")
-    assert "DOMContentLoaded" in js.split('on("change", "data-show-when"')[1].split("/* ──")[0], (
-        "والحالةُ تُقيَّم عند التحميل — المتصفّحُ يعيد قيمةَ القائمة بلا حدث"
-    )
+    assert (
+        "DOMContentLoaded" in js.split('on("change", "data-show-when"')[1].split("/* ──")[0]
+    ), "والحالةُ تُقيَّم عند التحميل — المتصفّحُ يعيد قيمةَ القائمة بلا حدث"
 
 
 # ── أيّامٌ عدّةٌ بطلبٍ واحد، والمنسّقون مجموعةً ──────────────────────
