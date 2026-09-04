@@ -56,6 +56,9 @@ WEIGHTS = {
     "gap": 8,
     "subject_spread": 6,
     "daily_load": 5,
+    #: يومٌ فارغٌ للمعلّم يُملأ قبل أن يُثقَّل يومٌ عامر، وحصصُ اليوم لا تتجاوز
+    #: حصّةَ القسمة (النصاب ÷ الأيّام) — «بنسبٍ متقاربة على الخمسة» (2026-09-04).
+    "day_balance": 6,
     "core_early": 3,
     "pe_after_break": 2,
     "double_bonus": -5,
@@ -135,6 +138,39 @@ def check_band_transition(grid: ScheduleGrid, day: int, period: int, task: Task)
                 theirs = grid.interval(other.band_id, day, other_p)
                 if theirs and (mine[1] == theirs[0] or theirs[1] == mine[0]):
                     return False
+    return True
+
+
+def check_day_coverage(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_dense: bool = False
+) -> bool:
+    """HC14: لا يومَ فارغاً لمعلّمٍ نصابُه يبلغ أيّامَه — إلّا بتفريغٍ من الإعدادات.
+
+    يُحكَم بالاحتياط لا بالنتيجة: قبل وضع الحصّة يُعَدّ ما سيبقى للمعلّم
+    بعدها، وما بقي من أيّامه فارغاً. فإن كان الباقي لا يكفي لتغطية الفارغ
+    فالخانةُ ممنوعةٌ وإن كانت صحيحةً في ذاتها — لأنّها تستهلك حصّةً كان
+    يومٌ فارغٌ أولى بها. ومن نصابُه دون أيّامه (منسّقٌ بأربع حصص) مستثنى.
+
+    واليومُ المفرَّغُ كاملاً من الإعدادات ليس من أيّامه، فلا يُطلب ملؤه.
+
+    ويتنازل القيدُ في جولة الملاذ الأخير وحدَها (`allow_dense`): حصّةٌ بلا
+    موضعٍ أسوأُ من يومٍ فارغ — وحينها يُقال اليومُ الفارغُ باسم صاحبه في
+    سجلّ التوليد لا يُخفى.
+    """
+    if not grid.coverage or allow_dense:
+        return True
+    for member in task.members:
+        info = grid.coverage.get(member.teacher_id)
+        if info is None:
+            continue
+        placements, _periods, days = info
+        if placements < len(days) or day not in days:
+            continue
+        empty = grid.teacher_empty_days(member.teacher_id, days)
+        remaining = placements - grid.teacher_placed(member.teacher_id) - 1
+        empties_after = len(empty) - (1 if day in empty else 0)
+        if remaining < empties_after:
+            return False
     return True
 
 
@@ -487,6 +523,8 @@ def is_slot_valid(
         return False
     if not check_band_transition(grid, day, period, task):
         return False
+    if not check_day_coverage(grid, day, period, task, allow_dense):
+        return False
     if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False
     if not check_subject_distribution(grid, day, task, allow_dense):
@@ -531,6 +569,24 @@ def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: 
             if other is not None and other.subject_id == task.subject_id:
                 return True
     return False
+
+
+def _unbalances_the_week(
+    grid: ScheduleGrid, day: int, period: int, task: Task, teacher_today: int
+) -> bool:
+    """SC13: أيُثقَّل يومٌ عامرٌ ويومٌ آخرُ فارغ، أو يُتجاوَز نصيبُ اليوم من القسمة؟"""
+    info = grid.coverage.get(task.teacher_id) if grid.coverage else None
+    if not info:
+        return False
+    _placements, load, days = info
+    today = teacher_today
+    if grid.teacher_task_at(task.teacher_id, day, period) is task:
+        today -= 1
+    empty_elsewhere = any(
+        d != day and grid.teacher_periods_on_day(task.teacher_id, d) == 0 for d in days
+    )
+    fair_share = -(-load // max(1, len(days)))
+    return (today > 0 and empty_elsewhere) or today >= fair_share
 
 
 def evaluate_soft_constraints(
@@ -595,6 +651,13 @@ def evaluate_soft_constraints(
         max_daily = preferences[task.teacher_id].get("max_daily", 5)
     penalty.add("daily_load", WEIGHTS["daily_load"], teacher_today >= max_daily)
 
+    # ── SC13: بنسبٍ متقاربة على الأيّام — يومٌ فارغٌ أوّلاً، ولا يومَ فوق حصّة القسمة ──
+    penalty.add(
+        "day_balance",
+        WEIGHTS["day_balance"],
+        _unbalances_the_week(grid, day, period, task, teacher_today),
+    )
+
     # ── SC9: سابعةٌ واحدةٌ للمعلّم ما أمكن ──
     if period == LAST_PERIOD:
         # العقوبةُ تتصاعد: من عنده ثلاثُ سوابعَ يُثقَّل أكثرَ ممّن عنده واحدة،
@@ -650,6 +713,7 @@ def calculate_quality_score(
         "gap": 0,
         "subject_spread": 0,
         "daily_load": 0,
+        "day_balance": 0,
         "core_early": 0,
         "pe_after_break": 0,
         "double_bonus": 0,
