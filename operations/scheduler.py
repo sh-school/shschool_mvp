@@ -1339,6 +1339,17 @@ def generate_schedule(
 
     _, grid, leftovers, repaired, relaxed, densed, chosen = best
 
+    # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
+    # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
+    improvement: dict = {}
+    if not leftovers:
+        from .scheduler_improve import improve
+
+        deadline = max(start_time + budget, time.time() + budget * 0.5)
+        improvement = improve(
+            grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
+        )
+
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
     # ومن بقيت له حصّةٌ متعذّرةٌ لا يُقال عنه «يومٌ فارغ» — فالفراغُ أثرُها.
@@ -1424,6 +1435,7 @@ def generate_schedule(
                         "chosen_attempt": chosen,
                         "budget_seconds": budget,
                         "attempt_log": attempt_log,
+                        "improvement": improvement,
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,
