@@ -198,6 +198,16 @@
   /* ── A3 Landscape Adjustments ── */
   .paper-a3 .schedule-grid { font-size: 11px; }
   .paper-a3 .schedule-grid td { padding: 4px 3px; height: 48px; }
+  /* على الشاشة الورقةُ بعرض الإطار كلِّه: الخطُّ يكبر مع العرض ولا يتجاوز
+     سقفاً — فجدولُ المدرسة الكامل على 2560px كان خطُّه 11px. والطباعةُ
+     على قياسها المحسوب لا تُمَسّ. */
+  @media screen {
+    .schedule-print { padding: 12px 14px; }
+    .schedule-grid, .paper-a3 .schedule-grid { font-size: clamp(11px, 0.6vw, 15px); }
+    .slot-subject { font-size: clamp(11px, 0.6vw, 15px); }
+    .slot-teacher, .slot-class { font-size: clamp(10px, 0.5vw, 13px); }
+    .slot-time { font-size: clamp(9px, 0.45vw, 12px); }
+  }
   .paper-a3 .schedule-grid th { font-size: 12px; padding: 6px 4px; }
 
   /* ── الجدول العام للمعلمين — مصفوفة: سطرٌ لكل معلّم، والأسبوعُ عرضاً ──
