@@ -42,15 +42,16 @@ def _longest_run(periods: list[int]) -> int:
 
 def teacher_day_cost(grid, teacher_id: str, day: int, preferences: dict | None) -> float:
     """كلفةُ يومٍ لمعلّم — مكوّناتُ المختبر نفسُها: فراغٌ موزون، تراصّ، أطراف، تتابع."""
+    from .schedule_lab import alternating_compactness, excess_gap_weight
+
     periods = sorted(set(grid.teacher_periods_on(teacher_id, day)))
     if not periods:
         return 0.0
-    n = len(periods)
-    gaps = [later - earlier - 1 for earlier, later in zip(periods, periods[1:], strict=False)]
-    gap_weighted = sum(g * g for g in gaps) / n
-    compactness = (periods[-1] - periods[0] + 1) / n - 1.0
+    gap_weighted = excess_gap_weight(periods)
+    compactness = alternating_compactness(periods) - 1.0
     edges = sum(1 for p in periods if p in (1, LAST_PERIOD))
-    breach = 1.0 if _longest_run(periods) > _run_cap(preferences, teacher_id) else 0.0
+    # التلاصقُ أثقلُ ما يُصلَح: رخصةُ ضرورةٍ لا شكلٌ مقبول.
+    breach = 2.0 if _longest_run(periods) > _run_cap(preferences, teacher_id) else 0.0
     return gap_weighted + compactness + 0.25 * edges + breach
 
 
@@ -152,13 +153,21 @@ class Improver:
         return found
 
     def _wanted_cells(self, teacher_id: str, day: int) -> list[int]:
-        """الخاناتُ التي لو انتقلت إليها حصّةٌ لتراصّ اليوم: الفراغاتُ ثمّ حافّتا الكتلة."""
+        """الخاناتُ التي لو انتقلت إليها حصّةٌ لصلح اليوم على سياسة التناوب.
+
+        الفراغاتُ الزائدة تُقصَّر بخانةٍ تبعد حصّةً عن حصّةٍ قائمة، والتلاصقُ
+        يُفَكّ بنقل إحدى المتلاصقتين إلى خانةٍ تبعد حصّةً عن الكتلة.
+        """
         periods = sorted(set(self.grid.teacher_periods_on(teacher_id, day)))
         if not periods:
             return []
-        inside = [p for p in range(periods[0], periods[-1] + 1) if p not in periods]
-        edges = [p for p in (periods[0] - 1, periods[-1] + 1) if 1 <= p <= LAST_PERIOD]
-        return inside + edges
+        wanted = []
+        for p in range(1, LAST_PERIOD + 1):
+            if p in periods or (p - 1) in periods or (p + 1) in periods:
+                continue
+            if any(abs(p - q) == 2 for q in periods):
+                wanted.append(p)
+        return wanted
 
     def _tasks_of(self, teacher_id: str, day: int) -> list:
         out = []

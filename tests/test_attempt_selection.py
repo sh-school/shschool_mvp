@@ -28,7 +28,11 @@ def test_the_search_runs_at_least_the_minimum_then_stops_on_patience_or_budget()
     assert not _search_exhausted(
         MIN_ATTEMPTS, 0.0, 60, idle=PATIENCE, complete=False
     ), "ما دام في الأفضل متعذّرٌ يستمرّ البحث"
-    assert _search_exhausted(MIN_ATTEMPTS, 61.0, 60, idle=0, complete=False), "الميزانية"
+    assert _search_exhausted(MIN_ATTEMPTS, 61.0, 60, idle=0, complete=True), "الميزانية"
+    assert not _search_exhausted(
+        MIN_ATTEMPTS, 61.0, 60, idle=0, complete=False
+    ), "الأفضلُ ناقصٌ فتُمَدّ الميزانيةُ إلى ضعفها"
+    assert _search_exhausted(MIN_ATTEMPTS, 121.0, 60, idle=0, complete=False)
     assert _search_exhausted(MAX_ATTEMPTS, 0.0, 60, idle=0, complete=False), "الأقصى"
 
 

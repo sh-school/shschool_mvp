@@ -1073,7 +1073,9 @@ def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, compl
     ثلاثَ محاولاتٍ متتالية وهو تامّ. وما دام في الأفضل متعذّرٌ لا يُقطع البحثُ
     على الصبر وحده — بل على الميزانية.
     """
-    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= budget):
+    # وما دام الأفضلُ ناقصاً تُمَدّ الميزانيةُ إلى ضعفها: حصّةٌ بلا موضعٍ أغلى من دقيقة.
+    limit = budget if complete else 2 * budget
+    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= limit):
         return True
     return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
 
@@ -1341,14 +1343,13 @@ def generate_schedule(
 
     # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
     # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
-    improvement: dict = {}
-    if not leftovers:
-        from .scheduler_improve import improve
+    # ويجري ولو بقيت حصّةٌ متعذّرة: ما وُضع يُحسَّن، والمتعذّرُ يبقى مذكوراً.
+    from .scheduler_improve import improve
 
-        deadline = max(start_time + budget, time.time() + budget * 0.5)
-        improvement = improve(
-            grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
-        )
+    deadline = max(start_time + budget, time.time() + budget * 0.5)
+    improvement = improve(
+        grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
+    )
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
