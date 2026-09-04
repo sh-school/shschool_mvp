@@ -105,6 +105,36 @@ class ClassGroupManager(models.Manager.from_queryset(ClassGroupQuerySet)):
         return super().get_queryset().order_by(GRADE_ORDER.asc(), "section")
 
 
+class TimeBand(models.Model):
+    """نطاقُ توقيت: مجموعةُ شُعبٍ تتقاسم جرسَ اليوم نفسَه.
+
+    في المدرسة طابقان بجرسين: الأرضيّ (السابع والثامن وتاسع/1) والعلويّ
+    (تاسع 2·3·4 والثانويّ) — الحصّةُ الثانية تبدأ 8:00 هنا وتنتهي 8:50، وهناك
+    8:45. والخميسُ ثلاثةُ أجراس. فرقمُ الحصّة لا يعني الوقتَ نفسَه في النطاقين،
+    ومعلّمٌ يقطع الطابقين يُحكَم بالساعة لا بالرقم.
+
+    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 أرضيٌّ وتاسع/2 علويّ.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_bands")
+    code = models.SlugField(max_length=20, verbose_name="الرمز")
+    name = models.CharField(max_length=60, verbose_name="الاسم")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "نطاق توقيت"
+        verbose_name_plural = "نطاقات التوقيت"
+        ordering = ["order", "code"]
+        constraints = [
+            models.UniqueConstraint(fields=["school", "code"], name="unique_time_band_per_school")
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class ClassGroup(models.Model):
     GRADES = [
         ("G7", "الصف السابع"),
@@ -132,6 +162,15 @@ class ClassGroup(models.Model):
     grade = models.CharField(max_length=3, choices=GRADES)
     section = models.CharField(max_length=10, verbose_name="الشعبة")
     level_type = models.CharField(max_length=4, choices=LEVELS, default="prep")
+    #: جرسُ الشعبة — فارغٌ يعني «جرسَ المدرسة الافتراضيّ». راجع `TimeBand`.
+    time_band = models.ForeignKey(
+        "core.TimeBand",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="class_groups",
+        verbose_name="نطاق التوقيت",
+    )
     #: فارغٌ في الإعدادي وفي العاشر. وشعبةُ الحادي عشر أو الثاني عشر بلا مسار
     #: حالةٌ مشروعة حتى يُحدَّد — فلا يُجبَر المُدخِل على اختيارٍ لم يُتّخذ بعد.
     #:

@@ -14,6 +14,7 @@ from .models import (
     School,
     Semester,
     StudentEnrollment,
+    TimeBand,
 )
 
 
@@ -162,10 +163,34 @@ class MembershipAdmin(admin.ModelAdmin):
 
 @admin.register(ClassGroup)
 class ClassGroupAdmin(admin.ModelAdmin):
-    list_display = ("school", "grade", "section", "track", "academic_year", "is_active")
-    list_filter = ("school", "grade", "track", "academic_year", "is_active")
+    """نطاقُ التوقيت يُنسب من هنا: قائمةٌ قابلةٌ للتحرير، فتوزيعُ الشُّعب على
+    الأجراس قرارُ إدارةٍ يتبدّل بتبدّل الطوابق لا بترحيل."""
+
+    list_display = (
+        "school",
+        "grade",
+        "section",
+        "track",
+        "academic_year",
+        "time_band",
+        "is_active",
+    )
+    list_filter = ("school", "grade", "track", "academic_year", "time_band", "is_active")
+    list_editable = ("time_band",)
     search_fields = ("grade", "section")
     autocomplete_fields = ("supervisor",)
+    list_select_related = ("time_band",)
+
+
+@admin.register(TimeBand)
+class TimeBandAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "order", "school", "is_active", "class_count")
+    list_filter = ("school", "is_active")
+    ordering = ("order", "code")
+
+    @admin.display(description="عدد الشُّعب")
+    def class_count(self, obj):
+        return obj.class_groups.count()
 
 
 @admin.register(StudentEnrollment)
