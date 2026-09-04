@@ -210,7 +210,9 @@ class ScheduleGrid:
         self._resource_at: dict[tuple[str, int, int], int] = defaultdict(int)
         #: أيُّ مراحلَ تشغل المورد في التوقيت — لموردٍ لا يجمع إعداديّاً وثانويّاً.
         self._resource_levels: dict[tuple[str, int, int], Counter] = defaultdict(Counter)
-        self._entries: list[dict] = []
+        #: ساكنو الشبكة بمهمّتهم — قاموسٌ لا قائمة: النسيانُ كان يعيد بناءَ
+        #: القائمة كلَّها (840 عنصراً) عند كلّ إزاحةٍ، 354 ألفَ مرّةٍ في توليد.
+        self._entries: dict[int, dict] = {}
         #: سجلُّ التراجع: كلُّ محاولةِ إزاحةٍ تفتح إطاراً، وتُغلقه بقبولٍ أو ردّ.
         #: والردُّ يعكس ما جرى بعينه — لا «أعِد ما تظنّه كان»، فالتساهلُ في
         #: هذا أسقط حصصاً بصمتٍ حتّى صار المجموعُ لا يُطابق المطلوب.
@@ -263,7 +265,7 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
-        self._entries.append({"day": day, "period": period, "task": task})
+        self._entries[id(task)] = {"day": day, "period": period, "task": task}
 
     def remove(self, class_id: str, day: int, period: int):
         """إزالةُ حصّةِ شعبةٍ بعينها — ولا تمسّ جاراتِها في التوقيت نفسه."""
@@ -294,7 +296,7 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
-        self._entries = [e for e in self._entries if e["task"] is not task]
+        self._entries.pop(id(task), None)
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
 
@@ -446,7 +448,12 @@ class ScheduleGrid:
         return False
 
     def all_entries(self) -> list[dict]:
-        return self._entries
+        return list(self._entries.values())
+
+    def home_of(self, task: Task) -> tuple[int, int] | None:
+        """(اليوم، بدايةُ الحصّة) لمهمّةٍ موضوعة — أو `None` إن لم توضع."""
+        entry = self._entries.get(id(task))
+        return (entry["day"], entry["period"]) if entry else None
 
     def get_task_at(self, class_id: str, day: int, period: int) -> Task | None:
         """ساكنُ خانةِ شعبةٍ بعينها — تقرؤه المزاوجةُ وتوزيعُ المادّة."""
@@ -710,7 +717,7 @@ def get_available_slots(
     available = []
     level_type = getattr(task, "level_type", "")
     #: الحصّةُ المزدوجةُ لا تقطعها فسحةٌ ولا صلاة — والكتلُ من جرس المدرسة.
-    pairs = joinable_pairs(school) if task.span > 1 and school is not None else None
+    pairs = joinable_pairs(school, task.band_id) if task.span > 1 and school is not None else None
 
     for day in DAYS:
         max_p = get_max_periods_for_day(day, level_type)
@@ -903,7 +910,7 @@ def _candidate_starts(grid, task, blocked, school):
     """
     from .scheduler_constraints import get_max_periods_for_day, joinable_pairs
 
-    pairs = joinable_pairs(school) if task.span > 1 and school is not None else None
+    pairs = joinable_pairs(school, task.band_id) if task.span > 1 and school is not None else None
     for day in DAYS:
         max_p = get_max_periods_for_day(day, task.level_type)
         for period in range(1, max_p - task.span + 2):
@@ -918,11 +925,11 @@ def _candidate_starts(grid, task, blocked, school):
 
 
 def _home_of(grid, task):
-    for day in DAYS:
-        for period in range(1, 8):
-            if grid.get_task_at(task.class_id, day, period) is task:
-                return (day, period)
-    return None
+    """موضعُ المهمّة في الشبكة — من سجلّ الساكنين لا بمسح خمسٍ وثلاثين خانة.
+
+    فالمسحُ كان يُستدعى 668 ألفَ مرّةٍ في توليدٍ واحد: عُشرُ زمنه.
+    """
+    return grid.home_of(task)
 
 
 def _rehome_all(
@@ -977,8 +984,6 @@ def _empty_result(errors: list[str]) -> dict:
     }
 
 
-#: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة.
-@joinable_pairs_cached()
 def load_band_times(school: School) -> dict:
     """{(نطاق, نوع اليوم): {رقم: (بداية, نهاية)}} من `TimeSlotConfig` — والمفتاح "" للافتراضيّ.
 
@@ -1036,6 +1041,11 @@ def bell_lookup(school: School):
     return lookup
 
 
+#: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة (#109).
+#: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
+#: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
+#: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
+@joinable_pairs_cached()
 def generate_schedule(
     school: School,
     academic_year: str,
