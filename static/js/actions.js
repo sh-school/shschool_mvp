@@ -214,11 +214,19 @@
     t.textContent = el.files && el.files[0] ? el.files[0].name : spec[1] || "";
   });
 
-  /* ── إظهارُ حقلٍ حين تُطابق القيمة: "#sel|القيمة" ────────────────── */
-  on("change", "data-show-when", function (el) {
+  /* ── إظهارُ حقلٍ حين تُطابق القيمة: "#sel|القيمة" ──────────────────
+     والهدفُ يُخفى بـ`hidden` في القالب لا بـ`display:none` داخليّ — فالنمطُ
+     الداخليّ أقوى من الخاصّية ولا يرفعه رفعُها. وتُقيَّم الحالةُ عند التحميل
+     أيضاً: المتصفّحُ يعيد قيمةَ القائمة بعد الرجوع بلا حدث تغيير. */
+  function syncShowWhen(el) {
     var spec = el.getAttribute("data-show-when").split("|");
     var t = resolve(el, spec[0]);
     if (t) t.hidden = el.value !== spec[1];
+  }
+  on("change", "data-show-when", syncShowWhen);
+  document.addEventListener("DOMContentLoaded", function () {
+    var els = document.querySelectorAll("[data-show-when]");
+    for (var i = 0; i < els.length; i++) syncShowWhen(els[i]);
   });
 
   /* ── تنبيهٌ عائم: "نصّ|نوع" ─────────────────────────────────────── */

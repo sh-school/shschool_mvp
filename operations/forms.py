@@ -14,19 +14,29 @@ class TeacherExemptionForm(forms.Form):
     مباشرةً: مفتاحٌ ناقصٌ أو رقمٌ غيرُ صالحٍ = صفحةُ خطأٍ لا رسالة. والمعلّمُ
     يُقيَّد بمدرسة المُدخِل في `clean_teacher` — فكان أيُّ UUID يُقبل، ومديرُ
     مدرسةٍ يُفرّغ معلّمَ مدرسةٍ أخرى بتغيير رقمٍ في الطلب.
+
+    و«المعلّم» قد يكون مجموعةً: `coordinators` تعني منسّقي المواد جميعاً —
+    اجتماعُهم الأسبوعيُّ تفريغٌ واحدٌ لا اثنا عشرَ إدخالاً. والأيّامُ تُختار
+    عدّةً معاً: الحصّةُ الأولى الأحدَ والثلاثاءَ تفريغان بطلبٍ واحد.
     """
 
-    teacher = forms.UUIDField(label="المعلم/المنسق")
+    #: المجموعاتُ المقبولةُ مكانَ معرّف المعلّم — والقيمةُ ليست UUID عمداً.
+    GROUPS = {"coordinators": ("coordinator",)}
+
+    teacher = forms.CharField(max_length=40, label="المعلم/المنسق")
     exemption_type = forms.ChoiceField(
         choices=TeacherExemption.EXEMPTION_TYPE, initial="full_day", label="نوع التفريغ"
     )
-    day_of_week = forms.TypedChoiceField(choices=ScheduleSlot.DAYS, coerce=int, label="اليوم")
-    period_number = forms.TypedChoiceField(
+    day_of_week = forms.TypedMultipleChoiceField(
+        choices=ScheduleSlot.DAYS, coerce=int, label="الأيام"
+    )
+    #: حصصٌ عدّةٌ كالأيّام: الأولى والسابعةُ تفريغان بطلبٍ واحد. وفي «يوم كامل»
+    #: تُهمَل، فالقائمةُ تصير `[None]` — حصّةً واحدةً بلا رقم.
+    period_number = forms.TypedMultipleChoiceField(
         choices=[(p, f"الحصة {p}") for p in ScheduleSlot.PERIODS],
         coerce=int,
         required=False,
-        empty_value=None,
-        label="رقم الحصة",
+        label="الحصص",
     )
     reason = forms.CharField(max_length=200, label="السبب")
     source = forms.ChoiceField(
@@ -34,22 +44,41 @@ class TeacherExemptionForm(forms.Form):
         initial="school",
         label="جهة القرار",
     )
-    # ليس مطلوباً هنا عمداً: شرطُ المرجع يعيش في `TeacherExemption.clean()` وحدَه،
-    # وتُبلّغه الخدمةُ عبر `full_clean()`. فبابانِ لحقيقةٍ واحدة أسوأُ من بابٍ مفتوح.
-    source_reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
 
     def __init__(self, *args, school, **kwargs):
         super().__init__(*args, **kwargs)
         self.school = school
 
     def clean_teacher(self):
+        """يُرجع قائمةَ المعلّمين المقصودين — واحداً بمعرّفه أو مجموعةً بدورها."""
+        import uuid
+
         from core.models import CustomUser
 
+        raw = self.cleaned_data["teacher"].strip()
+        roles = self.GROUPS.get(raw)
+        if roles:
+            teachers = list(
+                CustomUser.objects.filter(
+                    memberships__school=self.school,
+                    memberships__is_active=True,
+                    memberships__role__name__in=roles,
+                )
+                .distinct()
+                .order_by("full_name")
+            )
+            if not teachers:
+                raise forms.ValidationError("لا منسّقين في مدرستك.")
+            return teachers
+        try:
+            pk = uuid.UUID(raw)
+        except ValueError as exc:
+            raise forms.ValidationError("اختر معلّماً أو مجموعة.") from exc
         # الشرطان في `filter()` واحدةٍ ليقعا على العضويّة نفسها: عضويّةٌ
         # مدرِّسةٌ في مدرسةٍ أخرى لا تُجيز تفريغَ صاحبها هنا.
         teacher = (
             CustomUser.objects.filter(
-                pk=self.cleaned_data["teacher"],
+                pk=pk,
                 memberships__school=self.school,
                 memberships__is_active=True,
                 memberships__role__name__in=EXEMPTABLE_ROLES,
@@ -59,14 +88,14 @@ class TeacherExemptionForm(forms.Form):
         )
         if teacher is None:
             raise forms.ValidationError("المعلّم المختار ليس من كادر الجدولة في مدرستك.")
-        return teacher
+        return [teacher]
 
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("exemption_type") == "specific_period" and not cleaned.get("period_number"):
-            self.add_error("period_number", "حدّد رقم الحصة لتفريغ حصةٍ بعينها.")
+            self.add_error("period_number", "حدّد الحصص لتفريغ حصصٍ بعينها.")
         if cleaned.get("exemption_type") == "full_day":
-            cleaned["period_number"] = None
+            cleaned["period_number"] = [None]
         return cleaned
 
 

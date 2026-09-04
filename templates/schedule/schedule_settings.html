@@ -36,6 +36,8 @@
         <label class="form-label text-xs">المعلم/المنسق</label>
         <select name="teacher" class="form-control" required>
           <option value="">— اختر —</option>
+          {# مجموعةٌ لا شخص: اجتماعُ المنسّقين تفريغٌ واحدٌ لهم جميعاً. #}
+          <option value="coordinators">★ كلّ منسّقي المواد</option>
           {% for t in teachers %}
           <option value="{{ t.id }}">{{ t.full_name }}</option>
           {% endfor %}
@@ -51,22 +53,24 @@
       </div>
 
       <div class="form-group mb-0">
-        <label class="form-label text-xs">اليوم</label>
-        <select name="day_of_week" class="form-control" required>
+        <label class="form-label text-xs">الأيام</label>
+        {# مربّعاتٌ لا قائمة: الحصّةُ الأولى الأحدَ والثلاثاءَ تفريغان بطلبٍ واحد. #}
+        <div class="flex flex-wrap gap-x-3 gap-y-1 pt-2" role="group" aria-label="الأيام">
           {% for val, label in days %}
-          <option value="{{ val }}">{{ label }}</option>
+          <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" name="day_of_week" value="{{ val }}"> {{ label }}</label>
           {% endfor %}
-        </select>
+        </div>
       </div>
 
-      <div class="form-group mb-0" id="period-field" style="display:none">
-        <label class="form-label text-xs">رقم الحصة</label>
-        <select name="period_number" class="form-control">
-          <option value="">—</option>
+      {# الإخفاءُ بـ`hidden` لا بنمطٍ داخليّ: السكربتُ يرفع `hidden` حين يُختار «حصة محددة»، و`display:none` الداخليّ كان أقوى منها فتبقى الخانةُ مخفيّة. #}
+      <div class="form-group mb-0" id="period-field" hidden>
+        <label class="form-label text-xs">الحصص</label>
+        {# مربّعاتٌ كالأيّام: الأولى والسابعةُ تفريغان بطلبٍ واحد. #}
+        <div class="flex flex-wrap gap-x-3 gap-y-1 pt-2" role="group" aria-label="الحصص">
           {% for p in periods %}
-          <option value="{{ p }}">الحصة {{ p }}</option>
+          <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" name="period_number" value="{{ p }}"> {{ p }}</label>
           {% endfor %}
-        </select>
+        </div>
       </div>
 
       <div class="form-group mb-0 sm:col-span-2">
@@ -75,8 +79,8 @@
       </div>
 
       {% comment %}
-      جهةُ القرار ومرجعُه: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في
-      الأسبوع كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
+      جهةُ القرار: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في الأسبوع
+      كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
       {% endcomment %}
       <div class="form-group mb-0">
         <label class="form-label text-xs">جهة القرار</label>
@@ -86,11 +90,6 @@
           <option value="department">قرار القسم الأكاديمي</option>
           <option value="other">أخرى</option>
         </select>
-      </div>
-
-      <div class="form-group mb-0 sm:col-span-2">
-        <label class="form-label text-xs">مرجع القرار</label>
-        <input type="text" name="source_reference" class="form-control" placeholder="رقم التعميم أو المحضر" required>
       </div>
 
       <div class="form-group mb-0 flex items-end">
@@ -109,7 +108,7 @@
             <th>اليوم</th>
             <th>الحصة</th>
             <th>السبب</th>
-            <th>المرجع</th>
+            <th>الجهة</th>
             <th>بواسطة</th>
             <th></th>
           </tr>
@@ -128,7 +127,7 @@
             <td>{{ ex.get_day_of_week_display }}</td>
             <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}—{% endif %}</td>
             <td class="text-sm">{{ ex.reason }}</td>
-            <td class="text-sm">{{ ex.get_source_display }}{% if ex.source_reference %} — {{ ex.source_reference }}{% endif %}</td>
+            <td class="text-sm">{{ ex.get_source_display }}</td>
             <td class="text-sm text-muted">{{ ex.created_by.full_name|default:"—" }}</td>
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
@@ -163,7 +162,7 @@
             <th scope="col">اليوم</th>
             <th scope="col">الحصة</th>
             <th scope="col">القيد</th>
-            <th scope="col">المرجع</th>
+            <th scope="col">الجهة</th>
             <th scope="col"><span class="sr-only">إجراءات</span></th>
           </tr>
         </thead>
@@ -174,7 +173,7 @@
             <td>{{ ex.get_day_of_week_display }}</td>
             <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}يوم كامل{% endif %}</td>
             <td class="text-sm">{{ ex.reason }}</td>
-            <td class="text-sm">{{ ex.get_source_display }}{% if ex.source_reference %} — {{ ex.source_reference }}{% endif %}</td>
+            <td class="text-sm">{{ ex.get_source_display }}</td>
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء هذا القيد عن {{ ex.teacher.full_name }}؟">
                 {% csrf_token %}

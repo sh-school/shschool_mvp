@@ -43,7 +43,6 @@ def exempt_all_but(school, user, keep_day, keep_period):
                 day_of_week=day,
                 reason="تضييقُ اختبار",
                 source="school",
-                source_reference="اختبار",
             )
     for period in range(1, 8):
         if period != keep_period:
@@ -56,7 +55,6 @@ def exempt_all_but(school, user, keep_day, keep_period):
                 period_number=period,
                 reason="تضييقُ اختبار",
                 source="school",
-                source_reference="اختبار",
             )
 
 

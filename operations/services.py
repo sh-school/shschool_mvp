@@ -840,7 +840,6 @@ class ScheduleService:
         reason: str = "",
         created_by: CustomUser | None = None,
         source: str = "school",
-        source_reference: str = "",
     ):
         """
         إضافة تفريغ معلم من حصص الجدول.
@@ -855,17 +854,15 @@ class ScheduleService:
             reason: سبب التفريغ
             created_by: المستخدم الذي أضاف التفريغ
             source: جهة القرار
-            source_reference: مرجع القرار — إلزاميّ
 
         Returns:
             TeacherExemption: سجل التفريغ
 
         Raises:
-            ValidationError: تفريغٌ بلا مرجعِ قرار، أو حصّةٌ بعينها بلا رقمها.
+            ValidationError: حصّةٌ بعينها بلا رقمها.
 
         ويُستدعى `full_clean()` هنا عمداً: `objects.create()` لا يُشغّل
-        `clean()`، فلو اكتفينا به لصار في النظام بابانِ لحقيقةٍ واحدة —
-        بابٌ يشترط المرجعَ وبابٌ يقبل بلا مرجع.
+        `clean()`، فلو اكتفينا به لصار في النظام بابانِ لحقيقةٍ واحدة.
         """
         exemption = TeacherExemption(
             school=school,
@@ -876,7 +873,6 @@ class ScheduleService:
             period_number=int(period_number) if period_number else None,
             reason=reason,
             source=source,
-            source_reference=source_reference,
             created_by=created_by,
         )
         exemption.full_clean(exclude=["created_by"])
