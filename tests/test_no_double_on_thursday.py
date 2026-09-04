@@ -1,4 +1,4 @@
-"""HC15: يومُ الحصّتين للمادّة أيُّ يومٍ عدا الخميس (قرار الإدارة 2026-09-04)."""
+"""SC14: يومُ الحصّتين للمادّة أيُّ يومٍ عدا الخميس (قرار الإدارة 2026-09-04) — تفضيلٌ قويّ."""
 
 import time
 
@@ -29,21 +29,27 @@ def task(weekly=6, prefers_double=False):
     )
 
 
-def test_a_second_period_on_thursday_is_refused_even_in_the_dense_pass():
+def test_a_second_period_on_thursday_is_penalised_heavily_not_refused():
+    """تفضيلٌ قويّ لا قيدٌ صلب: القيدُ الصلبُ أنتج تلاصقاً أكثرَ وحصصاً بلا موضع."""
+    from operations.scheduler_constraints import WEIGHTS, evaluate_soft_constraints
+
     grid = ScheduleGrid()
     grid.place(4, 1, task())
-    assert check_subject_distribution(grid, 4, task()) is False
-    assert check_subject_distribution(grid, 4, task(), allow_dense=True) is False
-    assert check_subject_distribution(grid, 3, task()) is True, "الأربعاءُ يقبل الحصّتين"
+    assert check_subject_distribution(grid, 4, task()) is True
+    penalty = evaluate_soft_constraints(grid, 4, 3, task())
+    assert "thursday_pair" in penalty.details
+    assert penalty.total >= WEIGHTS["thursday_pair"]
+    assert "thursday_pair" not in evaluate_soft_constraints(grid, 3, 3, task()).details
 
 
-def test_a_required_double_subject_keeps_its_thursday_cap():
-    """الفنّيّة وتكنولوجيا المعلومات وعلوم الحاسب: كتلٌ بحكم المادّة — الخميسُ لا يُقفل عليها."""
+def test_a_required_double_subject_is_not_penalised_on_thursday():
+    """الفنّيّة وتكنولوجيا المعلومات وعلوم الحاسب: كتلٌ بحكم المادّة."""
+    from operations.scheduler_constraints import evaluate_soft_constraints
+
     grid = ScheduleGrid()
     grid.place(4, 1, task(weekly=10, prefers_double=True))
-    assert check_subject_distribution(grid, 4, task(weekly=10, prefers_double=True)) is True
-    grid.place(4, 3, task(weekly=10))
-    assert check_subject_distribution(grid, 4, task(weekly=10)) is False, "وغيرُها يُقفل"
+    penalty = evaluate_soft_constraints(grid, 4, 3, task(weekly=10, prefers_double=True))
+    assert "thursday_pair" not in penalty.details
 
 
 def test_the_lab_counts_thursday_pairs():
