@@ -122,9 +122,10 @@
   }
   .schedule-grid td {
     padding: 5px 4px;
+    /* توسيطٌ في الاتّجاهين: الخانةُ إطارٌ للحصّة لا عمودَ نصّ. */
     text-align: center;
     border: 1px solid #ddd;
-    vertical-align: top;
+    vertical-align: middle;
     height: 54px;
   }
   .period-time {
@@ -169,6 +170,17 @@
     color: #ccc;
     font-size: 11px;
   }
+  /* توقيتُ الحصّة داخل خانتها — فالورقةُ تُقرأ خانةً خانةً لا عموداً عموداً. */
+  .slot-time {
+    font-size: 9px;
+    color: #8A1538;
+    direction: ltr;
+    text-align: center;
+    margin-top: 2px;
+    letter-spacing: .02em;
+  }
+  .slot-subject + .slot-subject,
+  .slot-time + .slot-subject { margin-top: 5px; }
 
   /* ── Footer ── */
   .schedule-footer {
@@ -325,6 +337,7 @@
     .schedule-grid .period-cell { font-size: 12pt; }
     .slot-subject { font-size: 9.5pt; line-height: 1.25; }
     .slot-teacher, .slot-class { font-size: 8pt; }
+    .slot-time { font-size: 7pt; margin-top: 1mm; }
     .period-time { font-size: 7pt; }
     .schedule-footer { margin-top: 2mm; padding-top: 1.5mm; font-size: 8pt; }
   }
@@ -543,6 +556,7 @@
           <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
           {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
+          <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
           {% endfor %}
           {% else %}
           <div class="slot-empty">—</div>

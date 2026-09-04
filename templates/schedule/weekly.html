@@ -63,7 +63,8 @@
   padding: 3px;
   border-bottom: 1px solid var(--border, #f3f4f6);
   border-left: 1px solid var(--border, #f3f4f6);
-  vertical-align: top;
+  vertical-align: middle;
+  text-align: center;
   height: 80px;
 }
 .sched-table tbody td:first-child {
@@ -135,7 +136,7 @@
   color: var(--text-muted, #94a3b8);
   margin-top: 2px;
   direction: ltr;
-  text-align: right;
+  text-align: center;
 }
 
 /* Empty cell — dashed border on entire td */
@@ -318,9 +319,7 @@ td:has(.slot-empty) {
                 {% if not target_teacher %}
                 <div class="slot-teacher">{{ slot.teacher.full_name }}</div>
                 {% endif %}
-                {% if cell|length == 1 %}
                 <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
-                {% endif %}
               </div>
               {% endfor %}
               </div>
