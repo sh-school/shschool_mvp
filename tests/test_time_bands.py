@@ -332,3 +332,35 @@ def test_the_printed_sheet_carries_the_bands_thursday_bell(school, bands):
         HTTP_HOST="localhost",
     ).content.decode()
     assert "08:00 – 08:50" in body and "11:50 – 12:30" in body
+
+
+# ── الكتلُ من جرس النطاق، والجرسُ يُقرأ مرّةً في التوليد ─────────────
+
+
+def test_double_period_blocks_follow_the_bands_bell(school, bands):
+    """الفسحةُ بعد الثالثة في الأرضيّ وبعد الرابعة في العلويّ — فالكتلُ تختلف."""
+    from operations.scheduler_constraints import joinable_pairs
+
+    ground = joinable_pairs(school, str(bands["ground"].id))
+    upper = joinable_pairs(school, str(bands["secondary"].id))
+
+    assert (3, 4) not in ground and (4, 5) in ground and (6, 7) not in ground
+    assert (3, 4) in upper and (4, 5) not in upper and (6, 7) in upper
+
+
+def test_the_bell_is_read_once_per_generation_even_in_repair(school, bands, monkeypatch):
+    """المُزيِّنُ جزءٌ من الدالّة: `load_band_times` أُدرجت فوق `generate_schedule`
+    فسرقت `@joinable_pairs_cached()` — وعاد الجرسُ يُسأل عند كلّ مرشَّح."""
+    from operations import scheduler
+    from operations.scheduler_constraints import _PAIRS_CACHE
+
+    seen = []
+
+    def spy(*args, **kwargs):
+        seen.append(_PAIRS_CACHE.get() is not None)
+        return []
+
+    monkeypatch.setattr(scheduler, "build_tasks", spy)
+    scheduler.generate_schedule(school, YEAR)
+
+    assert seen == [True], "ذاكرةُ الأزواج مفتوحةٌ طوالَ التوليد"

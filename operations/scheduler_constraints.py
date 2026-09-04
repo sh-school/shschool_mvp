@@ -296,34 +296,35 @@ def joinable_pairs_cached():
         _PAIRS_CACHE.reset(token)
 
 
-def joinable_pairs(school) -> set:
-    """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس المدرسة لا من الكود.
+def joinable_pairs(school, band_id: str = "") -> set:
+    """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس نطاق الشعبة لا من الكود.
 
-    الحصّةُ المزدوجةُ حصّتان لا تقطعهما فسحةٌ ولا صلاة. وبين الثالثة والرابعة
-    في الشحانية عشرون دقيقة، وبين الخامسة والسادسة خمسَ عشرة — فالتلاصقُ
-    عبرهما تلاصقٌ في الورق لا في اليوم.
+    الحصّةُ المزدوجةُ حصّتان لا تقطعهما فسحةٌ ولا صلاة. والفسحةُ في الطابق
+    الأرضيّ بعد الثالثة وفي العلويّ بعد الرابعة — فالثالثةُ والرابعةُ كتلةٌ
+    في العلويّ وليستا كتلةً في الأرضيّ. وكان الجرسُ يُقرأ للمدرسة كلِّها
+    فتختلط أجراسُ النطاقات، ويُجاز تلاصقٌ عبر فسحةٍ لا يعرفها.
 
     ومدرسةٌ لم تُدخل أوقاتَها بعد: لا كتلَ تُعرَف، فلا يُمنع تجاورٌ بحجّة
     فاصلٍ لا نعرفه. والصمتُ لا يُقرأ منعاً.
     """
     cache = _PAIRS_CACHE.get()
-    key = getattr(school, "pk", school)
+    key = (getattr(school, "pk", school), band_id or "")
     if cache is not None and key in cache:
         return cache[key]
-    pairs = _joinable_pairs_from_bell(school)
+    pairs = _joinable_pairs_from_bell(school, band_id)
     if cache is not None:
         cache[key] = pairs
     return pairs
 
 
-def _joinable_pairs_from_bell(school) -> set:
+def _joinable_pairs_from_bell(school, band_id: str = "") -> set:
     from operations.models import TimeSlotConfig
 
-    rows = list(
-        TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False).order_by(
-            "period_number"
-        )
-    )
+    bell = TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False)
+    rows = list(bell.filter(band_id=band_id).order_by("period_number")) if band_id else []
+    if not rows:
+        # جرسُ المدرسة الافتراضيّ لمن لا نطاقَ له، أو لنطاقٍ بلا جرس.
+        rows = list(bell.filter(band__isnull=True).order_by("period_number"))
     if not rows:
         return {(p, p + 1) for p in range(1, LAST_PERIOD)}
 
