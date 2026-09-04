@@ -850,6 +850,7 @@ def _repair_pass(
     school=None,
     allow_adjacent=False,
     allow_dense=False,
+    depth: int = 3,
 ):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
@@ -868,7 +869,7 @@ def _repair_pass(
         still = []
         for task in remaining:
             if budget <= 0 or not _try_eject(
-                grid, task, blocked, preferences, 3, school, allow_adjacent, allow_dense
+                grid, task, blocked, preferences, depth, school, allow_adjacent, allow_dense
             ):
                 still.append(task)
             else:
@@ -1125,6 +1126,43 @@ def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None =
     return found
 
 
+def _slack_advice(leftovers: list[Task], prefs, blocked_slots: set, tasks: list[Task]) -> list[str]:
+    """متعذّرةٌ لمعلّمٍ سعتُه تساوي نصابَه: يُقال له أين الهامشُ لا «تعذّر» وحدَها.
+
+    سفيان (2026-09-04): تفريغاتٌ تترك له اثنتي عشرةَ خانةً بلا تلاصق لاثنتي عشرةَ
+    حصّة — فأيُّ قيدٍ آخر (تنوّعُ الحصّة، القسمة، شعبةٌ بلا خانةٍ فائضة) يُسقط
+    حصّة. والعلاجُ بياناتٌ لا خوارزميّة: تفريغٌ واحدٌ أقلّ.
+    """
+    from .preference_capacity import weekly_capacity
+
+    load: dict[str, int] = defaultdict(int)
+    for t in tasks:
+        for m in t.members:
+            load[m.teacher_id] += t.span
+    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for teacher_id, day, _period in blocked_slots:
+        blocked_per_day[teacher_id][day] += 1
+    by_teacher = {str(p.teacher_id): p for p in prefs}
+    advice, seen = [], set()
+    for task in leftovers:
+        for m in task.members:
+            pref = by_teacher.get(m.teacher_id)
+            if pref is None or m.teacher_id in seen:
+                continue
+            seen.add(m.teacher_id)
+            free = {d: LAST_PERIOD - n for d, n in blocked_per_day[m.teacher_id].items()}
+            capacity = weekly_capacity(
+                pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day, free
+            )
+            if capacity - load[m.teacher_id] <= 1:
+                advice.append(
+                    f"قيودُ {m.teacher_name} تسع {capacity} حصّةً ونصابُه {load[m.teacher_id]} — "
+                    "بلا هامش، فأيُّ قيدٍ آخر يُسقط حصّة: أزل تفريغاً واحداً أو ارفع سقفاً "
+                    "ليكتمل الجدول"
+                )
+    return advice
+
+
 def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
     """معلّمون تسع قيودُهم أقلَّ من نصابهم — بالحساب لا بالتخمين."""
     from .preference_capacity import explain_shortfall, weekly_capacity
@@ -1305,6 +1343,22 @@ def generate_schedule(
             )
             densed = before - len(leftovers)
 
+        # جولةُ الإنقاذ: متعذّرةٌ أو اثنتان بعد كلّ الرخص — سلاسلُ إزاحةٍ أعمق (أربع).
+        # بأربعٍ على أربعَ عشرةَ متعذّرةً دقيقةٌ بلا مكسب، وعلى واحدةٍ ثوانٍ قد تُنقذها:
+        # الشعبةُ بلا خانةٍ فائضةٍ ومعلّمُها مقيَّدٌ يحتاجان سلسلةً أطولَ لا رخصةً أخرى.
+        if 0 < len(leftovers) <= 2:
+            leftovers = _repair_pass(
+                grid,
+                leftovers,
+                blocked_slots,
+                preferences,
+                max_backtrack,
+                school,
+                allow_adjacent=True,
+                allow_dense=True,
+                depth=4,
+            )
+
         # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
         # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
         # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
@@ -1353,6 +1407,7 @@ def generate_schedule(
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
+    errors.extend(_slack_advice(leftovers, prefs_qs, blocked_slots, tasks))
     # ومن بقيت له حصّةٌ متعذّرةٌ لا يُقال عنه «يومٌ فارغ» — فالفراغُ أثرُها.
     errors.extend(
         _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
@@ -1459,6 +1514,9 @@ def generate_schedule(
         "quality": quality,
         "generation": generation,
         "errors": errors,
+        #: المهامُّ نفسُها والمتعذّرُ منها — للتشخيص والاختبار، لا للحفظ.
+        "tasks": tasks,
+        "leftover_tasks": leftovers,
         "elapsed_ms": elapsed_ms,
         "total_tasks": len(tasks),
         "repaired": repaired,
