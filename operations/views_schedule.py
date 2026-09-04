@@ -834,9 +834,31 @@ def teacher_preferences(request):
         free_day = request.POST.get("free_day", "")
         pref.free_day = _one_of(free_day, range(0, 5), None) if free_day else None
         pref.notes = request.POST.get("notes", "")
-        pref.save()
-        messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
-        return redirect("teacher_preferences")
+
+        # قيودٌ لا تسع النصاب تُردّ بحسابها لا تُحفظ: «متتالية 1» مع «فراغ 0»
+        # حصّةٌ واحدةٌ في اليوم — ومن حفظها ونصابُه اثنتا عشرةَ رأى سبعاً بلا
+        # موضعٍ في التوليد ولم يعرف لماذا.
+        from operations.preference_capacity import explain_shortfall, weekly_capacity
+
+        load = sum(
+            SubjectClassAssignment.objects.filter(
+                school=school, academic_year=year, teacher=request.user, is_active=True
+            ).values_list("weekly_periods", flat=True)
+        )
+        capacity = weekly_capacity(
+            pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
+        )
+        if capacity < load:
+            messages.error(
+                request,
+                explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
+            )
+            pref.refresh_from_db()
+        else:
+            pref.save()
+            messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
+            # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
+            return redirect(f"{reverse('teacher_preferences')}?year={year}")
 
     return render(
         request,
