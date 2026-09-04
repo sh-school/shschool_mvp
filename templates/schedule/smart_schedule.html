@@ -1,5 +1,17 @@
 {% extends "base/base.html" %}
 {% load schedule_filters %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+  /* مؤشراتُ المختبر تحت سطر التوليد: مطويّةٌ افتراضاً، والأفضلُ أخضرُ والأسوأُ أحمر. */
+  .lab-row td { background: var(--surface-alt, #faf7f8); }
+  .lab-table { width: 100%; border-collapse: collapse; }
+  .lab-table th, .lab-table td { padding: 3px 10px; border-top: 1px solid var(--border, #eee); }
+  .lab-table th { text-align: start; font-weight: 600; }
+  .lab-better td:nth-child(n+2) { color: var(--status-success, #15803d); }
+  .lab-worse td:nth-child(n+2) { color: var(--status-danger, #b91c1c); }
+</style>
+{% endblock %}
 {% block title %}الجدولة الذكية — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -182,6 +194,31 @@
             {% else %}—{% endif %}
           </td>
         </tr>
+        {% if g.lab_rows %}
+        {# مؤشراتُ المختبر: كلُّ مؤشرٍ بقيمته وقيمة الأساس والفرق — الرقمُ الواحدُ لا يقول لماذا. #}
+        <tr class="lab-row">
+          <td colspan="7" class="p-0">
+            <details class="lab-details">
+              <summary class="text-xs text-muted px-3 py-1 cursor-pointer">المؤشرات ({{ g.lab_rows|length }}){% if baseline %} — مقابل «{{ baseline.label }}»{% endif %}</summary>
+              <table class="lab-table text-xs">
+                <thead><tr><th>المؤشر</th><th>القيمة</th>{% if baseline %}<th>الأساس</th><th>الفرق</th>{% endif %}</tr></thead>
+                <tbody>
+                {% for r in g.lab_rows %}
+                <tr class="{% if r.verdict == 'better' %}lab-better{% elif r.verdict == 'worse' %}lab-worse{% endif %}">
+                  <td>{{ r.label }} <span class="text-muted">({{ r.unit }})</span></td>
+                  <td class="text-center" dir="ltr">{{ r.value|default_if_none:"—" }}</td>
+                  {% if baseline %}
+                  <td class="text-center" dir="ltr">{{ r.baseline|default_if_none:"—" }}</td>
+                  <td class="text-center" dir="ltr">{% if r.delta is not None %}{{ r.delta }}{% if r.verdict == 'better' %} ▲{% elif r.verdict == 'worse' %} ▼{% endif %}{% else %}—{% endif %}</td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </details>
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

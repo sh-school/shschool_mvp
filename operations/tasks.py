@@ -272,6 +272,14 @@ def generate_smart_schedule_task(self, generation_id):
         _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
         return {"ok": False, "reason": "exception"}
 
+    # مؤشراتُ المختبر تُحسب هنا مرّةً وتُحفظ في صفّ التوليد — فالصفحةُ تعرض ولا تحسب.
+    try:
+        from operations.schedule_lab import store_metrics
+
+        store_metrics(generation)
+    except Exception:  # noqa: BLE001 — القياسُ لا يُسقط توليداً ناجحاً
+        logger.exception("schedule_lab: تعذّر حسابُ المؤشرات للتوليد %s", generation_id)
+
     quality = result["quality"]
     summary = (
         f"{quality['total_slots']}/{quality['total_required']} حصّة "

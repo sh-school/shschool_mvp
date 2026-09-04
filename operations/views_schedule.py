@@ -627,9 +627,14 @@ def smart_schedule_view(request):
     total_weekly = sum(a.weekly_periods for a in assignments)
     # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
     # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
+    # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
+    from operations.schedule_lab import compare, latest_baseline
+
+    baseline = latest_baseline(school, year)
     for g in generations:
         g.placed = g.slot_rows or g.total_slots_created
         ratio = 100 * g.placed / total_weekly if total_weekly else 0.0
+        g.lab_rows = compare(g.metrics, baseline.metrics if baseline else None) if g.metrics else []
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
 
@@ -650,6 +655,7 @@ def smart_schedule_view(request):
             "can_approve": request.user.is_superuser
             or request.user.get_role() in ("principal", "vice_academic"),
             "year": year,
+            "baseline": baseline,
             "total_weekly": total_weekly,
             "classes_count": assignments.values("class_group").distinct().count(),
             "teachers_count": assignments.values("teacher").distinct().count(),
@@ -916,6 +922,13 @@ def approve_schedule(request, generation_id):
         ).update(status="archived")
 
         gen.status = "approved"
+        # ويُعاد القياسُ عند الاعتماد: المصادقةُ قد تكون بعد تعديلٍ يدويّ على المسودّة.
+        try:
+            from operations.schedule_lab import store_metrics
+
+            store_metrics(gen)
+        except Exception:  # noqa: BLE001
+            logger.exception("schedule_lab: تعذّر القياسُ عند الاعتماد %s", gen.id)
         gen.save(update_fields=["status"])
 
         # `school` لازمٌ لا زينة: الإشعارُ صفٌّ مستأجِرٌ تحرسه RLS، وصفٌّ بلا

@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     AbsenceAlert,
+    ScheduleBaseline,
     ScheduleGeneration,
     ScheduleSlot,
     SchedulingResource,
@@ -20,8 +21,9 @@ from .models import (
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ("name_ar", "code", "school")
-    list_filter = ("school",)
+    list_display = ("name_ar", "code", "pedagogy", "school")
+    list_editable = ("pedagogy",)
+    list_filter = ("pedagogy", "school")
     search_fields = ("name_ar", "code")
 
 
@@ -198,3 +200,10 @@ class ScheduleGenerationAdmin(admin.ModelAdmin):
         "generation_time_ms",
     )
     autocomplete_fields = ("generated_by",)
+
+
+@admin.register(ScheduleBaseline)
+class ScheduleBaselineAdmin(admin.ModelAdmin):
+    list_display = ("label", "academic_year", "school", "created_at")
+    list_filter = ("school", "academic_year")
+    readonly_fields = ("metrics", "created_at")

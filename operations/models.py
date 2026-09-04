@@ -23,6 +23,17 @@ class Subject(models.Model):
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")
     name_ar = models.CharField(max_length=100, verbose_name="اسم المادة")
     code = models.CharField(max_length=20, blank=True)
+    #: طبيعةُ المادّة تربويّاً — تقرؤها مؤشراتُ الجودة (التوقيت التربويّ): الثقيلةُ
+    #: يُفضَّل لها النصفُ الأوّل من اليوم، والنشاطُ النصفُ الثاني، والعاديّةُ بلا
+    #: تفضيل. حقلٌ لا قائمةُ أسماءٍ في الكود — فسياسةُ المدرسة تتغيّر بلا نشر.
+    PEDAGOGY = [
+        ("heavy", "ثقيلة (رياضيات، علوم، لغات)"),
+        ("activity", "نشاط (بدنية، فنون، تكنولوجيا)"),
+        ("regular", "عادية"),
+    ]
+    pedagogy = models.CharField(
+        max_length=10, choices=PEDAGOGY, default="regular", verbose_name="طبيعة المادة"
+    )
     requires_double_period = models.BooleanField(
         default=False,
         verbose_name="حصة مزدوجة",
@@ -683,6 +694,37 @@ class TeacherExemption(models.Model):
             raise ValidationError({"period_number": "تفريغُ حصّةٍ بعينها يحتاج رقمَها."})
 
 
+class ScheduleBaseline(models.Model):
+    """أساسٌ مرجعيٌّ لمؤشرات الجودة: لقطةُ مؤشرات جدولٍ بعينه باسمٍ وتاريخ.
+
+    كلُّ توليدٍ بعده يُعرض بفرقه عن هذا الأساس، وإن تغيّر الجدولُ الحيُّ لاحقاً —
+    فالمقارنةُ بمرجعٍ ثابتٍ لا بهدفٍ يتحرّك (بند 25 من خطّة التجويد 2026-09-04).
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_baselines")
+    academic_year = models.CharField(max_length=9)
+    label = models.CharField(max_length=60, verbose_name="الاسم")
+    metrics = models.JSONField(default=dict, verbose_name="المؤشرات")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = "أساس مرجعي للجدول"
+        verbose_name_plural = "الأسس المرجعية للجدول"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year", "label"], name="unique_schedule_baseline"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.label} — {self.academic_year}"
+
+
 class ScheduleGeneration(models.Model):
     """سجل عمليات التوليد التلقائي للجدول.
 
@@ -719,6 +761,9 @@ class ScheduleGeneration(models.Model):
     total_slots_created = models.IntegerField(default=0)
     generation_time_ms = models.IntegerField(default=0, verbose_name="زمن التوليد (مللي ثانية)")
     config_snapshot = models.JSONField(default=dict, verbose_name="نسخة الإعدادات")
+    #: مؤشراتُ مختبر الجودة (`operations.schedule_lab`) — تُحسب عند انتهاء التوليد
+    #: وعند الاعتماد، وتُعرض بجانب الأساس المرجعيّ لا رقماً مجرَّداً.
+    metrics = models.JSONField(default=dict, blank=True, verbose_name="مؤشرات الجودة")
     #: متى انتهى — لا يُقاس من `generated_at` لأنّ الانتظارَ في الطابور ليس توليداً.
     finished_at = models.DateTimeField(null=True, blank=True, verbose_name="انتهى في")
     #: سببُ الفشل كما يُقال للمستخدم — وصمتُ الفشل أسوأُ من الفشل.
