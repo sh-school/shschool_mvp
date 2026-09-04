@@ -1041,6 +1041,38 @@ def bell_lookup(school: School):
     return lookup
 
 
+def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
+    """معلّمون تسع قيودُهم أقلَّ من نصابهم — بالحساب لا بالتخمين."""
+    from .preference_capacity import explain_shortfall, weekly_capacity
+
+    load: dict[str, int] = defaultdict(int)
+    names: dict[str, str] = {}
+    for t in tasks:
+        for m in t.members:
+            load[m.teacher_id] += t.span
+            names[m.teacher_id] = m.teacher_name
+    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for teacher_id, day, _period in blocked_slots:
+        blocked_per_day[teacher_id][day] += 1
+
+    found = []
+    for pref in prefs:
+        tid = str(pref.teacher_id)
+        if tid not in load:
+            continue
+        free_per_day = {d: LAST_PERIOD - n for d, n in blocked_per_day[tid].items()}
+        capacity = weekly_capacity(
+            pref.max_daily_periods,
+            pref.max_consecutive,
+            pref.max_gap,
+            pref.free_day,
+            free_per_day,
+        )
+        if capacity < load[tid]:
+            found.append(explain_shortfall(names[tid], capacity, load[tid], pref))
+    return found
+
+
 #: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة (#109).
 #: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
 #: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
@@ -1104,6 +1136,10 @@ def generate_schedule(
                 blocked_slots.add((tid, ex.day_of_week, p))
         else:
             blocked_slots.add((tid, ex.day_of_week, ex.period_number))
+
+    # 2c. قيودٌ لا تسع نصابَ صاحبها تُقال باسمها قبل أن تُقال «تعذّر وضع»
+    # سبعَ مرّات: «متتالية 1» مع «فراغ 0» حصّةٌ واحدةٌ في اليوم.
+    errors.extend(_capacity_shortfalls(tasks, prefs_qs, blocked_slots))
 
     # 3. ترتيب المهام — والتفريغاتُ تدخل في الترتيب: الأضيقُ خاناتٍ أوّلاً
     sorted_tasks = sort_tasks(tasks, blocked_slots)
