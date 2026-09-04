@@ -57,6 +57,18 @@
     font-weight: 600;
   }
   .print-controls a:hover { text-decoration: underline; }
+  /* زرّا التصدير: كالزرّ شكلاً ورابطٌ حقيقةً — فالتنزيلُ انتقالٌ لا حدثُ زرّ. */
+  .print-controls a.btn-export {
+    border: 1px solid #8A1538;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+  .print-controls a.btn-export:hover {
+    background: #8A1538;
+    color: #fff;
+    text-decoration: none;
+  }
 
   /* ── Schedule Container ── */
   .schedule-print {
@@ -127,29 +139,6 @@
     border: 1px solid #ddd;
     vertical-align: middle;
     height: 54px;
-  }
-  .period-time {
-    display: block;
-    font-size: 9px;
-    font-weight: 600;
-    color: #8A1538;
-    direction: ltr;
-    line-height: 1.25;
-    margin-top: 2px;
-  }
-  /* جرسُ الخميس حين يخالف الأحد–الأربعاء — أخفُّ وزناً، وعنوانُه بالعربيّة. */
-  .period-time-thu {
-    font-weight: 500;
-    color: #6b4a55;
-    margin-top: 4px;
-    padding-top: 3px;
-    border-top: 1px dashed #d9c3ca;
-  }
-  .period-time-label {
-    display: block;
-    direction: rtl;
-    font-size: 8px;
-    font-weight: 700;
   }
   .schedule-grid .period-cell {
     background: #f0e6e9;
@@ -246,7 +235,7 @@
   /* عمودُ الاسم: أعرضُ الأعمدة. وأطولُ اسمٍ ثمانيةٌ وثلاثون حرفاً، فسُدُسُ
      العرض يسعه كاملاً — ومن قُصَّ اسمه بنقاطٍ ثلاثٍ لم يجد سطره. */
   .schedule-matrix .m-name {
-    width: 15%;
+    width: 14%;
     text-align: right;
     padding: 0 4px;
     font-size: 9px;
@@ -255,7 +244,24 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .schedule-matrix .m-cell { width: 2.328%; direction: ltr; }
+  /* عمودُ القسم: خانةٌ واحدةٌ ممتدّةٌ على سطور معلّميه — والسطورُ مرتّبةٌ
+     بالقسم أصلاً فلا تنقطع مجموعته. واسمُه يُكتب مرّةً لا في كلِّ سطر.
+     والخمسةُ في المئة عشرون ملّيمتراً على A3 عرضيّة: يسعُ أطولَ الأسماء
+     («التكنولوجيا وعلوم الحاسب») في سطرين، وأقصرَها في سطر. ولفُّ النصّ
+     مسموحٌ هنا وحدَه — وسائرُ الخانات سطرٌ لا يُلَفّ. */
+  .schedule-matrix .m-dept {
+    width: 5%;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 3px;
+    line-height: 1.2;
+    white-space: normal;
+    vertical-align: middle;
+    border-right-width: 2px;
+  }
+  /* عرضُ الخانة نقص من 2.328% إلى 2.214% ليُفسح لعمود القسم: تسعةُ
+     ملّيمتراتٍ تسعُ «11/2» في ثمانية — والورقةُ لم تزدد عرضاً ولا سطراً. */
+  .schedule-matrix .m-cell { width: 2.214%; direction: ltr; }
   .schedule-matrix .m-total { width: 3.5%; font-weight: 700; }
   /* حدُّ اليوم أغلظُ من حدِّ الحصّة — وإلّا ضاعت الأيامُ في خمسٍ وثلاثين
      خانةً متشابهة. والجهةُ هنا ماديّةٌ (يمين) لا منطقيّة: خانةُ الحصّة
@@ -280,6 +286,7 @@
   .schedule-matrix tbody tr.dept-physics      td { background: #dcd8f0; }
   .schedule-matrix tbody tr.dept-social       td { background: #fdedb3; }
   .schedule-matrix tbody tr.dept-tech         td { background: #d8e2e6; }
+  .schedule-matrix tbody tr.dept-business     td { background: #e8e0c8; }
   .schedule-matrix tbody tr.dept-pe           td { background: #cfe8d8; }
   .schedule-matrix tbody tr.dept-arts         td { background: #f4d9e8; }
   .schedule-matrix tbody tr.dept-life_skills  td { background: #e8ded0; }
@@ -352,7 +359,6 @@
     .slot-subject { font-size: 9.5pt; line-height: 1.25; }
     .slot-teacher, .slot-class { font-size: 8pt; }
     .slot-time { font-size: 7pt; margin-top: 1mm; }
-    .period-time { font-size: 7pt; }
     .schedule-footer { margin-top: 2mm; padding-top: 1.5mm; font-size: 8pt; }
   }
   {% endif %}
@@ -371,6 +377,9 @@
     .schedule-matrix { font-size: 7.5px; }
     .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.3; }
     .schedule-matrix .m-name { font-size: 8px; }
+    /* أصغرُ من اسم المعلّم بدرجة: خانةُ قسمٍ من سطرٍ واحد (إدارة الأعمال
+       معلّمٌ واحد) لا تُطيل سطرها فتدفع آخرَ الورقة إلى ورقةٍ ثانية. */
+    .schedule-matrix .m-dept { font-size: 7px; padding: 0 2px; }
     .schedule-matrix .m-day { font-size: 12px; padding: 2px 0; }
     .schedule-matrix .m-period { font-size: 9px; }
     /* ترويسةُ الأيام والحصص تتكرّر مع الصفحة إن فاض الجدول عن ورقة. */
@@ -380,14 +389,29 @@
   }
   {% endif %}
 </style>
-<!-- Tajawal font for Arabic -->
+{% comment %}
+خطُّ الورقة تجوّل — على الشاشة من `/static/`، وفي PDF من القرص.
+
+و`{% static %}` يُخرج رابطاً نسبيّاً على الويب (`/static/…`)، ومولّدُ PDF
+يقرأ من القرص لا من الخادم فلا يجده ويسقط صامتاً إلى خطٍّ آخر. وهو يحقن
+`@font-face` بمسارات القرص المطلقة من نفسه — ما لم يجد في الصفحة
+`@font-face` باسم الخطّ، فيظنّها كافيةً ويكفّ. فتُحذف هنا في مسار PDF
+ليعمل حقنُه، وتبقى على الشاشة حيث الرابطُ الوحيدُ الذي يعمل.
+{% endcomment %}
+{% if not for_pdf %}
   <style>
     @font-face{font-family:'Tajawal';font-weight:400;font-display:swap;src:url("{% static 'fonts/Tajawal-Regular.woff2' %}") format('woff2');}
     @font-face{font-family:'Tajawal';font-weight:500;font-display:swap;src:url("{% static 'fonts/Tajawal-Medium.woff2' %}") format('woff2');}
     @font-face{font-family:'Tajawal';font-weight:700;font-display:swap;src:url("{% static 'fonts/Tajawal-Bold.woff2' %}") format('woff2');}
   </style>
+{% endif %}
 </head>
-<body class="{% if paper == 'a3' %}paper-a3{% endif %}">
+{% comment %}
+`data-pdf-own-page`: الورقةُ تحمل ترويستها وذيلها و@page بنفسها، فلا يحقن
+مولّدُ PDF ترويسةً ثانيةً ولا حجمَ ورقٍ يخالف المختار. و`{# #}` لا تمتدّ
+سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
+{% endcomment %}
+<body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3{% endif %}">
 
 {# ── Print Controls (hidden in print) ── #}
 {# داخل صفحة العرض في المنصّة تُخفى الأدوات: أدواتُ الصفحة الحاضنة تكفي. #}
@@ -447,6 +471,9 @@
 
 
   <button data-action="print">طباعة</button>
+  {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
+  <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
+  <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
 {% endif %}
@@ -457,7 +484,7 @@
 {% if view_type == 'all_teachers' %}
 {# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
   <div class="matrix-head">
-    <img class="print-emblem" src="{% static 'brand/logoMaroon.png' %}" alt="شعار {{ school.name }}">
+    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}">
     <div class="ministry">{{ school.name }}</div>
     <div class="title">الجدول العام للمعلمين</div>
     <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}</div>
@@ -468,6 +495,7 @@
   <table class="schedule-matrix">
     <thead>
       <tr>
+        <th class="m-dept" rowspan="2">القسم</th>
         <th class="m-name" rowspan="2">المعلّم</th>
         {% for day_num, day_name in days %}
         <th class="m-day m-day-start" colspan="7">{{ day_name }}</th>
@@ -486,6 +514,7 @@
       {% for row in matrix %}
       {# لونُ السطر هو قسمُ المعلّم — والسطورُ آتيةٌ مرتّبةً بالقسم من الخدمة. #}
       <tr class="dept-{{ row.department.code }}">
+        {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}">{{ row.department.name }}</td>{% endif %}
         <td class="m-name" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}">{{ row.teacher.full_name }}</td>
         {% for day in row.days %}
           {% for cell in day %}
@@ -507,7 +536,7 @@
         نصّاً داخل الجدول ورفعه المحلّلُ فوقه.
       {% endcomment %}
       <tr>
-        <td class="m-name" title="عدد الشعب المجدولة: {{ matrix_totals.sections }}">مجموع الحصص</td>
+        <td class="m-name" colspan="2" title="عدد الشعب المجدولة: {{ matrix_totals.sections }}">مجموع الحصص</td>
         {% for day in matrix_totals.days %}
           {% for column in day %}
           <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if column.short %} m-short{% endif %}"
@@ -538,7 +567,7 @@
 
 {% else %}
   <div class="schedule-header">
-    <img class="print-emblem" src="{% static 'brand/logoMaroon.png' %}" alt="شعار {{ school.name }}">
+    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <div class="title">{{ title }}</div>
@@ -557,11 +586,8 @@
     <tbody>
       {% for period in periods %}
       <tr>
-        <td class="period-cell">
-          {{ period.number }}
-          {% if period.start %}<span class="period-time">{{ period.start|time:"H:i" }}<br>{{ period.end|time:"H:i" }}</span>{% endif %}
-          {% if period.thu_start %}<span class="period-time period-time-thu"><span class="period-time-label">الخميس</span>{{ period.thu_start|time:"H:i" }}<br>{{ period.thu_end|time:"H:i" }}</span>{% endif %}
-        </td>
+        {# رقمُ الحصّة وحدَه — وتوقيتُها مكتوبٌ داخل خانتها. #}
+        <td class="period-cell">{{ period.number }}</td>
         {% for day_num, day_name in days %}
         {% with cell=grid|get_item:day_num|get_item:period.number %}
         <td>

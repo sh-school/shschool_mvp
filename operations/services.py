@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from datetime import date
+from itertools import groupby
 from typing import TYPE_CHECKING
 
 from django.db import models, transaction
@@ -307,29 +308,6 @@ class ScheduleService:
         return {p: c.most_common(1)[0][0] for p, c in tally.items()}
 
     @staticmethod
-    def grid_band(grid: dict, class_group: ClassGroup | None = None) -> tuple:
-        """نطاقُ الجدول المعروض: (النطاق، هل هو واحد؟).
-
-        الشعبةُ لها نطاقُها. والمعلّمُ نطاقُه نطاقُ شُعبه إن اتّفقت، ومن يقطع
-        الطابقين لا جرسَ واحدَ له — فعمودُ التوقيت لا يُكتب لأحد الجرسين
-        كأنّه الجرسان، وتحمل كلُّ خانةٍ وقتَها.
-        """
-        from core.models import TimeBand
-
-        if class_group is not None:
-            return class_group.time_band, True
-        band_ids = {
-            slot.class_group.time_band_id
-            for day in grid.values()
-            for cell in day.values()
-            for slot in cell
-        }
-        if len(band_ids) > 1:
-            return None, False
-        band_id = next(iter(band_ids), None)
-        return (TimeBand.objects.filter(id=band_id).first() if band_id else None), True
-
-    @staticmethod
     def get_weekly_schedule(
         school: School,
         teacher: CustomUser | None = None,
@@ -391,7 +369,7 @@ class ScheduleService:
         الحصص نفسها، انظر `operations.departments`.
 
         الشكل: `[{"teacher": …, "days": [[خانة × ٧] × ٥], "total": عدد,
-        "department": {رمز، اسم، ترتيب}}]`
+        "department": {رمز، اسم، ترتيب}, "dept_span": امتدادُ خانة القسم}]`
         والخانةُ قائمةٌ لا حصّةٌ مفردة — والقيدُ يمنع تعدُّدها اليوم، فإن
         رُفع غداً ظهر ما فيها بدل أن يُكتب أحدهما فوق الآخر.
         """
@@ -431,10 +409,22 @@ class ScheduleService:
             fill = row.pop("fill_weights")
             row["department"] = department_info(resolve_department(weights or fill))
 
-        return sorted(
+        ordered = sorted(
             rows.values(),
             key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
         )
+
+        # عمودُ القسم خانةٌ واحدةٌ ممتدّةٌ على سطور معلّميه: `dept_span` عددُ
+        # السطور لأوّلِ معلّمي القسم وصفرٌ لمن بعده. والاسمُ يُكتب مرّةً لا في
+        # كلِّ سطر — فتكرارُه ثلاثاً وسبعين مرّةً يأكل من عرض الورقة ولا يزيد
+        # قارئها علماً. والسطورُ مرتّبةٌ بالقسم قبلَه، فالمجموعةُ متّصلة.
+        for _, group in groupby(ordered, key=lambda r: r["department"]["code"]):
+            members = list(group)
+            members[0]["dept_span"] = len(members)
+            for row in members[1:]:
+                row["dept_span"] = 0
+
+        return ordered
 
     @staticmethod
     def matrix_totals(rows: list[dict], school: School, academic_year: str | None = None) -> dict:

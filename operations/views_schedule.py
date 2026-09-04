@@ -251,6 +251,15 @@ def _schedule_print_selection(request):
     elif target_class:
         title = f"جدول الفصل: {target_class}"
 
+    # الاختيارُ نفسه سؤالاً في الرابط: الإطارُ وزرّا التصدير ثلاثةُ روابطَ
+    # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
+    # مسألةَ وقت — يُنسى معاملٌ في أحدها فيُصدَّر جدولُ غير المعروض.
+    selection = {"view": view_type, "paper": paper, "year": year}
+    if target_teacher:
+        selection["teacher"] = str(target_teacher.id)
+    if target_class:
+        selection["class"] = str(target_class.id)
+
     return {
         "school": school,
         "year": year,
@@ -262,16 +271,16 @@ def _schedule_print_selection(request):
         "teachers": teachers,
         "classes": classes,
         "title": title,
+        "selection_query": urlencode(selection),
     }
 
 
-# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
-# صفحة العرض في المنصّة — والمصدرُ هو الموقع نفسه، فـ sameorigin يكفي.
-@xframe_options_sameorigin
-@login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
-def schedule_print(request):
-    """ورقةُ الطباعة نفسها — A4/A3، بلا هيدر المنصّة ولا فوترها."""
+def _schedule_print_payload(request) -> dict:
+    """سياقُ الورقة كاملاً: الاختيارُ وبياناته.
+
+    ثلاثةُ مخارجَ تقرأ هذه الورقة — صفحةٌ في المتصفّح، وPDF، وExcel — فبناؤها
+    في موضعٍ واحد يمنع أن يختلف المطبوعُ عن المعروض بعد تعديلٍ في أحدهما.
+    """
     ctx = _schedule_print_selection(request)
     school, year = ctx["school"], ctx["year"]
 
@@ -288,41 +297,98 @@ def schedule_print(request):
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
-    # وكانت الخلايا بلا توقيتٍ أصلاً. والتوقيتُ جرسُ نطاقٍ واحد: للشعبة
-    # نطاقُها، ولمعلّمٍ يقطع الطابقين لا جرسَ واحدَ فيُترك العمودُ لخاناته.
-    # والخميسُ جرسٌ آخر — فإن خالف الأحدَ–الأربعاء كُتب تحته.
-    band, uniform = ScheduleService.grid_band(grid, ctx["target_class"])
-    times = ScheduleService.period_times(school, year, band=band) if uniform else {}
-    thursday = (
-        ScheduleService.period_times(school, year, band=band, day_type="thursday")
-        if uniform
-        else {}
-    )
-    PERIODS = []
-    for n in ScheduleSlot.PERIODS:
-        start, end = times.get(n, (None, None))
-        thu_start, thu_end = thursday.get(n, (None, None))
-        if (thu_start, thu_end) == (start, end):
-            thu_start = thu_end = None
-        PERIODS.append(
-            {"number": n, "start": start, "end": end, "thu_start": thu_start, "thu_end": thu_end}
-        )
+    # وكانت الخلايا بلا توقيتٍ أصلاً.
+    times = ScheduleService.period_times(school, year)
+    PERIODS = [
+        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
+        for n in ScheduleSlot.PERIODS
+    ]
 
-    return render(
-        request,
-        "schedule/print_schedule.html",
-        {
-            **ctx,
-            "grid": grid,
-            "matrix": matrix,
-            "matrix_totals": matrix_totals,
-            "days": DAYS,
-            "periods": PERIODS,
-            "period_numbers": range(1, 8),
-            # داخل الإطار: الورقةُ وحدها، وأدواتُها في الصفحة الحاضنة.
-            "embed": request.GET.get("embed") == "1",
-        },
+    return {
+        **ctx,
+        "grid": grid,
+        "matrix": matrix,
+        "matrix_totals": matrix_totals,
+        "days": DAYS,
+        "periods": PERIODS,
+        "period_numbers": range(1, 8),
+        # داخل الإطار: الورقةُ وحدها، وأدواتُها في الصفحة الحاضنة.
+        "embed": request.GET.get("embed") == "1",
+    }
+
+
+# `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
+# صفحة العرض في المنصّة — والمصدرُ هو الموقع نفسه، فـ sameorigin يكفي.
+@xframe_options_sameorigin
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+def schedule_print(request):
+    """ورقةُ الطباعة نفسها — A4/A3، بلا هيدر المنصّة ولا فوترها."""
+    return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
+
+
+def _export_filename(ctx: dict, extension: str) -> str:
+    """اسمُ الملفّ: عنوانُ الورقة وسنتُها.
+
+    و`get_valid_filename` يُسقط ما لا يقبله اسمُ ملفٍّ ولا ترويسةُ HTTP —
+    والعربيّةُ تبقى فيه حروفاً، فالاسمُ يُقرأ بعد التنزيل.
+    """
+    from django.utils.text import get_valid_filename
+
+    stem = f"{ctx.get('title') or 'الجدول'} {ctx.get('year') or ''}".strip()
+    return f"{get_valid_filename(stem)}.{extension}"
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+def schedule_export_pdf(request):
+    """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ.
+
+    والأدواتُ تُخفى بـ`embed`: أزرارُ الطباعة والتصدير لا محلّ لها في ملفٍّ
+    يُرسَل أو يُؤرشَف.
+    """
+    from django.template.loader import render_to_string
+
+    from core.pdf_utils import render_pdf
+
+    ctx = _schedule_print_payload(request)
+    ctx["embed"] = True
+    # الشعارُ بمسارٍ نسبيٍّ من جذر المشروع: مولّدُ PDF يقرأ من القرص لا من
+    # الويب، فرابطُ `/static/…` المطلق يقع خارج جذره ويخرج الشعارُ نصّاً.
+    ctx["for_pdf"] = True
+    html = render_to_string("schedule/print_schedule.html", ctx, request=request)
+    return render_pdf(
+        html,
+        _export_filename(ctx, "pdf"),
+        paper_size="A3" if ctx.get("paper") == "a3" else "A4",
+        as_attachment=True,
     )
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+def schedule_export_excel(request):
+    """الورقةُ نفسها مصنَّفَ Excel — بالشكل نفسه لا ببياناتٍ خام."""
+    from io import BytesIO
+    from urllib.parse import quote
+
+    from operations.schedule_export import schedule_workbook
+
+    ctx = _schedule_print_payload(request)
+    buffer = BytesIO()
+    schedule_workbook(ctx).save(buffer)
+
+    filename = _export_filename(ctx, "xlsx")
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    # اسمٌ لاتينيٌّ للقديم و`filename*` مُرمَّزٌ للحديث: ترويسةٌ عربيّةٌ كاملةً
+    # يُرمّزها Django بـRFC 2047 فلا يفهمها متصفّح، ويضيع طلبُ التنزيل.
+    response["Content-Disposition"] = (
+        f"attachment; filename=schedule.xlsx; filename*=UTF-8''{quote(filename)}"
+    )
+    return response
 
 
 @login_required

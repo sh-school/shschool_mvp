@@ -287,7 +287,8 @@ def test_resync_rewrites_the_stale_clock_of_approved_slots(school, bands):
 
 
 def test_the_printed_sheet_carries_the_bands_thursday_bell(school, bands):
-    """عمودُ الحصّة لشعبةٍ ثانويّة: جرسُ الأحد–الأربعاء وتحته جرسُ الخميس حين يخالفه."""
+    """خانةُ الخميس لشعبةٍ ثانويّة تحمل جرسَها (11:50–12:30) لا الجرسَ القديم (13:20)؛
+    وعمودُ الحصّة رقمٌ مجرَّد — فالتوقيتُ يصدق في الخانة وحدها."""
     from django.test import Client
     from django.urls import reverse
 
@@ -317,11 +318,11 @@ def test_the_printed_sheet_carries_the_bands_thursday_bell(school, bands):
         HTTP_HOST="localhost",
     ).content.decode()
 
-    assert "12:25<br>13:10" in body, "جرسُ الأحد–الأربعاء للسابعة"
-    assert "11:50<br>12:30" in body, "وجرسُ الخميس تحته"
+    assert "11:50 – 12:30" in body, "جرسُ الخميس في خانته"
     assert "13:20" not in body, "لا أثرَ للجرس القديم"
+    assert 'class="period-time"' not in body, "والعمودُ رقمٌ مجرَّد"
 
-    # ومعلّمُ الطابقين لا جرسَ واحدَ له — فالعمودُ بلا وقتٍ وخاناتُه تحمل أوقاتها.
+    # ومعلّمُ الطابقين: كلُّ خانةٍ تحمل جرسَ شعبتها.
     ground = ClassGroupFactory(
         school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=bands["ground"]
     )
@@ -330,5 +331,4 @@ def test_the_printed_sheet_carries_the_bands_thursday_bell(school, bands):
         reverse("schedule_print") + f"?view=teacher&teacher={teacher.id}&year={YEAR}",
         HTTP_HOST="localhost",
     ).content.decode()
-    assert 'class="period-time"' not in body
     assert "08:00 – 08:50" in body and "11:50 – 12:30" in body

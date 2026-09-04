@@ -14,6 +14,10 @@ urlpatterns = [
     path("weekly-schedule/", views.weekly_schedule, name="weekly_schedule"),
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
     path("weekly-schedule/print/view/", views.schedule_print_view, name="schedule_print_view"),
+    path("weekly-schedule/export/pdf/", views.schedule_export_pdf, name="schedule_export_pdf"),
+    path(
+        "weekly-schedule/export/excel/", views.schedule_export_excel, name="schedule_export_excel"
+    ),
     # -- المرحلة 2: نظام البديل --
     path("absences/", views.teacher_absence_list, name="absence_list"),
     path("absences/register/", views.register_teacher_absence, name="register_absence"),

@@ -474,6 +474,38 @@ class TestTeacherDepartments:
         assert codes == ["sharia", "arabic"]
         assert DEPARTMENT_ORDER["sharia"] < DEPARTMENT_ORDER["arabic"]
 
+    def test_department_column_spans_its_teachers_once(self, school, class_group):
+        """اسمُ القسم يُكتب مرّةً وتمتدّ خانتُه على معلّميه — لا في كلّ سطر."""
+        from operations.services import ScheduleService
+
+        arabic = Subject.objects.create(school=school, name_ar="اللغة العربية")
+        islamic = Subject.objects.create(school=school, name_ar="التربية الإسلامية")
+        for idx, (name, subject) in enumerate(
+            ((" أ معلّم", arabic), ("ب معلّم", arabic), ("ج معلّم", islamic))
+        ):
+            teacher = UserFactory(full_name=name)
+            MembershipFactory(
+                user=teacher, school=school, role=RoleFactory(school=school, name=f"teacher{idx}")
+            )
+            ScheduleSlot.objects.create(
+                school=school,
+                class_group=class_group,
+                teacher=teacher,
+                subject=subject,
+                day_of_week=idx,
+                period_number=1,
+                start_time=time(7, 30),
+                end_time=time(8, 15),
+                academic_year=class_group.academic_year,
+            )
+
+        rows = ScheduleService.get_teachers_matrix(school, class_group.academic_year)
+
+        # الشرعيةُ أوّلاً بمعلّمٍ واحد، ثمّ العربيةُ بمعلّمين.
+        assert [r["dept_span"] for r in rows] == [1, 2, 0]
+        # مجموعُ الامتدادات يساوي عددَ السطور — فلا سطرَ بلا خانةِ قسمٍ فوقه.
+        assert sum(r["dept_span"] for r in rows) == len(rows)
+
 
 # ══════════════════════════════════════════════════
 #  ترتيبُ الشُّعب: من 7/1 إلى 12/4
