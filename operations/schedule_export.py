@@ -201,10 +201,8 @@ def _grid_workbook(ctx: dict):
 
     for index, period in enumerate(periods):
         row_num = 5 + index
-        label = str(period["number"])
-        if period.get("start") and period.get("end"):
-            label = f"{label}\n{period['start']:%H:%M} – {period['end']:%H:%M}"
-        ws.cell(row=row_num, column=1, value=label)
+        # رقمُ الحصّة وحدَه في العمود — وتوقيتُها في خانتها، كالورقة.
+        ws.cell(row=row_num, column=1, value=period["number"])
         for day_index, (day_num, _) in enumerate(days):
             cell_slots = (grid.get(day_num) or {}).get(period["number"]) or []
             ws.cell(
@@ -227,12 +225,18 @@ def _grid_workbook(ctx: dict):
 
 
 def _slot_text(slot, view_type: str | None) -> str:
-    """نصُّ الخانة: المادّةُ ثمّ من لا يُعرف من العنوان — معلّماً كان أو شعبة."""
+    """نصُّ الخانة: المادّةُ، ثمّ من لا يُعرف من العنوان، ثمّ توقيتُ الحصّة.
+
+    والتوقيتُ في الخانة لا في عمود الحصص: خانتان في العمود الواحد قد تختلف
+    ساعتاهما (طابقان بجرسين)، فتوقيتُ العمود يكذب على إحداهما.
+    """
     parts = [slot.subject.name_ar if slot.subject else "—"]
     if view_type != "teacher" and slot.teacher_id:
         parts.append(slot.teacher.full_name)
     if view_type != "class":
         parts.append(str(slot.class_group))
+    if slot.start_time and slot.end_time:
+        parts.append(f"{slot.start_time:%H:%M} – {slot.end_time:%H:%M}")
     return " — ".join(part for part in parts if part)
 
 

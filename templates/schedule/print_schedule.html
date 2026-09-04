@@ -140,15 +140,6 @@
     vertical-align: middle;
     height: 54px;
   }
-  .period-time {
-    display: block;
-    font-size: 9px;
-    font-weight: 600;
-    color: #8A1538;
-    direction: ltr;
-    line-height: 1.25;
-    margin-top: 2px;
-  }
   .schedule-grid .period-cell {
     background: #f0e6e9;
     font-weight: 800;
@@ -368,7 +359,6 @@
     .slot-subject { font-size: 9.5pt; line-height: 1.25; }
     .slot-teacher, .slot-class { font-size: 8pt; }
     .slot-time { font-size: 7pt; margin-top: 1mm; }
-    .period-time { font-size: 7pt; }
     .schedule-footer { margin-top: 2mm; padding-top: 1.5mm; font-size: 8pt; }
   }
   {% endif %}
@@ -596,10 +586,8 @@
     <tbody>
       {% for period in periods %}
       <tr>
-        <td class="period-cell">
-          {{ period.number }}
-          {% if period.start %}<span class="period-time">{{ period.start|time:"H:i" }}<br>{{ period.end|time:"H:i" }}</span>{% endif %}
-        </td>
+        {# رقمُ الحصّة وحدَه — وتوقيتُها مكتوبٌ داخل خانتها. #}
+        <td class="period-cell">{{ period.number }}</td>
         {% for day_num, day_name in days %}
         {% with cell=grid|get_item:day_num|get_item:period.number %}
         <td>
