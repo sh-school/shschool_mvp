@@ -28,6 +28,8 @@ from .views_schedule import (
     assign_substitute,
     register_teacher_absence,
     remove_exemption,
+    schedule_export_excel,
+    schedule_export_pdf,
     schedule_print,
     schedule_print_view,
     schedule_settings,
@@ -73,6 +75,8 @@ __all__ = [
     "daily_report",
     # schedule
     "weekly_schedule",
+    "schedule_export_excel",
+    "schedule_export_pdf",
     "schedule_print",
     "schedule_print_view",
     "teacher_absence_list",

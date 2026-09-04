@@ -55,12 +55,15 @@
       </form>
 
       <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
+      {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
+      <a href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
+      <a href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
       <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">← رجوع للجدول</a>
     </div>
   </div>
 
   <iframe id="schedule-print-frame" title="{{ title }}"
-          src="{% url 'schedule_print' %}?embed=1&view={{ view_type }}&paper={{ paper }}&year={{ year }}{% if target_teacher %}&teacher={{ target_teacher.id }}{% endif %}{% if target_class %}&class={{ target_class.id }}{% endif %}"
+          src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
           style="width:100%;height:78vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
 </div>
 
