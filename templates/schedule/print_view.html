@@ -5,12 +5,20 @@
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current="طباعة" %}
 {% endblock %}
 
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+  /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
+     عموداً، وسقفُ المنصّة (max-w-7xl) يحشرها في 1280px على شاشةٍ عرضُها 2560. */
+  #main-content { max-width: none; padding-inline: 12px; }
+</style>
+{% endblock %}
+
 {% block content %}
 {% comment %}
 كصفحة الزيارات الصفّية: الورقةُ في إطارٍ داخل المنصّة، فيبقى الهيدر والفوتر
 وشريطُ الأدوات لنا — اختياراً وطباعةً ورجوعاً — والمطبوعُ ورقةٌ مجرّدة وحدها.
 {% endcomment %}
-<div class="card-qatar" style="max-width:1400px;margin-inline:auto">
+<div class="card-qatar" style="width:100%">
   <div class="exec-header">
     <h1>{% include "components/icon.html" with name="printer" %} {{ title }}</h1>
 
@@ -64,7 +72,7 @@
 
   <iframe id="schedule-print-frame" title="{{ title }}"
           src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-          style="width:100%;height:78vh;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+          style="width:100%;height:calc(100vh - 230px);min-height:560px;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
 </div>
 
 <script nonce="{{ request.csp_nonce }}">

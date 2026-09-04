@@ -387,6 +387,17 @@
     .schedule-matrix tr { break-inside: avoid; }
     .matrix-foot { font-size: 8px; }
   }
+  /* على الشاشة الورقةُ بعرض الإطار كلِّه: هامشٌ صغير، والخطُّ يكبر مع العرض
+     (على 2560px تصير الخانةُ مقروءةً بلا تكبير) ولا يتجاوز سقفاً يُبقي
+     الأسبوعَ في سطرٍ واحد. والطباعةُ على قياسها المحسوب لا تُمَسّ. */
+  @media screen {
+    .schedule-print { padding: 10px 12px; }
+    .schedule-matrix { font-size: clamp(8px, 0.5vw, 12px); }
+    .schedule-matrix .m-name { font-size: clamp(9px, 0.56vw, 13px); }
+    .schedule-matrix .m-dept, .schedule-matrix .m-period { font-size: clamp(8px, 0.5vw, 12px); }
+    .schedule-matrix .m-day { font-size: clamp(11px, 0.7vw, 16px); }
+    .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.5; }
+  }
   {% endif %}
 </style>
 {% comment %}
