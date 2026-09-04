@@ -288,12 +288,25 @@ def schedule_print(request):
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
     # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
-    # وكانت الخلايا بلا توقيتٍ أصلاً.
-    times = ScheduleService.period_times(school, year)
-    PERIODS = [
-        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
-        for n in ScheduleSlot.PERIODS
-    ]
+    # وكانت الخلايا بلا توقيتٍ أصلاً. والتوقيتُ جرسُ نطاقٍ واحد: للشعبة
+    # نطاقُها، ولمعلّمٍ يقطع الطابقين لا جرسَ واحدَ فيُترك العمودُ لخاناته.
+    # والخميسُ جرسٌ آخر — فإن خالف الأحدَ–الأربعاء كُتب تحته.
+    band, uniform = ScheduleService.grid_band(grid, ctx["target_class"])
+    times = ScheduleService.period_times(school, year, band=band) if uniform else {}
+    thursday = (
+        ScheduleService.period_times(school, year, band=band, day_type="thursday")
+        if uniform
+        else {}
+    )
+    PERIODS = []
+    for n in ScheduleSlot.PERIODS:
+        start, end = times.get(n, (None, None))
+        thu_start, thu_end = thursday.get(n, (None, None))
+        if (thu_start, thu_end) == (start, end):
+            thu_start = thu_end = None
+        PERIODS.append(
+            {"number": n, "start": start, "end": end, "thu_start": thu_start, "thu_end": thu_end}
+        )
 
     return render(
         request,

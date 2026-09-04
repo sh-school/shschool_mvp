@@ -267,36 +267,67 @@ class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
-    def period_times(school: School, academic_year: str | None = None, band=None) -> dict:
-        """توقيت كل حصة — {رقم: (بداية، نهاية)}.
+    def period_times(
+        school: School, academic_year: str | None = None, band=None, day_type: str = "regular"
+    ) -> dict:
+        """توقيت كل حصة — {رقم: (بداية، نهاية)} — لنطاقٍ ونوعِ يوم.
 
-        المصدر الأوّل `TimeSlotConfig`، فهو ما تُعلنه المدرسة. وهو فارغٌ في
-        هذه المنصّة، والأوقات موجودةٌ في الحصص نفسها ومتّسقة — فتُشتقّ منها
-        بالأكثر شيوعاً لكل حصة، لا من رقمٍ مكتوبٍ في الشيفرة يصير كذبةً يوم
-        تُغيّر المدرسة توقيتها.
+        المصدر الأوّل `TimeSlotConfig`، فهو ما تُعلنه المدرسة: جرسُ النطاق
+        ليومه، ثمّ جرسُ المدرسة الافتراضيّ (بلا نطاق) ليومه، ثمّ جرسُ
+        الأحد–الأربعاء. فإن لم تُعلن المدرسةُ جرساً اشتُقّ من الحصص نفسها
+        بالأكثر شيوعاً لكلّ رقمٍ في أيّام ذلك النوع — لا من رقمٍ مكتوبٍ في
+        الشيفرة يصير كذبةً يوم تُغيّر المدرسة توقيتها.
         """
         from collections import Counter
 
         academic_year = academic_year or academic_year_for_school(school)
-        # جرسُ النطاق إن طُلب ووُجد، وإلّا جرسُ المدرسة الافتراضيّ (بلا نطاق).
-        if band is not None:
-            rows = TimeSlotConfig.objects.filter(
-                school=school, day_type="regular", band=band, is_break=False
-            )
-            if rows.exists():
-                return {r.period_number: (r.start_time, r.end_time) for r in rows}
-        rows = TimeSlotConfig.objects.filter(
-            school=school, day_type="regular", band__isnull=True, is_break=False
-        )
-        if rows.exists():
-            return {r.period_number: (r.start_time, r.end_time) for r in rows}
+        candidates = [(band, day_type), (None, day_type)]
+        if day_type != "regular":
+            candidates += [(band, "regular"), (None, "regular")]
+        seen: set = set()
+        for wanted_band, kind in candidates:
+            if (wanted_band, kind) in seen:
+                continue
+            seen.add((wanted_band, kind))
+            rows = TimeSlotConfig.objects.filter(school=school, day_type=kind, is_break=False)
+            rows = rows.filter(band=wanted_band) if wanted_band else rows.filter(band__isnull=True)
+            times = {r.period_number: (r.start_time, r.end_time) for r in rows}
+            if times:
+                return times
 
         tally: dict[int, Counter] = {}
-        for period, start, end in ScheduleSlot.objects.filter(
+        slots = ScheduleSlot.objects.filter(
             school=school, academic_year=academic_year, is_active=True
-        ).values_list("period_number", "start_time", "end_time"):
+        )
+        slots = (
+            slots.filter(day_of_week=4) if day_type == "thursday" else slots.exclude(day_of_week=4)
+        )
+        for period, start, end in slots.values_list("period_number", "start_time", "end_time"):
             tally.setdefault(period, Counter())[(start, end)] += 1
         return {p: c.most_common(1)[0][0] for p, c in tally.items()}
+
+    @staticmethod
+    def grid_band(grid: dict, class_group: ClassGroup | None = None) -> tuple:
+        """نطاقُ الجدول المعروض: (النطاق، هل هو واحد؟).
+
+        الشعبةُ لها نطاقُها. والمعلّمُ نطاقُه نطاقُ شُعبه إن اتّفقت، ومن يقطع
+        الطابقين لا جرسَ واحدَ له — فعمودُ التوقيت لا يُكتب لأحد الجرسين
+        كأنّه الجرسان، وتحمل كلُّ خانةٍ وقتَها.
+        """
+        from core.models import TimeBand
+
+        if class_group is not None:
+            return class_group.time_band, True
+        band_ids = {
+            slot.class_group.time_band_id
+            for day in grid.values()
+            for cell in day.values()
+            for slot in cell
+        }
+        if len(band_ids) > 1:
+            return None, False
+        band_id = next(iter(band_ids), None)
+        return (TimeBand.objects.filter(id=band_id).first() if band_id else None), True
 
     @staticmethod
     def get_weekly_schedule(

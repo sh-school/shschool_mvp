@@ -137,6 +137,20 @@
     line-height: 1.25;
     margin-top: 2px;
   }
+  /* جرسُ الخميس حين يخالف الأحد–الأربعاء — أخفُّ وزناً، وعنوانُه بالعربيّة. */
+  .period-time-thu {
+    font-weight: 500;
+    color: #6b4a55;
+    margin-top: 4px;
+    padding-top: 3px;
+    border-top: 1px dashed #d9c3ca;
+  }
+  .period-time-label {
+    display: block;
+    direction: rtl;
+    font-size: 8px;
+    font-weight: 700;
+  }
   .schedule-grid .period-cell {
     background: #f0e6e9;
     font-weight: 800;
@@ -546,6 +560,7 @@
         <td class="period-cell">
           {{ period.number }}
           {% if period.start %}<span class="period-time">{{ period.start|time:"H:i" }}<br>{{ period.end|time:"H:i" }}</span>{% endif %}
+          {% if period.thu_start %}<span class="period-time period-time-thu"><span class="period-time-label">الخميس</span>{{ period.thu_start|time:"H:i" }}<br>{{ period.thu_end|time:"H:i" }}</span>{% endif %}
         </td>
         {% for day_num, day_name in days %}
         {% with cell=grid|get_item:day_num|get_item:period.number %}
