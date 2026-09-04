@@ -2,7 +2,7 @@
 
 الحصّةُ الثانية في الأرضيّ 8:00–8:50 والثالثةُ في العلويّ 8:45–9:35: رقمان
 مختلفان يتداخلان خمسَ دقائق، ولا يراه الحكمُ بالرقم (HC1). فيُمنع التداخلُ
-بالساعة (HC12)، ويُجاز التماسُّ (نهايةٌ = بداية) مع عقوبةٍ مرنة، وتُكتب
+بالساعة (HC12)، ويُمنع التماسُّ بين طابقين (نهايةٌ = بداية، HC13)، وتُكتب
 أوقاتُ الحصص من جرس نطاق شعبتها.
 """
 
@@ -15,8 +15,9 @@ from core.models import TimeBand
 from operations.models import ScheduleSlot, Subject, SubjectClassAssignment, TimeSlotConfig
 from operations.scheduler import ScheduleGrid, build_tasks, generate_schedule, load_band_times
 from operations.scheduler_constraints import (
+    check_band_transition,
     check_teacher_time_overlap,
-    evaluate_soft_constraints,
+    is_slot_valid,
 )
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
@@ -81,9 +82,14 @@ def test_ground_second_period_overlaps_upper_third_by_the_clock(school, bands):
     assert check_teacher_time_overlap(grid, 0, 4, t_upper) is True, "9:35–10:25 لا تتداخل"
 
 
-def test_touching_is_allowed_but_penalised(school, bands):
+def test_touching_across_floors_is_forbidden_but_same_bell_is_not(school, bands):
+    """HC13: نهايةُ حصّةٍ في الأرضيّ = بدايةُ حصّةٍ في العلويّ ممنوع؛ والتاسعُ والثانويُّ
+    جرسٌ واحد من الأحد إلى الأربعاء فالتماسُّ بينهما حصّتان متتاليتان لا انتقال."""
     ground = ClassGroupFactory(
         school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=bands["ground"]
+    )
+    ninth = ClassGroupFactory(
+        school=school, grade="G9", level_type="prep", academic_year=YEAR, time_band=bands["ninth"]
     )
     upper = ClassGroupFactory(
         school=school,
@@ -95,15 +101,31 @@ def test_touching_is_allowed_but_penalised(school, bands):
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     teacher = _teacher(school, "معلّمُ الطابقين")
     _assign(school, ground, teacher, maths, 1)
+    _assign(school, ninth, teacher, maths, 1)
     _assign(school, upper, teacher, maths, 1)
-    t_ground, t_upper = sorted(build_tasks(school, YEAR), key=lambda t: t.level_type == "sec")
+    by_band = {t.band_id: t for t in build_tasks(school, YEAR)}
+    t_ground, t_ninth, t_upper = (
+        by_band[str(bands["ground"].id)],
+        by_band[str(bands["ninth"].id)],
+        by_band[str(bands["secondary"].id)],
+    )
     grid = ScheduleGrid(band_times=load_band_times(school))
     grid.place(0, 3, t_ground)  # أرضيّ ح3 8:50–9:35
 
-    # علويّ ح4 9:35–10:25: تماسٌّ لا تداخل
+    # علويّ ح4 9:35–10:25: تماسٌّ بين طابقين — ممنوع
     assert check_teacher_time_overlap(grid, 0, 4, t_upper) is True
-    penalty = evaluate_soft_constraints(grid, 0, 4, t_upper)
-    assert "band_transition" in penalty.details
+    assert check_band_transition(grid, 0, 4, t_upper) is False
+    assert is_slot_valid(grid, 0, 4, t_upper) is False
+    # علويّ ح5 10:50–11:35: فاصلٌ — جائز
+    assert check_band_transition(grid, 0, 5, t_upper) is True
+
+    # التاسع 2·3·4 ثمّ الثانويّ في الجرس نفسه: تماسٌّ في الطابق نفسه — جائز
+    grid2 = ScheduleGrid(band_times=load_band_times(school))
+    grid2.place(1, 2, t_ninth)  # تاسع ح2 8:00–8:45
+    assert check_band_transition(grid2, 1, 3, t_upper) is True  # ثانويّ ح3 8:45–9:35
+    # والخميسُ لكلٍّ جرسُه، فهما يومَها طابقان.
+    assert grid2.same_bell(t_ninth.band_id, t_upper.band_id, 4) is False
+    assert grid2.same_bell(t_ninth.band_id, t_upper.band_id, 1) is True
 
 
 def test_without_band_config_the_clock_rule_is_silent(school):

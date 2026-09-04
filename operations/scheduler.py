@@ -329,6 +329,19 @@ class ScheduleGrid:
                 return table[period]
         return None
 
+    def same_bell(self, band_a: str, band_b: str, day: int) -> bool:
+        """أنطاقان على جرسٍ واحدٍ في هذا اليوم؟
+
+        التاسعُ 2·3·4 والثانويُّ طابقٌ واحدٌ وجرسٌ واحد من الأحد إلى الأربعاء،
+        فالانتقالُ بينهما ليس انتقالاً بين طابقين. والطابقُ ليس حقلاً في
+        النموذج — الجرسُ نفسُه يقوله: من اتّفق جرسُهما اتّفق طابقُهما.
+        """
+        if (band_a or "") == (band_b or ""):
+            return True
+        return all(
+            self.interval(band_a, day, p) == self.interval(band_b, day, p) for p in range(1, 8)
+        )
+
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
         """عدد حصص المعلم في يوم"""
         return sum(1 for d, p in self._teacher_slots[teacher_id] if d == day)
