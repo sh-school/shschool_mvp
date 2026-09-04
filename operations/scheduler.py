@@ -192,12 +192,19 @@ class ScheduleGrid:
     فهرسُه.
     """
 
-    def __init__(self, band_times: dict | None = None):
+    def __init__(self, band_times: dict | None = None, coverage: dict | None = None):
         #: _grid[class_id][day][period] = Task
         self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
         #: {(نطاق, نوع اليوم): {رقم الحصّة: (بداية, نهاية)}} — والمفتاح "" للافتراضيّ.
         #: فارغٌ يعني «لا أجراسَ معروفة» فيُعطَّل الحكمُ بالساعة.
         self.band_times: dict = band_times or {}
+        #: تغطيةُ الأيّام: {معلّم: (مواضعُه، حصصُه، أيّامُه المتاحة)} — لا يومَ
+        #: فارغاً لمن مواضعُه تبلغ أيّامَه إلّا بتفريغٍ من الإعدادات (HC14).
+        #: والموضعُ مهمّةٌ واحدة: المزدوجةُ حصّتان في يومٍ واحد، فثلاثُ مزدوجاتٍ
+        #: لا تغطّي خمسةَ أيّامٍ مهما وُزّعت — وصاحبُها مستثنىً كقليل الحصص.
+        self.coverage: dict = coverage or {}
+        #: كم مهمّةً وُضعت لكلّ معلّم — بالمواضع لا بالخانات.
+        self._teacher_tasks: dict[str, int] = defaultdict(int)
         # فهارس سريعة
         self._teacher_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
         self._class_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
@@ -265,6 +272,8 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
+        for member in task.members:
+            self._teacher_tasks[member.teacher_id] += 1
         self._entries[id(task)] = {"day": day, "period": period, "task": task}
 
     def remove(self, class_id: str, day: int, period: int):
@@ -296,6 +305,8 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
+        for member in task.members:
+            self._teacher_tasks[member.teacher_id] -= 1
         self._entries.pop(id(task), None)
 
     # ── الإشغال: سؤالان مختلفان ───────────────────────────────────
@@ -343,6 +354,14 @@ class ScheduleGrid:
         return all(
             self.interval(band_a, day, p) == self.interval(band_b, day, p) for p in range(1, 8)
         )
+
+    def teacher_placed(self, teacher_id: str) -> int:
+        """كم مهمّةً وُضعت للمعلّم حتّى الآن — المزدوجةُ موضعٌ واحد."""
+        return self._teacher_tasks.get(teacher_id, 0)
+
+    def teacher_empty_days(self, teacher_id: str, days) -> list[int]:
+        """أيّامُ المعلّم المتاحةُ التي لا حصّةَ له فيها بعد."""
+        return [d for d in days if self.teacher_periods_on_day(teacher_id, d) == 0]
 
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
         """عدد حصص المعلم في يوم"""
@@ -1041,6 +1060,51 @@ def bell_lookup(school: School):
     return lookup
 
 
+def _day_coverage(tasks: list[Task], blocked_slots: set) -> dict:
+    """{معلّم: (نصابُه، أيّامُه المتاحة)} — واليومُ المفرَّغُ كاملاً ليس متاحاً.
+
+    قرارُ الإدارة 2026-09-04: حصصُ المعلّم على أيّام الأسبوع كلِّها، لا يومَ
+    بلا حصّة إلّا بتفريغٍ من الإعدادات. ومن نصابُه دون عدد أيّامه (منسّقٌ
+    بأربع حصص) مستثنىً بالضرورة — والقيدُ لا يمسّه.
+    """
+    placements: dict[str, int] = defaultdict(int)
+    periods: dict[str, int] = defaultdict(int)
+    for t in tasks:
+        for m in t.members:
+            placements[m.teacher_id] += 1
+            periods[m.teacher_id] += t.span
+    blocked_per_day: dict[tuple[str, int], int] = defaultdict(int)
+    for teacher_id, day, _period in blocked_slots:
+        blocked_per_day[(teacher_id, day)] += 1
+    return {
+        tid: (
+            count,
+            periods[tid],
+            frozenset(d for d in DAYS if blocked_per_day[(tid, d)] < LAST_PERIOD),
+        )
+        for tid, count in placements.items()
+    }
+
+
+def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None = None) -> list[str]:
+    """معلّمون بقي لهم يومٌ فارغٌ رغم أنّ نصابَهم يبلغ أيّامَهم — يُقالون بالاسم."""
+    names = {m.teacher_id: m.teacher_name for t in tasks for m in t.members}
+    day_names = dict(ScheduleSlot.DAYS)
+    found = []
+    for tid, (placements, _periods, days) in sorted(
+        grid.coverage.items(), key=lambda kv: names.get(kv[0], "")
+    ):
+        if placements < len(days) or (skip and tid in skip):
+            continue
+        empty = grid.teacher_empty_days(tid, sorted(days))
+        if empty:
+            found.append(
+                f"يومٌ بلا حصّة لـ{names.get(tid, tid)}: "
+                + "، ".join(day_names.get(d, str(d)) for d in empty)
+            )
+    return found
+
+
 def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
     """معلّمون تسع قيودُهم أقلَّ من نصابهم — بالحساب لا بالتخمين."""
     from .preference_capacity import explain_shortfall, weekly_capacity
@@ -1158,9 +1222,10 @@ def generate_schedule(
     # الأخرى: فاختيارُ الأفضل قبل الرخصة اختيارٌ بمقياسٍ ليس هو المطلوب.
     best = None
     band_times = load_band_times(school)
+    coverage = _day_coverage(tasks, blocked_slots)
     for attempt in range(RESTARTS):
         rng = random.Random(attempt)
-        grid = ScheduleGrid(band_times=band_times)
+        grid = ScheduleGrid(band_times=band_times, coverage=coverage)
         leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
         before_repair = len(leftovers)
         leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
@@ -1212,17 +1277,26 @@ def generate_schedule(
         # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
         # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
         # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
-        cost = (len(leftovers), densed, relaxed)
+        # ويومٌ فارغٌ لمعلّمٍ تامّ النصاب (HC14 حين تنازل في الملاذ الأخير) يُحسب
+        # قبل رخصة الكثافة: محاولةٌ تُغطّي الأيّامَ كلَّها خيرٌ من محاولةٍ لا تفعل.
+        uncovered = len(
+            _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
+        )
+        cost = (len(leftovers), uncovered, densed, relaxed)
         if best is None or cost < best[0]:
             best = (cost, grid, leftovers, repaired, relaxed, densed)
-        # ويتوقّف البحثُ عند جدولٍ تامٍّ لم يُصرَف فيه ملاذٌ أخير — لا عند أوّل تامّ.
-        if best[0][0] == 0 and best[0][1] == 0:
+        # ويتوقّف البحثُ عند جدولٍ تامٍّ يغطّي الأيّامَ ولم يُصرَف فيه ملاذٌ أخير.
+        if best[0][0] == 0 and best[0][1] == 0 and best[0][2] == 0:
             break
 
     _, grid, leftovers, repaired, relaxed, densed = best
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
+    # ومن بقيت له حصّةٌ متعذّرةٌ لا يُقال عنه «يومٌ فارغ» — فالفراغُ أثرُها.
+    errors.extend(
+        _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
+    )
 
     elapsed_ms = int((time.time() - start_time) * 1000)
 
