@@ -267,7 +267,7 @@ class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
     @staticmethod
-    def period_times(school: School, academic_year: str | None = None) -> dict:
+    def period_times(school: School, academic_year: str | None = None, band=None) -> dict:
         """توقيت كل حصة — {رقم: (بداية، نهاية)}.
 
         المصدر الأوّل `TimeSlotConfig`، فهو ما تُعلنه المدرسة. وهو فارغٌ في
@@ -278,7 +278,16 @@ class ScheduleService:
         from collections import Counter
 
         academic_year = academic_year or academic_year_for_school(school)
-        rows = TimeSlotConfig.objects.filter(school=school, day_type="regular")
+        # جرسُ النطاق إن طُلب ووُجد، وإلّا جرسُ المدرسة الافتراضيّ (بلا نطاق).
+        if band is not None:
+            rows = TimeSlotConfig.objects.filter(
+                school=school, day_type="regular", band=band, is_break=False
+            )
+            if rows.exists():
+                return {r.period_number: (r.start_time, r.end_time) for r in rows}
+        rows = TimeSlotConfig.objects.filter(
+            school=school, day_type="regular", band__isnull=True, is_break=False
+        )
         if rows.exists():
             return {r.period_number: (r.start_time, r.end_time) for r in rows}
 

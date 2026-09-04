@@ -104,15 +104,17 @@ class SubstituteAssignmentAdmin(admin.ModelAdmin):
 @admin.register(TimeSlotConfig)
 class TimeSlotConfigAdmin(admin.ModelAdmin):
     list_display = (
+        "band",
+        "day_type",
         "period_number",
         "start_time",
         "end_time",
-        "day_type",
         "is_break",
         "break_label",
     )
-    list_filter = ("school", "day_type", "is_break")
-    ordering = ("day_type", "period_number")
+    list_filter = ("school", "band", "day_type", "is_break")
+    list_select_related = ("band",)
+    ordering = ("band__order", "day_type", "period_number")
 
 
 @admin.register(SubjectClassAssignment)

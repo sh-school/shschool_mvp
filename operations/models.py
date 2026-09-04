@@ -400,16 +400,25 @@ class TimeSlotConfig(models.Model):
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت الانتهاء")
     day_type = models.CharField(max_length=10, choices=DAY_TYPES, default="regular")
+    #: جرسُ النطاق — فارغٌ يعني جرسَ المدرسة الافتراضيّ الذي يرثه من لا نطاقَ له.
+    band = models.ForeignKey(
+        "core.TimeBand",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="time_slots",
+        verbose_name="نطاق التوقيت",
+    )
     is_break = models.BooleanField(default=False, verbose_name="استراحة؟")
     break_label = models.CharField(max_length=50, blank=True, verbose_name="نوع الاستراحة")
 
     class Meta:
         verbose_name = "إعداد حصة زمنية"
         verbose_name_plural = "إعدادات الحصص الزمنية"
-        ordering = ["day_type", "period_number"]
+        ordering = ["band__order", "day_type", "period_number"]
         constraints = [
             models.UniqueConstraint(
-                fields=["school", "period_number", "day_type"],
+                fields=["school", "band", "period_number", "day_type"],
                 name="unique_timeslot_config",
             ),
         ]

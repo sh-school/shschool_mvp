@@ -18,6 +18,7 @@ from .academic import (  # noqa: F401
     ParentStudentLink,
     Semester,
     StudentEnrollment,
+    TimeBand,
 )
 from .access import (  # noqa: F401
     ACADEMIC_ROLES,

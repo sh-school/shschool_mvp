@@ -107,6 +107,9 @@ class Task:
     #: غيابُ قيد: «لا فراغَ البتّة». وهو كسقف التلاصق: قرارٌ في حقّ الشخص،
     #: فلا يُرفع في جولة الاسترخاء.
     gap_cap: int | None = None
+    #: نطاقُ توقيت الشعبة — فارغٌ يعني جرسَ المدرسة. به تُحوَّل (اليوم · الرقم)
+    #: إلى ساعةٍ، ومعلّمُ الطابقين يُحكَم بالساعة (HC12).
+    band_id: str = ""
     #: الموارد التي تستهلكها هذه المهمّة: (معرّف المورد · سعته).
     resources: tuple = ()
     #: كم خانةً متلاصقةً تشغل هذه المهمّة: واحدةً عادةً، واثنتين في المزدوجة.
@@ -189,9 +192,12 @@ class ScheduleGrid:
     فهرسُه.
     """
 
-    def __init__(self):
+    def __init__(self, band_times: dict | None = None):
         #: _grid[class_id][day][period] = Task
         self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
+        #: {(نطاق, نوع اليوم): {رقم الحصّة: (بداية, نهاية)}} — والمفتاح "" للافتراضيّ.
+        #: فارغٌ يعني «لا أجراسَ معروفة» فيُعطَّل الحكمُ بالساعة.
+        self.band_times: dict = band_times or {}
         # فهارس سريعة
         self._teacher_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
         self._class_slots: dict[str, list[tuple[int, int]]] = defaultdict(list)
@@ -302,6 +308,26 @@ class ScheduleGrid:
 
     def teacher_task_at(self, teacher_id: str, day: int, period: int) -> Task | None:
         return self._teacher_at.get((teacher_id, day, period))
+
+    def teacher_periods_on(self, teacher_id: str, day: int) -> list[int]:
+        """خاناتُ المعلّم في يومٍ بعينه — أرقاماً."""
+        return [p for d, p in self._teacher_slots.get(teacher_id, ()) if d == day]
+
+    def interval(self, band_id: str, day: int, period: int):
+        """ساعةُ (النطاق · اليوم · الرقم) — أو `None` إن لم يُعرف جرسٌ لها."""
+        if not self.band_times:
+            return None
+        day_type = "thursday" if day == 4 else "regular"
+        for key in (
+            (band_id or "", day_type),
+            ("", day_type),
+            (band_id or "", "regular"),
+            ("", "regular"),
+        ):
+            table = self.band_times.get(key)
+            if table and period in table:
+                return table[period]
+        return None
 
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
         """عدد حصص المعلم في يوم"""
@@ -557,6 +583,8 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
             resources=tuple(used),
             parallel_group=(a.parallel_group or "").strip(),
             members=members,
+            #: جرسُ الشعبة — يُقرأ من الشعبة لا يُشتقّ من مرحلتها.
+            band_id=str(a.class_group.time_band_id or ""),
         )
 
     grouped = _dd(list)
@@ -938,6 +966,19 @@ def _empty_result(errors: list[str]) -> dict:
 
 #: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة.
 @joinable_pairs_cached()
+def load_band_times(school: School) -> dict:
+    """{(نطاق, نوع اليوم): {رقم: (بداية, نهاية)}} من `TimeSlotConfig` — والمفتاح "" للافتراضيّ.
+
+    فارغٌ حين لا إعدادَ للمدرسة، فيسقط الحكمُ بالساعة (HC12) ويبقى الحكمُ بالرقم.
+    """
+    from collections import defaultdict as _dd
+
+    table: dict = _dd(dict)
+    for tc in TimeSlotConfig.objects.filter(school=school, is_break=False):
+        table[(str(tc.band_id or ""), tc.day_type)][tc.period_number] = (tc.start_time, tc.end_time)
+    return dict(table)
+
+
 def generate_schedule(
     school: School,
     academic_year: str,
@@ -1013,9 +1054,10 @@ def generate_schedule(
     # تنتهي محاولتان إلى خمسَ عشرةَ متعذّرةً ثمّ تُغلق إحداهما بالرخصة وتعجز
     # الأخرى: فاختيارُ الأفضل قبل الرخصة اختيارٌ بمقياسٍ ليس هو المطلوب.
     best = None
+    band_times = load_band_times(school)
     for attempt in range(RESTARTS):
         rng = random.Random(attempt)
-        grid = ScheduleGrid()
+        grid = ScheduleGrid(band_times=band_times)
         leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
         before_repair = len(leftovers)
         leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
@@ -1105,9 +1147,13 @@ def generate_schedule(
                     ).update(is_active=False)
 
                 # إنشاء الحصص الجديدة — تحميل أوقات الحصص (regular + thursday)
+                # مفتاحُ الوقت (النطاق · نوع اليوم · الرقم) — والنطاقُ "" للافتراضيّ.
                 time_config = {}
                 for tc in TimeSlotConfig.objects.filter(school=school, is_break=False):
-                    time_config[(tc.day_type, tc.period_number)] = (tc.start_time, tc.end_time)
+                    time_config[(str(tc.band_id or ""), tc.day_type, tc.period_number)] = (
+                        tc.start_time,
+                        tc.end_time,
+                    )
 
                 # أوقات احتياطية إذا لم يُعدَّ TimeSlotConfig
                 DEFAULT_TIMES = {
@@ -1120,15 +1166,18 @@ def generate_schedule(
                     7: (dt_time(12, 25), dt_time(13, 10)),
                 }
 
-                def _get_time(day: int, period: int):
+                def _get_time(day: int, period: int, band_id: str = ""):
                     day_type = "thursday" if day == 4 else "regular"
-                    result = time_config.get((day_type, period))
-                    if result:
-                        return result
-                    # fallback: regular config ثم default
-                    result = time_config.get(("regular", period))
-                    if result:
-                        return result
+                    # جرسُ النطاق أوّلاً، ثمّ الافتراضيّ، ثمّ الأحد–الأربعاء، ثمّ الثابت.
+                    for key in (
+                        (band_id, day_type),
+                        ("", day_type),
+                        (band_id, "regular"),
+                        ("", "regular"),
+                    ):
+                        result = time_config.get((key[0], key[1], period))
+                        if result:
+                            return result
                     return DEFAULT_TIMES.get(period, (dt_time(7, 10), dt_time(7, 55)))
 
                 bulk = []
@@ -1140,7 +1189,7 @@ def generate_schedule(
                     # المنقسمةُ خانةً واحدةً بحصّتين. و`elective_group` هو ما
                     # يُجيز اجتماعَ الحصّتين في القاعدة — فالقيدُ الفريدُ يشمله.
                     for slot in t.slots(p):
-                        start, end = _get_time(d, slot)
+                        start, end = _get_time(d, slot, t.band_id)
                         for member in t.members:
                             bulk.append(
                                 ScheduleSlot(
