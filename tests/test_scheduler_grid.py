@@ -20,7 +20,7 @@
 
 import pytest
 
-from operations.scheduler import ScheduleGrid, Task, build_tasks, get_available_slots
+from operations.scheduler import Member, ScheduleGrid, Task, build_tasks, get_available_slots
 from operations.scheduler_constraints import check_class_conflict, check_teacher_conflict
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
@@ -193,3 +193,37 @@ def test_the_score_says_how_much_was_placed_not_only_how_pretty(school, teachers
 
     assert quality["total_slots"] == 1
     assert quality["placed_ratio"] == 1.0
+
+
+def test_placed_and_required_share_one_unit(school, teachers, subjects):
+    """«839/870» عن جدولٍ كامل: كان الموضوعُ يُعَدّ بخانات الشبكة والمطلوبُ
+    بحصص التوزيعات — والخانةُ المنقسمةُ حصّتان. فالوحدةُ واحدة."""
+    from operations.scheduler_constraints import calculate_quality_score
+
+    grid = ScheduleGrid()
+    split = task(teacher="t1", klass="c1")
+    split.members = split.members + [
+        Member(
+            teacher_id="t2",
+            teacher_name="t2",
+            subject_id="s2",
+            subject_name="فنون",
+            subject_code="ART",
+        )
+    ]
+    grid.place(0, 1, split)
+    grid.place(0, 2, task(teacher="t3", klass="c1"))
+
+    quality = calculate_quality_score(grid, total_required=3)
+
+    assert quality["total_slots"] == 3, "حصّتان في الخانة المنقسمة وواحدةٌ في الأخرى"
+    assert quality["placed_ratio"] == 100.0
+
+
+def test_generation_time_reads_in_seconds_or_minutes():
+    from core.templatetags.schedule_filters import duration_ms
+
+    assert duration_ms(25554) == "25.6 ث"
+    assert duration_ms(374379) == "6:14 د"
+    assert duration_ms(820890) == "13:41 د"
+    assert duration_ms(None) == ""

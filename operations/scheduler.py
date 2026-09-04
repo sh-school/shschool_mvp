@@ -1181,7 +1181,9 @@ def generate_schedule(
     elapsed_ms = int((time.time() - start_time) * 1000)
 
     # 5. حساب الجودة
-    quality = calculate_quality_score(grid, preferences, total_required=len(sorted_tasks))
+    # المطلوبُ بحصص التوزيعات — الوحدةُ نفسُها التي يُعَدّ بها الموضوع.
+    required_periods = sum(t.span * len(t.members) for t in sorted_tasks)
+    quality = calculate_quality_score(grid, preferences, total_required=required_periods)
 
     # 6. حفظ النتائج
     if not errors or quality["total_slots"] > 0:
