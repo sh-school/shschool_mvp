@@ -65,9 +65,6 @@ WEIGHTS = {
     #: خانةً سابعةً وثلاثةٌ وسبعون معلّماً — أي سابعةٌ ونصفٌ لكلٍّ في المتوسّط،
     #: فالواحدةُ مستحيلةٌ حسابيّاً. فيُثقَّل الوزنُ ليقترب منها ما أمكن.
     "extra_last_period": 12,
-    #: حصّتان للمعلّم في نطاقين تتماسّان بلا فاصل (تنتهي 9:35 وتبدأ 9:35):
-    #: جائزٌ ولا يُستحبّ — المعلّمُ ينتقل بين طابقين. قرار 2026-09-04.
-    "band_transition": 4,
 }
 
 
@@ -88,7 +85,7 @@ def check_teacher_time_overlap(grid: ScheduleGrid, day: int, period: int, task: 
     8:45–9:35، فرقمان مختلفان يتداخلان خمسَ دقائق — والخميسُ أشدّ. الرقمُ
     وحده (HC1) لا يراه. فتُقارَن ساعةُ الخانة المقترحة بساعات خانات المعلّم
     في اليوم نفسه، وأيُّ تداخلٍ ولو دقيقةً ممنوع. والتماسُّ (نهايةٌ = بداية)
-    جائزٌ هنا ويُثقَّل مرناً.
+    بين طابقين شأنُ HC13.
 
     وبلا أجراسٍ معروفة (لا `TimeSlotConfig`) يسقط الحكمُ ويبقى الرقم.
     """
@@ -107,6 +104,36 @@ def check_teacher_time_overlap(grid: ScheduleGrid, day: int, period: int, task: 
                     continue
                 theirs = grid.interval(other.band_id, day, other_p)
                 if theirs and mine[0] < theirs[1] and theirs[0] < mine[1]:
+                    return False
+    return True
+
+
+def check_band_transition(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC13: لا تماسَّ بين طابقين — حصّةٌ تنتهي 11:35 في الأرضيّ وأخرى تبدأ 11:35 في العلويّ.
+
+    كان التماسُّ جائزاً بعقوبةٍ مرنة (قرار 2026-09-04 الأوّل)، فبقي منه في
+    الجدول المولَّد حالتان لمعلّمَين يصعدان الدرجَ بلا دقيقة. فرُفع إلى قيدٍ
+    صلب (قرار 2026-09-04 الثاني). والتماسُّ بين نطاقين على جرسٍ واحدٍ في
+    اليوم (التاسع 2·3·4 والثانويُّ من الأحد إلى الأربعاء) حصّتان متتاليتان
+    في الطابق نفسه، لا انتقال — فلا يُمنع.
+
+    وبلا أجراسٍ معروفة يسقط الحكم.
+    """
+    if not grid.band_times:
+        return True
+    for slot in task.slots(period):
+        mine = grid.interval(task.band_id, day, slot)
+        if mine is None:
+            continue
+        for member in task.members:
+            for other_p in grid.teacher_periods_on(member.teacher_id, day):
+                if other_p == slot:
+                    continue
+                other = grid.teacher_task_at(member.teacher_id, day, other_p)
+                if other is None or grid.same_bell(other.band_id, task.band_id, day):
+                    continue
+                theirs = grid.interval(other.band_id, day, other_p)
+                if theirs and (mine[1] == theirs[0] or theirs[1] == mine[0]):
                     return False
     return True
 
@@ -457,6 +484,8 @@ def is_slot_valid(
         return False
     if not check_teacher_time_overlap(grid, day, period, task):
         return False
+    if not check_band_transition(grid, day, period, task):
+        return False
     if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False
     if not check_subject_distribution(grid, day, task, allow_dense):
@@ -522,21 +551,6 @@ def evaluate_soft_constraints(
         grid, task, day, period
     )
     penalty.add("consecutive", WEIGHTS["consecutive"], consecutive >= 1 and not wants_adjacent)
-
-    # ── SC12: تماسُّ نطاقين بلا فاصل — جائزٌ ولا يُستحبّ ──
-    if grid.band_times:
-        mine = grid.interval(task.band_id, day, period)
-        touching = False
-        if mine is not None:
-            for other_p in grid.teacher_periods_on(task.teacher_id, day):
-                other = grid.teacher_task_at(task.teacher_id, day, other_p)
-                if other is None or other.band_id == task.band_id:
-                    continue
-                theirs = grid.interval(other.band_id, day, other_p)
-                if theirs and (mine[1] == theirs[0] or theirs[1] == mine[0]):
-                    touching = True
-                    break
-        penalty.add("band_transition", WEIGHTS["band_transition"], touching)
 
     # ── SC2: فراغات المعلم — تقليل الفجوات ──
     creates_gap = grid.would_create_gap(task.teacher_id, day, period)

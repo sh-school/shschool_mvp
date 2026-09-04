@@ -329,6 +329,19 @@ class ScheduleGrid:
                 return table[period]
         return None
 
+    def same_bell(self, band_a: str, band_b: str, day: int) -> bool:
+        """أنطاقان على جرسٍ واحدٍ في هذا اليوم؟
+
+        التاسعُ 2·3·4 والثانويُّ طابقٌ واحدٌ وجرسٌ واحد من الأحد إلى الأربعاء،
+        فالانتقالُ بينهما ليس انتقالاً بين طابقين. والطابقُ ليس حقلاً في
+        النموذج — الجرسُ نفسُه يقوله: من اتّفق جرسُهما اتّفق طابقُهما.
+        """
+        if (band_a or "") == (band_b or ""):
+            return True
+        return all(
+            self.interval(band_a, day, p) == self.interval(band_b, day, p) for p in range(1, 8)
+        )
+
     def teacher_periods_on_day(self, teacher_id: str, day: int) -> int:
         """عدد حصص المعلم في يوم"""
         return sum(1 for d, p in self._teacher_slots[teacher_id] if d == day)
@@ -979,6 +992,50 @@ def load_band_times(school: School) -> dict:
     return dict(table)
 
 
+#: أوقاتٌ احتياطيّة حين لا `TimeSlotConfig` للمدرسة — جرسٌ واحدٌ لكلّ الأيام.
+DEFAULT_TIMES = {
+    1: (dt_time(7, 10), dt_time(7, 55)),
+    2: (dt_time(8, 0), dt_time(8, 45)),
+    3: (dt_time(8, 50), dt_time(9, 35)),
+    4: (dt_time(9, 55), dt_time(10, 40)),
+    5: (dt_time(10, 45), dt_time(11, 30)),
+    6: (dt_time(11, 35), dt_time(12, 20)),
+    7: (dt_time(12, 25), dt_time(13, 10)),
+}
+
+
+def bell_lookup(school: School):
+    """دالّةُ (يوم، حصّة، نطاق) → (بداية، نهاية) من جرس المدرسة.
+
+    جرسُ النطاق ليومه أوّلاً، ثمّ جرسُ المدرسة الافتراضيّ (بلا نطاق) ليومه،
+    ثمّ جرسُ الأحد–الأربعاء للنطاق فالافتراضيّ، ثمّ الثابتُ الاحتياطيّ.
+    والترتيبُ واحدٌ في التوليد وفي مصالحة الحصص القائمة — فلا يختلف ما
+    يُكتب عمّا يُصلَح.
+    """
+    time_config: dict = {}
+    for tc in TimeSlotConfig.objects.filter(school=school, is_break=False):
+        time_config[(str(tc.band_id or ""), tc.day_type, tc.period_number)] = (
+            tc.start_time,
+            tc.end_time,
+        )
+
+    def lookup(day: int, period: int, band_id="") -> tuple:
+        band_id = str(band_id or "")
+        day_type = "thursday" if day == 4 else "regular"
+        for band, kind in (
+            (band_id, day_type),
+            ("", day_type),
+            (band_id, "regular"),
+            ("", "regular"),
+        ):
+            result = time_config.get((band, kind, period))
+            if result:
+                return result
+        return DEFAULT_TIMES.get(period, (dt_time(7, 10), dt_time(7, 55)))
+
+    return lookup
+
+
 def generate_schedule(
     school: School,
     academic_year: str,
@@ -1146,39 +1203,9 @@ def generate_schedule(
                         school=school, academic_year=academic_year, is_active=True
                     ).update(is_active=False)
 
-                # إنشاء الحصص الجديدة — تحميل أوقات الحصص (regular + thursday)
-                # مفتاحُ الوقت (النطاق · نوع اليوم · الرقم) — والنطاقُ "" للافتراضيّ.
-                time_config = {}
-                for tc in TimeSlotConfig.objects.filter(school=school, is_break=False):
-                    time_config[(str(tc.band_id or ""), tc.day_type, tc.period_number)] = (
-                        tc.start_time,
-                        tc.end_time,
-                    )
-
-                # أوقات احتياطية إذا لم يُعدَّ TimeSlotConfig
-                DEFAULT_TIMES = {
-                    1: (dt_time(7, 10), dt_time(7, 55)),
-                    2: (dt_time(8, 0), dt_time(8, 45)),
-                    3: (dt_time(8, 50), dt_time(9, 35)),
-                    4: (dt_time(9, 55), dt_time(10, 40)),
-                    5: (dt_time(10, 45), dt_time(11, 30)),
-                    6: (dt_time(11, 35), dt_time(12, 20)),
-                    7: (dt_time(12, 25), dt_time(13, 10)),
-                }
-
-                def _get_time(day: int, period: int, band_id: str = ""):
-                    day_type = "thursday" if day == 4 else "regular"
-                    # جرسُ النطاق أوّلاً، ثمّ الافتراضيّ، ثمّ الأحد–الأربعاء، ثمّ الثابت.
-                    for key in (
-                        (band_id, day_type),
-                        ("", day_type),
-                        (band_id, "regular"),
-                        ("", "regular"),
-                    ):
-                        result = time_config.get((key[0], key[1], period))
-                        if result:
-                            return result
-                    return DEFAULT_TIMES.get(period, (dt_time(7, 10), dt_time(7, 55)))
+                # وقتُ كلّ حصّةٍ من جرس نطاق شعبتها ليومها — الترتيبُ نفسُه الذي
+                # تُصالِح به `resync_slot_times` الحصصَ القائمة.
+                _get_time = bell_lookup(school)
 
                 bulk = []
                 for entry in grid.all_entries():

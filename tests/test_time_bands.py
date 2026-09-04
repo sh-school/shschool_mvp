@@ -2,7 +2,7 @@
 
 الحصّةُ الثانية في الأرضيّ 8:00–8:50 والثالثةُ في العلويّ 8:45–9:35: رقمان
 مختلفان يتداخلان خمسَ دقائق، ولا يراه الحكمُ بالرقم (HC1). فيُمنع التداخلُ
-بالساعة (HC12)، ويُجاز التماسُّ (نهايةٌ = بداية) مع عقوبةٍ مرنة، وتُكتب
+بالساعة (HC12)، ويُمنع التماسُّ بين طابقين (نهايةٌ = بداية، HC13)، وتُكتب
 أوقاتُ الحصص من جرس نطاق شعبتها.
 """
 
@@ -15,8 +15,9 @@ from core.models import TimeBand
 from operations.models import ScheduleSlot, Subject, SubjectClassAssignment, TimeSlotConfig
 from operations.scheduler import ScheduleGrid, build_tasks, generate_schedule, load_band_times
 from operations.scheduler_constraints import (
+    check_band_transition,
     check_teacher_time_overlap,
-    evaluate_soft_constraints,
+    is_slot_valid,
 )
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
@@ -81,9 +82,14 @@ def test_ground_second_period_overlaps_upper_third_by_the_clock(school, bands):
     assert check_teacher_time_overlap(grid, 0, 4, t_upper) is True, "9:35–10:25 لا تتداخل"
 
 
-def test_touching_is_allowed_but_penalised(school, bands):
+def test_touching_across_floors_is_forbidden_but_same_bell_is_not(school, bands):
+    """HC13: نهايةُ حصّةٍ في الأرضيّ = بدايةُ حصّةٍ في العلويّ ممنوع؛ والتاسعُ والثانويُّ
+    جرسٌ واحد من الأحد إلى الأربعاء فالتماسُّ بينهما حصّتان متتاليتان لا انتقال."""
     ground = ClassGroupFactory(
         school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=bands["ground"]
+    )
+    ninth = ClassGroupFactory(
+        school=school, grade="G9", level_type="prep", academic_year=YEAR, time_band=bands["ninth"]
     )
     upper = ClassGroupFactory(
         school=school,
@@ -95,15 +101,31 @@ def test_touching_is_allowed_but_penalised(school, bands):
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     teacher = _teacher(school, "معلّمُ الطابقين")
     _assign(school, ground, teacher, maths, 1)
+    _assign(school, ninth, teacher, maths, 1)
     _assign(school, upper, teacher, maths, 1)
-    t_ground, t_upper = sorted(build_tasks(school, YEAR), key=lambda t: t.level_type == "sec")
+    by_band = {t.band_id: t for t in build_tasks(school, YEAR)}
+    t_ground, t_ninth, t_upper = (
+        by_band[str(bands["ground"].id)],
+        by_band[str(bands["ninth"].id)],
+        by_band[str(bands["secondary"].id)],
+    )
     grid = ScheduleGrid(band_times=load_band_times(school))
     grid.place(0, 3, t_ground)  # أرضيّ ح3 8:50–9:35
 
-    # علويّ ح4 9:35–10:25: تماسٌّ لا تداخل
+    # علويّ ح4 9:35–10:25: تماسٌّ بين طابقين — ممنوع
     assert check_teacher_time_overlap(grid, 0, 4, t_upper) is True
-    penalty = evaluate_soft_constraints(grid, 0, 4, t_upper)
-    assert "band_transition" in penalty.details
+    assert check_band_transition(grid, 0, 4, t_upper) is False
+    assert is_slot_valid(grid, 0, 4, t_upper) is False
+    # علويّ ح5 10:50–11:35: فاصلٌ — جائز
+    assert check_band_transition(grid, 0, 5, t_upper) is True
+
+    # التاسع 2·3·4 ثمّ الثانويّ في الجرس نفسه: تماسٌّ في الطابق نفسه — جائز
+    grid2 = ScheduleGrid(band_times=load_band_times(school))
+    grid2.place(1, 2, t_ninth)  # تاسع ح2 8:00–8:45
+    assert check_band_transition(grid2, 1, 3, t_upper) is True  # ثانويّ ح3 8:45–9:35
+    # والخميسُ لكلٍّ جرسُه، فهما يومَها طابقان.
+    assert grid2.same_bell(t_ninth.band_id, t_upper.band_id, 4) is False
+    assert grid2.same_bell(t_ninth.band_id, t_upper.band_id, 1) is True
 
 
 def test_without_band_config_the_clock_rule_is_silent(school):
@@ -178,3 +200,135 @@ def test_a_two_floor_teacher_never_overlaps_by_the_clock(school, bands):
         spans.sort()
         for (s1, e1), (s2, e2) in zip(spans, spans[1:]):
             assert e1 <= s2, f"تداخلٌ يوم {day}: {s1}-{e1} مع {s2}-{e2}"
+
+
+# ── الحصصُ القائمة والورقةُ تتبعان جرس النطاق ─────────────────────────
+
+
+def _slot(school, group, teacher, subject, day, period, start, end):
+    return ScheduleSlot.objects.create(
+        school=school,
+        teacher=teacher,
+        class_group=group,
+        subject=subject,
+        day_of_week=day,
+        period_number=period,
+        start_time=start,
+        end_time=end,
+        academic_year=YEAR,
+        is_active=True,
+    )
+
+
+def test_period_times_follow_the_band_and_the_day(school, bands):
+    from operations.services import ScheduleService
+
+    regular = ScheduleService.period_times(school, YEAR, band=bands["secondary"])
+    thursday = ScheduleService.period_times(
+        school, YEAR, band=bands["secondary"], day_type="thursday"
+    )
+    ground_thu = ScheduleService.period_times(
+        school, YEAR, band=bands["ground"], day_type="thursday"
+    )
+
+    assert regular[7] == (dt.time(12, 25), dt.time(13, 10))
+    assert thursday[7] == (dt.time(11, 50), dt.time(12, 30)), "الثانويُّ الخميسَ ينتهي 12:30"
+    assert 7 not in ground_thu, "الأرضيُّ الخميسَ ستُّ حصص"
+
+
+def test_resync_rewrites_the_stale_clock_of_approved_slots(school, bands):
+    """جدولٌ اعتُمد قبل النطاقات يحمل الجرسَ القديم — والمصالحةُ تعيده لجرس شعبته."""
+    upper = ClassGroupFactory(
+        school=school,
+        grade="G10",
+        level_type="sec",
+        academic_year=YEAR,
+        time_band=bands["secondary"],
+    )
+    ground = ClassGroupFactory(
+        school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=bands["ground"]
+    )
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    t1, t2 = _teacher(school, "علويّ"), _teacher(school, "أرضيّ")
+    stale_thu = _slot(school, upper, t1, maths, 4, 7, dt.time(12, 35), dt.time(13, 20))
+    stale_reg = _slot(school, ground, t2, maths, 0, 2, dt.time(8, 0), dt.time(8, 45))
+    fine = _slot(school, upper, t1, maths, 0, 2, dt.time(8, 0), dt.time(8, 45))
+    draft = ScheduleSlot.objects.create(
+        school=school,
+        teacher=t2,
+        class_group=ground,
+        subject=maths,
+        day_of_week=1,
+        period_number=2,
+        start_time=dt.time(8, 0),
+        end_time=dt.time(8, 45),
+        academic_year=YEAR,
+        is_active=False,
+    )
+
+    call_command("resync_slot_times", "--dry-run", "--year", YEAR)
+    stale_thu.refresh_from_db()
+    assert stale_thu.end_time == dt.time(13, 20), "المعاينةُ لا تكتب"
+
+    call_command("resync_slot_times", "--year", YEAR)
+    for s in (stale_thu, stale_reg, fine, draft):
+        s.refresh_from_db()
+    assert (stale_thu.start_time, stale_thu.end_time) == (dt.time(11, 50), dt.time(12, 30))
+    assert (stale_reg.start_time, stale_reg.end_time) == (dt.time(8, 0), dt.time(8, 50))
+    assert (fine.start_time, fine.end_time) == (dt.time(8, 0), dt.time(8, 45))
+    assert draft.end_time == dt.time(8, 45), "المسودّاتُ تُولَّد من جديد ولا تُمَسّ"
+
+    # idempotent: الثانيةُ لا تجد ما تعدّله
+    from io import StringIO
+
+    out = StringIO()
+    call_command("resync_slot_times", "--year", YEAR, stdout=out)
+    assert "updated=0" in out.getvalue()
+
+
+def test_the_printed_sheet_carries_the_bands_thursday_bell(school, bands):
+    """خانةُ الخميس لشعبةٍ ثانويّة تحمل جرسَها (11:50–12:30) لا الجرسَ القديم (13:20)؛
+    وعمودُ الحصّة رقمٌ مجرَّد — فالتوقيتُ يصدق في الخانة وحدها."""
+    from django.test import Client
+    from django.urls import reverse
+
+    from core.models.access import Membership, Role
+
+    upper = ClassGroupFactory(
+        school=school,
+        grade="G10",
+        level_type="sec",
+        academic_year=YEAR,
+        time_band=bands["secondary"],
+    )
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    teacher = _teacher(school, "علويّ")
+    _slot(school, upper, teacher, maths, 4, 7, dt.time(11, 50), dt.time(12, 30))
+    principal = UserFactory(full_name="المدير")
+    Membership.objects.create(
+        user=principal,
+        school=school,
+        role=Role.objects.get_or_create(school=school, name="principal")[0],
+    )
+    client = Client()
+    client.force_login(principal)
+
+    body = client.get(
+        reverse("schedule_print") + f"?view=class&class={upper.id}&year={YEAR}",
+        HTTP_HOST="localhost",
+    ).content.decode()
+
+    assert "11:50 – 12:30" in body, "جرسُ الخميس في خانته"
+    assert "13:20" not in body, "لا أثرَ للجرس القديم"
+    assert 'class="period-time"' not in body, "والعمودُ رقمٌ مجرَّد"
+
+    # ومعلّمُ الطابقين: كلُّ خانةٍ تحمل جرسَ شعبتها.
+    ground = ClassGroupFactory(
+        school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=bands["ground"]
+    )
+    _slot(school, ground, teacher, maths, 0, 2, dt.time(8, 0), dt.time(8, 50))
+    body = client.get(
+        reverse("schedule_print") + f"?view=teacher&teacher={teacher.id}&year={YEAR}",
+        HTTP_HOST="localhost",
+    ).content.decode()
+    assert "08:00 – 08:50" in body and "11:50 – 12:30" in body
