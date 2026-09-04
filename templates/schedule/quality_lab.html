@@ -1,0 +1,245 @@
+{% extends "base/base.html" %}
+{% load static schedule_filters %}
+{% block title %}مختبر جودة الجدول — {{ year }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="مختبر الجودة" %}
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+  /* ── مختبر الجودة: بوّابة، رادار، بطاقات، جداول — كلُّ رقمٍ بجانب مرجعه ── */
+  .lab-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; justify-content: space-between; }
+  .lab-head form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .lab-head .form-group { margin: 0; min-width: 220px; }
+
+  .gate { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .gate-tile { border-radius: 12px; padding: 14px 16px; color: #fff; display: flex; flex-direction: column; gap: 2px; }
+  .gate-pass { background: var(--status-success); }
+  .gate-fail { background: var(--status-danger); }
+  .gate-tile .gate-value { font-size: 30px; font-weight: 800; line-height: 1.1; direction: ltr; }
+  .gate-tile .gate-label { font-size: 13px; font-weight: 700; opacity: .95; }
+  .gate-tile .gate-detail { font-size: 11px; opacity: .9; }
+
+  .lab-main { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: start; }
+  .radar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+  .radar-card canvas { max-height: 300px; }
+  .score-list { display: grid; gap: 6px; margin-top: 8px; }
+  .score-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
+  .score-bar { position: relative; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .score-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; background: var(--maroon); border-radius: 3px; }
+  .score-bar > b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--gold); }
+
+  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+  .section-card .card-bar { border-radius: 0; margin: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px; }
+  .tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); }
+  .tile-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; min-height: 2.4em; }
+  .tile-value { font-size: 22px; font-weight: 800; color: var(--maroon); direction: ltr; text-align: end; }
+  .tile-value small { font-size: 11px; color: var(--text-secondary); font-weight: 500; margin-inline-start: 4px; }
+  .tile-foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-secondary); }
+  .delta { font-weight: 700; direction: ltr; }
+  .delta-better { color: var(--status-success); }
+  .delta-worse { color: var(--status-danger); }
+  .tile-bars { display: grid; gap: 3px; margin-top: 4px; }
+  .tile-bars .bar { height: 5px; border-radius: 3px; background: var(--border); position: relative; overflow: hidden; }
+  .tile-bars .bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; border-radius: 3px; }
+  .bar-cur > i { background: var(--maroon); }
+  .bar-ref > i { background: var(--gold); }
+  .tile-detail { font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 4px; }
+
+  .lab-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .lab-tables table { width: 100%; font-size: 13px; }
+  .lab-tables td.num { direction: ltr; text-align: end; font-weight: 700; }
+  .res-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .res-bar > i { display: block; height: 100%; background: var(--maroon); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-secondary); padding: 0 12px 10px; }
+  .legend i { display: inline-block; width: 14px; height: 5px; border-radius: 3px; vertical-align: middle; margin-inline-end: 4px; }
+  @media (max-width: 900px) { .lab-main { grid-template-columns: 1fr; } .gate { grid-template-columns: 1fr; } }
+  @media print { .lab-head form, .btn-secondary, .btn-primary { display: none !important; } .tiles { grid-template-columns: repeat(3, 1fr); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card-qatar mb-4">
+  <div class="exec-header lab-head">
+    <div>
+      <h1>{% include "components/icon.html" with name="activity" %} مختبر جودة الجدول</h1>
+      <p class="text-sm text-secondary m-0">{{ title }}{% if ref_title %} — مقابل {{ ref_title }}{% endif %} — {{ year }}</p>
+    </div>
+    <form method="get">
+      <input type="hidden" name="year" value="{{ year }}">
+      <div class="form-group">
+        <label class="form-label text-xs">الجدول المقيس</label>
+        <select name="schedule" class="form-control" data-autosubmit>
+          <option value="live" {% if schedule_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>
+          {% for g in generations %}
+          <option value="{{ g.id }}" {% if schedule_param == g.id|stringformat:"s" %}selected{% endif %}>{{ g.generated_at|date:"Y-m-d H:i" }} — {{ g.get_status_display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label text-xs">المرجع</label>
+        <select name="ref" class="form-control" data-autosubmit>
+          <option value="baseline" {% if ref_param == 'baseline' %}selected{% endif %}>{% if baseline %}الأساس «{{ baseline.label }}»{% else %}الأساس (لا أساس بعد){% endif %}</option>
+          <option value="live" {% if ref_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>
+          {% for g in generations %}
+          <option value="{{ g.id }}" {% if ref_param == g.id|stringformat:"s" %}selected{% endif %}>{{ g.generated_at|date:"Y-m-d H:i" }} — {{ g.get_status_display }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+    {% if can_save %}
+    <form method="post" action="?year={{ year }}&amp;schedule={{ schedule_param }}">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label text-xs">حفظ هذا القياس أساساً</label>
+        <input type="text" name="label" class="form-control" placeholder="أساس 2026-09" maxlength="60">
+      </div>
+      <button type="submit" name="save_baseline" value="1" class="btn-primary btn-sm">حفظ كأساس</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{# ── بوّابة الصلاحية: ثلاثة أرقام لا تقبل النقاش ── #}
+<div class="gate mb-4">
+  {% with r=gate|get_item:"validity.hard_conflicts" %}
+  <div class="gate-tile {% if r.value == 0 %}gate-pass{% else %}gate-fail{% endif %}">
+    <span class="gate-label">تعارضات صلبة</span>
+    <span class="gate-value">{{ r.value }}</span>
+    <span class="gate-detail">{% for k, v in r.detail.items %}{% if v %}{{ k }}: {{ v }} {% endif %}{% endfor %}{% if r.value == 0 %}لا تعارض{% endif %}</span>
+  </div>
+  {% endwith %}
+  {% with r=gate|get_item:"validity.completeness" %}
+  <div class="gate-tile {% if r.value == 100 %}gate-pass{% else %}gate-fail{% endif %}">
+    <span class="gate-label">اكتمال النصاب</span>
+    <span class="gate-value">{{ r.value }}%</span>
+    <span class="gate-detail">{{ r.detail.placed }} من {{ r.detail.required }} حصّة</span>
+  </div>
+  {% endwith %}
+  {% with r=gate|get_item:"validity.uncovered_days" %}
+  <div class="gate-tile {% if r.value == 0 %}gate-pass{% else %}gate-fail{% endif %}">
+    <span class="gate-label">معلّمون لهم يوم فارغ بلا تفريغ</span>
+    <span class="gate-value">{{ r.value }}</span>
+    <span class="gate-detail">{% for name, days in r.detail.items %}{{ name }} {% endfor %}{% if r.value == 0 %}كلُّ يومٍ معمور{% endif %}</span>
+  </div>
+  {% endwith %}
+</div>
+
+<div class="lab-main mb-4">
+  {# ── الرادار: درجةٌ مشتقّةٌ لكلّ مجموعة، الحاليُّ عنّابيٌّ والمرجعُ ذهبيّ ── #}
+  <div class="radar-card">
+    <div class="text-sm font-bold mb-1">الصورة الكلّية (درجة من 100)</div>
+    <canvas id="lab-radar" aria-label="رادار مجموعات الجودة" role="img"></canvas>
+    <div class="score-list">
+      {% for g in groups %}
+      {% with sc=scores|get_item:g.code %}
+      <div class="score-row">
+        <span>{{ g.label }}</span>
+        <span class="score-bar" style="width:110px"><i style="width:{{ sc|default:0 }}%"></i></span>
+        <span class="delta">{{ sc|default_if_none:"—" }}</span>
+      </div>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    <p class="text-xs text-muted mt-2 mb-0">الدرجة لغة العرض وحدها؛ القيم الأصلية في البطاقات.</p>
+  </div>
+
+  {# ── أشدّ المعلّمين ضغطاً وأسوأ فراغ ── #}
+  <div class="lab-tables">
+    <div class="section-card m-0">
+      <div class="card-bar">{% include "components/icon.html" with name="alert-triangle" size="icon-sm" %} أشدّ خمسة معلّمين ضغطاً</div>
+      <table>
+        <thead><tr><th>المعلّم</th><th>ضغط لكلّ حصّة</th></tr></thead>
+        <tbody>
+          {% for name, v in stress_top.items %}
+          <tr><td>{{ name }}</td><td class="num">{{ v }}</td></tr>
+          {% empty %}<tr><td colspan="2" class="text-muted text-center">—</td></tr>{% endfor %}
+        </tbody>
+      </table>
+      <p class="text-xs text-muted px-3 py-2 m-0">الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب.</p>
+    </div>
+    <div class="section-card m-0">
+      <div class="card-bar">{% include "components/icon.html" with name="layers" size="icon-sm" %} الموارد</div>
+      <table>
+        <thead><tr><th>المورد</th><th>الإشغال</th><th></th></tr></thead>
+        <tbody>
+          {% for name, v in resources.items %}
+          <tr><td>{{ name }}</td><td class="num">{{ v|default_if_none:"—" }}%</td><td style="width:40%"><div class="res-bar"><i style="width:{{ v|default:0 }}%"></i></div></td></tr>
+          {% empty %}<tr><td colspan="3" class="text-muted text-center">لا موارد معرَّفة</td></tr>{% endfor %}
+        </tbody>
+      </table>
+      {% with r=by_key|get_item:"resources.saturated_slots" %}
+      <p class="text-xs text-muted px-3 py-2 m-0">خانات بلغ فيها مورد سعته: <b>{{ r.value }}</b></p>
+      {% endwith %}
+      {% with r=by_key|get_item:"teacher.gap_weighted_max" %}
+      {% if r.detail.teacher %}<p class="text-xs text-muted px-3 pb-2 m-0">أسوأ يوم فراغ: {{ r.detail.teacher }} (يوم {{ r.detail.day }}) بقيمة {{ r.value }}</p>{% endif %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+
+{# ── بطاقات المؤشرات بالأقسام: القيمة، الفرق عن المرجع، وشريطا الدرجة ── #}
+{% for g in groups %}
+<div class="section-card">
+  <div class="card-bar">{{ g.label }} <span class="text-xs font-normal opacity-80">— درجة {{ scores|get_item:g.code|default_if_none:"—" }}</span></div>
+  <div class="tiles">
+    {% for r in g.rows %}
+    <div class="tile">
+      <span class="tile-label">{{ r.label }}</span>
+      <span class="tile-value">{{ r.value|default_if_none:"—" }}<small>{{ r.unit }}</small></span>
+      <div class="tile-bars" title="عنّابي: الحالي — ذهبي: المرجع">
+        <div class="bar bar-cur"><i style="width:{{ r.score|default:0 }}%"></i></div>
+        {% if r.baseline_score is not None %}<div class="bar bar-ref"><i style="width:{{ r.baseline_score }}%"></i></div>{% endif %}
+      </div>
+      <div class="tile-foot">
+        <span>المرجع: <span dir="ltr">{{ r.baseline|default_if_none:"—" }}</span></span>
+        {% if r.delta is not None %}<span class="delta {% if r.verdict == 'better' %}delta-better{% elif r.verdict == 'worse' %}delta-worse{% endif %}">{{ r.delta }}{% if r.verdict == 'better' %} ▲{% elif r.verdict == 'worse' %} ▼{% endif %}</span>{% endif %}
+      </div>
+      {% if r.detail and r.key != "resources.utilization" and r.key != "fairness.stress" %}
+      <div class="tile-detail">{% for k, v in r.detail.items %}{{ k }}: <span dir="ltr">{{ v }}</span>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="legend"><span><i style="background:var(--maroon)"></i>الحالي</span><span><i style="background:var(--gold)"></i>المرجع</span><span>الشريط درجةٌ من 100 مشتقّة من القيمة</span></div>
+</div>
+{% endfor %}
+
+{% if missed_prefs %}
+<div class="section-card">
+  <div class="card-bar">تفضيلات لم تتحقّق</div>
+  <table>
+    <thead><tr><th>المعلّم</th><th>القاعدة</th></tr></thead>
+    <tbody>{% for name, rules in missed_prefs.items %}<tr><td>{{ name }}</td><td>{{ rules }}</td></tr>{% endfor %}</tbody>
+  </table>
+</div>
+{% endif %}
+
+{{ radar_json|json_script:"lab-radar-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    var data = JSON.parse(document.getElementById("lab-radar-data").textContent);
+    var el = document.getElementById("lab-radar");
+    if (!el || !window.Chart || !data.labels.length) return;
+    var datasets = [{ label: "الحالي", data: data.current, borderColor: "#8A1538", backgroundColor: "rgba(138,21,56,.18)", pointBackgroundColor: "#8A1538" }];
+    if (data.reference.some(function (v) { return v !== null; })) {
+      datasets.push({ label: "المرجع", data: data.reference, borderColor: "#D4A843", backgroundColor: "rgba(212,168,67,.15)", pointBackgroundColor: "#D4A843" });
+    }
+    new Chart(el, {
+      type: "radar",
+      data: { labels: data.labels, datasets: datasets },
+      options: {
+        responsive: true,
+        scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: "transparent" }, pointLabels: { font: { family: "Tajawal", size: 12 } } } },
+        plugins: { legend: { position: "bottom", labels: { font: { family: "Tajawal" } } } }
+      }
+    });
+  })();
+</script>
+{% endblock %}

@@ -23,6 +23,7 @@ from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import role_required
 
 from .models import (
+    ScheduleBaseline,
     ScheduleGeneration,
     ScheduleSlot,
     Subject,
@@ -597,6 +598,109 @@ def substitute_report(request):
 
 
 # ── الجدولة الذكية ────────────────────────────────────────────────
+
+
+@login_required
+@role_required(_ADMIN_SCHEDULE_ROLES)
+def schedule_quality_lab(request):
+    """مختبرُ جودة الجدول بصريّاً: بوّابةُ الصلاحية، ورادارُ المجموعات، وبطاقاتُ
+    المؤشرات بفرقها عن المرجع، وأشدُّ المعلّمين ضغطاً، والموارد.
+
+    الجدولُ المقيس: الحيُّ أو توليدٌ بعينه (`?schedule=`). والمرجعُ: آخرُ أساسٍ
+    محفوظ، أو الحيُّ، أو توليدٌ آخر (`?ref=`). و`POST save_baseline` يحفظ
+    القياسَ الحاليَّ أساساً باسم.
+    """
+
+    from operations.schedule_lab import (
+        SECTIONS,
+        ScheduleLab,
+        grouped_rows,
+        latest_baseline,
+        section_scores,
+    )
+
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+    generations = list(
+        ScheduleGeneration.objects.filter(school=school, academic_year=year)
+        .exclude(status__in=("failed", "queued", "running"))
+        .select_related("generated_by")[:12]
+    )
+
+    def _pick(param, default):
+        ident = request.GET.get(param, default) or default
+        if ident == "live":
+            return "live", None
+        gen = next((g for g in generations if str(g.id) == ident), None)
+        return ("gen", gen) if gen else ("live", None)
+
+    kind, target = _pick("schedule", "live")
+    if kind == "gen":
+        metrics = target.metrics or ScheduleLab.for_generation(target).compute()
+        title = f"التوليد {target.generated_at:%Y-%m-%d %H:%M} ({target.get_status_display()})"
+    else:
+        metrics = ScheduleLab.for_live(school, year).compute()
+        title = "الجدول الحيّ"
+
+    if request.method == "POST" and request.POST.get("save_baseline"):
+        label = (request.POST.get("label") or "").strip()[:60] or f"أساس {timezone.now():%Y-%m-%d}"
+        ScheduleBaseline.objects.update_or_create(
+            school=school,
+            academic_year=year,
+            label=label,
+            defaults={"metrics": metrics, "created_by": request.user},
+        )
+        messages.success(request, f"حُفظ «{title}» أساساً باسم «{label}».")
+        query = urlencode({"year": year, "schedule": request.GET.get("schedule", "live")})
+        return redirect(f"{reverse('schedule_quality_lab')}?{query}")
+
+    ref = request.GET.get("ref", "baseline") or "baseline"
+    baseline = latest_baseline(school, year)
+    if ref == "baseline" and baseline is not None:
+        ref_metrics, ref_title = baseline.metrics, f"الأساس «{baseline.label}»"
+    elif ref == "live":
+        ref_metrics, ref_title = ScheduleLab.for_live(school, year).compute(), "الجدول الحيّ"
+    else:
+        rkind, rtarget = _pick("ref", "live")
+        if rkind == "gen":
+            ref_metrics = rtarget.metrics or ScheduleLab.for_generation(rtarget).compute()
+            ref_title = f"التوليد {rtarget.generated_at:%Y-%m-%d %H:%M}"
+        else:
+            ref_metrics, ref_title = None, ""
+
+    groups = grouped_rows(metrics, ref_metrics)
+    scores = section_scores(metrics)
+    ref_scores = section_scores(ref_metrics) if ref_metrics else {}
+    by_key = {r["key"]: r for g in groups for r in g["rows"]}
+    shown = [c for c in SECTIONS if scores.get(c) is not None]
+    radar = {
+        "labels": [SECTIONS[c] for c in shown],
+        "current": [scores[c] for c in shown],
+        "reference": [ref_scores.get(c) for c in shown],
+    }
+    return render(
+        request,
+        "schedule/quality_lab.html",
+        {
+            "year": year,
+            "title": title,
+            "ref_title": ref_title,
+            "schedule_param": request.GET.get("schedule", "live"),
+            "ref_param": ref,
+            "generations": generations,
+            "baseline": baseline,
+            "groups": [g for g in groups if g["code"] != "validity"],
+            "gate": by_key,
+            "by_key": by_key,
+            "scores": scores,
+            "radar_json": radar,
+            "stress_top": by_key.get("fairness.stress", {}).get("detail", {}),
+            "resources": by_key.get("resources.utilization", {}).get("detail", {}),
+            "missed_prefs": by_key.get("fairness.preference_satisfaction", {}).get("detail", {}),
+            "can_save": request.user.is_superuser
+            or request.user.get_role() in ("principal", "vice_academic"),
+        },
+    )
 
 
 @login_required

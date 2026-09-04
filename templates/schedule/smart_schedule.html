@@ -131,7 +131,10 @@
 {# ── سجل التوليد السابق ── #}
 {% if generations %}
 <div class="table-wrap mb-6">
-  <div class="card-bar m-0 rounded-t-xl">{% include "components/icon.html" with name="bar-chart" %} سجل التوليد</div>
+  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between">
+    <span>{% include "components/icon.html" with name="bar-chart" %} سجل التوليد</span>
+    <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">مختبر الجودة</a>
+  </div>
   <div class="overflow-x-auto">
     <table>
       <thead>
@@ -199,7 +202,7 @@
         <tr class="lab-row">
           <td colspan="7" class="p-0">
             <details class="lab-details">
-              <summary class="text-xs text-muted px-3 py-1 cursor-pointer">المؤشرات ({{ g.lab_rows|length }}){% if baseline %} — مقابل «{{ baseline.label }}»{% endif %}</summary>
+              <summary class="text-xs text-muted px-3 py-1 cursor-pointer">المؤشرات ({{ g.lab_rows|length }}){% if baseline %} — مقابل «{{ baseline.label }}»{% endif %} — <a href="{% url 'schedule_quality_lab' %}?year={{ year }}&amp;schedule={{ g.id }}">في المختبر</a></summary>
               <table class="lab-table text-xs">
                 <thead><tr><th>المؤشر</th><th>القيمة</th>{% if baseline %}<th>الأساس</th><th>الفرق</th>{% endif %}</tr></thead>
                 <tbody>

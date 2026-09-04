@@ -690,3 +690,76 @@ def latest_baseline(school, academic_year):
 
 def is_finite(value) -> bool:
     return isinstance(value, int | float) and not math.isnan(value)
+
+
+# ══════════════════════════════════════════════════════════════════
+# العرض: مجموعاتٌ ودرجاتٌ مشتقّة (للرادار والبطاقات — لا للحكم)
+# ══════════════════════════════════════════════════════════════════
+
+SECTIONS: dict[str, str] = {
+    "validity": "الصلاحية",
+    "teacher": "يوم المعلّم",
+    "fairness": "العدالة",
+    "subject": "المادّة",
+    "class": "الشعبة",
+    "resources": "الموارد",
+}
+
+
+def metric_score(key: str, value) -> float | None:
+    """درجةٌ من 0 إلى 100 تُشتقّ من المؤشر لعرضه على مقياسٍ واحد.
+
+    التحويلُ رتيبٌ (الأفضلُ أعلى دائماً) ولا يدخل في أيّ حكمٍ أو توليد: هو
+    لغةُ الرادار والبطاقات وحدَها، والقيمةُ الأصليّةُ تبقى بجانبه.
+    """
+    if not isinstance(value, int | float):
+        return None
+    better = CATALOG.get(key, ("", "", "info"))[2]
+    if better == "info":
+        return None
+    if better == "high":
+        return max(0.0, min(100.0, float(value)))
+    if better == "zero":
+        return 100.0 if value == 0 else max(0.0, 100.0 - 10.0 * value)
+    if key == "fairness.edge_cv":
+        return max(0.0, 100.0 * (1.0 - float(value)))
+    if key == "teacher.compactness":
+        return max(0.0, min(100.0, 100.0 / max(float(value), 1.0)))
+    if key in ("subject.same_period_max", "teacher.run_avg"):
+        return max(0.0, min(100.0, 100.0 * 2.0 / (1.0 + float(value))))
+    if key in (
+        "teacher.run_breaches",
+        "resources.saturated_slots",
+        "class.heavy_streak_days",
+        "class.maths_late",
+    ):
+        return max(0.0, 100.0 - float(value))
+    return 100.0 / (1.0 + float(value))
+
+
+def section_scores(metrics: dict) -> dict[str, float | None]:
+    """متوسّطُ درجات كلّ مجموعة — للرادار."""
+    buckets: dict[str, list[float]] = defaultdict(list)
+    for key in CATALOG:
+        score = metric_score(key, (metrics or {}).get(key, {}).get("value"))
+        if score is not None:
+            buckets[key.split(".")[0]].append(score)
+    return {
+        section: (round(mean(buckets[section]), 1) if buckets.get(section) else None)
+        for section in SECTIONS
+    }
+
+
+def grouped_rows(current: dict, baseline: dict | None) -> list[dict]:
+    """صفوفُ المقارنة مجمَّعةً بالأقسام، وكلُّ صفٍّ بدرجته ودرجة مرجعه."""
+    rows = compare(current, baseline)
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for r in rows:
+        r["score"] = metric_score(r["key"], r["value"])
+        r["baseline_score"] = metric_score(r["key"], r["baseline"])
+        groups[r["key"].split(".")[0]].append(r)
+    return [
+        {"code": code, "label": label, "rows": groups.get(code, [])}
+        for code, label in SECTIONS.items()
+        if groups.get(code)
+    ]
