@@ -1045,20 +1045,25 @@ def add_exemption(request):
     created, skipped = 0, 0
     try:
         with transaction.atomic():
+            # الموجودُ يُجلب مرّةً واحدةً لا عند كلّ (معلّم × يوم × حصّة): كان
+            # استعلاماً لكلّ خليّة — «كلُّ المنسّقين» في خمسة أيّامٍ وسبع حصص
+            # أربعمئةُ استعلام.
+            existing = set(
+                TeacherExemption.objects.filter(
+                    school=school,
+                    academic_year=year,
+                    teacher__in=teachers,
+                    day_of_week__in=days,
+                    is_active=True,
+                ).values_list("teacher_id", "day_of_week", "period_number")
+            )
             for teacher in teachers:
                 for day in days:
                     for period in periods:
-                        exists = TeacherExemption.objects.filter(
-                            school=school,
-                            teacher=teacher,
-                            academic_year=year,
-                            day_of_week=day,
-                            period_number=period,
-                            is_active=True,
-                        ).exists()
-                        if exists:
+                        if (teacher.id, day, period) in existing:
                             skipped += 1
                             continue
+                        existing.add((teacher.id, day, period))
                         ScheduleService.create_exemption(
                             school=school,
                             teacher=teacher,
