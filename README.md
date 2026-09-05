@@ -314,6 +314,8 @@ python manage.py check
 **أوامر Makefile:**
 ```bash
 make test       # pytest كامل مع coverage
+make test-docker  # داخل حاوية التطوير كما يشغّلها CI (ويندوز: .\scripts\test-docker.ps1)
+                  # — لا `docker exec … pytest` مباشرةً: تعمل على إعدادات التطوير فيكذب Celery
 make lint       # ruff check
 make security   # bandit
 make type       # mypy
