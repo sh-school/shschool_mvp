@@ -1,6 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
-        axes-reset health-check ready-check test-v54 pip-audit-check
+        axes-reset health-check ready-check test-v54 pip-audit-check \
+        railway-plan
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -253,4 +254,12 @@ help:
 	@echo "  make health-check   فحص /health/ و /ready/ محلياً"
 	@echo "  make test-v54       اختبارات ميزات v5.4 فقط"
 	@echo "  make pip-audit-check  فحص ثغرات المتطلبات"
+	@echo "  make railway-plan   خطّة Railway IaC (قراءة فقط) — .railway/railway.ts"
 	@echo ""
+
+# ── Railway (Infrastructure as Code) ──────────────────
+# خطّةُ الفرق بين `.railway/railway.ts` وحال المشروع على Railway — قراءةٌ فقط.
+# التطبيق (`railway config apply`) بيد المستخدم بعد خطّةٍ تُظهر «0 to destroy».
+# على ويندوز داخل Git Bash تُحذف `_` من البيئة لأنّ مكتبة railway تقرأ منها إصدار CLI.
+railway-plan:
+	env -u _ railway config plan

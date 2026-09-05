@@ -121,6 +121,7 @@ https://shschoolmvp-production.up.railway.app/admin/
 + New → Empty Service
   Name: worker
   Config file: railway.worker.json   ← يشغّل bash scripts/railway-worker.sh (يتحقّق من دور shschool_app ثمّ يبدأ العامل)
+                                      (حتّى اكتمال الانتقال إلى `.railway/railway.ts` — انظر القسم أدناه)
 
 + New → Empty Service
   Name: beat
@@ -133,6 +134,44 @@ https://shschoolmvp-production.up.railway.app/admin/
 > **مطلوب منذ 2026-09-02:** توليد الجدول الذكي (`operations.generate_smart_schedule`) يعمل في العامل
 > لا في طلب الويب — قِيس بين ٤٢ و٢٧٩ ثانية، فوق مهلة ١٢٠ ثانية. **بلا خدمة worker يبقى الطلب
 > «في الانتظار» ثمّ يُوسم فاشلاً بعد ٢٠ دقيقة** برسالةٍ تقول ذلك للمستخدم.
+
+---
+
+## ⚙️ إعداداتُ الخدمات كـ Infrastructure as Code — `.railway/railway.ts` (منذ 2026-09-05)
+
+Railway أهمل ملفّات Config as Code (`railway.json` / `railway.worker.json`) وتتوقّف قراءتها في
+**2026-12-01**. البديل ملفٌّ واحد `.railway/railway.ts` يصف المشروعَ كاملاً: الخدمتين، وقاعدتي
+Postgres وRedis، وحاويةَ النسخ `Postgres-PITR`، وأسماءَ المتغيّرات.
+
+**قاعدتان لا تُخالَفان:**
+
+1. الملفّ مصدرُ الحقيقة للمشروع **كاملاً**: أيُّ خدمةٍ أو قاعدةٍ أو متغيّرٍ غيرِ مذكورٍ فيه
+   يُعدّه `railway config apply` مطلوبَ الحذف. لذلك عند إضافة متغيّرٍ في Railway أضِف **اسمَه**
+   إلى القائمة المناسبة في الملفّ في الطلب نفسِه.
+2. القيم لا تُكتب في الملفّ أبداً — المستودع عامّ. `preserve()` يُبقي القيمةَ المضبوطةَ في Railway.
+
+**الأوامر** (تحتاج `npm ci` لأنّ مكتبة `railway` devDependency، وRailway CLI ≥ 5.49):
+
+```bash
+make railway-plan          # الفرق بين الملفّ وحال الإنتاج — قراءةٌ فقط
+railway config apply       # التطبيق — بيد المستخدم، ولا يُشغَّل إلّا بعد خطّةٍ فيها «0 to destroy»
+```
+
+على ويندوز داخل Git Bash: `env -u _ railway config plan` (المكتبة تقرأ إصدارَ CLI من المتغيّر `_`).
+
+**خطواتُ الانتقال (مرّةً واحدة):**
+
+1. `make railway-plan` → يجب أن تكون النتيجة تغييراتٍ فقط بلا حذف (اليوم: أوامرُ البدء والفحص
+   الصحّيّ وسياسةُ إعادة التشغيل تنتقل من ملفّي JSON إلى إعدادات الخدمة في Railway).
+2. `railway config apply` (المستخدم).
+3. في لوحة Railway: لكلّ خدمةٍ افتح Settings → Config-as-code وامسح مسارَ «Config File»
+   (`railway.json` للويب و`railway.worker.json` للعامل) حتّى لا يُقرأ ملفّان لمصدرٍ واحد.
+4. نشرةٌ واحدة ناجحة تُثبت أنّ الإعدادات صارت من Railway نفسِه (سجلُّ الإصدار يبدأ بـ
+   `scripts/railway-release.sh` والعامل بـ`scripts/railway-worker.sh`).
+5. ثمّ حذفُ `railway.json` و`railway.worker.json` من المستودع وتحويلُ فحوصات النشر إليه
+   (`scripts/deploy-preflight.sh` الفحص 10، وسير `deploy-railway.yml`، والاختبارات).
+
+حتّى الخطوة 5 يحرس الاختبار `tests/test_railway_iac.py` تطابقَ الملفّين مع الـIaC.
 
 ---
 
