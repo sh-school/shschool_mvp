@@ -522,6 +522,34 @@ class ScheduleService:
         return sum(sum(periods) - max(periods) for periods in groups.values())
 
     @staticmethod
+    def retire_past_year_slots(school: School, on=None) -> int:
+        """يُطفئ كلَّ حصّةٍ نشطةٍ خارج العام الجاري — ويُعيد عددَ ما أُطفئ.
+
+        عامٌ جديدٌ يبدأ بتاريخٍ لا بزرّ: `AcademicCalendar` يشتقّه من تقويم
+        الوزارة، فيتبدّل الجوابُ ليلةَ الأوّل من سبتمبر بلا أن يلمس أحدٌ
+        شيئاً. وجدولُ العام الماضي يبقى نشطاً في القاعدة كما تركه — فتصير
+        في المدرسة الواحدة جداولُ عامين نشطةً معاً.
+
+        وقد وقع هذا فعلاً: بقيت مئتان وخمسون حصّةً من 2025-2026 نشطةً بعد
+        دخول 2026-2027، وتسعةٌ من معلّميها العشرة يدرّسون في العام الجديد،
+        فكانوا يُرَون مشغولين في أوقاتٍ هم فيها متفرّغون.
+
+        وهي ثابتةُ التكرار: نداؤها مرّتين لا يُطفئ شيئاً في الثانية. ولا
+        تحذف — الحذفُ قرارُ `prune_schedule_slots` بيد إنسان.
+        """
+        retired = ScheduleSlot.objects.past_years(school, on=on).filter(is_active=True)
+        count = retired.count()
+        if count:
+            retired.update(is_active=False)
+            logger.info(
+                "retire_past_year_slots: أُطفئت %d حصّةً خارج عام %s في %s",
+                count,
+                academic_year_for_school(school, on),
+                school.name,
+            )
+        return count
+
+    @staticmethod
     def detect_conflicts(school: School, academic_year: str | None = None) -> list:
         """كشف التعارضات في الجدول"""
         academic_year = academic_year or academic_year_for_school(school)
@@ -535,13 +563,15 @@ class ScheduleService:
             .filter(cnt__gt=1)
         )
         for dup in teacher_dups:
-            slots = ScheduleSlot.objects.filter(
-                school=school,
-                teacher_id=dup["teacher"],
-                day_of_week=dup["day_of_week"],
-                period_number=dup["period_number"],
-                is_active=True,
-            ).select_related("teacher", "class_group")
+            slots = (
+                ScheduleSlot.objects.live(school, year=academic_year)
+                .filter(
+                    teacher_id=dup["teacher"],
+                    day_of_week=dup["day_of_week"],
+                    period_number=dup["period_number"],
+                )
+                .select_related("teacher", "class_group")
+            )
             conflicts.append(
                 {
                     "type": "teacher",
@@ -563,14 +593,16 @@ class ScheduleService:
             .filter(cnt__gt=1)
         )
         for dup in class_dups:
-            slots = ScheduleSlot.objects.filter(
-                school=school,
-                class_group_id=dup["class_group"],
-                day_of_week=dup["day_of_week"],
-                period_number=dup["period_number"],
-                elective_group=dup["elective_group"],
-                is_active=True,
-            ).select_related("teacher", "class_group")
+            slots = (
+                ScheduleSlot.objects.live(school, year=academic_year)
+                .filter(
+                    class_group_id=dup["class_group"],
+                    day_of_week=dup["day_of_week"],
+                    period_number=dup["period_number"],
+                    elective_group=dup["elective_group"],
+                )
+                .select_related("teacher", "class_group")
+            )
             conflicts.append(
                 {
                     "type": "class",
@@ -917,9 +949,13 @@ class SubstituteService:
             teacher_ids = [t for t in teacher_ids if t != exclude_teacher.id]
 
         # من لديهم حصة في نفس الوقت
-        busy_ids = ScheduleSlot.objects.filter(
-            school=school, day_of_week=day_of_week, period_number=period_number, is_active=True
-        ).values_list("teacher_id", flat=True)
+        # والعامُ قيدٌ: معلّمٌ له حصّةٌ في جدول عامٍ مضى كان يُعدّ مشغولاً
+        # فيُستبعد من البدلاء وهو متفرّغ.
+        busy_ids = (
+            ScheduleSlot.objects.live(school)
+            .filter(day_of_week=day_of_week, period_number=period_number)
+            .values_list("teacher_id", flat=True)
+        )
 
         # من هم غائبون في نفس اليوم
         absent_ids = TeacherAbsence.objects.filter(school=school, date=date).values_list(
@@ -1001,12 +1037,14 @@ class SubstituteService:
             },
         )
         # تحديث حالة الغياب
-        total_slots = ScheduleSlot.objects.filter(
-            school=absence.school,
-            teacher=absence.teacher,
-            day_of_week=SubstituteService._date_to_day(absence.date),
-            is_active=True,
-        ).count()
+        total_slots = (
+            ScheduleSlot.objects.live(absence.school)
+            .filter(
+                teacher=absence.teacher,
+                day_of_week=SubstituteService._date_to_day(absence.date),
+            )
+            .count()
+        )
         covered = SubstituteAssignment.objects.filter(
             absence=absence, status__in=("assigned", "confirmed")
         ).count()
@@ -1340,14 +1378,17 @@ class SwapService:
         subj_name = slot_a.subject.name_ar if slot_a.subject else ""
         if subj_name in SwapService.DOUBLE_PERIOD_SUBJECTS:
             # ابحث عن الحصة المتتالية لنفس المعلم/الفصل/المادة/اليوم
-            adjacent = ScheduleSlot.objects.filter(
-                teacher=slot_a.teacher,
-                class_group=slot_a.class_group,
-                subject=slot_a.subject,
-                day_of_week=slot_a.day_of_week,
-                is_active=True,
-                period_number__in=(slot_a.period_number - 1, slot_a.period_number + 1),
-            ).first()
+            adjacent = (
+                ScheduleSlot.objects.live(school, year=slot_a.academic_year)
+                .filter(
+                    teacher=slot_a.teacher,
+                    class_group=slot_a.class_group,
+                    subject=slot_a.subject,
+                    day_of_week=slot_a.day_of_week,
+                    period_number__in=(slot_a.period_number - 1, slot_a.period_number + 1),
+                )
+                .first()
+            )
             if adjacent:
                 # تأكد أنه لا يوجد استراحة بينهما
                 between_min = min(slot_a.period_number, adjacent.period_number)
@@ -1376,11 +1417,8 @@ class SwapService:
         القيد: التبديل مع معلمي نفس الفصل فقط.
         """
         same_class_slots = (
-            ScheduleSlot.objects.filter(
-                school=school,
-                class_group=slot.class_group,
-                is_active=True,
-            )
+            ScheduleSlot.objects.live(school, year=slot.academic_year)
+            .filter(class_group=slot.class_group)
             .exclude(
                 teacher=teacher,
             )
@@ -1391,19 +1429,25 @@ class SwapService:
         options = []
         for candidate_slot in same_class_slots:
             # هل المعلم ب فارغ في وقت حصة أ؟
-            b_busy_at_a = ScheduleSlot.objects.filter(
-                teacher=candidate_slot.teacher,
-                day_of_week=slot.day_of_week,
-                period_number=slot.period_number,
-                is_active=True,
-            ).exists()
+            b_busy_at_a = (
+                ScheduleSlot.objects.live(school, year=slot.academic_year)
+                .filter(
+                    teacher=candidate_slot.teacher,
+                    day_of_week=slot.day_of_week,
+                    period_number=slot.period_number,
+                )
+                .exists()
+            )
             # هل المعلم أ فارغ في وقت حصة ب؟
-            a_busy_at_b = ScheduleSlot.objects.filter(
-                teacher=teacher,
-                day_of_week=candidate_slot.day_of_week,
-                period_number=candidate_slot.period_number,
-                is_active=True,
-            ).exists()
+            a_busy_at_b = (
+                ScheduleSlot.objects.live(school, year=slot.academic_year)
+                .filter(
+                    teacher=teacher,
+                    day_of_week=candidate_slot.day_of_week,
+                    period_number=candidate_slot.period_number,
+                )
+                .exists()
+            )
 
             if not b_busy_at_a and not a_busy_at_b:
                 options.append(

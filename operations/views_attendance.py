@@ -82,8 +82,11 @@ def schedule(request):
             # Session ليس فيه period_number — نفلتر بوقت البداية عبر ScheduleSlot
             from operations.models import ScheduleSlot
 
+            # والعامُ قيدٌ: أجراسُ عامٍ مضى تختلف، فبلا قيدٍ تُفلتَر حصصُ اليوم
+            # بأوقات جدولٍ قديم.
             slot_times = (
-                ScheduleSlot.objects.filter(school=school, period_number=int(period_filter))
+                ScheduleSlot.objects.live(school)
+                .filter(period_number=int(period_filter))
                 .values_list("start_time", flat=True)
                 .distinct()
             )

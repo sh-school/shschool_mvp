@@ -3,7 +3,7 @@ import uuid
 from django.db import models
 from django.utils import timezone
 
-from core.academic_calendar import default_academic_year
+from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.models import ClassGroup, CustomUser, School
 from core.validators import FileTypeValidator
 
@@ -187,6 +187,45 @@ class StudentAttendance(models.Model):
 # ─────────────────────────────────────────────
 
 
+def _year_or_current(school, year=None, on=None) -> str:
+    """اسمُ العام المقصود: المُمرَّرُ صراحةً، وإلّا عامُ المدرسة من تقويم الوزارة.
+
+    وبلا مدرسةٍ يُرتَدّ إلى العام الوطنيّ — فتقويم الوزارة واحدٌ لكل المدارس.
+    """
+    if year is not None:
+        return year
+    if school is None:
+        return default_academic_year()
+    return academic_year_for_school(school, on)
+
+
+class ScheduleSlotQuerySet(models.QuerySet):
+    """استعلاماتُ الجدول — والعامُ الدراسيّ فيها قيدٌ لا خيار.
+
+    `is_active` تقول «هذه نسخةُ الجدول المعتمَدة»، ولا تقول «هذه نسخةُ هذا
+    العام». وكان ثلاثةَ عشرَ موضعاً في المنصّة يسأل عن النشط بلا عام، فحصصُ
+    عامٍ مضى الباقيةُ في القاعدة تُحسب في العام الجاري: معلّمٌ متفرّغٌ يُرى
+    مشغولاً فيُستبعد من اقتراح البدلاء، وشُعبةُ عامٍ مضى تدخل نطاقَ طلاب
+    المنسّق فتتّسع صلاحيةُ قراءةٍ بلا قرار.
+
+    فصار السؤالُ عن الحيّ يمرّ من هنا وحده: `ScheduleSlot.objects.live(school)`.
+    """
+
+    def of_year(self, school=None, *, year=None, on=None):
+        """حصصُ عامٍ بعينه — الجاري افتراضاً — نشطةً كانت أو مطفأة."""
+        qs = self if school is None else self.filter(school=school)
+        return qs.filter(academic_year=_year_or_current(school, year, on))
+
+    def live(self, school=None, *, year=None, on=None):
+        """الجدولُ الحيّ: نشطُ العام الجاري وحدَه — وهذا ما تريده الشاشات كلُّها."""
+        return self.of_year(school, year=year, on=on).filter(is_active=True)
+
+    def past_years(self, school=None, *, year=None, on=None):
+        """حصصُ الأعوام الأخرى — تُطفأ ولا تُعرض."""
+        qs = self if school is None else self.filter(school=school)
+        return qs.exclude(academic_year=_year_or_current(school, year, on))
+
+
 class ScheduleSlot(models.Model):
     """حصة ثابتة في الجدول الأسبوعي (مستقلة عن Session اليومية)"""
 
@@ -239,6 +278,8 @@ class ScheduleSlot(models.Model):
     )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = ScheduleSlotQuerySet.as_manager()
 
     class Meta:
         verbose_name = "حصة جدول"

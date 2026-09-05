@@ -17,6 +17,13 @@ echo ""
 echo "📋 Seeding classroom-observation criteria..."
 python manage.py seed_observation_criteria || echo "  seed_observation_criteria skipped"
 
+# 1c. Retire schedule slots left active from past academic years (idempotent)
+#     العام يتبدّل بتاريخه من تقويم الوزارة، فجدول العام الماضي يبقى نشطاً
+#     ما لم يُطفأ — ونسختان نشطتان تخلطان كل استعلام لا يُقيَّد بالعام.
+echo ""
+echo "🗓  Retiring past-year schedule slots..."
+python manage.py retire_past_year_slots --apply || echo "  retire_past_year_slots skipped"
+
 # 2. Collect static files
 echo ""
 echo "📁 Collecting static files..."
