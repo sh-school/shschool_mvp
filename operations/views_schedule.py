@@ -16,6 +16,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
+from academic_management import assignment_service
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
@@ -1261,6 +1262,21 @@ def toggle_double_period(request, subject_id):
 # ── توزيعات المواد على الشُّعب — وقودُ المولّد ────────────────────
 
 
+def _report(request, findings):
+    """يعرض نتائجَ الخدمة رسائلَ — والمانعُ خطأٌ والتحذيرُ تنبيهٌ والمعلومةُ خبر.
+
+    ولا تُطوى في «فشل الحفظ»: «المعلّمُ على 18 وهدفُه 16» تقول للمُدخِل أين
+    يذهب، و«الإسنادُ غير صالح» لا تقول شيئاً.
+    """
+    level_to_message = {
+        assignment_service.BLOCK: messages.error,
+        assignment_service.WARN: messages.warning,
+        assignment_service.INFO: messages.info,
+    }
+    for finding in findings:
+        level_to_message[finding.level](request, finding.message)
+
+
 def _assignment_redirect(year, class_id=""):
     query = {"year": year}
     if class_id:
@@ -1337,10 +1353,28 @@ def subject_assignment_add(request):
         for err in form.non_field_errors():
             messages.error(request, err)
         return _assignment_redirect(year)
-    obj = form.save(commit=False)
-    obj.school, obj.academic_year = school, year
-    obj.save()
+    data = form.cleaned_data
+    try:
+        obj, findings = assignment_service.apply_assignment(
+            school=school,
+            academic_year=year,
+            class_group=data["class_group"],
+            subject=data["subject"],
+            teacher=data.get("teacher"),
+            weekly_periods=data["weekly_periods"],
+            by=request.user,
+            override_reason=request.POST.get("periods_override_reason", ""),
+            parallel_group=data.get("parallel_group", ""),
+            requires_lab=data.get("requires_lab", False),
+        )
+    except assignment_service.AssignmentError as exc:
+        request.session["assignment_form_data"] = {
+            k: v for k, v in request.POST.items() if k != "csrfmiddlewaretoken"
+        }
+        _report(request, exc.findings)
+        return _assignment_redirect(year)
     messages.success(request, f"أُضيف: {obj}")
+    _report(request, findings)
     return _assignment_redirect(year, str(obj.class_group_id))
 
 
@@ -1372,12 +1406,28 @@ def subject_assignment_edit(request, assignment_id):
         messages.error(request, "عدد الحصص الأسبوعيّة يجب أن يكون بين ١ و٣٥.")
         return _assignment_redirect(year, str(obj.class_group_id))
 
-    obj.teacher = teacher
-    obj.weekly_periods = periods
-    obj.requires_lab = bool(request.POST.get("requires_lab"))
-    obj.parallel_group = (request.POST.get("parallel_group") or "").strip()[:40]
-    obj.save(update_fields=["teacher", "weekly_periods", "requires_lab", "parallel_group"])
+    try:
+        obj, findings = assignment_service.apply_assignment(
+            school=school,
+            academic_year=year,
+            class_group=obj.class_group,
+            subject=obj.subject,
+            teacher=teacher,
+            weekly_periods=periods,
+            by=request.user,
+            override_reason=request.POST.get("periods_override_reason", ""),
+            parallel_group=request.POST.get("parallel_group", ""),
+            requires_lab=bool(request.POST.get("requires_lab")),
+            expected_updated_at=request.POST.get("seen_at") or None,
+        )
+    except assignment_service.StaleWriteError as exc:
+        messages.error(request, str(exc))
+        return _assignment_redirect(year, str(obj.class_group_id))
+    except assignment_service.AssignmentError as exc:
+        _report(request, exc.findings)
+        return _assignment_redirect(year, str(obj.class_group_id))
     messages.success(request, f"حُفظ: {obj}")
+    _report(request, findings)
     return _assignment_redirect(year, str(obj.class_group_id))
 
 
@@ -1388,7 +1438,7 @@ def subject_assignment_delete(request, assignment_id):
     """حذفٌ ناعم — يبقى الصفُّ أثراً، ويخرج من عين المولّد."""
     school = request.user.get_school()
     obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, school=school, is_active=True)
-    obj.is_active = False
-    obj.save(update_fields=["is_active"])
+    reason = (request.POST.get("reason") or "").strip() or "حُذف من شاشة التوزيعات"
+    assignment_service.remove_assignment(assignment=obj, by=request.user, reason=reason)
     messages.success(request, f"حُذف توزيع {obj.subject.name_ar} لشعبة {obj.class_group}.")
     return _assignment_redirect(obj.academic_year, str(obj.class_group_id))
