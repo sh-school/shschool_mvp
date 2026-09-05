@@ -1067,6 +1067,97 @@ def bell_lookup(school: School):
     return lookup
 
 
+def _run_attempt(
+    grid: ScheduleGrid,
+    sorted_tasks,
+    blocked_slots,
+    preferences,
+    prefs_qs,
+    school,
+    rng,
+    max_backtrack,
+) -> tuple:
+    """محاولةٌ واحدة: الدقيقُ للضيّقين، فالجشع، فالإصلاح، فالرخصتان، فالإنقاذ.
+
+    تُعيد (المتعذّر، المُصلَح، المسترخى، المكثَّف، نتيجةُ الدقيق).
+    """
+    # المعلّمون بلا هامشٍ يُوضعون أوّلاً بالبحث الدقيق — ثمّ الجشعُ للباقين.
+    from .scheduler_tight import place_tight
+
+    tight_done = place_tight(grid, sorted_tasks, blocked_slots, prefs_qs, rng)
+    pending = [t for t in sorted_tasks if grid.home_of(t) is None]
+    leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
+    before_repair = len(leftovers)
+    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
+    repaired = before_repair - len(leftovers)
+
+    # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
+    # السماحُ بالتلاصق من البداية يُنتج ثمانيةً وتسعين زوجاً عند خمسةٍ
+    # وأربعين معلّماً، والاسترخاءُ في آخر خطوةٍ يُنتج زوجاً لكلّ متعذّرة.
+    relaxed = 0
+    if leftovers:
+        before = len(leftovers)
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+        )
+        relaxed = before - len(leftovers)
+
+    # الرخصةُ الثانية — ملاذٌ أخير: يومٌ يأخذ حصّةً زائدةً عن قسمة الأسبوع،
+    # أو معلّمٌ يأخذ سابعةً ثالثة.
+    #
+    # وحالةُ المدرسة هي التي فرضتها: المزدوجةُ الأخيرةُ في الثامن/4 خانتاها
+    # الشاغرتان في يومين مختلفين، فلا زوجَ متلاصقٌ يقبلها. وكلُّ إزاحةٍ
+    # جُرِّبت اصطدمت بقيدَي التوزيع والسابعة لا بقيد التلاصق: الرياضياتُ
+    # خمسُ حصصٍ في خمسة أيّام، فنقلُها يجعل يوماً يومَين رياضيات، والخانةُ
+    # البديلةُ الوحيدةُ سابعةٌ عند معلّمٍ بلغ حصّتَه منها.
+    #
+    # ونصابُ الشعبة أربعٌ وثلاثون لا يُمَسّ — فالثمنُ يُدفع من ترتيب اليوم
+    # لا من المنهج، ولمعلّمٍ واحدٍ في شعبةٍ واحدة.
+    densed = 0
+    if leftovers:
+        before = len(leftovers)
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+            allow_dense=True,
+        )
+        densed = before - len(leftovers)
+
+    # جولةُ الإنقاذ: متعذّرةٌ أو اثنتان بعد كلّ الرخص — سلاسلُ إزاحةٍ أعمق (أربع).
+    # بأربعٍ على أربعَ عشرةَ متعذّرةً دقيقةٌ بلا مكسب، وعلى واحدةٍ ثوانٍ قد تُنقذها:
+    # الشعبةُ بلا خانةٍ فائضةٍ ومعلّمُها مقيَّدٌ يحتاجان سلسلةً أطولَ لا رخصةً أخرى.
+    if 0 < len(leftovers) <= 2:
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+            allow_dense=True,
+            depth=4,
+        )
+
+    # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
+    # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
+    # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
+    # ويومٌ فارغٌ لمعلّمٍ تامّ النصاب (HC14 حين تنازل في الملاذ الأخير) يُحسب
+    # قبل رخصة الكثافة: محاولةٌ تُغطّي الأيّامَ كلَّها خيرٌ من محاولةٍ لا تفعل.
+    return leftovers, repaired, relaxed, densed, tight_done
+
+
 def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, complete: bool) -> bool:
     """متى يقف البحثُ عن محاولةٍ أفضل.
 
@@ -1295,80 +1386,9 @@ def generate_schedule(
         attempt_started = time.time()
         rng = random.Random(attempt)
         grid = ScheduleGrid(band_times=band_times, coverage=coverage)
-        # المعلّمون بلا هامشٍ يُوضعون أوّلاً بالبحث الدقيق — ثمّ الجشعُ للباقين.
-        from .scheduler_tight import place_tight
-
-        tight_done = place_tight(grid, sorted_tasks, blocked_slots, prefs_qs, rng)
-        pending = [t for t in sorted_tasks if grid.home_of(t) is None]
-        leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
-        before_repair = len(leftovers)
-        leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
-        repaired = before_repair - len(leftovers)
-
-        # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
-        # السماحُ بالتلاصق من البداية يُنتج ثمانيةً وتسعين زوجاً عند خمسةٍ
-        # وأربعين معلّماً، والاسترخاءُ في آخر خطوةٍ يُنتج زوجاً لكلّ متعذّرة.
-        relaxed = 0
-        if leftovers:
-            before = len(leftovers)
-            leftovers = _repair_pass(
-                grid,
-                leftovers,
-                blocked_slots,
-                preferences,
-                max_backtrack,
-                school,
-                allow_adjacent=True,
-            )
-            relaxed = before - len(leftovers)
-
-        # الرخصةُ الثانية — ملاذٌ أخير: يومٌ يأخذ حصّةً زائدةً عن قسمة الأسبوع،
-        # أو معلّمٌ يأخذ سابعةً ثالثة.
-        #
-        # وحالةُ المدرسة هي التي فرضتها: المزدوجةُ الأخيرةُ في الثامن/4 خانتاها
-        # الشاغرتان في يومين مختلفين، فلا زوجَ متلاصقٌ يقبلها. وكلُّ إزاحةٍ
-        # جُرِّبت اصطدمت بقيدَي التوزيع والسابعة لا بقيد التلاصق: الرياضياتُ
-        # خمسُ حصصٍ في خمسة أيّام، فنقلُها يجعل يوماً يومَين رياضيات، والخانةُ
-        # البديلةُ الوحيدةُ سابعةٌ عند معلّمٍ بلغ حصّتَه منها.
-        #
-        # ونصابُ الشعبة أربعٌ وثلاثون لا يُمَسّ — فالثمنُ يُدفع من ترتيب اليوم
-        # لا من المنهج، ولمعلّمٍ واحدٍ في شعبةٍ واحدة.
-        densed = 0
-        if leftovers:
-            before = len(leftovers)
-            leftovers = _repair_pass(
-                grid,
-                leftovers,
-                blocked_slots,
-                preferences,
-                max_backtrack,
-                school,
-                allow_adjacent=True,
-                allow_dense=True,
-            )
-            densed = before - len(leftovers)
-
-        # جولةُ الإنقاذ: متعذّرةٌ أو اثنتان بعد كلّ الرخص — سلاسلُ إزاحةٍ أعمق (أربع).
-        # بأربعٍ على أربعَ عشرةَ متعذّرةً دقيقةٌ بلا مكسب، وعلى واحدةٍ ثوانٍ قد تُنقذها:
-        # الشعبةُ بلا خانةٍ فائضةٍ ومعلّمُها مقيَّدٌ يحتاجان سلسلةً أطولَ لا رخصةً أخرى.
-        if 0 < len(leftovers) <= 2:
-            leftovers = _repair_pass(
-                grid,
-                leftovers,
-                blocked_slots,
-                preferences,
-                max_backtrack,
-                school,
-                allow_adjacent=True,
-                allow_dense=True,
-                depth=4,
-            )
-
-        # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
-        # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
-        # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
-        # ويومٌ فارغٌ لمعلّمٍ تامّ النصاب (HC14 حين تنازل في الملاذ الأخير) يُحسب
-        # قبل رخصة الكثافة: محاولةٌ تُغطّي الأيّامَ كلَّها خيرٌ من محاولةٍ لا تفعل.
+        leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
+            grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
+        )
         uncovered = len(
             _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
         )
