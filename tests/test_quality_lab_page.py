@@ -18,6 +18,7 @@ def test_scores_are_monotone_and_bounded():
     assert metric_score("teacher.gap_weighted_avg", 1) == 50.0
     assert metric_score("teacher.compactness", 1.0) == 100.0
     assert metric_score("teacher.compactness", 2.0) == 50.0
+    assert metric_score("teacher.run_breaches", 42) == 58.0
     assert metric_score("fairness.edge_cv", 0.25) == 75.0
     assert metric_score("subject.pattern_match", 99.0) == 99.0
     assert metric_score("resources.utilization", 63.8) is None, "معلومةٌ لا درجة"
@@ -72,7 +73,7 @@ def test_the_page_shows_gate_radar_and_tiles(principal_client, tiny_schedule):
 
     assert body.count('class="gate-tile') == 3 and "gate-pass" in body
     assert 'id="lab-radar"' in body and "lab-radar-data" in body
-    assert "الفراغ الموزون (متوسّط)" in body and "أشدّ خمسة معلّمين ضغطاً" in body
+    assert "الفراغ الزائد عن الاستراحة (متوسّط)" in body and "أشدّ خمسة معلّمين ضغطاً" in body
     assert "الأساس (لا أساس بعد)" in body
 
 

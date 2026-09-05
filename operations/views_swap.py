@@ -127,11 +127,8 @@ def swap_request(request):
             return redirect("swap_request")
 
     my_slots = (
-        ScheduleSlot.objects.filter(
-            school=school,
-            teacher=request.user,
-            is_active=True,
-        )
+        ScheduleSlot.objects.live(school)
+        .filter(teacher=request.user)
         .select_related("class_group", "subject")
         .order_by("day_of_week", "period_number")
     )
@@ -323,11 +320,8 @@ def compensatory_request(request):
         teacher=request.user,
     ).order_by("-date")[:10]
     my_slots = (
-        ScheduleSlot.objects.filter(
-            school=school,
-            teacher=request.user,
-            is_active=True,
-        )
+        ScheduleSlot.objects.live(school)
+        .filter(teacher=request.user)
         .select_related("class_group", "subject")
         .order_by("day_of_week", "period_number")
     )

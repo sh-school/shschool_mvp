@@ -187,6 +187,29 @@ def _gaps(periods: list[int]) -> list[int]:
     return [later - earlier - 1 for earlier, later in zip(ordered, ordered[1:], strict=False)]
 
 
+#: سياسةُ المدرسة (قرار الإدارة 2026-09-04): لا تلاصقَ بين حصّتين لمعلّم — راحتُه
+#: مهمّة — والتجاورُ رخصةُ الضرورة القصوى. فالفراغُ الواحدُ بين حصّتين استراحةٌ
+#: مقصودةٌ لا عيب، وما زاد عليه هو الفراغُ الذي يُعَدّ.
+REST_GAP = 1
+
+
+def excess_gap_weight(periods: list[int]) -> float:
+    """Σ (طول الفراغ − استراحة)² لما فوق الاستراحة، ÷ عدد حصص اليوم."""
+    distinct = set(periods)
+    if not distinct:
+        return 0.0
+    return sum((g - REST_GAP) ** 2 for g in _gaps(periods) if g > REST_GAP) / len(distinct)
+
+
+def alternating_compactness(periods: list[int]) -> float:
+    """طولُ اليوم مقابل النمط المتناوب المثاليّ (1، 3، 5): 1.0 مثاليّ، ولا يُكافأ التلاصق."""
+    distinct = sorted(set(periods))
+    if len(distinct) < 2:
+        return 1.0
+    ideal_span = 2 * len(distinct) - 1
+    return max(1.0, (distinct[-1] - distinct[0] + 1) / ideal_span)
+
+
 def _longest_run(periods: list[int]) -> int:
     ordered = sorted(set(periods))
     best = run = 1 if ordered else 0
@@ -347,8 +370,7 @@ class ScheduleLab:
         worst = (0.0, "", -1)
         for tid, days in self.by_teacher_day.items():
             for day, periods in days.items():
-                n = len(set(periods))
-                weighted = sum(g * g for g in _gaps(periods)) / n if n else 0.0
+                weighted = excess_gap_weight(periods)
                 per_teacher[tid].append(weighted)
                 if weighted > worst[0]:
                     worst = (weighted, self.names[tid], day)
@@ -365,9 +387,8 @@ class ScheduleLab:
         ratios = []
         for days in self.by_teacher_day.values():
             for periods in days.values():
-                distinct = sorted(set(periods))
-                if len(distinct) >= 2:
-                    ratios.append((distinct[-1] - distinct[0] + 1) / len(distinct))
+                if len(set(periods)) >= 2:
+                    ratios.append(alternating_compactness(periods))
         return {"value": _round(mean(ratios) if ratios else 1.0), "detail": {"days": len(ratios)}}
 
     def runs(self) -> tuple[dict, dict]:
@@ -436,7 +457,7 @@ class ScheduleLab:
             if self.load[tid] < MIN_LOAD:
                 continue
             cap = self.run_cap(tid)
-            gap_w = sum(sum(g * g for g in _gaps(ps)) / len(set(ps)) for ps in days.values() if ps)
+            gap_w = sum(excess_gap_weight(ps) for ps in days.values() if ps)
             edges = sum(1 for ps in days.values() for p in ps if p in (1, LAST_PERIOD))
             breaches = sum(1 for ps in days.values() if _longest_run(ps) > cap)
             counts = [len(set(days.get(d, []))) for d in self.available_days(tid)]
@@ -516,6 +537,21 @@ class ScheduleLab:
                 "detail": {"pairs_at_3_or_more": len(worst_same)},
             },
         )
+
+    def doubles_on_thursday(self) -> dict:
+        """(شعبة، مادّة) لها حصّتان أو أكثر يومَ الخميس — والمزدوجةُ المطلوبةُ مستثناة (HC15)."""
+        counts: dict[tuple[str, str], int] = defaultdict(int)
+        doubles: dict[tuple[str, str], bool] = {}
+        names: dict[tuple[str, str], str] = {}
+        for s in self.slots:
+            if s.day != 4:
+                continue
+            key = (s.class_id, s.subject_id)
+            counts[key] += 1
+            doubles[key] = s.requires_double
+            names[key] = f"{s.class_name} — {s.subject_code or s.subject_id[:6]}"
+        hits = [names[k] for k, n in counts.items() if n >= 2 and not doubles[k]]
+        return {"value": len(hits), "detail": {h: 2 for h in hits[:10]}}
 
     def pedagogy_timing(self) -> tuple[dict, dict]:
         heavy = [s for s in self.slots if s.pedagogy == "heavy"]
@@ -608,6 +644,7 @@ class ScheduleLab:
             "fairness.preference_satisfaction": self.preference_satisfaction(),
             "subject.pattern_match": pattern,
             "subject.same_period_max": same_period,
+            "subject.double_on_thursday": self.doubles_on_thursday(),
             "subject.heavy_morning": heavy_am,
             "subject.activity_afternoon": activity_pm,
             "class.heavy_streak_days": streaks,
@@ -628,11 +665,11 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "validity.hard_conflicts": ("تعارضات صلبة", "عدد", "zero"),
     "validity.completeness": ("اكتمال النصاب", "%", "high"),
     "validity.uncovered_days": ("معلّمون لهم يوم فارغ بلا تفريغ", "عدد", "zero"),
-    "teacher.gap_weighted_avg": ("الفراغ الموزون (متوسّط)", "رقم", "low"),
-    "teacher.gap_weighted_max": ("الفراغ الموزون (أقصى يوم)", "رقم", "low"),
-    "teacher.compactness": ("تراصّ اليوم", "نسبة", "low"),
+    "teacher.gap_weighted_avg": ("الفراغ الزائد عن الاستراحة (متوسّط)", "رقم", "low"),
+    "teacher.gap_weighted_max": ("الفراغ الزائد عن الاستراحة (أقصى يوم)", "رقم", "low"),
+    "teacher.compactness": ("تراصّ اليوم مقابل التناوب", "نسبة", "low"),
     "teacher.run_avg": ("أطول تتابع (متوسّط)", "حصص", "low"),
-    "teacher.run_breaches": ("أيام تجاوزت سقف التتابع", "عدد", "low"),
+    "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "عدد", "low"),
     "teacher.weekly_imbalance": ("تفاوت حصص الأيام (انحراف)", "رقم", "low"),
     "teacher.transitions_avg": ("انتقالات الطابقين (متوسّط اليوم)", "عدد", "low"),
     "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "low"),
@@ -641,6 +678,7 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "fairness.preference_satisfaction": ("تلبية التفضيلات", "%", "high"),
     "subject.pattern_match": ("توزيع المادّة على الأسبوع", "% مطابقة", "high"),
     "subject.same_period_max": ("تكرار الحصّة نفسها للمادّة (متوسّط الأقصى)", "عدد", "low"),
+    "subject.double_on_thursday": ("موادّ لها حصّتان يوم الخميس", "عدد", "zero"),
     "subject.heavy_morning": ("الموادّ الثقيلة في النصف الأوّل", "%", "high"),
     "subject.activity_afternoon": ("موادّ النشاط في النصف الثاني", "%", "high"),
     "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "عدد", "low"),

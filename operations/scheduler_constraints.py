@@ -59,6 +59,11 @@ WEIGHTS = {
     #: يومٌ فارغٌ للمعلّم يُملأ قبل أن يُثقَّل يومٌ عامر، وحصصُ اليوم لا تتجاوز
     #: حصّةَ القسمة (النصاب ÷ الأيّام) — «بنسبٍ متقاربة على الخمسة» (2026-09-04).
     "day_balance": 6,
+    #: يومُ الحصّتين للمادّة أيُّ يومٍ عدا الخميس (قرار الإدارة 2026-09-04) — تفضيلٌ
+    #: قويّ لا قيدٌ صلب: قيداً صلباً أزال ستَّ حالاتٍ وأنتج ثمانيةً وعشرين يوماً من
+    #: التلاصق المخالف وثلاثَ حصصٍ بلا موضع (قياس 2026-09-04)؛ والراحةُ أهمّ.
+    #: والمتجاورةُ بحكمها (الفنّيّة، IT، CS، تكنولوجيا الثانوي) مستثناة.
+    "thursday_pair": 15,
     "core_early": 3,
     "pe_after_break": 2,
     "double_bonus": -5,
@@ -297,6 +302,8 @@ def check_subject_distribution(
 #: في إعدادات الجدول: المعلّمُ باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا
 #: عَرَضٌ يُتعب.
 MAX_CONSECUTIVE = 1
+#: الخميسُ — آخرُ الأسبوع وأقصرُه.
+THURSDAY = 4
 
 #: أكثرُ ما تتكرّر المادّةُ الواحدةُ في الموضع نفسِه من اليوم خلال الأسبوع.
 MAX_SAME_PERIOD = 2
@@ -651,6 +658,13 @@ def evaluate_soft_constraints(
         max_daily = preferences[task.teacher_id].get("max_daily", 5)
     penalty.add("daily_load", WEIGHTS["daily_load"], teacher_today >= max_daily)
 
+    # ── SC14: الحصّةُ الثانيةُ للمادّة يومَ الخميس تُتجنَّب ما وُجد بديل ──
+    penalty.add(
+        "thursday_pair",
+        WEIGHTS["thursday_pair"],
+        day == THURSDAY and not getattr(task, "prefers_double", False) and same_subject_today > 0,
+    )
+
     # ── SC13: بنسبٍ متقاربة على الأيّام — يومٌ فارغٌ أوّلاً، ولا يومَ فوق حصّة القسمة ──
     penalty.add(
         "day_balance",
@@ -714,6 +728,7 @@ def calculate_quality_score(
         "subject_spread": 0,
         "daily_load": 0,
         "day_balance": 0,
+        "thursday_pair": 0,
         "core_early": 0,
         "pe_after_break": 0,
         "double_bonus": 0,

@@ -62,22 +62,25 @@ def test_ideal_patterns_follow_the_agreed_shapes():
     assert ideal_pattern(2, True) == [2], "المزدوجةُ المطلوبة حصّتان في يوم"
 
 
-def test_weighted_gap_squares_the_hole():
-    """1,2,3,4 صفر؛ 1,2,4,5 فراغُ حصّة = 1/4؛ 1,4,7 فراغان بحصّتين = 8/3."""
+def test_a_single_period_gap_is_rest_and_only_the_excess_counts():
+    """سياسةُ لا تلاصق: 1,3,5 صفر؛ 1,2,4,5 صفر (فراغُ حصّةٍ استراحة)؛ 1,4,7 فراغان بحصّتين = 2/3."""
+    assert ScheduleLab([slot(period=p) for p in (1, 3, 5)], Context()).gaps()[0]["value"] == 0.0
     lab = ScheduleLab([slot(period=p) for p in (1, 2, 4, 5)], Context())
     avg, mx = lab.gaps()
-    assert avg["value"] == 0.25 and mx["value"] == 0.25
+    assert avg["value"] == 0.0 and mx["value"] == 0.0
 
     lab = ScheduleLab([slot(period=p) for p in (1, 4, 7)], Context())
     avg, _ = lab.gaps()
-    assert avg["value"] == round(8 / 3, 2)
+    assert avg["value"] == round(2 / 3, 2)
 
 
-def test_compactness_is_span_over_periods():
+def test_compactness_is_measured_against_the_alternating_ideal():
     lab = ScheduleLab([slot(period=p) for p in (1, 3, 5, 7)], Context())
-    assert lab.compactness()["value"] == 1.75
+    assert lab.compactness()["value"] == 1.0, "التناوبُ التامّ مثاليّ"
     lab = ScheduleLab([slot(period=p) for p in (1, 2, 3, 4)], Context())
-    assert lab.compactness()["value"] == 1.0
+    assert lab.compactness()["value"] == 1.0, "التلاصقُ لا يُكافأ — يُعَدّ مخالفةً في مؤشره"
+    lab = ScheduleLab([slot(period=p) for p in (1, 7)], Context())
+    assert lab.compactness()["value"] == round(7 / 3, 2)
 
 
 def test_weekly_imbalance_is_zero_when_days_are_even():
@@ -273,7 +276,7 @@ def test_the_log_page_shows_metrics_against_the_baseline(client, small_school):
     ).content.decode()
 
     assert "المؤشرات (" in body and "مقابل «أساس»" in body
-    assert "الفراغ الموزون (متوسّط)" in body
+    assert "الفراغ الزائد عن الاستراحة (متوسّط)" in body
 
 
 def test_exemptions_and_preferences_reach_the_context(school):

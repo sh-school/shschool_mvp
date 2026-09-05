@@ -182,11 +182,7 @@ class StaffService:
             LeaveBalance.objects.filter(staff=user, school=school, academic_year=year)
         )
 
-        weekly_slots = ScheduleSlot.objects.filter(
-            teacher=user,
-            school=school,
-            is_active=True,
-        ).count()
+        weekly_slots = ScheduleSlot.objects.live(school, year=year).filter(teacher=user).count()
 
         return {
             "membership": membership,

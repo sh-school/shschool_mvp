@@ -22,6 +22,53 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+# ──────────────────── النطاق الزمنيّ: العام الدراسيّ ───────────────────────
+
+
+class YearScopedQuerySet(models.QuerySet):
+    """لكلّ نموذجٍ فيه `school` و`academic_year` و`is_active`.
+
+    `is_active` تقول «هذا السجلُّ المعتمَد»، ولا تقول «هذا سجلُّ هذا العام».
+    والعامُ يُشتقّ من تقويم الوزارة بتاريخه لا بزرٍّ يضغطه أحد، فسجلُّ العام
+    الماضي يبقى نشطاً كما تُرك — وكلُّ استعلامٍ لا يُقيَّد بالعام يخلط العامين.
+
+    وقد وقع هذا فعلاً في `ScheduleSlot`: بقيت مئتان وخمسون حصّةً من 2025-2026
+    نشطةً بعد دخول 2026-2027، فكان المعلّمُ المتفرّغُ يُرى مشغولاً في اقتراح
+    البدلاء، وشُعبةُ عامٍ مضى تدخل نطاقَ طلاب المنسّق فتتّسع صلاحيةُ قراءةٍ
+    بلا قرار.
+
+    فصار السؤالُ عن الحيّ يمرّ من هنا وحده: `Model.objects.live(school)`.
+    """
+
+    def of_year(self, school=None, *, year=None, on=None) -> YearScopedQuerySet:
+        """سجلّاتُ عامٍ بعينه — الجاري افتراضاً — نشطةً كانت أو مطفأة."""
+        qs = self if school is None else self.filter(school=school)
+        return qs.filter(academic_year=year_or_current(school, year, on))
+
+    def live(self, school=None, *, year=None, on=None) -> YearScopedQuerySet:
+        """الحيّ: نشطُ العام الجاري وحدَه — وهذا ما تريده الشاشات كلُّها."""
+        return self.of_year(school, year=year, on=on).filter(is_active=True)
+
+    def past_years(self, school=None, *, year=None, on=None) -> YearScopedQuerySet:
+        """سجلّاتُ الأعوام الأخرى — تُطفأ ولا تُعرض."""
+        qs = self if school is None else self.filter(school=school)
+        return qs.exclude(academic_year=year_or_current(school, year, on))
+
+
+def year_or_current(school, year=None, on=None) -> str:
+    """اسمُ العام المقصود: المُمرَّرُ صراحةً، وإلّا عامُ المدرسة من تقويم الوزارة.
+
+    وبلا مدرسةٍ يُرتَدّ إلى العام الوطنيّ — فتقويم الوزارة واحدٌ لكلّ المدارس.
+    """
+    from core.academic_calendar import academic_year_for_school, default_academic_year
+
+    if year is not None:
+        return year
+    if school is None:
+        return default_academic_year()
+    return academic_year_for_school(school, on)
+
+
 # ─────────────────────────── CustomUser ────────────────────────────────────
 
 

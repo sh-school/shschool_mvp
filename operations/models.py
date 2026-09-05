@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from core.academic_calendar import default_academic_year
 from core.models import ClassGroup, CustomUser, School
+from core.querysets import YearScopedQuerySet
 from core.validators import FileTypeValidator
 
 
@@ -239,6 +240,8 @@ class ScheduleSlot(models.Model):
     )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = YearScopedQuerySet.as_manager()
 
     class Meta:
         verbose_name = "حصة جدول"
@@ -489,6 +492,10 @@ class SubjectClassAssignment(models.Model):
     )
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
     is_active = models.BooleanField(default=True)
+
+    #: والإسنادُ أصلُ الجدول: منه يُولَّد. فلو بقي إسنادُ عامٍ مضى نشطاً وُلِّد
+    #: منه جدولٌ لشُعبٍ لم تعد قائمة — فالقيدُ عليه أوجبُ منه على الحصّة.
+    objects = YearScopedQuerySet.as_manager()
 
     class Meta:
         verbose_name = "توزيع مادة على فصل"

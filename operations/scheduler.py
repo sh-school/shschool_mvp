@@ -850,6 +850,7 @@ def _repair_pass(
     school=None,
     allow_adjacent=False,
     allow_dense=False,
+    depth: int = 3,
 ):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
@@ -868,7 +869,7 @@ def _repair_pass(
         still = []
         for task in remaining:
             if budget <= 0 or not _try_eject(
-                grid, task, blocked, preferences, 3, school, allow_adjacent, allow_dense
+                grid, task, blocked, preferences, depth, school, allow_adjacent, allow_dense
             ):
                 still.append(task)
             else:
@@ -1066,6 +1067,97 @@ def bell_lookup(school: School):
     return lookup
 
 
+def _run_attempt(
+    grid: ScheduleGrid,
+    sorted_tasks,
+    blocked_slots,
+    preferences,
+    prefs_qs,
+    school,
+    rng,
+    max_backtrack,
+) -> tuple:
+    """محاولةٌ واحدة: الدقيقُ للضيّقين، فالجشع، فالإصلاح، فالرخصتان، فالإنقاذ.
+
+    تُعيد (المتعذّر، المُصلَح، المسترخى، المكثَّف، نتيجةُ الدقيق).
+    """
+    # المعلّمون بلا هامشٍ يُوضعون أوّلاً بالبحث الدقيق — ثمّ الجشعُ للباقين.
+    from .scheduler_tight import place_tight
+
+    tight_done = place_tight(grid, sorted_tasks, blocked_slots, prefs_qs, rng)
+    pending = [t for t in sorted_tasks if grid.home_of(t) is None]
+    leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
+    before_repair = len(leftovers)
+    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
+    repaired = before_repair - len(leftovers)
+
+    # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
+    # السماحُ بالتلاصق من البداية يُنتج ثمانيةً وتسعين زوجاً عند خمسةٍ
+    # وأربعين معلّماً، والاسترخاءُ في آخر خطوةٍ يُنتج زوجاً لكلّ متعذّرة.
+    relaxed = 0
+    if leftovers:
+        before = len(leftovers)
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+        )
+        relaxed = before - len(leftovers)
+
+    # الرخصةُ الثانية — ملاذٌ أخير: يومٌ يأخذ حصّةً زائدةً عن قسمة الأسبوع،
+    # أو معلّمٌ يأخذ سابعةً ثالثة.
+    #
+    # وحالةُ المدرسة هي التي فرضتها: المزدوجةُ الأخيرةُ في الثامن/4 خانتاها
+    # الشاغرتان في يومين مختلفين، فلا زوجَ متلاصقٌ يقبلها. وكلُّ إزاحةٍ
+    # جُرِّبت اصطدمت بقيدَي التوزيع والسابعة لا بقيد التلاصق: الرياضياتُ
+    # خمسُ حصصٍ في خمسة أيّام، فنقلُها يجعل يوماً يومَين رياضيات، والخانةُ
+    # البديلةُ الوحيدةُ سابعةٌ عند معلّمٍ بلغ حصّتَه منها.
+    #
+    # ونصابُ الشعبة أربعٌ وثلاثون لا يُمَسّ — فالثمنُ يُدفع من ترتيب اليوم
+    # لا من المنهج، ولمعلّمٍ واحدٍ في شعبةٍ واحدة.
+    densed = 0
+    if leftovers:
+        before = len(leftovers)
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+            allow_dense=True,
+        )
+        densed = before - len(leftovers)
+
+    # جولةُ الإنقاذ: متعذّرةٌ أو اثنتان بعد كلّ الرخص — سلاسلُ إزاحةٍ أعمق (أربع).
+    # بأربعٍ على أربعَ عشرةَ متعذّرةً دقيقةٌ بلا مكسب، وعلى واحدةٍ ثوانٍ قد تُنقذها:
+    # الشعبةُ بلا خانةٍ فائضةٍ ومعلّمُها مقيَّدٌ يحتاجان سلسلةً أطولَ لا رخصةً أخرى.
+    if 0 < len(leftovers) <= 2:
+        leftovers = _repair_pass(
+            grid,
+            leftovers,
+            blocked_slots,
+            preferences,
+            max_backtrack,
+            school,
+            allow_adjacent=True,
+            allow_dense=True,
+            depth=4,
+        )
+
+    # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
+    # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
+    # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
+    # ويومٌ فارغٌ لمعلّمٍ تامّ النصاب (HC14 حين تنازل في الملاذ الأخير) يُحسب
+    # قبل رخصة الكثافة: محاولةٌ تُغطّي الأيّامَ كلَّها خيرٌ من محاولةٍ لا تفعل.
+    return leftovers, repaired, relaxed, densed, tight_done
+
+
 def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, complete: bool) -> bool:
     """متى يقف البحثُ عن محاولةٍ أفضل.
 
@@ -1073,7 +1165,9 @@ def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, compl
     ثلاثَ محاولاتٍ متتالية وهو تامّ. وما دام في الأفضل متعذّرٌ لا يُقطع البحثُ
     على الصبر وحده — بل على الميزانية.
     """
-    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= budget):
+    # وما دام الأفضلُ ناقصاً تُمَدّ الميزانيةُ إلى ضعفها: حصّةٌ بلا موضعٍ أغلى من دقيقة.
+    limit = budget if complete else 2 * budget
+    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= limit):
         return True
     return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
 
@@ -1121,6 +1215,43 @@ def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None =
                 + "، ".join(day_names.get(d, str(d)) for d in empty)
             )
     return found
+
+
+def _slack_advice(leftovers: list[Task], prefs, blocked_slots: set, tasks: list[Task]) -> list[str]:
+    """متعذّرةٌ لمعلّمٍ سعتُه تساوي نصابَه: يُقال له أين الهامشُ لا «تعذّر» وحدَها.
+
+    سفيان (2026-09-04): تفريغاتٌ تترك له اثنتي عشرةَ خانةً بلا تلاصق لاثنتي عشرةَ
+    حصّة — فأيُّ قيدٍ آخر (تنوّعُ الحصّة، القسمة، شعبةٌ بلا خانةٍ فائضة) يُسقط
+    حصّة. والعلاجُ بياناتٌ لا خوارزميّة: تفريغٌ واحدٌ أقلّ.
+    """
+    from .preference_capacity import weekly_capacity
+
+    load: dict[str, int] = defaultdict(int)
+    for t in tasks:
+        for m in t.members:
+            load[m.teacher_id] += t.span
+    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for teacher_id, day, _period in blocked_slots:
+        blocked_per_day[teacher_id][day] += 1
+    by_teacher = {str(p.teacher_id): p for p in prefs}
+    advice, seen = [], set()
+    for task in leftovers:
+        for m in task.members:
+            pref = by_teacher.get(m.teacher_id)
+            if pref is None or m.teacher_id in seen:
+                continue
+            seen.add(m.teacher_id)
+            free = {d: LAST_PERIOD - n for d, n in blocked_per_day[m.teacher_id].items()}
+            capacity = weekly_capacity(
+                pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day, free
+            )
+            if capacity - load[m.teacher_id] <= 1:
+                advice.append(
+                    f"قيودُ {m.teacher_name} تسع {capacity} حصّةً ونصابُه {load[m.teacher_id]} — "
+                    "بلا هامش، فأيُّ قيدٍ آخر يُسقط حصّة: أزل تفريغاً واحداً أو ارفع سقفاً "
+                    "ليكتمل الجدول"
+                )
+    return advice
 
 
 def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
@@ -1255,59 +1386,9 @@ def generate_schedule(
         attempt_started = time.time()
         rng = random.Random(attempt)
         grid = ScheduleGrid(band_times=band_times, coverage=coverage)
-        leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
-        before_repair = len(leftovers)
-        leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
-        repaired = before_repair - len(leftovers)
-
-        # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
-        # السماحُ بالتلاصق من البداية يُنتج ثمانيةً وتسعين زوجاً عند خمسةٍ
-        # وأربعين معلّماً، والاسترخاءُ في آخر خطوةٍ يُنتج زوجاً لكلّ متعذّرة.
-        relaxed = 0
-        if leftovers:
-            before = len(leftovers)
-            leftovers = _repair_pass(
-                grid,
-                leftovers,
-                blocked_slots,
-                preferences,
-                max_backtrack,
-                school,
-                allow_adjacent=True,
-            )
-            relaxed = before - len(leftovers)
-
-        # الرخصةُ الثانية — ملاذٌ أخير: يومٌ يأخذ حصّةً زائدةً عن قسمة الأسبوع،
-        # أو معلّمٌ يأخذ سابعةً ثالثة.
-        #
-        # وحالةُ المدرسة هي التي فرضتها: المزدوجةُ الأخيرةُ في الثامن/4 خانتاها
-        # الشاغرتان في يومين مختلفين، فلا زوجَ متلاصقٌ يقبلها. وكلُّ إزاحةٍ
-        # جُرِّبت اصطدمت بقيدَي التوزيع والسابعة لا بقيد التلاصق: الرياضياتُ
-        # خمسُ حصصٍ في خمسة أيّام، فنقلُها يجعل يوماً يومَين رياضيات، والخانةُ
-        # البديلةُ الوحيدةُ سابعةٌ عند معلّمٍ بلغ حصّتَه منها.
-        #
-        # ونصابُ الشعبة أربعٌ وثلاثون لا يُمَسّ — فالثمنُ يُدفع من ترتيب اليوم
-        # لا من المنهج، ولمعلّمٍ واحدٍ في شعبةٍ واحدة.
-        densed = 0
-        if leftovers:
-            before = len(leftovers)
-            leftovers = _repair_pass(
-                grid,
-                leftovers,
-                blocked_slots,
-                preferences,
-                max_backtrack,
-                school,
-                allow_adjacent=True,
-                allow_dense=True,
-            )
-            densed = before - len(leftovers)
-
-        # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
-        # من جدولٍ تامٍّ اشترى خانتَه بيومٍ مكدَّس. فالترتيب: المتعذّرُ أوّلاً،
-        # ثمّ الرخصةُ الغالية، ثمّ الرخيصة.
-        # ويومٌ فارغٌ لمعلّمٍ تامّ النصاب (HC14 حين تنازل في الملاذ الأخير) يُحسب
-        # قبل رخصة الكثافة: محاولةٌ تُغطّي الأيّامَ كلَّها خيرٌ من محاولةٍ لا تفعل.
+        leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
+            grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
+        )
         uncovered = len(
             _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
         )
@@ -1324,6 +1405,7 @@ def generate_schedule(
         attempt_log.append(
             {
                 "seed": attempt,
+                "tight": {k[:8]: v for k, v in tight_done.items()},
                 "leftovers": len(leftovers),
                 "uncovered": uncovered,
                 "densed": densed,
@@ -1332,15 +1414,29 @@ def generate_schedule(
                 "ms": int((time.time() - attempt_started) * 1000),
             }
         )
+        # «تامّ» هنا: لا متعذّرَ ولا يومَ فارغاً ولا رخصةَ كثافة — فما دون ذلك يستحقّ
+        # محاولةً أخرى ما بقيت ميزانية.
+        clean = best[0][0] == 0 and best[0][1] == 0 and best[0][2] == 0
         if _search_exhausted(
-            attempt + 1, time.time() - start_time, budget, since_improvement, best[0][0] == 0
+            attempt + 1, time.time() - start_time, budget, since_improvement, clean
         ):
             break
 
     _, grid, leftovers, repaired, relaxed, densed, chosen = best
 
+    # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
+    # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
+    # ويجري ولو بقيت حصّةٌ متعذّرة: ما وُضع يُحسَّن، والمتعذّرُ يبقى مذكوراً.
+    from .scheduler_improve import improve
+
+    deadline = max(start_time + budget, time.time() + budget * 0.5)
+    improvement = improve(
+        grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
+    )
+
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
+    errors.extend(_slack_advice(leftovers, prefs_qs, blocked_slots, tasks))
     # ومن بقيت له حصّةٌ متعذّرةٌ لا يُقال عنه «يومٌ فارغ» — فالفراغُ أثرُها.
     errors.extend(
         _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
@@ -1424,6 +1520,7 @@ def generate_schedule(
                         "chosen_attempt": chosen,
                         "budget_seconds": budget,
                         "attempt_log": attempt_log,
+                        "improvement": improvement,
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,
@@ -1446,6 +1543,9 @@ def generate_schedule(
         "quality": quality,
         "generation": generation,
         "errors": errors,
+        #: المهامُّ نفسُها والمتعذّرُ منها — للتشخيص والاختبار، لا للحفظ.
+        "tasks": tasks,
+        "leftover_tasks": leftovers,
         "elapsed_ms": elapsed_ms,
         "total_tasks": len(tasks),
         "repaired": repaired,

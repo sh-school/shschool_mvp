@@ -96,10 +96,13 @@ class Department(models.Model):
         if not teacher_ids:
             return set()
 
-        class_ids = ScheduleSlot.objects.filter(
-            teacher_id__in=teacher_ids,
-            is_active=True,
-        ).values_list("class_group_id", flat=True)
+        # والعامُ قيدٌ: شُعبةُ عامٍ مضى كانت تدخل نطاقَ طلاب القسم فتتّسع
+        # صلاحيةُ القراءة بلا قرار.
+        class_ids = (
+            ScheduleSlot.objects.live(self.school)
+            .filter(teacher_id__in=teacher_ids)
+            .values_list("class_group_id", flat=True)
+        )
 
         return set(
             StudentEnrollment.objects.filter(

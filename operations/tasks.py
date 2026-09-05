@@ -6,6 +6,7 @@ operations/tasks.py
 المهام:
     1. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
     2. توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم لا بجدولٍ زمنيّ
+    3. حارسُ العام الدراسيّ — إطفاءُ جداول وإسنادات الأعوام الماضية (يومياً)
 
 ملاحظة:
     توليدُ حصص اليوم ليس مهمّةَ Celery: يتكفّل به SessionAutoGenerateMiddleware
@@ -82,6 +83,33 @@ def revoke_expired_temp_permissions():
         "revoked": total_count,
         "checked_at": str(now),
     }
+
+
+# ═════════════════════════════════════════════════════════════════════
+# حارسُ العام الدراسيّ — إطفاءُ جداول الأعوام الماضية
+# طبقةٌ ثالثةٌ فوق وسيطةِ الطلب ومرحلةِ الإصدار، تعمل إن شُغِّل Celery Beat
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.retire_past_year_records")
+def retire_past_year_records_task():
+    """يُطفئ الجدولَ والإسنادَ الباقيَين نشطَين من أعوامٍ مضت، في كلّ مدرسة.
+
+    ثابتةُ التكرار: نداؤها على قاعدةٍ سليمة لا يكتب شيئاً. وهي ثالثةُ ثلاثٍ
+    تحرس القاعدة نفسَها — «لا حصّةَ نشطةٌ خارجَ العام الجاري» — لأنّ اعتمادَ
+    الحراسة على موضعٍ واحدٍ يُسقطها متى تعطّل ذلك الموضع، والبيتُ مطفأٌ في
+    الإنتاج اليوم.
+    """
+    from core.models import School
+    from operations.services import ScheduleService
+
+    total = {"slots": 0, "assignments": 0}
+    for school in School.objects.all().iterator(chunk_size=100):
+        with school_rls_scope(school.id):
+            for key, count in ScheduleService.retire_past_year_records(school).items():
+                total[key] += count
+
+    return total
 
 
 # ═════════════════════════════════════════════════════════════════════
