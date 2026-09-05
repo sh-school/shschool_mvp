@@ -27,6 +27,7 @@ class BehaviorConfig(AppConfig):
                 "admin_supervisor",
                 # v7 — مساعدون + منسق أنشطة يبلّغون عن مخالفات
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
             },

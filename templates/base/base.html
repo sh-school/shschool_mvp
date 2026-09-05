@@ -149,7 +149,7 @@
       {% endif %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
 
-    {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
+    {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
@@ -417,7 +417,7 @@
 {% endif %}
 
 {# ── Teacher Schedule Dropdown — يشمل مساعدي المعلم v7 ── #}
-{% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" %}
+{% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>

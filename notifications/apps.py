@@ -34,6 +34,7 @@ class NotificationsConfig(AppConfig):
                 "it_technician",
                 # v7
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
                 "speech_therapist",

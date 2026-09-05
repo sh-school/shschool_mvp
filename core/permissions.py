@@ -46,6 +46,7 @@ ROLE_INHERITS = {
     "teacher_assistant": "teacher",  # مساعد المعلم يرث المعلم (جدول + حضور)
     "ese_assistant": "ese_teacher",  # مساعد ESE يرث معلم ESE
     "activities_coordinator": "coordinator",  # منسق أنشطة يرث المنسق
+    "e_projects_coordinator": "teacher",  # منسّق المشاريع الإلكترونية معلّمٌ بنصابٍ مخفَّض
     "transport_officer": "bus_supervisor",  # مسؤول نقل يرث مشرف النقل
 }
 
@@ -91,6 +92,7 @@ SCHEDULE_VIEW = {
     "teacher_assistant",
     "ese_assistant",  # يحتاجون لرؤية جدول فصولهم
     "activities_coordinator",  # يحتاج الجدول لتنسيق الأنشطة
+    "e_projects_coordinator",  # قد يحمل حصصاً
     "speech_therapist",
     "occupational_therapist",  # جلسات الطلاب
     "transport_officer",  # توقيت الدراسة للنقل
@@ -100,6 +102,7 @@ SCHEDULE_SWAP_REQUEST = {
     "teacher",
     "ese_teacher",
     "teacher_assistant",
+    "e_projects_coordinator",
 }  # v7: مساعد المعلم يطلب تبديل
 SCHEDULE_SWAP_APPROVE = {"coordinator"}  # تخصصه فقط
 SCHEDULE_SUBSTITUTE_ASSIGN = {
@@ -116,6 +119,7 @@ ATTENDANCE_RECORD = {
     "admin_supervisor",
     "teacher_assistant",
     "ese_assistant",  # v7: يسجّلون تحت إشراف المعلم
+    "e_projects_coordinator",
 }
 ATTENDANCE_VIEW_ALL = {
     "principal",
@@ -127,16 +131,34 @@ ATTENDANCE_VIEW_ALL = {
     "activities_coordinator",  # v7: يتابع حضور الأنشطة
 }
 ATTENDANCE_VIEW_DEPT = {"coordinator"}
-ATTENDANCE_VIEW_OWN = {"teacher", "ese_teacher", "teacher_assistant", "ese_assistant"}
+ATTENDANCE_VIEW_OWN = {
+    "teacher",
+    "ese_teacher",
+    "teacher_assistant",
+    "ese_assistant",
+    "e_projects_coordinator",
+}
 ATTENDANCE_VIEW_CHILD = {"parent"}
 ATTENDANCE_REPORTS = {"principal", "vice_academic", "vice_admin"}
 
 # ── التقييمات والدرجات ──────────────────────────────────────────
-ASSESSMENT_CREATE = {"teacher", "ese_teacher", "coordinator", "vice_academic"}
-ASSESSMENT_EDIT = {"teacher", "ese_teacher", "coordinator", "vice_academic"}
+ASSESSMENT_CREATE = {
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "vice_academic",
+    "e_projects_coordinator",
+}
+ASSESSMENT_EDIT = {
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "vice_academic",
+    "e_projects_coordinator",
+}
 ASSESSMENT_VIEW_ALL = {"principal", "vice_academic", "vice_admin"}
 ASSESSMENT_VIEW_DEPT = {"coordinator"}
-ASSESSMENT_VIEW_OWN = {"teacher", "ese_teacher"}
+ASSESSMENT_VIEW_OWN = {"teacher", "ese_teacher", "e_projects_coordinator"}
 ASSESSMENT_VIEW_CHILD = {"parent"}
 ASSESSMENT_VIEW_SELF = {"student"}
 
@@ -148,6 +170,7 @@ BEHAVIOR_RECORD = {
     "social_worker",
     "admin_supervisor",
     "activities_coordinator",  # v7: يُسجّل سلوك خلال الأنشطة
+    "e_projects_coordinator",
 }
 BEHAVIOR_MANAGE = {"principal", "vice_admin", "vice_academic", "social_worker"}
 BEHAVIOR_COMMITTEE = {"principal", "vice_admin", "vice_academic", "social_worker", "specialist"}
@@ -169,7 +192,14 @@ CLINIC_VIEW_CHILD = {"parent"}
 
 # ── المكتبة ─────────────────────────────────────────────────────
 LIBRARY_FULL = {"librarian"}
-LIBRARY_VIEW = {"principal", "vice_admin", "teacher", "coordinator", "student"}
+LIBRARY_VIEW = {
+    "principal",
+    "vice_admin",
+    "teacher",
+    "coordinator",
+    "student",
+    "e_projects_coordinator",
+}
 
 # ── النقل المدرسي ───────────────────────────────────────────────
 # bus_supervisor = مشرف الحافلة (ميداني — يرافق الطلاب)
@@ -181,7 +211,13 @@ TRANSPORT_VIEW = {"parent"}
 # ── التحليلات والتقارير ─────────────────────────────────────────
 ANALYTICS_FULL = {"principal", "vice_academic", "vice_admin"}
 ANALYTICS_DEPT = {"coordinator", "activities_coordinator"}  # v7: منسق الأنشطة يرى تحليلات قسمه
-ANALYTICS_OWN = {"teacher", "ese_teacher", "teacher_assistant", "ese_assistant"}
+ANALYTICS_OWN = {
+    "teacher",
+    "ese_teacher",
+    "teacher_assistant",
+    "ese_assistant",
+    "e_projects_coordinator",
+}
 ANALYTICS_VIEW = {
     "social_worker",
     "psychologist",
@@ -223,6 +259,7 @@ OBSERVATION_SELF_CREATE = {
     "specialist",
     "coordinator",
     "activities_coordinator",
+    "e_projects_coordinator",
 }
 # من يزور زميلاً — تبادل الزيارات. وهم أنفسُهم من يُقيّم نفسه: الزيارة
 # بين الأقران لا فوقيّة فيها، فمن يصلح أن يُزار يصلح أن يزور.
@@ -240,6 +277,7 @@ OBSERVATION_SEND = {
     "teacher",
     "ese_teacher",
     "specialist",
+    "e_projects_coordinator",
 }
 
 QUALITY_VIEW = {
@@ -249,6 +287,7 @@ QUALITY_VIEW = {
     "social_worker",
     "psychologist",
     "activities_coordinator",  # v7: يرى خطة الجودة المتعلقة بالأنشطة
+    "e_projects_coordinator",
     "speech_therapist",
     "occupational_therapist",  # v7: يتابعون أهدافهم في الخطة
 }
@@ -589,6 +628,7 @@ def can_view_student_data(user, student=None):
         "speech_therapist",
         "occupational_therapist",  # جلسات علاج فردية
         "activities_coordinator",  # يتابع مشاركة الطلاب في الأنشطة
+        "e_projects_coordinator",  # يرى طلابَه إن حمل حصصاً
     )
 
 

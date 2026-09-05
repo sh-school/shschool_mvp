@@ -17,7 +17,13 @@ from core.models.academic import ClassGroup, StudentEnrollment
 #: من يكتب في كلّ خانة. القيادةُ تُضاف لكلّ خانةٍ في `can_write` — لا هنا،
 #: كي يبقى الجدولُ قراءةً في «صاحبِ الاختصاص» لا في «من يستطيع».
 NOTE_AUTHORS = {
-    "teacher": {"teacher", "ese_teacher", "teacher_assistant", "ese_assistant"},
+    "teacher": {
+        "teacher",
+        "ese_teacher",
+        "teacher_assistant",
+        "ese_assistant",
+        "e_projects_coordinator",
+    },
     "social_worker": {"social_worker"},
     "psychologist": {"psychologist"},
     "nurse": {"nurse"},
@@ -45,6 +51,7 @@ MODULE_ROLES = SCHOOL_WIDE_READERS | {
     "ese_teacher",
     "teacher_assistant",
     "ese_assistant",
+    "e_projects_coordinator",
 }
 
 

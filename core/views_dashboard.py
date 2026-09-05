@@ -492,6 +492,7 @@ _TEACHER_ROLES = {
     "teacher",
     "coordinator",
     "ese_teacher",
+    "e_projects_coordinator",
     "specialist",
     "teacher_assistant",
     "ese_assistant",

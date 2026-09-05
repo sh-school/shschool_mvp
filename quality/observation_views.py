@@ -40,7 +40,13 @@ from .observation_services import ObservationService
 
 logger = logging.getLogger(__name__)
 
-_TEACHER_ROLES = ["teacher", "ese_teacher", "coordinator", "activities_coordinator"]
+_TEACHER_ROLES = [
+    "teacher",
+    "ese_teacher",
+    "coordinator",
+    "activities_coordinator",
+    "e_projects_coordinator",
+]
 # حقولُ الفرز المسموحة: `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى،
 # ولكلٍّ حقلٌ ثانٍ يقطع التساوي فلا يتأرجح ترتيبُ الصفحات بين طلبين.
 OBSERVATION_SORTS = {

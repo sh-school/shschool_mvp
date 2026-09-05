@@ -21,6 +21,7 @@ NEW_ROLES = [
     "ese_teacher",
     "it_technician",
     "secretary",
+    "e_projects_coordinator",  # 2026-09 — المسمّى الوزاريّ منسّق المشاريع الإلكترونية
 ]
 
 
