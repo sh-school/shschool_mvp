@@ -340,3 +340,36 @@ jobs:
         run: |
           echo "::error::Quality Gate FAILED — one or more checks did not pass"
           exit 1
+
+  # ══════════════════════════════════════════════════════
+  #  Tailwind — الملفُّ الملتزَم هو ما يُبنى من القوالب
+  # ══════════════════════════════════════════════════════
+  #  `static/css/tailwind.min.css` أصلٌ منشور: القوالبُ تستورده و`Dockerfile`
+  #  لا يبنيه، فما في المستودع هو ما يصل المتصفّح. وقد تقادم فعلاً — كانت
+  #  القوالبُ تستعمل `animate-pulse` و`border-amber-400` ولا وجودَ لهما في
+  #  الملفّ المنشور، فتصمت الأنماطُ بلا خطأٍ يُنبّه.
+  tailwind-build:
+    name: Tailwind — البناءُ الملتزَم محدَّث
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: تثبيت التبعيات (بلا postinstall كي لا يُبنى قبل المقارنة)
+        run: npm ci --ignore-scripts
+
+      - name: بناء Tailwind
+        run: npm run tw:build
+
+      - name: المقارنة بالملتزَم
+        run: |
+          if ! git diff --quiet -- static/css/tailwind.min.css; then
+            echo "::error::static/css/tailwind.min.css متقادم — شغّل npm run tw:build والتزم الناتج وارفع ?v= في base.html وlogin.html"
+            git diff --stat -- static/css/tailwind.min.css
+            exit 1
+          fi
+          echo "البناءُ الملتزَم يطابق القوالب."
