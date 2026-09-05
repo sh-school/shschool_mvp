@@ -155,10 +155,11 @@ class SentryScopeMiddleware:
         try:
             import sentry_sdk
 
-            with sentry_sdk.configure_scope() as scope:
-                from core.sentry_config import configure_sentry_scope
+            from core.sentry_config import configure_sentry_scope
 
-                configure_sentry_scope(scope, request)
+            # `configure_scope()` مُهمَلة في sentry-sdk 2 وتُنذر مع كلّ طلب في
+            # الاختبارات؛ نطاقُ الطلب الجاري يُؤخذ مباشرةً.
+            configure_sentry_scope(sentry_sdk.get_current_scope(), request)
         except ImportError:
             pass  # Sentry not installed — skip silently
         except Exception:

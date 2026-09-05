@@ -9,6 +9,11 @@
     التقاط:   python manage.py schedule_snapshot --school SHH --year 2026-2027
     عرض:      python manage.py schedule_snapshot --list
     استرجاع:  python manage.py schedule_snapshot --restore <ملفّ>
+    إلى الخارج: python manage.py schedule_snapshot --school SHH001 --stdout > لقطة.json
+
+و`--stdout` للإنتاج: قرصُ Railway لا يدوم، فلقطةٌ تُكتب في الحاوية تختفي مع
+أوّل إعادة نشر. تُطبع بدلَ ذلك على المخرج القياسيّ ليلتقطها الجهازُ المحلّيّ:
+    railway ssh -s shschool_mvp -- python manage.py schedule_snapshot --school SHH001 --stdout > backups/schedule/prod.json
 
 واللقطةُ ملفُّ JSON بالمعرّفات لا بالأسماء: الأسماءُ تتغيّر، والمعرّفاتُ تُعيد
 بناءَ الصفّ كما كان. وتُكتب في `backups/schedule/` وهو خارجُ المستودع.
@@ -53,6 +58,11 @@ class Command(BaseCommand):
         parser.add_argument("--school", default="SHH", help="كود المدرسة")
         parser.add_argument("--year", default="", help="العام الدراسي (افتراضه عامُ المدرسة)")
         parser.add_argument("--label", default="", help="وسمٌ يُضاف إلى اسم الملفّ")
+        parser.add_argument(
+            "--stdout",
+            action="store_true",
+            help="اطبع اللقطةَ JSON على المخرج القياسيّ بدل كتابتها ملفّاً (للإنتاج)",
+        )
         parser.add_argument("--list", action="store_true", help="عرضُ اللقطات المحفوظة")
         parser.add_argument("--restore", default="", help="مسارُ لقطةٍ تُسترجَع")
         parser.add_argument(
@@ -97,24 +107,27 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(f"لا حصصَ نشطةً في {year} — لا لقطةَ تُلتقط."))
             return
 
+        payload = json.dumps(
+            {
+                "school_id": str(school.id),
+                "school_code": school.code,
+                "academic_year": year,
+                "taken_at": timezone.localtime().isoformat(timespec="seconds"),
+                "slots": slots,
+            },
+            ensure_ascii=False,
+            indent=1,
+        )
+        if opts["stdout"]:
+            # لا رسالةَ نجاحٍ هنا — المخرجُ كلُّه هو الملفّ.
+            self.stdout.write(payload)
+            return
+
         stamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
         label = f"-{opts['label']}" if opts["label"] else ""
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
         path = BACKUP_DIR / f"{school.code}-{year}-{stamp}{label}.json"
-        path.write_text(
-            json.dumps(
-                {
-                    "school_id": str(school.id),
-                    "school_code": school.code,
-                    "academic_year": year,
-                    "taken_at": timezone.localtime().isoformat(timespec="seconds"),
-                    "slots": slots,
-                },
-                ensure_ascii=False,
-                indent=1,
-            ),
-            encoding="utf-8",
-        )
+        path.write_text(payload, encoding="utf-8")
         self.stdout.write(self.style.SUCCESS(f"التُقطت {len(slots)} حصّة → {path}"))
         self.stdout.write("وللرجوع: python manage.py schedule_snapshot --restore " + str(path))
 

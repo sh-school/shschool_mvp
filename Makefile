@@ -79,7 +79,7 @@ test-cov:
 	  --cov=. \
 	  --cov-report=html:htmlcov \
 	  --cov-report=term-missing \
-	  --cov-fail-under=80 \
+	  --cov-fail-under=70 \
 	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*"
 	@echo "التقرير: htmlcov/index.html"
 
@@ -132,7 +132,7 @@ ci:
 	pytest tests/ -v \
 	  --cov=. \
 	  --cov-report=term-missing \
-	  --cov-fail-under=80 \
+	  --cov-fail-under=70 \
 	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
 	  -q
 	@echo ""

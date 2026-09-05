@@ -7,6 +7,8 @@ DEBUG = False
 
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
+# Railway يكتب X-Forwarded-For «العميل، قفزةُ الحافّة» — قفزةٌ واحدةٌ موثوقة.
+TRUSTED_PROXY_HOPS = int(config("TRUSTED_PROXY_HOPS", default="1"))
 
 # ══════════════════════════════════════════════════════════════
 # ✅ v5.5: Sentry — مراقبة أذكياء (PDPPL + smart sampling + context)

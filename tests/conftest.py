@@ -52,6 +52,9 @@ class RoleFactory(factory.django.DjangoModelFactory):
 class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = CustomUser
+        # الحفظُ بعد الـpost_generation صريحٌ في hook كلمة المرور أدناه — فلا
+        # حاجةَ إلى الحفظ الضمنيّ الذي يُنذر factory-boy بإزالته في كلّ تشغيل.
+        skip_postgeneration_save = True
 
     national_id = factory.Sequence(lambda n: f"2876{n:07d}")
     full_name = factory.Sequence(lambda n: f"موظف {n}")
