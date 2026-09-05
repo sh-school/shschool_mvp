@@ -51,29 +51,13 @@ def _assignment(school, class_group, teacher, subject, *, year, active=True):
 
 
 @pytest.fixture
-def current_year(db, school):
-    """عامٌ مبذورٌ في التقويم يغطّي اليوم — فالحارسُ لا يعمل إلّا به.
+def current_year(seeded_calendar):
+    """العامُ الجاري من تقويمٍ مبذور — فالحارسُ لا يعمل إلّا به.
 
     وبلا بذرٍ ترتدّ `academic_year_for_school` إلى الثابت المجمَّد، والحارسُ
     يرفض ذلك الجوابَ عمداً (راجع `test_guard_refuses_to_act_without_calendar`).
     """
-    from datetime import timedelta
-
-    from django.utils import timezone
-
-    from core.models import AcademicYear
-
-    today = timezone.localdate()
-    start = today.year if today.month >= 9 else today.year - 1
-    name = f"{start}-{start + 1}"
-    AcademicYear.objects.create(
-        school=school,
-        name=name,
-        start_date=today - timedelta(days=30),
-        end_date=today + timedelta(days=300),
-        is_current=True,
-    )
-    return name
+    return seeded_calendar
 
 
 @pytest.fixture

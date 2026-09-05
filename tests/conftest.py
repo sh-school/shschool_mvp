@@ -180,6 +180,22 @@ def school(db):
 
 
 @pytest.fixture
+def seeded_calendar(db, school):
+    """تقويمُ الوزارة مبذوراً لمدرسة الاختبار — ويُعيد اسمَ العام الجاري.
+
+    بلا بذرٍ يرتدّ الزمنُ الأكاديميّ إلى الثابت المجمَّد `CURRENT_ACADEMIC_YEAR`،
+    وهو متقادم؛ فاختبارٌ يعتمد عليه دون أن يعلم يمرّ اليوم ويكذب غداً. كلُّ
+    اختبارٍ يهمّه «أيُّ عامٍ الآن» يأخذ هذا لا الثابت. (خطّة التنظيف — المرحلة ٣)
+    """
+    from django.core.management import call_command
+
+    from core.academic_calendar import academic_year_for_school
+
+    call_command("seed_academic_calendar", school=school.code, verbosity=0)
+    return academic_year_for_school(school)
+
+
+@pytest.fixture
 def principal_user(db, school):
     """مدير المدرسة"""
     role = RoleFactory(school=school, name="principal")
