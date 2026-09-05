@@ -732,6 +732,31 @@ class ScheduleBaseline(models.Model):
         return f"{self.label} — {self.academic_year}"
 
 
+class ScheduleGenerationQuerySet(models.QuerySet):
+    """حذفُ التوليدات — بحارسٍ يعمل على الدفعة كما على الصفّ.
+
+    حذفُ توليدٍ معتمَد من لوحة الإدارة كان يمرّ بلا اعتراض، وحقلُ `generation`
+    على الحصّة `SET_NULL`: فيفقد الجدولُ الحيّ نسبَه إلى توليده، ويصير — إن
+    أُطفئ يوماً — ركاماً في عين `prune_schedule_slots`. وقع هذا فعلاً في
+    2026-09-05 أثناء العمل.
+
+    فالقاعدة: **توليدٌ له حصّةٌ حيّةٌ لا يُحذف** — والمعتمَدُ لا يُحذف بحالته
+    ولو خلت حصصُه. وما يُحذف يأخذ حصصَه الميّتة معه، فلا يُخلّف يتامى.
+    """
+
+    def delete(self):
+        protected = list(
+            self.filter(models.Q(status="approved") | models.Q(slots__is_active=True)).distinct()
+        )
+        if protected:
+            raise models.ProtectedError(
+                "توليدٌ معتمَدٌ أو له حصصٌ حيّة لا يُحذف — اعتمد مسودّةً أخرى بدله.",
+                set(protected),
+            )
+        ScheduleSlot.objects.filter(generation__in=self).delete()
+        return super().delete()
+
+
 class ScheduleGeneration(models.Model):
     """سجل عمليات التوليد التلقائي للجدول.
 
@@ -787,6 +812,8 @@ class ScheduleGeneration(models.Model):
             ),
         ]
 
+    objects = ScheduleGenerationQuerySet.as_manager()
+
     def __str__(self):
         return (
             f"توليد {self.academic_year} — {self.get_status_display()} ({self.quality_score:.0f}%)"
@@ -795,6 +822,21 @@ class ScheduleGeneration(models.Model):
     @property
     def is_pending(self):
         return self.status in self.PENDING_STATUSES
+
+    @property
+    def is_protected(self) -> bool:
+        """لا يُحذف: معتمَدٌ، أو له حصّةٌ حيّةٌ بأيّ حال."""
+        return self.status == "approved" or self.slots.filter(is_active=True).exists()
+
+    def delete(self, *args, **kwargs):
+        """يرفض حذفَ المحميّ، ويأخذ الحصصَ الميّتةَ مع غيره — راجع `ScheduleGenerationQuerySet`."""
+        if self.is_protected:
+            raise models.ProtectedError(
+                "توليدٌ معتمَدٌ أو له حصصٌ حيّة لا يُحذف — اعتمد مسودّةً أخرى بدله.",
+                {self},
+            )
+        self.slots.all().delete()
+        return super().delete(*args, **kwargs)
 
 
 # ═════════════════════════════════════════════════════════════════════
