@@ -673,3 +673,8 @@ _validate_push_budget()
 # ── الجدولة الذكيّة ──
 #: ميزانيةُ زمن التوليد بالثواني: محاولاتٌ متعاقبةٌ حتّى تنفد (3 على الأقلّ، 20 على الأكثر).
 SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS", "60"))
+
+# ── عنوانُ العميل خلف وكيل ─────────────────────────────────────────────
+# كم قفزةً موثوقةً تُلحقها البنيةُ بآخر X-Forwarded-For. محلّياً لا وكيلَ فالترويسة
+# لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.
+TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))

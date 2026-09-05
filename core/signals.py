@@ -10,6 +10,8 @@ from django.db import DatabaseError
 from django.db.models.signals import post_save, pre_delete
 from django.dispatch import receiver
 
+from core.request_utils import get_client_ip
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +24,7 @@ def _log(model_name, action, instance, changes=None):
         request = get_current_request()
         ip = ua = ""
         if request:
-            ip = request.META.get("REMOTE_ADDR", "")
+            ip = get_client_ip(request)
             ua = request.META.get("HTTP_USER_AGENT", "")[:300]
 
         # Use school_id to avoid triggering CustomUser.school computed property
@@ -318,7 +320,7 @@ def audit_login(sender, request, user, **kwargs):
             object_id=str(user.pk),
             object_repr=str(user),
             school=user.get_school() if hasattr(user, "get_school") else None,
-            ip_address=request.META.get("REMOTE_ADDR"),
+            ip_address=get_client_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
         )
     except (DatabaseError, ValueError, AttributeError) as e:
@@ -341,7 +343,7 @@ def audit_logout(sender, request, user, **kwargs):
             object_id=str(user.pk),
             object_repr=str(user),
             school=user.get_school() if hasattr(user, "get_school") else None,
-            ip_address=request.META.get("REMOTE_ADDR"),
+            ip_address=get_client_ip(request),
         )
     except (DatabaseError, ValueError, AttributeError) as e:
         logger.error(

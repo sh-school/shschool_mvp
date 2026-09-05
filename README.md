@@ -15,7 +15,7 @@
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql&logoColor=white" />
   <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" />
   <img alt="CI" src="https://img.shields.io/badge/CI-GitHub_Actions_%E2%9C%85-2088FF?logo=githubactions&logoColor=white" />
-  <img alt="Coverage" src="https://img.shields.io/badge/Coverage-%E2%89%A580%25-brightgreen" />
+  <img alt="Coverage" src="https://img.shields.io/badge/Coverage-%E2%89%A570%25-brightgreen" />
   <img alt="License" src="https://img.shields.io/badge/License-Internal_Use-8A1538" />
 </p>
 
@@ -82,7 +82,7 @@
 | لوحة KPIs | `templates/analytics/kpi_dashboard.html` | ✅ مكتمل |
 | نماذج Word رسمية | `static/forms/*.docx` | ✅ مكتمل |
 | CI/CD pipeline كامل | `.github/workflows/ci.yml` + `quality.yml` | ✅ مكتمل |
-| اختبارات تلقائية (≥80% coverage) | `tests/` — pytest + coverage | ✅ أخضر |
+| اختبارات تلقائية (≥70% coverage — فعلياً ≈75%) | `tests/` — pytest + coverage | ✅ أخضر |
 | تحليل ثابت للأمن | Bandit + Ruff + mypy | ✅ أخضر |
 | نظام جودة التحقق | `quality/models.py` — ORM annotations | ✅ مكتمل |
 
@@ -291,7 +291,7 @@ python manage.py seed_all    # بيانات النظام الأولية
 
 ## 🧪 الجودة والاختبارات
 
-**حد التغطية:** ≥ **80%** (CI تفشل دون ذلك)
+**حد التغطية:** ≥ **70%** (CI تفشل دون ذلك؛ الفعليّ ≈75% في 2026-09)
 
 ```bash
 # تشغيل الاختبارات مع التغطية
@@ -332,7 +332,7 @@ make ci         # كل الفحوصات معًا
 |---------|--------|-------|
 | `lint` | Ruff | فحص تنسيق الكود وجودته |
 | `security` | Bandit | كشف الثغرات الأمنية الثابتة |
-| `test` | pytest + coverage | اختبارات تلقائية مع تغطية ≥80% |
+| `test` | pytest + coverage | اختبارات تلقائية مع تغطية ≥70% |
 | `type-check` | mypy | فحص أنواع Python |
 | `ci-summary` | — | تقرير موحَّد بحالة كل الـ jobs |
 
@@ -373,24 +373,24 @@ curl http://localhost/health/
 
 ## 💾 النسخ الاحتياطي والاستعادة
 
-**الآلية الحالية (`backup.sh`):**
-- `pg_dump` يومي الساعة 02:00 توقيت قطر
-- ضغط gzip تلقائي
-- الاحتفاظ بـ **14 يومًا** محليًا
-- حذف تلقائي للنسخ الأقدم
+**الآلية الفعليّة (`.github/workflows/backup.yml`):**
+- `pg_dump` يوميّ من قاعدة الإنتاج، ضغطٌ، ثمّ تشفير AES-256 بـ gpg (عبارةٌ ≥32 حرفاً خارج المستودع)
+- رفعٌ إلى Cloudflare R2 (`db-backups/`) — لا artifacts عامّة حين يتوفّر R2
+- تمرينُ استعادةٍ أسبوعيّ آليّ (`backup-restore-test.yml`) يفكّ آخرَ نسخةٍ ويستعيدها ويفحصها
+
+**استعادةُ الإنتاج محلّياً** — القاعدةُ المحلّيّة تفترق عن الإنتاج بلا آليّة (النشرُ ينقل الكودَ لا البيانات)، فهذا الطريقُ الوحيد لمحلّيٍّ يشبهه:
 
 ```bash
-# تشغيل يدوي
-./backup.sh
-
-# استعادة من نسخة احتياطية
-gunzip -c backups/db_YYYYMMDD.sql.gz | psql -U $DB_USER $DB_NAME
+# Git Bash / WSL — يحتاج aws + gpg + docker، والأسرار R2_* وBACKUP_PASSPHRASE في البيئة
+./scripts/restore-prod-locally.sh              # أحدث نسخة → shschool-dev-db (يمحو المحلّيّ، لا يمسّ الإنتاج)
+./scripts/restore-prod-locally.sh schoolos-20260905-0200.sql.gz.gpg
 ```
 
-**الاحتياجات المستقبلية (قيد التطوير):**
-- رفع تلقائي لـ S3 / Wasabi
-- RUNBOOK.md للاستعادة في الحوادث
-- اختبار استعادة شهري (DR drill)
+**لقطاتُ الجدول** (`schedule_snapshot`) على الإنتاج تُكتب على قرصٍ لا يدوم — فتُسحب إلى الجهاز:
+
+```bash
+railway ssh -s shschool_mvp -- python manage.py schedule_snapshot --school SHH001 --stdout > backups/schedule/prod-$(date +%Y%m%d).json
+```
 
 ---
 

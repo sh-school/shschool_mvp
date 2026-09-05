@@ -16,10 +16,10 @@ concurrency:
 
 jobs:
   # ══════════════════════════════════════════════════════
-  #  1. pytest + Coverage ≥60%
+  #  1. pytest + Coverage ≥70%
   # ══════════════════════════════════════════════════════
   test-coverage:
-    name: pytest — تغطية ≥60%
+    name: pytest — تغطية ≥70%
     runs-on: ubuntu-latest
 
     services:
@@ -89,8 +89,8 @@ jobs:
 
       - name: "pytest + Coverage Gate"
         # بوّابة تغطية حقيقية: pytest.ini كان يحجب أعلام --cov في pyproject فلم
-        # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 60% أرضية حالية (التغطية
-        # الفعلية ≈63%)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
+        # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 70% (التغطية الفعلية
+        # ≈75% في 2026-09)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
         #
         # و`-n auto`: المجموعةُ نفسُها تمرّ في CI في اثنتي عشرةَ دقيقةً وتمرّ هنا
         # في اثنتين وأربعين — والفرقُ أنّ تلك تُوزّعها على الأنوية وهذه تُسلسلها.
@@ -99,7 +99,7 @@ jobs:
         run: |
           python -m pytest -n auto --junit-xml=test-results.xml \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov \
-            --cov-fail-under=60
+            --cov-fail-under=70
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v4
@@ -126,7 +126,7 @@ jobs:
               rate = float(root.attrib.get('line-rate', 0)) * 100
               status = 'PASS' if rate >= 60 else 'FAIL'
               print(f'| التغطية | {rate:.1f}% |')
-              print(f'| الحد الأدنى | 60% |')
+              print(f'| الحد الأدنى | 70% |')
               print(f'| الحالة | {status} |')
           except Exception as e:
               print(f'| التغطية | غير متاح ({e}) |')
@@ -324,7 +324,7 @@ jobs:
           echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pytest + Coverage ≥60% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + Coverage ≥70% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mypy type checking | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
