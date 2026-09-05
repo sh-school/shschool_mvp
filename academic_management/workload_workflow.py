@@ -32,10 +32,8 @@ from .models import (
     LOCKED,
     REVIEWED,
     SUBMITTED,
-    TeacherSubjectQualification,
     TeacherWorkloadPlan,
     WorkloadGovernance,
-    can_teach,
 )
 
 EDIT = "edit"
@@ -130,7 +128,11 @@ def has_diverged(plan):
 
 
 def _assignment_scopes(plan):
-    """كلُّ (مادّة، مرحلة) أُسنِدت إليه — لأنّ المؤهّلَ قد يُقيَّد بمرحلة."""
+    """كلُّ (مادّة، مرحلة) أُسنِدت إليه — ومنها تُعرف مرحلتُه لحساب سعة أيّامه.
+
+    فالخميسُ ستُّ حصصٍ في الإعداديّ وسبعٌ في الثانويّ، ومن يعمل في المرحلتين
+    يُقاس بالأشدّ.
+    """
     from operations.models import SubjectClassAssignment
 
     rows = SubjectClassAssignment.objects.filter(
@@ -270,29 +272,6 @@ def validate(plan):
                 f"{room['target']} في {room['capacity']} خانة"
                 + (f" — مفرَّغٌ: {'، '.join(room['days_off'])}" if room["days_off"] else "")
             ),
-        )
-    )
-
-    missing = []
-    for subject, level in _assignment_scopes(plan):
-        if not can_teach(plan.teacher, subject, level):
-            missing.append(f"{subject} ({level or 'كلّ المراحل'})")
-    checks.append(
-        _check(
-            "كلُّ إسنادٍ يغطّيه مؤهّلٌ سارٍ",
-            not missing,
-            "؛ ".join(missing) or "لا إسنادَ بلا مؤهّل.",
-        )
-    )
-
-    qual_gaps = []
-    for q in TeacherSubjectQualification.objects.filter(school=plan.school, teacher=plan.teacher):
-        qual_gaps.extend(q.provenance_gaps())
-    checks.append(
-        _check(
-            "المؤهّلاتُ لها مصادرُها",
-            not qual_gaps,
-            "؛ ".join(qual_gaps) or "كلُّ مؤهّلٍ مُسنَدٌ إلى مرجع.",
         )
     )
 
