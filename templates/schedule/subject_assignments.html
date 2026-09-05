@@ -75,6 +75,7 @@
           <th scope="col" class="text-center">الحصص/أسبوع</th>
           <th scope="col" class="text-center">معمل</th>
           <th scope="col">توازٍ</th>
+          <th scope="col">سبب مخالفة الخطّة</th>
           <th scope="col" class="text-center">حفظ</th>
           <th scope="col"><span class="sr-only">حذف</span></th>
         </tr>
@@ -107,10 +108,16 @@
           <td>
             <input type="text" name="parallel_group" form="edit-{{ a.id }}" value="{{ a.parallel_group }}" class="form-control form-control-sm" style="width:7rem" placeholder="—" aria-label="مجموعة التوازي">
           </td>
+          <td>
+            {# عددُ الحصص يأتي من الخطّة الدراسيّة؛ ومخالفتُها مشروعةٌ إن كُتب سببُها، ممنوعةٌ إن لم يُكتب. #}
+            <input type="text" name="periods_override_reason" form="edit-{{ a.id }}" value="{{ a.periods_override_reason }}" class="form-control form-control-sm" style="width:10rem" placeholder="—" aria-label="سبب مخالفة الخطّة لشعبة {{ a.class_group }}">
+          </td>
           <td class="text-center">
             <form id="edit-{{ a.id }}" method="post" action="{% url 'subject_assignment_edit' a.id %}">
               {% csrf_token %}
               <input type="hidden" name="year" value="{{ year }}">
+              {# الطابعُ الذي رآه المُدخِل — فمن كتب قبله لا يُطمَس عملُه بصمت. #}
+              <input type="hidden" name="seen_at" value="{{ a.updated_at.isoformat }}">
               <button type="submit" class="btn-secondary btn-sm">حفظ</button>
             </form>
           </td>
