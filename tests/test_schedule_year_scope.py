@@ -38,11 +38,42 @@ def _slot(school, class_group, teacher, subject, *, year, day=0, period=1, activ
     )
 
 
+def _assignment(school, class_group, teacher, subject, *, year, active=True):
+    return SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=class_group,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=4,
+        academic_year=year,
+        is_active=active,
+    )
+
+
 @pytest.fixture
 def current_year(db, school):
-    from core.academic_calendar import academic_year_for_school
+    """عامٌ مبذورٌ في التقويم يغطّي اليوم — فالحارسُ لا يعمل إلّا به.
 
-    return academic_year_for_school(school)
+    وبلا بذرٍ ترتدّ `academic_year_for_school` إلى الثابت المجمَّد، والحارسُ
+    يرفض ذلك الجوابَ عمداً (راجع `test_guard_refuses_to_act_without_calendar`).
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import AcademicYear
+
+    today = timezone.localdate()
+    start = today.year if today.month >= 9 else today.year - 1
+    name = f"{start}-{start + 1}"
+    AcademicYear.objects.create(
+        school=school,
+        name=name,
+        start_date=today - timedelta(days=30),
+        end_date=today + timedelta(days=300),
+        is_current=True,
+    )
+    return name
 
 
 @pytest.fixture
@@ -100,6 +131,27 @@ class TestYearGuard:
         assert ScheduleService.retire_past_year_slots(school) == 1
         assert ScheduleService.retire_past_year_slots(school) == 0
 
+    def test_guard_refuses_to_act_without_calendar(
+        self, db, school, class_group, teacher_user, subject_ar
+    ):
+        """بلا عامٍ مبذورٍ يغطّي اليوم، ترتدّ الأدواتُ إلى الثابت المجمَّد —
+        وهو متقادم. فالحارسُ لا يُطفئ شيئاً على جوابٍ كهذا، وإلّا أطفأ
+        جدولَ العام الجاري كلَّه في مدرسةٍ نسيت بذرَ تقويمها."""
+        from django.conf import settings
+
+        frozen = settings.CURRENT_ACADEMIC_YEAR
+        start = int(frozen.split("-")[0])
+        newer = f"{start + 1}-{start + 2}"
+        live = _slot(school, class_group, teacher_user, subject_ar, year=newer)
+        _assignment(school, class_group, teacher_user, subject_ar, year=newer)
+
+        assert ScheduleService.retire_past_year_records(school) == {
+            "assignments": 0,
+            "slots": 0,
+        }
+        live.refresh_from_db()
+        assert live.is_active is True
+
     def test_retire_never_deletes(self, school, class_group, teacher_user, subject_ar, past_year):
         """الإطفاءُ لا حذف — الحذفُ قرارُ `prune_schedule_slots` بيد إنسان."""
         _slot(school, class_group, teacher_user, subject_ar, year=past_year)
@@ -140,18 +192,6 @@ class TestPastYearDoesNotLeak:
         _slot(school, class_group, teacher_user, subject_ar, year=past_year)
 
         assert dept.get_student_ids() == set()
-
-
-def _assignment(school, class_group, teacher, subject, *, year, active=True):
-    return SubjectClassAssignment.objects.create(
-        school=school,
-        class_group=class_group,
-        subject=subject,
-        teacher=teacher,
-        weekly_periods=4,
-        academic_year=year,
-        is_active=active,
-    )
 
 
 class TestAssignmentYearScope:

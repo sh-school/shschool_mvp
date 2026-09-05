@@ -9,7 +9,11 @@ from typing import TYPE_CHECKING
 from django.db import models, transaction
 from django.db.models import Count, QuerySet
 
-from core.academic_calendar import academic_year_for_school, academic_year_window
+from core.academic_calendar import (
+    AcademicCalendar,
+    academic_year_for_school,
+    academic_year_window,
+)
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from operations.departments import (
@@ -561,18 +565,34 @@ class ScheduleService:
     def _retire(model, school: School, on, noun: str) -> int:
         """الإطفاءُ المشترك — استعلامٌ واحد: `UPDATE` يُعيد عددَ ما مسّه.
 
+        **ولا يعمل إلّا بعامٍ من التقويم.** فـ`academic_year_for_school` ترتدّ
+        إلى الثابت المجمَّد حين لا يغطّي اليومَ عامٌ مبذور — والثابتُ يتقادم
+        صامتاً (هو اليوم «2025-2026»). فلو أطفأنا على ذلك الجواب لأطفأنا
+        جدولَ العام الجاري كلَّه في مدرسةٍ نسيت بذرَ تقويمها. حارسٌ يخطئ
+        بالسكوت خيرٌ من حارسٍ يخطئ بالفعل.
+
         وكان عدّاً ثمّ كتابة، وهذا يمرّ في مسار الطلب مرّةً كلَّ يومٍ لكلّ
         مدرسة — فمسحُ الجدول مرّتين ليأتيَ الجوابُ صفراً في أغلب الأيام تَرَفٌ.
         """
+        year = AcademicCalendar.current(school, on).year
+        if year is None:
+            logger.warning(
+                "retire_past_year: لا عامَ في تقويم %s يغطّي اليوم — لا يُطفأ شيء",
+                school.name,
+            )
+            return 0
+
         count = (
-            model.objects.past_years(school, on=on).filter(is_active=True).update(is_active=False)
+            model.objects.past_years(school, year=year.name)
+            .filter(is_active=True)
+            .update(is_active=False)
         )
         if count:
             logger.info(
                 "retire_past_year: أُطفئ %d %s خارج عام %s في %s",
                 count,
                 noun,
-                academic_year_for_school(school, on),
+                year.name,
                 school.name,
             )
         return count
