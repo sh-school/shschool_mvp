@@ -12,6 +12,7 @@
 
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 
 from .preference_capacity import weekly_capacity
@@ -23,8 +24,9 @@ LAST_PERIOD = 7
 TIGHT_SLACK = 1
 #: أقلُّ نصابٍ يستحقّ البحثَ الدقيق — الصغيرُ يضعه الجشعُ بلا عناء.
 MIN_LOAD = 6
-#: سقفُ عقد البحث لكلّ معلّم — دون انفجارٍ على بياناتٍ غريبة.
-NODE_BUDGET = 200_000
+#: سقفُ عقد البحث لكلّ معلّم — دون انفجارٍ على بياناتٍ غريبة — وسقفُ زمنٍ معه.
+NODE_BUDGET = 30_000
+TIME_CAP_SECONDS = 3.0
 
 
 def tight_teachers(tasks, prefs, blocked) -> list[str]:
@@ -45,7 +47,8 @@ def tight_teachers(tasks, prefs, blocked) -> list[str]:
         capacity = weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day, free
         )
-        if capacity - load[tid] <= TIGHT_SLACK:
+        # ومن سعتُه دون نصابه لا يُبحث له: مستحيلٌ بالحساب، والسجلُّ يقول ذلك باسمه.
+        if 0 <= capacity - load[tid] <= TIGHT_SLACK:
             found.append(tid)
     return found
 
@@ -82,11 +85,14 @@ def _solve_teacher(grid, mine: list, blocked, rng) -> bool:
     """تراجعٌ على مهامّ معلّمٍ واحد — الشُّعبُ بالتناوب، والخاناتُ من الأيّام الأخفّ أوّلاً."""
     mine = _interleave(mine)
     budget = NODE_BUDGET
+    deadline = time.time() + TIME_CAP_SECONDS
 
     def solve(index: int) -> bool:
         nonlocal budget
         if index == len(mine):
             return True
+        if time.time() >= deadline:
+            return False
         task = mine[index]
         options = list(_cells(grid, task, blocked))
         if rng is not None:
