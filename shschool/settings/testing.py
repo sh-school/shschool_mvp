@@ -82,3 +82,7 @@ RATELIMIT_ENABLE = False
 # يمنع قفل حسابات الاختبار بعد 5 محاولات فاشلة
 # ✅ v5.4: AXES_ENABLED=False يُعطّل كل منطق axes أثناء pytest
 AXES_ENABLED = False
+
+# ميزانيةُ توليد الجدول في الاختبارات: ثوانٍ لا دقيقة — فاختبارُ «حصّةٍ مستحيلة»
+# كان يبحث دقيقتين كاملتين قبل أن يُقرّ بالعجز.
+SCHEDULE_TIME_BUDGET_SECONDS = 4
