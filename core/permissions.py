@@ -13,6 +13,7 @@ core/permissions.py
   5. Self-Scoping — المعلم يرى فصوله فقط، الطالب يرى بياناته فقط
 """
 
+import logging
 from functools import wraps
 
 from django.http import HttpResponseForbidden, JsonResponse
@@ -27,6 +28,8 @@ from .models.access import (
     TIER_2_DEPUTIES,
     TIER_3_SUPERVISORS,
 )
+
+logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════════════════
 # 0. ROLE INHERITANCE — وراثة الأدوار التلقائية (v6)
@@ -832,6 +835,15 @@ def internal_only(view_func):
         ip = get_client_ip(request)  # آخر إدخال XFF (موثوق من الوكيل) لا الأول (قابل للتزوير)
         allowed = list(getattr(_s, "METRICS_ALLOWED_IPS", [])) + ["127.0.0.1", "::1"]
         if ip not in allowed:
+            # رفضٌ صامتٌ لا يُشخَّص: قراءةُ /metrics من داخل الحاوية نفسِها رُفضت
+            # في 2026-09-05 ولم يقل السجلُّ أيَّ عنوانٍ رأى. فيُقال هنا.
+            logger.warning(
+                "internal_only: رُفض %s — ip=%r (XFF=%r, REMOTE_ADDR=%r)",
+                request.path,
+                ip,
+                request.META.get("HTTP_X_FORWARDED_FOR", ""),
+                request.META.get("REMOTE_ADDR", ""),
+            )
             return HttpResponseForbidden("Access denied — internal only.")
         return view_func(request, *args, **kwargs)
 

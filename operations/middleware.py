@@ -23,11 +23,20 @@ Middleware يضمن وجود حصص الأسبوع الحالي لكل مدرس�
 """
 
 import logging
+from datetime import date
 
 from django.core.cache import cache
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+#: آخرُ يومٍ أُنجز فيه مِفصلُ اليوم لكلّ مدرسة — في ذاكرة العمليّة نفسِها.
+#:
+#: طبقةٌ تحت الـcache لا بديلاً عنه: إن سقط Redis كان المِفصل يعود إلى سمةٍ
+#: على الطلب فيعمل مع **كلّ** طلب — حارسُ العام وتوليدُ الحصص كلاهما — إلى
+#: أن يعود Redis. وذاكرةُ العمليّة تُبقيه مرّةً في اليوم لكلّ عاملٍ مهما كان
+#: حالُ الـcache، وتُوفّر رحلةَ Redis في الطلبات التالية أصلاً.
+_DONE_TODAY: dict[object, date] = {}
 
 # المسارات المعفاة — لا تحتاج توليد حصص
 _EXEMPT_PREFIXES = (
@@ -71,17 +80,18 @@ class SessionAutoGenerateMiddleware:
         if school is None:
             return
 
-        # ── فحص cache: هل تم التوليد اليوم لهذه المدرسة؟ ──
+        # ── هل أُنجز اليومُ لهذه المدرسة؟ ذاكرةُ العمليّة أوّلاً ثمّ الـcache ──
         today = timezone.localdate()
-        cache_key = f"session_gen:{school.id}:{today.isoformat()}"
+        if _DONE_TODAY.get(school.id) == today:
+            return
 
+        cache_key = f"session_gen:{school.id}:{today.isoformat()}"
         try:
             if cache.get(cache_key):
-                return  # تم التوليد — لا شيء للفعل
+                _DONE_TODAY[school.id] = today
+                return  # أنجزه عاملٌ آخر — لا شيء للفعل
         except (OSError, ConnectionError):
-            # إذا Redis غير متاح — نستخدم request attribute
-            if getattr(request, "_sessions_ensured", False):
-                return
+            pass  # Redis غائب — ذاكرةُ العمليّة أعلاه تكفي لمنع التكرار
 
         # ── التوليد الفعلي ──
         try:
@@ -94,13 +104,12 @@ class SessionAutoGenerateMiddleware:
 
             count = ScheduleService.ensure_sessions_for_date(school, today)
 
-            # حفظ في cache لمدة 4 ساعات
+            _DONE_TODAY[school.id] = today
+            # ويُخبَر العمّالُ الآخرون عبر الـcache لأربع ساعات
             try:
                 cache.set(cache_key, True, timeout=14400)
             except (OSError, ConnectionError):
                 pass
-
-            request._sessions_ensured = True
 
             if count > 0:
                 logger.info(
