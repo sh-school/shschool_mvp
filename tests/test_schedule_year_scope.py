@@ -1,6 +1,6 @@
-"""حصصُ الجدول والعامُ الدراسيّ — قاعدةٌ واحدةٌ محروسةٌ في ثلاثة مواضع.
+"""الجدولُ وإسناداتُه والعامُ الدراسيّ — قاعدةٌ واحدةٌ محروسةٌ في ثلاثة مواضع.
 
-القاعدة: **لا حصّةَ نشطةٌ خارجَ العام الجاري.**
+القاعدة: **لا سجلَّ نشطٌ خارجَ العام الجاري** — لا حصّةً ولا إسنادَ مادّة.
 
 وسببها واقعة: بقيت مئتان وخمسون حصّةً من 2025-2026 نشطةً بعد دخول 2026-2027،
 وتسعةٌ من معلّميها العشرة يدرّسون في العام الجديد. فكان المعلّم المتفرّغ
@@ -14,7 +14,7 @@ from datetime import date, time
 
 import pytest
 
-from operations.models import ScheduleSlot, Subject
+from operations.models import ScheduleSlot, Subject, SubjectClassAssignment
 from operations.services import ScheduleService, SubstituteService
 
 
@@ -100,9 +100,7 @@ class TestYearGuard:
         assert ScheduleService.retire_past_year_slots(school) == 1
         assert ScheduleService.retire_past_year_slots(school) == 0
 
-    def test_retire_never_deletes(
-        self, school, class_group, teacher_user, subject_ar, past_year
-    ):
+    def test_retire_never_deletes(self, school, class_group, teacher_user, subject_ar, past_year):
         """الإطفاءُ لا حذف — الحذفُ قرارُ `prune_schedule_slots` بيد إنسان."""
         _slot(school, class_group, teacher_user, subject_ar, year=past_year)
         ScheduleService.retire_past_year_slots(school)
@@ -142,3 +140,89 @@ class TestPastYearDoesNotLeak:
         _slot(school, class_group, teacher_user, subject_ar, year=past_year)
 
         assert dept.get_student_ids() == set()
+
+
+def _assignment(school, class_group, teacher, subject, *, year, active=True):
+    return SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=class_group,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=4,
+        academic_year=year,
+        is_active=active,
+    )
+
+
+class TestAssignmentYearScope:
+    """الإسنادُ أصلُ الجدول — والقيدُ عليه أوجبُ منه على الحصّة."""
+
+    def test_live_excludes_past_year_assignments(
+        self, school, class_group, teacher_user, subject_ar, current_year, past_year
+    ):
+        now = _assignment(school, class_group, teacher_user, subject_ar, year=current_year)
+        other = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+        _assignment(school, class_group, teacher_user, other, year=past_year)
+
+        assert list(SubjectClassAssignment.objects.live(school)) == [now]
+
+    def test_guard_retires_assignments_too(
+        self, school, class_group, teacher_user, subject_ar, current_year, past_year
+    ):
+        now = _assignment(school, class_group, teacher_user, subject_ar, year=current_year)
+        other = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
+        old = _assignment(school, class_group, teacher_user, other, year=past_year)
+        _slot(school, class_group, teacher_user, subject_ar, year=past_year, day=1)
+
+        retired = ScheduleService.retire_past_year_records(school)
+
+        assert retired == {"assignments": 1, "slots": 1}
+        now.refresh_from_db()
+        old.refresh_from_db()
+        assert now.is_active is True
+        assert old.is_active is False
+
+    def test_guard_is_idempotent_across_both_models(
+        self, school, class_group, teacher_user, subject_ar, past_year
+    ):
+        _assignment(school, class_group, teacher_user, subject_ar, year=past_year)
+        _slot(school, class_group, teacher_user, subject_ar, year=past_year)
+
+        assert ScheduleService.retire_past_year_records(school) == {
+            "assignments": 1,
+            "slots": 1,
+        }
+        assert ScheduleService.retire_past_year_records(school) == {
+            "assignments": 0,
+            "slots": 0,
+        }
+
+    def test_past_year_subject_does_not_bias_substitute_ranking(
+        self, db, school, class_group, teacher_user, subject_ar, past_year
+    ):
+        """ترجيحُ «صاحبِ المادّة» لا يُبنى على إسنادِ عامٍ مضى.
+
+        معلّمان متاحان: الأوّلُ درّس المادّة في عامٍ مضى، والثاني لم يدرّسها
+        قطّ. فبلا قيد العام يتقدّم الأوّلُ بحجّةٍ منقضية.
+        """
+        from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+        role = RoleFactory(school=school, name="teacher")
+        other = UserFactory(full_name="أ. آخر")
+        MembershipFactory(user=other, school=school, role=role)
+
+        _assignment(school, class_group, teacher_user, subject_ar, year=past_year)
+
+        ranked = list(
+            SubstituteService.get_available_teachers(
+                school,
+                date.today(),
+                day_of_week=0,
+                period_number=2,
+                subject_id=subject_ar.id,
+            )
+        )
+
+        assert {teacher_user, other} <= set(ranked)
+        # لا ترجيحَ لأحدهما — كلاهما «ليس صاحبَ المادّة» هذا العام، فالترتيبُ بالاسم.
+        assert ranked == sorted(ranked, key=lambda u: u.full_name)

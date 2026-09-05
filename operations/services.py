@@ -537,13 +537,41 @@ class ScheduleService:
         وهي ثابتةُ التكرار: نداؤها مرّتين لا يُطفئ شيئاً في الثانية. ولا
         تحذف — الحذفُ قرارُ `prune_schedule_slots` بيد إنسان.
         """
-        retired = ScheduleSlot.objects.past_years(school, on=on).filter(is_active=True)
-        count = retired.count()
+        return ScheduleService._retire(ScheduleSlot, school, on, "حصّة")
+
+    @staticmethod
+    def retire_past_year_assignments(school: School, on=None) -> int:
+        """يُطفئ كلَّ إسنادِ مادّةٍ نشطٍ خارج العام الجاري — ويُعيد عددَ ما أُطفئ.
+
+        والإسنادُ أصلُ الجدول لا نتيجتُه: منه يُولَّد. فإسنادُ عامٍ مضى باقٍ
+        نشطاً يُدخل شُعباً منقضيةً في مصفوفة التوليد، ويُحسب في نصاب المعلّم،
+        ويُرجّح معلّماً على غيره في اقتراح البديل بحكم مادّةٍ لم يعد يدرّسها.
+        """
+        return ScheduleService._retire(SubjectClassAssignment, school, on, "إسناداً")
+
+    @staticmethod
+    def retire_past_year_records(school: School, on=None) -> dict[str, int]:
+        """الحارسُ كاملاً: الإسنادُ ثمّ الجدول — وهذا ما تنادِيه المواضعُ الثلاثة."""
+        return {
+            "assignments": ScheduleService.retire_past_year_assignments(school, on),
+            "slots": ScheduleService.retire_past_year_slots(school, on),
+        }
+
+    @staticmethod
+    def _retire(model, school: School, on, noun: str) -> int:
+        """الإطفاءُ المشترك — استعلامٌ واحد: `UPDATE` يُعيد عددَ ما مسّه.
+
+        وكان عدّاً ثمّ كتابة، وهذا يمرّ في مسار الطلب مرّةً كلَّ يومٍ لكلّ
+        مدرسة — فمسحُ الجدول مرّتين ليأتيَ الجوابُ صفراً في أغلب الأيام تَرَفٌ.
+        """
+        count = (
+            model.objects.past_years(school, on=on).filter(is_active=True).update(is_active=False)
+        )
         if count:
-            retired.update(is_active=False)
             logger.info(
-                "retire_past_year_slots: أُطفئت %d حصّةً خارج عام %s في %s",
+                "retire_past_year: أُطفئ %d %s خارج عام %s في %s",
                 count,
+                noun,
                 academic_year_for_school(school, on),
                 school.name,
             )
@@ -972,12 +1000,9 @@ class SubstituteService:
             from django.db.models import Case, IntegerField, Value, When
 
             same_subject_ids = set(
-                SubjectClassAssignment.objects.filter(
-                    school=school,
-                    subject_id=subject_id,
-                    is_active=True,
-                    teacher_id__in=available_ids,
-                ).values_list("teacher_id", flat=True)
+                SubjectClassAssignment.objects.live(school)
+                .filter(subject_id=subject_id, teacher_id__in=available_ids)
+                .values_list("teacher_id", flat=True)
             )
             qs = qs.annotate(
                 same_subject=Case(

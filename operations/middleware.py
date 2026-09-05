@@ -88,8 +88,9 @@ class SessionAutoGenerateMiddleware:
             from operations.services import ScheduleService
 
             # حارسُ العام أوّلاً: حصصُ اليوم تُشتقّ من الجدول النشط، فلو بقي
-            # جدولُ عامٍ مضى نشطاً وُلِّدت منه حصصٌ لشُعبٍ لم تعد قائمة.
-            ScheduleService.retire_past_year_slots(school)
+            # جدولُ عامٍ مضى نشطاً وُلِّدت منه حصصٌ لشُعبٍ لم تعد قائمة. ومعه
+            # الإسنادُ — فهو أصلُ الجدول، وبقاؤه نشطاً يُعيد إنتاج العطب.
+            ScheduleService.retire_past_year_records(school)
 
             count = ScheduleService.ensure_sessions_for_date(school, today)
 
