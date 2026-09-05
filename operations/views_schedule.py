@@ -1042,6 +1042,8 @@ def approve_schedule(request, generation_id):
         ScheduleGeneration.objects.filter(
             school=school, academic_year=gen.academic_year, status="approved"
         ).update(status="archived")
+        # والمؤرشَفُ الزائدُ على حدّ الإبقاء يذهب مع حصصه — القرار: جدولٌ واحدٌ الحيّ.
+        ScheduleService.retain_archived_generations(school, gen.academic_year)
 
         gen.status = "approved"
         # ويُعاد القياسُ عند الاعتماد: المصادقةُ قد تكون بعد تعديلٍ يدويّ على المسودّة.

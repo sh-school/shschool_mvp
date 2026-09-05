@@ -678,3 +678,10 @@ SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS"
 # كم قفزةً موثوقةً تُلحقها البنيةُ بآخر X-Forwarded-For. محلّياً لا وكيلَ فالترويسة
 # لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.
 TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))
+
+# ── كم نسخةً سابقةً من الجدول تُبقى ────────────────────────────────────
+# كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً — 870 صفّاً مطفأً — ولا يحذفه، فبلغت
+# النسخُ المؤرشفة خمساً في يومٍ واحد (2026-09-05). قرارُ المدرسة يومَها: **جدولٌ
+# واحدٌ فقط، الحيّ**. فما يُؤرشف يذهب مع حصصه عند الاعتماد التالي، والمسودّاتُ
+# باقيةٌ لأنّها عملٌ جارٍ لا نسخةٌ قديمة.
+SCHEDULE_ARCHIVE_RETENTION = int(os.environ.get("SCHEDULE_ARCHIVE_RETENTION", "0"))
