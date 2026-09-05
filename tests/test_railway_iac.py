@@ -1,13 +1,10 @@
-"""`.railway/railway.ts` — ملفُّ Infrastructure as Code لِـRailway.
+"""`.railway/railway.ts` — ملفُّ Infrastructure as Code لِـRailway، مصدرُ الحقيقة الوحيد.
 
-حتّى يُطبَّق على الإنتاج (`railway config apply` بيد المستخدم) يبقى `railway.json`
-و`railway.worker.json` مصدرَ الحقيقة الذي يقرؤه Railway. هذا الاختبار يضمن أنّ الملفّين
-لا يفترقان: ما يقوله الـIaC عن كلّ خدمةٍ هو ما يقوله ملفُّ Config as Code الخاصّ بها.
-
-ويضمن ما هو أهمّ في مستودعٍ عامّ: لا قيمةَ متغيّرٍ في الملفّ — كلُّ متغيّرٍ `preserve()`.
+يحرس ما لا يُرى في مراجعة الفرق: أنّ الملفّ يصف المشروعَ كاملاً (فـ`apply` يحذف ما لا
+يذكره)، وأنّ كلَّ متغيّرٍ `preserve()` بلا قيمة (المستودع عامّ)، وأنّ ملفّي Config as Code
+القديمين لم يعودا — Railway يقرأ `railway.json` افتراضاً إن وُجد ويقدّمه على الإعدادات.
 """
 
-import json
 import re
 from pathlib import Path
 
@@ -28,14 +25,12 @@ def _service_block(source: str, name: str) -> str:
     return match.group(1)
 
 
-def _string_option(block: str, key: str) -> str | None:
-    match = re.search(rf'\b{key}:\s*"([^"]*)"', block)
-    return match.group(1) if match else None
-
-
-def _number_option(block: str, key: str) -> int | None:
-    match = re.search(rf"\b{key}:\s*(\d+)", block)
-    return int(match.group(1)) if match else None
+def test_config_as_code_files_are_gone():
+    # وجودُ railway.json يُعيد قراءةَ الإعدادات القديمة ويتقدّم على ما في Railway.
+    for legacy in ("railway.json", "railway.worker.json", "railway.toml"):
+        assert not (
+            ROOT / legacy
+        ).exists(), f"{legacy} يجب ألّا يعود — الحقيقة في .railway/railway.ts"
 
 
 def test_iac_manages_the_whole_project_not_a_partial(iac):
@@ -45,23 +40,27 @@ def test_iac_manages_the_whole_project_not_a_partial(iac):
         assert resource in iac, f"موردٌ غيرُ مذكورٍ سيحذفه apply: {resource}"
 
 
-@pytest.mark.parametrize(
-    ("service_name", "cac_file"),
-    [("shschool_mvp", "railway.json"), ("celery-worker", "railway.worker.json")],
-)
-def test_iac_matches_config_as_code(iac, service_name, cac_file):
-    cac = json.loads((ROOT / cac_file).read_text(encoding="utf-8"))
-    block = _service_block(iac, service_name)
+def test_web_service_is_declared_as_deployed(iac):
+    web = _service_block(iac, "shschool_mvp")
+    assert 'start: "bash scripts/railway-release.sh"' in web
+    assert 'healthcheck: "/health/"' in web
+    assert "healthcheckTimeout: 100" in web
+    assert "build: DOCKER_BUILD" in web and "deploy: RESTART_ON_FAILURE" in web
+    assert "source: github(REPO)" in web
 
-    assert _string_option(block, "start") == cac["deploy"]["startCommand"]
-    assert _string_option(block, "healthcheck") == cac["deploy"].get("healthcheckPath")
-    assert _number_option(block, "healthcheckTimeout") == cac["deploy"].get("healthcheckTimeout")
 
-    assert cac["build"]["builder"] == "DOCKERFILE" and "DOCKER_BUILD" in block
-    assert cac["deploy"]["restartPolicyType"] == "ON_FAILURE" and "RESTART_ON_FAILURE" in block
-    assert cac["deploy"]["restartPolicyMaxRetries"] == 3
+def test_worker_service_has_no_http_healthcheck(iac):
+    worker = _service_block(iac, "celery-worker")
+    assert 'start: "bash scripts/railway-worker.sh"' in worker
+    assert "healthcheck" not in worker
+    assert "build: DOCKER_BUILD" in worker and "deploy: RESTART_ON_FAILURE" in worker
+
+
+def test_build_and_restart_policy(iac):
     assert 'builder: "DOCKERFILE", dockerfilePath: "Dockerfile"' in iac
-    assert 'restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 3' in iac
+    assert "restartPolicyMaxRetries: 3" in iac
+    # ON_FAILURE افتراضُ Railway ويخزّنه فارغاً: ذكرُه يجعل الخطّة «to change» إلى الأبد.
+    assert "restartPolicyType" not in iac.split("*/", 1)[1]
 
 
 def test_iac_never_carries_variable_values(iac):
@@ -75,6 +74,4 @@ def test_iac_never_carries_variable_values(iac):
 
     assert "preserve()" in iac
     # لا سطرَ يُسند قيمةً إلى اسمِ متغيّرٍ بيئيّ.
-    assert not re.search(
-        r'\b[A-Z][A-Z0-9_]{3,}:\s*"[^"]+"', iac.replace('builder: "DOCKERFILE"', "")
-    )
+    assert not re.search(r'[A-Z][A-Z0-9_]{3,}:\s*"[^"]+"', iac.replace('builder: "DOCKERFILE"', ""))

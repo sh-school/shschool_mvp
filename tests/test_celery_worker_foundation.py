@@ -1,4 +1,4 @@
-import json
+import re
 from pathlib import Path
 
 import pytest
@@ -256,19 +256,17 @@ def test_worker_script_is_fail_closed_and_not_a_web_release_process():
 
 
 def test_worker_railway_config_is_worker_only():
-    config = json.loads((ROOT / "railway.worker.json").read_text(encoding="utf-8"))
+    iac = (ROOT / ".railway" / "railway.ts").read_text(encoding="utf-8")
+    match = re.search(r'service\("celery-worker",\s*\{(.*?)\n  \}\);', iac, re.DOTALL)
+    assert match, "خدمة العامل غير معرَّفة في .railway/railway.ts"
+    worker = match.group(1)
 
-    assert config["build"]["builder"] == "DOCKERFILE"
-    assert config["build"]["dockerfilePath"] == "Dockerfile"
-
-    deploy = config["deploy"]
-
-    assert deploy["startCommand"] == "bash scripts/railway-worker.sh"
-    assert deploy["restartPolicyType"] == "ON_FAILURE"
-    assert deploy["restartPolicyMaxRetries"] == 3
+    assert 'start: "bash scripts/railway-worker.sh"' in worker
+    assert "build: DOCKER_BUILD" in worker
+    assert "deploy: RESTART_ON_FAILURE" in worker
 
     # A Celery worker has no HTTP health endpoint.
-    assert "healthcheckPath" not in deploy
+    assert "healthcheck" not in worker
 
 
 def test_runtime_role_critical_relation_is_schema_qualified():

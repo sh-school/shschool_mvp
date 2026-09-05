@@ -325,21 +325,13 @@ fi
 
 # ── 10. Railway config check ─────────────────────────────────────────
 echo -e "\n${BOLD}[10/10] Railway config check${NC}"
-if [ ! -f "railway.json" ]; then
-    fail_check "railway.json not found"
+if [ ! -f ".railway/railway.ts" ]; then
+    fail_check ".railway/railway.ts not found"
 else
-    if $PYTHON -c "
-import json, sys
-with open('railway.json') as f:
-    cfg = json.load(f)
-hp = cfg.get('deploy', {}).get('healthcheckPath', '')
-if not hp:
-    sys.exit(1)
-print(hp)
-" 2>/dev/null; then
-        pass_check "railway.json has healthcheckPath"
+    if grep -q 'healthcheck: "/health/"' .railway/railway.ts; then
+        pass_check ".railway/railway.ts declares healthcheck /health/"
     else
-        fail_check "railway.json missing deploy.healthcheckPath"
+        fail_check ".railway/railway.ts missing healthcheck for the web service"
     fi
 fi
 
