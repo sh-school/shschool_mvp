@@ -1,4 +1,4 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from .models import (
     AbsenceAlert,
@@ -200,6 +200,29 @@ class ScheduleGenerationAdmin(admin.ModelAdmin):
         "generation_time_ms",
     )
     autocomplete_fields = ("generated_by",)
+
+    # ── الحمايةُ في النموذج، وهذه واجهتُها: زرٌّ يختفي بدل خطأٍ يُفاجئ ──
+    #
+    # حذفُ توليدٍ معتمَد كان يمرّ من هنا بلا اعتراض فيفقد الجدولُ الحيّ نسبَه.
+    # النموذجُ يرفض الآن (`ProtectedError`)، لكنّ لوحةَ الإدارة لا تلتقط ما يُرفع
+    # من `delete()` نفسِها — فتُخفي الزرَّ عن المحميّ، وتستثنيه من حذف الدفعة.
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.is_protected:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        protected = [g for g in queryset if g.is_protected]
+        if protected:
+            self.message_user(
+                request,
+                f"استُثني {len(protected)} توليداً محميّاً (معتمَدٌ أو له حصصٌ حيّة) — "
+                "اعتمد مسودّةً أخرى بدله.",
+                level=messages.WARNING,
+            )
+            queryset = queryset.exclude(pk__in=[g.pk for g in protected])
+        super().delete_queryset(request, queryset)
 
 
 @admin.register(ScheduleBaseline)
