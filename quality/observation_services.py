@@ -54,8 +54,19 @@ class ObservationService:
                     "recommendation": (recommendations.get(cid) or "").strip(),
                 },
             )
+        ObservationService.recompute_score_percent(observation)
+
+    @staticmethod
+    def recompute_score_percent(observation):
+        """يُعيد اشتقاقَ النسبة من التقييمات الحاليّة ويحفظها.
+
+        النسبةُ في الترويسة مشتقّةٌ من `ObservationScore`، فأيُّ مسارٍ يمسّ
+        التقييمات (النموذج، لوحةُ الإدارة) يمرّ من هنا — وإلّا بقيت الترويسة
+        تقول رقماً لا يطابق تقييماتِها.
+        """
         observation.score_percent = observation.compute_score_percent()
         observation.save(update_fields=["score_percent", "updated_at"])
+        return observation.score_percent
 
     # ── التعديل ─────────────────────────────────────────────────────
     @staticmethod

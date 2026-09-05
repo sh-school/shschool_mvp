@@ -267,3 +267,149 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
 class EvaluationCycleAdmin(admin.ModelAdmin):
     list_display = ("school", "period", "academic_year", "deadline", "is_closed")
     list_filter = ("school", "academic_year", "period", "is_closed")
+
+
+# ══ الإشراف على أداء المعلّم — الملاحظة الصفّية ══════════════════════
+# الوحدة كاملةٌ ومنشورةٌ على الإنتاج، وكانت غائبةً عن لوحة الإدارة وحدَها:
+# فلا سبيلَ لقيادة المدرسة أن تفتّش زيارةً، أو تُصلح معياراً مزروعاً خطأً،
+# أو ترى المؤرشَف. وثلاثةُ قيودٍ تحكم هذا التسجيل:
+#
+#   ١ المؤرشَف يُرى: المديرُ الافتراضيّ يستبعد المحذوفَ ناعماً، فالقائمة
+#     تُبنى من `all_objects` وإلّا بقي الأرشيف محجوباً هنا أيضاً.
+#   ٢ لا حذفَ من هنا: زرُّ الحذف مُغلق، ومكانَه إجراءا «أرشفة/استرجاع»
+#     يمرّان بـ`ObservationService` فيُختمان بـ`updated_by`. وحذفُ Django
+#     الجماعيّ يستدعي `queryset.delete()` بلا ختمٍ ولا سبب.
+#   ٣ النسبة مشتقّة: أيُّ تعديلِ تقييمٍ من هنا يُعيد حسابها فوراً، وإلّا
+#     صارت الترويسة تقول رقماً لا يطابق تقييماتِها.
+
+from .models import ClassroomObservation, ObservationCriterion, ObservationScore  # noqa: E402
+from .observation_services import ObservationService  # noqa: E402
+
+
+@admin.register(ObservationCriterion)
+class ObservationCriterionAdmin(admin.ModelAdmin):
+    """المعايير الـ23 المزروعة لكلّ مدرسة — تُصحَّح من هنا حين يُزرع أحدُها خطأً."""
+
+    list_display = ("order", "domain", "text", "is_active", "school")
+    list_filter = ("school", "domain", "is_active")
+    list_editable = ("is_active",)
+    search_fields = ("text",)
+    ordering = ("school", "order")
+    list_select_related = ("school",)
+
+
+class ObservationScoreInline(admin.TabularInline):
+    model = ObservationScore
+    extra = 0
+    fields = ("criterion", "rating", "recommendation")
+    autocomplete_fields = ("criterion",)
+    ordering = ("criterion__order",)
+
+
+@admin.register(ClassroomObservation)
+class ClassroomObservationAdmin(admin.ModelAdmin):
+    list_display = (
+        "observation_date",
+        "teacher",
+        "observer",
+        "kind",
+        "status",
+        "score_percent",
+        "is_deleted",
+        "school",
+    )
+    list_filter = ("school", "kind", "status", "is_deleted", "observation_date")
+    search_fields = ("teacher__full_name", "observer__full_name", "topic")
+    date_hierarchy = "observation_date"
+    autocomplete_fields = ("teacher", "observer", "subject", "class_group")
+    list_select_related = ("teacher", "observer", "school")
+    inlines = [ObservationScoreInline]
+    actions = ("archive_selected", "restore_selected")
+    ordering = ("-observation_date", "-created_at")
+
+    # مشتقٌّ أو مملوكٌ لسير الحالة — يُقرأ هنا ولا يُكتب.
+    readonly_fields = (
+        "id",
+        "score_percent",
+        "submitted_at",
+        "teacher_acknowledged_at",
+        "submission_count",
+        "is_deleted",
+        "deleted_at",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+    )
+
+    def get_queryset(self, request):
+        """`all_objects` — وإلّا اختفى المؤرشَف من لوحة الإدارة كما اختفى من الواجهة."""
+        return ClassroomObservation.all_objects.get_queryset().select_related(
+            "teacher", "observer", "school", "subject", "class_group"
+        )
+
+    def has_delete_permission(self, request, obj=None):
+        """لا حذفَ من لوحة الإدارة — الأرشفةُ إجراءٌ صريحٌ يمرّ بالخدمة."""
+        return False
+
+    def save_model(self, request, obj, form, change):
+        if not change and not obj.created_by_id:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        ObservationService.recompute_score_percent(form.instance)
+
+    @admin.action(description="أرشفة المحدَّد (حذفٌ ناعمٌ قابلٌ للاسترجاع)")
+    def archive_selected(self, request, queryset):
+        count = 0
+        for observation in queryset.filter(is_deleted=False):
+            ObservationService.archive(observation, request.user)
+            count += 1
+        self.message_user(request, f"أُرشفت {count} زيارة — والتقييماتُ محفوظة.")
+
+    @admin.action(description="استرجاع المؤرشَف")
+    def restore_selected(self, request, queryset):
+        count = 0
+        for observation in queryset.filter(is_deleted=True):
+            ObservationService.restore(observation, request.user)
+            count += 1
+        self.message_user(request, f"استُرجعت {count} زيارة.")
+
+
+@admin.register(ObservationScore)
+class ObservationScoreAdmin(admin.ModelAdmin):
+    list_display = ("observation", "criterion", "rating", "recommendation")
+    list_filter = ("rating", "criterion__domain", "observation__school")
+    search_fields = ("criterion__text", "recommendation", "observation__teacher__full_name")
+    autocomplete_fields = ("observation", "criterion")
+    ordering = ("observation", "criterion__order")
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("observation__teacher", "observation__school", "criterion")
+        )
+
+    # ── كلُّ مسٍّ للتقييم يُعيد اشتقاقَ نسبة الترويسة ──
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        ObservationService.recompute_score_percent(obj.observation)
+
+    def delete_model(self, request, obj):
+        observation = obj.observation
+        super().delete_model(request, obj)
+        ObservationService.recompute_score_percent(observation)
+
+    def delete_queryset(self, request, queryset):
+        observations = list(
+            ClassroomObservation.all_objects.filter(
+                id__in=queryset.values_list("observation_id", flat=True)
+            )
+        )
+        super().delete_queryset(request, queryset)
+        for observation in observations:
+            ObservationService.recompute_score_percent(observation)
