@@ -40,7 +40,7 @@ This validates 10 checks:
 | 7 | Static files | collectstatic errors (broken references) |
 | 8 | Migrations | Unapplied or inconsistent migrations |
 | 9 | Security settings | Missing SECURE_PROXY_SSL_HEADER |
-| 10 | Railway config | Missing healthcheckPath in railway.json |
+| 10 | Railway config | Missing `healthcheck: "/health/"` in `.railway/railway.ts` |
 
 **Do not deploy if any check FAILs.** Warnings are acceptable but should be
 reviewed.
@@ -378,8 +378,8 @@ build timeout.
 **Cause:** Railway is routing to the old container while the new one is still
 starting.
 **Fix:** This is expected for a few seconds during deploy. The healthcheck in
-`railway.json` (timeout: 100s) handles this. If it persists:
-1. Increase `healthcheckTimeout` in `railway.json`
+`.railway/railway.ts` (timeout: 100s) handles this. If it persists:
+1. Increase `healthcheckTimeout` in `.railway/railway.ts`, then `railway config plan` / `apply`
 2. Ensure `/health/` responds quickly (no DB queries in health view)
 
 ### Issue: Redis connection refused

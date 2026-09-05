@@ -193,4 +193,4 @@ railway service delete schoolos-canary
 - `rollback.yml` — emergency rollback workflow
 - `scripts/deploy-preflight.sh` — pre-deploy validation (10 checks)
 - `scripts/smoke-test.sh` — post-deploy verification (5 checks)
-- `railway.json` — Railway service configuration
+- `.railway/railway.ts` — Railway project configuration (Infrastructure as Code)

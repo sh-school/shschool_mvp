@@ -1,6 +1,6 @@
 /**
- * إعداداتُ Railway بصيغة Infrastructure as Code — تحلّ محلّ `railway.json`
- * و`railway.worker.json` (Config as Code المهمَل، يعمل حتّى 2026-12-01).
+ * إعداداتُ Railway بصيغة Infrastructure as Code — مصدرُ الحقيقة الوحيد منذ 2026-09-05
+ * (حلّ محلّ `railway.json` و`railway.worker.json` اللذين أهملهما Railway).
  *
  * كيف يُستعمل:
  *   railway config plan   — يعرض الفرقَ بين هذا الملفّ وحال المشروع على Railway (قراءةٌ فقط)
@@ -12,6 +12,9 @@
  *   - القيمُ لا تُكتب هنا أبداً (المستودع عامّ): `preserve()` يُبقي القيمةَ المضبوطةَ في Railway.
  *     متغيّرٌ جديدٌ يُضاف في Railway يجب أن يُضاف اسمُه هنا وإلّا حذفه الـ`apply` التالي.
  *   - إقليمُ الحاوية `sjc` ثابتٌ منذ إنشائها ولا يُغيَّر (Railway يرفض تغييره).
+ *   - سياسةُ إعادة التشغيل ON_FAILURE هي افتراضُ Railway ويخزّنها فارغةً، فذكرُها هنا
+ *     يجعل الخطّة «2 to change» إلى الأبد — يُذكر عددُ المحاولات فقط.
+ *   - أقاليمُ الخدمات لا يديرها هذا الملفّ (الخطّة تتجاهل `regions`) — من اللوحة.
  *
  * تشغيلُه على ويندوز داخل Git Bash (المكتبة تستخرج إصدارَ CLI من المتغيّر `_`):
  *   PATH="$APPDATA/npm/node_modules/@railway/cli/bin:$PATH" env -u _ railway.exe config plan
@@ -79,9 +82,9 @@ const WORKER_VARIABLES = [
   "SENTRY_PERFORMANCE_ENABLED",
 ] as const;
 
-/** ما كان في `railway.json` و`railway.worker.json` من بناءٍ وإعادةِ تشغيل. */
+/** البناءُ من Dockerfile الجذر، وإعادةُ التشغيل عند الفشل ثلاثَ مرّات. */
 const DOCKER_BUILD = { builder: "DOCKERFILE", dockerfilePath: "Dockerfile" } as const;
-const RESTART_ON_FAILURE = { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 3 } as const;
+const RESTART_ON_FAILURE = { restartPolicyMaxRetries: 3 } as const;
 
 export default defineRailway(() => {
   const web = service("shschool_mvp", {
