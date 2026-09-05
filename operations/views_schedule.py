@@ -176,7 +176,9 @@ def weekly_schedule(request):
     teachers, classes = [], []
     if user.is_admin():
         teacher_ids = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=("teacher", "coordinator")
+            school=school,
+            is_active=True,
+            role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
         classes = ClassGroup.objects.filter(
@@ -237,7 +239,9 @@ def _schedule_print_selection(request):
     teachers, classes = [], []
     if may_browse:
         teacher_ids_qs = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=("teacher", "coordinator")
+            school=school,
+            is_active=True,
+            role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
         classes = ClassGroup.objects.filter(
@@ -461,7 +465,9 @@ def register_teacher_absence(request):
         teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
     else:
         teacher_ids = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher")
+            school=school,
+            is_active=True,
+            role__name__in=("teacher", "coordinator", "ese_teacher", "e_projects_coordinator"),
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
@@ -897,7 +903,9 @@ def teacher_load_report(request):
         teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
     else:
         teacher_ids = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=("teacher", "coordinator", "ese_teacher")
+            school=school,
+            is_active=True,
+            role__name__in=("teacher", "coordinator", "ese_teacher", "e_projects_coordinator"),
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
@@ -920,7 +928,9 @@ def teacher_load_report(request):
 
 
 @login_required
-@role_required("teacher", "ese_teacher", "coordinator", "activities_coordinator")
+@role_required(
+    "teacher", "ese_teacher", "coordinator", "activities_coordinator", "e_projects_coordinator"
+)
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
     school = request.user.get_school()
@@ -1003,7 +1013,13 @@ def approve_schedule(request, generation_id):
     teacher_ids = Membership.objects.filter(
         school=school,
         is_active=True,
-        role__name__in=("teacher", "coordinator", "ese_teacher", "activities_coordinator"),
+        role__name__in=(
+            "teacher",
+            "coordinator",
+            "ese_teacher",
+            "activities_coordinator",
+            "e_projects_coordinator",
+        ),
     ).values_list("user_id", flat=True)
 
     # الاعتمادُ والإشعارُ فعلٌ واحد. كان الحفظُ يسبق `bulk_create` بلا معاملة،

@@ -35,6 +35,7 @@ class QualityConfig(AppConfig):
                 "it_technician",
                 # v7 — كل الموظفين يُقيَّمون
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
                 "speech_therapist",
@@ -61,6 +62,7 @@ class QualityConfig(AppConfig):
                 "vice_academic",
                 "coordinator",
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "academic_advisor",
                 "teacher",
                 "ese_teacher",

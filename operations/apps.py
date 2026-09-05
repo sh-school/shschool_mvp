@@ -27,6 +27,7 @@ class OperationsConfig(AppConfig):
                 "parent",
                 # v7 — لديهم حصص في الجدول
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
                 "speech_therapist",
@@ -53,6 +54,7 @@ class OperationsConfig(AppConfig):
                 "student",
                 # v7
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
                 "speech_therapist",

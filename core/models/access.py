@@ -17,7 +17,12 @@ from .user import CustomUser
 # المرجع: قرار مجلس الوزراء 32/2019 + تعديل 23/2025 + إعلانات وزارة التعليم 2022-2026
 TIER_1_LEADERSHIP = {"principal"}
 TIER_2_DEPUTIES = {"vice_admin", "vice_academic"}
-TIER_3_SUPERVISORS = {"coordinator", "admin_supervisor", "activities_coordinator"}
+TIER_3_SUPERVISORS = {
+    "coordinator",
+    "admin_supervisor",
+    "activities_coordinator",
+    "e_projects_coordinator",  # منسّق المشاريع الإلكترونية — المسمّى الوزاريّ
+}
 TIER_4_STAFF = {
     # الكادر التدريسي
     "teacher",
@@ -95,6 +100,9 @@ class Role(models.Model):
         ("coordinator", "منسق أكاديمي"),
         ("admin_supervisor", "مشرف إداري"),
         ("activities_coordinator", "منسق الأنشطة المدرسية"),  # قرار 32/2019 — جديد v7
+        # المسمّى الوزاريّ الرسميّ (Electronic Projects Coordinator) — تتابعه إدارةُ
+        # التعليم الإلكترونيّ بالوزارة. كان يُسجَّل «منسّقاً أكاديمياً بلا قسم».
+        ("e_projects_coordinator", "منسق المشاريع الإلكترونية"),
         # T4 — الكادر التدريسي
         ("teacher", "معلم"),
         ("ese_teacher", "معلم تربية خاصة"),

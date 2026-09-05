@@ -17,6 +17,11 @@ echo ""
 echo "📋 Seeding classroom-observation criteria..."
 python manage.py seed_observation_criteria || echo "  seed_observation_criteria skipped"
 
+# 1b2. Seed any role added to the vocabulary (idempotent — get_or_create per school)
+echo ""
+echo "🧩 Seeding roles..."
+python manage.py seed_new_roles || echo "  seed_new_roles skipped"
+
 # 1c. Retire schedule slots & subject assignments left active from past years
 #     العام يتبدّل بتاريخه من تقويم الوزارة، فجدول العام الماضي وإسناداته
 #     تبقى نشطةً ما لم تُطفأ — ونسختان نشطتان تخلطان كل استعلام لا يُقيَّد

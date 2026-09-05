@@ -26,6 +26,7 @@ class LibraryConfig(AppConfig):
                 "student",
                 # v7 — مساعدون + منسق أنشطة يستعيرون كتباً
                 "activities_coordinator",
+                "e_projects_coordinator",
                 "teacher_assistant",
                 "ese_assistant",
             },
