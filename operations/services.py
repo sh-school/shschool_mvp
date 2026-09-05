@@ -26,6 +26,7 @@ from operations.models import (
     AbsenceAlert,
     CompensatorySession,
     FreeSlotRegistry,
+    ScheduleGeneration,
     ScheduleSlot,
     Session,
     StudentAttendance,
@@ -560,6 +561,66 @@ class ScheduleService:
             "assignments": ScheduleService.retire_past_year_assignments(school, on),
             "slots": ScheduleService.retire_past_year_slots(school, on),
         }
+
+    # ── النسخُ المؤرشفة ─────────────────────────────────────────────
+    @staticmethod
+    def retained_archived_ids(school: School, academic_year: str, keep: int | None = None) -> list:
+        """معرّفاتُ التوليدات المؤرشفة التي تُبقى — الأحدثُ فالأحدث بعدد `keep`.
+
+        مصدرٌ واحدٌ لتعريف «المُبقى» يستعمله الاعتمادُ والأمرُ معاً، فلا يحذف
+        أحدُهما ما يحفظه الآخر.
+        """
+        from django.conf import settings
+
+        if keep is None:
+            keep = int(getattr(settings, "SCHEDULE_ARCHIVE_RETENTION", 0))
+        if keep <= 0:
+            return []
+        return list(
+            ScheduleGeneration.objects.filter(
+                school=school, academic_year=academic_year, status="archived"
+            )
+            .order_by("-generated_at")
+            .values_list("id", flat=True)[:keep]
+        )
+
+    @staticmethod
+    def retain_archived_generations(
+        school: School, academic_year: str, keep: int | None = None
+    ) -> int:
+        """يحذف التوليداتِ المؤرشفةَ الزائدةَ على `keep` — وحصصُها الميّتة معها.
+
+        القرار (2026-09-05): جدولٌ واحدٌ فقط، الحيّ. فالافتراضُ صفر: ما يُؤرشف
+        يذهب عند الاعتماد التالي. والمسودّاتُ والفاشلُ خارجَ هذا كلِّه — الأولى
+        عملٌ جارٍ، والثاني سجلُّ إخفاقٍ بلا حصص.
+
+        والحذفُ يمرّ بحارس `ScheduleGenerationQuerySet`: توليدٌ له حصّةٌ حيّةٌ لا
+        يُمسّ ولو كانت حالتُه «مؤرشف» — فلا يُفقد الجدولُ الحيّ نسبَه أبداً.
+
+        يُعيد عددَ التوليدات المحذوفة.
+        """
+        keep_ids = ScheduleService.retained_archived_ids(school, academic_year, keep)
+        stale = (
+            ScheduleGeneration.objects.filter(
+                school=school, academic_year=academic_year, status="archived"
+            )
+            .exclude(id__in=keep_ids)
+            .exclude(slots__is_active=True)
+            .distinct()
+        )
+        count = stale.count()
+        if count:
+            ScheduleGeneration.objects.filter(
+                id__in=list(stale.values_list("id", flat=True))
+            ).delete()
+            logger.info(
+                "retain_archived_generations: حُذف %d توليداً مؤرشفاً في %s/%s (المُبقى %d)",
+                count,
+                school.code,
+                academic_year,
+                len(keep_ids),
+            )
+        return count
 
     @staticmethod
     def _retire(model, school: School, on, noun: str) -> int:
