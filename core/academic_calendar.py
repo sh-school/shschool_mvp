@@ -12,10 +12,28 @@ core/academic_calendar.py — مصدر الحقيقة الوحيد للزمن ا
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from django.utils import timezone
+from prometheus_client import Counter
+
+logger = logging.getLogger(__name__)
+
+#: كم مرّةً ارتدّ الزمنُ الأكاديميّ إلى الثابت المجمَّد، ولماذا.
+#:
+#: الارتدادُ ليس سلوكاً بل عَرَض: تقويمٌ لم يُبذَر، أو نداءٌ بلا مدرسة. والثابتُ
+#: يتقادم صامتاً — قال «2025-2026» بعد أن دخل 2026-2027 — فحُذفه هو الغاية،
+#: ولا يُحذف قبل أن يشهد هذا العدّادُ أسبوعاً على الإنتاج صفراً. (المرحلة ٣)
+FROZEN_FALLBACKS = Counter(
+    "schoolos_academic_year_frozen_fallback_total",
+    "ارتدادُ الزمن الأكاديميّ إلى الثابت المجمَّد CURRENT_ACADEMIC_YEAR",
+    ["reason"],
+)
+
+#: الأسبابُ التي أُبلغت إلى Sentry في هذه العملية — حدثٌ واحدٌ لكلّ سبب، لا سيل.
+_REPORTED: set[str] = set()
 
 if TYPE_CHECKING:  # النماذج تستورد هذه الوحدة لقيمها الافتراضية — فلا نستوردها هنا وقت التشغيل
     from core.models import AcademicYear, Semester
@@ -103,7 +121,7 @@ def academic_year_for(request) -> str:
     """
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return _frozen()
+        return _frozen("request-without-user")
 
     return academic_year_for_school(user.get_school())
 
@@ -118,7 +136,9 @@ def academic_year_for_school(school, on=None) -> str:
     if school is None:
         return default_academic_year()
 
-    return AcademicCalendar.year_name(school, on) or _frozen()
+    return AcademicCalendar.year_name(school, on) or _frozen(
+        f"school-without-calendar:{school.code}"
+    )
 
 
 def academic_year_window(school, on=None):
@@ -174,16 +194,37 @@ def default_academic_year() -> str:
         )
     except Error:
         # الجداول غير موجودة بعد — أثناء هجرةٍ أو قاعدةٍ جديدة.
-        return _frozen()
+        return _frozen("db-unavailable")
 
-    return names.pop() if len(names) == 1 else _frozen()
+    if len(names) == 1:
+        return names.pop()
+    return _frozen("no-national-year" if not names else "ambiguous-national-year")
 
 
-def _frozen() -> str:
-    """الثابت المُجمَّد — الملاذ الأخير، ولا يُقرأ من موضعٍ آخر."""
+def _frozen(reason: str) -> str:
+    """الثابت المُجمَّد — الملاذ الأخير، ولا يُقرأ من موضعٍ آخر.
+
+    وكلُّ قراءةٍ له تُبلَّغ بثلاث: عدّادٌ يُقاس به أسبوعُ المراقبة، وتحذيرٌ في
+    السجلّ مع سببه، وحدثٌ في Sentry مرّةً لكلّ سببٍ في العملية كي لا يُغرق.
+    فمن يقرأ السجلّ يعرف أيَّ مدرسةٍ بلا تقويم، ومن يقرأ العدّاد يعرف هل يجوز
+    حذفُ الثابت بعد.
+    """
     from django.conf import settings
 
-    return settings.CURRENT_ACADEMIC_YEAR
+    value = settings.CURRENT_ACADEMIC_YEAR
+    FROZEN_FALLBACKS.labels(reason=reason).inc()
+    logger.warning("academic_calendar: ارتدادٌ إلى الثابت المجمَّد %s — السبب: %s", value, reason)
+    if reason not in _REPORTED:
+        _REPORTED.add(reason)
+        try:
+            import sentry_sdk
+
+            sentry_sdk.capture_message(
+                f"academic_calendar: frozen-year fallback ({reason})", level="warning"
+            )
+        except Exception:  # noqa: BLE001 — الإبلاغُ لا يكسر الطلب
+            pass
+    return value
 
 
 #: الصفوف كما تُصنّفها نوافذ اختبارات الوزارة.
