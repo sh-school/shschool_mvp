@@ -1295,7 +1295,12 @@ def generate_schedule(
         attempt_started = time.time()
         rng = random.Random(attempt)
         grid = ScheduleGrid(band_times=band_times, coverage=coverage)
-        leftovers = _greedy_pass(grid, sorted_tasks, blocked_slots, preferences, school, rng)
+        # المعلّمون بلا هامشٍ يُوضعون أوّلاً بالبحث الدقيق — ثمّ الجشعُ للباقين.
+        from .scheduler_tight import place_tight
+
+        tight_done = place_tight(grid, sorted_tasks, blocked_slots, prefs_qs, rng)
+        pending = [t for t in sorted_tasks if grid.home_of(t) is None]
+        leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
         before_repair = len(leftovers)
         leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
         repaired = before_repair - len(leftovers)
@@ -1380,6 +1385,7 @@ def generate_schedule(
         attempt_log.append(
             {
                 "seed": attempt,
+                "tight": {k[:8]: v for k, v in tight_done.items()},
                 "leftovers": len(leftovers),
                 "uncovered": uncovered,
                 "densed": densed,
@@ -1388,8 +1394,11 @@ def generate_schedule(
                 "ms": int((time.time() - attempt_started) * 1000),
             }
         )
+        # «تامّ» هنا: لا متعذّرَ ولا يومَ فارغاً ولا رخصةَ كثافة — فما دون ذلك يستحقّ
+        # محاولةً أخرى ما بقيت ميزانية.
+        clean = best[0][0] == 0 and best[0][1] == 0 and best[0][2] == 0
         if _search_exhausted(
-            attempt + 1, time.time() - start_time, budget, since_improvement, best[0][0] == 0
+            attempt + 1, time.time() - start_time, budget, since_improvement, clean
         ):
             break
 
