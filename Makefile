@@ -61,6 +61,18 @@ notify:
 test:
 	pytest tests/ -v
 
+# الاختبارات داخل حاوية التطوير — كما يشغّلها CI تماماً.
+#
+# `docker exec … pytest` وحدَها تُشغّل الاختبارات على إعدادات *التطوير*: متغيّرُ
+# البيئة DJANGO_SETTINGS_MODULE في الحاوية يتغلّب على pytest.ini، وهناك Redis
+# موجودٌ فـCelery غيرُ فوريّ — فمهمّةُ التوليد تذهب إلى العامل الحقيقيّ خارج
+# معاملة الاختبار ويرى الاختبارُ «queued». فتخضرّ اختباراتٌ كاذبةً وتحمرّ صادقة.
+# هذا الهدف يمرّر إعدادات الاختبار ويُعيد توجيه قاعدة الاختبار إلى `db`.
+# الاستعمال: make test-docker  |  make test-docker T=tests/test_x.py
+T ?= tests/
+test-docker:
+	docker exec -i shschool-dev-web sh -c '	  DJANGO_SETTINGS_MODULE=shschool.settings.testing 	  TEST_DB_HOST=$$DB_HOST TEST_DB_PORT=$$DB_PORT 	  TEST_DB_USER=$$DB_USER TEST_DB_PASSWORD=$$DB_PASSWORD 	  python -m pytest $(T) -q -p no:cacheprovider'
+
 # الاختبارات + Coverage Gate 80%
 test-cov:
 	pytest tests/ -v \
