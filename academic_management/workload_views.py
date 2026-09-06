@@ -32,14 +32,12 @@ from academic_management.models import (
     LOCKED,
     REVIEWED,
     SUBMITTED,
-    TeacherSubjectQualification,
     TeacherWorkloadAllocation,
     TeacherWorkloadPlan,
 )
 from academic_management.workload_forms import (
     AllocationForm,
     PlanHeadForm,
-    QualificationForm,
     ReductionForm,
 )
 from core.academic_calendar import academic_year_for
@@ -174,8 +172,8 @@ def teacher_workload(request, teacher_id):
 @login_required
 @workload_reader_required
 def plan_editor(request, plan_id):
-    """محرّرُ الخطّة بترتيبه: نصابٌ، فتخفيضٌ، فهدفٌ محسوب، فتوزيعٌ، فمؤهّلات،
-    فإسنادٌ للقراءة، فبوّابةٌ بنداً بنداً."""
+    """محرّرُ الخطّة بترتيبه: نصابٌ، فتخفيضٌ، فهدفٌ محسوب، فتوزيعٌ، فإسنادٌ
+    للقراءة، فبوّابةٌ بنداً بنداً."""
     plan = _plan(request, plan_id)
     return render(
         request, "academic_management/workload_editor.html", _editor_context(request, plan)
@@ -193,12 +191,8 @@ def _editor_context(request, plan):
         "head_form": PlanHeadForm(instance=plan),
         "reduction_form": ReductionForm(instance=plan),
         "allocation_form": AllocationForm(plan=plan),
-        "qualification_form": QualificationForm(school=school, teacher=plan.teacher),
         "allocations": plan.allocations.all(),
         "allocated": sum(a.target_periods for a in plan.allocations.all()),
-        "qualifications": TeacherSubjectQualification.objects.filter(
-            school=school, teacher=plan.teacher
-        ).select_related("subject"),
         "assigned": flow.assigned_periods(plan),
         "capacity": flow.available_capacity(plan),
         "checks": flow.validate(plan),
@@ -237,7 +231,6 @@ def plan_review(request, plan_id):
             "plan": plan,
             "previous": previous,
             "rows": _comparison(previous, plan),
-            "qualification_rows": _qualification_comparison(plan),
             "checks": flow.validate(plan),
             "can_review": flow.has_capability(request.user, plan.school, flow.REVIEW),
             "can_approve": flow.has_capability(request.user, plan.school, flow.APPROVE),
@@ -272,22 +265,6 @@ def _comparison(previous, proposed):
     return [
         {"label": label, "before": before, "after": after, "changed": before != after}
         for label, before, after in rows
-    ]
-
-
-def _qualification_comparison(plan):
-    """المؤهّلاتُ الساريةُ ومن غيرِها — فتغيّرُها تغيّرٌ في الخطّة أيضاً."""
-    return [
-        {
-            "subject": q.subject,
-            "scope": q.get_level_type_display() if q.level_type else "كلّ المراحل",
-            "status": q.get_qualification_status_display(),
-            "reference": q.source_reference,
-            "valid": q.is_valid_on(),
-        }
-        for q in TeacherSubjectQualification.objects.filter(
-            school=plan.school, teacher=plan.teacher
-        ).select_related("subject")
     ]
 
 
@@ -388,19 +365,6 @@ def delete_allocation(request, plan_id, allocation_id):
         get_object_or_404(TeacherWorkloadAllocation, pk=allocation_id, workload_plan=plan).delete()
         messages.success(request, "حُذف توزيعُ المرحلة.")
     return redirect("academic_management:plan_editor", plan_id=plan.pk)
-
-
-@login_required
-@require_POST
-def add_qualification(request, plan_id):
-    plan = _plan(request, plan_id)
-    return _save_section(
-        request,
-        plan,
-        QualificationForm,
-        {"school": plan.school, "teacher": plan.teacher},
-        "أُضيف المؤهّلُ بمرجعه.",
-    )
 
 
 @login_required
@@ -514,7 +478,6 @@ _SECTION_CONTEXT.update(
         PlanHeadForm: "head_form",
         ReductionForm: "reduction_form",
         AllocationForm: "allocation_form",
-        QualificationForm: "qualification_form",
     }
 )
 

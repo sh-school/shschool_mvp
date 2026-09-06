@@ -9,8 +9,6 @@
     رحلةٌ فاشلة:  البوّابةُ تمرّ، ثمّ يتغيّر الإسنادُ، ثمّ يُرفض الاعتماد
 """
 
-from datetime import date
-
 import pytest
 from django.urls import reverse
 
@@ -19,10 +17,8 @@ from academic_management.models import (
     APPROVED,
     DRAFT,
     FROM_MANUAL,
-    PRIMARY,
     REVIEWED,
     SUBMITTED,
-    TeacherSubjectQualification,
     TeacherWorkloadPlan,
 )
 from tests.conftest import (
@@ -88,20 +84,6 @@ def assign(school, teacher, subject, *, periods, grade="G7", level="prep"):
         subject=subject,
         weekly_periods=periods,
         is_active=True,
-    )
-
-
-def qualify(school, teacher, subject, *, level=""):
-    return TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        level_type=level,
-        qualification_status=PRIMARY,
-        is_primary=True,
-        source="school",
-        source_reference="ملفّ الموظّف 44",
-        valid_from=date(2026, 9, 1),
     )
 
 
@@ -233,7 +215,6 @@ def test_the_gate_reports_item_by_item_not_one_verdict(
 ):
     plan = a_draft(school, target_teacher, coordinator)
     assign(school, target_teacher, subject, periods=14)
-    qualify(school, target_teacher, subject)
 
     body = (
         client_as(coordinator)
@@ -255,7 +236,6 @@ def test_the_reviewer_sees_the_previous_version_beside_the_proposed_one(
     client_as, coordinator, deputy, head, school, target_teacher, subject
 ):
     assign(school, target_teacher, subject, periods=16)
-    qualify(school, target_teacher, subject)
     first = a_draft(school, target_teacher, coordinator)
     flow.submit_for_review(first, by=coordinator)
     flow.record_review(first, by=deputy)
@@ -273,7 +253,7 @@ def test_the_reviewer_sees_the_previous_version_beside_the_proposed_one(
 
     assert "v1 معتمدة" in body and "v2 مقترحة" in body
     assert "الهدف التدريسيّ" in body
-    assert "ملفّ الموظّف 44" in body, "وتغيّرُ المؤهّلات معروضٌ أيضاً"
+    assert "16" in body and "12" in body, "الهدفُ قبلَ التخفيض وبعدَه معروضان"
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -287,7 +267,6 @@ def test_a_whole_journey_from_draft_to_approved(
     """رحلةٌ واحدةٌ حقيقيّةٌ عبر الشاشات — لا استدعاءٌ مباشرٌ للخدمة."""
     assign(school, target_teacher, subject, periods=10, grade="G7", level="prep")
     assign(school, target_teacher, subject, periods=6, grade="G10", level="sec")
-    qualify(school, target_teacher, subject)
 
     drafter = client_as(coordinator)
 
@@ -376,7 +355,6 @@ def test_an_assignment_changed_after_validate_blocks_the_approval(
     from operations.models import SubjectClassAssignment
 
     row = assign(school, target_teacher, subject, periods=16)
-    qualify(school, target_teacher, subject)
     plan = a_draft(school, target_teacher, coordinator)
 
     # التحقّقُ يمرّ الآن — والشاشةُ تقول ذلك
@@ -410,7 +388,6 @@ def test_a_divergence_after_approval_is_named_a_divergence_not_an_error(
     from operations.models import SubjectClassAssignment
 
     row = assign(school, target_teacher, subject, periods=16)
-    qualify(school, target_teacher, subject)
     plan = a_draft(school, target_teacher, coordinator)
     flow.submit_for_review(plan, by=coordinator)
     flow.record_review(plan, by=deputy)

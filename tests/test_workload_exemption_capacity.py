@@ -12,12 +12,10 @@
 ولا يظهر استحالتُه إلّا يومَ يُولَّد الجدولُ فيعجز.
 """
 
-from datetime import date
-
 import pytest
 
 from academic_management import workload_workflow as flow
-from academic_management.models import FROM_MANUAL, PRIMARY, TeacherSubjectQualification
+from academic_management.models import FROM_MANUAL
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -247,17 +245,6 @@ def test_the_editor_shows_the_exempt_days_so_the_approver_knows(
 
     assign(school, target_teacher, subject, periods=18)
     exempt(school, target_teacher, coordinator)
-    qualify = TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=target_teacher,
-        subject=subject,
-        qualification_status=PRIMARY,
-        is_primary=True,
-        source="school",
-        source_reference="ملفّ 44",
-        valid_from=date(2026, 9, 1),
-    )
-    assert qualify.pk
     plan = a_plan(school, target_teacher, coordinator)
 
     body = (

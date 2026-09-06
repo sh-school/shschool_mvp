@@ -154,3 +154,103 @@ def test_an_explicit_empty_teacher_unassigns(
     a = _save(client_as(principal_user), a, teacher="")
     assert a.teacher_id is None
     assert "1 بلا معلّم" in _page(client_as, principal_user)
+
+
+# ── الشاشةُ تمرّ من الخدمة: المنعُ يُقال، ولا يُطمس عملُ زميل ──────────
+
+
+@pytest.mark.django_db
+def test_a_period_count_against_the_plan_is_refused_with_a_reason_the_user_can_act_on(
+    client_as, school, cell, principal_user
+):
+    """«الإسنادُ غير صالح» لا تُصلح شيئاً — و«6 والخطّةُ تقول 4» تقول أين يذهب."""
+    from django.contrib.messages import get_messages
+
+    from academic_management.models import FROM_MINISTRY_GUIDE, CurriculumPlan
+
+    group, subject = cell
+    teacher = _staff(school, "teacher", "معلّم الرياضيات")
+    assignment = _assign(school, cell, teacher, periods=4)
+    CurriculumPlan.objects.create(
+        school=school,
+        academic_year=YEAR,
+        grade=group.grade,
+        track=group.track,
+        subject=subject,
+        weekly_periods=4,
+        source_kind=FROM_MINISTRY_GUIDE,
+        source_reference="دليل الخطط الدراسية 2025-2026 ص18",
+    )
+
+    client = client_as(principal_user)
+    response = client.post(
+        reverse("subject_assignment_edit", args=[assignment.id]),
+        {"year": YEAR, "weekly_periods": 6, "teacher": str(teacher.id)},
+    )
+    said = " ".join(str(m) for m in get_messages(response.wsgi_request))
+
+    assignment.refresh_from_db()
+    assert assignment.weekly_periods == 4, "المخالفةُ بلا سببٍ لا تُكتب"
+    assert "الخطّةُ تقول 4" in said
+
+
+@pytest.mark.django_db
+def test_a_documented_override_saves_and_says_it_was_saved_despite_the_warning(
+    client_as, school, cell, principal_user
+):
+    from academic_management.models import FROM_MINISTRY_GUIDE, CurriculumPlan
+
+    group, subject = cell
+    teacher = _staff(school, "teacher", "معلّم الرياضيات")
+    assignment = _assign(school, cell, teacher, periods=4)
+    CurriculumPlan.objects.create(
+        school=school,
+        academic_year=YEAR,
+        grade=group.grade,
+        track=group.track,
+        subject=subject,
+        weekly_periods=4,
+        source_kind=FROM_MINISTRY_GUIDE,
+        source_reference="دليل الخطط الدراسية 2025-2026 ص18",
+    )
+
+    client_as(principal_user).post(
+        reverse("subject_assignment_edit", args=[assignment.id]),
+        {
+            "year": YEAR,
+            "weekly_periods": 6,
+            "teacher": str(teacher.id),
+            "periods_override_reason": "شعبةٌ مدمجةٌ بقرار الإدارة",
+        },
+    )
+    assignment.refresh_from_db()
+    assert assignment.weekly_periods == 6
+    assert assignment.periods_override_reason == "شعبةٌ مدمجةٌ بقرار الإدارة"
+
+
+@pytest.mark.django_db
+def test_a_second_writer_does_not_silently_overwrite_the_first(
+    client_as, school, cell, principal_user
+):
+    """طابعٌ قديمٌ يُرفض — فآخرُ من يضغط «حفظ» ليس أحقَّ بالحقيقة."""
+    from django.contrib.messages import get_messages
+
+    teacher = _staff(school, "teacher", "الأوّل")
+    rival = _staff(school, "teacher", "الثاني")
+    assignment = _assign(school, cell, teacher, periods=6)
+    stale = assignment.updated_at.isoformat()
+
+    client = client_as(principal_user)
+    client.post(
+        reverse("subject_assignment_edit", args=[assignment.id]),
+        {"year": YEAR, "weekly_periods": 6, "teacher": str(rival.id)},
+    )
+    response = client.post(
+        reverse("subject_assignment_edit", args=[assignment.id]),
+        {"year": YEAR, "weekly_periods": 6, "teacher": str(teacher.id), "seen_at": stale},
+    )
+    said = " ".join(str(m) for m in get_messages(response.wsgi_request))
+
+    assignment.refresh_from_db()
+    assert assignment.teacher_id == rival.id, "الكتابةُ المتقادمةُ تُرفض ولا تُدمج"
+    assert "أعِد التحميل" in said

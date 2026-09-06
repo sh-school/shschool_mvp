@@ -1,21 +1,24 @@
 """
-خطّةُ نصاب المعلّم ومؤهّلاتُه — الحقيقةُ الإداريّةُ التي لا يحملها الجدول.
+الخطّةُ الدراسيّةُ وخطّةُ نصاب المعلّم — الحقيقتان الإداريّتان اللتان لا يحملهما الجدول.
 
+    CurriculumDemand ≠ ObservedSchedule
     ObservedScheduledWorkload ≠ ApprovedWorkload
 
 فمعلّمٌ ظهر في الجدول بأربعَ عشرةَ حصّةً قد يكون نصابُه الرسميُّ ثمانيَ عشرةَ
-وله تخفيضُ منسّقِ مادّة. والجدولُ لا يحمل هذه الحقيقة: ليس فيه حقلٌ للنصاب
-المطلوب ولا للتخفيض ولا لمن اعتمده. فهذه الوحدةُ تحملها.
+وله تخفيضُ منسّقِ مادّة. وشعبةٌ فيها خمسُ حصص رياضياتٍ لا تُثبت أنّ المطلوبَ
+خمسٌ — فقد يكون ستّاً وسقطت واحدة. والجدولُ لا يحمل أيّاً من الحقيقتين: ليس
+فيه حقلٌ للنصاب المطلوب ولا للتخفيض ولا لعددِ الحصص الذي قرّرته الوزارة.
+فهذه الوحدةُ تحملهما.
 
+    WeeklyPeriods = CurriculumPlan(grade, track, subject)     ← دليلُ الوزارة
     TeachingTarget = RequiredWeeklyPeriods − ApprovedReductionPeriods
     ∑ AssignedInstructionalPeriods = TeachingTarget   (بعد الاعتماد فقط)
-    CanTeach ≠ AssignedToTeach ≠ ActuallyScheduled
     InstructionalPeriods ≠ OccupiedSlots
 
 وثلاثةُ أشياءَ كشفها قياسُ الجدول القائم هي التي شكّلت هذا التصميم: ستّةَ
 عشرَ معلّماً يعملون في مرحلتين — فالتفصيلُ حسب المرحلة موجود؛ وثلاثةَ عشرَ
-يدرّسون أكثرَ من مادّة — فالمؤهّلُ سجلٌّ مستقلٌّ لكلّ مادّة؛ وخمسةٌ لهم حصصٌ
-في شعبةٍ منقسمة — فالنصابُ يُعدّ بالحصص لا بالخانات.
+يدرّسون أكثرَ من مادّة — فالحملُ يُجمع عبر الأقسام؛ وخمسةٌ لهم حصصٌ في شعبةٍ
+منقسمة — فالنصابُ يُعدّ بالحصص لا بالخانات.
 
 ولا شيءَ هنا يُشتقّ من الجدول: `HistoricalAssignment → Proposal` لا `→ Truth`.
 """
@@ -25,6 +28,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models.base import AuditedModel
+from core.querysets import YearScopedQuerySet
 
 # ── دورةُ الخطّة ─────────────────────────────────────────────────────
 # «قيد المراجعة» و«روجعت» حالتان لا واحدة: الأولى تقول إنّ المُدخِل رفع يدَه
@@ -59,23 +63,20 @@ FROZEN_STATUSES = (APPROVED, LOCKED)
 #: الحالاتُ التي يجوز فيها تحريرُ محتوى الخطّة.
 EDITABLE_STATUSES = (DRAFT,)
 
-# ── حالاتُ المؤهّل ──────────────────────────────────────────────────
-PRIMARY = "primary"
-QUALIFIED = "qualified"
-ALLOWED = "allowed"
-NOT_APPROVED = "not_approved"
-
-QUALIFICATION_STATUSES = [
-    (PRIMARY, "تخصّصٌ أساسيّ"),
-    (QUALIFIED, "مؤهَّل"),
-    (ALLOWED, "مسموحٌ به"),
-    (NOT_APPROVED, "غيرُ معتمَد"),
-]
-
-#: ما يُجيز التدريسَ فعلاً — و«غيرُ معتمَد» ليس منها، وغيابُ السجلّ كذلك.
-PERMITTING = (PRIMARY, QUALIFIED, ALLOWED)
-
 LEVEL_TYPES = [("prep", "إعدادي"), ("sec", "ثانوي")]
+
+# ── منبعُ رقم الخطّة الدراسيّة ────────────────────────────────────────
+#: الدليلُ الوزاريُّ المنشور، أو تجربةٌ تطبّقها مدارسُ مختارة، أو قرارُ مدرسة.
+#: و«هكذا كانت السنةَ الماضية» ليست منبعاً — فلكلّ سنةٍ خصوصيّتُها.
+FROM_MINISTRY_GUIDE = "ministry_guide"
+FROM_PILOT = "pilot"
+FROM_SCHOOL = "school_decision"
+
+CURRICULUM_SOURCES = [
+    (FROM_MINISTRY_GUIDE, "دليلُ الخطط الدراسيّة الوزاريّ"),
+    (FROM_PILOT, "تجربةٌ وزاريّةٌ على مدارسَ مختارة"),
+    (FROM_SCHOOL, "قرارُ إدارة المدرسة"),
+]
 
 #: مصدرُ الحقيقة الإداريّة — ولا «مشتقٌّ من الجدول» بينها.
 SOURCES = [
@@ -465,6 +466,39 @@ class WorkloadGovernance(models.Model):
         default=False, verbose_name="يجوز أن يعتمدها من راجعها"
     )
 
+    #: نصابٌ يُقاس عليه من **لا خطّةَ معتمَدةً له** — للتلوين وميزان القسم لا للمنع.
+    #:
+    #: ولا يُثبَّت رقمٌ في الكود: بحثنا فلم نجد نصّاً وزاريّاً ساريَ المفعول يحدّد
+    #: نصابَ المعلّم في المدارس الحكوميّة (قرارُ المجلس الأعلى 2015 خفّضه إلى
+    #: ستّ عشرةَ حصّة، ولم يُنشر ما ينسخه أو يؤكّده). وفراغُه يعني «لا تقارن»
+    #: لا «صفر»، فلا يظهر معلّمٌ متجاوزاً لأنّ الحقلَ لم يُملأ.
+    reference_load = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="النصاب المرجعيّ",
+        help_text="يُقاس عليه من لا خطّةَ معتمَدةً له — فارغٌ يعني لا مقارنة",
+    )
+
+    #: عبءُ تحضير المقرّر الواحد بالحصص. قرارُ الإدارة 2026-09-05: حصّتان لكلّ
+    #: مقرّرٍ يحضّره المعلّم — فمقرّران أربعُ حصص. وهو حقلٌ لا ثابتٌ في الكود
+    #: لأنّه تقديرُ عبءٍ تراه المدرسة، لا رقمٌ وزاريٌّ منشور.
+    preparation_weight = models.PositiveIntegerField(
+        default=2,
+        verbose_name="عبء تحضير المقرّر",
+        help_text="عددُ الحصص التي يُحتسب بها تحضيرُ مقرّرٍ واحد",
+    )
+
+    #: رموزُ التحذيرات التي تراها هذه المدرسةُ موانعَ. فالخدمةُ تُصنّف نتائجَها
+    #: مانعاً وتحذيراً ومعلومةً بافتراضٍ واحد، والمدرسةُ ترفع ما تشاء من التحذيرات
+    #: إلى المنع بلا نشر: مدرسةٌ تريد ألّا يتجاوز معلّمٌ هدفَه المعتمَد قطّ تضيف
+    #: `over_target` هنا، وأخرى تكتفي بالتحذير.
+    strict_codes = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="تحذيراتٌ تُعدّ موانع",
+        help_text="رموزُ نتائج الإسناد التي ترفعها المدرسةُ من تحذيرٍ إلى منع",
+    )
+
     class Meta:
         verbose_name = "حوكمة أنصبة المدرسة"
         verbose_name_plural = "حوكمة أنصبة المدارس"
@@ -478,103 +512,192 @@ class WorkloadGovernance(models.Model):
         return cls.objects.filter(school=school).first() or cls(school=school)
 
 
-class TeacherSubjectQualification(AuditedModel):
-    """ما **يستطيع** المعلّم تدريسَه — لا ما ظهر فيه هذا العام.
+class CurriculumPlan(AuditedModel):
+    """كم حصّةً لكلّ مادّةٍ في كلّ صفّ ومسار — مصدرُ الطلب التعليميّ.
 
-        CanTeach ≠ AssignedToTeach ≠ ActuallyScheduled
+        CurriculumDemand ≠ ObservedSchedule
 
-    وظهورُ معلّمٍ في مادّةٍ في جدولٍ واحدٍ لا يُثبت أنّه لا يستطيع غيرَها،
-    ولا يُنشئ له مؤهّلاً. والمؤهّلُ قرارٌ يُسنَد إلى مصدرٍ ويُؤرَّخ.
+    وكان الطلبُ قبل هذا النموذج مكتوباً يدويّاً في كلٍّ من مئتين وخمسين خليّةَ
+    إسناد، بلا شيءٍ يقيسه. فمن كتب «فنّيّة 1» في السابع بدل «2» لم يخالف
+    شيئاً في النظام، وإنّما اكتُشف الخطأُ بعد أن وقع في سبعةَ عشرَ سجلّاً.
+
+    والمفتاحُ **خماسيّ**: (مدرسة، عام، صفّ، مسار، مادّة). فالمسارُ جزءٌ منه لأنّ
+    رياضياتِ الحادي عشر ستٌّ في العلميّ وثلاثٌ في الآداب، ولو كان المفتاحُ
+    (صفّ، مادّة) لتناقض السجلّان.
+
+    ## القسمُ هنا لا على المادّة
+
+    مادّةُ «العلوم» سجلٌّ واحدٌ في `operations.Subject` يخدم السابعَ إلى
+    العاشر، وقسمُها في السابع «العلوم الإعداديّ» وفي العاشر «العلوم الثانويّ»
+    بمنسّقٍ آخر. فربطُ القسم بالمادّة يجعل أحدَ القسمين خاطئاً حتماً، ولا
+    يُصلحه إلّا شطرُ المادّة إلى سجلّين — وهو تغييرٌ يمسّ الجدولَ والإسنادَ
+    والحضورَ على الإنتاج بلا حاجة. فالقسمُ صفةُ **تدريسِ المادّة في صفٍّ**
+    بعينه، وموضعُه هنا.
+
+    وفراغُه مشروع: المهاراتُ الحياتيّةُ والمهنيّةُ يدرّسها معلّمو بدنيّةٍ
+    وإدارةِ أعمالٍ وأحياء، فلا قسمَ لها — وجولتُها عامّةٌ بيد النائب الأكاديميّ.
+
+    ## الاختياريّةُ مجموعة
+
+    الحادي عشرَ والثاني عشرَ فيهما «مادّةٌ اختياريّة» بحصّتين تُختار من قائمة.
+    فالسجلّاتُ البديلةُ تتقاسم `elective_group` واحدة، ويُقاس الطلبُ على
+    المجموعة لا على كلّ بديلٍ فيها — وإلّا ظهرت المدرسةُ مطالَبةً بتدريس
+    الفنونِ وإدارةِ الأعمالِ والحوسبةِ معاً.
     """
 
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="teacher_qualifications"
+        "core.School", on_delete=models.CASCADE, related_name="curriculum_plans"
     )
-    teacher = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="subject_qualifications"
-    )
+    academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
+    grade = models.CharField(max_length=3, verbose_name="الصف")
+    #: فارغٌ لغير الحادي عشر والثاني عشر — والعاشرُ ثانويٌّ بلا مسار.
+    track = models.CharField(max_length=12, blank=True, verbose_name="المسار")
     subject = models.ForeignKey(
-        "operations.Subject", on_delete=models.CASCADE, related_name="teacher_qualifications"
+        "operations.Subject", on_delete=models.PROTECT, related_name="curriculum_rows"
     )
-    #: فارغٌ يعني «كلَّ المراحل» — فقد يُعتمد لمادّةٍ في الإعداديّ دون الثانويّ.
-    level_type = models.CharField(
-        max_length=4, choices=LEVEL_TYPES, blank=True, verbose_name="المرحلة"
+    weekly_periods = models.PositiveIntegerField(verbose_name="الحصص الأسبوعية")
+
+    # ── من أين جاء الرقم ─────────────────────────────────────────
+    source_kind = models.CharField(
+        max_length=16,
+        choices=CURRICULUM_SOURCES,
+        default=FROM_MINISTRY_GUIDE,
+        verbose_name="منبع الرقم",
+    )
+    source_reference = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="المرجع",
+        help_text="مثال: دليل الخطط الدراسية 2025-2026 ص14",
+    )
+    #: تجربةٌ وزاريّةٌ لم يصدر بها دليلٌ منشورٌ بعد — تُعرض موسومةً كي لا تُقرأ
+    #: قاعدةً مستقرّة. مثالُها علومُ العاشر الموحّدة في 2026-2027.
+    is_pilot = models.BooleanField(default=False, verbose_name="تجريبيّة")
+
+    # ── القسمُ والاختياريّة ───────────────────────────────────────
+    department = models.ForeignKey(
+        "core.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="curriculum_rows",
+        verbose_name="القسم",
+    )
+    elective_group = models.CharField(
+        max_length=40,
+        blank=True,
+        default="",
+        verbose_name="مجموعة الاختيار",
+        help_text="فارغٌ للمادّة الإلزاميّة؛ والبدائلُ تتقاسم وسماً واحداً",
     )
 
-    qualification_status = models.CharField(
-        max_length=12, choices=QUALIFICATION_STATUSES, default=QUALIFIED
-    )
-    is_primary = models.BooleanField(default=False, verbose_name="تخصّصه الأساسي؟")
-    source = models.CharField(max_length=12, choices=SOURCES, default="school")
-    source_reference = models.CharField(max_length=200, blank=True, verbose_name="مرجع القرار")
-    valid_from = models.DateField(verbose_name="سارٍ من")
-    valid_to = models.DateField(null=True, blank=True, verbose_name="سارٍ حتى")
+    is_active = models.BooleanField(default=True)
+
+    objects = YearScopedQuerySet.as_manager()
 
     class Meta:
-        verbose_name = "مؤهل معلم لمادة"
-        verbose_name_plural = "مؤهلات المعلمين للمواد"
-        ordering = ["teacher__full_name", "subject__name_ar"]
+        verbose_name = "صفّ خطة دراسية"
+        verbose_name_plural = "الخطة الدراسية"
+        ordering = ["grade", "track", "subject__name_ar"]
         constraints = [
             models.UniqueConstraint(
-                fields=["teacher", "subject", "level_type"],
-                name="unique_qualification_per_level",
-            )
+                fields=["school", "academic_year", "grade", "track", "subject"],
+                name="unique_curriculum_row",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(weekly_periods__gt=0),
+                name="curriculum_periods_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["school", "academic_year", "grade"]),
         ]
 
     def __str__(self):
-        scope = self.get_level_type_display() if self.level_type else "كل المراحل"
-        return f"{self.teacher} — {self.subject} ({scope})"
+        track = f"/{self.track}" if self.track else ""
+        return f"{self.grade}{track} · {self.subject} = {self.weekly_periods}"
 
-    def is_valid_on(self, on=None):
-        on = on or timezone.localdate()
-        if self.valid_from and on < self.valid_from:
-            return False
-        return not (self.valid_to and on > self.valid_to)
-
-    @property
-    def permits_teaching(self):
-        return self.qualification_status in PERMITTING
-
-    def provenance_gaps(self):
-        """المؤهّلُ حقيقةٌ إداريّةٌ ثالثة — ولها منبعُها هي الأخرى.
-
-        فمن قال إنّ هذا المعلّمَ يدرّس الرياضيات؟ ملفُّ الموظّف؟ قرارُ قسم؟
-        الجوابُ يُكتب، ولا يُترك لأنّ «الجميعَ يعرف».
-        """
-        gaps = []
-        if not self.source_reference.strip():
-            gaps.append(f"مؤهّلُ {self.subject} بلا مرجعٍ موثَّق.")
-        if not self.valid_from:
-            gaps.append(f"مؤهّلُ {self.subject} بلا تاريخِ سريان.")
-        return gaps
+    #: الصفوف التي تحمل مساراً — والعاشر ليس منها وإن كان ثانوياً.
+    TRACKED_GRADES = ("G11", "G12")
 
     def clean(self):
+        """المسارُ للحادي عشر والثاني عشر، والمرجعُ لا يُترك فارغاً.
+
+        و«تجريبيّةٌ بلا مرجع» حالةٌ مشروعةٌ مؤقّتاً: تجربةُ العاشر تطبّقها
+        المدرسةُ بتعميمٍ لم يصل نصُّه بعد، فيُوسم السجلُّ ويُترك مرجعُه حتى
+        يصل. أمّا رقمٌ يُنسب إلى دليلٍ منشورٍ بلا صفحته فادّعاءُ مصدر.
+        """
         super().clean()
-        if not self.source_reference.strip():
+        if self.track and self.grade not in self.TRACKED_GRADES:
+            raise ValidationError({"track": "المسار للصفّين الحادي عشر والثاني عشر وحدهما."})
+        if self.source_kind == FROM_MINISTRY_GUIDE and not self.source_reference.strip():
             raise ValidationError(
-                {"source_reference": "المؤهّلُ قرارٌ يُسنَد إلى مصدرٍ — ومرجعُه لا يُترك فارغاً."}
+                {"source_reference": "رقمٌ من الدليل الوزاريّ يُذكر مرجعُه — صفحتُه أو بابُه."}
             )
-        if self.is_primary and self.qualification_status != PRIMARY:
-            raise ValidationError({"is_primary": "«تخصّصٌ أساسيّ» علمٌ وحالة — فلا يختلفان."})
-        if self.valid_to and self.valid_from and self.valid_to < self.valid_from:
-            raise ValidationError({"valid_to": "نهايةُ السريان قبل بدايته."})
-        if self.is_primary:
-            clash = TeacherSubjectQualification.objects.filter(
-                teacher=self.teacher, level_type=self.level_type, is_primary=True
-            ).exclude(pk=self.pk)
-            if clash.exists():
-                raise ValidationError({"is_primary": "للمعلّم تخصّصٌ أساسيٌّ واحدٌ في المرحلة الواحدة."})
 
 
-def can_teach(teacher, subject, level_type="", on=None):
-    """هل يجوز إسنادُ هذه المادّة لهذا المعلّم؟
+class CoursePreparation(AuditedModel):
+    """من يحضّر هذا المقرّرَ للجميع — مسؤوليّةٌ واحدةٌ لمقرّرٍ واحدٍ في العام.
 
-    وغيابُ السجلّ **ليس إذناً**: لا يُستنتج المؤهّلُ من الصمت ولا من ظهور
-    المعلّم في الجدول. والمؤهّلُ العامّ (بلا مرحلة) يغطّي المراحلَ كلَّها،
-    والمقيَّدُ بمرحلةٍ لا يتعدّاها.
+    المقرّرُ (صفّ × مسار × مادّة): رياضياتُ الثامن يدرّسها ثلاثةُ معلّمين
+    وأحدُهم يعدّ ملفّاتَ التحضير وأوراقَ العمل والعروضَ ويشاركها الآخرين.
+    وكانت هذه المسؤوليّةُ تُوزَّع شفاهاً ولا يحملها النظام، فلا تظهر في حمل
+    المعلّم ولا في كشفه ولا يُبلَّغ بها.
+
+    ## يُشترط أن يدرّس المقرّر
+
+    قرارُ الإدارة (2026-09-05): المحضِّرُ من مدرّسي المقرّر حصراً — **مانعٌ لا
+    تحذير**. فمن لا يدرّسه لا يعرف طلابَه ولا إيقاعَ حصصه. وإن أُزيل آخرُ إسنادٍ
+    تدريسيٍّ له في المقرّر سقطت مسؤوليّتُه معه (تحرسه الخدمة عند إزالة الإسناد).
+
+    ## عبءٌ يُحتسب
+
+        PreparationLoad = PreparedCourses × preparation_weight
+        TotalLoad = TeachingLoad + PreparationLoad
+
+    وحصّتان لكلّ مقرّرٍ يحضّره (قرارُ الإدارة)، فمقرّران أربع. والوزنُ في
+    `WorkloadGovernance.preparation_weight` لا في الكود.
+
+    ## للعام كلّه
+
+    المفتاحُ بلا فصلٍ دراسيّ: المسؤوليّةُ سنويّةٌ لا تتناوب. ولو احتاجتها المدرسةُ
+    فصليّةً يوماً فبإضافةِ الفصل إلى المفتاح — لا بتفسيرٍ ضمنيّ.
     """
-    scopes = {"", level_type} if level_type else {""}
-    rows = TeacherSubjectQualification.objects.filter(
-        teacher=teacher, subject=subject, level_type__in=scopes
+
+    school = models.ForeignKey(
+        "core.School", on_delete=models.CASCADE, related_name="course_preparations"
     )
-    return any(r.permits_teaching and r.is_valid_on(on) for r in rows)
+    academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
+    grade = models.CharField(max_length=3, verbose_name="الصف")
+    track = models.CharField(max_length=12, blank=True, default="", verbose_name="المسار")
+    subject = models.ForeignKey(
+        "operations.Subject", on_delete=models.PROTECT, related_name="course_preparations"
+    )
+    teacher = models.ForeignKey(
+        "core.CustomUser", on_delete=models.CASCADE, related_name="course_preparations"
+    )
+    is_active = models.BooleanField(default=True)
+
+    objects = YearScopedQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "إسناد تحضير مقرّر"
+        verbose_name_plural = "إسنادات تحضير المقرّرات"
+        ordering = ["grade", "track", "subject__name_ar"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year", "grade", "track", "subject"],
+                name="unique_preparer_per_course",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["school", "academic_year", "teacher"]),
+        ]
+
+    def __str__(self):
+        track = f"/{self.track}" if self.track else ""
+        return f"تحضير {self.subject} {self.grade}{track} — {self.teacher}"
+
+    @property
+    def course_key(self):
+        return (self.grade, self.track, self.subject_id)

@@ -3,7 +3,7 @@
 {% comment %}
 محرّرُ خطّة نصابٍ واحدة، بالترتيب الذي يُقرأ به القرار:
 
-  نصابٌ ← تخفيضٌ ← هدفٌ محسوب ← توزيعٌ ← مؤهّلات ← إسنادٌ (قراءة) ← بوّابة
+  نصابٌ ← تخفيضٌ ← هدفٌ محسوب ← توزيعٌ ← إسنادٌ (قراءة) ← بوّابة
 
 والهدفُ التدريسيُّ معروضٌ ولا حقلَ له: هو طرحٌ لا رأي. والإسنادُ الحاليُّ
 معروضٌ ولا يُحرَّر هنا: من أراد أن يُغيّر «١٤ من ١٦» فليذهب إلى إسناد الموادّ،
@@ -140,50 +140,9 @@
     {% endif %}
   </section>
 
-  {# ── ٥. المؤهّلات ───────────────────────────────────────────── #}
+  {# ── ٥. الإسنادُ الحاليّ — قراءةٌ محضة ────────────────────────── #}
   <section class="card">
-    <h2 class="card-title">٥. المؤهّلات</h2>
-    {% if qualifications %}
-      <table class="data-table">
-        <thead><tr><th>المادّة</th><th>المرحلة</th><th>الحالة</th><th>المرجع</th></tr></thead>
-        <tbody>
-          {% for q in qualifications %}
-          <tr>
-            <td>{{ q.subject }}</td>
-            <td>{% if q.level_type %}{{ q.get_level_type_display }}{% else %}كلّ المراحل{% endif %}</td>
-            <td>{{ q.get_qualification_status_display }}</td>
-            <td>{{ q.source_reference|default:"— بلا مرجع —" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="muted">لا مؤهّلَ مسجَّل — وغيابُ السجلّ ليس إذناً بالتدريس.</p>
-    {% endif %}
-
-    {% if editable and can_edit %}
-    <form method="post" action="{% url 'academic_management:add_qualification' plan.pk %}">
-      {% csrf_token %}
-      <div class="form-grid">
-        {% for f in qualification_form %}
-          <div class="form-field">
-            <label class="form-label" for="{{ f.id_for_label }}">{{ f.label }}</label>
-            {{ f }}
-            {% if f.errors %}<small class="form-error">{{ f.errors|join:" · " }}</small>{% endif %}
-          </div>
-        {% endfor %}
-      </div>
-      {% if qualification_form.non_field_errors %}
-        <small class="form-error">{{ qualification_form.non_field_errors|join:" · " }}</small>
-      {% endif %}
-      <button type="submit" class="btn-secondary btn-sm">إضافة مؤهّل</button>
-    </form>
-    {% endif %}
-  </section>
-
-  {# ── ٦. الإسنادُ الحاليّ — قراءةٌ محضة ────────────────────────── #}
-  <section class="card">
-    <h2 class="card-title">٦. الإسنادُ الحاليّ</h2>
+    <h2 class="card-title">٥. الإسنادُ الحاليّ</h2>
     <p class="stat-value {% if assigned == plan.teaching_target %}ok{% else %}warn{% endif %}">
       {{ assigned }} / {{ plan.teaching_target }}
     </p>
@@ -212,7 +171,7 @@
 
   {# ── ٧. بوّابةُ التحقّق ──────────────────────────────────────── #}
   <section class="card">
-    <h2 class="card-title">٧. بوّابةُ التحقّق</h2>
+    <h2 class="card-title">٦. بوّابةُ التحقّق</h2>
     <ul class="check-list">
       {% for c in checks %}
       <li class="{% if c.passed %}ok{% else %}warn{% endif %}">

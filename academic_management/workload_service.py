@@ -27,7 +27,6 @@ from academic_management.models import (
     LOCKED,
     REVIEWED,
     SUBMITTED,
-    TeacherSubjectQualification,
     TeacherWorkloadPlan,
 )
 from core.models.academic import grade_number
@@ -36,9 +35,9 @@ from operations import workload_profile as wl
 
 #: ما تستطيع الشاشةُ التحقّقَ منه اليومَ من البيانات القائمة.
 ENFORCEABLE = "CURRENTLY_ENFORCEABLE"
-#: ما يعتمد على الخطّة المعتمَدة والمؤهّلات — يُقاس متى وُجدت، ويُقال «لا جوابَ
-#: بعد» متى غابت. وكان اسمُه «موقوفٌ حتى تُبنى النماذج» فبقي بعد أن بُنيت،
-#: يقول للمستخدم إنّ النظامَ ناقصٌ وقد اكتمل.
+#: ما يعتمد على الخطّة المعتمَدة — يُقاس متى وُجدت، ويُقال «لا جوابَ بعد» متى
+#: غابت. وكان اسمُه «موقوفٌ حتى تُبنى النماذج» فبقي بعد أن بُنيت، يقول
+#: للمستخدم إنّ النظامَ ناقصٌ وقد اكتمل.
 NEEDS_MODELS = "REQUIRES_APPROVED_PLAN"
 
 #: الحقولُ التي لا مصدرَ لها بعد — تُعرض «غير محدَّدة» ولا تُشتقّ من الجدول.
@@ -325,21 +324,6 @@ def section_view(lessons, rows):
 # ══════════════════════════════════════════════════════════════════════
 
 
-def permitting_pairs(school):
-    """أزواجُ (معلّم · مادّة) التي يُجيزها مؤهّلٌ سارٍ — تُقرأ مرّةً وتُمرَّر.
-
-    وتُقرأ هنا لا داخل `gate`: البوّابةُ دالّةٌ على بياناتٍ محمَّلةٍ سلفاً، ولو
-    استعلمت بنفسها لصارت تعتمد على قاعدةٍ لا على وسائطها — فيصعب اختبارُها
-    ويتضاعف الاستعلامُ مع كلّ منظور.
-    """
-    rows = TeacherSubjectQualification.objects.filter(school=school)
-    return {
-        (str(q.teacher_id), str(q.subject_id))
-        for q in rows
-        if q.permits_teaching and q.is_valid_on()
-    }
-
-
 def _off_target(observed, approved):
     """∑ AssignedInstructionalPeriods = TeachingTarget — بعد الاعتماد فقط."""
     out = []
@@ -402,8 +386,8 @@ def _plan_check(label, passed, detail, pending):
     }
 
 
-def _plan_checks(rows, observed, approved, off_target, unqualified, quals):
-    """الشروطُ الأربعةُ التي لا تُقاس إلا بخطّةٍ معتمَدةٍ ومؤهّلاتٍ مسجَّلة."""
+def _plan_checks(observed, approved, off_target):
+    """الشروطُ الثلاثةُ التي لا تُقاس إلا بخطّةٍ معتمَدة."""
     no_plan = None if approved else "لا يصير شرطاً حتى تُعتمد خطّةُ المعلّم"
     return [
         _plan_check(
@@ -419,12 +403,6 @@ def _plan_checks(rows, observed, approved, off_target, unqualified, quals):
             no_plan,
         ),
         _plan_check(
-            "لا مادّةَ مُسنَدةً لمعلّمٍ غير مؤهَّل",
-            not unqualified,
-            f"{len(unqualified)} إسناداً بلا مؤهّلٍ سارٍ من {len(rows)}",
-            None if quals else "لا مؤهّلَ مسجَّلٌ بعد — وغيابُ السجلّ ليس إذناً بالتدريس",
-        ),
-        _plan_check(
             "كلُّ تخفيضٍ له سببُه ومرجعُه",
             not [p for p in approved.values() if p.provenance_gaps()],
             f"{sum(1 for p in approved.values() if p.provenance_gaps())} خطّةً معتمَدةً"
@@ -434,8 +412,8 @@ def _plan_checks(rows, observed, approved, off_target, unqualified, quals):
     ]
 
 
-def gate(lessons, rows, plans=None, quals=None):
-    """شروطُ الإسناد الثمانية، مفصولةً بما تملك القاعدةُ اليومَ الإجابةَ عنه.
+def gate(lessons, rows, plans=None):
+    """شروطُ الإسناد السبعة، مفصولةً بما تملك القاعدةُ اليومَ الإجابةَ عنه.
 
     وخلطُ الطرفين يجعل «سلامةَ الواقع القائم» رهينةً لنظامِ تخطيطٍ لم يُبنَ:
     فتظهر أربعةُ شروطٍ خضراءَ فعلاً وكأنّها ناقصة. ولذلك تُفصل الطبقتان.
@@ -447,15 +425,10 @@ def gate(lessons, rows, plans=None, quals=None):
     plans = plans or {}
     approved = {k: p for k, p in plans.items() if p.status in FROZEN_STATUSES}
 
-    # إسنادٌ لا يغطّيه مؤهّلٌ سارٍ — يُقاس متى وُجد مؤهّلٌ واحدٌ في المدرسة.
-    permitting = quals or set()
-    unqualified = [
-        r for r in rows if r["teacher_id"] and (r["teacher_id"], r["subject_id"]) not in permitting
-    ]
     off_target = _off_target(observed, approved)
 
     enforceable, missing_cells = _enforceable_checks(rows, cells, coverage)
-    checks = enforceable + _plan_checks(rows, observed, approved, off_target, unqualified, quals)
+    checks = enforceable + _plan_checks(observed, approved, off_target)
     plan_layer = [c for c in checks if c["layer"] == NEEDS_MODELS]
     return {
         "checks": checks,

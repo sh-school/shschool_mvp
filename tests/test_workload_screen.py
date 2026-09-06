@@ -159,7 +159,7 @@ def test_the_gate_separates_what_is_checkable_now_from_what_needs_new_models():
     result = gate(lessons, [assignment(weekly=5)])
 
     assert result["enforceable_total"] == 4
-    assert result["blocked_total"] == 4
+    assert result["blocked_total"] == 3
     assert result["enforceable_passed"] == 4, "الواقعُ سليمٌ ولا ينتظر نموذجاً"
     pending = [c for c in result["checks"] if c["layer"] == NEEDS_MODELS]
     assert all(c["passed"] is None for c in pending), "الموقوفُ لا يُقال إنّه فشل"
@@ -263,31 +263,6 @@ def test_an_approved_plan_shows_the_number_its_source_and_the_discrepancy(db):
     # مصدرُ النصاب ومصدرُ التخفيض قرارانِ مختلفان — فلا يُعرضان في سطرٍ واحد.
     assert view["required_source_reference"] == "تعميم 7"
     assert view["reduction_source_reference"] == "محضر 12"
-
-
-@pytest.mark.django_db
-def test_a_qualification_gap_is_measured_once_any_qualification_exists(db):
-    """«لا جوابَ بعد» يليق بالغياب، لا بالنقص.
-
-    فما دام في المدرسة مؤهّلٌ واحدٌ مسجَّل، صار السؤالُ «كم إسناداً بلا مؤهّل؟»
-    سؤالاً له جواب — ولا يجوز أن يبقى معلّقاً بحجّة أنّ الكيانَ لم يُبنَ.
-    """
-    from academic_management.workload_service import gate
-
-    lessons = [lesson(day=d) for d in range(5)]
-    rows = [assignment(weekly=5)]
-
-    silent = next(c for c in gate(lessons, rows)["checks"] if "غير مؤهَّل" in c["label"])
-    assert silent["passed"] is None
-
-    covered = gate(lessons, rows, quals={(rows[0]["teacher_id"], rows[0]["subject_id"])})
-    measured = next(c for c in covered["checks"] if "غير مؤهَّل" in c["label"])
-    assert measured["passed"] is True
-
-    stranger = gate(lessons, rows, quals={("someone-else", "another-subject")})
-    failing = next(c for c in stranger["checks"] if "غير مؤهَّل" in c["label"])
-    assert failing["passed"] is False
-    assert "1 إسناداً بلا مؤهّلٍ سارٍ" in failing["detail"]
 
 
 @pytest.mark.django_db

@@ -52,28 +52,6 @@
   </section>
 
   <section class="card">
-    <h2 class="card-title">المؤهّلات</h2>
-    {% if qualification_rows %}
-      <table class="data-table">
-        <thead><tr><th>المادّة</th><th>النطاق</th><th>الحالة</th><th>المرجع</th><th>السريان</th></tr></thead>
-        <tbody>
-          {% for q in qualification_rows %}
-          <tr>
-            <td>{{ q.subject }}</td>
-            <td>{{ q.scope }}</td>
-            <td>{{ q.status }}</td>
-            <td>{{ q.reference|default:"— بلا مرجع —" }}</td>
-            <td class="{% if q.valid %}ok{% else %}warn{% endif %}">{% if q.valid %}سارٍ{% else %}غيرُ سارٍ{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="muted">لا مؤهّلَ مسجَّل.</p>
-    {% endif %}
-  </section>
-
-  <section class="card">
     <h2 class="card-title">بوّابةُ التحقّق</h2>
     <ul class="check-list">
       {% for c in checks %}
