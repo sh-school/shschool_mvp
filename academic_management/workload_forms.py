@@ -1,9 +1,8 @@
 """استماراتُ خطّة النصاب — واحدةٌ لكلّ حقيقةٍ إداريّة، لا واحدةٌ للخطّة كلّها.
 
-النصابُ قرارٌ، والتخفيضُ قرارٌ آخر، والتوزيعُ حسب المرحلة تفصيلٌ إداريّ،
-والمؤهّلُ مستندٌ من ملفّ الموظّف. لكلٍّ منها منبعُه ومرجعُه، وغداً صلاحيّتُه
-ومدقّقُه. فاستمارةٌ واحدةٌ ضخمةٌ تجمعها تُخفي هذا الاختلافَ وتُصعّب فصلَ
-الصلاحيات لاحقاً.
+النصابُ قرارٌ، والتخفيضُ قرارٌ آخر، والتوزيعُ حسب المرحلة تفصيلٌ إداريّ.
+لكلٍّ منها منبعُه ومرجعُه، وغداً صلاحيّتُه ومدقّقُه. فاستمارةٌ واحدةٌ ضخمةٌ
+تجمعها تُخفي هذا الاختلافَ وتُصعّب فصلَ الصلاحيات لاحقاً.
 
 والتزامنُ محروسٌ هنا لا في الـview: كلُّ استمارةٍ تحمل الطابعَ الذي رآه
 المُدخِل، فإن كتب غيرُه قبله رُفض التعديلُ بدل أن يُطمَس.
@@ -14,9 +13,7 @@ from django import forms
 from .models import (
     LEVEL_TYPES,
     PROVENANCE_KINDS,
-    QUALIFICATION_STATUSES,
     SOURCES,
-    TeacherSubjectQualification,
     TeacherWorkloadAllocation,
     TeacherWorkloadPlan,
 )
@@ -169,49 +166,3 @@ class AllocationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if plan is not None:
             self.instance.workload_plan = plan
-
-
-class QualificationForm(forms.ModelForm):
-    """ما يستطيع المعلّمُ تدريسَه — بمرجعٍ من ملفّه، لا باستنتاجٍ من الجدول."""
-
-    class Meta:
-        model = TeacherSubjectQualification
-        fields = [
-            "subject",
-            "level_type",
-            "qualification_status",
-            "is_primary",
-            "source",
-            "source_reference",
-            "valid_from",
-            "valid_to",
-        ]
-        labels = {
-            "subject": "المادّة",
-            "level_type": "المرحلة",
-            "qualification_status": "الحالة",
-            "is_primary": "تخصّصه الأساسي",
-            "source": "الجهة",
-            "source_reference": "المرجع",
-            "valid_from": "سارٍ من",
-            "valid_to": "سارٍ حتى",
-        }
-        widgets = {
-            "subject": forms.Select(attrs=_SELECT),
-            "level_type": forms.Select(attrs=_SELECT, choices=[("", "كلّ المراحل"), *LEVEL_TYPES]),
-            "qualification_status": forms.Select(attrs=_SELECT, choices=QUALIFICATION_STATUSES),
-            "source": forms.Select(attrs=_SELECT, choices=SOURCES),
-            "source_reference": forms.TextInput(attrs=_TEXT),
-            "valid_from": forms.DateInput(attrs={**_TEXT, "type": "date"}),
-            "valid_to": forms.DateInput(attrs={**_TEXT, "type": "date"}),
-        }
-
-    def __init__(self, *args, school=None, teacher=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        if school is not None:
-            from operations.models import Subject
-
-            self.fields["subject"].queryset = Subject.objects.filter(school=school)
-            self.instance.school = school
-        if teacher is not None:
-            self.instance.teacher = teacher

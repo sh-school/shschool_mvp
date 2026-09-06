@@ -49,11 +49,6 @@ urlpatterns = [
         name="delete_allocation",
     ),
     path(
-        "workload/plan/<uuid:plan_id>/qualification/",
-        workload_views.add_qualification,
-        name="add_qualification",
-    ),
-    path(
         "workload/plan/<uuid:plan_id>/validate/", workload_views.validate_plan, name="validate_plan"
     ),
     path("workload/plan/<uuid:plan_id>/submit/", workload_views.submit_plan, name="submit_plan"),
