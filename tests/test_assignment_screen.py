@@ -673,3 +673,98 @@ def test_the_service_refuses_an_unconfirmed_transfer(
         )
 
     assert svc.SUBJECT_HELD_BY_OTHER in {f.code for f in caught.value.findings}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  المراجعةُ والاعتماد — والعربيّةُ تصل كما كُتبت
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_an_arabic_review_comment_survives_the_round_trip(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    """ملاحظةُ المراجعة تُقرأ كما كُتبت — لا علاماتِ استفهامٍ ولا محارفَ بديلة."""
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+
+    login(client, vice, school)
+    move(client, maths_teacher, "review", comment="يُعتمد بعد ضبط نصاب الاثنين")
+
+    plan = TeacherWorkloadPlan.objects.get(teacher=maths_teacher)
+    assert plan.review_comment == "يُعتمد بعد ضبط نصاب الاثنين"
+    assert "�" not in plan.review_comment
+    body = page(client).content.decode()
+    assert "يُعتمد بعد ضبط نصاب الاثنين" in body
+
+
+def test_an_approved_plan_that_diverges_says_so(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    science_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    """وُقّع على إسنادٍ ثمّ تبدّل تحته — فيُقال إنّ الموقَّعَ غيرُ المعروض."""
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+    login(client, vice, school)
+    move(client, maths_teacher, "review")
+    login(client, principal, school)
+    move(client, maths_teacher, "approve")
+
+    # نُقلت المادّةُ إلى زميلٍ بعد الاعتماد — فتباعد الواقعُ عن التوقيع.
+    add(client, science_teacher, seventh, subjects["MAT"], confirm_transfer="1")
+
+    body = page(client).content.decode()
+    assert "تبدّل الإسنادُ بعد الاعتماد" in body
+
+
+def test_the_transfer_warns_when_the_holder_plan_is_approved(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    science_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+    login(client, vice, school)
+    move(client, maths_teacher, "review")
+    login(client, principal, school)
+    move(client, maths_teacher, "approve")
+
+    response = add(client, science_teacher, seventh, subjects["MAT"])
+
+    assert "وخطّةُ نصابه معتمَدة" in response.content.decode()
+
+
+def test_the_guard_never_claims_a_hundred_while_short(
+    client, school, departments, maths_teacher, vice, seventh, subjects, plan_rows
+):
+    """866 من 870 تُقرَّب إلى مئةٍ — فتقول الشاشةُ «غيرُ مكتملٍ 100%» في سطر."""
+    login(client, vice, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])  # 5 من 9
+
+    body = page(client).content.decode()
+
+    assert "الإسنادُ غيرُ مكتمل" in body
+    assert "غيرُ مكتمل — 100%" not in body, "لا تُقال المئةُ إلّا عند التطابق"
+    assert "غيرُ مكتمل — 55%" in body, "5 من 9 خمسةٌ وخمسون"

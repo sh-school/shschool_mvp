@@ -266,6 +266,10 @@ def _card(
     # كي لا تصير الصفحةُ ثلاثةَ استعلاماتٍ في كلّ بطاقةٍ من ثلاثٍ وسبعين.
     room = flow.available_capacity(plan) if plan and status in (SUBMITTED, REVIEWED) else None
 
+    # خطّةٌ اعتُمدت ثمّ تبدّل إسنادُها تحتَها: التوقيعُ على شيءٍ والواقعُ شيءٌ
+    # آخر. تُحسب البصمةُ من الصفوف التي في اليد — بلا استعلامٍ لكلّ بطاقة.
+    diverged = flow.has_diverged(plan, rows) if plan and status in FROZEN_STATUSES else None
+
     return {
         "teacher": teacher,
         "rows": rows,
@@ -274,6 +278,7 @@ def _card(
         "status": status,
         "status_label": plan.get_status_display() if plan else "بلا خطّة",
         "room": room,
+        "diverged": diverged,
         # نقلُ معلّمٍ بين الأقسام قرارُ إدارةٍ — للنائب والمدير وحدَهما.
         "registry": registry if registry is not None else [],
         "department": department if department is not None else _department_object(school, teacher),
@@ -404,7 +409,11 @@ def _coverage(school, year):
         "planned": planned,
         "assigned": assigned,
         "delta": assigned - planned,
-        "percent": round(assigned * 100 / planned) if planned else 0,
+        # القسمةُ تُجبَر إلى أسفل: 866 من 870 تُقرَّب إلى مئةٍ فتقول الشاشةُ
+        # «غيرُ مكتملٍ — 100%» في سطرٍ واحد. والمئةُ لا تُقال إلّا عند التطابق.
+        "percent": (100 if assigned == planned else min(99, assigned * 100 // planned))
+        if planned
+        else 0,
         "complete": assigned == planned and not problems,
         "problems": problems[:60],
         "problem_count": len(problems),
@@ -512,6 +521,13 @@ def add_row(request, teacher_id):
                     "class_group": group,
                     "subject": subject,
                     "holder": holder.teacher if holder else None,
+                    # خطّةُ صاحب المادّة إن كانت معتمَدةً: النقلُ يُخرجها عمّا
+                    # وُقّع عليه، فيُقال ذلك قبل الضغط لا بعده.
+                    "holder_approved": bool(
+                        holder
+                        and (_latest_plan(school, holder.teacher, year) or None)
+                        and _latest_plan(school, holder.teacher, year).status in FROZEN_STATUSES
+                    ),
                     "prepares": bool(request.POST.get("prepares")),
                     "year": year,
                 },
