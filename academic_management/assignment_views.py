@@ -19,7 +19,7 @@
 والكتابةُ كلُّها تمرّ بـ`assignment_service` فتُفحص وتُدقَّق كما كانت.
 """
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -136,12 +136,10 @@ def _department_of(department, rows):
             department.name,
             (0, department.sort_order or 0, department.name),
         )
-    weights = Counter()
-    for row in rows:
-        code = dept_map.department_of_subject(row.subject.name_ar, row.class_group.grade)
-        if code and not dept_map.is_fill_subject(row.subject.name_ar):
-            weights[code] += row.weekly_periods
-    info = dept_map.department_info(dept_map.resolve_department(weights))
+    code = dept_map.resolve_from_lessons(
+        (row.subject.name_ar, row.class_group.grade, row.weekly_periods) for row in rows
+    )
+    info = dept_map.department_info(code)
     return f"der:{info['code']}", info["name"], (1, info["order"], info["name"])
 
 
@@ -182,6 +180,17 @@ def _latest_plan(school, teacher, year):
     )
 
 
+def _plans_by_teacher(school, year):
+    """أحدثُ خطّةٍ لكلّ معلّم — استعلامٌ واحدٌ لا واحدٌ لكلّ بطاقة."""
+    out = {}
+    plans = TeacherWorkloadPlan.objects.filter(school=school, academic_year=year).order_by(
+        "teacher_id", "-plan_version"
+    )
+    for plan in plans:
+        out.setdefault(plan.teacher_id, plan)
+    return out
+
+
 def _may_write(plan, caps):
     """هل تُحرَّر بطاقةُ هذا المعلّم الآن؟
 
@@ -204,6 +213,7 @@ def _card(
     *,
     rows=None,
     prepared=None,
+    plans=None,
     loads=None,
     classes=None,
     error=None,
@@ -226,9 +236,15 @@ def _card(
         row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
         row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
 
-    plan = _latest_plan(school, teacher, year)
+    plan = plans.get(teacher.id) if plans is not None else _latest_plan(school, teacher, year)
     status = plan.status if plan else ""
     teacher_load = (loads or {}).get(teacher.id) or load.load_for(school, year, teacher.id)
+
+    # التفريغُ يومَ كاملٍ يضغط النصابَ ولا يُخفّفه — ومن يوقّع على ثمانيةَ عشرَ
+    # حصّةً يحقّ له أن يرى أنّها في أربعة أيّام. تُحسب للمرفوع والمُراجَع وحدَهما
+    # كي لا تصير الصفحةُ ثلاثةَ استعلاماتٍ في كلّ بطاقةٍ من ثلاثٍ وسبعين.
+    room = flow.available_capacity(plan) if plan and status in (SUBMITTED, REVIEWED) else None
+
     return {
         "teacher": teacher,
         "rows": rows,
@@ -236,6 +252,7 @@ def _card(
         "plan": plan,
         "status": status,
         "status_label": plan.get_status_display() if plan else "بلا خطّة",
+        "room": room,
         "writable": _may_write(plan, caps),
         "classes": classes if classes is not None else _classes(school, year),
         "year": year,
@@ -271,16 +288,21 @@ def assignments(request):
     loads = load.loads_for(school, year)
     rows_by = _rows_by_teacher(school, year)
     prepared_by = _prepared_by_teacher(school, year)
+    plans = _plans_by_teacher(school, year)
 
     # قائمةُ الترشيح تُبنى ممّا يظهر فعلاً — فلا خيارَ بلا معلّمين، ولا معلّمَ
-    # بلا خيارٍ يبلغه. وكانت تُقرأ من جدول الأقسام وحدَه فتخلو حيث يخلو.
+    # بلا خيارٍ يبلغه. وعددُ كلّ قسمٍ يُحسب من معلّميه جميعاً لا من المعروضين،
+    # كي يبقى الرقمُ ظاهراً في القائمة قبل الاختيار وبعده.
     groups = {}
     for teacher, department in _teachers(school):
         rows = rows_by.get(teacher.id, [])
         key, name, order = _department_of(department, rows)
         if scope is not None and key != scope:
             continue
-        group = groups.setdefault(key, {"key": key, "name": name, "order": order, "cards": []})
+        group = groups.setdefault(
+            key, {"key": key, "name": name, "order": order, "count": 0, "cards": []}
+        )
+        group["count"] += 1
         if selected and key != selected:
             continue
         group["cards"].append(
@@ -291,13 +313,15 @@ def assignments(request):
                 caps,
                 rows=rows,
                 prepared=prepared_by.get(teacher.id, set()),
+                plans=plans,
                 loads=loads,
                 classes=classes,
             )
         )
 
     ordered = sorted(groups.values(), key=lambda g: g["order"])
-    cards = [c for g in ordered for c in g["cards"]]
+    shown = [g for g in ordered if g["cards"]]
+    cards = [c for g in shown for c in g["cards"]]
     return render(
         request,
         "academic_management/assignments.html",
@@ -305,10 +329,11 @@ def assignments(request):
             "page_title": "الإسناد",
             "module_name": MODULE_NAME,
             "year": year,
-            "groups": [g for g in ordered if g["cards"]],
+            "groups": shown,
             "departments": ordered,
             "selected_dept": selected,
             "registry_empty": not Department.objects.filter(school=school, is_active=True).exists(),
+            "coverage": _coverage(school, year),
             "totals": {
                 "teachers": len(cards),
                 "rows": sum(len(c["rows"]) for c in cards),
@@ -317,6 +342,32 @@ def assignments(request):
             },
         },
     )
+
+
+def _coverage(school, year):
+    """حارسُ المدرسة: هل يساوي المُسنَدُ ما تطلبه الخطّةُ تماماً؟
+
+    الحملُ الفرديُّ يقول «فلانٌ على ثمانيةَ عشرَ»، ولا يقول إنّ شعبةً بلا معلّم
+    رياضيات. فهذا الحارسُ يقيس المدرسةَ كلَّها خليّةً خليّة (شعبة × مادّة):
+    كم تطلب الخطّةُ، وكم أُسنِد، وأين الفرق. ومن يعتمد يحتاج الرقمين معاً.
+    """
+    rows = curriculum_service.plan_rows(school, year)
+    if not rows:
+        return None
+    cells = curriculum_service.coverage(school, year, rows)
+    planned = sum(c["planned"] for c in cells)
+    assigned = sum(c["assigned"] for c in cells)
+    problems = [c for c in cells if c["status"] in curriculum_service.PROBLEM_STATUSES]
+    return {
+        "planned": planned,
+        "assigned": assigned,
+        "delta": assigned - planned,
+        "percent": round(assigned * 100 / planned) if planned else 0,
+        "complete": assigned == planned and not problems,
+        "problems": problems[:60],
+        "problem_count": len(problems),
+        "summary": curriculum_service.coverage_summary(cells),
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════

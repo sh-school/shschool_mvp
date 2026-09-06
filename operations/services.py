@@ -16,12 +16,7 @@ from core.academic_calendar import (
 )
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from operations.departments import (
-    department_info,
-    department_of_subject,
-    is_fill_subject,
-    resolve_department,
-)
+from operations.departments import department_info, resolve_from_lessons
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -393,16 +388,11 @@ class ScheduleService:
                     "teacher": slot.teacher,
                     "days": [[[] for _ in range(7)] for _ in range(5)],
                     "total": 0,
-                    "weights": Counter(),
-                    "fill_weights": Counter(),
+                    "lessons": [],
                 }
 
             subject_name = slot.subject.name_ar if slot.subject else ""
-            code = department_of_subject(subject_name, slot.class_group.grade)
-            if code:
-                # المادّةُ التكميليّة في دلوٍ على حدة: تُرجَّح حين لا سواها.
-                bucket = "fill_weights" if is_fill_subject(subject_name) else "weights"
-                row[bucket][code] += 1
+            row["lessons"].append((subject_name, slot.class_group.grade, 1))
             # الحصص من ١ إلى ٧، والفهرسُ من صفر. وحصّةٌ خارج المدى بيانٌ
             # معطوب لا سببَ لإسقاط الورقة كلّها من أجله.
             if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
@@ -410,9 +400,7 @@ class ScheduleService:
                 row["total"] += 1
 
         for row in rows.values():
-            weights = row.pop("weights")
-            fill = row.pop("fill_weights")
-            row["department"] = department_info(resolve_department(weights or fill))
+            row["department"] = department_info(resolve_from_lessons(row.pop("lessons")))
 
         ordered = sorted(
             rows.values(),

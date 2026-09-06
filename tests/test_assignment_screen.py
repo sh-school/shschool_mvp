@@ -162,12 +162,21 @@ def set_quota(client, teacher, periods):
 # ══════════════════════════════════════════════════════════════════════
 
 
-def test_the_old_two_screens_are_gone():
-    """«توزيعات المواد على الشُّعب» لم تعد مساراً — شاشةٌ واحدةٌ لا اثنتان."""
+@pytest.mark.parametrize(
+    "gone",
+    [
+        "subject_assignments",
+        "academic_management:workload",
+        "academic_management:teacher_workload",
+        "academic_management:plan_editor",
+    ],
+)
+def test_every_old_assignment_screen_is_gone(gone):
+    """«توزيعات المواد» و«إسناد الأنصبة» ومحرّرُ الخطّة — شاشةٌ واحدةٌ حلّت محلَّها."""
     from django.urls import NoReverseMatch
 
     with pytest.raises(NoReverseMatch):
-        reverse("subject_assignments")
+        reverse(gone)
 
 
 def test_the_page_lists_every_teacher_grouped_by_registry_department(
@@ -493,3 +502,49 @@ def test_a_new_version_reopens_an_approved_card(
     versions = TeacherWorkloadPlan.objects.filter(teacher=maths_teacher).order_by("plan_version")
     assert [p.status for p in versions] == [APPROVED, DRAFT]
     assert versions.last().required_weekly_periods == 5, "الإصدارُ الجديدُ يبدأ من المعتمَد"
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  حارسُ المدرسة: المُسنَدُ مقابل ما تطلبه الخطّة
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_guard_says_the_assignment_is_complete_when_it_matches_the_plan(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    """لا يكفي أن يكون حملُ كلّ معلّمٍ سليماً — المدرسةُ كلُّها تُقاس بالخطّة."""
+    login(client, vice, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    add(client, maths_teacher, seventh, subjects["SCI"])
+
+    body = page(client).content.decode()
+
+    assert "الإسنادُ مكتمل" in body
+    assert "الخطّةُ تطلب 9 حصّةً، والمُسنَدُ 9" in body
+
+
+def test_the_guard_names_the_place_of_the_shortfall(
+    client, school, departments, maths_teacher, vice, seventh, subjects, plan_rows
+):
+    """«ناقصٌ أربعٌ» لا تكفي — تُقال الشعبةُ والمادّةُ والرقمان."""
+    login(client, vice, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+
+    body = page(client).content.decode()
+
+    assert "الإسنادُ غيرُ مكتمل" in body
+    assert "ناقصٌ 4" in body
+    assert "غيرُ مُسنَد" in body, "الحالةُ تُسمّى"
+    assert "العلوم" in body, "والمادّةُ الناقصةُ تُسمّى"
+
+
+def test_the_department_counts_show_before_any_filter_is_chosen(
+    client, school, departments, maths_teacher, science_teacher, vice
+):
+    """عددُ معلّمي كلّ قسمٍ ظاهرٌ في القائمة دائماً — لا بعد اختياره وحدَه."""
+    login(client, vice, school)
+
+    body = page(client, dept=f"reg:{departments['MAT'].id}").content.decode()
+
+    assert "الرياضيات (1)" in body
+    assert "العلوم (1)" in body, "وقسمٌ لم يُختَر يبقى رقمُه ظاهراً"

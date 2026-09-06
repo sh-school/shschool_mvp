@@ -65,10 +65,14 @@
       {% if card.writable %}
       <tr class="asg-add">
         <td colspan="6">
-          <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-trigger="change from:find select[name='subject']" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-addform">
+          {% comment %}
+          لا يُكتب الإسنادُ إلّا بضغطة «＋» (قرارُ المستخدم 2026-09-06): كان
+          اختيارُ المادّة يحفظ من فوره، فمن تصفّح القائمةَ ليرى من يدرّسها كتب
+          إسناداً لم يقصده.
+          {% endcomment %}
+          <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-addform">
             {% csrf_token %}
             <input type="hidden" name="year" value="{{ card.year }}">
-            <span class="asg-plus">＋</span>
             <select name="class_group" title="الشعبة" aria-label="الشعبة"
                     hx-get="{% url 'academic_management:assignment_subject_options' %}?year={{ card.year }}"
                     hx-trigger="change" hx-target="#subjects-{{ card.teacher.id }}" hx-swap="innerHTML" hx-include="this">
@@ -79,6 +83,7 @@
               <option value="">— اختر الشعبة أوّلاً —</option>
             </select>
             <label class="asg-check"><input type="checkbox" name="prepares" value="1"> يحضّر</label>
+            <button type="submit" class="asg-plus" title="إضافةُ الإسناد">＋ إضافة</button>
           </form>
         </td>
       </tr>
@@ -88,6 +93,20 @@
 
   {% if card.error %}<div class="asg-err" role="alert">{{ card.error }}</div>{% endif %}
   {% for n in card.notes %}<div class="asg-note">{{ n.message }}</div>{% endfor %}
+  {% if card.room and not card.room.fits %}
+  <div class="asg-err" role="alert">
+    نصابُه {{ card.room.target }} حصّةً وأيّامُه المتاحة تسع {{ card.room.capacity }}
+    {% if card.room.days_off %}— مفرَّغٌ: {% for d in card.room.days_off %}{{ d }}{% if not forloop.last %}، {% endif %}{% endfor %}
+    ({% for day, why in card.room.reasons.items %}{{ why }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %}.
+    والتفريغُ لا يُخفّف النصاب — يضغطه في بقيّة الأيّام.
+  </div>
+  {% elif card.room and card.room.days_off %}
+  <div class="asg-note">
+    مفرَّغٌ: {% for d in card.room.days_off %}{{ d }}{% if not forloop.last %}، {% endif %}{% endfor %}
+    ({% for day, why in card.room.reasons.items %}{{ why }}{% if not forloop.last %}، {% endif %}{% endfor %})
+    — والتفريغُ لا يُخفّف النصاب: {{ card.room.target }} في {{ card.room.capacity }} خانة.
+  </div>
+  {% endif %}
   {% if card.plan.review_comment %}<div class="asg-note">ملاحظةُ المراجعة: {{ card.plan.review_comment }}</div>{% endif %}
 
   {% if card.can_submit or card.can_review or card.can_return or card.can_approve or card.can_revise %}
