@@ -627,8 +627,7 @@
           <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
           {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
-          {# عازلا الاتجاه لازمان: `direction: ltr` تكفي المتصفّح ولا يقرؤها مولّدُ
-             PDF، فينقلب التوقيتُ في الملفّ المطبوع وحدَه — «08:45 - 08:00». #}
+          {% comment %}عازلا الاتجاه لازمان: `direction: ltr` تكفي المتصفّح ولا يقرؤها مولّدُ PDF، فينقلب التوقيتُ في الملفّ المطبوع وحدَه — «08:45 - 08:00».{% endcomment %}
           <div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>
           {% endfor %}
           {% else %}
