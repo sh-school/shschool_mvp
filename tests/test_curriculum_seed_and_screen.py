@@ -1,4 +1,4 @@
-"""[CURRICULUM] بذرُ الخطّة من الدليل، ومنظوراها في المرصد.
+"""[CURRICULUM] بذرُ الخطّة الدراسيّة من الدليل الوزاريّ.
 
     HistoricalAssignment → DepartmentHint     (وليس → Demand)
 
@@ -10,7 +10,6 @@
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.urls import reverse
 
 from academic_management.models import CurriculumPlan
 
@@ -143,71 +142,3 @@ def test_a_section_with_its_own_timetable_gets_no_plan(school, subjects):
     seed(apply=True)
 
     assert not CurriculumPlan.objects.filter(grade="G9").exists()
-
-
-# ── المرصد: منظورا الخطّة والميزان ───────────────────────────────────
-
-
-@pytest.fixture
-def principal(db, school):
-    from tests.conftest import MembershipFactory, RoleFactory, UserFactory
-
-    role = RoleFactory(school=school, name="principal")
-    user = UserFactory(full_name="مدير المدرسة")
-    MembershipFactory(user=user, school=school, role=role)
-    return user
-
-
-@pytest.fixture
-def as_principal(client_as, principal):
-    return client_as(principal)
-
-
-def body_of(client, view):
-    response = client.get(f"{reverse('academic_management:workload')}?view={view}&year={YEAR}")
-    assert response.status_code == 200
-    return response.content.decode()
-
-
-def test_the_curriculum_view_says_so_when_no_plan_is_seeded(as_principal, school, seventh):
-    assert "لا خطّةَ دراسيّةً لهذا العام" in body_of(as_principal, "curriculum")
-
-
-def test_the_curriculum_view_shows_the_plan_and_its_source(as_principal, school, subjects, seventh):
-    seed(apply=True)
-    body = body_of(as_principal, "curriculum")
-
-    assert "الخطّة الدراسيّة" in body
-    assert "ص14" in body, "المرجعُ معروضٌ مع الرقم"
-    assert "الرياضيات" in body
-
-
-def test_the_curriculum_view_reports_a_gap(as_principal, school, subjects, seventh):
-    from operations.models import SubjectClassAssignment
-
-    seed(apply=True)
-    SubjectClassAssignment.objects.create(
-        school=school,
-        class_group=seventh,
-        subject=subjects["MAT"],
-        weekly_periods=3,
-        academic_year=YEAR,
-    )
-    body = body_of(as_principal, "curriculum")
-
-    assert "أقلُّ من الخطّة" in body
-    assert "فجواتُ التغطية" in body
-
-
-def test_the_balance_view_renders_the_departments(as_principal, school, subjects, seventh):
-    seed(apply=True)
-    body = body_of(as_principal, "balance")
-
-    assert "الطلبُ مقابل العرض" in body
-    assert "غيرُ معلوم" in body, "بلا أهدافٍ معتمَدةٍ لا يُقال إنّ القسمَ عاجز"
-
-
-def test_an_unknown_view_falls_back_to_the_teachers(as_principal, school, seventh):
-    body = body_of(as_principal, "nonsense")
-    assert 'aria-current="page"' in body
-    assert "المعلّمون" in body

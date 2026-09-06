@@ -7,6 +7,7 @@ from .models import (
     CalendarEvent,
     ClassGroup,
     CustomUser,
+    Department,
     Membership,
     ParentStudentLink,
     Profile,
@@ -150,6 +151,30 @@ class RoleAdmin(admin.ModelAdmin):
     list_display = ("school", "name", "get_name_display")
     list_filter = ("name", "school")
     search_fields = ("name",)
+
+
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    """سجلُّ الأقسام — مصدرُ الحقيقة لانتماء المعلّم.
+
+    الانتماءُ نفسه في `Membership.department_obj` لا هنا: القسمُ يخصّ العضويّةَ
+    (مستخدم × مدرسة × دور) لا المستخدمَ، فمن عمل في مدرستين له قسمٌ في كلٍّ
+    منهما. وهذه الصفحةُ للأقسام أنفسها: اسمُها ورمزُها ومنسّقُها وترتيبُها.
+
+    ويُملأ الجدولُ مرّةً بأمر `seed_departments` (تقريرٌ أوّلاً، ولا يكتب إلّا
+    بـ`--apply`)، ثمّ يُصحَّح من هنا يدويّاً.
+    """
+
+    list_display = ("name", "code", "school", "head", "members", "sort_order", "is_active")
+    list_editable = ("sort_order", "is_active")
+    list_filter = ("school", "is_active")
+    search_fields = ("name", "code")
+    list_select_related = ("school", "head")
+    autocomplete_fields = ("head",)
+
+    @admin.display(description="الأعضاء")
+    def members(self, obj):
+        return obj.memberships.filter(is_active=True).count()
 
 
 @admin.register(Membership)

@@ -16,12 +16,7 @@ from core.academic_calendar import (
 )
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from operations.departments import (
-    department_of_subject,
-    derived_department,
-    is_fill_subject,
-    registered_departments,
-)
+from operations.departments import derived_department, registered_departments
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -402,27 +397,22 @@ class ScheduleService:
                     "teacher": slot.teacher,
                     "days": [[[] for _ in range(7)] for _ in range(5)],
                     "total": 0,
-                    "weights": Counter(),
-                    "fill_weights": Counter(),
+                    "lessons": [],
                 }
 
             subject_name = slot.subject.name_ar if slot.subject else ""
-            code = department_of_subject(subject_name, slot.class_group.grade)
-            if code:
-                # المادّةُ التكميليّة في دلوٍ على حدة: تُرجَّح حين لا سواها.
-                bucket = "fill_weights" if is_fill_subject(subject_name) else "weights"
-                row[bucket][code] += 1
+            row["lessons"].append((subject_name, slot.class_group.grade, 1))
             # الحصص من ١ إلى ٧، والفهرسُ من صفر. وحصّةٌ خارج المدى بيانٌ
             # معطوب لا سببَ لإسقاط الورقة كلّها من أجله.
             if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
                 row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
                 row["total"] += 1
 
+        # السجلُّ أوّلاً — والاشتقاقُ احتياطُ من لا قسمَ مسجّلاً له.
         registry = registered_departments(school)
         for teacher_id, row in rows.items():
-            weights = row.pop("weights")
-            fill = row.pop("fill_weights")
-            row["department"] = registry.get(str(teacher_id)) or derived_department(weights, fill)
+            lessons = row.pop("lessons")
+            row["department"] = registry.get(str(teacher_id)) or derived_department(lessons)
 
         # الاسمُ في المفتاح لأنّ `sort_order` قد يتساوى بين قسمين، فلولاه
         # تشابكت صفوفُ القسمين وانكسر عمودُ القسم الممتدّ.

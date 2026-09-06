@@ -237,19 +237,26 @@ def test_a_teacher_with_no_exemption_has_the_whole_week(
 # ── الشاشة تُظهر الضغط ──────────────────────────────────────────────
 
 
-def test_the_editor_shows_the_exempt_days_so_the_approver_knows(
+def test_the_assignment_card_shows_the_exempt_days_so_the_approver_knows(
     client_as, school, coordinator, target_teacher, subject
 ):
-    """من يوقّع على ثمانيةَ عشرَ حصّةً يحقّ له أن يرى أنّها في أربعة أيّام."""
+    """من يوقّع على ثمانيةَ عشرَ حصّةً يحقّ له أن يرى أنّها في أربعة أيّام.
+
+    كانت تُعرض في محرّر الخطّة، وحلّت محلَّه بطاقةُ المعلّم في شاشة الإسناد
+    (قرارُ التبسيط 2026-09-06). وتُعرض حيث تلزم: على المرفوع للمراجعة والمُراجَع
+    — أي حيثما يقف المراجعُ والمعتمِد.
+    """
     from django.urls import reverse
 
     assign(school, target_teacher, subject, periods=18)
     exempt(school, target_teacher, coordinator)
     plan = a_plan(school, target_teacher, coordinator)
+    flow.submit_for_review(plan, by=coordinator)
+    principal = actor(school, "principal", "المدير")
 
     body = (
-        client_as(coordinator)
-        .get(reverse("academic_management:plan_editor", args=[plan.pk]))
+        client_as(principal)
+        .get(reverse("academic_management:assignments"), {"year": YEAR})
         .content.decode()
     )
 
