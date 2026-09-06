@@ -99,32 +99,39 @@ def assigned_periods(plan):
     return sum(r.weekly_periods for r in _assignment_rows(plan))
 
 
-def assignment_fingerprint(plan):
-    """بصمةُ الإسنادات المؤثّرة: عددُها ومجموعُها وتجزئةٌ لهويّتها.
+def fingerprint_of(rows):
+    """بصمةُ مجموعةِ إسنادات — تُحسب من صفوفٍ في اليد بلا استعلامٍ ثانٍ.
 
     العددُ والمجموعُ يقرؤهما إنسانٌ في التقرير، والتجزئةُ تكشف ما لا يكشفانه:
     إسنادٌ نُقل من شعبةٍ إلى أخرى بالحصص نفسها لا يغيّر رقماً ويغيّر الحقيقة.
     """
-    rows = sorted(
-        (str(r.subject_id), str(r.class_group_id), r.weekly_periods) for r in _assignment_rows(plan)
+    items = sorted(
+        (str(r.subject_id), str(r.class_group_id), r.weekly_periods) for r in rows
     )
-    payload = "|".join(f"{s}:{c}:{p}" for s, c, p in rows)
+    payload = "|".join(f"{s}:{c}:{p}" for s, c, p in items)
     return {
-        "count": len(rows),
-        "periods": sum(p for _, _, p in rows),
+        "count": len(items),
+        "periods": sum(p for _, _, p in items),
         "digest": hashlib.sha256(payload.encode()).hexdigest(),
     }
 
 
-def has_diverged(plan):
+def assignment_fingerprint(plan):
+    """بصمةُ إسنادات هذه الخطّة — تُقرأ من القاعدة."""
+    return fingerprint_of(_assignment_rows(plan))
+
+
+def has_diverged(plan, rows=None):
     """هل تباعد الإسنادُ عمّا فُحص لحظةَ الاعتماد؟
 
     وهذا سؤالٌ عن الزمن لا عن الصواب: خطّةٌ صحّت ثمّ تباعد عنها الواقعُ ليست
-    خطّةً وُلدت خاطئة.
+    خطّةً وُلدت خاطئة. و`rows` تُمرَّر حين تكون الشاشةُ قد قرأتها، فلا تُقرأ
+    مرّتين ولا تصير الصفحةُ استعلاماً لكلّ بطاقة.
     """
     if not plan.validation_fingerprint:
         return None
-    return assignment_fingerprint(plan)["digest"] != plan.validation_fingerprint
+    digest = (fingerprint_of(rows) if rows is not None else assignment_fingerprint(plan))["digest"]
+    return digest != plan.validation_fingerprint
 
 
 def _assignment_scopes(plan):

@@ -1,0 +1,161 @@
+{% comment %}
+بطاقةُ معلّمٍ واحد — تُعاد وحدَها بعد كلّ حفظ. تحتاج: card.
+كلُّ تحكّمٍ في نموذجٍ صغيرٍ يُرسل عند التغيير ويستبدل البطاقةَ كلَّها، فيتحدّث
+سطرُ الحمل مع الصفّ في الضربة نفسها. وأزرارُ الدورة أسفلَها: رفعٌ ثمّ مراجعةٌ
+ثمّ اعتماد — لكلٍّ صاحبُه، ولا يظهر زرٌّ لمن لا يملكه.
+{% endcomment %}
+<section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}">
+  <div class="asg-head">
+    <span class="asg-name">{{ card.teacher.full_name }}</span>
+    <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>
+
+    <form class="asg-quota" hx-post="{% url 'academic_management:assignment_set_load' card.teacher.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.year }}">
+      <label for="quota-{{ card.teacher.id }}">النصاب</label>
+      <input id="quota-{{ card.teacher.id }}" type="number" name="required_weekly_periods" min="0" max="40"
+             value="{% if card.plan %}{{ card.plan.required_weekly_periods }}{% endif %}"
+             {% if not card.writable %}disabled{% endif %} placeholder="—">
+    </form>
+
+    <span class="asg-load {% if card.load.over_target %}over{% elif card.load.delta == 0 %}exact{% endif %}">{{ card.load.label }}</span>
+  </div>
+
+  {% comment %}جدولُ بطاقةٍ من ثلاثة سطورٍ لا يُفرَز — والفرزُ فيه ضجيجٌ لا فائدة.{% endcomment %}
+  <table class="asg" data-no-sort>
+    <thead>
+      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in card.rows %}
+      <tr>
+        <td>{{ row.level_label }}</td>
+        <td>{{ row.class_group }}</td>
+        <td>{{ row.subject.name_ar }}</td>
+        <td>
+          <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+            {% csrf_token %}
+            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %}>
+            {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
+          </form>
+        </td>
+        <td>
+          <form hx-post="{% url 'academic_management:assignment_toggle_preparation' card.teacher.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ card.year }}">
+            <input type="hidden" name="grade" value="{{ row.class_group.grade }}">
+            <input type="hidden" name="track" value="{{ row.class_group.track }}">
+            <input type="hidden" name="subject" value="{{ row.subject_id }}">
+            <input type="checkbox" name="prepares" value="1" {% if row.prepares %}checked{% endif %} {% if not card.writable %}disabled{% endif %} title="يحضّر هذا المقرّر — يُحتسب حصّتين">
+          </form>
+        </td>
+        <td>
+          {% if card.writable %}
+          <form hx-post="{% url 'academic_management:assignment_remove_row' row.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" hx-confirm="حذفُ {{ row.subject.name_ar }} من {{ row.class_group }}؟" class="asg-inline">
+            {% csrf_token %}
+            <button type="submit" class="asg-x" title="حذف">✕</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="asg-empty">لا إسناد بعد.</td></tr>
+      {% endfor %}
+
+      {% if card.writable %}
+      <tr class="asg-add">
+        <td colspan="6">
+          {% comment %}
+          لا يُكتب الإسنادُ إلّا بضغطة «＋» (قرارُ المستخدم 2026-09-06): كان
+          اختيارُ المادّة يحفظ من فوره، فمن تصفّح القائمةَ ليرى من يدرّسها كتب
+          إسناداً لم يقصده.
+          {% endcomment %}
+          <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-addform">
+            {% csrf_token %}
+            <input type="hidden" name="year" value="{{ card.year }}">
+            <select name="class_group" title="الشعبة" aria-label="الشعبة"
+                    hx-get="{% url 'academic_management:assignment_subject_options' %}?year={{ card.year }}"
+                    hx-trigger="change" hx-target="#subjects-{{ card.teacher.id }}" hx-swap="innerHTML" hx-include="this">
+              <option value="">— الشعبة —</option>
+              {% for c in card.classes %}<option value="{{ c.id }}">{{ c }}</option>{% endfor %}
+            </select>
+            <select name="subject" id="subjects-{{ card.teacher.id }}" title="المادّة" aria-label="المادّة">
+              <option value="">— اختر الشعبة أوّلاً —</option>
+            </select>
+            <label class="asg-check"><input type="checkbox" name="prepares" value="1"> يحضّر</label>
+            <button type="submit" class="asg-plus" title="إضافةُ الإسناد">＋ إضافة</button>
+          </form>
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  {% comment %}
+  المادّةُ في الشعبة لمعلّمٍ واحد: إسنادُها إلى ثانٍ يُسقطها عن الأوّل. فيُقال
+  ذلك صراحةً باسم صاحبها ويُطلب التأكيد — لا يقع صامتاً فيخسر زميلٌ حصصَه.
+  {% endcomment %}
+  {% if card.transfer %}
+  <div class="asg-confirm" role="alert">
+    <p>
+      <b>{{ card.transfer.subject.name_ar }}</b> في <b>{{ card.transfer.class_group }}</b>
+      مُسنَدةٌ إلى <b>{{ card.transfer.holder.full_name|default:"معلّمٍ آخر" }}</b>.
+      وإسنادُها إلى <b>{{ card.teacher.full_name }}</b> يُسقطها عنه.
+      {% if card.transfer.holder_approved %}
+      <br><b>وخطّةُ نصابه معتمَدة</b> — فالنقلُ يُخرجها عمّا وُقّع عليه، وتحتاج إصداراً جديداً.
+      {% endif %}
+    </p>
+    <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.transfer.year }}">
+      <input type="hidden" name="class_group" value="{{ card.transfer.class_group.id }}">
+      <input type="hidden" name="subject" value="{{ card.transfer.subject.id }}">
+      {% if card.transfer.prepares %}<input type="hidden" name="prepares" value="1">{% endif %}
+      <input type="hidden" name="confirm_transfer" value="1">
+      <button type="submit" class="asg-btn asg-btn-approve">أؤكّد النقل</button>
+    </form>
+    <form hx-post="{% url 'academic_management:assignment_cancel_transfer' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.transfer.year }}">
+      <button type="submit" class="asg-btn asg-btn-ghost">إلغاء</button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if card.diverged %}
+  <div class="asg-err" role="alert">
+    تبدّل الإسنادُ بعد الاعتماد — الموقَّعُ عليه غيرُ المعروض الآن. افتح إصداراً جديداً ليُراجَع ويُعتمد.
+  </div>
+  {% endif %}
+
+  {% if card.error %}<div class="asg-err" role="alert">{{ card.error }}</div>{% endif %}
+  {% for n in card.notes %}<div class="asg-note">{{ n.message }}</div>{% endfor %}
+  {% if card.room and not card.room.fits %}
+  <div class="asg-err" role="alert">
+    نصابُه {{ card.room.target }} حصّةً وأيّامُه المتاحة تسع {{ card.room.capacity }}
+    {% if card.room.days_off %}— مفرَّغٌ: {% for d in card.room.days_off %}{{ d }}{% if not forloop.last %}، {% endif %}{% endfor %}
+    ({% for day, why in card.room.reasons.items %}{{ why }}{% if not forloop.last %}، {% endif %}{% endfor %}){% endif %}.
+    والتفريغُ لا يُخفّف النصاب — يضغطه في بقيّة الأيّام.
+  </div>
+  {% elif card.room and card.room.days_off %}
+  <div class="asg-note">
+    مفرَّغٌ: {% for d in card.room.days_off %}{{ d }}{% if not forloop.last %}، {% endif %}{% endfor %}
+    ({% for day, why in card.room.reasons.items %}{{ why }}{% if not forloop.last %}، {% endif %}{% endfor %})
+    — والتفريغُ لا يُخفّف النصاب: {{ card.room.target }} في {{ card.room.capacity }} خانة.
+  </div>
+  {% endif %}
+  {% if card.plan.review_comment %}<div class="asg-note">ملاحظةُ المراجعة: {{ card.plan.review_comment }}</div>{% endif %}
+
+  {% if card.can_submit or card.can_review or card.can_return or card.can_approve or card.can_revise %}
+  <div class="asg-flow">
+    {% if card.can_review or card.can_return %}
+    <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)">
+    {% endif %}
+    {% if card.can_submit %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="submit" label="رفعٌ للمراجعة" style="primary" %}{% endif %}
+    {% if card.can_review %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="review" label="روجعت" style="primary" %}{% endif %}
+    {% if card.can_return %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="return" label="ردٌّ للتعديل" style="ghost" %}{% endif %}
+    {% if card.can_approve %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="approve" label="اعتماد" style="approve" %}{% endif %}
+    {% if card.can_revise %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="revise" label="إصدارٌ جديدٌ للتعديل" style="ghost" %}{% endif %}
+  </div>
+  {% endif %}
+</section>

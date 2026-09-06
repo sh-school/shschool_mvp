@@ -1,7 +1,7 @@
 """حملُ المعلّم بصيغةٍ واحدةٍ — تُستعمل في كلّ موضعٍ ولا تُعاد كتابتُها.
 
     TeachingLoad     = ∑ weekly_periods   (الإسناداتُ النشطة)
-    PreparationLoad  = PreparedCourses × preparation_weight
+    PreparationLoad  = PreparedCourses × preparation_weight   (تُعرض ولا تُحتسب)
     TotalLoad        = TeachingLoad + PreparationLoad
     Preparations     = |{(grade, track, subject)}|   أزواجٌ متمايزةٌ يدرّسها
 
@@ -27,6 +27,8 @@ from academic_management.models import (
 
 #: من أين جاء الهدف — تُعرض مع الرقم كي لا يُقرأ المرجعيُّ معتمَداً.
 FROM_APPROVED_PLAN = "approved_plan"
+#: نصابٌ كُتب في شاشة الإسناد ولم يُعتمد بعد — يُقاس إليه ويُقال إنّه مسودّة.
+FROM_DRAFT_PLAN = "draft_plan"
 FROM_REFERENCE = "reference_load"
 NO_TARGET = ""
 
@@ -48,7 +50,17 @@ class TeacherLoad:
 
     @property
     def total(self) -> int:
-        return self.teaching + self.preparation
+        """النصابُ حصصُ التدريس وحدَها — والتحضيرُ عرفاً لا يُسجَّل فيه.
+
+        قرارُ الإدارة (2026-09-06): حصّتا التحضير مسؤوليّةٌ تُسجَّل وتظهر في
+        كشف المعلّم، ولا تدخل في نصابه. وكانتا تُضافان إليه فيظهر من يدرّس
+        ثمانيةَ عشرَ ويحضّر مقرّرين متجاوزاً نصابَه باثنتين — تجاوزٌ لا وجودَ
+        له في العرف الذي تعمل به المدرسة.
+
+        و`preparation` باقيةٌ للعرض: تقول كم حصّةً يساوي التحضيرُ عرفاً، لا
+        كم يضيف إلى النصاب.
+        """
+        return self.teaching
 
     @property
     def delta(self) -> int | None:
@@ -60,16 +72,12 @@ class TeacherLoad:
         return self.delta is not None and self.delta > 0
 
     def label(self) -> str:
-        """«14 تدريس + 4 تحضير (مقرّران) = 18 من 18» — أو بلا «من» حين لا هدف."""
-        parts = [f"{self.teaching} تدريس"]
-        if self.prepared_courses:
-            noun = _course_noun(self.prepared_courses)
-            parts.append(f"{self.preparation} تحضير ({noun})")
-        text = " + ".join(parts) if len(parts) > 1 else parts[0]
-        if len(parts) > 1:
-            text += f" = {self.total}"
+        """«18 تدريس من 18 · تحضير: مقرّران» — والهدفُ يُذكر إن وُجد."""
+        text = f"{self.teaching} تدريس"
         if self.target is not None:
             text += f" من {self.target}"
+        if self.prepared_courses:
+            text += f" · تحضير: {_course_noun(self.prepared_courses)}"
         return text
 
 
@@ -93,6 +101,13 @@ def targets_for(school, academic_year):
     ).order_by("teacher_id", "-plan_version")
     for plan in approved:
         out.setdefault(plan.teacher_id, (plan.teaching_target, FROM_APPROVED_PLAN))
+    # قرارُ 2026-09-06: النصابُ رقمٌ واحدٌ يُكتب في شاشة الإسناد ويُقاس إليه من
+    # فوره — والاعتمادُ لاحقٌ لا شرطٌ للقياس.
+    drafts = TeacherWorkloadPlan.objects.filter(
+        school=school, academic_year=academic_year
+    ).exclude(status__in=FROZEN_STATUSES).order_by("teacher_id", "-plan_version")
+    for plan in drafts:
+        out.setdefault(plan.teacher_id, (plan.teaching_target, FROM_DRAFT_PLAN))
     return out, fallback, governance.preparation_weight
 
 

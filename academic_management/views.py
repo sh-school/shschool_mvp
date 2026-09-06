@@ -11,10 +11,7 @@ from django.shortcuts import render
 from django.template.loader import render_to_string
 from django.utils import timezone
 
-from academic_management import curriculum_service, workload_service
-from core.academic_calendar import academic_year_for
 from core.pdf_utils import render_pdf
-from core.permissions import SCHEDULE_MANAGE, role_required
 from reports.services import AcademicReportsExcel, AcademicReportsService
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
@@ -51,74 +48,6 @@ def departments(request):
 @login_required
 def test_analytics(request):
     return _stub_view(request, "تحليلات الاختبارات", "📈")
-
-
-#: مناظيرُ الشاشة — ثلاثةٌ تصف الواقعَ القائم، واثنان يصفان ما ينبغي أن يكون.
-PERSPECTIVES = ("teachers", "subjects", "sections", "curriculum", "balance")
-
-
-@login_required
-@role_required(SCHEDULE_MANAGE | {"coordinator"})
-def workload(request):
-    """أساسُ إسناد الأنصبة — قراءةً محضة، وخمسةُ مناظير.
-
-    ثلاثةٌ تجيب عن الواقع: مَن يُدرّس ماذا، ولأيّ شعبة، وكم حصّة. واثنان
-    يجيبان عن المرجع: ماذا تطلب الخطّةُ الدراسيّة، وهل يكفي نصابُ كلّ قسمٍ
-    لما يُطلب منه.
-
-        CurriculumDemand ≠ ObservedAssignment
-        HistoricalAssignment → Proposal        (وليس → Truth)
-    """
-    school = _get_school(request)
-    year = request.GET.get("year") or academic_year_for(request)
-    perspective = request.GET.get("view", "teachers")
-    if perspective not in PERSPECTIVES:
-        perspective = "teachers"
-
-    context = {
-        "page_title": "إسناد الأنصبة",
-        "module_name": MODULE_NAME,
-        "year": year,
-        "perspective": perspective,
-        "plan": workload_service.plan_context(school, year),
-        "unknown": workload_service.UNKNOWN,
-    }
-    if school is None:
-        return render(request, "academic_management/workload.html", context)
-
-    lessons, rows = workload_service.load(school, year)
-    plans = workload_service.plans_by_teacher(school, year)
-    context["totals"] = workload_service.totals(lessons, rows)
-    context["gate"] = workload_service.gate(lessons, rows, plans)
-
-    # الخطّةُ تُقرأ مرّةً وتُمرَّر: التغطيةُ والملخّصُ يشتركان فيها، وشريطُ
-    # الرأس يظهر في المناظير الخمسة كلِّها لا في منظورها وحدَه.
-    plan_rows = curriculum_service.plan_rows(school, year)
-    context["curriculum_summary"] = curriculum_service.coverage_summary(
-        curriculum_service.coverage(school, year, plan_rows)
-    )
-    context["has_curriculum"] = bool(plan_rows)
-
-    if perspective == "teachers":
-        context["teachers"] = workload_service.teacher_view(lessons, rows, plans)
-    elif perspective == "subjects":
-        context["subjects"] = workload_service.subject_view(lessons, rows)
-    elif perspective == "sections":
-        context["sections"] = workload_service.section_view(lessons, rows)
-    elif perspective == "curriculum":
-        context["curriculum"] = curriculum_service.plan_view(school, year, plan_rows)
-        context["coverage"] = curriculum_service.coverage(school, year, plan_rows)
-        context["section_totals"] = curriculum_service.section_totals(school, year, plan_rows)
-        context["status_labels"] = curriculum_service.STATUS_LABELS
-        context["problem_statuses"] = list(curriculum_service.PROBLEM_STATUSES)
-    else:
-        context["balance"] = curriculum_service.department_balance(school, year, plan_rows)
-    return render(request, "academic_management/workload.html", context)
-
-
-@login_required
-def assignments(request):
-    return _stub_view(request, "التكاليف", "📝")
 
 
 @login_required

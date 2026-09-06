@@ -7,7 +7,7 @@ REQ-SH-003 — 5 routes for the academic reports landing + 4 report types.
 
 from django.urls import path
 
-from . import views, workload_views
+from . import assignment_views, views
 
 app_name = "academic_management"
 
@@ -16,53 +16,39 @@ urlpatterns = [
     path("evaluations/", views.evaluations, name="evaluations"),
     path("departments/", views.departments, name="departments"),
     path("test-analytics/", views.test_analytics, name="test_analytics"),
-    path("workload/", views.workload, name="workload"),
-    # ── خطّةُ النصاب: قراءةٌ في مسار، وأوامرُ في مسارات ─────────────
-    # الفصلُ مقصود: `/workload/` مرصدٌ لا يكتب، والكتابةُ لمعلّمٍ واحدٍ وخطّةٍ
-    # واحدةٍ في كلّ مرّة. وشبكةٌ جماعيّةٌ قابلةٌ للكتابة تُغري بالحشو السريع
-    # وتُخفي أنّ كلَّ سطرٍ فيها قرارٌ إداريٌّ له مصدر.
+    path("assignments/", assignment_views.assignments, name="assignments"),
     path(
-        "workload/teacher/<uuid:teacher_id>/",
-        workload_views.teacher_workload,
-        name="teacher_workload",
+        "assignments/subjects/", assignment_views.subject_options, name="assignment_subject_options"
+    ),
+    path("assignments/<uuid:teacher_id>/add/", assignment_views.add_row, name="assignment_add_row"),
+    path(
+        "assignments/<uuid:teacher_id>/load/", assignment_views.set_load, name="assignment_set_load"
     ),
     path(
-        "workload/teacher/<uuid:teacher_id>/draft/",
-        workload_views.open_draft,
-        name="open_draft",
-    ),
-    path("workload/plan/<uuid:plan_id>/edit/", workload_views.plan_editor, name="plan_editor"),
-    path("workload/plan/<uuid:plan_id>/head/", workload_views.edit_head, name="edit_head"),
-    path(
-        "workload/plan/<uuid:plan_id>/reduction/",
-        workload_views.edit_reduction,
-        name="edit_reduction",
+        "assignments/<uuid:teacher_id>/cancel-transfer/",
+        assignment_views.cancel_transfer,
+        name="assignment_cancel_transfer",
     ),
     path(
-        "workload/plan/<uuid:plan_id>/allocation/",
-        workload_views.add_allocation,
-        name="add_allocation",
+        "assignments/<uuid:teacher_id>/preparation/",
+        assignment_views.toggle_preparation,
+        name="assignment_toggle_preparation",
     ),
     path(
-        "workload/plan/<uuid:plan_id>/allocation/<int:allocation_id>/delete/",
-        workload_views.delete_allocation,
-        name="delete_allocation",
+        "assignments/row/<uuid:assignment_id>/periods/",
+        assignment_views.update_periods,
+        name="assignment_update_periods",
     ),
     path(
-        "workload/plan/<uuid:plan_id>/validate/", workload_views.validate_plan, name="validate_plan"
+        "assignments/row/<uuid:assignment_id>/remove/",
+        assignment_views.remove_row,
+        name="assignment_remove_row",
     ),
-    path("workload/plan/<uuid:plan_id>/submit/", workload_views.submit_plan, name="submit_plan"),
-    path("workload/plan/<uuid:plan_id>/review/", workload_views.plan_review, name="plan_review"),
     path(
-        "workload/plan/<uuid:plan_id>/review/record/",
-        workload_views.review_plan,
-        name="review_plan",
+        "assignments/<uuid:teacher_id>/<slug:action>/",
+        assignment_views.move,
+        name="assignment_move",
     ),
-    path("workload/plan/<uuid:plan_id>/return/", workload_views.return_plan, name="return_plan"),
-    path("workload/plan/<uuid:plan_id>/approve/", workload_views.approve_plan, name="approve_plan"),
-    path("workload/plan/<uuid:plan_id>/lock/", workload_views.lock_plan, name="lock_plan"),
-    path("workload/plan/<uuid:plan_id>/revise/", workload_views.revise_plan, name="revise_plan"),
-    path("assignments/", views.assignments, name="assignments"),
     path("department-reports/", views.department_reports, name="department_reports"),
     path("e-learning/", views.elearning, name="elearning"),
     path("class-performance/", views.class_performance, name="class_performance"),

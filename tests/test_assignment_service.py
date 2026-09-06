@@ -133,7 +133,7 @@ def test_the_write_is_recorded_with_what_changed(school, subjects, seventh, teac
     plan_row(school, subjects["MAT"], periods=5)
     apply(school, seventh, subjects["MAT"], teacher, actor)
     other = a_teacher(school, "معلّمٌ آخر")
-    apply(school, seventh, subjects["MAT"], other, actor)
+    apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
 
     # المفتاحُ UUID فترتيبُه عشوائيّ — والزمنُ هو ما يُرتَّب به.
     entry = (
@@ -310,10 +310,18 @@ def test_a_stale_write_is_refused_not_merged(school, subjects, seventh, teacher,
     seen = row.updated_at.isoformat()
 
     other = a_teacher(school, "زميل")
-    apply(school, seventh, subjects["MAT"], other, actor)
+    apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
 
     with pytest.raises(svc.StaleWriteError):
-        apply(school, seventh, subjects["MAT"], teacher, actor, expected_updated_at=seen)
+        apply(
+            school,
+            seventh,
+            subjects["MAT"],
+            teacher,
+            actor,
+            expected_updated_at=seen,
+            confirm_transfer=True,
+        )
 
 
 def test_a_deletion_carries_who_and_why(school, subjects, seventh, teacher, actor):
@@ -407,7 +415,7 @@ def test_reassigning_the_row_drops_the_previous_preparer(school, subjects, seven
     prepare(school, subjects["MAT"], teacher, actor)
 
     other = a_teacher(school, "المعلّم البديل")
-    apply(school, seventh, subjects["MAT"], other, actor)
+    apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
 
     assert not CoursePreparation.objects.live(school, year=YEAR).filter(teacher=teacher).exists()
 
@@ -417,8 +425,10 @@ def test_reassigning_the_row_drops_the_previous_preparer(school, subjects, seven
 # ══════════════════════════════════════════════════════════════════════
 
 
-def test_preparation_costs_two_periods_per_course(school, subjects, seventh, teacher, actor):
-    """قرارُ الإدارة: حصّتان لكلّ مقرّرٍ يحضّره — فمقرّران أربع."""
+def test_preparation_is_recorded_but_never_counted_in_the_load(
+    school, subjects, seventh, teacher, actor
+):
+    """قرارُ الإدارة (2026-09-06): حصّتان لكلّ مقرّرٍ تُعرضان ولا تدخلان النصاب."""
     from core.models import ClassGroup
 
     eighth = ClassGroup.objects.create(
@@ -434,8 +444,8 @@ def test_preparation_costs_two_periods_per_course(school, subjects, seventh, tea
     load = loads.load_for(school, YEAR, teacher.id)
     assert load.teaching == 10
     assert load.prepared_courses == 2
-    assert load.preparation == 4
-    assert load.total == 14
+    assert load.preparation == 4, "الرقمُ يُعرض"
+    assert load.total == 10, "والنصابُ حصصُ التدريس وحدَها"
 
 
 def test_the_weight_is_a_school_setting_not_a_constant(school, subjects, seventh, teacher, actor):
@@ -454,7 +464,8 @@ def test_the_label_reads_as_the_screen_shows_it(school, subjects, seventh, teach
     prepare(school, subjects["MAT"], teacher, actor)
 
     assert (
-        loads.load_for(school, YEAR, teacher.id).label() == "5 تدريس + 2 تحضير (مقرّرٌ واحد) = 7 من 7"
+        loads.load_for(school, YEAR, teacher.id).label()
+        == "5 تدريس من 7 · تحضير: مقرّرٌ واحد"
     )
 
 
@@ -478,3 +489,22 @@ def test_the_reference_load_stands_in_when_no_plan_is_approved(
     load = loads.load_for(school, YEAR, teacher.id)
     assert load.target == 16
     assert load.target_source == loads.FROM_REFERENCE
+
+
+def test_a_transfer_needs_confirmation_and_says_who_holds_it(
+    school, subjects, seventh, teacher, actor
+):
+    """إسنادُ مادّةٍ مشغولةٍ يُسقطها عن صاحبها — فلا يقع إلّا بتأكيد."""
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor)
+    other = a_teacher(school, "زميلٌ ثانٍ")
+
+    with pytest.raises(svc.AssignmentError) as caught:
+        apply(school, seventh, subjects["MAT"], other, actor)
+
+    blocked = [f for f in caught.value.findings if f.code == svc.SUBJECT_HELD_BY_OTHER]
+    assert blocked and teacher.full_name in blocked[0].message
+    from operations.models import SubjectClassAssignment
+
+    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+    assert row.teacher == teacher, "ولا يُمسّ السجلُّ قبل التأكيد"

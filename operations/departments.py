@@ -131,6 +131,23 @@ def resolve_department(weights: Counter) -> str:
     )
 
 
+def resolve_from_lessons(lessons) -> str:
+    """قسمُ معلّمٍ من حصصه — `(اسم المادّة، الصفّ، الوزن)` لكلّ حصّةٍ أو إسناد.
+
+    وهنا تُطبَّق قاعدةُ المادّة التكميليّة: تُجمع في دلوٍ على حدة، ولا تُرجَّح
+    إلّا حين لا سواها. فمعلّمُ تربيةٍ رياضيّةٍ له حصّتا «مهاراتٍ حياتيّة» يبقى
+    في قسمه، ومن كان نصابُه كلُّه منها فهو من أهلها.
+    """
+    weights, fill = Counter(), Counter()
+    for name, grade, weight in lessons:
+        code = department_of_subject(name, grade)
+        if not code:
+            continue
+        bucket = fill if is_fill_subject(name) else weights
+        bucket[code] += weight
+    return resolve_department(weights or fill)
+
+
 def department_info(code: str) -> dict:
     """رمزُ القسم واسمُه وترتيبه — كما يقرؤها القالب."""
     return {
