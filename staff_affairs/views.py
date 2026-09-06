@@ -30,27 +30,18 @@ from .services import LeaveService, StaffService
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
-# ترجمة الأدوار
-ROLE_LABELS = {
-    "principal": "مدير",
-    "vice_admin": "نائب إداري",
-    "vice_academic": "نائب أكاديمي",
-    "coordinator": "منسق",
-    "admin_supervisor": "مشرف إداري",
-    "teacher": "معلم",
-    "ese_teacher": "تربية خاصة",
-    "social_worker": "أخصائي اجتماعي",
-    "psychologist": "أخصائي نفسي",
-    "academic_advisor": "مرشد أكاديمي",
-    "nurse": "ممرض",
-    "librarian": "أمين مكتبة",
-    "it_technician": "فني تقنية",
-    "bus_supervisor": "مشرف نقل",
-    "admin": "إداري",
-    "secretary": "سكرتير",
-    "specialist": "أخصائي",
-    "platform_developer": "مطور",
-}
+def role_label(name: str) -> str:
+    """اسمُ الدور بالعربيّة — من قائمة الأدوار الرسميّة لا من قاموسٍ محلّيّ.
+
+    كان هنا قاموسٌ يدويٌّ ينقصه سبعةَ عشرَ دوراً، فكانت الشاشاتُ تكتب
+    `student_observer` و`lab_technician` بحروفٍ إنجليزيّةٍ لمن لا يقرؤها.
+    والقائمةُ الرسميّةُ في `Role.ROLES` — ومن زاد فيها دوراً ظهر اسمُه هنا
+    بلا تعديلِ سطرٍ في هذا الملفّ.
+    """
+    from core.models.access import Role
+
+    return dict(Role.ROLES).get(name, name)
+
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -73,7 +64,7 @@ def staff_dashboard(request):
     role_distribution = [
         {
             "role_name": r["role__name"],
-            "role_display": ROLE_LABELS.get(r["role__name"], r["role__name"]),
+            "role_display": role_label(r["role__name"]),
             "count": r["count"],
         }
         for r in stats.pop("role_distribution_raw", [])
@@ -136,38 +127,56 @@ def staff_list(request):
     # المغادرون لا يسقطون من السجلّ — يُرشَّحون. فمن نُقل هذا الصيفَ يبقى ملفُّه
     # مقروءاً، ومن سُجّلت مغادرتُه بالخطأ يُوجَد ليُصحَّح.
     status = request.GET.get("status") or "current"
-    rows = (
-        Membership.objects.filter(school=school, is_active=(status != "left"))
-        .exclude(role__name__in=("student", "parent"))
-        .select_related("user", "user__profile", "role", "department_obj")
-        .order_by("role__name", "user__full_name")
-    )
-    if q:
-        rows = rows.filter(Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q))
-    if role_filter:
-        rows = rows.filter(role__name=role_filter)
-    if dept_filter:
-        rows = rows.filter(department_obj_id=dept_filter)
 
-    paginator = Paginator(rows, PAGE_SIZE)
+    # السجلُّ صفٌّ لكلّ إنسانٍ لا لكلّ عضويّة: من كان معلّماً ومنسّقاً له
+    # عضويّتان، فكان يُعدّ رجلين ويظهر مرّتين. والتصفّحُ على المستخدمين
+    # كي يبقى العددُ في الترويسة هو عددَ من في القائمة.
+    memberships = Membership.objects.filter(
+        school=school, is_active=(status != "left")
+    ).exclude(role__name__in=("student", "parent"))
+    if role_filter:
+        memberships = memberships.filter(role__name=role_filter)
+    if dept_filter:
+        memberships = memberships.filter(department_obj_id=dept_filter)
+
+    people = CustomUser.objects.filter(id__in=memberships.values("user_id")).order_by("full_name")
+    if q:
+        people = people.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
+
+    paginator = Paginator(people, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    staff_rows = [
-        {
-            "id": m.user_id,
-            "full_name": m.user.full_name,
-            "national_id": m.user.national_id,
-            "role": m.role.name if m.role else "—",
-            # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.
-            "role_display": m.job_title or (m.role.get_name_display() if m.role else "—"),
-            "department": m.department_name or "—",
-            "phone": m.user.phone,
-            "email": m.user.email,
-            "joined": m.joined_at,
-            "license_expiry": m.user.professional_license_expiry,
-        }
-        for m in page_obj
-    ]
+    # عضويّاتُ صفحةٍ واحدةٍ في استعلامٍ واحد، والحاكمةُ منها أوّلاً.
+    from core.models.user import role_rank
+
+    held = {}
+    for m in (
+        memberships.filter(user__in=list(page_obj))
+        .select_related("role", "department_obj")
+        .order_by(role_rank(), "joined_at")
+    ):
+        held.setdefault(m.user_id, m)
+
+    staff_rows = []
+    for user in page_obj:
+        m = held.get(user.id)
+        staff_rows.append(
+            {
+                "id": user.id,
+                "full_name": user.full_name,
+                "national_id": user.national_id,
+                "role": m.role.name if m and m.role else "—",
+                # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.
+                "role_display": (
+                    (m.job_title or role_label(m.role.name)) if m and m.role else "—"
+                ),
+                "department": (m.department_name if m else "") or "—",
+                "phone": user.phone,
+                "email": user.email,
+                "joined": m.joined_at if m else None,
+                "license_expiry": user.professional_license_expiry,
+            }
+        )
 
     from core.models.access import Role
     from core.models.department import Department
@@ -190,7 +199,7 @@ def staff_list(request):
         "dept_filter": dept_filter,
         "status": status,
         "statuses": (("current", "على رأس العمل"), ("left", "المغادرون")),
-        "roles": [(r, dict(Role.ROLES).get(r, r)) for r in available_roles],
+        "roles": [(r, role_label(r)) for r in available_roles],
         "departments": available_depts,
     }
 

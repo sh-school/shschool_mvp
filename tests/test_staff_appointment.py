@@ -454,3 +454,45 @@ def test_the_schedule_button_is_only_for_those_who_teach(client_as, school, prin
 
     assert "الجدول الأسبوعي" not in watcher_page
     assert "الجدول الأسبوعي" in teacher_page
+
+
+def test_every_role_reads_in_arabic(client_as, school, principal):
+    """الأسماءُ من قائمة الأدوار الرسميّة — لا رموزَ إنجليزيّةً في شاشةٍ عربيّة."""
+    import re
+
+    appoint(
+        school,
+        principal,
+        national_id="29099000001",
+        full_name="ملاحظ الطلبة",
+        role_name="student_observer",
+    )
+    appoint(
+        school,
+        principal,
+        national_id="29099000002",
+        full_name="محضّر المختبر",
+        role_name="lab_technician",
+    )
+    client = client_as(principal)
+
+    for url in (reverse("staff_affairs:dashboard"), reverse("staff_affairs:staff_list")):
+        body = client.get(url).content.decode()
+        table = "\n".join(re.findall(r"<tbody[\s\S]*?</tbody>", body))
+        for code in ("student_observer", "lab_technician", "services_worker", "messenger"):
+            assert code not in table, f"{code} ظهر خاماً في {url}"
+    assert "ملاحظ طلبة" in client.get(reverse("staff_affairs:dashboard")).content.decode()
+
+
+def test_the_register_counts_people_not_memberships(client_as, school, principal):
+    """من كان معلّماً ومنسّقاً رجلٌ واحد — لا سطران ولا رقمان."""
+    from tests.conftest import MembershipFactory, RoleFactory
+
+    membership = appoint(school, principal)
+    MembershipFactory(
+        user=membership.user, school=school, role=RoleFactory(school=school, name="coordinator")
+    )
+
+    body = client_as(principal).get(reverse("staff_affairs:staff_list")).content.decode()
+
+    assert body.count(membership.user.full_name) == 1

@@ -56,9 +56,12 @@ class StaffService:
 
         today = today or timezone.localdate()
 
+        # أشخاصٌ لا عضويّات: من كان معلّماً ومنسّقاً رجلٌ واحد.
         total_staff = (
             Membership.objects.filter(school=school, is_active=True)
             .exclude(role__name__in=("student", "parent"))
+            .values("user")
+            .distinct()
             .count()
         )
 
