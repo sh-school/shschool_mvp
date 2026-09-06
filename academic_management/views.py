@@ -117,11 +117,6 @@ def workload(request):
 
 
 @login_required
-def assignments(request):
-    return _stub_view(request, "التكاليف", "📝")
-
-
-@login_required
 def department_reports(request):
     return _stub_view(request, "التقارير الخاصة بالقسم", "📄")
 

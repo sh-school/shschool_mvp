@@ -265,11 +265,11 @@
   <a href="{% url 'academic_management:departments' %}" role="menuitem">{% include "components/icon.html" with name="settings" %} إدارة الأقسام التعليمية</a>
   <a href="{% url 'academic_management:test_analytics' %}" role="menuitem">{% include "components/icon.html" with name="activity" %} تحليلات الاختبارات</a>
   {% comment %}
-  بابُ الأنصبة على قدر صلاحيّته: الصفحةُ تقبل المديرَ والنائبَ الأكاديميَّ
-  والمنسّق، وكان الرابطُ يظهر للنائب الإداريّ فيُصدَم بـ403.
+  شاشةُ الإسناد الواحدة (2026-09-06): حلّت محلّ «إسناد الأنصبة» و«توزيعات المواد
+  على الشُّعب» و«التكاليف» — بابٌ واحدٌ على قدر صلاحيّته — للمنسّق والنائب والمدير.
   {% endcomment %}
-  {% if role == "principal" or role == "vice_academic" or user.is_superuser %}
-  <a href="{% url 'academic_management:workload' %}" role="menuitem">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
+  {% if role == "principal" or role == "vice_academic" or role == "coordinator" or user.is_superuser %}
+  <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} الإسناد</a>
   {% endif %}
   {% comment %}
   الجدولةُ الذكيّةُ كانت بلا بابٍ في الواجهة: الصفحةُ تعمل والدورُ يصل إليها،
@@ -279,9 +279,7 @@
   {% if role == "principal" or role == "vice_academic" or role == "admin" or user.is_superuser %}
   <a href="{% url 'smart_schedule' %}" role="menuitem">{% include "components/icon.html" with name="calendar" %} الجدولة الذكية (توليد الجدول)</a>
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول والتفريغات</a>
-  <a href="{% url 'subject_assignments' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الشُّعب</a>
   {% endif %}
-  <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} التكاليف</a>
   <a href="{% url 'academic_management:department_reports' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} التقارير الخاصة بالقسم</a>
   <a href="{% url 'observation_list' %}" role="menuitem">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
   <a href="{% url 'academic_management:elearning' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} التعليم الإلكتروني</a>
@@ -409,7 +407,7 @@
   <hr>
   <div class="sd-label">إدارة التخصص</div>
   {# المنسّقُ له صلاحيّةُ مرصد الأنصبة (قراءةً، ومحرّرُ الخطّة إن مُنح قدرةَ التحرير) — وكان بلا رابطٍ إليه. #}
-  <a href="{% url 'academic_management:workload' %}">{% include "components/icon.html" with name="scale" %} إسناد الأنصبة</a>
+  <a href="{% url 'academic_management:assignments' %}">{% include "components/icon.html" with name="list-checks" %} الإسناد</a>
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>

@@ -417,8 +417,10 @@ def test_reassigning_the_row_drops_the_previous_preparer(school, subjects, seven
 # ══════════════════════════════════════════════════════════════════════
 
 
-def test_preparation_costs_two_periods_per_course(school, subjects, seventh, teacher, actor):
-    """قرارُ الإدارة: حصّتان لكلّ مقرّرٍ يحضّره — فمقرّران أربع."""
+def test_preparation_is_recorded_but_never_counted_in_the_load(
+    school, subjects, seventh, teacher, actor
+):
+    """قرارُ الإدارة (2026-09-06): حصّتان لكلّ مقرّرٍ تُعرضان ولا تدخلان النصاب."""
     from core.models import ClassGroup
 
     eighth = ClassGroup.objects.create(
@@ -434,8 +436,8 @@ def test_preparation_costs_two_periods_per_course(school, subjects, seventh, tea
     load = loads.load_for(school, YEAR, teacher.id)
     assert load.teaching == 10
     assert load.prepared_courses == 2
-    assert load.preparation == 4
-    assert load.total == 14
+    assert load.preparation == 4, "الرقمُ يُعرض"
+    assert load.total == 10, "والنصابُ حصصُ التدريس وحدَها"
 
 
 def test_the_weight_is_a_school_setting_not_a_constant(school, subjects, seventh, teacher, actor):
@@ -454,7 +456,8 @@ def test_the_label_reads_as_the_screen_shows_it(school, subjects, seventh, teach
     prepare(school, subjects["MAT"], teacher, actor)
 
     assert (
-        loads.load_for(school, YEAR, teacher.id).label() == "5 تدريس + 2 تحضير (مقرّرٌ واحد) = 7 من 7"
+        loads.load_for(school, YEAR, teacher.id).label()
+        == "5 تدريس من 7 · تحضير: مقرّرٌ واحد"
     )
 
 
