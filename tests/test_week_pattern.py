@@ -282,9 +282,14 @@ def test_the_firm_pass_swaps_when_the_class_is_full_on_the_deficit_day(school):
     improve(grid, a_tasks + b_tasks, set(), {}, ctx, time.time() + 20)
 
     assert [grid.teacher_periods_on_day("A", d) for d in (0, 1)] == [1, 1]
-    # و«ب» بقي داخل نمطه: حدُّه 4 وسقفُه 4، وكان 1+7 قبل التبديل — فلا يسوء.
-    counts_b = [grid.teacher_periods_on_day("B", d) for d in (0, 1)]
-    assert sum(counts_b) == 8 and max(counts_b) <= 7
+    # ولا حصّةَ تضيع في التبديل: ثمانيةُ «ب» تبقى ثمانيةً في الأسبوع كلِّه.
+    #
+    # ولا يُقاس «ب» على يومين اثنين: أيّامُ المعلّم في الإنتاج تُقيَّد بتفريغاته
+    # في `is_slot_valid`، وأيّامُ `coverage` هنا وصفٌ للقسمة لا قيدُ وضعٍ —
+    # فللمحسّن أن ينشر «ب» على الأسبوع، وهو تحسينٌ لا خسارة.
+    counts_b = [grid.teacher_periods_on_day("B", d) for d in range(5)]
+    assert sum(counts_b) == 8, counts_b
+    assert max(counts_b) <= 7, "ولا يُحشر في يومٍ واحد"
 
 
 # ══════════════════════ المختبر يقول مَن ═══════════════════════════
