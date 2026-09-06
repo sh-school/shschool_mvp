@@ -15,8 +15,9 @@ urlpatterns = [
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
     path("weekly-schedule/print/view/", views.schedule_print_view, name="schedule_print_view"),
     path("weekly-schedule/export/pdf/", views.schedule_export_pdf, name="schedule_export_pdf"),
-    path("weekly-schedule/teachers/", views.teacher_pages, name="teacher_pages"),
-    path("weekly-schedule/teachers/pdf/", views.teacher_pages_pdf, name="teacher_pages_pdf"),
+    path("weekly-schedule/pages/", views.schedule_pages, name="schedule_pages"),
+    path("weekly-schedule/pages/paper/", views.schedule_pages_paper, name="schedule_pages_paper"),
+    path("weekly-schedule/pages/pdf/", views.schedule_pages_pdf, name="schedule_pages_pdf"),
     path(
         "weekly-schedule/export/excel/", views.schedule_export_excel, name="schedule_export_excel"
     ),

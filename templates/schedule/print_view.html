@@ -1,8 +1,8 @@
 {% extends "base/base.html" %}
-{% block title %}{{ title }} — طباعة{% endblock %}
+{% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current="طباعة" %}
+{% include "components/breadcrumbs.html" with current="الجدول الأسبوعي" %}
 {% endblock %}
 
 {% block extra_css %}
@@ -10,46 +10,52 @@
   /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
      عموداً، وسقفُ المنصّة (max-w-7xl) يحشرها في 1280px على شاشةٍ عرضُها 2560. */
   #main-content { max-width: none; padding-inline: 12px; }
+  /* شريطُ الأدوات سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
+     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ. */
+  .schedule-head { flex-direction: column; align-items: center; gap: 8px; }
+  .schedule-head h1 { margin: 0; }
+  .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
+  .schedule-tools .form-select { width: auto; min-width: 280px; }
+  .schedule-tools form { display: inline; }
 </style>
 {% endblock %}
 
 {% block content %}
 {% comment %}
-كصفحة الزيارات الصفّية: الورقةُ في إطارٍ داخل المنصّة، فيبقى الهيدر والفوتر
-وشريطُ الأدوات لنا — اختياراً وطباعةً ورجوعاً — والمطبوعُ ورقةٌ مجرّدة وحدها.
+هذه صفحةُ الجدول الأسبوعيّ نفسُها (قرار 2026-09-06): الورقةُ في إطارٍ داخل
+المنصّة، فيبقى الهيدر والفوتر وشريطُ الأدوات لنا — اختياراً وطباعةً وتصديراً —
+والمطبوعُ ورقةٌ مجرّدة وحدها. وكانت قبلها شبكةٌ ملوّنةٌ على حدة تقول الشيءَ
+نفسَه بشكلٍ آخر، فأُزيلت.
 {% endcomment %}
+{% if preview %}
+{% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
+<div role="status" class="p-4 rounded-lg mb-2"
+     style="border:2px solid var(--status-warning);background:var(--surface-alt)">
+  <p class="font-semibold text-status-warning">
+    {% include "components/icon.html" with name="alert-triangle" %}
+    معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
+  </p>
+  <p class="text-sm text-secondary mt-1">
+    هذه ليست الجدول المعتمد. الحصص هنا لا يراها المعلّمون حتى تُعتمد المسودّة من
+    <a href="{% url 'smart_schedule' %}?year={{ year }}" class="link-maroon">الجدولة الذكية</a>.
+    <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="link-maroon">عرض الجدول الحيّ</a>
+  </p>
+</div>
+{% endif %}
+{% if conflicts %}
+<div class="alert-strip bg-red-50 border-red-200 mb-2">
+  <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
+  <strong>{{ conflicts|length }} تعارض:</strong>
+  {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
+</div>
+{% endif %}
 <div class="card-qatar" style="width:100%">
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="printer" %} {{ title }}</h1>
+  <div class="exec-header schedule-head">
+    <h1>{% include "components/icon.html" with name="calendar" %} {{ title }}{% if preview %} — مسودّة{% endif %}</h1>
 
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      {# قائمة الاختيار لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
-      {% if may_browse %}
-      <form id="schedule-view-form" method="get" style="display:inline">
-        <input type="hidden" name="view" value="{{ view_type }}">
-        <input type="hidden" name="teacher" value="{% if target_teacher %}{{ target_teacher.id }}{% endif %}">
-        <input type="hidden" name="class" value="{% if target_class %}{{ target_class.id }}{% endif %}">
-        <input type="hidden" name="paper" value="{{ paper }}">
-        <input type="hidden" name="year" value="{{ year }}">
-
-        <select id="schedule-view-select" class="form-select" data-call-change="submitScheduleView" title="نوع العرض">
-          <option data-view="all_teachers"
-            {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
-          <option data-view="school"
-            {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
-          <option disabled>── معلم ──</option>
-          {% for t in teachers %}
-          <option data-view="teacher" data-teacher="{{ t.id }}"
-            {% if target_teacher and target_teacher.id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
-          {% endfor %}
-          <option disabled>── فصل ──</option>
-          {% for c in classes %}
-          <option data-view="class" data-class="{{ c.id }}"
-            {% if target_class and target_class.id == c.id %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
-        </select>
-      </form>
-      {% endif %}
+    <div class="schedule-tools">
+      {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
+      {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
 
       <form method="get" style="display:inline">
         <input type="hidden" name="view" value="{{ view_type }}">
@@ -66,7 +72,6 @@
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
       <a href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
       <a href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
-      <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">← رجوع للجدول</a>
     </div>
   </div>
 
@@ -76,18 +81,6 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-  {% if may_browse %}
-  function submitScheduleView(select) {
-    var form = document.getElementById('schedule-view-form');
-    var option = select.options[select.selectedIndex];
-
-    form.elements.view.value = option.dataset.view || 'school';
-    form.elements.teacher.value = option.dataset.teacher || '';
-    form.elements['class'].value = option.dataset.class || '';
-    form.submit();
-  }
-  {% endif %}
-
   // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده.
   document.getElementById('schedule-print-btn').addEventListener('click', function () {
     var frame = document.getElementById('schedule-print-frame');

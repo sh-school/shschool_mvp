@@ -359,7 +359,9 @@ class ScheduleService:
         return grid
 
     @staticmethod
-    def get_teachers_matrix(school: School, academic_year: str | None = None) -> list[dict]:
+    def get_teachers_matrix(
+        school: School, academic_year: str | None = None, generation=None
+    ) -> list[dict]:
         """الجدول العام: صفٌّ لكل معلّم، وخمسةُ أيامٍ في كلٍّ منها سبعُ حصص.
 
         هذه صيغةُ ورقة «الجدول العام للمعلمين» التي تُعلَّق في المدرسة:
@@ -379,10 +381,17 @@ class ScheduleService:
         رُفع غداً ظهر ما فيها بدل أن يُكتب أحدهما فوق الآخر.
         """
         academic_year = academic_year or academic_year_for_school(school)
-        slots = (
-            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
-            .select_related("teacher", "class_group", "subject")
-            .order_by("teacher__full_name", "day_of_week", "period_number")
+        # و`generation` يُعاين مسودّةً بدل الجدول الحيّ — كالشبكة سواءً بسواء:
+        # الصفحةُ الواحدةُ صارت تعرض الورقتين، فلا تُعاين المسودّةُ في إحداهما
+        # ويُعرض الحيُّ في الأخرى باسمها.
+        qs = ScheduleSlot.objects.filter(school=school, academic_year=academic_year)
+        qs = (
+            qs.filter(generation=generation)
+            if generation is not None
+            else qs.filter(is_active=True)
+        )
+        slots = qs.select_related("teacher", "class_group", "subject").order_by(
+            "teacher__full_name", "day_of_week", "period_number"
         )
 
         rows: dict = {}
@@ -438,56 +447,71 @@ class ScheduleService:
 
         return ordered
 
-    #: من يُطبع له جدولٌ — الأدوارُ التي تُدرّس، ومنها منسّقُ المشاريع.
-    TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinator")
+    @staticmethod
+    def _by_period(days: list) -> list:
+        """المصفوفةُ باليوم ثمّ الحصّة، والورقةُ بالحصّة ثمّ اليوم: السطرُ حصّةٌ
+        والعمودُ يوم. والقلبُ هنا لا في القالب — قوالبُ Django لا تفهرس بمتغيّر."""
+        return [list(cells) for cells in zip(*days, strict=False)]
 
     @staticmethod
     def teacher_pages(
         school: School, academic_year: str | None = None, *, department=None, teacher_id=None
-    ):
-        """صفحاتُ جداول المعلّمين مرتّبةً بالأقسام، ومعها من لا حصّةَ له.
+    ) -> list[dict]:
+        """صفحاتُ جداول المعلّمين مرتّبةً بالأقسام — صفحةٌ لكلّ معلّمٍ له حصص.
 
-        الورقةُ للمنسّق، فالقسمُ فيها من السجلّ الإداريّ لا من الموادّ
-        (`registered_departments`). ومن لا حصّةَ له لا تُطبع له صفحةٌ فارغة —
-        يُذكر في الفهرس فيُعرف أنّه لم يُنسَ.
-
-        يُعيد (صفحاتٌ، غيرُ المجدولين).
+        القسمُ من السجلّ الإداريّ لا من الموادّ (`registered_departments`)،
+        فالورقةُ للمنسّق ورجلٌ ينتقل من قسمٍ إلى قسمٍ لأنّ جدوله تغيّر ورقةٌ لا
+        تُصدَّق. ومن لا حصّةَ له لا صفحةَ له — ورقةٌ فارغةٌ لا تنفع أحداً.
         """
         rows = ScheduleService.get_teachers_matrix(school, academic_year)
         if teacher_id:
             rows = [r for r in rows if str(r["teacher"].id) == str(teacher_id)]
         elif department:
             rows = [r for r in rows if r["department"]["code"] == department]
-
-        scheduled = {str(r["teacher"].id) for r in rows}
-        absent = []
-        if not teacher_id:
-            registry = registered_departments(school)
-            missing = {
-                uid: info
-                for uid, info in registry.items()
-                if uid not in scheduled and (not department or info["code"] == department)
-            }
-            if missing:
-                from core.models import Membership
-
-                members = Membership.objects.filter(
-                    school=school,
-                    is_active=True,
-                    user_id__in=list(missing),
-                    role__name__in=ScheduleService.TEACHING_ROLES,
-                ).select_related("user")
-                absent = sorted(
-                    ({"teacher": m.user, "department": missing[str(m.user_id)]} for m in members),
-                    key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
-                )
-
-        # المصفوفةُ مرتّبةٌ باليوم ثمّ بالحصّة، وورقةُ المعلّم مرتّبةٌ بالحصّة
-        # ثمّ باليوم — فالسطرُ حصّةٌ والعمودُ يوم. والقلبُ هنا لا في القالب:
-        # قوالبُ Django لا تفهرس بمتغيّر.
         for row in rows:
-            row["by_period"] = [list(cells) for cells in zip(*row["days"], strict=False)]
-        return rows, absent
+            row["by_period"] = ScheduleService._by_period(row["days"])
+        return rows
+
+    @staticmethod
+    def department_options(school: School, academic_year: str | None = None) -> list[dict]:
+        """الأقسامُ التي فيها معلّمون مجدولون — للقائمة المنسدلة، بترتيب الورقة.
+
+        من الجدول نفسه لا من جدول الأقسام وحده: قسمٌ مسجّلٌ بلا معلّمٍ مجدولٍ
+        خيارٌ يفتح ورقةً فارغة، وقسمٌ مشتقٌّ لمن لا سجلَّ له لا يظهر في السجلّ.
+        """
+        seen: dict[str, dict] = {}
+        for row in ScheduleService.get_teachers_matrix(school, academic_year):
+            info = row["department"]
+            seen.setdefault(
+                info["code"], {"code": info["code"], "name": info["name"], "order": info["order"]}
+            )
+        return sorted(seen.values(), key=lambda d: (d["order"], d["name"]))
+
+    @staticmethod
+    def class_pages(school: School, academic_year: str | None = None) -> list[dict]:
+        """صفحةٌ لكلّ شعبة بترتيب المدرسة: من 7/1 إلى 12/4 — وفي الخانة المادّةُ والمعلّم."""
+        academic_year = academic_year or academic_year_for_school(school)
+        slots = (
+            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
+            .select_related("teacher", "class_group", "subject")
+            .order_by(grade_order("class_group__grade"), "class_group__section")
+        )
+        rows: dict = {}
+        for slot in slots:
+            row = rows.get(slot.class_group_id)
+            if row is None:
+                row = rows[slot.class_group_id] = {
+                    "class_group": slot.class_group,
+                    "days": [[[] for _ in range(7)] for _ in range(5)],
+                    "total": 0,
+                }
+            if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
+                row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
+                row["total"] += 1
+        pages = list(rows.values())
+        for row in pages:
+            row["by_period"] = ScheduleService._by_period(row["days"])
+        return pages
 
     @staticmethod
     def matrix_totals(rows: list[dict], school: School, academic_year: str | None = None) -> dict:

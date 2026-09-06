@@ -457,8 +457,6 @@
     <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
       <option data-view="all_teachers"
         {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
-      <option data-view="school"
-        {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
       <option disabled>── معلم ──</option>
       {% for t in teachers %}
       <option data-view="teacher" data-teacher="{{ t.id }}"
@@ -476,7 +474,7 @@
       var form = document.getElementById('schedule-view-form');
       var option = select.options[select.selectedIndex];
 
-      form.elements.view.value = option.dataset.view || 'school';
+      form.elements.view.value = option.dataset.view || 'all_teachers';
       form.elements.teacher.value = option.dataset.teacher || '';
       form.elements['class'].value = option.dataset.class || '';
       form.submit();
@@ -500,11 +498,10 @@
   {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
   <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
   <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
-  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان صريحان لا رابطٌ عامّ:
-     من يبحث عن «تصدير القسم» يجده باسمه. #}
+  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان باسم المطلوب لا رابطٌ عامّ. #}
   {% if may_browse %}
-  <a class="btn-export" href="{% url 'teacher_pages' %}?dept=mine&amp;year={{ year }}">جداول معلّمي القسم</a>
-  <a class="btn-export" href="{% url 'teacher_pages' %}?dept=all&amp;year={{ year }}">جداول معلّمي المدرسة</a>
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=teachers&amp;year={{ year }}">جداول المعلّمين</a>
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=classes&amp;year={{ year }}">جداول الشُّعب</a>
   {% endif %}
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
