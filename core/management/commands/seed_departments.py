@@ -77,8 +77,12 @@ class Command(BaseCommand):
             self.stdout.write("\nتقريرٌ فقط — أضِف --apply للكتابة.")
             return
 
-        created, linked = self._write(school, needed, placements)
+        created, linked, cleared = self._write(school, needed, placements)
         self.stdout.write(f"\nأُنشئ {created} قسماً، ورُبط {linked} معلّماً.")
+        if cleared:
+            self.stdout.write(
+                f"وأُزيل القسمُ من {cleared} عضويّةٍ غيرِ تدريسيّة — القسمُ لعضويّة التدريس."
+            )
 
     # ── القراءة ──────────────────────────────────────────────────────
 
@@ -146,14 +150,21 @@ class Command(BaseCommand):
             registry[code] = department
             created += int(made)
 
-        linked = 0
+        # القسمُ يخصّ عضويّةَ التدريس وحدَها. ومن له عضويّةٌ ثانيةٌ بدورٍ إداريّ
+        # كان يُنسب مرّتين، فيصير عددُ القسم أكبرَ من عدد معلّميه.
+        linked, cleared = 0, 0
         for user, (code, _why) in placements.items():
-            updated = (
-                Membership.objects.filter(user=user, school=school, is_active=True)
-                .exclude(department_obj=registry[code])
-                .update(department_obj=registry[code])
+            mine = Membership.objects.filter(user=user, school=school, is_active=True)
+            linked += int(
+                bool(
+                    mine.filter(role__name__in=TEACHING_ROLES)
+                    .exclude(department_obj=registry[code])
+                    .update(department_obj=registry[code])
+                )
             )
-            linked += int(bool(updated))
+            cleared += mine.exclude(role__name__in=TEACHING_ROLES).exclude(
+                department_obj__isnull=True
+            ).update(department_obj=None)
 
         # المنسّقُ رأسُ قسمه — يُقرأ من دوره لا يُكتب باليد.
         for code, department in registry.items():
@@ -168,7 +179,7 @@ class Command(BaseCommand):
             if head is not None and department.head_id != head.id:
                 department.head = head
                 department.save(update_fields=["head"])
-        return created, linked
+        return created, linked, cleared
 
 
 def _order(code: str) -> int:

@@ -40,8 +40,16 @@ class CustomUserAdmin(UserAdmin):
 
     model = CustomUser
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
-    list_display = ("masked_national_id", "full_name", "email", "is_active", "date_joined")
-    list_filter = ("is_active", "is_staff", "memberships__role__name")
+    list_display = (
+        "masked_national_id",
+        "full_name",
+        "role_label",
+        "department_label",
+        "email",
+        "is_active",
+        "date_joined",
+    )
+    list_filter = ("is_active", "is_staff", "memberships__role__name", "memberships__department_obj")
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
     inlines = [ProfileInline, MembershipInline]
@@ -63,6 +71,22 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
+
+    @admin.display(description="الدور")
+    def role_label(self, obj: CustomUser) -> str:
+        membership = obj.memberships.filter(is_active=True).select_related("role").first()
+        return membership.role.get_name_display() if membership else "—"
+
+    @admin.display(description="القسم", ordering="memberships__department_obj__sort_order")
+    def department_label(self, obj: CustomUser) -> str:
+        """القسمُ عرضاً لا تحريراً — مصدرُه عضويّةُ المستخدم.
+
+        الانتماءُ يخصّ العضويّةَ (مستخدم × مدرسة × دور) لا المستخدمَ نفسه، فمن
+        عمل في مدرستين له قسمٌ في كلٍّ منهما. فيُعرض هنا ليُقرأ ويُرشَّح به،
+        ويُحرَّر في «العضويّات» وحدَها — كي لا يكون للانتماء مصدران.
+        """
+        department = obj.department_obj
+        return department.name if department else "—"
 
     @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
@@ -174,7 +198,8 @@ class DepartmentAdmin(admin.ModelAdmin):
 
     @admin.display(description="الأعضاء")
     def members(self, obj):
-        return obj.memberships.filter(is_active=True).count()
+        # أشخاصٌ لا عضويّات: من كان معلّماً ومنسّقاً له عضويّتان في القسم نفسه.
+        return obj.memberships.filter(is_active=True).values("user").distinct().count()
 
 
 @admin.register(Membership)
