@@ -614,3 +614,62 @@ def test_moving_someone_without_a_teaching_membership_is_refused(
     response = move_department(client, nurse, departments["MAT"])
 
     assert "لا عضويّةَ تدريس" in response.content.decode()
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  نقلُ المادّة من زميلٍ يُؤكَّد
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_assigning_a_held_subject_asks_before_it_drops_it_from_the_holder(
+    client, school, departments, maths_teacher, science_teacher, vice, seventh, subjects, plan_rows
+):
+    """المادّةُ لمعلّمٍ واحد — فإسنادُها إلى ثانٍ يُسقطها عن الأوّل، ولا يقع صامتاً."""
+    login(client, vice, school)
+    add(client, science_teacher, seventh, subjects["MAT"])
+
+    response = add(client, maths_teacher, seventh, subjects["MAT"])
+
+    body = response.content.decode()
+    assert "أؤكّد النقل" in body
+    assert "معلّم العلوم" in body, "ويُسمّى صاحبُ المادّة الحاليّ"
+    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+    assert row.teacher == science_teacher, "ولم يُنقل شيءٌ بعد"
+
+
+def test_the_transfer_happens_once_confirmed(
+    client, school, departments, maths_teacher, science_teacher, vice, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    add(client, science_teacher, seventh, subjects["MAT"])
+
+    add(client, maths_teacher, seventh, subjects["MAT"], confirm_transfer="1")
+
+    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+    assert row.teacher == maths_teacher
+    assert not SubjectClassAssignment.objects.filter(
+        class_group=seventh, subject=subjects["MAT"], teacher=science_teacher, is_active=True
+    ).exists(), "ولا تبقى نسختان للمادّة نفسها"
+
+
+def test_the_service_refuses_an_unconfirmed_transfer(
+    client, school, departments, maths_teacher, science_teacher, vice, seventh, subjects, plan_rows
+):
+    """الحارسُ في الخدمة لا في الشاشة — فلا يمرّ نقلٌ من بابٍ آخر."""
+    from academic_management import assignment_service as svc
+
+    login(client, vice, school)
+    add(client, science_teacher, seventh, subjects["MAT"])
+
+    with pytest.raises(svc.AssignmentError) as caught:
+        svc.apply_assignment(
+            school=school,
+            academic_year=YEAR,
+            class_group=seventh,
+            subject=subjects["MAT"],
+            teacher=maths_teacher,
+            weekly_periods=5,
+            by=vice,
+        )
+
+    assert svc.SUBJECT_HELD_BY_OTHER in {f.code for f in caught.value.findings}
