@@ -85,7 +85,7 @@
     font-size: 12px;
   }
   /* سبعةُ سطورٍ تملأ الورقة ولا تفيض عنها: عموديّةٌ 297mm وعرضيّةٌ 210mm. */
-  table.grid td { height: {% if orient == 'landscape' %}17mm{% else %}27mm{% endif %}; }
+  table.grid td { height: {% if orient == 'landscape' %}16mm{% else %}26mm{% endif %}; }
   .slot-subject { font-weight: 700; color: #8A1538; font-size: 11px; line-height: 1.25; }
   .slot-meta { font-size: 10px; color: #666; margin-top: 1px; }
   /* التوقيتُ من اليسار: أرقامٌ في سياقٍ عربيٍّ تنقلب — والعازلان في النصّ لأنّ مولّد PDF لا يقرأ direction. */
@@ -93,6 +93,17 @@
   .slot-subject + .slot-subject { margin-top: 3px; padding-top: 3px; border-top: 1px dashed #e6c9d3; }
   .slot-empty { color: #ccc; }
 
+  /* ذيلُ كلّ صفحة: الوزارةُ والمدرسةُ وتاريخُ الطباعة ووقتُها، ورؤيةُ الوزارة (قرار 2026-09-06). */
+  .page-footer {
+    margin-top: 3mm;
+    padding-top: 1.5mm;
+    border-top: 1px solid #ddd;
+    font-size: 8.5px;
+    color: #888;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .page-footer .stamp { direction: ltr; unicode-bidi: embed; }
   .empty-note { text-align: center; color: #888; padding: 20mm 0; font-size: 13px; }
 
   @media print {
@@ -161,6 +172,12 @@
       {% endfor %}
     </tbody>
   </table>
+
+  <div class="page-footer">
+    وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; {{ school.name }} &nbsp;|&nbsp;
+    تاريخ الطباعة: <span class="stamp">&#8294;{% now "Y/m/d H:i" %}&#8297;</span><br>
+    {% include "components/ministry_vision.html" %}
+  </div>
 </section>
 {% empty %}
 <section class="sheet"><p class="empty-note">لا جداول في هذا النطاق.</p></section>
