@@ -39,6 +39,7 @@ class AuditLog(models.Model):
         ("StudentSubjectResult", "درجة طالب"),
         ("ClinicVisit", "زيارة عيادة"),
         ("CustomUser", "مستخدم"),
+        ("Membership", "عضويّة كادر"),
         ("ParentStudentLink", "ربط ولي أمر"),
         ("BookBorrowing", "إعارة كتاب"),
         ("ConsentRecord", "سجل موافقة"),

@@ -137,6 +137,19 @@ class UserQuerySet(models.QuerySet):
             id__in=Membership.objects.filter(school=school, is_active=True).values("user_id")
         )
 
+    def ever_in_school(self, school) -> UserQuerySet:
+        """من له عضويّةٌ في هذه المدرسة — قائمةً كانت أو منتهية.
+
+        فمن نُقل هذا الصيفَ يبقى ملفُّه مقروءاً وجدولُ عامه الماضي منسوباً
+        إليه. و`in_school` تسأل «أهو اليوم في الكادر؟»، وهذه تسأل «أكان منها
+        يوماً؟» — سؤالان لا يُجاب عنهما بترشيحٍ واحد.
+        """
+        from core.models import Membership
+
+        return self.filter(
+            id__in=Membership.objects.filter(school=school).values("user_id")
+        )
+
     # ── الفلترة حسب الدور ──────────────────────────────────────────────────
 
     def students(self, school=None) -> UserQuerySet:

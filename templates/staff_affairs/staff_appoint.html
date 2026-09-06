@@ -1,0 +1,64 @@
+{% extends "base/base.html" %}
+{% comment %}
+تعيينُ منتسبٍ جديد — نموذجٌ واحدٌ يُنشئ الحسابَ والعضويّةَ ومرجعَ القرار.
+والقسمُ يُعرض للأدوار التدريسيّة وحدَها، فلا يخالف الانتماءُ المسمّى الوظيفيّ.
+{% endcomment %}
+{% block title %}تعيين منتسب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/list/" parent_label="سجل المنتسبين" current="تعيين منتسب" %}
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+  .ap-form { max-width: 760px; }
+  .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 16px; }
+  .ap-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
+  .ap-field .form-control { width: 100%; }
+  .ap-field .req { color: #b91c1c; }
+  .ap-note { margin-top: 14px; padding: 8px 12px; border-radius: 10px; background: var(--surface-alt); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-secondary); }
+  .ap-err { margin-top: 6px; font-size: 12px; color: #991b1b; }
+  .ap-actions { margin-top: 16px; display: flex; gap: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="user" %} تعيين منتسب</h1>
+      <p class="exec-subtitle">التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه</p>
+    </div>
+  </div>
+
+  <form method="post" class="card-qatar ap-form" data-confirm="تأكيدُ تعيين المنتسب؟">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="ap-err" role="alert">{{ form.non_field_errors|join:" · " }}</div>
+    {% endif %}
+
+    <div class="ap-grid">
+      {% for field in form %}
+      <div class="ap-field" {% if field.name == "department" %}id="dept-field"{% endif %}>
+        <label for="{{ field.id_for_label }}">
+          {{ field.label }}{% if field.field.required %} <span class="req">*</span>{% endif %}
+        </label>
+        {{ field }}
+        {% if field.errors %}<div class="ap-err">{{ field.errors|join:" · " }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <p class="ap-note">
+      يُفتح الحسابُ بلا كلمة مرورٍ صالحة — يُعرَف في النظام ولا يُدخَل به حتّى تُصدَر له واحدة.
+      ومن كان في النظام بحسابٍ قائم (وليَّ أمرٍ مثلاً) تُضاف إليه عضويّةٌ بالدور الجديد ولا يُنشأ له حسابٌ ثانٍ.
+      والقسمُ الأكاديميُّ لأهل التدريس وحدَهم.
+    </p>
+
+    <div class="ap-actions">
+      <button type="submit" class="btn-primary">{% include "components/icon.html" with name="check" %} تعيين</button>
+      <a href="{% url 'staff_affairs:staff_list' %}" class="btn-secondary">إلغاء</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -182,7 +182,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         result = (
             self.memberships.filter(is_active=True)
             .select_related("school", "role")
-            .order_by(_role_rank(), "joined_at", "id")
+            .order_by(role_rank(), "joined_at", "id")
             .first()
         )
         if result is not None:
@@ -304,8 +304,10 @@ class Profile(models.Model):
         return f"Profile: {self.user.full_name}"
 
 
-def _role_rank():
+def role_rank():
     """رتبةُ الدور عند تعدّد العضويّات: الكادرُ صفر، ووليُّ الأمر واحد، والطالبُ اثنان.
+
+    تُستعمل في كلّ استعلامٍ يختار «العضويّةَ الحاكمة» لشخصٍ له أكثرُ من صفة.
 
     الاستيرادُ داخل الدالّة لأنّ `access` يستورد `CustomUser` — ولو كان في
     الرأس لدار الاستيرادُ على نفسه.

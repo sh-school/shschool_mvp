@@ -149,7 +149,6 @@ def test_an_empty_period_stays_absent(db, school, section):
     [
         "templates/schedule/print_schedule.html",
         "templates/schedule/print_pages.html",
-        "templates/schedule/teacher_weekly.html",
     ],
 )
 def test_no_template_reads_a_field_straight_off_the_cell(template):

@@ -204,7 +204,10 @@ def _schedule_print_selection(request):
         view_type = "teacher"
         target_teacher = request.user
     elif view_type == "teacher" and teacher_id:
-        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
+        # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
+        target_teacher = get_object_or_404(
+            CustomUser.objects.ever_in_school(school), id=teacher_id
+        )
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
@@ -1287,8 +1290,11 @@ def _pages_payload(request) -> dict:
         pages = ScheduleService.teacher_pages(
             school, year, department=department, teacher_id=teacher_id or None
         )
-        if teacher_id and pages:
-            title = f"جدول المعلّم: {pages[0]['teacher'].full_name}"
+        if teacher_id:
+            # الاسمُ من القاعدة لا من الصفحات: من لا حصصَ له صفحاتُه فارغةٌ
+            # وعنوانُه كان يصير «جداول معلّمي المدرسة» — عنوانٌ يكذب على قارئه.
+            named = CustomUser.objects.filter(id=teacher_id).first()
+            title = f"جدول المعلّم: {named.full_name}" if named else "جدول المعلّم"
         elif department:
             name = next((d["name"] for d in departments if d["code"] == department), department)
             title = f"جداول معلّمي قسم {name}"

@@ -45,6 +45,18 @@ TIER_4_STAFF = {
     "admin",
     "secretary",
     "receptionist",
+    # وظائفُ كشف الكادر التي لم يكن لها دورٌ في المنصّة (2026-09-06): تسعةُ
+    # ملاحظي طلبةٍ وثمانيةُ مشرفين إداريّين وخمسةُ عمّال خدماتٍ ومحضِّرا مختبرٍ
+    # وأمينُ مخزنٍ ومحاسبٌ ومشرفُ مقصفٍ ومندوبان — واحدٌ وعشرون موظّفاً كانوا
+    # خارج النظام لأنّ مسمّياتهم لا تقابلها أدوار. ولا يُحشرون في «إداريّ»:
+    # المسمّى الوظيفيُّ يُحمل كما هو أو لا يُحمل.
+    "student_observer",
+    "lab_technician",
+    "storekeeper",
+    "accountant",
+    "canteen_supervisor",
+    "services_worker",
+    "messenger",
 }
 TIER_5_BENEFICIARIES = {"student", "parent"}
 TIER_SYSTEM = {"platform_developer"}
@@ -132,6 +144,13 @@ class Role(models.Model):
         ("admin", "إداري"),
         ("secretary", "سكرتير المدرسة"),
         ("receptionist", "موظف استقبال"),  # جديد v7
+        ("student_observer", "ملاحظ طلبة"),
+        ("lab_technician", "محضّر مختبر"),
+        ("storekeeper", "أمين مخزن"),
+        ("accountant", "محاسب"),
+        ("canteen_supervisor", "مشرف مقصف"),
+        ("services_worker", "عامل خدمات"),
+        ("messenger", "مندوب"),
         # T4-legacy — التوافق الخلفي
         ("specialist", "أخصائي (قديم)"),
         # T5 — المستفيدون
@@ -226,6 +245,26 @@ class Membership(models.Model):
     #: `timezone.now` تُرجع لحظةً لا يوماً، فيحمل الكائنُ غيرَ المحفوظ
     #: `datetime` في حقلِ `date` — وتنكسر أيُّ مقارنةٍ قبل أوّل حفظ.
     joined_at = models.DateField(default=timezone.localdate)
+
+    #: المسمّى الوظيفيُّ كما في لوائح الوزارة وكشف الكادر — حرفيّاً.
+    #:
+    #: و`role` غيرُه: `role` مفتاحُ صلاحيّاتٍ في المنصّة (ثمانيةٌ وعشرون دوراً
+    #: تفتح شاشاتٍ وتمنع أخرى)، والمسمّى وثيقةٌ إداريّةٌ تُكتب في الكشوف
+    #: والتقارير كما وردت. فـ«محضر مختبر أحياء» و«محضر مختبر فيزياء» مسمّيان
+    #: اثنان ودورُهما واحد، ولو خُلطا لضاع أحدُهما أو لتضخّمت الأدوارُ بلا معنى.
+    job_title = models.CharField(
+        max_length=100, blank=True, verbose_name="المسمّى الوظيفيّ (كما في اللوائح)"
+    )
+
+    # ── التعيين: قرارٌ له مرجع ────────────────────────────────────
+    #
+    # `joined_at` يقول متى، ولا يقول بأيّ قرار. ونقلُ معلّمٍ إلى المدرسة قرارٌ
+    # إداريٌّ كنقله منها — فلزم مرجعُه كما لزم في المغادرة، وإلّا كان في السجلّ
+    # تاريخُ التحاقٍ لا يُراجَع.
+    appointment_reference = models.CharField(
+        max_length=200, blank=True, verbose_name="مرجع قرار التعيين"
+    )
+    appointment_note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة التعيين")
 
     # ── المغادرة: تاريخٌ لا محو ───────────────────────────────────
     #

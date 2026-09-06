@@ -11,9 +11,12 @@
 
   <div class="exec-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</h1>
-      <p class="exec-subtitle">{{ total }} موظف</p>
+      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} سجل الكادر</h1>
+      <p class="exec-subtitle">{{ total }} منتسباً — كادرُ المدرسة بكلّ فئاته. والطلابُ وأولياءُ الأمور في «شؤون الطلبة»</p>
     </div>
+    <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="user" %} تعيين منتسب
+    </a>
   </div>
 
   <form method="get" class="filter-bar">
@@ -25,6 +28,17 @@
              hx-trigger="input changed delay:400ms, search"
              hx-target="#staff-table-container" hx-swap="innerHTML"
              hx-include="[name='role'],[name='dept']" autocomplete="off">
+    </div>
+    <div class="filter-field">
+      <label class="filter-label">الحالة</label>
+      <select name="status" class="form-control form-control-sm"
+              hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
+              hx-target="#staff-table-container" hx-swap="innerHTML"
+              hx-include="[name='q'],[name='role'],[name='dept']">
+        {% for val, label in statuses %}
+        <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
     <div class="filter-field">
       <label class="filter-label">الدور</label>

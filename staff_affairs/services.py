@@ -140,6 +140,10 @@ class StaffService:
         from django.db.models import Q
 
         from core.models.access import Membership
+
+        # الكادرُ أوّلاً: موظّفٌ ابنُه في المدرسة له عضويّتان، ولو قُرئت عضويّةُ
+        # وليّ الأمر لظهر ملفُّه بلا دورٍ ولا قسمٍ ولا سجلِّ التحاق.
+        from core.models.user import role_rank
         from operations.models import (
             CompensatorySession,
             ScheduleSlot,
@@ -151,6 +155,7 @@ class StaffService:
         membership = (
             Membership.objects.filter(user=user, school=school, is_active=True)
             .select_related("role", "department_obj")
+            .order_by(role_rank(), "joined_at")
             .first()
         )
 

@@ -153,3 +153,39 @@ def test_a_teacher_exports_only_their_own_schedule(db, teaching_school):
     sheet = openpyxl.load_workbook(BytesIO(response.content)).active
     printed = "\n".join(str(cell.value or "") for row in sheet.iter_rows() for cell in row)
     assert colleague.full_name not in printed
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  جدولُ المعلّم هو ورقةُ المدرسة نفسُها
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_teacher_schedule_opens_the_school_schedule_page(client_as, school, principal_user):
+    """شكلان لشيءٍ واحدٍ يُشتّتان (قرارُ المستخدم 2026-09-06) — فصفحةٌ واحدة.
+
+    وهي عينُها التي تفتحها القائمةُ المنسدلة حين يُختار معلّمٌ بعينه: قالبٌ
+    واحدٌ وتنسيقٌ واحدٌ وبياناتٌ واحدة.
+    """
+    from django.urls import reverse
+
+    response = client_as(principal_user).get(
+        reverse("teacher_weekly_view", args=[principal_user.id])
+    )
+
+    assert response.status_code == 302
+    assert reverse("weekly_schedule") in response.url
+    assert f"teacher={principal_user.id}" in response.url
+    assert "view=teacher" in response.url
+
+
+def test_a_teacher_reaching_the_page_sees_their_own_schedule(client_as, school, teacher_user):
+    """ومن لا يتصفّح جداولَ غيره يرى جدولَه هو، مهما كُتب في الرابط."""
+    from django.urls import reverse
+
+    response = client_as(teacher_user).get(
+        reverse("weekly_schedule"),
+        {"view": "teacher", "teacher": "00000000-0000-0000-0000-000000000001"},
+    )
+
+    assert response.status_code == 200
+    assert teacher_user.full_name in response.content.decode()
