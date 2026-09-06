@@ -23,6 +23,7 @@ from operations.scheduler_constraints import (
     THURSDAY,
     check_thursday_secondary_pair,
     check_week_balance_cap,
+    check_week_floor_reservation,
     week_share,
 )
 from operations.scheduler_improve import improve, teacher_day_cost
@@ -32,7 +33,7 @@ pytestmark = pytest.mark.django_db
 YEAR = "2026-2027"
 
 
-def _task(class_id="c1", subject_id="s1", teacher_id="t1", *, grade="G8", double=False):
+def _task(class_id="c1", subject_id="s1", teacher_id="t1", *, grade="G8", double=False, weekly=1):
     return Task(
         class_id=class_id,
         class_name=class_id,
@@ -41,7 +42,7 @@ def _task(class_id="c1", subject_id="s1", teacher_id="t1", *, grade="G8", double
         subject_code=subject_id.upper(),
         teacher_id=teacher_id,
         teacher_name=teacher_id,
-        weekly_periods=1,
+        weekly_periods=weekly,
         grade=grade,
         prefers_double=double,
     )
@@ -93,19 +94,51 @@ def test_the_cap_refuses_a_lesson_above_the_share():
     assert check_week_balance_cap(grid, 1, 1, _task(class_id="c9")) is True
 
 
-def test_a_double_counts_two_against_the_cap():
+def test_a_double_may_exceed_the_cap_by_one_but_not_two():
+    """الزوجُ لا يُشطر: يومٌ فيه حصّتان يقبل زوجاً (4 > 3 بحصّة)، ويومٌ فيه ثلاثٌ لا."""
     grid = _grid(13)  # السقف 3
     grid.place(0, 1, _task(class_id="c1"))
     grid.place(0, 3, _task(class_id="c2"))
-
     double = _task(class_id="c3", double=True)
     double.span = 2
 
-    assert check_week_balance_cap(grid, 0, 5, double) is False
+    assert check_week_balance_cap(grid, 0, 5, double) is True
+
+    grid.place(0, 5, _task(class_id="c4"))
+
+    assert check_week_balance_cap(grid, 0, 6, double) is False
 
 
 def test_a_teacher_without_coverage_is_not_capped():
     assert check_week_balance_cap(ScheduleGrid(), 0, 1, _task()) is True
+
+
+def test_the_floor_is_reserved_before_the_last_lessons_run_out():
+    """13 حصّة: 3+3+3+2+0 والباقي حصّتان — لا توضع إحداهما في اليوم الرابع."""
+    grid = _grid(13)  # الحدّ 2، السقف 3
+    layout = [(0, 3), (1, 3), (2, 3), (3, 2)]
+    n = 0
+    for day, count in layout:
+        for period in (1, 3, 5)[:count]:
+            grid.place(day, period, _task(class_id=f"c{n}", subject_id=f"s{n}"))
+            n += 1
+
+    assert check_week_floor_reservation(grid, 3, 5, _task(class_id="c99", subject_id="x")) is False
+    assert check_week_floor_reservation(grid, 4, 1, _task(class_id="c99", subject_id="x")) is True
+
+
+def test_the_reservation_yields_in_the_last_resort_round():
+    grid = _grid(13)
+    for day, count in [(0, 3), (1, 3), (2, 3), (3, 2)]:
+        for period in (1, 3, 5)[:count]:
+            grid.place(day, period, _task(class_id=f"c{day}{period}", subject_id=f"s{day}{period}"))
+
+    assert (
+        check_week_floor_reservation(
+            grid, 3, 5, _task(class_id="c99", subject_id="x"), allow_dense=True
+        )
+        is True
+    )
 
 
 # ══════════════════════ خميسُ الثانويّ ═════════════════════════════
@@ -184,6 +217,74 @@ def test_the_improver_lifts_a_day_below_the_floor(thirteen_lessons):
 
     counts = [grid.teacher_periods_on_day(tid, d) for d in range(5)]
     assert min(counts) >= 2 and max(counts) <= 3, counts
+
+
+@pytest.fixture
+def sixteen_lessons(school):
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
+    teacher = UserFactory(full_name="رياضيّ")
+    MembershipFactory(user=teacher, school=school, role=RoleFactory(school=school, name="teacher"))
+    for periods in (6, 5, 5):
+        SubjectClassAssignment.objects.create(
+            school=school,
+            academic_year=YEAR,
+            teacher=teacher,
+            class_group=ClassGroupFactory(
+                school=school, grade="G8", level_type="prep", academic_year=YEAR
+            ),
+            subject=maths,
+            weekly_periods=periods,
+            is_active=True,
+        )
+    return school, teacher
+
+
+def test_the_firm_pass_fixes_the_floor_even_when_the_lab_would_object(sixteen_lessons):
+    """16 = 4+4+3+3+2 على الورق يجب أن يصير 3+3+3+3+4 أو نحوه — قرارٌ لا ترجيح."""
+    school, teacher = sixteen_lessons
+    tasks = build_tasks(school, YEAR)
+    tid = str(teacher.id)
+    grid = ScheduleGrid(coverage={tid: (16, 16, frozenset(range(5)))})
+    queue = list(tasks)
+    layout = [(0, 4), (1, 4), (2, 3), (3, 3), (4, 2)]
+    i = 0
+    for day, count in layout:
+        for period in (1, 3, 5, 7)[:count]:
+            grid.place(day, period, queue[i])
+            i += 1
+    ctx = load_context(school, YEAR)
+
+    result = improve(grid, tasks, set(), {}, ctx, time.time() + 30)
+
+    counts = [grid.teacher_periods_on_day(tid, d) for d in range(5)]
+    assert result["balanced"] >= 1
+    assert min(counts) >= 3 and max(counts) <= 4, counts
+
+
+def test_the_firm_pass_swaps_when_the_class_is_full_on_the_deficit_day(school):
+    """الشعبةُ مشغولةٌ في كلّ حصص يوم النقص — فالنقلُ مستحيل والتبديلُ هو الطريق.
+
+    المعلّم «أ» نصابُه حصّتان على يومين (حصّةٌ في كلّ يوم) ووُضعتا معاً في
+    اليوم الأوّل؛ واليومُ الثاني للشعبة مملوءٌ بحصص «ب». فتُبدَّل حصّةٌ لـ«أ»
+    بحصّةٍ لـ«ب» — و«ب» يبقى داخل نمطه.
+    """
+    # نصابُ المادّة حصّتان، فقسمتُها على الأيّام تسمح بيومين — كما يبنيها المولّد.
+    a_tasks = [_task(class_id="c1", subject_id="s1", teacher_id="A", weekly=2) for _ in range(2)]
+    b_tasks = [_task(class_id="c1", subject_id=f"b{i}", teacher_id="B") for i in range(8)]
+    grid = ScheduleGrid(coverage={"A": (2, 2, frozenset({0, 1})), "B": (8, 8, frozenset({0, 1}))})
+    grid.place(0, 1, a_tasks[0])
+    grid.place(0, 3, a_tasks[1])
+    for period in range(1, 8):
+        grid.place(1, period, b_tasks[period - 1])
+    grid.place(0, 5, b_tasks[7])
+    ctx = load_context(school, YEAR)
+
+    improve(grid, a_tasks + b_tasks, set(), {}, ctx, time.time() + 20)
+
+    assert [grid.teacher_periods_on_day("A", d) for d in (0, 1)] == [1, 1]
+    # و«ب» بقي داخل نمطه: حدُّه 4 وسقفُه 4، وكان 1+7 قبل التبديل — فلا يسوء.
+    counts_b = [grid.teacher_periods_on_day("B", d) for d in (0, 1)]
+    assert sum(counts_b) == 8 and max(counts_b) <= 7
 
 
 # ══════════════════════ المختبر يقول مَن ═══════════════════════════
