@@ -1,0 +1,94 @@
+{% extends "base/base.html" %}
+{% comment %}
+شاشةُ «الإسناد» الواحدة (قرار 2026-09-06): لكلّ معلّمٍ بطاقة — نصابُه وما يدرّسه
+ومن يحضّر — والحفظُ في لحظته بلا زرٍّ ولا صفحةٍ وسيطة. المنسّقُ يُدخل لقسمه ثمّ
+يرفع، والنائبُ يراجع، والمديرُ يعتمد. والبطاقةُ تُعاد وحدَها بعد كلّ حفظ (HTMX)،
+فلا تُعاد الصفحةُ كلُّها لصفٍّ واحد.
+{% endcomment %}
+{% block title %}{{ page_title }} — {{ module_name }}{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_label=module_name current=page_title %}
+{% endblock %}
+
+{% block extra_css %}
+<style nonce="{{ request.csp_nonce }}">
+  /* `.form-select` عامّةٌ بعرضٍ كامل — وهنا قائمةُ ترشيحٍ في الترويسة لا حقلُ نموذج. */
+  .exec-meta .form-select { width: auto; min-width: 190px; }
+  .asg-dept { margin: 20px 0 8px; font-size: 15px; font-weight: 800; color: var(--maroon); border-bottom: 2px solid var(--border); padding-bottom: 5px; }
+  .asg-dept small { font-weight: 400; color: var(--text-muted); font-size: 12px; }
+  .asg-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px 12px; margin-bottom: 10px; }
+  .asg-card.asg-APPROVED, .asg-card.asg-LOCKED { border-inline-start: 4px solid #15803d; }
+  .asg-card.asg-SUBMITTED { border-inline-start: 4px solid #b45309; }
+  .asg-card.asg-REVIEWED { border-inline-start: 4px solid #1d4ed8; }
+  .asg-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .asg-name { font-weight: 800; font-size: 15px; }
+  .asg-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--surface-alt); }
+  .asg-chip-SUBMITTED { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  .asg-chip-REVIEWED { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  .asg-chip-APPROVED, .asg-chip-LOCKED { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .asg-load { font-size: 12.5px; color: var(--text-secondary); margin-inline-start: auto; }
+  .asg-load.over { color: #b91c1c; font-weight: 700; }
+  .asg-load.exact { color: #15803d; font-weight: 700; }
+  .asg-quota { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .asg-quota input { width: 62px; padding: 4px 6px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; text-align: center; }
+  .asg-inline { display: inline; }
+  table.asg { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+  table.asg th { text-align: right; color: var(--text-muted); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  table.asg td { padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.asg input[type=number] { width: 54px; padding: 3px 5px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; text-align: center; }
+  table.asg select { padding: 5px 8px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--surface); min-width: 170px; }
+  .asg-add td { background: var(--surface-alt); }
+  .asg-addform { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .asg-plus { font-size: 15px; color: var(--text-muted); }
+  .asg-check { display: inline-flex; gap: 4px; align-items: center; font-size: 12.5px; }
+  .asg-x { border: 0; background: transparent; color: #b91c1c; font-size: 15px; cursor: pointer; padding: 0 6px; }
+  .asg-err { margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 12.5px; }
+  .asg-note { margin-top: 6px; font-size: 12px; color: #92400e; }
+  .asg-empty { color: var(--text-muted); font-size: 12.5px; padding: 6px 0; }
+  .asg-hint { color: var(--text-muted); font-size: 11.5px; }
+  .asg-flow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .asg-comment { flex: 1 1 220px; min-width: 160px; padding: 5px 8px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; font-size: 12.5px; }
+  .asg-btn { padding: 5px 14px; border-radius: 8px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
+  .asg-btn-primary { background: var(--maroon); border-color: var(--maroon); color: #fff; }
+  .asg-btn-approve { background: #15803d; border-color: #15803d; color: #fff; }
+  .asg-btn-ghost { background: transparent; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الإسناد</h1>
+      <p class="exec-subtitle">
+        {{ year }} · {{ totals.teachers }} معلّماً · {{ totals.rows }} إسناداً
+        {% if totals.pending %}· {{ totals.pending }} بانتظار المراجعة{% endif %}
+        {% if totals.approved %}· {{ totals.approved }} معتمَداً{% endif %}
+        — يُحفظ كلُّ تغييرٍ في لحظته
+      </p>
+    </div>
+    <form method="get" class="exec-meta">
+      <input type="hidden" name="year" value="{{ year }}">
+      <select name="dept" class="form-select" data-autosubmit title="القسم" aria-label="القسم">
+        <option value="">كلُّ الأقسام</option>
+        {% for d in departments %}
+        <option value="{{ d.key }}" {% if selected_dept == d.key %}selected{% endif %}>{{ d.name }} ({{ d.cards|length }})</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  {% if registry_empty %}
+  <p class="asg-hint">لا أقسامَ مسجَّلةً في هذه المدرسة — فالتجميعُ مشتقٌّ من حصص كلّ معلّم. ومتى سُجّلت الأقسامُ صارت هي المصدر.</p>
+  {% endif %}
+
+  {% for department in groups %}
+    <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
+    {% for card in department.cards %}
+      {% include "academic_management/partials/assignment_teacher.html" %}
+    {% endfor %}
+  {% empty %}
+    {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
+  {% endfor %}
+</div>
+{% endblock %}

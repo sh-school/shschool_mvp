@@ -7,7 +7,7 @@ REQ-SH-003 — 5 routes for the academic reports landing + 4 report types.
 
 from django.urls import path
 
-from . import views, workload_views
+from . import assignment_views, views, workload_views
 
 app_name = "academic_management"
 
@@ -62,7 +62,34 @@ urlpatterns = [
     path("workload/plan/<uuid:plan_id>/approve/", workload_views.approve_plan, name="approve_plan"),
     path("workload/plan/<uuid:plan_id>/lock/", workload_views.lock_plan, name="lock_plan"),
     path("workload/plan/<uuid:plan_id>/revise/", workload_views.revise_plan, name="revise_plan"),
-    path("assignments/", views.assignments, name="assignments"),
+    path("assignments/", assignment_views.assignments, name="assignments"),
+    path(
+        "assignments/subjects/", assignment_views.subject_options, name="assignment_subject_options"
+    ),
+    path("assignments/<uuid:teacher_id>/add/", assignment_views.add_row, name="assignment_add_row"),
+    path(
+        "assignments/<uuid:teacher_id>/load/", assignment_views.set_load, name="assignment_set_load"
+    ),
+    path(
+        "assignments/<uuid:teacher_id>/preparation/",
+        assignment_views.toggle_preparation,
+        name="assignment_toggle_preparation",
+    ),
+    path(
+        "assignments/row/<uuid:assignment_id>/periods/",
+        assignment_views.update_periods,
+        name="assignment_update_periods",
+    ),
+    path(
+        "assignments/row/<uuid:assignment_id>/remove/",
+        assignment_views.remove_row,
+        name="assignment_remove_row",
+    ),
+    path(
+        "assignments/<uuid:teacher_id>/<slug:action>/",
+        assignment_views.move,
+        name="assignment_move",
+    ),
     path("department-reports/", views.department_reports, name="department_reports"),
     path("e-learning/", views.elearning, name="elearning"),
     path("class-performance/", views.class_performance, name="class_performance"),

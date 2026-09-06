@@ -1,0 +1,495 @@
+"""[ASSIGNMENT] شاشةُ الإسناد الواحدة — بطاقةٌ لكلّ معلّم، ودورةٌ لكلّ خطّة.
+
+الثوابتُ التي تحرسها هذه الاختبارات:
+
+    شاشةٌ واحدة              لا «توزيعاتٌ» تكتب و«إسنادٌ» يعرض
+    المنسّقُ قسمُه            والنائبُ والمديرُ كلُّ الأقسام
+    الحصصُ من الخطّة          لا من ذاكرة المُدخِل
+    مسودّة ← رفعٌ ← مراجعةٌ ← اعتماد   ولا قفزَ فوق مرحلة
+    المعتمَدُ لا يُكتب فوقه   يُفتح بإصدارٍ جديد
+
+وأخطرُ ما يُحرَس أنّ الشاشةَ **لا تكتب بيدها**: كلُّ صفٍّ يمرّ بـ
+`assignment_service`، فتبقى الفحوصُ والتدقيقُ واحدةً مهما تعدّدت الأبواب.
+"""
+
+import pytest
+from django.urls import reverse
+
+from academic_management.models import (
+    APPROVED,
+    DRAFT,
+    FROM_MINISTRY_GUIDE,
+    REVIEWED,
+    SUBMITTED,
+    CoursePreparation,
+    CurriculumPlan,
+    TeacherWorkloadPlan,
+)
+from operations.models import SubjectClassAssignment
+
+pytestmark = pytest.mark.django_db
+
+YEAR = "2026-2027"
+GUIDE = "دليل الخطط الدراسية 2025-2026 ص14"
+
+
+# ── تجهيز ────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def school(db):
+    from core.models import School
+
+    return School.objects.create(name="مدرسة الشحانية", code="SHH-SCR")
+
+
+@pytest.fixture
+def departments(db, school):
+    from core.models import Department
+
+    return {
+        "MAT": Department.objects.create(
+            school=school, name="الرياضيات", code="DEP-MAT", sort_order=1
+        ),
+        "SCI": Department.objects.create(
+            school=school, name="العلوم", code="DEP-SCI", sort_order=2
+        ),
+    }
+
+
+@pytest.fixture
+def subjects(db, school):
+    from operations.models import Subject
+
+    return {
+        code: Subject.objects.create(school=school, name_ar=name, code=code)
+        for code, name in (("MAT", "الرياضيات"), ("SCI", "العلوم"))
+    }
+
+
+def a_user(school, name, role_name, department=None):
+    from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+    role = RoleFactory(school=school, name=role_name)
+    user = UserFactory(full_name=name)
+    MembershipFactory(user=user, school=school, role=role, department_obj=department)
+    return user
+
+
+@pytest.fixture
+def maths_teacher(db, school, departments):
+    return a_user(school, "معلّم الرياضيات", "teacher", departments["MAT"])
+
+
+@pytest.fixture
+def science_teacher(db, school, departments):
+    return a_user(school, "معلّم العلوم", "teacher", departments["SCI"])
+
+
+@pytest.fixture
+def coordinator(db, school, departments):
+    return a_user(school, "منسّق الرياضيات", "coordinator", departments["MAT"])
+
+
+@pytest.fixture
+def vice(db, school):
+    return a_user(school, "النائب الأكاديميّ", "vice_academic")
+
+
+@pytest.fixture
+def principal(db, school):
+    return a_user(school, "المدير", "principal")
+
+
+@pytest.fixture
+def seventh(db, school):
+    from core.models import ClassGroup
+
+    return ClassGroup.objects.create(
+        school=school, grade="G7", section="1", level_type="prep", academic_year=YEAR
+    )
+
+
+@pytest.fixture
+def plan_rows(db, school, subjects):
+    for code, periods in (("MAT", 5), ("SCI", 4)):
+        CurriculumPlan.objects.create(
+            school=school,
+            academic_year=YEAR,
+            grade="G7",
+            track="",
+            subject=subjects[code],
+            weekly_periods=periods,
+            source_kind=FROM_MINISTRY_GUIDE,
+            source_reference=GUIDE,
+        )
+
+
+def login(client, user, school):
+    """`school` تُشتقّ من العضويّة — والوسيطُ هنا للقراءة لا للكتابة."""
+    assert user.get_school() == school
+    client.force_login(user)
+    return client
+
+
+def page(client, **params):
+    return client.get(reverse("academic_management:assignments"), {"year": YEAR, **params})
+
+
+def add(client, teacher, class_group, subject, **extra):
+    return client.post(
+        reverse("academic_management:assignment_add_row", args=[teacher.id]),
+        {"year": YEAR, "class_group": class_group.id, "subject": subject.id, **extra},
+    )
+
+
+def move(client, teacher, action, **extra):
+    return client.post(
+        reverse("academic_management:assignment_move", args=[teacher.id, action]),
+        {"year": YEAR, **extra},
+    )
+
+
+def set_quota(client, teacher, periods):
+    return client.post(
+        reverse("academic_management:assignment_set_load", args=[teacher.id]),
+        {"year": YEAR, "required_weekly_periods": periods},
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الشاشةُ الواحدة
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_old_two_screens_are_gone():
+    """«توزيعات المواد على الشُّعب» لم تعد مساراً — شاشةٌ واحدةٌ لا اثنتان."""
+    from django.urls import NoReverseMatch
+
+    with pytest.raises(NoReverseMatch):
+        reverse("subject_assignments")
+
+
+def test_the_page_lists_every_teacher_grouped_by_registry_department(
+    client, school, departments, maths_teacher, science_teacher, vice
+):
+    login(client, vice, school)
+
+    response = page(client)
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert "معلّم الرياضيات" in body and "معلّم العلوم" in body
+    assert "الرياضيات" in body and "العلوم" in body
+
+
+def test_a_teacher_cannot_open_the_screen(client, school, maths_teacher):
+    login(client, maths_teacher, school)
+
+    assert page(client).status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  المنسّقُ قسمُه، والنائبُ كلُّ الأقسام
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_a_coordinator_sees_only_their_own_department(
+    client, school, departments, maths_teacher, science_teacher, coordinator
+):
+    login(client, coordinator, school)
+
+    body = page(client).content.decode()
+
+    assert "معلّم الرياضيات" in body
+    assert "معلّم العلوم" not in body, "قسمُ غيرِه لا يظهر له"
+
+
+def test_a_coordinator_cannot_write_outside_their_department(
+    client, school, departments, science_teacher, coordinator, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+
+    response = add(client, science_teacher, seventh, subjects["SCI"])
+
+    assert response.status_code == 403
+    assert not SubjectClassAssignment.objects.filter(teacher=science_teacher).exists()
+
+
+def test_the_vice_reaches_every_department(
+    client, school, departments, science_teacher, vice, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+
+    response = add(client, science_teacher, seventh, subjects["SCI"])
+
+    assert response.status_code == 200
+    assert SubjectClassAssignment.objects.filter(teacher=science_teacher).count() == 1
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الحصصُ من الخطّة الوزاريّة
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_periods_come_from_the_ministry_plan_not_from_the_form(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+
+    add(client, maths_teacher, seventh, subjects["MAT"], weekly_periods=99)
+
+    row = SubjectClassAssignment.objects.get(teacher=maths_teacher)
+    assert row.weekly_periods == 5, "الرقمُ من الخطّة — والنموذجُ لا يُملي"
+
+
+def test_a_subject_without_a_plan_row_is_refused_with_a_reason(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects
+):
+    login(client, coordinator, school)
+
+    response = add(client, maths_teacher, seventh, subjects["MAT"])
+
+    assert response.status_code == 200
+    assert "لا خطّةَ دراسيّة" in response.content.decode()
+    assert not SubjectClassAssignment.objects.exists()
+
+
+def test_the_subject_options_are_the_class_plan(
+    client, school, departments, coordinator, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+
+    response = client.get(
+        reverse("academic_management:assignment_subject_options"),
+        {"year": YEAR, "class_group": seventh.id},
+    )
+
+    body = response.content.decode()
+    assert "الرياضيات" in body and "5 حصص" in body
+
+
+def test_the_preparation_box_writes_a_course_preparation(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+
+    add(client, maths_teacher, seventh, subjects["MAT"], prepares="1")
+
+    assert CoursePreparation.objects.filter(teacher=maths_teacher, grade="G7").count() == 1
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  النصابُ رقمٌ واحد
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_quota_opens_a_draft_plan_on_first_write(
+    client, school, departments, maths_teacher, coordinator
+):
+    login(client, coordinator, school)
+
+    response = set_quota(client, maths_teacher, 18)
+
+    assert response.status_code == 200
+    plan = TeacherWorkloadPlan.objects.get(teacher=maths_teacher)
+    assert plan.required_weekly_periods == 18 and plan.status == DRAFT
+
+
+def test_the_draft_quota_is_measured_against_at_once(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, plan_rows
+):
+    """قرارُ 2026-09-06: النصابُ يُقاس إليه من فوره — لا ينتظر اعتماداً."""
+    from academic_management import load
+
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 18)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+
+    measured = load.load_for(school, YEAR, maths_teacher.id)
+    assert measured.target == 18
+    assert "من 18" in measured.label()
+
+
+def test_an_out_of_range_quota_is_refused(
+    client, school, departments, maths_teacher, coordinator
+):
+    login(client, coordinator, school)
+
+    response = set_quota(client, maths_teacher, 99)
+
+    assert "النصابُ بين" in response.content.decode()
+    assert not TeacherWorkloadPlan.objects.exists()
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الدورة: رفعٌ ← مراجعةٌ ← اعتماد
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_the_coordinator_submits_and_the_vice_reviews_and_the_principal_approves(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+    assert TeacherWorkloadPlan.objects.get(teacher=maths_teacher).status == SUBMITTED
+
+    login(client, vice, school)
+    move(client, maths_teacher, "review", comment="موافقٌ عليه")
+    plan = TeacherWorkloadPlan.objects.get(teacher=maths_teacher)
+    assert plan.status == REVIEWED and plan.reviewed_by == vice
+
+    login(client, principal, school)
+    move(client, maths_teacher, "approve")
+    plan.refresh_from_db()
+    assert plan.status == APPROVED and plan.approved_by == principal
+
+
+def test_a_coordinator_cannot_review_their_own_submission(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+
+    move(client, maths_teacher, "review")
+
+    assert TeacherWorkloadPlan.objects.get(teacher=maths_teacher).status == SUBMITTED
+
+
+def test_a_submitted_card_is_locked_under_the_reviewer(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, plan_rows
+):
+    """ما رُفع للمراجعة لا يُعدَّل من تحت المراجع — يُردّ أوّلاً."""
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    move(client, maths_teacher, "submit")
+
+    response = add(client, maths_teacher, seventh, subjects["MAT"])
+
+    assert "مرفوعةٌ للمراجعة" in response.content.decode()
+    assert not SubjectClassAssignment.objects.exists()
+
+
+def test_the_vice_may_still_edit_a_submitted_card(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    """صلاحيّةٌ كاملةٌ للنائب — يعدّل ما تحت يده لا يردّه ليعدَّل."""
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    move(client, maths_teacher, "submit")
+
+    login(client, vice, school)
+    response = add(client, maths_teacher, seventh, subjects["MAT"])
+
+    assert response.status_code == 200
+    assert SubjectClassAssignment.objects.count() == 1
+
+
+def test_the_vice_returns_a_card_to_the_coordinator(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    move(client, maths_teacher, "submit")
+
+    login(client, vice, school)
+    move(client, maths_teacher, "return", comment="النصابُ ناقص")
+
+    plan = TeacherWorkloadPlan.objects.get(teacher=maths_teacher)
+    assert plan.status == DRAFT and plan.review_comment == "النصابُ ناقص"
+
+
+def test_approval_is_refused_while_the_assigned_periods_miss_the_target(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    """البوّابةُ كما هي: هدفٌ لا يقابله إسنادٌ لا يُعتمد."""
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 18)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+
+    login(client, vice, school)
+    move(client, maths_teacher, "review")
+
+    login(client, principal, school)
+    response = move(client, maths_teacher, "approve")
+
+    assert TeacherWorkloadPlan.objects.get(teacher=maths_teacher).status == REVIEWED
+    assert "المُسنَدُ فعلاً" in response.content.decode()
+
+
+def test_an_approved_card_is_not_written_over(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+    login(client, vice, school)
+    move(client, maths_teacher, "review")
+    login(client, principal, school)
+    move(client, maths_teacher, "approve")
+
+    response = set_quota(client, maths_teacher, 12)
+
+    assert "معتمَدةٌ" in response.content.decode()
+    assert TeacherWorkloadPlan.objects.get(status=APPROVED).required_weekly_periods == 5
+
+
+def test_a_new_version_reopens_an_approved_card(
+    client,
+    school,
+    departments,
+    maths_teacher,
+    coordinator,
+    vice,
+    principal,
+    seventh,
+    subjects,
+    plan_rows,
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    move(client, maths_teacher, "submit")
+    login(client, vice, school)
+    move(client, maths_teacher, "review")
+    login(client, principal, school)
+    move(client, maths_teacher, "approve")
+
+    move(client, maths_teacher, "revise")
+
+    versions = TeacherWorkloadPlan.objects.filter(teacher=maths_teacher).order_by("plan_version")
+    assert [p.status for p in versions] == [APPROVED, DRAFT]
+    assert versions.last().required_weekly_periods == 5, "الإصدارُ الجديدُ يبدأ من المعتمَد"

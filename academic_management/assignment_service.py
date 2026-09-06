@@ -301,9 +301,8 @@ def check_assignment(
     load = loads.load_for(school, academic_year, teacher.id)
     current_periods = current.weekly_periods if current and current.teacher_id == teacher.id else 0
     projected_teaching = load.teaching - current_periods + weekly_periods
-    projected_total = projected_teaching + load.preparation
 
-    if load.target is not None and projected_total > load.target:
+    if load.target is not None and projected_teaching > load.target:
         source = (
             "هدفِه المعتمَد" if load.target_source == loads.FROM_APPROVED_PLAN else "النصابِ المرجعيّ"
         )
@@ -311,8 +310,7 @@ def check_assignment(
             _f(
                 WARN,
                 OVER_TARGET,
-                f"{teacher.full_name}: {projected_teaching} تدريس + {load.preparation} تحضير"
-                f" = {projected_total} يتجاوز {source} {load.target}.",
+                f"{teacher.full_name}: {projected_teaching} تدريس تتجاوز {source} {load.target}.",
             )
         )
 
@@ -552,24 +550,8 @@ def check_preparation(*, school, academic_year, grade, track, subject, teacher):
         )
         return _apply_strictness(findings, school)
 
-    load = loads.load_for(school, academic_year, teacher.id)
-    already = (
-        CoursePreparation.objects.live(school, year=academic_year)
-        .filter(grade=grade, track=track, subject=subject, teacher=teacher)
-        .exists()
-    )
-    projected = load.total if already else load.total + load.preparation_weight
-    if load.target is not None and projected > load.target:
-        source = (
-            "هدفِه المعتمَد" if load.target_source == loads.FROM_APPROVED_PLAN else "النصابِ المرجعيّ"
-        )
-        findings.append(
-            _f(
-                WARN,
-                OVER_TARGET,
-                f"{teacher.full_name}: بحصّتَي التحضير يصير حملُه {projected} ويتجاوز {source} {load.target}.",
-            )
-        )
+    # قرارُ الإدارة (2026-09-06): حصّتا التحضير عرفاً لا تُسجَّلان في النصاب،
+    # فلا تجاوزَ يُحذَّر منه هنا. والمسؤوليّةُ تُسجَّل وتظهر في الكشف كما هي.
     return _apply_strictness(findings, school)
 
 

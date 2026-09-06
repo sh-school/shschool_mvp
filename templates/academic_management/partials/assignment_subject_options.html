@@ -1,0 +1,7 @@
+{% comment %}خياراتُ المادّة لشعبةٍ مختارة — من خطّتها الوزاريّة، بحصصها ومن يحملها الآن.{% endcomment %}
+<option value="">— المادّة —</option>
+{% for o in options %}
+<option value="{{ o.row.subject_id }}">{{ o.row.subject.name_ar }} · {{ o.row.weekly_periods }} حصص{% if o.holder %} — يدرّسها {{ o.holder.full_name }}{% endif %}</option>
+{% empty %}
+<option value="" disabled>لا خطّةَ دراسيّةً لهذه الشعبة بعد</option>
+{% endfor %}
