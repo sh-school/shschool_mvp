@@ -17,7 +17,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
-from core.models import CustomUser, Membership
+from core.models import CustomUser, Department, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import role_required
@@ -111,6 +111,9 @@ SCHEDULE_BROWSE_ROLES = {
     "vice_academic",
     "vice_admin",
     "coordinator",
+    #: مسؤولُ حصص التعليم الإلكترونيّ — قرارُ المدير 2026-09-06: له معاينةُ
+    #: الجدول كاملاً وجدولِ كلّ معلّمٍ وجداولِ الأقسام، شأنَ المنسّق.
+    "e_projects_coordinator",
     "admin_supervisor",
     "admin",
 }
@@ -1392,3 +1395,88 @@ def subject_assignment_delete(request, assignment_id):
     obj.save(update_fields=["is_active"])
     messages.success(request, f"حُذف توزيع {obj.subject.name_ar} لشعبة {obj.class_group}.")
     return _assignment_redirect(obj.academic_year, str(obj.class_group_id))
+
+
+# ── جداول المعلّمين مفردة: صفحةٌ لكلّ معلّم ───────────────────────────
+
+
+def _user_department_code(user) -> str:
+    """رمزُ قسم المستخدم من سجلّه — فارغٌ لمن لا قسمَ له (منسّقُ المشاريع)."""
+    membership = user.memberships.filter(is_active=True, department_obj__isnull=False).first()
+    return membership.department_obj.code if membership else ""
+
+
+def _teacher_pages_payload(request) -> dict:
+    """صفحاتُ المعلّمين: النطاقُ من الرابط، والقسمُ من السجلّ الإداريّ."""
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for_school(school)
+    scope = request.GET.get("dept") or "all"
+    teacher_id = request.GET.get("teacher") or ""
+
+    my_code = _user_department_code(request.user)
+    department = None
+    if teacher_id:
+        scope = "teacher"
+    elif scope == "mine":
+        department = my_code or None
+    elif scope != "all":
+        department = scope
+
+    pages, absent = ScheduleService.teacher_pages(
+        school, year, department=department, teacher_id=teacher_id or None
+    )
+
+    label = "كل المدرسة"
+    if teacher_id and pages:
+        label = pages[0]["teacher"].full_name
+    elif department:
+        label = next(
+            (p["department"]["name"] for p in pages if p["department"]["code"] == department),
+            next((a["department"]["name"] for a in absent), department),
+        )
+
+    times = ScheduleService.period_times(school, year)
+    return {
+        "school": school,
+        "year": year,
+        "title": f"جداول المعلّمين — {label}",
+        "scope_label": label,
+        "pages": pages,
+        "absent": absent,
+        "departments": Department.objects.filter(school=school, is_active=True),
+        "selected_dept": scope,
+        "my_department": my_code,
+        "days": [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")],
+        "periods": [
+            {
+                "number": n,
+                "start": times.get(n, (None, None))[0],
+                "end": times.get(n, (None, None))[1],
+            }
+            for n in ScheduleSlot.PERIODS
+        ],
+        "embed": request.GET.get("embed") == "1",
+    }
+
+
+@xframe_options_sameorigin
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES)
+def teacher_pages(request):
+    """صفحةٌ لكلّ معلّم — معلّمٌ بعينه أو قسمٌ أو المدرسة كاملة."""
+    return render(request, "schedule/print_teacher_pages.html", _teacher_pages_payload(request))
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES)
+def teacher_pages_pdf(request):
+    """الصفحاتُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق."""
+    from django.template.loader import render_to_string
+
+    from core.pdf_utils import render_pdf
+
+    ctx = _teacher_pages_payload(request)
+    ctx["embed"] = True
+    ctx["for_pdf"] = True
+    html = render_to_string("schedule/print_teacher_pages.html", ctx, request=request)
+    return render_pdf(html, _export_filename(ctx, "pdf"), paper_size="A4", as_attachment=True)

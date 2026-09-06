@@ -17,10 +17,10 @@ from core.academic_calendar import (
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from operations.departments import (
-    department_info,
     department_of_subject,
+    derived_department,
     is_fill_subject,
-    resolve_department,
+    registered_departments,
 )
 from operations.models import (
     AbsenceAlert,
@@ -409,14 +409,21 @@ class ScheduleService:
                 row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
                 row["total"] += 1
 
-        for row in rows.values():
+        registry = registered_departments(school)
+        for teacher_id, row in rows.items():
             weights = row.pop("weights")
             fill = row.pop("fill_weights")
-            row["department"] = department_info(resolve_department(weights or fill))
+            row["department"] = registry.get(str(teacher_id)) or derived_department(weights, fill)
 
+        # الاسمُ في المفتاح لأنّ `sort_order` قد يتساوى بين قسمين، فلولاه
+        # تشابكت صفوفُ القسمين وانكسر عمودُ القسم الممتدّ.
         ordered = sorted(
             rows.values(),
-            key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
+            key=lambda r: (
+                r["department"]["order"],
+                r["department"]["name"],
+                r["teacher"].full_name or "",
+            ),
         )
 
         # عمودُ القسم خانةٌ واحدةٌ ممتدّةٌ على سطور معلّميه: `dept_span` عددُ
@@ -430,6 +437,57 @@ class ScheduleService:
                 row["dept_span"] = 0
 
         return ordered
+
+    #: من يُطبع له جدولٌ — الأدوارُ التي تُدرّس، ومنها منسّقُ المشاريع.
+    TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinator")
+
+    @staticmethod
+    def teacher_pages(
+        school: School, academic_year: str | None = None, *, department=None, teacher_id=None
+    ):
+        """صفحاتُ جداول المعلّمين مرتّبةً بالأقسام، ومعها من لا حصّةَ له.
+
+        الورقةُ للمنسّق، فالقسمُ فيها من السجلّ الإداريّ لا من الموادّ
+        (`registered_departments`). ومن لا حصّةَ له لا تُطبع له صفحةٌ فارغة —
+        يُذكر في الفهرس فيُعرف أنّه لم يُنسَ.
+
+        يُعيد (صفحاتٌ، غيرُ المجدولين).
+        """
+        rows = ScheduleService.get_teachers_matrix(school, academic_year)
+        if teacher_id:
+            rows = [r for r in rows if str(r["teacher"].id) == str(teacher_id)]
+        elif department:
+            rows = [r for r in rows if r["department"]["code"] == department]
+
+        scheduled = {str(r["teacher"].id) for r in rows}
+        absent = []
+        if not teacher_id:
+            registry = registered_departments(school)
+            missing = {
+                uid: info
+                for uid, info in registry.items()
+                if uid not in scheduled and (not department or info["code"] == department)
+            }
+            if missing:
+                from core.models import Membership
+
+                members = Membership.objects.filter(
+                    school=school,
+                    is_active=True,
+                    user_id__in=list(missing),
+                    role__name__in=ScheduleService.TEACHING_ROLES,
+                ).select_related("user")
+                absent = sorted(
+                    ({"teacher": m.user, "department": missing[str(m.user_id)]} for m in members),
+                    key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
+                )
+
+        # المصفوفةُ مرتّبةٌ باليوم ثمّ بالحصّة، وورقةُ المعلّم مرتّبةٌ بالحصّة
+        # ثمّ باليوم — فالسطرُ حصّةٌ والعمودُ يوم. والقلبُ هنا لا في القالب:
+        # قوالبُ Django لا تفهرس بمتغيّر.
+        for row in rows:
+            row["by_period"] = [list(cells) for cells in zip(*row["days"], strict=False)]
+        return rows, absent
 
     @staticmethod
     def matrix_totals(rows: list[dict], school: School, academic_year: str | None = None) -> dict:
