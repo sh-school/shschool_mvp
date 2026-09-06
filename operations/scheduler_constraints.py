@@ -302,6 +302,13 @@ def check_subject_distribution(
 #: في إعدادات الجدول: المعلّمُ باقٍ مع شعبته في غرفته، وذلك هو الغرضُ لا
 #: عَرَضٌ يُتعب.
 MAX_CONSECUTIVE = 1
+
+#: سقفُ الحمل اليوميّ لمن لا تفضيلَ مكتوباً له.
+DEFAULT_MAX_DAILY = 5
+
+#: تفضيلٌ كتبته الإدارةُ في حقّ معلّمٍ بعينه يُضاعَف وزنُه على الافتراض العامّ:
+#: بوزنه الأصليّ (5) كان يسقط أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+EXPLICIT_PREFERENCE_FACTOR = 2
 #: الخميسُ — آخرُ الأسبوع وأقصرُه.
 THURSDAY = 4
 
@@ -426,18 +433,11 @@ def check_max_consecutive(
             for m in task.members
         )
 
+    #: ولا رخصةَ موضعيّةَ لأحد: كانت العربيّةُ السداسيّةُ تُمنح زوجاً واحداً
+    #: «عن طيبِ خاطر»، وألغتها الإدارةُ 2026-09-06 — التجاورُ ضرورةٌ لا تفضيل،
+    #: فلا يُفتح إلّا في جولة الاسترخاء لحصّةٍ لا موضعَ لها.
     limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
-    for member in task.members:
-        run = _run_length(grid, member.teacher_id, day, period)
-        if run < limit:
-            continue
-        # الرخصةُ الموضعيّة: زوجٌ واحدٌ في الأسبوع لمن استحقّها — ولا ثلاثيّة.
-        allowance = task.adjacency_allowance
-        if not allowance or run >= MAX_CONSECUTIVE + 1:
-            return False
-        if grid.teacher_adjacent_pairs(member.teacher_id) >= allowance:
-            return False
-    return True
+    return all(_run_length(grid, member.teacher_id, day, period) < limit for member in task.members)
 
 
 def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
@@ -567,6 +567,19 @@ class SoftPenalty:
             self.details[name] = weight
 
 
+def daily_load_weight(teacher_today: int, pref: dict | None) -> float:
+    """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
+
+    والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
+    أمام الفراغ (8) والتتابع (10) فلا يُلزم شيئاً.
+    """
+    max_daily = (pref or {}).get("max_daily", DEFAULT_MAX_DAILY)
+    if teacher_today < max_daily:
+        return 0.0
+    over = teacher_today - max_daily + 1
+    return WEIGHTS["daily_load"] * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+
+
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
     """هل جارُ هذه الخانة — قبلَها أو بعدَها — نفسُ المادّة لنفس الشعبة؟"""
     for step in (-1, 1):
@@ -652,11 +665,15 @@ def evaluate_soft_constraints(
         )
 
     # ── SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم ──
+    #
+    # وكانت العقوبةُ مسطّحةً: خمسُ نقاطٍ للرابعة كما للسابعة، فبعد أوّل تجاوزٍ
+    # يصير الإثقالُ مجّاناً. وكانت تُسوّي بين تفضيلٍ كتبته الإدارةُ في حقّ
+    # معلّمٍ بعينه وبين الافتراض العامّ — فوزنُ خمسةٍ دون الفراغ (8) والتتابع
+    # (10)، فيسقط التفضيلُ كلّما زاحمه أحدُهما. (قياس 2026-09-06: محمّد صبري
+    # تفضيلُه ثلاثٌ ونصابُه خمسَ عشرةَ — قسمتُه ثلاثٌ بالضبط — فجاء 4·2·3·2·4.)
     teacher_today = grid.teacher_periods_on_day(task.teacher_id, day)
-    max_daily = 5
-    if preferences and task.teacher_id in preferences:
-        max_daily = preferences[task.teacher_id].get("max_daily", 5)
-    penalty.add("daily_load", WEIGHTS["daily_load"], teacher_today >= max_daily)
+    load_weight = daily_load_weight(teacher_today, (preferences or {}).get(task.teacher_id))
+    penalty.add("daily_load", load_weight, load_weight > 0)
 
     # ── SC14: الحصّةُ الثانيةُ للمادّة يومَ الخميس تُتجنَّب ما وُجد بديل ──
     penalty.add(

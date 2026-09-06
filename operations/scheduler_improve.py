@@ -22,6 +22,10 @@ from .scheduler_constraints import MAX_CONSECUTIVE, get_max_periods_for_day, is_
 
 DAYS = (0, 1, 2, 3, 4)
 LAST_PERIOD = 7
+#: ثقلُ الحصّة الزائدة عن نصيب اليوم في الكلفة المحلّيّة. وهو من رتبة كسر
+#: التتابع (2.0) وفوق طرفِ اليوم (0.25): نقلةٌ تُنزل يوماً من أربعٍ إلى ثلاثٍ
+#: تربح أكثرَ ممّا تخسره بفتح يومٍ خفيفٍ على حصّة.
+OVERLOAD_WEIGHT = 1.5
 #: جولاتٌ كاملةٌ بلا تحسّنٍ قبل التوقّف.
 STALE_ROUNDS = 1
 
@@ -40,8 +44,28 @@ def _longest_run(periods: list[int]) -> int:
     return best
 
 
+def fair_share(grid, teacher_id: str, preferences: dict | None) -> int:
+    """نصيبُ اليوم الواحد: النصابُ على أيّامه، ولا يتجاوز تفضيلَه المكتوب.
+
+    المولّدُ يرجّح بالنصيب وقتَ الوضع (SC13)، وهذا يقيسه بعد اكتمال الجدول:
+    فما استقرّ يومٌ على أربعٍ ويومٌ على اثنتين إلّا لأنّ الترجيحَ وحدَه لا يرى
+    الأسبوعَ كاملاً.
+    """
+    info = (getattr(grid, "coverage", None) or {}).get(teacher_id)
+    share = LAST_PERIOD
+    if info:
+        _placements, load, days = info
+        share = -(-load // max(1, len(days)))
+    cap = ((preferences or {}).get(teacher_id) or {}).get("max_daily")
+    return min(share, cap) if cap else share
+
+
 def teacher_day_cost(grid, teacher_id: str, day: int, preferences: dict | None) -> float:
-    """كلفةُ يومٍ لمعلّم — مكوّناتُ المختبر نفسُها: فراغٌ موزون، تراصّ، أطراف، تتابع."""
+    """كلفةُ يومٍ لمعلّم — مكوّناتُ المختبر نفسُها: فراغٌ موزون، تراصّ، أطراف، تتابع.
+
+    ومعها الحملُ الزائد: يومٌ فوق نصيبه من القسمة يُكلّف، فتجد النقلةُ طريقَها
+    من اليوم العامر إلى اليوم الخفيف بدل أن تُقاس بالفراغ وحده.
+    """
     from .schedule_lab import alternating_compactness, excess_gap_weight
 
     periods = sorted(set(grid.teacher_periods_on(teacher_id, day)))
@@ -52,7 +76,8 @@ def teacher_day_cost(grid, teacher_id: str, day: int, preferences: dict | None) 
     edges = sum(1 for p in periods if p in (1, LAST_PERIOD))
     # التلاصقُ أثقلُ ما يُصلَح: رخصةُ ضرورةٍ لا شكلٌ مقبول.
     breach = 2.0 if _longest_run(periods) > _run_cap(preferences, teacher_id) else 0.0
-    return gap_weighted + compactness + 0.25 * edges + breach
+    overload = max(0, len(periods) - fair_share(grid, teacher_id, preferences))
+    return gap_weighted + compactness + 0.25 * edges + breach + OVERLOAD_WEIGHT * overload
 
 
 def _members_free(grid, task, blocked, day: int, period: int) -> bool:
