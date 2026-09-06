@@ -93,6 +93,8 @@ class Task:
     prefers_double: bool = False
     preferred_periods: list = field(default_factory=list)
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
+    #: صفُّ الشعبة («G7»…«G12») — قيدُ الخميس الصلب يخصّ الحادي عشر والثاني عشر.
+    grade: str = ""
     #: سقفُ التلاصق الخاصُّ بمعلّم هذه المهمّة — صفرٌ يعني «خُذ العامّ».
     #: والخاصُّ لا يُرفع في جولة الاسترخاء: قرارٌ في حقّ معلّمٍ بعينه أثقلُ من
     #: سقفٍ عامٍّ وُضع ليُقارَب.
@@ -593,6 +595,7 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
             prefers_double=is_double,
             preferred_periods=a.preferred_periods or [],
             level_type=level_type,
+            grade=a.class_group.grade or "",
             available_days=available,
             #: أضيقُ سقفٍ بين ساكني المهمّة — فالمنقسمةُ يحكمها أشدُّ معلّمَيها.
             consecutive_cap=min(

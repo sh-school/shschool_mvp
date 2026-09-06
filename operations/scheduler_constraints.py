@@ -179,6 +179,57 @@ def check_day_coverage(
     return True
 
 
+def week_share(grid: ScheduleGrid, teacher_id: str) -> tuple[int, int] | None:
+    """(الحدُّ الأدنى، السقف) لحصص اليوم الواحد: النصابُ على أيّام المعلّم.
+
+    قرارُ الإدارة 2026-09-06: الفرقُ بين أثقل يومٍ وأخفّه لا يتجاوز حصّة —
+    ثماني عشرةَ = 3+4+4+4+3، وثلاثَ عشرةَ = 3+3+3+2+2، وأربعٌ = يومٌ فارغ.
+    """
+    info = grid.coverage.get(teacher_id) if grid.coverage else None
+    if not info:
+        return None
+    _placements, load, days = info
+    if not days:
+        return None
+    return load // len(days), -(-load // len(days))
+
+
+def check_week_balance_cap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC16: لا يومَ فوق سقف القسمة — ولا يتنازل في الاسترخاء.
+
+    الحدُّ الأدنى لا يُفرض هنا: المولّدُ يضع الحصصَ واحدةً واحدة ولا يعرف كيف
+    ينتهي اليوم، فيُصلحه التحسينُ بعد اكتمال الجدول ويُبلّغ عنه المختبر.
+    """
+    for member in task.members:
+        share = week_share(grid, member.teacher_id)
+        if share is None:
+            continue
+        _floor, cap = share
+        # المزدوجةُ حصّتان في يومٍ بحكمها («مع مراعاة الحصص المتجاورة في موادها»):
+        # معلّمٌ نصابُه زوجٌ واحد سقفُه حصّةٌ حسابياً، ولا يوضع زوجٌ في حصّة.
+        cap = max(cap, task.span)
+        if grid.teacher_periods_on_day(member.teacher_id, day) + task.span > cap:
+            return False
+    return True
+
+
+#: صفوفُ الثانويّ التي لا تجتمع فيها حصّتا مادّةٍ يومَ الخميس.
+THURSDAY_SINGLE_GRADES = frozenset({"G11", "G12"})
+
+
+def check_thursday_secondary_pair(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC17: يومَ الخميس لا حصّتان لمادّةٍ واحدةٍ في شعبة الحادي عشر أو الثاني عشر.
+
+    قيدٌ صلبٌ لا يسقط (قرار 2026-09-06)، وخُفّف نطاقُه إلى هذين الصفّين وحدهما؛
+    وما دونهما يبقى على الترجيح القويّ (SC14). والمزدوجةُ كتلةٌ واحدةٌ لا زوج.
+    """
+    if day != THURSDAY or task.grade not in THURSDAY_SINGLE_GRADES:
+        return True
+    if getattr(task, "prefers_double", False):
+        return True
+    return grid.subject_on_day(task.class_id, task.subject_id, THURSDAY) == 0
+
+
 def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) -> bool:
     """HC2: الفصل لا يأخذ مادتين في نفس الوقت
 
@@ -531,6 +582,10 @@ def is_slot_valid(
     if not check_band_transition(grid, day, period, task):
         return False
     if not check_day_coverage(grid, day, period, task, allow_dense):
+        return False
+    if not check_week_balance_cap(grid, day, period, task):
+        return False
+    if not check_thursday_secondary_pair(grid, day, period, task):
         return False
     if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False

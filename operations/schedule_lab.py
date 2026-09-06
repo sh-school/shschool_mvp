@@ -419,6 +419,28 @@ class ScheduleLab:
             "detail": {self.names[t]: _round(v) for t, v in top},
         }
 
+    def pattern_breaches(self) -> dict:
+        """من خرج عن نمط القسمة: يومٌ فوق سقفها أو دون حدّها الأدنى.
+
+        قرارُ الإدارة 2026-09-06: النصابُ على الأيّام بفرقِ حصّةٍ على الأكثر
+        بين أثقل يومٍ وأخفّه. والتفصيلُ بالاسم والتوزيع لا بالعدد وحده — فمن
+        يعتمد الجدولَ يعرف مَن ولماذا.
+        """
+        # المزدوجةُ حصّتان في يومٍ بحكمها، فسقفُ صاحبها لا يقلّ عن اثنتين.
+        doubled = {s.teacher_id for s in self.slots if s.requires_double}
+        breaches = {}
+        for tid, load in self.load.items():
+            days = list(self.available_days(tid))
+            if not days:
+                continue
+            floor, cap = load // len(days), -(-load // len(days))
+            if tid in doubled:
+                cap = max(cap, 2)
+            counts = [len(set(self.by_teacher_day.get(tid, {}).get(d, []))) for d in days]
+            if any(c > cap or c < floor for c in counts):
+                breaches[self.names[tid]] = "+".join(str(c) for c in counts)
+        return {"value": len(breaches), "detail": dict(list(breaches.items())[:8])}
+
     def transitions(self) -> tuple[dict, dict]:
         per_day = []
         worst = (0, "", -1)
@@ -637,6 +659,7 @@ class ScheduleLab:
             "teacher.run_avg": run_avg,
             "teacher.run_breaches": run_breaches,
             "teacher.weekly_imbalance": self.weekly_imbalance(),
+            "teacher.pattern_breaches": self.pattern_breaches(),
             "teacher.transitions_avg": tr_avg,
             "teacher.transitions_max": tr_max,
             "fairness.edge_cv": self.edge_fairness(),
@@ -671,6 +694,7 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "teacher.run_avg": ("أطول تتابع (متوسّط)", "حصص", "low"),
     "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "عدد", "low"),
     "teacher.weekly_imbalance": ("تفاوت حصص الأيام (انحراف)", "رقم", "low"),
+    "teacher.pattern_breaches": ("معلّمون خارج نمط القسمة", "عدد", "zero"),
     "teacher.transitions_avg": ("انتقالات الطابقين (متوسّط اليوم)", "عدد", "low"),
     "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "low"),
     "fairness.edge_cv": ("عدالة الأولى والسابعة (معامل اختلاف)", "نسبة", "low"),

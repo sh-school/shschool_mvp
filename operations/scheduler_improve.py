@@ -18,7 +18,12 @@ from __future__ import annotations
 import random
 import time
 
-from .scheduler_constraints import MAX_CONSECUTIVE, get_max_periods_for_day, is_slot_valid
+from .scheduler_constraints import (
+    MAX_CONSECUTIVE,
+    get_max_periods_for_day,
+    is_slot_valid,
+    week_share,
+)
 
 DAYS = (0, 1, 2, 3, 4)
 LAST_PERIOD = 7
@@ -69,15 +74,21 @@ def teacher_day_cost(grid, teacher_id: str, day: int, preferences: dict | None) 
     from .schedule_lab import alternating_compactness, excess_gap_weight
 
     periods = sorted(set(grid.teacher_periods_on(teacher_id, day)))
+    # اليومُ الناقصُ عن الحدّ الأدنى يُكلّف ولو كان فارغاً — وإلّا لم يجده
+    # أحدٌ ليملأه: 3+3+3+3+1 لثلاثَ عشرةَ حصّةً لا سقفَ فيه مخالَف.
+    share = week_share(grid, teacher_id)
+    deficit = max(0, share[0] - len(periods)) if share else 0
     if not periods:
-        return 0.0
+        return OVERLOAD_WEIGHT * deficit
     gap_weighted = excess_gap_weight(periods)
     compactness = alternating_compactness(periods) - 1.0
     edges = sum(1 for p in periods if p in (1, LAST_PERIOD))
     # التلاصقُ أثقلُ ما يُصلَح: رخصةُ ضرورةٍ لا شكلٌ مقبول.
     breach = 2.0 if _longest_run(periods) > _run_cap(preferences, teacher_id) else 0.0
     overload = max(0, len(periods) - fair_share(grid, teacher_id, preferences))
-    return gap_weighted + compactness + 0.25 * edges + breach + OVERLOAD_WEIGHT * overload
+    return (
+        gap_weighted + compactness + 0.25 * edges + breach + OVERLOAD_WEIGHT * (overload + deficit)
+    )
 
 
 def _members_free(grid, task, blocked, day: int, period: int) -> bool:
@@ -202,7 +213,32 @@ class Improver:
                 out.append(task)
         return out
 
+    def _pull_into(self, teacher_id: str, day: int) -> bool:
+        """يومٌ دون الحدّ الأدنى يُملأ من يومٍ فوقه — نقلةٌ تُقبل بشرطَي الحكم."""
+        share = week_share(self.grid, teacher_id)
+        if share is None:
+            return False
+        floor, _cap = share
+        if self.grid.teacher_periods_on_day(teacher_id, day) >= floor:
+            return False
+        donors = [
+            d for d in DAYS if d != day and self.grid.teacher_periods_on_day(teacher_id, d) > floor
+        ]
+        for donor in donors:
+            for task in self._tasks_of(teacher_id, donor):
+                for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
+                    if time.time() >= self.deadline:
+                        return False
+                    if self.grid.get_task_at(task.class_id, day, period) is not None:
+                        continue
+                    self.grid.begin()
+                    if self._judge(self._try_move(task, day, period)):
+                        return True
+        return False
+
     def _improve_day(self, teacher_id: str, day: int) -> bool:
+        if self._pull_into(teacher_id, day):
+            return True
         tasks = self._tasks_of(teacher_id, day)
         wanted = self._wanted_cells(teacher_id, day)
         self.rng.shuffle(tasks)
