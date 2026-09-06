@@ -205,10 +205,52 @@ def check_week_balance_cap(grid: ScheduleGrid, day: int, period: int, task: Task
         if share is None:
             continue
         _floor, cap = share
-        # المزدوجةُ حصّتان في يومٍ بحكمها («مع مراعاة الحصص المتجاورة في موادها»):
-        # معلّمٌ نصابُه زوجٌ واحد سقفُه حصّةٌ حسابياً، ولا يوضع زوجٌ في حصّة.
-        cap = max(cap, task.span)
-        if grid.teacher_periods_on_day(member.teacher_id, day) + task.span > cap:
+        # المزدوجةُ حصّتان في يومٍ بحكمها («مع مراعاة الحصص المتجاورة في موادها»)،
+        # والزوجُ لا يُشطر: معلّمُ فنونٍ نصابُه سبعةُ أزواجٍ لا يسعه نمطُ 3+3+3+3+2
+        # لأنّ يوماً بثلاثٍ لا يحمل زوجاً ونصفاً — فيُسمح للزوج أن يتجاوز السقفَ
+        # بحصّةٍ واحدة: 4+4+2+2+2. وقد أسقط السقفُ الصارم ستَّ حصص فنونٍ بلا موضع
+        # في أوّل توليدٍ محلّيّ (2026-09-06).
+        limit = cap + 1 if task.span > 1 else cap
+        if grid.teacher_periods_on_day(member.teacher_id, day) + task.span > limit:
+            return False
+    return True
+
+
+def check_week_floor_reservation(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_dense: bool = False
+) -> bool:
+    """HC16ب: احتياطُ الحدّ الأدنى — كاحتياط التغطية (HC14) لكن بحصّة القسمة لا بواحدة.
+
+    الحدُّ الأدنى لا يُصلَح بعد اكتمال الجدول في مدرسةٍ إشغالُها ثمانيةٌ وتسعون
+    بالمئة: كلُّ خانةٍ في يوم النقص مشغولةٌ للشعبة، والتبديلُ يصطدم بانشغال
+    معلّم الحصّة الأخرى وتلاصقه (قياس 2026-09-06: 58 محاولةً بلا نجاح). فيُحجز
+    الحدُّ مسبقاً: قبل وضع الحصّة يُعَدّ ما سيبقى للمعلّم وما ستبقى أيّامُه
+    دون الحدّ، فإن كان الباقي لا يسدّ النقصَ رُفضت الخانةُ وإن صحّت في ذاتها.
+
+    ويتنازل في جولة الملاذ الأخير وحدَها (`allow_dense`) كما يتنازل احتياطُ
+    التغطية — وحينها يُسمّي المختبرُ من خرج عن النمط.
+    """
+    if not grid.coverage or allow_dense:
+        return True
+    for member in task.members:
+        info = grid.coverage.get(member.teacher_id)
+        if info is None:
+            continue
+        _placements, load, days = info
+        if not days or day not in days:
+            continue
+        floor = load // len(days)
+        if floor == 0:
+            continue
+        placed = sum(grid.teacher_periods_on_day(member.teacher_id, d) for d in days)
+        remaining = load - placed - task.span
+        gaps = 0
+        for d in days:
+            have = grid.teacher_periods_on_day(member.teacher_id, d)
+            if d == day:
+                have += task.span
+            gaps += max(0, floor - have)
+        if remaining < gaps:
             return False
     return True
 
@@ -584,6 +626,8 @@ def is_slot_valid(
     if not check_day_coverage(grid, day, period, task, allow_dense):
         return False
     if not check_week_balance_cap(grid, day, period, task):
+        return False
+    if not check_week_floor_reservation(grid, day, period, task, allow_dense):
         return False
     if not check_thursday_secondary_pair(grid, day, period, task):
         return False

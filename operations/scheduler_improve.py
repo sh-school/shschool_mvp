@@ -236,6 +236,79 @@ class Improver:
                         return True
         return False
 
+    # ── نمطُ القسمة قيدٌ صلبٌ (قرار 2026-09-06): لا يُوزن بدرجة المختبر ──
+    def _pull_firm(self, teacher_id: str, day: int, floor: int) -> bool:
+        """يومٌ دون الحدّ الأدنى يُملأ من أثقل يومٍ فوقه — بصحّة القيود الصلبة وحدَها.
+
+        ما قرّرته الإدارةُ قيداً لا يُرجَّح بمقياس: نقلةٌ تُصلح النمطَ تُقبل وإن
+        أنزلت درجةَ المختبر قليلاً. وكانت النقلاتُ كلُّها مشروطةً بالدرجة، فبقي
+        تسعةُ معلّمين خارج النمط في أوّل توليدٍ محلّيّ."""
+        donors = sorted(
+            (
+                d
+                for d in DAYS
+                if d != day and self.grid.teacher_periods_on_day(teacher_id, d) > floor
+            ),
+            key=lambda d: -self.grid.teacher_periods_on_day(teacher_id, d),
+        )
+        for donor in donors:
+            for task in self._tasks_of(teacher_id, donor):
+                for period in range(1, get_max_periods_for_day(day, task.level_type) + 1):
+                    if time.time() >= self.deadline:
+                        return False
+                    occupant = self.grid.get_task_at(task.class_id, day, period)
+                    self.grid.begin()
+                    if occupant is None:
+                        accepted = self._try_move(task, day, period) is not None
+                    # الشعبةُ مشغولةٌ في كلّ حصص اليوم — مدرسةٌ إشغالُها ثمانيةٌ وتسعون
+                    # بالمئة لا تترك خانةً شاغرة — فالطريقُ الوحيدُ تبديلٌ مع ساكن
+                    # الخانة، بشرط ألّا يُخرج التبديلُ صاحبَ الحصّة الأخرى من نمطه.
+                    elif (
+                        occupant.span == 1
+                        and occupant is not task
+                        and self._swap_keeps_pattern(occupant, leaving=day, arriving=donor)
+                    ):
+                        accepted = self._try_swap(task, occupant) is not None
+                    else:
+                        accepted = False
+                    if not accepted:
+                        self.grid.rollback()
+                        continue
+                    self.grid.commit()
+                    self.moves += 1
+                    return True
+        return False
+
+    def _swap_keeps_pattern(self, other, *, leaving: int, arriving: int) -> bool:
+        """أيبقى معلّمُ الحصّة المبدَّلة داخل نمطه بعد أن يغادر يوماً ويصل آخر؟"""
+        for member in other.members:
+            share = week_share(self.grid, member.teacher_id)
+            if share is None:
+                continue
+            floor, cap = share
+            if self.grid.teacher_periods_on_day(member.teacher_id, leaving) - 1 < floor:
+                return False
+            if self.grid.teacher_periods_on_day(member.teacher_id, arriving) + 1 > cap:
+                return False
+        return True
+
+    def _balance_pass(self) -> int:
+        moved = 0
+        for teacher_id in self.teachers:
+            share = week_share(self.grid, teacher_id)
+            if share is None:
+                continue
+            floor, _cap = share
+            for day in sorted(self.grid.coverage[teacher_id][2]):
+                while self.grid.teacher_periods_on_day(teacher_id, day) < floor:
+                    if time.time() >= self.deadline or not self._pull_firm(teacher_id, day, floor):
+                        break
+                    moved += 1
+        if moved:
+            self.score, _ = self._lab(self.grid, self.lab_ctx)
+            self.evaluations += 1
+        return moved
+
     def _improve_day(self, teacher_id: str, day: int) -> bool:
         if self._pull_into(teacher_id, day):
             return True
@@ -314,6 +387,7 @@ class Improver:
             if time.time() >= self.deadline:
                 break
             self._move_off_thursday(task)
+        balanced = self._balance_pass()
         while time.time() < self.deadline and stale < STALE_ROUNDS + 1:
             rounds += 1
             improved = False
@@ -326,6 +400,7 @@ class Improver:
             "moves": self.moves,
             "lab_evaluations": self.evaluations,
             "rounds": rounds,
+            "balanced": balanced,
             "score_before": self.started,
             "score_after": self.score,
         }

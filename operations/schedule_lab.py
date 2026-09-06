@@ -435,7 +435,8 @@ class ScheduleLab:
                 continue
             floor, cap = load // len(days), -(-load // len(days))
             if tid in doubled:
-                cap = max(cap, 2)
+                # الزوجُ يتجاوز السقفَ بحصّةٍ بحكمه (HC16) — فلا يُعدّ خروجاً.
+                cap = max(cap, 2) + 1
             counts = [len(set(self.by_teacher_day.get(tid, {}).get(d, []))) for d in days]
             if any(c > cap or c < floor for c in counts):
                 breaches[self.names[tid]] = "+".join(str(c) for c in counts)
