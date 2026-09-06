@@ -91,6 +91,34 @@
     </tbody>
   </table>
 
+  {% comment %}
+  المادّةُ في الشعبة لمعلّمٍ واحد: إسنادُها إلى ثانٍ يُسقطها عن الأوّل. فيُقال
+  ذلك صراحةً باسم صاحبها ويُطلب التأكيد — لا يقع صامتاً فيخسر زميلٌ حصصَه.
+  {% endcomment %}
+  {% if card.transfer %}
+  <div class="asg-confirm" role="alert">
+    <p>
+      <b>{{ card.transfer.subject.name_ar }}</b> في <b>{{ card.transfer.class_group }}</b>
+      مُسنَدةٌ إلى <b>{{ card.transfer.holder.full_name|default:"معلّمٍ آخر" }}</b>.
+      وإسنادُها إلى <b>{{ card.teacher.full_name }}</b> يُسقطها عنه.
+    </p>
+    <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.transfer.year }}">
+      <input type="hidden" name="class_group" value="{{ card.transfer.class_group.id }}">
+      <input type="hidden" name="subject" value="{{ card.transfer.subject.id }}">
+      {% if card.transfer.prepares %}<input type="hidden" name="prepares" value="1">{% endif %}
+      <input type="hidden" name="confirm_transfer" value="1">
+      <button type="submit" class="asg-btn asg-btn-approve">أؤكّد النقل</button>
+    </form>
+    <form hx-post="{% url 'academic_management:assignment_cancel_transfer' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.transfer.year }}">
+      <button type="submit" class="asg-btn asg-btn-ghost">إلغاء</button>
+    </form>
+  </div>
+  {% endif %}
+
   {% if card.error %}<div class="asg-err" role="alert">{{ card.error }}</div>{% endif %}
   {% for n in card.notes %}<div class="asg-note">{{ n.message }}</div>{% endfor %}
   {% if card.room and not card.room.fits %}

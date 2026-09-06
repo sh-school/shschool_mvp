@@ -218,6 +218,7 @@ def _card(
     classes=None,
     error=None,
     notes=(),
+    transfer=None,
 ):
     """سياقُ بطاقةٍ واحدة — تُبنى للصفحة وتُعاد وحدَها بعد كلّ حفظ."""
     if rows is None:
@@ -258,6 +259,8 @@ def _card(
         "year": year,
         "error": error,
         "notes": [n for n in notes if n.level != assignment_service.BLOCK],
+        # نقلُ مادّةٍ من زميلٍ — يُعرض ليُؤكَّد لا ليقع صامتاً.
+        "transfer": transfer,
         # ── أزرارُ الدورة: مسودّةٌ ← رفعٌ ← مراجعةٌ ← اعتماد ──
         "can_submit": bool(plan) and status == DRAFT and caps["edit"],
         "can_review": bool(plan) and status == SUBMITTED and caps["review"],
@@ -448,8 +451,34 @@ def add_row(request, teacher_id):
             teacher=teacher,
             weekly_periods=planned.weekly_periods,
             by=request.user,
+            confirm_transfer=bool(request.POST.get("confirm_transfer")),
         )
-    except (assignment_service.AssignmentError, ValidationError) as exc:
+    except assignment_service.AssignmentError as exc:
+        codes = {f.code for f in exc.findings if f.blocks}
+        if codes == {assignment_service.SUBJECT_HELD_BY_OTHER}:
+            # مانعٌ واحدٌ وهو النقل: تُعرض الحقيقةُ ويُطلب التأكيدُ بدل الرفض.
+            holder = (
+                SubjectClassAssignment.objects.live(school, year=year)
+                .filter(class_group=group, subject=subject)
+                .select_related("teacher")
+                .first()
+            )
+            return _render_card(
+                request,
+                school,
+                year,
+                teacher,
+                caps,
+                transfer={
+                    "class_group": group,
+                    "subject": subject,
+                    "holder": holder.teacher if holder else None,
+                    "prepares": bool(request.POST.get("prepares")),
+                    "year": year,
+                },
+            )
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
+    except ValidationError as exc:
         return _render_card(request, school, year, teacher, caps, error=_message(exc))
 
     if request.POST.get("prepares"):
@@ -505,6 +534,15 @@ def update_periods(request, assignment_id):
     ) as exc:
         return _render_card(request, school, year, teacher, caps, error=_message(exc))
     return _render_card(request, school, year, teacher, caps, notes=findings)
+
+
+@login_required
+@require_POST
+def cancel_transfer(request, teacher_id):
+    """صرفُ النظر عن نقلٍ لم يُؤكَّد — تُعاد البطاقةُ كما كانت."""
+    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    school, caps, _scope, year = _guard(request, teacher)
+    return _render_card(request, school, year, teacher, caps)
 
 
 @login_required
