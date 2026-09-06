@@ -154,9 +154,20 @@ class RoleAdmin(admin.ModelAdmin):
 
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
-    list_display = ("user", "school", "role", "is_active", "joined_at")
-    list_filter = ("is_active", "school", "role__name")
-    list_select_related = ("user", "school", "role")
+    #: القسمُ والتخصّصُ يُحرَّران من القائمة: ورقةُ جداول المعلّمين تقرأ منهما،
+    #: وتصحيحُ قسمِ رجلٍ لا يستحقّ فتحَ صفحةٍ لكلّ عضو.
+    list_display = (
+        "user",
+        "school",
+        "role",
+        "department_obj",
+        "specialty",
+        "is_active",
+        "joined_at",
+    )
+    list_editable = ("department_obj", "specialty")
+    list_filter = ("is_active", "school", "role__name", "department_obj")
+    list_select_related = ("user", "school", "role", "department_obj")
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 

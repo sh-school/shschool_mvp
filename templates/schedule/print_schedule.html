@@ -301,6 +301,11 @@
   .schedule-matrix tbody tr.dept-arts         td { background: #f4d9e8; }
   .schedule-matrix tbody tr.dept-life_skills  td { background: #e8ded0; }
   .schedule-matrix tbody tr.dept-other        td { background: #e8e8e8; }
+  /* رموزُ جدول الأقسام المسجَّل — وما فوقها رموزُ الاشتقاق الاحتياطيّ. */
+  .schedule-matrix tbody tr.dept-islamic      td { background: #d9ead3; }
+  .schedule-matrix tbody tr.dept-science      td { background: #d0e8e4; }
+  .schedule-matrix tbody tr.dept-biology      td { background: #eef3cf; }
+  .schedule-matrix tbody tr.dept-art          td { background: #f4d9e8; }
   /* سطرُ المجموع: أبيضُ بلا لونِ قسمٍ — فهو للجدول كلّه لا لقسمٍ منه. */
   .schedule-matrix tfoot td {
     background: #fff;
@@ -452,8 +457,6 @@
     <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
       <option data-view="all_teachers"
         {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
-      <option data-view="school"
-        {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
       <option disabled>── معلم ──</option>
       {% for t in teachers %}
       <option data-view="teacher" data-teacher="{{ t.id }}"
@@ -471,7 +474,7 @@
       var form = document.getElementById('schedule-view-form');
       var option = select.options[select.selectedIndex];
 
-      form.elements.view.value = option.dataset.view || 'school';
+      form.elements.view.value = option.dataset.view || 'all_teachers';
       form.elements.teacher.value = option.dataset.teacher || '';
       form.elements['class'].value = option.dataset.class || '';
       form.submit();
@@ -495,6 +498,11 @@
   {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
   <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
   <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
+  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان باسم المطلوب لا رابطٌ عامّ. #}
+  {% if may_browse %}
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=teachers&amp;year={{ year }}">جداول المعلّمين</a>
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=classes&amp;year={{ year }}">جداول الشُّعب</a>
+  {% endif %}
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
 {% endif %}
@@ -618,7 +626,8 @@
           <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
           {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
-          <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
+          {% comment %}عازلا الاتجاه لازمان: `direction: ltr` تكفي المتصفّح ولا يقرؤها مولّدُ PDF، فينقلب التوقيتُ في الملفّ المطبوع وحدَه — «08:45 - 08:00».{% endcomment %}
+          <div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>
           {% endfor %}
           {% else %}
           <div class="slot-empty">—</div>

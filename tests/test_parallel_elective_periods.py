@@ -147,8 +147,8 @@ def test_an_empty_period_stays_absent(db, school, section):
 @pytest.mark.parametrize(
     "template",
     [
-        "templates/schedule/weekly.html",
         "templates/schedule/print_schedule.html",
+        "templates/schedule/print_pages.html",
         "templates/schedule/teacher_weekly.html",
     ],
 )
@@ -163,36 +163,22 @@ def test_no_template_reads_a_field_straight_off_the_cell(template):
 
 
 def test_the_rendered_cell_shows_both_subjects_and_both_teachers(
-    db, school, section, subjects, teachers
+    db, client, school, section, subjects, teachers, principal_user
 ):
-    """الدعوى على الشاشة لا على البنية: القالب يكتب المادّتين والاسمين معاً."""
-    from django.template.loader import render_to_string
-    from django.test import RequestFactory
+    """الدعوى على الشاشة لا على البنية: الورقةُ تكتب المادّتين والاسمين معاً.
+
+    (كانت على شبكة `weekly.html` القديمة؛ وصارت الورقةُ هي صفحةَ الجدول.)
+    """
+    from django.urls import reverse
 
     tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
 
-    request = RequestFactory().get("/schedule/")
-    request.user = tech
-    html = render_to_string(
-        "schedule/weekly.html",
-        {
-            "grid": ScheduleService.get_weekly_schedule(
-                school, class_group=section, academic_year=YEAR
-            ),
-            "days": [(1, "الإثنين")],
-            "periods": [4],
-            "conflicts": [],
-            "target_class": section,
-            "target_teacher": None,
-            "teachers": [],
-            "classes": [section],
-            "academic_year": YEAR,
-            "user_role": "teacher",
-        },
-        request=request,
-    )
+    client.force_login(principal_user)
+    html = client.get(
+        reverse("schedule_print"), {"view": "class", "class": section.id, "year": YEAR}
+    ).content.decode()
 
     for text in ("التكنولوجيا", "الفنون البصرية", "محمد اسماعيل السيد", "يوسف يعقوب عوض"):
         assert text in html, text

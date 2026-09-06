@@ -111,6 +111,9 @@ SCHEDULE_BROWSE_ROLES = {
     "vice_academic",
     "vice_admin",
     "coordinator",
+    #: مسؤولُ حصص التعليم الإلكترونيّ — قرارُ المدير 2026-09-06: له معاينةُ
+    #: الجدول كاملاً وجدولِ كلّ معلّمٍ وجداولِ الأقسام، شأنَ المنسّق.
+    "e_projects_coordinator",
     "admin_supervisor",
     "admin",
 }
@@ -125,6 +128,7 @@ SCHEDULE_BROWSE_ROLES = {
     "vice_academic",
     "vice_admin",
     "coordinator",
+    "e_projects_coordinator",
     "teacher",
     "ese_teacher",
     "academic_advisor",
@@ -132,76 +136,41 @@ SCHEDULE_BROWSE_ROLES = {
     "admin",
 )
 def weekly_schedule(request):
-    """عرض الجدول الأسبوعي — للمعلم أو كل المعلمين للمدير"""
+    """صفحةُ الجدول الأسبوعيّ — وهي ورقةُ الطباعة نفسُها داخل المنصّة.
+
+    كانت شبكةً ملوّنةً على حدة، وورقةُ الطباعة صفحةً ثانيةً وراء زرّ. قرارُ
+    الإدارة 2026-09-06: الورقةُ تكفي عرضاً للجدول، ففيها الاختيارُ والطباعةُ
+    والتصدير، ولا حاجةَ لشاشتين تقولان الشيءَ نفسَه بشكلين.
+
+    وما كان في الشبكة القديمة ولم يكن في الورقة انتقل إليها لا سقط: لافتةُ
+    معاينة المسودّة (`?generation=`) والتعارضاتُ للإدارة.
+    """
+    ctx = _schedule_print_selection(request)
+    ctx["departments"] = (
+        ScheduleService.department_options(ctx["school"], ctx["year"]) if ctx["may_browse"] else []
+    )
+    ctx["conflicts"] = (
+        ScheduleService.detect_conflicts(ctx["school"], ctx["year"])
+        if request.user.is_admin() and not ctx["preview"]
+        else []
+    )
+    return render(request, "schedule/print_view.html", ctx)
+
+
+def _browse_lists(school):
+    """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
     from core.models import ClassGroup
 
-    school = request.user.get_school()
-    user = request.user
-    teacher_id = request.GET.get("teacher")
-    class_id = request.GET.get("class")
-    year = request.GET.get("year") or academic_year_for(request)
-
-    # المعلّم يرى جدوله هو. وكان `?teacher=` يُقرأ لكلّ من طلبه، فيقرأ
-    # المعلّمُ جدول زميله وجدول أيّ شعبةٍ بتغيير رقمٍ في الرابط — والقصدُ
-    # المكتوب في وصف الدالّة خلافُه: «للمعلم أو كل المعلمين للمدير».
-    may_browse = user.is_admin() or user.get_role() in SCHEDULE_BROWSE_ROLES
-
-    target_teacher = None
-    if teacher_id and may_browse:
-        target_teacher = get_object_or_404(CustomUser.objects.in_school(school), id=teacher_id)
-    elif user.is_teacher() and not may_browse:
-        target_teacher = user
-
-    target_class = None
-    if class_id and may_browse:
-        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
-
-    # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
-    # ليست جدولَ أحدٍ بعد.
-    preview = None
-    generation_id = request.GET.get("generation")
-    if generation_id and may_browse:
-        preview = get_object_or_404(
-            ScheduleGeneration, id=generation_id, school=school, academic_year=year
-        )
-
-    grid = ScheduleService.get_weekly_schedule(
-        school, target_teacher, target_class, year, generation=preview
-    )
-    conflicts = ScheduleService.detect_conflicts(school, year) if user.is_admin() else []
-
-    DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    PERIODS = ScheduleSlot.PERIODS
-
-    teachers, classes = [], []
-    if user.is_admin():
-        teacher_ids = Membership.objects.filter(
-            school=school,
-            is_active=True,
-            role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
-        ).values_list("user_id", flat=True)
-        teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-        classes = ClassGroup.objects.filter(
-            school=school, academic_year=academic_year_for_school(school), is_active=True
-        ).in_school_order()
-
-    return render(
-        request,
-        "schedule/weekly.html",
-        {
-            "grid": grid,
-            "days": DAYS,
-            "periods": PERIODS,
-            "conflicts": conflicts,
-            "target_teacher": target_teacher,
-            "target_class": target_class,
-            "teachers": teachers,
-            "classes": classes,
-            "academic_year": year,
-            "user_role": user.get_role(),
-            "preview": preview,
-        },
-    )
+    teacher_ids = Membership.objects.filter(
+        school=school,
+        is_active=True,
+        role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
+    ).values_list("user_id", flat=True)
+    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
+    classes = ClassGroup.objects.filter(
+        school=school, academic_year=academic_year_for_school(school), is_active=True
+    ).in_school_order()
+    return teachers, classes
 
 
 def _schedule_print_selection(request):
@@ -213,7 +182,12 @@ def _schedule_print_selection(request):
     # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
     # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
     # فيها ألفُ حصّةٍ فلا تُقرأ ولا تُطبع.
-    view_type = request.GET.get("view", "all_teachers")  # all_teachers, school, teacher, class
+    # ثلاثةُ عروض: الجدولُ العامّ، ومعلّمٌ، وشعبة. وكان رابعٌ «جدول المدرسة
+    # الكامل» — خمسُ خاناتٍ تُحشر فيها ألفُ حصّة — فأُزيل (قرار 2026-09-06)،
+    # ورابطٌ قديمٌ يطلبه يُصرف إلى الجدول العامّ.
+    view_type = request.GET.get("view", "all_teachers")
+    if view_type not in ("all_teachers", "teacher", "class"):
+        view_type = "all_teachers"
     paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
@@ -236,17 +210,16 @@ def _schedule_print_selection(request):
 
     # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
     # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
-    teachers, classes = [], []
-    if may_browse:
-        teacher_ids_qs = Membership.objects.filter(
-            school=school,
-            is_active=True,
-            role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
-        ).values_list("user_id", flat=True)
-        teachers = CustomUser.objects.filter(id__in=teacher_ids_qs).order_by("full_name")
-        classes = ClassGroup.objects.filter(
-            school=school, academic_year=academic_year_for_school(school), is_active=True
-        ).in_school_order()
+    teachers, classes = _browse_lists(school) if may_browse else ([], [])
+
+    # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
+    # ليست جدولَ أحدٍ بعد. ومن يعتمد جدولاً لم يرَه يعتمد رقماً لا جدولاً.
+    preview = None
+    generation_id = request.GET.get("generation")
+    if generation_id and may_browse:
+        preview = get_object_or_404(
+            ScheduleGeneration, id=generation_id, school=school, academic_year=year
+        )
 
     title = "الجدول الدراسي العام"
     if view_type == "all_teachers":
@@ -260,6 +233,14 @@ def _schedule_print_selection(request):
     # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
     # مسألةَ وقت — يُنسى معاملٌ في أحدها فيُصدَّر جدولُ غير المعروض.
     selection = {"view": view_type, "paper": paper, "year": year}
+    if preview:
+        selection["generation"] = str(preview.id)
+
+    picker_current = "matrix"
+    if target_teacher:
+        picker_current = f"teacher:{target_teacher.id}"
+    elif target_class:
+        picker_current = f"class:{target_class.id}"
     if target_teacher:
         selection["teacher"] = str(target_teacher.id)
     if target_class:
@@ -272,7 +253,9 @@ def _schedule_print_selection(request):
         "paper": paper,
         "target_teacher": target_teacher,
         "target_class": target_class,
+        "preview": preview,
         "may_browse": may_browse,
+        "picker_current": picker_current,
         "teachers": teachers,
         "classes": classes,
         "title": title,
@@ -293,11 +276,11 @@ def _schedule_print_payload(request) -> dict:
     # إلى جدوله في اختيار الطباعة.
     grid, matrix, matrix_totals = {}, [], None
     if ctx["view_type"] == "all_teachers":
-        matrix = ScheduleService.get_teachers_matrix(school, year)
+        matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
     else:
         grid = ScheduleService.get_weekly_schedule(
-            school, ctx["target_teacher"], ctx["target_class"], year
+            school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
         )
 
     DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
@@ -399,9 +382,15 @@ def schedule_export_excel(request):
 @login_required
 @role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_print_view(request):
-    """الورقةُ داخل المنصّة — كصفحة الزيارات الصفّية: هيدرٌ وفوترٌ وأدوات،
-    والورقةُ نفسها في إطارٍ يُطبع وحده."""
-    return render(request, "schedule/print_view.html", _schedule_print_selection(request))
+    """الرابطُ القديم لصفحة الطباعة — صارت هي صفحةَ الجدول، فيُحال إليها.
+
+    يبقى الاسمُ لأنّ روابطَ قديمةً ومحفوظاتٍ تقصده؛ والاختيارُ في الرابط يُحمل
+    كما هو.
+    """
+    from django.urls import reverse
+
+    query = request.META.get("QUERY_STRING", "")
+    return redirect(reverse("weekly_schedule") + (f"?{query}" if query else ""))
 
 
 # ── نظام البديل ──────────────────────────────────────────────────
@@ -1405,3 +1394,91 @@ def subject_assignment_delete(request, assignment_id):
     obj.save(update_fields=["is_active"])
     messages.success(request, f"حُذف توزيع {obj.subject.name_ar} لشعبة {obj.class_group}.")
     return _assignment_redirect(obj.academic_year, str(obj.class_group_id))
+
+
+# ── جداولُ الصفحات: صفحةٌ لكلّ معلّمٍ أو لكلّ شعبة ─────────────────────
+
+#: اتّجاهُ الورقة — والافتراضُ أفقيّ (قرار الإدارة 2026-09-06)؛ والعموديّ بطلبٍ في الرابط.
+_ORIENTATIONS = ("landscape", "portrait")
+DEFAULT_ORIENTATION = "landscape"
+
+
+def _pages_payload(request) -> dict:
+    """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط."""
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for_school(school)
+    kind = "classes" if request.GET.get("kind") == "classes" else "teachers"
+    dept = request.GET.get("dept") or "all"
+    teacher_id = request.GET.get("teacher") or ""
+    orient = request.GET.get("orient") or DEFAULT_ORIENTATION
+    if orient not in _ORIENTATIONS:
+        orient = DEFAULT_ORIENTATION
+
+    departments = ScheduleService.department_options(school, year)
+    if kind == "classes":
+        pages = ScheduleService.class_pages(school, year)
+        title = "جداول الشُّعب"
+    else:
+        department = None if dept == "all" or teacher_id else dept
+        pages = ScheduleService.teacher_pages(
+            school, year, department=department, teacher_id=teacher_id or None
+        )
+        if teacher_id and pages:
+            title = f"جدول المعلّم: {pages[0]['teacher'].full_name}"
+        elif department:
+            name = next((d["name"] for d in departments if d["code"] == department), department)
+            title = f"جداول معلّمي قسم {name}"
+        else:
+            title = "جداول معلّمي المدرسة"
+
+    selection = {"kind": kind, "dept": dept, "orient": orient, "year": year}
+    if teacher_id:
+        selection["teacher"] = teacher_id
+
+    teachers, classes = _browse_lists(school)
+    return {
+        "school": school,
+        "year": year,
+        "kind": kind,
+        "title": title,
+        "pages": pages,
+        "departments": departments,
+        "teachers": teachers,
+        "classes": classes,
+        "picker_current": "pages:classes" if kind == "classes" else f"pages:teachers:{dept}",
+        "selected_dept": dept if not teacher_id else "",
+        "orient": orient,
+        "days": [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")],
+        "selection_query": urlencode(selection),
+        "embed": request.GET.get("embed") == "1",
+    }
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES)
+def schedule_pages(request):
+    """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
+    return render(request, "schedule/pages_view.html", _pages_payload(request))
+
+
+@xframe_options_sameorigin
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES)
+def schedule_pages_paper(request):
+    """الورقةُ وحدها — للإطار وللطباعة."""
+    return render(request, "schedule/print_pages.html", _pages_payload(request))
+
+
+@login_required
+@role_required(SCHEDULE_BROWSE_ROLES)
+def schedule_pages_pdf(request):
+    """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ."""
+    from django.template.loader import render_to_string
+
+    from core.pdf_utils import render_pdf
+
+    ctx = _pages_payload(request)
+    ctx["embed"] = True
+    ctx["for_pdf"] = True
+    html = render_to_string("schedule/print_pages.html", ctx, request=request)
+    return render_pdf(html, _export_filename(ctx, "pdf"), paper_size="A4", as_attachment=True)
