@@ -196,13 +196,11 @@ def test_the_paper_shows_the_specialty_beside_the_name_and_no_index(
 def test_the_orientation_is_carried_into_the_page_rule(client, school, principal_user):
     client.force_login(principal_user)
 
-    landscape = client.get(
-        reverse("schedule_pages_paper"), {"orient": "landscape"}
-    ).content.decode()
+    portrait = client.get(reverse("schedule_pages_paper"), {"orient": "portrait"}).content.decode()
     default = client.get(reverse("schedule_pages_paper"), {"orient": "sideways"}).content.decode()
 
-    assert "size: A4 landscape" in landscape
-    assert "size: A4 portrait" in default, "اتّجاهٌ مجهولٌ يعود إلى العموديّ"
+    assert "size: A4 portrait" in portrait
+    assert "size: A4 landscape" in default, "الافتراضُ أفقيّ — واتّجاهٌ مجهولٌ يعود إليه"
 
 
 def test_the_platform_page_frames_the_paper_with_the_same_selection(client, school, principal_user):

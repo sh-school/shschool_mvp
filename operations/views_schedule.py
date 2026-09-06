@@ -1385,8 +1385,9 @@ def subject_assignment_delete(request, assignment_id):
 
 # ── جداولُ الصفحات: صفحةٌ لكلّ معلّمٍ أو لكلّ شعبة ─────────────────────
 
-#: اتّجاهُ الورقة — والافتراضُ عموديّ: سبعةُ أسطرٍ تُقرأ أعرضَ على A4 عموديّة.
-_ORIENTATIONS = ("portrait", "landscape")
+#: اتّجاهُ الورقة — والافتراضُ أفقيّ (قرار الإدارة 2026-09-06)؛ والعموديّ بطلبٍ في الرابط.
+_ORIENTATIONS = ("landscape", "portrait")
+DEFAULT_ORIENTATION = "landscape"
 
 
 def _pages_payload(request) -> dict:
@@ -1396,9 +1397,9 @@ def _pages_payload(request) -> dict:
     kind = "classes" if request.GET.get("kind") == "classes" else "teachers"
     dept = request.GET.get("dept") or "all"
     teacher_id = request.GET.get("teacher") or ""
-    orient = request.GET.get("orient") or "portrait"
+    orient = request.GET.get("orient") or DEFAULT_ORIENTATION
     if orient not in _ORIENTATIONS:
-        orient = "portrait"
+        orient = DEFAULT_ORIENTATION
 
     departments = ScheduleService.department_options(school, year)
     if kind == "classes":

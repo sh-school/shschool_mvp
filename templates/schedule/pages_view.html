@@ -36,8 +36,8 @@
         <input type="hidden" name="dept" value="{{ selected_dept }}">
         <input type="hidden" name="year" value="{{ year }}">
         <select name="orient" class="form-select" data-autosubmit title="اتّجاه الورقة">
-          <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>A4 عمودي</option>
           <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>A4 أفقي</option>
+          <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>A4 عمودي</option>
         </select>
       </form>
 
