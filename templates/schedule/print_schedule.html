@@ -500,9 +500,11 @@
   {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
   <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
   <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
-  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. #}
+  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان صريحان لا رابطٌ عامّ:
+     من يبحث عن «تصدير القسم» يجده باسمه. #}
   {% if may_browse %}
-  <a class="btn-export" href="{% url 'teacher_pages' %}?year={{ year }}{% if target_teacher %}&amp;teacher={{ target_teacher.id }}{% endif %}">جداول المعلّمين مفردة</a>
+  <a class="btn-export" href="{% url 'teacher_pages' %}?dept=mine&amp;year={{ year }}">جداول معلّمي القسم</a>
+  <a class="btn-export" href="{% url 'teacher_pages' %}?dept=all&amp;year={{ year }}">جداول معلّمي المدرسة</a>
   {% endif %}
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
