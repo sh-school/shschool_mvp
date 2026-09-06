@@ -101,6 +101,9 @@
       <b>{{ card.transfer.subject.name_ar }}</b> في <b>{{ card.transfer.class_group }}</b>
       مُسنَدةٌ إلى <b>{{ card.transfer.holder.full_name|default:"معلّمٍ آخر" }}</b>.
       وإسنادُها إلى <b>{{ card.teacher.full_name }}</b> يُسقطها عنه.
+      {% if card.transfer.holder_approved %}
+      <br><b>وخطّةُ نصابه معتمَدة</b> — فالنقلُ يُخرجها عمّا وُقّع عليه، وتحتاج إصداراً جديداً.
+      {% endif %}
     </p>
     <form hx-post="{% url 'academic_management:assignment_add_row' card.teacher.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
       {% csrf_token %}
@@ -116,6 +119,12 @@
       <input type="hidden" name="year" value="{{ card.transfer.year }}">
       <button type="submit" class="asg-btn asg-btn-ghost">إلغاء</button>
     </form>
+  </div>
+  {% endif %}
+
+  {% if card.diverged %}
+  <div class="asg-err" role="alert">
+    تبدّل الإسنادُ بعد الاعتماد — الموقَّعُ عليه غيرُ المعروض الآن. افتح إصداراً جديداً ليُراجَع ويُعتمد.
   </div>
   {% endif %}
 
