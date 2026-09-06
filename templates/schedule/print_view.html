@@ -12,8 +12,7 @@
   #main-content { max-width: none; padding-inline: 12px; }
   /* شريطُ الأدوات سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
      الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ. */
-  .schedule-head { flex-direction: column; align-items: center; gap: 8px; }
-  .schedule-head h1 { margin: 0; }
+  .schedule-head { justify-content: center; }
   .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
   .schedule-tools .form-select { width: auto; min-width: 280px; }
   .schedule-tools form { display: inline; }
@@ -49,10 +48,11 @@
   {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
 </div>
 {% endif %}
+<div class="exec-header" style="margin-bottom:10px">
+  <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} {{ title }}{% if preview %} — مسودّة{% endif %}</h1>
+</div>
 <div class="card-qatar" style="width:100%">
   <div class="exec-header schedule-head">
-    <h1>{% include "components/icon.html" with name="calendar" %} {{ title }}{% if preview %} — مسودّة{% endif %}</h1>
-
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}

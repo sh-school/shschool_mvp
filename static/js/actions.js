@@ -41,6 +41,7 @@
   /* الدوالّ المسموح استدعاؤها بالاسم. القائمة بيضاء لا سوداء: اسمٌ غير مذكور
      هنا لا يُنفَّذ — فلا تصير `data-call` باباً خلفياً لتنفيذٍ عشوائيّ. */
   var CALLABLE = [
+    "goToSchedule",
     "closeModal",
     "toggleImportForm",
     "toggleForm",
