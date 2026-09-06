@@ -9,12 +9,19 @@ from .user import CustomUser
 
 
 class _ImmutableQuerySet(models.QuerySet):
-    """QuerySet that blocks bulk delete/update — PDPPL م.19"""
+    """يمنع الحذفَ والتعديلَ الجماعيَّ — PDPPL م.19.
+
+    ويُستثنى فصلُ هويّةِ الفاعل وحدَه (`user=None`): من مُحي حسابُه تُفصَل
+    هويّتُه عن السجلّ (م.15) وتبقى الواقعةُ بتفاصيلها. وهو ما يفعله Django
+    نفسُه قبل حذف مستخدم، فبلا هذا الاستثناء يستحيل محوُ أيّ حساب.
+    """
 
     def delete(self):
         raise PermissionDenied("AuditLog records are immutable and cannot be deleted.")
 
     def update(self, **kwargs):
+        if set(kwargs) == {"user"} and kwargs["user"] is None:
+            return super().update(**kwargs)
         raise PermissionDenied("AuditLog records are immutable and cannot be updated.")
 
 
