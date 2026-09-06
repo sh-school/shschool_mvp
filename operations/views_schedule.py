@@ -970,7 +970,20 @@ def teacher_preferences(request):
         capacity = weekly_capacity(
             pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day
         )
-        if capacity < load:
+        # وقرارُ 2026-09-06: النصابُ يُقسم على الأيّام بفرقِ حصّةٍ على الأكثر،
+        # فسقفٌ يوميٌّ دون حصّة القسمة لا يتماشى مع النصاب ويُردّ بحسابه.
+        days = 5 - (1 if pref.free_day is not None else 0)
+        needed = -(-load // days) if load else 0
+        if pref.max_daily_periods < needed:
+            messages.error(
+                request,
+                f"نصابُك {load} حصّةً على {days} أيّامٍ يحتاج {needed} حصصٍ في بعض الأيّام — "
+                f"«أقصى حصص يوميّة {pref.max_daily_periods}» لا يتماشى معه"
+                + ("، ويومُ التفريغ يضيّقه أكثر" if pref.free_day is not None else "")
+                + ". لم يُحفظ.",
+            )
+            pref.refresh_from_db()
+        elif capacity < load:
             messages.error(
                 request,
                 explain_shortfall(request.user.full_name, capacity, load, pref) + ". لم يُحفظ.",
