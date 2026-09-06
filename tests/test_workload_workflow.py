@@ -12,8 +12,6 @@
        والتخفيضُ من قرارِ مديرٍ والتخصّصُ من ملفِّ موظّف.
 """
 
-from datetime import date
-
 import pytest
 from django.core.exceptions import PermissionDenied, ValidationError
 
@@ -24,10 +22,8 @@ from academic_management.models import (
     FROM_MANUAL,
     FROM_PREVIOUS_PLAN,
     LOCKED,
-    QUALIFIED,
     REVIEWED,
     SUBMITTED,
-    TeacherSubjectQualification,
     TeacherWorkloadPlan,
     WorkloadGovernance,
 )
@@ -249,24 +245,6 @@ def test_each_fact_carries_its_own_provenance(school, coordinator, target_teache
     plan.reduction_source_reference = ""
     gaps = plan.provenance_gaps()
     assert gaps and "التخفيض" in gaps[0], "نقصُ مرجعِ التخفيض لا يُخفيه وجودُ مرجعِ النصاب"
-
-
-def test_a_qualification_without_a_reference_blocks_approval(
-    school, coordinator, deputy, head, target_teacher, subject
-):
-    plan = _ready_for_approval(school, target_teacher, coordinator, deputy)
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=target_teacher,
-        subject=subject,
-        qualification_status=QUALIFIED,
-        source="school",
-        source_reference="",
-        valid_from=date(2026, 9, 1),
-    )
-
-    with pytest.raises(ValidationError):
-        flow.approve(plan, by=head)
 
 
 def test_the_gate_reruns_at_approval_not_only_at_validate(

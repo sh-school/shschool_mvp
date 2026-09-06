@@ -52,6 +52,12 @@
     <a href="?view=sections&amp;year={{ year }}" class="report-tab{% if perspective == "sections" %} active{% endif %}"{% if perspective == "sections" %} aria-current="page"{% endif %}>
       {% include "components/icon.html" with name="layers" %} الشُّعب <span class="wl-tab-count">{{ totals.sections }}</span>
     </a>
+    <a href="?view=curriculum&amp;year={{ year }}" class="report-tab{% if perspective == "curriculum" %} active{% endif %}"{% if perspective == "curriculum" %} aria-current="page"{% endif %}>
+      {% include "components/icon.html" with name="clipboard" %} الخطّة الدراسيّة <span class="wl-tab-count">{% if curriculum_summary.problems %}{{ curriculum_summary.problems }}{% else %}{{ curriculum_summary.cells }}{% endif %}</span>
+    </a>
+    <a href="?view=balance&amp;year={{ year }}" class="report-tab{% if perspective == "balance" %} active{% endif %}"{% if perspective == "balance" %} aria-current="page"{% endif %}>
+      {% include "components/icon.html" with name="scale" %} ميزانُ الأقسام
+    </a>
   </nav>
 
   {# ── الأرقام الكلّيّة ───────────────────────────────────────── #}
@@ -89,8 +95,8 @@
     <div class="wl-card-head">
       <h2 id="gate-heading" class="wl-card-title">بوّابةُ الإسناد</h2>
       <p class="wl-card-hint">
-        أربعةُ شروطٍ تُقاس من الجدول والإسنادات، وأربعةٌ من الخطّة المعتمَدة
-        والمؤهّلات — ولا يُخلَط الطرفان، حتى لا تصير سلامةُ الواقع رهينةَ خطّةٍ لم تُعتمد.
+        أربعةُ شروطٍ تُقاس من الجدول والإسنادات، وثلاثةٌ من الخطّة المعتمَدة —
+        ولا يُخلَط الطرفان، حتى لا تصير سلامةُ الواقع رهينةَ خطّةٍ لم تُعتمد.
       </p>
     </div>
 
@@ -111,10 +117,10 @@
       {% comment %}
       كان عنوانُ هذا القسم «موقوفٌ حتى تُبنى النماذج»، فبقي بعد أن بُنيت — يقول
       للمستخدم إنّ النظامَ ناقصٌ وقد اكتمل. والبنودُ الآن تُقاس متى وُجدت خطّةٌ
-      معتمَدةٌ ومؤهّلات، و«○» تعني «لا جوابَ بعد» لا «لم يُبنَ بعد».
+      معتمَدة، و«○» تعني «لا جوابَ بعد» لا «لم يُبنَ بعد».
       {% endcomment %}
       <div>
-        <h3 class="wl-section-title">من الخطّة المعتمَدة والمؤهّلات <span class="wl-count">{{ gate.plan_passed }}/{{ gate.blocked_total }}</span></h3>
+        <h3 class="wl-section-title">من الخطّة المعتمَدة <span class="wl-count">{{ gate.plan_passed }}/{{ gate.blocked_total }}</span></h3>
         <ul class="wl-checks">
           {% for c in gate.checks %}{% if c.layer == "REQUIRES_APPROVED_PLAN" %}
             <li class="wl-check {% if c.passed %}is-pass{% elif c.passed is False %}is-fail{% else %}is-pending{% endif %}">
@@ -153,7 +159,7 @@
           <h4 class="wl-section-title">الشارات</h4>
           <dl class="wl-legend">
             <dt>مرحلتان</dt><dd>يعمل في الإعداديّ والثانويّ معاً — فنصابُه لا يُقرأ رقماً واحداً.</dd>
-            <dt>أكثرُ من مادّة</dt><dd>يُدرّس أكثرَ من مادّة، فلكلٍّ منها مؤهّلُها المستقلّ.</dd>
+            <dt>أكثرُ من مادّة</dt><dd>يُدرّس أكثرَ من مادّة، فحملُه يُجمع من أقسامٍ مختلفة.</dd>
             <dt>ن منقسمة</dt><dd>له حصصٌ في شعبةٍ ينقسم طلابها بين مادّتين في التوقيت نفسه.</dd>
           </dl>
         </div>
@@ -268,7 +274,6 @@
                       <dt>النصابُ المعتمَد</dt><dd class="text-muted">{{ t.plan.label }}</dd>
                       <dt>التخفيضات</dt><dd class="text-muted">{{ unknown }}</dd>
                       <dt>النصابُ التدريسيُّ المطلوب</dt><dd class="text-muted">{{ unknown }}</dd>
-                      <dt>المؤهّلاتُ المعتمَدة</dt><dd class="text-muted">{{ unknown }}</dd>
                     {% endif %}
                   </dl>
                   <p id="approved-note-{{ forloop.counter }}" class="text-muted wl-note">
@@ -452,9 +457,195 @@
   </div>
   {% endif %}
 
+  {# ── الخطّةُ الدراسيّة: الطلبُ ومصدرُه، ثمّ تغطيتُه ──────────── #}
+  {% if perspective == "curriculum" %}
+    {% if not has_curriculum %}
+      {% include "components/empty_state.html" with title="لا خطّةَ دراسيّةً لهذا العام" subtitle="تُبذر من الدليل الوزاريّ بأمر seed_curriculum — ولا تُشتقّ من الجدول." %}
+    {% else %}
+
+    <div class="stat-row wl-stats">
+      <div class="stat-card">
+        <div class="stat-card-value">{{ curriculum_summary.matched }}<span class="wl-stat-of">/{{ curriculum_summary.cells }}</span></div>
+        <div class="stat-card-label">خليّةً مطابقةً للخطّة</div>
+        <div class="stat-card-trend">شعبةٌ × مادّة</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-value">{{ curriculum_summary.clean_sections }}<span class="wl-stat-of">/{{ curriculum_summary.sections }}</span></div>
+        <div class="stat-card-label">شعبةً بلا فجوة</div>
+        <div class="stat-card-trend">وشُعبُ الجدول المستقلّ خارج القياس</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-value">{{ curriculum_summary.problems }}</div>
+        <div class="stat-card-label">خليّةً تحتاج عملاً</div>
+        <div class="stat-card-trend">ناقصةٌ أو زائدةٌ أو خارج الخطّة</div>
+      </div>
+    </div>
+
+    <section class="wl-card" aria-labelledby="gap-heading">
+      <div class="wl-card-head">
+        <h2 id="gap-heading" class="wl-card-title">فجواتُ التغطية</h2>
+        <p class="wl-card-hint">ما اختلف فيه الإسنادُ عن الخطّة — والمطابقُ لا يُعرض، فلا عملَ فيه.</p>
+      </div>
+      {% if curriculum_summary.problems %}
+      <div class="table-wrap-scroll">
+        <table class="wl-table">
+          <caption class="sr-only">الخلايا التي تخالف الخطّة الدراسيّة</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="text">الشعبة</th>
+              <th scope="col" data-sort="text">المادّة</th>
+              <th scope="col" class="col-center" data-sort="num">المخطَّط</th>
+              <th scope="col" class="col-center" data-sort="num">المُسنَد</th>
+              <th scope="col">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in coverage %}{% if c.status in problem_statuses %}
+            <tr>
+              <td>{{ c.section }}</td>
+              <td>{{ c.subject }}</td>
+              <td class="col-center">{{ c.planned }}</td>
+              <td class="col-center">{{ c.assigned }}</td>
+              <td class="is-fail">{{ c.status_label }}</td>
+            </tr>
+            {% endif %}{% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="wl-note is-pass">كلُّ خليّةٍ تطابق الخطّة — {{ curriculum_summary.cells }} من {{ curriculum_summary.cells }}.</p>
+      {% endif %}
+    </section>
+
+    {% for scope in curriculum %}
+    <section class="wl-card">
+      <div class="wl-card-head">
+        <h2 class="wl-card-title">
+          {{ scope.grade_label }}{% if scope.track_label %} — {{ scope.track_label }}{% endif %}
+          {% if scope.pilot %}<span class="wl-badge">تجريبيّة</span>{% endif %}
+        </h2>
+        <p class="wl-card-hint">{{ scope.sections }} شعبةً · مجموعُ حصص الطالب {{ scope.total }}</p>
+      </div>
+      {% for issue in scope.issues %}
+        <p class="wl-note is-fail">{{ issue }}</p>
+      {% endfor %}
+      <div class="table-wrap-scroll">
+        <table class="wl-table">
+          <caption class="sr-only">أنصبةُ الموادّ في {{ scope.grade_label }}</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="text">المادّة</th>
+              <th scope="col" class="col-center" data-sort="num">الحصص</th>
+              <th scope="col" data-sort="text">القسم</th>
+              <th scope="col">المصدر</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in scope.rows %}
+            <tr>
+              <td>
+                {{ row.subject }}
+                {% if row.elective_group %}<span class="wl-badge">اختياريّة</span>{% endif %}
+              </td>
+              <td class="col-center"><strong>{{ row.periods }}</strong></td>
+              <td>{{ row.department }}</td>
+              <td class="text-muted">{% if row.reference %}{{ row.reference }}{% else %}{{ row.source }} — بلا مرجعٍ بعد{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endfor %}
+
+    <section class="wl-card">
+      <div class="wl-card-head">
+        <h2 class="wl-card-title">مجموعُ الشعبة</h2>
+        <p class="wl-card-hint">حصصُ الطالب الأسبوعيّة — وحصّةُ التوازي تُعدّ له مرّةً واحدة وإن جُدولت مرّتين.</p>
+      </div>
+      <div class="table-wrap-scroll">
+        <table class="wl-table">
+          <caption class="sr-only">مجموعُ حصص كلّ شعبة</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="text">الشعبة</th>
+              <th scope="col">المسار</th>
+              <th scope="col" class="col-center" data-sort="num">المخطَّط</th>
+              <th scope="col" class="col-center" data-sort="num">المُسنَد</th>
+              <th scope="col" class="col-center" data-sort="num">منها متوازية</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in section_totals %}
+            <tr>
+              <td>{{ t.section }}</td>
+              <td class="text-muted">{% if t.track %}{{ t.track }}{% else %}—{% endif %}</td>
+              <td class="col-center">{% if t.planned %}{{ t.planned }}{% else %}—{% endif %}</td>
+              <td class="col-center {% if t.balanced %}is-pass{% else %}is-fail{% endif %}">{{ t.assigned }}</td>
+              <td class="col-center text-muted">{% if t.parallel %}{{ t.parallel }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    {% endif %}
+  {% endif %}
+
+  {# ── ميزانُ الأقسام: ما يُطلب من القسم وما يملكه ─────────────── #}
+  {% if perspective == "balance" %}
+    {% if not has_curriculum %}
+      {% include "components/empty_state.html" with title="لا خطّةَ دراسيّةً لهذا العام" subtitle="والميزانُ يُقاس عليها — فلا طلبَ بلا خطّة." %}
+    {% else %}
+    <section class="wl-card">
+      <div class="wl-card-head">
+        <h2 class="wl-card-title">الطلبُ مقابل العرض</h2>
+        <p class="wl-card-hint">
+          الطلبُ من الخطّة مضروبةً في عدد الشُّعب، والعرضُ من أهداف معلّمي القسم.
+          ومعلّمٌ يدرّس في قسمين يُحسب نصابُه في قسمه الإداريّ وحدَه — فالميزانُ
+          مؤشّرٌ للتخطيط لا حسابٌ مغلق.
+        </p>
+      </div>
+      <div class="table-wrap-scroll">
+        <table class="wl-table">
+          <caption class="sr-only">ميزانُ كلّ قسم: الطلبُ والعرضُ والفرق</caption>
+          <thead>
+            <tr>
+              <th scope="col" data-sort="text">القسم</th>
+              <th scope="col" class="col-center" data-sort="num">الطلب</th>
+              <th scope="col" class="col-center" data-sort="num">العرض</th>
+              <th scope="col" class="col-center" data-sort="num">الفرق</th>
+              <th scope="col" class="col-center" data-sort="num">معلّمون</th>
+              <th scope="col">ملاحظة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in balance %}
+            <tr>
+              <td>{{ d.name }}</td>
+              <td class="col-center"><strong>{{ d.demand }}</strong></td>
+              <td class="col-center">{% if d.supply == None %}<span class="text-muted">غيرُ معلوم</span>{% else %}{{ d.supply }}{% endif %}</td>
+              <td class="col-center {% if d.delta == None %}text-muted{% elif d.delta < 0 %}is-fail{% else %}is-pass{% endif %}">
+                {% if d.delta == None %}—{% else %}{{ d.delta|stringformat:"+d" }}{% endif %}
+              </td>
+              <td class="col-center">{{ d.teachers }}</td>
+              <td class="text-muted">
+                {% if d.unknown_targets %}{{ d.unknown_targets }} معلّماً بلا هدفٍ معتمَد{% elif not d.teachers %}لا معلّمَ مسجَّلٌ في هذا القسم{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+  {% endif %}
+
   {% endif %}
 </div>
 {% endblock %}
+
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">

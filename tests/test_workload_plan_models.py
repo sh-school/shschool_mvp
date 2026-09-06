@@ -1,9 +1,8 @@
-"""[WORKLOAD] خطّةُ النصاب والمؤهّلات — تُكتب الاختباراتُ قبل الـmigration.
+"""[WORKLOAD] خطّةُ النصاب — تُكتب الاختباراتُ قبل الـmigration.
 
 وثلاثةُ أشياءَ كشفتها الشاشةُ على الـ73 معلّماً هي التي فرضت هذا التصميم:
 ستّةَ عشرَ معلّماً يعملون في مرحلتين، وثلاثةَ عشرَ يدرّسون أكثرَ من مادّة،
-وخمسةٌ لهم حصصٌ في شعبةٍ منقسمة. فلا يكفي رقمٌ واحدٌ جامدٌ للنصاب، ولا تكفي
-علاقةُ (معلّم ↔ مادّة) للمؤهّل.
+وخمسةٌ لهم حصصٌ في شعبةٍ منقسمة. فلا يكفي رقمٌ واحدٌ جامدٌ للنصاب.
 
 والثوابتُ التي تحرسها هذه الاختبارات:
 
@@ -17,25 +16,17 @@
 تفسيراً، وقد يكون تفسيرُه تكليفاً إداريّاً لا يعرفه الجدول.
 """
 
-from datetime import date
-
 import pytest
 from django.core.exceptions import ValidationError
 
 from academic_management.models import (
-    ALLOWED,
     APPROVED,
     DRAFT,
     LOCKED,
-    NOT_APPROVED,
-    PRIMARY,
-    QUALIFIED,
     REVIEWED,
     ApprovedPlanImmutableError,
-    TeacherSubjectQualification,
     TeacherWorkloadAllocation,
     TeacherWorkloadPlan,
-    can_teach,
 )
 
 pytestmark = pytest.mark.django_db
@@ -212,34 +203,6 @@ def test_one_allocation_per_level_at_most(school, teacher):
         )
 
 
-def test_a_teacher_of_two_subjects_holds_a_qualification_for_each(school, teacher, subject):
-    """ثلاثةَ عشرَ معلّماً يدرّسون أكثرَ من مادّة — والمؤهّلُ ليس واحداً."""
-    from operations.models import Subject
-
-    science = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        qualification_status=PRIMARY,
-        is_primary=True,
-        valid_from=date(2026, 8, 1),
-    )
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=science,
-        qualification_status=ALLOWED,
-        valid_from=date(2026, 8, 1),
-    )
-
-    assert can_teach(teacher, subject)
-    assert can_teach(teacher, science)
-
-
-# ── الحصّةُ المنقسمة: حصصٌ لا خانات ──────────────────────────────────
-
-
 def test_the_target_is_measured_in_instructional_periods_not_occupied_slots(school, teacher):
     """خانةٌ واحدةٌ تحمل مجموعتين في مادّتين — وكلُّ معلّمٍ فيها يعمل حصّةً.
 
@@ -357,108 +320,6 @@ def test_a_teacher_without_any_approved_plan_has_none(school, teacher):
 
 
 # ── المؤهّلات ───────────────────────────────────────────────────────
-
-
-def test_a_qualification_may_be_bound_to_one_level_only(school, teacher, subject):
-    """معلّمٌ معتمَدٌ للرياضيّات في الإعداديّ ولا يُعتمد لها في الثانويّ."""
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        level_type="prep",
-        qualification_status=QUALIFIED,
-        valid_from=date(2026, 8, 1),
-    )
-
-    assert can_teach(teacher, subject, level_type="prep")
-    assert not can_teach(teacher, subject, level_type="sec")
-
-
-def test_a_qualification_without_a_level_covers_every_level(school, teacher, subject):
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        level_type="",
-        qualification_status=QUALIFIED,
-        valid_from=date(2026, 8, 1),
-    )
-
-    assert can_teach(teacher, subject, level_type="prep")
-    assert can_teach(teacher, subject, level_type="sec")
-
-
-def test_an_explicitly_refused_qualification_blocks_teaching(school, teacher, subject):
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        qualification_status=NOT_APPROVED,
-        valid_from=date(2026, 8, 1),
-    )
-
-    assert not can_teach(teacher, subject)
-
-
-def test_an_absent_qualification_is_not_a_permission(school, teacher, subject):
-    """CanTeach ≠ ActuallyScheduled: ظهورُ المعلّم في مادّةٍ لا يُنشئ مؤهّلاً."""
-    assert not can_teach(teacher, subject)
-
-
-def test_an_expired_qualification_no_longer_permits(school, teacher, subject):
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        qualification_status=QUALIFIED,
-        valid_from=date(2024, 8, 1),
-        valid_to=date(2025, 6, 30),
-    )
-
-    assert not can_teach(teacher, subject, on=date(2026, 9, 1))
-    assert can_teach(teacher, subject, on=date(2025, 1, 1))
-
-
-def test_only_one_primary_subject_per_teacher_and_level(school, teacher, subject):
-    from operations.models import Subject
-
-    science = Subject.objects.create(school=school, name_ar="العلوم", code="SCI")
-    TeacherSubjectQualification.objects.create(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        qualification_status=PRIMARY,
-        is_primary=True,
-        valid_from=date(2026, 8, 1),
-    )
-    second = TeacherSubjectQualification(
-        school=school,
-        teacher=teacher,
-        subject=science,
-        qualification_status=PRIMARY,
-        is_primary=True,
-        valid_from=date(2026, 8, 1),
-    )
-
-    with pytest.raises(ValidationError):
-        second.full_clean()
-
-
-def test_is_primary_and_the_status_cannot_disagree(school, teacher, subject):
-    row = TeacherSubjectQualification(
-        school=school,
-        teacher=teacher,
-        subject=subject,
-        qualification_status=ALLOWED,
-        is_primary=True,
-        valid_from=date(2026, 8, 1),
-    )
-
-    with pytest.raises(ValidationError):
-        row.full_clean()
-
-
-# ── الحدُّ المعرفيّ: لا تُملأ الخطّةُ من الجدول ──────────────────────
 
 
 def test_nothing_creates_a_plan_from_the_observed_schedule(school, teacher):
