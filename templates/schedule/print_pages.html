@@ -20,7 +20,7 @@
 {% endif %}
 <style>
   @page {
-    size: A4 {{ orient }};
+    size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }};
     margin: 8mm 9mm 11mm;
     @bottom-center {
       content: "{{ school.name }} — {{ year }} — " counter(page) " / " counter(pages);
@@ -41,7 +41,7 @@
   /* الشاشةُ تحاكي الورقة: عرضُها عرضُ A4 بالاتّجاه المختار. */
   .sheet {
     background: #fff;
-    width: {% if orient == 'landscape' %}277mm{% else %}190mm{% endif %};
+    width: {% if paper == 'a3' %}{% if orient == 'landscape' %}400mm{% else %}277mm{% endif %}{% else %}{% if orient == 'landscape' %}277mm{% else %}190mm{% endif %}{% endif %};
     margin: 12px auto;
     padding: 8mm;
     box-shadow: 0 2px 10px rgba(0,0,0,.08);
@@ -85,7 +85,8 @@
     font-size: 12px;
   }
   /* سبعةُ سطورٍ تملأ الورقة ولا تفيض عنها: عموديّةٌ 297mm وعرضيّةٌ 210mm. */
-  table.grid td { height: {% if orient == 'landscape' %}16mm{% else %}26mm{% endif %}; }
+  {# ارتفاعُ السطر من ارتفاع الورقة: A4 عرضيّة 16mm وعموديّة 26mm، وA3 ضعفُها تقريباً. #}
+  table.grid td { height: {% if paper == 'a3' %}{% if orient == 'landscape' %}26mm{% else %}40mm{% endif %}{% else %}{% if orient == 'landscape' %}16mm{% else %}26mm{% endif %}{% endif %}; }
   .slot-subject { font-weight: 700; color: #8A1538; font-size: 11px; line-height: 1.25; }
   .slot-meta { font-size: 10px; color: #666; margin-top: 1px; }
   /* التوقيتُ من اليسار: أرقامٌ في سياقٍ عربيٍّ تنقلب — والعازلان في النصّ لأنّ مولّد PDF لا يقرأ direction. */
@@ -108,14 +109,24 @@
 
   @media print {
     body { background: #fff; }
+    html, body { height: 100%; }
+    /* الورقةُ عمودٌ مرنٌ يملأ ارتفاع الصفحة، والجدولُ يأخذ ما بقي بعد الرأس
+       والترويسة — فلا يُقاس ارتفاعُ السطر بالملّيمتر ولا يفيض سابعُها إلى
+       ورقةٍ ثانية إن كبر خطُّ الترويسة أو طال اسمُ المدرسة. */
     .sheet {
       width: auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
       margin: 0;
       padding: 0;
       box-shadow: none;
       page-break-after: always;
       break-after: page;
     }
+    .page-header, .who { flex: 0 0 auto; }
+    table.grid { flex: 1 1 auto; height: 1px; }
+    table.grid td { height: auto; }
     .sheet:last-child { page-break-after: auto; break-after: auto; }
     table.grid { break-inside: avoid; page-break-inside: avoid; }
   }
@@ -160,7 +171,8 @@
         {% for cell in cells %}
         <td>
           {% for slot in cell %}
-          <div class="slot-subject">{{ slot.subject.name_ar|default:"—" }}</div>
+          {# الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية». #}
+          <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>
           <div class="slot-meta">{% if kind == 'classes' %}{{ slot.teacher.full_name }}{% else %}{{ slot.class_group }}{% endif %}</div>
           {% if slot.start_time %}<div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>{% endif %}
           {% empty %}

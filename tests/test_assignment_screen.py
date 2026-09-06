@@ -645,7 +645,10 @@ def test_the_transfer_happens_once_confirmed(
 
     add(client, maths_teacher, seventh, subjects["MAT"], confirm_transfer="1")
 
-    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+    # النقلُ يُبطل سجلَّ السابق ويفتح للجديد سجلَّه — فالحيُّ واحدٌ والتاريخُ محفوظ.
+    row = SubjectClassAssignment.objects.get(
+        class_group=seventh, subject=subjects["MAT"], is_active=True
+    )
     assert row.teacher == maths_teacher
     assert not SubjectClassAssignment.objects.filter(
         class_group=seventh, subject=subjects["MAT"], teacher=science_teacher, is_active=True
@@ -768,3 +771,42 @@ def test_the_guard_never_claims_a_hundred_while_short(
     assert "الإسنادُ غيرُ مكتمل" in body
     assert "غيرُ مكتمل — 100%" not in body, "لا تُقال المئةُ إلّا عند التطابق"
     assert "غيرُ مكتمل — 55%" in body, "5 من 9 خمسةٌ وخمسون"
+
+
+def test_a_card_lands_on_its_own_element_not_on_the_one_that_asked(
+    client, school, departments, maths_teacher, science_teacher, vice, seventh, subjects, plan_rows
+):
+    """صفٌّ انتقل إلى زميلٍ ثمّ عُدّل من البطاقة القديمة — كان الجوابُ يحلّ في
+    موضعها فيظهر المعلّمُ مرّتين ويختفي غيرُه."""
+    login(client, vice, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+
+    # البطاقةُ القديمة (معلّم العلوم) تطلب تعديلَ صفٍّ يملكه معلّمُ الرياضيات
+    response = client.post(
+        reverse("academic_management:assignment_update_periods", args=[row.id]),
+        {"weekly_periods": 5},
+        HTTP_HX_TARGET=f"teacher-{science_teacher.id}",
+    )
+
+    assert response["HX-Retarget"] == f"#teacher-{maths_teacher.id}"
+    body = response.content.decode()
+    assert f'id="teacher-{maths_teacher.id}"' in body
+    assert f'id="teacher-{science_teacher.id}"' in body, "وبطاقةُ الطالبِ تُحدَّث معها"
+    assert "hx-swap-oob" in body
+
+
+def test_one_card_comes_back_when_the_owner_asked(
+    client, school, departments, maths_teacher, vice, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    row = SubjectClassAssignment.objects.get(class_group=seventh, subject=subjects["MAT"])
+
+    response = client.post(
+        reverse("academic_management:assignment_update_periods", args=[row.id]),
+        {"weekly_periods": 5},
+        HTTP_HX_TARGET=f"teacher-{maths_teacher.id}",
+    )
+
+    assert response.content.decode().count("hx-swap-oob") == 0

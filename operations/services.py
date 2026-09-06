@@ -264,6 +264,35 @@ class AttendanceService:
 # ─────────────────────────────────────────────
 
 
+def parallel_labels(school, academic_year, generation=None) -> dict:
+    """(شعبة · يوم · حصّة) → اسمُ ما يُدرَّس في الخانة المشتركة.
+
+    الشعبةُ المقسومةُ نصفين لها صفّان في الخانة الواحدة، وجدولُ المعلّم
+    يُصفّى على حصصه وحدَه فيرى نصفَه ولا يعلم أنّ الخانة مشتركة. فيُكتب في
+    خانته ما يُدرَّس فيها كلُّه: «التكنولوجيا / الفنون البصرية» حين تختلف
+    المادّتان، واسمُها مرّةً واحدة حين تتّحدان — قرارُ المستخدم 2026-09-07.
+
+    واستعلامٌ واحدٌ صغير: الخاناتُ المشتركةُ في المدرسة كلِّها ستَّ عشرةَ
+    صفّاً، فلا تُسأل القاعدةُ عن كلّ خانةٍ على حدة.
+    """
+    rows = ScheduleSlot.objects.filter(school=school, academic_year=academic_year).exclude(
+        elective_group=""
+    )
+    rows = (
+        rows.filter(generation=generation)
+        if generation is not None
+        else rows.filter(is_active=True)
+    )
+    cells: dict = {}
+    for row in rows.select_related("subject").order_by("elective_group"):
+        key = (row.class_group_id, row.day_of_week, row.period_number)
+        name = row.subject.name_ar if row.subject else ""
+        names = cells.setdefault(key, [])
+        if name and name not in names:
+            names.append(name)
+    return {key: " / ".join(names) for key, names in cells.items() if names}
+
+
 class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
@@ -349,7 +378,14 @@ class ScheduleService:
             qs = qs.filter(class_group=class_group)
 
         grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
+        # في جدول المعلّم تُكتب الخانةُ المشتركةُ بما فيها كلِّه؛ وفي جدول
+        # الشعبة صفّاها حاضران أصلاً فلكلٍّ اسمُ مادّته ومعلّمه.
+        labels = parallel_labels(school, academic_year, generation) if teacher else None
         for slot in qs:
+            if labels is not None:
+                slot.cell_subject = labels.get(
+                    (slot.class_group_id, slot.day_of_week, slot.period_number), ""
+                )
             grid[slot.day_of_week].setdefault(slot.period_number, []).append(slot)
         return grid
 
@@ -388,6 +424,7 @@ class ScheduleService:
         slots = qs.select_related("teacher", "class_group", "subject").order_by(
             "teacher__full_name", "day_of_week", "period_number"
         )
+        labels = parallel_labels(school, academic_year, generation)
 
         rows: dict = {}
         for slot in slots:
@@ -401,6 +438,9 @@ class ScheduleService:
                 }
 
             subject_name = slot.subject.name_ar if slot.subject else ""
+            slot.cell_subject = labels.get(
+                (slot.class_group_id, slot.day_of_week, slot.period_number), ""
+            )
             row["lessons"].append((subject_name, slot.class_group.grade, 1))
             # الحصص من ١ إلى ٧، والفهرسُ من صفر. وحصّةٌ خارج المدى بيانٌ
             # معطوب لا سببَ لإسقاط الورقة كلّها من أجله.

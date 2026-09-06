@@ -538,12 +538,31 @@ class SubjectClassAssignment(AuditedModel):
         verbose_name = "توزيع مادة على فصل"
         verbose_name_plural = "توزيع المواد على الفصول"
         constraints = [
+            #: سجلٌّ واحدٌ لكلّ معلّمٍ في المادّة والشعبة — لا أكثر.
+            #:
+            #: والمادّةُ في الشعبة لمعلّمٍ واحدٍ عادةً، إلّا أن تُقسَم الشعبةُ
+            #: نصفين يُدرَّسان في التوقيت نفسِه بمعلّمَين (قرارُ المستخدم
+            #: 2026-09-07): تكنولوجيا 11/1 وكيمياء 11/2 وفنون 12/1 وكيمياء
+            #: 12/2. فحارسُ «معلّمٍ واحد» في `apply_assignment` لا في القاعدة،
+            #: لأنّ القسمةَ مشروعةٌ والقاعدةُ لا تفرّق بينها وبين الخطأ.
+            #:
+            #: والمجموعةُ (`parallel_group`) ليست جزءاً من المفتاح: نصفا
+            #: الشعبة يحملان وسمَها نفسَه ليُجدولا معاً في خانةٍ واحدة، ولو
+            #: دخلت المفتاحَ لاستحال أن يتشاركاه.
+            #: والمحذوفُ حذفاً ليّناً خارجَ الحساب: سجلٌّ أُبطل لا يمنع إحياءَ
+            #: مثلِه، وإلّا لصار الحذفُ قفلاً على الشعبة.
             models.UniqueConstraint(
-                fields=["class_group", "subject", "academic_year"],
-                name="unique_subject_per_class_year",
+                fields=["class_group", "subject", "academic_year", "teacher"],
+                condition=models.Q(is_active=True),
+                name="unique_subject_per_class_year_teacher",
             )
         ]
-        ordering = ["class_group__grade", "class_group__section", "subject__name_ar"]
+        ordering = [
+            "class_group__grade",
+            "class_group__section",
+            "subject__name_ar",
+            "parallel_group",
+        ]
 
     def __str__(self):
         teacher_name = self.teacher.full_name if self.teacher else "غير محدد"

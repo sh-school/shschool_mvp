@@ -424,13 +424,26 @@ def apply_assignment(
     """
     from operations.models import SubjectClassAssignment
 
-    current = (
+    # المعلّمُ جزءٌ من الهويّة: شعبةٌ مقسومةٌ نصفين لها سجلّان بمعلّمَين،
+    # ولولا ذلك لكتب الثاني فوق الأوّل وضاع نصابُ أحدهما.
+    tag = (parallel_group or "").strip()[:40]
+    siblings = list(
         SubjectClassAssignment.objects.filter(
-            school=school, academic_year=academic_year, class_group=class_group, subject=subject
-        )
-        .select_for_update()
-        .first()
+            school=school,
+            academic_year=academic_year,
+            class_group=class_group,
+            subject=subject,
+        ).select_for_update()
     )
+    teacher_id = teacher.id if teacher else None
+    # الحيُّ أوّلاً ثمّ المحذوف: للمعلّم الواحد قد يبقى سجلٌّ مُبطَلٌ من إسنادٍ
+    # قديم، وإحياؤه بدل تعديل الحيّ يُنتج سجلَّين حيَّين لمفتاحٍ واحد.
+    current = next(
+        (r for r in siblings if r.teacher_id == teacher_id and r.is_active), None
+    ) or next((r for r in siblings if r.teacher_id == teacher_id), None)
+    if current is None:
+        # سجلٌّ بلا معلّمٍ يُتبنّى بدل أن يُترك يتيماً بجانب سجلٍّ جديد.
+        current = next((r for r in siblings if r.teacher_id is None and r.is_active), None)
     _guard_stale(current, expected_updated_at)
 
     findings = check_assignment(
@@ -445,8 +458,23 @@ def apply_assignment(
         current=current,
     )
 
-    holder = current.teacher if current and current.is_active else None
-    transferring = bool(holder and teacher and holder.id != teacher.id)
+    # النقلُ إسقاطٌ عن زميل — إلّا أن تكون الشعبةُ مقسومةً بينهما، وعلامةُ
+    # القسمة أن يحمل السجلّان وسمَ المجموعة نفسَه: يُدرَّسان في التوقيت نفسِه
+    # لنصفَي الشعبة، فلا أحدَ يُسقط أحداً.
+    rival = next(
+        (
+            r
+            for r in siblings
+            if r is not current
+            and r.is_active
+            and r.teacher_id
+            and r.teacher_id != teacher_id
+            and not (tag and (r.parallel_group or "").strip() == tag)
+        ),
+        None,
+    )
+    holder = rival.teacher if rival else None
+    transferring = bool(holder and teacher)
     if transferring and not confirm_transfer:
         findings.append(
             _f(
@@ -459,6 +487,15 @@ def apply_assignment(
 
     if blocking(findings):
         raise AssignmentError(findings)
+
+    # النقلُ المؤكَّد يُسقط سجلَّ صاحبها السابق — ولا يُترك سجلّان لمادّةٍ
+    # واحدةٍ في شعبةٍ واحدةٍ يتنازعان خانتها.
+    if rival is not None:
+        remove_assignment(
+            assignment=rival,
+            by=by,
+            reason=f"نُقلت {subject.name_ar} إلى {teacher.full_name}",
+        )
 
     before = _snapshot(current) if current else None
     if current is None:
@@ -473,7 +510,7 @@ def apply_assignment(
     current.teacher = teacher
     current.weekly_periods = weekly_periods
     current.requires_lab = requires_lab
-    current.parallel_group = (parallel_group or "").strip()[:40]
+    current.parallel_group = tag
     current.periods_override_reason = (override_reason or "").strip()[:200]
     current.is_active = True
     current.deleted_by = None

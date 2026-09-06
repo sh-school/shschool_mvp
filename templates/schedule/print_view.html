@@ -63,8 +63,12 @@
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
         <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
-          <option value="a4" {% if paper == 'a4' %}selected{% endif %}>{% if view_type == 'all_teachers' %}A4 أفقي{% else %}A4 عمودي{% endif %}</option>
-          <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>
+          <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
+          <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
+        </select>
+        <select name="orient" class="form-select" data-autosubmit title="اتّجاه الورقة">
+          <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>عمودي</option>
+          <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>أفقي</option>
         </select>
       </form>
 

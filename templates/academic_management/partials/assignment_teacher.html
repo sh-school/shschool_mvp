@@ -4,7 +4,7 @@
 سطرُ الحمل مع الصفّ في الضربة نفسها. وأزرارُ الدورة أسفلَها: رفعٌ ثمّ مراجعةٌ
 ثمّ اعتماد — لكلٍّ صاحبُه، ولا يظهر زرٌّ لمن لا يملكه.
 {% endcomment %}
-<section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}">
+<section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
   <div class="asg-head">
     <span class="asg-name">{{ card.teacher.full_name }}</span>
     <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>

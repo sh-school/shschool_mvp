@@ -23,7 +23,7 @@ from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
 
@@ -308,14 +308,64 @@ def _department_object(school, teacher):
     return membership.department_obj if membership else None
 
 
+#: قالبُ البطاقة — يُصيَّر مرّتين حين يلزم تحديثُ بطاقتين معاً.
+CARD_TEMPLATE = "academic_management/partials/assignment_teacher.html"
+
+
 def _render_card(request, school, year, teacher, caps, **extra):
+    """بطاقةُ معلّمٍ تُعاد — في موضعها هي، ومعها بطاقةُ من طلبها إن اختلفا.
+
+    الصفحةُ تُحدَّث بطاقةً بطاقة، فتبقى بطاقاتُ الزملاء على حالها. فمن ضغط ✕
+    أو عدّل حصصاً في بطاقةٍ قديمةٍ بعد أن انتقلت المادّةُ إلى زميل، كان الجوابُ
+    **بطاقةَ الزميل تحلّ في موضع البطاقة القديمة**: فيظهر المعلّمُ نفسُه مرّتين
+    ويختفي غيرُه — وهو ما رآه المستخدم (2026-09-06).
+
+    فصار الجوابُ يقصد عنصرَه بمعرّفه (`HX-Retarget`)، وتُرسَل معه بطاقةُ العنصر
+    الذي طلب (`hx-swap-oob`) محدَّثةً — فتُصحَّح الشاشتان معاً ولا يبقى قديم.
+    """
+    from django.template.loader import render_to_string
+
     if "registry" not in extra and caps["review"]:
         extra["registry"] = list(Department.objects.filter(school=school, is_active=True))
-    return render(
-        request,
-        "academic_management/partials/assignment_teacher.html",
+
+    html = render_to_string(
+        CARD_TEMPLATE,
         {"card": _card(school, year, teacher, caps, **extra)},
+        request=request,
     )
+    html += _stale_card_html(request, school, year, caps, teacher)
+
+    response = HttpResponse(html)
+    response["HX-Retarget"] = f"#teacher-{teacher.id}"
+    response["HX-Reswap"] = "outerHTML"
+    return response
+
+
+def _stale_card_html(request, school, year, caps, rendered_teacher):
+    """بطاقةُ العنصر الذي أرسل الطلبَ حين لا تكون بطاقةَ من رُدّ عليه."""
+    from django.template.loader import render_to_string
+
+    target = (request.headers.get("HX-Target") or "").removeprefix("teacher-")
+    if not target or target == str(rendered_teacher.id):
+        return ""
+    other = CustomUser.objects.filter(id=target).first() if _is_uuid(target) else None
+    if other is None:
+        return ""
+    return render_to_string(
+        CARD_TEMPLATE,
+        {"card": _card(school, year, other, caps), "oob": True},
+        request=request,
+    )
+
+
+def _is_uuid(value: str) -> bool:
+    from uuid import UUID
+
+    try:
+        UUID(value)
+    except ValueError:
+        return False
+    return True
 
 
 # ══════════════════════════════════════════════════════════════════════

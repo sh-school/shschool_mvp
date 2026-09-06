@@ -55,6 +55,12 @@ SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
 _GENERATION_STALE_AFTER = timedelta(minutes=20)
 
 
+#: أحجامُ الورق واتّجاهاتُه — تُقرأ من الرابط ولا تُخمَّن من نوع العرض.
+_ORIENTATIONS = ("landscape", "portrait")
+_PAPERS = ("a4", "a3")
+DEFAULT_ORIENTATION = "landscape"
+
+
 def _reap_stale_generations(school, year):
     """يُنهي التوليداتِ المعلّقةَ التي لا عاملَ لها — ويعيد ما بقي حيّاً.
 
@@ -189,6 +195,14 @@ def _schedule_print_selection(request):
     if view_type not in ("all_teachers", "teacher", "class"):
         view_type = "all_teachers"
     paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
+    if paper not in _PAPERS:
+        paper = "a4"
+    # الاتّجاهُ اختيارُ الطابع لا نتيجةُ حجم الورق. وافتراضُه ما كان قبل أن
+    # يصير خياراً: الجدولُ العامّ والورقةُ الكبيرةُ عرضاً، وغيرُهما طولاً —
+    # فلا يتبدّل مطبوعُ أحدٍ من تحته يومَ أُضيف الخيار.
+    orient = request.GET.get("orient")
+    if orient not in _ORIENTATIONS:
+        orient = "landscape" if (view_type == "all_teachers" or paper == "a3") else "portrait"
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
 
@@ -205,9 +219,7 @@ def _schedule_print_selection(request):
         target_teacher = request.user
     elif view_type == "teacher" and teacher_id:
         # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
-        target_teacher = get_object_or_404(
-            CustomUser.objects.ever_in_school(school), id=teacher_id
-        )
+        target_teacher = get_object_or_404(CustomUser.objects.ever_in_school(school), id=teacher_id)
     elif view_type == "class" and class_id:
         target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
 
@@ -235,7 +247,7 @@ def _schedule_print_selection(request):
     # الاختيارُ نفسه سؤالاً في الرابط: الإطارُ وزرّا التصدير ثلاثةُ روابطَ
     # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
     # مسألةَ وقت — يُنسى معاملٌ في أحدها فيُصدَّر جدولُ غير المعروض.
-    selection = {"view": view_type, "paper": paper, "year": year}
+    selection = {"view": view_type, "paper": paper, "orient": orient, "year": year}
     if preview:
         selection["generation"] = str(preview.id)
 
@@ -254,6 +266,7 @@ def _schedule_print_selection(request):
         "year": year,
         "view_type": view_type,
         "paper": paper,
+        "orient": orient,
         "target_teacher": target_teacher,
         "target_class": target_class,
         "preview": preview,
@@ -1266,8 +1279,6 @@ def toggle_double_period(request, subject_id):
 # ── جداولُ الصفحات: صفحةٌ لكلّ معلّمٍ أو لكلّ شعبة ─────────────────────
 
 #: اتّجاهُ الورقة — والافتراضُ أفقيّ (قرار الإدارة 2026-09-06)؛ والعموديّ بطلبٍ في الرابط.
-_ORIENTATIONS = ("landscape", "portrait")
-DEFAULT_ORIENTATION = "landscape"
 
 
 def _pages_payload(request) -> dict:
@@ -1280,6 +1291,9 @@ def _pages_payload(request) -> dict:
     orient = request.GET.get("orient") or DEFAULT_ORIENTATION
     if orient not in _ORIENTATIONS:
         orient = DEFAULT_ORIENTATION
+    paper = request.GET.get("paper") or "a4"
+    if paper not in _PAPERS:
+        paper = "a4"
 
     departments = ScheduleService.department_options(school, year)
     if kind == "classes":
@@ -1301,7 +1315,7 @@ def _pages_payload(request) -> dict:
         else:
             title = "جداول معلّمي المدرسة"
 
-    selection = {"kind": kind, "dept": dept, "orient": orient, "year": year}
+    selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
     if teacher_id:
         selection["teacher"] = teacher_id
 
@@ -1310,6 +1324,7 @@ def _pages_payload(request) -> dict:
         "school": school,
         "year": year,
         "kind": kind,
+        "paper": paper,
         "title": title,
         "pages": pages,
         "departments": departments,

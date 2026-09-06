@@ -119,6 +119,42 @@ def test_the_class_cell_carries_both_subjects_and_both_teachers(
     }
 
 
+def test_the_teacher_cell_names_everything_taught_in_it(db, school, section, subjects, teachers):
+    """جدولُ المعلّم يُصفّى على حصصه، فلولا الوسمُ لرأى نصفَه وحدَه."""
+    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
+    _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=tech, academic_year=YEAR)
+
+    (cell,) = grid[1][4]
+    assert cell.cell_subject == "التكنولوجيا / الفنون البصرية"
+
+
+def test_one_subject_split_between_two_teachers_is_named_once(
+    db, school, section, subjects, teachers
+):
+    """نصفان في المادّة نفسها — فاسمُها مرّةً واحدة لا مرّتين."""
+    first, second = teachers("عبدالله الرمضان", "محمد اسماعيل السيد")
+    _slot(school, section, subjects["التكنولوجيا"], first, group="1·التكنولوجيا")
+    _slot(school, section, subjects["التكنولوجيا"], second, group="2·التكنولوجيا")
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=first, academic_year=YEAR)
+
+    (cell,) = grid[1][4]
+    assert cell.cell_subject == "التكنولوجيا"
+
+
+def test_a_whole_class_period_carries_no_shared_label(db, school, section, subjects, teachers):
+    """الخانةُ المفردةُ بلا وسم — فلا يُقحَم في الشاشة اسمٌ ثانٍ."""
+    (one,) = teachers("أ")
+    _slot(school, section, subjects["الرياضيات"], one)
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=one, academic_year=YEAR)
+
+    assert grid[1][4][0].cell_subject == ""
+
+
 @pytest.mark.parametrize("scope", ["class", "teacher", "school"])
 def test_the_cell_is_a_list_whatever_the_filter(db, school, section, subjects, teachers, scope):
     """نوعُ إرجاعٍ متبدّل فخّ: قالبٌ يقرأ حقلاً من قائمةٍ يطبع فراغاً ولا يشكو."""
