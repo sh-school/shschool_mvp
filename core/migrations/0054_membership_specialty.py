@@ -5,8 +5,11 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
+    # الرقمُ 0052 أخذته هجرةُ «جدولُ التربية الخاصّة مستقلّ» (الطلب #145)،
+    # فرقمان لهجرتين مختلفتين يتركان في السلسلة ورقتين ويكسران الترحيل على
+    # الإنتاج. فهذه 0054 وتالية لها لا موازية.
     dependencies = [
-        ('core', '0051_role_e_projects_coordinator'),
+        ('core', '0053_ese_own_timetable'),
     ]
 
     operations = [
