@@ -14,6 +14,17 @@
 <style nonce="{{ request.csp_nonce }}">
   /* `.form-select` عامّةٌ بعرضٍ كامل — وهنا قائمةُ ترشيحٍ في الترويسة لا حقلُ نموذج. */
   .exec-meta .form-select { width: auto; min-width: 190px; }
+  .asg-guard { border-radius: 12px; padding: 10px 14px; margin: 4px 0 14px; border: 1px solid var(--border); font-size: 13px; }
+  .asg-guard.ok { background: #f0fdf4; border-color: #bbf7d0; color: #14532d; }
+  .asg-guard.bad { background: #fffbeb; border-color: #fde68a; color: #7c2d12; }
+  .asg-guard-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .asg-guard-head strong { font-size: 14px; }
+  .asg-guard details { margin-top: 8px; }
+  .asg-guard summary { cursor: pointer; font-weight: 700; font-size: 12.5px; }
+  .asg-guard-scroll { max-height: 280px; overflow: auto; margin-top: 6px; background: var(--surface); border-radius: 8px; }
+  table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--text-primary); }
+  table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--border); }
+  table.asg-guard-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
   .asg-dept { margin: 20px 0 8px; font-size: 15px; font-weight: 800; color: var(--maroon); border-bottom: 2px solid var(--border); padding-bottom: 5px; }
   .asg-dept small { font-weight: 400; color: var(--text-muted); font-size: 12px; }
   .asg-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px 12px; margin-bottom: 10px; }
@@ -39,7 +50,7 @@
   table.asg select { padding: 5px 8px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--surface); min-width: 170px; }
   .asg-add td { background: var(--surface-alt); }
   .asg-addform { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .asg-plus { font-size: 15px; color: var(--text-muted); }
+  .asg-plus { padding: 5px 14px; border-radius: 8px; border: 1.5px solid var(--maroon); background: var(--maroon); color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .asg-check { display: inline-flex; gap: 4px; align-items: center; font-size: 12.5px; }
   .asg-x { border: 0; background: transparent; color: #b91c1c; font-size: 15px; cursor: pointer; padding: 0 6px; }
   .asg-err { margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 12.5px; }
@@ -72,11 +83,59 @@
       <select name="dept" class="form-select" data-autosubmit title="القسم" aria-label="القسم">
         <option value="">كلُّ الأقسام</option>
         {% for d in departments %}
-        <option value="{{ d.key }}" {% if selected_dept == d.key %}selected{% endif %}>{{ d.name }} ({{ d.cards|length }})</option>
+        <option value="{{ d.key }}" {% if selected_dept == d.key %}selected{% endif %}>{{ d.name }} ({{ d.count }})</option>
         {% endfor %}
       </select>
     </form>
   </div>
+
+  {% comment %}
+  حارسُ المدرسة: الحملُ الفرديُّ لا يكشف شعبةً بلا معلّم. فيُقاس المطلوبُ من
+  الخطّة بالمُسنَد فعلاً، ويُسمّى موضعُ الفرق باسمه — شعبةً ومادّةً ورقمين.
+  {% endcomment %}
+  {% if coverage %}
+  <section class="asg-guard {% if coverage.complete %}ok{% else %}bad{% endif %}">
+    <div class="asg-guard-head">
+      {% if coverage.complete %}
+      <strong>الإسنادُ مكتمل</strong>
+      <span>الخطّةُ تطلب {{ coverage.planned }} حصّةً، والمُسنَدُ {{ coverage.assigned }} — تطابقٌ تامّ (100%).</span>
+      {% else %}
+      <strong>الإسنادُ غيرُ مكتمل — {{ coverage.percent }}%</strong>
+      <span>
+        الخطّةُ تطلب {{ coverage.planned }} حصّةً والمُسنَدُ {{ coverage.assigned }}
+        ({% if coverage.delta < 0 %}ناقصٌ {{ coverage.delta|cut:"-" }}{% elif coverage.delta > 0 %}زائدٌ {{ coverage.delta }}{% else %}المجموعُ مطابقٌ والمواضعُ مختلّة{% endif %})
+        · {{ coverage.problem_count }} موضعاً يحتاج عملاً
+        · {{ coverage.summary.clean_sections }} من {{ coverage.summary.sections }} شعبةً سليمة.
+      </span>
+      {% endif %}
+    </div>
+    {% if coverage.problems %}
+    <details>
+      <summary>أين الخلل؟</summary>
+      <div class="asg-guard-scroll">
+        <table class="asg-guard-table" data-no-sort>
+          <thead><tr><th>الشعبة</th><th>المادّة</th><th>الخطّة</th><th>المُسنَد</th><th>الحالة</th><th>المعلّم</th></tr></thead>
+          <tbody>
+            {% for p in coverage.problems %}
+            <tr>
+              <td>{{ p.section }}</td>
+              <td>{{ p.subject }}</td>
+              <td>{{ p.planned }}</td>
+              <td>{{ p.assigned }}</td>
+              <td>{{ p.status_label }}</td>
+              <td>{{ p.teacher|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% if coverage.problem_count > coverage.problems|length %}
+        <p class="asg-hint">وأكثرُ من ذلك — عُرض أوّلُ {{ coverage.problems|length }} موضعاً من {{ coverage.problem_count }}.</p>
+        {% endif %}
+      </div>
+    </details>
+    {% endif %}
+  </section>
+  {% endif %}
 
   {% if registry_empty %}
   <p class="asg-hint">لا أقسامَ مسجَّلةً في هذه المدرسة — فالتجميعُ مشتقٌّ من حصص كلّ معلّم. ومتى سُجّلت الأقسامُ صارت هي المصدر.</p>
