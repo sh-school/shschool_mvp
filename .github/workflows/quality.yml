@@ -86,9 +86,14 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
       - name: فشل إذا وجد تعقيد F (أسوأ درجة)
+        # النطاقُ نفسُه الذي تحكمه بوّابةُ الطلبات (quality-gate.yml → complexity):
+        # سكربتاتُ البذر وأوامرُ الإدارة والاختبارات تُقاس وتُعرض في التقرير أعلاه
+        # ولا تُسقط البناء. وكان النطاقان يفترقان، فبقيت هذه الوظيفةُ حمراءَ منذ
+        # 2026-08-09 على دالّتين خارجَ ما تحكمه البوّابة (real_seed.run و
+        # import_timetable_pdf.handle، كلتاهما CC 43) — وحمرةٌ دائمةٌ لا تُقرأ.
         run: |
           result=$(radon cc . \
-            --exclude "migrations,.venv,manage.py" \
+            --exclude "*/migrations/*,*/.venv/*,manage.py,scripts/*,*/scripts/*,tests/*,*/tests/*,*/management/commands/*" \
             --min F \
             --show-complexity 2>/dev/null)
           if [ -n "$result" ]; then
@@ -177,7 +182,10 @@ jobs:
             libffi-dev shared-mime-info pkg-config
 
       - name: تثبيت المتطلبات
-        run: pip install -r requirements.txt
+        # `requirements.txt` وحدَه لا يحمل pytest — وكان هذا يُسقط الوظيفةَ
+        # بـ«pytest: command not found» كلَّ أحدٍ منذ 2026-08-09. وملفُّ
+        # التطوير مصدرٌ واحدٌ للأدوات (وهو يستدعي requirements.txt بنفسه).
+        run: pip install -r requirements-dev.txt
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -189,7 +197,6 @@ jobs:
             --cov-report=html:htmlcov \
             --cov-report=term-missing \
             --cov-report=json:coverage.json \
-            --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
             -q
 
       - name: رفع تقرير HTML
@@ -266,7 +273,7 @@ jobs:
 
       - name: تثبيت المتطلبات
         run: |
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
           pip install mutmut==2.5.1
 
       - name: تطبيق Migrations
@@ -334,7 +341,10 @@ jobs:
             libffi-dev shared-mime-info pkg-config
 
       - name: تثبيت المتطلبات
-        run: pip install -r requirements.txt
+        # `requirements.txt` وحدَه لا يحمل pytest — وكان هذا يُسقط الوظيفةَ
+        # بـ«pytest: command not found» كلَّ أحدٍ منذ 2026-08-09. وملفُّ
+        # التطوير مصدرٌ واحدٌ للأدوات (وهو يستدعي requirements.txt بنفسه).
+        run: pip install -r requirements-dev.txt
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
