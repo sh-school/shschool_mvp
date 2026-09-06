@@ -74,7 +74,8 @@ class CustomUserAdmin(UserAdmin):
 
     @admin.display(description="الدور")
     def role_label(self, obj: CustomUser) -> str:
-        membership = obj.memberships.filter(is_active=True).select_related("role").first()
+        """الدورُ الحاكم — والكادرُ يتقدّم على وليّ الأمر عند تعدّد العضويّات."""
+        membership = obj.active_membership
         return membership.role.get_name_display() if membership else "—"
 
     @admin.display(description="القسم", ordering="memberships__department_obj__sort_order")

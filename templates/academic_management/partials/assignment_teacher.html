@@ -9,6 +9,25 @@
     <span class="asg-name">{{ card.teacher.full_name }}</span>
     <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>
 
+    {% comment %}
+    نقلُ معلّمٍ بين الأقسام قرارُ إدارةٍ — للنائب والمدير. ومن عُيّن حديثاً أو
+    نُقل يظهر «بلا قسمٍ مسجَّل» حتّى يُختار قسمُه من هنا.
+    {% endcomment %}
+    {% if card.registry %}
+    <form class="asg-dept-pick" hx-post="{% url 'academic_management:assignment_set_department' card.teacher.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ card.year }}">
+      <select name="department" title="القسم" aria-label="قسمُ المعلّم" class="{% if not card.department %}empty{% endif %}">
+        <option value="">— بلا قسم —</option>
+        {% for d in card.registry %}
+        <option value="{{ d.id }}" {% if card.department and card.department.id == d.id %}selected{% endif %}>{{ d.name }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% elif not card.department %}
+    <span class="asg-hint">بلا قسمٍ مسجَّل</span>
+    {% endif %}
+
     <form class="asg-quota" hx-post="{% url 'academic_management:assignment_set_load' card.teacher.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ card.year }}">

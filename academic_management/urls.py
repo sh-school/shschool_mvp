@@ -25,6 +25,11 @@ urlpatterns = [
         "assignments/<uuid:teacher_id>/load/", assignment_views.set_load, name="assignment_set_load"
     ),
     path(
+        "assignments/<uuid:teacher_id>/department/",
+        assignment_views.set_department,
+        name="assignment_set_department",
+    ),
+    path(
         "assignments/<uuid:teacher_id>/preparation/",
         assignment_views.toggle_preparation,
         name="assignment_toggle_preparation",

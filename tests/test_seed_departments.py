@@ -186,3 +186,59 @@ def test_the_registered_department_names_match_the_approved_sheet(school, subjec
 
     department = Department.objects.get(code="chemistry")
     assert department.name == DEPARTMENT_NAMES["chemistry"]
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الانتماءُ لا يخالف المسمّى الوظيفيّ
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_a_non_teaching_role_cannot_hold_an_academic_department(school, subjects):
+    """الممرّضُ وأمينُ المكتبة موظّفان في المدرسة ولا قسمَ أكاديميَّ لهما."""
+    from django.core.exceptions import ValidationError
+
+    from core.models import Membership
+
+    teacher = a_teacher(school, "معلّم الرياضيات")
+    assign(school, teacher, subjects["MAT"], periods=12)
+    seed(apply=True)
+    maths = Department.objects.get(code="math")
+
+    nurse = a_teacher(school, "الممرّض", role_name="nurse")
+    membership = Membership.objects.get(user=nurse, school=school)
+    membership.department_obj = maths
+
+    with pytest.raises(ValidationError):
+        membership.full_clean(exclude=["user", "school", "role"])
+
+
+def test_the_department_is_written_on_the_teaching_membership_only(school, subjects):
+    """معلّمٌ ابنُه في المدرسة له عضويّتان — والقسمُ لعضويّة التدريس وحدَها."""
+    from core.models import Membership
+    from tests.conftest import MembershipFactory, RoleFactory
+
+    teacher = a_teacher(school, "معلّمٌ ووليُّ أمر")
+    parent_role = RoleFactory(school=school, name="parent")
+    MembershipFactory(user=teacher, school=school, role=parent_role)
+    assign(school, teacher, subjects["MAT"], periods=12)
+
+    seed(apply=True)
+
+    carried = Membership.objects.filter(
+        user=teacher, school=school, department_obj__isnull=False
+    ).select_related("role")
+    assert [m.role.name for m in carried] == ["teacher"]
+
+
+def test_the_governing_membership_prefers_staff_over_parent(school, subjects):
+    """وكان الاختيارُ بلا ترتيبٍ فيظهر معلّمُ الرياضيات «وليَّ أمرٍ» بلا قسم."""
+    from tests.conftest import MembershipFactory, RoleFactory
+
+    teacher = a_teacher(school, "معلّمٌ ووليُّ أمر")
+    MembershipFactory(user=teacher, school=school, role=RoleFactory(school=school, name="parent"))
+    assign(school, teacher, subjects["MAT"], periods=12)
+    seed(apply=True)
+
+    teacher.invalidate_active_membership()
+    assert teacher.get_role() == "teacher"
+    assert teacher.department_obj.code == "math", "والقسمُ يُقرأ من العضويّة التي تحمله"

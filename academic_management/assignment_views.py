@@ -40,6 +40,7 @@ from academic_management.models import (
 from core.academic_calendar import academic_year_for
 from core.models import ClassGroup, CustomUser, Department, Membership
 from core.models.academic import grade_order
+from core.models.access import DEPARTMENT_ROLES
 from operations import departments as dept_map
 from operations.models import Subject, SubjectClassAssignment
 
@@ -63,11 +64,20 @@ def _caps(user, school):
     }
 
 
+def _registry_filled(school) -> bool:
+    return Department.objects.filter(school=school, is_active=True).exists()
+
+
 def _department_key(person, school, year):
-    """مفتاحُ قسم شخصٍ واحد — سجلُّه، وإلّا الغالبُ على حصصه."""
+    """مفتاحُ قسم شخصٍ واحد — سجلُّه، وإلّا الغالبُ على حصصه.
+
+    وتُقدَّم عضويّةُ التدريس: من كان معلّماً وله عضويّةٌ ثانيةٌ بدورٍ إداريّ
+    لا قسمَ لها، فلولا الترتيبُ لقُرئ بلا قسم.
+    """
     membership = (
         Membership.objects.filter(user=person, school=school, is_active=True)
         .select_related("department_obj")
+        .order_by("department_obj__sort_order")
         .first()
     )
     rows = (
@@ -76,7 +86,7 @@ def _department_key(person, school, year):
         .select_related("class_group", "subject")
     )
     department = membership.department_obj if membership else None
-    return _department_of(department, list(rows))[0]
+    return _department_of(department, list(rows), _registry_filled(school))[0]
 
 
 def _guard(request, teacher=None):
@@ -120,7 +130,11 @@ def _teachers(school):
     return out
 
 
-def _department_of(department, rows):
+#: مفتاحُ من لا قسمَ مسجّلاً له — يظهر ليُصلَح لا ليُخفى.
+NO_DEPARTMENT = "none"
+
+
+def _department_of(department, rows, registry_filled=False):
     """قسمُ المعلّم: السجلُّ إن سُجّل، وإلّا فالغالبُ على حصصه.
 
     سجلُّ الأقسام هو المصدر متى مُلئ. وهو فارغٌ في قاعدة التطوير — ولو تُرك
@@ -136,6 +150,10 @@ def _department_of(department, rows):
             department.name,
             (0, department.sort_order or 0, department.name),
         )
+    # متى سُجّلت أقسامُ المدرسة صار غيابُ القسم نقصاً يُعالَج، لا سؤالاً
+    # يُجاب عنه بالاشتقاق: من نُقل أو عُيّن حديثاً يظهر هنا حتّى يُسنَد قسمُه.
+    if registry_filled:
+        return NO_DEPARTMENT, "بلا قسمٍ مسجَّل", (2, 0, "")
     code = dept_map.resolve_from_lessons(
         (row.subject.name_ar, row.class_group.grade, row.weekly_periods) for row in rows
     )
@@ -216,6 +234,8 @@ def _card(
     plans=None,
     loads=None,
     classes=None,
+    registry=None,
+    department=None,
     error=None,
     notes=(),
 ):
@@ -253,6 +273,9 @@ def _card(
         "status": status,
         "status_label": plan.get_status_display() if plan else "بلا خطّة",
         "room": room,
+        # نقلُ معلّمٍ بين الأقسام قرارُ إدارةٍ — للنائب والمدير وحدَهما.
+        "registry": registry if registry is not None else [],
+        "department": department if department is not None else _department_object(school, teacher),
         "writable": _may_write(plan, caps),
         "classes": classes if classes is not None else _classes(school, year),
         "year": year,
@@ -267,7 +290,19 @@ def _card(
     }
 
 
+def _department_object(school, teacher):
+    membership = (
+        Membership.objects.filter(user=teacher, school=school, is_active=True)
+        .select_related("department_obj")
+        .order_by("department_obj__sort_order")
+        .first()
+    )
+    return membership.department_obj if membership else None
+
+
 def _render_card(request, school, year, teacher, caps, **extra):
+    if "registry" not in extra and caps["review"]:
+        extra["registry"] = list(Department.objects.filter(school=school, is_active=True))
     return render(
         request,
         "academic_management/partials/assignment_teacher.html",
@@ -289,6 +324,8 @@ def assignments(request):
     rows_by = _rows_by_teacher(school, year)
     prepared_by = _prepared_by_teacher(school, year)
     plans = _plans_by_teacher(school, year)
+    registry_filled = _registry_filled(school)
+    registry = list(Department.objects.filter(school=school, is_active=True)) if caps["review"] else []
 
     # قائمةُ الترشيح تُبنى ممّا يظهر فعلاً — فلا خيارَ بلا معلّمين، ولا معلّمَ
     # بلا خيارٍ يبلغه. وعددُ كلّ قسمٍ يُحسب من معلّميه جميعاً لا من المعروضين،
@@ -296,7 +333,7 @@ def assignments(request):
     groups = {}
     for teacher, department in _teachers(school):
         rows = rows_by.get(teacher.id, [])
-        key, name, order = _department_of(department, rows)
+        key, name, order = _department_of(department, rows, registry_filled)
         if scope is not None and key != scope:
             continue
         group = groups.setdefault(
@@ -316,6 +353,8 @@ def assignments(request):
                 plans=plans,
                 loads=loads,
                 classes=classes,
+                registry=registry,
+                department=department,
             )
         )
 
@@ -332,7 +371,7 @@ def assignments(request):
             "groups": shown,
             "departments": ordered,
             "selected_dept": selected,
-            "registry_empty": not Department.objects.filter(school=school, is_active=True).exists(),
+            "registry_empty": not registry_filled,
             "coverage": _coverage(school, year),
             "totals": {
                 "teachers": len(cards),
@@ -603,6 +642,46 @@ def set_load(request, teacher_id):
     except (ValidationError, PermissionDenied) as exc:
         return _render_card(request, school, year, teacher, caps, error=_message(exc))
     return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def set_department(request, teacher_id):
+    """نقلُ معلّمٍ إلى قسمٍ — للنائب والمدير وحدَهما.
+
+    الانتماءُ يُكتب على عضويّة التدريس لا على المستخدم، ولا يُقبل لدورٍ غير
+    تدريسيّ (يحرسه `Membership.clean`). وبهذا يجد المعيَّنُ حديثاً والمنقولُ
+    بابَه في المنصّة، بلا لوحةِ إدارة.
+    """
+    teacher = get_object_or_404(CustomUser, id=teacher_id)
+    school, caps, _scope, year = _guard(request, teacher)
+    if not (caps["review"] or caps["approve"]):
+        raise PermissionDenied("نقلُ المعلّم بين الأقسام للنائب الأكاديميّ والمدير.")
+
+    raw = request.POST.get("department") or ""
+    department = (
+        get_object_or_404(Department, id=raw, school=school, is_active=True) if raw else None
+    )
+    memberships = Membership.objects.filter(
+        user=teacher, school=school, is_active=True, role__name__in=DEPARTMENT_ROLES
+    ).select_related("role")
+    if not memberships:
+        return _render_card(
+            request,
+            school,
+            year,
+            teacher,
+            caps,
+            error="لا عضويّةَ تدريسٍ لهذا الشخص — والقسمُ الأكاديميُّ لأهل التدريس.",
+        )
+    try:
+        for membership in memberships:
+            membership.department_obj = department
+            membership.full_clean(exclude=["user", "school", "role"])
+            membership.save(update_fields=["department_obj"])
+    except ValidationError as exc:
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
+    return _render_card(request, school, year, teacher, caps, department=department)
 
 
 # ══════════════════════════════════════════════════════════════════════

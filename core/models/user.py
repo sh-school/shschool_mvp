@@ -169,10 +169,22 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     @property
     def active_membership(self):
+        """العضويّةُ الحاكمة — والكادرُ يتقدّم على وليّ الأمر والطالب.
+
+        معلّمٌ ابنُه في المدرسة له عضويّتان نشطتان: «معلّم» و«وليّ أمر». وكان
+        الاختيارُ بلا ترتيبٍ — `first()` بلا `order_by` تُعيد ما يشاء المحرّك —
+        فيظهر معلّمُ الرياضيات بلا قسم، وقد يُقرأ دورُه «وليَّ أمرٍ» فيُحرَم
+        شاشاتِه. والترتيبُ الآن صريحٌ ومستقرّ.
+        """
         cached = self.__dict__.get("_active_membership")
         if cached is not None:
             return cached
-        result = self.memberships.filter(is_active=True).select_related("school", "role").first()
+        result = (
+            self.memberships.filter(is_active=True)
+            .select_related("school", "role")
+            .order_by(_role_rank(), "joined_at", "id")
+            .first()
+        )
         if result is not None:
             self.__dict__["_active_membership"] = result
         return result
@@ -217,14 +229,22 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     @property
     def department(self):
         """يُعيد اسم قسم/تخصص المستخدم من FK."""
-        m = self.active_membership
-        return m.department_obj.name if m and m.department_obj_id else ""
+        department = self.department_obj
+        return department.name if department else ""
 
     @property
     def department_obj(self):
-        """يُعيد كائن Department مباشرة (أو None)."""
-        m = self.active_membership
-        return m.department_obj if m and m.department_obj_id else None
+        """قسمُ المستخدم — من عضويّةٍ تحمل قسماً، لا من أوّل عضويّةٍ تُصادَف.
+
+        فالقسمُ يخصّ عضويّةَ التدريس، وصاحبُ عضويّتين قد تُقرأ منه الأخرى.
+        """
+        membership = (
+            self.memberships.filter(is_active=True, department_obj__isnull=False)
+            .select_related("department_obj")
+            .order_by("department_obj__sort_order")
+            .first()
+        )
+        return membership.department_obj if membership else None
 
     def get_department(self):
         return self.department
@@ -282,3 +302,21 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"Profile: {self.user.full_name}"
+
+
+def _role_rank():
+    """رتبةُ الدور عند تعدّد العضويّات: الكادرُ صفر، ووليُّ الأمر واحد، والطالبُ اثنان.
+
+    الاستيرادُ داخل الدالّة لأنّ `access` يستورد `CustomUser` — ولو كان في
+    الرأس لدار الاستيرادُ على نفسه.
+    """
+    from django.db.models import Case, IntegerField, Value, When
+
+    from .access import ALL_STAFF_ROLES
+
+    return Case(
+        When(role__name__in=sorted(ALL_STAFF_ROLES), then=Value(0)),
+        When(role__name="parent", then=Value(1)),
+        default=Value(2),
+        output_field=IntegerField(),
+    )

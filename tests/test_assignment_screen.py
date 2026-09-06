@@ -548,3 +548,69 @@ def test_the_department_counts_show_before_any_filter_is_chosen(
 
     assert "الرياضيات (1)" in body
     assert "العلوم (1)" in body, "وقسمٌ لم يُختَر يبقى رقمُه ظاهراً"
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  قسمُ المعلّم يُدخَل من الشاشة
+# ══════════════════════════════════════════════════════════════════════
+
+
+def move_department(client, teacher, department=""):
+    return client.post(
+        reverse("academic_management:assignment_set_department", args=[teacher.id]),
+        {"year": YEAR, "department": getattr(department, "id", department)},
+    )
+
+
+def test_a_teacher_without_a_department_is_shown_not_hidden(
+    client, school, departments, maths_teacher, vice
+):
+    """متى سُجّلت الأقسامُ صار غيابُ القسم نقصاً يُعالَج لا يُشتقّ."""
+    from core.models import Membership
+
+    Membership.objects.filter(user=maths_teacher, school=school).update(department_obj=None)
+    login(client, vice, school)
+
+    body = page(client).content.decode()
+
+    assert "بلا قسمٍ مسجَّل" in body
+    assert "معلّم الرياضيات" in body
+
+
+def test_the_vice_moves_a_teacher_to_another_department(
+    client, school, departments, maths_teacher, vice
+):
+    """نقلُ معلّمٍ أو تعيينُ جديدٍ — بابُه في المنصّة لا في لوحة الإدارة."""
+    from core.models import Membership
+
+    login(client, vice, school)
+
+    response = move_department(client, maths_teacher, departments["SCI"])
+
+    assert response.status_code == 200
+    membership = Membership.objects.get(user=maths_teacher, school=school, role__name="teacher")
+    assert membership.department_obj == departments["SCI"]
+
+
+def test_a_coordinator_may_not_move_teachers_between_departments(
+    client, school, departments, maths_teacher, coordinator
+):
+    from core.models import Membership
+
+    login(client, coordinator, school)
+
+    assert move_department(client, maths_teacher, departments["MAT"]).status_code == 403
+    membership = Membership.objects.get(user=maths_teacher, school=school, role__name="teacher")
+    assert membership.department_obj == departments["MAT"], "لم يتغيّر شيء"
+
+
+def test_moving_someone_without_a_teaching_membership_is_refused(
+    client, school, departments, vice
+):
+    """القسمُ الأكاديميُّ لأهل التدريس — ولا يخالف المسمّى الوظيفيّ."""
+    nurse = a_user(school, "الممرّض", "nurse")
+    login(client, vice, school)
+
+    response = move_department(client, nurse, departments["MAT"])
+
+    assert "لا عضويّةَ تدريس" in response.content.decode()

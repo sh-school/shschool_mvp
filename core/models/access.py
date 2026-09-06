@@ -78,6 +78,14 @@ TEACHING_ROLES = {"teacher", "coordinator"}
 # لمن بدّل الحقلَ في الطلب. فالقائمةُ المعروضةُ والحدُّ المفروضُ من مصدرٍ
 # واحدٍ الآن، فلا يفترقان بمرور الوقت.
 EXEMPTABLE_ROLES = {"teacher", "coordinator", "ese_teacher", "activities_coordinator"}
+
+# الأدوارُ التي تنتمي إلى قسمٍ أكاديميّ — وما عداها لا قسمَ له.
+#
+# القسمُ صفةُ التدريس لا صفةُ الوظيفة: الممرّضُ وأمينُ المكتبة والمشرفُ
+# الإداريُّ موظّفون في المدرسة ولا قسمَ أكاديميَّ لهم، والمديرُ والنائبُ فوق
+# الأقسام لا في واحدٍ منها. ولو قُبل لهم قسمٌ لظهروا في كشوف القسم وميزانه
+# وأوراق جداوله، ولحُسبوا في عدد معلّميه.
+DEPARTMENT_ROLES = {"teacher", "ese_teacher", "coordinator", "e_projects_coordinator"}
 # أدوار الطاقم بالكامل (بدون طلاب وأولياء أمور)
 #
 # ومعها `TIER_SYSTEM`: كان `platform_developer` خارجها، فيُردّ عن لوحة
@@ -307,6 +315,26 @@ class Membership(models.Model):
         if on < _as_date(self.joined_at):
             return False
         return self.left_at is None or on < self.left_at
+
+    def clean(self):
+        """القسمُ لا يخالف المسمّى الوظيفيّ — والحارسُ في النموذج لا في الشاشة.
+
+        فلو تُرك للشاشات لاختلفت: لوحةُ الإدارة تكتب ما شاءت، والشاشةُ تمنع.
+        وهنا يُمنع في كلّ طريق.
+        """
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.department_obj_id and self.role_id:
+            if self.role.name not in DEPARTMENT_ROLES:
+                raise ValidationError(
+                    {
+                        "department_obj": (
+                            f"«{self.role.get_name_display()}» ليس دوراً تدريسيّاً — "
+                            "والقسمُ الأكاديميُّ لأهل التدريس."
+                        )
+                    }
+                )
 
     @property
     def department_name(self):
