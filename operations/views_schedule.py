@@ -1026,82 +1026,13 @@ def approve_schedule(request, generation_id):
         messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
         return redirect("smart_schedule")
 
-    from notifications.models import InAppNotification
-
-    teacher_ids = Membership.objects.filter(
-        school=school,
-        is_active=True,
-        role__name__in=(
-            "teacher",
-            "coordinator",
-            "ese_teacher",
-            "activities_coordinator",
-            "e_projects_coordinator",
-        ),
-    ).values_list("user_id", flat=True)
-
-    # الاعتمادُ والإشعارُ فعلٌ واحد. كان الحفظُ يسبق `bulk_create` بلا معاملة،
-    # فحين سقط الإدراجُ بقي الجدولُ «معتمَداً» ولم يعلم به معلّمٌ واحد — نصفُ
-    # فعلٍ لا يُرى نصفُه الناقص.
-    with transaction.atomic():
-        # الاعتمادُ هو النشر: حصصُ هذه المسودّة تُفعَّل ويُطفأ ما سواها في
-        # العام نفسه. وكان الاعتمادُ يقلب حقلَ حالةٍ لا غير، والحصصُ حيّةٌ
-        # منذ لحظة التوليد — فلم يكن الزرُّ يقرّر شيئاً.
-        #
-        # والمسودّاتُ الأقدمُ من هذا الحقل حصصُها حيّةٌ أصلاً وبلا مرجع توليد،
-        # فإطفاءُ الحيّ لها يمحو الجدولَ كلَّه: تُعامَل كما كانت — قلبَ حالةٍ.
-        draft_slots = ScheduleSlot.objects.filter(generation=gen)
-        if draft_slots.exists():
-            ScheduleSlot.objects.filter(
-                school=school, academic_year=gen.academic_year, is_active=True
-            ).exclude(generation=gen).update(is_active=False)
-            draft_slots.update(is_active=True)
-
-        ScheduleGeneration.objects.filter(
-            school=school, academic_year=gen.academic_year, status="approved"
-        ).update(status="archived")
-        # والمؤرشَفُ الزائدُ على حدّ الإبقاء يذهب مع حصصه — القرار: جدولٌ واحدٌ الحيّ.
-        ScheduleService.retain_archived_generations(school, gen.academic_year)
-
-        gen.status = "approved"
-        # ويُعاد القياسُ عند الاعتماد: المصادقةُ قد تكون بعد تعديلٍ يدويّ على المسودّة.
-        try:
-            from operations.schedule_lab import store_metrics
-
-            store_metrics(gen)
-        except Exception:  # noqa: BLE001
-            logger.exception("schedule_lab: تعذّر القياسُ عند الاعتماد %s", gen.id)
-        gen.save(update_fields=["status"])
-
-        # `school` لازمٌ لا زينة: الإشعارُ صفٌّ مستأجِرٌ تحرسه RLS، وصفٌّ بلا
-        # مدرسةٍ ترفضه السياسةُ fail-closed — فتسقط العمليّةُ كلُّها.
-        notifs = [
-            InAppNotification(
-                user_id=tid,
-                school=school,
-                title="تم اعتماد الجدول الدراسي",
-                body=(
-                    f"تم اعتماد الجدول للعام {gen.academic_year}. "
-                    "راجع جدولك من صفحة الجدول الأسبوعي."
-                ),
-                event_type="general",
-                priority="medium",
-                related_url="/teacher/weekly-schedule/",
-            )
-            for tid in teacher_ids
-        ]
-        InAppNotification.objects.bulk_create(notifs)
-
-    # الجلساتُ المولَّدة لهذا الأسبوع تحمل الجدولَ القديم، والتوليدُ لا يعيد
-    # يوماً فيه جلسات. فالاعتمادُ يُصالحها: يُحذف ما لا يطابق ولا حضورَ عليه،
-    # ويُنشأ الناقص — وما مُسَّ بحضورٍ يُبقى.
-    sync = {"deleted": 0, "created": 0, "kept": 0}
-    if gen.academic_year == academic_year_for_school(school):
-        sync = ScheduleService.resync_current_week(school, gen.academic_year)
+    # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه.
+    result = ScheduleService.approve_generation(gen)
+    sync = result["sync"]
 
     messages.success(
         request,
-        f"تم اعتماد الجدول وإشعار {len(notifs)} معلم — جلساتُ الأسبوع: "
+        f"تم اعتماد الجدول وإشعار {result['notified']} معلم — جلساتُ الأسبوع: "
         f"حُذف {sync['deleted']}، أُنشئ {sync['created']}، أُبقي {sync['kept']}",
     )
     return redirect("smart_schedule")
