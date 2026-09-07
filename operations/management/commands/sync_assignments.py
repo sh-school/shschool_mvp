@@ -21,6 +21,8 @@
 هنا كانت ستلتفّ على ذلك كلِّه — فتنقل البياناتِ وتترك السجلَّ أعمى.
 """
 
+import base64
+import gzip
 import json
 import sys
 
@@ -108,6 +110,14 @@ class Command(BaseCommand):
             default="-",
             help="مسارُ الملفّ، و«-» للمُدخَل/المُخرَج القياسيّ (الافتراض)",
         )
+        # الحمولةُ سطراً واحداً: gzip ثمّ base64. فمئتان وخمسون إسناداً تصير أربعةَ
+        # آلاف حرفٍ بلا مسافةٍ ولا اقتباس — تعبر `railway ssh` وصدَفةَ ويندوز معاً،
+        # حيث يبتلع المُفسِّرُ الاقتباساتِ ولا يُضمَن تمريرُ المُدخَل القياسيّ.
+        parser.add_argument(
+            "--b64",
+            default="",
+            help="استيرادٌ: الحمولةُ gzip+base64 بدل الملفّ. تصديرٌ: أخرِجها بهذه الصيغة",
+        )
         parser.add_argument("--year", default="", help="العامُ الدراسيّ (الافتراض: الجاري)")
         parser.add_argument(
             "--apply",
@@ -132,12 +142,13 @@ class Command(BaseCommand):
         year = options["year"] or default_academic_year()
 
         if options["mode"] == "export":
-            return self._export(school, year, options["file"])
+            return self._export(school, year, options)
         return self._import(school, year, options)
 
     # ── تصدير ────────────────────────────────────────────────────
 
-    def _export(self, school, year, path):
+    def _export(self, school, year, options):
+        path = options["file"]
         rows = [
             _payload(a)
             for a in SubjectClassAssignment.objects.filter(
@@ -146,6 +157,8 @@ class Command(BaseCommand):
         ]
         rows.sort(key=lambda r: (r["grade"], r["section"], r["subject"], r["teacher"]))
         text = json.dumps({"year": year, "rows": rows}, ensure_ascii=False, indent=1)
+        if options["b64"]:
+            text = base64.b64encode(gzip.compress(text.encode("utf-8"), 9)).decode("ascii")
         if path == "-":
             self.stdout.write(text)
         else:
@@ -155,8 +168,15 @@ class Command(BaseCommand):
 
     # ── استيراد ──────────────────────────────────────────────────
 
-    def _read(self, path):
-        raw = sys.stdin.read() if path == "-" else open(path, encoding="utf-8").read()
+    def _read(self, options):
+        if options["b64"]:
+            try:
+                raw = gzip.decompress(base64.b64decode(options["b64"])).decode("utf-8")
+            except (ValueError, OSError) as exc:
+                raise CommandError(f"حمولةُ --b64 ليست gzip+base64 صالحة: {exc}") from exc
+        else:
+            path = options["file"]
+            raw = sys.stdin.read() if path == "-" else open(path, encoding="utf-8").read()
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
@@ -195,7 +215,7 @@ class Command(BaseCommand):
         return plan, failed, stale
 
     def _import(self, school, year, options):
-        rows = self._read(options["file"])
+        rows = self._read(options)
         resolver = Resolver(school, year)
         plan, failed, stale = self._plan(rows, resolver, school, year)
 
