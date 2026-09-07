@@ -84,6 +84,13 @@ class Resolver:
         klass = self.classes.get((row["grade"], row["section"]))
         if klass is None:
             raise LookupError(f"لا شعبةَ {row['grade']}/{row['section']} في {self.year}")
+        # الرقمُ وحدَه لا يكفي: 11/2 هنا آدابٌ وفي المصدر تكنولوجيّ — والإسنادُ بلا هذا
+        # الفحص كان سيكتب علومَ الحاسب في شعبةٍ ما زالت موسومةً آداباً بلا صوت.
+        if (klass.track or "") != (row.get("track") or ""):
+            raise LookupError(
+                f"شعبة {row['grade']}/{row['section']} مسارُها هنا «{klass.track or '-'}»"
+                f" وفي الملفّ «{row.get('track') or '-'}» — بدِّل المسارَ أوّلاً"
+            )
 
         subject = self.subjects.get(row["subject"].strip())
         if subject is None:
@@ -264,13 +271,20 @@ class Command(BaseCommand):
                 except service.AssignmentError as exc:
                     refused.append((row, "؛ ".join(f.message for f in exc.findings if f.blocks)))
 
+            deactivated = 0
             if options["deactivate_missing"]:
                 for assignment in stale:
+                    # نقلُ مادّةٍ إلى معلّمٍ آخر أعلاه أبطل سجلَّ صاحبها السابق أصلاً —
+                    # فلا يُبطَل ثانيةً ولا يُسجَّل حذفٌ مكرَّرٌ في التدقيق.
+                    assignment.refresh_from_db(fields=["is_active"])
+                    if not assignment.is_active:
+                        continue
                     service.remove_assignment(
                         assignment=assignment,
                         by=by,
                         reason="أُبطل بمزامنة الإسنادات — ليس في المصدر",
                     )
+                    deactivated += 1
 
             if refused:
                 for row, why in refused:
@@ -281,5 +295,5 @@ class Command(BaseCommand):
 
         self.stderr.write(
             f"كُتب {written} إسناداً"
-            + (f"، وأُبطل {len(stale)}" if options["deactivate_missing"] else "")
+            + (f"، وأُبطل {deactivated}" if options["deactivate_missing"] else "")
         )
