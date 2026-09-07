@@ -1,0 +1,6 @@
+{% comment %}زرُّ نقلةٍ واحدةٍ في الدورة — يحتاج: card، action، label، style.{% endcomment %}
+<form id="flow-{{ card.teacher.id }}-{{ action }}" hx-post="{% url 'academic_management:assignment_move' card.teacher.id action %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" hx-include="closest .asg-flow" class="asg-inline">
+  {% csrf_token %}
+  <input type="hidden" name="year" value="{{ card.year }}">
+  <button type="submit" class="asg-btn asg-btn-{{ style }}">{{ label }}</button>
+</form>

@@ -43,8 +43,9 @@
       {% endfor %}
     </tbody>
   </table>
-  <div class="table-empty" style="padding:8px">{{ total }} موظف</div>
+  <div class="table-empty" style="padding:8px">{{ total }} منتسباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
+  {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" %}
   {% else %}
-  {% include "components/empty_state.html" with message="لا يوجد موظفون مطابقون" %}
+  {% include "components/empty_state.html" with message="لا منتسبين مطابقين" %}
   {% endif %}
 </div>

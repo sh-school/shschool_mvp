@@ -119,6 +119,42 @@ def test_the_class_cell_carries_both_subjects_and_both_teachers(
     }
 
 
+def test_the_teacher_cell_names_everything_taught_in_it(db, school, section, subjects, teachers):
+    """جدولُ المعلّم يُصفّى على حصصه، فلولا الوسمُ لرأى نصفَه وحدَه."""
+    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
+    _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=tech, academic_year=YEAR)
+
+    (cell,) = grid[1][4]
+    assert cell.cell_subject == "التكنولوجيا / الفنون البصرية"
+
+
+def test_one_subject_split_between_two_teachers_is_named_once(
+    db, school, section, subjects, teachers
+):
+    """نصفان في المادّة نفسها — فاسمُها مرّةً واحدة لا مرّتين."""
+    first, second = teachers("عبدالله الرمضان", "محمد اسماعيل السيد")
+    _slot(school, section, subjects["التكنولوجيا"], first, group="1·التكنولوجيا")
+    _slot(school, section, subjects["التكنولوجيا"], second, group="2·التكنولوجيا")
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=first, academic_year=YEAR)
+
+    (cell,) = grid[1][4]
+    assert cell.cell_subject == "التكنولوجيا"
+
+
+def test_a_whole_class_period_carries_no_shared_label(db, school, section, subjects, teachers):
+    """الخانةُ المفردةُ بلا وسم — فلا يُقحَم في الشاشة اسمٌ ثانٍ."""
+    (one,) = teachers("أ")
+    _slot(school, section, subjects["الرياضيات"], one)
+
+    grid = ScheduleService.get_weekly_schedule(school, teacher=one, academic_year=YEAR)
+
+    assert grid[1][4][0].cell_subject == ""
+
+
 @pytest.mark.parametrize("scope", ["class", "teacher", "school"])
 def test_the_cell_is_a_list_whatever_the_filter(db, school, section, subjects, teachers, scope):
     """نوعُ إرجاعٍ متبدّل فخّ: قالبٌ يقرأ حقلاً من قائمةٍ يطبع فراغاً ولا يشكو."""
@@ -147,9 +183,8 @@ def test_an_empty_period_stays_absent(db, school, section):
 @pytest.mark.parametrize(
     "template",
     [
-        "templates/schedule/weekly.html",
         "templates/schedule/print_schedule.html",
-        "templates/schedule/teacher_weekly.html",
+        "templates/schedule/print_pages.html",
     ],
 )
 def test_no_template_reads_a_field_straight_off_the_cell(template):
@@ -163,36 +198,22 @@ def test_no_template_reads_a_field_straight_off_the_cell(template):
 
 
 def test_the_rendered_cell_shows_both_subjects_and_both_teachers(
-    db, school, section, subjects, teachers
+    db, client, school, section, subjects, teachers, principal_user
 ):
-    """الدعوى على الشاشة لا على البنية: القالب يكتب المادّتين والاسمين معاً."""
-    from django.template.loader import render_to_string
-    from django.test import RequestFactory
+    """الدعوى على الشاشة لا على البنية: الورقةُ تكتب المادّتين والاسمين معاً.
+
+    (كانت على شبكة `weekly.html` القديمة؛ وصارت الورقةُ هي صفحةَ الجدول.)
+    """
+    from django.urls import reverse
 
     tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
 
-    request = RequestFactory().get("/schedule/")
-    request.user = tech
-    html = render_to_string(
-        "schedule/weekly.html",
-        {
-            "grid": ScheduleService.get_weekly_schedule(
-                school, class_group=section, academic_year=YEAR
-            ),
-            "days": [(1, "الإثنين")],
-            "periods": [4],
-            "conflicts": [],
-            "target_class": section,
-            "target_teacher": None,
-            "teachers": [],
-            "classes": [section],
-            "academic_year": YEAR,
-            "user_role": "teacher",
-        },
-        request=request,
-    )
+    client.force_login(principal_user)
+    html = client.get(
+        reverse("schedule_print"), {"view": "class", "class": section.id, "year": YEAR}
+    ).content.decode()
 
     for text in ("التكنولوجيا", "الفنون البصرية", "محمد اسماعيل السيد", "يوسف يعقوب عوض"):
         assert text in html, text

@@ -7,6 +7,7 @@ from .models import (
     CalendarEvent,
     ClassGroup,
     CustomUser,
+    Department,
     Membership,
     ParentStudentLink,
     Profile,
@@ -39,8 +40,21 @@ class CustomUserAdmin(UserAdmin):
 
     model = CustomUser
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
-    list_display = ("masked_national_id", "full_name", "email", "is_active", "date_joined")
-    list_filter = ("is_active", "is_staff", "memberships__role__name")
+    list_display = (
+        "masked_national_id",
+        "full_name",
+        "role_label",
+        "department_label",
+        "email",
+        "is_active",
+        "date_joined",
+    )
+    list_filter = (
+        "is_active",
+        "is_staff",
+        "memberships__role__name",
+        "memberships__department_obj",
+    )
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
     inlines = [ProfileInline, MembershipInline]
@@ -62,6 +76,23 @@ class CustomUserAdmin(UserAdmin):
             },
         ),
     )
+
+    @admin.display(description="الدور")
+    def role_label(self, obj: CustomUser) -> str:
+        """الدورُ الحاكم — والكادرُ يتقدّم على وليّ الأمر عند تعدّد العضويّات."""
+        membership = obj.active_membership
+        return membership.role.get_name_display() if membership else "—"
+
+    @admin.display(description="القسم", ordering="memberships__department_obj__sort_order")
+    def department_label(self, obj: CustomUser) -> str:
+        """القسمُ عرضاً لا تحريراً — مصدرُه عضويّةُ المستخدم.
+
+        الانتماءُ يخصّ العضويّةَ (مستخدم × مدرسة × دور) لا المستخدمَ نفسه، فمن
+        عمل في مدرستين له قسمٌ في كلٍّ منهما. فيُعرض هنا ليُقرأ ويُرشَّح به،
+        ويُحرَّر في «العضويّات» وحدَها — كي لا يكون للانتماء مصدران.
+        """
+        department = obj.department_obj
+        return department.name if department else "—"
 
     @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
@@ -152,11 +183,47 @@ class RoleAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
+@admin.register(Department)
+class DepartmentAdmin(admin.ModelAdmin):
+    """سجلُّ الأقسام — مصدرُ الحقيقة لانتماء المعلّم.
+
+    الانتماءُ نفسه في `Membership.department_obj` لا هنا: القسمُ يخصّ العضويّةَ
+    (مستخدم × مدرسة × دور) لا المستخدمَ، فمن عمل في مدرستين له قسمٌ في كلٍّ
+    منهما. وهذه الصفحةُ للأقسام أنفسها: اسمُها ورمزُها ومنسّقُها وترتيبُها.
+
+    ويُملأ الجدولُ مرّةً بأمر `seed_departments` (تقريرٌ أوّلاً، ولا يكتب إلّا
+    بـ`--apply`)، ثمّ يُصحَّح من هنا يدويّاً.
+    """
+
+    list_display = ("name", "code", "school", "head", "members", "sort_order", "is_active")
+    list_editable = ("sort_order", "is_active")
+    list_filter = ("school", "is_active")
+    search_fields = ("name", "code")
+    list_select_related = ("school", "head")
+    autocomplete_fields = ("head",)
+
+    @admin.display(description="الأعضاء")
+    def members(self, obj):
+        # أشخاصٌ لا عضويّات: من كان معلّماً ومنسّقاً له عضويّتان في القسم نفسه.
+        return obj.memberships.filter(is_active=True).values("user").distinct().count()
+
+
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
-    list_display = ("user", "school", "role", "is_active", "joined_at")
-    list_filter = ("is_active", "school", "role__name")
-    list_select_related = ("user", "school", "role")
+    #: القسمُ والتخصّصُ يُحرَّران من القائمة: ورقةُ جداول المعلّمين تقرأ منهما،
+    #: وتصحيحُ قسمِ رجلٍ لا يستحقّ فتحَ صفحةٍ لكلّ عضو.
+    list_display = (
+        "user",
+        "school",
+        "role",
+        "department_obj",
+        "specialty",
+        "is_active",
+        "joined_at",
+    )
+    list_editable = ("department_obj", "specialty")
+    list_filter = ("is_active", "school", "role__name", "department_obj")
+    list_select_related = ("user", "school", "role", "department_obj")
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 

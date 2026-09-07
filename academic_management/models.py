@@ -488,6 +488,17 @@ class WorkloadGovernance(models.Model):
         help_text="عددُ الحصص التي يُحتسب بها تحضيرُ مقرّرٍ واحد",
     )
 
+    #: رموزُ التحذيرات التي تراها هذه المدرسةُ موانعَ. فالخدمةُ تُصنّف نتائجَها
+    #: مانعاً وتحذيراً ومعلومةً بافتراضٍ واحد، والمدرسةُ ترفع ما تشاء من التحذيرات
+    #: إلى المنع بلا نشر: مدرسةٌ تريد ألّا يتجاوز معلّمٌ هدفَه المعتمَد قطّ تضيف
+    #: `over_target` هنا، وأخرى تكتفي بالتحذير.
+    strict_codes = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="تحذيراتٌ تُعدّ موانع",
+        help_text="رموزُ نتائج الإسناد التي ترفعها المدرسةُ من تحذيرٍ إلى منع",
+    )
+
     class Meta:
         verbose_name = "حوكمة أنصبة المدرسة"
         verbose_name_plural = "حوكمة أنصبة المدارس"
@@ -623,3 +634,70 @@ class CurriculumPlan(AuditedModel):
             raise ValidationError(
                 {"source_reference": "رقمٌ من الدليل الوزاريّ يُذكر مرجعُه — صفحتُه أو بابُه."}
             )
+
+
+class CoursePreparation(AuditedModel):
+    """من يحضّر هذا المقرّرَ للجميع — مسؤوليّةٌ واحدةٌ لمقرّرٍ واحدٍ في العام.
+
+    المقرّرُ (صفّ × مسار × مادّة): رياضياتُ الثامن يدرّسها ثلاثةُ معلّمين
+    وأحدُهم يعدّ ملفّاتَ التحضير وأوراقَ العمل والعروضَ ويشاركها الآخرين.
+    وكانت هذه المسؤوليّةُ تُوزَّع شفاهاً ولا يحملها النظام، فلا تظهر في حمل
+    المعلّم ولا في كشفه ولا يُبلَّغ بها.
+
+    ## يُشترط أن يدرّس المقرّر
+
+    قرارُ الإدارة (2026-09-05): المحضِّرُ من مدرّسي المقرّر حصراً — **مانعٌ لا
+    تحذير**. فمن لا يدرّسه لا يعرف طلابَه ولا إيقاعَ حصصه. وإن أُزيل آخرُ إسنادٍ
+    تدريسيٍّ له في المقرّر سقطت مسؤوليّتُه معه (تحرسه الخدمة عند إزالة الإسناد).
+
+    ## عبءٌ يُحتسب
+
+        PreparationLoad = PreparedCourses × preparation_weight
+        TotalLoad = TeachingLoad + PreparationLoad
+
+    وحصّتان لكلّ مقرّرٍ يحضّره (قرارُ الإدارة)، فمقرّران أربع. والوزنُ في
+    `WorkloadGovernance.preparation_weight` لا في الكود.
+
+    ## للعام كلّه
+
+    المفتاحُ بلا فصلٍ دراسيّ: المسؤوليّةُ سنويّةٌ لا تتناوب. ولو احتاجتها المدرسةُ
+    فصليّةً يوماً فبإضافةِ الفصل إلى المفتاح — لا بتفسيرٍ ضمنيّ.
+    """
+
+    school = models.ForeignKey(
+        "core.School", on_delete=models.CASCADE, related_name="course_preparations"
+    )
+    academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
+    grade = models.CharField(max_length=3, verbose_name="الصف")
+    track = models.CharField(max_length=12, blank=True, default="", verbose_name="المسار")
+    subject = models.ForeignKey(
+        "operations.Subject", on_delete=models.PROTECT, related_name="course_preparations"
+    )
+    teacher = models.ForeignKey(
+        "core.CustomUser", on_delete=models.CASCADE, related_name="course_preparations"
+    )
+    is_active = models.BooleanField(default=True)
+
+    objects = YearScopedQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "إسناد تحضير مقرّر"
+        verbose_name_plural = "إسنادات تحضير المقرّرات"
+        ordering = ["grade", "track", "subject__name_ar"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year", "grade", "track", "subject"],
+                name="unique_preparer_per_course",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["school", "academic_year", "teacher"]),
+        ]
+
+    def __str__(self):
+        track = f"/{self.track}" if self.track else ""
+        return f"تحضير {self.subject} {self.grade}{track} — {self.teacher}"
+
+    @property
+    def course_key(self):
+        return (self.grade, self.track, self.subject_id)

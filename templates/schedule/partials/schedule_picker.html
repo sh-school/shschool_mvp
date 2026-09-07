@@ -1,0 +1,37 @@
+{% comment %}
+قائمةُ الجداول الواحدة — بالترتيب الذي قرّرته الإدارة (2026-09-06):
+الجدولُ العامّ، ثمّ جداولُ المعلّمين كاملةً وبكلّ قسم، ثمّ جداولُ الشُّعب كاملةً،
+ثمّ معلّمٌ بعينه، ثمّ شعبةٌ بعينها. قائمةٌ واحدةٌ في صفحة الجدول وفي صفحة
+الصفحات معاً، فلا يبحث أحدٌ عن جدولٍ في صفحةٍ ولا يجده إلّا في الأخرى.
+
+يحتاج: teachers، classes، departments، year، picker_current.
+{% endcomment %}
+<select id="schedule-picker" class="form-select" data-call-change="goToSchedule" title="اختر الجدول">
+  <option data-href="{% url 'weekly_schedule' %}?view=all_teachers&amp;year={{ year }}"
+    {% if picker_current == 'matrix' %}selected{% endif %}>الجدول العام للمعلمين</option>
+  <option data-href="{% url 'schedule_pages' %}?kind=teachers&amp;dept=all&amp;year={{ year }}"
+    {% if picker_current == 'pages:teachers:all' %}selected{% endif %}>جداول المعلّمين — كل المدرسة</option>
+  {% if departments %}<option disabled>── جداول معلّمي الأقسام ──</option>{% endif %}
+  {% for d in departments %}
+  <option data-href="{% url 'schedule_pages' %}?kind=teachers&amp;dept={{ d.code }}&amp;year={{ year }}"
+    {% if picker_current == 'pages:teachers:'|add:d.code %}selected{% endif %}>قسم {{ d.name }}</option>
+  {% endfor %}
+  <option data-href="{% url 'schedule_pages' %}?kind=classes&amp;year={{ year }}"
+    {% if picker_current == 'pages:classes' %}selected{% endif %}>جداول الشُّعب — كل المدرسة</option>
+  <option disabled>── معلّم ──</option>
+  {% for t in teachers %}
+  <option data-href="{% url 'weekly_schedule' %}?view=teacher&amp;teacher={{ t.id }}&amp;year={{ year }}"
+    {% if picker_current == 'teacher:'|add:t.id|stringformat:'s' %}selected{% endif %}>{{ t.full_name }}</option>
+  {% endfor %}
+  <option disabled>── شعبة ──</option>
+  {% for c in classes %}
+  <option data-href="{% url 'weekly_schedule' %}?view=class&amp;class={{ c.id }}&amp;year={{ year }}"
+    {% if picker_current == 'class:'|add:c.id|stringformat:'s' %}selected{% endif %}>{{ c }}</option>
+  {% endfor %}
+</select>
+<script nonce="{{ request.csp_nonce }}">
+  function goToSchedule(select) {
+    var href = select.options[select.selectedIndex].dataset.href;
+    if (href) { window.location = href; }
+  }
+</script>

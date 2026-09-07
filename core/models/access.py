@@ -45,6 +45,18 @@ TIER_4_STAFF = {
     "admin",
     "secretary",
     "receptionist",
+    # وظائفُ كشف الكادر التي لم يكن لها دورٌ في المنصّة (2026-09-06): تسعةُ
+    # ملاحظي طلبةٍ وثمانيةُ مشرفين إداريّين وخمسةُ عمّال خدماتٍ ومحضِّرا مختبرٍ
+    # وأمينُ مخزنٍ ومحاسبٌ ومشرفُ مقصفٍ ومندوبان — واحدٌ وعشرون موظّفاً كانوا
+    # خارج النظام لأنّ مسمّياتهم لا تقابلها أدوار. ولا يُحشرون في «إداريّ»:
+    # المسمّى الوظيفيُّ يُحمل كما هو أو لا يُحمل.
+    "student_observer",
+    "lab_technician",
+    "storekeeper",
+    "accountant",
+    "canteen_supervisor",
+    "services_worker",
+    "messenger",
 }
 TIER_5_BENEFICIARIES = {"student", "parent"}
 TIER_SYSTEM = {"platform_developer"}
@@ -78,6 +90,14 @@ TEACHING_ROLES = {"teacher", "coordinator"}
 # لمن بدّل الحقلَ في الطلب. فالقائمةُ المعروضةُ والحدُّ المفروضُ من مصدرٍ
 # واحدٍ الآن، فلا يفترقان بمرور الوقت.
 EXEMPTABLE_ROLES = {"teacher", "coordinator", "ese_teacher", "activities_coordinator"}
+
+# الأدوارُ التي تنتمي إلى قسمٍ أكاديميّ — وما عداها لا قسمَ له.
+#
+# القسمُ صفةُ التدريس لا صفةُ الوظيفة: الممرّضُ وأمينُ المكتبة والمشرفُ
+# الإداريُّ موظّفون في المدرسة ولا قسمَ أكاديميَّ لهم، والمديرُ والنائبُ فوق
+# الأقسام لا في واحدٍ منها. ولو قُبل لهم قسمٌ لظهروا في كشوف القسم وميزانه
+# وأوراق جداوله، ولحُسبوا في عدد معلّميه.
+DEPARTMENT_ROLES = {"teacher", "ese_teacher", "coordinator", "e_projects_coordinator"}
 # أدوار الطاقم بالكامل (بدون طلاب وأولياء أمور)
 #
 # ومعها `TIER_SYSTEM`: كان `platform_developer` خارجها، فيُردّ عن لوحة
@@ -124,6 +144,13 @@ class Role(models.Model):
         ("admin", "إداري"),
         ("secretary", "سكرتير المدرسة"),
         ("receptionist", "موظف استقبال"),  # جديد v7
+        ("student_observer", "ملاحظ طلبة"),
+        ("lab_technician", "محضّر مختبر"),
+        ("storekeeper", "أمين مخزن"),
+        ("accountant", "محاسب"),
+        ("canteen_supervisor", "مشرف مقصف"),
+        ("services_worker", "عامل خدمات"),
+        ("messenger", "مندوب"),
         # T4-legacy — التوافق الخلفي
         ("specialist", "أخصائي (قديم)"),
         # T5 — المستفيدون
@@ -219,6 +246,26 @@ class Membership(models.Model):
     #: `datetime` في حقلِ `date` — وتنكسر أيُّ مقارنةٍ قبل أوّل حفظ.
     joined_at = models.DateField(default=timezone.localdate)
 
+    #: المسمّى الوظيفيُّ كما في لوائح الوزارة وكشف الكادر — حرفيّاً.
+    #:
+    #: و`role` غيرُه: `role` مفتاحُ صلاحيّاتٍ في المنصّة (ثمانيةٌ وعشرون دوراً
+    #: تفتح شاشاتٍ وتمنع أخرى)، والمسمّى وثيقةٌ إداريّةٌ تُكتب في الكشوف
+    #: والتقارير كما وردت. فـ«محضر مختبر أحياء» و«محضر مختبر فيزياء» مسمّيان
+    #: اثنان ودورُهما واحد، ولو خُلطا لضاع أحدُهما أو لتضخّمت الأدوارُ بلا معنى.
+    job_title = models.CharField(
+        max_length=100, blank=True, verbose_name="المسمّى الوظيفيّ (كما في اللوائح)"
+    )
+
+    # ── التعيين: قرارٌ له مرجع ────────────────────────────────────
+    #
+    # `joined_at` يقول متى، ولا يقول بأيّ قرار. ونقلُ معلّمٍ إلى المدرسة قرارٌ
+    # إداريٌّ كنقله منها — فلزم مرجعُه كما لزم في المغادرة، وإلّا كان في السجلّ
+    # تاريخُ التحاقٍ لا يُراجَع.
+    appointment_reference = models.CharField(
+        max_length=200, blank=True, verbose_name="مرجع قرار التعيين"
+    )
+    appointment_note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة التعيين")
+
     # ── المغادرة: تاريخٌ لا محو ───────────────────────────────────
     #
     # كان `joined_at` بلا نظير، فمن نُقل لا يُقال عنه إلّا «غيرُ نشط» — وذلك
@@ -247,6 +294,16 @@ class Membership(models.Model):
         related_name="memberships",
         verbose_name="القسم الأكاديمي",
         help_text="القسم من جدول الأقسام — يحل محل حقل department النصي",
+    )
+    #: تخصّصٌ يُكتب بجانب اسم القسم في الأوراق الرسميّة — قرارٌ إداريٌّ يُسجَّل
+    #: لا استنتاجٌ من المادّة. مثالُه: مدرّسُ إدارة الأعمال وحدَه في المدرسة،
+    #: قسمُه الكيمياء بقرار المدير (منسّقُه منسّقُها) ويُكتب بجانبه تخصّصُه.
+    specialty = models.CharField(
+        max_length=60,
+        blank=True,
+        default="",
+        verbose_name="تخصّص يُكتب بجانب القسم",
+        help_text="اتركه فارغاً ما لم يكن للعضو تخصّصٌ يخالف اسم قسمه",
     )
 
     class Meta:
@@ -297,6 +354,26 @@ class Membership(models.Model):
         if on < _as_date(self.joined_at):
             return False
         return self.left_at is None or on < self.left_at
+
+    def clean(self):
+        """القسمُ لا يخالف المسمّى الوظيفيّ — والحارسُ في النموذج لا في الشاشة.
+
+        فلو تُرك للشاشات لاختلفت: لوحةُ الإدارة تكتب ما شاءت، والشاشةُ تمنع.
+        وهنا يُمنع في كلّ طريق.
+        """
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.department_obj_id and self.role_id:
+            if self.role.name not in DEPARTMENT_ROLES:
+                raise ValidationError(
+                    {
+                        "department_obj": (
+                            f"«{self.role.get_name_display()}» ليس دوراً تدريسيّاً — "
+                            "والقسمُ الأكاديميُّ لأهل التدريس."
+                        )
+                    }
+                )
 
     @property
     def department_name(self):

@@ -301,6 +301,11 @@
   .schedule-matrix tbody tr.dept-arts         td { background: #f4d9e8; }
   .schedule-matrix tbody tr.dept-life_skills  td { background: #e8ded0; }
   .schedule-matrix tbody tr.dept-other        td { background: #e8e8e8; }
+  /* رموزُ جدول الأقسام المسجَّل — وما فوقها رموزُ الاشتقاق الاحتياطيّ. */
+  .schedule-matrix tbody tr.dept-islamic      td { background: #d9ead3; }
+  .schedule-matrix tbody tr.dept-science      td { background: #d0e8e4; }
+  .schedule-matrix tbody tr.dept-biology      td { background: #eef3cf; }
+  .schedule-matrix tbody tr.dept-art          td { background: #f4d9e8; }
   /* سطرُ المجموع: أبيضُ بلا لونِ قسمٍ — فهو للجدول كلّه لا لقسمٍ منه. */
   .schedule-matrix tfoot td {
     background: #fff;
@@ -349,7 +354,7 @@
      عرضيّة. الشاشةُ تُقاس بالبكسل، والورقُ بالملّيمتر: سبعةُ سطورٍ بارتفاعٍ
      محسوبٍ من ارتفاع الورقة بعد الرأس والذيل، لا من الشاشة. وكانت الأسطرُ
      بارتفاع الشاشة والهوامشُ مضاعفةً فيفيض السطرُ الأخير إلى ورقةٍ ثانية. */
-  @page { size: {% if paper == 'a3' %}A3 landscape{% else %}A4 portrait{% endif %}; margin: 8mm; }
+  @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: 8mm; }
   @media print {
     html, body { height: auto; }
     .schedule-print { padding: 0; }
@@ -361,10 +366,22 @@
     .schedule-grid { break-inside: avoid; page-break-inside: avoid; }
     .schedule-grid tr { break-inside: avoid; page-break-inside: avoid; }
     .schedule-grid th { padding: 1.5mm 1mm; font-size: 10pt; }
-    /* A4 عموديّة: 297 − 16 هامشاً − ~40 رأساً وذيلاً وترويسةً = 241mm لسبعة سطور. */
-    .schedule-grid td { height: 30mm; padding: 1mm; overflow: hidden; }
-    /* A3 عرضيّة: الارتفاعُ 297 أيضاً — فالسطورُ لا تُطال، والعرضُ وحده يتّسع. */
-    .paper-a3 .schedule-grid td { height: 29mm; }
+    /* ارتفاعُ السطر يُشتقّ من ارتفاع الورقة بعد الهامش والرأس والذيل (~56mm)
+       مقسوماً على سبعِ حصص — لا من الشاشة. فالورقةُ الواحدة تسع الجدولَ ولا
+       يفيض سطرُها الأخير إلى ورقةٍ ثانية:
+
+       وكان لكلّ تركيبةِ ورقٍ رقمُها بالملّيمتر، وهو حسابٌ يُخطئ: يكفي أن
+       يكبر خطُّ الترويسة أو يطول اسمُ المدرسة حتّى يفيض السطرُ السابع إلى
+       ورقةٍ ثانية. فالورقةُ الآن عمودٌ مرنٌ يملأ ارتفاعَ الصفحة، والجدولُ
+       يأخذ ما بقي بعد الرأس والذيل مهما كانا — فالسبعةُ تتقاسم المتاحَ ولا
+       تُقاس إليه.
+    */
+    html, body { height: 100%; }
+    .schedule-print { height: 100%; display: flex; flex-direction: column; }
+    .schedule-header, .schedule-footer { flex: 0 0 auto; }
+    /* `height: 1px` مع `flex: 1` تجعل الجدولَ يأخذ المتبقّي لا مقاسَه. */
+    .schedule-grid { flex: 1 1 auto; height: 1px; }
+    .schedule-grid td { height: auto; padding: 1mm; overflow: hidden; }
     .schedule-grid .period-cell { font-size: 12pt; }
     .slot-subject { font-size: 9.5pt; line-height: 1.25; }
     .slot-teacher, .slot-class { font-size: 8pt; }
@@ -375,7 +392,7 @@
 
   {% if view_type == 'all_teachers' %}
   /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
-  @page { size: {% if paper == 'a4' %}A4{% else %}A3{% endif %} landscape; margin: 7mm; }
+  @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: 7mm; }
   @media print {
     .schedule-print { padding: 0; }
     /* التمريرُ الأفقيّ للشاشة وحدها — وهو في الورق يحجز علوّاً فارغاً
@@ -432,7 +449,7 @@
 مولّدُ PDF ترويسةً ثانيةً ولا حجمَ ورقٍ يخالف المختار. و`{# #}` لا تمتدّ
 سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
 {% endcomment %}
-<body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3{% endif %}">
+<body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3 {% endif %}sheet-{{ orient }}">
 
 {# ── Print Controls (hidden in print) ── #}
 {# داخل صفحة العرض في المنصّة تُخفى الأدوات: أدواتُ الصفحة الحاضنة تكفي. #}
@@ -452,8 +469,6 @@
     <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
       <option data-view="all_teachers"
         {% if view_type == 'all_teachers' %}selected{% endif %}>الجدول العام للمعلمين</option>
-      <option data-view="school"
-        {% if view_type == 'school' %}selected{% endif %}>جدول المدرسة الكامل</option>
       <option disabled>── معلم ──</option>
       {% for t in teachers %}
       <option data-view="teacher" data-teacher="{{ t.id }}"
@@ -471,7 +486,7 @@
       var form = document.getElementById('schedule-view-form');
       var option = select.options[select.selectedIndex];
 
-      form.elements.view.value = option.dataset.view || 'school';
+      form.elements.view.value = option.dataset.view || 'all_teachers';
       form.elements.teacher.value = option.dataset.teacher || '';
       form.elements['class'].value = option.dataset.class || '';
       form.submit();
@@ -495,6 +510,11 @@
   {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
   <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
   <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
+  {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان باسم المطلوب لا رابطٌ عامّ. #}
+  {% if may_browse %}
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=teachers&amp;year={{ year }}">جداول المعلّمين</a>
+  <a class="btn-export" href="{% url 'schedule_pages' %}?kind=classes&amp;year={{ year }}">جداول الشُّعب</a>
+  {% endif %}
   <a href="{% url 'weekly_schedule' %}">رجوع للجدول</a>
 </div>
 {% endif %}
@@ -613,12 +633,20 @@
         {% with cell=grid|get_item:day_num|get_item:period.number %}
         <td>
           {% if cell %}
-          {# الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها بين مادّتين اختياريّتين في التوقيت نفسه. #}
+          {% comment %}
+            الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها نصفين في التوقيت
+            نفسه. و`cell_subject` ما يُدرَّس في الخانة كلِّه — يُكتب في جدول المعلّم
+            ليعرف أنّها مشتركة، ويكون اسمَ مادّته وحدَها في الخانة المفردة.
+
+            و`{# … #}` لا يصلح هنا: تعليقُ جانغو سطرٌ واحدٌ لا غير، وما امتدّ
+            سطرين طُبع في الورقة نصّاً كما وقع في 2026-09-07.
+          {% endcomment %}
           {% for slot in cell %}
-          <div class="slot-subject">{{ slot.subject|default:"—" }}</div>
+          <div class="slot-subject">{{ slot.cell_subject|default:slot.subject|default:"—" }}</div>
           {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
           {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
-          <div class="slot-time">{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}</div>
+          {% comment %}عازلا الاتجاه لازمان: `direction: ltr` تكفي المتصفّح ولا يقرؤها مولّدُ PDF، فينقلب التوقيتُ في الملفّ المطبوع وحدَه — «08:45 - 08:00».{% endcomment %}
+          <div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>
           {% endfor %}
           {% else %}
           <div class="slot-empty">—</div>

@@ -476,6 +476,20 @@ class ScheduleGrid:
         return self._class_grid(class_id)[day][period]
 
 
+def _member_labels(task) -> list[str]:
+    """وسمُ كلّ ساكنٍ في الخانة — فارغٌ لغير المنقسمة، ومميَّزٌ داخل المنقسمة.
+
+    و`ScheduleSlot.elective_group` جزءٌ من قيد «حصّةٌ واحدةٌ لشعبةٍ في التوقيت
+    الواحد»، فتساوي الوسمَين يعني صفّاً مكرَّراً ترفضه القاعدةُ عند الاعتماد.
+    """
+    if not task.is_split:
+        return ["" for _ in task.members]
+    names = [m.subject_name for m in task.members]
+    if len(set(names)) == len(names):
+        return [name[:40] for name in names]
+    return [f"{i + 1}·{name}"[:40] for i, name in enumerate(names)]
+
+
 def build_tasks(school: School, academic_year: str) -> list[Task]:
     """بناء قائمة المهام من SubjectClassAssignment"""
     # تحميل المواد التي تتطلب حصة مزدوجة (من إعدادات النائب الأكاديمي)
@@ -1464,9 +1478,15 @@ def generate_schedule(
                     # صفٌّ لكلّ (خانة × ساكن): المزدوجةُ تشغل خانتين، والشعبةُ
                     # المنقسمةُ خانةً واحدةً بحصّتين. و`elective_group` هو ما
                     # يُجيز اجتماعَ الحصّتين في القاعدة — فالقيدُ الفريدُ يشمله.
+                    # وسمٌ يميّز ساكناً عن ساكنٍ في الخانة الواحدة. واسمُ
+                    # المادّة يكفي حين تختلف المادّتان — وهو الغالب. أمّا
+                    # نصفا الشعبة في المادّة نفسها بمعلّمَين فاسمُهما واحد،
+                    # فيَرُدّ القيدُ الفريدُ ثانيَهما ويسقط الاعتماد. فيسبقه
+                    # ترتيبُه في المجموعة: «1·الكيمياء» و«2·الكيمياء».
+                    labels = _member_labels(t)
                     for slot in t.slots(p):
                         start, end = _get_time(d, slot, t.band_id)
-                        for member in t.members:
+                        for index, member in enumerate(t.members):
                             bulk.append(
                                 ScheduleSlot(
                                     school=school,
@@ -1478,7 +1498,7 @@ def generate_schedule(
                                     start_time=start,
                                     end_time=end,
                                     academic_year=academic_year,
-                                    elective_group=member.subject_name if t.is_split else "",
+                                    elective_group=labels[index],
                                     is_active=publish,
                                     generation=generation,
                                 )

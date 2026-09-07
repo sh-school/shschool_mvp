@@ -16,12 +16,7 @@ from core.academic_calendar import (
 )
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from operations.departments import (
-    department_info,
-    department_of_subject,
-    is_fill_subject,
-    resolve_department,
-)
+from operations.departments import derived_department, registered_departments
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -269,6 +264,35 @@ class AttendanceService:
 # ─────────────────────────────────────────────
 
 
+def parallel_labels(school, academic_year, generation=None) -> dict:
+    """(شعبة · يوم · حصّة) → اسمُ ما يُدرَّس في الخانة المشتركة.
+
+    الشعبةُ المقسومةُ نصفين لها صفّان في الخانة الواحدة، وجدولُ المعلّم
+    يُصفّى على حصصه وحدَه فيرى نصفَه ولا يعلم أنّ الخانة مشتركة. فيُكتب في
+    خانته ما يُدرَّس فيها كلُّه: «التكنولوجيا / الفنون البصرية» حين تختلف
+    المادّتان، واسمُها مرّةً واحدة حين تتّحدان — قرارُ المستخدم 2026-09-07.
+
+    واستعلامٌ واحدٌ صغير: الخاناتُ المشتركةُ في المدرسة كلِّها ستَّ عشرةَ
+    صفّاً، فلا تُسأل القاعدةُ عن كلّ خانةٍ على حدة.
+    """
+    rows = ScheduleSlot.objects.filter(school=school, academic_year=academic_year).exclude(
+        elective_group=""
+    )
+    rows = (
+        rows.filter(generation=generation)
+        if generation is not None
+        else rows.filter(is_active=True)
+    )
+    cells: dict = {}
+    for row in rows.select_related("subject").order_by("elective_group"):
+        key = (row.class_group_id, row.day_of_week, row.period_number)
+        name = row.subject.name_ar if row.subject else ""
+        names = cells.setdefault(key, [])
+        if name and name not in names:
+            names.append(name)
+    return {key: " / ".join(names) for key, names in cells.items() if names}
+
+
 class ScheduleService:
     # ── الجدول الأسبوعي ──────────────────────
 
@@ -354,12 +378,21 @@ class ScheduleService:
             qs = qs.filter(class_group=class_group)
 
         grid: dict = {d: {} for d in range(5)}  # 0=أحد … 4=خميس
+        # في جدول المعلّم تُكتب الخانةُ المشتركةُ بما فيها كلِّه؛ وفي جدول
+        # الشعبة صفّاها حاضران أصلاً فلكلٍّ اسمُ مادّته ومعلّمه.
+        labels = parallel_labels(school, academic_year, generation) if teacher else None
         for slot in qs:
+            if labels is not None:
+                slot.cell_subject = labels.get(
+                    (slot.class_group_id, slot.day_of_week, slot.period_number), ""
+                )
             grid[slot.day_of_week].setdefault(slot.period_number, []).append(slot)
         return grid
 
     @staticmethod
-    def get_teachers_matrix(school: School, academic_year: str | None = None) -> list[dict]:
+    def get_teachers_matrix(
+        school: School, academic_year: str | None = None, generation=None
+    ) -> list[dict]:
         """الجدول العام: صفٌّ لكل معلّم، وخمسةُ أيامٍ في كلٍّ منها سبعُ حصص.
 
         هذه صيغةُ ورقة «الجدول العام للمعلمين» التي تُعلَّق في المدرسة:
@@ -379,11 +412,19 @@ class ScheduleService:
         رُفع غداً ظهر ما فيها بدل أن يُكتب أحدهما فوق الآخر.
         """
         academic_year = academic_year or academic_year_for_school(school)
-        slots = (
-            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
-            .select_related("teacher", "class_group", "subject")
-            .order_by("teacher__full_name", "day_of_week", "period_number")
+        # و`generation` يُعاين مسودّةً بدل الجدول الحيّ — كالشبكة سواءً بسواء:
+        # الصفحةُ الواحدةُ صارت تعرض الورقتين، فلا تُعاين المسودّةُ في إحداهما
+        # ويُعرض الحيُّ في الأخرى باسمها.
+        qs = ScheduleSlot.objects.filter(school=school, academic_year=academic_year)
+        qs = (
+            qs.filter(generation=generation)
+            if generation is not None
+            else qs.filter(is_active=True)
         )
+        slots = qs.select_related("teacher", "class_group", "subject").order_by(
+            "teacher__full_name", "day_of_week", "period_number"
+        )
+        labels = parallel_labels(school, academic_year, generation)
 
         rows: dict = {}
         for slot in slots:
@@ -393,30 +434,35 @@ class ScheduleService:
                     "teacher": slot.teacher,
                     "days": [[[] for _ in range(7)] for _ in range(5)],
                     "total": 0,
-                    "weights": Counter(),
-                    "fill_weights": Counter(),
+                    "lessons": [],
                 }
 
             subject_name = slot.subject.name_ar if slot.subject else ""
-            code = department_of_subject(subject_name, slot.class_group.grade)
-            if code:
-                # المادّةُ التكميليّة في دلوٍ على حدة: تُرجَّح حين لا سواها.
-                bucket = "fill_weights" if is_fill_subject(subject_name) else "weights"
-                row[bucket][code] += 1
+            slot.cell_subject = labels.get(
+                (slot.class_group_id, slot.day_of_week, slot.period_number), ""
+            )
+            row["lessons"].append((subject_name, slot.class_group.grade, 1))
             # الحصص من ١ إلى ٧، والفهرسُ من صفر. وحصّةٌ خارج المدى بيانٌ
             # معطوب لا سببَ لإسقاط الورقة كلّها من أجله.
             if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
                 row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
                 row["total"] += 1
 
-        for row in rows.values():
-            weights = row.pop("weights")
-            fill = row.pop("fill_weights")
-            row["department"] = department_info(resolve_department(weights or fill))
+        # السجلُّ أوّلاً — والاشتقاقُ احتياطُ من لا قسمَ مسجّلاً له.
+        registry = registered_departments(school)
+        for teacher_id, row in rows.items():
+            lessons = row.pop("lessons")
+            row["department"] = registry.get(str(teacher_id)) or derived_department(lessons)
 
+        # الاسمُ في المفتاح لأنّ `sort_order` قد يتساوى بين قسمين، فلولاه
+        # تشابكت صفوفُ القسمين وانكسر عمودُ القسم الممتدّ.
         ordered = sorted(
             rows.values(),
-            key=lambda r: (r["department"]["order"], r["teacher"].full_name or ""),
+            key=lambda r: (
+                r["department"]["order"],
+                r["department"]["name"],
+                r["teacher"].full_name or "",
+            ),
         )
 
         # عمودُ القسم خانةٌ واحدةٌ ممتدّةٌ على سطور معلّميه: `dept_span` عددُ
@@ -430,6 +476,72 @@ class ScheduleService:
                 row["dept_span"] = 0
 
         return ordered
+
+    @staticmethod
+    def _by_period(days: list) -> list:
+        """المصفوفةُ باليوم ثمّ الحصّة، والورقةُ بالحصّة ثمّ اليوم: السطرُ حصّةٌ
+        والعمودُ يوم. والقلبُ هنا لا في القالب — قوالبُ Django لا تفهرس بمتغيّر."""
+        return [list(cells) for cells in zip(*days, strict=False)]
+
+    @staticmethod
+    def teacher_pages(
+        school: School, academic_year: str | None = None, *, department=None, teacher_id=None
+    ) -> list[dict]:
+        """صفحاتُ جداول المعلّمين مرتّبةً بالأقسام — صفحةٌ لكلّ معلّمٍ له حصص.
+
+        القسمُ من السجلّ الإداريّ لا من الموادّ (`registered_departments`)،
+        فالورقةُ للمنسّق ورجلٌ ينتقل من قسمٍ إلى قسمٍ لأنّ جدوله تغيّر ورقةٌ لا
+        تُصدَّق. ومن لا حصّةَ له لا صفحةَ له — ورقةٌ فارغةٌ لا تنفع أحداً.
+        """
+        rows = ScheduleService.get_teachers_matrix(school, academic_year)
+        if teacher_id:
+            rows = [r for r in rows if str(r["teacher"].id) == str(teacher_id)]
+        elif department:
+            rows = [r for r in rows if r["department"]["code"] == department]
+        for row in rows:
+            row["by_period"] = ScheduleService._by_period(row["days"])
+        return rows
+
+    @staticmethod
+    def department_options(school: School, academic_year: str | None = None) -> list[dict]:
+        """الأقسامُ التي فيها معلّمون مجدولون — للقائمة المنسدلة، بترتيب الورقة.
+
+        من الجدول نفسه لا من جدول الأقسام وحده: قسمٌ مسجّلٌ بلا معلّمٍ مجدولٍ
+        خيارٌ يفتح ورقةً فارغة، وقسمٌ مشتقٌّ لمن لا سجلَّ له لا يظهر في السجلّ.
+        """
+        seen: dict[str, dict] = {}
+        for row in ScheduleService.get_teachers_matrix(school, academic_year):
+            info = row["department"]
+            seen.setdefault(
+                info["code"], {"code": info["code"], "name": info["name"], "order": info["order"]}
+            )
+        return sorted(seen.values(), key=lambda d: (d["order"], d["name"]))
+
+    @staticmethod
+    def class_pages(school: School, academic_year: str | None = None) -> list[dict]:
+        """صفحةٌ لكلّ شعبة بترتيب المدرسة: من 7/1 إلى 12/4 — وفي الخانة المادّةُ والمعلّم."""
+        academic_year = academic_year or academic_year_for_school(school)
+        slots = (
+            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
+            .select_related("teacher", "class_group", "subject")
+            .order_by(grade_order("class_group__grade"), "class_group__section")
+        )
+        rows: dict = {}
+        for slot in slots:
+            row = rows.get(slot.class_group_id)
+            if row is None:
+                row = rows[slot.class_group_id] = {
+                    "class_group": slot.class_group,
+                    "days": [[[] for _ in range(7)] for _ in range(5)],
+                    "total": 0,
+                }
+            if 1 <= slot.period_number <= 7 and 0 <= slot.day_of_week <= 4:
+                row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
+                row["total"] += 1
+        pages = list(rows.values())
+        for row in pages:
+            row["by_period"] = ScheduleService._by_period(row["days"])
+        return pages
 
     @staticmethod
     def matrix_totals(rows: list[dict], school: School, academic_year: str | None = None) -> dict:

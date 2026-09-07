@@ -51,6 +51,10 @@ class CustomUserManager(BaseUserManager):
         """منسوبو المدرسة — بلا تكرارٍ لمن له أكثرُ من عضويّة."""
         return self.get_queryset().in_school(school)
 
+    def ever_in_school(self, school):
+        """من كان منها يوماً — والمغادرُ يبقى ملفُّه وجدولُه منسوبَين إليه."""
+        return self.get_queryset().ever_in_school(school)
+
     def students(self, school=None):
         return self.get_queryset().students(school)
 

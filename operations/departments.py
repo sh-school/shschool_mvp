@@ -1,15 +1,15 @@
 """operations/departments.py — تقسيم المعلّمين على الأقسام الأكاديمية.
 
-القسمُ هنا **مشتقٌّ من نصاب المعلّم الفعليّ**، لا مكتوبٌ في حقلٍ يُملأ يدوياً:
-جدولُ `core.Department` قائمٌ في النظام وفارغٌ في هذه المدرسة، و`Membership.
-department_obj` غير مضبوطٍ لأحد — فاشتقاقُ القسم من الحصص هو الوحيد الذي
-يُعطي إجابةً اليوم، وهو أصدقُ من حقلٍ يُملأ مرّةً ثم يشيخ: من دُرِّس نصابُه
-كيمياءَ فهو في قسم الكيمياء وإن كُتب في ملفّه غير ذلك.
+**المصدرُ سجلُّ المدرسة** (`core.Department` + `Membership.department_obj`):
+ثلاثةَ عشرَ قسماً، لكلٍّ رئيسٌ وأعضاء. وقرارُ الإدارة 2026-09-06: القسمُ ما
+يقوله السجلُّ **بغضّ النظر عمّا يدرّسه المعلّم** — فالورقةُ رسميّةٌ تُوزَّع على
+المنسّقين، ورجلٌ ينتقل من قسمٍ إلى قسمٍ لأنّ جدوله تغيّر ورقةٌ لا تُصدَّق.
 
-ومتى ملأت المدرسة جدول الأقسام وربطت المعلّمين به، صار هو المصدر ووجب أن
-يتقدّم على هذا الاشتقاق.
+وكان الاشتقاقُ من الموادّ هو المصدرَ الوحيدَ حين كُتب هذا الملفّ، إذ كان جدولُ
+الأقسام فارغاً. فلمّا مُلئ صار احتياطاً لا أصلاً: `registered_departments`
+أوّلاً، ثمّ `derived_department` لمن لا سجلَّ له فلا يسقط من الورق.
 
-القرارُ في التجميع للمدرسة لا للشيفرة (قرارٌ معتمدٌ من الإدارة):
+وما يلي وصفُ الاشتقاق الاحتياطيّ — والقرارُ في تجميعه للمدرسة لا للشيفرة:
   • الدراسات الاجتماعية والتاريخ والجغرافيا — قسمٌ واحد.
   • التكنولوجيا وتكنولوجيا المعلومات وعلوم الحاسب — قسمٌ واحد.
   • وإدارةُ الأعمال قسمٌ مستقلٌّ برجلٍ واحد (قرارُ الإدارة، 2026-09-01): مادّةُ
@@ -131,6 +131,23 @@ def resolve_department(weights: Counter) -> str:
     )
 
 
+def resolve_from_lessons(lessons) -> str:
+    """قسمُ معلّمٍ من حصصه — `(اسم المادّة، الصفّ، الوزن)` لكلّ حصّةٍ أو إسناد.
+
+    وهنا تُطبَّق قاعدةُ المادّة التكميليّة: تُجمع في دلوٍ على حدة، ولا تُرجَّح
+    إلّا حين لا سواها. فمعلّمُ تربيةٍ رياضيّةٍ له حصّتا «مهاراتٍ حياتيّة» يبقى
+    في قسمه، ومن كان نصابُه كلُّه منها فهو من أهلها.
+    """
+    weights, fill = Counter(), Counter()
+    for name, grade, weight in lessons:
+        code = department_of_subject(name, grade)
+        if not code:
+            continue
+        bucket = fill if is_fill_subject(name) else weights
+        bucket[code] += weight
+    return resolve_department(weights or fill)
+
+
 def department_info(code: str) -> dict:
     """رمزُ القسم واسمُه وترتيبه — كما يقرؤها القالب."""
     return {
@@ -138,3 +155,40 @@ def department_info(code: str) -> dict:
         "name": DEPARTMENT_NAMES.get(code, DEPARTMENT_NAMES[FALLBACK]),
         "order": DEPARTMENT_ORDER.get(code, len(DEPARTMENTS)),
     }
+
+
+def registered_departments(school) -> dict:
+    """{معرّف العضو: قسمُه المسجَّل} — السجلُّ الإداريّ لا اشتقاقُ الموادّ.
+
+    القرار (2026-09-06): القسمُ ما تقوله سجلّاتُ المدرسة **بغضّ النظر عمّا
+    يدرّسه المعلّم**. فالاشتقاقُ من الموادّ يتبدّل كلّما تبدّل النصاب — ومعلّمٌ
+    ينتقل من قسمٍ إلى قسمٍ لأنّ جدوله تغيّر ورقةٌ لا تُصدَّق. ويبقى الاشتقاقُ
+    احتياطاً لمن لا قسمَ مسجّلاً له فلا يسقط من الورق.
+
+    والترتيبُ من `Department.sort_order` كما رتّبته الإدارة.
+    """
+    from core.models import Membership
+
+    rows = {}
+    memberships = (
+        Membership.objects.filter(school=school, is_active=True, department_obj__isnull=False)
+        .select_related("department_obj", "department_obj__head")
+        .order_by("department_obj__sort_order")
+    )
+    for membership in memberships:
+        department = membership.department_obj
+        rows[str(membership.user_id)] = {
+            "code": department.code,
+            "name": department.name,
+            "order": department.sort_order,
+            "head": department.head.full_name if department.head_id else "",
+            "specialty": membership.specialty,
+            "registered": True,
+        }
+    return rows
+
+
+def derived_department(lessons) -> dict:
+    """قسمٌ مشتقٌّ من الحصص — احتياطُ من لا سجلَّ له، ويأتي بعد المسجَّلين."""
+    info = department_info(resolve_from_lessons(lessons))
+    return {**info, "order": 1000 + info["order"], "head": "", "specialty": "", "registered": False}

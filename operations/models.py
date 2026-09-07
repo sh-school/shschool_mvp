@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from core.academic_calendar import default_academic_year
 from core.models import ClassGroup, CustomUser, School
+from core.models.base import AuditedModel
 from core.querysets import YearScopedQuerySet
 from core.validators import FileTypeValidator
 
@@ -443,10 +444,20 @@ class TimeSlotConfig(models.Model):
         return f"ح{self.period_number} ({self.get_day_type_display()}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
 
 
-class SubjectClassAssignment(models.Model):
-    """ربط مادة بفصل بمعلم — المصفوفة الأساسية للتوليد التلقائي"""
+class SubjectClassAssignment(AuditedModel):
+    """ربط مادة بفصل بمعلم — المصفوفة الأساسية للتوليد التلقائي.
 
-    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    وهو **قرارٌ إداريّ** لا سجلُّ بيانات: من أسند هذه المادّة لهذا المعلّم،
+    ومتى، ولماذا خالف الخطّة إن خالفها. وكان قبل هذا يُكتب ويُمحى بلا أثر —
+    فمن غيّر معلّمَ شعبةٍ في نوفمبر لم يترك ما يدلّ عليه.
+
+        ObservedAssignment ≠ ApprovedAssignment
+
+    ولذلك يرث `AuditedModel`: أنشأه ومتى، وعدّله ومتى. و`updated_at` منه هو
+    الطابعُ الذي يحرس التزامنَ في `assignment_service` — فآخرُ من يضغط «حفظ»
+    ليس أحقَّ بالحقيقة من زميلٍ سبقه.
+    """
+
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_assignments")
     class_group = models.ForeignKey(
         ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments"
@@ -491,7 +502,33 @@ class SubjectClassAssignment(models.Model):
         help_text="فارغٌ = اتبع إعداد المادّة",
     )
     preferred_periods = models.JSONField(default=list, blank=True, verbose_name="حصص مفضلة")
+
+    #: عددُ الحصص يأتي من الخطّة الدراسيّة. فإن خالفها هذا الإسنادُ لزم سببٌ
+    #: يُحفظ معه — ورقمٌ يخالف الخطّةَ بلا سببٍ هو الخطأُ الذي كلّفنا سبعةَ
+    #: عشرَ سجلّاً حين لم يكن للخطّة موضع.
+    periods_override_reason = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        verbose_name="سبب مخالفة الخطّة",
+        help_text="يُلزَم حين يخالف عددُ الحصص الخطّةَ الدراسيّة",
+    )
+
     is_active = models.BooleanField(default=True)
+    #: الحذفُ ناعمٌ ويحمل أثره: من حذف ومتى ولماذا. فإسنادٌ اختفى من الشبكة
+    #: بلا أثرٍ يُقرأ بعد شهرٍ خللاً في البيانات لا قراراً اتُّخذ.
+    deleted_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_subject_assignments",
+        verbose_name="حذفه",
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الحذف")
+    deletion_reason = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="سبب الحذف"
+    )
 
     #: والإسنادُ أصلُ الجدول: منه يُولَّد. فلو بقي إسنادُ عامٍ مضى نشطاً وُلِّد
     #: منه جدولٌ لشُعبٍ لم تعد قائمة — فالقيدُ عليه أوجبُ منه على الحصّة.
@@ -501,12 +538,31 @@ class SubjectClassAssignment(models.Model):
         verbose_name = "توزيع مادة على فصل"
         verbose_name_plural = "توزيع المواد على الفصول"
         constraints = [
+            #: سجلٌّ واحدٌ لكلّ معلّمٍ في المادّة والشعبة — لا أكثر.
+            #:
+            #: والمادّةُ في الشعبة لمعلّمٍ واحدٍ عادةً، إلّا أن تُقسَم الشعبةُ
+            #: نصفين يُدرَّسان في التوقيت نفسِه بمعلّمَين (قرارُ المستخدم
+            #: 2026-09-07): تكنولوجيا 11/1 وكيمياء 11/2 وفنون 12/1 وكيمياء
+            #: 12/2. فحارسُ «معلّمٍ واحد» في `apply_assignment` لا في القاعدة،
+            #: لأنّ القسمةَ مشروعةٌ والقاعدةُ لا تفرّق بينها وبين الخطأ.
+            #:
+            #: والمجموعةُ (`parallel_group`) ليست جزءاً من المفتاح: نصفا
+            #: الشعبة يحملان وسمَها نفسَه ليُجدولا معاً في خانةٍ واحدة، ولو
+            #: دخلت المفتاحَ لاستحال أن يتشاركاه.
+            #: والمحذوفُ حذفاً ليّناً خارجَ الحساب: سجلٌّ أُبطل لا يمنع إحياءَ
+            #: مثلِه، وإلّا لصار الحذفُ قفلاً على الشعبة.
             models.UniqueConstraint(
-                fields=["class_group", "subject", "academic_year"],
-                name="unique_subject_per_class_year",
+                fields=["class_group", "subject", "academic_year", "teacher"],
+                condition=models.Q(is_active=True),
+                name="unique_subject_per_class_year_teacher",
             )
         ]
-        ordering = ["class_group__grade", "class_group__section", "subject__name_ar"]
+        ordering = [
+            "class_group__grade",
+            "class_group__section",
+            "subject__name_ar",
+            "parallel_group",
+        ]
 
     def __str__(self):
         teacher_name = self.teacher.full_name if self.teacher else "غير محدد"

@@ -12,15 +12,14 @@ from django.urls import reverse
 class TestAcademicManagementStubs:
     """Verify the remaining stub pages render correctly for authenticated users.
 
-    `workload` غادر هذه القائمة: صار صفحةً حقيقيّةً تقرأ الجدولَ وتقيسه، فلم
-    يعد فيها «قيد التطوير» — وتغطّيها `tests/test_workload_screen.py`.
+    غادر هذه القائمةَ بابُ «الإسناد»: صار شاشةً حقيقيّةً ببطاقةِ معلّمٍ لكلّ
+    معلّم، فلم يعد فيه «قيد التطوير» — وتغطّيها `tests/test_assignment_screen.py`.
     """
 
     STUB_URLS = [
         ("academic_management:evaluations", "التقييمات والدرجات"),
         ("academic_management:departments", "إدارة الأقسام التعليمية"),
         ("academic_management:test_analytics", "تحليلات الاختبارات"),
-        ("academic_management:assignments", "التكاليف"),
         ("academic_management:department_reports", "التقارير الخاصة بالقسم"),
         ("academic_management:elearning", "التعليم الإلكتروني"),
         ("academic_management:class_performance", "تقارير الأداء الصفي"),
@@ -64,9 +63,9 @@ class TestAcademicManagementStubs:
         # New label must be present (via base.html nav)
         assert "إدارة الشؤون الأكاديمية" in content
 
-    def test_all_nine_routes_exist(self):
-        """القائمةُ تسعةُ أبواب: ثمانيةٌ قيد التطوير وبابُ الأنصبة صار حقيقيّاً."""
-        assert len(self.STUB_URLS) == 8, "ثمانيةٌ بقيت قيد التطوير بعد إنجاز صفحة الأنصبة"
-        for url_name, _ in [*self.STUB_URLS, ("academic_management:workload", "")]:
+    def test_all_eight_routes_exist(self):
+        """سبعةٌ قيد التطوير، وبابُ «الإسناد» صار شاشةً حقيقيّة."""
+        assert len(self.STUB_URLS) == 7, "سبعةٌ بقيت قيد التطوير بعد إنجاز شاشة الإسناد"
+        for url_name, _ in [*self.STUB_URLS, ("academic_management:assignments", "")]:
             url = reverse(url_name)
             assert url.startswith("/academic/"), f"{url_name} should be under /academic/, got {url}"

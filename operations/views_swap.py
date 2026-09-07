@@ -410,29 +410,17 @@ def build_free_slots(request):
 @login_required
 @role_required(SCHEDULE_VIEW)
 def teacher_weekly_view(request, teacher_id):
-    """عرض الجدول الأسبوعي لمعلم معيّن."""
-    from core.models import CustomUser
+    """جدولُ معلّمٍ واحد — يُحوَّل إلى صفحة الجداول نفسِها.
 
-    from .services import ScheduleService
+    كانت له شبكةٌ ثانيةٌ بقالبٍ وتنسيقٍ خاصّين به: ألوانٌ غيرُ ألوان ورقة
+    المدرسة، وأعمدةٌ تُقرأ بغير ترتيبها، وبياناتٌ تُبنى باستعلامٍ آخر. فكان
+    المستخدمُ يرى شكلين لشيءٍ واحد (طلبُ المستخدم 2026-09-06: «لا أريد أيّ
+    اختلاف… نفس الـCSS ونفس البيانات»). فصار المسارُ يفتح الصفحةَ الموحّدةَ
+    بمعلّمٍ مختار — قالبٌ واحدٌ للشاشة والورق وملفّ الـPDF.
+    """
+    from urllib.parse import urlencode
 
-    school = request.user.get_school()
-    teacher = get_object_or_404(
-        CustomUser,
-        pk=teacher_id,
-        memberships__school=school,
-        memberships__is_active=True,
-    )
-    grid = ScheduleService.get_weekly_schedule(school, teacher=teacher)
-    days = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
-    periods = range(1, 8)
+    from django.urls import reverse
 
-    return render(
-        request,
-        "schedule/teacher_weekly.html",
-        {
-            "teacher": teacher,
-            "grid": grid,
-            "days": days,
-            "periods": periods,
-        },
-    )
+    query = urlencode({"view": "teacher", "teacher": str(teacher_id)})
+    return redirect(f"{reverse('weekly_schedule')}?{query}")

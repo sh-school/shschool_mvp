@@ -26,7 +26,7 @@
     <p class="page-subtitle">توليد الجدول الأسبوعي تلقائياً — {{ year }}</p>
   </div>
   <div class="page-actions">
-    <a href="{% url 'subject_assignments' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="book-open" %} توزيعات المواد</a>
+    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="book-open" %} توزيعات المواد</a>
     <a href="{% url 'schedule_settings' %}" class="btn-secondary">{% include "components/icon.html" with name="settings-2" %} الإعدادات</a>
     <a href="{% url 'weekly_schedule' %}" class="btn-secondary">عرض الجدول الحالي</a>
   </div>
@@ -122,7 +122,7 @@
     <p class="empty-title">لا توجد توزيعات مواد</p>
     <p class="empty-sub">
       لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب (أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة).
-      أدخلها من <a href="{% url 'subject_assignments' %}?year={{ year }}" class="link-maroon">شاشة توزيعات المواد</a>.
+      أدخلها من <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="link-maroon">شاشة توزيعات المواد</a>.
     </p>
   </div>
 </div>

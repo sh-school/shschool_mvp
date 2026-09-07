@@ -15,6 +15,9 @@ urlpatterns = [
     path("weekly-schedule/print/", views.schedule_print, name="schedule_print"),
     path("weekly-schedule/print/view/", views.schedule_print_view, name="schedule_print_view"),
     path("weekly-schedule/export/pdf/", views.schedule_export_pdf, name="schedule_export_pdf"),
+    path("weekly-schedule/pages/", views.schedule_pages, name="schedule_pages"),
+    path("weekly-schedule/pages/paper/", views.schedule_pages_paper, name="schedule_pages_paper"),
+    path("weekly-schedule/pages/pdf/", views.schedule_pages_pdf, name="schedule_pages_pdf"),
     path(
         "weekly-schedule/export/excel/", views.schedule_export_excel, name="schedule_export_excel"
     ),
@@ -33,18 +36,6 @@ urlpatterns = [
     path("smart-schedule/generate/", views.smart_generate, name="smart_generate"),
     path("smart-schedule/status/", views.smart_generate_status, name="smart_generate_status"),
     path("smart-schedule/lab/", views.schedule_quality_lab, name="schedule_quality_lab"),
-    path("subject-assignments/", views.subject_assignments, name="subject_assignments"),
-    path("subject-assignments/add/", views.subject_assignment_add, name="subject_assignment_add"),
-    path(
-        "subject-assignments/<uuid:assignment_id>/edit/",
-        views.subject_assignment_edit,
-        name="subject_assignment_edit",
-    ),
-    path(
-        "subject-assignments/<uuid:assignment_id>/delete/",
-        views.subject_assignment_delete,
-        name="subject_assignment_delete",
-    ),
     path(
         "smart-schedule/<uuid:generation_id>/approve/",
         views.approve_schedule,

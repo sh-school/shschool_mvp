@@ -1435,13 +1435,19 @@ html.dark .stat-card-value { color: #e8b4c3; }
 .table-wrap tbody tr {
   transition: background var(--transition-fast);
 }
-.table-wrap tbody td {
+/* أربعةٌ وعشرون قالباً تستعمل `table-wrap-scroll` وحدَه بلا `table-wrap`،
+   فكانت خلاياها ترث حشوَ `td` الافتراضيَّ (بكسل واحد) — والأسماءُ تلتصق
+   بحافّة الجدول من اليمين. فالحشوُ لهما معاً، وتُصلَح الجداولُ كلُّها من
+   موضعٍ واحدٍ لا من أربعةٍ وعشرين. */
+.table-wrap tbody td,
+.table-wrap-scroll tbody td {
   padding: 11px 14px;
   color: var(--text-primary);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
-.table-wrap tbody tr:last-child td {
+.table-wrap tbody tr:last-child td,
+.table-wrap-scroll tbody tr:last-child td {
   border-bottom: none;
 }
 
