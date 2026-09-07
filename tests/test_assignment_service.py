@@ -131,9 +131,8 @@ def test_the_write_is_recorded_with_what_changed(school, subjects, seventh, teac
     from core.models import AuditLog
 
     plan_row(school, subjects["MAT"], periods=5)
-    apply(school, seventh, subjects["MAT"], teacher, actor)
-    other = a_teacher(school, "معلّمٌ آخر")
-    apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
+    apply(school, seventh, subjects["MAT"], teacher, actor, periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor, periods=4, override_reason="قرارٌ إداريّ")
 
     # المفتاحُ UUID فترتيبُه عشوائيّ — والزمنُ هو ما يُرتَّب به.
     entry = (
@@ -141,8 +140,36 @@ def test_the_write_is_recorded_with_what_changed(school, subjects, seventh, teac
         .order_by("-timestamp")
         .first()
     )
-    assert entry.changes["before"]["teacher"] == str(teacher.id)
-    assert entry.changes["after"]["teacher"] == str(other.id)
+    assert entry.changes["before"]["weekly_periods"] == 5
+    assert entry.changes["after"]["weekly_periods"] == 4
+
+
+def test_a_transfer_leaves_two_entries_not_one(school, subjects, seventh, teacher, actor):
+    """النقلُ سجلٌّ يُبطَل وآخرُ يُفتح — فلكلّ معلّمٍ أثرُه باسمه.
+
+    وكان سجلّاً واحداً يتبدّل معلّمُه، فيقرأ القارئُ «تعديلاً» حيث وقع
+    إسقاطُ مادّةٍ عن رجلٍ وإسنادُها إلى غيره.
+    """
+    from core.models import AuditLog
+
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor)
+    other = a_teacher(school, "معلّمٌ آخر")
+    apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
+
+    dropped = (
+        AuditLog.objects.filter(model_name="SubjectClassAssignment", action="delete")
+        .order_by("-timestamp")
+        .first()
+    )
+    opened = (
+        AuditLog.objects.filter(model_name="SubjectClassAssignment", action="create")
+        .order_by("-timestamp")
+        .first()
+    )
+    assert dropped.changes["before"]["teacher"] == str(teacher.id)
+    assert dropped.changes["after"]["is_active"] is False
+    assert opened.changes["after"]["teacher"] == str(other.id)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -463,10 +490,7 @@ def test_the_label_reads_as_the_screen_shows_it(school, subjects, seventh, teach
     apply(school, seventh, subjects["MAT"], teacher, actor)
     prepare(school, subjects["MAT"], teacher, actor)
 
-    assert (
-        loads.load_for(school, YEAR, teacher.id).label()
-        == "5 تدريس من 7 · تحضير: مقرّرٌ واحد"
-    )
+    assert loads.load_for(school, YEAR, teacher.id).label() == "5 تدريس من 7 · تحضير: مقرّرٌ واحد"
 
 
 def test_a_teacher_without_any_target_is_not_compared(school, subjects, seventh, teacher, actor):
