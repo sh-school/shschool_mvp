@@ -1032,6 +1032,90 @@ class ScheduleService:
         return {"deleted": deleted, "created": len(to_create), "kept": kept}
 
     @staticmethod
+    def approve_generation(gen: ScheduleGeneration, *, notify: bool = True) -> dict:
+        """الاعتمادُ هو النشر — فعلٌ واحدٌ يستوي فيه زرُّ الشاشة وأمرُ النقل.
+
+        حصصُ هذه المسودّة تُفعَّل ويُطفأ ما سواها في العام نفسِه. وكان الاعتمادُ
+        يقلب حقلَ حالةٍ لا غير، والحصصُ حيّةٌ منذ لحظة التوليد — فلم يكن الزرُّ
+        يقرّر شيئاً. والمسودّاتُ الأقدمُ من حقل التوليد حصصُها حيّةٌ أصلاً وبلا
+        مرجع، فإطفاءُ الحيّ لها يمحو الجدولَ كلَّه: تُعامَل كما كانت — قلبَ حالةٍ.
+
+        والاعتمادُ والإشعارُ فعلٌ واحدٌ في معاملةٍ واحدة: كان الحفظُ يسبق
+        `bulk_create` بلا معاملة، فحين سقط الإدراجُ بقي الجدولُ «معتمَداً» ولم
+        يعلم به معلّمٌ واحد. و`school` على صفّ الإشعار لازمٌ لا زينة — صفٌّ
+        مستأجِرٌ تحرسه RLS، وبلا مدرسةٍ ترفضه السياسةُ fail-closed فتسقط العمليّة.
+
+        ثمّ تُصالَح جلساتُ الأسبوع الجاري: تحمل الجدولَ القديم، والتوليدُ لا يعيد
+        يوماً فيه جلسات — فيُحذف ما لا يطابق ولا حضورَ عليه، ويُنشأ الناقص.
+
+        يُعيد `{"notified": n, "sync": {"deleted", "created", "kept"}}`.
+        """
+        from core.academic_calendar import academic_year_for_school
+        from core.models import Membership
+        from notifications.models import InAppNotification
+
+        school = gen.school
+        with transaction.atomic():
+            draft_slots = ScheduleSlot.objects.filter(generation=gen)
+            if draft_slots.exists():
+                ScheduleSlot.objects.filter(
+                    school=school, academic_year=gen.academic_year, is_active=True
+                ).exclude(generation=gen).update(is_active=False)
+                draft_slots.update(is_active=True)
+
+            ScheduleGeneration.objects.filter(
+                school=school, academic_year=gen.academic_year, status="approved"
+            ).update(status="archived")
+            # والمؤرشَفُ الزائدُ على حدّ الإبقاء يذهب مع حصصه — القرار: جدولٌ واحدٌ الحيّ.
+            ScheduleService.retain_archived_generations(school, gen.academic_year)
+
+            gen.status = "approved"
+            # ويُعاد القياسُ عند الاعتماد: المصادقةُ قد تكون بعد تعديلٍ يدويّ على المسودّة.
+            try:
+                from operations.schedule_lab import store_metrics
+
+                store_metrics(gen)
+            except Exception:  # noqa: BLE001
+                logger.exception("schedule_lab: تعذّر القياسُ عند الاعتماد %s", gen.id)
+            gen.save(update_fields=["status"])
+
+            notified = 0
+            if notify:
+                teacher_ids = Membership.objects.filter(
+                    school=school,
+                    is_active=True,
+                    role__name__in=(
+                        "teacher",
+                        "coordinator",
+                        "ese_teacher",
+                        "activities_coordinator",
+                        "e_projects_coordinator",
+                    ),
+                ).values_list("user_id", flat=True)
+                notifs = [
+                    InAppNotification(
+                        user_id=tid,
+                        school=school,
+                        title="تم اعتماد الجدول الدراسي",
+                        body=(
+                            f"تم اعتماد الجدول للعام {gen.academic_year}. "
+                            "راجع جدولك من صفحة الجدول الأسبوعي."
+                        ),
+                        event_type="general",
+                        priority="medium",
+                        related_url="/teacher/weekly-schedule/",
+                    )
+                    for tid in teacher_ids
+                ]
+                InAppNotification.objects.bulk_create(notifs)
+                notified = len(notifs)
+
+        sync = {"deleted": 0, "created": 0, "kept": 0}
+        if gen.academic_year == academic_year_for_school(school):
+            sync = ScheduleService.resync_current_week(school, gen.academic_year)
+        return {"notified": notified, "sync": sync}
+
+    @staticmethod
     def resync_current_week(school: School, academic_year: str | None = None) -> dict[str, int]:
         """مصالحةُ أيّام الأسبوع الجاري (الأحد → الخميس) — تُستدعى عند الاعتماد."""
         from datetime import timedelta
