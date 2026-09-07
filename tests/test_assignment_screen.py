@@ -320,9 +320,7 @@ def test_the_draft_quota_is_measured_against_at_once(
     assert "من 18" in measured.label()
 
 
-def test_an_out_of_range_quota_is_refused(
-    client, school, departments, maths_teacher, coordinator
-):
+def test_an_out_of_range_quota_is_refused(client, school, departments, maths_teacher, coordinator):
     login(client, coordinator, school)
 
     response = set_quota(client, maths_teacher, 99)
@@ -604,9 +602,7 @@ def test_a_coordinator_may_not_move_teachers_between_departments(
     assert membership.department_obj == departments["MAT"], "لم يتغيّر شيء"
 
 
-def test_moving_someone_without_a_teaching_membership_is_refused(
-    client, school, departments, vice
-):
+def test_moving_someone_without_a_teaching_membership_is_refused(client, school, departments, vice):
     """القسمُ الأكاديميُّ لأهل التدريس — ولا يخالف المسمّى الوظيفيّ."""
     nurse = a_user(school, "الممرّض", "nurse")
     login(client, vice, school)

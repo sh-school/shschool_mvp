@@ -49,7 +49,12 @@ class CustomUserAdmin(UserAdmin):
         "is_active",
         "date_joined",
     )
-    list_filter = ("is_active", "is_staff", "memberships__role__name", "memberships__department_obj")
+    list_filter = (
+        "is_active",
+        "is_staff",
+        "memberships__role__name",
+        "memberships__department_obj",
+    )
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
     inlines = [ProfileInline, MembershipInline]

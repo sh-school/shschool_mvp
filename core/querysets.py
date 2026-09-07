@@ -146,9 +146,7 @@ class UserQuerySet(models.QuerySet):
         """
         from core.models import Membership
 
-        return self.filter(
-            id__in=Membership.objects.filter(school=school).values("user_id")
-        )
+        return self.filter(id__in=Membership.objects.filter(school=school).values("user_id"))
 
     # ── الفلترة حسب الدور ──────────────────────────────────────────────────
 

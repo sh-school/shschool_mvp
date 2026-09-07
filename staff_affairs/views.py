@@ -30,6 +30,7 @@ from .services import LeaveService, StaffService
 
 STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
+
 def role_label(name: str) -> str:
     """اسمُ الدور بالعربيّة — من قائمة الأدوار الرسميّة لا من قاموسٍ محلّيّ.
 
@@ -41,7 +42,6 @@ def role_label(name: str) -> str:
     from core.models.access import Role
 
     return dict(Role.ROLES).get(name, name)
-
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -131,9 +131,9 @@ def staff_list(request):
     # السجلُّ صفٌّ لكلّ إنسانٍ لا لكلّ عضويّة: من كان معلّماً ومنسّقاً له
     # عضويّتان، فكان يُعدّ رجلين ويظهر مرّتين. والتصفّحُ على المستخدمين
     # كي يبقى العددُ في الترويسة هو عددَ من في القائمة.
-    memberships = Membership.objects.filter(
-        school=school, is_active=(status != "left")
-    ).exclude(role__name__in=("student", "parent"))
+    memberships = Membership.objects.filter(school=school, is_active=(status != "left")).exclude(
+        role__name__in=("student", "parent")
+    )
     if role_filter:
         memberships = memberships.filter(role__name=role_filter)
     if dept_filter:
@@ -167,9 +167,7 @@ def staff_list(request):
                 "national_id": user.national_id,
                 "role": m.role.name if m and m.role else "—",
                 # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.
-                "role_display": (
-                    (m.job_title or role_label(m.role.name)) if m and m.role else "—"
-                ),
+                "role_display": ((m.job_title or role_label(m.role.name)) if m and m.role else "—"),
                 "department": (m.department_name if m else "") or "—",
                 "phone": user.phone,
                 "email": user.email,
@@ -188,7 +186,9 @@ def staff_list(request):
         .distinct()
         .order_by("name")
     )
-    available_depts = Department.objects.filter(school=school, is_active=True).order_by("sort_order")
+    available_depts = Department.objects.filter(school=school, is_active=True).order_by(
+        "sort_order"
+    )
 
     ctx = {
         "staff": staff_rows,

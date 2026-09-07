@@ -105,9 +105,7 @@ def fingerprint_of(rows):
     العددُ والمجموعُ يقرؤهما إنسانٌ في التقرير، والتجزئةُ تكشف ما لا يكشفانه:
     إسنادٌ نُقل من شعبةٍ إلى أخرى بالحصص نفسها لا يغيّر رقماً ويغيّر الحقيقة.
     """
-    items = sorted(
-        (str(r.subject_id), str(r.class_group_id), r.weekly_periods) for r in rows
-    )
+    items = sorted((str(r.subject_id), str(r.class_group_id), r.weekly_periods) for r in rows)
     payload = "|".join(f"{s}:{c}:{p}" for s, c, p in items)
     return {
         "count": len(items),

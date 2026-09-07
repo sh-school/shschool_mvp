@@ -199,110 +199,129 @@ def _resource_pressure(subject, school, academic_year, added_periods):
     return out
 
 
-def check_assignment(
-    *,
-    school,
-    academic_year,
-    class_group,
-    subject,
-    teacher,
-    weekly_periods,
-    override_reason="",
-    parallel_group="",
-    current=None,
-):
-    """يصف ما سيحدث إن حُفظ هذا الإسناد — ولا يكتب شيئاً.
-
-    `current` هو السجلُّ القائمُ إن كان تعديلاً، كي لا يُحسب حملُه مرّتين.
-    """
-    findings = []
-
-    if class_group.has_own_timetable:
-        findings.append(
-            _f(BLOCK, OWN_TIMETABLE, f"شعبة {class_group} جدولُها مستقلّ — لا تُسنَد من هنا.")
+def _periods_finding(weekly_periods, row, override_reason):
+    """مخالفةُ نصابِ الخطّة: بسببٍ مسجَّلٍ تحذير، وبلا سببٍ منع."""
+    if override_reason.strip():
+        return _f(
+            WARN,
+            PERIODS_MISMATCH,
+            f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — بسببٍ مسجَّل.",
         )
-        return _apply_strictness(findings, school)
+    return _f(
+        BLOCK,
+        PERIODS_MISMATCH_NO_REASON,
+        f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — "
+        "المخالفةُ تحتاج سبباً يُحفظ معها.",
+    )
 
-    # بلا خطّةٍ مبذورةٍ لا يُقاس شيء — ولا تُمنع الكتابةُ لغيابِ مرجعٍ لم يُبذر
-    # بعد. فمنعُ كلّ إسنادٍ يومَ النشر يُعطّل الشاشةَ حتى يُشغَّل أمرُ البذر،
-    # وهذه بوّابةٌ تحرس ما لا وجودَ له.
+
+def _plan_findings(class_group, subject, weekly_periods, override_reason):
+    """موقعُ المادّة من الخطّة الدراسيّة — وتُرجع صفَّها ليُبنى عليه ما بعده.
+
+    وبلا خطّةٍ مبذورةٍ لا يُقاس شيء — ولا تُمنع الكتابةُ لغيابِ مرجعٍ لم يُبذر
+    بعد. فمنعُ كلّ إسنادٍ يومَ النشر يُعطّل الشاشةَ حتى يُشغَّل أمرُ البذر،
+    وهذه بوّابةٌ تحرس ما لا وجودَ له.
+    """
     scope_rows = curriculum.demand_for(class_group)
     if not scope_rows:
-        findings.append(
-            _f(
-                INFO,
-                NOT_IN_PLAN,
-                "لا خطّةَ دراسيّةً لهذا الصفّ بعد — فلا يُقاس عددُ الحصص على مرجع.",
-            )
-        )
-        row = None
-    else:
-        row = next((r for r in scope_rows if r.subject_id == subject.id), None)
-
-    if scope_rows and row is None:
-        findings.append(
-            _f(
-                BLOCK,
-                NOT_IN_PLAN,
-                f"{subject.name_ar} ليست في الخطّة الدراسيّة لصفّ {class_group.get_grade_display()}"
-                f"{' — ' + class_group.get_track_display() if class_group.track else ''}.",
-            )
-        )
-    elif row is not None and weekly_periods != row.weekly_periods:
-        if override_reason.strip():
-            findings.append(
+        return (
+            [
                 _f(
-                    WARN,
-                    PERIODS_MISMATCH,
-                    f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — بسببٍ مسجَّل.",
+                    INFO,
+                    NOT_IN_PLAN,
+                    "لا خطّةَ دراسيّةً لهذا الصفّ بعد — فلا يُقاس عددُ الحصص على مرجع.",
                 )
-            )
-        else:
-            findings.append(
+            ],
+            None,
+            scope_rows,
+        )
+
+    row = next((r for r in scope_rows if r.subject_id == subject.id), None)
+    if row is None:
+        return (
+            [
                 _f(
                     BLOCK,
-                    PERIODS_MISMATCH_NO_REASON,
-                    f"{weekly_periods} حصصٍ والخطّةُ تقول {row.weekly_periods} — "
-                    "المخالفةُ تحتاج سبباً يُحفظ معها.",
+                    NOT_IN_PLAN,
+                    f"{subject.name_ar} ليست في الخطّة الدراسيّة لصفّ {class_group.get_grade_display()}"
+                    f"{' — ' + class_group.get_track_display() if class_group.track else ''}.",
                 )
-            )
-
-    if row is not None and row.elective_group and not parallel_group:
-        siblings = [
-            r
-            for r in scope_rows
-            if r.elective_group == row.elective_group and r.subject_id != subject.id
-        ]
-        if siblings:
-            from operations.models import SubjectClassAssignment
-
-            partner_assigned = (
-                SubjectClassAssignment.objects.live(school, year=academic_year)
-                .filter(class_group=class_group, subject_id__in=[s.subject_id for s in siblings])
-                .exists()
-            )
-            if partner_assigned:
-                findings.append(
-                    _f(
-                        WARN,
-                        PARALLEL_WITHOUT_PARTNER,
-                        "بديلٌ اختياريٌّ آخر مُسنَدٌ للشعبة نفسها — فاذكر مجموعةَ التوازي ليُجدولا معاً.",
-                    )
-                )
-
-    if teacher is None:
-        return _apply_strictness(findings, school)
-
-    if not _teaches_in_school(teacher, school):
-        findings.append(
-            _f(BLOCK, TEACHER_OUTSIDE_SCHOOL, "المعلّمُ المختار ليس من أعضاء هذه المدرسة.")
+            ],
+            row,
+            scope_rows,
         )
-        return _apply_strictness(findings, school)
+
+    if weekly_periods != row.weekly_periods:
+        return [_periods_finding(weekly_periods, row, override_reason)], row, scope_rows
+    return [], row, scope_rows
+
+
+def _parallel_findings(
+    school, academic_year, class_group, subject, row, scope_rows, parallel_group
+):
+    """بديلٌ اختياريٌّ آخرُ مُسنَدٌ للشعبة نفسِها بلا وسمِ توازٍ — فلن يُجدولا معاً."""
+    if row is None or not row.elective_group or parallel_group:
+        return []
+
+    siblings = [
+        r
+        for r in scope_rows
+        if r.elective_group == row.elective_group and r.subject_id != subject.id
+    ]
+    if not siblings:
+        return []
+
+    from operations.models import SubjectClassAssignment
+
+    partner_assigned = (
+        SubjectClassAssignment.objects.live(school, year=academic_year)
+        .filter(class_group=class_group, subject_id__in=[s.subject_id for s in siblings])
+        .exists()
+    )
+    if not partner_assigned:
+        return []
+    return [
+        _f(
+            WARN,
+            PARALLEL_WITHOUT_PARTNER,
+            "بديلٌ اختياريٌّ آخر مُسنَدٌ للشعبة نفسها — فاذكر مجموعةَ التوازي ليُجدولا معاً.",
+        )
+    ]
+
+
+def _coordinator_findings(teacher, school, subject, projected_teaching):
+    """نصابُ المنسّق دون حدّه الأدنى — والحدُّ أعلى في المواد العمليّة."""
+    if not _is_coordinator(teacher, school):
+        return []
+    minimum = (
+        COORDINATOR_MIN_PRACTICAL
+        if (subject.code or "").upper() in PRACTICAL_CODES
+        else COORDINATOR_MIN
+    )
+    if projected_teaching >= minimum:
+        return []
+    return [
+        _f(
+            WARN,
+            COORDINATOR_BELOW_MIN,
+            f"نصابُ المنسّق {projected_teaching} دون الحدّ الأدنى {minimum}"
+            " (توجيهات التوجيه التربويّ 2025-2026).",
+        )
+    ]
+
+
+def _teacher_findings(
+    *, school, academic_year, class_group, subject, teacher, weekly_periods, current
+):
+    """ما يقوله حملُ المعلّمِ وأيّامُه وصفتُه عن هذا الإسناد — بعد ضمّه إليه."""
+    if not _teaches_in_school(teacher, school):
+        return [_f(BLOCK, TEACHER_OUTSIDE_SCHOOL, "المعلّمُ المختار ليس من أعضاء هذه المدرسة.")]
 
     load = loads.load_for(school, academic_year, teacher.id)
     current_periods = current.weekly_periods if current and current.teacher_id == teacher.id else 0
     projected_teaching = load.teaching - current_periods + weekly_periods
 
+    findings = []
     if load.target is not None and projected_teaching > load.target:
         source = (
             "هدفِه المعتمَد" if load.target_source == loads.FROM_APPROVED_PLAN else "النصابِ المرجعيّ"
@@ -326,21 +345,7 @@ def check_assignment(
             )
         )
 
-    if _is_coordinator(teacher, school):
-        minimum = (
-            COORDINATOR_MIN_PRACTICAL
-            if (subject.code or "").upper() in PRACTICAL_CODES
-            else COORDINATOR_MIN
-        )
-        if projected_teaching < minimum:
-            findings.append(
-                _f(
-                    WARN,
-                    COORDINATOR_BELOW_MIN,
-                    f"نصابُ المنسّق {projected_teaching} دون الحدّ الأدنى {minimum}"
-                    " (توجيهات التوجيه التربويّ 2025-2026).",
-                )
-            )
+    findings.extend(_coordinator_findings(teacher, school, subject, projected_teaching))
 
     if class_group.grade in TRANSITION_GRADES and _joined_this_year(teacher, school, academic_year):
         findings.append(
@@ -354,6 +359,57 @@ def check_assignment(
 
     findings.extend(
         _resource_pressure(subject, school, academic_year, weekly_periods - current_periods)
+    )
+    return findings
+
+
+def check_assignment(
+    *,
+    school,
+    academic_year,
+    class_group,
+    subject,
+    teacher,
+    weekly_periods,
+    override_reason="",
+    parallel_group="",
+    current=None,
+):
+    """يصف ما سيحدث إن حُفظ هذا الإسناد — ولا يكتب شيئاً.
+
+    `current` هو السجلُّ القائمُ إن كان تعديلاً، كي لا يُحسب حملُه مرّتين.
+
+    وهو منسّقٌ لا فاحص: الخطّةُ ثمّ التوازي ثمّ المعلّم، كلٌّ في دالّته، ثمّ
+    تُرفع تحذيراتُ المدرسة إلى منعٍ مرّةً واحدةً في المخرج.
+    """
+    if class_group.has_own_timetable:
+        return _apply_strictness(
+            [_f(BLOCK, OWN_TIMETABLE, f"شعبة {class_group} جدولُها مستقلّ — لا تُسنَد من هنا.")],
+            school,
+        )
+
+    findings, row, scope_rows = _plan_findings(
+        class_group, subject, weekly_periods, override_reason
+    )
+    findings.extend(
+        _parallel_findings(
+            school, academic_year, class_group, subject, row, scope_rows, parallel_group
+        )
+    )
+
+    if teacher is None:
+        return _apply_strictness(findings, school)
+
+    findings.extend(
+        _teacher_findings(
+            school=school,
+            academic_year=academic_year,
+            class_group=class_group,
+            subject=subject,
+            teacher=teacher,
+            weekly_periods=weekly_periods,
+            current=current,
+        )
     )
     return _apply_strictness(findings, school)
 
@@ -395,6 +451,97 @@ def _audit(instance, action, before, after, findings=()):
     )
 
 
+def _rows_for(school, academic_year, class_group, subject):
+    """كلُّ سجلّات هذه (الشعبة، المادّة، العام) مقفلةً — الحيُّ منها والمُبطَل."""
+    from operations.models import SubjectClassAssignment
+
+    return list(
+        SubjectClassAssignment.objects.filter(
+            school=school,
+            academic_year=academic_year,
+            class_group=class_group,
+            subject=subject,
+        ).select_for_update()
+    )
+
+
+def _current_row(siblings, teacher_id):
+    """سجلُّ هذا المعلّم إن كان له سجلّ — وإلّا سجلٌّ يتيمٌ بلا معلّمٍ يُتبنّى.
+
+    الحيُّ أوّلاً ثمّ المحذوف: للمعلّم الواحد قد يبقى سجلٌّ مُبطَلٌ من إسنادٍ
+    قديم، وإحياؤه بدل تعديل الحيّ يُنتج سجلَّين حيَّين لمفتاحٍ واحد.
+    """
+    row = next((r for r in siblings if r.teacher_id == teacher_id and r.is_active), None) or next(
+        (r for r in siblings if r.teacher_id == teacher_id), None
+    )
+    if row is not None:
+        return row
+    # سجلٌّ بلا معلّمٍ يُتبنّى بدل أن يُترك يتيماً بجانب سجلٍّ جديد.
+    return next((r for r in siblings if r.teacher_id is None and r.is_active), None)
+
+
+def _rival_row(siblings, current, teacher_id, tag):
+    """صاحبُ المادّة الحاليُّ الذي يُسقطه هذا الإسناد — إن وُجد.
+
+    والنقلُ إسقاطٌ عن زميل — إلّا أن تكون الشعبةُ مقسومةً بينهما، وعلامةُ
+    القسمة أن يحمل السجلّان وسمَ المجموعة نفسَه: يُدرَّسان في التوقيت نفسِه
+    لنصفَي الشعبة، فلا أحدَ يُسقط أحداً.
+    """
+    return next(
+        (
+            r
+            for r in siblings
+            if r is not current
+            and r.is_active
+            and r.teacher_id
+            and r.teacher_id != teacher_id
+            and not (tag and (r.parallel_group or "").strip() == tag)
+        ),
+        None,
+    )
+
+
+def _save_row(
+    current,
+    *,
+    school,
+    academic_year,
+    class_group,
+    subject,
+    teacher,
+    weekly_periods,
+    requires_lab,
+    tag,
+    override_reason,
+    by,
+):
+    """يُنشئ السجلَّ أو يعدّله ثمّ يحفظه — ويُرجع صورتَه قبلَ ذلك ومعلّمَه السابق."""
+    from operations.models import SubjectClassAssignment
+
+    before = _snapshot(current) if current else None
+    if current is None:
+        current = SubjectClassAssignment(
+            school=school,
+            academic_year=academic_year,
+            class_group=class_group,
+            subject=subject,
+            created_by=by,
+        )
+    previous_teacher_id = current.teacher_id
+    current.teacher = teacher
+    current.weekly_periods = weekly_periods
+    current.requires_lab = requires_lab
+    current.parallel_group = tag
+    current.periods_override_reason = (override_reason or "").strip()[:200]
+    current.is_active = True
+    current.deleted_by = None
+    current.deleted_at = None
+    current.deletion_reason = ""
+    current.updated_by = by
+    current.save()
+    return current, before, previous_teacher_id
+
+
 @transaction.atomic
 def apply_assignment(
     *,
@@ -422,28 +569,12 @@ def apply_assignment(
     أحدُهما. فصار النقلُ يحتاج `confirm_transfer=True` — ومن لم يؤكّد رُدَّ
     بمانعٍ يسمّي صاحبَ المادّة الحاليَّ ليقرّر المنسّقُ على بيّنة.
     """
-    from operations.models import SubjectClassAssignment
-
     # المعلّمُ جزءٌ من الهويّة: شعبةٌ مقسومةٌ نصفين لها سجلّان بمعلّمَين،
     # ولولا ذلك لكتب الثاني فوق الأوّل وضاع نصابُ أحدهما.
     tag = (parallel_group or "").strip()[:40]
-    siblings = list(
-        SubjectClassAssignment.objects.filter(
-            school=school,
-            academic_year=academic_year,
-            class_group=class_group,
-            subject=subject,
-        ).select_for_update()
-    )
+    siblings = _rows_for(school, academic_year, class_group, subject)
     teacher_id = teacher.id if teacher else None
-    # الحيُّ أوّلاً ثمّ المحذوف: للمعلّم الواحد قد يبقى سجلٌّ مُبطَلٌ من إسنادٍ
-    # قديم، وإحياؤه بدل تعديل الحيّ يُنتج سجلَّين حيَّين لمفتاحٍ واحد.
-    current = next(
-        (r for r in siblings if r.teacher_id == teacher_id and r.is_active), None
-    ) or next((r for r in siblings if r.teacher_id == teacher_id), None)
-    if current is None:
-        # سجلٌّ بلا معلّمٍ يُتبنّى بدل أن يُترك يتيماً بجانب سجلٍّ جديد.
-        current = next((r for r in siblings if r.teacher_id is None and r.is_active), None)
+    current = _current_row(siblings, teacher_id)
     _guard_stale(current, expected_updated_at)
 
     findings = check_assignment(
@@ -458,24 +589,9 @@ def apply_assignment(
         current=current,
     )
 
-    # النقلُ إسقاطٌ عن زميل — إلّا أن تكون الشعبةُ مقسومةً بينهما، وعلامةُ
-    # القسمة أن يحمل السجلّان وسمَ المجموعة نفسَه: يُدرَّسان في التوقيت نفسِه
-    # لنصفَي الشعبة، فلا أحدَ يُسقط أحداً.
-    rival = next(
-        (
-            r
-            for r in siblings
-            if r is not current
-            and r.is_active
-            and r.teacher_id
-            and r.teacher_id != teacher_id
-            and not (tag and (r.parallel_group or "").strip() == tag)
-        ),
-        None,
-    )
+    rival = _rival_row(siblings, current, teacher_id, tag)
     holder = rival.teacher if rival else None
-    transferring = bool(holder and teacher)
-    if transferring and not confirm_transfer:
+    if holder and teacher and not confirm_transfer:
         findings.append(
             _f(
                 BLOCK,
@@ -497,27 +613,19 @@ def apply_assignment(
             reason=f"نُقلت {subject.name_ar} إلى {teacher.full_name}",
         )
 
-    before = _snapshot(current) if current else None
-    if current is None:
-        current = SubjectClassAssignment(
-            school=school,
-            academic_year=academic_year,
-            class_group=class_group,
-            subject=subject,
-            created_by=by,
-        )
-    previous_teacher_id = current.teacher_id
-    current.teacher = teacher
-    current.weekly_periods = weekly_periods
-    current.requires_lab = requires_lab
-    current.parallel_group = tag
-    current.periods_override_reason = (override_reason or "").strip()[:200]
-    current.is_active = True
-    current.deleted_by = None
-    current.deleted_at = None
-    current.deletion_reason = ""
-    current.updated_by = by
-    current.save()
+    current, before, previous_teacher_id = _save_row(
+        current,
+        school=school,
+        academic_year=academic_year,
+        class_group=class_group,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=weekly_periods,
+        requires_lab=requires_lab,
+        tag=tag,
+        override_reason=override_reason,
+        by=by,
+    )
 
     _audit(current, "create" if before is None else "update", before, _snapshot(current), findings)
 

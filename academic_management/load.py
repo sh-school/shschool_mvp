@@ -103,9 +103,11 @@ def targets_for(school, academic_year):
         out.setdefault(plan.teacher_id, (plan.teaching_target, FROM_APPROVED_PLAN))
     # قرارُ 2026-09-06: النصابُ رقمٌ واحدٌ يُكتب في شاشة الإسناد ويُقاس إليه من
     # فوره — والاعتمادُ لاحقٌ لا شرطٌ للقياس.
-    drafts = TeacherWorkloadPlan.objects.filter(
-        school=school, academic_year=academic_year
-    ).exclude(status__in=FROZEN_STATUSES).order_by("teacher_id", "-plan_version")
+    drafts = (
+        TeacherWorkloadPlan.objects.filter(school=school, academic_year=academic_year)
+        .exclude(status__in=FROZEN_STATUSES)
+        .order_by("teacher_id", "-plan_version")
+    )
     for plan in drafts:
         out.setdefault(plan.teacher_id, (plan.teaching_target, FROM_DRAFT_PLAN))
     return out, fallback, governance.preparation_weight

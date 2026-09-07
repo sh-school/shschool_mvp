@@ -69,9 +69,7 @@ TITLE_ROLES = {
 PREFIX_ROLES = (("منسق", "coordinator"), ("معلم", "teacher"))
 
 #: الكادرُ التدريسيُّ — في القاعدة أصلاً، ولا يُستورَد (طلبُ المستخدم 2026-09-06).
-TEACHING_ROLES = frozenset(
-    {"teacher", "coordinator", "ese_teacher", "e_projects_coordinator"}
-)
+TEACHING_ROLES = frozenset({"teacher", "coordinator", "ese_teacher", "e_projects_coordinator"})
 
 
 def role_for(title: str) -> str | None:
@@ -96,9 +94,7 @@ class Command(BaseCommand):
         )
         parser.add_argument("--sheet", default="", help="اسمُ الورقة — والافتراضُ الأولى")
         parser.add_argument("--school", default="", help="رمزُ المدرسة — والافتراضُ الأولى")
-        parser.add_argument(
-            "--reference", default="", help="مرجعُ الالتحاق — والافتراضُ اسمُ الملفّ"
-        )
+        parser.add_argument("--reference", default="", help="مرجعُ الالتحاق — والافتراضُ اسمُ الملفّ")
         parser.add_argument("--apply", action="store_true")
 
     def handle(self, *args, **options):

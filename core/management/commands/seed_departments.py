@@ -80,9 +80,7 @@ class Command(BaseCommand):
         created, linked, cleared = self._write(school, needed, placements)
         self.stdout.write(f"\nأُنشئ {created} قسماً، ورُبط {linked} معلّماً.")
         if cleared:
-            self.stdout.write(
-                f"وأُزيل القسمُ من {cleared} عضويّةٍ غيرِ تدريسيّة — القسمُ لعضويّة التدريس."
-            )
+            self.stdout.write(f"وأُزيل القسمُ من {cleared} عضويّةٍ غيرِ تدريسيّة — القسمُ لعضويّة التدريس.")
 
     # ── القراءة ──────────────────────────────────────────────────────
 
@@ -162,9 +160,11 @@ class Command(BaseCommand):
                     .update(department_obj=registry[code])
                 )
             )
-            cleared += mine.exclude(role__name__in=TEACHING_ROLES).exclude(
-                department_obj__isnull=True
-            ).update(department_obj=None)
+            cleared += (
+                mine.exclude(role__name__in=TEACHING_ROLES)
+                .exclude(department_obj__isnull=True)
+                .update(department_obj=None)
+            )
 
         # المنسّقُ رأسُ قسمه — يُقرأ من دوره لا يُكتب باليد.
         for code, department in registry.items():

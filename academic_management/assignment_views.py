@@ -383,7 +383,9 @@ def assignments(request):
     prepared_by = _prepared_by_teacher(school, year)
     plans = _plans_by_teacher(school, year)
     registry_filled = _registry_filled(school)
-    registry = list(Department.objects.filter(school=school, is_active=True)) if caps["review"] else []
+    registry = (
+        list(Department.objects.filter(school=school, is_active=True)) if caps["review"] else []
+    )
 
     # قائمةُ الترشيح تُبنى ممّا يظهر فعلاً — فلا خيارَ بلا معلّمين، ولا معلّمَ
     # بلا خيارٍ يبلغه. وعددُ كلّ قسمٍ يُحسب من معلّميه جميعاً لا من المعروضين،

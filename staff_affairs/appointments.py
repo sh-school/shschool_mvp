@@ -61,7 +61,11 @@ def appoint(
     reference = (reference or "").strip()
     joined_on = joined_on or timezone.localdate()
 
-    _require(national_id.isdigit() and 5 <= len(national_id) <= 20, "national_id", "الرقمُ الشخصيُّ أرقامٌ من 5 إلى 20 خانة.")
+    _require(
+        national_id.isdigit() and 5 <= len(national_id) <= 20,
+        "national_id",
+        "الرقمُ الشخصيُّ أرقامٌ من 5 إلى 20 خانة.",
+    )
     _require(full_name, "full_name", "الاسمُ الكاملُ لازم.")
     _require(reference, "reference", "التعيينُ قرارٌ — ومرجعُه لازم.")
     _require(role_name in ALL_STAFF_ROLES, "role_name", "هذا الدورُ ليس من أدوار الكادر.")

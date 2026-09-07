@@ -71,7 +71,9 @@ class StaffAppointmentForm(forms.Form):
     employee_number = forms.CharField(max_length=32, required=False, label="الرقم الوظيفي")
     email = forms.EmailField(required=False, label="البريد الإلكتروني")
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
-    joined_on = forms.DateField(label="تاريخ الالتحاق", widget=forms.DateInput(attrs={"type": "date"}))
+    joined_on = forms.DateField(
+        label="تاريخ الالتحاق", widget=forms.DateInput(attrs={"type": "date"})
+    )
     reference = forms.CharField(max_length=200, label="مرجع قرار التعيين")
     note = forms.CharField(max_length=200, required=False, label="ملاحظة")
 
