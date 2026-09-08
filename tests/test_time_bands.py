@@ -364,3 +364,73 @@ def test_the_bell_is_read_once_per_generation_even_in_repair(school, bands, monk
     scheduler.generate_schedule(school, YEAR)
 
     assert seen == [True], "ذاكرةُ الأزواج مفتوحةٌ طوالَ التوليد"
+
+
+def _double_task(band_id):
+    """مهمّةٌ مزدوجةٌ على نطاقٍ بعينه — الحقولُ التي يقرؤها الحكمُ وحدَها."""
+    from operations.scheduler import Task
+
+    return Task(
+        class_id="c",
+        class_name="7/1",
+        subject_id="s",
+        subject_name="الفنون البصرية",
+        subject_code="ART",
+        teacher_id="t",
+        teacher_name="معلّم",
+        weekly_periods=2,
+        band_id=str(band_id),
+        span=2,
+    )
+
+
+# ═══════════ المزدوجةُ لا تعبر استراحة (HC19) ═══════════
+
+
+def _grid_with_bells(school):
+    from operations.scheduler import load_break_times
+
+    return ScheduleGrid(band_times=load_band_times(school), break_times=load_break_times(school))
+
+
+def test_a_double_may_not_cross_the_prayer(school, bands):
+    """الأرضيُّ: السادسةُ تنتهي 12:20 والسابعةُ تبدأ 12:40، وبينهما الصلاة."""
+    from operations.scheduler_constraints import check_double_not_split_by_break
+
+    grid = _grid_with_bells(school)
+    task = _double_task(bands["ground"].id)
+
+    assert check_double_not_split_by_break(grid, 0, 6, task) is False, "ح6+ح7 تعبر الصلاة"
+    assert check_double_not_split_by_break(grid, 0, 1, task) is True, "ح1+ح2 متلاصقتان"
+
+
+def test_a_double_may_not_cross_the_break(school, bands):
+    """الأرضيُّ: الثالثةُ تنتهي 9:35 والرابعةُ تبدأ 10:00، وبينهما الفسحة."""
+    from operations.scheduler_constraints import check_double_not_split_by_break
+
+    grid = _grid_with_bells(school)
+    task = _double_task(bands["ground"].id)
+
+    assert check_double_not_split_by_break(grid, 0, 3, task) is False, "ح3+ح4 تعبر الفسحة"
+    assert check_double_not_split_by_break(grid, 0, 4, task) is True, "ح4+ح5 متلاصقتان"
+
+
+def test_a_single_period_is_never_split(school, bands):
+    """الحكمُ للمزدوجة وحدَها — والمفردةُ لا تعبر شيئاً."""
+    from operations.scheduler_constraints import check_double_not_split_by_break
+
+    grid = _grid_with_bells(school)
+    single = _double_task(bands["ground"].id)
+    single.span = 1
+
+    assert check_double_not_split_by_break(grid, 0, 6, single) is True
+
+
+def test_without_declared_breaks_the_rule_sleeps(school, bands):
+    """بلا استراحاتٍ معلَنةٍ يسقط الحكم — لا يُمنع شيءٌ بالظنّ."""
+    from operations.scheduler_constraints import check_double_not_split_by_break
+
+    grid = ScheduleGrid(band_times=load_band_times(school))
+    task = _double_task(bands["ground"].id)
+
+    assert check_double_not_split_by_break(grid, 0, 6, task) is True

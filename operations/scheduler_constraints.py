@@ -322,6 +322,11 @@ def check_resource_capacity(grid: ScheduleGrid, day: int, period: int, task: Tas
     )
 
 
+#: دقائقُ الانتقال المسموحةُ بين مرحلتين على موردٍ واحد (قرار الإدارة
+#: 2026-09-08): صفٌّ يخرج وآخرُ يدخل في خمس دقائقَ لا فوضى، وما زاد فوضى.
+RESOURCE_OVERLAP_TOLERANCE = 5
+
+
 def check_resource_level_homogeneity(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
     """HC11: موردٌ لا يجمع مرحلتين في التوقيت الواحد.
 
@@ -329,12 +334,44 @@ def check_resource_level_homogeneity(grid: ScheduleGrid, day: int, period: int, 
     تكونان من مرحلةٍ واحدة (قرار الإدارة 2026-09-03). السعةُ تقول «اثنتان»،
     وهذا يقول «اثنتان من جنسٍ واحد». والمهمّةُ بلا مرحلةٍ معروفة تُعامَل
     جنساً قائماً بذاته، فلا تُخلط بغيرها.
+
+    والحكمُ بالساعة لا بالرقم — وكان بالرقم وحدَه حتّى 2026-09-08، فمرّ منه
+    ما لا يُرى: الإعداديّ حصّتُه الثانية 8:00–8:50 والثانويّ ثالثتُه 8:45–9:35،
+    رقمان مختلفان يلتقيان في الملعب خمسَ دقائق؛ وأشدُّ منه الخميسَ حيث بلغ
+    التقاطعُ خمساً وعشرين دقيقة. وهو عيبُ HC12 نفسُه للمعلّمين، لم يكن نُقل
+    إلى الموارد. والحكمُ بالرقم يبقى احتياطاً حين لا جرسَ معروفاً.
+
+    والمزدوجةُ خانتان: تُفحص كلتاهما لا أولاهما وحدَها.
     """
     for resource_id, _capacity, same_level in task.resources:
         if not same_level:
             continue
-        others = grid.resource_levels(resource_id, day, period) - {task.level_type}
-        if others:
+        for slot in task.slots(period):
+            if grid.resource_levels(resource_id, day, slot) - {task.level_type}:
+                return False
+            others = grid.resource_overlapping_levels(
+                resource_id, day, task.band_id, slot, RESOURCE_OVERLAP_TOLERANCE
+            )
+            if others - {task.level_type}:
+                return False
+    return True
+
+
+def check_double_not_split_by_break(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
+    """HC19: المزدوجةُ لا تعبر فسحةً ولا صلاة.
+
+    حصّتان متلاصقتان بالرقم قد تفصلهما عشرون دقيقةً بالساعة: في الطابق
+    الأرضيّ تنتهي السادسةُ 12:20 وتبدأ السابعةُ 12:40، وبينهما الصلاة —
+    فالفنّيّةُ المزدوجةُ هناك حصّتان منفصلتان لا مزدوجة، يُصرَف الصفُّ بينهما
+    ويُجمع من جديد. وقعت ثلاثاً على الإنتاج وواحدةً محلّيّاً (2026-09-09).
+
+    وبلا استراحاتٍ معلَنةٍ يسقط الحكم.
+    """
+    if task.span < 2:
+        return True
+    slots = list(task.slots(period))
+    for first, second in zip(slots, slots[1:], strict=False):
+        if grid.break_between(task.band_id, day, first, second):
             return False
     return True
 
@@ -658,6 +695,8 @@ def is_slot_valid(
     if not check_resource_capacity(grid, day, period, task):
         return False
     if not check_resource_level_homogeneity(grid, day, period, task):
+        return False
+    if not check_double_not_split_by_break(grid, day, period, task):
         return False
     if not check_max_gap(grid, day, period, task):
         return False

@@ -192,12 +192,21 @@ class ScheduleGrid:
     فهرسُه.
     """
 
-    def __init__(self, band_times: dict | None = None, coverage: dict | None = None):
+    def __init__(
+        self,
+        band_times: dict | None = None,
+        coverage: dict | None = None,
+        break_times: dict | None = None,
+    ):
         #: _grid[class_id][day][period] = Task
         self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
         #: {(نطاق, نوع اليوم): {رقم الحصّة: (بداية, نهاية)}} — والمفتاح "" للافتراضيّ.
         #: فارغٌ يعني «لا أجراسَ معروفة» فيُعطَّل الحكمُ بالساعة.
         self.band_times: dict = band_times or {}
+        #: {(نطاق, نوع اليوم): [(بداية, نهاية, الاسم)]} — الفسحةُ والصلاة.
+        #: بها تُعرف المزدوجةُ التي تقطعها استراحةٌ (HC19)، وهي خارج
+        #: `band_times` لأنّ تلك خاناتُ تدريسٍ لا فواصل.
+        self.break_times: dict = break_times or {}
         #: تغطيةُ الأيّام: {معلّم: (مواضعُه، حصصُه، أيّامُه المتاحة)} — لا يومَ
         #: فارغاً لمن مواضعُه تبلغ أيّامَه إلّا بتفريغٍ من الإعدادات (HC14).
         #: والموضعُ مهمّةٌ واحدة: المزدوجةُ حصّتان في يومٍ واحد، فثلاثُ مزدوجاتٍ
@@ -217,6 +226,10 @@ class ScheduleGrid:
         self._resource_at: dict[tuple[str, int, int], int] = defaultdict(int)
         #: أيُّ مراحلَ تشغل المورد في التوقيت — لموردٍ لا يجمع إعداديّاً وثانويّاً.
         self._resource_levels: dict[tuple[str, int, int], Counter] = defaultdict(Counter)
+        #: (مورد · يوم · حصّة) → {(نطاق, مرحلة): عدد} — النطاقُ لازمٌ لأنّ
+        #: الحكمَ على المورد بالساعة لا بالرقم: جرسان مختلفان يجعلان رقمين
+        #: مختلفين يتقاطعان في الملعب (HC11).
+        self._resource_bands: dict[tuple[str, int, int], Counter] = defaultdict(Counter)
         #: ساكنو الشبكة بمهمّتهم — قاموسٌ لا قائمة: النسيانُ كان يعيد بناءَ
         #: القائمة كلَّها (840 عنصراً) عند كلّ إزاحةٍ، 354 ألفَ مرّةٍ في توليد.
         self._entries: dict[int, dict] = {}
@@ -272,6 +285,9 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
+                self._resource_bands[(resource_id, day, slot)][
+                    (task.band_id or "", task.level_type)
+                ] += 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] += 1
         self._entries[id(task)] = {"day": day, "period": period, "task": task}
@@ -305,6 +321,9 @@ class ScheduleGrid:
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
+                self._resource_bands[(resource_id, day, slot)][
+                    (task.band_id or "", task.level_type)
+                ] -= 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] -= 1
         self._entries.pop(id(task), None)
@@ -341,6 +360,67 @@ class ScheduleGrid:
             if table and period in table:
                 return table[period]
         return None
+
+    def break_between(self, band_id: str, day: int, first: int, second: int) -> str:
+        """اسمُ الاستراحة الواقعةِ بين خانتين متتاليتين — أو `""` إن لم تقع.
+
+        المزدوجةُ حصّتان متلاصقتان بالرقم، وقد تفصلهما فسحةٌ أو صلاةٌ بالساعة:
+        في الطابق الأرضيّ تنتهي السادسةُ 12:20 وتبدأ السابعةُ 12:40، وبينهما
+        الصلاة. والرقمُ وحدَه لا يراها.
+        """
+        if not self.break_times:
+            return ""
+        before = self.interval(band_id, day, first)
+        after = self.interval(band_id, day, second)
+        if not (before and after):
+            return ""
+        day_type = "thursday" if day == 4 else "regular"
+        for key in (
+            (band_id or "", day_type),
+            ("", day_type),
+            (band_id or "", "regular"),
+            ("", "regular"),
+        ):
+            windows = self.break_times.get(key)
+            if windows is None:
+                continue
+            for start, end, label in windows:
+                if before[1] <= start and end <= after[0]:
+                    return label or "استراحة"
+            return ""
+        return ""
+
+    def resource_overlapping_levels(
+        self, resource_id: str, day: int, band_id: str, period: int, tolerance: int = 0
+    ) -> set[str]:
+        """المراحلُ التي تشغل المورد في ساعةٍ تتقاطع مع هذه الخانة.
+
+        الحكمُ بالساعة لا بالرقم: الجرسان مختلفان، فحصّةُ الإعداديّ الثانية
+        (8:00–8:50) تلتقي حصّةَ الثانويّ الثالثة (8:45–9:35) في الملعب وإن
+        اختلف رقمُهما. و`tolerance` دقائقُ الانتقال المسموحة — خمسٌ بقرار
+        الإدارة 2026-09-08، فصفّان يتبادلان الملعب في خمس دقائقَ لا فوضى.
+        """
+        mine = self.interval(band_id, day, period)
+        if mine is None:
+            return set()
+        mine_start = mine[0].hour * 60 + mine[0].minute
+        mine_end = mine[1].hour * 60 + mine[1].minute
+        found: set[str] = set()
+        for slot in range(1, LAST_PERIOD + 1):
+            counts = self._resource_bands.get((resource_id, day, slot))
+            if not counts:
+                continue
+            for (other_band, level), number in counts.items():
+                if number <= 0 or level in found:
+                    continue
+                theirs = self.interval(other_band, day, slot)
+                if theirs is None:
+                    continue
+                start = theirs[0].hour * 60 + theirs[0].minute
+                end = theirs[1].hour * 60 + theirs[1].minute
+                if min(mine_end, end) - max(mine_start, start) > tolerance:
+                    found.add(level)
+        return found
 
     def same_bell(self, band_a: str, band_b: str, day: int) -> bool:
         """أنطاقان على جرسٍ واحدٍ في هذا اليوم؟
@@ -1041,6 +1121,22 @@ def load_band_times(school: School) -> dict:
     return dict(table)
 
 
+def load_break_times(school: School) -> dict:
+    """{(نطاق, نوع اليوم): [(بداية, نهاية, الاسم)]} — الفسحةُ والصلاة.
+
+    نظيرُ `load_band_times`، وهي تُرشّح `is_break=False` فتسقط الاستراحاتُ
+    منها. وبلا استراحاتٍ معلَنةٍ يسقط حكمُ HC19 ولا تُمنع مزدوجةٌ من شيء.
+    """
+    from collections import defaultdict as _dd
+
+    table: dict = _dd(list)
+    for tc in TimeSlotConfig.objects.filter(school=school, is_break=True):
+        table[(str(tc.band_id or ""), tc.day_type)].append(
+            (tc.start_time, tc.end_time, tc.break_label or "استراحة")
+        )
+    return dict(table)
+
+
 #: أوقاتٌ احتياطيّة حين لا `TimeSlotConfig` للمدرسة — جرسٌ واحدٌ لكلّ الأيام.
 DEFAULT_TIMES = {
     1: (dt_time(7, 10), dt_time(7, 55)),
@@ -1389,6 +1485,7 @@ def generate_schedule(
     # الأخرى: فاختيارُ الأفضل قبل الرخصة اختيارٌ بمقياسٍ ليس هو المطلوب.
     best = None
     band_times = load_band_times(school)
+    break_times = load_break_times(school)
     coverage = _day_coverage(tasks, blocked_slots)
     from django.conf import settings as _settings
 
@@ -1403,7 +1500,7 @@ def generate_schedule(
         attempt += 1
         attempt_started = time.time()
         rng = random.Random(attempt)
-        grid = ScheduleGrid(band_times=band_times, coverage=coverage)
+        grid = ScheduleGrid(band_times=band_times, coverage=coverage, break_times=break_times)
         leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
             grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
         )

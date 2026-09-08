@@ -5,12 +5,17 @@
 المصدر: التوزيع الزمنيّ لليوم المدرسيّ 2025–2026 (أكتوبر)، مؤكَّدٌ ساريَ
 العام 2026–2027 (قرار 2026-09-04). ثلاثةُ نطاقات:
 
-  ground    الطابق الأرضيّ    (السابع، الثامن، تاسع/1)
-  ninth     تاسع 2·3·4        (كالعلويّ من الأحد إلى الأربعاء، وله جرسُه الخميس)
+  ground    الطابق الأرضيّ    (السابع، الثامن، تاسع/1، تاسع/2)
+  ninth     تاسع 3·4          (كالعلويّ من الأحد إلى الأربعاء، وله جرسُه الخميس)
   secondary الثانويّ          (العاشر إلى الثاني عشر)
 
-الأمرُ يُنشئ النطاقاتِ وأوقاتَها ولا ينسب الشُّعب — النسبةُ قرارُ الإدارة من
-لوحة الإدارة (الشُّعب → نطاق التوقيت). ويُحدّث ما تغيّر ويترك ما استوى.
+وتاسع/2 كان علويّاً حتّى 2026-09-09 فنُقل إلى الأرضيّ (قرار الإدارة). وفرقُ
+النطاقين يومَ الخميس: الأرضيُّ صلاتُه بعد الخامسة ثمّ يعود لسادسته، وتاسع 3·4
+فسحتُهم مع الأرضيّ بعد الثالثة وصلاتُهم بعد السادسة ثمّ يغادرون.
+
+والنسبةُ كانت تُترك للوحة الإدارة، فبقيت قاعدةُ الإنتاج بلا نطاقٍ أرضيٍّ أصلاً
+وعشرُ شُعبٍ تُطبع بجرسٍ ليس جرسَها — ٢٨٣ حصّةً صُحّحت يوم اكتُشف (2026-09-09).
+فصارت مكتوبةً هنا، تُنفَّذ بـ`--assign` ويُعرض أثرُها قبل الكتابة.
 """
 
 import datetime as dt
@@ -18,7 +23,8 @@ import datetime as dt
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from core.models import School, TimeBand
+from core.academic_calendar import academic_year_for_school
+from core.models import ClassGroup, School, TimeBand
 from operations.models import TimeSlotConfig
 
 
@@ -27,10 +33,29 @@ def t(h, m):
 
 
 BANDS = [
-    ("ground", "الطابق الأرضيّ (7، 8، 9/1)", 1),
-    ("ninth", "التاسع 2·3·4", 2),
+    ("ground", "الطابق الأرضيّ (7، 8، 9/1، 9/2)", 1),
+    ("ninth", "التاسع 3·4", 2),
     ("secondary", "الثانويّ (10–12)", 3),
 ]
+
+#: الصفُّ (وقسمُه في التاسع) → رمزُ النطاق. وما لا يُطابق يُترك على حاله
+#: ويُسمّى في التقرير — كشعبة التربية الخاصّة، لا قرارَ فيها بعد.
+ASSIGN_BY_GRADE = {
+    "G7": "ground",
+    "G8": "ground",
+    "G10": "secondary",
+    "G11": "secondary",
+    "G12": "secondary",
+}
+ASSIGN_NINTH_SECTION = {"1": "ground", "2": "ground", "3": "ninth", "4": "ninth"}
+
+
+def band_for(klass) -> str:
+    """رمزُ النطاق لهذه الشعبة — أو `""` لمن يُترك على حاله."""
+    if klass.grade == "G9":
+        return ASSIGN_NINTH_SECTION.get(klass.section.rsplit("/", 1)[-1], "")
+    return ASSIGN_BY_GRADE.get(klass.grade, "")
+
 
 # (النطاق، نوع اليوم) → [(رقم أو 100+ للاستراحة، بداية، نهاية، اسم الاستراحة)]
 UPPER_REGULAR = [
@@ -98,6 +123,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument(
+            "--assign",
+            action="store_true",
+            help="انسب الشُّعبَ إلى نطاقاتها أيضاً — ومن لا قاعدةَ له يُترك ويُسمّى",
+        )
 
     def handle(self, *args, **opts):
         created = updated = unchanged = 0
@@ -142,9 +172,34 @@ class Command(BaseCommand):
                 self.stdout.write(
                     f"== {school.name}: النطاقات {', '.join(b.name for b in bands.values())}"
                 )
+                if opts["assign"]:
+                    moved, left = self._assign(school, bands)
+                    for line in moved:
+                        self.stdout.write(f"   → {line}")
+                    for line in left:
+                        self.stdout.write(f"   · يُترك على حاله: {line}")
+                    self.stdout.write(f"   نُسبت {len(moved)} شعبة، وتُركت {len(left)}.")
                 if opts["dry_run"]:
                     transaction.set_rollback(True)
         tag = "DRY-RUN — لم يُكتب شيء" if opts["dry_run"] else "DONE"
         self.stdout.write(
             self.style.SUCCESS(f"{tag}: created={created} updated={updated} unchanged={unchanged}")
         )
+
+    def _assign(self, school, bands):
+        """ينسب الشُّعبَ إلى نطاقاتها — ويُرجع (ما نُقل، ما تُرك)."""
+        year = academic_year_for_school(school)
+        moved, left = [], []
+        for klass in (
+            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+            .select_related("time_band")
+            .in_school_order()
+        ):
+            code = band_for(klass)
+            now = klass.time_band.code if klass.time_band_id else "—"
+            if not code:
+                left.append(f"{klass.short_code} (نطاقُه الآن: {now})")
+            elif now != code:
+                ClassGroup.objects.filter(pk=klass.pk).update(time_band=bands[code])
+                moved.append(f"{klass.short_code}: {now} ← {code}")
+        return moved, left
