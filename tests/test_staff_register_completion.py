@@ -93,7 +93,11 @@ def test_filled_fields_are_never_overwritten(school):
 
     user.refresh_from_db()
     membership.refresh_from_db()
-    assert (user.phone, user.email, user.employee_number) == ("+97455999999", "mine@example.qa", "1")
+    assert (user.phone, user.email, user.employee_number) == (
+        "+97455999999",
+        "mine@example.qa",
+        "1",
+    )
     assert (membership.job_title, membership.appointment_reference) == ("منسق الرياضيات", "قرار 5")
     assert "0 حقلاً" in report or "لا شيء" in report
 
