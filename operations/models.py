@@ -41,6 +41,30 @@ class Subject(models.Model):
         verbose_name="حصة مزدوجة",
         help_text="يتطلب حصتين متتاليتين بدون استراحة",
     )
+    #: حصصُ المادّة في أيّامٍ مختلفةٍ — قيدٌ صلبٌ (HC18) بنطاقِ مرحلة.
+    #:
+    #: الفنّيّةُ مزدوجةٌ في الإعداديّ ومتباعدةٌ في الثانويّ (قرار 2026-09-08)،
+    #: وحقلُ الازدواج وحدَه لا يسع الحالين. فالنطاقُ يقول أين يسري التباعد،
+    #: وحيث سرى بطل الازدواجُ — القيدُ الصلبُ يعلو الترجيح.
+    SPREAD_SCOPES = [
+        ("none", "لا"),
+        ("prep", "الإعدادي"),
+        ("sec", "الثانوي"),
+        ("all", "كل المراحل"),
+    ]
+    spread_days_scope = models.CharField(
+        max_length=4,
+        choices=SPREAD_SCOPES,
+        default="none",
+        verbose_name="حصصها في أيام مختلفة",
+        help_text="لا تجتمع حصّتان منها في يومٍ واحدٍ للشعبة — في المرحلة المختارة",
+    )
+
+    def spreads_in(self, level_type: str) -> bool:
+        """هل يسري تباعدُ الأيّام على هذه المرحلة؟"""
+        return self.spread_days_scope == "all" or (
+            bool(level_type) and self.spread_days_scope == level_type
+        )
 
     class Meta:
         verbose_name = "مادة دراسية"

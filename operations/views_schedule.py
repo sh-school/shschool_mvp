@@ -1207,6 +1207,26 @@ def toggle_double_period(request, subject_id):
     return _safe_schedule_settings_redirect(request)
 
 
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def set_spread_days(request, subject_id):
+    """نطاقُ «حصصها في أيّامٍ مختلفة» لمادّة — قيدٌ صلبٌ يقرّره النائبُ من الشاشة."""
+    school = request.user.get_school()
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    scope = request.POST.get("scope", "")
+    if scope not in dict(Subject.SPREAD_SCOPES):
+        messages.error(request, "نطاقٌ غيرُ معروف.")
+        return _safe_schedule_settings_redirect(request)
+    subject.spread_days_scope = scope
+    subject.save(update_fields=["spread_days_scope"])
+    messages.success(
+        request,
+        f"أيّامٌ مختلفةٌ لـ {subject.name_ar}: {subject.get_spread_days_scope_display()}",
+    )
+    return _safe_schedule_settings_redirect(request)
+
+
 # ── جداولُ الصفحات: صفحةٌ لكلّ معلّمٍ أو لكلّ شعبة ─────────────────────
 
 #: اتّجاهُ الورقة — والافتراضُ أفقيّ (قرار الإدارة 2026-09-06)؛ والعموديّ بطلبٍ في الرابط.

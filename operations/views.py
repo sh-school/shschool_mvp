@@ -37,6 +37,7 @@ from .views_schedule import (
     schedule_print_view,
     schedule_quality_lab,
     schedule_settings,
+    set_spread_days,
     smart_generate,
     smart_generate_status,
     smart_schedule_view,
@@ -96,6 +97,7 @@ __all__ = [
     "schedule_settings",
     "add_exemption",
     "remove_exemption",
+    "set_spread_days",
     "toggle_double_period",
     "teacher_preferences",
     # swap

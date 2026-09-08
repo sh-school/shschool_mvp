@@ -54,6 +54,11 @@ urlpatterns = [
         views.toggle_double_period,
         name="toggle_double_period",
     ),
+    path(
+        "schedule-settings/subject/<uuid:subject_id>/spread-days/",
+        views.set_spread_days,
+        name="set_spread_days",
+    ),
     path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
     # ══ المرحلة 6: التبديل والتعويض ══
     path("schedule/swaps/", views.swap_list, name="swap_list"),

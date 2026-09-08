@@ -204,6 +204,7 @@
             <th>المادة</th>
             <th>الكود</th>
             <th class="text-center">حصة مزدوجة</th>
+            <th class="text-center">أيام مختلفة (صلب)</th>
             <th></th>
           </tr>
         </thead>
@@ -218,6 +219,17 @@
               {% else %}
               <span class="status-badge status-gray">معطّلة</span>
               {% endif %}
+            </td>
+            <td class="text-center">
+              <form method="post" action="{% url 'set_spread_days' s.id %}" class="inline-flex items-center gap-1">
+                {% csrf_token %}
+                <select name="scope" class="form-select text-xs" aria-label="نطاق أيام مختلفة لـ {{ s.name_ar }}">
+                  {% for value, label in s.SPREAD_SCOPES %}
+                  <option value="{{ value }}" {% if s.spread_days_scope == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn-ghost text-xs">حفظ</button>
+              </form>
             </td>
             <td class="text-end">
               <form method="post" action="{% url 'toggle_double_period' s.id %}" style="display:inline">
