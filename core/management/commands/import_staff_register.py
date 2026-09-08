@@ -112,6 +112,14 @@ class Command(BaseCommand):
             action="store_true",
             help="لا تُنشئ حساباً ولا عضويّةً جديدة — أكمِل القائمَ فقط",
         )
+        parser.add_argument(
+            "--reconcile-roles",
+            default="",
+            help=(
+                "أدوارٌ عامّةٌ يجوز تبديلُها بدور الكشف الدقيق، مفصولةً بفاصلة"
+                " (مثل admin,specialist) — ومن يحمل دوراً خارجها يبقى «يُراجَع»"
+            ),
+        )
         parser.add_argument("--sheet", default="", help="اسمُ الورقة — والافتراضُ الأولى")
         parser.add_argument("--school", default="", help="رمزُ المدرسة — والافتراضُ الأولى")
         parser.add_argument("--reference", default="", help="مرجعُ الالتحاق — والافتراضُ اسمُ الملفّ")
@@ -167,15 +175,31 @@ class Command(BaseCommand):
             else:
                 new.append((row, role))
 
+        # الدورُ العامّ («إداريّ»، «أخصائيّ») يُبدَّل بالدقيق من الكشف إن أذن
+        # المستخدمُ بذلك صراحةً — ومن يحمل دوراً خارج المأذون يبقى قرارَ مراجعة.
+        reconcilable = {r.strip() for r in options["reconcile_roles"].split(",") if r.strip()}
+        retitle, kept = [], []
+        for row, role, mine in conflicts:
+            if reconcilable and set(mine) <= reconcilable and role not in reconcilable:
+                retitle.append((row, role, mine))
+            else:
+                kept.append((row, role, mine))
+        conflicts = kept
+
         self.stdout.write(f"المدرسة: {school.name} · الكشف: {len(rows)} سطراً")
         self.stdout.write(
             f"قائمٌ بالفعل: {len(existing)} · جديد: {len(new)} ·"
+            f" يُصحَّح دورُه: {len(retitle)} ·"
             f" يُراجَع: {len(conflicts)} · متعذّر: {len(skipped)}"
         )
 
-        gaps = (
-            self._gaps(school, existing, known, reference) if options["complete_existing"] else []
-        )
+        gaps = []
+        if options["complete_existing"]:
+            gaps = self._gaps(school, existing, known, reference)
+            # من يُصحَّح دورُه تُكمَل حقولُ حسابه هنا، أمّا عضويّتُه فيكتبها التصحيحُ نفسُه.
+            gaps += self._gaps(
+                school, [row for row, _r, _m in retitle], known, reference, with_membership=False
+            )
         if options["complete_existing"]:
             by_field = {}
             for _obj, field, _value in gaps:
@@ -190,6 +214,10 @@ class Command(BaseCommand):
         for row, role in sorted(new, key=lambda p: (p[1], p[0]["name"])):
             mark = "حسابٌ قائم" if row["national_id"] in known else "حسابٌ جديد"
             self.stdout.write(f"  + {row['title']:<26} {row['name']:<34} [{role}] {mark}{new_mark}")
+        for row, role, mine in sorted(retitle, key=lambda p: p[0]["name"]):
+            self.stdout.write(
+                f"  ↻ {row['title']:<26} {row['name']:<34} [{'، '.join(mine)} → {role}]"
+            )
         for row, role, mine in sorted(conflicts, key=lambda p: p[0]["name"]):
             self.stdout.write(
                 self.style.WARNING(
@@ -210,6 +238,11 @@ class Command(BaseCommand):
                 f"\nأُنشئ {created_users} حساباً و{created_memberships} عضويّة — "
                 "والحساباتُ بلا كلمة مرورٍ حتّى تُصدَر لها."
             )
+        if retitle:
+            changed, refused = self._retitle(school, retitle, known, reference)
+            self.stdout.write(f"\nصُحّح دورُ {changed} عضويّةً.")
+            for name, why in refused:
+                self.stdout.write(self.style.WARNING(f"  ✗ {name} — {why}"))
         if gaps:
             filled, rejected = self._complete(gaps)
             self.stdout.write(f"\nأُكمل {filled} حقلاً عند القائمين.")
@@ -332,7 +365,7 @@ class Command(BaseCommand):
 
     # ── الإكمال ──────────────────────────────────────────────────────
 
-    def _gaps(self, school, existing, known, reference):
+    def _gaps(self, school, existing, known, reference, *, with_membership=True):
         """ما في الكشف وليس في القاعدة عند من هم فيها أصلاً — الفارغُ وحدَه.
 
         فالكشفُ مرجعٌ للرقم الوظيفيّ والجوّال والبريد والمسمّى، والقاعدةُ قد
@@ -350,6 +383,8 @@ class Command(BaseCommand):
             ):
                 if value and not getattr(user, field):
                     gaps.append((user, field, value))
+            if not with_membership:
+                continue
             membership = (
                 Membership.objects.filter(
                     user=user, school=school, role__name=role_for(row["title"]), is_active=True
@@ -364,6 +399,57 @@ class Command(BaseCommand):
                 if not membership.appointment_reference:
                     gaps.append((membership, "appointment_reference", reference))
         return gaps
+
+    @transaction.atomic
+    def _retitle(self, school, retitle, known, reference):
+        """يبدّل الدورَ العامَّ بالدقيق على العضويّة نفسِها — بأثرٍ يُقرأ بعد سنة.
+
+        لا تُنشأ عضويّةٌ ثانية: تاريخُ الالتحاق والقسمُ والمرجعُ تبقى، ويُكتب في
+        ملاحظة التعيين أنّ الدورَ صُحّح ومن أيّ كشف — فلا فجوةَ بلا تفسير.
+        """
+        from django.core.exceptions import ValidationError
+
+        changed, refused = 0, []
+        for row, new_role, mine in retitle:
+            user = known.get(row["national_id"])
+            membership = (
+                Membership.objects.filter(
+                    user=user, school=school, role__name__in=mine, is_active=True
+                )
+                .select_related("role")
+                .order_by("-joined_at")
+                .first()
+            )
+            if membership is None:
+                refused.append((row["name"], "لا عضويّةَ نشطةً بالدور العامّ"))
+                continue
+            old = membership.role.name
+            role, _ = Role.objects.get_or_create(school=school, name=new_role)
+            membership.role = role
+            if not membership.job_title:
+                membership.job_title = row["title"]
+            if not membership.appointment_reference:
+                membership.appointment_reference = reference
+            trail = f"صُحّح الدورُ من {old} إلى {new_role} — {reference}"
+            membership.appointment_note = " · ".join(
+                filter(None, [membership.appointment_note, trail])
+            )[:200]
+            try:
+                membership.full_clean(exclude=["user", "school", "role"])
+            except ValidationError as exc:
+                refused.append(
+                    (
+                        row["name"],
+                        "؛ ".join(f"{k}: {', '.join(v)}" for k, v in exc.message_dict.items()),
+                    )
+                )
+                continue
+            membership.save(
+                update_fields=["role", "job_title", "appointment_reference", "appointment_note"]
+            )
+            user.invalidate_active_membership()
+            changed += 1
+        return changed, refused
 
     @transaction.atomic
     def _complete(self, gaps):
