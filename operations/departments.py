@@ -47,6 +47,11 @@ DEPARTMENT_ORDER: dict[str, int] = {code: i for i, (code, _) in enumerate(DEPART
 #: القسمُ الذي يُنسب إليه من لم تُعرف مادّته — ولا يسقط من الورقة.
 FALLBACK = "other"
 
+#: اسمٌ قصيرٌ للتاج الذي يُكتب بجانب اسم المعلّم في «الجدول العام». خانةُ الاسم
+#: أربعةَ عشرَ في المئة من الورقة، والاسمُ الكامل مع تاجٍ كامل يتجاوزها فيُقصّ.
+#: والقصيرُ هو ما تقوله الإدارة في الورق أصلاً.
+SHORT_DEPARTMENT_NAMES: dict[str, str] = {"business": "إدارة أعمال"}
+
 #: المادّة → القسم. والاسمُ هو المفتاح لأنّ `Subject.code` فارغٌ في أكثر
 #: الموادّ الأساسية في هذه المدرسة، فالاسمُ وحده ما يُعوَّل عليه.
 SUBJECT_DEPARTMENT: dict[str, str] = {
@@ -155,6 +160,33 @@ def department_info(code: str) -> dict:
         "name": DEPARTMENT_NAMES.get(code, DEPARTMENT_NAMES[FALLBACK]),
         "order": DEPARTMENT_ORDER.get(code, len(DEPARTMENTS)),
     }
+
+
+def school_department_codes(school) -> set:
+    """رموزُ الأقسام المسجَّلة في المدرسة — استعلامٌ واحدٌ لا واحدٌ لكلّ معلّم."""
+    from core.models import Department
+
+    return set(Department.objects.filter(school=school).values_list("code", flat=True))
+
+
+def attached_specialty(registered_code: str, lessons, school_codes: set) -> str:
+    """اسمُ تخصّصِ من أُلحق إدارياً بقسمٍ غيرِ قسمه — و`""` لسائر الناس.
+
+    في المدرسة معلّمُ إدارة أعمالٍ واحد، ولا قسمَ لواحد. فهو مسجَّلٌ في الكيمياء
+    إدارياً (قرارُ المدير 2026-09-06)، وورقةُ الجدول تضعه في سطورها — فيقرأ
+    القارئُ اسمَه بين أهل الكيمياء ويظنّه منهم.
+
+    والقاعدةُ عامّةٌ لا اسمٌ مكتوبٌ في الشيفرة: من كان القسمُ المشتقُّ من موادّه
+    **لا سجلَّ له في المدرسة** فتخصّصُه بلا قسم، وسجلُّه إلحاقٌ لا انتماء —
+    فيُذكر تخصّصُه بجانب اسمه. ومن اختلف مشتقُّه عن سجلّه وللمشتقّ قسمٌ قائمٌ
+    فذلك نقلٌ إداريٌّ لا إلحاق، ولا يُعلَّق عليه.
+    """
+    if not registered_code:
+        return ""
+    derived = resolve_from_lessons(lessons)
+    if derived in (registered_code, FALLBACK) or derived in school_codes:
+        return ""
+    return SHORT_DEPARTMENT_NAMES.get(derived) or DEPARTMENT_NAMES.get(derived, "")
 
 
 def registered_departments(school) -> dict:

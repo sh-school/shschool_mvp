@@ -16,7 +16,12 @@ from core.academic_calendar import (
 )
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from operations.departments import derived_department, registered_departments
+from operations.departments import (
+    attached_specialty,
+    derived_department,
+    registered_departments,
+    school_department_codes,
+)
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -450,9 +455,16 @@ class ScheduleService:
 
         # السجلُّ أوّلاً — والاشتقاقُ احتياطُ من لا قسمَ مسجّلاً له.
         registry = registered_departments(school)
+        # ومن أُلحق إدارياً بقسمٍ غيرِ تخصّصه يُذكر تخصّصُه بجانب اسمه، وإلّا
+        # قُرئ من أهل القسم الذي أُلحق به. والرموزُ تُجلب مرّةً لا لكلّ معلّم.
+        codes = school_department_codes(school)
         for teacher_id, row in rows.items():
             lessons = row.pop("lessons")
-            row["department"] = registry.get(str(teacher_id)) or derived_department(lessons)
+            registered = registry.get(str(teacher_id))
+            row["department"] = registered or derived_department(lessons)
+            row["specialty"] = attached_specialty(
+                registered["code"] if registered else "", lessons, codes
+            )
 
         # الاسمُ في المفتاح لأنّ `sort_order` قد يتساوى بين قسمين، فلولاه
         # تشابكت صفوفُ القسمين وانكسر عمودُ القسم الممتدّ.

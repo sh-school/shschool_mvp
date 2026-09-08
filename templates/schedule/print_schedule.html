@@ -254,6 +254,22 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونٍ يفرّقه عن الاسم كي
+     يُقرأ لاحقةً لا جزءاً منه. */
+  .schedule-matrix .m-specialty {
+    color: #8A1538;
+    font-weight: 500;
+    font-size: 7px;
+  }
+  /* والسطرُ الذي يحمل تاجاً يُصغَّر حرفُه درجةً: خانةُ الاسم أربعةَ عشرَ في
+     المئة، والاسمُ مع التاج كان يتجاوزها تسعةَ بكسلاتٍ فيقصّه `ellipsis`.
+     وسبعةٌ ونصفٌ لا ثمانية: عند الثمانية يفيض بكسلٌ واحدٌ وحدَه، وهامشُ بكسلٍ
+     يسقط بأوّل خطٍّ يختلف قياسُه في مولّد PDF.
+     وصنفٌ على الخانة أسلمُ من `:has()` — فمولّدُ PDF لا يضمنه. */
+  /* والصنفان معاً في المُحدِّد: `.m-name` و`.m-name-tagged` متساويا الوزن
+     (0,2,0)، والأوّلُ يسبق في الملفّ فيغلب — فلا يقع أثرُ الثاني. */
+  .schedule-matrix .m-name.m-name-tagged { font-size: 7.5px; }
+
   /* عمودُ القسم: خانةٌ واحدةٌ ممتدّةٌ على سطور معلّميه — والسطورُ مرتّبةٌ
      بالقسم أصلاً فلا تنقطع مجموعته. واسمُه يُكتب مرّةً لا في كلِّ سطر.
      والخمسةُ في المئة عشرون ملّيمتراً على A3 عرضيّة: يسعُ أطولَ الأسماء
@@ -645,7 +661,8 @@
       <tr class="dept-{{ row.department.code }}" data-teacher="{{ row.teacher.full_name }}"
           data-dept="{{ row.department.name }}" data-total="{{ row.total }}">
         {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}">{{ row.department.name }}</td>{% endif %}
-        <td class="m-name" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}">{{ row.teacher.full_name }}</td>
+        {# ومن أُلحق إدارياً بقسمٍ غيرِ تخصّصه يحمل تخصّصَه لاحقةً — انظر `attached_specialty`. #}
+        <td class="m-name{% if row.specialty %} m-name-tagged{% endif %}" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}{% if row.specialty %} — تخصّصه {{ row.specialty }}{% endif %}">{{ row.teacher.full_name }}{% if row.specialty %} <span class="m-specialty">({{ row.specialty }})</span>{% endif %}</td>
         {% for day in row.days %}
           {% for cell in day %}
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
