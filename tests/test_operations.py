@@ -451,7 +451,7 @@ class TestTeacherDepartments:
 
         arabic = Subject.objects.create(school=school, name_ar="اللغة العربية")
         islamic = Subject.objects.create(school=school, name_ar="التربية الإسلامية")
-        # «أ» تسبق «ب» أبجدياً، والشرعيةُ تسبق العربية في ترتيب الأقسام.
+        # «أ» تسبق «ب» أبجدياً، والتربية الإسلاميةُ تسبق العربية في ترتيب الأقسام.
         for idx, (name, subject) in enumerate(((" أ معلّم", arabic), ("ب معلّم", islamic))):
             teacher = UserFactory(full_name=name)
             MembershipFactory(
@@ -501,7 +501,7 @@ class TestTeacherDepartments:
 
         rows = ScheduleService.get_teachers_matrix(school, class_group.academic_year)
 
-        # الشرعيةُ أوّلاً بمعلّمٍ واحد، ثمّ العربيةُ بمعلّمين.
+        # التربية الإسلاميةُ أوّلاً بمعلّمٍ واحد، ثمّ العربيةُ بمعلّمين.
         assert [r["dept_span"] for r in rows] == [1, 2, 0]
         # مجموعُ الامتدادات يساوي عددَ السطور — فلا سطرَ بلا خانةِ قسمٍ فوقه.
         assert sum(r["dept_span"] for r in rows) == len(rows)

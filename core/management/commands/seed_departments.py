@@ -41,6 +41,18 @@ TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinat
 #: إدارةُ الأعمال معلّمٌ واحدٌ يتبع الكيمياءَ إداريّاً (قرارُ المدير 2026-09-06).
 ATTACHED_TO = {"business": "chemistry"}
 
+#: رموزُ الجيل الأوّل ← الرمزُ المعتمَد. كان جدولُ الأقسام في الإنتاج مكتوباً
+#: قبل هذا الأمر بأسماءٍ ورموزٍ أخرى، فلو بحثنا بالرمز المعتمَد وحدَه لم نجده
+#: فأنشأنا ثانياً — ويأبى ذلك قيدُ «اسمٌ واحدٌ لكلّ مدرسة»، فينكسر الأمر.
+#: والتبنّي أسلمُ من الإنشاء: العضويّاتُ معلَّقةٌ بالصفّ القائم، فحذفُه وإنشاءُ
+#: بديلٍ يقطع سبعين رابطاً لا سببَ لقطعها.
+LEGACY_CODES: dict[str, str] = {
+    "islamic": "sharia",
+    "science": "science_prep",
+    "biology": "science_sec",
+    "art": "arts",
+}
+
 
 class Command(BaseCommand):
     help = "يسجّل الأقسام الأكاديميّة ويربط كلَّ معلّمٍ بقسمه — بلا كتابةٍ إلّا بـ--apply"
@@ -73,11 +85,14 @@ class Command(BaseCommand):
             for user, why in sorted(members, key=lambda m: m[0].full_name):
                 self.stdout.write(f"      {user.full_name} — {why}")
 
+        plan = self._plan(school, needed)
+        self._report_plan(plan)
+
         if not apply:
             self.stdout.write("\nتقريرٌ فقط — أضِف --apply للكتابة.")
             return
 
-        created, linked, cleared = self._write(school, needed, placements)
+        created, linked, cleared = self._write(school, plan, placements)
         self.stdout.write(f"\nأُنشئ {created} قسماً، ورُبط {linked} معلّماً.")
         if cleared:
             self.stdout.write(f"وأُزيل القسمُ من {cleared} عضويّةٍ غيرِ تدريسيّة — القسمُ لعضويّة التدريس.")
@@ -131,22 +146,96 @@ class Command(BaseCommand):
             out[m.user] = (derived, why)
         return out
 
+    # ── التوفيق بين المطلوب والقائم ──────────────────────────────────
+
+    def _plan(self, school, needed):
+        """لكلّ قسمٍ مطلوب: أيُّ صفٍّ قائمٍ يتبنّاه، وما الذي يتبدّل فيه.
+
+        ثلاثُ محاولاتٍ قبل الإنشاء — الرمزُ المعتمَد، فرمزُ الجيل الأوّل،
+        فالاسمُ نفسُه. وما لم يُوجد بواحدةٍ منها فهو جديدٌ حقّاً.
+        """
+        existing = list(Department.objects.filter(school=school))
+        by_code = {d.code: d for d in existing}
+        by_name = {d.name: d for d in existing}
+        legacy_of = {canon: old for old, canon in LEGACY_CODES.items()}
+
+        plan, taken = [], set()
+        for code in needed:
+            name, order = dept_map.DEPARTMENT_NAMES[code], _order(code)
+            found = by_code.get(code) or by_code.get(legacy_of.get(code, "")) or by_name.get(name)
+            if found is not None and found.pk in taken:
+                found = None
+            changes = []
+            if found is not None:
+                taken.add(found.pk)
+                if found.code != code:
+                    changes.append(("الرمز", found.code, code))
+                if found.name != name:
+                    changes.append(("الاسم", found.name, name))
+                if found.sort_order != order:
+                    changes.append(("الترتيب", found.sort_order, order))
+            plan.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "order": order,
+                    "department": found,
+                    "changes": changes,
+                }
+            )
+        return plan
+
+    def _report_plan(self, plan):
+        """ما يُنشأ وما يُبدَّل — يُقرأ قبل الكتابة لا بعدها."""
+        fresh = [entry for entry in plan if entry["department"] is None]
+        touched = [entry for entry in plan if entry["changes"]]
+        kept = len(plan) - len(fresh) - len(touched)
+
+        self.stdout.write("\nسجلُّ الأقسام:")
+        self.stdout.write(f"  قائمٌ كما هو: {kept} · يُبدَّل: {len(touched)} · يُنشأ: {len(fresh)}")
+        for entry in touched:
+            was = entry["department"]
+            self.stdout.write(f"    {was.name} ({was.code}):")
+            for field, before, after in entry["changes"]:
+                self.stdout.write(f"        {field}: {before} ← {after}")
+        for entry in fresh:
+            self.stdout.write(
+                f"    جديد: {entry['name']} ({entry['code']}) — ترتيب {entry['order']}"
+            )
+
     # ── الكتابة ──────────────────────────────────────────────────────
 
     @transaction.atomic
-    def _write(self, school, needed, placements):
+    def _write(self, school, plan, placements):
         registry, created = {}, 0
-        for code in needed:
-            department, made = Department.objects.get_or_create(
-                school=school,
-                code=code,
-                defaults={
-                    "name": dept_map.DEPARTMENT_NAMES[code],
-                    "sort_order": _order(code),
-                },
-            )
-            registry[code] = department
-            created += int(made)
+        # اسمان يتبادلان موضعيهما يصطدمان بقيد «اسمٌ واحدٌ لكلّ مدرسة» في
+        # منتصف الحلقة — والقيد فورٌ لا مؤجّل. فتُخلى الأسماءُ المطلوبةُ
+        # من شاغليها أوّلاً باسمٍ مؤقّت، ثمّ تُكتب النهائيّة. وقسمٌ قديمٌ لا يتبنّاه
+        # أحدٌ يبقى بلاحقة، فيُقرأ في لوحة الإدارة ويُحذف باليد — ولا يكسر الأمر.
+        wanted = {entry["name"]: entry["department"] for entry in plan}
+        for holder in Department.objects.filter(school=school, name__in=list(wanted)):
+            keeper = wanted[holder.name]
+            if keeper is None or keeper.pk != holder.pk:
+                Department.objects.filter(pk=holder.pk).update(
+                    name=f"{holder.name}~{holder.pk.hex[:6]}"[:60]
+                )
+
+        for entry in plan:
+            department = entry["department"]
+            if department is None:
+                department = Department.objects.create(
+                    school=school,
+                    code=entry["code"],
+                    name=entry["name"],
+                    sort_order=entry["order"],
+                )
+                created += 1
+            elif entry["changes"]:
+                department.code = entry["code"]
+                department.name = entry["name"]
+                department.sort_order = entry["order"]
+                department.save(update_fields=["code", "name", "sort_order"])
+            registry[entry["code"]] = department
 
         # القسمُ يخصّ عضويّةَ التدريس وحدَها. ومن له عضويّةٌ ثانيةٌ بدورٍ إداريّ
         # كان يُنسب مرّتين، فيصير عددُ القسم أكبرَ من عدد معلّميه.

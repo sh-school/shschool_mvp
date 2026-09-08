@@ -21,11 +21,11 @@ from operations.models import ScheduleSlot, Subject
 
 @pytest.fixture
 def teaching_school(db, school, class_group):
-    """معلّمان في قسمين: الشرعيةُ بواحد، والعربيةُ بواحد."""
+    """معلّمان في قسمين: التربية الإسلاميةُ بواحد، والعربيةُ بواحد."""
     made = []
     for index, (name, subject_name) in enumerate(
         (
-            ("معلّم الشرعية", "التربية الإسلامية"),
+            ("معلّم التربية الإسلامية", "التربية الإسلامية"),
             ("معلّم العربية", "اللغة العربية"),
         )
     ):
@@ -68,7 +68,7 @@ def test_the_sheet_names_each_department_beside_its_teachers(db, principal, teac
     """كان القسمُ لوناً في الخلفيّة وعنواناً في `title` — لا يُقرأ على ورقٍ مطبوع."""
     body = _get(principal, "schedule_print", "?view=all_teachers").content.decode()
 
-    assert "الشرعية" in body
+    assert "التربية الإسلامية" in body
     assert "اللغة العربية" in body
     assert 'class="m-dept"' in body
 
@@ -120,7 +120,7 @@ def test_the_workbook_holds_the_department_column(db, principal, teaching_school
 
     assert sheet.cell(row=4, column=1).value == "القسم"
     assert sheet.cell(row=4, column=2).value == "المعلّم"
-    assert sheet.cell(row=6, column=1).value == "الشرعية"
+    assert sheet.cell(row=6, column=1).value == "التربية الإسلامية"
     # الورقةُ عربيّةٌ: العمودُ الأوّل أقصى اليمين.
     assert sheet.sheet_view.rightToLeft
 
