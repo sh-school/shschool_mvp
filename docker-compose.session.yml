@@ -1,0 +1,81 @@
+# ══════════════════════════════════════════════════════════════
+# SchoolOS — حزمةُ جلسةٍ واحدة: خادمٌ حيٌّ لشجرةِ عملٍ على منفذها هي.
+#
+# لِمَ هذا الملفّ؟ كانت قاعدةُ المشروع «عدّل في `D:\shschool_mvp` وحدَه»، لا
+# حبّاً في المسار بل لأنّ `docker-compose.yml` يربط `- .:/app` — فما كُتب في
+# شجرةِ عملٍ لم يكن يُرى على الشاشة. والقاعدةُ عالجت العَرَض بمنع العزل الذي
+# يمنحه غيت مجّاناً: رأسٌ واحدٌ وفهرسٌ واحدٌ لجلساتٍ متوازية، فتبديلُ فرعٍ في
+# إحداها يسحب الأرضَ من تحت الأخرى.
+#
+# فهنا خادمٌ لكلّ شجرة: يُشغَّل **من داخل الشجرة** فيربطها هي (`- .:/app`
+# نسبيٌّ لموضع ملفّ الإنشاء)، ويستعمل قاعدةَ البيانات وredis المشتركَين عبر
+# منفذَيهما المنشورَين على المضيف — فلا نسخةَ ثانيةً من البيانات ولا بذرةَ
+# جديدة.
+#
+# ## الاستعمال
+#
+#     cp D:/shschool_mvp/.env .env        # مرّةً واحدةً لكلّ شجرة (وهو مُتجاهَلٌ في غيت)
+#     WEB_PORT=8001 docker compose -p schoolos-<الشجرة> -f docker-compose.session.yml up -d
+#     → http://localhost:8001
+#
+# ولكلّ جلسةٍ منفذُها: 8001، 8002، 8003… ولا تتصادم لأنّ اسمَ المشروع
+# (`-p`) يفرّق الحاويات، والمنفذُ يفرّق المضيف.
+#
+# ## شرطان
+#
+#   ١. الحزمةُ الأصليّة (`docker-compose.yml`) تعمل — منها قاعدةُ البيانات
+#      وredis والصورةُ المبنيّة. هذا الملفّ لا يبني شيئاً: الصورةُ تحمل
+#      الاعتماديّات، والكودُ مربوطٌ حيّاً، فالبدءُ لحظيّ.
+#   ٢. لا `migrate` هنا. القاعدةُ مشتركة، وهجرةٌ تنطلق من جلستين معاً تتصادم.
+#      الهجراتُ تُطبَّق من الحزمة الأصليّة وحدَها.
+# ══════════════════════════════════════════════════════════════
+services:
+  web:
+    # لا `build`: الصورةُ من الحزمة الأصليّة — شغّلها مرّةً قبل هذه.
+    image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
+    restart: unless-stopped
+    # runserver وحدَه بدور التطبيق غير-superuser (shschool_app) ليخضع لـRLS —
+    # بلا migrate، فالقاعدةُ مشتركةٌ بين الجلسات.
+    command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.development
+      # قاعدةُ البيانات وredis في حزمةٍ أخرى، فيُوصَل إليهما عبر منفذَي
+      # المضيف المنشورَين لا عبر شبكةِ الإنشاء.
+      DB_HOST: host.docker.internal
+      DB_PORT: ${DB_HOST_PORT:-5433}
+      REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
+      PYTHONUNBUFFERED: "1"
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - .:/app                # شجرةُ العمل هذه — والمسارُ نسبيٌّ لملفّ الإنشاء
+      - /app/.venv            # لا تُظلِّل بيئة الصورة بأي venv محلي
+    ports:
+      - "${WEB_PORT:-8001}:8000"
+    # على Docker Desktop يُحلّ الاسمُ تلقائيّاً، وهذا السطرُ لأجل لينكس.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # عاملُ المهامّ الخلفيّة لهذه الشجرة — اختياريٌّ خلف profile.
+  # وبدونه تُنفَّذ مهامُّ الخلفيّة بكود الحزمة الأصليّة لا بكود شجرتك، وهذا
+  # يكفي إلّا حين تكون المهمّةُ نفسُها هي ما تعدّله.
+  worker:
+    profiles: ["worker"]
+    image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
+    restart: unless-stopped
+    command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD celery -A shschool worker -l info --concurrency=2"
+    environment:
+      DJANGO_SETTINGS_MODULE: shschool.settings.development
+      DB_HOST: host.docker.internal
+      DB_PORT: ${DB_HOST_PORT:-5433}
+      REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
+      PYTHONUNBUFFERED: "1"
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/.venv
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
