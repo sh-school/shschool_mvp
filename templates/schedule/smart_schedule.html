@@ -26,7 +26,7 @@
     <p class="page-subtitle">توليد الجدول الأسبوعي تلقائياً — {{ year }}</p>
   </div>
   <div class="page-actions">
-    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="book-open" %} توزيعات المواد</a>
+    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary">{% include "components/icon.html" with name="book-open" %} الإسناد</a>
     <a href="{% url 'schedule_settings' %}" class="btn-secondary">{% include "components/icon.html" with name="settings-2" %} الإعدادات</a>
     <a href="{% url 'weekly_schedule' %}" class="btn-secondary">عرض الجدول الحالي</a>
   </div>
@@ -35,7 +35,7 @@
 {# ── KPIs ── #}
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
   <div class="kpi-card">
-    <div class="kpi-value text-status-maroon">{{ assignments|length }}</div>
+    <div class="kpi-value text-status-maroon">{{ assignments_count }}</div>
     <div class="kpi-label">توزيعات مواد</div>
   </div>
   <div class="kpi-card">
@@ -76,7 +76,7 @@
 {% endif %}
 
 {# ── زر التوليد ── #}
-{% if assignments %}
+{% if assignments_count %}
 <div class="card-qatar mb-6 p-0 overflow-hidden">
   <div class="card-bar m-0 rounded-t-xl text-base px-5 py-3">
     {% include "components/icon.html" with name="bot" %} توليد الجدول التلقائي
@@ -229,56 +229,8 @@
 </div>
 {% endif %}
 
-{# ── جدول التوزيعات ── #}
-{% if assignments %}
-<div class="table-wrap">
-  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between">
-    <span>{% include "components/icon.html" with name="book-open" %} توزيعات المواد على الفصول (<span id="shown-count">{{ assignments|length }}</span> / {{ assignments|length }})</span>
-  </div>
-  <div class="filter-bar" style="border-top:0;border-radius:0;margin-bottom:0">
-    <input type="text" id="assign-search" class="form-control" placeholder="بحث بالفصل أو المادة أو المعلم..." style="flex:1;min-width:200px">
-  </div>
-  <div class="table-wrap-scroll" style="max-height:420px">
-    <table>
-      <thead>
-        <tr>
-          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
-          <th scope="col" data-sort="num" data-sort-first="asc">الفصل</th>
-          <th scope="col">المادة</th>
-          <th scope="col">المعلم</th>
-          <th scope="col" class="text-center">الحصص/أسبوع</th>
-          <th scope="col" class="text-center">معمل</th>
-        </tr>
-      </thead>
-      <tbody id="assign-tbody">
-        {% for a in assignments %}
-        <tr data-filter-row data-text="{{ a.class_group }} {{ a.subject.name_ar }} {{ a.teacher.full_name }}">
-          <td class="font-semibold" data-sort-value="{{ a.class_group.school_order }}">{{ a.class_group }}</td>
-          <td>{{ a.subject.name_ar }}</td>
-          <td class="text-maroon">{{ a.teacher.full_name }}</td>
-          <td class="text-center font-bold">{{ a.weekly_periods }}</td>
-          <td class="text-center">
-            {% if a.requires_lab %}
-            <span class="status-badge status-warning">معمل</span>
-            {% else %}—{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
-
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
-  if (typeof window.smartFilter === 'function') {
-    window.smartFilter('assign-search', '#assign-tbody tr[data-filter-row]', {
-      textAttr: 'data-text',
-      countEl: '#shown-count'
-    });
-  }
-
   /* استطلاعُ حالة التوليد — يبدأ فقط إن كان هناك توليدٌ جارٍ، ويتوقّف عند
      انتهائه فيُعاد تحميلُ الصفحة مرّةً واحدةً لتظهر النتيجةُ في السجلّ.
      ولا استطلاعَ في صفحةٍ ساكنة: طلبٌ كلَّ ثلاثِ ثوانٍ بلا سببٍ ثمنُه خادم. */

@@ -30,25 +30,34 @@ from core.academic_calendar import academic_year_for_school
 from core.models import School
 from operations.models import ScheduleSlot, SchedulingResource, Subject
 
-#: الموارد المحدودة في المدرسة: (الاسم، السعة، الموادّ، الملاحظة).
-#: والسعةُ عددُ الحصص التي تقع معاً في التوقيت الواحد.
+#: الموارد المحدودة في المدرسة: (الاسم، السعة، الموادّ، تجانسُ المرحلة، الملاحظة).
+#: والسعةُ عددُ الحصص التي تقع معاً في التوقيت الواحد. وتجانسُ المرحلة رايةُ
+#: HC11: موردٌ لا يجمع إعداديّاً وثانويّاً في التوقيت الواحد.
+#:
+#: وكانت الرايةُ خارج هذا الأمر تُضبط من لوحة الإدارة — فأُنشئ الموردُ على
+#: الإنتاج مطفأَ الراية، والقيدُ عاطلٌ ولو وُجد المورد (2026-09-09). فصارت
+#: مكتوبةً هنا: من يُنشئ الموردَ يُنشئ قيدَه معه.
 RESOURCES = (
     (
         "معملا الحاسب",
         2,
         ("التكنولوجيا", "علوم الحاسب", "تكنولوجيا المعلومات"),
+        False,
         "معملان اثنان تتقاسمهما موادُّ الحاسب",
     ),
     (
         "الملاعب",
         2,
         ("التربية البدنية",),
-        "ملعبان اثنان",
+        # قرارُ الإدارة 2026-09-03: حصّتا بدنيّةٍ معاً من مرحلةٍ واحدة.
+        True,
+        "ملعبان اثنان — ولا يجتمع فيهما إعداديٌّ وثانويٌّ في التوقيت الواحد",
     ),
     (
         "مرسما الفنّيّة",
         2,
         ("الفنون البصرية",),
+        False,
         "مرسمان اثنان — والفنّيّةُ في الإعداديّ حصّتان متلاصقتان، فتشغلهما معاً",
     ),
 )
@@ -71,7 +80,7 @@ class Command(BaseCommand):
         year = opts["year"] or academic_year_for_school(school)
         dry_run = opts["dry_run"]
 
-        for name, capacity, subject_names, note in RESOURCES:
+        for name, capacity, subject_names, same_level, note in RESOURCES:
             subjects = list(Subject.objects.filter(school=school, name_ar__in=subject_names))
             missing = set(subject_names) - {s.name_ar for s in subjects}
             if missing:
@@ -88,6 +97,8 @@ class Command(BaseCommand):
                     changes.append(f"السعة {resource.capacity} → {capacity}")
                 if not resource.is_active:
                     changes.append("تفعيل")
+                if resource.same_level_only != same_level:
+                    changes.append(f"تجانسُ المرحلة {resource.same_level_only} → {same_level}")
                 current = {s.id for s in resource.subjects.all()}
                 if current != {s.id for s in subjects}:
                     changes.append("الموادّ")
@@ -101,12 +112,17 @@ class Command(BaseCommand):
 
             if resource is None:
                 resource = SchedulingResource.objects.create(
-                    school=school, name=name, capacity=capacity, note=note
+                    school=school,
+                    name=name,
+                    capacity=capacity,
+                    same_level_only=same_level,
+                    note=note,
                 )
             else:
                 resource.capacity = capacity
                 resource.is_active = True
-                resource.save(update_fields=["capacity", "is_active"])
+                resource.same_level_only = same_level
+                resource.save(update_fields=["capacity", "is_active", "same_level_only"])
             resource.subjects.set(subjects)
 
         self._report_violations(school, year)
@@ -118,7 +134,7 @@ class Command(BaseCommand):
 
     def _report_violations(self, school, year):
         """ما في الجدول القائم من تجاوزٍ للسعة — والقيدُ لا يُصلحه بأثرٍ رجعيّ."""
-        for name, capacity, subject_names, _ in RESOURCES:
+        for name, capacity, subject_names, _same_level, _note in RESOURCES:
             load = Counter(
                 (row.day_of_week, row.period_number)
                 for row in ScheduleSlot.objects.filter(
