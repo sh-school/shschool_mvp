@@ -40,7 +40,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from core.models import CustomUser, Department, Membership, School
-from operations.departments import TEACHING_ROLES
+from operations.departments import (
+    TEACHING_ROLES,
+    ExistingDepartments,
+    free_conflicting_names,
+)
 
 
 class Command(BaseCommand):
@@ -220,18 +224,25 @@ class Command(BaseCommand):
         data = self._read(options)
         known, ambiguous = self._resolver(school)
         current = self._current(school)
-        existing = {d.code: d for d in Department.objects.filter(school=school)}
-
+        rows = list(Department.objects.filter(school=school))
         wanted = {row["code"]: row for row in data["departments"]}
-        made = [code for code in wanted if code not in existing]
+
+        # المطابقةُ بالتبنّي: الرمزُ المعتمَد، فرمزُ الجيل الأوّل، فالاسم.
+        # وكانت بالرمز وحدَه، فصفٌّ قائمٌ باسمٍ مطلوبٍ ورمزٍ أقدم يُعدّ غائباً
+        # فيُنشأ فوقه — فينكسر قيدُ «اسمٌ واحدٌ لكلّ مدرسة» وتُردّ المعاملةُ كلُّها.
+        index = ExistingDepartments(rows)
+        adopted = {code: index.adopt(code, row["name"]) for code, row in wanted.items()}
+
+        made = [code for code, found in adopted.items() if found is None]
         changed = [
             code
             for code, row in wanted.items()
-            if code in existing
+            if adopted[code] is not None
             and (
-                existing[code].name != row["name"]
-                or existing[code].sort_order != row["sort_order"]
-                or existing[code].is_active != row.get("is_active", True)
+                adopted[code].code != code
+                or adopted[code].name != row["name"]
+                or adopted[code].sort_order != row["sort_order"]
+                or adopted[code].is_active != row.get("is_active", True)
             )
         ]
 
@@ -252,7 +263,8 @@ class Command(BaseCommand):
 
         in_file = {row["teacher"].strip() for row in data["members"]}
         stray = sorted(n for n, code in current.items() if code and n not in in_file)
-        extra = sorted(code for code in existing if code not in wanted)
+        taken = {found.pk for found in adopted.values() if found is not None}
+        extra = sorted(row.code for row in rows if row.pk not in taken)
 
         self.stderr.write(
             f"الملفّ {len(wanted)} قسماً و{len(data['members'])} معلّماً"
@@ -276,7 +288,9 @@ class Command(BaseCommand):
         if failed:
             raise CommandError("لن يُنفَّذ شيءٌ ما دام سطرٌ واحدٌ متعذّراً — صحّح الأسماءَ أوّلاً.")
 
-        written = self._write(school, wanted, data["members"], known, stray, extra, options)
+        written = self._write(
+            school, wanted, adopted, data["members"], known, stray, extra, options
+        )
         self.stderr.write(
             f"أُنشئ {written['created']} قسماً، وعُدِّل {written['updated']}،"
             f" ورُبط {written['linked']} معلّماً، وأُزيل القسمُ من"
@@ -292,24 +306,26 @@ class Command(BaseCommand):
             )
 
     @transaction.atomic
-    def _write(self, school, wanted, members, known, stray, extra, options):
+    def _write(self, school, wanted, adopted, members, known, stray, extra, options):
         registry, created, updated = {}, 0, 0
+        free_conflicting_names(school, {row["name"]: adopted[code] for code, row in wanted.items()})
+
         for code, row in wanted.items():
-            department, made = Department.objects.get_or_create(
-                school=school,
-                code=code,
-                defaults={
-                    "name": row["name"],
-                    "sort_order": row["sort_order"],
-                    "is_active": row.get("is_active", True),
-                },
-            )
-            registry[code] = department
-            if made:
+            department = adopted[code]
+            if department is None:
+                registry[code] = Department.objects.create(
+                    school=school,
+                    code=code,
+                    name=row["name"],
+                    sort_order=row["sort_order"],
+                    is_active=row.get("is_active", True),
+                )
                 created += 1
                 continue
+            registry[code] = department
             fields = []
             for field, value in (
+                ("code", code),
                 ("name", row["name"]),
                 ("sort_order", row["sort_order"]),
                 ("is_active", row.get("is_active", True)),
