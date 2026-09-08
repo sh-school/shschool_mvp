@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% comment %}
+  زرُّ «حذف الكلّ» بجوار أدوات الشاشة — لا يظهر إلّا للمستخدم الخارق،
+  لأن السياق لا يحمل `purge_all_url` لغيره.
+{% endcomment %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if purge_all_url %}
+    <li>
+      <a href="{{ purge_all_url }}"
+         class="deletelink"
+         onclick="return confirm('{{ purge_warning|escapejs }}');">
+        🗑️ حذف الكلّ
+      </a>
+    </li>
+  {% endif %}
+{% endblock %}
