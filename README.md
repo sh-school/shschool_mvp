@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <strong>ملكيّةٌ خاصّة — جميعُ الحقوق محفوظة © 2026 أذكياء للبرمجيات.</strong> المستودعُ منشورٌ للاطّلاع فقط وليس مفتوحَ المصدر؛ انظر <a href="LICENSE">LICENSE</a>.
+</p>
+
+<p align="center">
   <img alt="Django" src="https://img.shields.io/badge/Django-5.2-092E20?logo=django&logoColor=white" />
   <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white" />
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql&logoColor=white" />
