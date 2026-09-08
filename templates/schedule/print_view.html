@@ -16,6 +16,45 @@
   .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
   .schedule-tools .form-select { width: auto; min-width: 280px; }
   .schedule-tools form { display: inline; }
+  .schedule-tools .schedule-search { width: 200px; }
+
+  /* ── لوحُ المعلّم: الورقةُ تبقى ورقةً، والتحليلُ في المنصّة حولَها ──
+     يظهر بالنقر على اسمٍ في الجدول العامّ، ويغيب بفكّ التثبيت. */
+  .schedule-stage { display: flex; gap: 10px; align-items: stretch; }
+  .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; }
+  .teacher-panel {
+    flex: 0 0 250px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface-alt); padding: 12px; overflow-y: auto;
+    font-size: 13px; line-height: 1.9;
+  }
+  .teacher-panel[hidden] { display: none; }
+  .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  .teacher-panel .tp-dept { color: var(--text-secondary); font-size: 12px; }
+  .teacher-panel .tp-nums { display: flex; gap: 6px; margin: 10px 0; }
+  .teacher-panel .tp-num {
+    flex: 1; text-align: center; border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 2px; background: var(--surface);
+  }
+  .teacher-panel .tp-num b { display: block; font-size: 18px; line-height: 1.2; }
+  .teacher-panel .tp-num span { font-size: 11px; color: var(--text-secondary); }
+  .teacher-panel .tp-day {
+    display: flex; align-items: center; gap: 6px; padding: 3px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .teacher-panel .tp-day-name { flex: 0 0 62px; font-size: 12px; }
+  .teacher-panel .tp-bar { flex: 1 1 auto; display: flex; gap: 2px; }
+  .teacher-panel .tp-slot {
+    flex: 1; height: 14px; border-radius: 3px;
+    border: 1px solid var(--border); background: var(--surface);
+  }
+  .teacher-panel .tp-slot.on { background: var(--brand-maroon, #8A1538); border-color: transparent; }
+  .teacher-panel .tp-count { flex: 0 0 18px; text-align: center; font-size: 12px; font-weight: 700; }
+  .teacher-panel .tp-close {
+    margin-top: 10px; width: 100%; border: 1px solid var(--border);
+    background: var(--surface); border-radius: 6px; padding: 5px; cursor: pointer;
+    font: inherit; color: var(--text-secondary);
+  }
+  .teacher-panel .tp-close:hover { border-color: var(--brand-maroon, #8A1538); }
 </style>
 {% endblock %}
 
@@ -72,6 +111,12 @@
         </select>
       </form>
 
+      {# البحثُ في الجدول العامّ وحدَه: خفوتُ غيرِ المطابق لا يعني شيئاً في جدولٍ من خمسٍ في سبع. #}
+      {% if view_type == 'all_teachers' %}
+      <input type="search" id="schedule-search" class="form-select schedule-search"
+             placeholder="ابحث: معلّم أو قسم أو رمز شعبة" aria-label="بحث في الجدول العام" autocomplete="off">
+      {% endif %}
+
       <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
       <a href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
@@ -79,17 +124,85 @@
     </div>
   </div>
 
-  <iframe id="schedule-print-frame" title="{{ title }}"
-          src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-          style="width:100%;height:calc(100vh - 230px);min-height:560px;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+  <div class="schedule-stage" style="height:calc(100vh - 230px);min-height:560px">
+    <iframe id="schedule-print-frame" title="{{ title }}"
+            src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
+            style="width:100%;height:100%;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+    {% if view_type == 'all_teachers' %}
+    {# يُملأ من الورقة عبر postMessage — ولا شيء فيه قبل أن يُنقر اسمٌ في الجدول. #}
+    <aside id="teacher-panel" class="teacher-panel" hidden aria-live="polite"></aside>
+    {% endif %}
+  </div>
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
   // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده.
+  var scheduleFrame = document.getElementById('schedule-print-frame');
   document.getElementById('schedule-print-btn').addEventListener('click', function () {
-    var frame = document.getElementById('schedule-print-frame');
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
+    scheduleFrame.contentWindow.focus();
+    scheduleFrame.contentWindow.print();
   });
+
+  // ── الجسرُ بين الورقة والمنصّة ──
+  // الورقةُ تُحسب فيها الأرقامُ لأنّ البياناتِ فيها، والمنصّةُ تعرضها لأنّ
+  // المساحةَ لها — ورسالةٌ واحدةٌ بينهما، بأصلٍ مُتحقَّقٍ منه في الطرفين.
+  (function () {
+    var panel = document.getElementById('teacher-panel');
+    var search = document.getElementById('schedule-search');
+    if (!panel && !search) return;
+
+    function send(msg) {
+      if (scheduleFrame.contentWindow) {
+        scheduleFrame.contentWindow.postMessage(msg, window.location.origin);
+      }
+    }
+
+    if (search) {
+      var timer = null;
+      search.addEventListener('input', function () {
+        clearTimeout(timer);
+        var q = search.value;
+        timer = setTimeout(function () { send({ type: 'schedule:filter', q: q }); }, 160);
+      });
+      search.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { search.value = ''; send({ type: 'schedule:filter', q: '' }); }
+      });
+    }
+
+    function bar(day) {
+      var cells = '';
+      for (var p = 1; p <= 7; p++) {
+        var on = day.periods.indexOf(p) !== -1;
+        cells += '<i class="tp-slot' + (on ? ' on' : '') + '" title="الحصّة ' + p + '"></i>';
+      }
+      return '<div class="tp-day"><span class="tp-day-name">' + day.name +
+             '</span><span class="tp-bar">' + cells +
+             '</span><span class="tp-count">' + day.count + '</span></div>';
+    }
+
+    function render(d) {
+      panel.innerHTML =
+        '<h2>' + d.name + '</h2>' +
+        '<div class="tp-dept">قسم ' + d.dept + '</div>' +
+        '<div class="tp-nums">' +
+          '<div class="tp-num"><b>' + d.total + '</b><span>النصاب</span></div>' +
+          '<div class="tp-num"><b>' + d.gaps + '</b><span>فراغات</span></div>' +
+          '<div class="tp-num"><b>' + d.longest + '</b><span>أطول سلسلة</span></div>' +
+        '</div>' +
+        d.days.map(bar).join('') +
+        '<button type="button" class="tp-close">إغلاق اللوح</button>';
+      panel.hidden = false;
+      panel.querySelector('.tp-close').addEventListener('click', function () {
+        panel.hidden = true;
+        send({ type: 'schedule:clear' });
+      });
+    }
+
+    window.addEventListener('message', function (e) {
+      if (e.origin !== window.location.origin || !e.data || !panel) return;
+      if (e.data.type === 'schedule:teacher') render(e.data);
+      if (e.data.type === 'schedule:clear') panel.hidden = true;
+    });
+  })();
 </script>
 {% endblock %}
