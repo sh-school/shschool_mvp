@@ -102,6 +102,37 @@ def test_filled_fields_are_never_overwritten(school):
     assert "0 حقلاً" in report or "لا شيء" in report
 
 
+def test_generic_roles_are_reconciled_only_when_allowed(school):
+    """«إداريّ» يصير «مشرفاً إداريّاً» بإذنٍ صريح — وبلا إذنٍ يبقى قرارَ مراجعة."""
+    admin = RoleFactory(school=school, name="admin")
+    user = UserFactory(national_id="29000000004", full_name="مشرفٌ قائم", employee_number="")
+    membership = MembershipFactory(user=user, school=school, role=admin)
+    rows = [
+        {
+            "national_id": "29000000004",
+            "name": "مشرفٌ قائم",
+            "title": "مشرف اداري",
+            "employee_number": "70004",
+            "email": "",
+            "phone": "",
+        }
+    ]
+
+    report = _run(rows, "--apply")
+    membership.refresh_from_db()
+    assert "يُراجَع يدويّاً" in report and membership.role.name == "admin", "بلا إذنٍ لا يُبدَّل"
+
+    report = _run(rows, "--apply", "--reconcile-roles", "admin,specialist")
+    membership.refresh_from_db()
+    user.refresh_from_db()
+    assert "[admin → admin_supervisor]" in report
+    assert membership.role.name == "admin_supervisor"
+    assert membership.job_title == "مشرف اداري"
+    assert "صُحّح الدورُ من admin إلى admin_supervisor" in membership.appointment_note
+    assert user.employee_number == "70004", "وتُكمَل حقولُ حسابه في الجولة نفسِها"
+    assert Membership.objects.filter(user=user).count() == 1, "عضويّةٌ واحدة — لا ثانية"
+
+
 def test_no_create_reports_newcomers_without_creating_them(school):
     RoleFactory(school=school, name="teacher")
     rows = [
