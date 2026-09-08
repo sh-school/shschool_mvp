@@ -769,7 +769,9 @@ def smart_schedule_view(request):
         request,
         "schedule/smart_schedule.html",
         {
-            "assignments": assignments,
+            # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
+            # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
+            "assignments_count": len(assignments),
             "generations": generations,
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
