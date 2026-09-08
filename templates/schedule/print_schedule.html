@@ -443,6 +443,93 @@
     @font-face{font-family:'Tajawal';font-weight:700;font-display:swap;src:url("{% static 'fonts/Tajawal-Bold.woff2' %}") format('woff2');}
   </style>
 {% endif %}
+{% comment %}
+── طبقةُ التفاعل: نمطُها ──
+داخل إطار المنصّة وحدَه (`embed`)، وعلى الشاشة وحدَها (`@media screen`) —
+فالمطبوعُ وملفُّ PDF لا يريان منها محرفاً. وألوانُها فاتحةٌ دائماً: الورقةُ
+بيضاءُ ولو كانت المنصّةُ في وضعها الليليّ.
+{% endcomment %}
+{% if embed and view_type == 'all_teachers' %}
+<style>
+@media screen {
+  /* شريطُ الإرشاد: سطرٌ يقول ما تفعله اليدُ قبل أن تجرّب. */
+  .mx-hint {
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    font-size: 11px; color: #555; margin: 0 0 6px; padding: 5px 8px;
+    background: #f6f6f7; border: 1px solid #e2e2e6; border-radius: 6px;
+  }
+  .mx-hint b { color: #8A1538; font-weight: 700; }
+  .mx-hint .mx-clear {
+    margin-inline-start: auto; border: 1px solid #cfcfd4; background: #fff;
+    border-radius: 5px; padding: 2px 10px; font: inherit; color: #444; cursor: pointer;
+  }
+  .mx-hint .mx-clear:hover { background: #f0eaec; border-color: #8A1538; color: #8A1538; }
+  .mx-hint[hidden] { display: none; }
+
+  .schedule-matrix { cursor: default; }
+  .schedule-matrix tbody td { transition: background-color .08s linear; }
+
+  /* ── التقاطع: الصفُّ بالمرور، والعمودُ بسمةٍ على الجدول ──
+     وألوانُ الأقسام مصبوبةٌ على `tbody tr.dept-x td`، فرفعُ الوزن هنا
+     ضرورةٌ لا زينة — وإلّا غلبَ لونُ القسمِ الإضاءةَ. */
+  .schedule-matrix tbody tr:hover > td { background: #fdf6e8; }
+  .schedule-matrix[data-hl-col="0"] td[data-col="0"], .schedule-matrix[data-hl-col="1"] td[data-col="1"],
+  .schedule-matrix[data-hl-col="2"] td[data-col="2"], .schedule-matrix[data-hl-col="3"] td[data-col="3"],
+  .schedule-matrix[data-hl-col="4"] td[data-col="4"], .schedule-matrix[data-hl-col="5"] td[data-col="5"],
+  .schedule-matrix[data-hl-col="6"] td[data-col="6"], .schedule-matrix[data-hl-col="7"] td[data-col="7"],
+  .schedule-matrix[data-hl-col="8"] td[data-col="8"], .schedule-matrix[data-hl-col="9"] td[data-col="9"],
+  .schedule-matrix[data-hl-col="10"] td[data-col="10"], .schedule-matrix[data-hl-col="11"] td[data-col="11"],
+  .schedule-matrix[data-hl-col="12"] td[data-col="12"], .schedule-matrix[data-hl-col="13"] td[data-col="13"],
+  .schedule-matrix[data-hl-col="14"] td[data-col="14"], .schedule-matrix[data-hl-col="15"] td[data-col="15"],
+  .schedule-matrix[data-hl-col="16"] td[data-col="16"], .schedule-matrix[data-hl-col="17"] td[data-col="17"],
+  .schedule-matrix[data-hl-col="18"] td[data-col="18"], .schedule-matrix[data-hl-col="19"] td[data-col="19"],
+  .schedule-matrix[data-hl-col="20"] td[data-col="20"], .schedule-matrix[data-hl-col="21"] td[data-col="21"],
+  .schedule-matrix[data-hl-col="22"] td[data-col="22"], .schedule-matrix[data-hl-col="23"] td[data-col="23"],
+  .schedule-matrix[data-hl-col="24"] td[data-col="24"], .schedule-matrix[data-hl-col="25"] td[data-col="25"],
+  .schedule-matrix[data-hl-col="26"] td[data-col="26"], .schedule-matrix[data-hl-col="27"] td[data-col="27"],
+  .schedule-matrix[data-hl-col="28"] td[data-col="28"], .schedule-matrix[data-hl-col="29"] td[data-col="29"],
+  .schedule-matrix[data-hl-col="30"] td[data-col="30"], .schedule-matrix[data-hl-col="31"] td[data-col="31"],
+  .schedule-matrix[data-hl-col="32"] td[data-col="32"], .schedule-matrix[data-hl-col="33"] td[data-col="33"],
+  .schedule-matrix[data-hl-col="34"] td[data-col="34"] { background: #fbeecd; }
+
+  /* ── التثبيت: الشعبةُ المثبَّتةُ تُضاء وما عداها يخفت ── */
+  .schedule-matrix.has-pin tbody td { opacity: .34; }
+  .schedule-matrix.has-pin tbody td.is-pin {
+    opacity: 1; background: #8A1538; color: #fff; font-weight: 700;
+    box-shadow: inset 0 0 0 1px #fff;
+  }
+  .schedule-matrix.has-pin tbody tr.is-pin-row > td { opacity: 1; }
+  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name,
+  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-total { background: #8A1538; color: #fff; }
+
+  /* ── البحث: غيرُ المطابق يخفت ولا يختفي — فالسطرُ يبقى في موضعه ── */
+  .schedule-matrix tbody tr.is-dim > td { opacity: .18; }
+
+  /* ── الخانةُ المركَّزةُ بلوحة المفاتيح ── */
+  .schedule-matrix td.is-focus { outline: 2px solid #8A1538; outline-offset: -2px; }
+
+  /* ── البطاقة ── */
+  .mx-tip {
+    position: fixed; z-index: 60; max-width: 320px; pointer-events: none;
+    background: #ffffff; color: #1e293b; border: 1px solid #8A1538;
+    border-radius: 8px; padding: 8px 11px; font-size: 12px; line-height: 1.7;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); opacity: 0;
+    transition: opacity .1s linear;
+  }
+  .mx-tip.is-on { opacity: 1; }
+  .mx-tip .t-head { font-weight: 700; color: #8A1538; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 4px; }
+  .mx-tip .t-line { display: block; }
+  .mx-tip .t-muted { color: #666; font-size: 11px; }
+  .mx-tip .t-free { color: #0b6b3a; font-weight: 600; }
+  .mx-tip .t-none { color: #b00020; font-weight: 600; }
+
+  .mx-sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+}
+</style>
+{% endif %}
 </head>
 {% comment %}
 `data-pdf-own-page`: الورقةُ تحمل ترويستها وذيلها و@page بنفسها، فلا يحقن
@@ -554,12 +641,16 @@
     <tbody>
       {% for row in matrix %}
       {# لونُ السطر هو قسمُ المعلّم — والسطورُ آتيةٌ مرتّبةً بالقسم من الخدمة. #}
-      <tr class="dept-{{ row.department.code }}">
+      {# و`data-*` غذاءُ طبقةِ التفاعل على الشاشة — تُقرأ ولا تُطبع. #}
+      <tr class="dept-{{ row.department.code }}" data-teacher="{{ row.teacher.full_name }}"
+          data-dept="{{ row.department.name }}" data-total="{{ row.total }}">
         {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}">{{ row.department.name }}</td>{% endif %}
         <td class="m-name" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}">{{ row.teacher.full_name }}</td>
         {% for day in row.days %}
           {% for cell in day %}
-          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}">
+          {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
+          {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.get_grade_display }} / {{ slot.class_group.section }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
             {% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}
           </td>
           {% endfor %}
@@ -579,8 +670,11 @@
       <tr>
         <td class="m-name" colspan="2" title="عدد الشعب المجدولة: {{ matrix_totals.sections }}">مجموع الحصص</td>
         {% for day in matrix_totals.days %}
+          {# خارجَ حلقةِ الحصص: `forloop` هنا حلقةُ الأيّام نفسُها. #}
+          {% widthratio forloop.counter0 1 7 as day_offset %}
           {% for column in day %}
           <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if column.short %} m-short{% endif %}"
+              data-col="{{ day_offset|add:forloop.counter0 }}"
               title="حصص: {{ column.count }} — شُعب في درس: {{ column.sections }} من {{ column.expected }}">{{ column.count }}</td>
           {% endfor %}
         {% endfor %}
@@ -673,5 +767,12 @@
 `data-*` هنا كانت ستصمت بلا أثر — لا خطأ في وحدة التحكّم ولا سلوك.
 {% endcomment %}
 <script src="{% static 'js/actions.js' %}?v=3" defer></script>
+{% comment %}
+طبقةُ التفاعل — داخل إطار المنصّة وحدَه، وللجدول العامّ وحدَه. الطباعةُ
+وتصديرُ PDF/Excel لا يحمّلونها أصلاً، فلا وزنَ لها على المطبوع.
+{% endcomment %}
+{% if embed and view_type == 'all_teachers' %}
+<script src="{% static 'js/schedule-matrix.js' %}?v=1" defer></script>
+{% endif %}
 </body>
 </html>
