@@ -24,7 +24,7 @@ from collections import Counter
 #: والمواد التطبيقية في الذيل. والترتيبُ هنا هو ترتيبُ السطور في الورقة.
 #: (الرمز، الاسم)
 DEPARTMENTS: list[tuple[str, str]] = [
-    ("sharia", "الشرعية"),
+    ("sharia", "التربية الإسلامية"),
     ("arabic", "اللغة العربية"),
     ("math", "الرياضيات"),
     ("english", "اللغة الإنجليزية"),
@@ -58,6 +58,66 @@ TEACHING_ROLES: tuple[str, ...] = (
     "coordinator",
     "e_projects_coordinator",
 )
+
+#: رموزُ الجيل الأوّل ← الرمزُ المعتمَد. كان جدولُ الأقسام في الإنتاج مكتوباً
+#: قبل هذه الأوامر بأسماءٍ ورموزٍ أخرى، فمن بحث بالرمز المعتمَد وحدَه
+#: لم يجده فأنشأ ثانياً — ويأبى ذلك قيدُ «اسمٌ واحدٌ لكلّ مدرسة».
+LEGACY_CODES: dict[str, str] = {
+    "islamic": "sharia",
+    "science": "science_prep",
+    "biology": "science_sec",
+    "art": "arts",
+}
+
+#: الرمزُ المعتمَد ← رمزُ الجيل الأوّل الذي قد يحمله صفٌّ قائم.
+_CANONICAL_OF_LEGACY: dict[str, str] = {canon: old for old, canon in LEGACY_CODES.items()}
+
+
+class ExistingDepartments:
+    """فهرسُ الأقسام القائمة — يُبنى مرّةً ويُستهلَك بالتبنّي.
+
+    والتبنّي أسلمُ من الإنشاء: العضويّاتُ معلّقةٌ بالصفّ القائم، فتركُه
+    خاوياً وإنشاءُ بديلٍ يخلف قسمين باسمٍ واحد — إن سمح القيد، وهو لا يسمح.
+    """
+
+    def __init__(self, rows):
+        self._by_code = {row.code: row for row in rows}
+        self._by_name = {row.name: row for row in rows}
+        self._taken: set = set()
+
+    def adopt(self, code: str, name: str):
+        """الصفُّ القائمُ الذي يتبنّى قسماً مطلوباً — أو `None` فيُنشأ.
+
+        ثلاثُ محاولاتٍ قبل الإنشاء: الرمزُ المعتمَد، فرمزُ الجيل الأوّل،
+        فالاسمُ نفسُه. ولا يُتبنّى صفٌّ مرّتين.
+        """
+        found = (
+            self._by_code.get(code)
+            or self._by_code.get(_CANONICAL_OF_LEGACY.get(code, ""))
+            or self._by_name.get(name)
+        )
+        if found is None or found.pk in self._taken:
+            return None
+        self._taken.add(found.pk)
+        return found
+
+
+def free_conflicting_names(school, wanted: dict) -> None:
+    """يُخلي كلّ اسمٍ مطلوبٍ من شاغلٍ ليس صاحبَه — `{الاسم: الصفّ المتبنّي أو None}`.
+
+    قيدُ «اسمٌ واحدٌ لكلّ مدرسة» فورٌ لا مؤجّل، فاسمان يتبادلان موضعيهما
+    يكسران الكتابةَ في منتصفها. فتُخلى الأسماءُ باسمٍ مؤقّت، ثمّ تُكتب
+    النهائيّة. وقسمٌ قديمٌ لا يتبنّاه أحدٌ يبقى بلاحقةٍ تُقرأ في لوحة الإدارة.
+    """
+    from core.models import Department
+
+    for holder in Department.objects.filter(school=school, name__in=list(wanted)):
+        keeper = wanted[holder.name]
+        if keeper is None or keeper.pk != holder.pk:
+            Department.objects.filter(pk=holder.pk).update(
+                name=f"{holder.name}~{holder.pk.hex[:6]}"[:60]
+            )
+
 
 #: المادّة → القسم. والاسمُ هو المفتاح لأنّ `Subject.code` فارغٌ في أكثر
 #: الموادّ الأساسية في هذه المدرسة، فالاسمُ وحده ما يُعوَّل عليه.

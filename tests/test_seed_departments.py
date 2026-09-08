@@ -242,3 +242,63 @@ def test_the_governing_membership_prefers_staff_over_parent(school, subjects):
     teacher.invalidate_active_membership()
     assert teacher.get_role() == "teacher"
     assert teacher.department_obj.code == "math", "والقسمُ يُقرأ من العضويّة التي تحمله"
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  سجلٌّ سابقٌ في القاعدة — يُتبنّى ولا يُنشأ فوقه
+# ══════════════════════════════════════════════════════════════════════
+
+
+def test_a_first_generation_row_is_adopted_by_its_old_code(school, subjects):
+    """كان جدولُ الإنتاج مكتوباً برموزٍ أخرى، فانكسر الأمرُ على قيد الاسم.
+
+    والتبنّي أسلمُ من الإنشاء: الصفُّ نفسُه يبقى بمعرّفه، فلا تنقطع عضويّةٌ
+    معلّقةٌ به — ويُصحَّح رمزُه وترتيبُه إلى المعتمَد.
+    """
+    from operations.models import Subject
+
+    islamic = Subject.objects.create(school=school, name_ar="التربية الإسلامية", code="ISL")
+    legacy = Department.objects.create(
+        school=school, code="islamic", name="التربية الإسلامية", sort_order=5
+    )
+    teacher = a_teacher(school, "معلّم التربية الإسلامية")
+    assign(school, teacher, islamic, periods=12)
+
+    seed(apply=True)
+
+    legacy.refresh_from_db()
+    assert Department.objects.count() == 1, "لا قسمَ ثانياً باسمٍ واحد"
+    assert legacy.code == "sharia"
+    assert legacy.sort_order == 0, "الترتيبُ ترتيبُ الورقة"
+    assert department_of(teacher, school) == legacy
+
+
+def test_a_row_with_an_unknown_code_is_adopted_by_its_name(school, subjects):
+    """رمزٌ لا نعرفه واسمٌ نعرفه — الاسمُ يكفي للتعرّف، فلا يُنشأ توأم."""
+    stranger = Department.objects.create(school=school, code="ZZZ", name="الرياضيات", sort_order=9)
+    teacher = a_teacher(school, "معلّم الرياضيات")
+    assign(school, teacher, subjects["MAT"], periods=15)
+
+    seed(apply=True)
+
+    stranger.refresh_from_db()
+    assert Department.objects.count() == 1
+    assert stranger.code == "math"
+    assert stranger.sort_order == 2
+
+
+def test_two_rows_that_swap_names_do_not_break_the_unique_constraint(school, subjects):
+    """اسمان متبادلان: القيدُ فورٌ لا مؤجّل، فتُخلى الأسماءُ قبل أن تُكتب."""
+    Department.objects.create(school=school, code="math", name="الكيمياء", sort_order=1)
+    Department.objects.create(school=school, code="chemistry", name="الرياضيات", sort_order=2)
+    mathematician = a_teacher(school, "معلّم الرياضيات")
+    chemist = a_teacher(school, "معلّم الكيمياء")
+    assign(school, mathematician, subjects["MAT"], periods=15)
+    assign(school, chemist, subjects["CHE"], periods=12, grade="G11", level="sec", section="2")
+
+    seed(apply=True)
+
+    assert Department.objects.get(code="math").name == "الرياضيات"
+    assert Department.objects.get(code="chemistry").name == "الكيمياء"
+    assert department_of(mathematician, school).code == "math"
+    assert department_of(chemist, school).code == "chemistry"

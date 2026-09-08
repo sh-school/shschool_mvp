@@ -168,3 +168,44 @@ def test_a_legacy_department_with_members_stays_on(staffed_school):
 
     legacy.refresh_from_db()
     assert legacy.is_active is True
+
+
+@pytest.mark.django_db
+def test_a_first_generation_row_is_adopted_not_duplicated(staffed_school):
+    """حالُ الإنتاج قبل النقل: الفنونُ برمزٍ أقدمَ واسمٍ مطابق.
+
+    وكانت المطابقةُ بالرمز وحدَه، فيُعدُّ القسمُ غائباً فيُنشأ فوقه —
+    ويأبى ذلك قيدُ «اسمٌ واحدٌ لكلّ مدرسة»، فتُردّ المعاملةُ كلُّها:
+
+        IntegrityError: duplicate key value violates unique constraint
+        "unique_dept_name_per_school"
+    """
+    data = _payload(staffed_school)
+    legacy = Department.objects.get(school=staffed_school, code="arts")
+    Department.objects.filter(pk=legacy.pk).update(code="art", sort_order=9)
+
+    report = _run(staffed_school, data, apply=True)
+
+    assert Department.objects.filter(school=staffed_school).count() == 2, "لا قسمَ ثانياً"
+    legacy.refresh_from_db()
+    assert legacy.code == "arts", "الصفُّ نفسُه يُتبنّى ويُصحَّح رمزُه"
+    assert legacy.sort_order == 12
+    assert "إنشاءُ قسم 0" in report
+    assert Membership.objects.filter(school=staffed_school, department_obj=legacy).count() == 1
+
+
+@pytest.mark.django_db
+def test_two_departments_that_swap_names_do_not_break_the_constraint(staffed_school):
+    """اسمان متبادلان بين الملفّ والهدف — والقيدُ فورٌ لا مؤجّل."""
+    data = _payload(staffed_school)
+    math = Department.objects.get(school=staffed_school, code="math")
+    arts = Department.objects.get(school=staffed_school, code="arts")
+    Department.objects.filter(pk=math.pk).update(name="الفنون البصرية~")
+    Department.objects.filter(pk=arts.pk).update(name="الرياضيات")
+
+    _run(staffed_school, data, apply=True)
+
+    math.refresh_from_db()
+    arts.refresh_from_db()
+    assert math.name == "الرياضيات"
+    assert arts.name == "الفنون البصرية"
