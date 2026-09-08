@@ -183,7 +183,11 @@ def _matrix_workbook(ctx: dict):
 
 
 def _grid_workbook(ctx: dict):
-    """جدولُ معلّمٍ أو شعبةٍ أو المدرسة: الحصصُ سطوراً والأيامُ أعمدة."""
+    """جدولُ معلّمٍ أو شعبة: السطرُ يومٌ والعمودُ حصّة — كالورقة سواءً بسواء.
+
+    وكان العكسَ حتّى 2026-09-08. والمصدَّرُ يتبع المعروض: من صدّر ما رآه ثمّ
+    وجده مقلوباً في الملفّ ظنّ أحدَهما خطأً.
+    """
     from openpyxl.styles import Alignment
 
     from reports.services import ExcelService
@@ -193,25 +197,26 @@ def _grid_workbook(ctx: dict):
     periods = ctx.get("periods") or []
     view_type = ctx.get("view_type")
 
-    num_cols = 1 + len(days)
+    num_cols = 1 + len(periods)
     wb, ws, styles = _sheet("الجدول", ctx.get("title") or "الجدول الدراسي", ctx, num_cols)
 
-    columns = [("الحصة", 12)] + [(day_name, 26) for _, day_name in days]
+    columns = [("اليوم", 14)] + [(f"الحصة {period['number']}", 26) for period in periods]
     ExcelService._add_header_row(ws, styles, 4, columns)
 
-    for index, period in enumerate(periods):
+    for index, (day_num, day_name) in enumerate(days):
         row_num = 5 + index
-        # رقمُ الحصّة وحدَه في العمود — وتوقيتُها في خانتها، كالورقة.
-        ws.cell(row=row_num, column=1, value=period["number"])
-        for day_index, (day_num, _) in enumerate(days):
+        # اسمُ اليوم في العمود الأوّل — والتوقيتُ في كلّ خانة، كالورقة: جرسُ
+        # الخميس يخالف غيرَه، فترويسةُ عمودٍ واحدةٌ تكذب على أحدهما.
+        ws.cell(row=row_num, column=1, value=day_name)
+        for period_index, period in enumerate(periods):
             cell_slots = (grid.get(day_num) or {}).get(period["number"]) or []
             ws.cell(
                 row=row_num,
-                column=2 + day_index,
+                column=2 + period_index,
                 value="\n".join(_slot_text(slot, view_type) for slot in cell_slots) or "—",
             )
         ExcelService._style_data_row(ws, styles, row_num, num_cols, index % 2 == 1)
-        ws.row_dimensions[row_num].height = 46
+        ws.row_dimensions[row_num].height = 60
 
     for column in range(1, num_cols + 1):
         ws.cell(row=4, column=column).alignment = Alignment(
@@ -220,7 +225,7 @@ def _grid_workbook(ctx: dict):
 
     ws.freeze_panes = "B5"
     ExcelService._apply_protection(ws, num_cols)
-    ExcelService._setup_print(ws, num_cols, len(periods), paper="a4", orientation="landscape")
+    ExcelService._setup_print(ws, num_cols, len(days), paper="a4", orientation="landscape")
     return wb
 
 

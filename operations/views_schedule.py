@@ -202,7 +202,11 @@ def _schedule_print_selection(request):
     # فلا يتبدّل مطبوعُ أحدٍ من تحته يومَ أُضيف الخيار.
     orient = request.GET.get("orient")
     if orient not in _ORIENTATIONS:
-        orient = "landscape" if (view_type == "all_teachers" or paper == "a3") else "portrait"
+        # الجدولُ المفرد صار سطراً لكلّ يومٍ وعموداً لكلّ حصّة (قرار 2026-09-08):
+        # سبعةُ أعمدةٍ على A4 عموديّ أربعةٌ وعشرون ملّيمتراً للعمود، تُلَفّ فيها
+        # «التربية الإسلامية» فوق اسم الشعبة فوق التوقيت. وعلى الأفقيّ ستّةٌ
+        # وثلاثون — فصار الأفقيُّ افتراضَ الجميع، واختيارُ الطابع فوقه.
+        orient = DEFAULT_ORIENTATION
     teacher_id = request.GET.get("teacher")
     class_id = request.GET.get("class")
 
@@ -299,7 +303,8 @@ def _schedule_print_payload(request) -> dict:
             school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
         )
 
-    DAYS = [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")]
+    # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
+    DAYS = list(ScheduleSlot.DAYS)
     # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
     # وكانت الخلايا بلا توقيتٍ أصلاً.
     times = ScheduleService.period_times(school, year)
@@ -1284,7 +1289,8 @@ def _pages_payload(request) -> dict:
         "picker_current": "pages:classes" if kind == "classes" else f"pages:teachers:{dept}",
         "selected_dept": dept if not teacher_id else "",
         "orient": orient,
-        "days": [(0, "الأحد"), (1, "الاثنين"), (2, "الثلاثاء"), (3, "الأربعاء"), (4, "الخميس")],
+        # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
+        "period_numbers": ScheduleSlot.PERIODS,
         "selection_query": urlencode(selection),
         "embed": request.GET.get("embed") == "1",
     }

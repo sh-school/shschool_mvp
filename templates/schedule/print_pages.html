@@ -77,16 +77,17 @@
     padding: 2px 3px;
   }
   table.grid thead th { background: #8A1538; color: #fff; font-size: 12px; padding: 5px 3px; }
+  /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة. */
   table.grid td.period-cell {
     background: #fdf2f5;
     font-weight: 700;
     color: #8A1538;
-    width: 9%;
+    width: 11%;
     font-size: 12px;
   }
-  /* سبعةُ سطورٍ تملأ الورقة ولا تفيض عنها: عموديّةٌ 297mm وعرضيّةٌ 210mm. */
-  {# ارتفاعُ السطر من ارتفاع الورقة: A4 عرضيّة 16mm وعموديّة 26mm، وA3 ضعفُها تقريباً. #}
-  table.grid td { height: {% if paper == 'a3' %}{% if orient == 'landscape' %}26mm{% else %}40mm{% endif %}{% else %}{% if orient == 'landscape' %}16mm{% else %}26mm{% endif %}{% endif %}; }
+  /* خمسةُ سطورٍ تملأ الورقة ولا تفيض عنها — وكانت سبعةً قبل قلبِ الجدول. */
+  {# ارتفاعُ السطر من ارتفاع الورقة مقسوماً على خمسة: A4 عرضيّة 22mm وعموديّة 36mm، وA3 ضعفُها تقريباً. #}
+  table.grid td { height: {% if paper == 'a3' %}{% if orient == 'landscape' %}36mm{% else %}56mm{% endif %}{% else %}{% if orient == 'landscape' %}22mm{% else %}36mm{% endif %}{% endif %}; }
   .slot-subject { font-weight: 700; color: #8A1538; font-size: 11px; line-height: 1.25; }
   .slot-meta { font-size: 10px; color: #666; margin-top: 1px; }
   /* التوقيتُ من اليسار: أرقامٌ في سياقٍ عربيٍّ تنقلب — والعازلان في النصّ لأنّ مولّد PDF لا يقرأ direction. */
@@ -160,15 +161,16 @@
   <table class="grid">
     <thead>
       <tr>
-        <th>الحصة</th>
-        {% for day_num, day_name in days %}<th>{{ day_name }}</th>{% endfor %}
+        <th>اليوم</th>
+        {% for number in period_numbers %}<th>الحصة {{ number }}</th>{% endfor %}
       </tr>
     </thead>
     <tbody>
-      {% for cells in row.by_period %}
+      {# السطرُ يومٌ والعمودُ حصّة — انظر `ScheduleService._by_day`. #}
+      {% for line in row.by_day %}
       <tr>
-        <td class="period-cell">{{ forloop.counter }}</td>
-        {% for cell in cells %}
+        <td class="period-cell">{{ line.day }}</td>
+        {% for cell in line.cells %}
         <td>
           {% for slot in cell %}
           {# الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية». #}
