@@ -29,6 +29,8 @@
   }
   .teacher-panel[hidden] { display: none; }
   .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
+  /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونه نفسِه في الورقة. */
+  .teacher-panel .tp-spec { color: var(--brand-maroon, #8A1538); font-weight: 500; font-size: 13px; }
   .teacher-panel .tp-dept { color: var(--text-secondary); font-size: 12px; }
   .teacher-panel .tp-nums { display: flex; gap: 6px; margin: 10px 0; }
   .teacher-panel .tp-num {
@@ -182,7 +184,8 @@
 
     function render(d) {
       panel.innerHTML =
-        '<h2>' + d.name + '</h2>' +
+        '<h2>' + d.name +
+          (d.specialty ? ' <span class="tp-spec">(' + d.specialty + ')</span>' : '') + '</h2>' +
         '<div class="tp-dept">قسم ' + d.dept + '</div>' +
         '<div class="tp-nums">' +
           '<div class="tp-num"><b>' + d.total + '</b><span>النصاب</span></div>' +

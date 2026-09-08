@@ -106,7 +106,10 @@
     var tr = td.parentNode;
     var teacher = tr.getAttribute('data-teacher') || '';
     var col = +td.getAttribute('data-col');
-    var head = '<div class="t-head">' + esc(teacher) + '</div>';
+    var spec = tr.getAttribute('data-specialty') || '';
+    var head =
+      '<div class="t-head">' + esc(teacher) +
+      (spec ? ' <span class="t-spec">(' + esc(spec) + ')</span>' : '') + '</div>';
     var when = '<span class="t-line t-muted">' + esc(colLabel(col)) + '</span>';
 
     if (td.hasAttribute('data-c')) {
@@ -203,6 +206,7 @@
     return {
       type: 'schedule:teacher',
       name: tr.getAttribute('data-teacher') || '',
+      specialty: tr.getAttribute('data-specialty') || '',
       dept: tr.getAttribute('data-dept') || '',
       total: +(tr.getAttribute('data-total') || 0),
       days: days,
