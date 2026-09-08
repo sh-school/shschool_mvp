@@ -32,24 +32,16 @@ from django.db import transaction
 from core.academic_calendar import academic_year_for_school
 from core.models import Department, Membership, School
 from operations import departments as dept_map
-from operations.departments import TEACHING_ROLES
+from operations.departments import (
+    TEACHING_ROLES,
+    ExistingDepartments,
+    free_conflicting_names,
+)
 from operations.models import SubjectClassAssignment
 
 #: قراراتُ الإلحاق الإداريّ: قسمٌ مشتقٌّ ← القسمُ الذي يتبعه فعلاً.
 #: إدارةُ الأعمال معلّمٌ واحدٌ يتبع الكيمياءَ إداريّاً (قرارُ المدير 2026-09-06).
 ATTACHED_TO = {"business": "chemistry"}
-
-#: رموزُ الجيل الأوّل ← الرمزُ المعتمَد. كان جدولُ الأقسام في الإنتاج مكتوباً
-#: قبل هذا الأمر بأسماءٍ ورموزٍ أخرى، فلو بحثنا بالرمز المعتمَد وحدَه لم نجده
-#: فأنشأنا ثانياً — ويأبى ذلك قيدُ «اسمٌ واحدٌ لكلّ مدرسة»، فينكسر الأمر.
-#: والتبنّي أسلمُ من الإنشاء: العضويّاتُ معلَّقةٌ بالصفّ القائم، فحذفُه وإنشاءُ
-#: بديلٍ يقطع سبعين رابطاً لا سببَ لقطعها.
-LEGACY_CODES: dict[str, str] = {
-    "islamic": "sharia",
-    "science": "science_prep",
-    "biology": "science_sec",
-    "art": "arts",
-}
 
 
 class Command(BaseCommand):
@@ -152,20 +144,14 @@ class Command(BaseCommand):
         ثلاثُ محاولاتٍ قبل الإنشاء — الرمزُ المعتمَد، فرمزُ الجيل الأوّل،
         فالاسمُ نفسُه. وما لم يُوجد بواحدةٍ منها فهو جديدٌ حقّاً.
         """
-        existing = list(Department.objects.filter(school=school))
-        by_code = {d.code: d for d in existing}
-        by_name = {d.name: d for d in existing}
-        legacy_of = {canon: old for old, canon in LEGACY_CODES.items()}
+        existing = ExistingDepartments(Department.objects.filter(school=school))
 
-        plan, taken = [], set()
+        plan = []
         for code in needed:
             name, order = dept_map.DEPARTMENT_NAMES[code], _order(code)
-            found = by_code.get(code) or by_code.get(legacy_of.get(code, "")) or by_name.get(name)
-            if found is not None and found.pk in taken:
-                found = None
+            found = existing.adopt(code, name)
             changes = []
             if found is not None:
-                taken.add(found.pk)
                 if found.code != code:
                     changes.append(("الرمز", found.code, code))
                 if found.name != name:
@@ -206,17 +192,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def _write(self, school, plan, placements):
         registry, created = {}, 0
-        # اسمان يتبادلان موضعيهما يصطدمان بقيد «اسمٌ واحدٌ لكلّ مدرسة» في
-        # منتصف الحلقة — والقيد فورٌ لا مؤجّل. فتُخلى الأسماءُ المطلوبةُ
-        # من شاغليها أوّلاً باسمٍ مؤقّت، ثمّ تُكتب النهائيّة. وقسمٌ قديمٌ لا يتبنّاه
-        # أحدٌ يبقى بلاحقة، فيُقرأ في لوحة الإدارة ويُحذف باليد — ولا يكسر الأمر.
-        wanted = {entry["name"]: entry["department"] for entry in plan}
-        for holder in Department.objects.filter(school=school, name__in=list(wanted)):
-            keeper = wanted[holder.name]
-            if keeper is None or keeper.pk != holder.pk:
-                Department.objects.filter(pk=holder.pk).update(
-                    name=f"{holder.name}~{holder.pk.hex[:6]}"[:60]
-                )
+        free_conflicting_names(school, {e["name"]: e["department"] for e in plan})
 
         for entry in plan:
             department = entry["department"]
