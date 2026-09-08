@@ -119,6 +119,7 @@ class PurgeAllMixin:
             "opts": meta,
             "total": total,
             "changelist_url": changelist_url,
+            "purge_warning": self.purge_warning,
         }
         return TemplateResponse(request, self.purge_confirm_template, context)
 

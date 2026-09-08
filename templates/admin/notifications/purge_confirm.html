@@ -4,16 +4,12 @@
   زيارةُ الرابط بالخطأ — أو استباقُ المتصفّح له — لا تحذف شيئاً.
 {% endcomment %}
 
-{% block breadcrumbs %}
-  <div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">الرئيسية</a>
-    &rsaquo; <a href="{{ changelist_url }}">{{ opts.verbose_name_plural }}</a>
-    &rsaquo; حذف الكلّ
-  </div>
-{% endblock %}
-
 {% block content %}
+  {# لا `block breadcrumbs` هنا: المكوّنُ الذي يفرضه الحارس من واجهة المنصّة
+     لا من لوحة الإدارة، وشريطُ اللوحة الافتراضيُّ يكفي. #}
   <h1>حذف كلّ {{ opts.verbose_name_plural }}</h1>
+
+  <p>{{ purge_warning }}</p>
 
   {% if total %}
     <p class="errornote" style="display:block">
