@@ -273,14 +273,18 @@ railway-plan:
 # الاستعمال من داخل شجرة العمل:  make session PORT=8001
 # وأوّلَ مرّة فيها:               cp D:/shschool_mvp/.env .env
 PORT ?= 8001
+ROOT ?= D:/shschool_mvp
 SESSION := schoolos-$(notdir $(CURDIR))
 
+# `--project-directory .` يُبقي ملفَّ الإنشاء في الجذر ويربط شجرتك أنت.
+COMPOSE_SESSION := docker compose -p $(SESSION) --project-directory . -f $(ROOT)/docker-compose.session.yml
+
 session:
-	WEB_PORT=$(PORT) docker compose -p $(SESSION) -f docker-compose.session.yml up -d
+	WEB_PORT=$(PORT) $(COMPOSE_SESSION) up -d
 	@echo "→ http://localhost:$(PORT)"
 
 session-down:
-	docker compose -p $(SESSION) -f docker-compose.session.yml down
+	$(COMPOSE_SESSION) down
 
 session-logs:
-	docker compose -p $(SESSION) -f docker-compose.session.yml logs -f --tail=80 web
+	$(COMPOSE_SESSION) logs -f --tail=80 web

@@ -31,8 +31,12 @@ cp D:/shschool_mvp/.env .env
 ثمّ في كلّ مرّة، بمنفذٍ لم تأخذه جلسةٌ أخرى (8001، 8002، 8003…):
 
 ```bash
-WEB_PORT=8001 docker compose -p schoolos-$(basename $PWD) -f docker-compose.session.yml up -d
+WEB_PORT=8001 docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml up -d
 ```
+
+و`--project-directory .` هو المفتاح: ملفُّ الإنشاء يبقى في الجذر واحداً،
+والمساراتُ فيه تُحلّ على شجرتك أنت — فلا يُنسخ إلى كلّ شجرةٍ ولا يُخلّف ملفّاً
+غيرَ متتبَّعٍ يمنع سحبَ الفرع لاحقاً.
 
 وشرطان: أن تعمل الحزمةُ الأصليّة في `D:\shschool_mvp` — منها قاعدةُ البيانات
 وredis والصورةُ المبنيّة — وألّا تُطبَّق الهجراتُ إلّا منها، فالقاعدةُ مشتركة.
