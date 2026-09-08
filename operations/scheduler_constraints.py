@@ -12,6 +12,7 @@ scheduler_constraints.py — القيود الصلبة والمرنة للجدو
   SC7 (جديد): حصة مزدوجة لـ ART و TECH فقط
   SC8 (جديد): مادة 5+/أسبوع بنفس اليوم يجب ألا تكون متتالية
   HC10 (جديد): فراغُ المعلّم بين حصّتين لا يتجاوز سقفَه الشخصيّ (صلب لصاحبه)
+  HC18 (جديد): مادّةٌ موسومةٌ «أيّامٌ مختلفة» بنطاق مرحلة — لا حصّتان منها في يومٍ للشعبة
 """
 
 from __future__ import annotations
@@ -270,6 +271,19 @@ def check_thursday_secondary_pair(grid: ScheduleGrid, day: int, period: int, tas
     if getattr(task, "prefers_double", False):
         return True
     return grid.subject_on_day(task.class_id, task.subject_id, THURSDAY) == 0
+
+
+def check_spread_days(grid: ScheduleGrid, day: int, task: Task) -> bool:
+    """HC18: مادّةٌ موسومةٌ «أيّامٌ مختلفة» لا تجتمع حصّتان منها في يومٍ واحدٍ للشعبة.
+
+    قيدٌ صلبٌ لا يسقط (قرار 2026-09-08): الفنّيّةُ والتكنولوجيا في الحادي عشر
+    والثاني عشر متباعدتان وجوباً — والوسمُ من `Subject.spread_days_scope` بنطاق
+    مرحلة الشعبة، لا من اسمٍ محفورٍ هنا. وهو أشدُّ من HC17 الذي يحرس الخميسَ
+    وحدَه، وأشدُّ من SC «subject_spread» الذي يرجّح ولا يمنع.
+    """
+    if not getattr(task, "spread_days", False):
+        return True
+    return grid.subject_on_day(task.class_id, task.subject_id, day) == 0
 
 
 def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) -> bool:
@@ -630,6 +644,8 @@ def is_slot_valid(
     if not check_week_floor_reservation(grid, day, period, task, allow_dense):
         return False
     if not check_thursday_secondary_pair(grid, day, period, task):
+        return False
+    if not check_spread_days(grid, day, task):
         return False
     if not check_max_consecutive(grid, day, period, task, allow_adjacent):
         return False
