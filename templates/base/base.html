@@ -459,6 +459,7 @@
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon">{% include "components/icon.html" with name="moon" %}</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  <a href="{% url 'change_password' %}">{% include "components/icon.html" with name="lock" %} تغيير كلمة المرور</a>
   {% if is_admin_role %}
   <a href="/admin/">{% include "components/icon.html" with name="settings" %} لوحة الإدارة</a>
   {% endif %}

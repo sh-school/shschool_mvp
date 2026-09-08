@@ -46,6 +46,38 @@ def _safe_redirect(url, request, fallback="dashboard"):
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
+#: من ليس من الكادر لا يُدوَّر له — الطالبُ ووليُّ الأمر خارجَ سياسة التدوير.
+NON_STAFF_ROLES = {"student", "parent"}
+
+
+def password_expired(user) -> bool:
+    """هل مضت مدّةُ التدوير على كلمة مرور هذا المنتسب؟
+
+    المرجعُ آخرُ تغييرٍ مسجَّل، وإن لم يُسجَّل قطّ فتاريخُ إنشاء الحساب — فكلمةُ
+    البذر التي لم تُبدَّل منذ شهورٍ منتهيةٌ بحكم التعريف. والسياسةُ من الإعدادات
+    (`PASSWORD_ROTATION_DAYS`) والصفرُ يعطّلها؛ ولا تمسّ الطلبةَ وأولياءَ الأمور.
+    """
+    from django.conf import settings
+
+    days = getattr(settings, "PASSWORD_ROTATION_DAYS", 0) or 0
+    if days <= 0:
+        return False
+    is_staff_member = (
+        user.memberships.filter(is_active=True).exclude(role__name__in=NON_STAFF_ROLES).exists()
+    )
+    if not is_staff_member:
+        return False
+    reference = user.last_password_change or user.date_joined
+    return reference is None or reference < timezone.now() - timedelta(days=days)
+
+
+def _enforce_rotation(user) -> None:
+    """يقلب علمَ الإجبار عند الدخول إن انتهت مدّةُ التدوير — فتتكفّل به آلةُ الإجبار القائمة."""
+    if not user.must_change_password and password_expired(user):
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
+
+
 # ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
 # لا تغيّر هذه الرسالة ولا تجعلها تختلف بحسب وجود المستخدم من عدمه
 _AUTH_ERROR = "الرقم الشخصي أو كلمة المرور غير صحيحة"
@@ -91,6 +123,7 @@ def login_view(request):
 
             login(request, user)
 
+            _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
 
@@ -158,6 +191,7 @@ def verify_2fa(request):
             cache.set(replay_key, True, timeout=90)  # يمنع إعادة الاستخدام لـ 90 ثانية
             del request.session["pending_2fa_user"]
             login(request, user)
+            _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
             return _safe_redirect(request.GET.get("next", ""), request)
@@ -292,6 +326,54 @@ def force_change_password(request):
             return redirect("dashboard")
 
     return render(request, "auth/force_change_password.html")
+
+
+@login_required
+@ratelimit(key="user", rate="5/m", method="POST", block=True)
+def change_password(request):
+    """تغييرُ كلمة المرور بالأصول — لكلّ مستخدم، من قائمته.
+
+    الحاليّةُ تُطلب قبل الجديدة: جلسةٌ مفتوحةٌ على جهازٍ مشترك لا تكفي لتبديل
+    الكلمة. والجديدةُ تمرّ بمدقّقات المنصّة نفسِها، ويُعاد تاريخُ التدوير من
+    الصفر، وتبقى الجلسةُ قائمةً بلا خروج.
+    """
+    if request.method == "POST":
+        current = request.POST.get("current_password", "")
+        pw1 = request.POST.get("password1", "")
+        pw2 = request.POST.get("password2", "")
+
+        errors = []
+        if not request.user.check_password(current):
+            errors.append("كلمة المرور الحالية غير صحيحة.")
+        elif pw1 != pw2:
+            errors.append("كلمتا المرور غير متطابقتين.")
+        elif current == pw1:
+            errors.append("كلمة المرور الجديدة يجب أن تختلف عن الحالية.")
+        else:
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError as DjangoValidationError
+
+            try:
+                validate_password(pw1, user=request.user)
+            except DjangoValidationError as e:
+                errors.extend(e.messages)
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            user = request.user
+            user.set_password(pw1)
+            user.must_change_password = False
+            user.last_password_change = timezone.now()
+            user.save(update_fields=["password", "must_change_password", "last_password_change"])
+            from django.contrib.auth import update_session_auth_hash
+
+            update_session_auth_hash(request, user)
+            messages.success(request, "✅ تم تغيير كلمة المرور بنجاح.")
+            return redirect("dashboard")
+
+    return render(request, "auth/change_password.html")
 
 
 @require_POST
