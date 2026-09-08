@@ -2,10 +2,10 @@
 يستكمل سجلّاً مؤقّتاً ببيانات صاحبه الحقيقية.
 
     python manage.py complete_staff_record \\
-        --placeholder "جمال صالح" \\
-        --name "جمال صالح محمد ادم" \\
-        --national-id 29273603822 \\
-        --employee-number 197985 \\
+        --placeholder "فلان" \\
+        --name "فلان بن فلان" \\
+        --national-id 29000000009 \\
+        --employee-number 700009 \\
         --apply
 
 `create_placeholder_staff` يفتح سجلّاً بالاسم المختصر ورقمٍ مؤقّتٍ ظاهر
