@@ -15,6 +15,7 @@ from collections import Counter
 
 import pytest
 
+from core.models import TimeBand
 from operations.models import (
     SchedulingResource,
     Subject,
@@ -379,3 +380,81 @@ def test_without_the_flag_the_stages_may_share_the_period(school):
     grid.place(0, 1, t_prep)
 
     assert check_resource_level_homogeneity(grid, 0, 1, t_sec) is True
+
+
+# ═══════════ الملعبان يُحكمان بالساعة لا بالرقم (HC11) ═══════════
+
+
+def test_the_fields_are_judged_by_the_clock_not_the_number(school):
+    """رقمان مختلفان يلتقيان في الملعب حين يختلف الجرسان.
+
+    الإعداديُّ حصّتُه الثانية 8:00–8:50 والثانويُّ ثالثتُه 8:45–9:35: خمسُ
+    دقائقَ تقاطعاً لا يراها الحكمُ بالرقم. والخمسُ مسموحةٌ انتقالاً (قرار
+    2026-09-08)، فيُجرَّب ما هو أوسع: ثالثةُ الأرضيّ 8:50–9:35 ورابعةُ
+    الثانويّ 9:35–10:25 لا تتقاطعان، أمّا رابعةُ الأرضيّ 10:00–10:50 وخامسةُ
+    الثانويّ 10:50–11:35 فمتماسّتان — والتقاطعُ الحقيقيُّ في الخميس.
+    """
+    from django.core.management import call_command
+
+    from operations.scheduler import ScheduleGrid, load_band_times
+    from operations.scheduler_constraints import check_resource_level_homogeneity
+
+    call_command("seed_time_bands")
+    ground = TimeBand.objects.get(school=school, code="ground")
+    upper = TimeBand.objects.get(school=school, code="secondary")
+
+    pe = Subject.objects.create(school=school, name_ar="التربية البدنية", code="PE")
+    fields = SchedulingResource.objects.create(
+        school=school, name="الملاعب", capacity=2, same_level_only=True
+    )
+    fields.subjects.set([pe])
+    prep = ClassGroupFactory(
+        school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=ground
+    )
+    sec = ClassGroupFactory(
+        school=school, grade="G10", level_type="sec", academic_year=YEAR, time_band=upper
+    )
+    assign(school, prep, teacher(school, "بدنيّة إعداديّ"), pe, periods=1)
+    assign(school, sec, teacher(school, "بدنيّة ثانويّ"), pe, periods=1)
+
+    t_prep, t_sec = sorted(build_tasks(school, YEAR), key=lambda t: t.level_type)
+    grid = ScheduleGrid(band_times=load_band_times(school))
+    grid.place(0, 2, t_prep)  # الأرضيّ 8:00–8:50
+
+    # ح3 للثانويّ 8:45–9:35: خمسُ دقائقَ — انتقالٌ مسموح.
+    assert check_resource_level_homogeneity(grid, 0, 3, t_sec) is True
+    # وح2 للثانويّ 8:00–8:45: خمسٌ وأربعون دقيقةً على الملعب نفسه.
+    assert check_resource_level_homogeneity(grid, 0, 2, t_sec) is False
+    # وح4 للثانويّ 9:35–10:25: لا تقاطع.
+    assert check_resource_level_homogeneity(grid, 0, 4, t_sec) is True
+
+
+def test_two_prep_classes_still_share_the_fields(school):
+    """والتجانسُ في المرحلة لا في العدد: صفّان إعداديّان معاً جائزان."""
+    from django.core.management import call_command
+
+    from operations.scheduler import ScheduleGrid, load_band_times
+    from operations.scheduler_constraints import check_resource_level_homogeneity
+
+    call_command("seed_time_bands")
+    ground = TimeBand.objects.get(school=school, code="ground")
+
+    pe = Subject.objects.create(school=school, name_ar="التربية البدنية", code="PE")
+    fields = SchedulingResource.objects.create(
+        school=school, name="الملاعب", capacity=2, same_level_only=True
+    )
+    fields.subjects.set([pe])
+    first = ClassGroupFactory(
+        school=school, grade="G7", level_type="prep", academic_year=YEAR, time_band=ground
+    )
+    second = ClassGroupFactory(
+        school=school, grade="G8", level_type="prep", academic_year=YEAR, time_band=ground
+    )
+    assign(school, first, teacher(school, "بدنيّة أولى"), pe, periods=1)
+    assign(school, second, teacher(school, "بدنيّة ثانية"), pe, periods=1)
+
+    tasks = build_tasks(school, YEAR)
+    grid = ScheduleGrid(band_times=load_band_times(school))
+    grid.place(0, 2, tasks[0])
+
+    assert check_resource_level_homogeneity(grid, 0, 2, tasks[1]) is True
