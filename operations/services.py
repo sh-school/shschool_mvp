@@ -490,10 +490,21 @@ class ScheduleService:
         return ordered
 
     @staticmethod
-    def _by_period(days: list) -> list:
-        """المصفوفةُ باليوم ثمّ الحصّة، والورقةُ بالحصّة ثمّ اليوم: السطرُ حصّةٌ
-        والعمودُ يوم. والقلبُ هنا لا في القالب — قوالبُ Django لا تفهرس بمتغيّر."""
-        return [list(cells) for cells in zip(*days, strict=False)]
+    def _by_day(days: list) -> list:
+        """سطرٌ لكلّ يومٍ باسمه وخاناتِه السبع — شكلُ الورقة المفردة.
+
+        السطرُ يومٌ والعمودُ حصّة (قرار 2026-09-08، وكان العكس). والسببُ ليس
+        العادةَ بل التوقيت: `period_times` يختلف بالنطاق (الطابق) وبنوع اليوم —
+        والخميسُ جرسٌ آخر. فحين كانت الأيّامُ أعمدةً وقع في سطر «الحصة ٣»
+        توقيتُ الأحد وتوقيتُ الخميس جنباً إلى جنب. والآن ينتظم لكلّ يومٍ
+        توقيتُه على امتداد سطره.
+
+        والاسمُ يُقرن هنا لا في القالب: قوالبُ Django لا تُزاوج قائمتين.
+        """
+        return [
+            {"day": name, "cells": list(cells)}
+            for (_num, name), cells in zip(ScheduleSlot.DAYS, days, strict=False)
+        ]
 
     @staticmethod
     def teacher_pages(
@@ -511,7 +522,7 @@ class ScheduleService:
         elif department:
             rows = [r for r in rows if r["department"]["code"] == department]
         for row in rows:
-            row["by_period"] = ScheduleService._by_period(row["days"])
+            row["by_day"] = ScheduleService._by_day(row["days"])
         return rows
 
     @staticmethod
@@ -552,7 +563,7 @@ class ScheduleService:
                 row["total"] += 1
         pages = list(rows.values())
         for row in pages:
-            row["by_period"] = ScheduleService._by_period(row["days"])
+            row["by_day"] = ScheduleService._by_day(row["days"])
         return pages
 
     @staticmethod

@@ -146,19 +146,27 @@ def test_class_pages_come_in_school_order_with_the_teacher_in_the_cell(
     pages = ScheduleService.class_pages(school, YEAR)
 
     assert [p["class_group"] for p in pages] == [junior, senior]
-    assert pages[1]["by_period"][2][2][0].teacher == teacher_user
+    assert pages[1]["by_day"][2]["cells"][2][0].teacher == teacher_user
 
 
-# ══════════════════════ الشبكة تُقلب للورقة ═══════════════════════
+# ══════════════════════ سطرٌ لكلّ يوم في الورقة ═══════════════════════
 
 
-def test_the_page_grid_is_period_by_day(school, teacher_user):
+def test_the_page_grid_is_a_row_per_day(school, teacher_user):
+    """السطرُ يومٌ باسمه وسبعِ خانات، والعمودُ حصّة (قرار 2026-09-08)."""
     _lesson(school, teacher_user, day=2, period=3)
 
-    by_period = ScheduleService.teacher_pages(school, YEAR)[0]["by_period"]
+    by_day = ScheduleService.teacher_pages(school, YEAR)[0]["by_day"]
 
-    assert len(by_period) == 7 and len(by_period[0]) == 5
-    assert by_period[2][2] and not by_period[0][0]
+    assert [line["day"] for line in by_day] == [
+        "الأحد",
+        "الاثنين",
+        "الثلاثاء",
+        "الأربعاء",
+        "الخميس",
+    ]
+    assert all(len(line["cells"]) == 7 for line in by_day)
+    assert by_day[2]["cells"][2] and not by_day[0]["cells"][0]
 
 
 # ══════════════════════ الصفحات والصلاحيّة ═══════════════════════

@@ -129,8 +129,10 @@
     font-size: 13px;
     border: 1px solid #6b1030;
   }
+  /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة، و«الأربعاء» لا تسع اثنين
+     وستّين بكسلاً. */
   .schedule-grid th:first-child {
-    width: 62px;
+    width: 92px;
   }
   .schedule-grid td {
     padding: 5px 4px;
@@ -144,9 +146,9 @@
     background: #f0e6e9;
     font-weight: 800;
     color: #8A1538;
-    font-size: 15px;
+    font-size: 14px;
     vertical-align: middle;
-    width: 62px;
+    width: 92px;
   }
   .schedule-grid tr:nth-child(even) td:not(.period-cell) {
     background: #fdf8f9;
@@ -731,21 +733,28 @@
     <div class="year">العام الدراسي {{ year }}</div>
   </div>
 
+  {% comment %}
+  السطرُ يومٌ والعمودُ حصّة (قرار 2026-09-08، وكان العكس). والسببُ ليس العادةَ
+  بل التوقيت: `period_times` يختلف بالنطاق (الطابق) وبنوع اليوم — والخميسُ جرسٌ
+  آخر. فحين كانت الأيّامُ أعمدةً وقع في سطر «الحصة ٣» توقيتُ الأحد وتوقيتُ
+  الخميس جنباً إلى جنب. والآن ينتظم لكلّ يومٍ توقيتُه على امتداد سطره.
+  ولهذا يبقى التوقيتُ داخل الخانة ولا يصعد إلى ترويسة العمود: ترويسةٌ واحدةٌ
+  لعمود «الحصة ٣» تكذب على أحد الطابقين أو على الخميس.
+  {% endcomment %}
   <table class="schedule-grid">
     <thead>
       <tr>
-        <th>الحصة</th>
-        {% for day_num, day_name in days %}
-        <th>{{ day_name }}</th>
+        <th>اليوم</th>
+        {% for period in periods %}
+        <th>الحصة {{ period.number }}</th>
         {% endfor %}
       </tr>
     </thead>
     <tbody>
-      {% for period in periods %}
+      {% for day_num, day_name in days %}
       <tr>
-        {# رقمُ الحصّة وحدَه — وتوقيتُها مكتوبٌ داخل خانتها. #}
-        <td class="period-cell">{{ period.number }}</td>
-        {% for day_num, day_name in days %}
+        <td class="period-cell">{{ day_name }}</td>
+        {% for period in periods %}
         {% with cell=grid|get_item:day_num|get_item:period.number %}
         <td>
           {% if cell %}
