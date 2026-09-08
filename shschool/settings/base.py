@@ -169,6 +169,10 @@ else:
         }
     }
 
+#: تدويرُ كلمة مرور المنتسبين — كلُّ كم يوماً يُجبَر على تغييرها عند الدخول (قرار 2026-09-08: 90).
+#: يسري على أصحاب عضويّةٍ نشطةٍ من الكادر وحدَهم، لا على الطلبة وأولياء الأمور. والصفرُ يعطّله.
+PASSWORD_ROTATION_DAYS = config("PASSWORD_ROTATION_DAYS", default=90, cast=int)
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {
