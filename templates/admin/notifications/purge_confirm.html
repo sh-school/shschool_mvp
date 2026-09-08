@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+  الحاجزُ الثاني: صفحةُ تأكيدٍ تُلزم بكتابة «حذف» وتُنفَّذ بـPOST وحده.
+  زيارةُ الرابط بالخطأ — أو استباقُ المتصفّح له — لا تحذف شيئاً.
+{% endcomment %}
+
+{% block content %}
+  {# لا شريطَ تصفّحٍ هنا: مكوّنُه من واجهة المنصّة لا من لوحة الإدارة. #}
+  <h1>حذف كلّ {{ opts.verbose_name_plural }}</h1>
+
+  <p>{{ purge_warning }}</p>
+
+  {% if total %}
+    <p class="errornote" style="display:block">
+      سيُحذف <strong>{{ total }}</strong> صفّاً نهائياً من جدول
+      <code>{{ opts.db_table }}</code>. لا تراجُعَ عن هذا الفعل، ولا يستعيده إلّا
+      نسخةٌ احتياطيّة.
+    </p>
+
+    <form method="post">
+      {% csrf_token %}
+      <fieldset class="module aligned">
+        <div class="form-row">
+          <label for="confirm_word">اكتب كلمة <strong>حذف</strong> للتأكيد:</label>
+          <input type="text" name="confirm_word" id="confirm_word"
+                 autocomplete="off" autofocus dir="rtl" size="20">
+        </div>
+      </fieldset>
+
+      <div class="submit-row">
+        <input type="submit" class="deletelink" value="نعم، احذف الكلّ ({{ total }})">
+        <a href="{{ changelist_url }}" class="button cancel-link">إلغاء</a>
+      </div>
+    </form>
+  {% else %}
+    <p>الجدولُ فارغٌ أصلاً — لا شيءَ ليُحذف.</p>
+    <div class="submit-row">
+      <a href="{{ changelist_url }}" class="button">رجوع</a>
+    </div>
+  {% endif %}
+{% endblock %}
