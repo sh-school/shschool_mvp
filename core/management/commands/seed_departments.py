@@ -32,10 +32,8 @@ from django.db import transaction
 from core.academic_calendar import academic_year_for_school
 from core.models import Department, Membership, School
 from operations import departments as dept_map
+from operations.departments import TEACHING_ROLES
 from operations.models import SubjectClassAssignment
-
-#: من يُنسب إلى قسم — الأدوارُ التي تُدرّس.
-TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinator")
 
 #: قراراتُ الإلحاق الإداريّ: قسمٌ مشتقٌّ ← القسمُ الذي يتبعه فعلاً.
 #: إدارةُ الأعمال معلّمٌ واحدٌ يتبع الكيمياءَ إداريّاً (قرارُ المدير 2026-09-06).
