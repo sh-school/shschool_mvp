@@ -263,3 +263,28 @@ help:
 # على ويندوز داخل Git Bash تُحذف `_` من البيئة لأنّ مكتبة railway تقرأ منها إصدار CLI.
 railway-plan:
 	env -u _ railway config plan
+
+# ── خادمُ الجلسة: شجرةُ عملٍ واحدةٌ على منفذها ──────────────────
+#
+# المحادثاتُ المتوازية تُسرّع العمل ما لم تتصادم. ولا تتصادم إلّا لأنّ الخادمَ
+# الحيَّ كان واحداً مربوطاً بجذر المشروع. فلكلّ شجرةٍ خادمُها هنا، وقاعدةُ
+# البيانات وredis مشتركان مع الحزمة الأصليّة — فلا نسخةَ ثانيةً من البيانات.
+#
+# الاستعمال من داخل شجرة العمل:  make session PORT=8001
+# وأوّلَ مرّة فيها:               cp D:/shschool_mvp/.env .env
+PORT ?= 8001
+ROOT ?= D:/shschool_mvp
+SESSION := schoolos-$(notdir $(CURDIR))
+
+# `--project-directory .` يُبقي ملفَّ الإنشاء في الجذر ويربط شجرتك أنت.
+COMPOSE_SESSION := docker compose -p $(SESSION) --project-directory . -f $(ROOT)/docker-compose.session.yml
+
+session:
+	WEB_PORT=$(PORT) $(COMPOSE_SESSION) up -d
+	@echo "→ http://localhost:$(PORT)"
+
+session-down:
+	$(COMPOSE_SESSION) down
+
+session-logs:
+	$(COMPOSE_SESSION) logs -f --tail=80 web
