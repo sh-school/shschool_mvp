@@ -86,11 +86,31 @@ class Command(BaseCommand):
     help = "يستورد كشفَ الكادر الكامل من إكسل — بلا كتابةٍ إلّا بـ--apply"
 
     def add_arguments(self, parser):
-        parser.add_argument("--file", required=True, help="مسارُ ملفّ الإكسل")
+        parser.add_argument("--file", default="", help="مسارُ ملفّ الإكسل")
+        parser.add_argument(
+            "--rows-b64",
+            default="",
+            help="سطورُ الكشف محزومةً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها الملفّ",
+        )
+        parser.add_argument(
+            "--emit-b64",
+            action="store_true",
+            help="اطبع سطورَ الكشف محزومةً ولا تكتب شيئاً — لتُمرَّر إلى --rows-b64",
+        )
         parser.add_argument(
             "--include-teaching",
             action="store_true",
             help="أدخِل المعلّمين والمنسّقين أيضاً — والافتراضُ الكادرُ الإداريُّ وحدَه",
+        )
+        parser.add_argument(
+            "--complete-existing",
+            action="store_true",
+            help="أكمِل الفارغَ عند القائمين: الرقمُ الوظيفيّ والجوّالُ والبريدُ والمسمّى — ولا يُكتب فوق ممتلئ",
+        )
+        parser.add_argument(
+            "--no-create",
+            action="store_true",
+            help="لا تُنشئ حساباً ولا عضويّةً جديدة — أكمِل القائمَ فقط",
         )
         parser.add_argument("--sheet", default="", help="اسمُ الورقة — والافتراضُ الأولى")
         parser.add_argument("--school", default="", help="رمزُ المدرسة — والافتراضُ الأولى")
@@ -99,13 +119,18 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         school = self._school(options["school"])
-        rows = self._read(options["file"], options["sheet"])
-        reference = options["reference"] or f"كشف الكادر: {options['file'].split('/')[-1]}"
+        rows, source = self._rows(options)
+        reference = options["reference"] or f"كشف الكادر: {source}"
 
         # الكادرُ التدريسيُّ في القاعدة أصلاً (طلبُ المستخدم 2026-09-06): يُقرأ
         # الكشفُ كلُّه ليُفحص، ولا يُدخل منه إلّا الإداريّون.
         if not options["include_teaching"]:
             rows = [r for r in rows if role_for(r["title"]) not in TEACHING_ROLES]
+
+        if options["emit_b64"]:
+            self.stdout.write(_pack(rows))
+            self.stderr.write(f"حُزم {len(rows)} سطراً — مرّرها إلى --rows-b64 على القاعدة الأخرى")
+            return
 
         unknown = sorted({r["title"] for r in rows if role_for(r["title"]) is None})
         if unknown:
@@ -148,9 +173,23 @@ class Command(BaseCommand):
             f" يُراجَع: {len(conflicts)} · متعذّر: {len(skipped)}"
         )
 
+        gaps = (
+            self._gaps(school, existing, known, reference) if options["complete_existing"] else []
+        )
+        if options["complete_existing"]:
+            by_field = {}
+            for _obj, field, _value in gaps:
+                by_field[field] = by_field.get(field, 0) + 1
+            people = len({id(obj) for obj, _f, _v in gaps})
+            self.stdout.write(
+                f"يُكمَل عند القائمين: {len(gaps)} حقلاً فارغاً في {people} سجلّاً — "
+                + ("، ".join(f"{k}: {v}" for k, v in sorted(by_field.items())) or "لا شيء")
+            )
+
+        new_mark = " — لن يُنشأ (--no-create)" if options["no_create"] else ""
         for row, role in sorted(new, key=lambda p: (p[1], p[0]["name"])):
             mark = "حسابٌ قائم" if row["national_id"] in known else "حسابٌ جديد"
-            self.stdout.write(f"  + {row['title']:<26} {row['name']:<34} [{role}] {mark}")
+            self.stdout.write(f"  + {row['title']:<26} {row['name']:<34} [{role}] {mark}{new_mark}")
         for row, role, mine in sorted(conflicts, key=lambda p: p[0]["name"]):
             self.stdout.write(
                 self.style.WARNING(
@@ -165,13 +204,27 @@ class Command(BaseCommand):
             self.stdout.write("\nتقريرٌ فقط — أضِف --apply للكتابة.")
             return
 
-        created_users, created_memberships = self._write(school, new, reference)
-        self.stdout.write(
-            f"\nأُنشئ {created_users} حساباً و{created_memberships} عضويّة — "
-            "والحساباتُ بلا كلمة مرورٍ حتّى تُصدَر لها."
-        )
+        if new and not options["no_create"]:
+            created_users, created_memberships = self._write(school, new, reference)
+            self.stdout.write(
+                f"\nأُنشئ {created_users} حساباً و{created_memberships} عضويّة — "
+                "والحساباتُ بلا كلمة مرورٍ حتّى تُصدَر لها."
+            )
+        if gaps:
+            filled, rejected = self._complete(gaps)
+            self.stdout.write(f"\nأُكمل {filled} حقلاً عند القائمين.")
+            for name, why in rejected:
+                self.stdout.write(self.style.WARNING(f"  ✗ {name} — {why}"))
 
     # ── القراءة ──────────────────────────────────────────────────────
+
+    def _rows(self, options):
+        """سطورُ الكشف من الملفّ أو من حزمةٍ — وواحدٌ منهما لا كلاهما."""
+        if bool(options["file"]) == bool(options["rows_b64"]):
+            raise CommandError("حدّد --file أو --rows-b64 — واحداً منهما.")
+        if options["rows_b64"]:
+            return _unpack(options["rows_b64"]), "حزمة"
+        return self._read(options["file"], options["sheet"]), options["file"].split("/")[-1]
 
     def _school(self, code):
         school = (School.objects.filter(code=code) if code else School.objects.all()).first()
@@ -259,7 +312,7 @@ class Command(BaseCommand):
                         setattr(user, field, value)
                         changed.append(field)
                 if changed:
-                    user.save(update_fields=changed)
+                    user.save(update_fields=_with_derived(changed))
 
             role, _ = Role.objects.get_or_create(school=school, name=role_name)
             membership = Membership(
@@ -276,3 +329,100 @@ class Command(BaseCommand):
             memberships += 1
             user.invalidate_active_membership()
         return users, memberships
+
+    # ── الإكمال ──────────────────────────────────────────────────────
+
+    def _gaps(self, school, existing, known, reference):
+        """ما في الكشف وليس في القاعدة عند من هم فيها أصلاً — الفارغُ وحدَه.
+
+        فالكشفُ مرجعٌ للرقم الوظيفيّ والجوّال والبريد والمسمّى، والقاعدةُ قد
+        تحمل قيمةً أحدثَ أدخلها صاحبُها — فلا يُكتب فوق ممتلئ.
+        """
+        gaps = []
+        for row in existing:
+            user = known.get(row["national_id"])
+            if user is None:
+                continue
+            for field, value in (
+                ("email", row["email"]),
+                ("phone", row["phone"]),
+                ("employee_number", row["employee_number"]),
+            ):
+                if value and not getattr(user, field):
+                    gaps.append((user, field, value))
+            membership = (
+                Membership.objects.filter(
+                    user=user, school=school, role__name=role_for(row["title"]), is_active=True
+                )
+                .order_by("-joined_at")
+                .first()
+            )
+            if membership is None:
+                continue
+            if row["title"] and not membership.job_title:
+                gaps.append((membership, "job_title", row["title"]))
+                if not membership.appointment_reference:
+                    gaps.append((membership, "appointment_reference", reference))
+        return gaps
+
+    @transaction.atomic
+    def _complete(self, gaps):
+        """يكتب الفراغاتِ سجلّاً سجلّاً — ورفضُ التحقّق لسجلٍّ لا يوقف البقيّة."""
+        from django.core.exceptions import ValidationError
+
+        grouped = {}
+        for obj, field, value in gaps:
+            grouped.setdefault(id(obj), (obj, []))[1].append((field, value))
+
+        filled, rejected = 0, []
+        for obj, changes in grouped.values():
+            for field, value in changes:
+                setattr(obj, field, value)
+            fields = [f for f, _v in changes]
+            try:
+                if isinstance(obj, CustomUser):
+                    obj.full_clean(exclude=["password", "last_login"])
+                    obj.save(update_fields=_with_derived(fields))
+                else:
+                    obj.full_clean(exclude=["user", "school", "role"])
+                    obj.save(update_fields=fields)
+            except ValidationError as exc:
+                who = obj.full_name if isinstance(obj, CustomUser) else obj.user.full_name
+                rejected.append(
+                    (who, "؛ ".join(f"{k}: {', '.join(v)}" for k, v in exc.message_dict.items()))
+                )
+                continue
+            filled += len(changes)
+        return filled, rejected
+
+
+def _with_derived(fields):
+    """الجوّالُ يحمل معه مشتقّاته: `save()` يحسب التشفيرَ والبصمةَ لكنّ
+    `update_fields` لا يحفظ إلّا ما سُمّي — فكان الجوّالُ يُحفظ ورقماً بلا بصمةٍ."""
+    fields = list(fields)
+    if "phone" in fields:
+        fields += ["phone_encrypted", "phone_hmac"]
+    return fields
+
+
+def _pack(rows):
+    import base64
+    import gzip
+    import json
+
+    raw = json.dumps(rows, ensure_ascii=False).encode("utf-8")
+    return base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+
+
+def _unpack(payload):
+    import base64
+    import gzip
+    import json
+
+    try:
+        rows = json.loads(gzip.decompress(base64.b64decode(payload)).decode("utf-8"))
+    except (ValueError, OSError) as exc:
+        raise CommandError(f"حزمةُ --rows-b64 ليست gzip+base64 صالحة: {exc}") from exc
+    if not isinstance(rows, list):
+        raise CommandError("الحزمةُ ليست قائمةَ سطور.")
+    return rows
