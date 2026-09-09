@@ -62,3 +62,14 @@ def test_a_teacher_still_holds_none(school, maths_teacher):
 def test_the_developer_sees_every_department(school, developer):
     """نطاقُه غيرُ محدود: `review` تكفي ليتجاوز حدَّ القسم في شاشة الإسناد."""
     assert flow.has_capability(developer, school, flow.REVIEW)
+
+
+def test_the_school_still_owns_its_own_roles(school):
+    """التحصينُ يضيف ولا يُلغي: تهيئةُ المدرسة تبقى هي التي تحكم من سواه."""
+    governance = WorkloadGovernance.for_school(school)
+    governance.approve_roles = ["vice_academic"]
+    governance.save()
+
+    roles = flow.capability_roles(school, flow.APPROVE)
+    assert roles - flow._ALWAYS == {"vice_academic"}
+    assert "principal" not in roles, "المدرسةُ أزاحت المديرَ عن الاعتماد وهذا حقُّها"

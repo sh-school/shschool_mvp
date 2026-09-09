@@ -413,7 +413,9 @@ def approve(plan, *, by):
     if self_approval and not governance.allow_self_approval:
         raise PermissionDenied(
             "من راجع الخطّةَ لا يعتمدها — وإلّا فُقدت المراجعةُ المستقلّة. "
-            "وإن أرادت المدرسةُ الجمعَ فبتهيئةٍ صريحةٍ تُسجَّل."
+            "فليعتمدها غيرُ من راجعها؛ وإن أرادت المدرسةُ الجمعَ فبتهيئةٍ "
+            "صريحةٍ تُسجَّل: «حَوكمة الأنصبة» في لوحة الإدارة → «يجوز أن "
+            "يعتمدها من راجعها»."
         )
 
     stamp = assignment_fingerprint(plan)
