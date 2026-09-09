@@ -19,7 +19,7 @@
 والكتابةُ كلُّها تمرّ بـ`assignment_service` فتُفحص وتُدقَّق كما كانت.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -162,15 +162,25 @@ def _department_of(department, rows, registry_filled=False):
 
 
 def _rows_by_teacher(school, year):
-    """كلُّ إسنادات المدرسة مرّةً واحدة — لا استعلامَ لكلّ بطاقة."""
+    """كلُّ إسنادات المدرسة مرّةً واحدة — لا استعلامَ لكلّ بطاقة.
+
+    ويُوسَم اليتيمُ في المرور نفسِه: وسمُ توازٍ لا شريكَ له في الشعبة. فمن
+    حذف الكيمياءَ من 11/4 بقيت الفنّيّةُ موسومةً وحدَها — ومجموعةٌ بعضوٍ
+    واحدٍ ليست توازياً، بل أثرٌ من حذفٍ لم يُنظَّف.
+    """
     out = defaultdict(list)
-    rows = (
+    rows = list(
         SubjectClassAssignment.objects.live(school, year=year)
         .filter(teacher__isnull=False)
         .select_related("class_group", "subject")
         .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     )
+    members = Counter(
+        (row.class_group_id, row.parallel_group.strip()) for row in rows if row.parallel_group
+    )
     for row in rows:
+        tag = (row.parallel_group or "").strip()
+        row.parallel_orphan = bool(tag) and members[(row.class_group_id, tag)] < 2
         out[row.teacher_id].append(row)
     return out
 
@@ -632,6 +642,14 @@ def update_periods(request, assignment_id):
             weekly_periods=periods,
             by=request.user,
             override_reason=(request.POST.get("reason") or "").strip(),
+            #: الوسمُ يُحمَل معه لا يُترك لافتراضه.
+            #:
+            #: `apply_assignment` تكتب `parallel_group = tag` دائماً، وافتراضُها
+            #: فراغ. فكلُّ تعديلٍ لعدد الحصص كان **يمحو التوازيَ صامتاً**:
+            #: يُعدَّل نصابُ الفنّيّة في 12/1 فتفقد شراكتَها مع التكنولوجيا،
+            #: ويصير المولّدُ يطلب لهما خانتين بعد أن كانتا في خانة.
+            parallel_group=obj.parallel_group,
+            requires_lab=obj.requires_lab,
             expected_updated_at=obj.updated_at,
         )
     except (
@@ -666,6 +684,55 @@ def remove_row(request, assignment_id):
         assignment=obj, by=request.user, reason="حُذف من شاشة الإسناد"
     )
     return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def toggle_parallel(request, assignment_id):
+    """مربّعُ «متوازية» — الشعبةُ تنقسم نصفين في التوقيت الواحد، أو تعود واحدة.
+
+    التوازي صفةُ **الإسناد** لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
+    التوقيت نفسه لقسمَي الطلاب — الفنّيّةُ والتكنولوجيا في 11/1، والفنّيّةُ
+    والكيمياء في 11/4. فالمولّدُ يجمعهما في مهمّةٍ واحدةٍ بساكنَين، وبلا الوسم
+    يطلب لهما خانتين ويقع في «شعبةٌ بمادّتين».
+
+    وكان الوسمُ يُكتب من استيراد PDF ومن أمرِ سطرٍ وحدَهما — فلا سبيلَ إلى
+    إدخاله ولا إلى إلغائه من الشاشة. ومن حذف شريكةَ المادّة بقي وسمُ الأولى
+    يتيماً: مجموعةٌ بعضوٍ واحدٍ ليست توازياً.
+
+    والوسمُ يُشتقّ من الشعبة ولا يُكتب نصّاً: كلُّ من أشعله في الشعبة نفسِها
+    شارك فيه، فلا يُطلب من المستخدم أن يتذكّر حروفاً يطابقها.
+    """
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    tag = f"par-{obj.class_group.short_code}" if request.POST.get("parallel") else ""
+    try:
+        _row, findings = assignment_service.apply_assignment(
+            school=school,
+            academic_year=year,
+            class_group=obj.class_group,
+            subject=obj.subject,
+            teacher=teacher,
+            weekly_periods=obj.weekly_periods,
+            by=request.user,
+            override_reason=obj.periods_override_reason,
+            parallel_group=tag,
+            requires_lab=obj.requires_lab,
+            expected_updated_at=obj.updated_at,
+        )
+    except (
+        assignment_service.AssignmentError,
+        assignment_service.StaleWriteError,
+        ValidationError,
+    ) as exc:
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
+    return _render_card(request, school, year, teacher, caps, notes=findings)
 
 
 @login_required

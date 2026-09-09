@@ -6381,3 +6381,10 @@ th[aria-sort="descending"] .th-sort-label {
 .exg-live.exg-ok { color: var(--status-success); }
 .exg-live.exg-tight { color: var(--status-warning); }
 .exg-live.exg-impossible { color: var(--status-danger); }
+
+/* وسمُ توازٍ بلا شريك — أثرٌ من حذفٍ لم يُنظَّف، لا توازٍ. */
+.asg-orphan {
+  color: var(--status-warning);
+  font-weight: 600;
+  margin-inline-start: 0.25rem;
+}

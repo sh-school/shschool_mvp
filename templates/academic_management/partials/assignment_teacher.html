@@ -43,7 +43,7 @@
   {% comment %}جدولُ بطاقةٍ من ثلاثة سطورٍ لا يُفرَز — والفرزُ فيه ضجيجٌ لا فائدة.{% endcomment %}
   <table class="asg" data-no-sort>
     <thead>
-      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th></th></tr>
+      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
     </thead>
     <tbody>
       {% for row in card.rows %}
@@ -66,6 +66,21 @@
             <input type="hidden" name="track" value="{{ row.class_group.track }}">
             <input type="hidden" name="subject" value="{{ row.subject_id }}">
             <input type="checkbox" name="prepares" value="1" {% if row.prepares %}checked{% endif %} {% if not card.writable %}disabled{% endif %} title="يحضّر هذا المقرّر — يُحتسب حصّتين">
+          </form>
+        </td>
+        {% comment %}
+        التوازي صفةُ الإسناد لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
+        التوقيت نفسه لقسمَي الطلاب. وكان الوسمُ يُكتب من استيراد PDF ومن أمرِ
+        سطرٍ وحدَهما، فلا بابَ لإدخاله ولا لإلغائه — ومن حذف شريكةَ المادّة
+        بقي وسمُ الأولى يتيماً، ومجموعةٌ بعضوٍ واحدٍ ليست توازياً.
+        {% endcomment %}
+        <td>
+          <form hx-post="{% url 'academic_management:assignment_toggle_parallel' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+            {% csrf_token %}
+            <input type="checkbox" name="parallel" value="1" {% if row.parallel_group %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
+                   title="{% if row.parallel_orphan %}موسومةٌ وحدَها — التوازي يحتاج مادّتين في الشعبة{% else %}الشعبةُ تنقسم نصفين: هذه المادّة وشريكتُها في التوقيت نفسه{% endif %}"
+                   aria-label="متوازية — {{ row.subject.name_ar }} في {{ row.class_group }}">
+            {% if row.parallel_orphan %}<span class="asg-hint asg-orphan" title="التوازي يحتاج مادّتين في الشعبة — هذه وحدَها موسومة">وحدَها</span>{% endif %}
           </form>
         </td>
         <td>
