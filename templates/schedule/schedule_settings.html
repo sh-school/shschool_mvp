@@ -293,10 +293,24 @@
   <div class="card-bar">{% include "components/icon.html" with name="users" %} تفضيلات المعلمين المسجلة</div>
   <div class="p-5">
     {% if teacher_prefs %}
-    <div class="overflow-x-auto">
+    <div data-bulk>
+      <form method="post" action="{% url 'remove_preferences' %}" id="bulk-prefs"
+            class="flex items-center gap-3 mb-2"
+            data-bulk-confirm="حذف {n} تفضيلاً محدَّداً؟ ولا يعيده إلّا صاحبُه.">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
+          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+          حذف المحدَّد (<span data-bulk-count>0</span>)
+        </button>
+      </form>
+      <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
+            <th class="text-center" data-sort="none">
+              <input type="checkbox" class="check-lg" data-bulk-all aria-label="تحديد كلّ التفضيلات">
+            </th>
             <th>المعلم</th>
             <th class="text-center">أقصى يومي</th>
             <th class="text-center">أقصى متتالي</th>
@@ -308,6 +322,10 @@
         <tbody>
           {% for p in teacher_prefs %}
           <tr>
+            <td class="text-center">
+              <input type="checkbox" form="bulk-prefs" name="preference_id" value="{{ p.id }}"
+                     class="check-lg" data-bulk-item aria-label="اختيار تفضيلات {{ p.teacher.full_name }}">
+            </td>
             <td class="font-semibold text-maroon">{{ p.teacher.full_name }}</td>
             <td class="text-center">{{ p.max_daily_periods }}</td>
             <td class="text-center">{{ p.max_consecutive }}</td>
@@ -318,6 +336,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
     {% else %}
     <p class="text-sm text-muted text-center py-3">لم يسجل أي معلم تفضيلاته بعد</p>

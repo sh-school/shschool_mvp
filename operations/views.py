@@ -29,6 +29,7 @@ from .views_schedule import (
     register_teacher_absence,
     remove_exemption,
     remove_exemptions,
+    remove_preferences,
     save_subject_scheduling,
     schedule_export_excel,
     schedule_export_pdf,
@@ -99,6 +100,7 @@ __all__ = [
     "add_exemption",
     "remove_exemption",
     "remove_exemptions",
+    "remove_preferences",
     "teacher_preferences",
     # swap
     "swap_list",

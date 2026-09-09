@@ -294,3 +294,72 @@ def test_a_teacher_may_not_cancel_releases(school, teacher):
 
     row.refresh_from_db()
     assert row.is_active is True
+
+
+# ── تفضيلاتُ المعلّمين: تُحذف مختارةً كما تُلغى التفريغات ─────────────
+
+
+def _preference(school, teacher):
+    from operations.models import TeacherPreference
+
+    return TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=3
+    )
+
+
+def _remove_preferences(client, ids):
+    from django.urls import reverse
+
+    return client.post(
+        reverse("remove_preferences"),
+        {"year": YEAR, "preference_id": [str(i) for i in ids]},
+        follow=True,
+        HTTP_HOST="localhost",
+    )
+
+
+def test_selected_preferences_are_deleted(school, teacher):
+    from operations.models import TeacherPreference
+
+    row = _preference(school, teacher)
+
+    _remove_preferences(_principal(school), [row.pk])
+
+    assert not TeacherPreference.objects.filter(pk=row.pk).exists()
+
+
+def test_the_teacher_may_record_a_preference_again_after_deletion(school, teacher):
+    """الحذفُ حذفٌ لا إطفاء: قيدُ التفرّد يمنع صفّاً ثانياً لو بقي الأوّل."""
+    from operations.models import TeacherPreference
+
+    _remove_preferences(_principal(school), [_preference(school, teacher).pk])
+
+    assert TeacherPreference.objects.create(school=school, teacher=teacher, academic_year=YEAR).pk
+
+
+def test_a_preference_of_another_school_is_untouched(school):
+    from operations.models import TeacherPreference
+    from tests.conftest import SchoolFactory
+
+    other = SchoolFactory()
+    stranger = UserFactory(full_name="معلّمُ مدرسةٍ أخرى")
+    MembershipFactory(user=stranger, school=other, role=RoleFactory(school=other, name="teacher"))
+    theirs = _preference(other, stranger)
+
+    _remove_preferences(_principal(school), [theirs.pk])
+
+    assert TeacherPreference.objects.filter(pk=theirs.pk).exists()
+
+
+def test_a_teacher_may_not_delete_preferences(school, teacher):
+    from django.test import Client
+
+    from operations.models import TeacherPreference
+
+    row = _preference(school, teacher)
+    client = Client()
+    client.force_login(teacher)
+
+    _remove_preferences(client, [row.pk])
+
+    assert TeacherPreference.objects.filter(pk=row.pk).exists()

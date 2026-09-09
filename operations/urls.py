@@ -55,6 +55,11 @@ urlpatterns = [
         name="remove_exemptions",
     ),
     path(
+        "schedule-settings/preferences/remove-selected/",
+        views.remove_preferences,
+        name="remove_preferences",
+    ),
+    path(
         "schedule-settings/subjects/save/",
         views.save_subject_scheduling,
         name="save_subject_scheduling",

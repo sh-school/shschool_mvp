@@ -1242,6 +1242,37 @@ def remove_exemptions(request):
 @login_required
 @role_required("principal", "vice_academic")
 @require_POST
+def remove_preferences(request):
+    """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
+
+    والحذفُ هنا حذفٌ لا إطفاء: للتفضيل قيدُ تفرّدٍ (معلّم × مدرسة × عام)،
+    فصفٌّ مطفأٌ باقٍ يمنع صاحبَه أن يسجّل تفضيلاً جديداً. وما يضيع يعيده
+    صاحبُه من شاشته.
+    """
+    school = request.user.get_school()
+
+    ids = []
+    for raw in request.POST.getlist("preference_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفضيل.")
+        return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+    removed, _ = TeacherPreference.objects.filter(school=school, id__in=ids).delete()
+    if removed:
+        messages.success(request, f"تمّ حذف {removed} تفضيلاً")
+    else:
+        messages.info(request, "لا شيء حُذف: المحدَّدُ محذوفٌ سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
 def save_subject_scheduling(request):
     """قيودُ الموادّ في الجدول — الازدواجُ وتباعدُ الأيّام — تُحفظ دفعةً واحدة.
 
