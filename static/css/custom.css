@@ -6253,3 +6253,16 @@ th[aria-sort="descending"] .th-sort-label {
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
 }
+
+
+/* ── مربّعُ الاختيار الجماعيّ في الجداول ─────────────────────────────
+   المربّعُ الافتراضيّ ثلاثةَ عشرَ بكسلاً: هدفٌ يخطئه الإصبعُ ولا تراه العينُ
+   في صفٍّ مزدحم. فيَكبُر ويأخذ عنّابيَّ المنصّة، والخليّةُ حولَه تُوسَّع كي
+   تصير النقرةُ على الخليّة نقرةً عليه. */
+.bulk-check {
+  inline-size: 18px;
+  block-size: 18px;
+  accent-color: var(--maroon);
+  cursor: pointer;
+  vertical-align: middle;
+}

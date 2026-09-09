@@ -1,6 +1,7 @@
 """operations/views_schedule.py — views إدارة الجداول والغياب والبدلاء."""
 
 import logging
+import uuid
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -1198,6 +1199,44 @@ def remove_exemption(request, exemption_id):
         request,
         exemption.academic_year,
     )
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def remove_exemptions(request):
+    """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
+
+    عشرون تفريغاً لمعلّمٍ واحدٍ كانت تُلغى بعشرين نقرةٍ وعشرين تأكيداً — وهي
+    فعلٌ واحدٌ في ذهن النائب. فالاختيارُ بمربّعاتٍ والإلغاءُ باستعلامٍ واحد.
+
+    والمعرِّفاتُ تُصفّى قبل الاستعلام: نصٌّ ليس بـUUID يُسقط الاستعلامَ خطأَ
+    خادمٍ لا رسالةً، ومدرسةُ المُدخِلِ قيدٌ لا تجميل — فلا يُلغي أحدٌ
+    تفريغَ مدرسةٍ غيرِ مدرسته ولو حزر معرِّفَه.
+    """
+    school = request.user.get_school()
+    year = request.POST.get("year") or None
+
+    ids = []
+    for raw in request.POST.getlist("exemption_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفريغ.")
+        return _safe_schedule_settings_redirect(request, year)
+
+    removed = TeacherExemption.objects.filter(school=school, id__in=ids, is_active=True).update(
+        is_active=False
+    )
+
+    if removed:
+        messages.success(request, f"تمّ إلغاء {removed} تفريغاً")
+    else:
+        messages.info(request, "لا شيء أُلغي: المحدَّدُ ملغىً سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, year)
 
 
 @login_required

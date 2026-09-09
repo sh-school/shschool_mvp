@@ -99,10 +99,28 @@
 
     {# قائمة التفريغات الحالية #}
     {% if exemptions %}
-    <div class="overflow-x-auto">
+    {% comment %}
+    الاختيارُ في الجدول والزرُّ في نموذجٍ فوقَه: النماذجُ لا تتداخل، ولكلّ سطرٍ
+    نموذجُ إلغائه المفرد. فالمربّعاتُ تُنسَب إلى نموذج الحذف بسمة `form`.
+    {% endcomment %}
+    <div data-bulk>
+      <form method="post" action="{% url 'remove_exemptions' %}" id="bulk-exemptions"
+            class="flex items-center gap-3 mb-2"
+            data-bulk-confirm="إلغاء {n} تفريغاً محدَّداً؟">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
+          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+          إلغاء المحدَّد (<span data-bulk-count>0</span>)
+        </button>
+      </form>
+      <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
+            <th class="text-center" data-sort="none">
+              <input type="checkbox" class="bulk-check" data-bulk-all aria-label="تحديد كلّ التفريغات">
+            </th>
             <th>المعلم</th>
             <th>النوع</th>
             <th>اليوم</th>
@@ -116,6 +134,10 @@
         <tbody>
           {% for ex in exemptions %}
           <tr>
+            <td class="text-center">
+              <input type="checkbox" form="bulk-exemptions" name="exemption_id" value="{{ ex.id }}"
+                     class="bulk-check" data-bulk-item aria-label="اختيار تفريغ {{ ex.teacher.full_name }}">
+            </td>
             <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
             <td>
               {% if ex.exemption_type == "full_day" %}
@@ -139,6 +161,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
     {% else %}
     <p class="text-sm text-muted text-center py-3">لا توجد تفريغات حالياً</p>
@@ -154,10 +177,24 @@
       {% include "components/icon.html" with name="shield" size="icon-sm" %}
       قيود شخصيّة دائمة ({{ personal_rules|length }}) — يقرؤها المولّد أيضاً
     </h3>
-    <div class="overflow-x-auto">
+    <div data-bulk>
+      <form method="post" action="{% url 'remove_exemptions' %}" id="bulk-personal"
+            class="flex items-center gap-3 mb-2"
+            data-bulk-confirm="إلغاء {n} قيداً محدَّداً؟">
+        {% csrf_token %}
+        <input type="hidden" name="year" value="{{ year }}">
+        <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
+          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+          إلغاء المحدَّد (<span data-bulk-count>0</span>)
+        </button>
+      </form>
+      <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
+            <th class="text-center" scope="col" data-sort="none">
+              <input type="checkbox" class="bulk-check" data-bulk-all aria-label="تحديد كلّ القيود">
+            </th>
             <th scope="col">المعلم</th>
             <th scope="col">اليوم</th>
             <th scope="col">الحصة</th>
@@ -169,6 +206,10 @@
         <tbody>
           {% for ex in personal_rules %}
           <tr>
+            <td class="text-center">
+              <input type="checkbox" form="bulk-personal" name="exemption_id" value="{{ ex.id }}"
+                     class="bulk-check" data-bulk-item aria-label="اختيار قيد {{ ex.teacher.full_name }}">
+            </td>
             <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
             <td>{{ ex.get_day_of_week_display }}</td>
             <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}يوم كامل{% endif %}</td>
@@ -184,6 +225,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
     {% endif %}
   </div>
@@ -228,7 +270,14 @@
                   <option value="{{ value }}" {% if s.spread_days_scope == value %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
-                <button type="submit" class="btn-ghost text-xs">حفظ</button>
+                {% comment %}
+                زرُّ الحفظ كان شبحاً بحجم النصّ الصغير، فيُغيَّر النطاقُ ولا
+                يُرى مفتاحُ حفظه — والتغييرُ يذهب مع أوّل تنقّل. فصار زرّاً
+                ظاهراً بأيقونته: القائمةُ تختار، والزرُّ يكتب.
+                {% endcomment %}
+                <button type="submit" class="btn-secondary btn-sm inline-flex items-center gap-1 whitespace-nowrap">
+                  {% include "components/icon.html" with name="save" size="icon-sm" %} حفظ
+                </button>
               </form>
             </td>
             <td class="text-end">
