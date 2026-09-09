@@ -43,7 +43,7 @@
   {% comment %}جدولُ بطاقةٍ من ثلاثة سطورٍ لا يُفرَز — والفرزُ فيه ضجيجٌ لا فائدة.{% endcomment %}
   <table class="asg" data-no-sort>
     <thead>
-      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
+      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="حصّتان متلاصقتان لهذه المادّة في هذه الشعبة">مزدوجة</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
     </thead>
     <tbody>
       {% for row in card.rows %}
@@ -69,18 +69,37 @@
           </form>
         </td>
         {% comment %}
-        التوازي صفةُ الإسناد لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
-        التوقيت نفسه لقسمَي الطلاب. وكان الوسمُ يُكتب من استيراد PDF ومن أمرِ
-        سطرٍ وحدَهما، فلا بابَ لإدخاله ولا لإلغائه — ومن حذف شريكةَ المادّة
-        بقي وسمُ الأولى يتيماً، ومجموعةٌ بعضوٍ واحدٍ ليست توازياً.
+        الازدواجُ قرارُ الشعبة لا المادّة: التكنولوجيا متباعدةٌ في السابع
+        ومزدوجةٌ في الحادي عشر/1. و`double_period` على الإسناد يعلو إعدادَ
+        المادّة، فهذا المربّعُ هو الكلمةُ الأخيرة — وجدولُ الموادّ يبقى
+        للافتراض العامّ.
         {% endcomment %}
         <td>
-          <form hx-post="{% url 'academic_management:assignment_toggle_parallel' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+          <form hx-post="{% url 'academic_management:assignment_toggle_double' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
-            <input type="checkbox" name="parallel" value="1" {% if row.parallel_group %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
-                   title="{% if row.parallel_orphan %}موسومةٌ وحدَها — التوازي يحتاج مادّتين في الشعبة{% else %}الشعبةُ تنقسم نصفين: هذه المادّة وشريكتُها في التوقيت نفسه{% endif %}"
-                   aria-label="متوازية — {{ row.subject.name_ar }} في {{ row.class_group }}">
-            {% if row.parallel_orphan %}<span class="asg-hint asg-orphan" title="التوازي يحتاج مادّتين في الشعبة — هذه وحدَها موسومة">وحدَها</span>{% endif %}
+            <input type="checkbox" name="double" value="1" {% if row.double_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
+                   title="حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة"
+                   aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group }}">
+          </form>
+        </td>
+        {% comment %}
+        التوازي صفةُ الإسناد لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
+        التوقيت نفسه لقسمَي الطلاب. والشريكةُ تُختار صريحةً ولا يُشعَل مربّع —
+        المربّعُ يوسم واحدةً فيُولَد اليتيمُ من أوّل نقرة، ومجموعةٌ بعضوٍ واحدٍ
+        لا يخصمها المولّد فيظهر «مطلوب 37 والسعة 35» بلا فائضٍ حقيقيّ.
+        {% endcomment %}
+        <td>
+          <form hx-post="{% url 'academic_management:assignment_set_parallel' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+            {% csrf_token %}
+            <select name="partner" {% if not card.writable %}disabled{% endif %}
+                    aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group }}"
+                    title="{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}">
+              <option value="">— لا توازي —</option>
+              {% for opt in row.parallel_options %}
+              <option value="{{ opt.id }}" {% if row.parallel_partner and row.parallel_partner.id == opt.id %}selected{% endif %}>{{ opt.subject.name_ar }}</option>
+              {% endfor %}
+            </select>
+            {% if row.parallel_orphan %}<span class="asg-hint asg-orphan" title="التوازي يحتاج مادّتين — هذه وحدَها موسومة">وحدَها</span>{% endif %}
           </form>
         </td>
         <td>

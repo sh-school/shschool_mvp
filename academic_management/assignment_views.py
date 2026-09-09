@@ -23,6 +23,7 @@ from collections import Counter, defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
@@ -178,9 +179,27 @@ def _rows_by_teacher(school, year):
     members = Counter(
         (row.class_group_id, row.parallel_group.strip()) for row in rows if row.parallel_group
     )
+    by_class = defaultdict(list)
+    for row in rows:
+        by_class[row.class_group_id].append(row)
+
     for row in rows:
         tag = (row.parallel_group or "").strip()
         row.parallel_orphan = bool(tag) and members[(row.class_group_id, tag)] < 2
+        #: ما يقرؤه المولّدُ فعلاً: قرارُ الشعبة إن كُتب، وإلّا إعدادُ المادّة.
+        row.double_effective = (
+            row.double_period
+            if row.double_period is not None
+            else row.subject.requires_double_period
+        )
+        #: شركاءُ التوازي الممكنون: موادُّ الشعبة نفسِها عدا هذه — ولو كانت
+        #: مُسنَدةً لمعلّمٍ آخر، فالشعبةُ تنقسم بين معلّمَين لا بين حصّتَي
+        #: معلّمٍ واحد.
+        siblings = [r for r in by_class[row.class_group_id] if r.id != row.id]
+        row.parallel_options = siblings
+        row.parallel_partner = next(
+            (r for r in siblings if tag and (r.parallel_group or "").strip() == tag), None
+        )
         out[row.teacher_id].append(row)
     return out
 
@@ -688,20 +707,24 @@ def remove_row(request, assignment_id):
 
 @login_required
 @require_POST
-def toggle_parallel(request, assignment_id):
-    """مربّعُ «متوازية» — الشعبةُ تنقسم نصفين في التوقيت الواحد، أو تعود واحدة.
+def set_parallel(request, assignment_id):
+    """ربطُ مادّتين في الشعبة توازياً — أو فكُّ الربط.
 
     التوازي صفةُ **الإسناد** لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
     التوقيت نفسه لقسمَي الطلاب — الفنّيّةُ والتكنولوجيا في 11/1، والفنّيّةُ
     والكيمياء في 11/4. فالمولّدُ يجمعهما في مهمّةٍ واحدةٍ بساكنَين، وبلا الوسم
     يطلب لهما خانتين ويقع في «شعبةٌ بمادّتين».
 
-    وكان الوسمُ يُكتب من استيراد PDF ومن أمرِ سطرٍ وحدَهما — فلا سبيلَ إلى
-    إدخاله ولا إلى إلغائه من الشاشة. ومن حذف شريكةَ المادّة بقي وسمُ الأولى
-    يتيماً: مجموعةٌ بعضوٍ واحدٍ ليست توازياً.
+    ## ولماذا شريكةٌ تُختار لا مربّعٌ يُشعَل
 
-    والوسمُ يُشتقّ من الشعبة ولا يُكتب نصّاً: كلُّ من أشعله في الشعبة نفسِها
-    شارك فيه، فلا يُطلب من المستخدم أن يتذكّر حروفاً يطابقها.
+    المربّعُ يوسم مادّةً واحدة، فيُنشئ اليتيمَ بأوّل نقرة: مجموعةٌ بعضوٍ واحدٍ
+    ليست توازياً، والمولّدُ لا يخصمها فيظهر «مطلوب 37 والسعة 35» وليس في
+    الشعبة فائضٌ أصلاً. فالربطُ هنا ثنائيٌّ في فعلٍ واحد: تُختار الشريكةُ
+    فيُوسَم الطرفان معاً، ويُفكّ الوسمُ عنهما معاً — فلا يُولَد يتيمٌ من هذا
+    الباب.
+
+    والوسمُ يُشتقّ من الشعبة ولا يُكتب نصّاً، فلا يُطلب من أحدٍ أن يتذكّر
+    حروفاً يطابقها.
     """
     obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
     teacher = obj.teacher
@@ -711,28 +734,67 @@ def toggle_parallel(request, assignment_id):
     if locked is not None:
         return locked
 
-    tag = f"par-{obj.class_group.short_code}" if request.POST.get("parallel") else ""
-    try:
-        _row, findings = assignment_service.apply_assignment(
-            school=school,
-            academic_year=year,
-            class_group=obj.class_group,
-            subject=obj.subject,
-            teacher=teacher,
-            weekly_periods=obj.weekly_periods,
-            by=request.user,
-            override_reason=obj.periods_override_reason,
-            parallel_group=tag,
-            requires_lab=obj.requires_lab,
-            expected_updated_at=obj.updated_at,
+    raw = (request.POST.get("partner") or "").strip()
+    partner = None
+    if raw:
+        partner = (
+            SubjectClassAssignment.objects.live(school, year=year)
+            .filter(pk=raw, class_group_id=obj.class_group_id)
+            .exclude(pk=obj.pk)
+            .first()
         )
-    except (
-        assignment_service.AssignmentError,
-        assignment_service.StaleWriteError,
-        ValidationError,
-    ) as exc:
-        return _render_card(request, school, year, teacher, caps, error=_message(exc))
-    return _render_card(request, school, year, teacher, caps, notes=findings)
+        if partner is None:
+            return _render_card(
+                request, school, year, teacher, caps, error="الشريكةُ ليست من موادّ هذه الشعبة."
+            )
+
+    old_tag = (obj.parallel_group or "").strip()
+    with transaction.atomic():
+        if partner is None:
+            #: فكُّ الربط يرفع الوسمَ عن الطرفين — وإلّا بقي الآخرُ يتيماً.
+            if old_tag:
+                SubjectClassAssignment.objects.filter(
+                    class_group_id=obj.class_group_id, parallel_group=old_tag, is_active=True
+                ).update(parallel_group="", updated_by=request.user)
+            else:
+                obj.parallel_group = ""
+                obj.updated_by = request.user
+                obj.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+        else:
+            tag = f"par-{obj.class_group.short_code}"[:40]
+            for row in (obj, partner):
+                row.parallel_group = tag
+                row.updated_by = request.user
+                row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+    return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def toggle_double(request, assignment_id):
+    """مربّعُ «مزدوجة» — حصّتان متلاصقتان لهذه المادّة في هذه الشعبة.
+
+    والقرارُ هنا لا في جدول الموادّ: الازدواجُ ليس صفةَ المادّة بإطلاق بل صفةَ
+    تدريسها في صفٍّ بعينه — التكنولوجيا متباعدةٌ من السابع إلى العاشر ومزدوجةٌ
+    في الحادي عشر/1 حيث هي نصفُ زوجٍ متوازٍ مع الفنّيّة. و`double_period` على
+    الإسناد يعلو `Subject.requires_double_period`، فهذا المربّعُ هو الكلمةُ
+    الأخيرة.
+
+    ويُكتب صريحاً — `True` أو `False` — لا يُترك `None` («اتبع المادّة»):
+    المستخدمُ يرى مربّعاً مشعلاً أو مطفأً، فيجب أن يكون ما يراه هو ما يُقرأ.
+    """
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    obj.double_period = bool(request.POST.get("double"))
+    obj.updated_by = request.user
+    obj.save(update_fields=["double_period", "updated_by", "updated_at"])
+    return _render_card(request, school, year, teacher, caps)
 
 
 @login_required

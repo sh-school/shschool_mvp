@@ -68,6 +68,17 @@
       {% for oc in overcapacity_classes %}
       <li class="text-status-danger font-semibold">
         {{ oc.class_name }} — مطلوب {{ oc.demand }} حصة، والسعة {{ oc.capacity }} — فائض {{ oc.overflow }}
+        {% if oc.orphan_parallels %}
+        {% comment %}
+        السببُ المرجَّح يُقال: مجموعةُ التوازي تستهلك خانةً واحدةً لعضوَيها،
+        فوسمٌ بعضوٍ واحدٍ لا يُخصَم — ويظهر فائضٌ سببُه وسمٌ ناقصٌ لا نصابٌ زائد.
+        {% endcomment %}
+        <br><span class="text-sm font-normal">
+          والسببُ على الأرجح توازٍ ناقصٌ شريكَه:
+          <b>{{ oc.orphan_parallels|join:"، " }}</b> موسومةٌ وحدَها —
+          أشعِل «متوازية» على شريكتها في شاشة الإسناد.
+        </span>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>
