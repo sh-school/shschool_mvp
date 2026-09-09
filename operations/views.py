@@ -29,6 +29,7 @@ from .views_schedule import (
     register_teacher_absence,
     remove_exemption,
     remove_exemptions,
+    save_subject_scheduling,
     schedule_export_excel,
     schedule_export_pdf,
     schedule_pages,
@@ -38,7 +39,6 @@ from .views_schedule import (
     schedule_print_view,
     schedule_quality_lab,
     schedule_settings,
-    set_spread_days,
     smart_generate,
     smart_generate_status,
     smart_schedule_view,
@@ -46,7 +46,6 @@ from .views_schedule import (
     teacher_absence_list,
     teacher_load_report,
     teacher_preferences,
-    toggle_double_period,
     weekly_schedule,
 )
 
@@ -96,11 +95,10 @@ __all__ = [
     "approve_schedule",
     "teacher_load_report",
     "schedule_settings",
+    "save_subject_scheduling",
     "add_exemption",
     "remove_exemption",
     "remove_exemptions",
-    "set_spread_days",
-    "toggle_double_period",
     "teacher_preferences",
     # swap
     "swap_list",

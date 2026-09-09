@@ -119,7 +119,7 @@
         <thead>
           <tr>
             <th class="text-center" data-sort="none">
-              <input type="checkbox" class="bulk-check" data-bulk-all aria-label="تحديد كلّ التفريغات">
+              <input type="checkbox" class="check-lg" data-bulk-all aria-label="تحديد كلّ التفريغات">
             </th>
             <th>المعلم</th>
             <th>النوع</th>
@@ -136,7 +136,7 @@
           <tr>
             <td class="text-center">
               <input type="checkbox" form="bulk-exemptions" name="exemption_id" value="{{ ex.id }}"
-                     class="bulk-check" data-bulk-item aria-label="اختيار تفريغ {{ ex.teacher.full_name }}">
+                     class="check-lg" data-bulk-item aria-label="اختيار تفريغ {{ ex.teacher.full_name }}">
             </td>
             <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
             <td>
@@ -193,7 +193,7 @@
         <thead>
           <tr>
             <th class="text-center" scope="col" data-sort="none">
-              <input type="checkbox" class="bulk-check" data-bulk-all aria-label="تحديد كلّ القيود">
+              <input type="checkbox" class="check-lg" data-bulk-all aria-label="تحديد كلّ القيود">
             </th>
             <th scope="col">المعلم</th>
             <th scope="col">اليوم</th>
@@ -208,7 +208,7 @@
           <tr>
             <td class="text-center">
               <input type="checkbox" form="bulk-personal" name="exemption_id" value="{{ ex.id }}"
-                     class="bulk-check" data-bulk-item aria-label="اختيار قيد {{ ex.teacher.full_name }}">
+                     class="check-lg" data-bulk-item aria-label="اختيار قيد {{ ex.teacher.full_name }}">
             </td>
             <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
             <td>{{ ex.get_day_of_week_display }}</td>
@@ -239,15 +239,16 @@
       المواد التي تحتاج حصتين متتاليتين بدون استراحة أو صلاة بينهما (مثل: الفنون، التكنولوجيا، المختبرات).
       النظام يُحاول جدولة حصتين متجاورتين لهذه المواد.
     </p>
-    <div class="overflow-x-auto">
+    <form method="post" action="{% url 'save_subject_scheduling' %}">
+      {% csrf_token %}
+      <div class="overflow-x-auto">
       <table>
         <thead>
           <tr>
             <th>المادة</th>
             <th>الكود</th>
-            <th class="text-center">حصة مزدوجة</th>
-            <th class="text-center">أيام مختلفة (صلب)</th>
-            <th></th>
+            <th class="text-center" data-sort="none">حصة مزدوجة</th>
+            <th class="text-center" data-sort="none">أيام مختلفة (صلب)</th>
           </tr>
         </thead>
         <tbody>
@@ -256,47 +257,34 @@
             <td class="font-semibold">{{ s.name_ar }}</td>
             <td class="text-muted">{{ s.code|default:"—" }}</td>
             <td class="text-center">
-              {% if s.requires_double_period %}
-              <span class="status-badge status-success">مفعّلة</span>
-              {% else %}
-              <span class="status-badge status-gray">معطّلة</span>
-              {% endif %}
+              <input type="checkbox" class="check-lg" name="double" value="{{ s.id }}"
+                     {% if s.requires_double_period %}checked{% endif %}
+                     aria-label="حصة مزدوجة لـ {{ s.name_ar }}">
             </td>
             <td class="text-center">
-              <form method="post" action="{% url 'set_spread_days' s.id %}" class="inline-flex items-center gap-1">
-                {% csrf_token %}
-                <select name="scope" class="form-select text-xs" aria-label="نطاق أيام مختلفة لـ {{ s.name_ar }}">
-                  {% for value, label in s.SPREAD_SCOPES %}
-                  <option value="{{ value }}" {% if s.spread_days_scope == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
-                {% comment %}
-                زرُّ الحفظ كان شبحاً بحجم النصّ الصغير، فيُغيَّر النطاقُ ولا
-                يُرى مفتاحُ حفظه — والتغييرُ يذهب مع أوّل تنقّل. فصار زرّاً
-                ظاهراً بأيقونته: القائمةُ تختار، والزرُّ يكتب.
-                {% endcomment %}
-                <button type="submit" class="btn-secondary btn-sm inline-flex items-center gap-1 whitespace-nowrap">
-                  {% include "components/icon.html" with name="save" size="icon-sm" %} حفظ
-                </button>
-              </form>
-            </td>
-            <td class="text-end">
-              <form method="post" action="{% url 'toggle_double_period' s.id %}" style="display:inline">
-                {% csrf_token %}
-                <button type="submit" class="btn-ghost text-xs">
-                  {% if s.requires_double_period %}
-                  {% include "components/icon.html" with name="toggle-right" size="icon-sm" %} تعطيل
-                  {% else %}
-                  {% include "components/icon.html" with name="toggle-left" size="icon-sm" %} تفعيل
-                  {% endif %}
-                </button>
-              </form>
+              <select name="scope_{{ s.id }}" class="form-select text-xs" aria-label="نطاق أيام مختلفة لـ {{ s.name_ar }}">
+                {% for value, label in s.SPREAD_SCOPES %}
+                <option value="{{ value }}" {% if s.spread_days_scope == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-    </div>
+      </div>
+
+      {% comment %}
+      زرٌّ واحدٌ في الذيل لا زرّان في كلّ سطر: مراجعةُ عشرين مادّةً كانت عشرين
+      رحلةً إلى الخادم، والقرارُ في ذهن النائب واحد. فالجدولُ كلُّه نموذجٌ
+      واحد، والخادمُ يحفظ ما تغيّر وحدَه.
+      {% endcomment %}
+      <div class="flex justify-end mt-4">
+        <button type="submit" class="btn-primary inline-flex items-center gap-1">
+          {% include "components/icon.html" with name="save" size="icon-sm" %} حفظ كلّ التعديلات
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 

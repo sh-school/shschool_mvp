@@ -1242,34 +1242,38 @@ def remove_exemptions(request):
 @login_required
 @role_required("principal", "vice_academic")
 @require_POST
-def toggle_double_period(request, subject_id):
-    """تفعيل/إلغاء الحصة المزدوجة لمادة"""
-    school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    subject.requires_double_period = not subject.requires_double_period
-    subject.save(update_fields=["requires_double_period"])
-    status = "مفعّلة" if subject.requires_double_period else "معطّلة"
-    messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
-    return _safe_schedule_settings_redirect(request)
+def save_subject_scheduling(request):
+    """قيودُ الموادّ في الجدول — الازدواجُ وتباعدُ الأيّام — تُحفظ دفعةً واحدة.
 
-
-@login_required
-@role_required("principal", "vice_academic")
-@require_POST
-def set_spread_days(request, subject_id):
-    """نطاقُ «حصصها في أيّامٍ مختلفة» لمادّة — قيدٌ صلبٌ يقرّره النائبُ من الشاشة."""
+    كان لكلّ سطرٍ زرّاه: زرُّ حفظٍ للنطاق وزرُّ قلبٍ للازدواج، فمراجعةُ عشرين
+    مادّةً عشرون رحلةً إلى الخادم. والقرارُ في ذهن النائب واحد: هذه الشاشة.
+    فصار زرٌّ واحدٌ في ذيلها يحفظ ما تغيّر وحدَه، ويقول كم تغيّر.
+    """
     school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    scope = request.POST.get("scope", "")
-    if scope not in dict(Subject.SPREAD_SCOPES):
-        messages.error(request, "نطاقٌ غيرُ معروف.")
-        return _safe_schedule_settings_redirect(request)
-    subject.spread_days_scope = scope
-    subject.save(update_fields=["spread_days_scope"])
-    messages.success(
-        request,
-        f"أيّامٌ مختلفةٌ لـ {subject.name_ar}: {subject.get_spread_days_scope_display()}",
-    )
+    scopes = dict(Subject.SPREAD_SCOPES)
+
+    doubled = set(request.POST.getlist("double"))
+    changed = []
+    for subject in Subject.objects.filter(school=school):
+        key = str(subject.pk)
+        wants_double = key in doubled
+        scope = request.POST.get(f"scope_{key}", subject.spread_days_scope)
+        if scope not in scopes:
+            messages.error(request, f"نطاقٌ غيرُ معروفٍ لـ{subject.name_ar} — لم يُحفظ.")
+            continue
+        if wants_double == subject.requires_double_period and scope == subject.spread_days_scope:
+            continue
+        subject.requires_double_period = wants_double
+        subject.spread_days_scope = scope
+        changed.append(subject)
+
+    if changed:
+        Subject.objects.bulk_update(
+            changed, ["requires_double_period", "spread_days_scope"], batch_size=100
+        )
+        messages.success(request, f"حُفظ تعديلُ {len(changed)} مادّة")
+    else:
+        messages.info(request, "لا تغييرَ يُحفظ.")
     return _safe_schedule_settings_redirect(request)
 
 
