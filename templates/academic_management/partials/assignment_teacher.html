@@ -43,7 +43,7 @@
   {% comment %}جدولُ بطاقةٍ من ثلاثة سطورٍ لا يُفرَز — والفرزُ فيه ضجيجٌ لا فائدة.{% endcomment %}
   <table class="asg" data-no-sort>
     <thead>
-      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="حصّتان متلاصقتان لهذه المادّة في هذه الشعبة">مزدوجة</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
+      <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="حصّتان متلاصقتان لهذه المادّة في هذه الشعبة">مزدوجة</th><th title="لا تجتمع حصّتان منها في يومٍ — يسري على مرحلة الشعبة">أيام مختلفة</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
     </thead>
     <tbody>
       {% for row in card.rows %}
@@ -83,6 +83,19 @@
           </form>
         </td>
         {% comment %}
+        «أيّامٌ مختلفة» على المادّة بنطاق مرحلة، لا على الشعبة: الفنّيّةُ مزدوجةٌ
+        في الإعداديّ ومتباعدةٌ في الثانويّ. فالمربّعُ يقلب نطاقَ مرحلةِ هذه
+        الشعبة ويترك الأخرى — والتلميحُ يقول إنّ الأثرَ يعمّ أخواتِها في المرحلة.
+        {% endcomment %}
+        <td>
+          <form hx-post="{% url 'academic_management:assignment_toggle_spread' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
+            {% csrf_token %}
+            <input type="checkbox" name="spread" value="1" {% if row.spread_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
+                   title="قيدٌ صلب: لا حصّتان منها في يومٍ واحدٍ للشعبة — ويسري على كلّ شُعب هذه المرحلة"
+                   aria-label="أيام مختلفة — {{ row.subject.name_ar }} في {{ row.class_group }}">
+          </form>
+        </td>
+        {% comment %}
         التوازي صفةُ الإسناد لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
         التوقيت نفسه لقسمَي الطلاب. والشريكةُ تُختار صريحةً ولا يُشعَل مربّع —
         المربّعُ يوسم واحدةً فيُولَد اليتيمُ من أوّل نقرة، ومجموعةٌ بعضوٍ واحدٍ
@@ -112,7 +125,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="6" class="asg-empty">لا إسناد بعد.</td></tr>
+      <tr><td colspan="8" class="asg-empty">لا إسناد بعد.</td></tr>
       {% endfor %}
 
       {% if card.writable %}

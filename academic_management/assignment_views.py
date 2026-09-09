@@ -186,6 +186,8 @@ def _rows_by_teacher(school, year):
     for row in rows:
         tag = (row.parallel_group or "").strip()
         row.parallel_orphan = bool(tag) and members[(row.class_group_id, tag)] < 2
+        #: أيسري تباعدُ الأيّام على مرحلة هذه الشعبة؟ — `spreads_in` هي الحكم.
+        row.spread_effective = row.subject.spreads_in(row.class_group.level_type or "")
         #: ما يقرؤه المولّدُ فعلاً: قرارُ الشعبة إن كُتب، وإلّا إعدادُ المادّة.
         row.double_effective = (
             row.double_period
@@ -766,6 +768,70 @@ def set_parallel(request, assignment_id):
                 row.parallel_group = tag
                 row.updated_by = request.user
                 row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+    return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def toggle_spread(request, assignment_id):
+    """«أيّامٌ مختلفة» — لا تجتمع حصّتان من هذه المادّة في يومٍ لهذه الشعبة.
+
+    والحقلُ على المادّة بنطاق مرحلة (`Subject.spread_days_scope`): الفنّيّةُ
+    مزدوجةٌ في الإعداديّ ومتباعدةٌ في الثانويّ. فالمربّعُ هنا يقلب نطاقَ
+    **مرحلةِ هذه الشعبة** وحدَها، ويترك المرحلةَ الأخرى كما هي:
+
+        الإشعالُ في شعبةٍ ثانويّة: none → sec، و prep → all
+        الإطفاءُ فيها:            sec  → none، و all  → prep
+
+    ولهذا يسري الأثرُ على كلّ شُعب المرحلة لا على هذه وحدَها — والتلميحُ في
+    الشاشة يقول ذلك، فلا يُفاجأ من غيّره لشعبةٍ فوجده في أخواتها.
+
+    وحارسُ الاستحالة يمرّ من هنا كما يمرّ في شاشة الإعدادات: مادّةُ ستِّ حصصٍ
+    لا تتباعد في خمسة أيّام، فتُردّ عند الحفظ لا بعد دقيقتين من التوليد.
+    """
+    from operations.views_schedule import _spread_blocker, _spread_overflow
+
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    level = obj.class_group.level_type or ""
+    if level not in ("prep", "sec"):
+        return _render_card(
+            request, school, year, teacher, caps, error="الشعبةُ بلا مرحلةٍ مسجَّلة."
+        )
+    other = "sec" if level == "prep" else "prep"
+    current = obj.subject.spread_days_scope
+    has_other = current in ("all", other)
+    wants = bool(request.POST.get("spread"))
+
+    if wants:
+        target = "all" if has_other else level
+    else:
+        target = other if has_other else "none"
+
+    if target != current:
+        crowded = _spread_overflow(school, year).get(str(obj.subject_id), ())
+        blocker = _spread_blocker(crowded, target)
+        if blocker:
+            klass, periods = blocker
+            return _render_card(
+                request,
+                school,
+                year,
+                teacher,
+                caps,
+                error=(
+                    f"تباعدُ الأيّام لـ{obj.subject.name_ar} يستحيل: الشعبة {klass} "
+                    f"تطلب {periods} حصصاً والأسبوعُ خمسةُ أيّام — بقي النطاقُ كما كان."
+                ),
+            )
+        obj.subject.spread_days_scope = target
+        obj.subject.save(update_fields=["spread_days_scope"])
     return _render_card(request, school, year, teacher, caps)
 
 

@@ -224,63 +224,18 @@
   </div>
 </div>
 
-{# ══ القسم 2: الحصص المزدوجة ══ #}
-<div class="card-qatar mb-6">
-  <div class="card-bar">{% include "components/icon.html" with name="columns-2" %} إعداد الحصص المزدوجة</div>
-  <div class="p-5">
-    <p class="text-sm text-secondary mb-4">
-      المواد التي تحتاج حصتين متتاليتين بدون استراحة أو صلاة بينهما (مثل: الفنون، التكنولوجيا، المختبرات).
-      النظام يُحاول جدولة حصتين متجاورتين لهذه المواد.
-    </p>
-    <form method="post" action="{% url 'save_subject_scheduling' %}">
-      {% csrf_token %}
-      <input type="hidden" name="year" value="{{ year }}">
-      <div class="overflow-x-auto">
-      <table>
-        <thead>
-          <tr>
-            <th>المادة</th>
-            <th>الكود</th>
-            <th class="text-center" data-sort="none">حصة مزدوجة</th>
-            <th class="text-center" data-sort="none">أيام مختلفة (صلب)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in subjects %}
-          <tr>
-            <td class="font-semibold">{{ s.name_ar }}</td>
-            <td class="text-muted">{{ s.code|default:"—" }}</td>
-            <td class="text-center">
-              <input type="checkbox" class="check-lg" name="double" value="{{ s.id }}"
-                     {% if s.requires_double_period %}checked{% endif %}
-                     aria-label="حصة مزدوجة لـ {{ s.name_ar }}">
-            </td>
-            <td class="text-center">
-              <select name="scope_{{ s.id }}" class="form-select text-xs" aria-label="نطاق أيام مختلفة لـ {{ s.name_ar }}">
-                {% for value, label in s.SPREAD_SCOPES %}
-                <option value="{{ value }}" {% if s.spread_days_scope == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
+{% comment %}
+«إعدادُ الحصص المزدوجة» انتقل إلى شاشة الإسناد (قرارُ المستخدم 2026-09-09).
 
-      {% comment %}
-      زرٌّ واحدٌ في الذيل لا زرّان في كلّ سطر: مراجعةُ عشرين مادّةً كانت عشرين
-      رحلةً إلى الخادم، والقرارُ في ذهن النائب واحد. فالجدولُ كلُّه نموذجٌ
-      واحد، والخادمُ يحفظ ما تغيّر وحدَه.
-      {% endcomment %}
-      <div class="flex justify-end mt-4">
-        <button type="submit" class="btn-primary inline-flex items-center gap-1">
-          {% include "components/icon.html" with name="save" size="icon-sm" %} حفظ كلّ التعديلات
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
+كان جدولاً بمادّةٍ في كلّ سطر، والقرارُ فيه عامٌّ للمدرسة كلِّها — والواقعُ أنّ
+الازدواجَ والتباعدَ صفتا تدريسِ مادّةٍ في صفٍّ بعينه: التكنولوجيا متباعدةٌ من
+السابع إلى العاشر ومزدوجةٌ في الحادي عشر/1، والفنّيّةُ مزدوجةٌ في الإعداديّ
+متباعدةٌ في الثانويّ. فصار القرارُ حيث يُتَّخذ: عمودان في بطاقة الإسناد إلى
+جانب الحصص والتوازي، يراهما المنسّقُ وهو يوزّع.
+
+والمسارُ `save_subject_scheduling` باقٍ بحارسه — يخدم الاستيرادَ والأوامر،
+ولا شاشةَ تستدعيه.
+{% endcomment %}
 
 {# ══ القسم 3: تفضيلات المعلمين (للمراجعة) ══ #}
 <div class="card-qatar mb-6">

@@ -45,6 +45,11 @@ urlpatterns = [
         name="assignment_update_periods",
     ),
     path(
+        "assignments/row/<uuid:assignment_id>/spread/",
+        assignment_views.toggle_spread,
+        name="assignment_toggle_spread",
+    ),
+    path(
         "assignments/row/<uuid:assignment_id>/double/",
         assignment_views.toggle_double,
         name="assignment_toggle_double",
