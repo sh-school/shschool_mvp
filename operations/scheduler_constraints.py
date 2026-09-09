@@ -875,24 +875,34 @@ def evaluate_soft_constraints(
     is_pe = task.subject_code == "PE"
     penalty.add("pe_after_break", WEIGHTS["pe_after_break"], is_pe and period not in (4, 5))
 
-    # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
-    if is_double and same_subject_today == 1:
-        # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
-        # المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
-        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
-        if prev_task and prev_task.subject_id == task.subject_id:
-            penalty.add("double_bonus", WEIGHTS["double_bonus"], True)  # مكافأة (قيمة سالبة)
+    _same_subject_neighbour_weights(penalty, grid, day, period, task, is_double, same_subject_today)
+    return penalty
 
-    # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
-    if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
-        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+
+def _same_subject_neighbour_weights(
+    penalty, grid, day, period, task, is_double, same_subject_today
+):
+    """SC7 وSC8 — وكلاهما يسأل السؤالَ نفسَه: أجارُ الخانة نفسُ المادّة؟
+
+    والجوابُ يُثاب في المزدوجة ويُعاقَب في مادّة الخمسِ حصصٍ فأكثر. فُصلا عن
+    `evaluate_soft_constraints` لأنّها بلغت بهما حدَّ بوّابة الجودة (CC ≥ 31).
+    """
+    if same_subject_today != 1:
+        return
+
+    prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+
+    # SC7: المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
+    if is_double and prev_task and prev_task.subject_id == task.subject_id:
+        penalty.add("double_bonus", WEIGHTS["double_bonus"], True)  # مكافأة (قيمة سالبة)
+
+    # SC8: مادّةُ خمسِ حصصٍ فأكثر — حصّتاها في اليوم الواحد لا تتلاصقان.
+    if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD:
         next_task = grid.get_task_at(task.class_id, day, period + 1) if period < 7 else None
         is_adj_same = (prev_task and prev_task.subject_id == task.subject_id) or (
             next_task and next_task.subject_id == task.subject_id
         )
         penalty.add("high_weekly_adjacent", WEIGHTS["high_weekly_adjacent"], is_adj_same)
-
-    return penalty
 
 
 # ══════════════════════════════════════════════════════════════
