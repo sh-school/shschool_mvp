@@ -27,6 +27,12 @@
      data-call="اسم"                 click   → يُنادي دالّةً من قائمةٍ بيضاء
      data-arg="وسيط"                         → وسيطٌ واحد اختياريّ لـdata-call
      data-mirror="#sel"              input   → يعكس القيمة نصّاً في الهدف
+     data-bulk                       الحاضنُ: نطاقُ اختيارٍ جماعيّ
+     data-bulk-all                   مربّعُ الرأس: يقلب مربّعات النطاق كلَّها
+     data-bulk-item                  مربّعُ سطر
+     data-bulk-count                 عنصرٌ يعرض عددَ المحدَّد
+     data-bulk-action                زرٌّ يُعطَّل ما لم يُحدَّد شيء
+     data-bulk-confirm="… {n} …"     نصُّ تأكيدٍ يحمل العدد (يكتب data-confirm)
    ══════════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -235,6 +241,59 @@
     if (typeof window.showToast !== "function") return;
     var spec = el.getAttribute("data-toast").split("|");
     window.showToast(spec[0], spec[1] || "info");
+  });
+
+  /* ── اختيارٌ جماعيّ في جدول ──────────────────────────────────────
+     مربّعاتُ الأسطر قد تسكن جدولاً وزرُّ الإجراء نموذجاً خارجَه — فالنماذجُ
+     لا تتداخل، ولكلّ سطرٍ نموذجُ حذفه المفرد. والربطُ بسمة `form` في القالب:
+     المربّعُ يُرسَل مع نموذجٍ ليس أباه. وهذه الدوالُّ لا تعرف من ذلك شيئاً،
+     إنّما تعدّ المحدَّد وتُبقي الرأسَ والزرَّ والعدّادَ على وفاقه. */
+  function bulkSync(scope) {
+    if (!scope) return;
+    var items = scope.querySelectorAll("[data-bulk-item]");
+    var n = 0;
+    for (var i = 0; i < items.length; i++) if (items[i].checked) n++;
+
+    var all = scope.querySelectorAll("[data-bulk-all]");
+    for (var a = 0; a < all.length; a++) {
+      all[a].checked = n > 0 && n === items.length;
+      /* حالةٌ ثالثة: بعضٌ لا كلٌّ ولا لا شيء — والشرطةُ أصدقُ من علامةٍ كاذبة. */
+      all[a].indeterminate = n > 0 && n < items.length;
+    }
+
+    var counts = scope.querySelectorAll("[data-bulk-count]");
+    for (var c = 0; c < counts.length; c++) counts[c].textContent = String(n);
+
+    var actions = scope.querySelectorAll("[data-bulk-action]");
+    for (var b = 0; b < actions.length; b++) {
+      actions[b].disabled = n === 0;
+      var form = actions[b].form;
+      if (form && form.hasAttribute("data-bulk-confirm")) {
+        form.setAttribute(
+          "data-confirm",
+          form.getAttribute("data-bulk-confirm").split("{n}").join(String(n)),
+        );
+      }
+    }
+  }
+
+  on("change", "data-bulk-item", function (el) {
+    bulkSync(el.closest("[data-bulk]"));
+  });
+
+  on("change", "data-bulk-all", function (el) {
+    var scope = el.closest("[data-bulk]");
+    if (!scope) return;
+    var items = scope.querySelectorAll("[data-bulk-item]");
+    for (var i = 0; i < items.length; i++) items[i].checked = el.checked;
+    bulkSync(scope);
+  });
+
+  /* عند التحميل: المتصفّحُ يعيد حالةَ المربّعات بعد الرجوع بلا حدث تغيير،
+     فيُعاد الحسابُ مرّةً كي لا يقول العدّادُ صفراً وثلاثةٌ محدَّدة. */
+  document.addEventListener("DOMContentLoaded", function () {
+    var scopes = document.querySelectorAll("[data-bulk]");
+    for (var i = 0; i < scopes.length; i++) bulkSync(scopes[i]);
   });
 
   /* ── تعطيلُ حقلٍ تبعاً لمربّع اختيار: "#sel" ─────────────────────── */

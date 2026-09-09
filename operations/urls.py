@@ -51,14 +51,19 @@ urlpatterns = [
         name="remove_exemption",
     ),
     path(
-        "schedule-settings/subject/<uuid:subject_id>/toggle-double/",
-        views.toggle_double_period,
-        name="toggle_double_period",
+        "schedule-settings/exemption/remove-selected/",
+        views.remove_exemptions,
+        name="remove_exemptions",
     ),
     path(
-        "schedule-settings/subject/<uuid:subject_id>/spread-days/",
-        views.set_spread_days,
-        name="set_spread_days",
+        "schedule-settings/preferences/remove-selected/",
+        views.remove_preferences,
+        name="remove_preferences",
+    ),
+    path(
+        "schedule-settings/subjects/save/",
+        views.save_subject_scheduling,
+        name="save_subject_scheduling",
     ),
     path("teacher-preferences/", views.teacher_preferences, name="teacher_preferences"),
     # ══ المرحلة 6: التبديل والتعويض ══

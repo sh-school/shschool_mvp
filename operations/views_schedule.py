@@ -1,6 +1,8 @@
 """operations/views_schedule.py — views إدارة الجداول والغياب والبدلاء."""
 
 import logging
+import uuid
+from collections import defaultdict
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -8,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1277,34 +1280,169 @@ def remove_exemption(request, exemption_id):
 @login_required
 @role_required("principal", "vice_academic")
 @require_POST
-def toggle_double_period(request, subject_id):
-    """تفعيل/إلغاء الحصة المزدوجة لمادة"""
+def remove_exemptions(request):
+    """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
+
+    عشرون تفريغاً لمعلّمٍ واحدٍ كانت تُلغى بعشرين نقرةٍ وعشرين تأكيداً — وهي
+    فعلٌ واحدٌ في ذهن النائب. فالاختيارُ بمربّعاتٍ والإلغاءُ باستعلامٍ واحد.
+
+    والمعرِّفاتُ تُصفّى قبل الاستعلام: نصٌّ ليس بـUUID يُسقط الاستعلامَ خطأَ
+    خادمٍ لا رسالةً، ومدرسةُ المُدخِلِ قيدٌ لا تجميل — فلا يُلغي أحدٌ
+    تفريغَ مدرسةٍ غيرِ مدرسته ولو حزر معرِّفَه.
+    """
     school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    subject.requires_double_period = not subject.requires_double_period
-    subject.save(update_fields=["requires_double_period"])
-    status = "مفعّلة" if subject.requires_double_period else "معطّلة"
-    messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
-    return _safe_schedule_settings_redirect(request)
+    year = request.POST.get("year") or None
+
+    ids = []
+    for raw in request.POST.getlist("exemption_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفريغ.")
+        return _safe_schedule_settings_redirect(request, year)
+
+    removed = TeacherExemption.objects.filter(school=school, id__in=ids, is_active=True).update(
+        is_active=False
+    )
+
+    if removed:
+        messages.success(request, f"تمّ إلغاء {removed} تفريغاً")
+    else:
+        messages.info(request, "لا شيء أُلغي: المحدَّدُ ملغىً سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, year)
+
+
+#: أيّامُ الدراسة في الأسبوع — سقفُ ما يسعه التباعدُ الصلبُ من حصص المادّة.
+DAYS_PER_WEEK = 5
+
+
+def _spread_overflow(school, year) -> dict[str, list]:
+    """لكلّ مادّة: الشُّعبُ التي تطلب منها أكثرَ ممّا يسعه التباعد، ومرحلةُ كلٍّ.
+
+    مادّةُ ستِّ حصصٍ لا تتباعد في خمسة أيّام. وكان هذا يُكتشف بعد دقيقتين من
+    التوليد بستٍّ وعشرين «تعذّر وضع» لا تقول سببَها (2026-09-09).
+    """
+    from core.models import ClassGroup
+
+    rows = list(
+        SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
+        .values("subject_id", "class_group_id", "class_group__level_type")
+        .annotate(periods=Sum("weekly_periods"))
+        .filter(periods__gt=DAYS_PER_WEEK)
+    )
+    #: أسماءُ الشُّعب المخالفة في استعلامٍ واحد — لا استعلامٍ لكلّ صفّ.
+    labels = {
+        c.pk: c.short_code
+        for c in ClassGroup.objects.filter(pk__in={r["class_group_id"] for r in rows})
+    }
+    crowded: dict[str, list] = defaultdict(list)
+    for row in rows:
+        crowded[str(row["subject_id"])].append(
+            (
+                row["class_group__level_type"] or "",
+                labels.get(row["class_group_id"], "؟"),
+                row["periods"],
+            )
+        )
+    return crowded
+
+
+def _spread_blocker(crowded_classes, scope: str):
+    """أوّلُ شعبةٍ يمنعها هذا النطاق — أو `None` إن كان النطاقُ ممكناً."""
+    if scope == "none":
+        return None
+    for level, name, periods in crowded_classes:
+        if scope == "all" or scope == level:
+            return name, periods
+    return None
 
 
 @login_required
 @role_required("principal", "vice_academic")
 @require_POST
-def set_spread_days(request, subject_id):
-    """نطاقُ «حصصها في أيّامٍ مختلفة» لمادّة — قيدٌ صلبٌ يقرّره النائبُ من الشاشة."""
+def remove_preferences(request):
+    """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
+
+    والحذفُ هنا حذفٌ لا إطفاء: للتفضيل قيدُ تفرّدٍ (معلّم × مدرسة × عام)،
+    فصفٌّ مطفأٌ باقٍ يمنع صاحبَه أن يسجّل تفضيلاً جديداً. وما يضيع يعيده
+    صاحبُه من شاشته.
+    """
     school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    scope = request.POST.get("scope", "")
-    if scope not in dict(Subject.SPREAD_SCOPES):
-        messages.error(request, "نطاقٌ غيرُ معروف.")
-        return _safe_schedule_settings_redirect(request)
-    subject.spread_days_scope = scope
-    subject.save(update_fields=["spread_days_scope"])
-    messages.success(
-        request,
-        f"أيّامٌ مختلفةٌ لـ {subject.name_ar}: {subject.get_spread_days_scope_display()}",
-    )
+
+    ids = []
+    for raw in request.POST.getlist("preference_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفضيل.")
+        return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+    removed, _ = TeacherPreference.objects.filter(school=school, id__in=ids).delete()
+    if removed:
+        messages.success(request, f"تمّ حذف {removed} تفضيلاً")
+    else:
+        messages.info(request, "لا شيء حُذف: المحدَّدُ محذوفٌ سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+
+@login_required
+@role_required("principal", "vice_academic")
+@require_POST
+def save_subject_scheduling(request):
+    """قيودُ الموادّ في الجدول — الازدواجُ وتباعدُ الأيّام — تُحفظ دفعةً واحدة.
+
+    كان لكلّ سطرٍ زرّاه: زرُّ حفظٍ للنطاق وزرُّ قلبٍ للازدواج، فمراجعةُ عشرين
+    مادّةً عشرون رحلةً إلى الخادم. والقرارُ في ذهن النائب واحد: هذه الشاشة.
+    فصار زرٌّ واحدٌ في ذيلها يحفظ ما تغيّر وحدَه، ويقول كم تغيّر.
+    """
+    school = request.user.get_school()
+    year = request.POST.get("year") or academic_year_for(request)
+    scopes = dict(Subject.SPREAD_SCOPES)
+    crowded = _spread_overflow(school, year)
+
+    doubled = set(request.POST.getlist("double"))
+    changed = []
+    for subject in Subject.objects.filter(school=school):
+        key = str(subject.pk)
+        wants_double = key in doubled
+        scope = request.POST.get(f"scope_{key}", subject.spread_days_scope)
+        if scope not in scopes:
+            messages.error(request, f"نطاقٌ غيرُ معروفٍ لـ{subject.name_ar} — لم يُحفظ.")
+            continue
+        # الاستحالةُ تُقال عند الحفظ لا بعد دقيقتين من التوليد: التباعدُ الصلبُ
+        # حصّةٌ في اليوم، فمادّةٌ نصابُها ستٌّ في أسبوعٍ أيّامُه خمسةٌ لا تسع.
+        # والمردودُ هو النطاقُ وحدَه: قرارُ الازدواج في السطر نفسِه يُحفظ.
+        blocker = scope != subject.spread_days_scope and _spread_blocker(
+            crowded.get(key, ()), scope
+        )
+        if blocker:
+            klass, periods = blocker
+            messages.error(
+                request,
+                f"تباعدُ الأيّام لـ{subject.name_ar} يستحيل: الشعبة {klass} تطلب "
+                f"{periods} حصصاً و«{scopes[scope]}» يسمح بـ{DAYS_PER_WEEK} — "
+                "بقي نطاقُها كما كان.",
+            )
+            scope = subject.spread_days_scope
+        if wants_double == subject.requires_double_period and scope == subject.spread_days_scope:
+            continue
+        subject.requires_double_period = wants_double
+        subject.spread_days_scope = scope
+        changed.append(subject)
+
+    if changed:
+        Subject.objects.bulk_update(
+            changed, ["requires_double_period", "spread_days_scope"], batch_size=100
+        )
+        messages.success(request, f"حُفظ تعديلُ {len(changed)} مادّة")
+    else:
+        messages.info(request, "لا تغييرَ يُحفظ.")
     return _safe_schedule_settings_redirect(request)
 
 

@@ -222,3 +222,144 @@ def test_the_screen_offers_the_group_and_the_days_and_no_reference(school):
     assert body.count('type="checkbox" name="day_of_week"') == 5
     assert body.count('type="checkbox" name="period_number"') == 7
     assert "source_reference" not in body and "مرجع القرار" not in body
+
+
+# ── الحذفُ الجماعيّ: مربّعٌ لكلّ سطرٍ وزرٌّ واحد ──────────────────────
+
+
+def _remove_selected(client, ids):
+    from django.urls import reverse
+
+    return client.post(
+        reverse("remove_exemptions"),
+        {"year": YEAR, "exemption_id": [str(i) for i in ids]},
+        follow=True,
+        HTTP_HOST="localhost",
+    )
+
+
+def test_selected_releases_are_cancelled_together(school, teacher):
+    """عشرون تفريغاً فعلٌ واحدٌ في ذهن النائب — فلا عشرون نقرةً وتأكيداً."""
+    rows = [exempt(school, teacher, day=0, period=p, reason="اجتماع") for p in (1, 2, 3)]
+
+    _remove_selected(_principal(school), [rows[0].pk, rows[2].pk])
+
+    for row in rows:
+        row.refresh_from_db()
+    assert [row.is_active for row in rows] == [False, True, False]
+
+
+def test_a_release_of_another_school_is_untouched(school, teacher):
+    """المعرِّفُ ليس إذناً: قيدُ المدرسة يمنع ولو حُزر."""
+    from tests.conftest import SchoolFactory
+
+    other = SchoolFactory()
+    stranger = UserFactory(full_name="معلّمُ مدرسةٍ أخرى")
+    MembershipFactory(user=stranger, school=other, role=RoleFactory(school=other, name="teacher"))
+    theirs = exempt(other, stranger, day=0, period=1, reason="اجتماع")
+
+    _remove_selected(_principal(school), [theirs.pk])
+
+    theirs.refresh_from_db()
+    assert theirs.is_active is True
+
+
+def test_a_malformed_id_does_not_break_the_request(school, teacher):
+    """نصٌّ ليس بـUUID كان يُسقط الاستعلامَ خطأَ خادمٍ لا رسالةً."""
+    row = exempt(school, teacher, day=0, period=1, reason="اجتماع")
+
+    response = _remove_selected(_principal(school), ["ليس-معرِّفاً", row.pk])
+
+    assert response.status_code == 200
+    row.refresh_from_db()
+    assert row.is_active is False
+
+
+def test_nothing_selected_says_so(school):
+    response = _remove_selected(_principal(school), [])
+
+    assert response.status_code == 200
+    assert "لم يُحدَّد" in response.content.decode()
+
+
+def test_a_teacher_may_not_cancel_releases(school, teacher):
+    """البابُ للنائب والمدير — والمعلّمُ لا يرفع قيدَ نفسِه."""
+    from django.test import Client
+
+    row = exempt(school, teacher, day=0, period=1, reason="اجتماع")
+    client = Client()
+    client.force_login(teacher)
+
+    _remove_selected(client, [row.pk])
+
+    row.refresh_from_db()
+    assert row.is_active is True
+
+
+# ── تفضيلاتُ المعلّمين: تُحذف مختارةً كما تُلغى التفريغات ─────────────
+
+
+def _preference(school, teacher):
+    from operations.models import TeacherPreference
+
+    return TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=3
+    )
+
+
+def _remove_preferences(client, ids):
+    from django.urls import reverse
+
+    return client.post(
+        reverse("remove_preferences"),
+        {"year": YEAR, "preference_id": [str(i) for i in ids]},
+        follow=True,
+        HTTP_HOST="localhost",
+    )
+
+
+def test_selected_preferences_are_deleted(school, teacher):
+    from operations.models import TeacherPreference
+
+    row = _preference(school, teacher)
+
+    _remove_preferences(_principal(school), [row.pk])
+
+    assert not TeacherPreference.objects.filter(pk=row.pk).exists()
+
+
+def test_the_teacher_may_record_a_preference_again_after_deletion(school, teacher):
+    """الحذفُ حذفٌ لا إطفاء: قيدُ التفرّد يمنع صفّاً ثانياً لو بقي الأوّل."""
+    from operations.models import TeacherPreference
+
+    _remove_preferences(_principal(school), [_preference(school, teacher).pk])
+
+    assert TeacherPreference.objects.create(school=school, teacher=teacher, academic_year=YEAR).pk
+
+
+def test_a_preference_of_another_school_is_untouched(school):
+    from operations.models import TeacherPreference
+    from tests.conftest import SchoolFactory
+
+    other = SchoolFactory()
+    stranger = UserFactory(full_name="معلّمُ مدرسةٍ أخرى")
+    MembershipFactory(user=stranger, school=other, role=RoleFactory(school=other, name="teacher"))
+    theirs = _preference(other, stranger)
+
+    _remove_preferences(_principal(school), [theirs.pk])
+
+    assert TeacherPreference.objects.filter(pk=theirs.pk).exists()
+
+
+def test_a_teacher_may_not_delete_preferences(school, teacher):
+    from django.test import Client
+
+    from operations.models import TeacherPreference
+
+    row = _preference(school, teacher)
+    client = Client()
+    client.force_login(teacher)
+
+    _remove_preferences(client, [row.pk])
+
+    assert TeacherPreference.objects.filter(pk=row.pk).exists()
