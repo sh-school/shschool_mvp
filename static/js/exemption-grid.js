@@ -41,6 +41,29 @@
     var keys = picked(box);
     if (input) input.value = keys.join(',');
 
+    // المرشَّحُ للإلغاء: حقولٌ مخفيّةٌ بمعرّفات تفريغاته، وزرٌّ يظهر بعددها.
+    var drop = box.querySelectorAll('.exg-cell.is-dropping');
+    var ids = [];
+    drop.forEach(function (c) {
+      var id = c.dataset.exempt;
+      if (id && ids.indexOf(id) === -1) ids.push(id);
+    });
+    var host = box.querySelector('[data-exg-drop-fields]');
+    var btn = box.querySelector('[data-exg-drop]');
+    if (host && btn) {
+      host.innerHTML = '';
+      ids.forEach(function (id) {
+        var f = document.createElement('input');
+        f.type = 'hidden';
+        f.name = 'exemption_id';
+        f.value = id;
+        host.appendChild(f);
+      });
+      btn.hidden = ids.length === 0;
+      var counter = btn.querySelector('[data-exg-drop-count]');
+      if (counter) counter.textContent = String(ids.length);
+    }
+
     var live = box.querySelector('[data-exg-live]');
     if (!live) return;
     if (!box.dataset.load) { live.hidden = true; return; }
@@ -62,11 +85,12 @@
     live.className = 'exg-live ' + (over ? 'exg-impossible' : tight ? 'exg-tight' : 'exg-ok');
   }
 
-  /** يظلّل خانةً أو يرفع تظليلَها — والمفرَّغةُ سلفاً لا تُختار. */
+  /** يظلّل خانةً — والحرّةُ تُرشَّح للتفريغ، والمفرَّغةُ تُرشَّح للإلغاء. */
   function toggleCell(cell, force) {
-    if (cell.dataset.exempt) return;
-    var on = force === undefined ? !cell.classList.contains('is-picked') : force;
-    cell.classList.toggle('is-picked', on);
+    var dropping = !!cell.dataset.exempt;
+    var cls = dropping ? 'is-dropping' : 'is-picked';
+    var on = force === undefined ? !cell.classList.contains(cls) : force;
+    cell.classList.toggle(cls, on);
     cell.setAttribute('aria-pressed', on ? 'true' : 'false');
   }
 
@@ -77,7 +101,10 @@
     btn.classList.toggle('is-picked', on);
     var row = btn.closest('tr');
     if (!row) return;
-    row.querySelectorAll('.exg-cell').forEach(function (cell) { toggleCell(cell, on); });
+    // زرُّ اليوم للتفريغ لا للإلغاء: المفرَّغُ سلفاً لا يُرشَّح بضغطةٍ عامّة.
+    row.querySelectorAll('.exg-cell:not([data-exempt])').forEach(function (cell) {
+      toggleCell(cell, on);
+    });
   }
 
   // ── السحب: ضغطةٌ ثمّ مرورٌ يظلّل ما يُمَرّ عليه بحالة أوّل خانة ──
@@ -86,9 +113,9 @@
 
   document.addEventListener('pointerdown', function (e) {
     var cell = e.target.closest ? e.target.closest('.exg-cell') : null;
-    if (!cell || cell.dataset.exempt) return;
+    if (!cell) return;
     dragging = true;
-    dragState = !cell.classList.contains('is-picked');
+    dragState = !cell.classList.contains(cell.dataset.exempt ? 'is-dropping' : 'is-picked');
     toggleCell(cell, dragState);
     sync();
   });

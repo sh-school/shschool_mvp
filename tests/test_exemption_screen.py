@@ -42,24 +42,24 @@ def teacher(school):
     return user
 
 
-def test_a_personal_rule_is_not_listed_as_a_release(school, teacher):
+def test_every_release_is_listed_now(school, teacher):
+    """قسمةُ الشاشة قسمين حُذفت (2026-09-09): التفريغُ تفريغٌ مهما كان سببُه.
+
+    كانت جملةٌ في حقل السبب الحرّ («لا أولى ولا سابعة») تُخرج السجلَّ من
+    الجدول إلى قسمٍ ثانٍ. وقد أثبت القياسُ أنّها لا تعمل: صفرٌ من ثلاثةٍ
+    وتسعين تفريغاً نشطاً يطابقها، وستّون منها قيودٌ دائمةٌ في المعنى كُتب
+    سببُها «تم». فصاحبُ القاعدة نفسُه لم يكتب الجملةَ التي تُفعّلها.
+    """
     exempt(school, teacher, day=0, period=1, reason="قرار إدارة المدرسة — لا أولى ولا سابعة")
+    exempt(school, teacher, day=0, period=2, reason="اجتماعُ منسّقي المواد")
 
-    assert TeacherExemption.objects.count() == 1
-    assert TeacherExemption.objects.releases().count() == 0
-
-
-def test_a_real_release_is_still_listed(school, teacher):
-    exempt(school, teacher, day=0, period=1, reason="اجتماعُ منسّقي المواد بالنائب الأكاديميّ")
-
-    assert TeacherExemption.objects.releases().count() == 1
+    assert TeacherExemption.objects.filter(school=school, academic_year=YEAR).count() == 2
 
 
-def test_the_generator_still_sees_the_personal_rule(school, teacher):
-    """الحاسمُ: الإخفاءُ من الشاشة لا يرفع القيدَ عن الجدول."""
+def test_the_generator_sees_them_all(school, teacher):
+    """والحاسمُ لم يتغيّر: ما يقرؤه المولّدُ هو الجدولُ كلُّه بلا تصفية."""
     row = exempt(school, teacher, day=0, period=7, reason="قرار إدارة المدرسة — لا أولى ولا سابعة")
 
-    #: `objects` بلا `releases()` هو ما يقرؤه المولّد.
     assert row in TeacherExemption.objects.filter(school=school, academic_year=YEAR)
 
 

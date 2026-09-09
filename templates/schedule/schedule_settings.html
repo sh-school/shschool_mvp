@@ -160,67 +160,6 @@
     <p class="text-sm text-muted text-center py-3">لا توجد تفريغات حالياً</p>
     {% endif %}
 
-    {% comment %}
-    القيودُ الشخصيّةُ الدائمة كانت تُستبعد من هذه الشاشة كلّيّاً، والمولّدُ
-    يقرؤها ويقيّد بها الجدول — فيرى المستخدمُ قيوداً لا يعرف مصدرَها ولا
-    يستطيع حذفَها من أيّ مكان. فتُعرض هنا في قسمها، بزرّ حذفها.
-    {% endcomment %}
-    {% if personal_rules %}
-    <h3 class="text-sm font-semibold mt-6 mb-2">
-      {% include "components/icon.html" with name="shield" size="icon-sm" %}
-      قيود شخصيّة دائمة ({{ personal_rules|length }}) — يقرؤها المولّد أيضاً
-    </h3>
-    <div data-bulk>
-      <form method="post" action="{% url 'remove_exemptions' %}" id="bulk-personal"
-            class="flex items-center gap-3 mb-2"
-            data-bulk-confirm="إلغاء {n} قيداً محدَّداً؟">
-        {% csrf_token %}
-        <input type="hidden" name="year" value="{{ year }}">
-        <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
-          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
-          إلغاء المحدَّد (<span data-bulk-count>0</span>)
-        </button>
-      </form>
-      <div class="overflow-x-auto">
-      <table>
-        <thead>
-          <tr>
-            <th class="text-center" scope="col" data-sort="none">
-              <input type="checkbox" class="check-lg" data-bulk-all aria-label="تحديد كلّ القيود">
-            </th>
-            <th scope="col">المعلم</th>
-            <th scope="col">اليوم</th>
-            <th scope="col">الحصة</th>
-            <th scope="col">القيد</th>
-            <th scope="col">الجهة</th>
-            <th scope="col"><span class="sr-only">إجراءات</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ex in personal_rules %}
-          <tr>
-            <td class="text-center">
-              <input type="checkbox" form="bulk-personal" name="exemption_id" value="{{ ex.id }}"
-                     class="check-lg" data-bulk-item aria-label="اختيار قيد {{ ex.teacher.full_name }}">
-            </td>
-            <td class="font-semibold text-maroon">{{ ex.teacher.full_name }}</td>
-            <td>{{ ex.get_day_of_week_display }}</td>
-            <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}يوم كامل{% endif %}</td>
-            <td class="text-sm">{{ ex.reason }}</td>
-            <td class="text-sm">{{ ex.get_source_display }}</td>
-            <td>
-              <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء هذا القيد عن {{ ex.teacher.full_name }}؟">
-                {% csrf_token %}
-                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء القيد">{% include "components/icon.html" with name="trash-2" size="icon-sm" %} إلغاء</button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
-    </div>
-    {% endif %}
   </div>
 </div>
 
@@ -296,5 +235,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/exemption-grid.js' %}?v=4" defer></script>
+<script src="{% static 'js/exemption-grid.js' %}?v=5" defer></script>
 {% endblock %}

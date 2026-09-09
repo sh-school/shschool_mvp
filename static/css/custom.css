@@ -6403,3 +6403,16 @@ th[aria-sort="descending"] .th-sort-label {
    ────────────────────────────────────────────────────────────── */
 table thead tr:not([data-plain-head]) th,
 table thead tr:not([data-plain-head]) th a { color: #fff; }
+
+/* مرشَّحةٌ للإلغاء: مفرَّغةٌ نُقرت لترفع عنها التفريغ. */
+.exg-cell.is-dropping {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning);
+  color: var(--status-warning-dark);
+  background-image: none;
+  font-weight: 700;
+}
+.exg-key.is-dropping {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning);
+}

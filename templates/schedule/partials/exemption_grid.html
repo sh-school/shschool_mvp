@@ -68,9 +68,29 @@
 
   <p class="exg-legend">
     <span class="exg-key is-exempt"></span> مفرَّغة الآن
-    <span class="exg-key is-picked"></span> مختارة
-    <span class="exg-muted">— انقر للتظليل، واسحب لتحديد عدّة خانات.</span>
+    <span class="exg-key is-picked"></span> مختارةٌ للتفريغ
+    <span class="exg-key is-dropping"></span> مختارةٌ للإلغاء
+    <span class="exg-muted">— انقر لتظليل خانةٍ حرّة، أو لترشيح مفرَّغةٍ للإلغاء. واسحب لعدّة خانات.</span>
   </p>
+
+  {% comment %}
+  الإلغاءُ من الشبكة نفسها (قرارُ المستخدم 2026-09-09): الخانةُ المفرَّغةُ
+  تُنقر فتُرشَّح، والزرُّ يرفعها باستعلامٍ واحد. فتصير الشبكةُ محرّراً لا
+  مُضيفاً، ولا يُطلب من أحدٍ أن ينزل إلى الجدول ليبحث عن سطرٍ رآه فوق.
+
+  والنموذجُ منفصلٌ عن نموذج الإضافة — النماذجُ لا تتداخل — والربطُ بسمة
+  `form` على الزرّ، وحقولُه تُملأ بالسكربت من الخانات المرشَّحة.
+  {% endcomment %}
+  <form method="post" action="{% url 'remove_exemptions' %}" id="exg-drop-form"
+        data-confirm="إلغاءُ التفريغات المحدَّدة؟">
+    {% csrf_token %}
+    <input type="hidden" name="year" value="{{ year }}">
+    <span data-exg-drop-fields></span>
+    <button type="submit" class="btn-secondary text-xs" data-exg-drop hidden>
+      {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+      إلغاءُ التفريغ عن <b data-exg-drop-count>0</b> خانة
+    </button>
+  </form>
 </div>
 
 {% elif group %}

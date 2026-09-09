@@ -52,6 +52,11 @@ _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
 #: من يكتب توزيعاتِ المواد — الوقودَ الذي يقرؤه المولّد.
 SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
 
+#: من يفتح «إعدادات الجدول والتفريغات» — والمطوّرُ معهم صراحةً (قرارُ المستخدم
+#: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
+#: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
+SCHEDULE_SETTINGS_ROLES = ("principal", "vice_academic", "platform_developer")
+
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
 #: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
@@ -1055,7 +1060,7 @@ def teacher_preferences(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def approve_schedule(request, generation_id):
     """اعتماد الجدول المولّد"""
@@ -1091,24 +1096,19 @@ def _one_of(raw, allowed, fallback):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
 
-    # الشاشةُ للتفريغات وحدَها. والقيودُ الشخصيّةُ الدائمةُ — «لا أولى ولا
-    # سابعة» — تسكن الجدولَ نفسَه لأنّ المولّدَ لا يقرأ غيرَه، وليست منه:
-    # التفريغُ غيابٌ لسببٍ خارجيٍّ له مرجعٌ وتاريخ، وتلك صفةٌ لازمة.
-    active = TeacherExemption.objects.filter(
+    # التفريغاتُ كلُّها في جدولٍ واحد: كان قسمان — «تفريغات» و«قيودٌ شخصيّةٌ
+    # دائمة» — يُفرَّق بينهما بمطابقة جملةٍ في حقل السبب الحرّ. وقد أثبت
+    # القياسُ أنّ صفراً من ثلاثةٍ وتسعين تفريغاً يطابقها، فحُذفت القسمة
+    # (2026-09-09): القيدُ الدائمُ يُدخل من الشبكة كسائره ويُلغى منها.
+    exemptions = TeacherExemption.objects.filter(
         school=school, academic_year=year, is_active=True
     ).select_related("teacher", "created_by")
-    exemptions = active.releases()
-    # القيودُ الشخصيّةُ الدائمة — «لا أولى ولا سابعة» — تُميَّز اليوم بنصّ السبب
-    # لا بحقلٍ صريح. وكانت تُستبعد من الشاشة كلّيّاً بينما المولّدُ يقرؤها
-    # ويقيّد بها الجدول: قيودٌ لا يراها أحد ولا يستطيع أحدٌ حذفَها. فتُعرض في
-    # قسمها، لا تُخفى.
-    personal_rules = active.exclude(pk__in=exemptions.values("pk"))
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
@@ -1129,7 +1129,6 @@ def schedule_settings(request):
         "schedule/schedule_settings.html",
         {
             "exemptions": exemptions,
-            "personal_rules": personal_rules,
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
@@ -1141,7 +1140,7 @@ def schedule_settings(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 def exemption_grid(request):
     """شبكةُ أسبوعِ معلّمٍ بعينه — جزءٌ يُحمّل عند اختياره من القائمة.
 
@@ -1189,7 +1188,7 @@ def exemption_grid(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def add_exemption(request):
     """إضافة تفريغ معلم — POST.
@@ -1298,7 +1297,7 @@ def add_exemption(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def remove_exemption(request, exemption_id):
     """إلغاء تفريغ"""
@@ -1314,7 +1313,7 @@ def remove_exemption(request, exemption_id):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def remove_exemptions(request):
     """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
@@ -1397,7 +1396,7 @@ def _spread_blocker(crowded_classes, scope: str):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def remove_preferences(request):
     """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
@@ -1428,7 +1427,7 @@ def remove_preferences(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def save_subject_scheduling(request):
     """قيودُ الموادّ في الجدول — الازدواجُ وتباعدُ الأيّام — تُحفظ دفعةً واحدة.
