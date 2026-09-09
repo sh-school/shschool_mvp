@@ -43,6 +43,7 @@ urlpatterns = [
     ),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
     path("schedule-settings/", views.schedule_settings, name="schedule_settings"),
+    path("schedule-settings/exemption/grid/", views.exemption_grid, name="exemption_grid"),
     path("schedule-settings/exemption/add/", views.add_exemption, name="add_exemption"),
     path(
         "schedule-settings/exemption/<uuid:exemption_id>/remove/",

@@ -1,0 +1,99 @@
+{% comment %}
+شبكةُ التفريغ — أسبوعُ معلّمٍ خانةً خانة.
+
+تُحمَّل عند اختيار المعلّم، وتُظلَّل بالنقر، ويُرسَل المظلَّلُ في حقلٍ واحد
+(`slots`) بصيغة «يوم:حصّة» مفصولةً بفواصل، و«يوم:*» يومٌ كامل.
+
+والشبكةُ خاليةٌ من جدول المعلّم (قرارُ المستخدم 2026-09-09): أداةُ تفريغٍ لا
+عرضٌ للجدول. فلا يُظلَّل فيها إلّا المفرَّغُ سلفاً والمختارُ الآن.
+{% endcomment %}
+
+{% if grid %}
+<div class="exg" data-exg data-load="{{ grid.load }}" data-week="{{ grid.week_slots }}"
+     data-blocked="{{ grid.blocked }}" data-allowance="{{ grid.allowance }}" data-capacity="{{ grid.capacity }}">
+  <div class="exg-head">
+    <span class="exg-title">أسبوع {{ teacher.full_name }}</span>
+    <span class="exg-capacity exg-{{ grid.level }}">
+      {{ grid.week_slots }} خانة − نصابه <b>{{ grid.load }}</b> =
+      يجوز تفريغُ <b>{{ grid.allowance }}</b>
+      {% if grid.blocked %}<span class="exg-muted">— مفرَّغٌ الآن {{ grid.blocked }}، يبقى {{ grid.remaining }}</span>{% endif %}
+    </span>
+  </div>
+  {% if grid.margin < grid.allowance %}
+  <p class="exg-hint">وتفضيلاتُه أضيق: تسع {{ grid.capacity }} حصّةً فقط، فالفعليُّ {{ grid.margin }}.</p>
+  {% endif %}
+
+  {% comment %}
+  عدّادٌ حيٌّ يتحرّك مع كلّ خانةٍ تُظلَّل: الخاناتُ الباقيةُ مقابلَ النصاب.
+  وهو الحدُّ الصلبُ الرخيص — يمنع القاطعَ قبل الحفظ لا بعد التوليد.
+  {% endcomment %}
+  <p class="exg-live" data-exg-live hidden></p>
+
+  <table class="exg-grid">
+    <thead>
+      <tr>
+        <th scope="col" class="exg-corner">اليوم</th>
+        {% for p in periods %}<th scope="col">{{ p }}</th>{% endfor %}
+        <th scope="col" class="exg-corner">الكل</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in grid.rows %}
+      <tr>
+        <th scope="row">{{ row.name }}</th>
+        {% for cell in row.cells %}
+        <td>
+          {% if cell.disabled %}
+          <span class="exg-cell is-off" aria-hidden="true">—</span>
+          {% else %}
+          <button type="button"
+                  class="exg-cell{% if cell.exemption_id %} is-exempt{% endif %}"
+                  data-slot="{{ cell.key }}"
+                  {% if cell.exemption_id %}data-exempt="{{ cell.exemption_id }}"{% endif %}
+                  {% if cell.from_full_day %}data-full-day="1"{% endif %}
+                  aria-pressed="false"
+                  aria-label="{{ row.name }} · الحصة {{ cell.period }}{% if cell.exemption_id %} — مفرَّغة{% endif %}"
+                  title="{{ row.name }} · الحصة {{ cell.period }}{% if cell.exemption_id %} — مفرَّغة{% endif %}"></button>
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td>
+          <button type="button" class="exg-all" data-row="{{ row.day }}"
+                  title="تظليل يوم {{ row.name }} كاملاً">يوم</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="exg-legend">
+    <span class="exg-key is-exempt"></span> مفرَّغة الآن
+    <span class="exg-key is-picked"></span> مختارة
+    <span class="exg-muted">— انقر للتظليل، واسحب لتحديد عدّة خانات.</span>
+  </p>
+</div>
+
+{% elif group %}
+<div class="exg exg-empty">
+  <p>اختيارُ مجموعةٍ لا جدولَ واحداً لها — ظلِّل النمطَ المطلوبَ وسيُطبَّق على أعضائها جميعاً.</p>
+  <table class="exg-grid" data-exg>
+    <thead>
+      <tr><th class="exg-corner">اليوم</th>{% for p in periods %}<th>{{ p }}</th>{% endfor %}<th class="exg-corner">الكل</th></tr>
+    </thead>
+    <tbody>
+      {% for val, label in days %}
+      <tr>
+        <th scope="row">{{ label }}</th>
+        {% for p in periods %}
+        <td><button type="button" class="exg-cell" data-slot="{{ val }}:{{ p }}" aria-pressed="false" aria-label="{{ label }} · الحصة {{ p }}"></button></td>
+        {% endfor %}
+        <td><button type="button" class="exg-all" data-row="{{ val }}">يوم</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<p class="exg-hint">اختر معلّماً أو مجموعةً لتظهر شبكةُ أسبوعه.</p>
+{% endif %}

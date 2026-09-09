@@ -1109,6 +1109,48 @@ def schedule_settings(request):
 
 @login_required
 @role_required("principal", "vice_academic")
+def exemption_grid(request):
+    """شبكةُ أسبوعِ معلّمٍ بعينه — جزءٌ يُحمّل عند اختياره من القائمة.
+
+    وبلا معلّمٍ مختارٍ تُعاد شبكةٌ خاوية: المجموعةُ («كلّ المنسّقين») لا جدولَ
+    واحدَ لها، فتُظلَّل نمطاً مجرّداً بلا شواغلَ ولا سعة.
+    """
+    import uuid
+
+    from operations.exemption_grid import DAYS, PERIODS, build_grid
+
+    from .forms import TeacherExemptionForm
+
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+    raw = (request.GET.get("teacher") or "").strip()
+
+    teacher = None
+    if raw and raw not in TeacherExemptionForm.GROUPS:
+        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
+        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
+        try:
+            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
+        except ValueError:
+            teacher = None
+
+    grid = build_grid(school, teacher, year) if teacher is not None else None
+    return render(
+        request,
+        "schedule/partials/exemption_grid.html",
+        {
+            "grid": grid,
+            "teacher": teacher,
+            "group": raw if teacher is None and raw else "",
+            "days": DAYS,
+            "periods": PERIODS,
+            "year": year,
+        },
+    )
+
+
+@login_required
+@role_required("principal", "vice_academic")
 @require_POST
 def add_exemption(request):
     """إضافة تفريغ معلم — POST.
@@ -1116,6 +1158,9 @@ def add_exemption(request):
     المدخلاتُ تمرّ على `TeacherExemptionForm` أوّلاً: هي التي تقيّد المعلّمَ
     بمدرسة المُدخِل، وتحوّل الأرقامَ، وتردّ الناقصَ رسالةً لا صفحةَ خطأ.
     """
+    from operations.exemption_grid import build_grid as build_exemption_grid
+    from operations.exemption_grid import cells_of as _grid_cells
+
     from .forms import TeacherExemptionForm
 
     school = request.user.get_school()
@@ -1130,7 +1175,32 @@ def add_exemption(request):
         return _safe_schedule_settings_redirect(request, year)
 
     data = form.cleaned_data
-    teachers, days, periods = data["teacher"], data["day_of_week"], data["period_number"]
+    teachers, days, pairs = data["teacher"], data["day_of_week"], data["pairs"]
+
+    # حارسُ الإمكانيّة: «خاناتُ الأسبوع − النصاب = ما يجوز تفريغُه»، والمفرَّغُ
+    # سلفاً مطروحٌ منه. وما تجاوزه يُنتج حصصاً بلا موضعٍ فيقول المولّدُ «تعذّر
+    # وضع» بلا سبب. والعدّادُ في الشاشة تنبيهٌ يُتجاوَز بإطفاء السكربت، فالمنعُ
+    # هنا. ويُفحص كلُّ معلّمٍ على حدة — فالمجموعةُ تختلف أنصبةُ أعضائها.
+    over_allowance = []
+    for teacher in teachers:
+        grid = build_exemption_grid(school, teacher, year)
+        added = sum(
+            1
+            for day, period in pairs
+            for cell in _grid_cells(grid, day, period)
+            if not cell.exemption_id and not cell.disabled
+        )
+        if grid.load and added > grid.remaining:
+            over_allowance.append(
+                f"{teacher.full_name} (نصابه {grid.load} من {grid.week_slots} خانة، "
+                f"فالمسموحُ {grid.remaining} وطُلب {added})"
+            )
+    if over_allowance:
+        messages.error(
+            request,
+            "لم يُحفظ — التفريغُ يتجاوز المسموح: " + "؛ ".join(over_allowance),
+        )
+        return _safe_schedule_settings_redirect(request, year)
 
     # معلّمون × أيّام × حصص في معاملةٍ واحدة: إمّا الكلُّ وإمّا لا شيء. والمكرَّرُ
     # (المعلّمُ نفسُه، اليومُ نفسُه، الحصّةُ نفسُها) يُتخطّى ويُعَدّ — فتفريغُ
@@ -1151,24 +1221,28 @@ def add_exemption(request):
                 ).values_list("teacher_id", "day_of_week", "period_number")
             )
             for teacher in teachers:
-                for day in days:
-                    for period in periods:
-                        if (teacher.id, day, period) in existing:
-                            skipped += 1
-                            continue
-                        existing.add((teacher.id, day, period))
-                        ScheduleService.create_exemption(
-                            school=school,
-                            teacher=teacher,
-                            academic_year=year,
-                            exemption_type=data["exemption_type"],
-                            day_of_week=day,
-                            period_number=period,
-                            reason=data["reason"],
-                            created_by=request.user,
-                            source=data["source"],
-                        )
-                        created += 1
+                for day, period in pairs:
+                    if (teacher.id, day, period) in existing:
+                        skipped += 1
+                        continue
+                    existing.add((teacher.id, day, period))
+                    ScheduleService.create_exemption(
+                        school=school,
+                        teacher=teacher,
+                        academic_year=year,
+                        #: النوعُ من الخانة نفسِها حين تأتي من الشبكة: بلا رقمِ
+                        #: حصّةٍ فهو يومٌ كامل. وهو الذي يُنقص مقامَ القسمة.
+                        exemption_type=(
+                            data["exemption_type"]
+                            or ("full_day" if period is None else "specific_period")
+                        ),
+                        day_of_week=day,
+                        period_number=period,
+                        reason=data["reason"],
+                        created_by=request.user,
+                        source=data["source"],
+                    )
+                    created += 1
     except DjangoValidationError as exc:
         # تفريغُ يومٍ كاملٍ قرارٌ إداريّ — ورفضُه يُقال، ولا يصير 500.
         messages.error(request, "؛ ".join(exc.messages))

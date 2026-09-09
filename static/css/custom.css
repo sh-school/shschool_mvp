@@ -6253,3 +6253,119 @@ th[aria-sort="descending"] .th-sort-label {
   text-underline-offset: 3px;
   text-decoration-thickness: 2px;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   شبكةُ التفريغ — أسبوعُ المعلّم خانةً خانة
+   ══════════════════════════════════════════════════════════════
+   حلّت محلَّ «نوعُ التفريغ × الأيّام × الحصص»: الضربُ كان يعجز عن
+   «الأحدَ الأولى والاثنينَ الثالثة»، والشبكةُ تحمله بنقرتين. وهي خاليةٌ
+   من جدول المعلّم — أداةُ تفريغٍ لا عرضٌ للجدول.
+   ────────────────────────────────────────────────────────────── */
+
+.exg { margin-block: 0.25rem; }
+
+.exg-head {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 0.5rem; margin-block-end: 0.5rem;
+}
+.exg-title { font-weight: 700; font-size: 0.9rem; color: var(--maroon); }
+.exg-capacity { font-size: 0.8rem; color: var(--text-secondary); }
+.exg-capacity b { font-variant-numeric: tabular-nums; }
+.exg-ok b { color: var(--status-success); }
+.exg-tight b { color: var(--status-warning); }
+.exg-impossible { color: var(--status-danger); font-weight: 600; }
+.exg-muted { color: var(--text-muted); font-weight: 400; }
+
+.exg-grid { width: 100%; border-collapse: separate; border-spacing: 2px; }
+.exg-grid th {
+  font-size: 0.75rem; font-weight: 600;
+  padding: 0.15rem 0.35rem; text-align: center; white-space: nowrap;
+}
+/* رأسُ الأعمدة على أرضيّةِ `thead tr` العنابيّة — فنصُّه أبيضُ لا ثانويّ.
+   وكان يرث لونَ النصِّ الثانويِّ الغامقَ فوق العنابيّ فلا يكاد يُقرأ. */
+.exg-grid thead th { color: #fff; }
+/* ورأسُ الصفِّ في `tbody` على أرضيّةٍ شفّافة — فيبقى ثانويّاً. */
+.exg-grid tbody th[scope="row"] {
+  text-align: start; min-width: 4.5rem; color: var(--text-secondary);
+}
+.exg-grid td { padding: 0; }
+
+/* الخانة: مربّعٌ يقبل النقرَ والسحب، وحرفاه رمزُ الشعبة الشاغلة. */
+.exg-cell {
+  display: flex; align-items: center; justify-content: center;
+  inline-size: 100%; min-block-size: 2.25rem;
+  border: 1px solid var(--border); border-radius: 0.35rem;
+  background: var(--surface); color: var(--text-muted);
+  font-size: 0.7rem; font-variant-numeric: tabular-nums;
+  cursor: pointer; transition: background-color .12s, border-color .12s, transform .06s;
+  user-select: none;
+}
+.exg-cell:hover { border-color: var(--maroon); }
+.exg-cell:active { transform: scale(.96); }
+.exg-cell:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+
+/* مفرَّغةٌ الآن: قائمةٌ في القاعدة فلا تُختار ثانيةً — ولونٌ باهتٌ يجعلها
+   كالفارغة، فتُملأ صريحاً ويُخطَّط عليها. */
+.exg-cell.is-exempt {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+  cursor: not-allowed;
+  background-image: repeating-linear-gradient(
+    45deg, transparent 0 4px, var(--status-danger-border) 4px 6px
+  );
+}
+.exg-cell.is-exempt:hover { border-color: var(--status-danger); }
+/* مختارةٌ الآن — لم تُحفظ بعد. */
+.exg-cell.is-picked {
+  background: var(--maroon); border-color: var(--maroon);
+  color: #fff; font-weight: 700;
+}
+.exg-cell.is-off {
+  display: flex; align-items: center; justify-content: center;
+  min-block-size: 2.25rem; border: 1px dashed var(--border);
+  border-radius: 0.35rem; color: var(--text-muted); opacity: .45;
+}
+
+.exg-all {
+  inline-size: 100%; min-block-size: 2.25rem; padding-inline: 0.4rem;
+  border: 1px dashed var(--border); border-radius: 0.35rem;
+  background: transparent; color: var(--text-secondary);
+  font-size: 0.7rem; cursor: pointer;
+}
+.exg-all:hover { border-color: var(--maroon); color: var(--maroon); }
+.exg-all.is-picked { background: var(--maroon); border-style: solid; color: #fff; }
+
+.exg-legend {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin-block-start: 0.5rem; font-size: 0.72rem; color: var(--text-secondary);
+}
+.exg-key {
+  display: inline-block; inline-size: 0.85rem; block-size: 0.85rem;
+  border: 1px solid var(--border); border-radius: 0.2rem; vertical-align: -2px;
+}
+.exg-key.is-exempt {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger);
+  background-image: repeating-linear-gradient(
+    45deg, transparent 0 3px, var(--status-danger-border) 3px 5px
+  );
+}
+.exg-key.is-picked { background: var(--maroon); border-color: var(--maroon); }
+
+.exg-hint, .exg-empty p { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.4rem; }
+
+@media (max-width: 640px) {
+  .exg-grid { border-spacing: 1px; }
+  .exg-cell, .exg-all, .exg-cell.is-off { min-block-size: 1.9rem; font-size: 0.62rem; }
+  .exg-grid th[scope="row"] { min-width: 3.2rem; font-size: 0.68rem; }
+}
+
+/* العدّادُ الحيُّ تحت رأس الشبكة — يتحرّك مع كلّ خانةٍ تُظلَّل. */
+.exg-live {
+  margin: 0 0 0.5rem; font-size: 0.76rem; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.exg-live.exg-ok { color: var(--status-success); }
+.exg-live.exg-tight { color: var(--status-warning); }
+.exg-live.exg-impossible { color: var(--status-danger); }

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 {% block title %}إعدادات الجدول والتفريغات — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -33,8 +34,8 @@
       <input type="hidden" name="year" value="{{ year }}">
 
       <div class="form-group mb-0">
-        <label class="form-label text-xs">المعلم/المنسق</label>
-        <select name="teacher" class="form-control" required>
+        <label class="form-label text-xs" for="exemption-teacher">المعلم/المنسق</label>
+        <select name="teacher" id="exemption-teacher" class="form-control" required>
           <option value="">— اختر —</option>
           {# مجموعةٌ لا شخص: اجتماعُ المنسّقين تفريغٌ واحدٌ لهم جميعاً. #}
           <option value="coordinators">★ كلّ منسّقي المواد</option>
@@ -44,34 +45,26 @@
         </select>
       </div>
 
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">نوع التفريغ</label>
-        <select name="exemption_type" id="exemption-type" class="form-control" data-show-when="#period-field|specific_period">
-          <option value="full_day">يوم كامل</option>
-          <option value="specific_period">حصة محددة</option>
-        </select>
-      </div>
+      {% comment %}
+      الشبكةُ محلَّ «نوعُ التفريغ × الأيّام × الحصص».
 
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">الأيام</label>
-        {# مربّعاتٌ لا قائمة: الحصّةُ الأولى الأحدَ والثلاثاءَ تفريغان بطلبٍ واحد. #}
-        <div class="flex flex-wrap gap-x-3 gap-y-1 pt-2" role="group" aria-label="الأيام">
-          {% for val, label in days %}
-          <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" name="day_of_week" value="{{ val }}"> {{ label }}</label>
-          {% endfor %}
-        </div>
-      </div>
+      الاستمارةُ القديمةُ كانت تضرب مصفوفةً — (الأيّامُ المختارة) × (الحصصُ
+      المختارة) — فعجزت عن «الأحدَ الأولى والاثنينَ الثالثة»: اختيارُ اليومين
+      والحصّتين يُنتج أربعَ خاناتٍ لا اثنتين. ولهذا سكنت قيودُ معلّمٍ واحدٍ
+      عشرين تفريغاً منفصلاً.
 
-      {# الإخفاءُ بـ`hidden` لا بنمطٍ داخليّ: السكربتُ يرفع `hidden` حين يُختار «حصة محددة»، و`display:none` الداخليّ كان أقوى منها فتبقى الخانةُ مخفيّة. #}
-      <div class="form-group mb-0" id="period-field" hidden>
-        <label class="form-label text-xs">الحصص</label>
-        {# مربّعاتٌ كالأيّام: الأولى والسابعةُ تفريغان بطلبٍ واحد. #}
-        <div class="flex flex-wrap gap-x-3 gap-y-1 pt-2" role="group" aria-label="الحصص">
-          {% for p in periods %}
-          <label class="inline-flex items-center gap-1 text-sm"><input type="checkbox" name="period_number" value="{{ p }}"> {{ p }}</label>
-          {% endfor %}
-        </div>
+      والشبكةُ تُظلَّل خانةً خانة، وتُظهر شاغلَ كلِّ خانةٍ فيُرى ثمنُ التفريغ
+      قبل اتّخاذه، وتقيس السعةَ مقابل النصاب بالدالّة نفسِها التي تحرس صفحةَ
+      التفضيلات.
+      {% endcomment %}
+      <div class="form-group mb-0 sm:col-span-2 lg:col-span-4" id="exemption-grid"
+           hx-get="{% url 'exemption_grid' %}?year={{ year }}"
+           hx-trigger="change from:#exemption-teacher"
+           hx-include="#exemption-teacher"
+           hx-swap="innerHTML">
+        <p class="exg-hint">اختر معلّماً أو مجموعةً لتظهر شبكةُ أسبوعه.</p>
       </div>
+      <input type="hidden" name="slots" id="exemption-slots" value="">
 
       <div class="form-group mb-0 sm:col-span-2">
         <label class="form-label text-xs">السبب</label>
@@ -288,4 +281,8 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/exemption-grid.js' %}?v=4" defer></script>
 {% endblock %}
