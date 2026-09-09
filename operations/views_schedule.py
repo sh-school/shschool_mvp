@@ -1023,12 +1023,29 @@ def teacher_preferences(request):
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return redirect(f"{reverse('teacher_preferences')}?year={year}")
 
+    #: نصابُ صاحب الصفحة وأدنى سقفٍ يومّيٍّ يسعه — يُعرضان قبل الاختيار لا
+    #: بعده. وكانت الصفحةُ تفتح على قوائمَ بلا سياق، فيختار المعلّمُ سقفاً
+    #: لا يسع نصابَه ثمّ يُردّ عند الحفظ برسالةٍ حسنةِ الصياغةِ جاءت متأخّرة.
+    load = sum(
+        SubjectClassAssignment.objects.filter(
+            school=school, academic_year=year, teacher=request.user, is_active=True
+        ).values_list("weekly_periods", flat=True)
+    )
+    open_days = 5 - (1 if pref.free_day is not None else 0)
+    needed = -(-load // open_days) if load else 0
+
     return render(
         request,
         "schedule/teacher_preferences.html",
         {
             "pref": pref,
             "days": ScheduleSlot.DAYS,
+            #: المدى كاملاً — وكان القالبُ يعرض «3456» فيحجب الخيارين 1 و2
+            #: عن اثنَي عشرَ منسّقاً أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً، وهم
+            #: أحوجُ الناس إلى تجميع حصصهم في يومٍ أو يومين.
+            "periods": ScheduleSlot.PERIODS,
+            "load": load,
+            "min_daily": needed,
             "year": year,
         },
     )
