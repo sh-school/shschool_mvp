@@ -19,7 +19,7 @@
 والكتابةُ كلُّها تمرّ بـ`assignment_service` فتُفحص وتُدقَّق كما كانت.
 """
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -176,16 +176,42 @@ def _rows_by_teacher(school, year):
         .select_related("class_group", "subject")
         .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     )
-    members = Counter(
-        (row.class_group_id, row.parallel_group.strip()) for row in rows if row.parallel_group
-    )
-    by_class = defaultdict(list)
+    _decorate(rows, _class_peers(school, year, rows))
     for row in rows:
-        by_class[row.class_group_id].append(row)
+        out[row.teacher_id].append(row)
+    return out
 
+
+def _class_peers(school, year, rows):
+    """كلُّ إسنادات الشُّعب التي تخصّ هذه الصفوف — منها الشركاءُ وحكمُ اليتيم.
+
+    والبطاقةُ الواحدةُ تُعاد بصفوف معلّمها وحدَه، فلو قُرئ الشركاءُ منها لخلت
+    قائمةُ التوازي إلّا من «لا توازي» — وهو ما رآه المستخدم. فالشعبةُ تُقرأ
+    كاملةً ولو كانت موادُّها لمعلّمين آخرين: التوازي بين مادّتين في شعبة، لا
+    بين حصّتَي معلّم.
+    """
+    ids = {row.class_group_id for row in rows}
+    if not ids:
+        return {}
+    peers = defaultdict(list)
+    for row in (
+        SubjectClassAssignment.objects.live(school, year=year)
+        .filter(class_group_id__in=ids)
+        .select_related("class_group", "subject")
+        .order_by("subject__name_ar")
+    ):
+        peers[row.class_group_id].append(row)
+    return peers
+
+
+def _decorate(rows, peers):
+    """سماتُ العرض التي لا تُحفظ: الشركاءُ واليتيمُ والازدواجُ والتباعدُ الفعليّان."""
     for row in rows:
         tag = (row.parallel_group or "").strip()
-        row.parallel_orphan = bool(tag) and members[(row.class_group_id, tag)] < 2
+        family = peers.get(row.class_group_id, [])
+        row.parallel_orphan = (
+            bool(tag) and sum(1 for r in family if (r.parallel_group or "").strip() == tag) < 2
+        )
         #: أيسري تباعدُ الأيّام على مرحلة هذه الشعبة؟ — `spreads_in` هي الحكم.
         row.spread_effective = row.subject.spreads_in(row.class_group.level_type or "")
         #: ما يقرؤه المولّدُ فعلاً: قرارُ الشعبة إن كُتب، وإلّا إعدادُ المادّة.
@@ -194,16 +220,12 @@ def _rows_by_teacher(school, year):
             if row.double_period is not None
             else row.subject.requires_double_period
         )
-        #: شركاءُ التوازي الممكنون: موادُّ الشعبة نفسِها عدا هذه — ولو كانت
-        #: مُسنَدةً لمعلّمٍ آخر، فالشعبةُ تنقسم بين معلّمَين لا بين حصّتَي
-        #: معلّمٍ واحد.
-        siblings = [r for r in by_class[row.class_group_id] if r.id != row.id]
+        siblings = [r for r in family if r.id != row.id]
         row.parallel_options = siblings
         row.parallel_partner = next(
             (r for r in siblings if tag and (r.parallel_group or "").strip() == tag), None
         )
-        out[row.teacher_id].append(row)
-    return out
+    return rows
 
 
 def _prepared_by_teacher(school, year):
@@ -284,6 +306,9 @@ def _card(
             (p.grade, p.track, p.subject_id)
             for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
         }
+    #: الصفوفُ المزيَّنةُ تأتي من الصفحة كاملةً؛ وبطاقةٌ تُعاد وحدَها تُزيَّن هنا.
+    if rows and not hasattr(rows[0], "parallel_options"):
+        _decorate(rows, _class_peers(school, year, rows))
     for row in rows:
         row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
         row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
@@ -801,9 +826,7 @@ def toggle_spread(request, assignment_id):
 
     level = obj.class_group.level_type or ""
     if level not in ("prep", "sec"):
-        return _render_card(
-            request, school, year, teacher, caps, error="الشعبةُ بلا مرحلةٍ مسجَّلة."
-        )
+        return _render_card(request, school, year, teacher, caps, error="الشعبةُ بلا مرحلةٍ مسجَّلة.")
     other = "sec" if level == "prep" else "prep"
     current = obj.subject.spread_days_scope
     has_other = current in ("all", other)
