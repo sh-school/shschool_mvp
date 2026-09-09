@@ -234,9 +234,14 @@ ANALYTICS_VIEW = {
 # لم نجد نصّاً وزاريّاً منشوراً يُسنِد اعتمادَ الأنصبة إلى وظيفةٍ بعينها، فهذه
 # افتراضاتٌ موصى بها تُهيّئها المدرسةُ عبر `WorkloadGovernance`، لا حقيقةٌ
 # تنظيميّةٌ محفورةٌ في الكود.
-WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal"}
-WORKLOAD_REVIEW = {"vice_academic", "principal"}
-WORKLOAD_APPROVE = {"principal"}
+#
+# ومطوّرُ المنصّة في الثلاث صراحةً (قرارُ المستخدم 2026-09-09): كان يمرّ بصفة
+# `is_superuser` وحدَها في `has_capability` — وهي صفةُ حسابٍ لا دورٌ في مدرسة.
+# فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه، والتدقيقُ لا يقرأ من
+# أين جاءت القدرة. وهو الدرسُ نفسُه الذي دفع `TIER_SYSTEM` إلى ذكره صراحةً.
+WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal", "platform_developer"}
+WORKLOAD_REVIEW = {"vice_academic", "principal", "platform_developer"}
+WORKLOAD_APPROVE = {"principal", "platform_developer"}
 
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
 USER_MANAGE = {"principal"}

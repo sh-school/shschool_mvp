@@ -59,10 +59,19 @@ class WorkflowError(Exception):
 # ══════════════════════════════════════════════════════════════════════
 
 
+#: مطوّرُ المنصّة في كلّ قدرةٍ مهما هيّأت المدرسة (قرارُ المستخدم 2026-09-09).
+#:
+#: التهيئةُ المدرسيّةُ تُبدّل الأدوارَ ولا تُلغي من يُصلح النظام: مدرسةٌ تكتب
+#: `edit_roles = ["coordinator"]` كانت تُسقط المطوّرَ عن شاشةٍ هي عملُه، ولا
+#: يبقى له إلّا صفةُ `is_superuser` — وهي صفةُ حسابٍ لا دورٌ يُقرأ في تدقيق.
+_ALWAYS = {"platform_developer"}
+
+
 def capability_roles(school, capability):
     """أدوارُ هذه القدرة في هذه المدرسة — وفراغُ التهيئة يعني الافتراض."""
     configured = getattr(WorkloadGovernance.for_school(school), _GOVERNANCE_FIELD[capability], [])
-    return set(configured) if configured else set(_DEFAULT_ROLES[capability])
+    roles = set(configured) if configured else set(_DEFAULT_ROLES[capability])
+    return roles | _ALWAYS
 
 
 def has_capability(user, school, capability):
