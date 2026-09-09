@@ -1128,8 +1128,14 @@ def exemption_grid(request):
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
+    # المجموعةُ («كلّ المنسّقين») لا جدولَ واحداً لها، فشبكتُها مجرّدة. وهي
+    # اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة لا يُعامَل
+    # معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً يُوهمه بأنّ
+    # اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
+    group = raw if raw in TeacherExemptionForm.GROUPS else ""
+
     teacher = None
-    if raw and raw not in TeacherExemptionForm.GROUPS:
+    if raw and not group:
         # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
         # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
         try:
@@ -1144,7 +1150,7 @@ def exemption_grid(request):
         {
             "grid": grid,
             "teacher": teacher,
-            "group": raw if teacher is None and raw else "",
+            "group": group,
             "days": DAYS,
             "periods": PERIODS,
             "year": year,

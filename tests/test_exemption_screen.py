@@ -111,22 +111,26 @@ def test_a_teacher_of_another_school_may_not_be_released(school):
 # ── خانةُ الحصّة تظهر حين تُختار «حصة محددة» ─────────────────────────
 
 
-def test_the_period_field_hides_by_attribute_not_by_inline_style():
-    """كانت الخانةُ مخفيّةً بـ`display:none` داخليّ، والسكربتُ يرفع `hidden` وحدَها —
-    والنمطُ الداخليّ أقوى، فبقيت مخفيّةً ولم يجد المستخدمُ أين يختار الحصّة."""
+def test_the_screen_shades_a_grid_instead_of_multiplying_days_by_periods():
+    """الاستمارةُ صارت شبكةً (2026-09-09): «نوعُ التفريغ × الأيّام × الحصص»
+    كان ضرباً يعجز عن خانتين متفرّقتين، فحلّ محلَّه تظليلٌ يُرسَل في حقلٍ واحد.
+
+    وكان هنا اختبارٌ يحرس إخفاءَ خانة «الحصص» بـ`hidden` لا بنمطٍ داخليّ —
+    والخانةُ نفسُها لم تعد قائمة، فيحرس مكانَها ما حلّ محلَّها.
+    """
     import pathlib
-    import re
 
     html = pathlib.Path("templates/schedule/schedule_settings.html").read_text(encoding="utf-8")
-    field = re.search(r'<div[^>]*id="period-field"[^>]*>', html).group(0)
 
-    assert "hidden" in field
-    assert "display:none" not in field
+    assert 'id="exemption-grid"' in html, "موضعُ الشبكة يُحمَّل عند اختيار المعلّم"
+    assert 'name="slots"' in html, "والمظلَّلُ يُرسَل في حقلٍ واحد"
+    assert 'id="period-field"' not in html, "ولا تبقى خانةُ الحصص القديمة"
 
-    js = pathlib.Path("static/js/actions.js").read_text(encoding="utf-8")
-    assert (
-        "DOMContentLoaded" in js.split('on("change", "data-show-when"')[1].split("/* ──")[0]
-    ), "والحالةُ تُقيَّم عند التحميل — المتصفّحُ يعيد قيمةَ القائمة بلا حدث"
+    partial = pathlib.Path("templates/schedule/partials/exemption_grid.html").read_text(
+        encoding="utf-8"
+    )
+    assert 'data-slot="{{ cell.key }}"' in partial
+    assert 'class="exg-all"' in partial, "وزرُّ اليوم الكامل عند رأس كلّ صفّ"
 
 
 # ── أيّامٌ عدّةٌ بطلبٍ واحد، والمنسّقون مجموعةً ──────────────────────
@@ -218,9 +222,11 @@ def test_the_screen_offers_the_group_and_the_days_and_no_reference(school):
         .content.decode()
     )
 
-    assert 'value="coordinators"' in body
-    assert body.count('type="checkbox" name="day_of_week"') == 5
-    assert body.count('type="checkbox" name="period_number"') == 7
+    assert 'value="coordinators"' in body, "والمجموعةُ تبقى: اجتماعُ المنسّقين طلبٌ واحد"
+    # الأيّامُ والحصصُ لم تعودا مربّعاتٍ تُضرب: الشبكةُ تحملهما خانةً خانة.
+    assert 'type="checkbox" name="day_of_week"' not in body
+    assert 'type="checkbox" name="period_number"' not in body
+    assert 'id="exemption-grid"' in body
     assert "source_reference" not in body and "مرجع القرار" not in body
 
 
