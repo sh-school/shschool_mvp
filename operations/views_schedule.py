@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from collections import defaultdict
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -9,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1239,6 +1241,51 @@ def remove_exemptions(request):
     return _safe_schedule_settings_redirect(request, year)
 
 
+#: أيّامُ الدراسة في الأسبوع — سقفُ ما يسعه التباعدُ الصلبُ من حصص المادّة.
+DAYS_PER_WEEK = 5
+
+
+def _spread_overflow(school, year) -> dict[str, list]:
+    """لكلّ مادّة: الشُّعبُ التي تطلب منها أكثرَ ممّا يسعه التباعد، ومرحلةُ كلٍّ.
+
+    مادّةُ ستِّ حصصٍ لا تتباعد في خمسة أيّام. وكان هذا يُكتشف بعد دقيقتين من
+    التوليد بستٍّ وعشرين «تعذّر وضع» لا تقول سببَها (2026-09-09).
+    """
+    from core.models import ClassGroup
+
+    rows = list(
+        SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
+        .values("subject_id", "class_group_id", "class_group__level_type")
+        .annotate(periods=Sum("weekly_periods"))
+        .filter(periods__gt=DAYS_PER_WEEK)
+    )
+    #: أسماءُ الشُّعب المخالفة في استعلامٍ واحد — لا استعلامٍ لكلّ صفّ.
+    labels = {
+        c.pk: c.short_code
+        for c in ClassGroup.objects.filter(pk__in={r["class_group_id"] for r in rows})
+    }
+    crowded: dict[str, list] = defaultdict(list)
+    for row in rows:
+        crowded[str(row["subject_id"])].append(
+            (
+                row["class_group__level_type"] or "",
+                labels.get(row["class_group_id"], "؟"),
+                row["periods"],
+            )
+        )
+    return crowded
+
+
+def _spread_blocker(crowded_classes, scope: str):
+    """أوّلُ شعبةٍ يمنعها هذا النطاق — أو `None` إن كان النطاقُ ممكناً."""
+    if scope == "none":
+        return None
+    for level, name, periods in crowded_classes:
+        if scope == "all" or scope == level:
+            return name, periods
+    return None
+
+
 @login_required
 @role_required("principal", "vice_academic")
 @require_POST
@@ -1281,7 +1328,9 @@ def save_subject_scheduling(request):
     فصار زرٌّ واحدٌ في ذيلها يحفظ ما تغيّر وحدَه، ويقول كم تغيّر.
     """
     school = request.user.get_school()
+    year = request.POST.get("year") or academic_year_for(request)
     scopes = dict(Subject.SPREAD_SCOPES)
+    crowded = _spread_overflow(school, year)
 
     doubled = set(request.POST.getlist("double"))
     changed = []
@@ -1292,6 +1341,21 @@ def save_subject_scheduling(request):
         if scope not in scopes:
             messages.error(request, f"نطاقٌ غيرُ معروفٍ لـ{subject.name_ar} — لم يُحفظ.")
             continue
+        # الاستحالةُ تُقال عند الحفظ لا بعد دقيقتين من التوليد: التباعدُ الصلبُ
+        # حصّةٌ في اليوم، فمادّةٌ نصابُها ستٌّ في أسبوعٍ أيّامُه خمسةٌ لا تسع.
+        # والمردودُ هو النطاقُ وحدَه: قرارُ الازدواج في السطر نفسِه يُحفظ.
+        blocker = scope != subject.spread_days_scope and _spread_blocker(
+            crowded.get(key, ()), scope
+        )
+        if blocker:
+            klass, periods = blocker
+            messages.error(
+                request,
+                f"تباعدُ الأيّام لـ{subject.name_ar} يستحيل: الشعبة {klass} تطلب "
+                f"{periods} حصصاً و«{scopes[scope]}» يسمح بـ{DAYS_PER_WEEK} — "
+                "بقي نطاقُها كما كان.",
+            )
+            scope = subject.spread_days_scope
         if wants_double == subject.requires_double_period and scope == subject.spread_days_scope:
             continue
         subject.requires_double_period = wants_double

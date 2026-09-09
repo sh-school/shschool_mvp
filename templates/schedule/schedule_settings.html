@@ -241,6 +241,7 @@
     </p>
     <form method="post" action="{% url 'save_subject_scheduling' %}">
       {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
       <div class="overflow-x-auto">
       <table>
         <thead>
