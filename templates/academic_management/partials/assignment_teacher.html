@@ -78,7 +78,7 @@
           <form hx-post="{% url 'academic_management:assignment_toggle_double' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <input type="checkbox" name="double" value="1" {% if row.double_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
-                   title="حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة"
+                   title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
                    aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group }}">
           </form>
         </td>
@@ -91,7 +91,7 @@
           <form hx-post="{% url 'academic_management:assignment_toggle_spread' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <input type="checkbox" name="spread" value="1" {% if row.spread_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
-                   title="قيدٌ صلب: لا حصّتان منها في يومٍ واحدٍ للشعبة — ويسري على كلّ شُعب هذه المرحلة"
+                   title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}قيدٌ صلب: لا حصّتان منها في يومٍ واحدٍ للشعبة — ويسري على كلّ شُعب هذه المرحلة{% endif %}"
                    aria-label="أيام مختلفة — {{ row.subject.name_ar }} في {{ row.class_group }}">
           </form>
         </td>
@@ -106,7 +106,7 @@
             {% csrf_token %}
             <select name="partner" {% if not card.writable %}disabled{% endif %}
                     aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group }}"
-                    title="{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}">
+                    title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
               <option value="">— لا توازي —</option>
               {% for opt in row.parallel_options %}
               <option value="{{ opt.id }}" {% if row.parallel_partner and row.parallel_partner.id == opt.id %}selected{% endif %}>{{ opt.subject.name_ar }}</option>
