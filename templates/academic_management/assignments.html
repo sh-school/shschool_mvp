@@ -48,7 +48,10 @@
   .asg-quota input { width: 62px; padding: 4px 6px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; text-align: center; }
   .asg-inline { display: inline; }
   table.asg { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
-  table.asg th { text-align: right; color: var(--text-muted); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  /* ترويسةٌ عنابيّةٌ ⇒ نصٌّ أبيض. كان اللونُ هنا `--text-muted` رماديّاً على
+     أرضيّة `thead tr` العنابيّة، فالتخصيصُ الأخصُّ يغلب العامَّ ويبهت الرأس. */
+  table.asg thead th { text-align: right; color: #fff; font-weight: 600; padding: 4px 6px; }
+  table.asg tbody th { text-align: right; color: var(--text-muted); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--border); }
   table.asg td { padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   table.asg input[type=number] { width: 54px; padding: 3px 5px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; text-align: center; }
   table.asg select { padding: 5px 8px; border: 1.5px solid var(--border-strong); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--surface); min-width: 170px; }
