@@ -276,6 +276,33 @@ def _may_write(plan, caps):
     return caps["edit"]
 
 
+def _card_rows(school, year, teacher, rows, prepared):
+    """صفوفُ البطاقة مزيَّنةً — تُجلب إن لم تُمرَّر، وتُزيَّن إن لم تكن مزيَّنة.
+
+    الصفحةُ كاملةً تجلب الجميعَ مرّةً وتزيّنهم في `_rows_by_teacher`، وبطاقةٌ
+    تُعاد وحدَها بعد حفظٍ تمرّ من هنا. وفصلُها عن `_card` ليس ترتيباً: تلك
+    بلغت تعقيداً تردّه بوّابةُ الجودة (CC ≥ 31).
+    """
+    if rows is None:
+        rows = list(
+            SubjectClassAssignment.objects.live(school, year=year)
+            .filter(teacher=teacher)
+            .select_related("class_group", "subject")
+            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
+        )
+    if prepared is None:
+        prepared = {
+            (p.grade, p.track, p.subject_id)
+            for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
+        }
+    if rows and not hasattr(rows[0], "parallel_options"):
+        _decorate(rows, _class_peers(school, year, rows))
+    for row in rows:
+        row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
+        row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
+    return rows
+
+
 def _card(
     school,
     year,
@@ -294,24 +321,7 @@ def _card(
     transfer=None,
 ):
     """سياقُ بطاقةٍ واحدة — تُبنى للصفحة وتُعاد وحدَها بعد كلّ حفظ."""
-    if rows is None:
-        rows = list(
-            SubjectClassAssignment.objects.live(school, year=year)
-            .filter(teacher=teacher)
-            .select_related("class_group", "subject")
-            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
-        )
-    if prepared is None:
-        prepared = {
-            (p.grade, p.track, p.subject_id)
-            for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
-        }
-    #: الصفوفُ المزيَّنةُ تأتي من الصفحة كاملةً؛ وبطاقةٌ تُعاد وحدَها تُزيَّن هنا.
-    if rows and not hasattr(rows[0], "parallel_options"):
-        _decorate(rows, _class_peers(school, year, rows))
-    for row in rows:
-        row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
-        row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
+    rows = _card_rows(school, year, teacher, rows, prepared)
 
     plan = plans.get(teacher.id) if plans is not None else _latest_plan(school, teacher, year)
     status = plan.status if plan else ""
