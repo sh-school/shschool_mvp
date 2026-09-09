@@ -750,6 +750,17 @@ def smart_schedule_view(request):
         .annotate(slot_rows=Count("slots"))[:5]
     )
     total_weekly = sum(a.weekly_periods for a in assignments)
+    #: التوازي يفرّق الرقمين: حصّتان تُدرَّسان في التوقيت الواحد لمعلّمَي
+    #: المادّتين، وخانةٌ واحدةٌ تُشغَل من أسبوع الشعبة.
+    #:
+    #:     InstructionalPeriods ≠ OccupiedSlots
+    #:
+    #: وخلطُهما هو ما يجعل «مطلوب 37 والسعة 35» يبدو فائضاً وليس بفائض. فيُقال
+    #: الرقمان معاً حيث يُقرأ المجموع، لا رقمٌ واحدٌ يُحمَل على المعنيين.
+    from operations.services import CapacityCheckService as _Cap
+
+    occupied_slots = _Cap.slot_demand(assignments)
+    shared_periods = total_weekly - occupied_slots
     # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
     # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
     # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
@@ -772,6 +783,8 @@ def smart_schedule_view(request):
         request,
         "schedule/smart_schedule.html",
         {
+            "occupied_slots": occupied_slots,
+            "shared_periods": shared_periods,
             # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
             # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
             "assignments_count": len(assignments),
