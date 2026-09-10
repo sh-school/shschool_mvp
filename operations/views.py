@@ -41,7 +41,6 @@ from .views_schedule import (
     smart_generate,
     smart_generate_status,
     smart_schedule_view,
-    subject_double_periods,
     substitute_report,
     teacher_absence_list,
     teacher_load_report,
@@ -100,7 +99,6 @@ __all__ = [
     "remove_exemption",
     "set_spread_days",
     "toggle_double_period",
-    "subject_double_periods",
     "teacher_preferences",
     # swap
     "swap_list",

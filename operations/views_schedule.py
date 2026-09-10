@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -1081,23 +1080,7 @@ def schedule_settings(request):
     # ويقيّد بها الجدول: قيودٌ لا يراها أحد ولا يستطيع أحدٌ حذفَها. فتُعرض في
     # قسمها، لا تُخفى.
     personal_rules = active.exclude(pk__in=exemptions.values("pk"))
-    #: عددُ الشُّعب التي خالفت قرارَ المادّة — فمن يرى «مفعّلة» في السطر يعرف
-    #: أنّ تحتها استثناءاتٍ قبل أن يفتحها.
-    subjects = (
-        Subject.objects.filter(school=school)
-        .annotate(
-            tuned_sections=Count(
-                "class_assignments",
-                filter=Q(
-                    class_assignments__academic_year=year,
-                    class_assignments__is_active=True,
-                    class_assignments__double_period__isnull=False,
-                ),
-                distinct=True,
-            )
-        )
-        .order_by("name_ar")
-    )
+    subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
         .select_related("teacher")
@@ -1253,85 +1236,6 @@ def set_spread_days(request, subject_id):
         f"أيّامٌ مختلفةٌ لـ {subject.name_ar}: {subject.get_spread_days_scope_display()}",
     )
     return _safe_schedule_settings_redirect(request)
-
-
-#: قيمُ عمود الازدواج في الاستمارة — و`""` هو `None` في القاعدة: «اتبع المادّة».
-_DOUBLE_CHOICES = {"": None, "1": True, "0": False}
-
-
-@login_required
-@role_required("principal", "vice_academic")
-def subject_double_periods(request, subject_id):
-    """ازدواجُ المادّة شعبةً شعبة — `SubjectClassAssignment.double_period`.
-
-    والحقلُ قائمٌ منذ 2026-09-02 ويقرؤه المولّد، لكنّ طريقَه كان لوحةَ الإدارة
-    وحدَها: فمن عمل من المنصّة لم يرَ إلّا مفتاحَ المادّة العامّ، وظنّ — بحقٍّ —
-    أنّ التخصيصَ متعذّر. والحاجةُ إليه قائمة: الفنّيّةُ مزدوجةٌ في الإعداديّ،
-    وتكنولوجيا المعلومات وعلومُ الحاسب مزدوجتان في شُعب الحادي عشر والثاني
-    عشر التكنولوجيّ وحدَها.
-
-    والتباعدُ (HC18) يعلو الازدواجَ في المولّد، فتُعلَّم الشعبةُ التي يسري
-    عليها ولا يُدَّعى لها ازدواجٌ لن يقع — زرٌّ لا يُطاع هو خطأُ `ART`/`TECH`
-    نفسُه قبل إصلاحه.
-    """
-    school = request.user.get_school()
-    year = request.GET.get("year") or request.POST.get("year") or academic_year_for(request)
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-
-    assignments = (
-        SubjectClassAssignment.objects.filter(
-            school=school, academic_year=year, subject=subject, is_active=True
-        )
-        .select_related("class_group", "teacher")
-        .order_by(grade_order("class_group__grade"), "class_group__section")
-    )
-
-    if request.method == "POST":
-        changed = 0
-        with transaction.atomic():
-            for a in assignments:
-                raw = request.POST.get(f"dp_{a.id}", "")
-                if raw not in _DOUBLE_CHOICES:
-                    continue
-                wanted = _DOUBLE_CHOICES[raw]
-                if wanted == a.double_period:
-                    continue
-                a.double_period = wanted
-                a.updated_by = request.user
-                a.save(update_fields=["double_period", "updated_by", "updated_at"])
-                changed += 1
-        if changed:
-            messages.success(request, f"حُفظ ازدواجُ {subject.name_ar}: {changed} شعبة.")
-        else:
-            messages.info(request, "لا تغييرَ يُحفظ.")
-        return redirect(
-            f"{reverse('subject_double_periods', args=[subject.id])}?{urlencode({'year': year})}"
-        )
-
-    rows = []
-    for a in assignments:
-        level = a.class_group.level_type or ""
-        spread = subject.spreads_in(level)
-        rows.append(
-            {
-                "assignment": a,
-                "spread": spread,
-                #: ما يفعله المولّدُ فعلاً بهذه الشعبة — لا ما في الحقل وحدَه.
-                "effective": False
-                if spread
-                else (
-                    a.double_period
-                    if a.double_period is not None
-                    else subject.requires_double_period
-                ),
-            }
-        )
-
-    return render(
-        request,
-        "schedule/subject_double_periods.html",
-        {"subject": subject, "rows": rows, "year": year},
-    )
 
 
 # ── جداولُ الصفحات: صفحةٌ لكلّ معلّمٍ أو لكلّ شعبة ─────────────────────
