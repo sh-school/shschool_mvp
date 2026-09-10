@@ -48,11 +48,7 @@ def _get_student_ctx(user, school, today):
     att_pct = round(present / total * 100) if total else 100
 
     # حصص اليوم عبر فصل الطالب
-    enrollment = (
-        StudentEnrollment.objects.filter(student=user, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(user)
     student_sessions = []
     if enrollment and enrollment.class_group:
         student_sessions = (

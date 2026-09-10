@@ -139,11 +139,7 @@ class AttendanceService:
         from operations.absence_policy import gates_for
         from operations.absence_standing import standing_for
 
-        enrollment = (
-            StudentEnrollment.objects.filter(student=student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student)
         grade = enrollment.class_group.grade if enrollment else None
         if not gates_for(grade):
             # الصفوف ١–٣ لها قسمٌ مستقلّ في الدليل لم يُشفَّر — فلا إنذار.
