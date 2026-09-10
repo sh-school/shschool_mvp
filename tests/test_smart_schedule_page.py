@@ -182,10 +182,11 @@ def test_the_message_reports_what_was_actually_placed(client_as, principal, scho
     response = client_as(principal).post(reverse("smart_generate"), {"year": YEAR}, follow=True)
     body = response.content.decode()
 
-    #: بالكلمة لا بالرقم وحدَه: «0/0» تقع في تاريخِ اليومِ نفسِه («10/09/2026»)
-    #: فيفشل الاختبارُ في أيّامٍ بعينها من السنة ولا علاقةَ للرسالة بذلك.
-    assert "0/0 حصّة" not in body, "لا رقمَ يصف ما لم يقع"
-    assert "12/12" in body and "100.0%" in body
+    # الخانةُ نفسُها لا النصُّ كلُّه: الصفحةُ تطبع تاريخَ التوليد `d/m/Y`، وفي
+    # العاشر من أيلول يقرأ «10/09» فيحوي «0/0» — فكان التأكيدُ الخامُ يفشل
+    # ثلاثةَ أيّامٍ في كلّ شهر.
+    assert ">0/0<" not in body, "لا رقمَ يصف ما لم يقع"
+    assert ">12/12<" in body and "100.0%" in body
     assert "م1:" not in body, "ولا ذكرَ لمراحلَ لا وجودَ لها"
 
 

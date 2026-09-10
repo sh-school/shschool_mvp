@@ -119,6 +119,7 @@ SOFT_CONSTRAINTS = (
     _soft("double_bonus", "مكافأةُ الحصّة المزدوجة", -5),
     _soft("high_weekly_adjacent", "تلاصقُ مادّةٍ عاليةِ النصاب", 7),
     _soft("extra_last_period", "سابعةٌ زائدةٌ للمعلّم", 12),
+    _soft("free_day", "يومُ التفريغ الذي طلبه المعلّم", 14),
 )
 
 REGISTRY: dict[str, ConstraintSpec] = {

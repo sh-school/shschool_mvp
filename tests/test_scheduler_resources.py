@@ -458,3 +458,35 @@ def test_two_prep_classes_still_share_the_fields(school):
     grid.place(0, 2, tasks[0])
 
     assert check_resource_level_homogeneity(grid, 0, 2, tasks[1]) is True
+
+
+def test_the_seed_carries_the_same_level_flag(school):
+    """رايةُ HC11 جزءٌ من بذرِ المورد — لا قرارٌ يُنتظر من لوحة الإدارة.
+
+    كانت خارجه، فأُنشئ الموردُ على الإنتاج مطفأَ الراية والقيدُ عاطلٌ ولو
+    وُجد المورد (2026-09-09).
+    """
+    from django.core.management import call_command
+
+    for name in ("التربية البدنية", "الفنون البصرية"):
+        Subject.objects.create(school=school, name_ar=name, code=name[:4])
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+
+    fields = SchedulingResource.objects.get(school=school, name="الملاعب")
+    studios = SchedulingResource.objects.get(school=school, name="مرسما الفنّيّة")
+
+    assert fields.same_level_only is True, "الملعبان لا يجمعان مرحلتين"
+    assert studios.same_level_only is False, "والمرسمان يجمعان — القيدُ للملاعب وحدها"
+
+
+def test_the_seed_repairs_a_flag_switched_off_by_hand(school):
+    """ومن أطفأها يدوياً يُعيدها الأمرُ — البذرةُ مُعلِنةٌ لا مُراكِمة."""
+    from django.core.management import call_command
+
+    Subject.objects.create(school=school, name_ar="التربية البدنية", code="PE")
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+    SchedulingResource.objects.filter(school=school, name="الملاعب").update(same_level_only=False)
+
+    call_command("seed_scheduling_resources", school=school.code, verbosity=0)
+
+    assert SchedulingResource.objects.get(school=school, name="الملاعب").same_level_only is True

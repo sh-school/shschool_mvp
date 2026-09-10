@@ -183,7 +183,20 @@ def _check_classes(assignments) -> Finding:
             "لا شعبةَ طلبُها فوقَ خاناتِ أسبوعها.",
         )
     rows = tuple(
-        Shortfall(o["class_name"], o["demand"], o["capacity"]) for o in sorted(over, key=_by_over)
+        Shortfall(
+            o["class_name"],
+            o["demand"],
+            o["capacity"],
+            #: السببُ المرجَّحُ يُقال لا يُترك للتخمين: وسمُ توازٍ بلا شريكٍ في
+            #: الشعبة لا يُخصَم من الطلب، فيظهر فائضٌ سببُه وسمٌ ناقصٌ لا نصابٌ
+            #: زائد. وعلاجُه إشعالُ «متوازية» على شريكة المادّة في شاشة الإسناد.
+            note=(
+                "توازٍ ناقصٌ شريكَه: " + "، ".join(o["orphan_parallels"])
+                if o.get("orphan_parallels")
+                else ""
+            ),
+        )
+        for o in sorted(over, key=_by_over)
     )
     return Finding(
         "capacity.class",

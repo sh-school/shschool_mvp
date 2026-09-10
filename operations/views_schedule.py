@@ -1,6 +1,8 @@
 """operations/views_schedule.py — views إدارة الجداول والغياب والبدلاء."""
 
 import logging
+import uuid
+from collections import defaultdict
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -8,6 +10,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.db.models import Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -48,6 +51,11 @@ _REPORT_ROLES = {
 _ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
 #: من يكتب توزيعاتِ المواد — الوقودَ الذي يقرؤه المولّد.
 SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
+
+#: من يفتح «إعدادات الجدول والتفريغات» — والمطوّرُ معهم صراحةً (قرارُ المستخدم
+#: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
+#: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
+SCHEDULE_SETTINGS_ROLES = ("principal", "vice_academic", "platform_developer")
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
@@ -747,6 +755,17 @@ def smart_schedule_view(request):
         .annotate(slot_rows=Count("slots"))[:5]
     )
     total_weekly = sum(a.weekly_periods for a in assignments)
+    #: التوازي يفرّق الرقمين: حصّتان تُدرَّسان في التوقيت الواحد لمعلّمَي
+    #: المادّتين، وخانةٌ واحدةٌ تُشغَل من أسبوع الشعبة.
+    #:
+    #:     InstructionalPeriods ≠ OccupiedSlots
+    #:
+    #: وخلطُهما هو ما يجعل «مطلوب 37 والسعة 35» يبدو فائضاً وليس بفائض. فيُقال
+    #: الرقمان معاً حيث يُقرأ المجموع، لا رقمٌ واحدٌ يُحمَل على المعنيين.
+    from operations.services import CapacityCheckService as _Cap
+
+    occupied_slots = _Cap.slot_demand(assignments)
+    shared_periods = total_weekly - occupied_slots
     # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
     # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
     # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
@@ -774,7 +793,11 @@ def smart_schedule_view(request):
         request,
         "schedule/smart_schedule.html",
         {
-            "assignments": assignments,
+            "occupied_slots": occupied_slots,
+            "shared_periods": shared_periods,
+            # جدولُ التوزيعات كان يُعرض هنا كاملاً — وشاشةُ الإسناد تعرضه
+            # بأدواتها. فبقي العددُ وحدَه: مؤشّراً في الأعلى، وشرطاً للفراغ.
+            "assignments_count": len(assignments),
             "generations": generations,
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
@@ -1011,12 +1034,29 @@ def teacher_preferences(request):
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
             return redirect(f"{reverse('teacher_preferences')}?year={year}")
 
+    #: نصابُ صاحب الصفحة وأدنى سقفٍ يومّيٍّ يسعه — يُعرضان قبل الاختيار لا
+    #: بعده. وكانت الصفحةُ تفتح على قوائمَ بلا سياق، فيختار المعلّمُ سقفاً
+    #: لا يسع نصابَه ثمّ يُردّ عند الحفظ برسالةٍ حسنةِ الصياغةِ جاءت متأخّرة.
+    load = sum(
+        SubjectClassAssignment.objects.filter(
+            school=school, academic_year=year, teacher=request.user, is_active=True
+        ).values_list("weekly_periods", flat=True)
+    )
+    open_days = 5 - (1 if pref.free_day is not None else 0)
+    needed = -(-load // open_days) if load else 0
+
     return render(
         request,
         "schedule/teacher_preferences.html",
         {
             "pref": pref,
             "days": ScheduleSlot.DAYS,
+            #: المدى كاملاً — وكان القالبُ يعرض «3456» فيحجب الخيارين 1 و2
+            #: عن اثنَي عشرَ منسّقاً أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً، وهم
+            #: أحوجُ الناس إلى تجميع حصصهم في يومٍ أو يومين.
+            "periods": ScheduleSlot.PERIODS,
+            "load": load,
+            "min_daily": needed,
             "year": year,
         },
     )
@@ -1026,7 +1066,7 @@ def teacher_preferences(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def approve_schedule(request, generation_id):
     """اعتماد الجدول المولّد"""
@@ -1062,24 +1102,19 @@ def _one_of(raw, allowed, fallback):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
 
-    # الشاشةُ للتفريغات وحدَها. والقيودُ الشخصيّةُ الدائمةُ — «لا أولى ولا
-    # سابعة» — تسكن الجدولَ نفسَه لأنّ المولّدَ لا يقرأ غيرَه، وليست منه:
-    # التفريغُ غيابٌ لسببٍ خارجيٍّ له مرجعٌ وتاريخ، وتلك صفةٌ لازمة.
-    active = TeacherExemption.objects.filter(
+    # التفريغاتُ كلُّها في جدولٍ واحد: كان قسمان — «تفريغات» و«قيودٌ شخصيّةٌ
+    # دائمة» — يُفرَّق بينهما بمطابقة جملةٍ في حقل السبب الحرّ. وقد أثبت
+    # القياسُ أنّ صفراً من ثلاثةٍ وتسعين تفريغاً يطابقها، فحُذفت القسمة
+    # (2026-09-09): القيدُ الدائمُ يُدخل من الشبكة كسائره ويُلغى منها.
+    exemptions = TeacherExemption.objects.filter(
         school=school, academic_year=year, is_active=True
     ).select_related("teacher", "created_by")
-    exemptions = active.releases()
-    # القيودُ الشخصيّةُ الدائمة — «لا أولى ولا سابعة» — تُميَّز اليوم بنصّ السبب
-    # لا بحقلٍ صريح. وكانت تُستبعد من الشاشة كلّيّاً بينما المولّدُ يقرؤها
-    # ويقيّد بها الجدول: قيودٌ لا يراها أحد ولا يستطيع أحدٌ حذفَها. فتُعرض في
-    # قسمها، لا تُخفى.
-    personal_rules = active.exclude(pk__in=exemptions.values("pk"))
     subjects = Subject.objects.filter(school=school).order_by("name_ar")
     teacher_prefs = (
         TeacherPreference.objects.filter(school=school, academic_year=year)
@@ -1100,7 +1135,6 @@ def schedule_settings(request):
         "schedule/schedule_settings.html",
         {
             "exemptions": exemptions,
-            "personal_rules": personal_rules,
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
@@ -1112,7 +1146,55 @@ def schedule_settings(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
+def exemption_grid(request):
+    """شبكةُ أسبوعِ معلّمٍ بعينه — جزءٌ يُحمّل عند اختياره من القائمة.
+
+    وبلا معلّمٍ مختارٍ تُعاد شبكةٌ خاوية: المجموعةُ («كلّ المنسّقين») لا جدولَ
+    واحدَ لها، فتُظلَّل نمطاً مجرّداً بلا شواغلَ ولا سعة.
+    """
+    import uuid
+
+    from operations.exemption_grid import DAYS, PERIODS, build_grid
+
+    from .forms import TeacherExemptionForm
+
+    school = request.user.get_school()
+    year = request.GET.get("year") or academic_year_for(request)
+    raw = (request.GET.get("teacher") or "").strip()
+
+    # المجموعةُ («كلّ المنسّقين») لا جدولَ واحداً لها، فشبكتُها مجرّدة. وهي
+    # اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة لا يُعامَل
+    # معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً يُوهمه بأنّ
+    # اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
+    group = raw if raw in TeacherExemptionForm.GROUPS else ""
+
+    teacher = None
+    if raw and not group:
+        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
+        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
+        try:
+            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
+        except ValueError:
+            teacher = None
+
+    grid = build_grid(school, teacher, year) if teacher is not None else None
+    return render(
+        request,
+        "schedule/partials/exemption_grid.html",
+        {
+            "grid": grid,
+            "teacher": teacher,
+            "group": group,
+            "days": DAYS,
+            "periods": PERIODS,
+            "year": year,
+        },
+    )
+
+
+@login_required
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def add_exemption(request):
     """إضافة تفريغ معلم — POST.
@@ -1120,6 +1202,9 @@ def add_exemption(request):
     المدخلاتُ تمرّ على `TeacherExemptionForm` أوّلاً: هي التي تقيّد المعلّمَ
     بمدرسة المُدخِل، وتحوّل الأرقامَ، وتردّ الناقصَ رسالةً لا صفحةَ خطأ.
     """
+    from operations.exemption_grid import build_grid as build_exemption_grid
+    from operations.exemption_grid import cells_of as _grid_cells
+
     from .forms import TeacherExemptionForm
 
     school = request.user.get_school()
@@ -1134,7 +1219,32 @@ def add_exemption(request):
         return _safe_schedule_settings_redirect(request, year)
 
     data = form.cleaned_data
-    teachers, days, periods = data["teacher"], data["day_of_week"], data["period_number"]
+    teachers, days, pairs = data["teacher"], data["day_of_week"], data["pairs"]
+
+    # حارسُ الإمكانيّة: «خاناتُ الأسبوع − النصاب = ما يجوز تفريغُه»، والمفرَّغُ
+    # سلفاً مطروحٌ منه. وما تجاوزه يُنتج حصصاً بلا موضعٍ فيقول المولّدُ «تعذّر
+    # وضع» بلا سبب. والعدّادُ في الشاشة تنبيهٌ يُتجاوَز بإطفاء السكربت، فالمنعُ
+    # هنا. ويُفحص كلُّ معلّمٍ على حدة — فالمجموعةُ تختلف أنصبةُ أعضائها.
+    over_allowance = []
+    for teacher in teachers:
+        grid = build_exemption_grid(school, teacher, year)
+        added = sum(
+            1
+            for day, period in pairs
+            for cell in _grid_cells(grid, day, period)
+            if not cell.exemption_id and not cell.disabled
+        )
+        if grid.load and added > grid.remaining:
+            over_allowance.append(
+                f"{teacher.full_name} (نصابه {grid.load} من {grid.week_slots} خانة، "
+                f"فالمسموحُ {grid.remaining} وطُلب {added})"
+            )
+    if over_allowance:
+        messages.error(
+            request,
+            "لم يُحفظ — التفريغُ يتجاوز المسموح: " + "؛ ".join(over_allowance),
+        )
+        return _safe_schedule_settings_redirect(request, year)
 
     # معلّمون × أيّام × حصص في معاملةٍ واحدة: إمّا الكلُّ وإمّا لا شيء. والمكرَّرُ
     # (المعلّمُ نفسُه، اليومُ نفسُه، الحصّةُ نفسُها) يُتخطّى ويُعَدّ — فتفريغُ
@@ -1155,24 +1265,28 @@ def add_exemption(request):
                 ).values_list("teacher_id", "day_of_week", "period_number")
             )
             for teacher in teachers:
-                for day in days:
-                    for period in periods:
-                        if (teacher.id, day, period) in existing:
-                            skipped += 1
-                            continue
-                        existing.add((teacher.id, day, period))
-                        ScheduleService.create_exemption(
-                            school=school,
-                            teacher=teacher,
-                            academic_year=year,
-                            exemption_type=data["exemption_type"],
-                            day_of_week=day,
-                            period_number=period,
-                            reason=data["reason"],
-                            created_by=request.user,
-                            source=data["source"],
-                        )
-                        created += 1
+                for day, period in pairs:
+                    if (teacher.id, day, period) in existing:
+                        skipped += 1
+                        continue
+                    existing.add((teacher.id, day, period))
+                    ScheduleService.create_exemption(
+                        school=school,
+                        teacher=teacher,
+                        academic_year=year,
+                        #: النوعُ من الخانة نفسِها حين تأتي من الشبكة: بلا رقمِ
+                        #: حصّةٍ فهو يومٌ كامل. وهو الذي يُنقص مقامَ القسمة.
+                        exemption_type=(
+                            data["exemption_type"]
+                            or ("full_day" if period is None else "specific_period")
+                        ),
+                        day_of_week=day,
+                        period_number=period,
+                        reason=data["reason"],
+                        created_by=request.user,
+                        source=data["source"],
+                    )
+                    created += 1
     except DjangoValidationError as exc:
         # تفريغُ يومٍ كاملٍ قرارٌ إداريّ — ورفضُه يُقال، ولا يصير 500.
         messages.error(request, "؛ ".join(exc.messages))
@@ -1189,7 +1303,7 @@ def add_exemption(request):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
 def remove_exemption(request, exemption_id):
     """إلغاء تفريغ"""
@@ -1205,36 +1319,171 @@ def remove_exemption(request, exemption_id):
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
-def toggle_double_period(request, subject_id):
-    """تفعيل/إلغاء الحصة المزدوجة لمادة"""
+def remove_exemptions(request):
+    """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
+
+    عشرون تفريغاً لمعلّمٍ واحدٍ كانت تُلغى بعشرين نقرةٍ وعشرين تأكيداً — وهي
+    فعلٌ واحدٌ في ذهن النائب. فالاختيارُ بمربّعاتٍ والإلغاءُ باستعلامٍ واحد.
+
+    والمعرِّفاتُ تُصفّى قبل الاستعلام: نصٌّ ليس بـUUID يُسقط الاستعلامَ خطأَ
+    خادمٍ لا رسالةً، ومدرسةُ المُدخِلِ قيدٌ لا تجميل — فلا يُلغي أحدٌ
+    تفريغَ مدرسةٍ غيرِ مدرسته ولو حزر معرِّفَه.
+    """
     school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    subject.requires_double_period = not subject.requires_double_period
-    subject.save(update_fields=["requires_double_period"])
-    status = "مفعّلة" if subject.requires_double_period else "معطّلة"
-    messages.success(request, f"الحصة المزدوجة لـ {subject.name_ar}: {status}")
-    return _safe_schedule_settings_redirect(request)
+    year = request.POST.get("year") or None
+
+    ids = []
+    for raw in request.POST.getlist("exemption_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفريغ.")
+        return _safe_schedule_settings_redirect(request, year)
+
+    removed = TeacherExemption.objects.filter(school=school, id__in=ids, is_active=True).update(
+        is_active=False
+    )
+
+    if removed:
+        messages.success(request, f"تمّ إلغاء {removed} تفريغاً")
+    else:
+        messages.info(request, "لا شيء أُلغي: المحدَّدُ ملغىً سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, year)
+
+
+#: أيّامُ الدراسة في الأسبوع — سقفُ ما يسعه التباعدُ الصلبُ من حصص المادّة.
+DAYS_PER_WEEK = 5
+
+
+def _spread_overflow(school, year) -> dict[str, list]:
+    """لكلّ مادّة: الشُّعبُ التي تطلب منها أكثرَ ممّا يسعه التباعد، ومرحلةُ كلٍّ.
+
+    مادّةُ ستِّ حصصٍ لا تتباعد في خمسة أيّام. وكان هذا يُكتشف بعد دقيقتين من
+    التوليد بستٍّ وعشرين «تعذّر وضع» لا تقول سببَها (2026-09-09).
+    """
+    from core.models import ClassGroup
+
+    rows = list(
+        SubjectClassAssignment.objects.filter(school=school, academic_year=year, is_active=True)
+        .values("subject_id", "class_group_id", "class_group__level_type")
+        .annotate(periods=Sum("weekly_periods"))
+        .filter(periods__gt=DAYS_PER_WEEK)
+    )
+    #: أسماءُ الشُّعب المخالفة في استعلامٍ واحد — لا استعلامٍ لكلّ صفّ.
+    labels = {
+        c.pk: c.short_code
+        for c in ClassGroup.objects.filter(pk__in={r["class_group_id"] for r in rows})
+    }
+    crowded: dict[str, list] = defaultdict(list)
+    for row in rows:
+        crowded[str(row["subject_id"])].append(
+            (
+                row["class_group__level_type"] or "",
+                labels.get(row["class_group_id"], "؟"),
+                row["periods"],
+            )
+        )
+    return crowded
+
+
+def _spread_blocker(crowded_classes, scope: str):
+    """أوّلُ شعبةٍ يمنعها هذا النطاق — أو `None` إن كان النطاقُ ممكناً."""
+    if scope == "none":
+        return None
+    for level, name, periods in crowded_classes:
+        if scope == "all" or scope == level:
+            return name, periods
+    return None
 
 
 @login_required
-@role_required("principal", "vice_academic")
+@role_required(*SCHEDULE_SETTINGS_ROLES)
 @require_POST
-def set_spread_days(request, subject_id):
-    """نطاقُ «حصصها في أيّامٍ مختلفة» لمادّة — قيدٌ صلبٌ يقرّره النائبُ من الشاشة."""
+def remove_preferences(request):
+    """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
+
+    والحذفُ هنا حذفٌ لا إطفاء: للتفضيل قيدُ تفرّدٍ (معلّم × مدرسة × عام)،
+    فصفٌّ مطفأٌ باقٍ يمنع صاحبَه أن يسجّل تفضيلاً جديداً. وما يضيع يعيده
+    صاحبُه من شاشته.
+    """
     school = request.user.get_school()
-    subject = get_object_or_404(Subject, id=subject_id, school=school)
-    scope = request.POST.get("scope", "")
-    if scope not in dict(Subject.SPREAD_SCOPES):
-        messages.error(request, "نطاقٌ غيرُ معروف.")
-        return _safe_schedule_settings_redirect(request)
-    subject.spread_days_scope = scope
-    subject.save(update_fields=["spread_days_scope"])
-    messages.success(
-        request,
-        f"أيّامٌ مختلفةٌ لـ {subject.name_ar}: {subject.get_spread_days_scope_display()}",
-    )
+
+    ids = []
+    for raw in request.POST.getlist("preference_id"):
+        try:
+            ids.append(uuid.UUID(raw))
+        except (AttributeError, TypeError, ValueError):
+            continue
+
+    if not ids:
+        messages.info(request, "لم يُحدَّد أيُّ تفضيل.")
+        return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+    removed, _ = TeacherPreference.objects.filter(school=school, id__in=ids).delete()
+    if removed:
+        messages.success(request, f"تمّ حذف {removed} تفضيلاً")
+    else:
+        messages.info(request, "لا شيء حُذف: المحدَّدُ محذوفٌ سلفاً أو ليس من مدرستك.")
+    return _safe_schedule_settings_redirect(request, request.POST.get("year") or None)
+
+
+@login_required
+@role_required(*SCHEDULE_SETTINGS_ROLES)
+@require_POST
+def save_subject_scheduling(request):
+    """قيودُ الموادّ في الجدول — الازدواجُ وتباعدُ الأيّام — تُحفظ دفعةً واحدة.
+
+    كان لكلّ سطرٍ زرّاه: زرُّ حفظٍ للنطاق وزرُّ قلبٍ للازدواج، فمراجعةُ عشرين
+    مادّةً عشرون رحلةً إلى الخادم. والقرارُ في ذهن النائب واحد: هذه الشاشة.
+    فصار زرٌّ واحدٌ في ذيلها يحفظ ما تغيّر وحدَه، ويقول كم تغيّر.
+    """
+    school = request.user.get_school()
+    year = request.POST.get("year") or academic_year_for(request)
+    scopes = dict(Subject.SPREAD_SCOPES)
+    crowded = _spread_overflow(school, year)
+
+    doubled = set(request.POST.getlist("double"))
+    changed = []
+    for subject in Subject.objects.filter(school=school):
+        key = str(subject.pk)
+        wants_double = key in doubled
+        scope = request.POST.get(f"scope_{key}", subject.spread_days_scope)
+        if scope not in scopes:
+            messages.error(request, f"نطاقٌ غيرُ معروفٍ لـ{subject.name_ar} — لم يُحفظ.")
+            continue
+        # الاستحالةُ تُقال عند الحفظ لا بعد دقيقتين من التوليد: التباعدُ الصلبُ
+        # حصّةٌ في اليوم، فمادّةٌ نصابُها ستٌّ في أسبوعٍ أيّامُه خمسةٌ لا تسع.
+        # والمردودُ هو النطاقُ وحدَه: قرارُ الازدواج في السطر نفسِه يُحفظ.
+        blocker = scope != subject.spread_days_scope and _spread_blocker(
+            crowded.get(key, ()), scope
+        )
+        if blocker:
+            klass, periods = blocker
+            messages.error(
+                request,
+                f"تباعدُ الأيّام لـ{subject.name_ar} يستحيل: الشعبة {klass} تطلب "
+                f"{periods} حصصاً و«{scopes[scope]}» يسمح بـ{DAYS_PER_WEEK} — "
+                "بقي نطاقُها كما كان.",
+            )
+            scope = subject.spread_days_scope
+        if wants_double == subject.requires_double_period and scope == subject.spread_days_scope:
+            continue
+        subject.requires_double_period = wants_double
+        subject.spread_days_scope = scope
+        changed.append(subject)
+
+    if changed:
+        Subject.objects.bulk_update(
+            changed, ["requires_double_period", "spread_days_scope"], batch_size=100
+        )
+        messages.success(request, f"حُفظ تعديلُ {len(changed)} مادّة")
+    else:
+        messages.info(request, "لا تغييرَ يُحفظ.")
     return _safe_schedule_settings_redirect(request)
 
 

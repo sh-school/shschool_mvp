@@ -74,6 +74,16 @@ WEIGHTS = {
     #: خانةً سابعةً وثلاثةٌ وسبعون معلّماً — أي سابعةٌ ونصفٌ لكلٍّ في المتوسّط،
     #: فالواحدةُ مستحيلةٌ حسابيّاً. فيُثقَّل الوزنُ ليقترب منها ما أمكن.
     "extra_last_period": 12,
+    #: يومُ التفريغ الذي طلبه المعلّم — ترجيحٌ قويٌّ لا قيدٌ صلب.
+    #:
+    #: كان الحقلُ يُحمَّل ويُمرَّر ولا يُقرأ في قيدٍ ولا ترجيح: يدخل حسابَ
+    #: السعة وقياسَ المختبر فقط. فمعلّمٌ نصابُه أربعُ حصصٍ وأيّامُه خمسةٌ طلب
+    #: تفريغَ الثلاثاء فوُضعت له فيه حصّة — وتركُه فارغاً كان مجّانيّاً
+    #: (قياس 2026-09-09). حقلٌ يَعِد ولا يفي أسوأُ من حقلٍ غائب.
+    #:
+    #: وصلباً لا يصلح: أربعون معلّماً يطلبون أيّاماً تُضيّق الأسبوعَ حتى
+    #: يستحيل. فوزنٌ يعلو التتابعَ والفراغَ ليُحترم ما لم يُسدَّ الطريق.
+    "free_day": 14,
 }
 
 
@@ -803,6 +813,13 @@ def evaluate_soft_constraints(
     penalty = SoftPenalty()
     weights = grid.policy.weights
 
+    # ── SC15: يومُ التفريغ الذي طلبه المعلّم يُترك فارغاً ما أمكن ──
+    #
+    # صفةُ اليوم لا الخانة: كلُّ خانةٍ فيه تحمل العقوبةَ نفسَها، فيُزاح العملُ
+    # إلى غيره ما دام في غيره موضع. وبلا تفضيلٍ مكتوبٍ لا عقوبةَ أصلاً.
+    wanted_free = ((preferences or {}).get(task.teacher_id) or {}).get("free_day")
+    penalty.add("free_day", weights["free_day"], wanted_free is not None and wanted_free == day)
+
     # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
     consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
     # الحصّةُ المزدوجةُ استثناءٌ مقصود: مادّةٌ وُسِمت بالازدواج تُرجَّح متجاورةً
@@ -890,24 +907,36 @@ def evaluate_soft_constraints(
     is_pe = task.subject_code == "PE"
     penalty.add("pe_after_break", weights["pe_after_break"], is_pe and period not in (4, 5))
 
-    # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
-    if is_double and same_subject_today == 1:
-        # المعلم لديه حصة واحدة لهذه المادة اليوم — مكافأة إذا متتالية
-        # المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
-        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
-        if prev_task and prev_task.subject_id == task.subject_id:
-            penalty.add("double_bonus", weights["double_bonus"], True)  # مكافأة (قيمة سالبة)
+    _same_subject_neighbour_weights(
+        penalty, grid, day, period, task, is_double, same_subject_today, weights
+    )
+    return penalty
 
-    # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
-    if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
-        prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+
+def _same_subject_neighbour_weights(
+    penalty, grid, day, period, task, is_double, same_subject_today, weights
+):
+    """SC7 وSC8 — وكلاهما يسأل السؤالَ نفسَه: أجارُ الخانة نفسُ المادّة؟
+
+    والجوابُ يُثاب في المزدوجة ويُعاقَب في مادّة الخمسِ حصصٍ فأكثر. فُصلا عن
+    `evaluate_soft_constraints` لأنّها بلغت بهما حدَّ بوّابة الجودة (CC ≥ 31).
+    """
+    if same_subject_today != 1:
+        return
+
+    prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
+
+    # SC7: المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
+    if is_double and prev_task and prev_task.subject_id == task.subject_id:
+        penalty.add("double_bonus", weights["double_bonus"], True)  # مكافأة (قيمة سالبة)
+
+    # SC8: مادّةُ خمسِ حصصٍ فأكثر — حصّتاها في اليوم الواحد لا تتلاصقان.
+    if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD:
         next_task = grid.get_task_at(task.class_id, day, period + 1) if period < 7 else None
         is_adj_same = (prev_task and prev_task.subject_id == task.subject_id) or (
             next_task and next_task.subject_id == task.subject_id
         )
         penalty.add("high_weekly_adjacent", weights["high_weekly_adjacent"], is_adj_same)
-
-    return penalty
 
 
 # ══════════════════════════════════════════════════════════════
