@@ -1411,7 +1411,6 @@ def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[s
 #: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
 #: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
 #: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
-@joinable_pairs_cached()
 def _feasibility_snapshot(school, academic_year: str) -> dict:
     """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
     try:
@@ -1423,6 +1422,7 @@ def _feasibility_snapshot(school, academic_year: str) -> dict:
         return {}
 
 
+@joinable_pairs_cached()
 def generate_schedule(
     school: School,
     academic_year: str,
