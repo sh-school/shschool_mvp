@@ -209,7 +209,7 @@
         <tr>
           <th scope="col">التاريخ</th>
           <th scope="col" class="text-center">الحالة</th>
-          <th scope="col" class="text-center">الجودة</th>
+          <th scope="col" class="text-center">الجودة<div class="text-xs font-normal text-muted">منسوبةً إلى الأساس</div></th>
           <th scope="col" class="text-center">الحصص</th>
           <th scope="col" class="text-center">الزمن</th>
           <th scope="col">بواسطة</th>
@@ -234,13 +234,26 @@
           </td>
           {# الأرقامُ لا تُعرض قبل وجودها: «0%» على توليدٍ لم ينتهِ رقمٌ كاذب. #}
           <td class="text-center">
-            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>{% else %}
+            {% comment %}
+              الدرجةُ منسوبةٌ إلى الأساس المعتمَد: مئةٌ تعني «بمستوى ما اعتمدناه».
+              والمطلقةُ تقيس بُعداً عن كمالٍ لا تبلغه مدرسة — «سابعةٌ واحدةٌ
+              للمعلّم» مستحيلةٌ حين تكون خاناتُ السابعة أكثرَ من عدد المعلّمين —
+              فتُقرأ حكماً بالرداءة وهي ليست كذلك. فإن لم يُثبَّت أساسٌ بعد
+              عُرضت المطلقةُ موسومةً بأنّها مطلقة.
+            {% endcomment %}
+            {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
+            {% elif g.lab_relative %}
             <span class="font-bold
-              {% if g.quality_score >= 80 %}text-[var(--status-success)]
-              {% elif g.quality_score >= 60 %}text-[var(--status-warning)]
+              {% if g.lab_relative >= 98 %}text-[var(--status-success)]
+              {% elif g.lab_relative >= 90 %}text-[var(--status-warning)]
               {% else %}text-[var(--status-danger)]{% endif %}">
-              {{ g.quality_score|floatformat:0 }}%
+              {{ g.lab_relative|floatformat:0 }}%
             </span>
+            <div class="text-xs text-muted">من الأساس</div>
+            {% elif g.lab_absolute %}
+            <span class="font-bold text-muted">{{ g.lab_absolute|floatformat:0 }}%</span>
+            <div class="text-xs text-muted">مطلقة — لا أساسَ معتمَد</div>
+            {% else %}<span class="text-muted">—</span>
             {% endif %}
           </td>
           <td class="text-center">

@@ -5,6 +5,7 @@
     python manage.py schedule_lab --live --compare baseline    # مقابل آخر أساس
     python manage.py schedule_lab --generation <id> --compare live
     python manage.py schedule_lab --live --save-baseline "أساس 2026-09"
+    python manage.py schedule_lab --live --save-baseline "أساس 2026-2027" --pin
     python manage.py schedule_lab --generation <id> --store    # يحفظ المؤشرات في صفّ التوليد
     ... [--json تقرير.json] [--school SHH] [--year 2026-2027]
 
@@ -14,6 +15,7 @@
 import json
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 
 from core.academic_calendar import academic_year_for_school
 from core.models import School
@@ -34,6 +36,11 @@ class Command(BaseCommand):
             "--compare", default="", help="live أو baseline أو baseline:<اسم> أو معرّف توليد"
         )
         parser.add_argument("--save-baseline", default="", help="يحفظ القياس أساساً بهذا الاسم")
+        parser.add_argument(
+            "--pin",
+            action="store_true",
+            help="يجعل هذا الأساسَ المرجعَ المعتمَد الذي تُنسَب إليه الدرجةُ المعروضة — واحدٌ للعام",
+        )
         parser.add_argument("--store", action="store_true", help="يحفظ المؤشرات في صفّ التوليد")
         parser.add_argument("--json", default="", help="يكتب التقرير الكامل JSON")
 
@@ -82,15 +89,25 @@ class Command(BaseCommand):
             generation.metrics = metrics
             generation.save(update_fields=["metrics"])
             self.stdout.write(self.style.SUCCESS("حُفظت المؤشرات في صفّ التوليد."))
+        if opts["pin"] and not opts["save_baseline"]:
+            raise CommandError("--pin يلزمه --save-baseline: المرجعُ المعتمَد له اسمٌ يُعرف به.")
         if opts["save_baseline"]:
-            obj, created = ScheduleBaseline.objects.update_or_create(
-                school=school,
-                academic_year=year,
-                label=opts["save_baseline"],
-                defaults={"metrics": metrics},
-            )
+            with transaction.atomic():
+                if opts["pin"]:
+                    # واحدٌ معتمَدٌ للعام — والقيدُ في القاعدة يمنع الثاني، فيُرفع
+                    # السابقُ قبل أن يُثبَّت الجديد.
+                    ScheduleBaseline.objects.filter(
+                        school=school, academic_year=year, is_pinned=True
+                    ).exclude(label=opts["save_baseline"]).update(is_pinned=False)
+                obj, created = ScheduleBaseline.objects.update_or_create(
+                    school=school,
+                    academic_year=year,
+                    label=opts["save_baseline"],
+                    defaults={"metrics": metrics, **({"is_pinned": True} if opts["pin"] else {})},
+                )
+            mark = " — وهو المرجعُ المعتمَد الآن" if opts["pin"] else ""
             self.stdout.write(
-                self.style.SUCCESS(f"{'أُنشئ' if created else 'حُدّث'} الأساس «{obj.label}».")
+                self.style.SUCCESS(f"{'أُنشئ' if created else 'حُدّث'} الأساس «{obj.label}»{mark}.")
             )
         if opts["json"]:
             with open(opts["json"], "w", encoding="utf-8") as fh:

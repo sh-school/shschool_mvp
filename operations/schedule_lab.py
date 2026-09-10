@@ -402,7 +402,14 @@ class ScheduleLab:
                     breaches.append((self.names[tid], day, run))
         return (
             {"value": _round(mean(longest) if longest else 0.0), "detail": {}},
-            {"value": len(breaches), "detail": {f"{n} — يوم {d}": r for n, d, r in breaches[:10]}},
+            {
+                "value": _rate(len(breaches), len(longest)),
+                "detail": {
+                    "أيّامٌ مخالفة": len(breaches),
+                    "أيّامُ المعلّمين": len(longest),
+                    **{f"{n} — يوم {d}": r for n, d, r in breaches[:8]},
+                },
+            },
         )
 
     def weekly_imbalance(self) -> dict:
@@ -428,7 +435,8 @@ class ScheduleLab:
         """
         # المزدوجةُ حصّتان في يومٍ بحكمها، فسقفُ صاحبها لا يقلّ عن اثنتين.
         doubled = {s.teacher_id for s in self.slots if s.requires_double}
-        breaches = {}
+        breaches: dict[str, str] = {}
+        considered = 0
         for tid, load in self.load.items():
             days = list(self.available_days(tid))
             if not days:
@@ -440,7 +448,15 @@ class ScheduleLab:
             counts = [len(set(self.by_teacher_day.get(tid, {}).get(d, []))) for d in days]
             if any(c > cap or c < floor for c in counts):
                 breaches[self.names[tid]] = "+".join(str(c) for c in counts)
-        return {"value": len(breaches), "detail": dict(list(breaches.items())[:8])}
+            considered += 1
+        return {
+            "value": _rate(len(breaches), considered),
+            "detail": {
+                "خارجون": len(breaches),
+                "المعلّمون": considered,
+                **dict(list(breaches.items())[:6]),
+            },
+        }
 
     def transitions(self) -> tuple[dict, dict]:
         per_day = []
@@ -612,7 +628,10 @@ class ScheduleLab:
                     hit = True
             streak_days += hit
         return (
-            {"value": streak_days, "detail": {}},
+            {
+                "value": _rate(streak_days, len(by_class_day)),
+                "detail": {"أيّامٌ فيها ثلاثُ ثقيلات": streak_days, "أيّامُ الشُّعب": len(by_class_day)},
+            },
             {
                 "value": _round(100 * maths_late / maths_total, 1) if maths_total else None,
                 "detail": {"maths_periods": maths_total},
@@ -631,6 +650,7 @@ class ScheduleLab:
             used = sum(usage[rid].values())
             util[name] = _round(100 * used / (capacity * WEEK_SLOTS), 1) if capacity else None
             saturated += sum(1 for n in usage[rid].values() if n >= capacity)
+        resource_slots = len(self.ctx.resources) * WEEK_SLOTS
         return (
             {
                 "value": _round(mean(v for v in util.values() if v is not None), 1)
@@ -638,7 +658,10 @@ class ScheduleLab:
                 else None,
                 "detail": util,
             },
-            {"value": saturated, "detail": {}},
+            {
+                "value": _rate(saturated, resource_slots),
+                "detail": {"خاناتٌ مشبعة": saturated, "خاناتُ الموارد": resource_slots},
+            },
         )
 
     # ── الكلّ ──
@@ -690,14 +713,14 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "validity.completeness": ("اكتمال النصاب", "%", "high"),
     "validity.uncovered_days": ("معلّمون لهم يوم فارغ بلا تفريغ", "عدد", "zero"),
     "teacher.gap_weighted_avg": ("الفراغ الزائد عن الاستراحة (متوسّط)", "رقم", "low"),
-    "teacher.gap_weighted_max": ("الفراغ الزائد عن الاستراحة (أقصى يوم)", "رقم", "low"),
+    "teacher.gap_weighted_max": ("الفراغ الزائد عن الاستراحة (أقصى يوم)", "رقم", "info"),
     "teacher.compactness": ("تراصّ اليوم مقابل التناوب", "نسبة", "low"),
     "teacher.run_avg": ("أطول تتابع (متوسّط)", "حصص", "low"),
-    "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "عدد", "low"),
+    "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "%", "low"),
     "teacher.weekly_imbalance": ("تفاوت حصص الأيام (انحراف)", "رقم", "low"),
-    "teacher.pattern_breaches": ("معلّمون خارج نمط القسمة", "عدد", "zero"),
+    "teacher.pattern_breaches": ("معلّمون خارج نمط القسمة", "%", "low"),
     "teacher.transitions_avg": ("انتقالات الطابقين (متوسّط اليوم)", "عدد", "low"),
-    "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "low"),
+    "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "info"),
     "fairness.edge_cv": ("عدالة الأولى والسابعة (معامل اختلاف)", "نسبة", "low"),
     "fairness.stress": ("ضغط المعلّم (متوسّط)", "رقم", "low"),
     "fairness.preference_satisfaction": ("تلبية التفضيلات", "%", "high"),
@@ -706,10 +729,10 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "subject.double_on_thursday": ("موادّ لها حصّتان يوم الخميس", "عدد", "zero"),
     "subject.heavy_morning": ("الموادّ الثقيلة في النصف الأوّل", "%", "high"),
     "subject.activity_afternoon": ("موادّ النشاط في النصف الثاني", "%", "high"),
-    "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "عدد", "low"),
+    "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "%", "low"),
     "class.maths_late": ("الرياضيات في السادسة والسابعة", "%", "low"),
     "resources.utilization": ("إشغال الموارد", "%", "info"),
-    "resources.saturated_slots": ("خانات بلغت فيها الموارد سعتها", "عدد", "low"),
+    "resources.saturated_slots": ("خانات بلغت فيها الموارد سعتها", "%", "low"),
 }
 
 
@@ -750,13 +773,55 @@ def store_metrics(generation) -> dict:
 
 
 def latest_baseline(school, academic_year):
+    """المرجعُ الذي تُقارَن به المؤشّرات — المعتمَدُ أوّلاً، وإلّا فالأحدثُ حفظاً.
+
+    والترتيبُ مقصود: شاشةُ المختبر تحفظ أُسساً باسمٍ للاستكشاف، وهذه لا يجوز أن
+    تُزيح المرجعَ الذي تُعرض عليه الدرجة. فإن وُجد معتمَدٌ فهو المرجع، وإن لم
+    يوجد بقي السلوكُ القديم كما كان.
+    """
     from operations.models import ScheduleBaseline
 
-    return (
-        ScheduleBaseline.objects.filter(school=school, academic_year=academic_year)
-        .order_by("-created_at")
-        .first()
-    )
+    rows = ScheduleBaseline.objects.filter(school=school, academic_year=academic_year)
+    return rows.filter(is_pinned=True).first() or rows.order_by("-created_at").first()
+
+
+#: سقفُ نصيبِ المؤشّر الواحد في الدرجة المنسوبة.
+#:
+#: مؤشّرٌ يتجاوز أساسَه بأضعافٍ كان سيغطّي تراجعَ ثلاثةٍ غيره — فالمتوسّطُ يبتلع
+#: الفروق. والسقفُ يُبقي التحسّنَ مرئيّاً ويمنعه من الستر.
+RELATIVE_CAP = 120.0
+
+
+def relative_score(metrics: dict, baseline: dict | None) -> float | None:
+    """الدرجةُ منسوبةً إلى الأساس المعتمَد: مئةٌ تعني «بمستواه».
+
+    الدرجةُ المطلقةُ تقيس بُعدَ الجدول عن كمالٍ لا تبلغه مدرسة: «الموادُّ الثقيلة
+    في النصف الأوّل» سقفُها عددُ الحصص الصباحيّة لا مئةٌ بالمئة، و«سابعةٌ واحدةٌ
+    للمعلّم» مستحيلةٌ حسابيّاً حين تكون خاناتُ السابعة أكثرَ من عدد المعلّمين.
+    فرقمٌ يقيس مسافةً إلى المستحيل يُقرأ حكماً بالرداءة وهو ليس كذلك.
+
+    والنسبةُ إلى الأساس تقيس مسافةً إلى **شيءٍ وقع فعلاً**: جدولٌ اعتمدته
+    المدرسةُ وعمل به المعلّمون. فالمئةُ تعني «كما اعتمدنا»، وما دونها تراجعٌ
+    يُسأل عنه، وما فوقها تحسّنٌ يُقاس.
+
+    والقسمةُ مؤشّراً مؤشّراً لا على المجموع: لو قُسمت الدرجةُ الكلّيّةُ على
+    الكلّيّة لصارت مدّاً خطّيّاً يُعاد ضبطُه كلَّما أُضيف مؤشّر. وبالمؤشّر يبقى
+    كلُّ بندٍ مقيساً بأساسه هو، ومؤشّرٌ لا أساسَ له يُقصى حتّى يُحدَّث الأساس.
+    """
+    if not baseline:
+        return None
+    ratios = []
+    for key in CATALOG:
+        mine = metric_score(key, (metrics or {}).get(key, {}).get("value"))
+        theirs = metric_score(key, baseline.get(key, {}).get("value"))
+        if mine is None or theirs is None:
+            continue
+        if theirs <= 0:
+            # الأساسُ في القاع: أيُّ شيءٍ فوقه تحسّنٌ كامل، ومثلُه مساواة.
+            ratios.append(100.0 if mine <= 0 else RELATIVE_CAP)
+            continue
+        ratios.append(min(RELATIVE_CAP, 100.0 * mine / theirs))
+    return round(mean(ratios), 1) if ratios else None
 
 
 def is_finite(value) -> bool:
@@ -775,6 +840,19 @@ SECTIONS: dict[str, str] = {
     "class": "الشعبة",
     "resources": "الموارد",
 }
+
+
+def _rate(part: int, whole: int) -> float | None:
+    """نسبةُ المتضرّرِ من مجتمعه — لا عددُه المطلق.
+
+    العدُّ المطلقُ يجعل الدرجةَ تابعةً لحجم المدرسة: خمسٌ وخمسون يوماً فيها
+    تلاصقٌ رقمٌ مخيفٌ حتّى تعرف أنّها من ثلاثمئةٍ وخمسةٍ وستّين يومَ معلّم — أي
+    خمسةَ عشرَ في المئة. وكانت هذه العدّاداتُ تُغذَّى في منحنى الدرجة `100 − v`
+    وهو منحنًى كُتب للنسب المئويّة، فقُرئ «55» على أنّه 55٪ فأعطى 45 درجة.
+    """
+    if not whole:
+        return None
+    return _round(100 * part / whole, 1)
 
 
 def metric_score(key: str, value) -> float | None:
@@ -802,8 +880,10 @@ def metric_score(key: str, value) -> float | None:
         return max(0.0, min(100.0, 100.0 / max(float(value), 1.0)))
     if key in ("subject.same_period_max", "teacher.run_avg"):
         return max(0.0, min(100.0, 100.0 * 2.0 / (1.0 + float(value))))
+    # نسبٌ مئويّةٌ يقلّ خيرُها بارتفاعها — فدرجتُها متمّمُها.
     if key in (
         "teacher.run_breaches",
+        "teacher.pattern_breaches",
         "resources.saturated_slots",
         "class.heavy_streak_days",
         "class.maths_late",
