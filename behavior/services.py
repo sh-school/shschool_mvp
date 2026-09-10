@@ -528,13 +528,7 @@ class BehaviorService:
         school = infraction.school
         student = infraction.student
 
-        enrollment = (
-            StudentEnrollment.objects.filter(
-                student=student, class_group__school=school, is_active=True
-            )
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student, school=school)
         cg = enrollment.class_group if enrollment else None
         class_name = str(cg) if cg else None
 

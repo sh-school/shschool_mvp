@@ -256,6 +256,41 @@ class ClassGroup(models.Model):
         return f"{self.get_grade_display()} / {self.section}{track} ({self.academic_year})"
 
 
+class StudentEnrollmentQuerySet(models.QuerySet):
+    """قيدُ الطالب مدّةٌ لا حالة — و`is_active` وحدَها لا تقول في أيّ عام.
+
+    القيدُ القديم لا يُغلق عند بداية العام: المستورِد يُطفئ القيدَ حين ينتقل
+    الطالبُ داخل العام نفسِه، أمّا قيدُ العام الماضي فخارجُ نظره. والقيدُ
+    الفريدُ في القاعدة مفروضٌ على الزوج (طالب، شعبة) — وهما شعبتان في عامين
+    فيمرّ. فحمل مئاتُ الطلاب قيدَين نشطَين معاً.
+
+    و`filter(student=…, is_active=True).first()` بلا ترتيبٍ يُرجع ما تُرجعه
+    القاعدةُ أوّلاً — أي صفّاً عشوائيّاً. قِيس ذلك على بيانات المدرسة: من 448
+    طالباً بقيدَين، 215 كانوا يُعرضون في صفِّ العام الماضي. وأسوأُ من الخطأ
+    أنّه غيرُ ثابت: ترتيبُ الصفوف يتغيّر بعد أيّ تحديثٍ أو كنس، فيصحّ الطالبُ
+    اليومَ ويُخطئ غداً بلا تغييرٍ في البيانات.
+    """
+
+    def newest_first(self) -> "StudentEnrollmentQuerySet":
+        """الأحدثُ عاماً أوّلاً — واسمُ العام «2026-2027» يُفرَز نصّاً كما يُقرأ."""
+        return self.order_by("-class_group__academic_year", "-enrolled_at")
+
+
+class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQuerySet)):
+    """السؤالُ «في أيّ شعبةٍ هذا الطالب؟» يمرّ من هنا وحدَه."""
+
+    def current_of(self, student, school=None):
+        """قيدُ الطالب القائم — أحدثُ قيودِه النشطة عاماً، أو `None`.
+
+        ولا يُقيَّد بالعام الجاري قصداً: طالبٌ لم يُقيَّد بعدُ لهذا العام يبقى
+        له صفٌّ يُعرض به بدل أن تخلو شاشتُه — والأحدثُ حتماً أصوبُ من العشوائيّ.
+        """
+        qs = self.filter(student=student, is_active=True)
+        if school is not None:
+            qs = qs.filter(class_group__school=school)
+        return qs.select_related("class_group").newest_first().first()
+
+
 class StudentEnrollment(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="enrollments")
@@ -264,6 +299,8 @@ class StudentEnrollment(models.Model):
     )
     is_active = models.BooleanField(default=True)
     enrolled_at = models.DateField(default=timezone.now)
+
+    objects = StudentEnrollmentManager()
 
     class Meta:
         verbose_name = "تسجيل طالب"

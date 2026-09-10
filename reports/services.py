@@ -83,11 +83,7 @@ class ReportDataService:
         grades = [float(r.annual_total) for r in annual if r.annual_total]
         avg = round(sum(grades) / len(grades), 2) if grades else None
 
-        enrollment = (
-            StudentEnrollment.objects.filter(student=student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student)
 
         att = StudentAttendance.objects.filter(student=student, session__school=school)
         absent_total = att.filter(status="absent").count()
