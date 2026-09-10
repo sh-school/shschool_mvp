@@ -458,7 +458,12 @@ AXES_SENSITIVE_PARAMETERS = ["password"]
 AXES_VERBOSE = False
 
 # الحقل المستخدم كـ "username" في هذا المشروع
-AXES_USERNAME_FORM_FIELD = "national_id"
+# حقلُ النموذج، ومعه الدالّةُ التي تحوّله إلى مفتاحٍ معياريّ. وبلا الدالّة يقرأ
+# axes ما كُتب خاماً فيحفظ الرقمَ الشخصيَّ نصّاً صريحاً في `axes_accessattempt`
+# — بينما نشفّره في `CustomUser`. ولها أثرٌ ثانٍ: معرّفان لمستخدمٍ واحدٍ كانا
+# سيعطيانه مفتاحَي قفلٍ اثنين، أي عشرَ محاولاتٍ لا خمساً.
+AXES_USERNAME_FORM_FIELD = "identifier"
+AXES_USERNAME_CALLABLE = "core.auth_identity.axes_username"
 
 # إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
 AXES_LOCKOUT_URL = None

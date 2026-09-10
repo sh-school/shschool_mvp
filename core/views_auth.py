@@ -17,20 +17,22 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
+from core.auth_identity import identifier_kind, lockout_key, resolve_user
 from core.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
 
-def _axes_reset(request, national_id: str) -> None:
-    """
-    إعادة تعيين عداد axes بعد تسجيل الدخول الناجح.
-    ✅ v5.4: يُكمّل AXES_RESET_ON_SUCCESS=True بإعادة تعيين صريحة مربوطة بـ national_id.
+def _axes_reset(request, key: str) -> None:
+    """إعادةُ تعيين عدّاد axes بعد دخولٍ ناجح — بالمفتاح المعياريّ لا بالنصّ المكتوب.
+
+    يُكمّل `AXES_RESET_ON_SUCCESS=True` بإعادةٍ صريحة. والمفتاحُ من
+    `auth_identity.lockout_key` — وإلّا بقي عدّادُ المعرّف الآخر قائماً.
     """
     try:
         from axes.helpers import reset_request
 
-        reset_request(request=request, username=national_id)
+        reset_request(request=request, username=key)
     except ImportError:
         pass  # axes غير مثبّت — لا مشكلة
 
@@ -80,7 +82,7 @@ def _enforce_rotation(user) -> None:
 
 # ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
 # لا تغيّر هذه الرسالة ولا تجعلها تختلف بحسب وجود المستخدم من عدمه
-_AUTH_ERROR = "الرقم الشخصي أو كلمة المرور غير صحيحة"
+_AUTH_ERROR = "المعرّف أو كلمة المرور غير صحيحة"
 
 
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
@@ -90,35 +92,42 @@ def login_view(request):
         return redirect("dashboard")
 
     if request.method == "POST":
-        national_id = request.POST.get("national_id", "").strip()
+        # الحقلُ صار «المعرّف»، و`national_id` يبقى مقبولاً لنماذجَ محفوظةٍ في
+        # المتصفّحات ولاختباراتٍ قائمة — يُقرأ ولا يُعرض.
+        identifier = (
+            request.POST.get("identifier") or request.POST.get("national_id") or ""
+        ).strip()
         password = request.POST.get("password", "").strip()
 
-        if not national_id or not password:
-            messages.error(request, "يرجى إدخال الرقم الشخصي وكلمة المرور")
+        if not identifier or not password:
+            messages.error(request, "يرجى إدخال المعرّف وكلمة المرور")
             return render(request, "auth/login.html")
 
-        # ── التحقق من قفل الحساب (الرسالة هنا مقبولة لأن القفل يحدث بعد محاولات) ──
-        try:
-            u = CustomUser.objects.get(national_id=national_id)
-            if u.locked_until and u.locked_until > timezone.now():
-                remaining = int((u.locked_until - timezone.now()).total_seconds() // 60) + 1
-                messages.error(request, f"الحساب مقفل. حاول بعد {remaining} دقيقة.")
-                return render(request, "auth/login.html")
-        except CustomUser.DoesNotExist:
-            pass
+        candidate = resolve_user(identifier, request)
 
-        user = authenticate(request, national_id=national_id, password=password)
+        # ── التحقق من قفل الحساب (الرسالة هنا مقبولة لأن القفل يحدث بعد محاولات) ──
+        if candidate and candidate.locked_until and candidate.locked_until > timezone.now():
+            remaining = int((candidate.locked_until - timezone.now()).total_seconds() // 60) + 1
+            messages.error(request, f"الحساب مقفل. حاول بعد {remaining} دقيقة.")
+            return render(request, "auth/login.html")
+
+        user = authenticate(request, identifier=identifier, password=password)
 
         if user:
             user.failed_login_attempts = 0
             user.locked_until = None
             user.save(update_fields=["failed_login_attempts", "locked_until"])
             # ✅ v5.4: إعادة تعيين عداد axes عند تسجيل الدخول الناجح
-            _axes_reset(request, national_id)
+            _axes_reset(request, lockout_key(identifier, request))
+            # أيَّ معرّفٍ استُعمل — تُقاس به نهايةُ النافذة المزدوجة في سجلّ التدقيق.
+            # ويُحمَل في الجلسة كذلك لأنّ من عليه 2FA يُسجَّل دخولُه في طلبٍ آخر.
+            kind = identifier_kind(user, identifier)
+            request.login_identifier_kind = kind
 
             role = user.get_role()
             if user.totp_enabled and role in ROLES_REQUIRING_2FA:
                 request.session["pending_2fa_user"] = str(user.id)
+                request.session["pending_identifier_kind"] = kind
                 return redirect("verify_2fa")
 
             login(request, user)
@@ -132,16 +141,18 @@ def login_view(request):
         else:
             # ── إصلاح User Enumeration ────────────────────────────────────────
             # نزيد العداد بصمت إذا وُجد المستخدم، لكن نُظهر نفس الرسالة دائماً
-            # سواء وُجد الرقم الشخصي أم لا — المهاجم لا يعرف الفرق
+            # سواء عُرف المعرّف أم لم يُعرف — المهاجم لا يعرف الفرق
             try:
                 with transaction.atomic():
-                    updated = (
-                        CustomUser.objects.filter(national_id=national_id)
-                        .select_for_update()
-                        .update(failed_login_attempts=F("failed_login_attempts") + 1)
-                    )
+                    updated = 0
+                    if candidate:
+                        updated = (
+                            CustomUser.objects.filter(pk=candidate.pk)
+                            .select_for_update()
+                            .update(failed_login_attempts=F("failed_login_attempts") + 1)
+                        )
                     if updated:
-                        u = CustomUser.objects.get(national_id=national_id)
+                        u = CustomUser.objects.get(pk=candidate.pk)
                         if u.failed_login_attempts >= 5:
                             u.locked_until = timezone.now() + timedelta(minutes=15)
                             u.save(update_fields=["locked_until"])
@@ -190,6 +201,9 @@ def verify_2fa(request):
         if totp.verify(code, valid_window=1):
             cache.set(replay_key, True, timeout=90)  # يمنع إعادة الاستخدام لـ 90 ثانية
             del request.session["pending_2fa_user"]
+            request.login_identifier_kind = request.session.pop(
+                "pending_identifier_kind", "unknown"
+            )
             login(request, user)
             _enforce_rotation(user)
             if user.must_change_password:
