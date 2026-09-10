@@ -1,50 +1,31 @@
 """
-core/backends.py — HMAC Authentication Backend
-═══════════════════════════════════════════════
-يبحث عن المستخدم عبر HMAC(national_id) بدل النص الصريح.
-يدعم الانتقال التدريجي: يحاول HMAC أولاً ← fallback إلى national_id العادي.
+core/backends.py — بابُ المصادقة بمعرّفٍ واحدٍ يُحَلّ
+═══════════════════════════════════════════════════
+حقلُ الدخول واحد، وما يُكتب فيه قد يكون رقماً وظيفيّاً (الكادر) أو رقماً
+شخصيّاً (الطلبة وأولياء الأمور). والحلُّ في `core.auth_identity` وحدَه —
+فالبابُ وaxes والعدّادُ يرون المستخدمَ نفسَه لا نصَّين مختلفين.
 """
 
 from django.contrib.auth.backends import ModelBackend
 
-from core.models._crypto import hmac_field
+from core.auth_identity import resolve_user
 
 
 class HMACAuthBackend(ModelBackend):
-    """
-    Backend يُصادق عبر HMAC hash للرقم الوطني.
+    """يُصادق بمعرّفٍ واحدٍ: الرقمُ الوظيفيُّ أوّلاً ثمّ الرقمُ الشخصيّ.
 
-    الترتيب:
-    1. يحسب hmac_field(national_id)
-    2. يبحث في national_id_hmac (سريع — مفهرس)
-    3. إذا لم يجد: fallback إلى national_id العادي (backward compat)
-    4. يتحقق من كلمة المرور
+    و`national_id` يبقى مقبولاً وسيطاً لأنّه `USERNAME_FIELD` — تُمرّره أدواتُ
+    Django نفسُها (`createsuperuser`، لوحةُ الإدارة).
     """
 
-    def authenticate(self, request, national_id=None, password=None, **kwargs):
-        # Django يمرر username أحياناً بدل national_id
-        username = national_id or kwargs.get("username")
-        if not username or not password:
+    def authenticate(self, request, identifier=None, national_id=None, password=None, **kwargs):
+        raw = identifier or national_id or kwargs.get("username")
+        if not raw or not password:
             return None
 
-        from core.models import CustomUser
-
-        user = None
-        hashed = hmac_field(username)
-
-        # محاولة 1: البحث بـ HMAC (الطريقة الجديدة المشفّرة)
-        if hashed and hashed != username:
-            try:
-                user = CustomUser.objects.get(national_id_hmac=hashed)
-            except CustomUser.DoesNotExist:
-                pass
-
-        # محاولة 2: fallback إلى national_id العادي (backward compat)
+        user = resolve_user(raw, request)
         if user is None:
-            try:
-                user = CustomUser.objects.get(national_id=username)
-            except CustomUser.DoesNotExist:
-                return None
+            return None
 
         if user.check_password(password) and self.user_can_authenticate(user):
             return user

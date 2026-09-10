@@ -319,6 +319,9 @@ def audit_login(sender, request, user, **kwargs):
             model_name="CustomUser",
             object_id=str(user.pk),
             object_repr=str(user),
+            # أيَّ معرّفٍ كُتب في الباب — به تُقاس نهايةُ النافذة المزدوجة: يُقطع
+            # الرقمُ الشخصيُّ عن أصحاب الأرقام الوظيفيّة حين يبلغ استعمالُه صفراً.
+            changes={"identifier": getattr(request, "login_identifier_kind", "unknown")},
             school=user.get_school() if hasattr(user, "get_school") else None,
             ip_address=get_client_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],

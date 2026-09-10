@@ -60,18 +60,18 @@
       {% csrf_token %}
 
       <div>
-        <label class="form-label" for="id_national_id">
-          الرقم الشخصي
+        <label class="form-label" for="id_identifier">
+          الرقم الوظيفي أو الرقم الشخصي
         </label>
         <input
           type="text"
-          id="id_national_id"
-          name="national_id"
+          id="id_identifier"
+          name="identifier"
           class="login-input"
           required
           autofocus
           autocomplete="username"
-          placeholder="أدخل رقمك الشخصي"
+          placeholder="الموظّفون: الرقم الوظيفي — الطلبة وأولياء الأمور: الرقم الشخصي"
           dir="ltr"
           inputmode="numeric"
           pattern="\d{5,20}"
