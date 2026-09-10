@@ -29,7 +29,22 @@ htmlcov/
 # بيانات حقيقية — يُمنع رفعها
 data/
 *.csv
-AAdocs/
+
+# AAdocs: النصوصُ الوزاريّةُ الحرفيّةُ لا تُرفع — المستودعُ عامّ، ونسخُها
+# الاحتياطيّ مع نسخ الإنتاج المشفَّرة. ويُستثنى توثيقُ المشروع ومشتقّاتُ
+# مصدر الحقيقة (تحليلُنا نحن: مصفوفةُ الصلاحيّات وتقريرُ الامتثال وخطّةُ
+# الإصلاح) لأنّ الكودَ يُقارَن بها ويُخطَّط عليها.
+AAdocs/*
+!AAdocs/claude/
+!AAdocs/ministry_data/
+AAdocs/ministry_data/*
+!AAdocs/ministry_data/2026_2027/
+AAdocs/ministry_data/2026_2027/*
+!AAdocs/ministry_data/2026_2027/index.md
+!AAdocs/ministry_data/2026_2027/rbac_permissions_matrix.md
+!AAdocs/ministry_data/2026_2027/rbac_roles.json
+!AAdocs/ministry_data/2026_2027/compliance_audit_report.md
+!AAdocs/ministry_data/2026_2027/remediation_plan.md
 nginx/ssl/
 node_modules/
 ZZZZ.zip
