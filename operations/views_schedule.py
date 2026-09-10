@@ -769,13 +769,25 @@ def smart_schedule_view(request):
     # ما وُضع فعلاً مقابلَ ما تطلبه التوزيعاتُ اليوم — لا رقمٌ مجرَّدٌ لا يُقاس على شيء.
     # ومسودّةٌ لم تعد تغطّي الطلبَ الحاليَّ هي بالضبط ما يجب أن يلفت النظر.
     # مؤشراتُ المختبر لكلّ توليدٍ بجانب الأساس المرجعيّ: فرقٌ لا رقمٌ مجرَّد.
-    from operations.schedule_lab import compare, latest_baseline
+    from operations.schedule_lab import (
+        ScheduleLab,
+        compare,
+        latest_baseline,
+        overall_score,
+        relative_score,
+    )
 
     baseline = latest_baseline(school, year)
     for g in generations:
         g.placed = g.slot_rows or g.total_slots_created
         ratio = 100 * g.placed / total_weekly if total_weekly else 0.0
-        g.lab_rows = compare(g.metrics, baseline.metrics if baseline else None) if g.metrics else []
+        # المؤشّراتُ تُعاد من الحصص لا تُقرأ من الصفّ: المخزَّنُ كُتب بتعريفاتِ
+        # يومه، وقراءتُه بمنحنيات اليوم تخلط مسطرتين في عمودٍ واحد. والحصصُ
+        # هي الواقعة، والدرجةُ حكمٌ يُشتقّ منها كلَّما عُرض.
+        lab = ScheduleLab.for_generation(g).compute() if g.placed else (g.metrics or {})
+        g.lab_rows = compare(lab, baseline.metrics if baseline else None) if lab else []
+        g.lab_absolute = overall_score(lab) if lab else None
+        g.lab_relative = relative_score(lab, baseline.metrics) if baseline and lab else None
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
 

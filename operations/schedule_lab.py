@@ -773,13 +773,55 @@ def store_metrics(generation) -> dict:
 
 
 def latest_baseline(school, academic_year):
+    """المرجعُ الذي تُقارَن به المؤشّرات — المعتمَدُ أوّلاً، وإلّا فالأحدثُ حفظاً.
+
+    والترتيبُ مقصود: شاشةُ المختبر تحفظ أُسساً باسمٍ للاستكشاف، وهذه لا يجوز أن
+    تُزيح المرجعَ الذي تُعرض عليه الدرجة. فإن وُجد معتمَدٌ فهو المرجع، وإن لم
+    يوجد بقي السلوكُ القديم كما كان.
+    """
     from operations.models import ScheduleBaseline
 
-    return (
-        ScheduleBaseline.objects.filter(school=school, academic_year=academic_year)
-        .order_by("-created_at")
-        .first()
-    )
+    rows = ScheduleBaseline.objects.filter(school=school, academic_year=academic_year)
+    return rows.filter(is_pinned=True).first() or rows.order_by("-created_at").first()
+
+
+#: سقفُ نصيبِ المؤشّر الواحد في الدرجة المنسوبة.
+#:
+#: مؤشّرٌ يتجاوز أساسَه بأضعافٍ كان سيغطّي تراجعَ ثلاثةٍ غيره — فالمتوسّطُ يبتلع
+#: الفروق. والسقفُ يُبقي التحسّنَ مرئيّاً ويمنعه من الستر.
+RELATIVE_CAP = 120.0
+
+
+def relative_score(metrics: dict, baseline: dict | None) -> float | None:
+    """الدرجةُ منسوبةً إلى الأساس المعتمَد: مئةٌ تعني «بمستواه».
+
+    الدرجةُ المطلقةُ تقيس بُعدَ الجدول عن كمالٍ لا تبلغه مدرسة: «الموادُّ الثقيلة
+    في النصف الأوّل» سقفُها عددُ الحصص الصباحيّة لا مئةٌ بالمئة، و«سابعةٌ واحدةٌ
+    للمعلّم» مستحيلةٌ حسابيّاً حين تكون خاناتُ السابعة أكثرَ من عدد المعلّمين.
+    فرقمٌ يقيس مسافةً إلى المستحيل يُقرأ حكماً بالرداءة وهو ليس كذلك.
+
+    والنسبةُ إلى الأساس تقيس مسافةً إلى **شيءٍ وقع فعلاً**: جدولٌ اعتمدته
+    المدرسةُ وعمل به المعلّمون. فالمئةُ تعني «كما اعتمدنا»، وما دونها تراجعٌ
+    يُسأل عنه، وما فوقها تحسّنٌ يُقاس.
+
+    والقسمةُ مؤشّراً مؤشّراً لا على المجموع: لو قُسمت الدرجةُ الكلّيّةُ على
+    الكلّيّة لصارت مدّاً خطّيّاً يُعاد ضبطُه كلَّما أُضيف مؤشّر. وبالمؤشّر يبقى
+    كلُّ بندٍ مقيساً بأساسه هو، ومؤشّرٌ لا أساسَ له يُقصى حتّى يُحدَّث الأساس.
+    """
+    if not baseline:
+        return None
+    ratios = []
+    for key in CATALOG:
+        mine = metric_score(key, (metrics or {}).get(key, {}).get("value"))
+        theirs = metric_score(key, baseline.get(key, {}).get("value"))
+        if mine is None or theirs is None:
+            continue
+        if theirs <= 0:
+            # الأساسُ في القاع: أيُّ شيءٍ فوقه تحسّنٌ كامل، ومثلُه مساواة.
+            ratios.append(100.0 if mine <= 0 else RELATIVE_CAP)
+            continue
+        ratios.append(min(RELATIVE_CAP, 100.0 * mine / theirs))
+    return round(mean(ratios), 1) if ratios else None
 
 
 def is_finite(value) -> bool:

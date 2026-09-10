@@ -787,6 +787,15 @@ class ScheduleBaseline(models.Model):
     academic_year = models.CharField(max_length=9)
     label = models.CharField(max_length=60, verbose_name="الاسم")
     metrics = models.JSONField(default=dict, verbose_name="المؤشرات")
+
+    #: المرجعُ المعتمَد الذي تُنسَب إليه الدرجةُ المعروضة — واحدٌ لكلّ عامٍ ومدرسة.
+    #:
+    #: وبلا هذه الرايةِ كان المرجعُ «آخرَ أساسٍ محفوظ»، فأيُّ ضغطةٍ على «حفظ
+    #: أساس» في شاشة المختبر تُحرّكه. ومرجعٌ يتحرّك مع كلّ توليدٍ سقّاطةٌ تقول
+    #: مئةً دائماً: كلُّ جدولٍ يُقاس بنفسه فيبدو كاملاً. فالتثبيتُ قرارٌ يُتَّخذ
+    #: مرّةً ويُراجَع سنويّاً، لا أثرٌ جانبيٌّ لضغطة زرّ.
+    is_pinned = models.BooleanField(default=False, verbose_name="مرجعٌ معتمَد")
+
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
@@ -799,7 +808,13 @@ class ScheduleBaseline(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "academic_year", "label"], name="unique_schedule_baseline"
-            )
+            ),
+            # مرجعان معتمَدان لعامٍ واحدٍ يجعلان الدرجةَ تابعةً لترتيب الصفوف.
+            models.UniqueConstraint(
+                fields=["school", "academic_year"],
+                condition=models.Q(is_pinned=True),
+                name="one_pinned_baseline_per_year",
+            ),
         ]
 
     def __str__(self):
