@@ -107,9 +107,7 @@ class Command(BaseCommand):
                 )
             mark = " — وهو المرجعُ المعتمَد الآن" if opts["pin"] else ""
             self.stdout.write(
-                self.style.SUCCESS(
-                    f"{'أُنشئ' if created else 'حُدّث'} الأساس «{obj.label}»{mark}."
-                )
+                self.style.SUCCESS(f"{'أُنشئ' if created else 'حُدّث'} الأساس «{obj.label}»{mark}.")
             )
         if opts["json"]:
             with open(opts["json"], "w", encoding="utf-8") as fh:
