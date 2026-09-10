@@ -661,7 +661,31 @@ def is_slot_valid(
     allow_adjacent: bool = False,
     allow_dense: bool = False,
 ) -> bool:
-    """تحقق من كل القيود الصلبة لخانة معينة"""
+    """تحقق من كل القيود الصلبة لخانة معينة.
+
+    ورتبةُ الكسر — من `grid.policy` — تقول أيُّ قيدٍ يتنازل في أيّ جولة. وهي
+    نوعان بحسب القيد: من عرف كيف يلين بنفسه تُمرَّر إليه الرخصةُ فيرفع سقفَه
+    (التلاصقُ من واحدٍ إلى اثنين، لا إلغاءً)، ومن لا سقفَ له يُرفع فكسرُه
+    تخطّيه في تلك الجولة وحدَها.
+
+    والافتراضُ في السجلّ هو ما كانت عليه الشيفرةُ قبله حرفاً بحرف: الرخصةُ
+    الأولى للتلاصق، والثانيةُ للتغطية والقسمة والتوزيع، وما عداها لا يُكسَر.
+    """
+    from .constraint_registry import REGISTRY
+
+    policy = grid.policy
+
+    def waived(code: str) -> bool:
+        """أيُتخطّى هذا القيدُ في هذه الجولة؟ — لمن لا يلين بنفسه."""
+        found = REGISTRY.get(code)
+        if found is None or found.relaxes_in_place:
+            return False
+        return policy.licence(code, allow_adjacent, allow_dense)
+
+    def eased(code: str) -> bool:
+        """رخصةُ هذه الجولة كما تقرؤها دالّةٌ تعرف كيف تلين."""
+        return policy.licence(code, allow_adjacent, allow_dense)
+
     level_type = getattr(task, "level_type", "")
     max_p = get_max_periods_for_day(day, level_type)
     if period > max_p:
@@ -674,27 +698,27 @@ def is_slot_valid(
         return False
     if not check_band_transition(grid, day, period, task):
         return False
-    if not check_day_coverage(grid, day, period, task, allow_dense):
+    if not check_day_coverage(grid, day, period, task, eased("HC14")):
         return False
-    if not check_week_balance_cap(grid, day, period, task):
+    if not waived("HC16") and not check_week_balance_cap(grid, day, period, task):
         return False
-    if not check_week_floor_reservation(grid, day, period, task, allow_dense):
+    if not check_week_floor_reservation(grid, day, period, task, eased("HC16B")):
         return False
-    if not check_thursday_secondary_pair(grid, day, period, task):
+    if not waived("HC17") and not check_thursday_secondary_pair(grid, day, period, task):
         return False
-    if not check_spread_days(grid, day, task):
+    if not waived("HC18") and not check_spread_days(grid, day, task):
         return False
-    if not check_max_consecutive(grid, day, period, task, allow_adjacent):
+    if not check_max_consecutive(grid, day, period, task, eased("HC5")):
         return False
-    if not check_subject_distribution(grid, day, task, allow_dense):
+    if not check_subject_distribution(grid, day, task, eased("HC6")):
         return False
-    if not check_period_variety(grid, period, task):
+    if not waived("HC7") and not check_period_variety(grid, period, task):
         return False
-    if not check_last_period_share(grid, period, task):
+    if not waived("HC8") and not check_last_period_share(grid, period, task):
         return False
     if not check_resource_capacity(grid, day, period, task):
         return False
-    if not check_resource_level_homogeneity(grid, day, period, task):
+    if not waived("HC11") and not check_resource_level_homogeneity(grid, day, period, task):
         return False
     if not check_double_not_split_by_break(grid, day, period, task):
         return False
@@ -721,7 +745,7 @@ class SoftPenalty:
             self.details[name] = weight
 
 
-def daily_load_weight(teacher_today: int, pref: dict | None) -> float:
+def daily_load_weight(teacher_today: int, pref: dict | None, weight: float | None = None) -> float:
     """وزنُ تجاوز الحمل اليوميّ: صفرٌ دون السقف، ثمّ يتصاعد بمقدار التجاوز.
 
     والتفضيلُ المكتوب في حقّ معلّمٍ بعينه يُضاعَف — وبوزنه الأصليّ كان يسقط
@@ -731,7 +755,8 @@ def daily_load_weight(teacher_today: int, pref: dict | None) -> float:
     if teacher_today < max_daily:
         return 0.0
     over = teacher_today - max_daily + 1
-    return WEIGHTS["daily_load"] * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
+    base = WEIGHTS["daily_load"] if weight is None else weight
+    return base * over * (EXPLICIT_PREFERENCE_FACTOR if pref else 1)
 
 
 def _neighbour_is_same_lesson(grid: ScheduleGrid, task: Task, day: int, period: int) -> bool:
@@ -770,8 +795,13 @@ def evaluate_soft_constraints(
     task: Task,
     preferences: dict | None = None,
 ) -> SoftPenalty:
-    """تقييم القيود المرنة لتحديد أفضل خانة"""
+    """تقييم القيود المرنة لتحديد أفضل خانة.
+
+    والأوزانُ من `grid.policy` لا من الثابت مباشرةً: افتراضُها هو `WEIGHTS`
+    نفسُه — يحرس تطابقَهما اختبار — ويعلوه ما عايرته الإدارةُ لهذا العام.
+    """
     penalty = SoftPenalty()
+    weights = grid.policy.weights
 
     # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
     consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
@@ -781,11 +811,11 @@ def evaluate_soft_constraints(
     wants_adjacent = getattr(task, "prefers_double", False) and _neighbour_is_same_lesson(
         grid, task, day, period
     )
-    penalty.add("consecutive", WEIGHTS["consecutive"], consecutive >= 1 and not wants_adjacent)
+    penalty.add("consecutive", weights["consecutive"], consecutive >= 1 and not wants_adjacent)
 
     # ── SC2: فراغات المعلم — تقليل الفجوات ──
     creates_gap = grid.would_create_gap(task.teacher_id, day, period)
-    penalty.add("gap", WEIGHTS["gap"], creates_gap)
+    penalty.add("gap", weights["gap"], creates_gap)
 
     # ── SC3: التوزيعُ يملأ الأيّامَ الفارغةَ قبل أن يُضاعف ──
     #
@@ -815,7 +845,7 @@ def evaluate_soft_constraints(
             if grid.subject_on_day(task.class_id, task.subject_id, d) == 0 and d != day
         )
         penalty.add(
-            "subject_spread", WEIGHTS["subject_spread"], same_subject_today > 0 and empty_days > 0
+            "subject_spread", weights["subject_spread"], same_subject_today > 0 and empty_days > 0
         )
 
     # ── SC4: موازنة الأحمال — تقليل فرق الحصص اليومية للمعلم ──
@@ -826,20 +856,22 @@ def evaluate_soft_constraints(
     # (10)، فيسقط التفضيلُ كلّما زاحمه أحدُهما. (قياس 2026-09-06: محمّد صبري
     # تفضيلُه ثلاثٌ ونصابُه خمسَ عشرةَ — قسمتُه ثلاثٌ بالضبط — فجاء 4·2·3·2·4.)
     teacher_today = grid.teacher_periods_on_day(task.teacher_id, day)
-    load_weight = daily_load_weight(teacher_today, (preferences or {}).get(task.teacher_id))
+    load_weight = daily_load_weight(
+        teacher_today, (preferences or {}).get(task.teacher_id), weights["daily_load"]
+    )
     penalty.add("daily_load", load_weight, load_weight > 0)
 
     # ── SC14: الحصّةُ الثانيةُ للمادّة يومَ الخميس تُتجنَّب ما وُجد بديل ──
     penalty.add(
         "thursday_pair",
-        WEIGHTS["thursday_pair"],
+        weights["thursday_pair"],
         day == THURSDAY and not getattr(task, "prefers_double", False) and same_subject_today > 0,
     )
 
     # ── SC13: بنسبٍ متقاربة على الأيّام — يومٌ فارغٌ أوّلاً، ولا يومَ فوق حصّة القسمة ──
     penalty.add(
         "day_balance",
-        WEIGHTS["day_balance"],
+        weights["day_balance"],
         _unbalances_the_week(grid, day, period, task, teacher_today),
     )
 
@@ -848,15 +880,15 @@ def evaluate_soft_constraints(
         # العقوبةُ تتصاعد: من عنده ثلاثُ سوابعَ يُثقَّل أكثرَ ممّن عنده واحدة،
         # فتنساب السوابعُ على الكادر بدل أن تتكدّس على قلّةٍ منه.
         already = max(grid.teacher_last_periods(m.teacher_id) for m in task.members)
-        penalty.add("extra_last_period", WEIGHTS["extra_last_period"] * already, already >= 1)
+        penalty.add("extra_last_period", weights["extra_last_period"] * already, already >= 1)
 
     # ── SC5: المواد الأساسية في الحصص الأولى ──
     is_core = task.subject_code in CORE_CODES
-    penalty.add("core_early", WEIGHTS["core_early"], is_core and period >= 6)
+    penalty.add("core_early", weights["core_early"], is_core and period >= 6)
 
     # ── SC6: البدنية بعد الاستراحة ──
     is_pe = task.subject_code == "PE"
-    penalty.add("pe_after_break", WEIGHTS["pe_after_break"], is_pe and period not in (4, 5))
+    penalty.add("pe_after_break", weights["pe_after_break"], is_pe and period not in (4, 5))
 
     # ── SC7: مكافأة الحصة المزدوجة (DB + كود) ──
     if is_double and same_subject_today == 1:
@@ -864,7 +896,7 @@ def evaluate_soft_constraints(
         # المزاوجةُ صفةُ شعبةٍ ومادّة — تُقرأ داخل شعبتها لا في التوقيت العامّ.
         prev_task = grid.get_task_at(task.class_id, day, period - 1) if period > 1 else None
         if prev_task and prev_task.subject_id == task.subject_id:
-            penalty.add("double_bonus", WEIGHTS["double_bonus"], True)  # مكافأة (قيمة سالبة)
+            penalty.add("double_bonus", weights["double_bonus"], True)  # مكافأة (قيمة سالبة)
 
     # ── SC8 (جديد): مادة 5+/أسبوع — الحصتان بنفس اليوم لا تكونان متتاليتين ──
     if task.weekly_periods >= HIGH_WEEKLY_THRESHOLD and same_subject_today == 1:
@@ -873,7 +905,7 @@ def evaluate_soft_constraints(
         is_adj_same = (prev_task and prev_task.subject_id == task.subject_id) or (
             next_task and next_task.subject_id == task.subject_id
         )
-        penalty.add("high_weekly_adjacent", WEIGHTS["high_weekly_adjacent"], is_adj_same)
+        penalty.add("high_weekly_adjacent", weights["high_weekly_adjacent"], is_adj_same)
 
     return penalty
 

@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from .models import (
     AbsenceAlert,
     ScheduleBaseline,
+    ScheduleConstraintOverride,
     ScheduleGeneration,
     ScheduleSlot,
     SchedulingResource,
@@ -164,6 +165,50 @@ class SchedulingResourceAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).prefetch_related("subjects")
+
+
+@admin.register(ScheduleConstraintOverride)
+class ScheduleConstraintOverrideAdmin(admin.ModelAdmin):
+    """استثناءاتُ قيود الجدول — والصفوفُ هنا انحرافٌ عن الشيفرة لا سجلٌّ لها.
+
+    فجدولٌ فارغٌ يعني «افتراضُ الكود بالضبط»، ولا يُنشأ صفٌّ إلّا حين تقرّر
+    الإدارةُ خلافَه. ورمزُ القيد يُختار من السجلّ لا يُكتب: رمزٌ لا تعرفه
+    الشيفرةُ صفٌّ ميّتٌ يوهم صاحبَه أنّه غيّر شيئاً.
+    """
+
+    list_display = ("code", "constraint_title", "break_at", "weight", "academic_year", "updated_by")
+    list_filter = ("school", "academic_year", "break_at")
+    search_fields = ("code", "reason")
+    readonly_fields = ("updated_at",)
+
+    @admin.display(description="القيد")
+    def constraint_title(self, obj):
+        from .constraint_registry import spec
+
+        found = spec(obj.code)
+        return found.title if found else "— رمزٌ لا يعرفه السجلّ —"
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        from .constraint_registry import BREAK_CHOICES
+
+        if db_field.name == "break_at":
+            kwargs["choices"] = [("", "افتراضُ الكود"), *BREAK_CHOICES]
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        """رمزُ القيد قائمةٌ من السجلّ — وما ليس فيه لا يُكتب."""
+        from django import forms
+
+        from .constraint_registry import REGISTRY, TUNABLE_CODES
+
+        if db_field.name == "code":
+            choices = [(code, f"{code} · {REGISTRY[code].title}") for code in sorted(TUNABLE_CODES)]
+            return forms.ChoiceField(choices=choices, label=db_field.verbose_name)
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(TeacherPreference)

@@ -76,6 +76,15 @@
     </p>
     {% endif %}
 
+    {% if constraint_overrides %}
+    <div class="alert-strip alert-strip--warn mb-4">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      قيودٌ خُولف فيها افتراضُ الشيفرة هذا العام:
+      {% for code, title in constraint_overrides %}<strong>{{ code }} · {{ title }}</strong>{% if not forloop.last %}، {% endif %}{% endfor %}.
+      وأثرُ الرتبة لا يكشفه عدٌّ — فوَلِّد وقِس بالمختبر قبل الاعتماد.
+    </div>
+    {% endif %}
+
     <div class="overflow-x-auto">
       <table>
         <thead>
