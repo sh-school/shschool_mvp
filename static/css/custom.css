@@ -4448,6 +4448,17 @@ html.dark .q-kpi-summary__item {
   gap: 6px;
 }
 .alert-strip a { color: var(--status-danger); text-decoration: underline; }
+/* تنبيهٌ لا خطر — والخلفيّةُ الفاتحةُ ممنوعةٌ في الوضع الداكن، فتُقلَب شفّافيّةً. */
+.alert-strip--warn {
+  background: var(--status-warning-bg, #fffbeb);
+  border-color: #fde68a;
+  color: #92400e;
+  /* فقرةٌ تُقرأ لا شريطٌ يُلمح: الشريطُ 0.65rem وهو أضيقُ من أن يحمل جملتين. */
+  align-items: flex-start;
+  padding: 10px 14px;
+  font-size: var(--text-sm, .8125rem);
+  line-height: 1.75;
+}
 
 /* ── Quick Links ── */
 .quick-links {
@@ -4516,6 +4527,7 @@ html.dark .kpi-mini { background: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,.2);
 html.dark .dash-chart-card { background: #1e293b; border-color: #334155; }
 html.dark .ql-item { background: #1e293b; border-color: #334155; color: #f1f5f9; }
 html.dark .alert-strip { background: rgba(220,38,38,.1); border-color: #334155; }
+html.dark .alert-strip--warn { background: rgba(245,158,11,.12); border-color: #92400e; color: #fcd34d; }
 html.dark .dash-list-item { border-color: #334155; }
 html.dark .exec-details-summary { background: #1e293b; border-color: #334155; color: #cbd5e1; }
 
