@@ -501,16 +501,27 @@ class ScheduleGrid:
             pairs += sum(1 for i in range(1, len(ordered)) if ordered[i] == ordered[i - 1] + 1)
         return pairs
 
-    def teacher_last_periods(self, teacher_id: str) -> int:
-        """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
-        return sum(1 for _, period in self._teacher_slots[teacher_id] if period == LAST_PERIOD)
+    def teacher_periods_at(self, teacher_id: str, at: int) -> int:
+        """كم حصّةً لهذا المعلّم في هذا الموضع من اليوم، طوالَ الأسبوع."""
+        return sum(1 for _, period in self._teacher_slots[teacher_id] if period == at)
 
-    def teacher_last_period_classes(self, teacher_id: str) -> set[str]:
-        """شُعبُ المعلّم في الحصّة السابعة — أيّامَ الأسبوع كلَّها."""
+    def teacher_edge_periods(self, teacher_id: str) -> int:
+        """طرفا اليوم معاً: الأولى والسابعة.
+
+        وهما عبءٌ واحدٌ في ميزان المعلّم — من بدأ يومَه أوّلَ الدوام كمن أنهاه
+        آخرَه (قرار الإدارة 2026-09-10). ومقياسُ «عدالة الأولى والسابعة» يعدّهما
+        في سلّةٍ واحدةٍ منذ كُتب، فصار الترجيحُ يوافقه.
+        """
+        return self.teacher_periods_at(teacher_id, 1) + self.teacher_periods_at(
+            teacher_id, LAST_PERIOD
+        )
+
+    def teacher_classes_at(self, teacher_id: str, at: int) -> set[str]:
+        """شُعبُ المعلّم في هذا الموضع من اليوم — أيّامَ الأسبوع كلَّها."""
         return {
             task.class_id
             for (tid, _, period), task in self._teacher_at.items()
-            if tid == teacher_id and period == LAST_PERIOD
+            if tid == teacher_id and period == at
         }
 
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
