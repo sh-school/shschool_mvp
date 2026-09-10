@@ -1405,6 +1405,17 @@ def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[s
 #: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
 #: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
 @joinable_pairs_cached()
+def _feasibility_snapshot(school, academic_year: str) -> dict:
+    """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
+    try:
+        from .schedule_feasibility import check
+
+        return check(school, academic_year).as_dict()
+    except Exception:  # pragma: no cover - لقطةٌ للسجلّ لا شرطٌ للتوليد
+        logger.exception("تعذّر حساب فحص الجدوى للقطة التوليد")
+        return {}
+
+
 def generate_schedule(
     school: School,
     academic_year: str,
@@ -1646,6 +1657,10 @@ def generate_schedule(
                         "relaxed": relaxed,
                         "densed": densed,
                         "preferences_count": len(preferences),
+                        #: حكمُ العدّ يومَ التوليد — فجدولٌ نصفُ تامٍّ يُقرأ بعد
+                        #: أشهرٍ ولا يُعرف أكان المولّدُ عاجزاً أم الطلبُ فوقَ
+                        #: الطاقة. راجع `schedule_feasibility`.
+                        "feasibility": _feasibility_snapshot(school, academic_year),
                     },
                 }
                 for key, value in fields.items():

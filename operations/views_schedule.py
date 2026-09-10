@@ -761,10 +761,11 @@ def smart_schedule_view(request):
         # نصٌّ لا رقم: `floatformat` يتبع اللغةَ فيكتب «100٫0»، والرقمُ هنا يُقرأ ويُقارَن.
         g.placed_ratio = f"{ratio:.1f}"
 
-    # ✅ v5.4: CapacityCheckService.get_overcapacity_classes — validation في service layer
-    from operations.services import CapacityCheckService
+    #: الحسابُ بالعدّ يسبق البحثَ بالساعات — طاقةُ الشُّعب والمعلّمين والموارد
+    #: وتباعدُ الأيّام. وكان هنا فحصُ الشُّعب وحدَه، وهو اليومَ أحدُ خمسة.
+    from operations import schedule_feasibility
 
-    overcapacity_classes = CapacityCheckService.get_overcapacity_classes(assignments)
+    feasibility = schedule_feasibility.check(school, year)
 
     return render(
         request,
@@ -782,7 +783,7 @@ def smart_schedule_view(request):
             "total_weekly": total_weekly,
             "classes_count": assignments.values("class_group").distinct().count(),
             "teachers_count": assignments.values("teacher").distinct().count(),
-            "overcapacity_classes": overcapacity_classes,
+            "feasibility": feasibility,
         },
     )
 

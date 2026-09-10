@@ -46,34 +46,83 @@
     <div class="kpi-value text-status-info">{{ classes_count }} شعبة · {{ teachers_count }} معلماً</div>
     <div class="kpi-label">شُعب ومعلمون مشاركون</div>
   </div>
-  {% if overcapacity_classes %}
+  {% if feasibility.minimum_unplaceable %}
   <div class="kpi-card" style="border-color:var(--status-danger)">
-    <div class="kpi-value text-status-danger">{{ overcapacity_classes|length }}</div>
-    <div class="kpi-label">فصول فوق السعة</div>
+    <div class="kpi-value text-status-danger">{{ feasibility.minimum_unplaceable }}</div>
+    <div class="kpi-label">حصّةٌ لن تجد موضعاً — بالعدّ لا بالبحث</div>
   </div>
   {% endif %}
 </div>
 
-{% if overcapacity_classes %}
-<div class="card-qatar mb-6 p-0 overflow-hidden" style="border:2px solid var(--status-danger)">
-  <div class="card-bar m-0 rounded-t-xl text-base px-5 py-3" style="background:var(--status-danger);color:#fff">
-    {% include "components/icon.html" with name="alert-triangle" %} تحذير: فصول تتجاوز السعة الأسبوعية
+{# ══ فحصُ الجدوى: يعدّ ولا يبحث — فما عجز هنا لا يجده بحثٌ مهما طال ══ #}
+<div class="card-qatar mb-6 p-0 overflow-hidden"
+     {% if feasibility.blocking %}style="border:2px solid var(--status-danger)"{% endif %}>
+  <div class="card-bar m-0 rounded-t-xl text-base px-5 py-3"
+       {% if feasibility.blocking %}style="background:var(--status-danger);color:#fff"{% endif %}>
+    {% include "components/icon.html" with name="list-checks" %} فحصُ الجدوى قبل التوليد
   </div>
   <div class="p-5">
-    <p class="text-sm text-secondary mb-3">
-      الفصول التالية لديها حصص مطلوبة أكثر من الخانات المتاحة في الأسبوع.
-      <strong>يجب تقليل الحصص قبل التوليد</strong> وإلا ستفشل بعض الحصص في الجدولة.
+    {% if feasibility.blocking %}
+    <p class="text-sm mb-4">
+      <strong class="text-status-danger">
+        {{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.
+      </strong>
+      والعلاجُ في التوزيعات لا في المولّد: راجع ما دونه ثمّ أعد الفحص.
     </p>
-    <ul class="list-disc pr-6 text-sm space-y-1">
-      {% for oc in overcapacity_classes %}
-      <li class="text-status-danger font-semibold">
-        {{ oc.class_name }} — مطلوب {{ oc.demand }} حصة، والسعة {{ oc.capacity }} — فائض {{ oc.overflow }}
-      </li>
-      {% endfor %}
-    </ul>
+    {% else %}
+    <p class="text-sm text-secondary mb-4">
+      لا عجزَ في العدّ: الطلبُ يسعه ما في الأسبوع من خانات. وبقيّةُ التعذّر — إن وقع —
+      من تشابك القيود لا من ضيق الطاقة.
+    </p>
+    {% endif %}
+
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>الفحص</th>
+            <th class="text-center">الحكم</th>
+            <th>ما وجده</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in feasibility.findings %}
+          <tr>
+            <td class="font-semibold">{{ f.title }}</td>
+            <td class="text-center">
+              {% if f.status == "fail" %}
+              <span class="status-badge status-danger">عجزٌ يقينيّ</span>
+              {% elif f.status == "warn" %}
+              <span class="status-badge status-warning">تنبيه</span>
+              {% else %}
+              <span class="status-badge status-success">سليم</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ f.summary }}
+              {% if f.rows %}
+              <details class="mt-2">
+                <summary class="text-xs text-muted cursor-pointer">التفصيل ({{ f.rows|length }})</summary>
+                <ul class="list-disc pr-6 text-xs space-y-1 mt-2">
+                  {% for r in f.rows %}
+                  <li>
+                    <span class="font-semibold">{{ r.name }}</span> —
+                    مطلوب {{ r.demand }}، ويسعه {{ r.capacity }}
+                    {% if r.gap %}<span class="text-status-danger">(عجز {{ r.gap }})</span>{% endif %}
+                    {% if r.note %}<span class="text-muted">· {{ r.note }}</span>{% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </details>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
-{% endif %}
 
 {# ── زر التوليد ── #}
 {% if assignments %}
