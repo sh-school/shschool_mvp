@@ -63,21 +63,84 @@ TITLE_ROLES = {
     "مشرف مقصف": "canteen_supervisor",
     "عامل خدمات": "services_worker",
     "مندوب": "messenger",
+    # ── صيغُ الكشف الوزاريّ 2026-2027 ────────────────────────────────
+    # قالبُ مدرسةِ البناتِ لم يُنظَّف في الورقة المدرسيّة، فبقي «مدير معلمة»
+    # و«سكرتير معلمة» — والكشفُ الوزاريُّ يصحّحهما. وكلاهما يُحمل: الوزاريُّ
+    # لأنّه المرجع، والمدرسيُّ لأنّ خمسةَ موظّفين لا يعرفهم الكشفُ الوزاريّ.
+    "مدير مدرسة": "principal",
+    "مدير معلمة": "principal",
+    "نائب المدير للشؤون الادارية": "vice_admin",
+    "نائب المدير للشؤون الإدارية وشؤون الطلاب": "vice_admin",
+    "سكرتير مدرسة": "secretary",
+    "سكرتير معلمة": "secretary",
+    "مساعد سكرتير مدرسة": "secretary",
+    "مسؤول مركز مصادر التعلم": "librarian",
 }
 
-#: ما بدأ بهذين يُقرأ من بادئته — «معلم رياضيات» و«منسق العلوم» عشراتُ صيغ.
-PREFIX_ROLES = (("منسق", "coordinator"), ("معلم", "teacher"))
+#: ما بدأ بهذه يُقرأ من بادئته — «معلم رياضيات» و«منسق العلوم» عشراتُ صيغ،
+#: و«محضر مختبر» يليه اسمُ المادّة أو لا يليه شيء.
+PREFIX_ROLES = (
+    ("منسق", "coordinator"),
+    ("معلم", "teacher"),
+    ("محضر مختبر", "lab_technician"),
+)
+
+#: من يذكرُه الكشفُ ولا يُستورَد — بقرارٍ بشريٍّ مكتوبٍ لا باجتهاد.
+#:
+#: الكشفُ الوزاريُّ يتأخّر عن الواقع: ذكر أيوب القرفان بمسمّى النيابة الأكاديميّة
+#: وهو منقولٌ من المدرسة (تأكيدُ المستخدم 2026-09-10). ولولا هذه القائمةُ لأعاده
+#: أوّلُ تشغيلٍ إلى الكادر صامتاً، ولصار للمدرسة نائبان أكاديميّان نشطان.
+#:
+#: **والمفتاحُ الرقمُ الوظيفيُّ لا الشخصيّ**: المستودعُ عامّ، والرقمُ الشخصيُّ
+#: بياناتٌ شخصيّةٌ بنصّ PDPPL لا تُكتب في شيفرةٍ يقرؤها الناس. والرقمُ الوظيفيُّ
+#: معرّفٌ إداريٌّ تُراسَل به الوزارةُ في شؤون الموظّف — وهو كافٍ للتمييز.
+#:
+#: والسببُ يُكتب مع الرقم: قائمةٌ بلا أسبابٍ تصير بعد سنةٍ لغزاً لا يجرؤ أحدٌ
+#: على حذف سطرٍ منه.
+EXCLUDED_EMPLOYEE_NUMBERS = {
+    "65227": (
+        "أيوب حسين القرفان — نُقل من المدرسة، وعضويّتُه انتهت 2026-09-06."
+        " والكشفان يذكرانه بمسمّى النيابة الأكاديميّة. تأكيدُ المستخدم 2026-09-10."
+    ),
+}
 
 #: الكادرُ التدريسيُّ — في القاعدة أصلاً، ولا يُستورَد (طلبُ المستخدم 2026-09-06).
 TEACHING_ROLES = frozenset({"teacher", "coordinator", "ese_teacher", "e_projects_coordinator"})
+
+
+#: حروفٌ يتبدّل رسمُها بين كشفٍ وكشفٍ ولا يتبدّل بها المعنى.
+_LETTERS = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه"})
+
+
+def normalize_title(title: str) -> str:
+    """صورةٌ واحدةٌ للمسمّى مهما اختلف رسمُه.
+
+    الكشفُ الوزاريُّ يكتب «أخصائي اجتماعي» والمدرسيُّ «الاخصائي الاجتماعي»،
+    و«الأكاديمية» تُكتب «الاكاديمية». وهذه فروقُ رسمٍ لا فروقُ وظيفة — فلو
+    حُملت في الجدول صيغةً صيغةً لصار الجدولُ سجلَّ أخطاءٍ إملائيّة، ولوقف
+    الاستيرادُ عند الصيغة السابعة عشرة.
+
+    والتعريفُ يُنزع من كلّ كلمة: «نائب المدير» و«نائب مدير» واحد.
+    """
+    words = (title or "").translate(_LETTERS).split()
+    return " ".join(w[2:] if len(w) > 3 and w.startswith("ال") else w for w in words)
+
+
+#: الجدولُ نفسُه بصورته المطبَّعة — يُبنى مرّةً عند التحميل.
+_NORMALIZED = {normalize_title(k): v for k, v in TITLE_ROLES.items()}
 
 
 def role_for(title: str) -> str | None:
     title = " ".join((title or "").split())
     if title in TITLE_ROLES:
         return TITLE_ROLES[title]
+
+    normalized = normalize_title(title)
+    if normalized in _NORMALIZED:
+        return _NORMALIZED[normalized]
+
     for prefix, role in PREFIX_ROLES:
-        if title.startswith(prefix):
+        if title.startswith(prefix) or normalized.startswith(normalize_title(prefix)):
             return role
     return None
 
@@ -90,7 +153,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--rows-b64",
             default="",
-            help="سطورُ الكشف محزومةً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها الملفّ",
+            help=(
+                "سطورُ الكشف محزومةً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها الملفّ."
+                " و«-» تقرأ الحزمةَ من المدخل القياسيّ، وهو الأسلم"
+            ),
         )
         parser.add_argument(
             "--emit-b64",
@@ -134,6 +200,15 @@ class Command(BaseCommand):
         # الكشفُ كلُّه ليُفحص، ولا يُدخل منه إلّا الإداريّون.
         if not options["include_teaching"]:
             rows = [r for r in rows if role_for(r["title"]) not in TEACHING_ROLES]
+
+        # الاستثناءُ يُعلَن ولا يقع صامتاً: من حُذف من الاستيراد يُذكر بسببه،
+        # وإلّا ظنّ قارئُ التقرير أنّ الكشفَ لم يذكره أصلاً.
+        excluded = [r for r in rows if r["employee_number"] in EXCLUDED_EMPLOYEE_NUMBERS]
+        if excluded:
+            rows = [r for r in rows if r["employee_number"] not in EXCLUDED_EMPLOYEE_NUMBERS]
+            for row in excluded:
+                why = EXCLUDED_EMPLOYEE_NUMBERS[row["employee_number"]]
+                self.stdout.write(self.style.WARNING(f"  ⊘ {row['name']} — {why}"))
 
         if options["emit_b64"]:
             self.stdout.write(_pack(rows))
@@ -256,7 +331,7 @@ class Command(BaseCommand):
         if bool(options["file"]) == bool(options["rows_b64"]):
             raise CommandError("حدّد --file أو --rows-b64 — واحداً منهما.")
         if options["rows_b64"]:
-            return _unpack(options["rows_b64"]), "حزمة"
+            return _unpack(_payload(options["rows_b64"])), "حزمة"
         return self._read(options["file"], options["sheet"]), options["file"].split("/")[-1]
 
     def _school(self, code):
@@ -264,6 +339,123 @@ class Command(BaseCommand):
         if school is None:
             raise CommandError("لا مدرسةَ بهذا الرمز.")
         return school
+
+    #: رؤوسُ الكشفين العربيّين — الوزاريُّ والمدرسيُّ يسمّيان الشيءَ باسمين.
+    ARABIC_HEADERS = {
+        "national_id": ("الرقم الشخصي", "الرقم الشخصى"),
+        "name": ("الاسم",),
+        "title": ("المسمى الوظيفي", "مسمى الوظيفة"),
+        "employee_number": ("الرقم الوظيفي", "رقم الموظف"),
+        "email": ("البريد الالكتروني", "البريد الإلكتروني"),
+        "phone": ("رقم الهاتف", "رقم الجوال"),
+        "residence_area": ("السكن",),
+    }
+
+    def _read_arabic(self, book):
+        """كشفُ 2026-2027: ورقتان لا تكفي إحداهما — تُدمجان بالرقم الشخصيّ.
+
+        الوزاريّةُ فيها 130 سطراً بالمسمّى الرسميّ والرقم الوظيفيّ والجوّال،
+        والمدرسيّةُ 120 بالبريد والسكن. والاتّحادُ 135: مئةٌ وخمسةَ عشرَ في
+        كلتيهما، وخمسةَ عشرَ في الوزاريّة وحدَها، وخمسةٌ في المدرسيّة وحدَها.
+
+        **والوزاريّةُ تحكم** (قرارُ المستخدم 2026-09-10): الاسمُ والمسمّى والرقمُ
+        الوظيفيُّ والجوّالُ منها، والمدرسيّةُ تُكمل البريدَ والسكنَ وحدَهما.
+        وهذا يُصلح قالبَ مدرسةِ البناتِ الذي لم يُنظَّف في الورقة المدرسيّة —
+        «مدير معلمة» تصير «مدير مدرسة»، وخمسةُ مسمّياتٍ منها المديرُ نفسُه.
+
+        وتُعرَف الورقتان بمحتواهما لا باسمهما: التي فيها البريدُ هي المدرسيّة.
+        فتسميةُ الأوراق تتغيّر بين تصديرٍ وتصدير، والأعمدةُ لا تتغيّر.
+
+        يُرجع `None` إن لم تكن أيُّ ورقةٍ عربيّةَ الرؤوس — فيُقرأ الملفُّ بالشكل
+        القديم.
+        """
+        sheets = [
+            parsed
+            for parsed in (self._parse_arabic_sheet(ws) for ws in book.worksheets)
+            if parsed is not None
+        ]
+        if not sheets:
+            return None
+
+        school_sheet = next((s for s in sheets if any(r.get("email") for r in s)), None)
+        ministry = [s for s in sheets if s is not school_sheet]
+
+        authoritative = {}
+        for rows in ministry:
+            for row in rows:
+                authoritative[row["national_id"]] = row
+        supplemental = {r["national_id"]: r for r in (school_sheet or [])}
+
+        merged = []
+        for qid in list(authoritative) + [q for q in supplemental if q not in authoritative]:
+            base = dict(authoritative.get(qid) or supplemental[qid])
+            extra = supplemental.get(qid) or {}
+            for field in ("email", "residence_area"):
+                if not base.get(field) and extra.get(field):
+                    base[field] = extra[field]
+            merged.append(base)
+        return merged
+
+    def _parse_arabic_sheet(self, worksheet):
+        """سطورُ ورقةٍ عربيّةِ الرؤوس، أو `None` إن لم تكن كذلك.
+
+        والفرقُ بين `None` و`[]` ليس ذوقاً: ورقةٌ عربيّةُ الرؤوس خلت سطورُها من
+        رقمٍ صالحٍ كانت تُقرأ «ليست عربيّة»، فيسقط الملفُّ في القارئ الإنجليزيّ
+        ويشكو من أعمدةٍ لا وجودَ لها في ملفٍّ عربيّ — رسالةٌ تُضلّل قارئَها.
+
+        وموضعُ الرؤوس يُبحث عنه ولا يُفترض: الوزاريّةُ تضعها في السطر الأوّل
+        والمدرسيّةُ في الثاني (فوقهما عنوانٌ مدموج). واشتراطُ سطرٍ بعينه يجعل
+        الأمرَ يفشل بـ«لم يُقرأ موظّفٌ واحد» كلَّما أضاف أحدٌ سطرَ عنوان.
+        """
+        rows = list(worksheet.iter_rows(max_row=6, values_only=True))
+        columns, header_index = {}, None
+        for index, row in enumerate(rows):
+            found = self._match_headers(row)
+            if len(found) >= 4 and "national_id" in found and "name" in found:
+                columns, header_index = found, index
+                break
+        if header_index is None:
+            return None
+
+        out = []
+        for row in worksheet.iter_rows(min_row=header_index + 2, values_only=True):
+            if not any(row):
+                continue
+            record = {
+                field: _text(row[position]) if position < len(row) else ""
+                for field, position in columns.items()
+            }
+            qid = record.get("national_id", "")
+            if not record.get("name") or not qid.isdigit():
+                continue
+            record.setdefault("email", "")
+            record.setdefault("residence_area", "")
+            record["phone"] = _local_phone(record.get("phone", ""))
+            out.append(
+                {
+                    "national_id": qid,
+                    "name": record["name"],
+                    "title": record.get("title", ""),
+                    "employee_number": record.get("employee_number", ""),
+                    "email": record["email"],
+                    "phone": record["phone"],
+                    "residence_area": record["residence_area"],
+                }
+            )
+        return out
+
+    def _match_headers(self, row):
+        wanted = {
+            _header_key(alias): field
+            for field, aliases in self.ARABIC_HEADERS.items()
+            for alias in aliases
+        }
+        found = {}
+        for position, value in enumerate(row):
+            field = wanted.get(_header_key(_text(value)))
+            if field and field not in found:
+                found[field] = position
+        return found
 
     def _read(self, path, sheet):
         try:
@@ -275,6 +467,15 @@ class Command(BaseCommand):
             book = openpyxl.load_workbook(path, read_only=True, data_only=True)
         except OSError as exc:
             raise CommandError(f"تعذّر فتحُ الملفّ: {path}") from exc
+
+        # كشفُ 2026-2027 عربيُّ الرؤوس وورقتان، والكشفُ القديم إنجليزيٌّ وورقةٌ
+        # واحدة. فيُقرأ الشكلان: الملفُّ القديم لا يُكسر، والجديدُ لا يُعاد تشكيله
+        # بيد أحدٍ قبل الاستيراد — وكلُّ تشكيلٍ يدويٍّ خطوةٌ تُنسى أو تُخطئ.
+        if not sheet:
+            arabic = self._read_arabic(book)
+            if arabic is not None:
+                book.close()
+                return arabic
 
         worksheet = book[sheet] if sheet else book[book.sheetnames[0]]
         raw = list(worksheet.iter_rows(values_only=True))
@@ -329,6 +530,7 @@ class Command(BaseCommand):
                     email=row["email"],
                     phone=row["phone"],
                     employee_number=row["employee_number"],
+                    residence_area=row.get("residence_area", ""),
                 )
                 user.set_unusable_password()
                 user.full_clean(exclude=["password", "last_login"])
@@ -340,6 +542,7 @@ class Command(BaseCommand):
                     ("email", row["email"]),
                     ("phone", row["phone"]),
                     ("employee_number", row["employee_number"]),
+                    ("residence_area", row.get("residence_area", "")),
                 ):
                     if value and not getattr(user, field):
                         setattr(user, field, value)
@@ -380,6 +583,7 @@ class Command(BaseCommand):
                 ("email", row["email"]),
                 ("phone", row["phone"]),
                 ("employee_number", row["employee_number"]),
+                ("residence_area", row.get("residence_area", "")),
             ):
                 if value and not getattr(user, field):
                     gaps.append((user, field, value))
@@ -512,3 +716,45 @@ def _unpack(payload):
     if not isinstance(rows, list):
         raise CommandError("الحزمةُ ليست قائمةَ سطور.")
     return rows
+
+
+def _text(value) -> str:
+    """خليّةٌ نصّاً بلا فراغاتٍ زائدة — والأرقامُ تخرج من إكسل عائمةً أحياناً."""
+    if value is None:
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return " ".join(str(value).split())
+
+
+def _header_key(value: str) -> str:
+    """رأسُ العمود بصورةٍ واحدة — «الرقم الشخصى» و«الرقم الشخصي» رأسٌ واحد."""
+    return normalize_title(value)
+
+
+def _local_phone(value: str) -> str:
+    """الجوّالُ ثمانيَ خاناتٍ كما تحفظه القاعدة — والكشفُ الوزاريُّ يسبقه بـ974.
+
+    ولا يُقتطع ما ليس مفتاحَ دولةٍ: رقمٌ من ثمانٍ يبدأ بـ974 يبقى كما هو.
+    """
+    digits = "".join(ch for ch in value if ch.isdigit())
+    if len(digits) == 11 and digits.startswith("974"):
+        return digits[3:]
+    return digits
+
+
+def _payload(value: str) -> str:
+    """الحزمةُ نفسُها، أو ما يقرؤه المدخلُ القياسيُّ إن كانت «-».
+
+    و«-» هي الصيغةُ الموصى بها: الحزمةُ في سطر الأوامر تضع بياناتِ 135 موظّفاً
+    في وسائط العمليّة — تُقرأ بـ`ps`، وتُسجَّل في سجلّات تشغيل الأوامر على
+    الخادم، وتبقى في تاريخ الصدَفة. وbase64 ترميزٌ لا تشفير.
+    """
+    if value != "-":
+        return value
+    import sys
+
+    data = sys.stdin.read().strip()
+    if not data:
+        raise CommandError("المدخلُ القياسيُّ فارغ — لم تصل حزمة.")
+    return data
