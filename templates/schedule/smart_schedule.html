@@ -38,9 +38,19 @@
     <div class="kpi-value text-status-maroon">{{ assignments_count }}</div>
     <div class="kpi-label">توزيعات مواد</div>
   </div>
+  {% comment %}
+  رقمان لا واحد: التوازي حصّتان تُدرَّسان في التوقيت الواحد لمعلّمَي المادّتين،
+  وخانةٌ واحدةٌ تُشغَل من أسبوع الشعبة — `InstructionalPeriods ≠ OccupiedSlots`.
+  وخلطُهما هو ما يجعل تحذيرَ السعة يبدو فائضاً وليس بفائض.
+  {% endcomment %}
   <div class="kpi-card">
     <div class="kpi-value text-skyline">{{ total_weekly }}</div>
-    <div class="kpi-label">حصة أسبوعية إجمالية</div>
+    <div class="kpi-label">
+      حصة أسبوعية تُدرَّس
+      {% if shared_periods %}
+      <br><span class="text-xs">تشغل {{ occupied_slots }} خانة — {{ shared_periods }} في خانات مشتركة (توازٍ)</span>
+      {% endif %}
+    </div>
   </div>
   <div class="kpi-card">
     <div class="kpi-value text-status-info">{{ classes_count }} شعبة · {{ teachers_count }} معلماً</div>
@@ -68,6 +78,17 @@
       {% for oc in overcapacity_classes %}
       <li class="text-status-danger font-semibold">
         {{ oc.class_name }} — مطلوب {{ oc.demand }} حصة، والسعة {{ oc.capacity }} — فائض {{ oc.overflow }}
+        {% if oc.orphan_parallels %}
+        {% comment %}
+        السببُ المرجَّح يُقال: مجموعةُ التوازي تستهلك خانةً واحدةً لعضوَيها،
+        فوسمٌ بعضوٍ واحدٍ لا يُخصَم — ويظهر فائضٌ سببُه وسمٌ ناقصٌ لا نصابٌ زائد.
+        {% endcomment %}
+        <br><span class="text-sm font-normal">
+          والسببُ على الأرجح توازٍ ناقصٌ شريكَه:
+          <b>{{ oc.orphan_parallels|join:"، " }}</b> موسومةٌ وحدَها —
+          أشعِل «متوازية» على شريكتها في شاشة الإسناد.
+        </span>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

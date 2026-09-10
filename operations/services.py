@@ -2380,9 +2380,27 @@ class CapacityCheckService:
                         "demand": demand,
                         "capacity": weekly_capacity,
                         "overflow": demand - weekly_capacity,
+                        #: سببٌ مرجَّحٌ يُقال لا يُترك للتخمين: وسمُ توازٍ بلا
+                        #: شريكٍ في الشعبة. فالمجموعةُ تستهلك خانةً واحدةً
+                        #: لعضوَيها، وبعضوٍ واحدٍ لا خصمَ — فيظهر فائضٌ سببُه
+                        #: وسمٌ ناقصٌ لا نصابٌ زائد. وعلاجُه إشعالُ «متوازية»
+                        #: على شريكة المادّة في شاشة الإسناد.
+                        "orphan_parallels": CapacityCheckService._orphan_tags(class_rows[cid]),
                     }
                 )
         return overcapacity
+
+    @staticmethod
+    def _orphan_tags(rows) -> list[str]:
+        """أسماءُ الموادّ الموسومةِ بتوازٍ لا شريكَ له في هذه الشعبة."""
+        from collections import Counter as _C
+
+        tally = _C((r.parallel_group or "").strip() for r in rows if r.parallel_group)
+        return [
+            r.subject.name_ar
+            for r in rows
+            if r.parallel_group and tally[(r.parallel_group or "").strip()] < 2
+        ]
 
 
 class TeacherLoadService:

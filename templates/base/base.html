@@ -28,8 +28,8 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=9") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=157">
+  <style>@import url("{% static 'css/tailwind.min.css' %}?v=10") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=166">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -563,7 +563,7 @@
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
-<script src="{% static 'js/actions.js' %}?v=4" defer></script>
+<script src="{% static 'js/actions.js' %}?v=5" defer></script>
 <script src="{% static 'js/base.js' %}?v=110" defer></script>
 <script src="{% static 'js/app.js' %}?v=101" defer></script>
 

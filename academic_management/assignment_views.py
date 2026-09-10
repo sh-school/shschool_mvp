@@ -23,6 +23,7 @@ from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
@@ -162,17 +163,69 @@ def _department_of(department, rows, registry_filled=False):
 
 
 def _rows_by_teacher(school, year):
-    """كلُّ إسنادات المدرسة مرّةً واحدة — لا استعلامَ لكلّ بطاقة."""
+    """كلُّ إسنادات المدرسة مرّةً واحدة — لا استعلامَ لكلّ بطاقة.
+
+    ويُوسَم اليتيمُ في المرور نفسِه: وسمُ توازٍ لا شريكَ له في الشعبة. فمن
+    حذف الكيمياءَ من 11/4 بقيت الفنّيّةُ موسومةً وحدَها — ومجموعةٌ بعضوٍ
+    واحدٍ ليست توازياً، بل أثرٌ من حذفٍ لم يُنظَّف.
+    """
     out = defaultdict(list)
-    rows = (
+    rows = list(
         SubjectClassAssignment.objects.live(school, year=year)
         .filter(teacher__isnull=False)
         .select_related("class_group", "subject")
         .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
     )
+    _decorate(rows, _class_peers(school, year, rows))
     for row in rows:
         out[row.teacher_id].append(row)
     return out
+
+
+def _class_peers(school, year, rows):
+    """كلُّ إسنادات الشُّعب التي تخصّ هذه الصفوف — منها الشركاءُ وحكمُ اليتيم.
+
+    والبطاقةُ الواحدةُ تُعاد بصفوف معلّمها وحدَه، فلو قُرئ الشركاءُ منها لخلت
+    قائمةُ التوازي إلّا من «لا توازي» — وهو ما رآه المستخدم. فالشعبةُ تُقرأ
+    كاملةً ولو كانت موادُّها لمعلّمين آخرين: التوازي بين مادّتين في شعبة، لا
+    بين حصّتَي معلّم.
+    """
+    ids = {row.class_group_id for row in rows}
+    if not ids:
+        return {}
+    peers = defaultdict(list)
+    for row in (
+        SubjectClassAssignment.objects.live(school, year=year)
+        .filter(class_group_id__in=ids)
+        .select_related("class_group", "subject")
+        .order_by("subject__name_ar")
+    ):
+        peers[row.class_group_id].append(row)
+    return peers
+
+
+def _decorate(rows, peers):
+    """سماتُ العرض التي لا تُحفظ: الشركاءُ واليتيمُ والازدواجُ والتباعدُ الفعليّان."""
+    for row in rows:
+        tag = (row.parallel_group or "").strip()
+        family = peers.get(row.class_group_id, [])
+        row.parallel_orphan = (
+            bool(tag) and sum(1 for r in family if (r.parallel_group or "").strip() == tag) < 2
+        )
+        #: أيسري تباعدُ الأيّام على مرحلة هذه الشعبة؟ — `spreads_in` هي الحكم.
+        row.spread_effective = row.subject.spreads_in(row.class_group.level_type or "")
+        #: ما يقرؤه المولّدُ فعلاً: قرارُ الشعبة إن كُتب، وإلّا إعدادُ المادّة.
+        row.double_effective = (
+            row.double_period
+            if row.double_period is not None
+            else row.subject.requires_double_period
+        )
+        siblings = [r for r in family if r.id != row.id]
+        row.parallel_options = siblings
+        row.parallel_partner = next(
+            (r for r in siblings if tag and (r.parallel_group or "").strip() == tag), None
+        )
+    return rows
 
 
 def _prepared_by_teacher(school, year):
@@ -223,6 +276,33 @@ def _may_write(plan, caps):
     return caps["edit"]
 
 
+def _card_rows(school, year, teacher, rows, prepared):
+    """صفوفُ البطاقة مزيَّنةً — تُجلب إن لم تُمرَّر، وتُزيَّن إن لم تكن مزيَّنة.
+
+    الصفحةُ كاملةً تجلب الجميعَ مرّةً وتزيّنهم في `_rows_by_teacher`، وبطاقةٌ
+    تُعاد وحدَها بعد حفظٍ تمرّ من هنا. وفصلُها عن `_card` ليس ترتيباً: تلك
+    بلغت تعقيداً تردّه بوّابةُ الجودة (CC ≥ 31).
+    """
+    if rows is None:
+        rows = list(
+            SubjectClassAssignment.objects.live(school, year=year)
+            .filter(teacher=teacher)
+            .select_related("class_group", "subject")
+            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
+        )
+    if prepared is None:
+        prepared = {
+            (p.grade, p.track, p.subject_id)
+            for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
+        }
+    if rows and not hasattr(rows[0], "parallel_options"):
+        _decorate(rows, _class_peers(school, year, rows))
+    for row in rows:
+        row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
+        row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
+    return rows
+
+
 def _card(
     school,
     year,
@@ -241,21 +321,7 @@ def _card(
     transfer=None,
 ):
     """سياقُ بطاقةٍ واحدة — تُبنى للصفحة وتُعاد وحدَها بعد كلّ حفظ."""
-    if rows is None:
-        rows = list(
-            SubjectClassAssignment.objects.live(school, year=year)
-            .filter(teacher=teacher)
-            .select_related("class_group", "subject")
-            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
-        )
-    if prepared is None:
-        prepared = {
-            (p.grade, p.track, p.subject_id)
-            for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
-        }
-    for row in rows:
-        row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
-        row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
+    rows = _card_rows(school, year, teacher, rows, prepared)
 
     plan = plans.get(teacher.id) if plans is not None else _latest_plan(school, teacher, year)
     status = plan.status if plan else ""
@@ -632,6 +698,14 @@ def update_periods(request, assignment_id):
             weekly_periods=periods,
             by=request.user,
             override_reason=(request.POST.get("reason") or "").strip(),
+            #: الوسمُ يُحمَل معه لا يُترك لافتراضه.
+            #:
+            #: `apply_assignment` تكتب `parallel_group = tag` دائماً، وافتراضُها
+            #: فراغ. فكلُّ تعديلٍ لعدد الحصص كان **يمحو التوازيَ صامتاً**:
+            #: يُعدَّل نصابُ الفنّيّة في 12/1 فتفقد شراكتَها مع التكنولوجيا،
+            #: ويصير المولّدُ يطلب لهما خانتين بعد أن كانتا في خانة.
+            parallel_group=obj.parallel_group,
+            requires_lab=obj.requires_lab,
             expected_updated_at=obj.updated_at,
         )
     except (
@@ -665,6 +739,160 @@ def remove_row(request, assignment_id):
     assignment_service.remove_assignment(
         assignment=obj, by=request.user, reason="حُذف من شاشة الإسناد"
     )
+    return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def set_parallel(request, assignment_id):
+    """ربطُ مادّتين في الشعبة توازياً — أو فكُّ الربط.
+
+    التوازي صفةُ **الإسناد** لا الجدول: مادّتان في الشعبة الواحدة تُدرَّسان في
+    التوقيت نفسه لقسمَي الطلاب — الفنّيّةُ والتكنولوجيا في 11/1، والفنّيّةُ
+    والكيمياء في 11/4. فالمولّدُ يجمعهما في مهمّةٍ واحدةٍ بساكنَين، وبلا الوسم
+    يطلب لهما خانتين ويقع في «شعبةٌ بمادّتين».
+
+    ## ولماذا شريكةٌ تُختار لا مربّعٌ يُشعَل
+
+    المربّعُ يوسم مادّةً واحدة، فيُنشئ اليتيمَ بأوّل نقرة: مجموعةٌ بعضوٍ واحدٍ
+    ليست توازياً، والمولّدُ لا يخصمها فيظهر «مطلوب 37 والسعة 35» وليس في
+    الشعبة فائضٌ أصلاً. فالربطُ هنا ثنائيٌّ في فعلٍ واحد: تُختار الشريكةُ
+    فيُوسَم الطرفان معاً، ويُفكّ الوسمُ عنهما معاً — فلا يُولَد يتيمٌ من هذا
+    الباب.
+
+    والوسمُ يُشتقّ من الشعبة ولا يُكتب نصّاً، فلا يُطلب من أحدٍ أن يتذكّر
+    حروفاً يطابقها.
+    """
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    raw = (request.POST.get("partner") or "").strip()
+    partner = None
+    if raw:
+        partner = (
+            SubjectClassAssignment.objects.live(school, year=year)
+            .filter(pk=raw, class_group_id=obj.class_group_id)
+            .exclude(pk=obj.pk)
+            .first()
+        )
+        if partner is None:
+            return _render_card(
+                request, school, year, teacher, caps, error="الشريكةُ ليست من موادّ هذه الشعبة."
+            )
+
+    old_tag = (obj.parallel_group or "").strip()
+    with transaction.atomic():
+        if partner is None:
+            #: فكُّ الربط يرفع الوسمَ عن الطرفين — وإلّا بقي الآخرُ يتيماً.
+            if old_tag:
+                SubjectClassAssignment.objects.filter(
+                    class_group_id=obj.class_group_id, parallel_group=old_tag, is_active=True
+                ).update(parallel_group="", updated_by=request.user)
+            else:
+                obj.parallel_group = ""
+                obj.updated_by = request.user
+                obj.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+        else:
+            tag = f"par-{obj.class_group.short_code}"[:40]
+            for row in (obj, partner):
+                row.parallel_group = tag
+                row.updated_by = request.user
+                row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+    return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def toggle_spread(request, assignment_id):
+    """«أيّامٌ مختلفة» — لا تجتمع حصّتان من هذه المادّة في يومٍ لهذه الشعبة.
+
+    والحقلُ على المادّة بنطاق مرحلة (`Subject.spread_days_scope`): الفنّيّةُ
+    مزدوجةٌ في الإعداديّ ومتباعدةٌ في الثانويّ. فالمربّعُ هنا يقلب نطاقَ
+    **مرحلةِ هذه الشعبة** وحدَها، ويترك المرحلةَ الأخرى كما هي:
+
+        الإشعالُ في شعبةٍ ثانويّة: none → sec، و prep → all
+        الإطفاءُ فيها:            sec  → none، و all  → prep
+
+    ولهذا يسري الأثرُ على كلّ شُعب المرحلة لا على هذه وحدَها — والتلميحُ في
+    الشاشة يقول ذلك، فلا يُفاجأ من غيّره لشعبةٍ فوجده في أخواتها.
+
+    وحارسُ الاستحالة يمرّ من هنا كما يمرّ في شاشة الإعدادات: مادّةُ ستِّ حصصٍ
+    لا تتباعد في خمسة أيّام، فتُردّ عند الحفظ لا بعد دقيقتين من التوليد.
+    """
+    from operations.views_schedule import _spread_blocker, _spread_overflow
+
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    level = obj.class_group.level_type or ""
+    if level not in ("prep", "sec"):
+        return _render_card(request, school, year, teacher, caps, error="الشعبةُ بلا مرحلةٍ مسجَّلة.")
+    other = "sec" if level == "prep" else "prep"
+    current = obj.subject.spread_days_scope
+    has_other = current in ("all", other)
+    wants = bool(request.POST.get("spread"))
+
+    if wants:
+        target = "all" if has_other else level
+    else:
+        target = other if has_other else "none"
+
+    if target != current:
+        crowded = _spread_overflow(school, year).get(str(obj.subject_id), ())
+        blocker = _spread_blocker(crowded, target)
+        if blocker:
+            klass, periods = blocker
+            return _render_card(
+                request,
+                school,
+                year,
+                teacher,
+                caps,
+                error=(
+                    f"تباعدُ الأيّام لـ{obj.subject.name_ar} يستحيل: الشعبة {klass} "
+                    f"تطلب {periods} حصصاً والأسبوعُ خمسةُ أيّام — بقي النطاقُ كما كان."
+                ),
+            )
+        obj.subject.spread_days_scope = target
+        obj.subject.save(update_fields=["spread_days_scope"])
+    return _render_card(request, school, year, teacher, caps)
+
+
+@login_required
+@require_POST
+def toggle_double(request, assignment_id):
+    """مربّعُ «مزدوجة» — حصّتان متلاصقتان لهذه المادّة في هذه الشعبة.
+
+    والقرارُ هنا لا في جدول الموادّ: الازدواجُ ليس صفةَ المادّة بإطلاق بل صفةَ
+    تدريسها في صفٍّ بعينه — التكنولوجيا متباعدةٌ من السابع إلى العاشر ومزدوجةٌ
+    في الحادي عشر/1 حيث هي نصفُ زوجٍ متوازٍ مع الفنّيّة. و`double_period` على
+    الإسناد يعلو `Subject.requires_double_period`، فهذا المربّعُ هو الكلمةُ
+    الأخيرة.
+
+    ويُكتب صريحاً — `True` أو `False` — لا يُترك `None` («اتبع المادّة»):
+    المستخدمُ يرى مربّعاً مشعلاً أو مطفأً، فيجب أن يكون ما يراه هو ما يُقرأ.
+    """
+    obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
+    teacher = obj.teacher
+    school, caps, _scope, _year = _guard(request, teacher)
+    year = obj.academic_year
+    locked = _locked_card(request, school, year, teacher, caps)
+    if locked is not None:
+        return locked
+
+    obj.double_period = bool(request.POST.get("double"))
+    obj.updated_by = request.user
+    obj.save(update_fields=["double_period", "updated_by", "updated_at"])
     return _render_card(request, school, year, teacher, caps)
 
 
