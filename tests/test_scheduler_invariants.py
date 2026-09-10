@@ -591,7 +591,9 @@ def test_a_plain_subject_is_penalised_for_repeating_in_one_day():
     grid.place(0, 1, plain)
 
     assert evaluate_soft_constraints(grid, 0, 2, plain).total > 0
-    assert evaluate_soft_constraints(grid, 1, 1, plain).total == 0
+    #: ويومٌ آخرُ في وسط اليوم بلا ثمن. والحصّةُ الأولى ليست وسطاً منذ صارت
+    #: طرفاً مثقَّلاً كالسابعة (قرار الإدارة 2026-09-10).
+    assert evaluate_soft_constraints(grid, 1, 3, plain).total == 0
 
 
 # ══════════════════════════════════════════════════════════════
@@ -617,7 +619,7 @@ def test_a_partly_exempt_teacher_still_respects_every_other_rule(db, school):
     assert all(d != 1 for d, _ in available), "يومُ التفريغ مغلق"
     assert (0, 4) not in available, "والرابعةُ متتاليةٌ رابعة"
     assert (4, 7) not in available, "والخميسُ إعداديٌّ يقف عند السادسة"
-    assert (2, 1) in available, "وما سوى ذلك مفتوح"
+    assert (2, 1) in available, "وما سوى ذلك مفتوح — والأولى تُثقَّل ولا تُمنع"
 
 
 def test_a_heavy_subject_under_a_narrow_week_still_obeys_its_daily_cap(db, school):

@@ -17,7 +17,7 @@ import pytest
 
 from operations.schedule_lab import CATALOG, MORNING_LAST, metric_score, overall_score
 from operations.scheduler import ScheduleGrid, Task
-from operations.scheduler_constraints import evaluate_soft_constraints
+from operations.scheduler_constraints import check_last_period_share, evaluate_soft_constraints
 
 pytestmark = pytest.mark.django_db
 
@@ -168,3 +168,67 @@ def test_build_tasks_carries_the_pedagogy_from_the_database():
     built = build_tasks(school, year)
 
     assert built and {t.pedagogy for t in built} == {"activity"}
+
+
+# ── طرفا اليوم سواء: الأولى كالسابعة (قرار الإدارة 2026-09-10) ───────
+
+
+def test_the_first_period_now_weighs_like_the_seventh():
+    """المقياسُ يعدّهما في سلّةٍ واحدةٍ منذ كُتب، والترجيحُ صار يوافقه."""
+    from operations.scheduler_constraints import LAST_PERIOD
+
+    grid = ScheduleGrid()
+    grid.place(0, 1, task(class_id="a", subject_id="sa"))
+
+    at_first = evaluate_soft_constraints(grid, 1, 1, task(class_id="b", subject_id="sb")).details
+    at_last = evaluate_soft_constraints(
+        grid, 1, LAST_PERIOD, task(class_id="b", subject_id="sb")
+    ).details
+    in_middle = evaluate_soft_constraints(grid, 1, 3, task(class_id="b", subject_id="sb")).details
+
+    assert at_first["extra_edge_period"] == at_last["extra_edge_period"] > 0
+    assert "extra_edge_period" not in in_middle
+
+
+def test_the_edge_counter_adds_both_ends():
+    from operations.scheduler_constraints import LAST_PERIOD
+
+    grid = ScheduleGrid()
+    grid.place(0, 1, task(class_id="a", subject_id="sa"))
+    grid.place(1, LAST_PERIOD, task(class_id="b", subject_id="sb"))
+
+    assert grid.teacher_edge_periods("t1") == 2
+    assert grid.teacher_periods_at("t1", 1) == 1
+    assert grid.teacher_periods_at("t1", LAST_PERIOD) == 1
+
+
+def test_only_the_seventh_keeps_a_hard_cap():
+    """الترجيحُ يعدّ الطرفين، والمنعُ للسابعة وحدَها — والقياسُ هو الذي فرّق.
+
+    منعُ الأولى صلباً أنتج خمسَ حصصٍ بلا موضعٍ من 869 (قياس 2026-09-10):
+    خانةُ الأولى مئةٌ وخمسٌ وعشرون على ثلاثةٍ وسبعين معلّماً، فالسقفُ عليها
+    يُغلق ما لا يُفتح بغيره.
+    """
+    from operations.scheduler_constraints import LAST_PERIOD
+
+    grid = ScheduleGrid()
+    for day, klass in ((0, "a"), (1, "b")):
+        grid.place(day, 1, task(class_id=klass, subject_id=f"s{klass}"))
+        grid.place(day, LAST_PERIOD, task(class_id=f"x{klass}", subject_id=f"z{klass}"))
+
+    assert check_last_period_share(
+        grid, 1, task(class_id="c", subject_id="sc")
+    ), "الأولى تُثقَّل ولا تُمنع"
+    assert not check_last_period_share(
+        grid, LAST_PERIOD, task(class_id="c", subject_id="sc")
+    ), "والسابعةُ بلغت سقفَها"
+
+
+def test_the_seventh_is_not_repeated_on_the_same_class():
+    from operations.scheduler_constraints import LAST_PERIOD
+
+    grid = ScheduleGrid()
+    grid.place(0, LAST_PERIOD, task(class_id="a", subject_id="sa"))
+
+    assert not check_last_period_share(grid, LAST_PERIOD, task(class_id="a", subject_id="s2"))
+    assert check_last_period_share(grid, LAST_PERIOD, task(class_id="b", subject_id="s2"))
