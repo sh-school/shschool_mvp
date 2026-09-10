@@ -806,6 +806,87 @@ class ScheduleBaseline(models.Model):
         return f"{self.label} — {self.academic_year}"
 
 
+class ScheduleConstraintOverride(models.Model):
+    """انحرافٌ متعمَّدٌ عن قيدٍ عرّفته الشيفرة — والصفوفُ استثناءاتٌ لا سجلّ.
+
+    صفرُ صفوفٍ هنا يعني «افتراضُ الكود بالضبط»، فلا بذرةَ تُزرع ولا انحرافَ
+    يقع بين قاعدة الإنتاج وقاعدة التطوير ولا أمرَ مزامنةٍ يُصان. وقيدٌ جديدٌ
+    يُنشَر بافتراضه ولا يحتاج هجرةَ بيانات.
+
+    والصفُّ يحمل أحدَ أمرين بحسب نوع القيد: **رتبةَ الكسر** للصلب — متى يتنازل
+    إن ضاق الجدول — أو **الوزنَ** للمرن. وقيودُ النواة لا تُحرَّر بحال؛ يحرسها
+    `ConstraintSpec.tunable` في السجلّ و`clean()` هنا.
+
+    راجع `operations.constraint_registry`.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="constraint_overrides"
+    )
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    code = models.CharField(max_length=20, verbose_name="رمز القيد")
+    break_at = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="متى يُكسَر",
+        help_text="للقيود الصلبة — فارغٌ يعني افتراضَ الكود",
+    )
+    weight = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="الوزن",
+        help_text="للقيود المرنة — فارغٌ يعني افتراضَ الكود",
+    )
+    #: لماذا خُولف الافتراض — فانحرافٌ بلا سببٍ يُقرأ بعد شهرٍ خللاً لا قراراً.
+    reason = models.CharField(max_length=200, verbose_name="سبب المخالفة")
+    updated_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "استثناء قيد جدول"
+        verbose_name_plural = "استثناءات قيود الجدول"
+        ordering = ["code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year", "code"], name="unique_constraint_override"
+            )
+        ]
+
+    def __str__(self):
+        from .constraint_registry import spec
+
+        found = spec(self.code)
+        title = found.title if found else self.code
+        return f"{self.code} · {title} — {self.academic_year}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        from .constraint_registry import BREAK_CHOICES, HARD, SOFT, spec
+
+        found = spec(self.code)
+        if found is None:
+            raise ValidationError({"code": "رمزٌ لا يعرفه سجلُّ القيود."})
+        if not found.tunable:
+            raise ValidationError(
+                {"code": f"«{found.title}» من النواة — لا يُحرَّر: خرقُه يُنتج جدولاً مستحيلاً."}
+            )
+        if found.kind == HARD:
+            if self.break_at not in dict(BREAK_CHOICES):
+                raise ValidationError({"break_at": "رتبةٌ غيرُ معروفة."})
+            if self.weight is not None:
+                raise ValidationError({"weight": "الوزنُ للقيود المرنة وحدَها."})
+        if found.kind == SOFT:
+            if self.weight is None:
+                raise ValidationError({"weight": "القيدُ المرنُ يُعايَر بوزنه."})
+            if self.break_at:
+                raise ValidationError({"break_at": "الرتبةُ للقيود الصلبة وحدَها."})
+
+
 class ScheduleGenerationQuerySet(models.QuerySet):
     """حذفُ التوليدات — بحارسٍ يعمل على الدفعة كما على الصفّ.
 

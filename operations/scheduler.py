@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from core.models import School
 
+from . import constraint_registry
 from .models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -197,6 +198,7 @@ class ScheduleGrid:
         band_times: dict | None = None,
         coverage: dict | None = None,
         break_times: dict | None = None,
+        policy=None,
     ):
         #: _grid[class_id][day][period] = Task
         self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
@@ -212,6 +214,11 @@ class ScheduleGrid:
         #: والموضعُ مهمّةٌ واحدة: المزدوجةُ حصّتان في يومٍ واحد، فثلاثُ مزدوجاتٍ
         #: لا تغطّي خمسةَ أيّامٍ مهما وُزّعت — وصاحبُها مستثنىً كقليل الحصص.
         self.coverage: dict = coverage or {}
+        #: رتبُ الكسر السارية — افتراضُ الشيفرة ما لم تُمرَّر سياسةُ العام.
+        #: تُبنى مرّةً قبل التوليد ولا تُستعلَم في الحلقة الساخنة أبداً.
+        from .constraint_registry import default_policy
+
+        self.policy = policy or default_policy()
         #: كم مهمّةً وُضعت لكلّ معلّم — بالمواضع لا بالخانات.
         self._teacher_tasks: dict[str, int] = defaultdict(int)
         # فهارس سريعة
@@ -1404,6 +1411,17 @@ def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[s
 #: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
 #: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
 #: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
+def _feasibility_snapshot(school, academic_year: str) -> dict:
+    """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
+    try:
+        from .schedule_feasibility import check
+
+        return check(school, academic_year).as_dict()
+    except Exception:  # pragma: no cover - لقطةٌ للسجلّ لا شرطٌ للتوليد
+        logger.exception("تعذّر حساب فحص الجدوى للقطة التوليد")
+        return {}
+
+
 @joinable_pairs_cached()
 def generate_schedule(
     school: School,
@@ -1500,7 +1518,12 @@ def generate_schedule(
         attempt += 1
         attempt_started = time.time()
         rng = random.Random(attempt)
-        grid = ScheduleGrid(band_times=band_times, coverage=coverage, break_times=break_times)
+        grid = ScheduleGrid(
+            band_times=band_times,
+            coverage=coverage,
+            break_times=break_times,
+            policy=constraint_registry.resolve(school, academic_year),
+        )
         leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
             grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
         )
@@ -1646,6 +1669,13 @@ def generate_schedule(
                         "relaxed": relaxed,
                         "densed": densed,
                         "preferences_count": len(preferences),
+                        #: حكمُ العدّ يومَ التوليد — فجدولٌ نصفُ تامٍّ يُقرأ بعد
+                        #: أشهرٍ ولا يُعرف أكان المولّدُ عاجزاً أم الطلبُ فوقَ
+                        #: الطاقة. راجع `schedule_feasibility`.
+                        "feasibility": _feasibility_snapshot(school, academic_year),
+                        #: رتبُ الكسر السارية يومَ التوليد — فجدولٌ فيه تلاصقٌ
+                        #: يُقرأ بعد أشهرٍ ويُعرف أكان رخصةَ ضرورةٍ أم قراراً.
+                        "constraints": grid.policy.as_dict(),
                     },
                 }
                 for key, value in fields.items():
