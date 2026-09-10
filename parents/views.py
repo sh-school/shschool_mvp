@@ -95,11 +95,7 @@ def student_grades(request, student_id):
         return HttpResponse("ليس لديك صلاحية عرض الدرجات", status=403)
 
     data = ParentService.get_student_grades(student, school, year)
-    enrollment = (
-        StudentEnrollment.objects.filter(student=student, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(student)
 
     return render(
         request,
@@ -145,11 +141,7 @@ def student_attendance(request, student_id):
         days = 30
 
     data = ParentService.get_student_attendance(student, school, days)
-    enrollment = (
-        StudentEnrollment.objects.filter(student=student, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(student)
     alerts = AbsenceAlert.objects.filter(student=student, school=school).order_by("-created_at")[:5]
 
     return render(
@@ -188,11 +180,7 @@ def parent_all_grades(request):
     for link in links:
         if not link.can_view_grades:
             continue
-        enrollment = (
-            StudentEnrollment.objects.filter(student=link.student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_grades(link.student, school, year)
         children_grades.append(
             {
@@ -238,11 +226,7 @@ def parent_all_attendance(request):
     for link in links:
         if not link.can_view_attendance:
             continue
-        enrollment = (
-            StudentEnrollment.objects.filter(student=link.student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_attendance(link.student, school, days)
         alerts = AbsenceAlert.objects.filter(student=link.student, school=school).order_by(
             "-created_at"
