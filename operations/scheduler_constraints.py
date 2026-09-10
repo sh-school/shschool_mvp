@@ -26,9 +26,10 @@ if TYPE_CHECKING:
     from .scheduler import ScheduleGrid, Task
 
 
-# ── أكواد المواد الخاصة ─────────────────────────────────────
-# المواد التي تُعيد عدّاد الحصص المتتالية (لا تُحسب ضمن التتابع)
-CONSECUTIVE_RESET_CODES = {"PE", "SCI"}  # بدنية + علوم معملية
+#: وكانت هنا `CONSECUTIVE_RESET_CODES = {"PE", "SCI"}` — رمزان يعنيان «حصّةٌ
+#: تقطع سلسلةَ التلاصق». والمعنى المقصودُ تغيُّرُ المكان أو النشاط لا اسمُ
+#: المادّة، وكلاهما في القاعدة: المكانُ موردٌ مسجَّل، والنشاطُ `pedagogy`.
+#: راجع `ScheduleGrid.teacher_consecutive_counted`.
 
 #: الازدواجُ يُقرأ من `Subject.requires_double_period` وحدَه — أي من شاشة
 #: إعدادات الجدول التي يملكها النائبُ الأكاديميّ.
@@ -40,8 +41,10 @@ CONSECUTIVE_RESET_CODES = {"PE", "SCI"}  # بدنية + علوم معملية
 #:
 #: فمصدرٌ واحدٌ لا مصدران: ما في القاعدة هو الحكم.
 
-# المواد الأساسية (تُفضّل في الحصص الأولى)
-CORE_CODES = {"ARA", "ENG", "MAT", "SCI", "CHM", "PHY", "BIO"}
+#: وكانت هنا `CORE_CODES` — سبعةُ رموزٍ محفورةٍ تعني «مادّةٌ أساسيّة». وحُذفت:
+#: طبيعةُ المادّة حقلٌ في القاعدة (`Subject.pedagogy`) يملكه النائبُ الأكاديميّ
+#: ويقرؤه المختبر، فكان الترجيحُ يوجّه بقائمةٍ والمقياسُ يحكم بحقل. ومصدرانِ
+#: لحقيقةٍ واحدةٍ يفترقان يوماً — وقد افترقا في `requires_double_period` قبلها.
 
 # عتبة المادة ذات النصاب العالي (5+ حصص/أسبوع)
 HIGH_WEEKLY_THRESHOLD = 5
@@ -899,13 +902,22 @@ def evaluate_soft_constraints(
         already = max(grid.teacher_last_periods(m.teacher_id) for m in task.members)
         penalty.add("extra_last_period", weights["extra_last_period"] * already, already >= 1)
 
-    # ── SC5: المواد الأساسية في الحصص الأولى ──
-    is_core = task.subject_code in CORE_CODES
-    penalty.add("core_early", weights["core_early"], is_core and period >= 6)
+    # ── SC5: المادّةُ الثقيلةُ في النصف الأوّل من اليوم ──
+    #
+    # والطبيعةُ من `Subject.pedagogy` لا من رموزٍ محفورة: مؤشّرُ المختبر
+    # «الموادُّ الثقيلة في النصف الأوّل» يقرأ الحقلَ نفسَه، فيوجّه الترجيحُ
+    # إلى ما يقيسه المقياسُ بحدّه نفسِه (`MORNING_LAST`) — وكان يعاقب السادسةَ
+    # فصاعداً بينما يقيس المختبرُ الخامسةَ فصاعداً، فيُثقَّل جدولٌ ويُقاس بغيره.
+    penalty.add("core_early", weights["core_early"], task.pedagogy == "heavy" and period > 4)
 
-    # ── SC6: البدنية بعد الاستراحة ──
-    is_pe = task.subject_code == "PE"
-    penalty.add("pe_after_break", weights["pe_after_break"], is_pe and period not in (4, 5))
+    # ── SC6: مادّةُ النشاط في النصف الثاني ──
+    #
+    # وكانت البدنيّةَ وحدَها بالرمز، في الحصّتين الرابعة والخامسة. والحدُّ الآن
+    # حدُّ المقياس، والمادّةُ كلُّ ما وُسِم نشاطاً — بدنيّةً كان أو فنّيّةً أو
+    # تكنولوجيا. فمن غيّرت الإدارةُ طبيعتَه في الشاشة تغيّر ترجيحُه في الجدول.
+    penalty.add(
+        "pe_after_break", weights["pe_after_break"], task.pedagogy == "activity" and period <= 4
+    )
 
     _same_subject_neighbour_weights(
         penalty, grid, day, period, task, is_double, same_subject_today, weights

@@ -96,6 +96,13 @@ class Task:
     #: بنطاق مرحلة الشعبة، وحيث سرى بطل الازدواج.
     spread_days: bool = False
     preferred_periods: list = field(default_factory=list)
+    #: طبيعةُ المادّة تربويّاً — `heavy` / `activity` / `regular`، من `Subject.pedagogy`.
+    #:
+    #: وكانت الترجيحاتُ تشتقّها من رموزٍ محفورة (`CORE_CODES`، و`code == "PE"`)
+    #: بينما المختبرُ يقيسها بهذا الحقل. فمصدرانِ لحقيقةٍ واحدة: تغيّر الإدارةُ
+    #: طبيعةَ مادّةٍ من الشاشة، فيتغيّر ما يقيسه المختبرُ ولا يتغيّر ما يفعله
+    #: المولّد — ثمّ يُقرأ الفرقُ خللاً في الخوارزميّة وهو خللٌ في المصدر.
+    pedagogy: str = "regular"
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
     #: صفُّ الشعبة («G7»…«G12») — قيدُ الخميس الصلب يخصّ الحادي عشر والثاني عشر.
     grade: str = ""
@@ -507,19 +514,28 @@ class ScheduleGrid:
         }
 
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
-        """تتابعُ المعلّم عبر الشُّعب — و`PE`/`SCI` تُعيد العدّاد.
+        """تتابعُ المعلّم عبر الشُّعب — وحصّةُ المكان الخاصّ تُعيد العدّاد.
 
         والتتابعُ صفةُ معلّمٍ لا صفةُ شعبة: حصّتان متتاليتان في شعبتين
         مختلفتين تتابعٌ يُتعب صاحبَه كما يُتعبه التتابعُ في شعبةٍ واحدة.
-        """
-        from .scheduler_constraints import CONSECUTIVE_RESET_CODES
 
+        وما يقطع السلسلةَ تغيُّرُ **المكان أو النشاط** — وكان يُعرَف برمزين
+        محفورين (`PE`/`SCI`) يجمعان المعنيين في قائمةٍ واحدة. وكلاهما مسجَّلٌ
+        في القاعدة بلا رمز:
+
+            المكانُ    `SchedulingResource` — ملعبٌ أو معملٌ يُخرج المعلّمَ من صفّه
+            النشاطُ    `Subject.pedagogy == "activity"` — بدنيّةٌ أو فنّيّةٌ أو تكنولوجيا
+
+        فالبدنيّةُ تقطع السلسلةَ بالوجهين، والعلومُ المعمليّةُ بمعملها. ومدرسةٌ
+        لم تُسجّل ملعباً تبقى بدنيّتُها قاطعةً بطبيعتها — فلا يسقط المعنى بسقوط
+        أحد المصدرين.
+        """
         count = 0
         for step in (-1, 1):
             p = period + step
             while 1 <= p <= 7:
                 task = self.teacher_task_at(teacher_id, day, p)
-                if task is None or task.subject_code in CONSECUTIVE_RESET_CODES:
+                if task is None or task.resources or task.pedagogy == "activity":
                     break
                 count += 1
                 p += step
@@ -588,6 +604,8 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
             "id", flat=True
         )
     )
+    #: طبيعةُ المادّة تربويّاً — تُقرأ مرّةً كما يقرؤها المختبر، ولا تُشتقّ من رمز.
+    pedagogies = dict(Subject.objects.filter(school=school).values_list("id", "pedagogy"))
     #: نطاقُ التباعد لكلّ مادّة — يُقرأ مرّةً ويُحسم لكلّ شعبةٍ بمرحلتها.
     spread_scopes = dict(
         Subject.objects.filter(school=school)
@@ -666,10 +684,12 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
         rows.append((a, level_type, is_double, spread, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap)
+    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap, pedagogies)
 
 
-def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=None) -> list[Task]:
+def _to_tasks(
+    rows, resources_by_subject=None, personal_cap=None, personal_gap=None, pedagogies=None
+) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
     فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
@@ -690,6 +710,7 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
     resources_by_subject = resources_by_subject or {}
     personal_cap = personal_cap or {}
     personal_gap = personal_gap or {}
+    pedagogies = pedagogies or {}
 
     def build(a, level_type, is_double, members, available, spread=False):
         #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
@@ -711,6 +732,7 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
             prefers_double=is_double,
             spread_days=spread,
             preferred_periods=a.preferred_periods or [],
+            pedagogy=pedagogies.get(a.subject_id) or "regular",
             level_type=level_type,
             grade=a.class_group.grade or "",
             available_days=available,

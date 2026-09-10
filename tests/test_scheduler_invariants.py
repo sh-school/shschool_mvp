@@ -45,6 +45,7 @@ def make_task(
     weekly=4,
     level_type="prep",
     prefers_double=False,
+    pedagogy="regular",
 ):
     return Task(
         class_id=klass,
@@ -57,6 +58,7 @@ def make_task(
         weekly_periods=weekly,
         level_type=level_type,
         prefers_double=prefers_double,
+        pedagogy=pedagogy,
     )
 
 
@@ -327,18 +329,27 @@ def test_a_teacher_is_capped_at_three_consecutive_periods():
     assert not check_max_consecutive(grid, 0, 4, make_task(klass="c-9"))
 
 
-def test_physical_education_softens_the_run_but_does_not_permit_adjacency():
-    """البدنيّةُ تُعيد عدّادَ الترجيح، ولا تُبيح التلاصقَ الممنوع.
+def test_an_activity_period_softens_the_run_but_does_not_permit_adjacency():
+    """حصّةُ النشاط تُعيد عدّادَ الترجيح، ولا تُبيح التلاصقَ الممنوع.
 
     فالإعفاءُ قرارٌ تربويٌّ يليق بوزنٍ مرن: حصّةٌ تغيّر المكانَ والنشاط. أمّا
     المنعُ الصلبُ فيسأل: أيقف المعلّمُ حصّتين متلاصقتين؟ والبدنيّةُ حصّةٌ
     يقفها كغيرها.
+
+    والصفةُ من `Subject.pedagogy` لا من رمزٍ محفور: تغيّر الإدارةُ طبيعةَ
+    المادّة في الشاشة فيتبعها الترجيح.
     """
     grid = ScheduleGrid()
     grid.place(0, 1, make_task(klass="c-a", code="MAT", subject="s-a"))
-    grid.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b"))
+    grid.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b", pedagogy="activity"))
 
     assert grid.teacher_consecutive_counted(TEACHER, 0, 3) == 0, "العدّادُ المرنُ صُفِّر"
+    plain = ScheduleGrid()
+    plain.place(0, 1, make_task(klass="c-a", code="MAT", subject="s-a"))
+    plain.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b"))
+    assert (
+        plain.teacher_consecutive_counted(TEACHER, 0, 3) == 2
+    ), "ورمزُ المادّة وحدَه لا يُعفي — الصفةُ في القاعدة لا في الحروف"
     assert not check_max_consecutive(grid, 0, 3, make_task(klass="c-d")), "والتلاصقُ ممنوع"
 
 

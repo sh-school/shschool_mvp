@@ -274,12 +274,12 @@ class Command(BaseCommand):
     # ── مساعدات ──────────────────────────────────────────────────────
 
     def _core_names(self, school):
+        """الموادُّ الثقيلة — من `Subject.pedagogy` كما يقرؤها المولّدُ والمختبر."""
         from operations.models import Subject
-        from operations.scheduler_constraints import CORE_CODES
 
         return {
             s.name_ar
-            for s in Subject.objects.filter(school=school, code__in=CORE_CODES).only("name_ar")
+            for s in Subject.objects.filter(school=school, pedagogy="heavy").only("name_ar")
         }
 
     def _school(self, code):
