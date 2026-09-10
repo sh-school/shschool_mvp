@@ -402,7 +402,14 @@ class ScheduleLab:
                     breaches.append((self.names[tid], day, run))
         return (
             {"value": _round(mean(longest) if longest else 0.0), "detail": {}},
-            {"value": len(breaches), "detail": {f"{n} — يوم {d}": r for n, d, r in breaches[:10]}},
+            {
+                "value": _rate(len(breaches), len(longest)),
+                "detail": {
+                    "أيّامٌ مخالفة": len(breaches),
+                    "أيّامُ المعلّمين": len(longest),
+                    **{f"{n} — يوم {d}": r for n, d, r in breaches[:8]},
+                },
+            },
         )
 
     def weekly_imbalance(self) -> dict:
@@ -428,7 +435,8 @@ class ScheduleLab:
         """
         # المزدوجةُ حصّتان في يومٍ بحكمها، فسقفُ صاحبها لا يقلّ عن اثنتين.
         doubled = {s.teacher_id for s in self.slots if s.requires_double}
-        breaches = {}
+        breaches: dict[str, str] = {}
+        considered = 0
         for tid, load in self.load.items():
             days = list(self.available_days(tid))
             if not days:
@@ -440,7 +448,15 @@ class ScheduleLab:
             counts = [len(set(self.by_teacher_day.get(tid, {}).get(d, []))) for d in days]
             if any(c > cap or c < floor for c in counts):
                 breaches[self.names[tid]] = "+".join(str(c) for c in counts)
-        return {"value": len(breaches), "detail": dict(list(breaches.items())[:8])}
+            considered += 1
+        return {
+            "value": _rate(len(breaches), considered),
+            "detail": {
+                "خارجون": len(breaches),
+                "المعلّمون": considered,
+                **dict(list(breaches.items())[:6]),
+            },
+        }
 
     def transitions(self) -> tuple[dict, dict]:
         per_day = []
@@ -612,7 +628,10 @@ class ScheduleLab:
                     hit = True
             streak_days += hit
         return (
-            {"value": streak_days, "detail": {}},
+            {
+                "value": _rate(streak_days, len(by_class_day)),
+                "detail": {"أيّامٌ فيها ثلاثُ ثقيلات": streak_days, "أيّامُ الشُّعب": len(by_class_day)},
+            },
             {
                 "value": _round(100 * maths_late / maths_total, 1) if maths_total else None,
                 "detail": {"maths_periods": maths_total},
@@ -631,6 +650,7 @@ class ScheduleLab:
             used = sum(usage[rid].values())
             util[name] = _round(100 * used / (capacity * WEEK_SLOTS), 1) if capacity else None
             saturated += sum(1 for n in usage[rid].values() if n >= capacity)
+        resource_slots = len(self.ctx.resources) * WEEK_SLOTS
         return (
             {
                 "value": _round(mean(v for v in util.values() if v is not None), 1)
@@ -638,7 +658,10 @@ class ScheduleLab:
                 else None,
                 "detail": util,
             },
-            {"value": saturated, "detail": {}},
+            {
+                "value": _rate(saturated, resource_slots),
+                "detail": {"خاناتٌ مشبعة": saturated, "خاناتُ الموارد": resource_slots},
+            },
         )
 
     # ── الكلّ ──
@@ -690,14 +713,14 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "validity.completeness": ("اكتمال النصاب", "%", "high"),
     "validity.uncovered_days": ("معلّمون لهم يوم فارغ بلا تفريغ", "عدد", "zero"),
     "teacher.gap_weighted_avg": ("الفراغ الزائد عن الاستراحة (متوسّط)", "رقم", "low"),
-    "teacher.gap_weighted_max": ("الفراغ الزائد عن الاستراحة (أقصى يوم)", "رقم", "low"),
+    "teacher.gap_weighted_max": ("الفراغ الزائد عن الاستراحة (أقصى يوم)", "رقم", "info"),
     "teacher.compactness": ("تراصّ اليوم مقابل التناوب", "نسبة", "low"),
     "teacher.run_avg": ("أطول تتابع (متوسّط)", "حصص", "low"),
-    "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "عدد", "low"),
+    "teacher.run_breaches": ("أيام فيها تلاصق مخالف", "%", "low"),
     "teacher.weekly_imbalance": ("تفاوت حصص الأيام (انحراف)", "رقم", "low"),
-    "teacher.pattern_breaches": ("معلّمون خارج نمط القسمة", "عدد", "zero"),
+    "teacher.pattern_breaches": ("معلّمون خارج نمط القسمة", "%", "low"),
     "teacher.transitions_avg": ("انتقالات الطابقين (متوسّط اليوم)", "عدد", "low"),
-    "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "low"),
+    "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "info"),
     "fairness.edge_cv": ("عدالة الأولى والسابعة (معامل اختلاف)", "نسبة", "low"),
     "fairness.stress": ("ضغط المعلّم (متوسّط)", "رقم", "low"),
     "fairness.preference_satisfaction": ("تلبية التفضيلات", "%", "high"),
@@ -706,10 +729,10 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "subject.double_on_thursday": ("موادّ لها حصّتان يوم الخميس", "عدد", "zero"),
     "subject.heavy_morning": ("الموادّ الثقيلة في النصف الأوّل", "%", "high"),
     "subject.activity_afternoon": ("موادّ النشاط في النصف الثاني", "%", "high"),
-    "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "عدد", "low"),
+    "class.heavy_streak_days": ("أيام فيها ثلاث ثقيلات متتالية", "%", "low"),
     "class.maths_late": ("الرياضيات في السادسة والسابعة", "%", "low"),
     "resources.utilization": ("إشغال الموارد", "%", "info"),
-    "resources.saturated_slots": ("خانات بلغت فيها الموارد سعتها", "عدد", "low"),
+    "resources.saturated_slots": ("خانات بلغت فيها الموارد سعتها", "%", "low"),
 }
 
 
@@ -777,6 +800,19 @@ SECTIONS: dict[str, str] = {
 }
 
 
+def _rate(part: int, whole: int) -> float | None:
+    """نسبةُ المتضرّرِ من مجتمعه — لا عددُه المطلق.
+
+    العدُّ المطلقُ يجعل الدرجةَ تابعةً لحجم المدرسة: خمسٌ وخمسون يوماً فيها
+    تلاصقٌ رقمٌ مخيفٌ حتّى تعرف أنّها من ثلاثمئةٍ وخمسةٍ وستّين يومَ معلّم — أي
+    خمسةَ عشرَ في المئة. وكانت هذه العدّاداتُ تُغذَّى في منحنى الدرجة `100 − v`
+    وهو منحنًى كُتب للنسب المئويّة، فقُرئ «55» على أنّه 55٪ فأعطى 45 درجة.
+    """
+    if not whole:
+        return None
+    return _round(100 * part / whole, 1)
+
+
 def metric_score(key: str, value) -> float | None:
     """درجةٌ من 0 إلى 100 تُشتقّ من المؤشر ليُقاس الجميعُ بمقياسٍ واحد.
 
@@ -802,8 +838,10 @@ def metric_score(key: str, value) -> float | None:
         return max(0.0, min(100.0, 100.0 / max(float(value), 1.0)))
     if key in ("subject.same_period_max", "teacher.run_avg"):
         return max(0.0, min(100.0, 100.0 * 2.0 / (1.0 + float(value))))
+    # نسبٌ مئويّةٌ يقلّ خيرُها بارتفاعها — فدرجتُها متمّمُها.
     if key in (
         "teacher.run_breaches",
+        "teacher.pattern_breaches",
         "resources.saturated_slots",
         "class.heavy_streak_days",
         "class.maths_late",
