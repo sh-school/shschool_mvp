@@ -5521,35 +5521,48 @@ html.dark table tfoot th {
 html.dark canvas {
   filter: none;
 }
+/* `[class*="chart"]` كان يلتقط `chart-title` و`charts-grid` و`chart-loading`
+   فيمنح العنوانَ أرضيّةً داكنةً وحافّةً مدوّرة. حُصر في الأوعية وحدَها —
+   وقائمتُها مقيسةٌ على اثنتين وستّين صفحة. */
 html.dark .chart-container,
 html.dark .chart-wrap,
-html.dark [class*="chart"] {
+html.dark .chart-canvas-wrap,
+html.dark .dash-chart-wrap,
+html.dark .chart-loading {
   background: var(--surface-alt);
   border-color: var(--border);
   border-radius: 12px;
 }
 
 /* ── 35d. Buttons — الأزرار الثانوية ─────────────────────────── */
+/* `button[class*="outline"]` لم يطابق عنصراً واحداً في المنصّة — أُزيل. */
 html.dark .btn-outline,
 html.dark .btn-light,
-html.dark button[class*="outline"],
 html.dark a.btn-light {
   background: var(--surface);
   border-color: var(--border-strong);
   color: #e2e8f0;
 }
 html.dark .btn-outline:hover,
-html.dark .btn-light:hover,
-html.dark button[class*="outline"]:hover {
+html.dark .btn-light:hover {
   background: var(--border);
 }
 
 /* ── 35e. Cards — بطاقات بخلفية بيضاء ────────────────────────── */
+/* `[class*="card"]` كان يلتقط `card-header-title` و`stat-card-value` و
+   `card-bar` — أجزاءَ البطاقة لا البطاقة — فيمنحها سطحاً وحدّاً ولوناً.
+   وسلسلةُ `:not()` كانت تنمو بكلّ استثناءٍ يُكتشَف. حُصر في الأوعية،
+   وقائمتُها مقيسةٌ على اثنتين وستّين صفحة. */
 html.dark .card,
-html.dark [class*="card"]:not(.stat-card):not(.q-domain-card):not(.dash-card):not(.login-card) {
-  background: var(--surface, var(--surface));
-  border-color: var(--border, var(--border));
-  color: var(--text-primary, #e2e8f0);
+html.dark .card-qatar,
+html.dark .chart-card,
+html.dark .dash-chart-card,
+html.dark .df-card,
+html.dark .df-card-hero,
+html.dark .form-card {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
 }
 
 /* ── 35f. Badges & Tags ──────────────────────────────────────── */
@@ -5618,7 +5631,8 @@ html.dark .text-black { color: var(--text-primary); }
 html.dark .border,
 html.dark .border-b,
 html.dark .border-t,
-html.dark [class*="border-gray"] {
+html.dark .border-gray-200,
+html.dark .border-gray-300 {
   border-color: var(--border);
 }
 html.dark hr { border-color: var(--border); }
@@ -5638,9 +5652,11 @@ html.dark .report-filters input {
   color: #e2e8f0;
 }
 
-/* ── 35p. Analytics charts white area fix ────────────────────── */
+/* ── 35p. Analytics charts white area fix ──────────────────────
+   `.chart-card` نُزع من هنا: هو بطاقةٌ يحكمها 35e. وكان يستقرّ على سطح
+   البطاقة صدفةً — لأنّ سلسلةَ `:not()` في المحدِّد القديم رفعت نوعيّتَه
+   فوقَ هذه القاعدة. ولمّا زالت السلسلةُ انقلب الترتيب. */
 html.dark .analytics-chart,
-html.dark .chart-card,
 html.dark div[style*="background:#fff"],
 html.dark div[style*="background: #fff"],
 html.dark div[style*="background:white"],
