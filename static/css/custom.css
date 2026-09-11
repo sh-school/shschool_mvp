@@ -8967,3 +8967,33 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
   }
 }
 }
+
+/* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
+   التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
+   تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
+   «مجدولة» ولا أحمرَ «ملغاة» — فلا يلتبس التبديلُ بحالةٍ من حالات الحصّة.
+   وشريطٌ على الحافّة لمن لا يميّز الألوان. */
+:root {
+  --swap-bg:     #f3e8ff;
+  --swap-border: #7e22ce;
+  --swap-fg:     #6b21a8;
+}
+tr.is-swapped {
+  background: var(--swap-bg);
+  box-shadow: inset 4px 0 0 var(--swap-border);
+}
+tr.is-swapped:hover { background: #ede0fb; }
+.swap-note {
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--swap-fg);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+html.dark :root,
+html.dark {
+  --swap-bg:     rgba(126, 34, 206, .18);
+  --swap-fg:     #d8b4fe;
+}

@@ -81,6 +81,19 @@ class Session(models.Model):
     elective_group = models.CharField(
         max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
     )
+    #: صاحبُ الحصّة قبل التبديل — ووجودُه هو ما يقول إنّها مبدَّلة.
+    #:
+    #: التبديلُ يقع على يومٍ بعينه لا على قالب الأسبوع، فأثرُه يُكتب هنا لا في
+    #: `ScheduleSlot`. ومن نظر إلى جدول اليوم رأى المبدَّلةَ بلونها ورأى من
+    #: كانت له — ولو خُزّن المعلّمُ الجديدُ وحدَه لما عرف أحدٌ أنّ شيئاً جرى.
+    original_teacher = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sessions_swapped_away",
+        verbose_name="المعلّم الأصليّ",
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -1088,6 +1101,38 @@ class TeacherSwap(models.Model):
         verbose_name="مُنشئ الطلب",
     )
     b_responded_at = models.DateTimeField(null=True, blank=True)
+
+    #: توقيعُ منسّقِ كلِّ مادّة على حِدَة.
+    #:
+    #: كان توقيعاً واحداً يملكه أيُّ منسّقٍ في المدرسة، ويذهب إلى النائب حين
+    #: تختلف المادّتان. والتبديلُ يمسّ مادّتين وقسمَين، فلكلّ قسمٍ منسّقُه —
+    #: وقرارُ القسم قرارُ صاحبه (قرار المستخدم 2026-09-11).
+    #:
+    #: والنائبُ الأكاديميُّ بديلٌ عن الغائب منهما لا متجاوزٌ عليهما: يوقّع عن
+    #: جهةٍ لا منسّقَ لها، أو منسّقُها غائبٌ اليومَ، أو هو نفسُه طرفٌ في
+    #: التبديل — وتُعلَّم البديلُ في `*_by_substitute` فيُقرأ في السجلّ.
+    approved_a_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="swap_approvals_side_a",
+        verbose_name="موافقةُ منسّق المادّة الأولى",
+    )
+    approved_a_at = models.DateTimeField(null=True, blank=True)
+    approved_a_by_substitute = models.BooleanField(default=False)
+    approved_b_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="swap_approvals_side_b",
+        verbose_name="موافقةُ منسّق المادّة الثانية",
+    )
+    approved_b_at = models.DateTimeField(null=True, blank=True)
+    approved_b_by_substitute = models.BooleanField(default=False)
+
+    #: آخرُ من أتمّ الاعتماد — يبقى لتوافق الشاشات والسجلّات القديمة.
     approved_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -1132,7 +1177,7 @@ class TeacherSwap(models.Model):
 
     @property
     def is_cross_department(self):
-        """هل التبديل بين تخصصين مختلفين؟ (يحتاج نائب بدل منسق)"""
+        """هل التبديل بين تخصصين مختلفين؟"""
         subj_a = self.slot_a.subject
         subj_b = self.slot_b.subject
         if subj_a and subj_b:
@@ -1142,6 +1187,62 @@ class TeacherSwap(models.Model):
     @property
     def is_pending(self):
         return self.status in ("pending_b", "accepted_b", "pending_coordinator", "pending_vp")
+
+    # ── المنسّقان: قرارُ القسم قرارُ صاحبه ───────────────────────────
+
+    def coordinator_for(self, side: str):
+        """منسّقُ قسمِ معلّم هذه الجهة — أو `None` إن كان المقعدُ شاغراً.
+
+        ولا رابطَ بين المادّة والقسم في القاعدة؛ الرابطُ عضويّةُ المعلّم.
+        فمنسّقُ المادّة هو رئيسُ قسمِ من يُدرّسها في هذه الحصّة.
+        """
+        teacher = self.teacher_a if side == "a" else self.teacher_b
+        department = teacher.department_obj if teacher else None
+        return department.head if department else None
+
+    def needs_one_signature(self) -> bool:
+        """جهةٌ واحدةٌ حين يجمعهما منسّقٌ واحد — فلا يُطلب توقيعُه مرّتين."""
+        first, second = self.coordinator_for("a"), self.coordinator_for("b")
+        return first is not None and first == second
+
+    @property
+    def is_fully_approved(self) -> bool:
+        if self.needs_one_signature():
+            return bool(self.approved_a_by_id or self.approved_b_by_id)
+        return bool(self.approved_a_by_id and self.approved_b_by_id)
+
+    @property
+    def awaiting_sides(self) -> tuple[str, ...]:
+        """الجهاتُ التي لم تُوقَّع بعد — تقرؤها الشاشةُ لتقول لمن تنتظر."""
+        if self.is_fully_approved:
+            return ()
+        if self.needs_one_signature():
+            return ("a",)
+        return tuple(side for side in ("a", "b") if not getattr(self, f"approved_{side}_by_id"))
+
+    # ── المدى: ينتهي بانتهاء الحصّة الأبعد ──────────────────────────
+
+    @property
+    def last_period_end(self):
+        """لحظةُ انتهاء آخرِ الحصّتين — بها ينقضي التبديل.
+
+        قرارُ المستخدم 2026-09-11: «يعود الجدول كما كان عند انتهاء الحصّة
+        البعيدة المبدَّلة». ولا يحتاج ذلك إجراءً ولا مهمّةً مجدولة: التبديلُ
+        لا يمسّ قالبَ الأسبوع أصلاً، فهو يعود من نفسه.
+        """
+        from datetime import datetime
+
+        pairs = (
+            (self.swap_date_a, self.slot_a.end_time),
+            (self.swap_date_b, self.slot_b.end_time),
+        )
+        return max(datetime.combine(day, end) for day, end in pairs)
+
+    @property
+    def has_ended(self) -> bool:
+        from django.utils import timezone as tz
+
+        return tz.localtime(tz.now()).replace(tzinfo=None) > self.last_period_end
 
 
 class CompensatorySession(models.Model):
