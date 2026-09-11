@@ -24,7 +24,7 @@
       {% for link in links %}
       <div class="border border-[var(--border)] rounded-xl overflow-hidden">
         <div class="bg-[var(--surface-alt)] px-4 py-3 border-b border-[var(--border)]">
-          <p class="font-semibold text-[var(--text)]">{% include "components/icon.html" with name="user" %} {{ link.student.full_name }}</p>
+          <p class="font-semibold text-[var(--text-primary)]">{% include "components/icon.html" with name="user" %} {{ link.student.full_name }}</p>
         </div>
         <div class="divide-y">
           {% for dt, label in data_types %}

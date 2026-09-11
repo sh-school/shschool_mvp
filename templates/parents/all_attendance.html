@@ -26,7 +26,7 @@
 
   {% if not children_attendance %}
   <div class="card-qatar text-center py-12">
-    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
+    <p class="text-[var(--text-muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
   </div>
   {% endif %}
 
@@ -36,7 +36,7 @@
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-[var(--muted)]">
+        <p class="text-sm text-[var(--text-muted)]">
           {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
           منذ {{ child.since|date:"Y/m/d" }}
         </p>
@@ -45,7 +45,7 @@
         <div class="text-2xl font-bold {% if child.att_pct >= 90 %}text-green-600{% elif child.att_pct >= 75 %}text-yellow-600{% else %}text-red-600{% endif %}">
           {{ child.att_pct }}%
         </div>
-        <div class="text-xs text-[var(--muted)]">نسبة الحضور</div>
+        <div class="text-xs text-[var(--text-muted)]">نسبة الحضور</div>
       </div>
     </div>
 
@@ -83,7 +83,7 @@
 
     {# Days List #}
     {% if child.days_list %}
-    <h3 class="font-semibold text-sm mb-2 text-[var(--muted)]">سجل الحضور</h3>
+    <h3 class="font-semibold text-sm mb-2 text-[var(--text-muted)]">سجل الحضور</h3>
     <div class="filter-bar mb-2">
       <input type="text"
              placeholder="بحث بالتاريخ أو الحالة..."
@@ -121,7 +121,7 @@
       </table>
     </div>
     {% else %}
-    <div class="text-center py-6 text-[var(--muted)]">
+    <div class="text-center py-6 text-[var(--text-muted)]">
       لا توجد بيانات حضور مسجلة في هذه الفترة
     </div>
     {% endif %}

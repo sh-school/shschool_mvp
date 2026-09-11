@@ -19,7 +19,7 @@
 
   {% if not children_grades %}
   <div class="card-qatar text-center py-12">
-    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الدرجات</p>
+    <p class="text-[var(--text-muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الدرجات</p>
   </div>
   {% endif %}
 
@@ -29,7 +29,7 @@
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-[var(--muted)]">
+        <p class="text-sm text-[var(--text-muted)]">
           {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
           {{ child.total }} مادة
         </p>
@@ -39,7 +39,7 @@
         <div class="text-2xl font-bold {% if child.avg >= 80 %}text-green-600{% elif child.avg >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
           {{ child.avg }}%
         </div>
-        <div class="text-xs text-[var(--muted)]">المعدل العام</div>
+        <div class="text-xs text-[var(--text-muted)]">المعدل العام</div>
       </div>
       {% endif %}
     </div>
@@ -86,7 +86,7 @@
               {% elif row.annual.status == "fail" %}
               <span class="status-badge status-red">راسب</span>
               {% else %}
-              <span class="text-[var(--muted)] text-xs">—</span>
+              <span class="text-[var(--text-muted)] text-xs">—</span>
               {% endif %}
             </td>
           </tr>
@@ -95,7 +95,7 @@
       </table>
     </div>
     {% else %}
-    <div class="text-center py-6 text-[var(--muted)]">
+    <div class="text-center py-6 text-[var(--text-muted)]">
       لم تُدخل الدرجات بعد لهذا العام الدراسي
     </div>
     {% endif %}

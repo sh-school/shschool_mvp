@@ -64,7 +64,7 @@
       {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline,#0D4261)" title="بعذر {{ summary.excused }}"></div>{% endif %}
       {% if summary.absent %}<div style="width:{% widthratio summary.absent summary.total 100 %}%;background:var(--status-danger)" title="غائب {{ summary.absent }}"></div>{% endif %}
     </div>
-    <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.7rem;color:var(--muted)">
+    <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.7rem;color:var(--text-muted)">
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-success)"></span> حاضر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-warning)"></span> متأخر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline,#0D4261)"></span> بعذر</span>
@@ -75,7 +75,7 @@
 
   {# ══════════════════ Chart — آخر 14 يوم ══════════════════ #}
   <div class="card-qatar" style="padding:16px">
-    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
+    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--text-primary)">
       {% include "components/icon.html" with name="bar-chart" %} اتجاه الحضور والغياب — آخر 14 يوم
     </h3>
     <div style="position:relative;height:280px">
@@ -85,7 +85,7 @@
 
   {# ══════════════════ توزيع حسب الصف ══════════════════ #}
   <div class="card-qatar" style="padding:16px">
-    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
+    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--text-primary)">
       {% include "components/icon.html" with name="users" %} توزيع الحضور حسب الصف — اليوم
     </h3>
     {% if class_breakdown %}
@@ -178,7 +178,7 @@
                style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
               {{ alert.student.full_name }}
             </a>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ alert.absence_count }} يوم غياب</span>
+            <span style="font-size:.65rem;color:var(--text-muted);margin-right:4px">{{ alert.absence_count }} يوم غياب</span>
           </div>
           <span class="status-badge status-warning">
             {{ alert.get_status_display }}

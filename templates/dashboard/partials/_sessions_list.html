@@ -8,12 +8,12 @@
      aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group }} — {{ s.start_time|time:'H:i' }}">
     <div class="flex items-center gap-4">
       <div class="text-center session-time">
-        <div class="text-sm font-bold text-[var(--text)]">{{ s.start_time|time:"H:i" }}</div>
-        <div class="text-xs text-[var(--muted)]">{{ s.end_time|time:"H:i" }}</div>
+        <div class="text-sm font-bold text-[var(--text-primary)]">{{ s.start_time|time:"H:i" }}</div>
+        <div class="text-xs text-[var(--text-muted)]">{{ s.end_time|time:"H:i" }}</div>
       </div>
       <div>
-        <div class="font-semibold text-[var(--text)] text-sm">{{ s.subject.name_ar }}</div>
-        <div class="text-xs text-[var(--muted)] mt-0.5">{{ s.class_group }}</div>
+        <div class="font-semibold text-[var(--text-primary)] text-sm">{{ s.subject.name_ar }}</div>
+        <div class="text-xs text-[var(--text-muted)] mt-0.5">{{ s.class_group }}</div>
       </div>
     </div>
     <div class="flex items-center gap-2">

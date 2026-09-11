@@ -2,8 +2,5 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .text-adaam   { color: #8A1538; }
-  .bg-adaam     { background-color: #8A1538; }
-  .border-adaam { border-color: #8A1538; }
-}
+/* ألوانُ العلامة تُعرَّف مرّةً واحدةً في `custom.css` داخل `:root`، ويقرأها
+   `tailwind.config.js` عبر `var()`. لا تُنسَخ قيمةٌ سداسيّةٌ هنا. */

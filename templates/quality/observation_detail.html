@@ -53,7 +53,7 @@
   {% endif %}
 
   {# ════════ شريط الإجراءات حسب الحالة والصلاحية ════════ #}
-  <div class="action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-color,#e5e7eb)">
+  <div class="action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
     {% if can_submit %}
     <form method="post" action="{% url 'observation_submit' obs.id %}" data-confirm="إرسال الملاحظة للمعلّم وإشعاره؟">
       {% csrf_token %}<button type="submit" class="btn-primary">إرسال للمعلّم</button>
