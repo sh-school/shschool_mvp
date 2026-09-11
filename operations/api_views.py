@@ -54,6 +54,7 @@ from django.http import JsonResponse
 
 from core.models import CustomUser, StudentEnrollment
 from core.permissions import ALL_STAFF_ROLES, role_required
+from core.privacy import mask_national_id
 
 
 @login_required
@@ -86,7 +87,7 @@ def student_search_api(request):
                 {
                     "id": str(s.id),
                     "full_name": s.full_name,
-                    "national_id": s.national_id,
+                    "national_id": mask_national_id(s.national_id),
                 }
                 for s in qs
             ]

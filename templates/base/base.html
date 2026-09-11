@@ -1,3 +1,4 @@
+{% load privacy %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -456,7 +457,7 @@
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-nid">{{ request.user.national_id }}</p>
+    <p class="sd-user-nid">{{ request.user.national_id|mask_id }}</p>
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.memberships.count > 1 %}

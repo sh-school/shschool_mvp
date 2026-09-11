@@ -1,3 +1,4 @@
+{% load privacy %}
 <div
   id="student-grid-{{ student.id }}"
   class="grid-cell bg-white rounded-xl border-2 p-3 flex flex-col gap-2 transition-all
@@ -14,7 +15,7 @@
   {# اسم الطالب #}
   <div class="text-center">
     <p class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ student.full_name }}</p>
-    <p class="text-xs text-gray-400 font-mono mt-0.5">{{ student.national_id }}</p>
+    <p class="text-xs text-gray-400 font-mono mt-0.5">{{ student.national_id|mask_id }}</p>
   </div>
 
   {# حالة الحضور الحالية #}

@@ -6,6 +6,8 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
 
+from core.privacy import mask_national_id
+
 # ✅ v5.1.1: regex للتحقق من صحة استعلامات البحث (عربي + لاتيني + أرقام + مسافات)
 _SEARCH_RE = re.compile(r"^[\w\s\u0600-\u06FF\u0750-\u077F\-_.@]+$")
 
@@ -41,7 +43,7 @@ def global_search(request):
         {
             "id": s["student__id"],
             "full_name": s["student__full_name"],
-            "national_id": s["student__national_id"],
+            "national_id": mask_national_id(s["student__national_id"]),
         }
         for s in student_enrollments
     ]

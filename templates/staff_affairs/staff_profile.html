@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 
 {% block title %}ملف الموظف — {{ staff_user.full_name }}{% endblock %}
 
@@ -59,7 +60,7 @@
     <div class="detail-section">
       <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية والرخصة المهنية</div>
       <dl class="detail-dl">
-        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id }}</dd>
+        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id|mask_id }}</dd>
         {% if membership %}<dt>الدور في المنصّة</dt><dd>{{ membership.role.get_name_display }}</dd>{% endif %}
       </dl>
       <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'person' %}" class="sa-form">

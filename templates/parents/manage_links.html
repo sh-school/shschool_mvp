@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -52,7 +53,7 @@
         <select name="parent_id" id="parent-select" required class="form-control">
           <option value="">— اختر ولي أمر —</option>
           {% for p in parents %}
-          <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id }})</option>
+          <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id|mask_id }})</option>
           {% endfor %}
         </select>
         {% if not parents %}
@@ -70,7 +71,7 @@
         <select name="student_id" id="student-select" required class="form-control">
           <option value="">— اختر طالب —</option>
           {% for s in students %}
-          <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id }})</option>
+          <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id|mask_id }})</option>
           {% endfor %}
         </select>
       </div>
