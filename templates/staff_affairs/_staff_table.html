@@ -1,13 +1,40 @@
+{% load sorting %}
+{% comment %}
+سجلُّ المنتسبين — صفٌّ لكلّ إنسانٍ وكلُّ ما تحمله المنصّةُ عنه.
+
+كان ستّةَ أعمدةٍ على شاشةٍ عريضةٍ نصفُها فارغ، وشؤونُ الموظفين تحتاج الورقةَ
+كاملةً: الرقمَ الوظيفيَّ الذي صار معرّفَ الدخول، والبريدَ والسكنَ والجنسيّة،
+والرخصةَ برقمها لا بتاريخها وحدَه، ومتى التحق ومتى غادر وبأيّ قرار.
+
+والفرزُ **من الخادم** لا من المتصفّح: الصفحةُ خمسون من مئةٍ وثمانٍ وعشرين،
+وفرزُها في المتصفّح يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
+والتبديلُ `outerHTML`: هذه الجزئيّةُ تحمل غلافَها بمعرّفه وتستبدل نفسَها به.
+ولو بقي المعرّفُ في الصفحة الأمّ وحدَها لمحته أوّلُ نقرةِ فرز، فتوقّف الفرزُ
+كلُّه بعدها — النقرةُ الثانيةُ تبحث عن هدفٍ لم يعد في الصفحة.
+{% endcomment %}
+
+<div class="card-qatar" style="padding:0" id="staff-table-container">
 <div class="table-wrap-scroll">
   {% if staff %}
-  <table>
+  <table class="staff-register" data-no-sort>
     <thead>
       <tr>
-        <th>الاسم</th>
-        <th class="col-center">الدور</th>
-        <th class="col-center">القسم</th>
-        <th class="col-center">الجوال</th>
-        <th class="col-center">الرخصة</th>
+        {% sort_th sort "name" "الاسم" target="#staff-table-container" %}
+        {% sort_th sort "employee" "الرقم الوظيفي" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "national" "الرقم الشخصي" "col-center" target="#staff-table-container" %}
+        {% comment %}المسمّى وحدَه: دورُ المنصّة مفتاحُ صلاحيّاتٍ من قائمةٍ
+        مغلقة، والمسمّى نصٌّ وزاريٌّ فيه المادّة — وعمودان يقولان الشيءَ
+        نفسَه بلفظين حشوٌ.{% endcomment %}
+        {% sort_th sort "title" "المسمّى الوظيفي" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "department" "القسم" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "phone" "الجوال" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "email" "البريد" target="#staff-table-container" %}
+        {% sort_th sort "residence" "السكن" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "nationality" "الجنسية" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "license" "الرخصة المهنية" "col-center" target="#staff-table-container" %}
+        {% sort_th sort "joined" "الالتحاق" "col-center" target="#staff-table-container" %}
+        {% if status == "left" %}<th class="col-center">المغادرة</th>{% endif %}
+        <th class="col-center">الدخول</th>
         <th class="col-actions">ملف</th>
       </tr>
     </thead>
@@ -15,18 +42,20 @@
       {% for s in staff %}
       <tr>
         <td>
-          <a href="{% url 'staff_affairs:staff_profile' s.id %}" style="text-decoration:none;color:var(--maroon);font-weight:600" class="hover:underline">
-            {{ s.full_name }}
-          </a>
+          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="staff-name">{{ s.full_name }}</a>
         </td>
-        <td class="col-center">
-          <span class="status-badge status-info">{{ s.role_display }}</span>
-        </td>
-        <td class="col-center" style="font-size:var(--text-xs)">{{ s.department }}</td>
-        <td class="col-num col-center" style="font-size:var(--text-xs)">{{ s.phone|default:"—" }}</td>
+        <td class="col-num col-center">{{ s.employee_number|default:"—" }}</td>
+        <td class="col-num col-center">{{ s.national_id|default:"—" }}</td>
+        <td class="col-center"><span class="status-badge status-info">{{ s.role_display }}</span></td>
+        <td class="col-center text-xs">{{ s.department }}</td>
+        <td class="col-num col-center text-xs">{{ s.phone|default:"—" }}</td>
+        <td class="text-xs" dir="ltr" style="text-align:start">{{ s.email|default:"—" }}</td>
+        <td class="col-center text-xs">{{ s.residence_area|default:"—" }}</td>
+        <td class="col-center text-xs">{{ s.nationality|default:"—" }}</td>
         <td class="col-center">
           {% if s.license_expiry %}
-            {% load tz %}
+            {# الرقمُ فوق والتاريخُ تحته: الرقمُ هويّةُ الرخصة، والتاريخُ حكمُها. #}
+            {% if s.license_number %}<div class="col-num text-xs text-muted">{{ s.license_number }}</div>{% endif %}
             <span class="status-badge {% if s.license_expiry < today %}status-danger{% else %}status-success{% endif %}">
               {{ s.license_expiry|date:"d/m/Y" }}
             </span>
@@ -34,8 +63,24 @@
             <span class="text-xs text-muted">—</span>
           {% endif %}
         </td>
+        {# التاريخُ وحدَه — ومرجعُ التعيين في الملفّ: أكثرُه اسمُ ملفِّ استيرادٍ لا قرار. #}
+        <td class="col-center text-xs">{{ s.joined|date:"d/m/Y"|default:"—" }}</td>
+        {% if status == "left" %}
+        <td class="col-center text-xs">{{ s.left|date:"d/m/Y"|default:"—" }}</td>
+        {% endif %}
+        {% comment %}
+        «الدخول» لا «كلمة المرور»: الحسابُ الجديدُ يُنشأ بلا كلمةٍ صالحة، فيبقى
+        في السجلّ ولا يدخل — وهذا ما يجب أن يراه من يُصدر كلماتِ المرور.
+        {% endcomment %}
+        <td class="col-center">
+          {% if s.can_sign_in %}
+            <span class="status-badge status-success">يدخل</span>
+          {% else %}
+            <span class="status-badge status-warning">بلا كلمة مرور</span>
+          {% endif %}
+        </td>
         <td class="col-actions">
-          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="btn-secondary btn-xs">
+          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="btn-secondary btn-xs" aria-label="ملفّ {{ s.full_name }}">
             {% include "components/icon.html" with name="user" %}
           </a>
         </td>
@@ -44,8 +89,9 @@
     </tbody>
   </table>
   <div class="table-empty" style="padding:8px">{{ total }} منتسباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
-  {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" %}
+  {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" swap="outerHTML" %}
   {% else %}
   {% include "components/empty_state.html" with message="لا منتسبين مطابقين" %}
   {% endif %}
+</div>
 </div>
