@@ -6,20 +6,6 @@
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/list/" parent_label="سجل الموظفين" current=staff_user.full_name %}
 {% endblock %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  .sa-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; margin-top: 10px; }
-  .sa-field { display: flex; flex-direction: column; gap: 3px; }
-  .sa-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  .sa-field .form-control { width: 100%; }
-  .sa-hint { font-size: 11.5px; color: var(--text-muted); }
-  .sa-err { font-size: 11.5px; color: #991b1b; }
-  .sa-warn { margin-top: 8px; font-size: 12.5px; color: #92400e; }
-  .sa-actions { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
-  .sa-change { font-size: 12px; }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="exec-dash">
 
@@ -125,7 +111,7 @@
             <strong>{{ ev.academic_year }}</strong>
             <span class="text-xs text-muted" style="margin-inline-start:4px">{{ ev.get_recommendation_display }}</span>
           </div>
-          <span style="font-weight:700;font-size:.9rem;color:{% if ev.overall_score >= 4 %}var(--status-success){% elif ev.overall_score >= 3 %}var(--status-warning){% else %}var(--status-danger){% endif %}">
+          <span style="font-weight:700;font-size:.9rem;color:{% if ev.overall_score >= 4 %}var(--status-success-fg){% elif ev.overall_score >= 3 %}var(--status-warning-fg){% else %}var(--status-danger-fg){% endif %}">
             {{ ev.overall_score|floatformat:1 }}/5
           </span>
         </div>

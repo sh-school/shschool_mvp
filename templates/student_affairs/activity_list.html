@@ -66,7 +66,7 @@
           {% for act in activities %}
           <tr>
             <td>
-              <a href="{% url 'student_affairs:student_profile' act.student_id %}" style="color:var(--maroon);text-decoration:none;font-weight:600" class="hover:underline">
+              <a href="{% url 'student_affairs:student_profile' act.student_id %}" style="color:var(--maroon-fg);text-decoration:none;font-weight:600" class="hover:underline">
                 {{ act.student.full_name }}
               </a>
             </td>
@@ -89,7 +89,7 @@
                 <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% include "components/icon.html" with name="file-pen" %}</a>
                 <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" data-confirm="حذف النشاط «{{ act.title }}»؟">
                   {% csrf_token %}
-                  <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
+                  <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger-fg)" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
                 </form>
               </div>
             </td>

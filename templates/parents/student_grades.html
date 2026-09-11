@@ -123,7 +123,7 @@
 
   {# ── تنبيه الرسوب ── #}
   {% if failed %}
-  <div class="alert-strip" style="--alert-color: var(--status-danger);">
+  <div class="alert-strip" style="--alert-color:var(--status-danger-fg);">
     <span class="text-2xl">{% include "components/icon.html" with name="alert-triangle" %}</span>
     <div>
       <p class="font-bold text-red-800 dark:text-red-300">{{ student.full_name }} راسب في {{ failed }} مادة</p>

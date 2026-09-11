@@ -9,6 +9,7 @@ from pathlib import Path
 from django.conf import settings
 from django.utils import timezone
 
+from core import brand
 from core.academic_calendar import academic_year_for_school
 
 
@@ -187,8 +188,8 @@ def get_pdf_header_html(context: dict) -> str:
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
     return f"""
-    <div style="text-align:center;border-bottom:3px solid #8A1538;padding-bottom:12px;margin-bottom:20px">
-      <h1 style="color:#8A1538;font-size:16pt;margin:0">{context["school_name"]}</h1>
+    <div style="text-align:center;border-bottom:3px solid {brand.MAROON};padding-bottom:12px;margin-bottom:20px">
+      <h1 style="color:{brand.MAROON};font-size:16pt;margin:0">{context["school_name"]}</h1>
       <p style="font-size:9pt;color:#666;margin:2px 0 0">{context["ministry"]}</p>
       <p style="font-size:11pt;font-weight:700;color:#333;margin:8px 0 0">{context["title"]}</p>
       <p style="font-size:8pt;color:#999;margin:4px 0 0">العام الدراسي {context["academic_year"]}</p>
