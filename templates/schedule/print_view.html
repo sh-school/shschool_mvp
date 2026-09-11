@@ -1,63 +1,9 @@
 {% extends "base/base.html" %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
+{% block main_class %}page-wide{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="الجدول الأسبوعي" %}
-{% endblock %}
-
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
-     عموداً، وسقفُ المنصّة (max-w-7xl) يحشرها في 1280px على شاشةٍ عرضُها 2560. */
-  #main-content { max-width: none; padding-inline: 12px; }
-  /* شريطُ الأدوات سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
-     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ. */
-  .schedule-head { justify-content: center; }
-  .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
-  .schedule-tools .form-select { width: auto; min-width: 280px; }
-  .schedule-tools form { display: inline; }
-  .schedule-tools .schedule-search { width: 200px; }
-
-  /* ── لوحُ المعلّم: الورقةُ تبقى ورقةً، والتحليلُ في المنصّة حولَها ──
-     يظهر بالنقر على اسمٍ في الجدول العامّ، ويغيب بفكّ التثبيت. */
-  .schedule-stage { display: flex; gap: 10px; align-items: stretch; }
-  .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; }
-  .teacher-panel {
-    flex: 0 0 250px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--surface-alt); padding: 12px; overflow-y: auto;
-    font-size: 13px; line-height: 1.9;
-  }
-  .teacher-panel[hidden] { display: none; }
-  .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
-  /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونه نفسِه في الورقة. */
-  .teacher-panel .tp-spec { color: var(--maroon); font-weight: 500; font-size: 13px; }
-  .teacher-panel .tp-dept { color: var(--text-secondary); font-size: 12px; }
-  .teacher-panel .tp-nums { display: flex; gap: 6px; margin: 10px 0; }
-  .teacher-panel .tp-num {
-    flex: 1; text-align: center; border: 1px solid var(--border);
-    border-radius: 6px; padding: 6px 2px; background: var(--surface);
-  }
-  .teacher-panel .tp-num b { display: block; font-size: 18px; line-height: 1.2; }
-  .teacher-panel .tp-num span { font-size: 11px; color: var(--text-secondary); }
-  .teacher-panel .tp-day {
-    display: flex; align-items: center; gap: 6px; padding: 3px 0;
-    border-bottom: 1px dashed var(--border);
-  }
-  .teacher-panel .tp-day-name { flex: 0 0 62px; font-size: 12px; }
-  .teacher-panel .tp-bar { flex: 1 1 auto; display: flex; gap: 2px; }
-  .teacher-panel .tp-slot {
-    flex: 1; height: 14px; border-radius: 3px;
-    border: 1px solid var(--border); background: var(--surface);
-  }
-  .teacher-panel .tp-slot.on { background: var(--maroon); border-color: transparent; }
-  .teacher-panel .tp-count { flex: 0 0 18px; text-align: center; font-size: 12px; font-weight: 700; }
-  .teacher-panel .tp-close {
-    margin-top: 10px; width: 100%; border: 1px solid var(--border);
-    background: var(--surface); border-radius: 6px; padding: 5px; cursor: pointer;
-    font: inherit; color: var(--text-secondary);
-  }
-  .teacher-panel .tp-close:hover { border-color: var(--maroon); }
-</style>
 {% endblock %}
 
 {% block content %}

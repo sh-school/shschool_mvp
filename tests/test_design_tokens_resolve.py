@@ -201,3 +201,47 @@ def test_dark_rules_name_their_colours_instead_of_repeating_them():
                         f"{parts[0][:50]} — {prop}: {literal} (= --{palette[literal.lower()]})"
                     )
     assert not offenders, "ألوانٌ داكنةٌ مكتوبةٌ رقماً ولها رمز:\n  " + "\n  ".join(offenders[:20])
+
+
+def test_no_page_carries_a_stylesheet_of_its_own():
+    """صفحةٌ تمتدّ من الأساس لا تحمل `<style>` — المصدرُ واحد.
+
+    كانت عشرون صفحةً تحمل 1361 سطراً من CSS في رؤوسها. وكتلةُ `<style>` غيرُ
+    مُطبَّقةٍ في `@layer`، فتغلب كلَّ قاعدةٍ في الملفّ المركزيّ مهما بلغت
+    نوعيّتُها: بقيت `.qmy-alert` صفراءَ فاتحةً في الوضع الداكن رغم أنّ
+    `html.dark .qmy-alert` مكتوبةٌ هناك — نصٌّ فاتحٌ على أصفرَ بنسبة 1.33.
+    """
+    offenders = []
+    for template in _live_templates():
+        text = template.read_text(encoding="utf-8")
+        if "{% extends" not in text or "<style" not in text:
+            continue
+        # قوالبُ لوحة الإدارة ترث قالبَ جانغو ولا تحمّل custom.css
+        if "templates/admin/" in template.as_posix():
+            continue
+        offenders.append(str(template))
+    assert not offenders, (
+        "صفحاتٌ تحمل CSS في رأسها — انقلها إلى static/css/custom.css:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_the_platform_keeps_one_stylesheet():
+    """ملفُّ أنماطٍ واحدٌ للمنصّة، ومدخلُ تايلويند وناتجُه.
+
+    كان `developer_feedback` يحمّل ملفَّه (957 سطراً، 75 لوناً مميّزاً،
+    وأربعون `var()` فقط) فوقَ المركزيّ، فيغلبه بلا نوعيّة.
+    """
+    allowed = {
+        pathlib.Path("static/css/custom.css"),
+        pathlib.Path("static/css/tailwind_input.css"),
+        pathlib.Path("static/css/tailwind.min.css"),
+    }
+    found = {
+        path
+        for path in pathlib.Path(".").rglob("*.css")
+        if not any(
+            part in {".local", "staticfiles", "node_modules", ".venv"} for part in path.parts
+        )
+    }
+    extra = sorted(str(p) for p in found - allowed)
+    assert not extra, "ملفّاتُ أنماطٍ خارج المصدر الواحد:\n  " + "\n  ".join(extra)

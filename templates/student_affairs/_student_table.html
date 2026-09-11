@@ -18,7 +18,7 @@
       {% for s in students %}
       <tr>
         <td>
-          <a href="{% url 'student_affairs:student_profile' s.id %}" class="font-semibold text-maroon hover:underline" style="text-decoration:none;color:var(--maroon)">
+          <a href="{% url 'student_affairs:student_profile' s.id %}" class="font-semibold text-maroon hover:underline" style="text-decoration:none;color:var(--maroon-fg)">
             {{ s.full_name }}
           </a>
           {% if s.gender %}

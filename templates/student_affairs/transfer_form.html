@@ -25,7 +25,7 @@
       <div class="form-row">
 
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">الطالب <span style="color:red">*</span></label>
+          <label class="form-label">الطالب <span class="req-star">*</span></label>
           <select name="student_id" class="form-control" required>
             <option value="">— اختر الطالب —</option>
             {% for m in students %}
@@ -37,7 +37,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">اتجاه الانتقال <span style="color:red">*</span></label>
+          <label class="form-label">اتجاه الانتقال <span class="req-star">*</span></label>
           <select name="direction" class="form-control" required>
             <option value="in" {% if form.direction.value == "in" %}selected{% endif %}>وارد (← إلى مدرستنا)</option>
             <option value="out" {% if form.direction.value == "out" %}selected{% endif %}>صادر (→ من مدرستنا)</option>
@@ -45,12 +45,12 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">تاريخ الانتقال <span style="color:red">*</span></label>
+          <label class="form-label">تاريخ الانتقال <span class="req-star">*</span></label>
           <input type="date" name="transfer_date" value="{{ form.transfer_date.value|default:'' }}" class="form-control" required>
         </div>
 
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">المدرسة الأخرى <span style="color:red">*</span></label>
+          <label class="form-label">المدرسة الأخرى <span class="req-star">*</span></label>
           <input type="text" name="other_school_name" value="{{ form.other_school_name.value|default:'' }}"
                  class="form-control" placeholder="اسم المدرسة المنقول منها/إليها" required>
         </div>

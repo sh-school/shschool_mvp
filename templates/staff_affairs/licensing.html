@@ -35,11 +35,11 @@
   <div class="charts-grid-2">
     {% if expired %}
     <div class="dash-chart-card">
-      <div class="dash-chart-title" style="color:var(--status-danger)">{% include "components/icon.html" with name="x-circle" %} رخص منتهية</div>
+      <div class="dash-chart-title" style="color:var(--status-danger-fg)">{% include "components/icon.html" with name="x-circle" %} رخص منتهية</div>
       <div class="dash-list">
         {% for u in expired %}
         <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
           <span class="status-badge status-danger">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
         </div>
         {% endfor %}
@@ -49,11 +49,11 @@
 
     {% if expiring_soon %}
     <div class="dash-chart-card">
-      <div class="dash-chart-title" style="color:var(--status-warning)">{% include "components/icon.html" with name="alert-triangle" %} تنتهي قريباً</div>
+      <div class="dash-chart-title" style="color:var(--status-warning-fg)">{% include "components/icon.html" with name="alert-triangle" %} تنتهي قريباً</div>
       <div class="dash-list">
         {% for u in expiring_soon %}
         <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
           <span class="status-badge status-warning">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
         </div>
         {% endfor %}
@@ -67,7 +67,7 @@
       <div class="dash-list">
         {% for m in no_license %}
         <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">{{ m.user.full_name }}</a>
+          <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ m.user.full_name }}</a>
           <span class="status-badge status-gray">غير مسجّلة</span>
         </div>
         {% endfor %}

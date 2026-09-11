@@ -74,7 +74,7 @@
     <div class="mb-4">
       <h3 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب</h3>
       {% for alert in child.alerts %}
-      <div class="alert-strip mb-2" style="--alert-color: var(--status-danger); padding:.5rem .75rem;">
+      <div class="alert-strip mb-2" style="--alert-color:var(--status-danger-fg); padding:.5rem .75rem;">
         {{ alert.message|default:"تنبيه غياب متكرر" }} — {{ alert.created_at|date:"Y/m/d" }}
       </div>
       {% endfor %}

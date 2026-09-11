@@ -28,6 +28,12 @@ STATUS_SUCCESS = "#16a34a"
 #: `--status-info`
 STATUS_INFO = "#2563eb"
 
+#: `--accent-orange` — درجةُ خطورةٍ بين المتوسّطة والشديدة
+ACCENT_ORANGE = "#ea580c"
+
+#: `--accent-purple`
+ACCENT_PURPLE = "#7c3aed"
+
 
 def rgba(colour: str, alpha: float) -> str:
     """`#RRGGBB` مع شفّافيّةٍ — لئلّا تُكتب القناةُ الرقميّةُ نسخةً ثانية."""
@@ -43,4 +49,6 @@ TOKEN_OF = {
     "STATUS_WARNING": "status-warning",
     "STATUS_SUCCESS": "status-success",
     "STATUS_INFO": "status-info",
+    "ACCENT_ORANGE": "accent-orange",
+    "ACCENT_PURPLE": "accent-purple",
 }

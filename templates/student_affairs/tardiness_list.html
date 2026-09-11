@@ -170,7 +170,7 @@
           </td>
           <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
           <td>
-            <span style="background:var(--surface-alt);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--status-danger);font-weight:600{% endif %}">
+            <span style="background:var(--surface-alt);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--status-danger-fg);font-weight:600{% endif %}">
               {{ rec.cumulative_late }}
             </span>
           </td>
@@ -194,7 +194,7 @@
             <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
                   style="display:inline" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
               {% csrf_token %}
-              <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)"
+              <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger-fg)"
                       aria-label="إلغاء تأخير {{ rec.student.full_name }}">
                 {% include "components/icon.html" with name="trash" %} إلغاء
               </button>
@@ -277,7 +277,7 @@
         attachResultListeners();
       })
       .catch(function() {
-        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--status-danger);font-size:.85rem">خطأ في البحث</div>';
+        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--status-danger-fg);font-size:.85rem">خطأ في البحث</div>';
         resultsBox.style.display = 'block';
       });
     }, 250);

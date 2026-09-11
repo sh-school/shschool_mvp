@@ -56,7 +56,7 @@
  </div>
  <div class="grid grid-cols-3 gap-3">
  <button name="decision" value="resolve" class="btn-success text-white py-2.5 rounded-lg text-sm font-medium">{% include "components/icon.html" with name="check-circle" %} حل وإغلاق</button>
- <button name="decision" value="suspend" class="bg-orange-500 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-orange-600">{% include "components/icon.html" with name="clock" %} إيقاف مؤقت</button>
+ <button name="decision" value="suspend" class="btn-warning">{% include "components/icon.html" with name="clock" %} إيقاف مؤقت</button>
  {% if infraction.level == 3 %}
  <button name="decision" value="escalate" class="btn-danger text-white py-2.5 rounded-lg text-sm font-medium">{% include "components/icon.html" with name="activity" %} تصعيد للدرجة 4</button>
  {% endif %}

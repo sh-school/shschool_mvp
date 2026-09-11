@@ -6,60 +6,6 @@
 {% include "components/breadcrumbs.html" with parent_url="/teacher/smart-schedule/" parent_label="الجدولة الذكية" current="مختبر الجودة" %}
 {% endblock %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  /* ── مختبر الجودة: بوّابة، رادار، بطاقات، جداول — كلُّ رقمٍ بجانب مرجعه ── */
-  .lab-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; justify-content: space-between; }
-  .lab-head form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
-  .lab-head .form-group { margin: 0; min-width: 220px; }
-
-  .gate { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-  .gate-tile { border-radius: 12px; padding: 14px 16px; color: #fff; display: flex; flex-direction: column; gap: 2px; }
-  .gate-pass { background: var(--status-success); }
-  .gate-fail { background: var(--status-danger); }
-  .gate-tile .gate-value { font-size: 30px; font-weight: 800; line-height: 1.1; direction: ltr; }
-  .gate-tile .gate-label { font-size: 13px; font-weight: 700; opacity: .95; }
-  .gate-tile .gate-detail { font-size: 11px; opacity: .9; }
-
-  .lab-main { display: grid; grid-template-columns: 320px 1fr; gap: 14px; align-items: start; }
-  .radar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
-  .radar-card canvas { max-height: 300px; }
-  .score-list { display: grid; gap: 6px; margin-top: 8px; }
-  .score-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-size: 12px; }
-  .score-bar { position: relative; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-  .score-bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; background: var(--maroon); border-radius: 3px; }
-  .score-bar > b { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--gold); }
-
-  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
-  .section-card .card-bar { border-radius: 0; margin: 0; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; padding: 12px; }
-  .tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--surface); }
-  .tile-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; min-height: 2.4em; }
-  .tile-value { font-size: 22px; font-weight: 800; color: var(--maroon); direction: ltr; text-align: end; }
-  .tile-value small { font-size: 11px; color: var(--text-secondary); font-weight: 500; margin-inline-start: 4px; }
-  .tile-foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-secondary); }
-  .delta { font-weight: 700; direction: ltr; }
-  .delta-better { color: var(--status-success); }
-  .delta-worse { color: var(--status-danger); }
-  .tile-bars { display: grid; gap: 3px; margin-top: 4px; }
-  .tile-bars .bar { height: 5px; border-radius: 3px; background: var(--border); position: relative; overflow: hidden; }
-  .tile-bars .bar > i { position: absolute; inset-inline-start: 0; top: 0; bottom: 0; border-radius: 3px; }
-  .bar-cur > i { background: var(--maroon); }
-  .bar-ref > i { background: var(--gold); }
-  .tile-detail { font-size: 11px; color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 4px; }
-
-  .lab-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
-  .lab-tables table { width: 100%; font-size: 13px; }
-  .lab-tables td.num { direction: ltr; text-align: end; font-weight: 700; }
-  .res-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-  .res-bar > i { display: block; height: 100%; background: var(--maroon); }
-  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--text-secondary); padding: 0 12px 10px; }
-  .legend i { display: inline-block; width: 14px; height: 5px; border-radius: 3px; vertical-align: middle; margin-inline-end: 4px; }
-  @media (max-width: 900px) { .lab-main { grid-template-columns: 1fr; } .gate { grid-template-columns: 1fr; } }
-  @media print { .lab-head form, .btn-secondary, .btn-primary { display: none !important; } .tiles { grid-template-columns: repeat(3, 1fr); } }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="card-qatar mb-4">
   <div class="exec-header lab-head">

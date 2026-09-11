@@ -36,7 +36,7 @@
           <tr>
             <td class="col-center" style="font-size:var(--text-xs)">{{ n.occurred_on|date:"d/m/Y" }}</td>
             <td>
-              <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" style="color:var(--maroon);text-decoration:none;font-weight:600">
+              <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" style="color:var(--maroon-fg);text-decoration:none;font-weight:600">
                 {{ n.student.full_name }}
               </a>
             </td>

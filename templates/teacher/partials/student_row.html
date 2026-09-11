@@ -57,7 +57,7 @@
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
       class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition
-        {% if status == 'late' %}bg-yellow-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}">
+        {% if status == 'late' %}bg-[var(--status-warning-dark)] text-white{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}">
       متأخر
     </button>
 

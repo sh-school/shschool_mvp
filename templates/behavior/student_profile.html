@@ -84,7 +84,7 @@
  {% if is_committee and not inf.is_resolved %}
  <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" class="inline">
  {% csrf_token %}
- <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-xs text-white px-3 py-1.5 rounded-lg w-full">
+ <button type="submit" class="btn-warning btn-sm w-full">
  {% include "components/icon.html" with name="activity" %} تصعيد
  </button>
  </form>
@@ -100,7 +100,7 @@
  {% include "components/icon.html" with name="printer" %} إنذار
  </a>
  <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank"
- class="text-xs bg-yellow-600 text-white px-2 py-1 rounded hover:bg-yellow-700 text-center" title="طباعة PDF">
+ class="btn-warning btn-xs text-center" title="طباعة PDF">
  {% include "components/icon.html" with name="printer" %} تعهد ولي
  </a>
  <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank"

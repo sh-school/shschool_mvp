@@ -9,21 +9,6 @@
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/list/" parent_label="سجل المنتسبين" current="تعيين منتسب" %}
 {% endblock %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  /* النموذجُ عنصرٌ في شبكةٍ عموديّة، و`max-width` وحدَه يُلصقه ببداية السطر —
-     فيقف على حافّة الشاشة اليمنى ويبقى نصفُها فارغاً. التوسيطُ بـ margin. */
-  .ap-form { max-width: 1040px; margin-inline: auto; }
-  .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 18px; }
-  .ap-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
-  .ap-field .form-control { width: 100%; }
-  .ap-field .req { color: #b91c1c; }
-  .ap-note { margin-top: 14px; padding: 8px 12px; border-radius: 10px; background: var(--surface-alt); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-secondary); }
-  .ap-err { margin-top: 6px; font-size: 12px; color: #991b1b; }
-  .ap-actions { margin-top: 16px; display: flex; gap: 10px; }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="exec-dash">
   <div class="exec-header">
