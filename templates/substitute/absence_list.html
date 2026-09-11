@@ -55,9 +55,8 @@
     {% for absence in absences %}
     <div class="card-qatar overflow-hidden" data-filter-row data-text="{{ absence.teacher.full_name }}">
       {% comment %}
-      خلفيّاتٌ فاتحةٌ مكتوبةٌ بيد (`bg-green-50`) تُضيء في الوضع الداكن فتصير
-      لوحاً أبيضَ نصُّه أبيض. فالحالةُ تُقال بشريطٍ على الحافّة يقرأ الرمزَ
-      نفسَه الذي يقرؤه الوسمُ بجانبه — لونٌ واحدٌ للحالة في موضعين.
+      الحالةُ تُقال بشريطٍ على الحافّة يقرأ الرمزَ نفسَه الذي يقرؤه الوسمُ
+      بجانبه — لونٌ واحدٌ للحالة في موضعين، ولا تُنافس خلفيّةُ الرأس وسمَها.
       {% endcomment %}
       <div class="flex items-center justify-between px-5 py-3 border-b absence-head
         {% if absence.status == 'covered' %}is-covered{% elif absence.status == 'uncovered' %}is-uncovered{% else %}is-pending{% endif %}">
