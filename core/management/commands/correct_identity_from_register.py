@@ -150,7 +150,14 @@ class Command(BaseCommand):
             fields.append("employee_number")
             changes["employee_number"] = ["", correction["employee_number"]]
 
-        user.full_clean(exclude=["password", "last_login"])
+        # يُتحقَّق ممّا نكتبه وحدَه — لا من السجلّ كلِّه.
+        #
+        # `full_clean()` يفحص كلَّ حقل، فقيمةٌ قديمةٌ غيرُ صالحةٍ في حقلٍ آخر
+        # تمنع تصحيحاً لا علاقةَ له بها. وقع فعلاً 2026-09-11: جوّالُ معلّمٍ
+        # «111111» (ستُّ خاناتٍ والمدقّقُ يشترط سبعاً) منع تصحيحَ رقمه الشخصيّ.
+        # والقيدُ الفريدُ على الرقم الشخصيّ يبقى مفحوصاً لأنّه ليس مستثنى.
+        written = set(fields) - set(DERIVED)
+        user.full_clean(exclude=[f.name for f in user._meta.fields if f.name not in written])
         user.save(update_fields=fields)
 
         AuditLog.objects.create(
