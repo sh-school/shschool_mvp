@@ -83,13 +83,13 @@ def test_the_default_ranks_mirror_todays_generator():
     policy = cr.default_policy()
 
     assert policy.break_at("HC5") == cr.RELAXED
+    assert policy.break_at("HC20") == cr.RELAXED, "تلاصقُ المادّة يُكسَر في الرخصة الأولى"
     assert {c for c in policy.breaks if policy.break_at(c) == cr.DENSE} == {
         "HC6",
         "HC14",
         "HC16B",
     }
     assert policy.break_at("HC17") == cr.NEVER
-    assert policy.break_at("HC18") == cr.NEVER
 
 
 def test_a_licence_of_the_second_round_carries_the_first():

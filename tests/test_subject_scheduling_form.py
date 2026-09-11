@@ -39,18 +39,19 @@ def _save(client, data):
     return client.post(reverse("save_subject_scheduling"), data, follow=True, HTTP_HOST="localhost")
 
 
-def test_one_button_saves_both_columns_for_every_row(school, subjects):
+def test_one_button_saves_every_row(school, subjects):
+    """زرٌّ واحدٌ في ذيل الشاشة يحفظ ما تغيّر في سطورها كلِّها.
+
+    وكان معه عمودُ «تباعد الأيّام» بنطاقه، وقد سقط: التباعدُ نتيجةٌ تحسبها
+    القسمةُ في HC6 لا قراراً يُتَّخذ في شاشة.
+    """
     art, tech = subjects
 
-    _save(
-        _vice(school),
-        {"double": [str(art.pk)], f"scope_{art.pk}": "none", f"scope_{tech.pk}": "sec"},
-    )
+    _save(_vice(school), {"double": [str(art.pk)]})
 
     art.refresh_from_db()
     tech.refresh_from_db()
-    assert (art.requires_double_period, art.spread_days_scope) == (True, "none")
-    assert (tech.requires_double_period, tech.spread_days_scope) == (False, "sec")
+    assert (art.requires_double_period, tech.requires_double_period) == (True, False)
 
 
 def test_an_unticked_box_turns_the_double_off(school, subjects):
@@ -59,28 +60,16 @@ def test_an_unticked_box_turns_the_double_off(school, subjects):
     art.requires_double_period = True
     art.save(update_fields=["requires_double_period"])
 
-    _save(_vice(school), {f"scope_{art.pk}": "none"})
+    _save(_vice(school), {})
 
     art.refresh_from_db()
     assert art.requires_double_period is False
 
 
-def test_an_unknown_scope_is_refused_and_the_row_keeps_its_value(school, subjects):
-    art, _ = subjects
-    art.spread_days_scope = "sec"
-    art.save(update_fields=["spread_days_scope"])
-
-    response = _save(_vice(school), {f"scope_{art.pk}": "المرّيخ"})
-
-    art.refresh_from_db()
-    assert art.spread_days_scope == "sec"
-    assert "نطاقٌ غيرُ معروف" in response.content.decode()
-
-
 def test_nothing_changed_says_so(school, subjects):
     art, tech = subjects
 
-    response = _save(_vice(school), {f"scope_{art.pk}": "none", f"scope_{tech.pk}": "none"})
+    response = _save(_vice(school), {})
 
     assert "لا تغييرَ يُحفظ" in response.content.decode()
 
@@ -92,10 +81,10 @@ def test_a_subject_of_another_school_is_untouched(school, subjects):
     other = SchoolFactory()
     theirs = Subject.objects.create(school=other, name_ar="الفنّيّة", code="ART")
 
-    _save(_vice(school), {"double": [str(theirs.pk)], f"scope_{theirs.pk}": "all"})
+    _save(_vice(school), {"double": [str(theirs.pk)]})
 
     theirs.refresh_from_db()
-    assert (theirs.requires_double_period, theirs.spread_days_scope) == (False, "none")
+    assert theirs.requires_double_period is False
 
 
 def test_a_teacher_may_not_save_subject_constraints(school, subjects):
@@ -105,7 +94,7 @@ def test_a_teacher_may_not_save_subject_constraints(school, subjects):
     client = Client()
     client.force_login(teacher)
 
-    _save(client, {"double": [str(art.pk)], f"scope_{art.pk}": "all"})
+    _save(client, {"double": [str(art.pk)]})
 
     art.refresh_from_db()
     assert art.requires_double_period is False
@@ -124,73 +113,3 @@ def _assign(school, class_group, subject, periods):
         weekly_periods=periods,
         academic_year=YEAR,
     )
-
-
-@pytest.fixture
-def crowded_class(school):
-    """شعبةٌ ثانويّةٌ تطلب ستَّ حصصٍ من مادّة — فوق ما تسعه خمسةُ أيّام."""
-    from tests.conftest import ClassGroupFactory
-
-    return ClassGroupFactory(school=school, grade="G10", level_type="sec", academic_year=YEAR)
-
-
-def test_an_impossible_spread_is_refused_at_save(school, subjects, crowded_class):
-    """ستُّ حصصٍ لا تتباعد في خمسة أيّام — والاستحالةُ تُقال هنا لا بعد التوليد."""
-    art, _ = subjects
-    _assign(school, crowded_class, art, 6)
-
-    response = _save(_vice(school), {f"scope_{art.pk}": "all", "year": YEAR})
-
-    art.refresh_from_db()
-    assert art.spread_days_scope == "none"
-    body = response.content.decode()
-    assert "يستحيل" in body and crowded_class.short_code in body
-
-
-def test_a_scope_that_misses_the_crowded_level_passes(school, subjects, crowded_class):
-    """الشعبةُ المزدحمةُ ثانويّةٌ، فنطاقُ الإعداديّ لا يمسّها — وهو الحلُّ نفسُه
-    الذي أعاد الجدولَ إلى 871/871 يوم 2026-09-09."""
-    art, _ = subjects
-    _assign(school, crowded_class, art, 6)
-
-    _save(_vice(school), {f"scope_{art.pk}": "prep", "year": YEAR})
-
-    art.refresh_from_db()
-    assert art.spread_days_scope == "prep"
-
-
-def test_five_periods_still_fit(school, subjects, crowded_class):
-    art, _ = subjects
-    _assign(school, crowded_class, art, 5)
-
-    _save(_vice(school), {f"scope_{art.pk}": "all", "year": YEAR})
-
-    art.refresh_from_db()
-    assert art.spread_days_scope == "all"
-
-
-def test_the_double_is_saved_even_when_the_scope_is_refused(school, subjects, crowded_class):
-    """المردودُ هو النطاقُ وحدَه — لا يسقط معه قرارُ الازدواج في السطر نفسِه."""
-    art, _ = subjects
-    _assign(school, crowded_class, art, 6)
-
-    _save(_vice(school), {"double": [str(art.pk)], f"scope_{art.pk}": "all", "year": YEAR})
-
-    art.refresh_from_db()
-    assert (art.requires_double_period, art.spread_days_scope) == (True, "none")
-
-
-def test_an_untouched_impossible_scope_is_not_re_flagged(school, subjects, crowded_class):
-    """حالةٌ قائمةٌ في القاعدة لا تُعاد رسالةً كلَّما حُفظت الشاشة."""
-    art, tech = subjects
-    _assign(school, crowded_class, art, 6)
-    art.spread_days_scope = "all"
-    art.save(update_fields=["spread_days_scope"])
-
-    response = _save(
-        _vice(school), {f"scope_{art.pk}": "all", f"scope_{tech.pk}": "sec", "year": YEAR}
-    )
-
-    assert "يستحيل" not in response.content.decode()
-    art.refresh_from_db()
-    assert art.spread_days_scope == "all"

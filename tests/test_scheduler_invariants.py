@@ -23,8 +23,8 @@ import pytest
 from operations.scheduler import DAYS, ScheduleGrid, Task
 from operations.scheduler_constraints import (
     check_class_conflict,
-    check_high_weekly_daily_limit,
     check_max_consecutive,
+    check_subject_distribution,
     check_teacher_conflict,
     get_max_periods_for_day,
     is_slot_valid,
@@ -354,23 +354,29 @@ def test_an_activity_period_softens_the_run_but_does_not_permit_adjacency():
 
 
 def test_a_heavy_subject_gets_at_most_two_periods_a_day():
-    """مادّةٌ نصابُها خمسٌ فأكثر: حصّتان في اليوم للشعبة الواحدة."""
+    """مادّةٌ نصابُها ستٌّ على خمسة أيّام: حصّتان في اليوم للشعبة الواحدة.
+
+    كان يحرس هذا `check_high_weekly_daily_limit` بسقفٍ محفورٍ (٢) لمادّةِ خمسٍ
+    فأكثر، ولم تكن تُستدعى من موضع. والحارسُ الحقيقيُّ `check_subject_distribution`
+    يحسب السقفَ من القسمة لكلّ مادّة — وأدقُّ منها: مادّةُ خمسٍ سقفُها واحدة.
+    """
     grid = ScheduleGrid()
     heavy = make_task(weekly=6)
     grid.place(0, 1, heavy)
-    grid.place(0, 2, heavy)
+    grid.place(0, 3, heavy)
 
-    assert not check_high_weekly_daily_limit(grid, 0, heavy)
-    assert check_high_weekly_daily_limit(grid, 1, heavy), "واليومُ التالي مفتوح"
+    assert not check_subject_distribution(grid, 0, heavy)
+    assert check_subject_distribution(grid, 1, heavy), "واليومُ التالي مفتوح"
 
 
-def test_a_light_subject_is_not_bound_by_that_rule():
+def test_a_light_subject_takes_a_different_day_instead():
+    """والخفيفةُ لا تُعفى من السقف بل يصير سقفُها واحدةً — وهو أضيق."""
     grid = ScheduleGrid()
     light = make_task(weekly=2)
     grid.place(0, 1, light)
-    grid.place(0, 2, light)
 
-    assert check_high_weekly_daily_limit(grid, 0, light)
+    assert not check_subject_distribution(grid, 0, light)
+    assert check_subject_distribution(grid, 1, light)
 
 
 # ══════════════════════════════════════════════════════════════
