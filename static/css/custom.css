@@ -124,7 +124,7 @@
   --status-danger-fg:   #c81e1e;   /* 5.06 */
   --status-warning-fg:  #92400e;   /* 6.26 */
   --status-success-fg:  #166534;   /* 6.29 */
-  --status-info-fg:     #2563eb;   /* 4.56 */
+  --status-info-fg:     #1d4ed8;   /* 5.92 على خلفيّة الصفحة و5.49 على سطحه — و#2563eb كان 4.24 عليه */
 
   /* ── ألوانُ التمييز لبطاقات المؤشّرات — نفسُ القاعدة: يملأ ويُقرأ ── */
   --accent-teal:      #0d9488;  --accent-teal-fg:   #0f766e;   /* 4.83 */
@@ -5994,6 +5994,8 @@ html.dark .bg-warning-light { background: #451a03; }
 .text-primary   { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
 .text-muted     { color: var(--text-muted); }
+/* داخلَ ترويسةٍ عنّابيّةٍ نصُّها أبيض: الخافتُ رماديٌّ على عنّابيّ بنسبة 1.64. */
+thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 
 /* ── Notification Preferences — Form Components ──────────────────── */
 .notif-pref-container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -6642,7 +6644,7 @@ table thead tr:not([data-plain-head]) th a { color: #fff; }
   /* `.form-select` عامّةٌ بعرضٍ كامل — وهنا قائمةُ ترشيحٍ في الترويسة لا حقلُ نموذج. */
   .exec-meta .form-select { width: auto; min-width: 190px; }
   .asg-guard { border-radius: 12px; padding: 10px 14px; margin: 4px 0 14px; border: 1px solid var(--border); font-size: 13px; }
-  .asg-guard.ok { background: var(--status-success-bg); border-color: #bbf7d0; color: #14532d; }
+  .asg-guard.ok { background: var(--status-success-bg); border-color: var(--status-success-border); color: var(--status-success-fg); }
   .asg-guard.bad { background: var(--status-warning-bg); border-color: #fde68a; color: #7c2d12; }
   .asg-guard-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
   .asg-guard-head strong { font-size: var(--text-sm); }
