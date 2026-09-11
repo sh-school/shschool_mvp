@@ -50,7 +50,7 @@
           <input type="text" value="{{ student.national_id }}" class="form-control" disabled dir="ltr">
           {% endif %}
           {% if form.national_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          <span class="field-error">{{ form.national_id.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -61,7 +61,7 @@
                  class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
                  placeholder="الاسم الرباعي" required>
           {% if form.full_name.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          <span class="field-error">{{ form.full_name.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -98,7 +98,7 @@
             {% endfor %}
           </select>
           {% if form.grade.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.grade.errors.0 }}</span>
+          <span class="field-error">{{ form.grade.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -109,7 +109,7 @@
                  class="form-control {% if form.section.errors %}border-red-400{% endif %}"
                  placeholder="مثال: أ" required>
           {% if form.section.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.section.errors.0 }}</span>
+          <span class="field-error">{{ form.section.errors.0 }}</span>
           {% endif %}
         </div>
 

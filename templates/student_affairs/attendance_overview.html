@@ -61,13 +61,13 @@
     <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;display:flex">
       {% if summary.present %}<div style="width:{% widthratio summary.present summary.total 100 %}%;background:var(--status-success)" title="حاضر {{ summary.present }}"></div>{% endif %}
       {% if summary.late %}<div style="width:{% widthratio summary.late summary.total 100 %}%;background:var(--status-warning)" title="متأخر {{ summary.late }}"></div>{% endif %}
-      {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline,#0D4261)" title="بعذر {{ summary.excused }}"></div>{% endif %}
+      {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline)" title="بعذر {{ summary.excused }}"></div>{% endif %}
       {% if summary.absent %}<div style="width:{% widthratio summary.absent summary.total 100 %}%;background:var(--status-danger)" title="غائب {{ summary.absent }}"></div>{% endif %}
     </div>
     <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.7rem;color:var(--text-muted)">
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-success)"></span> حاضر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-warning)"></span> متأخر</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline,#0D4261)"></span> بعذر</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline)"></span> بعذر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-danger)"></span> غائب</span>
     </div>
   </div>

@@ -105,7 +105,7 @@
       {% for pb in stats.popular_books %}
       <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:.75rem">{{ pb.book__title|truncatechars:50 }}</span>
-        <span style="font-size:.65rem;font-weight:600;color:var(--chart-3,#1A3A5C)">{{ pb.count }} إعارة</span>
+        <span style="font-size:.65rem;font-weight:600;color:var(--status-info-fg)">{{ pb.count }} إعارة</span>
       </div>
       {% endfor %}
     </div>

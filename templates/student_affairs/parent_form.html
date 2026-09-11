@@ -37,7 +37,7 @@
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
                  placeholder="مثال: 28001234567" required dir="ltr">
           {% if form.national_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          <span class="field-error">{{ form.national_id.errors.0 }}</span>
           {% endif %}
           <span style="font-size:.7rem;color:var(--text-muted)">
             إذا كان الرقم موجوداً مسبقاً، سيتم ربط الحساب القائم بالطالب مباشرة.
@@ -51,7 +51,7 @@
                  class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
                  placeholder="الاسم الرباعي" required>
           {% if form.full_name.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          <span class="field-error">{{ form.full_name.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -93,7 +93,7 @@
             {% endfor %}
           </select>
           {% if form.student_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.student_id.errors.0 }}</span>
+          <span class="field-error">{{ form.student_id.errors.0 }}</span>
           {% endif %}
         </div>
 
