@@ -2,6 +2,9 @@
 
 {% block title %}سجل الموظفين{% endblock %}
 
+{# خمسةَ عشرَ عموداً لا يسعها سقفُ القراءة 1280px — الصفحةُ على عرض النافذة. #}
+{% block main_class %}page-wide{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="سجل الموظفين" %}
 {% endblock %}
@@ -22,18 +25,18 @@
   <form method="get" class="filter-bar">
     <div class="filter-field filter-field--grow">
       <label class="filter-label">بحث</label>
-      <input type="text" name="q" value="{{ q }}" placeholder="اسم الموظف أو الرقم الشخصي..."
+      <input type="text" name="q" value="{{ q }}" placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو مسمّى أو قسم أو سكن..."
              class="form-control form-control-sm"
              hx-get="{% url 'staff_affairs:staff_list' %}"
              hx-trigger="input changed delay:400ms, search"
-             hx-target="#staff-table-container" hx-swap="innerHTML"
+             hx-target="#staff-table-container" hx-swap="outerHTML"
              hx-include="[name='role'],[name='dept']" autocomplete="off">
     </div>
     <div class="filter-field">
       <label class="filter-label">الحالة</label>
       <select name="status" class="form-control form-control-sm"
               hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="innerHTML"
+              hx-target="#staff-table-container" hx-swap="outerHTML"
               hx-include="[name='q'],[name='role'],[name='dept']">
         {% for val, label in statuses %}
         <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
@@ -44,7 +47,7 @@
       <label class="filter-label">الدور</label>
       <select name="role" class="form-control form-control-sm"
               hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="innerHTML"
+              hx-target="#staff-table-container" hx-swap="outerHTML"
               hx-include="[name='q'],[name='dept']">
         <option value="">— الكل —</option>
         {% for val, label in roles %}
@@ -56,7 +59,7 @@
       <label class="filter-label">القسم</label>
       <select name="dept" class="form-control form-control-sm"
               hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="innerHTML"
+              hx-target="#staff-table-container" hx-swap="outerHTML"
               hx-include="[name='q'],[name='role']">
         <option value="">— الكل —</option>
         {% for d in departments %}
@@ -71,9 +74,8 @@
     </div>
   </form>
 
-  <div class="card-qatar" style="padding:0" id="staff-table-container">
-    {% include "staff_affairs/_staff_table.html" %}
-  </div>
+  {# الغلافُ ومعرّفُه في الجزئيّة نفسِها — فهي تستبدل نفسَها ولا تمحو هدفَها. #}
+  {% include "staff_affairs/_staff_table.html" %}
 
 </div>
 {% endblock %}

@@ -7,7 +7,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import CharField, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models import Case, CharField, F, Func, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,7 +18,7 @@ from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
 from core.permissions import role_required
-from core.sorting import apply_sort
+from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_service
 from .forms import (
@@ -114,18 +115,25 @@ PAGE_SIZE = 50
 #: `?sort=` نصٌّ يأتي من المستخدم، فلا يبلغ `order_by` إلّا عبر هذه القائمة.
 #: والاسمُ فاصلٌ يقطع التساوي في كلّ عمودٍ سواه، وإلّا تراقص ترتيبُ المتساوين
 #: بين صفحةٍ وأخرى.
+#: مفاتيحُ فرز السجلّ. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي، وإلّا تبدّل
+#: ترتيبُ المتساوين بين نقرةٍ وأخرى فبدا للقارئ أنّ الصفحةَ تتحرّك تحت يده.
+#: والمفاتيحُ مُسوّاةٌ عربيّاً ومُفرَّغةٌ من الفراغ في `staff_list` — لا أسماءَ
+#: حقولٍ خام: الفرزُ بالحقل الخام يرتّب بالنقطة البرمجيّة لا بالحرف.
 STAFF_SORTS = {
-    "name": ("full_name",),
-    "employee": ("employee_key", "full_name"),
-    "national": ("national_id",),
-    "role": ("gov_role", "full_name"),
-    "department": ("gov_department", "full_name"),
-    "phone": ("phone", "full_name"),
-    "email": ("email", "full_name"),
-    "residence": ("residence_area", "full_name"),
-    "nationality": ("nationality", "full_name"),
-    "joined": ("gov_joined", "full_name"),
-    "license": ("professional_license_expiry", "full_name"),
+    "name": ("name_key",),
+    "employee": ("employee_key", "name_key"),
+    "national": ("national_key", "name_key"),
+    # «المسمّى الوظيفيّ» يُفرَز بما يُعرض في خليّته: المسمّى المسجَّل، ودورُ
+    # المنصّة بالعربيّة حين لا مسمّى. وكان يُفرَز بـ`role.name` الإنجليزيّ —
+    # ترويسةٌ تَعرض شيئاً وترتّب بغيره.
+    "title": ("title_key", "name_key"),
+    "department": ("dept_key", "name_key"),
+    "phone": ("phone_key", "name_key"),
+    "email": ("email_key", "name_key"),
+    "residence": ("residence_key", "name_key"),
+    "nationality": ("nationality_key", "name_key"),
+    "joined": ("gov_joined", "name_key"),
+    "license": ("professional_license_expiry", "name_key"),
 }
 
 
@@ -160,16 +168,11 @@ def staff_list(request):
         memberships = memberships.filter(department_obj_id=dept_filter)
 
     people = CustomUser.objects.filter(id__in=memberships.values("user_id"))
-    if q:
-        people = people.filter(
-            Q(full_name__icontains=q)
-            | Q(national_id__icontains=q)
-            | Q(employee_number__icontains=q)
-        )
 
     # الدورُ والقسمُ وتاريخُ الالتحاق صفاتُ عضويّةٍ لا صفاتُ شخص، والتصفّحُ على
     # الأشخاص. فتُجلب صفاتُ **العضويّة الحاكمة** بالاستعلام نفسِه ليصحّ الفرزُ
     # بها على القائمة كلِّها لا على الصفحة الظاهرة.
+    from core.models.access import Role
     from core.models.user import role_rank
 
     governing = memberships.filter(user=OuterRef("pk")).order_by(role_rank(), "joined_at")
@@ -177,14 +180,65 @@ def staff_list(request):
         gov_role=Subquery(governing.values("role__name")[:1]),
         gov_department=Subquery(governing.values("department_obj__name")[:1]),
         gov_joined=Subquery(governing.values("joined_at")[:1]),
+        # المسمّى المعروض: المسجَّلُ إن وُجد، وإلّا عنوانُ الدور بالعربيّة.
+        # ويُحسَب **داخلَ** الاستعلام المترابط لا خارجَه: بناءُ `Case` على وسمٍ
+        # مصدرُه استعلامٌ مترابطٌ يُعيد كتابةَ ذلك الاستعلام في كلّ فرعٍ من
+        # فروعه — ثلاثون فرعاً فثلاثون تنفيذاً لكلّ صفّ، وخمسُ ثوانٍ لفرزةٍ
+        # أختُها جزءٌ من الثانية. وقائمةُ الأدوار واحدةٌ في `Role.ROLES`.
+        gov_title=Subquery(
+            governing.annotate(
+                shown=Coalesce(
+                    NullIf(F("job_title"), Value("")),
+                    Case(
+                        *[When(role__name=name, then=Value(label)) for name, label in Role.ROLES],
+                        default=F("role__name"),
+                        output_field=CharField(),
+                    ),
+                )
+            ).values("shown")[:1]
+        ),
         # الرقمُ الوظيفيُّ نصٌّ في القاعدة وأطوالُه مختلفة (أربعُ خاناتٍ إلى ستّ)،
         # وفرزُ النصّ يضع «9907» قبل «85308». فيُحشى بأصفارٍ إلى طولٍ واحدٍ
         # فيصير ترتيبُ الحروف هو ترتيبَ الأعداد — بلا تحويلٍ يسقط على قيمةٍ
-        # غيرِ رقميّةٍ يوماً.
+        # غيرِ رقميّةٍ يوماً. والفارغُ يبقى عَدَماً فلا يتصدّر بأصفارٍ مصنوعة.
         employee_key=Func(
-            F("employee_number"), Value(12), Value("0"), function="LPAD", output_field=CharField()
+            NullIf(F("employee_number"), Value("")),
+            Value(12),
+            Value("0"),
+            function="LPAD",
+            output_field=CharField(),
         ),
+        name_key=arabic_key(F("full_name")),
+        dept_key=arabic_key(F("gov_department")),
+        national_key=blank_as_null("national_id"),
+        phone_key=blank_as_null("phone"),
+        email_key=blank_as_null("email"),
+        residence_key=blank_as_null("residence_area"),
+        nationality_key=arabic_key(F("nationality")),
+        title_key=arabic_key(F("gov_title")),
     )
+
+    # والبحثُ بعد الوسوم ليبلغ ما تحمله العضويّةُ لا ما يحمله الشخصُ وحدَه.
+    # وكلُّ عمودٍ معروضٍ مطلوبٌ به: من يرى «الوكرة» في عمودٍ يتوقّع أن يجدها
+    # بكتابتها. والاسمُ والمسمّى يُطابَقان بمفتاحهما المسوّى، فتجد «احمد» من
+    # كُتب «أحمد» — وهو أكثرُ ما يُكتب في صندوق بحثٍ عربيّ.
+    if q:
+        shaped = normalise_arabic(q)
+        held_by_membership = memberships.filter(
+            Q(job_title__icontains=q) | Q(department_obj__name__icontains=q)
+        ).values("user_id")
+        people = people.filter(
+            Q(name_key__icontains=shaped)
+            | Q(title_key__icontains=shaped)
+            | Q(national_id__icontains=q)
+            | Q(employee_number__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(email__icontains=q)
+            | Q(residence_area__icontains=q)
+            | Q(nationality__icontains=q)
+            | Q(professional_license_number__icontains=q)
+            | Q(id__in=held_by_membership)
+        )
 
     people, sort = apply_sort(
         people,
@@ -235,7 +289,6 @@ def staff_list(request):
             }
         )
 
-    from core.models.access import Role
     from core.models.department import Department
 
     available_roles = (
