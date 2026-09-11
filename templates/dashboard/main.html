@@ -199,7 +199,7 @@
 
 {# ── تنبيه طلبات تبديل معلقة ── #}
 {% if my_pending_swaps %}
-<div class="alert-strip" style="background:var(--status-warning-light,#fffbeb);color:var(--status-warning,#92400e);border-color:var(--border);">
+<div class="alert-strip" style="background:var(--status-warning-bg);color:var(--status-warning-fg);border-color:var(--border);">
   <span>{% include "components/icon.html" with name="refresh" %}</span>
   <strong>لديك {{ my_pending_swaps }} طلب تبديل ينتظر ردك</strong>
   <a href="{% url 'swap_list' %}" style="color:inherit;margin-inline-start:auto;">عرض الطلبات</a>

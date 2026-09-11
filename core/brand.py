@@ -34,6 +34,9 @@ ACCENT_ORANGE = "#ea580c"
 #: `--accent-purple`
 ACCENT_PURPLE = "#7c3aed"
 
+#: `--text-muted` — قيمتُه النهاريّة. الرماديُّ الفاتحُ تحت نصٍّ أبيضَ نسبتُه 3.40.
+TEXT_MUTED = "#5f6775"
+
 
 def rgba(colour: str, alpha: float) -> str:
     """`#RRGGBB` مع شفّافيّةٍ — لئلّا تُكتب القناةُ الرقميّةُ نسخةً ثانية."""
@@ -51,4 +54,5 @@ TOKEN_OF = {
     "STATUS_INFO": "status-info",
     "ACCENT_ORANGE": "accent-orange",
     "ACCENT_PURPLE": "accent-purple",
+    "TEXT_MUTED": "text-muted",
 }

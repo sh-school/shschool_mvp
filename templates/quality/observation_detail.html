@@ -85,14 +85,14 @@
 
   {# ── حالة الإقرار ── #}
   {% if obs.status == "acknowledged" %}
-  <div class="alert-strip" style="background:#e8f5e9;border:1px solid #a5d6a7;margin-top:14px;padding:10px;border-radius:6px">
+  <div class="alert-strip" style="background:var(--status-success-bg);border:1px solid var(--status-success-border);margin-top:14px;padding:10px;border-radius:6px">
     ✓ أقرّ المعلّم بالاطّلاع في {{ obs.teacher_acknowledged_at|date:"Y-m-d H:i" }}.
     {% if obs.teacher_comment %}<br><b>تعليقه:</b> {{ obs.teacher_comment }}{% endif %}
   </div>
 
     {# إعادة الفتح + الحذف المُعلَّل (قيادة) #}
     {% if can_reopen or can_delete %}
-    <div style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:6px">
+    <div style="margin-top:12px;padding:12px;border:1px dashed var(--border-strong);border-radius:6px">
       <div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">إجراءات القيادة على ملاحظة مُقَرّة:</div>
       {% if can_reopen %}
       <form method="post" action="{% url 'observation_reopen' obs.id %}" style="margin-bottom:10px"
@@ -116,7 +116,7 @@
 
   {# ── حذف مُعلَّل لملاحظة مُرسَلة (قيادة) ── #}
   {% if obs.status == "submitted" and can_delete %}
-  <div style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:6px">
+  <div style="margin-top:12px;padding:12px;border:1px dashed var(--border-strong);border-radius:6px">
     <form method="post" action="{% url 'observation_delete' obs.id %}"
           data-confirm="حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.">
       {% csrf_token %}

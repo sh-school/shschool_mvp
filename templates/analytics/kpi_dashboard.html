@@ -85,10 +85,10 @@ function renderKPIs(kpis) {
 
   /* ══ Zone 1: Summary ══ */
   html += `<div class="kpi-top-bar" style="margin-bottom:10px">
-    <div class="kpi-count"><span class="kpi-count__dot" style="background:#16a34a"></span> ${cnt.green} ممتاز</div>
-    <div class="kpi-count"><span class="kpi-count__dot" style="background:#d97706"></span> ${cnt.yellow} تحذير</div>
-    <div class="kpi-count"><span class="kpi-count__dot" style="background:#dc2626"></span> ${cnt.red} خطر</div>
-    <div class="kpi-count"><span class="kpi-count__dot" style="background:#9ca3af"></span> ${cnt.grey} غير متوفر</div>
+    <div class="kpi-count"><span class="kpi-count__dot" class="legend-dot legend-dot--success"></span> ${cnt.green} ممتاز</div>
+    <div class="kpi-count"><span class="kpi-count__dot" class="legend-dot legend-dot--warning"></span> ${cnt.yellow} تحذير</div>
+    <div class="kpi-count"><span class="kpi-count__dot" class="legend-dot legend-dot--danger"></span> ${cnt.red} خطر</div>
+    <div class="kpi-count"><span class="kpi-count__dot" class="legend-dot legend-dot--muted"></span> ${cnt.grey} غير متوفر</div>
   </div>`;
 
   /* ══ Zone 2: Radar + Donuts (4+3) ══ */
