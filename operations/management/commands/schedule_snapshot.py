@@ -58,8 +58,13 @@ class Command(BaseCommand):
         parser.add_argument("--school", default="SHH", help="كود المدرسة")
         parser.add_argument("--year", default="", help="العام الدراسي (افتراضه عامُ المدرسة)")
         parser.add_argument("--label", default="", help="وسمٌ يُضاف إلى اسم الملفّ")
+        # `dest` غيرُ اسم الراية عمداً: Django يقرأ خياراً اسمُه `stdout` على أنّه
+        # مجرى الإخراج فيلفّ `True` في `OutputWrapper` — وتسقط الكتابةُ بـ
+        # «'bool' object has no attribute 'write'». وقع فعلاً 2026-09-11 عند
+        # أخذ لقطةِ الإنتاج قبل إطفاء حصّتين.
         parser.add_argument(
             "--stdout",
+            dest="to_stdout",
             action="store_true",
             help="اطبع اللقطةَ JSON على المخرج القياسيّ بدل كتابتها ملفّاً (للإنتاج)",
         )
@@ -118,7 +123,7 @@ class Command(BaseCommand):
             ensure_ascii=False,
             indent=1,
         )
-        if opts["stdout"]:
+        if opts["to_stdout"]:
             # لا رسالةَ نجاحٍ هنا — المخرجُ كلُّه هو الملفّ.
             self.stdout.write(payload)
             return
