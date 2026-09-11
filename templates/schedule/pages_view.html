@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% block title %}{{ title }}{% endblock %}
+{% block main_class %}page-wide{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current=title %}
