@@ -2,6 +2,7 @@
 
     python manage.py correct_identity_from_register --file كشف.xlsx
     python manage.py correct_identity_from_register --file كشف.xlsx --apply
+    python manage.py correct_identity_from_register --rows-b64 - < حزمة   # قاعدةٌ لا يصلها الملفّ
 
 في القاعدة أرقامٌ شخصيّةٌ خاطئة: رقمٌ أُدخل لموظّفٍ وهو رقمُ زميله، ورقمٌ ملفَّق
 كُتب ليُسدّ فراغُ حقلٍ إلزاميّ. وكلاهما يمرّ صامتاً حتّى يأتي كشفُ الوزارة
@@ -42,13 +43,25 @@ class Command(BaseCommand):
     help = "يصحّح الأرقامَ الشخصيّة الخاطئة من كشف الكادر — بلا كتابةٍ إلّا بـ--apply"
 
     def add_arguments(self, parser):
-        parser.add_argument("--file", required=True, help="مسارُ كشف الكادر (xlsx)")
+        parser.add_argument("--file", default="", help="مسارُ كشف الكادر (xlsx)")
+        # التصحيحُ يسبق الكشفَ ضرورةً — فمن يستورد الكشفَ إلى قاعدةٍ بعيدةٍ
+        # بالحزمة يحتاج أن يصحّح الهويّةَ بها أيضاً، وإلّا انكسر القيدُ الفريد
+        # على رقمٍ وظيفيٍّ يحمله في تلك القاعدة رجلٌ برقمٍ شخصيٍّ آخر. والحزمةُ
+        # هي حزمةُ `import_staff_register --emit-b64` نفسُها لا صيغةً ثانية.
+        parser.add_argument(
+            "--rows-b64",
+            default="",
+            help=(
+                "كشفُ الكادر محزوماً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها."
+                " و«-» تقرأ الحزمةَ من المدخل القياسيّ، وهو الأسلم"
+            ),
+        )
         parser.add_argument("--school", default="", help="رمزُ المدرسة — والافتراضُ الأولى")
         parser.add_argument("--apply", action="store_true", help="بدونه يعرض ولا يكتب")
 
     def handle(self, *args, **options):
         school = self._school(options["school"])
-        rows = self._read(options["file"])
+        rows = self._rows(options)
         corrections = self._plan(rows)
 
         self.stdout.write(f"المدرسة: {school.name} · الكشف: {len(rows)} سطراً")
@@ -74,6 +87,19 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"\nصُحّح {written} سجلّاً، ولكلٍّ سطرٌ في سجلّ التدقيق."))
 
     # ── القراءة والتخطيط ─────────────────────────────────────────────
+
+    def _rows(self, options):
+        """سطورُ الكشف من الملفّ أو من الحزمة — واحدةٌ منهما لا كلتاهما."""
+        from core.management.commands.import_staff_register import _payload, _unpack
+
+        if bool(options["file"]) == bool(options["rows_b64"]):
+            raise CommandError("حدّد --file أو --rows-b64 — واحداً منهما.")
+        if options["rows_b64"]:
+            rows = _unpack(_payload(options["rows_b64"]))
+            if not rows:
+                raise CommandError("الحزمةُ خالية.")
+            return rows
+        return self._read(options["file"])
 
     def _read(self, path):
         from core.management.commands.import_staff_register import Command as StaffCommand
