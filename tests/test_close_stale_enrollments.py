@@ -176,3 +176,62 @@ class TestAudit:
 
         assert "لا قيدَ متقادماً" in capsys.readouterr().out
         assert StudentEnrollment.objects.filter(student=student, is_active=True).count() == 0
+
+
+class TestThePackedRegister:
+    """الوضعُ الثاني كان محبوساً عن القاعدة التي تحتاجه أكثرَ من غيرها."""
+
+    def test_the_packed_register_closes_exactly_what_the_file_closes(self, school, year, tmp_path):
+        """الحزمةُ حزمةُ `import_enrolment_register --emit-b64` نفسُها."""
+        from core.management.commands.import_enrolment_register import Command as RegisterCommand
+        from core.management.commands.import_enrolment_register import _pack
+
+        staying = UserFactory(full_name="في السجلّ", national_id="31400000020")
+        leaving = UserFactory(full_name="ليس في السجلّ", national_id="31400000021")
+        kept = _enrol(school, staying, year, section="1")
+        dropped = _enrol(school, leaving, year, section="2")
+        roster, tracks = RegisterCommand()._read(_register(tmp_path, ["31400000020"]))
+
+        call_command(
+            "close_stale_enrollments",
+            register_b64=_pack(roster, tracks),
+            keep_past_years=True,
+            apply=True,
+        )
+
+        kept.refresh_from_db()
+        dropped.refresh_from_db()
+        assert kept.is_active is True
+        assert dropped.is_active is False
+
+    def test_both_registers_at_once_are_refused(self, school, year, tmp_path):
+        """سجلّان مختلفان يُغلقان قيوداً مختلفة — والصمتُ عن أيّهما سُمع خطر."""
+        with pytest.raises(CommandError, match="لا كليهما"):
+            call_command(
+                "close_stale_enrollments",
+                not_in_register=_register(tmp_path, ["31400000020"]),
+                register_b64="x",
+            )
+
+    def test_keeping_past_years_without_any_register_still_refuses(self, school, year):
+        with pytest.raises(CommandError):
+            call_command("close_stale_enrollments", keep_past_years=True)
+
+    def test_the_audit_row_records_that_a_register_was_consulted(self, school, year, tmp_path):
+        """التدقيقُ يقول «استُشير سجلٌّ» — ولا يفرّق بين ملفٍّ وحزمةٍ لأنّهما واحد."""
+        from core.management.commands.import_enrolment_register import Command as RegisterCommand
+        from core.management.commands.import_enrolment_register import _pack
+
+        student = UserFactory(full_name="ليس في السجلّ", national_id="31400000022")
+        _enrol(school, student, year)
+        roster, tracks = RegisterCommand()._read(_register(tmp_path, ["31499999999"]))
+
+        call_command(
+            "close_stale_enrollments",
+            register_b64=_pack(roster, tracks),
+            keep_past_years=True,
+            apply=True,
+        )
+
+        row = AuditLog.objects.filter(changes__event="stale_enrollments_closed").latest("timestamp")
+        assert row.changes["modes"]["not_in_register"] is True
