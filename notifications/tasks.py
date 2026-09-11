@@ -1084,6 +1084,7 @@ def hub_send_notification_task(
     context=None,
     sent_by_id=None,
     dispatch_id=None,
+    email_html=None,
 ):
     """
     مهمة مركزية — يستدعيها NotificationHub لإرسال الإشعارات الخارجية.
@@ -1143,6 +1144,7 @@ def hub_send_notification_task(
                 recipient_email=user.email,
                 subject=title,
                 body_text=body,
+                body_html=email_html,
                 notif_type=_hub_to_notif_type(event_type),
                 sent_by_id=str(sender.id) if sender else None,
                 delivery_id=delivery_ids.get("email"),

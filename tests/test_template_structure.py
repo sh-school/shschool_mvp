@@ -20,9 +20,10 @@ ALLOWED_ORPHANS = {
     "500.html",
     # يحفظه فحصُ رؤية الوزارة وحدَه — إمّا يُوصَل بعرضٍ أو يُحذف.
     "behavior/pdf/policy_doc.html",
-    # غيرُ موصولٍ بأيّ مُرسِل: `absence_*` و`fail_*` موصولان في
-    # `notifications/services.py` وهذا ليس. يُوصَل أو يُحذف — قرارٌ معلّق.
+    # يُستدعى بالاسم من `BehaviorService.notify_parents` عبر
+    # `email_html_template`، لا بـ`render_to_string` — فلا يراه المسحُ النصّيّ.
     "notifications/email/behavior_html.html",
+    # نظيرُه النصّيُّ ينتظر وصلاً مثلَه.
     "notifications/email/behavior_text.txt",
 }
 
