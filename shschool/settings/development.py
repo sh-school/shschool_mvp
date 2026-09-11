@@ -40,6 +40,16 @@ STORAGES = {
 # نزعُ الوسيط يكفي؛ وأيّ توجيهات هنا لا تُقرأ بعد ذلك، فلا تُترك موهِمة.
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
 
+# ── تطوير: الملفُّ الثابتُ يُعاد التحقّقُ منه دائماً ───────
+# `runserver` يخدم `/static/` عبر `StaticFilesHandler` **قبل** سلسلة الوسائط،
+# فلا يبلغها طلبُ الملفّ الثابت ولا تُضاف إليه ترويسة. و`runserver_nostatic`
+# يرفع ذلك المعترِض، فيمرّ الطلبُ بالسلسلة ويخدمه WhiteNoise من مجلّدات
+# المصدر مباشرةً (`USE_FINDERS`) — فلا `collectstatic` في التطوير أصلاً.
+INSTALLED_APPS.insert(0, "whitenoise.runserver_nostatic")
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+WHITENOISE_MAX_AGE = 0
+
 # ── Celery — وضع التطوير ─────────────────────────────────────
 # CELERY_TASK_ALWAYS_EAGER = True يُشغّل المهام مباشرة بدون broker
 # مناسب للتطوير المحلي — لا يحتاج Redis مثبتاً

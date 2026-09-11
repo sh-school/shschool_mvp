@@ -76,7 +76,8 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 ## سير العمل
 
 1. عدّل في شجرةِ عملك.
-2. `python manage.py collectstatic --noinput` عند تعديل CSS/JS.
+2. لا شيءَ للـCSS/JS: خادمُ التطوير يقرأ `static/` مباشرةً (WhiteNoise بـ`USE_FINDERS`)،
+   فحدِّث الصفحةَ وحسب. و`collectstatic` للإنتاج، تجريه البوّابةُ عند النشر.
 3. `git add <مسارات صريحة>` ثمّ `git commit`.
 4. `git push origin HEAD:refs/heads/claude/<اسم-المهمّة>` وافتح طلبَ دمج.
 5. **لا دفعَ إلى `main` مباشرةً** — البوّاباتُ تمرّ على طلب الدمج.
@@ -89,7 +90,13 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 فالإنتاجُ يبصم الاسمَ بمحتواه أصلاً عبر
 `whitenoise.storage.CompressedManifestStaticFilesStorage` —
 `/static/css/custom.06dcd9ebed41.css` — والبصمةُ تتغيّر متى تغيّر الملفّ،
-وهو بعينه ما كان `?v=` يحاوله. والتطويرُ يُعيد التحقّق بـ`Last-Modified`.
+وهو بعينه ما كان `?v=` يحاوله.
+
+وأمّا التطويرُ فكان `Last-Modified` وحدَه لا يكفيه: المتصفّحُ حين لا يجد
+`Cache-Control` يخمّن الطزاجةَ بعُشر عمر الملفّ، فملفٌّ عُدِّل قبل ساعتين
+يُخزَّن اثنتَي عشرةَ دقيقةً بلا سؤال — فيُعدَّل الـCSS ولا يُرى أثرُه.
+فصار WhiteNoise يخدمه في التطوير بـ`max-age=0` (`development.py`)، فيُسأل
+عنه في كلّ مرّة ويردّ الخادمُ 304 في الغالب.
 
 وكان الرقمُ اليدويُّ يكلّف ثلاثاً: يُنسى فيرى المستخدمُ نمطاً قديماً،
 ويتصادم في كلّ طلبِ دمجٍ لأنّه سطرٌ واحدٌ يلمسه كلُّ فرع، ويُشغل المراجعةَ
