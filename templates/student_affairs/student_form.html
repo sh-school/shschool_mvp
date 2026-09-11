@@ -41,7 +41,7 @@
 
         {# الرقم الشخصي #}
         <div class="form-group" {% if mode == "edit" %}style="grid-column:span 2"{% endif %}>
-          <label class="form-label">الرقم الشخصي <span style="color:red">*</span></label>
+          <label class="form-label">الرقم الشخصي <span class="req-star">*</span></label>
           {% if mode == "add" %}
           <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
@@ -50,18 +50,18 @@
           <input type="text" value="{{ student.national_id }}" class="form-control" disabled dir="ltr">
           {% endif %}
           {% if form.national_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          <span class="field-error">{{ form.national_id.errors.0 }}</span>
           {% endif %}
         </div>
 
         {# الاسم الكامل #}
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">الاسم الكامل <span style="color:red">*</span></label>
+          <label class="form-label">الاسم الكامل <span class="req-star">*</span></label>
           <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
                  class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
                  placeholder="الاسم الرباعي" required>
           {% if form.full_name.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          <span class="field-error">{{ form.full_name.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -90,7 +90,7 @@
 
         {# الصف #}
         <div class="form-group">
-          <label class="form-label">الصف <span style="color:red">*</span></label>
+          <label class="form-label">الصف <span class="req-star">*</span></label>
           <select name="grade" class="form-control" required>
             <option value="">— اختر الصف —</option>
             {% for val, label in grades %}
@@ -98,18 +98,18 @@
             {% endfor %}
           </select>
           {% if form.grade.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.grade.errors.0 }}</span>
+          <span class="field-error">{{ form.grade.errors.0 }}</span>
           {% endif %}
         </div>
 
         {# الشعبة #}
         <div class="form-group">
-          <label class="form-label">الشعبة <span style="color:red">*</span></label>
+          <label class="form-label">الشعبة <span class="req-star">*</span></label>
           <input type="text" name="section" value="{{ form.section.value|default:'' }}"
                  class="form-control {% if form.section.errors %}border-red-400{% endif %}"
                  placeholder="مثال: أ" required>
           {% if form.section.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.section.errors.0 }}</span>
+          <span class="field-error">{{ form.section.errors.0 }}</span>
           {% endif %}
         </div>
 

@@ -142,7 +142,7 @@
                 {% for val, label in urgency_levels %}
                 <label class="radio-pill flex items-center gap-1 rounded-lg px-3 py-2 cursor-pointer text-sm">
                   <input type="radio" name="urgency" value="{{ val }}" {% if val == "normal" %}checked{% endif %}
-                         style="accent-color:var(--maroon);">
+                         style="accent-color:var(--maroon-fg);">
                   {{ label }}
                 </label>
                 {% endfor %}

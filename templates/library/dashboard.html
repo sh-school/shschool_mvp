@@ -88,7 +88,7 @@
           <strong style="font-size:.75rem">{{ b.book.title|truncatechars:40 }}</strong>
           <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ b.user.full_name }}</span>
         </div>
-        <span style="font-size:.65rem;font-weight:600;color:var(--status-warning)">{{ b.due_date|date:"d/m" }}</span>
+        <span style="font-size:.65rem;font-weight:600;color:var(--status-warning-fg)">{{ b.due_date|date:"d/m" }}</span>
       </div>
       {% endfor %}
     </div>
@@ -105,7 +105,7 @@
       {% for pb in stats.popular_books %}
       <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between">
         <span style="font-size:.75rem">{{ pb.book__title|truncatechars:50 }}</span>
-        <span style="font-size:.65rem;font-weight:600;color:var(--chart-3,#1A3A5C)">{{ pb.count }} إعارة</span>
+        <span style="font-size:.65rem;font-weight:600;color:var(--status-info-fg)">{{ pb.count }} إعارة</span>
       </div>
       {% endfor %}
     </div>
@@ -123,7 +123,7 @@
         <div class="dash-list-item">
           <strong style="font-size:.75rem">{{ book.title }}</strong>
           <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ book.author }} — {{ book.category }}</span>
-          <span style="font-size:.6rem;font-weight:600;color:{% if book.available_qty > 0 %}var(--status-success){% else %}var(--status-danger){% endif %}">
+          <span style="font-size:.6rem;font-weight:600;color:{% if book.available_qty > 0 %}var(--status-success-fg){% else %}var(--status-danger-fg){% endif %}">
             {{ book.available_qty }} نسخة متاحة
           </span>
         </div>
@@ -145,7 +145,7 @@
             <strong style="font-size:.75rem">{{ b.user.full_name }}</strong>
             <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ b.book.title|truncatechars:30 }}</span>
           </div>
-          <span style="font-size:.6rem;font-weight:600;color:{% if b.status == 'OVERDUE' %}var(--status-danger){% elif b.status == 'BORROWED' %}var(--chart-3,#1A3A5C){% else %}var(--status-success){% endif %}">
+          <span style="font-size:.6rem;font-weight:600;color:{% if b.status == 'OVERDUE' %}var(--status-danger-fg){% elif b.status == 'BORROWED' %}var(--status-info-fg){% else %}var(--status-success-fg){% endif %}">
             {{ b.get_status_display }}
           </span>
         </div>

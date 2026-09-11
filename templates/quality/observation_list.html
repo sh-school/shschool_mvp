@@ -88,18 +88,18 @@
         <td>{{ o.observer.full_name }}</td>
         <td>{{ o.subject.name_ar|default:"—" }}</td>
         <td class="col-num">{{ o.observation_date }}</td>
-        <td>{% if o.kind == "self" %}<span class="badge" style="background:#ede9fe;color:#6d28d9">تقييم ذاتي</span>{% elif o.kind == "peer" %}<span class="badge" style="background:#dcfce7;color:#15803d">زيارة زميل</span>{% else %}<span class="badge" style="background:#e0f2fe;color:#0369a1">إشرافية</span>{% endif %}</td>
+        <td>{% if o.kind == "self" %}<span class="badge badge--accent">تقييم ذاتي</span>{% elif o.kind == "peer" %}<span class="badge badge--success">زيارة زميل</span>{% else %}<span class="badge badge--info">إشرافية</span>{% endif %}</td>
         <td class="col-num">
           {% if o.score_percent != None %}
-            {% if o.score_percent >= 75 %}<span style="color:#15803d;font-weight:600">{{ o.score_percent }}%</span>
-            {% elif o.score_percent >= 50 %}<span style="color:#b45309;font-weight:600">{{ o.score_percent }}%</span>
-            {% else %}<span style="color:#b91c1c;font-weight:600">{{ o.score_percent }}%</span>{% endif %}
+            {% if o.score_percent >= 75 %}<span style="color:var(--status-success-fg);font-weight:600">{{ o.score_percent }}%</span>
+            {% elif o.score_percent >= 50 %}<span style="color:var(--status-warning-fg);font-weight:600">{{ o.score_percent }}%</span>
+            {% else %}<span style="color:var(--status-danger-fg);font-weight:600">{{ o.score_percent }}%</span>{% endif %}
           {% else %}—{% endif %}
         </td>
         <td>
-          {% if o.status == "acknowledged" %}<span class="badge" style="background:#dcfce7;color:#15803d">{{ o.get_status_display }}</span>
-          {% elif o.status == "submitted" %}<span class="badge" style="background:#fef3c7;color:#b45309">{{ o.get_status_display }}</span>
-          {% else %}<span class="badge" style="background:#f1f5f9;color:#475569">{{ o.get_status_display }}</span>{% endif %}
+          {% if o.status == "acknowledged" %}<span class="badge badge--success">{{ o.get_status_display }}</span>
+          {% elif o.status == "submitted" %}<span class="badge badge--warning">{{ o.get_status_display }}</span>
+          {% else %}<span class="badge badge--neutral">{{ o.get_status_display }}</span>{% endif %}
         </td>
         <td style="white-space:nowrap">
           <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>

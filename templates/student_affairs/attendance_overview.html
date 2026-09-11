@@ -61,13 +61,13 @@
     <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;display:flex">
       {% if summary.present %}<div style="width:{% widthratio summary.present summary.total 100 %}%;background:var(--status-success)" title="حاضر {{ summary.present }}"></div>{% endif %}
       {% if summary.late %}<div style="width:{% widthratio summary.late summary.total 100 %}%;background:var(--status-warning)" title="متأخر {{ summary.late }}"></div>{% endif %}
-      {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline,#0D4261)" title="بعذر {{ summary.excused }}"></div>{% endif %}
+      {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline)" title="بعذر {{ summary.excused }}"></div>{% endif %}
       {% if summary.absent %}<div style="width:{% widthratio summary.absent summary.total 100 %}%;background:var(--status-danger)" title="غائب {{ summary.absent }}"></div>{% endif %}
     </div>
     <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.7rem;color:var(--text-muted)">
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-success)"></span> حاضر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-warning)"></span> متأخر</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline,#0D4261)"></span> بعذر</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline)"></span> بعذر</span>
       <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-danger)"></span> غائب</span>
     </div>
   </div>
@@ -106,9 +106,9 @@
           <tr>
             <td style="font-weight:600">{{ row.session__class_group__grade }}</td>
             <td>{{ row.total }}</td>
-            <td style="color:var(--status-success)">{{ row.present_count }}</td>
-            <td style="color:var(--status-danger)">{{ row.absent_count }}</td>
-            <td style="color:var(--status-warning)">{{ row.late_count }}</td>
+            <td style="color:var(--status-success-fg)">{{ row.present_count }}</td>
+            <td style="color:var(--status-danger-fg)">{{ row.absent_count }}</td>
+            <td style="color:var(--status-warning-fg)">{{ row.late_count }}</td>
             <td>
               {% widthratio row.present_count row.total 100 as grade_pct %}
               <span class="status-badge {% if grade_pct >= 90 %}status-success{% elif grade_pct >= 75 %}status-warning{% else %}status-danger{% endif %}">
@@ -175,7 +175,7 @@
         <div class="dash-list-item">
           <div style="flex:1">
             <a href="{% url 'student_affairs:student_profile' alert.student.id %}"
-               style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
+               style="font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">
               {{ alert.student.full_name }}
             </a>
             <span style="font-size:.65rem;color:var(--text-muted);margin-right:4px">{{ alert.absence_count }} يوم غياب</span>

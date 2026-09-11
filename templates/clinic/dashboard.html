@@ -115,7 +115,7 @@
           <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
           <span style="font-size:.65rem;color:var(--text-muted);display:block">{{ visit.reason }}</span>
         </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}var(--status-success){% else %}var(--status-danger){% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}var(--status-success-fg){% else %}var(--status-danger-fg){% endif %}">
           {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
         </span>
       </div>
@@ -137,7 +137,7 @@
           <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
           <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}</span>
         </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}var(--status-danger){% else %}var(--status-success){% endif %}">
+        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}var(--status-danger-fg){% else %}var(--status-success-fg){% endif %}">
           {% if visit.is_sent_home %}أُرسل للمنزل{% else %}عولج{% endif %}
         </span>
       </div>

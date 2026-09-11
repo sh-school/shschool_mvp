@@ -32,12 +32,12 @@
 
         {# الرقم الشخصي #}
         <div class="form-group">
-          <label class="form-label">الرقم الشخصي <span style="color:red">*</span></label>
+          <label class="form-label">الرقم الشخصي <span class="req-star">*</span></label>
           <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
                  placeholder="مثال: 28001234567" required dir="ltr">
           {% if form.national_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.national_id.errors.0 }}</span>
+          <span class="field-error">{{ form.national_id.errors.0 }}</span>
           {% endif %}
           <span style="font-size:.7rem;color:var(--text-muted)">
             إذا كان الرقم موجوداً مسبقاً، سيتم ربط الحساب القائم بالطالب مباشرة.
@@ -46,12 +46,12 @@
 
         {# الاسم الكامل #}
         <div class="form-group">
-          <label class="form-label">الاسم الكامل <span style="color:red">*</span></label>
+          <label class="form-label">الاسم الكامل <span class="req-star">*</span></label>
           <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
                  class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
                  placeholder="الاسم الرباعي" required>
           {% if form.full_name.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.full_name.errors.0 }}</span>
+          <span class="field-error">{{ form.full_name.errors.0 }}</span>
           {% endif %}
         </div>
 
@@ -71,7 +71,7 @@
 
         {# صلة القرابة #}
         <div class="form-group">
-          <label class="form-label">صلة القرابة <span style="color:red">*</span></label>
+          <label class="form-label">صلة القرابة <span class="req-star">*</span></label>
           <select name="relationship" class="form-control" required>
             <option value="father" {% if form.relationship.value == "father" or not form.relationship.value %}selected{% endif %}>الأب</option>
             <option value="mother" {% if form.relationship.value == "mother" %}selected{% endif %}>الأم</option>
@@ -82,7 +82,7 @@
 
         {# الطالب #}
         <div class="form-group">
-          <label class="form-label">الطالب <span style="color:red">*</span></label>
+          <label class="form-label">الطالب <span class="req-star">*</span></label>
           <select name="student_id" class="form-control {% if form.student_id.errors %}border-red-400{% endif %}" required>
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
@@ -93,7 +93,7 @@
             {% endfor %}
           </select>
           {% if form.student_id.errors %}
-          <span style="font-size:.7rem;color:red">{{ form.student_id.errors.0 }}</span>
+          <span class="field-error">{{ form.student_id.errors.0 }}</span>
           {% endif %}
         </div>
 
