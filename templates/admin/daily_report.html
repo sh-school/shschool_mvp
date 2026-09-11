@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}تقرير الغياب اليومي{% endblock %}
 
 {% block breadcrumbs %}
@@ -85,7 +86,7 @@
       {% for record in absences %}
       <tr class="hover:bg-gray-50 transition">
         <td class="px-4 py-3 font-medium text-gray-900 text-sm">{{ record.student.full_name }}</td>
-        <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id }}</td>
+        <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id|mask_id }}</td>
         <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ record.session.class_group.school_order }}">{{ record.session.class_group }}</td>
         <td class="px-4 py-3">
           <span class="status-badge

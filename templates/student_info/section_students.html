@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 
 {% block title %}طلاب {{ group.grade|slice:"1:" }}/{{ group.section }}{% endblock %}
 
@@ -37,7 +38,7 @@
                 {{ e.student.full_name }}
               </a>
             </td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ e.student.national_id }}</td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ e.student.national_id|mask_id }}</td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>

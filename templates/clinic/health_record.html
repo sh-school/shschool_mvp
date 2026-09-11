@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -13,7 +14,7 @@
     <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
     <div class="profile-info">
       <div class="profile-name">{% include "components/icon.html" with name="hospital" %} السجل الصحي</div>
-      <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id }}</span></div>
+      <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id|mask_id }}</span></div>
     </div>
     <div class="flex gap-2 flex-wrap">
       <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-danger btn-sm no-underline">+ تسجيل زيارة جديدة</a>

@@ -93,8 +93,12 @@ class TestColumns:
 
         body = _body(client_as, principal)
 
-        for value in ("123456", "29000000011", "معلم رياضيات", "k@education.qa", "الريان", "قطري"):
+        for value in ("123456", "معلم رياضيات", "k@education.qa", "الريان", "قطري"):
             assert value in body, value
+        # والرقمُ الشخصيُّ مستورٌ في الشاشة (قرارُ المستخدم 2026-09-11):
+        # آخرُ أربعِ خاناتٍ تكفي للتمييز، والكاملُ في وثائق الطباعة وحدَها.
+        assert "*******0011" in body
+        assert "29000000011" not in body
 
     def test_the_departure_column_shows_only_for_those_who_left(self, client_as, school, principal):
         """عمودٌ فارغٌ على رأس العمل حشوٌ — ويُعرض حين يعني شيئاً."""

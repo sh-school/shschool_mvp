@@ -1,4 +1,5 @@
 {% load sorting %}
+{% load privacy %}
 {% comment %}
 جدولُ الطلاب — والفرزُ **من الخادم** لا من المتصفّح.
 
@@ -36,7 +37,7 @@
         </td>
         {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
         <td class="col-num col-center" style="font-family:monospace;font-size:var(--text-xs)"
-            title="الرقم كاملاً في ملفّ الطالب">{{ s.national_id|default:"—" }}</td>
+            title="الرقم كاملاً في ملفّ الطالب">{{ s.national_id|mask_id|default:"—" }}</td>
         <td class="col-center">
           <span class="status-badge status-info">{{ s.class_label }}</span>
         </td>
