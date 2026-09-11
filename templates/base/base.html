@@ -291,6 +291,13 @@
   <div class="sd-label">نظرة عامة</div>
   <a href="{% url 'staff_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الموظفين</a>
   <a href="{% url 'staff_affairs:staff_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
+  {% comment %}
+  شاشةُ العمل في هذه القائمة: التعيين. وكانت غائبةً عنها فلا يبلغها إلّا من
+  فتح السجلَّ أوّلاً ورأى الزرَّ في ترويسته — وأختُها «شؤون الطلاب» تعرض
+  «إضافة طالب جديد» و«إضافة وليّ أمر» في قائمتها مباشرةً. فاختلفت القائمتان
+  في ما يُفعَل لا في ما يُقرأ.
+  {% endcomment %}
+  <a href="{% url 'staff_affairs:staff_appoint' %}">{% include "components/icon.html" with name="user-plus" %} تعيين منتسب</a>
   <hr>
   <div class="sd-label">الحضور والإجازات</div>
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
