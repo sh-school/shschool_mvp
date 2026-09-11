@@ -7,7 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import CharField, F, Func, OuterRef, Q, Subquery, Value
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -17,6 +17,7 @@ from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
 from core.permissions import role_required
+from core.sorting import apply_sort
 
 from . import appointments, profile_service
 from .forms import (
@@ -108,6 +109,25 @@ def _member_or_404(user_id, school, *, active_only=False):
 #: التدريسيّةِ والإداريّةِ والفنّيّةِ والخدماتِ المساندة.
 PAGE_SIZE = 50
 
+#: ما يجوز الفرزُ به في سجلّ المنتسبين — مفتاحُ الرابط ← حقولُ الترتيب.
+#:
+#: `?sort=` نصٌّ يأتي من المستخدم، فلا يبلغ `order_by` إلّا عبر هذه القائمة.
+#: والاسمُ فاصلٌ يقطع التساوي في كلّ عمودٍ سواه، وإلّا تراقص ترتيبُ المتساوين
+#: بين صفحةٍ وأخرى.
+STAFF_SORTS = {
+    "name": ("full_name",),
+    "employee": ("employee_key", "full_name"),
+    "national": ("national_id",),
+    "role": ("gov_role", "full_name"),
+    "department": ("gov_department", "full_name"),
+    "phone": ("phone", "full_name"),
+    "email": ("email", "full_name"),
+    "residence": ("residence_area", "full_name"),
+    "nationality": ("nationality", "full_name"),
+    "joined": ("gov_joined", "full_name"),
+    "license": ("professional_license_expiry", "full_name"),
+}
+
 
 @login_required
 @role_required(STAFF_AFFAIRS_MANAGE)
@@ -139,16 +159,45 @@ def staff_list(request):
     if dept_filter:
         memberships = memberships.filter(department_obj_id=dept_filter)
 
-    people = CustomUser.objects.filter(id__in=memberships.values("user_id")).order_by("full_name")
+    people = CustomUser.objects.filter(id__in=memberships.values("user_id"))
     if q:
-        people = people.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
+        people = people.filter(
+            Q(full_name__icontains=q)
+            | Q(national_id__icontains=q)
+            | Q(employee_number__icontains=q)
+        )
+
+    # الدورُ والقسمُ وتاريخُ الالتحاق صفاتُ عضويّةٍ لا صفاتُ شخص، والتصفّحُ على
+    # الأشخاص. فتُجلب صفاتُ **العضويّة الحاكمة** بالاستعلام نفسِه ليصحّ الفرزُ
+    # بها على القائمة كلِّها لا على الصفحة الظاهرة.
+    from core.models.user import role_rank
+
+    governing = memberships.filter(user=OuterRef("pk")).order_by(role_rank(), "joined_at")
+    people = people.annotate(
+        gov_role=Subquery(governing.values("role__name")[:1]),
+        gov_department=Subquery(governing.values("department_obj__name")[:1]),
+        gov_joined=Subquery(governing.values("joined_at")[:1]),
+        # الرقمُ الوظيفيُّ نصٌّ في القاعدة وأطوالُه مختلفة (أربعُ خاناتٍ إلى ستّ)،
+        # وفرزُ النصّ يضع «9907» قبل «85308». فيُحشى بأصفارٍ إلى طولٍ واحدٍ
+        # فيصير ترتيبُ الحروف هو ترتيبَ الأعداد — بلا تحويلٍ يسقط على قيمةٍ
+        # غيرِ رقميّةٍ يوماً.
+        employee_key=Func(
+            F("employee_number"), Value(12), Value("0"), function="LPAD", output_field=CharField()
+        ),
+    )
+
+    people, sort = apply_sort(
+        people,
+        request,
+        allowed=STAFF_SORTS,
+        default="name",
+        desc_first=("joined", "license"),
+    )
 
     paginator = Paginator(people, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
     # عضويّاتُ صفحةٍ واحدةٍ في استعلامٍ واحد، والحاكمةُ منها أوّلاً.
-    from core.models.user import role_rank
-
     held = {}
     for m in (
         memberships.filter(user__in=list(page_obj))
@@ -165,14 +214,24 @@ def staff_list(request):
                 "id": user.id,
                 "full_name": user.full_name,
                 "national_id": user.national_id,
+                "employee_number": user.employee_number,
                 "role": m.role.name if m and m.role else "—",
                 # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.
                 "role_display": ((m.job_title or role_label(m.role.name)) if m and m.role else "—"),
+                # ودورُ المنصّة بجانبه: المسمّى وثيقةٌ إداريّة، والدورُ مفتاحُ
+                # الصلاحيّات — و«معلم علوم شرعية» لا يقول أيَّ شاشةٍ تُفتح له.
+                "role_label": role_label(m.role.name) if m and m.role else "—",
                 "department": (m.department_name if m else "") or "—",
                 "phone": user.phone,
                 "email": user.email,
+                "residence_area": user.residence_area,
+                "nationality": user.nationality,
                 "joined": m.joined_at if m else None,
+                "left": m.left_at if m else None,
+                "reference": (m.appointment_reference if m else "") or "",
+                "license_number": user.professional_license_number,
                 "license_expiry": user.professional_license_expiry,
+                "can_sign_in": user.is_active and user.has_usable_password(),
             }
         )
 
@@ -194,6 +253,8 @@ def staff_list(request):
         "staff": staff_rows,
         "total": paginator.count,
         "page_obj": page_obj,
+        "sort": sort,
+        "today": timezone.localdate(),
         "q": q,
         "role_filter": role_filter,
         "dept_filter": dept_filter,
