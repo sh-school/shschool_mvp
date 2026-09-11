@@ -80,6 +80,8 @@ def expand_roles(roles: set) -> set:
 # ── الجدول الدراسي والحصص ────────────────────────────────────────
 SCHEDULE_VIEW = {
     "principal",
+    # المطوّرُ يرى الجدولَ وطلباتِ التبديل: يُسأل عمّا فيها فلا يجدها.
+    "platform_developer",
     "vice_academic",
     "vice_admin",
     "coordinator",

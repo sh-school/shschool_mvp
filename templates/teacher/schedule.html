@@ -141,11 +141,23 @@
     </thead>
     <tbody class="divide-y divide-gray-100" id="sessions-tbody">
       {% for session in sessions %}
+      {% comment %}
+      الحصّةُ المبدَّلةُ تُعرف بلونها: `original_teacher` لا يُكتب إلّا حين
+      يُسلَّم اليومُ لغير صاحبه، فوجودُه وحدَه هو العلامة. والقارئُ يحتاج أن
+      يعرف أنّها ليست حصّتَه المعتادة قبل أن يدخلها — واللونُ يقول ذلك من
+      بعيد، والسطرُ تحت المادّة يقول لمن كانت.
+      {% endcomment %}
       <tr class="hover:bg-gray-50 transition
-        {% if next_session and session.id == next_session.id %}bg-green-50{% endif %}"
+        {% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}bg-green-50{% endif %}"
         data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group }}">
         <td class="px-4 py-3">
           <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
+          {% if session.original_teacher_id %}
+          <div class="swap-note">
+            {% include "components/icon.html" with name="refresh" size="icon-sm" %}
+            مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}
+          </div>
+          {% endif %}
         </td>
         {% if is_leadership %}<td class="px-4 py-3 text-sm text-gray-600">{{ session.teacher.full_name }}</td>{% endif %}
         <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group }}</td>
