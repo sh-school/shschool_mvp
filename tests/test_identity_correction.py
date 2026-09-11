@@ -194,3 +194,36 @@ class TestApplying:
             for entry in AuditLog.objects.filter(object_id=str(user.pk))
         ]
         assert not any("كشف الكادر" in reason for reason in reasons)
+
+
+class TestThePackedRegister:
+    """قاعدةُ الإنتاج لا يصلها الملفّ — والتصحيحُ يسبق الكشفَ ضرورةً."""
+
+    def test_the_packed_rows_correct_exactly_what_the_file_corrects(
+        self, db, school, tmp_path, capsys
+    ):
+        """الحزمةُ حزمةُ `import_staff_register --emit-b64` نفسُها لا صيغةٌ ثانية."""
+        from core.management.commands.import_staff_register import Command as StaffCommand
+        from core.management.commands.import_staff_register import _pack
+
+        UserFactory(full_name="سالمٌ الأوّل", national_id="28100000001", employee_number="7001")
+        path = _register(tmp_path, [["28100000009", "سالمٌ الأوّل", "7001", "معلم", "55500001"]])
+        packed = _pack(StaffCommand()._read(path, ""))
+
+        call_command("correct_identity_from_register", rows_b64=packed, apply=True)
+
+        assert CustomUser.objects.get(employee_number="7001").national_id == "28100000009"
+
+    def test_neither_input_is_refused(self, db, school):
+        """صمتُ الأمر عن مصدرِه أخطرُ من رفضه: يقرأ ملفّاً فارغاً ويقول لا تصحيح."""
+        with pytest.raises(CommandError, match="واحداً منهما"):
+            call_command("correct_identity_from_register")
+
+    def test_both_inputs_at_once_are_refused(self, db, school, tmp_path):
+        path = _register(tmp_path, [["28100000009", "سالم", "7001", "معلم", "55500001"]])
+        with pytest.raises(CommandError, match="واحداً منهما"):
+            call_command("correct_identity_from_register", file=path, rows_b64="x")
+
+    def test_a_payload_that_is_not_a_packed_register_is_refused(self, db, school):
+        with pytest.raises(CommandError):
+            call_command("correct_identity_from_register", rows_b64="ليست حزمة")
