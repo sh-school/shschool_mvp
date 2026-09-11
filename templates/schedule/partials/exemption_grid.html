@@ -47,13 +47,13 @@
           <span class="exg-cell is-off" aria-hidden="true">—</span>
           {% else %}
           <button type="button"
-                  class="exg-cell{% if cell.exemption_id %} is-exempt{% endif %}"
+                  class="exg-cell{% if cell.exemption_id %} is-exempt{% endif %}{% if cell.soft %} is-soft{% endif %}"
                   data-slot="{{ cell.key }}"
                   {% if cell.exemption_id %}data-exempt="{{ cell.exemption_id }}"{% endif %}
                   {% if cell.from_full_day %}data-full-day="1"{% endif %}
                   aria-pressed="false"
-                  aria-label="{{ row.name }} · الحصة {{ cell.period }}{% if cell.exemption_id %} — مفرَّغة{% endif %}"
-                  title="{{ row.name }} · الحصة {{ cell.period }}{% if cell.exemption_id %} — مفرَّغة{% endif %}"></button>
+                  aria-label="{{ row.name }} · الحصة {{ cell.period }}{% if cell.soft %} — لتوليد الجدول (يجوز فيها البديل والتبديل){% elif cell.exemption_id %} — مفرَّغة{% endif %}"
+                  title="{{ row.name }} · الحصة {{ cell.period }}{% if cell.soft %} — لتوليد الجدول (يجوز فيها البديل والتبديل){% elif cell.exemption_id %} — مفرَّغة{% endif %}"></button>
           {% endif %}
         </td>
         {% endfor %}
@@ -68,6 +68,7 @@
 
   <p class="exg-legend">
     <span class="exg-key is-exempt"></span> مفرَّغة الآن
+    <span class="exg-key is-exempt is-soft"></span> لتوليد الجدول — يجوز فيها البديل والتبديل
     <span class="exg-key is-picked"></span> مختارةٌ للتفريغ
     <span class="exg-key is-dropping"></span> مختارةٌ للإلغاء
     <span class="exg-muted">— انقر لتظليل خانةٍ حرّة، أو لترشيح مفرَّغةٍ للإلغاء. واسحب لعدّة خانات.</span>
