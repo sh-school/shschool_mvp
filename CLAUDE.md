@@ -65,8 +65,16 @@ WEB_PORT=8001 docker compose -p schoolos-$(basename $PWD) --project-directory . 
 4. `git push origin HEAD:refs/heads/claude/<اسم-المهمّة>` وافتح طلبَ دمج.
 5. **لا دفعَ إلى `main` مباشرةً** — البوّاباتُ تمرّ على طلب الدمج.
 
-## Cache-busting
+## كسرُ ذاكرة المتصفّح — لا تفعل شيئاً
 
-عند تعديل CSS أو JS، ارفع رقم الإصدار في `base.html` و `login.html`:
-- CSS: `custom.css?v=100` → `?v=101`
-- JS: `base.js?v=100` → `?v=101` و `app.js?v=100` → `?v=101`
+كان الطقسُ رفعَ `?v=N` يدوياً في `base.html` و`login.html` عند كلّ تعديل.
+وقد أُزيل: أربعةَ عشرَ موضعاً في ستّة قوالب.
+
+فالإنتاجُ يبصم الاسمَ بمحتواه أصلاً عبر
+`whitenoise.storage.CompressedManifestStaticFilesStorage` —
+`/static/css/custom.06dcd9ebed41.css` — والبصمةُ تتغيّر متى تغيّر الملفّ،
+وهو بعينه ما كان `?v=` يحاوله. والتطويرُ يُعيد التحقّق بـ`Last-Modified`.
+
+وكان الرقمُ اليدويُّ يكلّف ثلاثاً: يُنسى فيرى المستخدمُ نمطاً قديماً،
+ويتصادم في كلّ طلبِ دمجٍ لأنّه سطرٌ واحدٌ يلمسه كلُّ فرع، ويُشغل المراجعةَ
+بما لا معنى له.

@@ -980,8 +980,17 @@
 
 {% endif %}
 
-{% if view_type == "director" %}
+{% endblock %}
+
+{% comment %}
+كانت كتلةُ السكربت معرَّفةً داخلَ كتلة المحتوى، ومزلقُ جانغو أنّ الكتلةَ
+المتداخلةَ تُرسَم مرّتين: مرّةً في مكانها من المحتوى، ومرّةً حيث يضعها
+القالبُ الأب. فكان `const OPTS` يُصرَّح مرّتين في الصفحة الواحدة، ويُخفق
+السكربتُ الثاني بـ Identifier 'OPTS' has already been declared — فلا
+يُرسَم رسمُه. وأُخرجت الكتلةُ إلى مستواها، والشرطُ داخلَها.
+{% endcomment %}
 {% block extra_js %}
+{% if view_type == "director" %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family = 'Tajawal, sans-serif';
@@ -1023,7 +1032,5 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
   });
 })();
 </script>
-{% endblock %}
 {% endif %}
-
 {% endblock %}

@@ -797,13 +797,13 @@
 صفحةٌ قائمة بذاتها لا تمتدّ من `base`، فلا تصلها `actions.js` منها. ومفردات
 `data-*` هنا كانت ستصمت بلا أثر — لا خطأ في وحدة التحكّم ولا سلوك.
 {% endcomment %}
-<script src="{% static 'js/actions.js' %}?v=3" defer></script>
+<script src="{% static 'js/actions.js' %}" defer></script>
 {% comment %}
 طبقةُ التفاعل — داخل إطار المنصّة وحدَه، وللجدول العامّ وحدَه. الطباعةُ
 وتصديرُ PDF/Excel لا يحمّلونها أصلاً، فلا وزنَ لها على المطبوع.
 {% endcomment %}
 {% if embed and view_type == 'all_teachers' %}
-<script src="{% static 'js/schedule-matrix.js' %}?v=2" defer></script>
+<script src="{% static 'js/schedule-matrix.js' %}" defer></script>
 {% endif %}
 </body>
 </html>
