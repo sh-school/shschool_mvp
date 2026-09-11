@@ -9014,3 +9014,30 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
   }
 }
 }
+
+/* ── بطاقةُ غيابٍ: الحالةُ شريطٌ على الحافّة ───────────────────────────────
+   كان رأسُ البطاقة يُلوَّن بـ`bg-green-50` وأخواتها. وقد قِستُها فوجدتُها
+   تنقلب مع الوضع الداكن كما ينبغي — سلّمُ tailwind يقرأ رموزَ المنصّة ولا
+   ينسخ قيماً (طلبا الدمج 182 و184). فليس العطبُ تبايناً.
+   والشريطُ أوضحُ: يقرأ رمزَ الحالة نفسَه الذي يقرؤه الوسمُ بجانبه، فلا
+   يفترق اللونان عن معنىً واحد، ولا يُنافس لونُ الخلفيّة لونَ الوسم. */
+.absence-head {
+  border-bottom-color: var(--border);
+  box-shadow: inset 4px 0 0 var(--border);
+}
+.absence-head.is-covered   { box-shadow: inset 4px 0 0 var(--status-success); }
+.absence-head.is-uncovered { box-shadow: inset 4px 0 0 var(--status-danger); }
+.absence-head.is-pending   { box-shadow: inset 4px 0 0 var(--status-warning); }
+.absence-initial {
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 999px;
+  background: var(--maroon);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  flex: none;
+}
