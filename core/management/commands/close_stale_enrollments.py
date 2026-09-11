@@ -2,6 +2,7 @@
 
     python manage.py close_stale_enrollments
     python manage.py close_stale_enrollments --not-in-register "سجل_القيد.xlsx"
+    python manage.py close_stale_enrollments --register-b64 - < حزمة   # قاعدةٌ لا يصلها الملفّ
     python manage.py close_stale_enrollments … --apply
 
 ## العلّة
@@ -56,6 +57,17 @@ class Command(BaseCommand):
             metavar="ملفّ",
             help="سجلُّ القيد الوزاريّ — ويُغلق قيدُ من ليس فيه من طلاب العام الجاري",
         )
+        # وقاعدةُ الإنتاج لا يصلها ملفُّ الإكسل، فالوضعُ الثاني كان محبوساً عن
+        # القاعدة التي تحتاجه أكثرَ من غيرها. والحزمةُ حزمةُ
+        # `import_enrolment_register --emit-b64` نفسُها لا صيغةٌ ثانية.
+        parser.add_argument(
+            "--register-b64",
+            default="",
+            help=(
+                "سجلُّ القيد محزوماً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها."
+                " و«-» تقرأ الحزمةَ من المدخل القياسيّ، وهو الأسلم"
+            ),
+        )
         parser.add_argument(
             "--keep-past-years",
             action="store_true",
@@ -66,7 +78,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         school = self._school(options["school"])
         year = options["year"] or self._year(school)
-        if options["keep_past_years"] and not options["not_in_register"]:
+        if options["not_in_register"] and options["register_b64"]:
+            raise CommandError("حدّد --not-in-register أو --register-b64 — لا كليهما.")
+        if options["keep_past_years"] and not (
+            options["not_in_register"] or options["register_b64"]
+        ):
             raise CommandError("--keep-past-years بلا --not-in-register لا يُبقي عملاً.")
 
         active = StudentEnrollment.objects.filter(is_active=True, class_group__school=school)
@@ -75,7 +91,7 @@ class Command(BaseCommand):
             if options["keep_past_years"]
             else active.exclude(class_group__academic_year=year)
         )
-        absent = self._absent_from_register(active, year, options["not_in_register"])
+        absent = self._absent_from_register(active, year, options)
 
         self.stdout.write(f"المدرسة: {school.name} · العامُ الجاري {year}")
         self.stdout.write(f"قيودٌ نشطة: {active.count()}")
@@ -96,14 +112,21 @@ class Command(BaseCommand):
 
     # ── القراءة ──────────────────────────────────────────────────────
 
-    def _absent_from_register(self, active, year, path):
-        """قيودُ العام الجاري لمن لا يذكره السجلّ — أو لا شيءَ إن لم يُمرَّر ملفّ."""
-        if not path:
+    def _absent_from_register(self, active, year, options):
+        """قيودُ العام الجاري لمن لا يذكره السجلّ — أو لا شيءَ إن لم يُمرَّر سجلّ."""
+        path, packed = options["not_in_register"], options["register_b64"]
+        if not path and not packed:
             return StudentEnrollment.objects.none()
 
-        from core.management.commands.import_enrolment_register import Command as RegisterCommand
+        from core.management.commands.import_enrolment_register import (
+            Command as RegisterCommand,
+        )
+        from core.management.commands.import_enrolment_register import _payload, _unpack
 
-        roster, _tracks = RegisterCommand()._read(path)
+        if packed:
+            roster, _tracks = _unpack(_payload(packed))
+        else:
+            roster, _tracks = RegisterCommand()._read(path)
         if not roster:
             raise CommandError("لم يُقرأ طالبٌ واحد من السجلّ.")
         return active.filter(class_group__academic_year=year).exclude(
@@ -165,7 +188,7 @@ class Command(BaseCommand):
                 "year": year,
                 "modes": {
                     "past_years": not options["keep_past_years"],
-                    "not_in_register": bool(options["not_in_register"]),
+                    "not_in_register": bool(options["not_in_register"] or options["register_b64"]),
                 },
                 "students": students,
             },
