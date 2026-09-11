@@ -69,7 +69,7 @@
              style="width:100%;max-width:400px">
       <div id="tardiness-results" role="listbox" aria-label="نتائج البحث"
            style="display:none;position:absolute;top:100%;right:0;width:100%;max-width:400px;
-                  background:var(--bg-card);border:1px solid var(--border);border-radius:8px;
+                  background:var(--surface);border:1px solid var(--border);border-radius:8px;
                   box-shadow:var(--shadow-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px">
       </div>
     </div>
@@ -83,7 +83,7 @@
         <div style="flex:1;min-width:160px">
           <label style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">الطالب</label>
           <input id="tardiness-student-name" type="text" class="form-control" readonly
-                 style="background:var(--bg-muted);cursor:default" aria-label="اسم الطالب المحدد">
+                 style="background:var(--surface-alt);cursor:default" aria-label="اسم الطالب المحدد">
         </div>
         <div style="width:140px">
           <label for="tardiness-excuse-min" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">التماس (دقائق)</label>
@@ -120,7 +120,7 @@
     <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب الفصل</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% for item in class_breakdown %}
-      <span style="background:var(--bg-muted);padding:4px 12px;border-radius:6px;font-size:.85rem">
+      <span style="background:var(--surface-alt);padding:4px 12px;border-radius:6px;font-size:.85rem">
         {{ item.session__class_group__grade }}/{{ item.session__class_group__section }}: <strong>{{ item.count }}</strong>
       </span>
       {% endfor %}
@@ -134,7 +134,7 @@
     <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب المرحلة</h3>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       {% for item in stage_breakdown %}
-      <span style="background:var(--bg-muted);padding:4px 12px;border-radius:6px;font-size:.85rem">
+      <span style="background:var(--surface-alt);padding:4px 12px;border-radius:6px;font-size:.85rem">
         {{ item.stage_label }}: <strong>{{ item.count }}</strong>
       </span>
       {% endfor %}
@@ -170,7 +170,7 @@
           </td>
           <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
           <td>
-            <span style="background:var(--bg-muted);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--red);font-weight:600{% endif %}">
+            <span style="background:var(--surface-alt);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--status-danger);font-weight:600{% endif %}">
               {{ rec.cumulative_late }}
             </span>
           </td>
@@ -194,7 +194,7 @@
             <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
                   style="display:inline" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
               {% csrf_token %}
-              <button type="submit" class="btn-secondary btn-xs" style="color:var(--red)"
+              <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)"
                       aria-label="إلغاء تأخير {{ rec.student.full_name }}">
                 {% include "components/icon.html" with name="trash" %} إلغاء
               </button>
@@ -277,7 +277,7 @@
         attachResultListeners();
       })
       .catch(function() {
-        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--red);font-size:.85rem">خطأ في البحث</div>';
+        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--status-danger);font-size:.85rem">خطأ في البحث</div>';
         resultsBox.style.display = 'block';
       });
     }, 250);

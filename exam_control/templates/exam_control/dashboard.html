@@ -26,8 +26,8 @@
     <div class="card-qatar overflow-hidden">
       <div class="flex items-center justify-between px-5 py-4">
         <div>
-          <h2 class="font-bold text-[var(--text)] m-0">{{ s.name }}</h2>
-          <p class="text-xs text-[var(--muted)] mt-1">{{ s.start_date|date:"d/m/Y" }} ← {{ s.end_date|date:"d/m/Y" }} · {{ s.academic_year }}</p>
+          <h2 class="font-bold text-[var(--text-primary)] m-0">{{ s.name }}</h2>
+          <p class="text-xs text-[var(--text-muted)] mt-1">{{ s.start_date|date:"d/m/Y" }} ← {{ s.end_date|date:"d/m/Y" }} · {{ s.academic_year }}</p>
         </div>
         <span class="status-badge
           {% if s.status == 'active' %}status-success
@@ -40,11 +40,11 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-t border-[var(--border)]">
         <div class="p-4 text-center border-l border-[var(--border)]">
           <div class="text-xl font-bold text-status-danger">{{ s.incident_count }}</div>
-          <div class="text-xs text-[var(--muted)]">حوادث</div>
+          <div class="text-xs text-[var(--text-muted)]">حوادث</div>
         </div>
         <div class="p-4 text-center border-l border-[var(--border)]">
           <div class="text-xl font-bold text-status-warning">{{ s.pending_sheets }}</div>
-          <div class="text-xs text-[var(--muted)]">رصد معلق</div>
+          <div class="text-xs text-[var(--text-muted)]">رصد معلق</div>
         </div>
         <div class="p-4 text-center border-l border-[var(--border)]">
           <a href="{% url 'exam_control:session_detail' s.pk %}" class="btn-secondary btn-sm" aria-label="تفاصيل دورة {{ s.name }}">التفاصيل</a>

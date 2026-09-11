@@ -28,8 +28,8 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=10") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=171">
+  <style>@import url("{% static 'css/tailwind.min.css' %}?v=12") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=172">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}

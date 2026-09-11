@@ -86,7 +86,7 @@
       <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <div>
           <strong style="font-size:.75rem">{{ b.book.title|truncatechars:40 }}</strong>
-          <span style="font-size:.6rem;color:var(--muted);display:block">{{ b.user.full_name }}</span>
+          <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ b.user.full_name }}</span>
         </div>
         <span style="font-size:.65rem;font-weight:600;color:var(--status-warning)">{{ b.due_date|date:"d/m" }}</span>
       </div>
@@ -122,7 +122,7 @@
         {% for book in recent_books %}
         <div class="dash-list-item">
           <strong style="font-size:.75rem">{{ book.title }}</strong>
-          <span style="font-size:.6rem;color:var(--muted);display:block">{{ book.author }} — {{ book.category }}</span>
+          <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ book.author }} — {{ book.category }}</span>
           <span style="font-size:.6rem;font-weight:600;color:{% if book.available_qty > 0 %}var(--status-success){% else %}var(--status-danger){% endif %}">
             {{ book.available_qty }} نسخة متاحة
           </span>
@@ -130,7 +130,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <p style="font-size:.75rem;color:var(--muted);padding:8px 10px">لا توجد كتب</p>
+      <p style="font-size:.75rem;color:var(--text-muted);padding:8px 10px">لا توجد كتب</p>
       {% endif %}
     </div>
 
@@ -143,7 +143,7 @@
         <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div>
             <strong style="font-size:.75rem">{{ b.user.full_name }}</strong>
-            <span style="font-size:.6rem;color:var(--muted);display:block">{{ b.book.title|truncatechars:30 }}</span>
+            <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ b.book.title|truncatechars:30 }}</span>
           </div>
           <span style="font-size:.6rem;font-weight:600;color:{% if b.status == 'OVERDUE' %}var(--status-danger){% elif b.status == 'BORROWED' %}var(--chart-3,#1A3A5C){% else %}var(--status-success){% endif %}">
             {{ b.get_status_display }}
@@ -152,7 +152,7 @@
         {% endfor %}
       </div>
       {% else %}
-      <p style="font-size:.75rem;color:var(--muted);padding:8px 10px">لا توجد إعارات</p>
+      <p style="font-size:.75rem;color:var(--text-muted);padding:8px 10px">لا توجد إعارات</p>
       {% endif %}
     </div>
   </div>

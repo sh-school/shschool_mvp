@@ -19,8 +19,8 @@
 
   {% if not children_behavior %}
   <div class="card-qatar text-center py-12">
-    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين بحسابك حالياً</p>
-    <p class="text-sm text-[var(--muted)] mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك</p>
+    <p class="text-[var(--text-muted)] text-lg">لا يوجد أبناء مربوطين بحسابك حالياً</p>
+    <p class="text-sm text-[var(--text-muted)] mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك</p>
   </div>
   {% endif %}
 
@@ -30,13 +30,13 @@
     <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
       <div>
         <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-[var(--muted)]">إجمالي المخالفات: {{ child.total_infractions }}</p>
+        <p class="text-sm text-[var(--text-muted)]">إجمالي المخالفات: {{ child.total_infractions }}</p>
       </div>
       <div class="text-center">
         <div class="text-2xl font-bold {% if child.behavior_score >= 80 %}text-green-600{% elif child.behavior_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
           {{ child.behavior_score }}%
         </div>
-        <div class="text-xs text-[var(--muted)]">مؤشر السلوك</div>
+        <div class="text-xs text-[var(--text-muted)]">مؤشر السلوك</div>
       </div>
     </div>
 
@@ -54,7 +54,7 @@
 
     {# Recent Infractions #}
     {% if child.infractions %}
-    <h3 class="font-semibold text-sm mb-2 text-[var(--muted)]">آخر المخالفات</h3>
+    <h3 class="font-semibold text-sm mb-2 text-[var(--text-muted)]">آخر المخالفات</h3>
     <div class="table-wrap">
       <table class="w-full text-sm">
         <thead>
@@ -79,7 +79,7 @@
                 {{ inf.violation_category.code }}
               </span>
               {% else %}
-              <span class="text-[var(--muted)]">—</span>
+              <span class="text-[var(--text-muted)]">—</span>
               {% endif %}
             </td>
             <td class="py-2 px-2">{{ inf.description|truncatewords:10 }}</td>
@@ -96,7 +96,7 @@
       </table>
     </div>
     {% else %}
-    <div class="text-center py-6 text-[var(--muted)]">
+    <div class="text-center py-6 text-[var(--text-muted)]">
       لا توجد مخالفات مسجلة — ممتاز!
     </div>
     {% endif %}

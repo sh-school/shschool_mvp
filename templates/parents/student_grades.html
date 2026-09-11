@@ -60,7 +60,7 @@
         <tbody class="divide-y divide-[var(--border)]">
           {% for row in rows %}
           <tr class="hover:bg-[var(--surface-alt)] {% if row.annual.status == 'fail' %}bg-red-50 dark:bg-red-900/10{% endif %}">
-            <td class="px-4 py-3 font-medium text-[var(--text)]">{{ row.subject }}</td>
+            <td class="px-4 py-3 font-medium text-[var(--text-primary)]">{{ row.subject }}</td>
 
             <td class="px-4 py-3 text-center">
               {% if row.s1 and row.s1.total is not None %}
@@ -137,7 +137,7 @@
   {% else %}
   <div class="card-qatar text-center py-12">
     <p class="text-4xl mb-3">{% include "components/icon.html" with name="bar-chart" size="icon-2xl" %}</p>
-    <p class="text-[var(--muted)]">لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
+    <p class="text-[var(--text-muted)]">لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
   </div>
   {% endif %}
 

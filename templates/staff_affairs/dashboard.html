@@ -104,7 +104,7 @@
               {% if total_staff > 0 %}
               <div style="display:flex;align-items:center;gap:6px">
                 <div style="height:6px;background:var(--maroon,#8A1538);border-radius:3px;width:{% widthratio r.count total_staff 100 %}%"></div>
-                <span style="font-size:.7rem;color:var(--muted)">{% widthratio r.count total_staff 100 %}%</span>
+                <span style="font-size:.7rem;color:var(--text-muted)">{% widthratio r.count total_staff 100 %}%</span>
               </div>
               {% endif %}
             </td>
@@ -126,7 +126,7 @@
         <div class="dash-list-item">
           <div style="flex:1">
             <span style="font-weight:600;font-size:.8rem">{{ a.teacher.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ a.date|date:"d/m" }}</span>
+            <span style="font-size:.65rem;color:var(--text-muted);margin-right:6px">{{ a.date|date:"d/m" }}</span>
           </div>
           <span class="status-badge
             {% if a.status == "covered" %}status-success
@@ -150,7 +150,7 @@
         <div class="dash-list-item">
           <div style="flex:1">
             <span style="font-weight:600;font-size:.8rem">{{ l.staff.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ l.get_leave_type_display }}</span>
+            <span style="font-size:.65rem;color:var(--text-muted);margin-right:6px">{{ l.get_leave_type_display }}</span>
           </div>
           <span class="status-badge
             {% if l.status == "approved" %}status-success

@@ -30,7 +30,7 @@
   .teacher-panel[hidden] { display: none; }
   .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
   /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونه نفسِه في الورقة. */
-  .teacher-panel .tp-spec { color: var(--brand-maroon, #8A1538); font-weight: 500; font-size: 13px; }
+  .teacher-panel .tp-spec { color: var(--maroon); font-weight: 500; font-size: 13px; }
   .teacher-panel .tp-dept { color: var(--text-secondary); font-size: 12px; }
   .teacher-panel .tp-nums { display: flex; gap: 6px; margin: 10px 0; }
   .teacher-panel .tp-num {
@@ -49,14 +49,14 @@
     flex: 1; height: 14px; border-radius: 3px;
     border: 1px solid var(--border); background: var(--surface);
   }
-  .teacher-panel .tp-slot.on { background: var(--brand-maroon, #8A1538); border-color: transparent; }
+  .teacher-panel .tp-slot.on { background: var(--maroon); border-color: transparent; }
   .teacher-panel .tp-count { flex: 0 0 18px; text-align: center; font-size: 12px; font-weight: 700; }
   .teacher-panel .tp-close {
     margin-top: 10px; width: 100%; border: 1px solid var(--border);
     background: var(--surface); border-radius: 6px; padding: 5px; cursor: pointer;
     font: inherit; color: var(--text-secondary);
   }
-  .teacher-panel .tp-close:hover { border-color: var(--brand-maroon, #8A1538); }
+  .teacher-panel .tp-close:hover { border-color: var(--maroon); }
 </style>
 {% endblock %}
 
