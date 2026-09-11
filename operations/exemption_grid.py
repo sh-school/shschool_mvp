@@ -48,6 +48,8 @@ class Cell:
     exemption_id: str = ""
     #: أهو تفريغُ «يومٍ كامل»؟ فلا يُرفع بخانةٍ واحدةٍ بل بصفّه.
     from_full_day: bool = False
+    #: تفريغٌ «لتوليد الجدول»: موسومٌ لا مانع — يجوز فيه البديلُ والتبديل.
+    soft: bool = False
     #: خانةٌ لا وجودَ لها في أسبوع هذا المعلّم — كسابعةِ الخميس لمن لا
     #: يُدرّس ثانويّاً. تُعرض مطفأةً ولا تُظلَّل.
     disabled: bool = False
@@ -133,7 +135,10 @@ def build_grid(school, teacher, academic_year: str) -> GridView:
     )
     per_slot: dict[tuple[int, int], str] = {}
     full_days: dict[int, str] = {}
+    soft_ids: set[str] = set()
     for ex in exemptions:
+        if not ex.binds_people:
+            soft_ids.add(str(ex.id))
         if ex.exemption_type == "full_day" or ex.period_number is None:
             full_days[ex.day_of_week] = str(ex.id)
         else:
@@ -162,6 +167,7 @@ def build_grid(school, teacher, academic_year: str) -> GridView:
                 cell.from_full_day = True
             elif (day, period) in per_slot:
                 cell.exemption_id = per_slot[(day, period)]
+            cell.soft = cell.exemption_id in soft_ids
             if not cell.disabled:
                 week_slots += 1
                 if cell.exemption_id:
