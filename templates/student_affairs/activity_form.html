@@ -28,7 +28,7 @@
       <div class="form-row">
 
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">الطالب <span style="color:red">*</span></label>
+          <label class="form-label">الطالب <span class="req-star">*</span></label>
           <select name="student_id" class="form-control" required {% if mode == "edit" %}disabled{% endif %}>
             <option value="">— اختر الطالب —</option>
             {% for m in students %}
@@ -45,12 +45,12 @@
         </div>
 
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">العنوان <span style="color:red">*</span></label>
+          <label class="form-label">العنوان <span class="req-star">*</span></label>
           <input type="text" name="title" value="{{ form.title.value|default:'' }}" class="form-control" placeholder="مثال: المركز الأول في مسابقة الرياضيات" required>
         </div>
 
         <div class="form-group">
-          <label class="form-label">نوع النشاط <span style="color:red">*</span></label>
+          <label class="form-label">نوع النشاط <span class="req-star">*</span></label>
           <select name="activity_type" class="form-control" required>
             {% for val, label in form.fields.activity_type.choices %}
             <option value="{{ val }}" {% if form.activity_type.value == val %}selected{% endif %}>{{ label }}</option>
@@ -59,7 +59,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">النطاق <span style="color:red">*</span></label>
+          <label class="form-label">النطاق <span class="req-star">*</span></label>
           <select name="scope" class="form-control" required>
             {% for val, label in form.fields.scope.choices %}
             <option value="{{ val }}" {% if form.scope.value == val %}selected{% endif %}>{{ label }}</option>
@@ -68,7 +68,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">التاريخ <span style="color:red">*</span></label>
+          <label class="form-label">التاريخ <span class="req-star">*</span></label>
           <input type="date" name="date" value="{{ form.date.value|default:'' }}" class="form-control" required>
         </div>
 

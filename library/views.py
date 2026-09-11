@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core import brand
 from core.models import BookBorrowing, CustomUser, LibraryBook
 from core.permissions import LIBRARY_FULL, LIBRARY_VIEW, librarian_required, role_required
 from library.services import LibraryService
@@ -24,7 +25,7 @@ def library_dashboard(request):
 
     # ✅ v5.4: LibraryService.get_dashboard_context — جميع الـ queries في service layer
     context = LibraryService.get_dashboard_context(school)
-    context["maroon_color"] = "#8A1538"
+    context["maroon_color"] = brand.MAROON
     return render(request, "library/dashboard.html", context)
 
 

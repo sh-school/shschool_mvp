@@ -1,17 +1,6 @@
 {% extends "base/base.html" %}
 {% load schedule_filters %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  /* مؤشراتُ المختبر تحت سطر التوليد: مطويّةٌ افتراضاً، والأفضلُ أخضرُ والأسوأُ أحمر. */
-  .lab-row td { background: var(--surface-alt, #faf7f8); }
-  .lab-table { width: 100%; border-collapse: collapse; }
-  .lab-table th, .lab-table td { padding: 3px 10px; border-top: 1px solid var(--border, #eee); }
-  .lab-table th { text-align: start; font-weight: 600; }
-  .lab-better td:nth-child(n+2) { color: var(--status-success, #15803d); }
-  .lab-worse td:nth-child(n+2) { color: var(--status-danger, #b91c1c); }
-</style>
-{% endblock %}
 {% block title %}الجدولة الذكية — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -57,7 +46,7 @@
     <div class="kpi-label">شُعب ومعلمون مشاركون</div>
   </div>
   {% if feasibility.minimum_unplaceable %}
-  <div class="kpi-card" style="border-color:var(--status-danger)">
+  <div class="kpi-card" style="border-color:var(--status-danger-fg)">
     <div class="kpi-value text-status-danger">{{ feasibility.minimum_unplaceable }}</div>
     <div class="kpi-label">حصّةٌ لن تجد موضعاً — بالعدّ لا بالبحث</div>
   </div>

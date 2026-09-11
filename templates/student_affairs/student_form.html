@@ -41,7 +41,7 @@
 
         {# الرقم الشخصي #}
         <div class="form-group" {% if mode == "edit" %}style="grid-column:span 2"{% endif %}>
-          <label class="form-label">الرقم الشخصي <span style="color:red">*</span></label>
+          <label class="form-label">الرقم الشخصي <span class="req-star">*</span></label>
           {% if mode == "add" %}
           <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
@@ -56,7 +56,7 @@
 
         {# الاسم الكامل #}
         <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">الاسم الكامل <span style="color:red">*</span></label>
+          <label class="form-label">الاسم الكامل <span class="req-star">*</span></label>
           <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
                  class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
                  placeholder="الاسم الرباعي" required>
@@ -90,7 +90,7 @@
 
         {# الصف #}
         <div class="form-group">
-          <label class="form-label">الصف <span style="color:red">*</span></label>
+          <label class="form-label">الصف <span class="req-star">*</span></label>
           <select name="grade" class="form-control" required>
             <option value="">— اختر الصف —</option>
             {% for val, label in grades %}
@@ -104,7 +104,7 @@
 
         {# الشعبة #}
         <div class="form-group">
-          <label class="form-label">الشعبة <span style="color:red">*</span></label>
+          <label class="form-label">الشعبة <span class="req-star">*</span></label>
           <input type="text" name="section" value="{{ form.section.value|default:'' }}"
                  class="form-control {% if form.section.errors %}border-red-400{% endif %}"
                  placeholder="مثال: أ" required>

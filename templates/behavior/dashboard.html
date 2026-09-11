@@ -65,7 +65,7 @@
       {% for v in top_violations %}
       <div class="dash-list-item">
         <span>{{ v.violation_category__name_ar }}</span>
-        <span class="font-semibold" style="color:var(--maroon)">{{ v.count }}</span>
+        <span class="font-semibold" style="color:var(--maroon-fg)">{{ v.count }}</span>
       </div>
       {% endfor %}
     </div>
@@ -96,7 +96,7 @@
       {% for inf in critical_unresolved %}
       <div class="dash-list-item">
         <span>{{ inf.student.full_name }} — {{ inf.description|truncatechars:50 }}</span>
-        <span style="color:var(--status-danger);font-weight:600">درجة {{ inf.level }}</span>
+        <span style="color:var(--status-danger-fg);font-weight:600">درجة {{ inf.level }}</span>
       </div>
       {% endfor %}
     </div>
