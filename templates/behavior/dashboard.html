@@ -86,6 +86,7 @@
     {% if can_summon %}
     <a href="{% url 'behavior:summon_parent' %}" class="ql-item">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
     {% endif %}
+    <a href="{% url 'behavior:policy_pdf' %}" class="ql-item">{% include "components/icon.html" with name="file-text" %} لائحة السلوك (PDF)</a>
   </div>
 
   {# ── Collapsible: Critical Cases ── #}

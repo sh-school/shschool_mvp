@@ -16,6 +16,7 @@ from unittest.mock import patch
 from django.template.loader import render_to_string
 
 TEMPLATE = "notifications/email/behavior_html.html"
+TEXT_TEMPLATE = "notifications/email/behavior_text.txt"
 
 #: المفاتيحُ التي يبنيها `BehaviorService.notify_parents` — أسماءٌ مقروءة
 #: لا كائنات، فالسياقُ يعبر Celery مُسلسَلاً.
@@ -30,6 +31,7 @@ CALL_SITE_CONTEXT = {
     "description": "تأخّر متكرّر",
     "action_taken": "إنذار خطّي",
     "reported_by": "سفيان مسيف",
+    "points_deducted": 5,
 }
 
 
@@ -43,6 +45,14 @@ def test_the_template_renders_with_what_the_call_site_builds():
     ]
     assert not missing, "قيمٌ لم تظهر في البريد: " + ", ".join(missing)
     assert "{{" not in html and "{%" not in html, "وسمٌ لم يُحَلّ في البريد"
+
+
+def test_the_text_part_renders_too():
+    """نظيرُ الـHTML النصّيُّ — بديلُ البريد حين لا يُعرض المنسَّق."""
+    text = render_to_string(TEXT_TEMPLATE, CALL_SITE_CONTEXT)
+    assert "{{" not in text and "{%" not in text
+    assert CALL_SITE_CONTEXT["student_name"] in text
+    assert str(CALL_SITE_CONTEXT["points_deducted"]) in text
 
 
 def test_the_hub_passes_the_rendered_html_to_the_mailer():
@@ -63,9 +73,11 @@ def test_the_hub_passes_the_rendered_html_to_the_mailer():
             context={},
             sent_by=None,
             email_html="<b>منسَّق</b>",
+            email_text="نصٌّ غنيّ",
         )
     assert mailer.called, "لم يُستدعَ المُرسِل"
     assert mailer.call_args.kwargs.get("body_html") == "<b>منسَّق</b>"
+    assert mailer.call_args.kwargs.get("body_text") == "نصٌّ غنيّ"
 
 
 def test_without_a_template_the_mail_stays_plain():
@@ -87,3 +99,4 @@ def test_without_a_template_the_mail_stays_plain():
             sent_by=None,
         )
     assert mailer.call_args.kwargs.get("body_html") is None
+    assert mailer.call_args.kwargs.get("body_text") == "نصّ"

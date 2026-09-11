@@ -604,11 +604,13 @@ class BehaviorService:
                     "description": infraction.description or "",
                     "action_taken": getattr(infraction, "action_taken", "") or "",
                     "reported_by": reporter.full_name if reporter else "",
+                    "points_deducted": getattr(infraction, "points_deducted", 0) or 0,
                 },
                 # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
                 # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
                 # حساسيّةً. والقالبُ كان مكتوباً ولم يُوصَل بمُرسِل.
                 email_html_template="notifications/email/behavior_html.html",
+                email_text_template="notifications/email/behavior_text.txt",
                 related_object_id=infraction.pk,
                 related_url=f"/behavior/student/{infraction.student.pk}/",
                 sent_by=reporter,

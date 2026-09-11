@@ -18,13 +18,6 @@ ALLOWED_ORPHANS = {
     # جانغو يجدهما بـhandler404/handler500 لا باسمٍ مكتوب.
     "404.html",
     "500.html",
-    # يحفظه فحصُ رؤية الوزارة وحدَه — إمّا يُوصَل بعرضٍ أو يُحذف.
-    "behavior/pdf/policy_doc.html",
-    # يُستدعى بالاسم من `BehaviorService.notify_parents` عبر
-    # `email_html_template`، لا بـ`render_to_string` — فلا يراه المسحُ النصّيّ.
-    "notifications/email/behavior_html.html",
-    # نظيرُه النصّيُّ ينتظر وصلاً مثلَه.
-    "notifications/email/behavior_text.txt",
 }
 
 
