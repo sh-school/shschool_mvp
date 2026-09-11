@@ -19,6 +19,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
+from core import brand
+
 logger = logging.getLogger(__name__)
 
 # ── Cache للـ backend الناجح — نتجنّب إعادة المحاولة في كل طلب ────────────
@@ -211,10 +213,10 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     font-family:  'Tajawal', 'Amiri', Arial, sans-serif;
     font-size:    9.5px;
     font-weight:  700;
-    color:        #8A1538;
+    color:        {brand.MAROON};
     text-align:   center !important;
     padding:      3px 0 5px;
-    border-bottom: 1.5px solid #8A1538;
+    border-bottom: 1.5px solid {brand.MAROON};
     width:        100%;
 }}
 .wp-page-footer {{
@@ -552,7 +554,7 @@ def _playwright_header_template(school: str, title: str) -> str:
     display:     flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1.5px solid #8A1538;
+    border-bottom: 1.5px solid {brand.MAROON};
     background:  white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -560,12 +562,12 @@ def _playwright_header_template(school: str, title: str) -> str:
 .ph-school {{
     font-size:   9px;
     font-weight: bold;
-    color:       #8A1538;
+    color:       {brand.MAROON};
     white-space: nowrap;
 }}
 .ph-brand {{
     font-size: 8.5px;
-    color:     #8A1538;
+    color:     {brand.MAROON};
     font-weight: bold;
 }}
 .ph-ministry {{

@@ -17,6 +17,7 @@ from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
+from core import brand
 from core.academic_calendar import academic_year_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
@@ -118,9 +119,9 @@ def _set_final_status(ctx: dict) -> None:
     if ctx["failed"] == 0 and ctx["passed"] > 0:
         ctx.update(final_status="ناجح", status_color="#15803d")
     elif ctx["failed"] > 0:
-        ctx.update(final_status="راسب", status_color="#dc2626")
+        ctx.update(final_status="راسب", status_color=brand.STATUS_DANGER)
     else:
-        ctx.update(final_status="غير مكتمل", status_color="#d97706")
+        ctx.update(final_status="غير مكتمل", status_color=brand.STATUS_WARNING)
 
 
 def _get_paper_size(request) -> str:

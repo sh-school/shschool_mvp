@@ -16,6 +16,7 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 
 from assessments.models import StudentSubjectResult
+from core import brand
 from core.academic_calendar import academic_year_for
 from core.models import (
     BehaviorInfraction,
@@ -169,16 +170,16 @@ def api_attendance_trend(request):
                 {
                     "label": "نسبة الحضور %",
                     "data": present_data,
-                    "borderColor": "#16a34a",
-                    "backgroundColor": "rgba(22,163,74,0.1)",
+                    "borderColor": brand.STATUS_SUCCESS,
+                    "backgroundColor": brand.rgba(brand.STATUS_SUCCESS, 0.1),
                     "fill": True,
                     "tension": 0.3,
                 },
                 {
                     "label": "نسبة الغياب %",
                     "data": absent_data,
-                    "borderColor": "#dc2626",
-                    "backgroundColor": "rgba(220,38,38,0.1)",
+                    "borderColor": brand.STATUS_DANGER,
+                    "backgroundColor": brand.rgba(brand.STATUS_DANGER, 0.1),
                     "fill": True,
                     "tension": 0.3,
                 },
@@ -218,7 +219,14 @@ def api_grades_distribution(request):
         else:
             buckets["أقل من 50"] += 1
 
-    colors = ["#16a34a", "#2563eb", "#d97706", "#ea580c", "#7c3aed", "#dc2626"]
+    colors = [
+        brand.STATUS_SUCCESS,
+        brand.STATUS_INFO,
+        brand.STATUS_WARNING,
+        "#ea580c",
+        "#7c3aed",
+        brand.STATUS_DANGER,
+    ]
 
     return JsonResponse(
         {
@@ -264,8 +272,8 @@ def api_class_comparison(request):
                 {
                     "label": "متوسط الدرجات",
                     "data": data,
-                    "backgroundColor": "rgba(138,21,56,0.7)",
-                    "borderColor": "#8A1538",
+                    "backgroundColor": brand.rgba(brand.MAROON, 0.7),
+                    "borderColor": brand.MAROON,
                     "borderWidth": 1,
                 }
             ],
@@ -304,16 +312,16 @@ def api_subject_comparison(request):
                 {
                     "label": "متوسط الدرجة",
                     "data": avg_data,
-                    "backgroundColor": "rgba(37,99,235,0.7)",
-                    "borderColor": "#2563eb",
+                    "backgroundColor": brand.rgba(brand.STATUS_INFO, 0.7),
+                    "borderColor": brand.STATUS_INFO,
                     "borderWidth": 1,
                     "yAxisID": "y",
                 },
                 {
                     "label": "نسبة الرسوب %",
                     "data": fail_rates,
-                    "backgroundColor": "rgba(220,38,38,0.7)",
-                    "borderColor": "#dc2626",
+                    "backgroundColor": brand.rgba(brand.STATUS_DANGER, 0.7),
+                    "borderColor": brand.STATUS_DANGER,
                     "borderWidth": 1,
                     "yAxisID": "y1",
                     "type": "line",
@@ -352,12 +360,12 @@ def api_plan_progress(request):
                 {
                     "label": "مكتمل",
                     "data": complete,
-                    "backgroundColor": "#16a34a",
+                    "backgroundColor": brand.STATUS_SUCCESS,
                 },
                 {
                     "label": "قيد التنفيذ",
                     "data": pending,
-                    "backgroundColor": "#d97706",
+                    "backgroundColor": brand.STATUS_WARNING,
                 },
             ],
         }
@@ -412,10 +420,10 @@ def api_behavior_trend(request):
         data_by_level[row["level"]][key] = row["count"]
 
     level_colors = {
-        1: ("#16a34a", "بسيطة"),
-        2: ("#d97706", "متوسطة"),
+        1: (brand.STATUS_SUCCESS, "بسيطة"),
+        2: (brand.STATUS_WARNING, "متوسطة"),
         3: ("#ea580c", "جسيمة"),
-        4: ("#dc2626", "شديدة الخطورة"),
+        4: (brand.STATUS_DANGER, "شديدة الخطورة"),
     }
 
     datasets = []
@@ -459,7 +467,7 @@ def api_failing_by_class(request):
                 {
                     "label": "طلاب راسبون",
                     "data": [r["fail_count"] for r in qs],
-                    "backgroundColor": "#dc2626",
+                    "backgroundColor": brand.STATUS_DANGER,
                 }
             ],
         }
@@ -493,14 +501,14 @@ def api_clinic_stats(request):
                 {
                     "label": "إجمالي الزيارات",
                     "data": visits,
-                    "borderColor": "#dc2626",
+                    "borderColor": brand.STATUS_DANGER,
                     "fill": False,
                     "tension": 0.3,
                 },
                 {
                     "label": "أُرسل للمنزل",
                     "data": sent_home,
-                    "borderColor": "#d97706",
+                    "borderColor": brand.STATUS_WARNING,
                     "fill": False,
                     "tension": 0.3,
                 },

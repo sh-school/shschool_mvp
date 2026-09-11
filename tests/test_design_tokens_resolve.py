@@ -98,3 +98,106 @@ def test_no_app_template_is_shadowed_by_a_root_one():
     assert not shadowed, (
         "قوالبُ تطبيقٍ يحجبها مثيلُها في templates/ — تُحرَّر ولا تُعرَض:\n  " + "\n  ".join(shadowed)
     )
+
+
+#: قيمُ الرموز اللونيّة في `:root` — الرمزُ اسماً والقيمةُ رقماً.
+def _root_colours():
+    text = CSS.read_text(encoding="utf-8")
+    root = text[text.index(":root {") : text.index("@layer layout")]
+    return {
+        name: value.strip().lower()
+        for name, value in re.findall(r"--([a-z0-9-]+)\s*:\s*([^;]+);", root)
+        if value.strip().startswith("#")
+    }
+
+
+def test_the_python_mirror_matches_the_stylesheet():
+    """`core/brand.py` مرآةُ `:root` لا مصدرٌ ثانٍ — فإن تباعدا أخفق البناء.
+
+    ما يُبنى في بايثون — CSS الـPDF ولوحاتُ Chart.js وترويسةُ التصدير — لا يمرّ
+    بمتصفّحٍ يحلّ `var()`، فيحتاج القيمةَ رقماً. وهذا الفحصُ يمنع أن تصير تلك
+    الحاجةُ نسخةً تنجرف.
+    """
+    from core import brand
+
+    colours = _root_colours()
+    drifted = []
+    for const, token in brand.TOKEN_OF.items():
+        mine = getattr(brand, const).lower()
+        theirs = colours.get(token)
+        if theirs is None:
+            drifted.append(f"{const}: لا رمزَ اسمُه --{token} في :root")
+        elif mine != theirs:
+            drifted.append(f"{const}: بايثون {mine} و--{token} {theirs}")
+    assert not drifted, "مرآةُ الألوان انجرفت عن custom.css:\n  " + "\n  ".join(drifted)
+
+
+def test_no_module_copies_a_colour_the_stylesheet_already_names():
+    """لونٌ له رمزٌ لا يُكتب رقماً في بايثون — يُقرأ من `core.brand`."""
+    named = set(_root_colours().values())
+    offenders = {}
+    for module in sorted(pathlib.Path(".").rglob("*.py")):
+        parts = module.parts
+        if parts[0] in {".local", "tests", ".venv"} or "migrations" in parts:
+            continue
+        if module == pathlib.Path("core/brand.py"):
+            continue
+        found = sorted(
+            {
+                literal.lower()
+                for literal in re.findall(r"#[0-9a-fA-F]{6}\b", module.read_text(encoding="utf-8"))
+            }
+            & named
+        )
+        if found:
+            offenders[str(module)] = found
+    assert not offenders, "ألوانٌ منسوخةٌ ولها رمز — اقرأها من core.brand:\n" + "\n".join(
+        f"  {path}: " + ", ".join(colours) for path, colours in sorted(offenders.items())
+    )
+
+
+#: كتلةٌ داخليّةٌ واحدة: محدِّدٌ بلا أقواسٍ ثمّ جسمٌ بلا أقواس.
+BLOCK_RE = re.compile(r"([^{}]*)\{([^{}]*)\}", re.S)
+COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
+
+
+def _dark_palette():
+    """قيمُ رموز الوضع الداكن — ما تُعيد `html.dark` تعريفَه في `:root`."""
+    text = CSS.read_text(encoding="utf-8")
+    block = re.search(r"html\.dark \{(.*?)\}", text, re.S).group(1)
+    return {
+        value.strip().lower(): name
+        for name, value in re.findall(r"--([a-z0-9-]+)\s*:\s*([^;]+);", block)
+        if value.strip().startswith("#")
+    }
+
+
+def test_dark_rules_name_their_colours_instead_of_repeating_them():
+    """داخلَ `html.dark` تُقرأ القيمةُ بـ`var()` لا تُكتب رقماً.
+
+    كان في القسم 35 وأخواتِه 218 موضعاً يكتب `#1e293b` و`#334155` وأخواتِهما
+    حرفيّاً — وهي بعينها قيمُ `--surface` و`--border` في الوضع الداكن. فكان
+    تغييرُ لونِ السطح يقتضي تعديلَ مئتَي سطرٍ بدل سطرٍ واحد.
+    """
+    palette = _dark_palette()
+    text = CSS.read_text(encoding="utf-8")
+    offenders = []
+    for match in BLOCK_RE.finditer(text):
+        selector = COMMENT_RE.sub("", match.group(1)).strip()
+        if not selector or "html.dark" not in selector:
+            continue
+        parts = [part.strip() for part in selector.split(",") if part.strip()]
+        if not all("html.dark" in part for part in parts):
+            continue
+        for declaration in match.group(2).split(";"):
+            if ":" not in declaration:
+                continue
+            prop = COMMENT_RE.sub("", declaration).split(":", 1)[0].strip()
+            if prop.startswith("--"):
+                continue
+            for literal in re.findall(r"#[0-9a-fA-F]{6}\b", declaration):
+                if literal.lower() in palette:
+                    offenders.append(
+                        f"{parts[0][:50]} — {prop}: {literal} (= --{palette[literal.lower()]})"
+                    )
+    assert not offenders, "ألوانٌ داكنةٌ مكتوبةٌ رقماً ولها رمز:\n  " + "\n  ".join(offenders[:20])
