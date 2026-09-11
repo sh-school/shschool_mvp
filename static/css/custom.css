@@ -1550,10 +1550,10 @@ html.dark .table-summary td { background: #0f172a; }
 
 /* ── فري سلوتس / شبكة الحصص ── */
 .free-slots-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
-html.dark .free-slots-card { background: var(--surface-2); border-color: var(--border); }
+html.dark .free-slots-card { background: var(--surface); border-color: var(--border); }
 .free-slots-title { font-size: .9rem; font-weight: 700; color: var(--maroon); margin-bottom: 10px; }
 .free-slots-th { background: #f3f4f6; padding: 6px 8px; font-weight: 700; text-align: center; border: 1px solid #e5e7eb; }
-html.dark .free-slots-th { background: var(--surface-3); border-color: var(--border); }
+html.dark .free-slots-th { background: var(--surface-alt); border-color: var(--border); }
 .free-slots-td { padding: 6px 8px; text-align: center; border: 1px solid #e5e7eb; vertical-align: top; }
 html.dark .free-slots-td { border-color: var(--border); }
 .free-slot-badge { display: inline-block; background: #D1FAE5; color: #065F46; padding: 1px 8px; border-radius: 99px; margin: 1px; font-size: .7rem; font-weight: 600; }
@@ -2348,7 +2348,7 @@ body { padding-bottom: 72px; }
   justify-content: center;
   width: 22px;
   height: 22px;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   background: var(--surface);
   color: var(--maroon);
@@ -3694,7 +3694,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   text-decoration: none;
   transition: background .1s;
 }
-.proc-list-row:hover { background: var(--surface-hover, #f9fafb); }
+.proc-list-row:hover { background: var(--surface-alt); }
 .proc-list-info   { min-width: 0; flex: 1; }
 .proc-list-title  {
   font-size: 13.5px;
@@ -4174,7 +4174,7 @@ html.dark .chart-card {
 .exec-subtitle { font-size: .7rem; color: var(--text-muted); margin: 0; }
 .exec-meta { display: flex; align-items: center; gap: 8px; }
 .exec-date {
-  font-size: .7rem; background: var(--status-danger-light, #fef2f2); color: var(--maroon, #991b1b);
+  font-size: .7rem; background: var(--status-danger-bg); color: var(--maroon, #991b1b);
   border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-weight: 500;
 }
 
@@ -4437,7 +4437,7 @@ html.dark .q-kpi-summary__item {
 
 /* ── Alert Strip ── */
 .alert-strip {
-  background: var(--status-danger-light, #fef2f2);
+  background: var(--status-danger-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 4px 10px;
@@ -4821,7 +4821,7 @@ html.dark .login-card {
   box-shadow: 0 20px 60px rgba(0,0,0,.4);
 }
 html.dark .login-input {
-  background: var(--bg-main, #0f172a);
+  background: var(--surface-alt);
   border-color: var(--border, #475569);
   color: var(--text-primary, #f1f5f9);
 }
@@ -5002,7 +5002,7 @@ html.dark .breadcrumbs a:hover { color: #fcc4d8; }
 html.dark .breadcrumbs .bc-sep { color: #475569; }
 html.dark .breadcrumbs .bc-current { color: var(--text-secondary); }
 html.dark .bc-back {
-  border-color: #475569;
+  border-color: var(--border-strong);
   background: var(--surface);
   color: #f9a8c9;
 }

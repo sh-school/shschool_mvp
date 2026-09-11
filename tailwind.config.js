@@ -1,7 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  /* Dark Mode: synced with Alpine data-theme attribute */
-  darkMode: ['class', '[data-theme="dark"]'],
+  /* Dark Mode: الصنف `dark` على <html> — يضعه سكربتُ base.html و base.js.
+     لا تستبدله بـ [data-theme] ما لم يضعه أحدٌ فعلاً، وإلّا ماتت أصنافُ dark:* كلُّها. */
+  darkMode: 'class',
   content: [
     "./templates/**/*.html",
     "./**/templates/**/*.html",
