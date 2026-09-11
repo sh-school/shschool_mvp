@@ -1515,10 +1515,51 @@ main.page-wide {
 
 /* والجدولُ يملأ ما أُعطي: `100%` حين تتّسع النافذة فلا يبقى فراغٌ إلى جانبه،
    و`max-content` حدّاً أدنى حين تضيق فيُمرَّر داخلَ غلافه ولا يُقصّ. */
+/* ثلاثةَ عشرَ عموداً تسع النافذةَ مهما ضاقت — ولا شريطَ أفقيّ.
+   `max-content` كان يطلب للجدول عرضَ أطولِ نصٍّ في كلّ عمودٍ بلا كسر، فيبلغ
+   1900px ويُخفي ثلثَه خلف تمريرٍ لا يراه من لا يبحث عنه. والجدولُ يسع أضيقَ
+   من ذلك بكثير حين يُؤذَن للنصّ أن ينكسر: الاسمُ سطران، والمسمّى سطران،
+   والبريدُ عند الفاصلة — والعمودُ الرقميُّ وحدَه يبقى صفّاً واحداً. */
 .staff-register {
   inline-size: 100%;
-  min-inline-size: max-content;
+  table-layout: fixed;
 }
+/* ولا شريطَ أفقيّاً لهذا الجدول: أعمدتُه نسبٌ مجموعُها تسعٌ وتسعون بالمئة،
+   فهو يسع غلافَه بالبناء لا بالمصادفة — وما يفيض بعد ذلك كسورُ تقريبٍ في
+   حساب `table-layout: fixed` لا محتوىً يُقصّ. والرأسيُّ يبقى بشريطه. */
+.table-wrap-scroll:has(> .staff-register) {
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+.staff-register th,
+.staff-register td {
+  padding-inline: 8px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+/* والعنوانُ ينكسر بين كلمتَيه لا داخلَ كلمة: «الجنسي/ة» على سطرين عطبٌ
+   لا سطران. فإن ضاق عمودُه عن أطولِ كلمةٍ فيه فالعلاجُ توسيعُه لا كسرُها. */
+.staff-register thead th { overflow-wrap: normal; }
+/* الأرقامُ وحدَها لا تُكسَر: رقمٌ شخصيٌّ على سطرين يُقرأ رقمين. أمّا عنوانُ
+   العمود فينكسر كغيره — ومنعُ كسره يقطعه بنقاطٍ فلا يُقرأ أصلاً. */
+.staff-register .col-num {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* وعرضٌ لكلّ عمودٍ بقدر ما يحمل — لا بالتساوي كما يفعل `table-layout: fixed`.
+   والمجموعُ مئةٌ بالضبط، فلا يُقتطع من عمودٍ لغيره. */
+.staff-register th:nth-child(1)  { inline-size: 13%; }
+.staff-register th:nth-child(2)  { inline-size: 7%; }
+.staff-register th:nth-child(3)  { inline-size: 8%; }
+.staff-register th:nth-child(4)  { inline-size: 11%; }
+.staff-register th:nth-child(5)  { inline-size: 8%; }
+.staff-register th:nth-child(6)  { inline-size: 7%; }
+.staff-register th:nth-child(7)  { inline-size: 10%; }
+.staff-register th:nth-child(8)  { inline-size: 6%; }
+.staff-register th:nth-child(9)  { inline-size: 7%; }
+.staff-register th:nth-child(10) { inline-size: 8%; }
+.staff-register th:nth-child(11) { inline-size: 7%; }
+.staff-register th:nth-child(12) { inline-size: 7%; }
 .staff-register th:first-child,
 .staff-register td:first-child {
   position: sticky;
@@ -1537,7 +1578,6 @@ html.dark .staff-register td:first-child { background: var(--surface); }
   text-decoration: none;
   color: var(--maroon-fg);
   font-weight: 600;
-  white-space: nowrap;
 }
 .staff-name:hover { text-decoration: underline; }
 html.dark .staff-name { color: var(--gold); }
@@ -6395,6 +6435,13 @@ a.th-sort { text-decoration: none; }
 }
 th.col-center .th-sort, th.col-center > .th-sort { justify-content: center; }
 .th-sort-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* إلّا في سجلّ الكادر: أعمدتُه اثنا عشرَ في عرض النافذة، فقطعُ العنوان
+   بنقاطٍ يجعله لا يُقرأ («الرقم الـ…» و«الرخصة الـ…»). فينكسر على سطرين. */
+.staff-register th.is-sortable .th-sort-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
 .th-sort-arrow {
   flex: none;
   width: .75em;
