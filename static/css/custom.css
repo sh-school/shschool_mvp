@@ -9014,3 +9014,28 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
   }
 }
 }
+
+/* ── بطاقةُ غيابٍ: الحالةُ شريطٌ على الحافّة لا خلفيّةٌ فاتحة ──────────────
+   الخلفيّاتُ الفاتحةُ المكتوبةُ بيد (`bg-green-50`) تُضيء في الوضع الداكن،
+   فيصير رأسُ البطاقة لوحاً أبيضَ نصُّه أبيض. والشريطُ يقرأ رمزَ الحالة نفسَه
+   الذي يقرؤه الوسمُ بجانبه — فلا يفترق اللونان عن معنىً واحد. */
+.absence-head {
+  border-bottom-color: var(--border);
+  box-shadow: inset 4px 0 0 var(--border);
+}
+.absence-head.is-covered   { box-shadow: inset 4px 0 0 var(--status-success); }
+.absence-head.is-uncovered { box-shadow: inset 4px 0 0 var(--status-danger); }
+.absence-head.is-pending   { box-shadow: inset 4px 0 0 var(--status-warning); }
+.absence-initial {
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 999px;
+  background: var(--maroon);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  flex: none;
+}
