@@ -43,6 +43,11 @@ ALLOWED = {
 }
 
 
+def _spec(ordering):
+    """يقرأ عباراتِ الترتيب كما تُكتب الحقول: «-حقل» تنازلاً و«حقل» تصاعداً."""
+    return tuple(("-" if o.descending else "") + o.expression.name for o in ordering)
+
+
 # ── الحدّ: لا يبلغ ORM إلّا ما صُرِّح به ───────────────────────────────
 
 
@@ -50,7 +55,7 @@ def test_an_unknown_sort_key_falls_back_to_the_screens_default():
     """`?sort=password` لا يفتح حقلاً لم تُصرّح به الشاشة."""
     qs, state = apply_sort(_FakeQuerySet(), _get(sort="student__password"), ALLOWED, "date")
 
-    assert qs.ordering == ("occurred_on", "-created_at")
+    assert _spec(qs.ordering) == ("occurred_on", "-created_at")
     assert state.key == "date"
 
 
@@ -58,7 +63,7 @@ def test_a_related_field_traversal_is_not_smuggled_through_the_sort_parameter():
     """ولا تُعبَر العلاقاتُ بمفتاحٍ ملفَّق — الفرزُ اختيارٌ من قائمةٍ لا نصٌّ حرّ."""
     qs, _ = apply_sort(_FakeQuerySet(), _get(sort="school__api_key"), ALLOWED, "date")
 
-    assert all("api_key" not in f for f in qs.ordering)
+    assert all("api_key" not in f for f in _spec(qs.ordering))
 
 
 @pytest.mark.parametrize(
@@ -69,15 +74,24 @@ def test_the_direction_flips_every_field_of_the_ordering(direction, expected):
     """التنازليُّ يعكس الحقلَ الفاصلَ أيضاً، فلا يبقى نصفُ الترتيب معكوساً."""
     qs, _ = apply_sort(_FakeQuerySet(), _get(sort="date", dir=direction), ALLOWED, "date")
 
-    assert qs.ordering == expected
+    assert _spec(qs.ordering) == expected
 
 
 def test_a_screen_that_opens_on_newest_first_keeps_doing_so_before_any_click():
     """قبل أن يُنقر شيءٌ يبقى ترتيبُ الشاشة كما اعتاده القارئ."""
     qs, state = apply_sort(_FakeQuerySet(), _get(), ALLOWED, "date", default_desc=True)
 
-    assert qs.ordering == ("-occurred_on", "created_at")
+    assert _spec(qs.ordering) == ("-occurred_on", "created_at")
     assert state.descending
+
+
+@pytest.mark.parametrize("direction", ["asc", "desc"])
+def test_the_missing_value_falls_to_the_tail_in_both_directions(direction):
+    """ترتيبُ القاعدة للعَدَم يتبع الاتّجاه: أخيراً صعوداً وأوّلاً نزولاً. فمن
+    نقر عموداً نصفُ خاناته فارغةٌ ليرى أكبرَه رأى الفراغَ أوّلاً ولم يرَ شيئاً."""
+    qs, _ = apply_sort(_FakeQuerySet(), _get(sort="date", dir=direction), ALLOWED, "date")
+
+    assert all(o.nulls_last for o in qs.ordering)
 
 
 def test_a_column_declared_desc_first_starts_at_its_natural_direction():

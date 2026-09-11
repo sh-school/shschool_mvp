@@ -11,8 +11,10 @@
 
 {% block extra_css %}
 <style nonce="{{ request.csp_nonce }}">
-  .ap-form { max-width: 760px; }
-  .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px 16px; }
+  /* النموذجُ عنصرٌ في شبكةٍ عموديّة، و`max-width` وحدَه يُلصقه ببداية السطر —
+     فيقف على حافّة الشاشة اليمنى ويبقى نصفُها فارغاً. التوسيطُ بـ margin. */
+  .ap-form { max-width: 1040px; margin-inline: auto; }
+  .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 18px; }
   .ap-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
   .ap-field .form-control { width: 100%; }
   .ap-field .req { color: #b91c1c; }
