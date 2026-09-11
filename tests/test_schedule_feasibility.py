@@ -175,41 +175,6 @@ def test_a_teacher_with_room_passes(school, teacher):
     assert finding(sf.check(school, YEAR), "capacity.teacher").status == "ok"
 
 
-# ── تباعدُ الأيّام (HC18) ────────────────────────────────────────────
-
-
-def test_six_periods_cannot_spread_over_five_days(school, teacher):
-    """سببُ ستٍّ وعشرين «تعذّر وضع» في قياس 2026-09-09 — يُقال قبل التوليد."""
-    spread = a_subject(school, "التكنولوجيا", "TECH", spread_days_scope="all")
-    assign(school, spread, a_class(school), teacher, 6)
-
-    found = finding(sf.check(school, YEAR), "spread.days")
-
-    assert found.status == "fail"
-    assert found.gap == 1
-    assert "رفعُ الوسم" in found.summary, "الرسالةُ تقول العلاجَ لا العطبَ وحدَه"
-
-
-def test_the_scope_decides_where_it_bites(school, teacher):
-    """الوسمُ على الثانويّ لا يمسّ شعبةً إعداديّة."""
-    spread = a_subject(school, "الفنون البصرية", "ART", spread_days_scope="sec")
-    assign(school, spread, a_class(school, "G8", "1", "prep"), teacher, 6)
-
-    assert finding(sf.check(school, YEAR), "spread.days").status == "ok"
-
-
-def test_a_free_day_narrows_the_spread_window(school, teacher):
-    """أربعةُ أيّامٍ لا تسع خمسَ حصصٍ متباعدة."""
-    spread = a_subject(school, "التكنولوجيا", "TECH", spread_days_scope="all")
-    assign(school, spread, a_class(school), teacher, 5)
-    free_day(school, teacher, 4)
-
-    found = finding(sf.check(school, YEAR), "spread.days")
-
-    assert found.status == "fail"
-    assert found.rows[0].capacity == 4
-
-
 # ── الموارد ──────────────────────────────────────────────────────────
 
 
@@ -264,13 +229,13 @@ def test_an_assignment_without_a_teacher_warns_but_does_not_block(school):
 
 def test_the_minimum_is_the_largest_gap_not_their_sum(school, teacher):
     """عجزان قد يكونان عجزاً واحداً — فلا يُجمعان في وجه المستخدم."""
-    subject = a_subject(school, "التكنولوجيا", "TECH", spread_days_scope="all")
+    subject = a_subject(school, "التكنولوجيا", "TECH")
     assign(school, subject, a_class(school), teacher, 40)
 
     report = sf.check(school, YEAR)
 
     gaps = sorted(f.gap for f in report.blocking)
-    assert len(gaps) >= 2, "الشعبةُ والمعلّمُ والتباعدُ كلُّها تشتكي"
+    assert len(gaps) >= 2, "الشعبةُ والمعلّمُ كلاهما يشتكي"
     assert report.minimum_unplaceable == max(gaps)
     assert report.minimum_unplaceable < sum(gaps)
 
@@ -286,7 +251,6 @@ def test_the_report_is_storable(school, teacher):
     assert {f["code"] for f in stored["findings"]} == {
         "capacity.class",
         "capacity.teacher",
-        "spread.days",
         "capacity.resource",
         "assignment.unassigned",
     }
