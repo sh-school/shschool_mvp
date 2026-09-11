@@ -223,8 +223,8 @@ def api_grades_distribution(request):
         brand.STATUS_SUCCESS,
         brand.STATUS_INFO,
         brand.STATUS_WARNING,
-        "#ea580c",
-        "#7c3aed",
+        brand.ACCENT_ORANGE,
+        brand.ACCENT_PURPLE,
         brand.STATUS_DANGER,
     ]
 
@@ -422,7 +422,7 @@ def api_behavior_trend(request):
     level_colors = {
         1: (brand.STATUS_SUCCESS, "بسيطة"),
         2: (brand.STATUS_WARNING, "متوسطة"),
-        3: ("#ea580c", "جسيمة"),
+        3: (brand.ACCENT_ORANGE, "جسيمة"),
         4: (brand.STATUS_DANGER, "شديدة الخطورة"),
     }
 

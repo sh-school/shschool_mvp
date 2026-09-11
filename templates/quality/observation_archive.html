@@ -40,8 +40,8 @@
         <td>{{ o.subject.name_ar|default:"—" }}</td>
         <td class="col-num">{{ o.observation_date }}</td>
         <td>
-          {% if o.kind == "self" %}<span class="badge" style="background:#ede9fe;color:#6d28d9">تقييم ذاتي</span>
-          {% else %}<span class="badge" style="background:#e0f2fe;color:#0369a1">إشرافية</span>{% endif %}
+          {% if o.kind == "self" %}<span class="badge badge--accent">تقييم ذاتي</span>
+          {% else %}<span class="badge badge--info">إشرافية</span>{% endif %}
         </td>
         <td class="col-num">{% if o.score_percent != None %}{{ o.score_percent }}%{% else %}—{% endif %}</td>
         <td class="col-num">{{ o.deleted_at|date:"Y-m-d H:i"|default:"—" }}</td>

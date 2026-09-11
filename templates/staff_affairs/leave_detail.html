@@ -22,7 +22,7 @@
       <dt>إلى</dt><dd>{{ leave.end_date|date:"d/m/Y" }}</dd>
       <dt>الأيام</dt><dd><strong>{{ leave.days_count }}</strong></dd>
       <dt>السبب</dt><dd>{{ leave.reason }}</dd>
-      {% if leave.rejection_reason %}<dt style="color:var(--status-danger)">سبب الرفض</dt><dd>{{ leave.rejection_reason }}</dd>{% endif %}
+      {% if leave.rejection_reason %}<dt style="color:var(--status-danger-fg)">سبب الرفض</dt><dd>{{ leave.rejection_reason }}</dd>{% endif %}
       <dt>تاريخ الطلب</dt><dd>{{ leave.created_at|date:"d/m/Y H:i" }}</dd>
       {% if leave.reviewed_by %}<dt>راجعها</dt><dd>{{ leave.reviewed_by.full_name }} — {{ leave.reviewed_at|date:"d/m/Y H:i" }}</dd>{% endif %}
     </dl>
