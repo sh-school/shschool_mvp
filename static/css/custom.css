@@ -8062,11 +8062,9 @@ html.dark .pr-exec__user { color: #f9a8c0; }
    - Dark Mode support (html.dark) — القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط
    - Maroon/Gold tokens from custom.css
    - WCAG 2.1 AA focus states, touch targets >= 44px
-   ========================================================================== */
 
 /* ==========================================================================
    1. Layout & Container
-   ========================================================================== */
 .df-container {
   max-width: 1100px;
   margin: 0 auto;
@@ -8119,7 +8117,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    2. Cards
-   ========================================================================== */
 .df-card {
   background: #fff;
   border: 1px solid var(--maroon-border, #e8b4c3);
@@ -8166,7 +8163,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    3. Forms
-   ========================================================================== */
 .df-form-group {
   margin-bottom: 1rem;
 }
@@ -8319,7 +8315,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    4. Textarea counter
-   ========================================================================== */
 .df-counter {
   display: block;
   text-align: start;
@@ -8336,7 +8331,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    5. Buttons
-   ========================================================================== */
 .df-btn-group {
   display: flex;
   gap: 0.75rem;
@@ -8370,7 +8364,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    6. Status / Type / Priority badges
-   ========================================================================== */
 .df-badge {
   display: inline-block;
   padding: 0.25rem 0.625rem;
@@ -8437,7 +8430,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    7. Context preview (technical info block)
-   ========================================================================== */
 .df-context-preview {
   background: #fafafa;
   border-inline-start: 3px solid var(--gold, var(--gold));
@@ -8463,7 +8455,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    8. Ticket number hero (success page)
-   ========================================================================== */
 .df-ticket-hero {
   text-align: center;
   padding: 2.5rem 1.5rem;
@@ -8529,7 +8520,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    9. Timeline (status logs)
-   ========================================================================== */
 .df-timeline {
   list-style: none;
   padding: 0;
@@ -8586,7 +8576,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    10. Inbox filter bar
-   ========================================================================== */
 .df-filter-bar {
   display: flex;
   gap: 0.75rem;
@@ -8619,7 +8608,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    11. Tables
-   ========================================================================== */
 .df-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--maroon-border, #e8b4c3);
@@ -8702,7 +8690,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    12. Empty state
-   ========================================================================== */
 .df-empty-state {
   text-align: center;
   padding: 3rem 1rem;
@@ -8735,7 +8722,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    13. Message body + meta list (detail page)
-   ========================================================================== */
 .df-message-body {
   line-height: 1.9;
   color: #222;
@@ -8765,7 +8751,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    14. Focus states (WCAG AA)
-   ========================================================================== */
 .df-container :focus-visible,
 .df-form :focus-visible {
   outline: 2px solid var(--maroon, var(--maroon));
@@ -8775,7 +8760,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    15. Screen-reader only helper (if base doesn't have one)
-   ========================================================================== */
 .df-container .sr-only {
   position: absolute;
   width: 1px;
@@ -8792,7 +8776,6 @@ html.dark .df-badge-edited {
    ═══════════════ DARK MODE — html.dark ═══════════════
    القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط — ممنوع كخلفيات كاملة.
    الخلفيات الداكنة مبنية على ظلال الماروون.
-   ========================================================================== */
 html.dark .df-card {
   background: #2a1018;
   border-color: #5a2033;
@@ -9001,7 +8984,6 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
 
 /* ==========================================================================
    16. Print
-   ========================================================================== */
 @media print {
   .df-btn-group,
   .df-filter-bar,
@@ -9015,6 +8997,32 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
 }
 }
 
+/* ── بطاقةُ غيابٍ: الحالةُ شريطٌ على الحافّة ───────────────────────────────
+   كان رأسُ البطاقة يُلوَّن بـ`bg-green-50` وأخواتها. وقد قِستُها فوجدتُها
+   تنقلب مع الوضع الداكن كما ينبغي — سلّمُ tailwind يقرأ رموزَ المنصّة ولا
+   ينسخ قيماً (طلبا الدمج 182 و184). فليس العطبُ تبايناً.
+   والشريطُ أوضحُ: يقرأ رمزَ الحالة نفسَه الذي يقرؤه الوسمُ بجانبه، فلا
+   يفترق اللونان عن معنىً واحد، ولا يُنافس لونُ الخلفيّة لونَ الوسم. */
+.absence-head {
+  border-bottom-color: var(--border);
+  box-shadow: inset 4px 0 0 var(--border);
+}
+.absence-head.is-covered   { box-shadow: inset 4px 0 0 var(--status-success); }
+.absence-head.is-uncovered { box-shadow: inset 4px 0 0 var(--status-danger); }
+.absence-head.is-pending   { box-shadow: inset 4px 0 0 var(--status-warning); }
+.absence-initial {
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 999px;
+  background: var(--maroon);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  flex: none;
+}
 /* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
    التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
    تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
