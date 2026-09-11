@@ -6388,6 +6388,11 @@ th[aria-sort="descending"] .th-sort-label {
   );
 }
 .exg-cell.is-exempt:hover { border-color: var(--status-danger); }
+/* «لتوليد الجدول»: مفرَّغةٌ للمولّد لا للناس — إطارٌ متقطّعٌ يقول إنّها تُعبَر عند الحاجة. */
+.exg-cell.is-exempt.is-soft {
+  border-style: dashed;
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,.35) 4px 6px);
+}
 /* مختارةٌ الآن — لم تُحفظ بعد. */
 .exg-cell.is-picked {
   background: var(--maroon); border-color: var(--maroon);
@@ -6424,6 +6429,10 @@ th[aria-sort="descending"] .th-sort-label {
   );
 }
 .exg-key.is-picked { background: var(--maroon); border-color: var(--maroon); }
+.exg-key.is-exempt.is-soft {
+  border-style: dashed;
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, rgba(255,255,255,.35) 4px 6px);
+}
 
 .exg-hint, .exg-empty p { font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.4rem; }
 

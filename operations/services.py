@@ -1286,7 +1286,12 @@ class SubstituteService:
             "teacher_id", flat=True
         )
 
-        available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids)
+        # ومن فُرّغ في هذه الخانة بقرارٍ ملزم — وكان البديلُ يتجاهل التفريغَ كلَّه،
+        # فيُقترح معلّمٌ أخرجته الوزارةُ من الحصّة. أمّا تفريغُ «لتوليد الجدول»
+        # فيُوسَم ولا يمنع: صاحبُه رُتّب له جدولُه ولم يُمنَع من الحصّة.
+        exempt_ids = SubstituteService.exempted_teacher_ids(school, day_of_week, period_number)
+
+        available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids) - exempt_ids
 
         from core.models import CustomUser
 
@@ -1311,6 +1316,26 @@ class SubstituteService:
             qs = qs.order_by("full_name")
 
         return qs
+
+    @staticmethod
+    def exempted_teacher_ids(school: School, day_of_week: int, period_number: int) -> set:
+        """من لا يجوز إشغالُه في هذه الخانة بحكم تفريغٍ ملزم.
+
+        يومٌ كاملٌ أو الحصّةُ بعينها، من عام المدرسة الجاري، وبجهةٍ تُلزم —
+        فتفريغُ «لتوليد الجدول» لا يدخل هنا (`TeacherExemption.SOFT_SOURCES`).
+        """
+        from core.querysets import year_or_current
+
+        rows = TeacherExemption.objects.filter(
+            school=school,
+            academic_year=year_or_current(school),
+            is_active=True,
+            day_of_week=day_of_week,
+        ).exclude(source__in=TeacherExemption.SOFT_SOURCES)
+        rows = rows.filter(
+            models.Q(exemption_type="full_day") | models.Q(period_number=period_number)
+        )
+        return set(rows.values_list("teacher_id", flat=True))
 
     @staticmethod
     @transaction.atomic
@@ -1635,6 +1660,16 @@ class SwapService:
         # ── القانون 2: نفس الفصل ──────────────────────────────────
         if slot_a.class_group_id != slot_b.class_group_id:
             errors.append("التبديل مسموح فقط مع معلمي نفس الفصل")
+
+        # ── القانون 9: لا تبديلَ إلى خانةٍ مفرَّغةٍ بقرارٍ ملزم ─────────────
+        # كلٌّ من المعلّمَين يأخذ خانةَ الآخر؛ فإن كان أحدُهما مفرَّغاً فيها
+        # بقرار وزارةٍ أو إدارةٍ أو قسمٍ رُفض التبديل — وكان لا يُفحص أصلاً.
+        # أمّا تفريغُ «لتوليد الجدول» فيُوسَم ولا يمنع (قرار 2026-09-11).
+        for mover, target in ((teacher, slot_b), (slot_b.teacher, slot_a)):
+            if mover and mover.id in SubstituteService.exempted_teacher_ids(
+                school, target.day_of_week, target.period_number
+            ):
+                errors.append(f"{mover.full_name} مفرَّغٌ في هذه الخانة بقرارٍ ملزم — لا يُبدَّل إليها")
 
         # ── القانون 6: تاريخ مستقبلي + 24 ساعة ────────────────────
         if swap_date < today:
