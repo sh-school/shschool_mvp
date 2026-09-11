@@ -1,16 +1,28 @@
-{# HTMX partial — جدول الطلاب (يُحمّل مباشرة أو عبر HTMX) #}
+{% load sorting %}
+{% comment %}
+جدولُ الطلاب — والفرزُ **من الخادم** لا من المتصفّح.
 
+كانت الشاشةُ تقطع السجلَّ عند مئتين بلا تقسيمِ صفحاتٍ ولا كلمةٍ تقول ذلك، ثمّ
+تفرز المئتين في المتصفّح. فمن فتحها ظنّ المدرسةَ مئتَي طالب، ومن بحث عن طالبٍ
+ترتيبُه بعدهم لم يجده فظنّه غيرَ مقيَّد، ومن فرز بالصفّ رأى أوّلَ صفحةٍ وحسبه
+أوّلَ السجلّ.
+
+والغلافُ يحمل معرّفَه فيستبدل نفسَه — و`outerHTML` يمحو ما يستبدله، فلو بقي
+المعرّفُ في الصفحة الأمّ محته أوّلُ نقرةِ فرز.
+{% endcomment %}
+
+<div class="card-qatar" style="padding:0" id="student-table-container">
 <div class="table-wrap-scroll">
   {% if students %}
   <table>
     <thead>
       <tr>
-        <th>الاسم</th>
-        <th class="col-center">الرقم الشخصي</th>
-        {# الصفُّ يُفرَز عدداً لا حرفاً: 7 ثمّ 8 … ثمّ 12. #}
-        <th class="col-center" data-sort="num" data-sort-first="asc">الصف</th>
-        <th class="col-center">الشعبة</th>
-        <th class="col-center">الجوال</th>
+        {% sort_th sort "name" "الاسم" target="#student-table-container" %}
+        {% sort_th sort "national" "الرقم الشخصي" "col-center" target="#student-table-container" %}
+        {% sort_th sort "class" "الصف/الشعبة" "col-center" target="#student-table-container" %}
+        {% sort_th sort "guardian" "وليّ الأمر" target="#student-table-container" %}
+        <th class="col-center">جوّال وليّ الأمر</th>
+        <th class="col-center">الدخول</th>
         <th class="col-actions">الإجراءات</th>
       </tr>
     </thead>
@@ -21,16 +33,34 @@
           <a href="{% url 'student_affairs:student_profile' s.id %}" class="font-semibold text-maroon hover:underline" style="text-decoration:none;color:var(--maroon-fg)">
             {{ s.full_name }}
           </a>
-          {% if s.gender %}
-          <span class="text-xs text-muted" style="margin-inline-start:4px">{% if s.gender == "M" %}ذ{% else %}أ{% endif %}</span>
+        </td>
+        {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
+        <td class="col-num col-center" style="font-family:monospace;font-size:var(--text-xs)"
+            title="الرقم كاملاً في ملفّ الطالب">{{ s.national_id|default:"—" }}</td>
+        <td class="col-center">
+          <span class="status-badge status-info">{{ s.class_label }}</span>
+        </td>
+        <td class="text-xs">
+          {% if s.guardian_name %}
+            {{ s.guardian_name }}
+            {% if s.guardian_relation %}<span class="text-muted">· {{ s.guardian_relation }}</span>{% endif %}
+          {% else %}
+            <span class="text-muted">بلا وليّ أمرٍ مرتبط</span>
           {% endif %}
         </td>
-        <td class="col-num col-center" style="font-family:monospace;font-size:var(--text-xs)">{{ s.national_id }}</td>
-        <td class="col-center" data-sort-value="{{ s.grade_order }}">
-          <span class="status-badge status-info">{{ s.grade }}</span>
+        {# نقرةٌ تتّصل: الفعلُ المقصودُ من هذه الشاشة الاتّصالُ بالأسرة. #}
+        <td class="col-num col-center" style="font-size:var(--text-xs)">
+          {% if s.guardian_phone %}
+            <a href="tel:{{ s.guardian_phone }}" style="text-decoration:none;color:var(--maroon-fg)">{{ s.guardian_phone }}</a>
+          {% else %}—{% endif %}
         </td>
-        <td class="col-center">{{ s.section }}</td>
-        <td class="col-num col-center" style="font-size:var(--text-xs)">{{ s.phone|default:"—" }}</td>
+        <td class="col-center">
+          {% if s.can_sign_in %}
+            <span class="status-badge status-success">يدخل</span>
+          {% else %}
+            <span class="status-badge status-warning">بلا كلمة مرور</span>
+          {% endif %}
+        </td>
         <td class="col-actions">
           <div style="display:flex;gap:4px;justify-content:center">
             <a href="{% url 'student_affairs:student_profile' s.id %}" class="btn-secondary btn-xs" title="الملف الشامل">
@@ -45,8 +75,10 @@
       {% endfor %}
     </tbody>
   </table>
-  <div class="table-empty" style="padding:8px">عرض {{ total }} طالب</div>
+  <div class="table-empty" style="padding:8px">{{ total }} طالباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
+  {% include "components/pagination.html" with page_obj=page_obj target="#student-table-container" swap="outerHTML" %}
   {% else %}
   {% include "components/empty_state.html" with message="لا يوجد طلاب مطابقون للبحث" %}
   {% endif %}
+</div>
 </div>

@@ -283,3 +283,43 @@ def test_the_notifications_log_still_renders_the_whole_page_for_a_plain_visit(
     assert response.status_code == 200
     assert "<html" in body
     assert 'id="notif-log-panel"' in body
+
+
+# ── رابطُ الصفحة: يحمل ما اختاره القارئُ قبله ─────────────────────────
+
+
+def _page_link(request, number):
+    template = Template("{% load sorting %}{% page_query " + str(number) + " %}")
+    return template.render(Context({"request": request}))
+
+
+def test_the_page_link_keeps_the_filter_the_reader_chose():
+    """كان `?page=2` وحدَه: يختار السابعَ ثمّ ينقر «2» فتُفتح كلُّ المدرسة —
+    والقائمةُ المنسدلةُ ما زالت تقول «السابع». شاشةٌ تكذب ولا تقول."""
+    link = _page_link(_get(grade="G7", status="enrolled"), 2)
+
+    assert "grade=G7" in link
+    assert "status=enrolled" in link
+    assert "page=2" in link
+
+
+def test_the_page_link_keeps_the_sort_too():
+    """وإلّا عاد الترتيبُ إلى أصله في الصفحة الثانية — فيتكرّر صفٌّ ويسقط آخر."""
+    link = _page_link(_get(sort="student", dir="desc"), 3)
+
+    assert "sort=student" in link
+    assert "dir=desc" in link
+
+
+def test_the_page_number_is_replaced_not_repeated():
+    """`?page=2&page=5` رقمان لصفحةٍ واحدة — والقاعدةُ تأخذ أحدَهما بلا قاعدة."""
+    link = _page_link(_get(page="2"), 5)
+
+    assert link.count("page=") == 1
+    assert "page=5" in link
+
+
+def test_an_arabic_filter_survives_the_link():
+    link = _page_link(_get(q="أحمد"), 2)
+
+    assert "q=" in link and "page=2" in link
