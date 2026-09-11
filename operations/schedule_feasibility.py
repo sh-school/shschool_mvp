@@ -259,50 +259,6 @@ def _check_teachers(assignments, full_days: dict, blocked: dict) -> Finding:
     )
 
 
-def _check_spread_days(assignments, full_days: dict) -> Finding:
-    """HC18: حصصُ المادّة في أيّامٍ مختلفة — فنصابُها لا يتجاوز أيّامَ أسبوعها.
-
-    مادّةٌ نصابُها ستٌّ موسومةٌ بالتباعد مستحيلةٌ في خمسة أيّام مهما بحث
-    المولّد — وهذا بعينه سببُ ستٍّ وعشرين «تعذّر وضع» في قياس 2026-09-09.
-    """
-    rows = []
-    for a in assignments:
-        if not a.teacher_id or a.subject is None:
-            continue
-        level = a.class_group.level_type or ""
-        if not a.subject.spreads_in(level):
-            continue
-        days = len(DAYS) - len(full_days.get(str(a.teacher_id), ()))
-        if a.weekly_periods > days:
-            rows.append(
-                Shortfall(
-                    f"{a.class_group} · {a.subject}",
-                    a.weekly_periods,
-                    days,
-                    "أيّامٌ مختلفة (HC18)",
-                )
-            )
-    if not rows:
-        return Finding(
-            "spread.days",
-            "تباعدُ الأيّام",
-            OK,
-            "كلُّ مادّةٍ متباعدةٍ يسعها أسبوعُها.",
-        )
-    rows.sort(key=lambda r: -r.gap)
-    return Finding(
-        "spread.days",
-        "تباعدُ الأيّام",
-        FAIL,
-        (
-            f"{len(rows)} إسناداً نصابُه أكثرُ من أيّامه وهو موسومٌ بالتباعد — "
-            f"بمجموع {sum(r.gap for r in rows)} حصّة. "
-            "والعلاجُ رفعُ الوسم عن هذه المرحلة أو خفضُ النصاب."
-        ),
-        tuple(rows),
-    )
-
-
 def _check_resources(school: School, assignments) -> Finding:
     """المورد المحدود: الطلبُ عليه مقابلَ سعتِه في توقيتات الأسبوع (HC9)."""
     by_subject: dict[str, list] = defaultdict(list)
@@ -362,7 +318,6 @@ def check(school: School, year: str) -> FeasibilityReport:
         (
             _check_classes(assignments),
             _check_teachers(assignments, full_days, blocked),
-            _check_spread_days(assignments, full_days),
             _check_resources(school, assignments),
             _check_unassigned(assignments),
         )

@@ -12,7 +12,7 @@ scheduler_constraints.py — القيود الصلبة والمرنة للجدو
   SC7 (جديد): حصة مزدوجة لـ ART و TECH فقط
   SC8 (جديد): مادة 5+/أسبوع بنفس اليوم يجب ألا تكون متتالية
   HC10 (جديد): فراغُ المعلّم بين حصّتين لا يتجاوز سقفَه الشخصيّ (صلب لصاحبه)
-  HC18 (جديد): مادّةٌ موسومةٌ «أيّامٌ مختلفة» بنطاق مرحلة — لا حصّتان منها في يومٍ للشعبة
+  HC20 (جديد): حصّتا المادّة في اليوم الواحد لا تتجاوران — والتوزيعُ نفسُه لـHC6
 """
 
 from __future__ import annotations
@@ -286,17 +286,35 @@ def check_thursday_secondary_pair(grid: ScheduleGrid, day: int, period: int, tas
     return grid.subject_on_day(task.class_id, task.subject_id, THURSDAY) == 0
 
 
-def check_spread_days(grid: ScheduleGrid, day: int, task: Task) -> bool:
-    """HC18: مادّةٌ موسومةٌ «أيّامٌ مختلفة» لا تجتمع حصّتان منها في يومٍ واحدٍ للشعبة.
+def check_subject_not_adjacent(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_adjacent: bool = False
+) -> bool:
+    """HC20: حصّتا المادّة في اليوم الواحد لا تتجاوران.
 
-    قيدٌ صلبٌ لا يسقط (قرار 2026-09-08): الفنّيّةُ والتكنولوجيا في الحادي عشر
-    والثاني عشر متباعدتان وجوباً — والوسمُ من `Subject.spread_days_scope` بنطاق
-    مرحلة الشعبة، لا من اسمٍ محفورٍ هنا. وهو أشدُّ من HC17 الذي يحرس الخميسَ
-    وحدَه، وأشدُّ من SC «subject_spread» الذي يرجّح ولا يمنع.
+    التباعدُ بين الأيّام يحسبه HC6 من القسمة ولا يحتاج وسماً: مادّةُ خمسِ حصصٍ
+    فأقلَّ سقفُها في اليوم واحدة، ومادّةُ ستٍّ يومٌ واحدٌ بحصّتين. فلم يبقَ إلّا
+    السؤالُ عن ذلك اليوم الواحد: أتقعان متلاصقتين فتصيرا حصّةً طويلةً بلا قصد؟
+
+    وكان هذا ترجيحاً مرناً (SC8) بوزن سبعة، فيُشترى بأيّ ربحٍ أثقلَ منه. وصار
+    منعاً — إلّا للمزدوجة، فتلاصقُها هو عينُ المقصود منها.
+
+    ورتبةُ كسره الرخصةُ الأولى لا المنعُ المطلق: تشديدُ التلاصق صلباً بلا كسرٍ
+    أنتج سابقاً ثمانيةً وعشرين يومَ تلاصقٍ مخالفٍ وثلاثَ حصصٍ بلا موضع. فزوجٌ
+    متلاصقٌ في جولة الاسترخاء خيرٌ من حصّةٍ تُترك بلا مكان.
     """
-    if not getattr(task, "spread_days", False):
+    if allow_adjacent or task.prefers_double:
         return True
-    return grid.subject_on_day(task.class_id, task.subject_id, day) == 0
+    if grid.subject_on_day(task.class_id, task.subject_id, day) == 0:
+        return True
+    #: الجارتان: ما قبلَ أوّلِ خاناتها وما بعدَ آخرِها — والمزدوجةُ خانتان.
+    #: والحدُّ من سقف اليوم لا من رقمٍ محفور: خميسُ الإعداديّ ستُّ حصصٍ لا سبع.
+    last = get_max_periods_for_day(day, getattr(task, "level_type", ""))
+    neighbours = [at for at in (period - 1, period + task.span) if 1 <= at <= last]
+    return not any(
+        (found := grid.get_task_at(task.class_id, day, at)) is not None
+        and found.subject_id == task.subject_id
+        for at in neighbours
+    )
 
 
 def check_class_conflict(grid: ScheduleGrid, day: int, period: int, class_id) -> bool:
@@ -646,19 +664,14 @@ def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> i
     return count
 
 
-def check_high_weekly_daily_limit(grid: ScheduleGrid, day: int, task: Task) -> bool:
-    """
-    HC6 (جديد): مادة 5+ حصص/أسبوع: حد أقصى 2 حصص بنفس اليوم للشعبة.
-    """
-    if task.weekly_periods < HIGH_WEEKLY_THRESHOLD:
-        return True  # لا ينطبق على مواد أقل من 5
-    count = grid.subject_on_day(task.class_id, task.subject_id, day)
-    return count < 2
-
-
 #: سقفُ حصص الشعبة في اليوم مصونٌ بهذا المدى وحده.
 #:
-#: كان هنا `check_day_capacity` تعدّ حصصَ الشعبة وتقارنها بالسقف، ولم تكن
+#: وكانت هنا أيضاً `check_high_weekly_daily_limit` تحرس سقفَ حصّتين لمادّةِ
+#: خمسٍ فأكثر، ولا تُستدعى من موضع. وحُذفت لأنّ `check_subject_distribution`
+#: (HC6) يحسب السقفَ من القسمة لكلّ مادّةٍ لا لعاليةِ النصاب وحدَها، وأدقَّ:
+#: مادّةُ خمسٍ سقفُها واحدةٌ لا اثنتان.
+#:
+#: وكانت قبلَهما `check_day_capacity` تعدّ حصصَ الشعبة وتقارنها بالسقف، ولم تكن
 #: تُستدعى من أيّ موضع. وحُذفت لأنّها لا تضيف ثابتاً مستقلّاً: الشعبةُ لا تشغل
 #: خانتين في الحصّة الواحدة (`check_class_conflict`)، والحصصُ محدودةٌ بالمدى
 #: أدناه — فعددُها في اليوم لا يتجاوزه بحال. ودالّةٌ تبدو حارساً وليست في
@@ -731,7 +744,7 @@ def is_slot_valid(
         return False
     if not waived("HC17") and not check_thursday_secondary_pair(grid, day, period, task):
         return False
-    if not waived("HC18") and not check_spread_days(grid, day, task):
+    if not check_subject_not_adjacent(grid, day, period, task, eased("HC20")):
         return False
     if not check_max_consecutive(grid, day, period, task, eased("HC5")):
         return False

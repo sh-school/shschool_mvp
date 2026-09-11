@@ -92,9 +92,7 @@ class Task:
     #: عقوبةٌ مرنةٌ ترجّح التجاور وتُلغي عقوبةَ تكرار المادّة في اليوم.
     #: (وحقلُ القاعدة `Subject.requires_double_period` يحمل الاسمَ القديم.)
     prefers_double: bool = False
-    #: HC18: حصصُ المادّة في أيّامٍ مختلفةٍ للشعبة — من `Subject.spread_days_scope`
     #: بنطاق مرحلة الشعبة، وحيث سرى بطل الازدواج.
-    spread_days: bool = False
     preferred_periods: list = field(default_factory=list)
     #: طبيعةُ المادّة تربويّاً — `heavy` / `activity` / `regular`، من `Subject.pedagogy`.
     #:
@@ -164,8 +162,12 @@ class Task:
         فستُّ حصصٍ على خمسة أيّامٍ سقفُها حصّتان، وعلى أربعةٍ سقفُها حصّتان
         أيضاً — والفرقُ في **عدد** الأيّام التي تبلغ السقف لا في السقف نفسه.
         """
+        #: بالكتل لا بالحصص: `ScheduleGrid` يعدّ المهمّةَ الموضوعةَ كتلةً
+        #: واحدةً مهما طالت، فقسمةُ الحصص هنا تقيس بوحدةٍ غيرِ وحدة العدّاد.
+        #: صحيحٌ بالمصادفة ما دامت المزدوجةُ نصابُها أربعٌ فأقلّ، ويخطئ عند
+        #: ستٍّ: ⌈6/5⌉ = كتلتان = أربعُ حصصٍ في يومٍ واحد.
         days = max(1, self.available_days)
-        return max(1, math.ceil(self.weekly_periods / days))
+        return max(1, math.ceil(self._blocks / days))
 
     @property
     def days_allowed_at_cap(self) -> int:
@@ -177,8 +179,13 @@ class Task:
         خمسةٍ: لا مزدوجَ البتّة، والأيّامُ الخمسةُ كلُّها «عند السقف» وهو واحد.
         """
         days = max(1, self.available_days)
-        remainder = self.weekly_periods % days
+        remainder = self._blocks % days
         return remainder if remainder else days
+
+    @property
+    def _blocks(self) -> int:
+        """عددُ ما تضعه الشبكةُ من هذه المهمّة — كتلةٌ لكلّ `span` حصص."""
+        return math.ceil(self.weekly_periods / max(1, self.span))
 
 
 class ScheduleGrid:
@@ -617,13 +624,6 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
     )
     #: طبيعةُ المادّة تربويّاً — تُقرأ مرّةً كما يقرؤها المختبر، ولا تُشتقّ من رمز.
     pedagogies = dict(Subject.objects.filter(school=school).values_list("id", "pedagogy"))
-    #: نطاقُ التباعد لكلّ مادّة — يُقرأ مرّةً ويُحسم لكلّ شعبةٍ بمرحلتها.
-    spread_scopes = dict(
-        Subject.objects.filter(school=school)
-        .exclude(spread_days_scope="none")
-        .values_list("id", "spread_days_scope")
-    )
-
     assignments = SubjectClassAssignment.objects.filter(
         school=school, academic_year=academic_year, is_active=True
     ).select_related("class_group", "subject", "teacher")
@@ -685,15 +685,8 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
             if a.double_period is not None
             else a.subject_id in double_period_subjects
         )
-        # والتباعدُ قيدٌ صلبٌ يعلو ترجيحَ الازدواج: مادّةٌ موسومةٌ بالتباعد في
-        # هذه المرحلة تُبنى مفردةً ولو وُسمت بالازدواج في المرحلة الأخرى.
-        scope = spread_scopes.get(a.subject_id, "none")
-        spread = scope == "all" or (bool(level_type) and scope == level_type)
-        if spread:
-            is_double = False
-
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
-        rows.append((a, level_type, is_double, spread, max(1, available)))
+        rows.append((a, level_type, is_double, max(1, available)))
 
     return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap, pedagogies)
 
@@ -723,7 +716,7 @@ def _to_tasks(
     personal_gap = personal_gap or {}
     pedagogies = pedagogies or {}
 
-    def build(a, level_type, is_double, members, available, spread=False):
+    def build(a, level_type, is_double, members, available):
         #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
         used = []
         for member in members:
@@ -741,7 +734,6 @@ def _to_tasks(
             weekly_periods=a.weekly_periods,
             requires_lab=a.requires_lab,
             prefers_double=is_double,
-            spread_days=spread,
             preferred_periods=a.preferred_periods or [],
             pedagogy=pedagogies.get(a.subject_id) or "regular",
             level_type=level_type,
@@ -767,12 +759,10 @@ def _to_tasks(
 
     grouped = _dd(list)
     tasks = []
-    for a, level_type, is_double, spread, available in rows:
+    for a, level_type, is_double, available in rows:
         label = (a.parallel_group or "").strip()
         if label:
-            grouped[(str(a.class_group_id), label)].append(
-                (a, level_type, is_double, spread, available)
-            )
+            grouped[(str(a.class_group_id), label)].append((a, level_type, is_double, available))
             continue
         if is_double and a.weekly_periods >= 2:
             # المزدوجةُ مهمّةٌ واحدةٌ تشغل خانتين — ونصابٌ فرديٌّ يترك حصّةً
@@ -785,26 +775,23 @@ def _to_tasks(
                 tasks.append(build(a, level_type, is_double, [member(a)], available))
             continue
         for _ in range(a.weekly_periods):
-            tasks.append(build(a, level_type, is_double, [member(a)], available, spread))
+            tasks.append(build(a, level_type, is_double, [member(a)], available))
 
     for entries in grouped.values():
-        members = [member(a) for a, _, _, _, _ in entries]
-        lead, level_type, _, _, _ = entries[0]
-        # التباعدُ يسري على المجموعة إن طلبه أحدُ أعضائها: الفنّيّةُ متباعدةٌ في
-        # الثانويّ فتجرّ شريكتَها التكنولوجيا معها — وهما في التوقيت نفسِه أصلاً.
-        spread = any(s for _, _, _, s, _ in entries)
+        members = [member(a) for a, _, _, _ in entries]
+        lead, level_type, _, _ = entries[0]
         # والازدواجُ لا يُفرض على شريكٍ لا يطلبه: الفنّيّةُ مزدوجةٌ والكيمياءُ
         # ليست كذلك، وهما متوازيتان في الحادي عشر/4 والثاني عشر/4. فلو أُخذ
         # الوصفُ من أوّل العضوين لجرّت الفنّيّةُ الكيمياءَ إلى يومٍ واحد —
         # والأولى بالكيمياء يومان. فالمجموعةُ تُزدوَج إن طلب الازدواجَ
         # أعضاؤها **جميعاً**، وإلّا فحصصٌ مفردةٌ تُفرّقها القسمةُ على الأيّام.
-        is_double = all(d for _, _, d, _, _ in entries) and not spread
+        is_double = all(d for _, _, d, _ in entries)
         # المجموعةُ المتوازيةُ تأخذ أضيقَ أيّامِ أعضائها: من فُرّغ يومان
         # فأيّامُ المجموعةِ أيّامُه.
-        available = min(av for _, _, _, _, av in entries)
+        available = min(av for _, _, _, av in entries)
         # الخاناتُ بأكبرِ نصابٍ في المجموعة: لو كانت الفنونُ حصّتين
         # والتكنولوجيا ثلاثاً فالخاناتُ ثلاث.
-        slots = max(a.weekly_periods for a, _, _, _, _ in entries)
+        slots = max(a.weekly_periods for a, _, _, _ in entries)
         # والمجموعةُ المزدوجةُ تُزدوَج كغيرها: تكنولوجيا الحادي عشر/1 حصّتان
         # متلاصقتان وإن شاركتها الفنونُ في التوقيت نفسه. وكانت تُبنى مفردةً
         # لأنّ الازدواجَ كان مقصوراً على غير المتوازي.
@@ -817,7 +804,7 @@ def _to_tasks(
                 tasks.append(build(lead, level_type, is_double, list(members), available))
             continue
         for _ in range(slots):
-            tasks.append(build(lead, level_type, is_double, list(members), available, spread))
+            tasks.append(build(lead, level_type, is_double, list(members), available))
 
     return tasks
 
