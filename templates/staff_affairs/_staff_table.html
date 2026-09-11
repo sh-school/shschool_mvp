@@ -35,7 +35,6 @@
         {% sort_th sort "joined" "الالتحاق" "col-center" target="#staff-table-container" %}
         {% if status == "left" %}<th class="col-center">المغادرة</th>{% endif %}
         <th class="col-center">الدخول</th>
-        <th class="col-actions">ملف</th>
       </tr>
     </thead>
     <tbody>
@@ -78,11 +77,6 @@
           {% else %}
             <span class="status-badge status-warning">بلا كلمة مرور</span>
           {% endif %}
-        </td>
-        <td class="col-actions">
-          <a href="{% url 'staff_affairs:staff_profile' s.id %}" class="btn-secondary btn-xs" aria-label="ملفّ {{ s.full_name }}">
-            {% include "components/icon.html" with name="user" %}
-          </a>
         </td>
       </tr>
       {% endfor %}
