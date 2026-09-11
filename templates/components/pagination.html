@@ -1,5 +1,9 @@
+{% load sorting %}
 {% comment %}
   مكوّن Pagination مع HTMX — SchoolOS v5.1
+
+  ورابطُ الصفحة يحمل ما قبله من ترشيحٍ وبحثٍ وفرز (`page_query`): كان
+  `?page=2` وحدَه فيُفتح على كلّ المدرسة والقائمةُ ما زالت تقول «G7».
   الاستخدام: include "components/pagination.html" with page_obj=page_obj target="#results"
   المتغيرات: page_obj (Django Page), target (hx-target), base_url (افتراضي: request.path)
 {% endcomment %}
@@ -7,14 +11,14 @@
 <nav class="pagination-wrap" aria-label="التنقل بين الصفحات">
 
   {% if page_obj.has_previous %}
-  <a href="?page=1" class="btn-secondary"
-     hx-get="{{ base_url|default:request.path }}?page=1"
+  <a href="?{% page_query 1 %}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?{% page_query 1 %}"
      hx-target="{{ target|default:'#main-content' }}"
      hx-swap="{{ swap|default:'innerHTML' }}" hx-push-url="true"
      aria-label="الصفحة الأولى">«</a>
 
-  <a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary"
-     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.previous_page_number }}"
+  <a href="?{% page_query page_obj.previous_page_number %}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?{% page_query page_obj.previous_page_number %}"
      hx-target="{{ target|default:'#main-content' }}"
      hx-swap="{{ swap|default:'innerHTML' }}" hx-push-url="true"
      aria-label="الصفحة السابقة">›</a>
@@ -26,8 +30,8 @@
       <span class="btn-primary" aria-current="page"
             aria-label="الصفحة الحالية {{ num }}">{{ num }}</span>
       {% else %}
-      <a href="?page={{ num }}" class="btn-secondary"
-         hx-get="{{ base_url|default:request.path }}?page={{ num }}"
+      <a href="?{% page_query num %}" class="btn-secondary"
+         hx-get="{{ base_url|default:request.path }}?{% page_query num %}"
          hx-target="{{ target|default:'#main-content' }}"
          hx-swap="{{ swap|default:'innerHTML' }}" hx-push-url="true"
          aria-label="صفحة {{ num }}">{{ num }}</a>
@@ -36,14 +40,14 @@
   {% endfor %}
 
   {% if page_obj.has_next %}
-  <a href="?page={{ page_obj.next_page_number }}" class="btn-secondary"
-     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.next_page_number }}"
+  <a href="?{% page_query page_obj.next_page_number %}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?{% page_query page_obj.next_page_number %}"
      hx-target="{{ target|default:'#main-content' }}"
      hx-swap="{{ swap|default:'innerHTML' }}" hx-push-url="true"
      aria-label="الصفحة التالية">‹</a>
 
-  <a href="?page={{ page_obj.paginator.num_pages }}" class="btn-secondary"
-     hx-get="{{ base_url|default:request.path }}?page={{ page_obj.paginator.num_pages }}"
+  <a href="?{% page_query page_obj.paginator.num_pages %}" class="btn-secondary"
+     hx-get="{{ base_url|default:request.path }}?{% page_query page_obj.paginator.num_pages %}"
      hx-target="{{ target|default:'#main-content' }}"
      hx-swap="{{ swap|default:'innerHTML' }}" hx-push-url="true"
      aria-label="الصفحة الأخيرة">»</a>
