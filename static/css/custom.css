@@ -2288,6 +2288,17 @@ body { padding-bottom: 72px; }
   color: var(--status-success-fg);
 }
 
+/* رسالةُ خطأِ الحقل — كانت `style="color:red"` في سبعة مواضع، والأحمرُ
+   الخالصُ نسبتُه 3.66 على السطح الداكن و4.00 على الأبيض: دون الحدّ فيهما. */
+.field-error { font-size: var(--text-xs); color: var(--status-danger-fg); }
+
+/* نقطةُ وسمٍ ملوّنةٌ في المفاتيح والأساطير — اللونُ بمُعدِّلٍ لا برقم. */
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.legend-dot--success { background: var(--status-success); }
+.legend-dot--warning { background: var(--status-warning); }
+.legend-dot--danger  { background: var(--status-danger); }
+.legend-dot--muted   { background: var(--text-muted); }
+
 /* ── Empty State Component ─────────────────────────────────── */
 .empty-state-v2 {
   display: flex;

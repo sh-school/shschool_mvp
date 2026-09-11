@@ -12,6 +12,7 @@ from collections import OrderedDict, defaultdict
 from django.db.models import Avg, Count, Q
 
 from assessments.models import AnnualSubjectResult
+from core import brand
 from core.models.academic import ClassGroup, StudentEnrollment, grade_number
 from student_affairs.models import StudentActivity
 from student_info.models import NOTE_CATEGORIES, StudentNote
@@ -151,7 +152,7 @@ def student_results(student, year):
                 "status": r.get_status_display(),
                 "band": band,
                 "band_label": BAND_LABELS.get(band, "—"),
-                "band_color": BAND_COLORS.get(band, "#838C99"),
+                "band_color": BAND_COLORS.get(band, brand.TEXT_MUTED),
             }
         )
     return rows

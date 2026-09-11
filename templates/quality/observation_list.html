@@ -91,9 +91,9 @@
         <td>{% if o.kind == "self" %}<span class="badge badge--accent">تقييم ذاتي</span>{% elif o.kind == "peer" %}<span class="badge badge--success">زيارة زميل</span>{% else %}<span class="badge badge--info">إشرافية</span>{% endif %}</td>
         <td class="col-num">
           {% if o.score_percent != None %}
-            {% if o.score_percent >= 75 %}<span style="color:#15803d;font-weight:600">{{ o.score_percent }}%</span>
-            {% elif o.score_percent >= 50 %}<span style="color:#b45309;font-weight:600">{{ o.score_percent }}%</span>
-            {% else %}<span style="color:#b91c1c;font-weight:600">{{ o.score_percent }}%</span>{% endif %}
+            {% if o.score_percent >= 75 %}<span style="color:var(--status-success-fg);font-weight:600">{{ o.score_percent }}%</span>
+            {% elif o.score_percent >= 50 %}<span style="color:var(--status-warning-fg);font-weight:600">{{ o.score_percent }}%</span>
+            {% else %}<span style="color:var(--status-danger-fg);font-weight:600">{{ o.score_percent }}%</span>{% endif %}
           {% else %}—{% endif %}
         </td>
         <td>
