@@ -37,11 +37,12 @@
 
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
-const TC = { green:'#16a34a', yellow:'#d97706', red:'#dc2626', grey:'#9ca3af' };
+/* الألوانُ تُقرأ من الرموز، فتنقلب مع الوضع — والخادمُ لا يعرفه. */
+const TC = { green:chartColor('status-success'), yellow:chartColor('status-warning'), red:chartColor('status-danger'), grey:chartColor('text-muted') };
 const TL = { green:'ممتاز', yellow:'تحذير', red:'خطر', grey:'غير متوفر' };
 const TB = {
-  green:  'background:#dcfce7;color:#166534',
-  yellow: 'background:#fef3c7;color:#92400e',
+  green:  'background:var(--status-success-bg);color:var(--status-success-fg)',
+  yellow: 'background:var(--status-warning-bg);color:var(--status-warning-fg)',
   red:    'background:#fef2f2;color:#991b1b',
   grey:   'background:var(--surface-alt);color:var(--text-muted)'
 };
