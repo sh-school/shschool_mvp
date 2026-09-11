@@ -25,7 +25,7 @@
   flex-wrap: wrap;
 }
 .exec-title { font-size: 1.25rem; font-weight: 700; color: var(--maroon, #8A1538); margin: 0; }
-.exec-subtitle { font-size: .7rem; color: var(--muted); margin: 0; }
+.exec-subtitle { font-size: .7rem; color: var(--text-muted); margin: 0; }
 .exec-meta { display: flex; align-items: center; gap: 8px; }
 .exec-year-select {
   font-size: .75rem; border: 1px solid var(--border); border-radius: 6px;
@@ -54,7 +54,7 @@
 .chart-title {
   font-size: .7rem;
   font-weight: 700;
-  color: var(--text);
+  color: var(--text-primary);
   margin-bottom: 4px;
   flex-shrink: 0;
 }
@@ -78,7 +78,7 @@
   padding: 6px 4px;
   font-size: .65rem;
   font-weight: 500;
-  color: var(--text);
+  color: var(--text-primary);
   text-decoration: none;
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
   border: 1px solid var(--border);
@@ -119,7 +119,7 @@
 /* ── Chart Loading / Error States ── */
 .chart-loading, .chart-error {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: .75rem; color: var(--muted); z-index: 2; background: var(--surface);
+  font-size: .75rem; color: var(--text-muted); z-index: 2; background: var(--surface);
 }
 .chart-error { color: var(--status-danger, #dc2626); }
 .chart-loading.hidden, .chart-error.hidden { display: none; }

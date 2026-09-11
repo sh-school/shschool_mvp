@@ -95,7 +95,7 @@
         {% for rec in day.records %}
         <div class="flex items-center justify-between px-5 py-2.5 text-sm">
           <div class="flex items-center gap-3">
-            <span class="text-[var(--muted)] text-xs w-10">{{ rec.session.start_time|time:"H:i" }}</span>
+            <span class="text-[var(--text-muted)] text-xs w-10">{{ rec.session.start_time|time:"H:i" }}</span>
             <span>{{ rec.session.subject.name_ar|default:"—" }}</span>
           </div>
           <span class="status-badge
@@ -115,7 +115,7 @@
   {% else %}
   <div class="card-qatar text-center py-12">
     <p class="text-4xl mb-3">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
-    <p class="text-[var(--muted)]">لا توجد سجلات حضور في هذه الفترة</p>
+    <p class="text-[var(--text-muted)]">لا توجد سجلات حضور في هذه الفترة</p>
   </div>
   {% endif %}
 

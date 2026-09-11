@@ -76,7 +76,7 @@
           <label class="form-label">مرفق</label>
           <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
           {% if mode == "edit" and activity.attachment %}
-          <span style="font-size:.7rem;color:var(--muted);margin-top:4px;display:block">مرفق حالي: {{ activity.attachment.name|cut:"student_activities/" }}</span>
+          <span style="font-size:.7rem;color:var(--text-muted);margin-top:4px;display:block">مرفق حالي: {{ activity.attachment.name|cut:"student_activities/" }}</span>
           {% endif %}
         </div>
 
