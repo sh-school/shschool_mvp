@@ -379,6 +379,11 @@ DASHBOARD_ROLES = (
         "ese_assistant",
         "speech_therapist",
         "occupational_therapist",
+        # لوحةٌ فقط: بطاقةُ وصفه تعطيه سجلَّ رعايةٍ بتوقيعٍ مزدوجٍ في الدواء
+        # («إلّا بوجود الممرّض وإذنٍ كتابيٍّ من وليّ الأمر موقَّعٍ من الإدارة»)
+        # ولا وحدةَ رعايةٍ في المنصّة بعد. فيدخل ولا يجد شاشةً فارغة، ولا يُمنح
+        # صلاحيّةً لا سندَ لها.
+        "support_companion",
         "receptionist",
         "transport_officer",
         "bus_supervisor",
@@ -400,6 +405,27 @@ def _get_user_role(request):
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return None
     return request.user.get_role()
+
+
+def log_denial(request, *, role, required=None, source="decorator"):
+    """يكتب سطراً لكلّ رفض — والرفضُ الصامتُ لا يُشخَّص ولا يُقاس.
+
+    كان الـ403 يخرج من الديكوريتور والميدلوير بلا أثر: لا يُعرف من حاول،
+    ولا أيُّ صفحةٍ ردّته، ولا ما الذي كانت تطلبه. فإذا ضُيّق نطاقٌ — الجناحُ
+    مثلاً — لم يُعرف من سيُحجَب إلّا حين يتّصل بك شاكياً.
+
+    ولا يُكتب هنا اسمٌ ولا رقمٌ شخصيّ (PDPPL): المفتاحُ رقمُ المستخدم في
+    القاعدة ودورُه ومسارُه — يكفي للعدّ والتشخيص، ولا يُعرّف شخصاً لمن
+    يقرأ السجلّ بلا صلاحيّةٍ على القاعدة نفسها.
+    """
+    logger.warning(
+        "access_denied source=%s path=%s role=%s user=%s required=%s",
+        source,
+        request.path,
+        role or "-",
+        getattr(getattr(request, "user", None), "pk", "-"),
+        ",".join(sorted(required)) if required else "-",
+    )
 
 
 def _forbidden_response(request, message):
@@ -436,6 +462,7 @@ def role_required(*roles):
                 return view_func(request, *args, **kwargs)
             user_role = request.user.get_role()
             if user_role not in expanded_roles:
+                log_denial(request, role=user_role, required=expanded_roles)
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
@@ -477,6 +504,7 @@ def department_scoped(*roles):
                 return view_func(request, *args, user_department=None, **kwargs)
 
             if user_role not in expanded:
+                log_denial(request, role=user_role, required=expanded, source="department_scoped")
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
@@ -484,6 +512,7 @@ def department_scoped(*roles):
 
             dept = request.user.department
             if not dept:
+                log_denial(request, role=user_role, source="department_scoped:no_department")
                 return _forbidden_response(
                     request,
                     "لم يتم تحديد القسم/التخصص في عضويتك — تواصل مع الإدارة",
@@ -540,8 +569,15 @@ def librarian_required(view_func):
 
 
 def bus_supervisor_required(view_func):
-    """مشرف النقل + القيادة."""
-    return role_required("bus_supervisor", "principal", "vice_admin")(view_func)
+    """كادرُ النقل كلُّه + القيادة.
+
+    ومسؤولُ النقل (`transport_officer`) منهم: `TRANSPORT_FULL` تمنحه الوحدةَ
+    كاملةً، والوحدةُ المسجَّلةُ في `transport/apps.py` تسمح له بالمسار —
+    وهذا الحارسُ وحدَه كان لا يعرفه، فيمرّ من البوّابة ويُردّ عند الباب في
+    الواجهات السبع كلِّها. والاسمُ بقي على حاله لأنّ سبعةَ استدعاءاتٍ تقرؤه،
+    والمعنى صار «من يدخل وحدةَ النقل» لا «مشرفُ الحافلة وحدَه».
+    """
+    return role_required(TRANSPORT_FULL | TRANSPORT_MANAGE)(view_func)
 
 
 def coordinator_required(view_func):
