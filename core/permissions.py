@@ -368,6 +368,60 @@ BEHAVIOR_SUMMON = frozenset(
 )
 
 
+# ═══════════════════════════════════════════════════════════════
+# مجموعاتٌ كانت محلّيّةً في ملفّات الواجهات — نُقلت بأعضائها حرفاً
+# ═══════════════════════════════════════════════════════════════
+#
+# مجموعةٌ معرَّفةٌ في ملفّ واجهاتها لا يراها من يقرأ هذا الملفّ، فتتغيّر
+# الصلاحيّةُ ولا يُعرف أين. وكان منها المكرَّر: `_REPORT_ROLES` بنصّه في الجدول
+# والحضور، و`_QUALITY_ALL` بنصّه في الجودة وتقاريرها.
+#
+# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء اليومَ ولم تُدمجا:
+# معناهما مختلف، وقد يفترقان. والنقلُ لم يغيّر عضواً — يحرسه
+# `tests/test_permission_groups_are_central.py`.
+
+#: تقاريرُ الجدول والحضور.
+OPERATIONS_REPORTS = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: إعدادُ الجدول الإداريّ.
+SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
+#: من يفتح «إعدادات الجدول والتفريغات» — والمطوّرُ معهم صراحةً (قرارُ المستخدم
+#: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
+#: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
+SCHEDULE_SETTINGS = frozenset({"principal", "vice_academic", "platform_developer"})
+#: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
+#: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
+SCHEDULE_BROWSE = frozenset(
+    {
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+        #: مسؤولُ حصص التعليم الإلكترونيّ — قرارُ المدير 2026-09-06: له معاينةُ
+        #: الجدول كاملاً وجدولِ كلّ معلّمٍ وجداولِ الأقسام، شأنَ المنسّق.
+        "e_projects_coordinator",
+        "admin_supervisor",
+        "admin",
+    }
+)
+#: نظامُ الكنترول. (والمصدرُ الوزاريُّ يجعل الكنترولَ لجنةً بعضويّةٍ موقوتة لا
+#: قائمةَ أدوار — `docs/rbac_role_authority_study_2026-09.md` ملحق د؛ والنقلُ لا يحسم ذلك.)
+EXAM_CONTROL_ACCESS = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
+STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
+#: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
+PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic", "admin"})
+#: إدارةُ ربط أولياء الأمور.
+PARENT_PORTAL_ADMIN = frozenset({"principal", "admin"})
+#: وحدةُ الجودة كلُّها — عرضاً وإدارة.
+QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
+#: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.
+BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
+
+
 # ══════════════════════════════════════════════════════════════════════
 # 2. ROLE GROUPS — مجموعات جاهزة للاستخدام في الديكوريتور
 # ══════════════════════════════════════════════════════════════════════

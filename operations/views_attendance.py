@@ -13,21 +13,12 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from core.permissions import role_required
+from core.permissions import OPERATIONS_REPORTS, role_required
 
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService
 
 logger = logging.getLogger(__name__)
-
-_REPORT_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "admin_supervisor",
-    "admin",
-}
 
 
 @login_required
@@ -365,7 +356,7 @@ def session_summary(request, session_id):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def daily_report(request):
     """تقرير الغياب اليومي — للمدير والمنسق"""
     from django.db.models import Count
