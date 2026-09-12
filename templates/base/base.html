@@ -441,7 +441,7 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
   <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
@@ -458,7 +458,7 @@
 {# ── Teacher Schedule Dropdown — يشمل مساعدي المعلم v7 ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
   <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
   <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
@@ -635,7 +635,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     </a>
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
     <a href="{% url 'teacher_schedule' %}" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
-      <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>الحضور</span>
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>حصصي</span>
     </a>
     <a href="{% url 'weekly_schedule' %}" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="calendar" %}</span><span>جدولي</span>

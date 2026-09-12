@@ -109,7 +109,7 @@
     </div>
     <a href="{% url 'attendance' next_session.id %}"
        class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
-      ابدأ الحضور ←
+      {% if is_recorder or not next_session.class_group.wing_id %}ابدأ الحضور ←{% else %}عرض الحضور ←{% endif %}
     </a>
   </div>
 </div>
@@ -174,7 +174,12 @@
           </span>
         </td>
         <td class="px-4 py-3">
-          {% if session.status != 'completed' and session.status != 'cancelled' %}
+          {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
+          <a href="{% url 'attendance' session.id %}"
+             class="btn-primary btn-sm">
+            تسجيل حضور
+          </a>
+          {% elif session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
           <a href="{% url 'attendance' session.id %}"
              class="btn-primary btn-sm">
             تسجيل حضور

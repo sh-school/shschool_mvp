@@ -25,7 +25,11 @@
       {% elif s.status == 'in_progress' %}
         <span class="status-badge status-warning">{{ s.get_status_display }}</span>
       {% else %}
+        {% if s.class_group.wing_id %}
+        <span class="status-badge status-gray">عرض الحضور ←</span>
+        {% else %}
         <span class="status-badge status-gray">تسجيل حضور ←</span>
+        {% endif %}
       {% endif %}
     </div>
   </a>

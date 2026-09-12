@@ -78,6 +78,16 @@ def is_recorder(user) -> bool:
     return user.is_superuser or user.get_role() in RECORDER_ROLES
 
 
+def can_record(user, session) -> bool:
+    """هل يكتب هذا المستخدمُ حالةَ الحضور في هذه الحصّة؟
+
+    شُعبُ الأجنحة يرصدها مشرفُ الجناح والقيادةُ وحدَهم — **والمعلّمُ لا يرصد**
+    (قرارُ المدير، واللوائحُ تُقرّه). وشُعبُ التربية الخاصّة خارجَ الأجنحة
+    بقرار الإدارة، ويرصدها معلّموها — فتبقى على حالها.
+    """
+    return is_recorder(user) or session.class_group.wing_id is None
+
+
 def recorded_by_supervisor(session, student) -> bool:
     """هل رصد المشرفُ هذا الطالبَ في هذه الحصّة؟
 
