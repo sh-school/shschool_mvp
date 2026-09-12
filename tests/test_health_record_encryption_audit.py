@@ -175,7 +175,9 @@ def test_one_record_can_hold_three_different_states(db, school, key, monkeypatch
     from clinic.models import HealthRecord
     from core.models import CustomUser
 
-    student = CustomUser.objects.create(national_id="28800000055", full_name="طالب")
+    student = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000055", full_name="طالب"
+    )
     once = key.encrypt(ARABIC.encode()).decode()
     record = HealthRecord.objects.create(
         student=student,
@@ -208,7 +210,9 @@ def test_the_report_never_carries_medical_text(db, school, key):
     from clinic.models import HealthRecord
     from core.models import CustomUser
 
-    student = CustomUser.objects.create(national_id="28800000056", full_name="طالب")
+    student = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000056", full_name="طالب"
+    )
     HealthRecord.objects.create(student=student, allergies=ARABIC)
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -230,7 +234,9 @@ def test_the_command_writes_nothing_to_the_database(db, school, key):
     from clinic.models import HealthRecord
     from core.models import CustomUser
 
-    student = CustomUser.objects.create(national_id="28800000057", full_name="طالب")
+    student = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000057", full_name="طالب"
+    )
     record = HealthRecord.objects.create(student=student, allergies=ARABIC)
     before = (record.allergies, record.chronic_diseases, record.medications, record.updated_at)
 

@@ -45,7 +45,9 @@ def subjects(db, school):
 def teachers(db):
     def _make(*names):
         return [
-            CustomUser.objects.create(national_id=f"1000000000{i}", full_name=n)
+            CustomUser.objects.create(
+                must_change_password=False, national_id=f"1000000000{i}", full_name=n
+            )
             for i, n in enumerate(names)
         ]
 

@@ -38,6 +38,7 @@ def make_admin(school):
     n = _next()
     role, _ = Role.objects.get_or_create(school=school, name="principal")
     user = CustomUser.objects.create_user(
+        must_change_password=False,
         national_id=f"ADMN{school.pk!s:.4s}{n:03d}",
         full_name="مدير المدرسة",
         email=f"admin_nv_{school.pk!s:.4s}_{n}@school.qa",
@@ -53,6 +54,7 @@ def make_teacher(school, suffix=None):
     suffix = suffix or f"T{n}"
     role, _ = Role.objects.get_or_create(school=school, name="teacher")
     user = CustomUser.objects.create_user(
+        must_change_password=False,
         national_id=f"TCHN{school.pk!s:.4s}{n:03d}",
         full_name=f"معلم {suffix}",
         email=f"teacher_nv_{school.pk!s:.4s}_{n}@school.qa",

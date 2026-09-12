@@ -24,7 +24,9 @@ from core.permissions import SCHEDULE_BROWSE
 def person(db, school):
     def _make(name, role_name):
         user = CustomUser.objects.create(
-            national_id=f"286{abs(hash(name)) % 10**8:08d}", full_name=name
+            must_change_password=False,
+            national_id=f"286{abs(hash(name)) % 10**8:08d}",
+            full_name=name,
         )
         role, _ = Role.objects.get_or_create(school=school, name=role_name)
         Membership.objects.create(user=user, school=school, role=role)

@@ -29,11 +29,13 @@ class SecurityTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user_a = User.objects.create_user(
+            must_change_password=False,
             national_id="28800000001",
             full_name="مستخدم الاختبار أ",
             password="password-A-123",
         )
         cls.user_b = User.objects.create_user(
+            must_change_password=False,
             national_id="28800000002",
             full_name="مستخدم الاختبار ب",
             password="password-B-123",
@@ -106,6 +108,7 @@ class SecurityTests(TestCase):
         school = School.objects.create(name="مدرسة الاختبار", code="TST01")
         role = Role.objects.create(school=school, name="student")
         student = User.objects.create_user(
+            must_change_password=False,
             national_id="28800000003",
             full_name="طالب الاختبار",
             password="password-123",

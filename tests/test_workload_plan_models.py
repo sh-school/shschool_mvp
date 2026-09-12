@@ -46,14 +46,18 @@ def school(db):
 def teacher(db):
     from core.models import CustomUser
 
-    return CustomUser.objects.create(national_id="20000000001", full_name="أحمد")
+    return CustomUser.objects.create(
+        must_change_password=False, national_id="20000000001", full_name="أحمد"
+    )
 
 
 @pytest.fixture
 def approver(db):
     from core.models import CustomUser
 
-    return CustomUser.objects.create(national_id="20000000002", full_name="النائب الأكاديميّ")
+    return CustomUser.objects.create(
+        must_change_password=False, national_id="20000000002", full_name="النائب الأكاديميّ"
+    )
 
 
 @pytest.fixture
