@@ -420,6 +420,10 @@ PARENT_PORTAL_ADMIN = frozenset({"principal", "admin"})
 QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
 #: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.
 BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
+#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
+WING_DAY_RECORD = frozenset(
+    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}
+)
 
 
 # ══════════════════════════════════════════════════════════════════════

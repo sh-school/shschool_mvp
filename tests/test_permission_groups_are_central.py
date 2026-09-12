@@ -1,6 +1,6 @@
 """مجموعاتُ الأدوار في `core/permissions.py` — لا في ملفّات الواجهات.
 
-كانت خمسَ عشرةَ مجموعةً معرَّفةً في ملفّات واجهاتها: `_REPORT_ROLES` بنصّه في
+كانت ستَّ عشرةَ مجموعةً معرَّفةً في ملفّات واجهاتها: `_REPORT_ROLES` بنصّه في
 الجدول والحضور، و`_QUALITY_ALL` بنصّه في الجودة وتقاريرها، واثنتان لا يستعملهما
 أحد. ومجموعةٌ في ملفّ الواجهة لا يراها من يقرأ المركز، فتتغيّر الصلاحيّةُ ولا
 يُعرف أين — ولا تبلغها دراسةُ الصلاحيّات حين تُحصي من يفتح ماذا.
@@ -60,6 +60,13 @@ MOVED = {
     | set(permissions.QUALITY_VIEW)
     | {"ese_teacher"},
     "BEHAVIOR_STATS_TEACHING": {"teacher", "coordinator", "ese_teacher"},
+    "WING_DAY_RECORD": {
+        "admin_supervisor",
+        "vice_admin",
+        "vice_academic",
+        "principal",
+        "platform_developer",
+    },
 }
 
 #: ما يبقى محلّيّاً عمداً — باسمه وسببه.
