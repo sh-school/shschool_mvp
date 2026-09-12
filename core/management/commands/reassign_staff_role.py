@@ -50,6 +50,11 @@ def _reject_placeholder(reference: str) -> str:
             raise CommandError(
                 f"المرجعُ يحمل علامةَ نقص «{mark}» — استبدل القيمةَ المؤقّتة بمرجع القرار الحقيقيّ."
             )
+    # «رقم ٠٠ بتاريخ ٠٠٠٠-٠٠-٠٠» قالبٌ لا قرار: قرارٌ حقيقيٌّ له رقمٌ أو تاريخٌ فيه
+    # غيرُ الصفر. و`isdigit` تعرف الأرقامَ الهنديّة والعربيّة معاً.
+    digits = [c for c in reference if c.isdigit()]
+    if not digits or all(int(c) == 0 for c in digits):
+        raise CommandError("المرجعُ بلا رقم قرارٍ ولا تاريخ — اكتب رقمَ القرار الحقيقيَّ وتاريخَه.")
     return reference
 
 

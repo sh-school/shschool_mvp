@@ -77,7 +77,16 @@ class TestItWritesOnlyWhenAsked:
 class TestItRefusesWhatIsNotDecided:
     @pytest.mark.parametrize(
         "reference",
-        ["", "قرار", "قرار مدير المدرسة رقم ... بتاريخ ...", "<المرجع هنا>", "TODO later"],
+        [
+            "",
+            "قرار",
+            "قرار مدير المدرسة رقم ... بتاريخ ...",
+            "<المرجع هنا>",
+            "TODO later",
+            "قرار مدير المدرسة رقم ٠٠ بتاريخ ٠٠٠٠-٠٠-٠٠",
+            "قرار مدير المدرسة رقم 00 بتاريخ 0000-00-00",
+            "قرار مدير المدرسة بلا رقم",
+        ],
     )
     def test_a_missing_or_placeholder_reference_fails(self, school, observer, reference):
         with pytest.raises(CommandError):
