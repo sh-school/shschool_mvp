@@ -1083,9 +1083,11 @@ def hub_send_notification_task(
     event_type,
     context=None,
     sent_by_id=None,
-    dispatch_id=None,
+    # `dispatch_id` يبقى آخرَ الوسائط: حارسُ السلك يشترطه، وكلُّ نداءٍ لهذه
+    # المهمّة بالكلمات لا بالمواضع، فترتيبُ ما قبله لا يُزيح ربطاً.
     email_html=None,
     email_text=None,
+    dispatch_id=None,
 ):
     """
     مهمة مركزية — يستدعيها NotificationHub لإرسال الإشعارات الخارجية.

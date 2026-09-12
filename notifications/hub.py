@@ -755,8 +755,12 @@ def _queue_external_now(
             context=_serialize_context(context),
             sent_by_id=str(sent_by.id) if sent_by else None,
             dispatch_id=dispatch_id,
-            email_html=email_html,
-            email_text=email_text,
+            # لا تُمرَّر وسيطةٌ فارغة. عاملٌ قديمٌ يستقبل كلمةً لا يعرفها يرفع
+            # `TypeError`، وCelery يعدّها فشلاً ويؤكّد الرسالة — فتُفقد ولا
+            # تُعاد. وأكثرُ الإشعارات بلا قالبٍ بريديّ، فحمولتُها تبقى حرفاً
+            # بحرفٍ كما كانت، ولا يبلغ العاملَ القديمَ منها جديد.
+            **({"email_html": email_html} if email_html else {}),
+            **({"email_text": email_text} if email_text else {}),
         )
         return True
     except _PUBLISH_FAILURES as e:
