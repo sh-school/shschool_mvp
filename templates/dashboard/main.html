@@ -980,8 +980,17 @@
 
 {% endif %}
 
-{% if view_type == "director" %}
+{% endblock %}
+
+{% comment %}
+كانت كتلةُ السكربت معرَّفةً داخلَ كتلة المحتوى، ومزلقُ جانغو أنّ الكتلةَ
+المتداخلةَ تُرسَم مرّتين: مرّةً في مكانها من المحتوى، ومرّةً حيث يضعها
+القالبُ الأب. فكان `const OPTS` يُصرَّح مرّتين في الصفحة الواحدة، ويُخفق
+السكربتُ الثاني بـ Identifier 'OPTS' has already been declared — فلا
+يُرسَم رسمُه. وأُخرجت الكتلةُ إلى مستواها، والشرطُ داخلَها.
+{% endcomment %}
 {% block extra_js %}
+{% if view_type == "director" %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
 <script nonce="{{ request.csp_nonce }}">
 Chart.defaults.font.family = 'Tajawal, sans-serif';
@@ -1016,13 +1025,12 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     type:'doughnut',
     data:{labels:d.labels, datasets:[{
       data:d.datasets[0].data,
-      backgroundColor:['#16a34a','#0D7B6A','#D4A843','#d97706','#dc2626','#8A1538'] /* success,chart-2,chart-4,warning,danger,chart-1 */
+      /* سلّمُ درجاتٍ يحمل معنى — يُقرأ من الرموز فينقلب مع الوضع. */
+      backgroundColor:[chartColor('status-success'),chartColor('chart-2'),chartColor('chart-4'),chartColor('status-warning'),chartColor('status-danger'),chartColor('chart-1')]
     }]},
     options:{...OPTS,plugins:{legend:{position:'bottom',labels:{padding:6,font:{size:9}}}},cutout:'55%'}
   });
 })();
 </script>
-{% endblock %}
 {% endif %}
-
 {% endblock %}

@@ -732,6 +732,27 @@ def _render_behavior_pdf(template_name, context, filename):
 
 
 @login_required
+@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+def behavior_policy_pdf(request):
+    """PDF: لائحةُ السلوك والانضباط بترويسة المدرسة.
+
+    وثيقةُ مدرسةٍ لا مخالفة، فلا تأخذ `infraction_id`. وكان قالبُها
+    مكتوباً بلا مسارٍ يبلغه — أخواتُها الثلاثُ لكلٍّ مسار، وهي وحدَها
+    بلا واحد. كشفه حارسُ القوالب اليتيمة.
+    """
+    school = request.user.get_school()
+    return _render_behavior_pdf(
+        "behavior/pdf/policy_doc.html",
+        {
+            "school": school,
+            "academic_year": academic_year_for(request),
+            "generated_at": _tz.now(),
+        },
+        "behavior_policy.pdf",
+    )
+
+
+@login_required
 @role_required(BEHAVIOR_MANAGE)
 def infraction_warning_pdf(request, infraction_id):
     """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""

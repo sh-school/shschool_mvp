@@ -19,6 +19,8 @@ urlpatterns = [
     # Phase 4 — تقارير سلوكية دورية
     path("report/student/<uuid:student_id>/", views.behavior_report, name="behavior_report"),
     path("statistics/", views.behavior_statistics, name="statistics"),
+    # لائحةُ السلوك — وثيقةُ مدرسةٍ لا مخالفة.
+    path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
     # ✅ v5: PDF النماذج الثلاثة (Ct.zip × WeasyPrint)
     path(
         "infraction/<uuid:infraction_id>/pdf/warning/",

@@ -233,9 +233,9 @@
             {% if g.is_pending or g.status == 'failed' %}<span class="text-muted">—</span>
             {% elif g.lab_relative %}
             <span class="font-bold
-              {% if g.lab_relative >= 98 %}text-[var(--status-success)]
-              {% elif g.lab_relative >= 90 %}text-[var(--status-warning)]
-              {% else %}text-[var(--status-danger)]{% endif %}">
+              {% if g.lab_relative >= 98 %}text-[var(--status-success-fg)]
+              {% elif g.lab_relative >= 90 %}text-[var(--status-warning-fg)]
+              {% else %}text-[var(--status-danger-fg)]{% endif %}">
               {{ g.lab_relative|floatformat:0 }}%
             </span>
             <div class="text-xs text-muted">من الأساس</div>

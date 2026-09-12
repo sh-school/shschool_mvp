@@ -199,3 +199,38 @@ class ParentConsentMiddleware:
             return redirect(reverse("parent_consent"))
 
         return self.get_response(request)
+
+
+class PrivateHtmlNoStoreMiddleware:
+    """صفحةُ مستخدمٍ مسجَّلٍ لا تُخزَّن في المتصفّح — `Cache-Control: no-store`.
+
+    كانت كلُّ صفحات المنصّة تخرج بلا `Cache-Control` البتّة. وحين لا يجد
+    المتصفّحُ توجيهاً ولا مُصادِقاً فله أن يُخزّن ويُعيد من تلقائه. وقد وقع
+    فعلاً: نُشر تغييرٌ وبقيت النوافذُ على حالها القديم، حتّى حُدّثت بتجاوز
+    الذاكرة (2026-09-12) فظهر الجديد — والخادمُ كان يخدم الأحدثَ طَوالها.
+
+    والأثرُ الثاني أثقل: هذه صفحاتٌ شخصيّة — جدولُ معلّمٍ، سجلُّ طالب، ملفٌّ
+    طبّيّ — تبقى على قرص جهازٍ قد يكون مشتركاً بعد الخروج، ويبلغها زرُّ
+    الرجوع. و`Vary: Cookie` يمنع الخلطَ بين مستخدمَين ولا يمنع البقاء.
+
+    والنطاقُ ضيّقٌ عمداً: HTML للمسجَّلين وحدَه. فالثابتُ يخدمه WhiteNoise
+    ببصمةٍ في اسمه ويجب أن يبقى مخزَّناً، وصفحاتُ الزائر (الدخول، الأخطاء)
+    ليست شخصيّةً، ومن ضبط ترويستَه بنفسه (`/health/`) أدرى بصفحته.
+
+    وثمنُه معلوم: `no-store` يُبطل bfcache، فزرُّ الرجوع يُعيد الطلب. وهو
+    الثمنُ المتعارَف عليه في تطبيقٍ خلفَ تسجيل دخول.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.has_header("Cache-Control"):
+            return response
+        if not getattr(request, "user", None) or not request.user.is_authenticated:
+            return response
+        if response.get("Content-Type", "").partition(";")[0].strip() != "text/html":
+            return response
+        response["Cache-Control"] = "no-store"
+        return response

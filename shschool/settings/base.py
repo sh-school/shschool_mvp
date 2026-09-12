@@ -94,6 +94,8 @@ MIDDLEWARE = [
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "csp.middleware.CSPMiddleware",
     "core.middleware.ParentConsentMiddleware",
+    # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
+    "core.middleware.PrivateHtmlNoStoreMiddleware",
     # ✅ v5.1: Prometheus آخر middleware لقياس وقت الاستجابة كاملاً
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]

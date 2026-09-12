@@ -10,6 +10,28 @@
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
+  {% comment %}
+  لوحةُ الرسوم تُقرأ من `:root`. ألوانُ Chart.js كانت تُكتب أرقاماً في
+  القوالب وفي الخادم، والخادمُ لا يعرف الوضعَ لأنّه في `localStorage` عند
+  المتصفّح. فكانت لوحةٌ مضبوطةٌ على الأبيض تُرسم على 0f172a#: العنّابيُّ
+  نسبتُه 1.91 والكحليُّ 1.53 — شكلان لا يُريان.
+  وهي هنا في الرأس لا في base.js: ذاك مؤجَّلٌ (defer) فيعمل بعد سكربتات
+  الصفحة، والصفحةُ تبني رسومَها قبله.
+  {% endcomment %}
+  <script nonce="{{ request.csp_nonce }}">
+    (function(){
+      function token(n){return getComputedStyle(document.documentElement).getPropertyValue('--'+n).trim()}
+      window.chartColor = token;
+      window.chartPalette = function(count){
+        var all=['chart-1','chart-2','chart-3','chart-4','chart-5','chart-6'].map(token);
+        if(!count) return all;
+        var out=[];for(var i=0;i<count;i++)out.push(all[i%all.length]);return out;
+      };
+      window.chartAlpha = function(n,a){
+        return 'color-mix(in srgb, '+token(n)+' '+Math.round(a*100)+'%, transparent)';
+      };
+    })();
+  </script>
   {% block extra_head %}{% endblock %}
   <title>{% block title %}{{ current_school.name|default:"المدرسة" }}{% endblock %}</title>
   {% load static %}
@@ -29,12 +51,12 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=16") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=204">
+  <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
-  <script src="{% static 'js/htmx.min.js' %}?v=2" defer></script>
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
 </head>
 
 <body class="bg-gray-50 min-h-screen flex flex-col">
@@ -572,9 +594,9 @@
 window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
-<script src="{% static 'js/actions.js' %}?v=5" defer></script>
-<script src="{% static 'js/base.js' %}?v=110" defer></script>
-<script src="{% static 'js/app.js' %}?v=101" defer></script>
+<script src="{% static 'js/actions.js' %}" defer></script>
+<script src="{% static 'js/base.js' %}" defer></script>
+<script src="{% static 'js/app.js' %}" defer></script>
 
 {% block extra_js %}{% endblock %}
 
