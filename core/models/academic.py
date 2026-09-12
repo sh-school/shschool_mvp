@@ -156,6 +156,16 @@ class TimeBand(models.Model):
         return self.name
 
 
+#: أجراسُ مجموعةٍ من الشُّعب مرتّبةً بلا تكرار.
+#:
+#: دالّةٌ لا خاصّيّةٌ لأنّ لها نداءين: `Wing.time_bands` يمرّر استعلامَه،
+#: وشاشةُ الأجنحة تمرّر ما سبق جلبُه بـ`prefetch_related` — فلو كُتب المنطقُ
+#: في الخاصّيّة وحدَها لأعادت الشاشةُ الاستعلامَ خمسَ مرّاتٍ أو كرّرت المنطق.
+def bands_of(sections) -> list:
+    bands = {klass.time_band for klass in sections if klass.time_band_id}
+    return sorted(bands, key=lambda band: (band.order, band.code))
+
+
 class Wing(models.Model):
     """جناحٌ من أجنحة المدرسة الخمسة: ممرٌّ بخمس شُعبٍ ومشرفٍ إداريٍّ واحد.
 
@@ -265,12 +275,7 @@ class Wing(models.Model):
         باستعلامٍ واحد: كانت قراءةُ المعرّفات ثمّ قراءةُ الأجراس استعلامَين،
         وخمسةُ أجنحةٍ تُعرض معاً تجعلهما عشرة.
         """
-        bands = {
-            klass.time_band
-            for klass in self.class_groups.filter(is_active=True).select_related("time_band")
-            if klass.time_band_id
-        }
-        return sorted(bands, key=lambda band: (band.order, band.code))
+        return bands_of(self.class_groups.filter(is_active=True).select_related("time_band"))
 
     @property
     def is_split_band(self) -> bool:

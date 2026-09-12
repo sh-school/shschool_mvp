@@ -188,7 +188,8 @@
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      {% if role == "admin_supervisor" %}<a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
+      {% if role == "admin_supervisor" %}<a href="{% url 'wings:floors' %}" class="nb">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</a>
+      <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
@@ -373,6 +374,7 @@
   <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
   <hr>
   <div class="sd-label">الحضور والغياب</div>
+  <a href="{% url 'wings:floors' %}">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة والتوقيت</a>
   <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</a>
   <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
   <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="calendar" %} سجلات الحضور والغياب</a>
