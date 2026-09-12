@@ -17,6 +17,7 @@ from .models import (
     StudentEnrollment,
     TimeBand,
     Wing,
+    WingCoverage,
 )
 
 
@@ -277,6 +278,18 @@ class WingAdmin(admin.ModelAdmin):
     @admin.display(description="عدد الشُّعب")
     def section_count(self, obj):
         return obj.class_groups.count()
+
+
+@admin.register(WingCoverage)
+class WingCoverageAdmin(admin.ModelAdmin):
+    """تغطيةُ الجناح مدّةٌ لا علم — والسجلُّ يُقرأ بالتاريخ فيُجيب عن أمسِ أيضاً."""
+
+    list_display = ("wing", "substitute", "start_date", "end_date", "reason", "assigned_by")
+    list_filter = ("wing", "reason")
+    search_fields = ("wing__name", "substitute__full_name")
+    autocomplete_fields = ("substitute", "assigned_by", "ended_by")
+    list_select_related = ("wing", "substitute", "assigned_by")
+    date_hierarchy = "start_date"
 
 
 @admin.register(TimeBand)

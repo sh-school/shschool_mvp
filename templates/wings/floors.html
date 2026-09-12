@@ -19,6 +19,11 @@
       <span class="exec-date">
         {{ day_label }}{% if is_school_day %} · الساعة {{ now|date:"H:i" }}{% endif %}
       </span>
+      {% if perms_can_cover %}
+        <a href="{% url 'wings:coverage' %}" class="btn-secondary btn-sm">
+          {% include "components/icon.html" with name="waypoints" %} التغطية والإنابة
+        </a>
+      {% endif %}
     </div>
   </div>
 
@@ -75,13 +80,18 @@
         <div class="wing-box__head">
           <div>
             <div class="wing-box__name">{{ card.wing.name }}</div>
-            <div class="wing-box__who{% if not card.wing.supervisor %} is-vacant{% endif %}">
-              {% if card.wing.supervisor %}{{ card.wing.supervisor.full_name }}{% else %}بلا مشرفٍ بعد{% endif %}
+            <div class="wing-box__who{% if not card.holder %} is-vacant{% endif %}">
+              {% if card.holder %}{{ card.holder.full_name }}{% else %}بلا مشرفٍ بعد{% endif %}
             </div>
           </div>
-          {% if card.is_split %}
-            <span class="badge badge--warning" title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة لا بالرقم">جرسان</span>
-          {% endif %}
+          <div class="wing-box__tags">
+            {% if card.coverage %}
+              <span class="badge badge--info" title="الأصيل: {{ card.wing.supervisor.full_name|default:'—' }}{% if card.coverage.end_date %} · حتّى {{ card.coverage.end_date }}{% endif %}">بديل</span>
+            {% endif %}
+            {% if card.is_split %}
+              <span class="badge badge--warning" title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة لا بالرقم">جرسان</span>
+            {% endif %}
+          </div>
         </div>
 
         <div class="wing-sections">

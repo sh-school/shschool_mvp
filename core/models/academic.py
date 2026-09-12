@@ -1,5 +1,8 @@
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeOperators
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Func, Q
 from django.db.models.functions import Cast, Substr
 from django.utils import timezone
 
@@ -301,8 +304,188 @@ class Wing(models.Model):
         """مراحلُ الجناح — مجموعةٌ لأنّ جناحاً واحداً يعبر الإعداديَّ والثانويّ."""
         return set(self.class_groups.filter(is_active=True).values_list("level_type", flat=True))
 
+    def active_coverage(self, on_date=None):
+        """التغطيةُ الساريةُ في هذا اليوم — أو `None`.
+
+        والأحدثُ بدايةً يغلب عند التساوي: قيدُ الاستبعاد يمنع التداخلَ في
+        القاعدة، لكنّ قراءةً بلا ترتيبٍ تُرجع ما تُرجعه القاعدةُ أوّلاً.
+        """
+        day = on_date or timezone.localdate()
+        return (
+            self.coverages.filter(start_date__lte=day)
+            .filter(Q(end_date__isnull=True) | Q(end_date__gte=day))
+            .select_related("substitute")
+            .order_by("-start_date")
+            .first()
+        )
+
+    def current_supervisor(self, on_date=None):
+        """من يحمل الجناحَ في هذا اليوم — البديلُ إن غُطّي، وإلّا الأصيل.
+
+        **كلُّ صلاحيّةٍ واستعلامٍ يمرّ على هذه**، لا على `supervisor`. فالأصيلُ
+        حقيقةُ سجلٍّ والحاملُ حقيقةُ يوم: مشرفٌ في إجازةٍ أسبوعاً يبقى أصيلَ
+        جناحه، ومن يقرأ ملفّات طلابه في ذلك الأسبوع غيرُه. ومن قرأ `supervisor`
+        مباشرةً منح الغائبَ ومنع الحاضر.
+        """
+        cover = self.active_coverage(on_date)
+        return cover.substitute if cover else self.supervisor
+
     def __str__(self):
         return f"{self.name} ({self.academic_year})"
+
+
+class DateRange(Func):
+    """`daterange(بداية، نهاية، '[]')` — ونهايةٌ فارغةٌ تعني مدّةً بلا أفق."""
+
+    function = "DATERANGE"
+    output_field = DateRangeField()
+
+
+class WingCoverage(models.Model):
+    """تغطيةُ جناحٍ في غياب مشرفه — مدّةٌ لا علمٌ يُرفع ويُنزل.
+
+    الجناحُ نطاقُ مشرفه، فغيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد،
+    وعذراً لا يعتمده أحد، وصندوقَ مخالفاتٍ لا يفتحه أحد. ولهذا لا يكفي حقلٌ
+    بوليٌّ «غائب»: يلزم **من** يحمله و**إلى متى**.
+
+    ولهذا هو سجلٌّ زمنيٌّ لا حقلٌ على الجناح: الحقلُ يُكتب فوق سابقه فلا يبقى
+    أثرٌ لمن حمل الجناحَ في يومٍ ماضٍ — ومن يقرأ غيابَ الأسبوع الماضي يحتاج أن
+    يعرف من كان يرصده. والسجلُّ يُقرأ بالتاريخ، فيُجيب عن أمسِ كما يُجيب عن
+    اليوم.
+
+    ## من يصلح بديلاً
+
+    قرارُ المدير 2026-09-12: «جميعُ من مسمّاه مشرفٌ إداريٌّ، عاملُ خدمات،
+    وملاحظُ حافلة» — وملاحظُ الحافلة هو ملاحظُ الطلبة نفسُه.
+
+    ويُقرأ الحوضُ **بالدور** لا بنصّ المسمّى الوظيفيّ: المسمّى نصٌّ حرٌّ يُكتب
+    «ملاحظ طلبه» بهاءٍ في كشفٍ و«ملاحظ طلبة» بتاءٍ في آخر، ومطابقةُ نصٍّ حرٍّ
+    لا تصلح صلاحيّة. و**مشرفُ المقصف** يحمل لفظَ «مشرف» وليس من الحوض —
+    فمطابقةُ الكلمة كانت ستضمّه.
+
+    ## ولا تتداخل مدّتان
+
+    قيدُ استبعادٍ في القاعدة على (الجناح، المدّة): تغطيتان متداخلتان لجناحٍ
+    واحدٍ تعنيان أنّ اثنين يحملانه في يومٍ واحد، فيقرأ كلاهما ويكتب كلاهما
+    ولا يُدرى من المسؤول. و`clean()` وحدَه لا يكفي: كتابتان متزامنتان تمرّان
+    عليه معاً ثمّ تقعان معاً.
+    """
+
+    REASONS = [
+        ("absence", "غيابُ المشرف"),
+        ("leave", "إجازة"),
+        ("vacancy", "جناحٌ بلا مشرف"),
+        ("other", "أخرى"),
+    ]
+
+    #: من يصلح بديلاً — بالدور، مقابلاً لمسمّيات المدير الثلاثة.
+    SUBSTITUTE_ROLES = ("admin_supervisor", "services_worker", "student_observer")
+
+    #: من يعيّن. والأكاديميُّ منهم لأنّه يحمل صلاحيّاتِ المدير في غيابه عادةً —
+    #: وحصرُه في الإداريّ يعني جناحاً بلا مشرفٍ يومَ يغيب المديرُ ونائبُه معاً.
+    ASSIGNER_ROLES = ("principal", "vice_admin", "vice_academic", "platform_developer")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    wing = models.ForeignKey("core.Wing", on_delete=models.CASCADE, related_name="coverages")
+    substitute = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="wing_coverages",
+        verbose_name="البديل",
+    )
+    assigned_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wing_coverages_assigned",
+        verbose_name="عيّنه",
+    )
+    reason = models.CharField(max_length=10, choices=REASONS, default="absence")
+    start_date = models.DateField(verbose_name="من")
+    #: فارغةٌ = مفتوحةٌ حتّى تُنهى. ومدّةٌ بلا نهايةٍ ليست إهمالاً: غيابٌ طارئٌ
+    #: لا يُعرف مداه يومَ يقع، والتاريخُ يُكتب حين يعود صاحبُه.
+    end_date = models.DateField(null=True, blank=True, verbose_name="إلى")
+    ended_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wing_coverages_ended",
+        verbose_name="أنهاها",
+    )
+    note = models.TextField(blank=True, verbose_name="ملاحظة")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تغطيةُ جناح"
+        verbose_name_plural = "تغطياتُ الأجنحة"
+        ordering = ["-start_date"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(end_date__isnull=True) | Q(end_date__gte=models.F("start_date")),
+                name="wing_coverage_ends_after_it_starts",
+            ),
+            ExclusionConstraint(
+                name="no_overlapping_wing_coverage",
+                expressions=[
+                    (
+                        DateRange("start_date", "end_date", RangeBoundary(inclusive_upper=True)),
+                        RangeOperators.OVERLAPS,
+                    ),
+                    ("wing", RangeOperators.EQUAL),
+                ],
+            ),
+        ]
+        indexes = [models.Index(fields=["wing", "start_date"])]
+
+    def covers(self, day) -> bool:
+        return self.start_date <= day and (self.end_date is None or day <= self.end_date)
+
+    def clean(self):
+        """أربعةُ شروطٍ يبلغها المُدخِلُ في حقله، لا رفضاً من المحرّك بلا بيان."""
+        super().clean()
+        errors = {}
+
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            errors["end_date"] = "النهايةُ قبل البداية."
+
+        if self.substitute_id and self.wing_id:
+            if self.substitute_id == self.wing.supervisor_id:
+                errors["substitute"] = "البديلُ هو الأصيلُ نفسُه — لا تغطيةَ في ذلك."
+            else:
+                from .access import Membership
+
+                eligible = Membership.objects.filter(
+                    user_id=self.substitute_id,
+                    school_id=self.wing.school_id,
+                    is_active=True,
+                    role__name__in=self.SUBSTITUTE_ROLES,
+                ).exists()
+                if not eligible:
+                    errors["substitute"] = "البديلُ من مشرفٍ إداريٍّ أو عاملِ خدماتٍ أو ملاحظِ طلبة."
+
+        # ولا يحمل أحدٌ تغطيتين متداخلتين: نقطةُ فشلٍ مضاعفةٌ في يومٍ واحد.
+        if self.substitute_id and self.start_date:
+            clash = (
+                WingCoverage.objects.filter(substitute_id=self.substitute_id)
+                .exclude(pk=self.pk)
+                .filter(Q(end_date__isnull=True) | Q(end_date__gte=self.start_date))
+            )
+            if self.end_date:
+                clash = clash.filter(start_date__lte=self.end_date)
+            other = clash.select_related("wing").first()
+            if other:
+                errors["substitute"] = (
+                    f"يغطّي {other.wing.name} في المدّة نفسها — ولا تغطيتين لشخصٍ واحد."
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        end = f"{self.end_date}" if self.end_date else "مفتوحة"
+        return f"{self.wing.name}: {self.substitute.full_name} ({self.start_date} → {end})"
 
 
 class ClassGroup(models.Model):
