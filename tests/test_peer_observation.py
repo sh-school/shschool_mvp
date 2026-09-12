@@ -22,7 +22,9 @@ from quality.observation_models import OBSERVATION_KIND, ClassroomObservation
 def person(db, school):
     def _make(name, role_name="teacher"):
         user = CustomUser.objects.create(
-            national_id=f"285{abs(hash(name)) % 10**8:08d}", full_name=name
+            must_change_password=False,
+            national_id=f"285{abs(hash(name)) % 10**8:08d}",
+            full_name=name,
         )
         role, _ = Role.objects.get_or_create(school=school, name=role_name)
         Membership.objects.create(user=user, school=school, role=role)
@@ -98,7 +100,9 @@ def test_one_does_not_visit_oneself(db, person):
 def test_a_stranger_is_not_a_colleague(db, person, school):
     """من ليس في المدرسة لا يُزار — ولو مُرّر رقمه."""
     visitor = person("الزائر")
-    outsider = CustomUser.objects.create(national_id="28500000999", full_name="غريب")
+    outsider = CustomUser.objects.create(
+        must_change_password=False, national_id="28500000999", full_name="غريب"
+    )
 
     _client(visitor).post(
         reverse("observation_peer_create"), {"teacher": str(outsider.id)}, HTTP_HOST="localhost"

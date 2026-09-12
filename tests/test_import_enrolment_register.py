@@ -67,7 +67,9 @@ def student(db, school):
     """طالبٌ قائمٌ في المنصّة برقمه الحقيقيّ في السجلّ."""
     from core.models.access import Membership, Role
 
-    user = CustomUser.objects.create(national_id="31463401932", full_name="تميم سعد")
+    user = CustomUser.objects.create(
+        must_change_password=False, national_id="31463401932", full_name="تميم سعد"
+    )
     role, _ = Role.objects.get_or_create(school=school, name="student")
     Membership.objects.create(user=user, school=school, role=role, is_active=True)
     return user
@@ -304,7 +306,9 @@ def test_a_student_absent_from_the_register_is_left_alone(db, school, student, t
     """خرّيجٌ أو منتقل — وإغلاقُ قيده قرارٌ إداريٌّ لا يُتّخذ من سطر أوامر."""
     from core.models.access import Membership, Role
 
-    other = CustomUser.objects.create(national_id="31463400000", full_name="خرّيج")
+    other = CustomUser.objects.create(
+        must_change_password=False, national_id="31463400000", full_name="خرّيج"
+    )
     role = Role.objects.get(school=school, name="student")
     Membership.objects.create(user=other, school=school, role=role, is_active=True)
     path = _register(tmp_path, {"07": [("31463401932", "تميم سعد", "7", "07/1")]})
