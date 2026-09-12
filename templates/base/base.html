@@ -190,7 +190,6 @@
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <button class="nb" id="btn-sw-behavior" data-sd="m-sw-behavior" aria-expanded="false" aria-controls="m-sw-behavior">{% include "components/icon.html" with name="scale" %} السلوك <span class="chv">▼</span></button>
       <button class="nb" id="btn-sw-students" data-sd="m-sw-students" aria-expanded="false" aria-controls="m-sw-students">{% include "components/icon.html" with name="users" %} متابعة الطلاب <span class="chv">▼</span></button>
-      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "academic_advisor" %}
@@ -198,22 +197,19 @@
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
-      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "admin" %}
       {# الإداري (T4) — قوائم مقيّدة: لا يحصل على قوائم المدير الكاملة #}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
-      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:floors' %}" class="nb">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</a>
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
-      <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
-      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
 
     {% elif role == "it_technician" %}
@@ -225,7 +221,6 @@
     {% elif role == "speech_therapist" or role == "occupational_therapist" %}
       {# أخصائي النطق + أخصائي العلاج الوظائفي — يعملون مع طلاب محددين #}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 
     {% elif role == "activities_coordinator" %}
@@ -240,7 +235,7 @@
     {% elif role == "receptionist" %}
       {# موظف الاستقبال — استقبال الزوار والتواصل الإداري #}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
 
     {% elif role == "transport_officer" %}
@@ -250,11 +245,9 @@
       <a href="{% url 'transport:buses_list' %}" class="nb">الحافلات</a>
       <a href="{% url 'transport:student_assignments' %}" class="nb">إسناد الطلاب</a>
       <a href="{% url 'transport:statistics' %}" class="nb">الإحصائيات</a>
-      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
 
     {% elif role == "student" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} درجاتي</a>
       <a href="{% url 'library:dashboard' %}" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
 
     {% elif role == "parent" %}
