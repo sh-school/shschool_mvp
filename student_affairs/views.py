@@ -12,7 +12,6 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db import transaction
 from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -33,6 +32,7 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
+from core.labels import class_label
 from core.models.academic import (
     ClassGroup,
     ParentStudentLink,
@@ -40,9 +40,9 @@ from core.models.academic import (
     grade_number,
     grade_order,
 )
-from core.models.access import Membership, Role
+from core.models.access import Membership
 from core.models.audit import AuditLog
-from core.models.user import CustomUser, Profile
+from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
 from core.privacy import mask_national_id
@@ -107,14 +107,6 @@ def student_dashboard(request):
 # ═════════════════════════════════════════════════════════════════════
 # سجل الطلاب — الخطوة 4
 # ═════════════════════════════════════════════════════════════════════
-
-
-def _class_label(grade: str | None, section: str | None) -> str:
-    """«G10» و«2» ← «10/2» — كما يكتبها سجلُّ القيد الوزاريّ."""
-    if not grade or not section:
-        return "—"
-    digits = "".join(ch for ch in grade if ch.isdigit())
-    return f"{digits.zfill(2)}/{section}" if digits else f"{grade}/{section}"
 
 
 #: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
@@ -291,7 +283,7 @@ def student_list(request):
             "national_id": mask_national_id(m.user.national_id),
             # «07/2» كما تكتبه الوزارة — عمودٌ واحدٌ لا عمودان، ورقمُ الصفّ
             # بلا حرفٍ وبخانتين، فيطابق ما في يد القارئ من كشوف.
-            "class_label": _class_label(m.grade_code, m.section_code),
+            "class_label": class_label(m.grade_code, m.section_code),
             "guardian_name": m.guardian_name or "",
             "guardian_phone": m.guardian_phone or "",
             "guardian_relation": relations.get(m.guardian_relation, ""),
@@ -1445,110 +1437,6 @@ def activity_delete(request, pk):
     activity.delete()
     messages.success(request, f"تم حذف النشاط «{title}».")
     return redirect("student_affairs:activity_list")
-
-
-# ═════════════════════════════════════════════════════════════════════
-# إضافة ولي أمر جديد + ربطه بطالب
-# ═════════════════════════════════════════════════════════════════════
-
-
-@login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
-def parent_add(request):
-    """إضافة ولي أمر جديد وربطه بطالب — ينشئ 3 سجلات ذرّياً (User + Membership + ParentStudentLink)."""
-
-    from .forms import ParentAddForm
-
-    school = request.user.get_school()
-    year = academic_year_for(request)
-
-    # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
-    students = (
-        CustomUser.objects.filter(
-            enrollments__class_group__school=school,
-            enrollments__class_group__academic_year=year,
-            enrollments__is_active=True,
-        )
-        .distinct()
-        .order_by("full_name")
-    )
-
-    if request.method == "POST":
-        form = ParentAddForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            student = get_object_or_404(CustomUser, id=cd["student_id"])
-
-            existing = CustomUser.objects.filter(national_id=cd["national_id"]).first()
-
-            try:
-                with transaction.atomic():
-                    if existing:
-                        parent = existing
-                        # تأكد من وجود Membership كـ parent
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.get_or_create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            defaults={"is_active": True},
-                        )
-                    else:
-                        # إنشاء حساب جديد
-                        parent = CustomUser.objects.create_user(
-                            national_id=cd["national_id"],
-                            password=cd["national_id"],
-                            full_name=cd["full_name"],
-                            phone=cd.get("phone", ""),
-                            email=cd.get("email", ""),
-                            must_change_password=True,
-                        )
-                        Profile.objects.get_or_create(user=parent)
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            is_active=True,
-                        )
-
-                    # ربط ولي الأمر بالطالب
-                    link, created = ParentStudentLink.objects.get_or_create(
-                        school=school,
-                        parent=parent,
-                        student=student,
-                        defaults={
-                            "relationship": cd["relationship"],
-                            "can_view_grades": True,
-                            "can_view_attendance": True,
-                        },
-                    )
-
-                if created:
-                    messages.success(
-                        request,
-                        f"تم إضافة {parent.full_name} وربطه بالطالب {student.full_name} بنجاح.",
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        f"الربط بين {parent.full_name} والطالب {student.full_name} موجود مسبقاً.",
-                    )
-                return redirect("manage_parent_links")
-
-            except Exception as e:
-                messages.error(request, f"خطأ أثناء إضافة ولي الأمر: {e}")
-    else:
-        form = ParentAddForm()
-
-    return render(
-        request,
-        "student_affairs/parent_form.html",
-        {
-            "form": form,
-            "students": students,
-        },
-    )
 
 
 # ═════════════════════════════════════════════════════════════════════

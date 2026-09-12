@@ -5,6 +5,7 @@ parents/views.py — thin views (Phase 4)
 
 import json
 import logging
+import re
 
 from django.conf import settings
 
@@ -13,16 +14,24 @@ logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import CharField, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from behavior.models import BehaviorInfraction
-from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
+from core.models import (
+    ConsentRecord,
+    CustomUser,
+    Membership,
+    ParentStudentLink,
+    Role,
+    StudentEnrollment,
+)
 from core.permissions import role_required
-from core.sorting import apply_sort
+from core.sorting import apply_sort, arabic_key
 from operations.models import AbsenceAlert
 
 # ── أدوار مسموح لها بالوصول لبوابة ولي الأمر ──
@@ -302,9 +311,10 @@ def parent_behavior(request):
 
 # حقولُ الفرز المسموحة — `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى.
 LINK_SORTS = {
-    "student": ("student__full_name", "parent__full_name"),
-    "parent": ("parent__full_name", "student__full_name"),
-    "relationship": ("relationship", "student__full_name"),
+    "student": ("student_key", "parent_key"),
+    "parent": ("parent_key", "student_key"),
+    "relationship": ("relationship", "student_key"),
+    "klass": ("grade_key", "section_key", "student_key"),
 }
 
 
@@ -320,31 +330,91 @@ def manage_parent_links(request):
     search = request.GET.get("q", "").strip()
     rel_filter = request.GET.get("rel", "").strip()
 
-    # جميع ارتباطات المدرسة
+    # ── الارتباطُ يبقى بعد أن يغادر صاحبُه، فالعددُ يكذب ─────────────
+    #
+    # «742 طالباً مرتبطاً» لمدرسةٍ سجلُّ قيدها 735: مئةٌ واثنان وأربعون منهم
+    # غادروا وبقيت ارتباطاتُهم. والرقمُ الذي يُعمَل به غائبٌ عن الشاشة —
+    # **من لا وليَّ أمرٍ له** من طلاب هذا العام.
+    enrolled = StudentEnrollment.objects.filter(
+        student_id=OuterRef("student_id"),
+        class_group__school=school,
+        class_group__academic_year=year,
+        is_active=True,
+    )
+    section = StudentEnrollment.objects.filter(
+        student_id=OuterRef("student_id"),
+        class_group__school=school,
+        class_group__academic_year=year,
+        is_active=True,
+    ).order_by("-enrolled_at")
+
     links = (
         ParentStudentLink.objects.filter(school=school)
         .select_related("parent", "student")
-        .order_by("student__full_name", "parent__full_name")
+        .annotate(
+            is_enrolled=Exists(enrolled),
+            grade_code=Subquery(section.values("class_group__grade")[:1]),
+            section_code=Subquery(section.values("class_group__section")[:1]),
+            student_key=arabic_key(F("student__full_name")),
+            parent_key=arabic_key(F("parent__full_name")),
+        )
+        .annotate(
+            grade_key=Func(
+                Func(
+                    F("grade_code"),
+                    Value(r"\D"),
+                    Value(""),
+                    Value("g"),
+                    function="REGEXP_REPLACE",
+                    output_field=CharField(),
+                ),
+                Value(2),
+                Value("0"),
+                function="LPAD",
+                output_field=CharField(),
+            ),
+            section_key=F("section_code"),
+        )
     )
+
+    #: الافتراضُ طلابُ هذا العام، ومن غادر يُرى بترشيحٍ صريحٍ لا يضيع.
+    status = request.GET.get("status") or "enrolled"
+    if status == "enrolled":
+        links = links.filter(is_enrolled=True)
+    elif status == "left":
+        links = links.filter(is_enrolled=False)
 
     total_count = links.count()
 
-    # فلترة بالبحث
     if search:
         links = links.filter(
             Q(parent__full_name__icontains=search)
             | Q(student__full_name__icontains=search)
             | Q(parent__national_id__icontains=search)
             | Q(student__national_id__icontains=search)
+            | Q(parent__phone__icontains=search)
+            | Q(grade_code__icontains=search)
         )
 
-    # فلترة بصلة القرابة
     if rel_filter:
         links = links.filter(relationship=rel_filter)
 
-    # إحصائيات
     parent_count = links.values("parent").distinct().count()
     student_count = links.values("student").distinct().count()
+
+    # ── العددُ الذي يُعمَل به: من بقي بلا وليّ أمر ────────────────────
+    current = set(
+        StudentEnrollment.objects.filter(
+            class_group__school=school, class_group__academic_year=year, is_active=True
+        ).values_list("student_id", flat=True)
+    )
+    linked_now = set(
+        ParentStudentLink.objects.filter(school=school, student_id__in=current).values_list(
+            "student_id", flat=True
+        )
+    )
+    enrolled_count = len(current)
+    unlinked_count = len(current - linked_now)
 
     # الفرزُ قبل التقسيم: القائمةُ كلُّها تُرتَّب ثمّ تُقتطع صفحةٌ منها.
     links, sort = apply_sort(links, request, LINK_SORTS, "student")
@@ -359,6 +429,14 @@ def manage_parent_links(request):
         "total_count": total_count,
         "parent_count": parent_count,
         "student_count": student_count,
+        "enrolled_count": enrolled_count,
+        "unlinked_count": unlinked_count,
+        "status": status,
+        "statuses": (
+            ("enrolled", "طلابُ هذا العام"),
+            ("left", "غادروا — ارتباطٌ قديم"),
+            ("all", "الكلّ"),
+        ),
         "search": search,
         "rel_filter": rel_filter,
         "year": year,
@@ -386,20 +464,82 @@ def manage_parent_links(request):
     return render(request, "parents/manage_links.html", ctx)
 
 
+def _parent_from_identity(request, school, national_id, full_name, phone, email=""):
+    """وليٌّ بالرقم الشخصيّ — يُستعاد إن كان في النظام، وإلّا يُنشأ.
+
+    والحسابُ الجديدُ يُفتح **بلا كلمة مرورٍ صالحة**: كان يُفتح بكلمةٍ هي
+    الرقمُ الشخصيُّ نفسُه — وهو رقمٌ في كشوف الوزارة وفي يد المدرسة، فمن
+    يعرفه يدخل بحساب الرجل قبل أن يدخل هو. وإلزامُه بالتغيير بعد الدخول لا
+    يمنع غيرَه من السبق إليه.
+
+    فتُصدَر له كلمةٌ مؤقّتةٌ بـ`issue_temporary_passwords` حين يُراد تسليمُه.
+    """
+    if not national_id or not full_name:
+        messages.error(request, "اختر وليّاً من القائمة، أو اكتب رقمَه الشخصيَّ واسمَه.")
+        return None
+    if not re.fullmatch(r"\d{5,20}", national_id):
+        messages.error(request, "الرقمُ الشخصيُّ أرقامٌ فقط (5–20 خانة).")
+        return None
+    if len(full_name) < 4:
+        messages.error(request, "الاسمُ قصيرٌ جدّاً.")
+        return None
+
+    parent = CustomUser.objects.filter(national_id=national_id).first()
+    with transaction.atomic():
+        if parent is None:
+            parent = CustomUser(
+                national_id=national_id, full_name=full_name, phone=phone, email=email
+            )
+            parent.set_unusable_password()
+            parent.save()
+            messages.info(
+                request,
+                f"أُنشئ حسابُ {parent.full_name} بلا كلمة مرور — تُصدَر له بأمر"
+                " issue_temporary_passwords.",
+            )
+        role, _ = Role.objects.get_or_create(school=school, name="parent")
+        Membership.objects.get_or_create(
+            user=parent, school=school, role=role, defaults={"is_active": True}
+        )
+    return parent
+
+
 @login_required
 @role_required(_ADMIN_ROLES)
 def add_parent_link(request):
-    """إضافة ربط جديد بين ولي أمر وطالب — للمدير فقط."""
+    """ربطُ وليّ أمرٍ بطالب — قائماً كان أو جديداً.
+
+    كان لهذا الفعل بابان: هذه الاستمارةُ تربط قائماً، وشاشةٌ منفصلةٌ تُنشئ
+    وتربط. والمستخدمُ لا يعرف من الشاشة أيَّهما يفتح. فصار باباً واحداً حيث
+    يُرى العمل: في الصفحة التي تقول كم طالباً بلا وليّ أمر.
+
+    وثلاثُ حالاتٍ يجمعها:
+      اختيارُ وليٍّ من القائمة · رقمٌ شخصيٌّ لمن في النظام ولم يُوسَم وليّاً
+      · رقمٌ لا يعرفه النظام فيُنشأ له حساب.
+    """
     if request.method != "POST" or not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
     parent_id = request.POST.get("parent_id")
+    national_id = (request.POST.get("parent_national_id") or "").strip()
+    full_name = (request.POST.get("parent_full_name") or "").strip()
+    phone = (request.POST.get("parent_phone") or "").strip()
+    email = (request.POST.get("parent_email") or "").strip()
     student_id = request.POST.get("student_id")
     rel = request.POST.get("relationship", "father")
 
-    parent = get_object_or_404(CustomUser, id=parent_id)
+    if not student_id:
+        messages.error(request, "اختر الطالبَ المراد ربطُه.")
+        return redirect("manage_parent_links")
     student = get_object_or_404(CustomUser, id=student_id)
+
+    if parent_id:
+        parent = get_object_or_404(CustomUser, id=parent_id)
+    else:
+        parent = _parent_from_identity(request, school, national_id, full_name, phone, email)
+        if parent is None:
+            return redirect("manage_parent_links")
 
     link, created = ParentStudentLink.objects.get_or_create(
         school=school,
