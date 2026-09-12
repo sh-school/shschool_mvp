@@ -307,17 +307,35 @@ def test_the_criteria_column_keeps_its_width(source):
 
 
 def test_the_proprietary_font_is_never_committed():
-    """مستودع المشروع عامّ، و«Traditional Arabic» ملكيّةُ Monotype."""
+    """مستودع المشروع عامّ، و«Traditional Arabic» ملكيّةُ Monotype.
+
+    شقّان: ما في `.gitignore` يُقرأ من القرص، وما في الفهرس يحتاج غيتاً.
+    وغيتٌ ليس في حاوية التطوير، فكان الفحصُ يسقط بـ`FileNotFoundError`
+    في كلّ تشغيلٍ محلّيٍّ لأيّ فرع — حمرةٌ كاذبةٌ تُعمي عن الحمرة الصادقة.
+
+    فصار الشقُّ الثاني يُتخطّى حين لا غيت، **إلّا في البوّابة**: هناك غيتٌ
+    موجودٌ بالضرورة، فغيابُه عطبٌ في البيئة لا عذرٌ للتخطّي.
+    """
+    import os
     import pathlib
+    import shutil
     import subprocess
 
-    tracked = subprocess.run(
-        ["git", "ls-files", "static/fonts"], capture_output=True, text=True, check=False
-    ).stdout.lower()
-
-    assert "trado" not in tracked and "tradbdo" not in tracked
     ignored = pathlib.Path(".gitignore").read_text(encoding="utf-8")
     assert "static/fonts/trado.ttf" in ignored
+
+    git = shutil.which("git")
+    if git is None:
+        # في متغيّرٍ لا في `assert os.environ.get(...)` مباشرةً: pytest يطبع
+        # ما يُقارَن عند الإخفاق، و`os.environ` تحمل أسراراً.
+        in_ci = bool(os.environ.get("CI"))
+        assert not in_ci, "لا غيتَ في البوّابة — الفحصُ لا يُتخطّى هنا"
+        pytest.skip("لا غيتَ في هذه البيئة — فحصُ الفهرس يجري في البوّابة")
+
+    tracked = subprocess.run(
+        [git, "ls-files", "static/fonts"], capture_output=True, text=True, check=False
+    ).stdout.lower()
+    assert "trado" not in tracked and "tradbdo" not in tracked
 
 
 def test_a_stored_font_reaches_the_stylesheet(db):
