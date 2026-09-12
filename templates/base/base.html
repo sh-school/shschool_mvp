@@ -210,7 +210,8 @@
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
-      {% if role == "admin_supervisor" %}<a href="{% url 'wings:floors' %}" class="nb">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</a>
+      {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>
+      <a href="{% url 'wings:floors' %}" class="nb">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</a>
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
       <a href="{% url 'notifications_dashboard' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
@@ -396,6 +397,7 @@
   <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
   <hr>
   <div class="sd-label">الحضور والغياب</div>
+  <a href="{% url 'wings:record_index' %}">{% include "components/icon.html" with name="list-checks" %} رصد الغياب — شُعب الأجنحة</a>
   <a href="{% url 'wings:floors' %}">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة والتوقيت</a>
   {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" %}
   <a href="{% url 'wings:coverage' %}">{% include "components/icon.html" with name="waypoints" %} تغطية الأجنحة والإنابة</a>
@@ -642,6 +644,11 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     {% if role == 'student' %}
     <a href="{% url 'reports_index' %}" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>درجاتي</span>
+    </a>
+    {% endif %}
+    {% if role == 'admin_supervisor' or is_admin_role %}
+    <a href="{% url 'wings:record_index' %}" class="mobile-nav-item {% if '/wings/record' in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>رصد الغياب</span>
     </a>
     {% endif %}
     <a href="{% url 'notification_inbox' %}" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">

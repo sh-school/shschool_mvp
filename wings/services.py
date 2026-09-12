@@ -19,6 +19,7 @@ from django.utils import timezone
 from core.models import ClassGroup, CustomUser, Membership, StudentEnrollment, Wing, WingCoverage
 from core.models.academic import FLOORS, bands_of
 from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for, day_type_for
+from operations.day_attendance import confirmations_of, enrolled_of, slots_of
 
 
 @dataclass(frozen=True)
@@ -264,3 +265,64 @@ def bell_tables(school) -> list[BellTable]:
         BellTable(day_type=day_type, label=label, bells=list(bells_for(school, day_type).values()))
         for day_type, label in ((REGULAR, "الأحد – الأربعاء"), (THURSDAY, "الخميس"))
     ]
+
+
+@dataclass(frozen=True)
+class SectionToRecord:
+    """شعبةٌ في شاشة الرصد — ما يلزم لاختيارها والحكم عليها."""
+
+    class_group: ClassGroup
+    students: int
+    periods: int
+    confirmation: object
+
+    @property
+    def is_recorded(self) -> bool:
+        return self.confirmation is not None
+
+    @property
+    def says(self) -> str:
+        if self.confirmation is None:
+            return "لم تُرصد"
+        c = self.confirmation
+        parts = [f"غياب {c.absent_count}"]
+        if c.late_count:
+            parts.append(f"تأخّر {c.late_count}")
+        return " · ".join(parts)
+
+
+def sections_to_record(wing, day) -> list[SectionToRecord]:
+    """شُعبُ الجناح وحالُ رصدِها اليوم — ومنه «شُعبي المتبقّية n/5»."""
+    done = confirmations_of(wing, day)
+    rows = []
+    for klass in wing.class_groups.filter(is_active=True):
+        rows.append(
+            SectionToRecord(
+                class_group=klass,
+                students=enrolled_of(klass).count(),
+                periods=slots_of(klass, day),
+                confirmation=done.get(klass.id),
+            )
+        )
+    return rows
+
+
+def wings_of(user, school, year):
+    """أجنحةُ هذا المستخدم — ما يحمله اليوم أصيلاً أو بديلاً.
+
+    والقيادةُ ترى الخمسةَ: المرحلة 3ب لم تُبنَ بعد، والتضييقُ هناك لا هنا.
+    """
+    all_wings = list(
+        Wing.objects.filter(school=school, academic_year=year, is_active=True)
+        .select_related("supervisor")
+        .prefetch_related("coverages", "class_groups")
+        .order_by("order", "code")
+    )
+    if user.is_superuser or user.get_role() in (
+        "principal",
+        "vice_admin",
+        "vice_academic",
+        "platform_developer",
+    ):
+        return all_wings
+    return [w for w in all_wings if w.current_supervisor() == user]

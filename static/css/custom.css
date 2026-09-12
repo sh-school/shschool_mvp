@@ -2303,11 +2303,29 @@ textarea:focus-visible {
 body { padding-bottom: 72px; }
 .btn-primary, .btn-secondary, .btn-danger { min-height: 44px; }
 .form-control, .form-input, .form-select { min-height: 44px; font-size: var(--text-base); }  /* منع zoom على iOS */
+
+/* ── الترويسةُ في الهاتف: لا تدفع الصفحةَ أفقيّاً ──────────────
+   كان اسمُ المدرسة في `.nav-logo-text` بـ`nowrap` عرضُه 296px، واسمُ
+   المستخدم 139px، وكلاهما `flex-shrink: 0` — فمجموعُ الترويسة 552px في
+   شاشةٍ عرضُها 375px. والفيضُ لا يُقصّ بل يوسّع الصفحةَ نفسَها، فصار
+   `document.scrollWidth` 561px **في كلّ صفحةٍ من المنصّة**: تُسحب الصفحةُ
+   يميناً وشمالاً، ويخرج نصفُ الجدول عن الشاشة، وكلُّ ضغطةٍ تُصيب موضعاً
+   أزاحته الإزاحةُ الأفقيّة. وهذا موضعُ استعمال المشرف: هاتفٌ في الممرّ.
+
+   فالعلاجُ أن يُسمح للعنصرين بالانضغاط ويُقصّ ما زاد بثلاث نقاط. واسمُ
+   المستخدم يُخفى كلَّه — الحرفُ الأوّلُ في الصورة الرمزيّة يكفي هويّةً،
+   والقائمةُ تحته تكتب الاسمَ كاملاً. */
+.site-header .nav-logo,
+.site-header .nav-user-btn { flex-shrink: 1; min-width: 0; }
+.nav-logo-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.nav-user-name { display: none; }
+
 @media (min-width: 641px) {
   .mobile-bottom-nav { display: none; }
   body { padding-bottom: 0; }
   .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
   .form-control, .form-input, .form-select { min-height: auto; font-size: inherit; }
+  .nav-user-name { display: revert; }
 }
 
 /* ── Progress Ring (SVG) for Quality ──────────────────────── */
@@ -9372,3 +9390,123 @@ html.dark {
 .wing-row .wing-box { flex: 1; }
 /* خانةٌ في سطرٍ واحد: البطاقةُ خُمسُ الشاشة، فحقلان متجاوران يقصّان نصَّهما. */
 .wing-row .wing-cover-form { grid-template-columns: 1fr; }
+
+/* ══════════════════════════════════════════════════════════════
+   38. رصدُ الغياب — templates/wings/record_*.html
+   ══════════════════════════════════════════════════════════════
+   المشرفُ يرصد واقفاً في ممرٍّ بيدٍ واحدة، وشبكةُ الممرّات ليست كشبكة
+   المكتب. فثلاثةُ قيودٍ تحكم هذه الشاشة: الهاتفُ أوّلاً، وهدفُ اللمس
+   ≥44 بكسلاً، وضغطةٌ واحدةٌ للطالب لا قائمةٌ منسدلة.
+
+   والنافذةُ خمسون دقيقة (07:10–08:00) لـ155 طالباً في خمس شُعب — فشاشةٌ
+   تستهلك دقيقتين للشعبة تكفي، وعشراً لا تكفي.
+   ══════════════════════════════════════════════════════════════ */
+
+.rec-datebar { display: flex; gap: 6px; align-items: center; }
+.rec-datebar .form-control { width: 150px; }
+
+/* ── رقاقاتُ الشُّعب ── */
+.rec-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--sp-2);
+}
+.rec-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--status-warning);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-decoration: none;
+  min-height: 72px;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+.rec-chip:hover { box-shadow: var(--shadow-sm); border-color: var(--maroon-border); }
+/* رُصدت: أخضرُ مطفأٌ — و«لم تُرصد» تبقى كهرمانيّةً حتّى تُرصد. */
+.rec-chip.is-done { border-inline-start-color: var(--status-success); }
+.rec-chip.is-empty { border-inline-start-color: var(--border-strong); opacity: .7; }
+.rec-chip__code {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.rec-chip__say { font-size: var(--text-sm); color: var(--text-secondary); }
+.rec-chip.is-done .rec-chip__say { color: var(--status-success-fg); font-weight: 600; }
+.rec-chip__meta { font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ── قائمةُ الطلاب ── */
+.rec-hint { margin: 0 0 var(--sp-2); }
+.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rec-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+/* السطرُ يُلوّن بحال الطالب — فالغائبُ يُرى في مسحةِ عينٍ بلا قراءة. */
+.rec-row:has(.rec-pick--absent input:checked) {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border, var(--status-danger));
+}
+.rec-row:has(.rec-pick--late input:checked) {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border, var(--status-warning));
+}
+.rec-row__no { font-size: var(--text-xs); color: var(--text-muted); min-width: 22px; text-align: center; }
+.rec-row__name { flex: 1; font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); min-inline-size: 0; }
+.rec-row__pick { display: flex; gap: 3px; flex-shrink: 0; }
+
+/* هدفُ اللمس 44 بكسلاً — إصبعٌ في ممرٍّ لا فأرةٌ على مكتب. */
+.rec-pick { margin: 0; cursor: pointer; }
+.rec-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.rec-pick > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.rec-pick--present input:checked + span {
+  background: var(--status-success-bg); color: var(--status-success-fg);
+  border-color: var(--status-success);
+}
+.rec-pick--absent input:checked + span {
+  background: var(--status-danger); color: #fff; border-color: var(--status-danger);
+}
+.rec-pick--late input:checked + span {
+  background: var(--status-warning); color: var(--status-warning-fg);
+  border-color: var(--status-warning);
+}
+.rec-pick input:focus-visible + span { outline: 2px solid var(--maroon); outline-offset: 2px; }
+
+/* ── الذيل: زرُّ التثبيت يلزم الشاشةَ في الهاتف ── */
+.rec-foot {
+  display: flex;
+  align-items: end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.rec-foot .btn-primary { min-height: 44px; }
+
+@media (max-width: 640px) {
+  .rec-row__pick { gap: 2px; }
+  .rec-pick > span { min-width: 44px; font-size: 11px; }
+  .rec-foot { position: sticky; bottom: 0; background: var(--surface); padding-bottom: var(--sp-2); }
+}
