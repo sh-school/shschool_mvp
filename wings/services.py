@@ -13,9 +13,10 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
+from django.utils import timezone
 
-from core.models import ClassGroup, StudentEnrollment, Wing
+from core.models import ClassGroup, CustomUser, Membership, StudentEnrollment, Wing, WingCoverage
 from core.models.academic import FLOORS, bands_of
 from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for, day_type_for
 
@@ -27,6 +28,9 @@ class WingCard:
     wing: Wing
     sections: list[ClassGroup]
     student_count: int
+    #: من يحمل الجناحَ اليوم — بديلٌ إن غُطّي، وإلّا الأصيل.
+    holder: object
+    coverage: object
     #: أجراسُ الجناح كما هي — لا كما ترنّ اليوم.
     bands: list
     bells: list[Bell]
@@ -131,7 +135,8 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
                     is_active=True, academic_year=year
                 ).select_related("time_band"),
                 to_attr="live_sections",
-            )
+            ),
+            Prefetch("coverages", queryset=WingCoverage.objects.select_related("substitute")),
         )
         .order_by("order", "code")
     )
@@ -145,7 +150,10 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
     moment = when.time()
 
     cards = []
+    day = when.date()
     for wing in wings:
+        # من الجلب المسبق لا باستعلامٍ لكلّ جناح.
+        cover = next((c for c in wing.coverages.all() if c.covers(day)), None)
         bands = bands_of(wing.live_sections)
         bells = [table[band.code] for band in bands if band.code in table]
         cards.append(
@@ -153,6 +161,8 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
                 wing=wing,
                 sections=wing.live_sections,
                 student_count=counts.get(wing.id, 0),
+                holder=(cover.substitute if cover else wing.supervisor),
+                coverage=cover,
                 bands=bands,
                 bells=bells,
                 positions=[
@@ -174,6 +184,78 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
         )
         for code, label in FLOORS
     ]
+
+
+def substitute_pool(school, wing=None, on_date=None):
+    """من يصلح بديلاً — ومن هو مشغولٌ منهم يُعرض مشغولاً لا يُحجب.
+
+    الحجبُ يُخفي السبب: من يبحث عن زميلٍ فلا يجده في القائمة يظنّه غيرَ مؤهّل،
+    وهو مؤهّلٌ يغطّي جناحاً آخر. فيُعرض الجميعُ ومعهم حالُهم، والقيدُ في
+    `clean()` يمنع الخطأ لا القائمة.
+    """
+    day = on_date or timezone.localdate()
+    held = dict(
+        Wing.objects.filter(school=school, is_active=True, supervisor__isnull=False).values_list(
+            "supervisor_id", "name"
+        )
+    )
+    busy = {
+        cover.substitute_id: cover.wing.name
+        for cover in WingCoverage.objects.filter(wing__school=school)
+        .filter(Q(end_date__isnull=True) | Q(end_date__gte=day))
+        .select_related("wing")
+    }
+    people = (
+        CustomUser.objects.filter(
+            id__in=Membership.objects.filter(
+                school=school, is_active=True, role__name__in=WingCoverage.SUBSTITUTE_ROLES
+            ).values("user_id")
+        )
+        .distinct()
+        .order_by("full_name")
+    )
+    own = wing.supervisor_id if wing is not None else None
+    return [
+        {
+            "user": person,
+            "is_own_supervisor": person.id == own,
+            "principal_of": held.get(person.id, ""),
+            "busy_with": busy.get(person.id, ""),
+        }
+        for person in people
+    ]
+
+
+def coverage_rows(school, year: str, on_date=None):
+    """الأجنحةُ الخمسةُ وحالُ كلٍّ منها اليوم — أصيلٌ أو بديلٌ إلى متى."""
+    day = on_date or timezone.localdate()
+    wings = (
+        Wing.objects.filter(school=school, academic_year=year, is_active=True)
+        .select_related("supervisor")
+        .prefetch_related(
+            Prefetch(
+                "coverages",
+                queryset=WingCoverage.objects.select_related("substitute", "assigned_by"),
+            )
+        )
+        .order_by("order", "code")
+    )
+    rows = []
+    for wing in wings:
+        active = next((c for c in wing.coverages.all() if c.covers(day)), None)
+        rows.append(
+            {
+                "wing": wing,
+                "coverage": active,
+                "holder": active.substitute if active else wing.supervisor,
+                "history": sorted(
+                    (c for c in wing.coverages.all() if not c.covers(day)),
+                    key=lambda c: c.start_date,
+                    reverse=True,
+                )[:5],
+            }
+        )
+    return rows
 
 
 def bell_tables(school) -> list[BellTable]:
