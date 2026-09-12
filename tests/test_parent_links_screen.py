@@ -90,9 +90,9 @@ class TestTheCountIsTheWorkLeft:
         _link(school, _parent(school, "أبو الباقي", "28400000001"), here)
         _link(school, _parent(school, "أبو المغادر", "28400000002"), gone)
 
-        assert _students_in(_body(client_as, admin)) == ["الباقي"], (
-            "من أُغلق قيدُه ارتباطُه أثرٌ لا عمل"
-        )
+        assert _students_in(_body(client_as, admin)) == [
+            "الباقي"
+        ], "من أُغلق قيدُه ارتباطُه أثرٌ لا عمل"
 
     def test_the_departed_are_reachable_by_an_explicit_filter(self, client_as, school, admin, year):
         here = _student(school, "الباقي", "31400000003", year=year)
