@@ -16,10 +16,19 @@ operations/absence_standing.py — موقف الطالب من عتبات الغ�
 
 ## العذر
 
-`excuse_type` عندنا أربعة: طبي، ظروف عائلية، رسمي، أخرى. والسياسة تقبل
-ثلاثة: مرضٌ بشهادةٍ حكومية معتمدة، وحادثٌ طارئ وظرفٌ قهريّ، ومهمّةٌ رسمية
-بشهادةٍ من جهة العمل. فأيّ عذرٍ مسجَّل يُعامَل هنا عذراً، ومطابقةُ نوعه
-بالسياسة ووجودُ مستنده مسألةٌ إدارية لا حسابية.
+`excuse_type` عندنا أربعة: طبي، ظروف عائلية، رسمي، أخرى. والدليل التنظيمي
+2026 (م 3.4.1.4) يقبل **خمسة** بقائمةٍ **مغلقة**: مرضٌ بتقريرٍ طبّيّ، ووفاةٌ
+في القرابة الأولى، وظرفٌ عائليٌّ طارئٌ بكتابٍ رسميّ، وتمثيلُ الدولة في لقاءٍ
+خارجيّ، ومواعيدُ المحاكم والهيئات (ومقابلاتُ الثاني عشر للعمل والجامعات).
+والقائمةُ لا يزيدها اجتهاد: «تُعتبر جميع حالات الغياب غير مبرَّرة بخلاف
+الغياب بعذر كما هو موضَّح أعلاه».
+
+فأيّ عذرٍ مسجَّل يُعامَل هنا عذراً، ومطابقةُ نوعه بالسياسة ووجودُ مستنده
+مسألةٌ إدارية لا حسابية. **وموضعُ تحفّظ**: نصُّ العتبة في م 3.4.1.3 يقول
+«بدون عذرٍ **طبّيّ** رسميّ» أربعَ مرّات، وم 3.4.1.4 تُجيز الخمسةَ. فهل
+يُسقط العتبةَ أيٌّ من الخمسة أم الطبّيُّ وحدَه؟ نقرأ القائمةَ المغلقةَ حاكمةً
+— فالحسابُ هنا أرحمُ إن كان النصُّ الأوّلَ مقصوداً حرفاً، والسؤالُ لقسم
+شؤون الاختبارات.
 """
 
 from __future__ import annotations
@@ -78,13 +87,13 @@ def _day_map(student, school, start, end) -> dict:
     return days
 
 
-def standing_for(student, school, grade=None, on=None) -> Standing:
+def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Standing:
     """موقف الطالب اليوم — تراكميّاً من بداية العام كما تنصّ السياسة."""
     from core.academic_calendar import academic_year_window
 
     window = academic_year_window(school, on)
     if window is None:
-        return Standing(0, 0, 0, band_for(grade), (), (), None)
+        return Standing(0, 0, 0, band_for(grade, ese), (), (), None)
 
     start, end = window
     today = on or _today()
@@ -98,10 +107,10 @@ def standing_for(student, school, grade=None, on=None) -> Standing:
         unexcused_days=unexcused,
         partial_days=partial,
         excused_days=excused,
-        band=band_for(grade),
-        gates=gates_for(grade),
-        breached=breached(grade, unexcused),
-        upcoming=next_gate(grade, unexcused),
+        band=band_for(grade, ese),
+        gates=gates_for(grade, ese),
+        breached=breached(grade, unexcused, ese),
+        upcoming=next_gate(grade, unexcused, ese),
     )
 
 
