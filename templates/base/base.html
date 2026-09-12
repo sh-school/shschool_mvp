@@ -29,8 +29,8 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=15") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=197">
+  <style>@import url("{% static 'css/tailwind.min.css' %}?v=16") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=199">
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
@@ -369,7 +369,6 @@
   <a href="{% url 'student_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
   <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجلات الطلاب</a>
   <a href="{% url 'student_affairs:student_add' %}">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
-  <a href="{% url 'student_affairs:parent_add' %}">{% include "components/icon.html" with name="user-plus" %} إضافة ولي امر</a>
   <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</a>
   <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
   <hr>
