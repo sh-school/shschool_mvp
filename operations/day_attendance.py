@@ -31,9 +31,11 @@
 وأثرُ ذلك في الاحتساب محفوظ: قاعدةُ `absence_standing` تعدّ اليومَ غياباً إذا
 غاب في **كلّ** حصصه المسجَّلة — وثمانٍ من ثمانٍ كسبعٍ من سبع.
 
-**ولا يُمَسّ ما رصده معلّمٌ**: في أسبوع التشغيل الموازي يرصد الاثنان معاً،
-فالسجلُّ الذي مصدرُه `teacher` يبقى كما هو، ويُكتب سجلُّ المشرف بمصدره. وبلا
-هذا لا تُقارَن الحقبتان ولا يُعرف أيُّ رقمٍ لأيّهما.
+**والمعلّمُ لا يرصد** — قرارُ المدير، واللوائحُ تُقرّه. والسجلُّ واحدٌ لكلّ
+طالبٍ في كلّ حصّة (`unique_attendance_per_session`)، فمن يحفظ أخيراً يمحو ما
+قبله: ما كتبه المشرفُ يُمحى رصدُ المعلّم تحته، وشاشةُ الحصّة القديمة لا تكتب
+فوق ما رصده المشرف (`recorded_by_supervisor`). فلا «تشغيلَ موازياً» يُقارَن
+على هذه البنية — وكان هذا الملفُّ يدّعيه خطأً.
 
 ## ولا حضورَ افتراضيّاً
 
@@ -59,6 +61,34 @@ from .models import SectionDayConfirmation, Session, StudentAttendance
 MORNING_STATES = ("present", "absent", "late")
 
 SOURCE = "supervisor"
+
+#: من يرصد حالةَ الحضور: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ
+#: المنصّة. **والمعلّمُ ليس منهم** — قرارُ المدير، واللوائحُ تُقرّه: الرصدُ
+#: لمشرف الجناح وحدَه.
+RECORDER_ROLES = (
+    "admin_supervisor",
+    "vice_admin",
+    "vice_academic",
+    "principal",
+    "platform_developer",
+)
+
+
+def is_recorder(user) -> bool:
+    return user.is_superuser or user.get_role() in RECORDER_ROLES
+
+
+def recorded_by_supervisor(session, student) -> bool:
+    """هل رصد المشرفُ هذا الطالبَ في هذه الحصّة؟
+
+    السجلُّ واحدٌ لكلّ طالبٍ في كلّ حصّة (`unique_attendance_per_session`)،
+    فمن يحفظ أخيراً يمحو ما قبله. وشاشةُ المعلّم القديمة تكتب الحالةَ ولا
+    تلمس `source` — فلو ضغط معلّمٌ بحكم العادة لتغيّرت حالةُ الطالب وبقي
+    السجلُّ منسوباً إلى المشرف: رقمٌ كاذبٌ باسم من لم يكتبه.
+    """
+    return StudentAttendance.objects.filter(
+        session=session, student=student, source=SOURCE
+    ).exists()
 
 
 @dataclass(frozen=True)

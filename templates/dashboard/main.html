@@ -679,7 +679,23 @@
       <h1 class="page-title">{% include "components/icon.html" with name="briefcase" %} اللوحة الإدارية</h1>
       <p class="exec-subtitle">{{ school.name }} — {{ today }}</p>
     </div>
+    {% if admin_role == "admin_supervisor" %}
+    <div class="exec-meta">
+      <a href="{% url 'wings:record_index' %}" class="btn-primary">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>
+    </div>
+    {% endif %}
   </div>
+
+  {% if admin_role == "admin_supervisor" %}
+    {% if not is_school_day %}
+      <div class="wing-warn">{% include "components/icon.html" with name="alert-triangle" %} لا دوامَ اليوم — فلا رصد.</div>
+    {% endif %}
+    {% for panel in record_panels %}
+      {% include "wings/partials/record_panel.html" %}
+    {% empty %}
+      <div class="wing-warn">{% include "components/icon.html" with name="alert-triangle" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
+    {% endfor %}
+  {% endif %}
 
   <div class="kpi-strip">
     <div class="kpi-mini kpi-red">

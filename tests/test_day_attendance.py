@@ -295,6 +295,55 @@ class TestTheTwoSourcesDoNotMix:
         assert day_state(klass, SUNDAY) == {}
 
 
+class TestTheTeacherDoesNotRecord:
+    """الرصدُ لمشرف الجناح وحدَه — قرارُ المدير، واللوائحُ تُقرّه.
+
+    والسجلُّ واحدٌ لكلّ طالبٍ في كلّ حصّة، فمن يحفظ أخيراً يمحو ما قبله.
+    وشاشةُ الحصّة القديمة تكتب الحالةَ ولا تلمس `source`: فضغطةُ معلّمٍ بحكم
+    العادة كانت تغيّر حالةَ الطالب ويبقى السجلُّ منسوباً إلى المشرف.
+    """
+
+    def test_a_teacher_cannot_overwrite_what_the_supervisor_recorded(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        response = client_as(teacher).post(
+            reverse("mark_single", args=[periods[0].id]),
+            {"student_id": str(kids[0].id), "status": "present"},
+        )
+
+        assert response.status_code == 403
+        row = StudentAttendance.objects.get(session=periods[0], student=kids[0])
+        assert (row.status, row.source) == ("absent", "supervisor")
+
+    def test_mark_all_present_leaves_the_supervisors_absentees_absent(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        client_as(teacher).post(reverse("mark_all_present", args=[periods[0].id]))
+
+        row = StudentAttendance.objects.get(session=periods[0], student=kids[0])
+        assert (row.status, row.source) == ("absent", "supervisor")
+
+    def test_the_supervisor_still_corrects_his_own_record(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        response = client_as(supervisor).post(
+            reverse("mark_single", args=[periods[0].id]),
+            {"student_id": str(kids[0].id), "status": "late"},
+        )
+
+        assert response.status_code == 200
+        assert StudentAttendance.objects.get(session=periods[0], student=kids[0]).status == "late"
+
+
 class TestSlotsAreNotSessions:
     def test_an_elective_pair_is_one_slot_two_sessions(
         self, school, klass, kids, teacher, other_teacher
@@ -344,6 +393,18 @@ class TestTheScreen:
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
         assert reverse("wings:record_index") in body
+
+    def test_the_supervisors_home_page_shows_his_sections_to_record(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        """لوحتُه أوّلُ ما يفتحه صباحاً — والرصدُ عملُه الأوّل، فيكون في رأسها.
+
+        كان الرابطُ في القائمة وحدَها ولوحتُه لا تذكر الرصدَ أصلاً.
+        """
+        body = client_as(supervisor).get(reverse("dashboard")).content.decode()
+
+        assert klass.short_code in body
+        assert reverse("wings:record_section", args=[klass.id]) in body
 
     def test_a_teacher_is_turned_away(self, client_as, school, klass, teacher):
         response = client_as(teacher).get(reverse("wings:record_index"))

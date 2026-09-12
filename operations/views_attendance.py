@@ -15,6 +15,7 @@ from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import role_required
 
+from .day_attendance import is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService
 
@@ -240,6 +241,9 @@ def mark_single(request, session_id):
         return HttpResponse("حالة غير صالحة", status=400)
 
     student = get_object_or_404(CustomUser, id=student_id)
+    # الرصدُ لمشرف الجناح (قرارُ المدير): ما رصده لا يُكتب فوقه من شاشة الحصّة.
+    if not is_recorder(request.user) and recorded_by_supervisor(session, student):
+        return HttpResponse("رصدَ مشرفُ الجناح هذا الطالبَ — والتعديلُ من شاشته.", status=403)
     att, _ = AttendanceService.mark_attendance(
         session=session,
         student=student,

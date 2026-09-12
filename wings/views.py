@@ -16,6 +16,7 @@ from core.permissions import role_required
 from operations.bells import day_type_for
 from operations.day_attendance import (
     MORNING_STATES,
+    RECORDER_ROLES,
     day_state,
     enrolled_of,
     record_day,
@@ -28,9 +29,8 @@ from .services import (
     coverage_rows,
     floors_overview,
     outside_the_wings,
-    sections_to_record,
+    record_panels,
     substitute_pool,
-    wings_of,
 )
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
@@ -168,14 +168,8 @@ def coverage_end(request, pk):
     return redirect("wings:coverage")
 
 
-#: من يرصد: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
-RECORD_ROLES = (
-    "admin_supervisor",
-    "vice_admin",
-    "vice_academic",
-    "principal",
-    "platform_developer",
-)
+#: من يرصد — معرَّفٌ مرّةً في `day_attendance` ويقرؤه هنا وشاشةُ المعلّم.
+RECORD_ROLES = RECORDER_ROLES
 
 
 @login_required
@@ -189,21 +183,9 @@ def record_index(request):
     # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد.
     ScheduleService.ensure_sessions_for_date(school, day)
 
-    panels = []
-    for wing in wings_of(request.user, school, year):
-        rows = sections_to_record(wing, day)
-        # العدُّ في العرض لا في القالب: `add` في جانغو لا تطرح، فحسابُ
-        # «المتبقّية» هناك كان يُخرج صفراً دائماً.
-        done = sum(1 for r in rows if r.is_recorded)
-        panels.append(
-            {
-                "wing": wing,
-                "rows": rows,
-                "done": done,
-                "total": len(rows),
-                "remaining": len(rows) - done,
-            }
-        )
+    # العدُّ في الخدمة لا في القالب: `add` في جانغو لا تطرح، فحسابُ
+    # «المتبقّية» هناك كان يُخرج صفراً دائماً.
+    panels = record_panels(request.user, school, year, day)
     return render(
         request,
         "wings/record_index.html",
