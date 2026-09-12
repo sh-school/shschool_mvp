@@ -68,6 +68,13 @@ class QualityConfig(AppConfig):
                 "ese_teacher",
                 "specialist",
                 "social_worker",
+                # وأخصائيّا النطق والعلاج الوظائفيّ ومساعدا المعلّم في
+                # `QUALITY_VIEW` — «يتابعون أهدافهم في الخطة» — وكانت
+                # البوّابةُ تردّهم قبل أن تُقرأ صلاحيّتُهم.
+                "speech_therapist",
+                "occupational_therapist",
+                "teacher_assistant",
+                "ese_assistant",
                 "psychologist",
             },
             sort_order=20,

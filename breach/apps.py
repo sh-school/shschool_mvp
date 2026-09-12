@@ -14,6 +14,14 @@ class BreachConfig(AppConfig):
             label="خرق البيانات",
             url_prefix="/breach/",
             icon="bi-shield-exclamation",
-            allowed_roles={"principal", "vice_admin", "admin", "it_technician"},
+            # والنائبُ الأكاديميُّ يرث المنسّقَ فالمعلّم، فيمرّ من حارس الواجهة —
+            # وكانت البوّابةُ تردّه (اختبار `test_module_gates_match_guards`).
+            allowed_roles={
+                "principal",
+                "vice_admin",
+                "vice_academic",
+                "admin",
+                "it_technician",
+            },
             sort_order=90,
         )
