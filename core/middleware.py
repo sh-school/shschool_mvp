@@ -6,7 +6,7 @@ core/middleware.py
 
 import logging
 
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -167,6 +167,69 @@ class SentryScopeMiddleware:
             pass  # Sentry not installed — skip silently
         except Exception:
             pass  # Never block requests due to Sentry errors
+
+        return self.get_response(request)
+
+
+# ── Middleware إلزام تغيير كلمة المرور ─────────────────────
+class ForcePasswordChangeMiddleware:
+    """من عليه تغييرُ كلمة مروره لا يبلغ صفحةً غيرَ صفحة التغيير.
+
+    كان الإلزامُ عند الدخول وحدَه: `login_view` يحوّل إلى صفحة التغيير، ثمّ
+    لا شيءَ يمنع من كتابة `/dashboard/` في الشريط — فتبقى الكلمةُ المؤقّتةُ
+    كما هي، ويبقى الإلزامُ رايةً لا تُلزم أحداً.
+
+    وخطرُه أثقلُ حين تكون المؤقّتةُ على نمطٍ معروف (قرارُ 2026-09-13: الرقمُ
+    الشخصيُّ بين علامتين). فمن عرف النمطَ ورقمَ زميلٍ دخل باسمه — والإلزامُ
+    عند أوّل دخولٍ لا يحمي إلّا إن كان إلزاماً فعلاً: أوّلُ من يدخل يُبدّلها،
+    صاحبُها أو غيرُه، ولا يمضي أحدٌ بالمؤقّتة.
+
+    والمستثنى ما لا يقوم التغييرُ إلّا به: الدخولُ والخروجُ وصفحةُ التغيير،
+    والملفّاتُ الثابتة، وفحوصُ الصحّة، وعاملُ الخدمة.
+    """
+
+    EXEMPT_PREFIXES = (
+        "/auth/login/",
+        "/auth/logout/",
+        "/auth/force_change_password/",
+        "/static/",
+        "/media/",
+        "/health/",
+        "/ready/",
+        "/status/",
+        "/sw.js",
+        "/manifest.json",
+        "/offline/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if (
+            user is not None
+            and user.is_authenticated
+            and getattr(user, "must_change_password", False)
+            and not request.path.startswith(self.EXEMPT_PREFIXES)
+        ):
+            target = reverse("force_change_password")
+            if (
+                request.path.startswith("/api/")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            ):
+                # طلبٌ في الخلفيّة (عدّادُ الإشعارات كلَّ ثلاثين ثانية) لا تحويلَ له:
+                # كان يتبع التحويلَ فيقرأ صفحةَ HTML على أنّها JSON.
+                return JsonResponse(
+                    {"error": "يجب تغيير كلمة المرور أولاً", "code": "password_change_required"},
+                    status=403,
+                )
+            if request.headers.get("HX-Request"):
+                # طلبُ HTMX يُبدّل جزءاً من الصفحة — فالتحويلُ يُطلب من المتصفّح كلِّه.
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = target
+                return response
+            return redirect(target)
 
         return self.get_response(request)
 
