@@ -22,7 +22,22 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 # القيمُ الافتراضيّةُ هي قيمُ CI حرفيّاً (خدمةُ postgres على localhost)، فلا
 # يتغيّر شيءٌ هناك. وإنّما فُتحت للبيئة كي تعمل الاختباراتُ محلّيّاً داخل
 # docker حيث القاعدةُ مضيفٌ اسمُه `db` لا `localhost`.
-TEST_DB_NAME = _os.environ.get("TEST_DB_NAME", "test_db")
+# واسمُ قاعدةِ الاختبار يُشتقّ من قاعدةِ الجلسة، فلا تتصادم شجرتان.
+#
+# عزلُ 2026-09-08 (`scripts/session-db.sh`) أعطى كلَّ شجرةِ عملٍ قاعدةَ
+# تطويرٍ باسمها (`ss_<slug>`) ولم يمسّ قاعدةَ الاختبار — فبقي اسمُها واحداً
+# للجميع. وجلستان تختبران معاً تسقط إحداهما في الإعداد بعشراتِ `ERROR`
+# ورسالةٍ تُوهم أنّ العطبَ في الشيفرة:
+#
+#     database "test_db" is being accessed by other users
+#     SystemExit: 2
+#
+# و`DB_NAME` هو ما تمرّره `docker-compose.session.yml` لكلّ شجرة، فمنه
+# يُشتقّ الاسم. والبادئةُ `ss_` شرطٌ: بها وحدَها نعرف أنّنا في شجرةِ جلسة —
+# فتبقى CI والحزمةُ الأصليّة على `test_db` كما كانتا.
+_session_db = _os.environ.get("DB_NAME", "")
+_default_test_db = f"test_{_session_db}" if _session_db.startswith("ss_") else "test_db"
+TEST_DB_NAME = _os.environ.get("TEST_DB_NAME", _default_test_db)
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
