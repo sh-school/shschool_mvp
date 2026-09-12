@@ -28,9 +28,8 @@ from .services import (
     coverage_rows,
     floors_overview,
     outside_the_wings,
-    sections_to_record,
+    record_panels,
     substitute_pool,
-    wings_of,
 )
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
@@ -179,21 +178,9 @@ def record_index(request):
     # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد.
     ScheduleService.ensure_sessions_for_date(school, day)
 
-    panels = []
-    for wing in wings_of(request.user, school, year):
-        rows = sections_to_record(wing, day)
-        # العدُّ في العرض لا في القالب: `add` في جانغو لا تطرح، فحسابُ
-        # «المتبقّية» هناك كان يُخرج صفراً دائماً.
-        done = sum(1 for r in rows if r.is_recorded)
-        panels.append(
-            {
-                "wing": wing,
-                "rows": rows,
-                "done": done,
-                "total": len(rows),
-                "remaining": len(rows) - done,
-            }
-        )
+    # العدُّ في الخدمة لا في القالب: `add` في جانغو لا تطرح، فحسابُ
+    # «المتبقّية» هناك كان يُخرج صفراً دائماً.
+    panels = record_panels(request.user, school, year, day)
     return render(
         request,
         "wings/record_index.html",

@@ -326,3 +326,25 @@ def wings_of(user, school, year):
     ):
         return all_wings
     return [w for w in all_wings if w.current_supervisor() == user]
+
+
+def record_panels(user, school, year, day) -> list[dict]:
+    """ألواحُ الرصد: لكلّ جناحٍ يحمله المستخدمُ شُعبُه وحالُ رصدِها.
+
+    يقرؤها فهرسُ الرصد ولوحةُ المشرف الرئيسيّة معاً — فلا يُحسب «المتبقّي»
+    في موضعين فيختلفا.
+    """
+    panels = []
+    for wing in wings_of(user, school, year):
+        rows = sections_to_record(wing, day)
+        done = sum(1 for r in rows if r.is_recorded)
+        panels.append(
+            {
+                "wing": wing,
+                "rows": rows,
+                "done": done,
+                "total": len(rows),
+                "remaining": len(rows) - done,
+            }
+        )
+    return panels

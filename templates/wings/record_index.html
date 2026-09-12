@@ -30,36 +30,7 @@
   {% endif %}
 
   {% for panel in panels %}
-  <div class="card-qatar">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="building" %}
-      {{ panel.wing.name }}
-      <span class="card-bar-sub">
-        {% if panel.done == panel.total %}
-          رُصدت كلُّها — {{ panel.done }}/{{ panel.total }}
-        {% else %}
-          المتبقّية {{ panel.remaining }} من {{ panel.total }}
-        {% endif %}
-      </span>
-    </div>
-
-    <div class="rec-sections">
-      {% for row in panel.rows %}
-        <a href="{% url 'wings:record_section' row.class_group.id %}?date={{ day|date:'Y-m-d' }}"
-           class="rec-chip{% if row.is_recorded %} is-done{% endif %}{% if not row.periods %} is-empty{% endif %}">
-          <span class="rec-chip__code">{{ row.class_group.short_code }}</span>
-          <span class="rec-chip__say">
-            {% if not row.periods %}
-              لا حصصَ اليوم
-            {% else %}
-              {{ row.says }}
-            {% endif %}
-          </span>
-          <span class="rec-chip__meta">{{ row.students }} طالباً · {{ row.periods }} حصّة</span>
-        </a>
-      {% endfor %}
-    </div>
-  </div>
+  {% include "wings/partials/record_panel.html" %}
   {% empty %}
     <div class="wing-warn">
       {% include "components/icon.html" with name="alert-triangle" %}

@@ -295,6 +295,129 @@ class TestTheTwoSourcesDoNotMix:
         assert day_state(klass, SUNDAY) == {}
 
 
+class TestTheTeacherDoesNotRecord:
+    """الرصدُ لمشرف الجناح وحدَه — قرارُ المدير، واللوائحُ تُقرّه.
+
+    والسجلُّ واحدٌ لكلّ طالبٍ في كلّ حصّة، فمن يحفظ أخيراً يمحو ما قبله.
+    وشاشةُ الحصّة القديمة تكتب الحالةَ ولا تلمس `source`: فضغطةُ معلّمٍ بحكم
+    العادة كانت تغيّر حالةَ الطالب ويبقى السجلُّ منسوباً إلى المشرف.
+    """
+
+    def test_a_teacher_cannot_overwrite_what_the_supervisor_recorded(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        response = client_as(teacher).post(
+            reverse("mark_single", args=[periods[0].id]),
+            {"student_id": str(kids[0].id), "status": "present"},
+        )
+
+        assert response.status_code == 403
+        row = StudentAttendance.objects.get(session=periods[0], student=kids[0])
+        assert (row.status, row.source) == ("absent", "supervisor")
+
+    def test_mark_all_present_leaves_the_supervisors_absentees_absent(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        client_as(teacher).post(reverse("mark_all_present", args=[periods[0].id]))
+
+        row = StudentAttendance.objects.get(session=periods[0], student=kids[0])
+        assert (row.status, row.source) == ("absent", "supervisor")
+
+    def test_the_supervisor_still_corrects_his_own_record(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        response = client_as(supervisor).post(
+            reverse("mark_single", args=[periods[0].id]),
+            {"student_id": str(kids[0].id), "status": "late"},
+        )
+
+        assert response.status_code == 200
+        assert StudentAttendance.objects.get(session=periods[0], student=kids[0]).status == "late"
+
+
+class TestTheTeacherScreenIsReadOnly:
+    """المعلّمُ لا يرصد في شُعب الأجنحة — لا فوقَ المشرف ولا قبله."""
+
+    def test_a_teacher_cannot_record_even_before_the_supervisor(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+
+        response = client_as(teacher).post(
+            reverse("mark_single", args=[periods[0].id]),
+            {"student_id": str(kids[0].id), "status": "absent"},
+        )
+
+        assert response.status_code == 403
+        assert not StudentAttendance.objects.exists()
+
+    def test_a_teacher_cannot_mark_all_present(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+
+        response = client_as(teacher).post(reverse("mark_all_present", args=[periods[0].id]))
+
+        assert response.status_code == 403
+        assert not StudentAttendance.objects.exists()
+
+    def test_the_teacher_sees_the_session_without_buttons(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        periods = _periods(school, klass, teacher, 7)
+        record_day(klass, SUNDAY, {str(kids[0].id): "absent"}, by=supervisor)
+
+        response = client_as(teacher).get(reverse("attendance", args=[periods[0].id]))
+        body = response.content.decode()
+
+        assert response.status_code == 200
+        assert "لمشرف الجناح" in body
+        assert reverse("mark_single", args=[periods[0].id]) not in body
+        assert "غائب" in body
+
+    def test_the_teachers_schedule_does_not_invite_him_to_record(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        """«تسجيل حضور» زرٌّ يَعِد بما لا يحدث — فالمعلّمُ يرى «عرض»."""
+        periods = _periods(school, klass, teacher, 7)
+
+        body = (
+            client_as(teacher)
+            .get(reverse("teacher_schedule") + f"?date={SUNDAY.isoformat()}")
+            .content.decode()
+        )
+
+        assert reverse("attendance", args=[periods[0].id]) in body
+        assert "تسجيل حضور" not in body
+
+    def test_a_section_outside_the_wings_keeps_its_teacher_recording(
+        self, client_as, school, year, teacher
+    ):
+        """التربيةُ الخاصّة خارجَ الأجنحة، ويرصدها معلّموها."""
+        ese = ClassGroupFactory(
+            school=school, grade="G7", section="9", level_type="prep", academic_year=year
+        )
+        student = UserFactory(full_name="طالب خاصّ", national_id="29300000099")
+        StudentEnrollmentFactory(student=student, class_group=ese)
+        (session,) = _periods(school, ese, teacher, 1)
+
+        response = client_as(teacher).post(
+            reverse("mark_single", args=[session.id]),
+            {"student_id": str(student.id), "status": "absent"},
+        )
+
+        assert response.status_code == 200
+
+
 class TestSlotsAreNotSessions:
     def test_an_elective_pair_is_one_slot_two_sessions(
         self, school, klass, kids, teacher, other_teacher
@@ -344,6 +467,18 @@ class TestTheScreen:
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
         assert reverse("wings:record_index") in body
+
+    def test_the_supervisors_home_page_shows_his_sections_to_record(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        """لوحتُه أوّلُ ما يفتحه صباحاً — والرصدُ عملُه الأوّل، فيكون في رأسها.
+
+        كان الرابطُ في القائمة وحدَها ولوحتُه لا تذكر الرصدَ أصلاً.
+        """
+        body = client_as(supervisor).get(reverse("dashboard")).content.decode()
+
+        assert klass.short_code in body
+        assert reverse("wings:record_section", args=[klass.id]) in body
 
     def test_a_teacher_is_turned_away(self, client_as, school, klass, teacher):
         response = client_as(teacher).get(reverse("wings:record_index"))
