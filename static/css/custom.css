@@ -1515,10 +1515,51 @@ main.page-wide {
 
 /* والجدولُ يملأ ما أُعطي: `100%` حين تتّسع النافذة فلا يبقى فراغٌ إلى جانبه،
    و`max-content` حدّاً أدنى حين تضيق فيُمرَّر داخلَ غلافه ولا يُقصّ. */
+/* ثلاثةَ عشرَ عموداً تسع النافذةَ مهما ضاقت — ولا شريطَ أفقيّ.
+   `max-content` كان يطلب للجدول عرضَ أطولِ نصٍّ في كلّ عمودٍ بلا كسر، فيبلغ
+   1900px ويُخفي ثلثَه خلف تمريرٍ لا يراه من لا يبحث عنه. والجدولُ يسع أضيقَ
+   من ذلك بكثير حين يُؤذَن للنصّ أن ينكسر: الاسمُ سطران، والمسمّى سطران،
+   والبريدُ عند الفاصلة — والعمودُ الرقميُّ وحدَه يبقى صفّاً واحداً. */
 .staff-register {
   inline-size: 100%;
-  min-inline-size: max-content;
+  table-layout: fixed;
 }
+/* ولا شريطَ أفقيّاً لهذا الجدول: أعمدتُه نسبٌ مجموعُها تسعٌ وتسعون بالمئة،
+   فهو يسع غلافَه بالبناء لا بالمصادفة — وما يفيض بعد ذلك كسورُ تقريبٍ في
+   حساب `table-layout: fixed` لا محتوىً يُقصّ. والرأسيُّ يبقى بشريطه. */
+.table-wrap-scroll:has(> .staff-register) {
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+.staff-register th,
+.staff-register td {
+  padding-inline: 8px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+/* والعنوانُ ينكسر بين كلمتَيه لا داخلَ كلمة: «الجنسي/ة» على سطرين عطبٌ
+   لا سطران. فإن ضاق عمودُه عن أطولِ كلمةٍ فيه فالعلاجُ توسيعُه لا كسرُها. */
+.staff-register thead th { overflow-wrap: normal; }
+/* الأرقامُ وحدَها لا تُكسَر: رقمٌ شخصيٌّ على سطرين يُقرأ رقمين. أمّا عنوانُ
+   العمود فينكسر كغيره — ومنعُ كسره يقطعه بنقاطٍ فلا يُقرأ أصلاً. */
+.staff-register .col-num {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+/* وعرضٌ لكلّ عمودٍ بقدر ما يحمل — لا بالتساوي كما يفعل `table-layout: fixed`.
+   والمجموعُ مئةٌ بالضبط، فلا يُقتطع من عمودٍ لغيره. */
+.staff-register th:nth-child(1)  { inline-size: 13%; }
+.staff-register th:nth-child(2)  { inline-size: 7%; }
+.staff-register th:nth-child(3)  { inline-size: 8%; }
+.staff-register th:nth-child(4)  { inline-size: 11%; }
+.staff-register th:nth-child(5)  { inline-size: 8%; }
+.staff-register th:nth-child(6)  { inline-size: 7%; }
+.staff-register th:nth-child(7)  { inline-size: 10%; }
+.staff-register th:nth-child(8)  { inline-size: 6%; }
+.staff-register th:nth-child(9)  { inline-size: 7%; }
+.staff-register th:nth-child(10) { inline-size: 8%; }
+.staff-register th:nth-child(11) { inline-size: 7%; }
+.staff-register th:nth-child(12) { inline-size: 7%; }
 .staff-register th:first-child,
 .staff-register td:first-child {
   position: sticky;
@@ -1537,7 +1578,6 @@ html.dark .staff-register td:first-child { background: var(--surface); }
   text-decoration: none;
   color: var(--maroon-fg);
   font-weight: 600;
-  white-space: nowrap;
 }
 .staff-name:hover { text-decoration: underline; }
 html.dark .staff-name { color: var(--gold); }
@@ -1658,6 +1698,11 @@ html.dark .free-slot-badge { background: var(--status-success-bg); color: var(--
 .form-control,
 .form-input,
 .form-select {
+  /* صريحٌ لا موروث: `*{box-sizing:inherit}` سلسلةٌ تنكسر عند أيّ عنصرٍ في
+     الطريق، وقد انكسرت — فكان الحقلُ `content-box` عرضُه 100% وحشوُه 24
+     وإطارُه 2، أي 25 بكسلاً خارجَ خانته. في عمودٍ واحدٍ يبتلعها هامشُ
+     البطاقة، وفي شبكةٍ بأعمدةٍ تأكل الفجوةَ وتدخل في الجار. */
+  box-sizing: border-box;
   width: 100%;
   padding: 10px 14px;
   border: 1.5px solid var(--border-strong);
@@ -6425,6 +6470,13 @@ a.th-sort { text-decoration: none; }
 }
 th.col-center .th-sort, th.col-center > .th-sort { justify-content: center; }
 .th-sort-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* إلّا في سجلّ الكادر: أعمدتُه اثنا عشرَ في عرض النافذة، فقطعُ العنوان
+   بنقاطٍ يجعله لا يُقرأ («الرقم الـ…» و«الرخصة الـ…»). فينكسر على سطرين. */
+.staff-register th.is-sortable .th-sort-label {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
 .th-sort-arrow {
   flex: none;
   width: .75em;
@@ -7781,7 +7833,7 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon-fg); margin-bottom: 16px; }
 .form-group { margin-bottom: 14px; }
 .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
-.form-group select, .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
+.form-group select, .form-group input, .form-group textarea { box-sizing: border-box; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
 .form-group textarea { min-height: 60px; resize: vertical; }
 .btn-submit { background: var(--maroon, var(--maroon)); color: #fff; padding: 10px 28px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .hint { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
@@ -7954,7 +8006,7 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon-fg); margin-bottom: 16px; }
 .form-group { margin-bottom: 14px; }
 .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
-.form-group select, .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
+.form-group select, .form-group input, .form-group textarea { box-sizing: border-box; width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
 .form-group textarea { min-height: 60px; resize: vertical; }
 .btn-submit { background: var(--maroon, var(--maroon)); color: #fff; padding: 10px 28px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .btn-submit:hover { opacity: .9; }
@@ -8997,3 +9049,115 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
   }
 }
 }
+
+/* ── بطاقةُ غيابٍ: الحالةُ شريطٌ على الحافّة ───────────────────────────────
+   كان رأسُ البطاقة يُلوَّن بـ`bg-green-50` وأخواتها. وقد قِستُها فوجدتُها
+   تنقلب مع الوضع الداكن كما ينبغي — سلّمُ tailwind يقرأ رموزَ المنصّة ولا
+   ينسخ قيماً (طلبا الدمج 182 و184). فليس العطبُ تبايناً.
+   والشريطُ أوضحُ: يقرأ رمزَ الحالة نفسَه الذي يقرؤه الوسمُ بجانبه، فلا
+   يفترق اللونان عن معنىً واحد، ولا يُنافس لونُ الخلفيّة لونَ الوسم. */
+.absence-head {
+  border-bottom-color: var(--border);
+  box-shadow: inset 4px 0 0 var(--border);
+}
+.absence-head.is-covered   { box-shadow: inset 4px 0 0 var(--status-success); }
+.absence-head.is-uncovered { box-shadow: inset 4px 0 0 var(--status-danger); }
+.absence-head.is-pending   { box-shadow: inset 4px 0 0 var(--status-warning); }
+.absence-initial {
+  inline-size: 40px;
+  block-size: 40px;
+  border-radius: 999px;
+  background: var(--maroon);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  flex: none;
+}
+
+/* ── Mode Switch — بابان في استمارةٍ واحدة ──────────────────
+   شطران متلاصقان يتبادلان الظهور: المختار يُظهر حقولَه ويُخفي الآخر.
+   والتبديلُ بـ:has() لا بجافاسكربت — الحالةُ في زرّ الاختيار نفسه،
+   فلا تفترق الشاشةُ عمّا يُرسَل.                                   */
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.mode-switch input { position: absolute; opacity: 0; pointer-events: none; }
+.mode-switch label {
+  padding: 7px 18px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-alt);
+  cursor: pointer;
+  margin: 0;
+  transition: background .12s, color .12s;
+}
+.mode-switch label + input + label { border-inline-start: 1px solid var(--border-strong); }
+.mode-switch input:checked + label {
+  background: var(--maroon);
+  color: #fff;
+}
+.mode-switch input:focus-visible + label {
+  box-shadow: inset 0 0 0 2px var(--maroon);
+}
+/* الشطرُ غيرُ المختار يختفي بحقوله — ولا يُترك حقلٌ مخفيٌّ مطلوباً. */
+form:has(#parent-mode-new:checked) .mode-pane--existing,
+form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
+/* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
+   التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
+   تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
+   «مجدولة» ولا أحمرَ «ملغاة» — فلا يلتبس التبديلُ بحالةٍ من حالات الحصّة.
+   وشريطٌ على الحافّة لمن لا يميّز الألوان. */
+:root {
+  --swap-bg:     #f3e8ff;
+  --swap-border: #7e22ce;
+  --swap-fg:     #6b21a8;
+}
+tr.is-swapped {
+  background: var(--swap-bg);
+  box-shadow: inset 4px 0 0 var(--swap-border);
+}
+tr.is-swapped:hover { background: #ede0fb; }
+.swap-note {
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--swap-fg);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+html.dark :root,
+html.dark {
+  --swap-bg:     rgba(126, 34, 206, .18);
+  --swap-fg:     #d8b4fe;
+}
+
+/* ── توقيعا المنسّقَين على بطاقة التبديل ────────────────────────────────
+   القارئُ يحتاج أن يعرف **أين وقف الطلب** لا أن يستنتجه من حالةٍ واحدة:
+   جهةٌ وقّعت وأخرى تنتظر، وكلُّ جهةٍ باسم مادّتها ومن يوقّع عنها. */
+.swap-signatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.swap-sign {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.swap-sign.is-signed  { color: var(--status-success-fg); border-color: var(--status-success); }
+.swap-sign.is-waiting { color: var(--text-secondary); border-style: dashed; }
+.swap-sign em { font-style: normal; opacity: .75; }

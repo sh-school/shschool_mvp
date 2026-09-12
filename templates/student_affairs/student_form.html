@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 
 {% block title %}{% if mode == "add" %}إضافة طالب{% else %}تعديل طالب{% endif %}{% endblock %}
 
@@ -47,7 +48,7 @@
                  class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
                  placeholder="مثال: 29812345678" required dir="ltr">
           {% else %}
-          <input type="text" value="{{ student.national_id }}" class="form-control" disabled dir="ltr">
+          <input type="text" value="{{ student.national_id|mask_id }}" class="form-control" disabled dir="ltr">
           {% endif %}
           {% if form.national_id.errors %}
           <span class="field-error">{{ form.national_id.errors.0 }}</span>

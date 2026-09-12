@@ -1,3 +1,4 @@
+{% load privacy %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -313,6 +314,13 @@
   <div class="sd-label">نظرة عامة</div>
   <a href="{% url 'staff_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الموظفين</a>
   <a href="{% url 'staff_affairs:staff_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
+  {% comment %}
+  شاشةُ العمل في هذه القائمة: التعيين. وكانت غائبةً عنها فلا يبلغها إلّا من
+  فتح السجلَّ أوّلاً ورأى الزرَّ في ترويسته — وأختُها «شؤون الطلاب» تعرض
+  «إضافة طالب جديد» و«إضافة وليّ أمر» في قائمتها مباشرةً. فاختلفت القائمتان
+  في ما يُفعَل لا في ما يُقرأ.
+  {% endcomment %}
+  <a href="{% url 'staff_affairs:staff_appoint' %}">{% include "components/icon.html" with name="user-plus" %} تعيين منتسب</a>
   <hr>
   <div class="sd-label">الحضور والإجازات</div>
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
@@ -383,7 +391,6 @@
   <a href="{% url 'student_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
   <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجلات الطلاب</a>
   <a href="{% url 'student_affairs:student_add' %}">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
-  <a href="{% url 'student_affairs:parent_add' %}">{% include "components/icon.html" with name="user-plus" %} إضافة ولي امر</a>
   <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</a>
   <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
   <hr>
@@ -471,7 +478,7 @@
 <div class="sd-menu" id="m-user" role="menu" aria-label="قائمة المستخدم">
   <div class="sd-user-header">
     <p class="sd-user-fullname">{{ request.user.full_name }}</p>
-    <p class="sd-user-nid">{{ request.user.national_id }}</p>
+    <p class="sd-user-nid">{{ request.user.national_id|mask_id }}</p>
     <p class="sd-user-role">{{ request.user.get_role_display }}</p>
   </div>
   {% if request.user.memberships.count > 1 %}

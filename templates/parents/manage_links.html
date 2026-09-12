@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -17,19 +18,24 @@
   <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
 </div>
 
-{# ── KPI Strip ── #}
+{% comment %}
+كان العدّادُ يقول «742 طالباً مرتبطاً» لمدرسةٍ سجلُّ قيدها 735: مئةٌ واثنان
+وأربعون منهم غادروا وبقيت ارتباطاتُهم. والرقمُ الذي يُعمَل به لم يكن معروضاً
+أصلاً — **من بقي من طلاب هذا العام بلا وليّ أمر**، وهو الصفُّ الذي يُفتح
+ليُعمَل فيه شيء.
+{% endcomment %}
 <div class="kpi-strip">
-  <div class="kpi-mini kpi-maroon">
-    <div class="kpi-mini-value">{{ total_count }}</div>
-    <div class="kpi-mini-label">إجمالي الارتباطات</div>
+  <div class="kpi-mini kpi-green">
+    <div class="kpi-mini-value">{{ student_count }} <span class="kpi-mini-sub">من {{ enrolled_count }}</span></div>
+    <div class="kpi-mini-label">طلابُ هذا العام ولهم وليُّ أمر</div>
+  </div>
+  <div class="kpi-mini {% if unlinked_count %}kpi-red{% else %}kpi-green{% endif %}">
+    <div class="kpi-mini-value">{{ unlinked_count }}</div>
+    <div class="kpi-mini-label">بلا وليِّ أمرٍ مرتبط</div>
   </div>
   <div class="kpi-mini kpi-blue">
     <div class="kpi-mini-value">{{ parent_count }}</div>
-    <div class="kpi-mini-label">أولياء أمور مرتبطون</div>
-  </div>
-  <div class="kpi-mini kpi-green">
-    <div class="kpi-mini-value">{{ student_count }}</div>
-    <div class="kpi-mini-label">طلاب مرتبطون</div>
+    <div class="kpi-mini-label">أولياءُ أمورٍ مرتبطون</div>
   </div>
 </div>
 
@@ -43,24 +49,56 @@
 
   <form method="post" action="{% url 'add_parent_link' %}" class="p-5">
     {% csrf_token %}
+
+    {% comment %}
+    كان لهذا الفعل بابان: هذه الاستمارةُ تربط وليّاً قائماً، وشاشةٌ منفصلةٌ في
+    القائمة تُنشئ وتربط. وصاحبُ العمل لا يعرف من الشاشة أيَّهما يفتح، فيفتح
+    إحداهما ثمّ يعود. فصار باباً واحداً حيث يُرى العمل — في الصفحة التي تقول
+    كم طالباً بقي بلا وليِّ أمر.
+    {% endcomment %}
+    <div class="mode-switch" role="radiogroup" aria-label="مصدرُ وليِّ الأمر">
+      <input type="radio" name="parent_mode" id="parent-mode-existing" value="existing" checked>
+      <label for="parent-mode-existing">وليٌّ مسجَّل</label>
+      <input type="radio" name="parent_mode" id="parent-mode-new" value="new">
+      <label for="parent-mode-new">وليٌّ جديد</label>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-      <div class="form-group mb-0">
-        <label class="form-label" for="parent-select">
-          ولي الأمر <span class="text-red-500">*</span>
-        </label>
-        <select name="parent_id" id="parent-select" required class="form-control">
+      <div class="form-group mb-0 mode-pane mode-pane--existing">
+        <label class="form-label" for="parent-select">ولي الأمر</label>
+        <select name="parent_id" id="parent-select" class="form-control">
           <option value="">— اختر ولي أمر —</option>
           {% for p in parents %}
-          <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id }})</option>
+          <option value="{{ p.id }}">{{ p.full_name }} ({{ p.national_id|mask_id }})</option>
           {% endfor %}
         </select>
-        {% if not parents %}
-        <p class="form-hint text-amber-600">
-          لا يوجد مستخدمون بدور "ولي أمر".
-          <a href="/admin/core/customuser/" class="text-maroon underline">أضف من لوحة الإدارة</a>
-        </p>
-        {% endif %}
+      </div>
+
+      <div class="form-group mb-0 mode-pane mode-pane--new">
+        <label class="form-label" for="parent-nid">الرقم الشخصيّ لوليِّ الأمر</label>
+        <input type="text" name="parent_national_id" id="parent-nid" class="form-control"
+               inputmode="numeric" maxlength="11" autocomplete="off"
+               placeholder="11 خانة">
+        <p class="form-hint">إن كان في النظام رُبط، وإلّا أُنشئ له حساب.</p>
+      </div>
+
+      <div class="form-group mb-0 mode-pane mode-pane--new">
+        <label class="form-label" for="parent-name">اسمُ وليِّ الأمر</label>
+        <input type="text" name="parent_full_name" id="parent-name" class="form-control"
+               autocomplete="off" placeholder="الاسم الرباعيّ">
+      </div>
+
+      <div class="form-group mb-0 mode-pane mode-pane--new">
+        <label class="form-label" for="parent-phone">الجوّال</label>
+        <input type="tel" name="parent_phone" id="parent-phone" class="form-control"
+               inputmode="tel" autocomplete="off" placeholder="اختياريّ">
+      </div>
+
+      <div class="form-group mb-0 mode-pane mode-pane--new">
+        <label class="form-label" for="parent-email">البريد الإلكترونيّ</label>
+        <input type="email" name="parent_email" id="parent-email" class="form-control"
+               autocomplete="off" placeholder="اختياريّ">
       </div>
 
       <div class="form-group mb-0">
@@ -70,7 +108,7 @@
         <select name="student_id" id="student-select" required class="form-control">
           <option value="">— اختر طالب —</option>
           {% for s in students %}
-          <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id }})</option>
+          <option value="{{ s.id }}">{{ s.full_name }} ({{ s.national_id|mask_id }})</option>
           {% endfor %}
         </select>
       </div>
@@ -86,54 +124,62 @@
 
     </div>
     <div class="mt-4">
-      <button type="submit" class="btn-primary">
-        + إضافة الربط
-      </button>
+      <button type="submit" class="btn-primary">+ إضافة الربط</button>
+      <span class="form-hint mr-3">
+        الحسابُ الجديدُ يُفتح بلا كلمة مرور — تُصدَر له مؤقّتةٌ عند التسليم.
+      </span>
     </div>
   </form>
 </details>
 
-{# ── شريط الفلترة + البحث ── #}
-<div class="filter-bar mb-4"
-     id="links-filters">
-
-  {# بحث نصي — HTMX live #}
-  <div class="flex-1 min-w-[200px]">
-    <input type="text" name="q" id="links-search"
-           value="{{ search }}"
-           placeholder="بحث باسم الطالب أو ولي الأمر أو الرقم الشخصي..."
-           class="form-control w-full m-0"
+{% comment %}
+ثلاثةُ مُرشِّحاتٍ كانت في ثلاثة مواضع: البحثُ في سطرٍ عريض، والصلةُ في سطرٍ
+تحته، وحالةُ القيد في الترويسة. فصارت في شريطٍ واحدٍ بحقولٍ معنونةٍ كسائر
+شاشات المنصّة — والقارئُ يرى ما رشّحه به مجتمعاً.
+{% endcomment %}
+<div class="filter-bar mb-4" id="links-filters">
+  <div class="filter-field filter-field--grow">
+    <label class="filter-label" for="links-search">بحث</label>
+    <input type="text" name="q" id="links-search" value="{{ search }}"
+           placeholder="اسمُ الطالب أو وليّ الأمر أو الرقم أو الجوّال أو الصف..."
+           class="form-control form-control-sm"
            hx-get="{{ request.path }}"
            hx-trigger="input changed delay:300ms, search"
-           hx-target="#links-container"
-           hx-swap="innerHTML"
-           hx-include="#rel-filter"
-           hx-push-url="false"
-           aria-label="بحث في الارتباطات">
+           hx-target="#links-container" hx-swap="innerHTML"
+           hx-include="#rel-filter,#link-status"
+           hx-push-url="false" autocomplete="off">
   </div>
 
-  {# فلتر صلة القرابة #}
-  <select name="rel" id="rel-filter"
-          class="form-control w-auto min-w-[140px] m-0"
-          hx-get="{{ request.path }}"
-          hx-trigger="change"
-          hx-target="#links-container"
-          hx-swap="innerHTML"
-          hx-include="#links-search"
-          hx-push-url="false"
-          aria-label="فلتر صلة القرابة">
-    <option value="">كل الصلات</option>
-    {% for val, label in RELATIONSHIP %}
-    <option value="{{ val }}" {% if rel_filter == val %}selected{% endif %}>{{ label }}</option>
-    {% endfor %}
-  </select>
+  <div class="filter-field">
+    <label class="filter-label" for="link-status">حالة القيد</label>
+    <select name="status" id="link-status" class="form-control form-control-sm"
+            hx-get="{{ request.path }}" hx-trigger="change"
+            hx-target="#links-container" hx-swap="innerHTML"
+            hx-include="#links-search,#rel-filter" hx-push-url="false">
+      {% for val, label in statuses %}
+      <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
 
-  {# مسح الفلاتر #}
-  {% if search or rel_filter %}
-  <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">
-    مسح الفلاتر
-  </a>
-  {% endif %}
+  <div class="filter-field">
+    <label class="filter-label" for="rel-filter">صلة القرابة</label>
+    <select name="rel" id="rel-filter" class="form-control form-control-sm"
+            hx-get="{{ request.path }}" hx-trigger="change"
+            hx-target="#links-container" hx-swap="innerHTML"
+            hx-include="#links-search,#link-status" hx-push-url="false">
+      <option value="">كل الصلات</option>
+      {% for val, label in RELATIONSHIP %}
+      <option value="{{ val }}" {% if rel_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="filter-actions">
+    <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="refresh" %} إعادة ضبط
+    </a>
+  </div>
 </div>
 
 {# ── الجدول (يُحدَّث بـ HTMX) ── #}

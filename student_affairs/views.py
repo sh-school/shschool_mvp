@@ -11,8 +11,8 @@ from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Q
+from django.core.paginator import Paginator
+from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -32,6 +32,7 @@ from core.export_utils import (
     get_pdf_footer_html,
     get_pdf_header_html,
 )
+from core.labels import class_label
 from core.models.academic import (
     ClassGroup,
     ParentStudentLink,
@@ -39,11 +40,13 @@ from core.models.academic import (
     grade_number,
     grade_order,
 )
-from core.models.access import Membership, Role
+from core.models.access import Membership
 from core.models.audit import AuditLog
-from core.models.user import CustomUser, Profile
+from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
+from core.privacy import mask_national_id
+from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
@@ -106,6 +109,20 @@ def student_dashboard(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
+#: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
+STUDENT_PAGE_SIZE = 50
+
+#: مفاتيحُ الفرز المصرَّحة. و`?sort=` نصٌّ من المستخدم فلا يبلغ `order_by`
+#: إلّا عبر هذه القائمة. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي.
+STUDENT_SORTS = {
+    "name": ("name_key",),
+    "national": ("national_key", "name_key"),
+    # الصفُّ والشعبةُ عمودٌ واحدٌ يُعرض، فمفتاحُهما واحدٌ يُفرَز.
+    "class": ("grade_key", "section_key", "name_key"),
+    "guardian": ("guardian_key", "name_key"),
+}
+
+
 @login_required
 @role_required(STUDENT_AFFAIRS_MANAGE)
 def student_list(request):
@@ -124,35 +141,11 @@ def student_list(request):
         .order_by("user__full_name")
     )
 
-    # ── إرفاق بيانات التسجيل (الصف + الشعبة) ──
-    # نبني dict سريع: user_id → enrollment
-    student_ids = list(students.values_list("user_id", flat=True))
-    enrollments = {
-        e["student_id"]: e
-        for e in StudentEnrollment.objects.filter(
-            student_id__in=student_ids,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .select_related("class_group")
-        .values(
-            "student_id",
-            "class_group__grade",
-            "class_group__section",
-            "class_group_id",
-        )
-    }
-
     # ── الفلاتر ──
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
     parent_status = request.GET.get("parent_status", "")
-
-    if q:
-        students = students.filter(
-            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
-        )
 
     if grade_filter:
         # ✅ subquery مباشر — لا تحميل IDs إلى Python
@@ -189,28 +182,115 @@ def student_list(request):
         elif parent_status == "unlinked":
             students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
 
-    # ── بناء القائمة مع بيانات التسجيل ──
-    student_rows = []
-    for m in students[:200]:
-        enr = enrollments.get(m.user_id, {})
-        student_rows.append(
-            {
-                "id": m.user_id,
-                "full_name": m.user.full_name,
-                "national_id": m.user.national_id,
-                "phone": m.user.phone,
-                "email": m.user.email,
-                "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
-                "grade": enr.get("class_group__grade", "—"),
-                "section": enr.get("class_group__section", "—"),
-                # مفتاحُ فرزٍ مدرسيّ: «G10» نصّاً يسبق «G7»، وعدداً يليه.
-                # ومن لا قيدَ له لا صفَّ له: يُترك مفتاحُه فارغاً فيسقط إلى
-                # ذيل الجدول في الاتّجاهين، لا يتصدّره في التنازليّ.
-                "grade_order": (
-                    grade_number(enr["class_group__grade"]) if enr.get("class_group__grade") else ""
-                ),
-            }
+    # ── المقيَّدُ أوّلاً، ومن أُغلق قيدُه لا يسقط بل يُرشَّح ──────────────
+    #
+    # العضويّةُ تقول «هذا طالبُ المدرسة» والقيدُ يقول «هذا صفُّه هذا العام»،
+    # وهما شيئان: من نُقل هذا الصيفَ أُغلق قيدُه وبقيت عضويّتُه. فكان السجلُّ
+    # يعدّهما واحداً ويقول «881 طالباً مسجّلاً» لمدرسةٍ سجلُّ قيدها 735 —
+    # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
+    #
+    # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
+    status = request.GET.get("status") or "enrolled"
+    is_enrolled = Exists(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
         )
+    )
+    if status == "enrolled":
+        students = students.filter(is_enrolled)
+    elif status == "unenrolled":
+        students = students.exclude(is_enrolled)
+
+    # ── الصفُّ والشعبةُ صفتا قيدٍ لا صفتا شخص، والتصفّحُ على الأشخاص ──
+    #
+    # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
+    # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
+    # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
+    enrolment = StudentEnrollment.objects.filter(
+        student_id=OuterRef("user_id"),
+        class_group__academic_year=year,
+        is_active=True,
+    ).order_by("-class_group__academic_year", "-enrolled_at")
+    guardian = ParentStudentLink.objects.filter(
+        student_id=OuterRef("user_id"), school=school
+    ).order_by("-is_primary", "created_at")
+
+    students = students.annotate(
+        grade_code=Subquery(enrolment.values("class_group__grade")[:1]),
+        section_code=Subquery(enrolment.values("class_group__section")[:1]),
+        name_key=arabic_key(F("user__full_name")),
+        national_key=blank_as_null("user__national_id"),
+        # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
+        # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
+        guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
+        guardian_phone=Subquery(guardian.values("parent__phone")[:1]),
+        guardian_relation=Subquery(guardian.values("relationship")[:1]),
+    ).annotate(
+        # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
+        # فيصير ترتيبُ الحروف ترتيبَ الأعداد — ومن لا قيدَ له يبقى عَدَماً
+        # فيسقط إلى الذيل في الاتّجاهين لا يتصدّر التنازليّ.
+        # وتُنزع الحروفُ أوّلاً: `RIGHT('G7', 2)` تلتقط الحرفَ فتُعيد «G7»،
+        # و«10» أصغرُ من «G7» في ترتيب المحارف — فيسبق العاشرُ السابع.
+        grade_key=Func(
+            Func(
+                F("grade_code"),
+                Value(r"\D"),
+                Value(""),
+                Value("g"),
+                function="REGEXP_REPLACE",
+                output_field=CharField(),
+            ),
+            Value(2),
+            Value("0"),
+            function="LPAD",
+            output_field=CharField(),
+        ),
+        section_key=blank_as_null("section_code"),
+        guardian_key=arabic_key(F("guardian_name")),
+    )
+
+    # والبحثُ يقع على الرقم **الكامل** لا على المستور: من كتب رقماً كاملاً
+    # وجد صاحبَه، وإن كان الجدولُ لا يعرض منه إلّا ذيلَه.
+    if q:
+        shaped = normalise_arabic(q)
+        students = students.filter(
+            Q(name_key__icontains=shaped)
+            | Q(user__national_id__icontains=q)
+            | Q(guardian_key__icontains=shaped)
+            | Q(guardian_phone__icontains=q)
+            | Q(grade_code__icontains=q)
+            | Q(section_code__icontains=q)
+        )
+
+    students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
+
+    paginator = Paginator(students, STUDENT_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    # الصلةُ تُعرض بعنوانها العربيّ لا بمفتاحها المخزَّن، والقائمةُ من النموذج
+    # نفسِه فلا قاموسَ ثانٍ يتخلّف عنه.
+    relations = dict(ParentStudentLink._meta.get_field("relationship").choices)
+
+    student_rows = [
+        {
+            "id": m.user_id,
+            "full_name": m.user.full_name,
+            # آخرُ أربعِ خاناتٍ وما قبلها مستور: القارئُ يحتاج أن يميّز لا أن
+            # يعرف، والرقمُ كاملاً في ملفّ صاحبه لمن فتحه بقصد.
+            "national_id": mask_national_id(m.user.national_id),
+            # «07/2» كما تكتبه الوزارة — عمودٌ واحدٌ لا عمودان، ورقمُ الصفّ
+            # بلا حرفٍ وبخانتين، فيطابق ما في يد القارئ من كشوف.
+            "class_label": class_label(m.grade_code, m.section_code),
+            "guardian_name": m.guardian_name or "",
+            "guardian_phone": m.guardian_phone or "",
+            "guardian_relation": relations.get(m.guardian_relation, ""),
+            "can_sign_in": m.user.is_active and m.user.has_usable_password(),
+        }
+        for m in page_obj
+    ]
 
     # ── خيارات الفلتر ──
     available_grades = sorted(
@@ -230,7 +310,17 @@ def student_list(request):
 
     ctx = {
         "students": student_rows,
-        "total": len(student_rows),
+        # وكان العددُ عددَ الصفّ المعروض، فتقول الترويسةُ «200 طالب مسجّل»
+        # لمدرسةٍ فيها سبعُمئةٍ وخمسةٌ وثلاثون. العددُ عددُ السجلّ.
+        "total": paginator.count,
+        "page_obj": page_obj,
+        "sort": sort,
+        "status": status,
+        "statuses": (
+            ("enrolled", "مقيَّدون هذا العام"),
+            ("unenrolled", "بلا قيدٍ نشط"),
+            ("all", "الكلّ"),
+        ),
         "q": q,
         "grade_filter": grade_filter,
         "section_filter": section_filter,
@@ -1347,110 +1437,6 @@ def activity_delete(request, pk):
     activity.delete()
     messages.success(request, f"تم حذف النشاط «{title}».")
     return redirect("student_affairs:activity_list")
-
-
-# ═════════════════════════════════════════════════════════════════════
-# إضافة ولي أمر جديد + ربطه بطالب
-# ═════════════════════════════════════════════════════════════════════
-
-
-@login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
-def parent_add(request):
-    """إضافة ولي أمر جديد وربطه بطالب — ينشئ 3 سجلات ذرّياً (User + Membership + ParentStudentLink)."""
-
-    from .forms import ParentAddForm
-
-    school = request.user.get_school()
-    year = academic_year_for(request)
-
-    # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
-    students = (
-        CustomUser.objects.filter(
-            enrollments__class_group__school=school,
-            enrollments__class_group__academic_year=year,
-            enrollments__is_active=True,
-        )
-        .distinct()
-        .order_by("full_name")
-    )
-
-    if request.method == "POST":
-        form = ParentAddForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            student = get_object_or_404(CustomUser, id=cd["student_id"])
-
-            existing = CustomUser.objects.filter(national_id=cd["national_id"]).first()
-
-            try:
-                with transaction.atomic():
-                    if existing:
-                        parent = existing
-                        # تأكد من وجود Membership كـ parent
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.get_or_create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            defaults={"is_active": True},
-                        )
-                    else:
-                        # إنشاء حساب جديد
-                        parent = CustomUser.objects.create_user(
-                            national_id=cd["national_id"],
-                            password=cd["national_id"],
-                            full_name=cd["full_name"],
-                            phone=cd.get("phone", ""),
-                            email=cd.get("email", ""),
-                            must_change_password=True,
-                        )
-                        Profile.objects.get_or_create(user=parent)
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            is_active=True,
-                        )
-
-                    # ربط ولي الأمر بالطالب
-                    link, created = ParentStudentLink.objects.get_or_create(
-                        school=school,
-                        parent=parent,
-                        student=student,
-                        defaults={
-                            "relationship": cd["relationship"],
-                            "can_view_grades": True,
-                            "can_view_attendance": True,
-                        },
-                    )
-
-                if created:
-                    messages.success(
-                        request,
-                        f"تم إضافة {parent.full_name} وربطه بالطالب {student.full_name} بنجاح.",
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        f"الربط بين {parent.full_name} والطالب {student.full_name} موجود مسبقاً.",
-                    )
-                return redirect("manage_parent_links")
-
-            except Exception as e:
-                messages.error(request, f"خطأ أثناء إضافة ولي الأمر: {e}")
-    else:
-        form = ParentAddForm()
-
-    return render(
-        request,
-        "student_affairs/parent_form.html",
-        {
-            "form": form,
-            "students": students,
-        },
-    )
 
 
 # ═════════════════════════════════════════════════════════════════════

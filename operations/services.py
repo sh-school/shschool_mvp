@@ -1883,16 +1883,15 @@ class SwapService:
 
         swap.b_responded_at = tz.now()
         if accepted:
-            # تحديد المرحلة التالية
-            if swap.is_cross_department:
-                swap.status = "pending_vp"
-            else:
-                swap.status = "pending_coordinator"
+            # والجهةُ التاليةُ المنسّقون دائماً — لا النائبُ عند اختلاف
+            # المادّتين. فاختلافُهما يعني منسّقَين لا مرجعاً أعلى.
+            swap.status = "pending_coordinator"
+            waiting = "منسّق المادّة" if swap.needs_one_signature() else "منسّقَي المادّتين"
             SwapService._notify(
                 swap,
                 swap.teacher_a,
                 title=f"{swap.teacher_b.full_name} وافق على التبديل",
-                body="بانتظار موافقة المنسق",
+                body=f"بانتظار موافقة {waiting}",
                 event_type="swap_response",
             )
         else:
@@ -1909,6 +1908,40 @@ class SwapService:
         return swap
 
     @staticmethod
+    def signable_sides(swap: TeacherSwap, user: CustomUser) -> tuple[str, ...]:
+        """الجهاتُ التي يملك هذا المستخدمُ التوقيعَ عنها الآن.
+
+        منسّقُ الجهةِ يوقّع عنها. والنائبُ الأكاديميُّ (والمديرُ) بديلٌ عن
+        الغائب لا متجاوزٌ عليه: يوقّع عن جهةٍ لا منسّقَ لها، أو منسّقُها
+        غائبٌ اليوم، أو منسّقُها طرفٌ في التبديل — فلا يحكم في أمرِ نفسه.
+        """
+        role = user.get_role()
+        deputy = role in ("principal", "vice_academic")
+        parties = {swap.teacher_a_id, swap.teacher_b_id}
+        sides = []
+        for side in swap.awaiting_sides:
+            head = swap.coordinator_for(side)
+            if head is not None and head.pk == user.pk:
+                sides.append(side)
+            elif deputy and (
+                head is None
+                or head.pk in parties
+                or SwapService._is_absent_today(swap.school, head)
+            ):
+                sides.append(side)
+        return tuple(sides)
+
+    @staticmethod
+    def _is_absent_today(school, teacher) -> bool:
+        from django.utils import timezone as tz
+
+        return (
+            TeacherAbsence.objects.filter(school=school, teacher=teacher, date=tz.localdate())
+            .exclude(status="rejected")
+            .exists()
+        )
+
+    @staticmethod
     @transaction.atomic
     def approve_swap(
         swap: TeacherSwap,
@@ -1916,7 +1949,7 @@ class SwapService:
         approved: bool = True,
         rejection_reason: str = "",
     ) -> TeacherSwap:
-        """المنسق أو النائب يوافق/يرفض."""
+        """منسّقُ المادّة يوقّع عن جهته — ولا يُنفَّذ حتّى تُوقَّع الجهتان."""
         from django.utils import timezone as tz
 
         valid_statuses = ("pending_coordinator", "pending_vp", "accepted_b")
@@ -1927,6 +1960,31 @@ class SwapService:
         swap.approved_at = tz.now()
 
         if approved:
+            sides = SwapService.signable_sides(swap, approved_by)
+            if not sides:
+                raise ValueError(
+                    "لا تملك التوقيعَ عن جهةٍ في هذا الطلب — "
+                    "التوقيعُ لمنسّق المادّة، وللنائب عن الغائب منهما."
+                )
+            for side in sides:
+                setattr(swap, f"approved_{side}_by", approved_by)
+                setattr(swap, f"approved_{side}_at", tz.now())
+                head = swap.coordinator_for(side)
+                setattr(
+                    swap,
+                    f"approved_{side}_by_substitute",
+                    head is None or head.pk != approved_by.pk,
+                )
+            if not swap.is_fully_approved:
+                swap.save()
+                SwapService._notify(
+                    swap,
+                    swap.teacher_a,
+                    title="وُقّعت جهةٌ من التبديل",
+                    body="بانتظار توقيع منسّق المادّة الأخرى",
+                    event_type="swap_response",
+                )
+                return swap
             swap.status = "approved"
             # تنفيذ تلقائي
             SwapService.execute_swap(swap)
@@ -1948,30 +2006,22 @@ class SwapService:
     @staticmethod
     @transaction.atomic
     def execute_swap(swap: TeacherSwap) -> None:
-        """تنفيذ التبديل الفعلي — تبديل المعلمين في الحصتين."""
+        """تنفيذُ التبديل — في يومَيه وحدَهما لا في قالب الأسبوع.
+
+        كان يبدّل المعلّمَين في `ScheduleSlot`، وهو قالبُ الأسبوع كلِّه: فتبديلُ
+        حصّةِ يومٍ واحدٍ كان يُبدّلها كلَّ أسبوعٍ إلى الأبد، ولا يعود الجدولُ
+        كما كان أبداً. والتبديلُ مؤقّتٌ بطبعه (قرارُ المستخدم 2026-09-11):
+        ينقضي بانتهاء الحصّة الأبعد، ويعود الجدولُ من نفسه.
+
+        فالأثرُ يقع على حصّة اليوم `Session`. ولو لم تكن مُنشأةً بعد أُنشئت من
+        قالبها: القالبُ يقول إنّ هذه الحصّة قائمةٌ في ذلك اليوم، والتبديلُ
+        يحتاج صفّاً يحمل أثرَه. و`original_teacher` هو ما يُلوّن الخانةَ لاحقاً
+        ويقول لمن كانت.
+        """
         from django.utils import timezone as tz
 
-        # تبديل المعلمين في ScheduleSlot
-        slot_a = swap.slot_a
-        slot_b = swap.slot_b
-        slot_a.teacher, slot_b.teacher = slot_b.teacher, slot_a.teacher
-        slot_a.save(update_fields=["teacher"])
-        slot_b.save(update_fields=["teacher"])
-
-        # تحديث Session اليومية إذا وُجدت
-        Session.objects.filter(
-            school=swap.school,
-            teacher=swap.teacher_a,
-            date=swap.swap_date_a,
-            start_time=slot_a.start_time,
-        ).update(teacher=swap.teacher_b)
-
-        Session.objects.filter(
-            school=swap.school,
-            teacher=swap.teacher_b,
-            date=swap.swap_date_b,
-            start_time=slot_b.start_time,
-        ).update(teacher=swap.teacher_a)
+        SwapService._move_session(swap, swap.slot_a, swap.swap_date_a, swap.teacher_b)
+        SwapService._move_session(swap, swap.slot_b, swap.swap_date_b, swap.teacher_a)
 
         swap.status = "executed"
         swap.executed_at = tz.now()
@@ -1987,6 +2037,27 @@ class SwapService:
                 event_type="swap_approved",
             )
         logger.info("SwapService: executed swap %s", swap.pk)
+
+    @staticmethod
+    def _move_session(swap: TeacherSwap, slot, day, to_teacher) -> None:
+        """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر، ويحفظ اسمَ صاحبها الأوّل."""
+        session, _created = Session.objects.get_or_create(
+            school=swap.school,
+            class_group=slot.class_group,
+            date=day,
+            start_time=slot.start_time,
+            defaults={
+                "teacher": slot.teacher,
+                "subject": slot.subject,
+                "end_time": slot.end_time,
+            },
+        )
+        # صاحبُها الأوّلُ يُكتب مرّةً: حصّةٌ بُدّلت مرّتين صاحبُها الأوّلُ
+        # أوّلُها لا أوسطُها.
+        if session.original_teacher_id is None:
+            session.original_teacher_id = session.teacher_id
+        session.teacher = to_teacher
+        session.save(update_fields=["teacher", "original_teacher"])
 
     @staticmethod
     @transaction.atomic

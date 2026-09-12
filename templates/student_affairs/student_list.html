@@ -36,15 +36,28 @@
     <div class="filter-field filter-field--grow">
       <label class="filter-label">بحث</label>
       <input type="text" name="q" value="{{ q }}"
-             placeholder="اسم الطالب أو الرقم الشخصي..."
+             placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو جوال أو صف أو شعبة..."
              class="form-control form-control-sm"
              hx-get="{% url 'student_affairs:student_list' %}"
              hx-trigger="input changed delay:400ms, search"
              hx-target="#student-table-container"
-             hx-swap="innerHTML"
-             hx-include="[name='grade'],[name='section'],[name='parent_status']"
+             hx-swap="outerHTML"
+             hx-include="[name='status'],[name='grade'],[name='section'],[name='parent_status']"
              hx-indicator="#search-spinner"
              autocomplete="off">
+    </div>
+
+    {# حالةُ القيد — والافتراضُ المقيَّدون، ومن أُغلق قيدُه يُرى بترشيحٍ صريح #}
+    <div class="filter-field">
+      <label class="filter-label">حالة القيد</label>
+      <select name="status" class="form-control form-control-sm"
+              hx-get="{% url 'student_affairs:student_list' %}" hx-trigger="change"
+              hx-target="#student-table-container" hx-swap="outerHTML"
+              hx-include="[name='q'],[name='grade'],[name='section'],[name='parent_status']">
+        {% for val, label in statuses %}
+        <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
 
     {# فلتر الصف #}
@@ -54,8 +67,8 @@
               hx-get="{% url 'student_affairs:student_list' %}"
               hx-trigger="change"
               hx-target="#student-table-container"
-              hx-swap="innerHTML"
-              hx-include="[name='q'],[name='section'],[name='parent_status']">
+              hx-swap="outerHTML"
+              hx-include="[name='q'],[name='status'],[name='section'],[name='parent_status']">
         <option value="">— الكل —</option>
         {% for g in grades %}
         <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
@@ -70,8 +83,8 @@
               hx-get="{% url 'student_affairs:student_list' %}"
               hx-trigger="change"
               hx-target="#student-table-container"
-              hx-swap="innerHTML"
-              hx-include="[name='q'],[name='grade'],[name='parent_status']">
+              hx-swap="outerHTML"
+              hx-include="[name='q'],[name='status'],[name='grade'],[name='parent_status']">
         <option value="">— الكل —</option>
         {% for sec in sections %}
         <option value="{{ sec }}" {% if section_filter == sec %}selected{% endif %}>{{ sec }}</option>
@@ -86,8 +99,8 @@
               hx-get="{% url 'student_affairs:student_list' %}"
               hx-trigger="change"
               hx-target="#student-table-container"
-              hx-swap="innerHTML"
-              hx-include="[name='q'],[name='grade'],[name='section']">
+              hx-swap="outerHTML"
+              hx-include="[name='q'],[name='status'],[name='grade'],[name='section']">
         <option value="">— الكل —</option>
         <option value="linked" {% if parent_status == "linked" %}selected{% endif %}>مرتبط</option>
         <option value="unlinked" {% if parent_status == "unlinked" %}selected{% endif %}>غير مرتبط</option>
@@ -103,10 +116,8 @@
     </div>
   </form>
 
-  {# ── جدول الطلاب ── #}
-  <div class="table-wrap" id="student-table-container">
-    {% include "student_affairs/_student_table.html" %}
-  </div>
+  {# ── جدول الطلاب — وغلافُه ومعرّفُه في الجزئيّة، فهي تستبدل نفسَها ── #}
+  {% include "student_affairs/_student_table.html" %}
 
 </div>
 {% endblock %}

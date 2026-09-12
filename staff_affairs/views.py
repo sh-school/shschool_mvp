@@ -18,6 +18,7 @@ from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
 from core.permissions import role_required
+from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_service
@@ -267,7 +268,9 @@ def staff_list(request):
             {
                 "id": user.id,
                 "full_name": user.full_name,
-                "national_id": user.national_id,
+                # آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في
+                # وثائق الطباعة وحدَها. والبحثُ يقع على المخزَّن لا المستور.
+                "national_id": mask_national_id(user.national_id),
                 "employee_number": user.employee_number,
                 "role": m.role.name if m and m.role else "—",
                 # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.

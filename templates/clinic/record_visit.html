@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}تسجيل زيارة جديدة{% endblock %}
 
 {% block breadcrumbs %}
@@ -26,7 +27,7 @@
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
             <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
-              {{ student.full_name }} ({{ student.national_id }})
+              {{ student.full_name }} ({{ student.national_id|mask_id }})
             </option>
             {% endfor %}
           </select>

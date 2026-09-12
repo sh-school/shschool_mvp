@@ -6,27 +6,42 @@
 {% endblock %}
 
 {% block content %}
-<div class="comp-page">
-  <div class="comp-header">
-    <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
+{% comment %}
+كانت بأغلفةٍ خاصّةٍ بها (`comp-page` و`comp-header`) وصفِّ ترشيحٍ عارٍ، فلا
+ترث بنيةَ المنصّة. فصارت كأخواتها: عنوانٌ بسطرٍ يشرحه، وبطاقةُ ترشيح،
+وحالةُ فراغٍ من المكوّن الموحَّد.
+{% endcomment %}
+<div class="exec-dash">
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
+      <p class="exec-subtitle">حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد</p>
+    </div>
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-primary no-underline px-4 py-2 text-xs">+ طلب تعويض</a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="file-pen" %} طلب تعويض
+    </a>
     {% endif %}
   </div>
 
-  <div class="mb-3 flex flex-wrap gap-3 items-end">
-    <form method="get" class="inline">
-      <select name="status" data-autosubmit class="form-control px-2.5 py-1.5 rounded-md text-sm">
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label">الحالة</label>
+      <select name="status" data-autosubmit class="form-control form-control-sm">
         <option value="">كل الحالات</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-    </form>
-    <input type="text" id="comp-search" class="form-control" style="max-width:280px"
-           placeholder="ابحث باسم المعلم..." autocomplete="off">
-  </div>
+    </div>
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label">بحث بالاسم</label>
+      <input type="text" id="comp-search" class="form-control form-control-sm"
+             placeholder="ابحث باسم المعلم..." autocomplete="off">
+    </div>
+  </form>
 
+  <div class="card-qatar" style="padding:0">
   <div class="table-wrap-scroll" style="max-height:420px" id="comp-cards">
   {% for comp in compensatory_sessions %}
   <div class="comp-card" data-filter-row data-text="{{ comp.teacher.full_name }}">
@@ -60,11 +75,9 @@
     {% endif %}
   </div>
   {% empty %}
-  <div class="empty-state">
-    <p class="text-3xl mb-2">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
-    <p>لا توجد حصص تعويضية</p>
-  </div>
+  {% include "components/empty_state.html" with icon="calendar" title="لا توجد حصص تعويضية" subtitle="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}
   {% endfor %}
+  </div>
   </div>
 </div>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% block title %}طلب تبديل حصة{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/schedule/swaps/" parent_label="طلبات التبديل" current="طلب تبديل" %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/swaps/" parent_label="طلبات التبديل" current="طلب تبديل" %}
 {% endblock %}
 
 {% block content %}
@@ -36,9 +36,25 @@
         </div>
       </div>
 
+      {% comment %}
+      تاريخٌ لكلّ حصّة لا تاريخٌ لهما معاً: التبديلُ يجوز في أيّام الأسبوع
+      الجاري أو الذي يليه، فقد تقع حصّتي الثلاثاءَ وحصّتُه الأحدَ من الأسبوع
+      القادم. وتاريخٌ واحدٌ كان يحصرهما في اليوم نفسِه.
+
+      والمدى محروسٌ في الخادم أيضاً — `min`/`max` هنا تيسيرٌ للقارئ لا حارس.
+      {% endcomment %}
       <div class="form-group">
-        <label>تاريخ التبديل</label>
-        <input type="date" name="swap_date" required>
+        <label for="swap_date_a">تاريخ حصتك</label>
+        <input type="date" name="swap_date_a" id="swap_date_a" required
+               min="{{ window_start|date:'Y-m-d' }}" max="{{ window_end|date:'Y-m-d' }}">
+        <p class="hint">في الأسبوع الجاري أو الذي يليه — ويجب أن يوافق يومَ الحصة</p>
+      </div>
+
+      <div class="form-group">
+        <label for="swap_date_b">تاريخ حصة المعلم الآخر</label>
+        <input type="date" name="swap_date_b" id="swap_date_b" required
+               min="{{ window_start|date:'Y-m-d' }}" max="{{ window_end|date:'Y-m-d' }}">
+        <p class="hint">قد يكون يوماً آخر — والتبديل ينتهي بانتهاء الحصة الأبعد</p>
       </div>
 
       <div class="form-group">

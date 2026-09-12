@@ -1,8 +1,9 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}{% if is_dry_run %}معاينة الاستيراد{% else %}نتيجة الاستيراد{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/staging/" parent_label="الاستيراد" current="نتيجة الاستيراد" %}
+{% include "components/breadcrumbs.html" with parent_url="/import/" parent_label="الاستيراد" current="نتيجة الاستيراد" %}
 {% endblock %}
 
 {% block content %}
@@ -146,7 +147,7 @@
             <tbody>
               {% for row in preview_rows %}
               <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
-                <td class="px-3 py-1.5 border border-gray-200 font-mono">{{ row.national_id }}</td>
+                <td class="px-3 py-1.5 border border-gray-200 font-mono">{{ row.national_id|mask_id }}</td>
                 <td class="px-3 py-1.5 border border-gray-200">{{ row.name }}</td>
                 <td class="px-3 py-1.5 border border-gray-200 text-center font-bold">{{ row.grade }}</td>
                 <td class="px-3 py-1.5 border border-gray-200 text-center">
