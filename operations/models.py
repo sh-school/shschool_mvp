@@ -142,6 +142,25 @@ class StudentAttendance(models.Model):
         ("late", "متأخر"),
         ("excused", "معذور"),
     ]
+    #: أين الطالب — لا حالتُه. راجع الحقلَ `whereabouts`.
+    WHEREABOUTS = [
+        ("clinic", "في العيادة"),
+        ("activity", "في نشاطٍ مدرسيّ"),
+        ("out_permit", "خرج بإذن"),
+        ("out_no_permit", "خرج دون إذن"),
+        ("left_early", "استئذانٌ مبكّر"),
+        ("gate", "عند البوّابة (وصولٌ متأخّر)"),
+    ]
+
+    #: من سجّل — راجع الحقلَ `source`.
+    SOURCES = [
+        ("teacher", "معلّم الحصّة"),
+        ("supervisor", "مشرف الجناح"),
+        ("gate", "ملاحظ الطلبة"),
+        ("clinic", "العيادة"),
+        ("system", "النظام"),
+    ]
+
     EXCUSE = [
         ("medical", "طبي"),
         ("family", "ظروف عائلية"),
@@ -164,6 +183,32 @@ class StudentAttendance(models.Model):
         verbose_name="توقيت تسجيل التأخير",
         null=True,
         blank=True,
+    )
+    #: **أين الطالب** — حقلٌ مستقلٌّ عن `status` (قرارُ المستخدم 2026-09-12، §0.12).
+    #:
+    #: محاكاةُ يومٍ دراسيٍّ أنتجت سبعَ حالاتٍ و`status` يحمل أربعاً. فالطالبُ
+    #: في العيادة ليس حاضراً في فصله وليس غائباً عن مدرسته، والطالبُ في
+    #: مسابقةٍ مدرسيّةٍ **حاضرٌ في عهدة المدرسة** — وقائمةُ الأعذار في م
+    #: 3.4.1.4 **مغلقةٌ** لا يدخلها نشاطٌ تنظّمه المدرسة. والهاربُ غائبٌ
+    #: بمخالفةٍ لا كمن لم يأتِ أصلاً.
+    #:
+    #: فالحقيقةُ ثلاثيّة: حاضرٌ؟ · أين؟ · لماذا؟ و`status` وحدَها تكذب في
+    #: ثلاثٍ من سبع. والحدُّ الفاصلُ في النشاط: **هل خرج من عهدة المدرسة؟**
+    whereabouts = models.CharField(
+        max_length=14,
+        choices=WHEREABOUTS,
+        blank=True,
+        verbose_name="مكانُ الطالب",
+        help_text="فارغٌ = في فصله. وما سواه سببُ غيابه عن الفصل لا عن المدرسة",
+    )
+    #: من سجّل هذه الحالة — والحقبتان لا تُخلطان في إحصاء.
+    #:
+    #: قبل 2026-09 كان الرصدُ بيد معلّم الحصّة، وصار بيد مشرف الجناح (قرارُ
+    #: المدير). فسجلّاتُ الحقبتين تختلف مصدراً لا شكلاً، وإحصاءٌ يخلطهما
+    #: يقارن ما لا يُقارن. وفي أسبوع التشغيل الموازي **يرصد الاثنان معاً**،
+    #: فبلا هذا الحقل لا يُعرف أيُّ رقمٍ لأيّهما.
+    source = models.CharField(
+        max_length=12, choices=SOURCES, default="teacher", db_index=True, verbose_name="المصدر"
     )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
@@ -455,6 +500,53 @@ class TimeSlotConfig(models.Model):
         if self.is_break:
             return f"استراحة ({self.break_label}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
         return f"ح{self.period_number} ({self.get_day_type_display()}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
+
+
+class SectionDayConfirmation(models.Model):
+    """تثبيتُ مشرفِ الجناح رصدَ شعبةٍ في يوم — و**لا حضورَ افتراضيّاً**.
+
+    بلا هذا السجلّ لا يُفرَّق بين «شعبةٍ كلُّها حاضرة» و«شعبةٍ لم تُرصد» —
+    فالقاعدةُ في الحالين خاليةٌ من غياب. والفرقُ بينهما هو الفرقُ بين يومٍ
+    نظيفٍ ويومٍ مفقود، وبين مشرفٍ أنهى عمله ومشرفٍ لم يبدأه.
+
+    ومنه يُشتقّ «شُعبي المتبقّية n/5» الذي يراه المشرفُ صباحاً، وتنبيهُ
+    القيادة إن مضت الحصّةُ الثانيةُ وشعبةٌ لم تُرصد.
+
+    والعددان محفوظان لا محسوبان: يُقرآن في تقرير الوزارة بعد الحصّة الثانية
+    ثمّ تتبدّل الحالاتُ باعتماد الأعذار — فلو حُسبا وقتَ القراءة لأخرج
+    التقريرُ رقماً غيرَ الذي رُفع.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="day_confirmations")
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="day_confirmations"
+    )
+    date = models.DateField(db_index=True)
+    confirmed_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="day_confirmations"
+    )
+    confirmed_at = models.DateTimeField(auto_now=True)
+    present_count = models.PositiveSmallIntegerField(default=0)
+    absent_count = models.PositiveSmallIntegerField(default=0)
+    late_count = models.PositiveSmallIntegerField(default=0)
+    #: كم حصّةً كُتبت فيها الحالة — برهانُ السريان لا ادّعاؤه.
+    periods_written = models.PositiveSmallIntegerField(default=0)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "تثبيتُ رصدِ شعبة"
+        verbose_name_plural = "تثبيتاتُ رصد الشُّعب"
+        ordering = ["-date", "class_group"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "date"], name="unique_section_day_confirmation"
+            )
+        ]
+        indexes = [models.Index(fields=["school", "date"])]
+
+    def __str__(self):
+        return f"{self.class_group.short_code} · {self.date} · غياب {self.absent_count}"
 
 
 class SubjectClassAssignment(AuditedModel):

@@ -1,0 +1,77 @@
+{% extends "base/base.html" %}
+
+{% block title %}رصد الغياب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="رصد الغياب" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</h1>
+      <p class="exec-subtitle">شُعبي اليومَ — يُلمس الغائبُ وحدَه، والباقي حاضر</p>
+    </div>
+    <div class="exec-meta">
+      <form method="get" class="rec-datebar">
+        <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control">
+        <button type="submit" class="btn-secondary btn-sm">اعرض</button>
+      </form>
+    </div>
+  </div>
+
+  {% if not day_type %}
+    <div class="wing-warn">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      {{ day|date:"D، d M Y" }} — لا دوامَ فيه، فلا رصد.
+    </div>
+  {% endif %}
+
+  {% for panel in panels %}
+  <div class="card-qatar">
+    <div class="card-bar">
+      {% include "components/icon.html" with name="building" %}
+      {{ panel.wing.name }}
+      <span class="card-bar-sub">
+        {% if panel.done == panel.total %}
+          رُصدت كلُّها — {{ panel.done }}/{{ panel.total }}
+        {% else %}
+          المتبقّية {{ panel.remaining }} من {{ panel.total }}
+        {% endif %}
+      </span>
+    </div>
+
+    <div class="rec-sections">
+      {% for row in panel.rows %}
+        <a href="{% url 'wings:record_section' row.class_group.id %}?date={{ day|date:'Y-m-d' }}"
+           class="rec-chip{% if row.is_recorded %} is-done{% endif %}{% if not row.periods %} is-empty{% endif %}">
+          <span class="rec-chip__code">{{ row.class_group.short_code }}</span>
+          <span class="rec-chip__say">
+            {% if not row.periods %}
+              لا حصصَ اليوم
+            {% else %}
+              {{ row.says }}
+            {% endif %}
+          </span>
+          <span class="rec-chip__meta">{{ row.students }} طالباً · {{ row.periods }} حصّة</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% empty %}
+    <div class="wing-warn">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».
+    </div>
+  {% endfor %}
+
+  <p class="bell-note">
+    الحالةُ تُكتب في <b>كلّ</b> حصص اليوم لا في حصّةٍ واحدة — فالسياسةُ تعدّ أيّامَ
+    تمدرسٍ لا حصصاً، ويومٌ رُصدت منه حصّةٌ واحدةٌ يُحصى «غياباً جزئيّاً» لا يبلغ
+    عتبةَ استدعاءٍ ولا حرمان. وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.
+  </p>
+
+</div>
+{% endblock %}

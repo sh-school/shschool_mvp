@@ -6,20 +6,31 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
-from core.models import CustomUser, Wing, WingCoverage
+from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from core.permissions import role_required
 from operations.bells import day_type_for
+from operations.day_attendance import (
+    MORNING_STATES,
+    day_state,
+    enrolled_of,
+    record_day,
+    slots_of,
+)
+from operations.services import ScheduleService
 
 from .services import (
     bell_tables,
     coverage_rows,
     floors_overview,
     outside_the_wings,
+    sections_to_record,
     substitute_pool,
+    wings_of,
 )
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
@@ -155,3 +166,102 @@ def coverage_end(request, pk):
         f"انتهت تغطيةُ {cover.substitute.full_name} لـ{cover.wing.name} في {cover.end_date}.",
     )
     return redirect("wings:coverage")
+
+
+#: من يرصد: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
+RECORD_ROLES = (
+    "admin_supervisor",
+    "vice_admin",
+    "vice_academic",
+    "principal",
+    "platform_developer",
+)
+
+
+@login_required
+@role_required(*RECORD_ROLES)
+def record_index(request):
+    """شُعبي اليومَ وحالُ رصدِها — «شُعبي المتبقّية n/5»."""
+    school = request.user.get_school()
+    year = academic_year_for_school(school)
+    day = _day(request.GET.get("date"), timezone.localdate())
+
+    # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد.
+    ScheduleService.ensure_sessions_for_date(school, day)
+
+    panels = []
+    for wing in wings_of(request.user, school, year):
+        rows = sections_to_record(wing, day)
+        # العدُّ في العرض لا في القالب: `add` في جانغو لا تطرح، فحسابُ
+        # «المتبقّية» هناك كان يُخرج صفراً دائماً.
+        done = sum(1 for r in rows if r.is_recorded)
+        panels.append(
+            {
+                "wing": wing,
+                "rows": rows,
+                "done": done,
+                "total": len(rows),
+                "remaining": len(rows) - done,
+            }
+        )
+    return render(
+        request,
+        "wings/record_index.html",
+        {
+            "panels": panels,
+            "day": day,
+            "today": timezone.localdate(),
+            "day_type": day_type_for(day),
+        },
+    )
+
+
+@login_required
+@role_required(*RECORD_ROLES)
+def record_section(request, class_id):
+    """رصدُ شعبةٍ ليومٍ كامل — بالاستثناء: يُلمس الغائبُ وحدَه.
+
+    و`POST` يكتب الحالةَ في **كلّ** حصص اليوم (السريان، §0.11) ويثبّت الشعبة.
+    """
+    school = request.user.get_school()
+    klass = get_object_or_404(ClassGroup, id=class_id, school=school)
+    day = _day(request.POST.get("date") or request.GET.get("date"), timezone.localdate())
+    ScheduleService.ensure_sessions_for_date(school, day)
+
+    if request.method == "POST":
+        states = {
+            key.removeprefix("s-"): value
+            for key, value in request.POST.items()
+            if key.startswith("s-") and value in MORNING_STATES
+        }
+        result = record_day(
+            klass, day, states, by=request.user, note=(request.POST.get("note") or "").strip()
+        )
+        if result.confirmation is None:
+            messages.error(
+                request,
+                f"لا حصصَ لـ{klass.short_code} في {day} — فلا شيءَ يُرصد.",
+            )
+        else:
+            messages.success(request, f"ثُبّتت {klass.short_code}: {result.says}.")
+        return redirect(f"{reverse('wings:record_index')}?date={day.isoformat()}")
+
+    state = day_state(klass, day)
+    students = [
+        {
+            "student": e.student,
+            "status": state.get(e.student_id, {}).get("status", "present"),
+        }
+        for e in enrolled_of(klass)
+    ]
+    return render(
+        request,
+        "wings/record_section.html",
+        {
+            "klass": klass,
+            "day": day,
+            "students": students,
+            "periods": slots_of(klass, day),
+            "already": bool(state),
+        },
+    )
