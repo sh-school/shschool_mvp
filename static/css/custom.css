@@ -9523,9 +9523,12 @@ html.dark {
 .rec-pick--absent input:checked + span {
   background: var(--status-danger); color: #fff; border-color: var(--status-danger);
 }
+/* الكهرمانُ الفاتحُ لا يحمل نصّاً: `--status-warning-fg` عليه 2.23 نهاراً
+   و1.91 ليلاً (حارسُ التباين). فالمختارُ مصمَتٌ داكنٌ بنصٍّ أبيض — نظيرُ
+   «غائب» في الشكل، مختلفٌ عنه في اللون. */
 .rec-pick--late input:checked + span {
-  background: var(--status-warning); color: var(--status-warning-fg);
-  border-color: var(--status-warning);
+  background: var(--status-warning-dark); color: #fff;
+  border-color: var(--status-warning-dark);
 }
 .rec-pick input:focus-visible + span { outline: 2px solid var(--maroon); outline-offset: 2px; }
 
