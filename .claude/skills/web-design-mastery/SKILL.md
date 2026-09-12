@@ -59,10 +59,17 @@ description: |
 ## 2. CSS Layers — الترتيب الفعلي
 
 ```css
-@layer tailwind, reset, base, tokens, layout, components, modules, utilities;
+@layer tailwind, reset, base, tokens, layout, components, modules, utilities, themes;
 ```
 
 **⚠️ قاعدة:** كل CSS جديد يذهب في `custom.css` داخل الـ layer المناسب. لا inline styles. لا `<style>` blocks في templates. لا `!important` جديدة.
+
+**ولا قاعدةَ خارج الطبقات** — غيرُ المطبَّق يغلب المطبَّقَ مهما علا وزنُه،
+فيحكم بالصدفة لا بالترتيب. و`tests/test_css_layers.py` يمنع ذلك.
+
+**و`themes` آخرُها**: كلُّ قواعد `html.dark` فيها، فتغلب ما قبلها كما ينبغي.
+وقاعدةُ «ترويسةُ الجدول نصُّها أبيض» في آخرها هي الأخرى — وزنُها ووزنُ
+`html.dark table thead th` واحدٌ (0,1,4)، فلولا موضعُها لبهت النصّ.
 
 ---
 
@@ -176,17 +183,14 @@ description: |
 
 ---
 
-## 7. Cache Busting — الأرقام الحالية
+## 7. كسرُ ذاكرة المتصفّح — لا تفعل شيئاً
 
-```html
-custom.css?v=124
-tailwind.min.css?v=8
-base.js?v=103
-app.js?v=100
-htmx.min.js?v=2
-```
+أُزيل `?v=N` من أربعةَ عشرَ موضعاً في ستّة قوالب. فالإنتاجُ يبصم الاسمَ
+بمحتواه عبر `CompressedManifestStaticFilesStorage`، والتطويرُ يخدم
+`static/` بـ`max-age=0` عبر WhiteNoise (`USE_FINDERS` في `development.py`).
 
-**⚠️ بعد كل تعديل CSS/JS:** ارفع الرقم في `base.html` (و `login.html` إن وجد) ثم `collectstatic`.
+**بعد تعديل CSS/JS في التطوير:** حدِّث الصفحةَ وحسب — لا رقمَ تُرفع ولا
+`collectstatic` تُجرى. التفصيلُ في `CLAUDE.md`.
 
 ---
 
@@ -240,9 +244,7 @@ HTMX partial؟
 → if request.htmx → partial, else → extends base.html
 
 بعد أي تعديل CSS/JS؟
-→ 1) ارفع ?v= في base.html
-→ 2) python manage.py collectstatic --noinput
-→ 3) أعد تشغيل السيرفر
+→ حدِّث الصفحة. لا ?v= ولا collectstatic في التطوير.
 
 حجم الصفحة؟
 → Dashboard < 800KB, جداول < 1.2MB, جوال < 500KB

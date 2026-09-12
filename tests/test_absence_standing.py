@@ -135,12 +135,16 @@ def test_the_count_is_cumulative_and_days_need_not_be_consecutive(
     assert standing.unexcused_days == 4
 
 
-def test_the_seventh_day_does_not_deprive_but_the_eighth_does(
+def test_the_fifth_day_does_not_deprive_but_the_sixth_does(
     db, school, class_group, teacher_user, subject, student, seeded_year
 ):
-    """«إذا تجاوزت» — فالسابع نفسه لا يحرم."""
+    """«في حال تجاوز» — فالخامس نفسه لا يحرم، والسادس يحرم.
+
+    والعددُ خمسةٌ لا سبعة: «الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026»
+    م 3.4.1.3 نسخ أرقامَ سياسة 2018.
+    """
     start, _ = seeded_year
-    for offset in range(7):
+    for offset in range(5):
         _day(
             school,
             class_group,
@@ -151,11 +155,11 @@ def test_the_seventh_day_does_not_deprive_but_the_eighth_does(
             [("absent", "")] * 2,
         )
 
-    at_seven = standing_for(student, school, grade="G7", on=start + timedelta(days=10))
-    assert at_seven.unexcused_days == 7
-    assert at_seven.breached == ()
-    assert at_seven.upcoming.key == "s1_midterm"
-    assert at_seven.days_to_next == 0
+    at_five = standing_for(student, school, grade="G7", on=start + timedelta(days=10))
+    assert at_five.unexcused_days == 5
+    assert at_five.breached == ()
+    assert at_five.upcoming.key == "s1_midterm"
+    assert at_five.days_to_next == 0
 
     _day(
         school,
@@ -163,22 +167,26 @@ def test_the_seventh_day_does_not_deprive_but_the_eighth_does(
         teacher_user,
         subject,
         student,
-        start + timedelta(days=8),
+        start + timedelta(days=6),
         [("absent", "")] * 2,
     )
-    at_eight = standing_for(student, school, grade="G7", on=start + timedelta(days=10))
+    at_six = standing_for(student, school, grade="G7", on=start + timedelta(days=10))
 
-    assert at_eight.unexcused_days == 8
-    assert [g.key for g in at_eight.breached] == ["s1_midterm"]
-    assert at_eight.upcoming.key == "s1_final"
+    assert at_six.unexcused_days == 6
+    assert [g.key for g in at_six.breached] == ["s1_midterm"]
+    assert at_six.upcoming.key == "s1_final"
 
 
-def test_grade_twelve_survives_eight_days_where_grade_seven_does_not(
+def test_grade_twelve_survives_six_days_where_grade_seven_does_not(
     db, school, class_group, teacher_user, subject, student, seeded_year
 ):
-    """الجدولان يختلفان بنيوياً — لا في الأرقام وحدها."""
+    """الجدولان يختلفان بنيوياً — لا في الأرقام وحدها.
+
+    عتبتا المنتصف مقصورتان على «الأول إلى الحادي عشر» بنصّ الدليل، فأوّلُ
+    عتبةٍ تُصيب الثاني عشر هي ثمانيةٌ لا خمسة.
+    """
     start, _ = seeded_year
-    for offset in range(8):
+    for offset in range(6):
         _day(
             school,
             class_group,
@@ -201,7 +209,7 @@ def test_a_student_with_no_records_stands_clear(
 
     assert standing.unexcused_days == 0
     assert standing.upcoming.key == "s1_midterm"
-    assert standing.days_to_next == 7
+    assert standing.days_to_next == 5
 
 
 def test_the_gates_come_from_the_grade_not_from_the_calendar(db, school, student):
@@ -214,5 +222,5 @@ def test_the_gates_come_from_the_grade_not_from_the_calendar(db, school, student
     standing = standing_for(student, school, grade="G7")
 
     assert standing.unexcused_days == 0
-    assert [g.max_days for g in standing.gates] == [7, 10, 13, 15]
+    assert [g.max_days for g in standing.gates] == [5, 8, 11, 15]
     assert standing.upcoming.key == "s1_midterm"
