@@ -8067,11 +8067,9 @@ html.dark .pr-exec__user { color: #f9a8c0; }
    - Dark Mode support (html.dark) — القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط
    - Maroon/Gold tokens from custom.css
    - WCAG 2.1 AA focus states, touch targets >= 44px
-   ========================================================================== */
 
 /* ==========================================================================
    1. Layout & Container
-   ========================================================================== */
 .df-container {
   max-width: 1100px;
   margin: 0 auto;
@@ -8124,7 +8122,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    2. Cards
-   ========================================================================== */
 .df-card {
   background: #fff;
   border: 1px solid var(--maroon-border, #e8b4c3);
@@ -8171,7 +8168,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    3. Forms
-   ========================================================================== */
 .df-form-group {
   margin-bottom: 1rem;
 }
@@ -8324,7 +8320,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    4. Textarea counter
-   ========================================================================== */
 .df-counter {
   display: block;
   text-align: start;
@@ -8341,7 +8336,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    5. Buttons
-   ========================================================================== */
 .df-btn-group {
   display: flex;
   gap: 0.75rem;
@@ -8375,7 +8369,6 @@ html.dark .pr-exec__user { color: #f9a8c0; }
 
 /* ==========================================================================
    6. Status / Type / Priority badges
-   ========================================================================== */
 .df-badge {
   display: inline-block;
   padding: 0.25rem 0.625rem;
@@ -8442,7 +8435,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    7. Context preview (technical info block)
-   ========================================================================== */
 .df-context-preview {
   background: #fafafa;
   border-inline-start: 3px solid var(--gold, var(--gold));
@@ -8468,7 +8460,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    8. Ticket number hero (success page)
-   ========================================================================== */
 .df-ticket-hero {
   text-align: center;
   padding: 2.5rem 1.5rem;
@@ -8534,7 +8525,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    9. Timeline (status logs)
-   ========================================================================== */
 .df-timeline {
   list-style: none;
   padding: 0;
@@ -8591,7 +8581,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    10. Inbox filter bar
-   ========================================================================== */
 .df-filter-bar {
   display: flex;
   gap: 0.75rem;
@@ -8624,7 +8613,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    11. Tables
-   ========================================================================== */
 .df-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--maroon-border, #e8b4c3);
@@ -8707,7 +8695,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    12. Empty state
-   ========================================================================== */
 .df-empty-state {
   text-align: center;
   padding: 3rem 1rem;
@@ -8740,7 +8727,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    13. Message body + meta list (detail page)
-   ========================================================================== */
 .df-message-body {
   line-height: 1.9;
   color: #222;
@@ -8770,7 +8756,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    14. Focus states (WCAG AA)
-   ========================================================================== */
 .df-container :focus-visible,
 .df-form :focus-visible {
   outline: 2px solid var(--maroon, var(--maroon));
@@ -8780,7 +8765,6 @@ html.dark .df-badge-edited {
 
 /* ==========================================================================
    15. Screen-reader only helper (if base doesn't have one)
-   ========================================================================== */
 .df-container .sr-only {
   position: absolute;
   width: 1px;
@@ -8797,7 +8781,6 @@ html.dark .df-badge-edited {
    ═══════════════ DARK MODE — html.dark ═══════════════
    القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط — ممنوع كخلفيات كاملة.
    الخلفيات الداكنة مبنية على ظلال الماروون.
-   ========================================================================== */
 html.dark .df-card {
   background: #2a1018;
   border-color: #5a2033;
@@ -9006,7 +8989,6 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
 
 /* ==========================================================================
    16. Print
-   ========================================================================== */
 @media print {
   .df-btn-group,
   .df-filter-bar,
@@ -9080,3 +9062,54 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
 /* الشطرُ غيرُ المختار يختفي بحقوله — ولا يُترك حقلٌ مخفيٌّ مطلوباً. */
 form:has(#parent-mode-new:checked) .mode-pane--existing,
 form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
+/* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
+   التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
+   تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
+   «مجدولة» ولا أحمرَ «ملغاة» — فلا يلتبس التبديلُ بحالةٍ من حالات الحصّة.
+   وشريطٌ على الحافّة لمن لا يميّز الألوان. */
+:root {
+  --swap-bg:     #f3e8ff;
+  --swap-border: #7e22ce;
+  --swap-fg:     #6b21a8;
+}
+tr.is-swapped {
+  background: var(--swap-bg);
+  box-shadow: inset 4px 0 0 var(--swap-border);
+}
+tr.is-swapped:hover { background: #ede0fb; }
+.swap-note {
+  margin-top: 3px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--swap-fg);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+html.dark :root,
+html.dark {
+  --swap-bg:     rgba(126, 34, 206, .18);
+  --swap-fg:     #d8b4fe;
+}
+
+/* ── توقيعا المنسّقَين على بطاقة التبديل ────────────────────────────────
+   القارئُ يحتاج أن يعرف **أين وقف الطلب** لا أن يستنتجه من حالةٍ واحدة:
+   جهةٌ وقّعت وأخرى تنتظر، وكلُّ جهةٍ باسم مادّتها ومن يوقّع عنها. */
+.swap-signatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.swap-sign {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.swap-sign.is-signed  { color: var(--status-success-fg); border-color: var(--status-success); }
+.swap-sign.is-waiting { color: var(--text-secondary); border-style: dashed; }
+.swap-sign em { font-style: normal; opacity: .75; }

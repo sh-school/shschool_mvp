@@ -8,13 +8,40 @@
       {{ swap.get_status_display }}
     </span>
   </div>
+  {% comment %}
+  التاريخُ لكلّ حصّةٍ على حِدَة: التبديلُ يجوز في أيّام الأسبوع أو الذي يليه،
+  فقد تقع إحداهما الثلاثاءَ والأخرى الأحدَ من الأسبوع القادم. وهو مؤقّتٌ
+  ينقضي بانتهاء الأبعد منهما — والجدولُ يعود من نفسه.
+  {% endcomment %}
   <div class="swap-info" style="margin-top:4px">
     <strong>حصة أ:</strong> {{ swap.slot_a.subject|default:"—" }} ({{ swap.slot_a.class_group }}) — {{ swap.slot_a.get_day_of_week_display }} ح{{ swap.slot_a.period_number }}
+    · {{ swap.swap_date_a|date:"d/m" }}
     &nbsp;|&nbsp;
     <strong>حصة ب:</strong> {{ swap.slot_b.subject|default:"—" }} ({{ swap.slot_b.class_group }}) — {{ swap.slot_b.get_day_of_week_display }} ح{{ swap.slot_b.period_number }}
+    · {{ swap.swap_date_b|date:"d/m" }}
     &nbsp;|&nbsp;
     {{ swap.created_at|date:"Y/m/d H:i" }}
   </div>
+
+  {% comment %}
+  توقيعُ منسّقِ كلِّ مادّة على حِدَة — والقارئُ يرى من وقّع ومن يُنتظَر، فلا
+  يسأل «أين وقف الطلب؟». والبديلُ يُعلَّم: النائبُ يوقّع عن الغائب لا عليه.
+  {% endcomment %}
+  {% if swap.status == "pending_coordinator" or swap.status == "approved" or swap.status == "executed" %}
+  <div class="swap-signatures">
+    {% for side, label in swap.sides_display %}
+    <span class="swap-sign {% if label.signed %}is-signed{% else %}is-waiting{% endif %}">
+      {% if label.signed %}
+        {% include "components/icon.html" with name="check-circle" size="icon-sm" %}
+        {{ label.subject }}: {{ label.who }}{% if label.substitute %} <em>(بديلاً)</em>{% endif %}
+      {% else %}
+        {% include "components/icon.html" with name="clock" size="icon-sm" %}
+        {{ label.subject }}: بانتظار {{ label.who }}
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if swap.reason %}
   <div class="swap-info" style="margin-top:2px"><strong>السبب:</strong> {{ swap.reason }}</div>
   {% endif %}
@@ -26,8 +53,12 @@
   </div>
   {% endif %}
 
+  {% comment %}
+  الزرُّ لمن يملك التوقيعَ عن جهةٍ بعينها — لا لكلّ منسّقٍ في المدرسة. وكان
+  أيُّ منسّقٍ يعتمد أيَّ تبديل، ولا يُسأل أهو منسّقُ المادّة.
+  {% endcomment %}
   {% if swap.status == "pending_coordinator" or swap.status == "pending_vp" or swap.status == "accepted_b" %}
-    {% if current_role == "coordinator" or current_role == "principal" or current_role == "vice_academic" or current_role == "vice_admin" %}
+    {% if swap.my_sides %}
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
         <input type="hidden" name="action" value="approve">
