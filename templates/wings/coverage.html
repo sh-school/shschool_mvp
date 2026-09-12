@@ -1,0 +1,150 @@
+{% extends "base/base.html" %}
+
+{% block title %}تغطية الأجنحة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="التغطية والإنابة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  <div class="exec-header">
+    <div>
+      <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} تغطية الأجنحة</h1>
+      <p class="exec-subtitle">من يحمل كلَّ جناحٍ اليوم — والإنابةُ عند الغياب · {{ year }}</p>
+    </div>
+    <div class="exec-meta">
+      <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
+    </div>
+  </div>
+
+  <p class="bell-note">
+    الجناحُ نطاقُ مشرفه: غيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد، وعذراً لا
+    يعتمده أحد. والبديلُ من مشرفٍ إداريٍّ أو عاملِ خدماتٍ أو ملاحظِ طلبة (قرارُ المدير)،
+    ويُعيّنه المديرُ أو النائبان أو مطوّرُ المنصّة. والإنهاءُ بتاريخٍ لا بحذف — فمن يقرأ
+    غيابَ الأسبوع الماضي يحتاج أن يعرف من كان يرصده.
+  </p>
+
+  <div class="wing-row">
+  {% for row in rows %}
+  <div class="card-qatar">
+    <div class="card-bar">
+      {% include "components/icon.html" with name="building" %}
+      {{ row.wing.name }}
+      <span class="card-bar-sub">{{ row.wing.get_floor_display }}</span>
+    </div>
+
+    <div class="wing-box">
+      <div class="wing-box__head">
+        <div>
+          <div class="wing-box__name">
+            {% if row.holder %}{{ row.holder.full_name }}{% else %}بلا مشرفٍ ولا بديل{% endif %}
+          </div>
+          <div class="wing-box__who{% if not row.holder %} is-vacant{% endif %}">
+            {% if row.coverage %}
+              بديلٌ منذ {{ row.coverage.start_date }} —
+              {% if row.coverage.end_date %}حتّى {{ row.coverage.end_date }}{% else %}بلا تاريخِ انتهاء{% endif %}
+              · {{ row.coverage.get_reason_display }}
+            {% else %}
+              الأصيل
+            {% endif %}
+          </div>
+        </div>
+        {% if row.coverage %}<span class="badge badge--warning">مُغطّى</span>{% endif %}
+      </div>
+
+      {% if row.coverage %}
+        {% if row.wing.supervisor %}
+          <div class="wing-box__count">الأصيل: <b>{{ row.wing.supervisor.full_name }}</b></div>
+        {% endif %}
+        {% if row.coverage.note %}<div class="wing-box__count">{{ row.coverage.note }}</div>{% endif %}
+        {% if row.coverage.end_date %}
+          <div class="wing-now">
+            {% include "components/icon.html" with name="calendar" %}
+            <span>
+              {% if row.coverage.end_date == today %}
+                تنتهي <b>اليوم</b> — ويعود الأصيلُ غداً
+              {% else %}
+                تنتهي <b>{{ row.coverage.end_date }}</b>
+              {% endif %}
+            </span>
+          </div>
+        {% endif %}
+        {% comment %}
+          الإنهاءُ يسري بنهاية اليوم لا لحظتَه (قرار الخارطة §2): من أُنهيت
+          تغطيتُه اليومَ يبقى حاملَ الجناح حتّى المغيب، كي لا يُقطع عملٌ نصفَ
+          منجَز. فالزرُّ بعدها «تعديلُ التاريخ» لا «إنهاء» — وإلّا قرأه القارئُ
+          كأنّ نقرتَه لم تفعل شيئاً.
+
+          و`{% comment %}` لا `{# #}`: وسمُ جانغو متعدّدُ الأسطر ليس وسماً —
+          مُحلِّلُه بلا `re.DOTALL`، فيمرّ نصّاً خاماً إلى الصفحة. راجع
+          tests/test_template_tags_are_single_line.py
+        {% endcomment %}
+        <form method="post" action="{% url 'wings:coverage_end' row.coverage.id %}" class="wing-cover-form">
+          {% csrf_token %}
+          <label class="wing-cover-field">
+            <span>{% if row.coverage.end_date %}تعديلُ تاريخ الانتهاء{% else %}تنتهي في{% endif %}</span>
+            <input type="date" name="end_date"
+                   value="{{ row.coverage.end_date|default_if_none:today|date:'Y-m-d' }}" class="form-control">
+          </label>
+          <button type="submit" class="btn-secondary btn-sm">
+            {% include "components/icon.html" with name="check" %}
+            {% if row.coverage.end_date %}عدّلِ التاريخ{% else %}أنهِ التغطية{% endif %}
+          </button>
+        </form>
+      {% else %}
+        <form method="post" action="{% url 'wings:coverage_assign' row.wing.code %}" class="wing-cover-form">
+          {% csrf_token %}
+          <label class="wing-cover-field">
+            <span>البديل</span>
+            <select name="substitute" class="form-control" required>
+              <option value="">— اختر —</option>
+              {% for candidate in pool %}
+                <option value="{{ candidate.user.id }}"
+                        {% if candidate.is_own_supervisor or candidate.busy_with %}disabled{% endif %}>
+                  {{ candidate.user.full_name }}{% if candidate.busy_with %} — يغطّي {{ candidate.busy_with }}{% elif candidate.principal_of %} — أصيلُ {{ candidate.principal_of }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="wing-cover-field">
+            <span>السبب</span>
+            <select name="reason" class="form-control">
+              {% for value, label in row.wing.coverages.model.REASONS %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="wing-cover-field">
+            <span>من</span>
+            <input type="date" name="start_date" value="{{ today|date:'Y-m-d' }}" class="form-control" required>
+          </label>
+          <label class="wing-cover-field">
+            <span>إلى (اختياريّ)</span>
+            <input type="date" name="end_date" class="form-control">
+          </label>
+          <label class="wing-cover-field wing-cover-field--wide">
+            <span>ملاحظة</span>
+            <input type="text" name="note" class="form-control" maxlength="200">
+          </label>
+          <button type="submit" class="btn-primary btn-sm">
+            {% include "components/icon.html" with name="user-plus" %} عيّن بديلاً
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+    {% if row.history %}
+      <p class="bell-note">سابقاً:
+        {% for past in row.history %}
+          {{ past.substitute.full_name }} ({{ past.start_date }}–{{ past.end_date|default:"…" }}){% if not forloop.last %} · {% endif %}
+        {% endfor %}
+      </p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,14 +1,26 @@
 """شاشةُ أجنحة المدرسة — طابقان، خمسةُ أجنحة، وجرسٌ يُقرأ بالساعة."""
 
+import datetime as dt
+
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.models import CustomUser, Wing, WingCoverage
 from core.permissions import role_required
 from operations.bells import day_type_for
 
-from .services import bell_tables, floors_overview, outside_the_wings
+from .services import (
+    bell_tables,
+    coverage_rows,
+    floors_overview,
+    outside_the_wings,
+    substitute_pool,
+)
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
 
@@ -44,7 +56,102 @@ def floors(request):
             "section_count": sum(panel.section_count for panel in panels),
             "student_count": wing_students,
             "outside": outside,
+            "perms_can_cover": request.user.is_superuser
+            or request.user.get_role() in WingCoverage.ASSIGNER_ROLES,
             # سجلُّ المدرسة كلُّه — والفرقُ بينه وبين طلاب الأجنحة معروضٌ لا مطروح.
             "register_count": wing_students + outside.student_count,
         },
     )
+
+
+def _day(raw, fallback=None):
+    """تاريخٌ من نصّ — وما لا يُقرأ يرتدّ إلى بديلٍ لا يُسقط الطلب."""
+    try:
+        return dt.date.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return fallback
+
+
+@login_required
+@role_required(*WingCoverage.ASSIGNER_ROLES)
+def coverage(request):
+    """تغطيةُ الأجنحة — من يحمل كلَّ جناحٍ اليوم، ومن يُناب عند الغياب.
+
+    وصلاحيّتُها للمدير والنائبين ومطوّر المنصّة: لوحةُ إدارة جانغو مقصورةٌ على
+    المدير والمطوّر بقرار المدرسة، فبلا هذه الشاشة لا يستطيع النائبان تعيينَ
+    بديلٍ — وهما اثنان من الأربعة الذين أذن لهم المدير.
+    """
+    school = request.user.get_school()
+    year = academic_year_for_school(school)
+    today = timezone.localdate()
+    return render(
+        request,
+        "wings/coverage.html",
+        {
+            "rows": coverage_rows(school, year, today),
+            "pool": substitute_pool(school, on_date=today),
+            "today": today,
+            "year": year,
+        },
+    )
+
+
+@login_required
+@role_required(*WingCoverage.ASSIGNER_ROLES)
+@require_POST
+def coverage_assign(request, code):
+    school = request.user.get_school()
+    year = academic_year_for_school(school)
+    wing = get_object_or_404(Wing, school=school, code=code, academic_year=year)
+    today = timezone.localdate()
+
+    substitute = CustomUser.objects.filter(id=request.POST.get("substitute") or None).first()
+    if substitute is None:
+        messages.error(request, "اختر البديل.")
+        return redirect("wings:coverage")
+
+    cover = WingCoverage(
+        wing=wing,
+        substitute=substitute,
+        assigned_by=request.user,
+        reason=request.POST.get("reason") or "absence",
+        start_date=_day(request.POST.get("start_date"), today),
+        end_date=_day(request.POST.get("end_date")),
+        note=(request.POST.get("note") or "").strip(),
+    )
+    try:
+        cover.full_clean()
+    except ValidationError as err:
+        for field_errors in err.message_dict.values():
+            for text in field_errors:
+                messages.error(request, text)
+        return redirect("wings:coverage")
+
+    cover.save()
+    until = f"حتّى {cover.end_date}" if cover.end_date else "بلا تاريخِ انتهاء"
+    messages.success(
+        request, f"{substitute.full_name} يغطّي {wing.name} من {cover.start_date} — {until}."
+    )
+    return redirect("wings:coverage")
+
+
+@login_required
+@role_required(*WingCoverage.ASSIGNER_ROLES)
+@require_POST
+def coverage_end(request, pk):
+    """إنهاءُ التغطية — بتاريخٍ لا بحذف.
+
+    الحذفُ يمحو من حمل الجناحَ أمسِ، ومن يقرأ غيابَ الأسبوع الماضي يحتاج أن
+    يعرف من كان يرصده. فتُغلق المدّةُ ويبقى السجلّ.
+    """
+    school = request.user.get_school()
+    cover = get_object_or_404(WingCoverage, pk=pk, wing__school=school)
+    today = timezone.localdate()
+    cover.end_date = max(_day(request.POST.get("end_date"), today), cover.start_date)
+    cover.ended_by = request.user
+    cover.save(update_fields=["end_date", "ended_by"])
+    messages.success(
+        request,
+        f"انتهت تغطيةُ {cover.substitute.full_name} لـ{cover.wing.name} في {cover.end_date}.",
+    )
+    return redirect("wings:coverage")

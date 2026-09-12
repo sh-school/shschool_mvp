@@ -79,7 +79,8 @@ def test_nothing_is_raised_while_the_student_is_far_from_any_gate(
     db, school, class_group, teacher_user, subject, student, year_window
 ):
     start, _ = year_window
-    _absent(school, class_group, teacher_user, subject, student, start, 3)
+    # يومان: يفصلهما ثلاثةٌ عن عتبة الخمسة، والهامشُ يومان — فلا إنذار.
+    _absent(school, class_group, teacher_user, subject, student, start, 2)
 
     AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
 
@@ -89,9 +90,9 @@ def test_nothing_is_raised_while_the_student_is_far_from_any_gate(
 def test_the_warning_comes_before_the_gate_not_after(
     db, school, class_group, teacher_user, subject, student, year_window
 ):
-    """خمسةُ أيام: يفصله يومان عن السابعة — فيُنذَر وهو ما زال يملك أن يتدارك."""
+    """ثلاثةُ أيام: يفصله يومان عن الخامسة — فيُنذَر وهو ما زال يملك أن يتدارك."""
     start, _ = year_window
-    _absent(school, class_group, teacher_user, subject, student, start, 5)
+    _absent(school, class_group, teacher_user, subject, student, start, 3)
 
     AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
 
@@ -101,13 +102,17 @@ def test_the_warning_comes_before_the_gate_not_after(
 def test_each_gate_raises_its_own_alert(
     db, school, class_group, teacher_user, subject, student, year_window
 ):
-    """كان التنبيه واحداً للعام — فمن تجاوز الأولى لم يُنذَر عند ما بعدها."""
+    """كان التنبيه واحداً للعام — فمن تجاوز الأولى لم يُنذَر عند ما بعدها.
+
+    وتسعةُ أيّامٍ بأرقام 2026 تجاوزت الخامسةَ والثامنةَ، ويفصلها يومان عن
+    الحادية عشرة — فثلاثةُ إنذارات.
+    """
     start, _ = year_window
     _absent(school, class_group, teacher_user, subject, student, start, 9)
 
     AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
 
-    assert _gates(student) == ["s1_final", "s1_midterm"]
+    assert _gates(student) == ["s1_final", "s1_midterm", "s2_midterm"]
 
 
 def test_the_same_gate_is_not_raised_twice(
@@ -121,7 +126,7 @@ def test_the_same_gate_is_not_raised_twice(
     AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
     AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
 
-    assert AbsenceAlert.objects.filter(student=student).count() == 2
+    assert AbsenceAlert.objects.filter(student=student).count() == 3
 
 
 def test_the_message_names_the_exam_its_limit_and_its_source(
@@ -140,7 +145,7 @@ def test_the_message_names_the_exam_its_limit_and_its_source(
 
     assert "العتبة القانونية" not in said, "ادّعاءٌ بلا سند"
     if said.strip():
-        assert "سياسة تقييم الطلبة" in said
+        assert "سياسة إدارة سلوك الطلبة 2026" in said
         assert "منتصف الفصل الأول" in said
 
 
@@ -172,12 +177,30 @@ def test_an_excused_day_never_triggers_an_alert(
     assert _gates(student) == []
 
 
-def test_a_grade_the_policy_does_not_cover_is_left_alone(
+def test_the_second_grade_is_covered_now(
     db, school, class_group, teacher_user, subject, student, year_window
 ):
-    """الصفوف ١–٣ لها قسمٌ مستقلّ لم يُشفَّر — فلا إنذار بجدولٍ لا يخصّها."""
+    """دليلُ 2026 يقول «من الصف **الأول**» — فلم تبقَ الصفوفُ 1–3 خارجه.
+
+    وكانت سياسةُ 2018 تبدأ من الرابع، فكان الثاني يُترك بلا إنذارٍ ولو غاب
+    عشرين يوماً. ولا أثرَ لهذا في مدرستنا (7–12)، لكنّ الجدولَ صار جدولَه.
+    """
     start, _ = year_window
     class_group.grade = "G2"
+    class_group.save(update_fields=["grade"])
+    _absent(school, class_group, teacher_user, subject, student, start, 20)
+
+    AttendanceService.check_absence_threshold(student, school, on=start + timedelta(days=30))
+
+    assert _gates(student) == ["s1_final", "s1_midterm", "s2_final", "s2_midterm"]
+
+
+def test_a_grade_with_no_table_is_left_alone(
+    db, school, class_group, teacher_user, subject, student, year_window
+):
+    """صفٌّ لا جدولَ له في السياسة — فلا إنذار بجدولٍ لا يخصّه."""
+    start, _ = year_window
+    class_group.grade = "G13"
     class_group.save(update_fields=["grade"])
     _absent(school, class_group, teacher_user, subject, student, start, 20)
 
