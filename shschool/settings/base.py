@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "developer_feedback.apps.DeveloperFeedbackConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
+    "wings.apps.WingsConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate

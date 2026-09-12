@@ -105,21 +105,42 @@ class ClassGroupManager(models.Manager.from_queryset(ClassGroupQuerySet)):
         return super().get_queryset().order_by(GRADE_ORDER.asc(), "section")
 
 
+#: طوابقُ المبنى — يقرؤه الجرسُ (`TimeBand.floor`) والجناحُ (`Wing.floor`) معاً.
+#:
+#: وُضع في موضعٍ واحدٍ لأنّ الطابقَ ليس صفةً في اثنين: هو **الرابطُ** بينهما.
+#: فجناحٌ في الأرضيّ لا تصحّ فيه شعبةٌ على جرسٍ علويّ، ومن كتب القائمةَ مرّتين
+#: أمكنه أن يزيد قيمةً في إحداهما فيصير الفحصُ بلا معنى.
+FLOORS = [("ground", "الطابق الأرضيّ"), ("first", "الطابق الأوّل")]
+
+
 class TimeBand(models.Model):
     """نطاقُ توقيت: مجموعةُ شُعبٍ تتقاسم جرسَ اليوم نفسَه.
 
-    في المدرسة طابقان بجرسين: الأرضيّ (السابع والثامن وتاسع/1) والعلويّ
-    (تاسع 2·3·4 والثانويّ) — الحصّةُ الثانية تبدأ 8:00 هنا وتنتهي 8:50، وهناك
-    8:45. والخميسُ ثلاثةُ أجراس. فرقمُ الحصّة لا يعني الوقتَ نفسَه في النطاقين،
-    ومعلّمٌ يقطع الطابقين يُحكَم بالساعة لا بالرقم.
+    المدرسةُ طابقان، وأجراسُها **ثلاثة** لا اثنان — وهذا ما يجعل «الطابق» لا
+    يكفي وحدَه مفتاحاً للتوقيت:
 
-    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 أرضيٌّ وتاسع/2 علويّ.
+        الأرضيّ   ground     السابع · الثامن · تاسع/1 · تاسع/2
+        الأوّل    ninth      تاسع 3 · تاسع 4
+        الأوّل    secondary  العاشر إلى الثاني عشر
+
+    فمن الأحد إلى الأربعاء يتطابق جرسا الطابق الأوّل حرفاً، ويوم **الخميس
+    يفترقان**: تاسع 3·4 فسحتُهم بعد الثالثة وصلاتُهم آخرَ اليوم، والثانويُّ
+    فسحتُه بعد الرابعة وحصصُه أقصر. فثلاثةُ أجراسٍ يومَ الخميس واثنان قبله.
+
+    والطابقُ محفوظٌ هنا لا مشتقٌّ من الرمز: بلا حقلٍ لا يعرف الخلفيّةُ أنّ
+    `ninth` و`secondary` طابقٌ واحد، فيتعذّر السؤالُ «ما يرنّه الطابقُ الأوّلُ
+    الآن؟» إلّا بتسميةِ رموزٍ في الكود — وهي تسميةٌ تكذب في أوّل جرسٍ يُضاف.
+
+    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 وتاسع/2 أرضيّان، وتاسع 3·4 علويّان
+    (نُقل تاسع/2 إلى الأرضيّ بقرار الإدارة 2026-09-09).
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_bands")
     code = models.SlugField(max_length=20, verbose_name="الرمز")
     name = models.CharField(max_length=60, verbose_name="الاسم")
+    #: طابقُ الجرس — ولا يُشتقّ من الرمز. راجع صدرَ الصنف.
+    floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
     is_active = models.BooleanField(default=True)
 
@@ -133,6 +154,155 @@ class TimeBand(models.Model):
 
     def __str__(self):
         return self.name
+
+
+#: أجراسُ مجموعةٍ من الشُّعب مرتّبةً بلا تكرار.
+#:
+#: دالّةٌ لا خاصّيّةٌ لأنّ لها نداءين: `Wing.time_bands` يمرّر استعلامَه،
+#: وشاشةُ الأجنحة تمرّر ما سبق جلبُه بـ`prefetch_related` — فلو كُتب المنطقُ
+#: في الخاصّيّة وحدَها لأعادت الشاشةُ الاستعلامَ خمسَ مرّاتٍ أو كرّرت المنطق.
+def bands_of(sections) -> list:
+    bands = {klass.time_band for klass in sections if klass.time_band_id}
+    return sorted(bands, key=lambda band: (band.order, band.code))
+
+
+class Wing(models.Model):
+    """جناحٌ من أجنحة المدرسة الخمسة: ممرٌّ بخمس شُعبٍ ومشرفٍ إداريٍّ واحد.
+
+    المدرسةُ خمسةُ أجنحة، لكلٍّ مشرفٌ إداريّ، وخمسُ شُعبٍ لكلّ جناحٍ بلا تكرارٍ
+    ولا فراغ — خمسٌ وعشرون شعبةً (قرار الإدارة 2026-09-09). وشُعبُ التربية
+    الخاصّة الثلاث **خارجَ الأجنحة** بقرارٍ صريح: حضورُها بيد معلّميها، فتبقى
+    `ClassGroup.wing` فيها فارغةً عمداً لا سهواً.
+
+    والجناحُ ليس زينةً في شاشة: هو **نطاقُ** مشرفه — من يقرأ ومن يكتب ومن
+    يعتمد العذرَ ومن يصله صندوقُ المخالفات. فكلُّ صلاحيّةٍ في المرحلة 3 تمرّ
+    عليه.
+
+    وثلاثُ خصائصَ تجعل الحدّ الأعلى للتعميم منخفضاً، ولذلك تُحسب لا تُفترض:
+
+    1. **الجناحُ قد يعبر جرسين.** جناح 3 فيه 9/3 و9/4 على جرس التاسع و10/1–3
+       على جرس الثانويّ — فـ«الحصّةُ الحالية» فيه لا تُقال برقمٍ بل بالساعة.
+       `is_split_band` يقول ذلك، ولا يُقرأ رقمُ الحصّة من الشعبة الأولى.
+    2. **الجناحُ قد يعبر مرحلتين.** جناح 3 تاسعٌ إعداديٌّ وعاشرٌ ثانويّ —
+       سياستان في ممرٍّ واحد، فـ`levels` مجموعةٌ لا قيمة.
+    3. **الجناحُ قد يكون صفّاً واحداً تقريباً.** أربعُ شُعبِ جناح 5 ثاني عشر،
+       وعتباتُ غيابه تخالف عتبات ما دونه — فعرضُ العتبة العامّة يكذب في
+       أغلب طلابه.
+
+    والصفُّ الواحدُ في عامين جناحان: الصفوفُ تتحرّك والمشرفون يتبدّلون، فحمل
+    السجلُّ `academic_year` وصار سجلَّ عامٍ لا سجلَّ مبنى.
+    """
+
+    #: قائمةٌ واحدةٌ يقرؤها الجرسُ والجناح — راجع `FLOORS` في صدر الملفّ.
+    FLOORS = FLOORS
+
+    #: من يصلح مشرفاً لجناح. والنائبُ الإداريُّ منهم لأنّه يرث المشرف
+    #: (`core/permissions.py`) — فيصحّ أن يحمل جناحاً عند النقص.
+    SUPERVISOR_ROLES = ("admin_supervisor", "vice_admin")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="wings")
+    code = models.SlugField(max_length=20, verbose_name="الرمز")
+    name = models.CharField(max_length=60, verbose_name="الاسم")
+    floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
+    #: يبقى فارغاً حتّى تسمّي الإدارةُ المشرفين — وجناحٌ بلا مشرفٍ حالةٌ
+    #: تُعرض وتُنبَّه، لا حالةٌ يُمنع حفظُها.
+    supervisor = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervised_wings",
+        verbose_name="المشرف الإداريّ",
+    )
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "جناح"
+        verbose_name_plural = "الأجنحة"
+        ordering = ["order", "code"]
+        constraints = [
+            # الرمزُ مع العام لا الرمزُ وحدَه: «جناح 1» يتكرّر كلَّ عامٍ بشُعبٍ
+            # ومشرفٍ غيرِ ما كان، فقيدٌ بلا عامٍ يمنع فتحَ العام القادم.
+            models.UniqueConstraint(
+                fields=["school", "code", "academic_year"],
+                name="unique_wing_code_per_year",
+            ),
+            # ولا يحمل أحدٌ جناحين في عامٍ واحد: خمسةُ أجنحةٍ لخمسةِ أشخاص،
+            # ومن حمل اثنين صار نقطةَ فشلٍ مضاعفة. والقيدُ جزئيٌّ كي لا
+            # يتصادم جناحان بلا مشرفٍ بعدُ (`NULL` لا يساوي `NULL` في
+            # الفهرس، لكنّ الشرطَ يقولها صراحةً لقارئ الهجرة).
+            models.UniqueConstraint(
+                fields=["school", "supervisor", "academic_year"],
+                condition=models.Q(supervisor__isnull=False, is_active=True),
+                name="unique_wing_supervisor_per_year",
+            ),
+        ]
+
+    def clean(self):
+        """مشرفُ الجناح عضوٌ نشطٌ بدورٍ يسمح — لا أيُّ مستخدمٍ في القاعدة."""
+        super().clean()
+        if self.supervisor_id is None or self.school_id is None:
+            return
+        from .access import Membership
+
+        eligible = Membership.objects.filter(
+            user_id=self.supervisor_id,
+            school_id=self.school_id,
+            is_active=True,
+            role__name__in=self.SUPERVISOR_ROLES,
+        ).exists()
+        if not eligible:
+            raise ValidationError(
+                {"supervisor": "مشرفُ الجناح عضوٌ نشطٌ بدور «مشرف إداريّ» أو «النائب الإداريّ»."}
+            )
+
+    @property
+    def sections(self):
+        """شُعبُ الجناح النشطةُ بترتيب المدرسة."""
+        return self.class_groups.filter(is_active=True)
+
+    @property
+    def student_count(self) -> int:
+        return StudentEnrollment.objects.filter(class_group__wing=self, is_active=True).count()
+
+    @property
+    def time_bands(self) -> list:
+        """أجراسُ الجناح — واحدٌ في الغالب، واثنان في جناحٍ يعبر طابقين.
+
+        باستعلامٍ واحد: كانت قراءةُ المعرّفات ثمّ قراءةُ الأجراس استعلامَين،
+        وخمسةُ أجنحةٍ تُعرض معاً تجعلهما عشرة.
+        """
+        return bands_of(self.class_groups.filter(is_active=True).select_related("time_band"))
+
+    @property
+    def is_split_band(self) -> bool:
+        """جناحٌ بجرسين لا يُقال فيه «الحصّة الثالثة» — تُقال الساعة."""
+        return len(self.time_bands) > 1
+
+    @property
+    def bells_off_floor(self) -> list:
+        """أجراسُ الجناح التي طابقُها ليس طابقَه — والصحيحُ أن تكون فارغة.
+
+        شعبةٌ في جناحٍ أرضيٍّ على جرسٍ علويٍّ تعني أنّ أحدَ الرقمين خطأ: إمّا
+        نسبةُ الشعبة إلى جناحها وإمّا نسبتُها إلى جرسها. وأثرُه لا يُرى في
+        شاشةِ أجنحة: يُرى معلّماً يدخل فصلاً بعد أن خرج طلابُه، وطالباً
+        يُرصد غائباً في حصّةٍ لم تبدأ عنده بعد.
+
+        ولا يُفرَض في القاعدة: القيدُ يعبر ثلاثةَ جداول (جناح ← شعبة ← جرس)
+        فلا يبلغه `CHECK`. فيُقاس ويُعرض — و`seed_wings` يقوله في تقريره.
+        """
+        return [band for band in self.time_bands if band.floor != self.floor]
+
+    @property
+    def levels(self) -> set:
+        """مراحلُ الجناح — مجموعةٌ لأنّ جناحاً واحداً يعبر الإعداديَّ والثانويّ."""
+        return set(self.class_groups.filter(is_active=True).values_list("level_type", flat=True))
+
+    def __str__(self):
+        return f"{self.name} ({self.academic_year})"
 
 
 class ClassGroup(models.Model):
@@ -178,6 +348,20 @@ class ClassGroup(models.Model):
     #: الحقلَ نفسه في الاستمارة، بدل رفضٍ من المحرّك بلا بيان.
     track = models.CharField(max_length=12, choices=TRACKS, blank=True, verbose_name="المسار")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
+    #: جناحُ الشعبة — وفارغُه ليس نقصاً دائماً: شُعبُ التربية الخاصّة خارجَ
+    #: الأجنحة بقرار الإدارة. و`seed_wings` يسمّي كلَّ شعبةٍ بلا جناحٍ كي لا
+    #: يُقرأ الفارغُ المقصودُ والفارغُ المنسيُّ سواءً.
+    wing = models.ForeignKey(
+        "core.Wing",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="class_groups",
+        verbose_name="الجناح",
+    )
+    #: مهجورٌ منذ 2026-09-12 لصالح `wing.supervisor`: كان حقلاً شبهَ ميّتٍ
+    #: يُعرض اسمُه في شاشةٍ واحدة ولا يُستعلَم عنه، والإشرافُ صار على الجناح
+    #: لا على الشعبة. يُحذف بعد نقل استخدامه الأخير.
     supervisor = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,

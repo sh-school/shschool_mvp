@@ -31,6 +31,19 @@ TW_CONFIG = pathlib.Path("tailwind.config.js")
 #: جذورُ القوالب الحيّة — `docs/` وثائقُ مستقلّةٌ لا تُقدَّم من المنصّة.
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
 
+#: جذورٌ لا تُمسح: ليست شيفرةَ المنصّة.
+#:
+#: و`.claude` منها لأنّ شجراتِ العمل المتوازية تسكنها — نسخةٌ كاملةٌ من
+#: المستودع لكلّ محادثة. فحارسٌ يمسح من الجذر كان يعدّ `custom.css` في كلّ
+#: شجرةٍ ملفَّ أنماطٍ ثانياً، ويعدّ `core/brand.py` فيها ناسخاً للألوان —
+#: فيسقط محلّيّاً لمن يستعمل التوازي، ويمرّ في CI حيث السحبُ نظيف. وحارسٌ
+#: يسقط لسببٍ ليس في العمل يُعلَّم أن يُتجاهَل، ثمّ لا يُقرأ حين يصدق.
+#:
+#: و`AAdocs` كذلك: مجلَّدٌ في `.gitignore` لا يُتتبَّع منه إلّا ملفّا خارطةٍ
+#: أُضيفا بالإجبار. فما فيه من سكربتاتٍ لا يُشحن ولا تراه CI — وحارسٌ يمنع
+#: نسخَ الألوان إنّما يحرس ما يُشحن.
+SKIP_ROOTS = {".local", ".venv", ".claude", "AAdocs", "tests", "node_modules"}
+
 #: تعريفُ رمز: `--name:`
 DEF_RE = re.compile(r"--([a-zA-Z0-9_-]+)\s*:")
 
@@ -138,7 +151,7 @@ def test_no_module_copies_a_colour_the_stylesheet_already_names():
     offenders = {}
     for module in sorted(pathlib.Path(".").rglob("*.py")):
         parts = module.parts
-        if parts[0] in {".local", "tests", ".venv"} or "migrations" in parts:
+        if parts[0] in SKIP_ROOTS or "migrations" in parts:
             continue
         if module == pathlib.Path("core/brand.py"):
             continue
@@ -239,9 +252,7 @@ def test_the_platform_keeps_one_stylesheet():
     found = {
         path
         for path in pathlib.Path(".").rglob("*.css")
-        if not any(
-            part in {".local", "staticfiles", "node_modules", ".venv"} for part in path.parts
-        )
+        if not any(part in SKIP_ROOTS | {"staticfiles"} for part in path.parts)
     }
     extra = sorted(str(p) for p in found - allowed)
     assert not extra, "ملفّاتُ أنماطٍ خارج المصدر الواحد:\n  " + "\n  ".join(extra)
