@@ -78,9 +78,16 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 1. عدّل في شجرةِ عملك.
 2. لا شيءَ للـCSS/JS: خادمُ التطوير يقرأ `static/` مباشرةً (WhiteNoise بـ`USE_FINDERS`)،
    فحدِّث الصفحةَ وحسب. و`collectstatic` للإنتاج، تجريه البوّابةُ عند النشر.
-3. `git add <مسارات صريحة>` ثمّ `git commit`.
-4. `git push origin HEAD:refs/heads/claude/<اسم-المهمّة>` وافتح طلبَ دمج.
-5. **لا دفعَ إلى `main` مباشرةً** — البوّاباتُ تمرّ على طلب الدمج.
+3. الاختباراتُ من شجرتك، بإعدادات `testing` ومضيفِ القاعدة من البيئة:
+   ```bash
+   docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml exec -T web sh -c 'DJANGO_SETTINGS_MODULE=shschool.settings.testing TEST_DB_HOST=$DB_HOST TEST_DB_PORT=$DB_PORT TEST_DB_USER=$DB_USER TEST_DB_PASSWORD=$DB_PASSWORD python -m pytest <المسارات> -q -p no:cacheprovider'
+   ```
+   واسمُ قاعدةِ الاختبار يُشتقّ من قاعدةِ جلستك تلقائيّاً (`test_ss_<slug>`)، فلا
+   تصطدم جلستان. ولو رأيتَ عشراتِ `ERROR` في **الإعداد** دفعةً واحدة فاقرأ
+   الرسالةَ قبل أن تتّهم تعديلك: غالبُها تصادمٌ لا عطب.
+4. `git add <مسارات صريحة>` ثمّ `git commit`.
+5. `git push origin HEAD:refs/heads/claude/<اسم-المهمّة>` وافتح طلبَ دمج.
+6. **لا دفعَ إلى `main` مباشرةً** — البوّاباتُ تمرّ على طلب الدمج.
 
 ## كسرُ ذاكرة المتصفّح — لا تفعل شيئاً
 
