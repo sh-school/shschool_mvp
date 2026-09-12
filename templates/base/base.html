@@ -41,6 +41,11 @@
   <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
+  {% comment %}
+  المعياريُّ أوّلاً، ثمّ نظيرُه الخاصُّ بآبل. وذاك مهجورٌ في الكروميّات
+  لكنّه ما زال الوحيدَ الذي يفهمه Safari على iOS — فيبقى معه لا بدلاً منه.
+  {% endcomment %}
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="الشحانية">
