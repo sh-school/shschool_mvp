@@ -105,21 +105,42 @@ class ClassGroupManager(models.Manager.from_queryset(ClassGroupQuerySet)):
         return super().get_queryset().order_by(GRADE_ORDER.asc(), "section")
 
 
+#: طوابقُ المبنى — يقرؤه الجرسُ (`TimeBand.floor`) والجناحُ (`Wing.floor`) معاً.
+#:
+#: وُضع في موضعٍ واحدٍ لأنّ الطابقَ ليس صفةً في اثنين: هو **الرابطُ** بينهما.
+#: فجناحٌ في الأرضيّ لا تصحّ فيه شعبةٌ على جرسٍ علويّ، ومن كتب القائمةَ مرّتين
+#: أمكنه أن يزيد قيمةً في إحداهما فيصير الفحصُ بلا معنى.
+FLOORS = [("ground", "الطابق الأرضيّ"), ("first", "الطابق الأوّل")]
+
+
 class TimeBand(models.Model):
     """نطاقُ توقيت: مجموعةُ شُعبٍ تتقاسم جرسَ اليوم نفسَه.
 
-    في المدرسة طابقان بجرسين: الأرضيّ (السابع والثامن وتاسع/1) والعلويّ
-    (تاسع 2·3·4 والثانويّ) — الحصّةُ الثانية تبدأ 8:00 هنا وتنتهي 8:50، وهناك
-    8:45. والخميسُ ثلاثةُ أجراس. فرقمُ الحصّة لا يعني الوقتَ نفسَه في النطاقين،
-    ومعلّمٌ يقطع الطابقين يُحكَم بالساعة لا بالرقم.
+    المدرسةُ طابقان، وأجراسُها **ثلاثة** لا اثنان — وهذا ما يجعل «الطابق» لا
+    يكفي وحدَه مفتاحاً للتوقيت:
 
-    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 أرضيٌّ وتاسع/2 علويّ.
+        الأرضيّ   ground     السابع · الثامن · تاسع/1 · تاسع/2
+        الأوّل    ninth      تاسع 3 · تاسع 4
+        الأوّل    secondary  العاشر إلى الثاني عشر
+
+    فمن الأحد إلى الأربعاء يتطابق جرسا الطابق الأوّل حرفاً، ويوم **الخميس
+    يفترقان**: تاسع 3·4 فسحتُهم بعد الثالثة وصلاتُهم آخرَ اليوم، والثانويُّ
+    فسحتُه بعد الرابعة وحصصُه أقصر. فثلاثةُ أجراسٍ يومَ الخميس واثنان قبله.
+
+    والطابقُ محفوظٌ هنا لا مشتقٌّ من الرمز: بلا حقلٍ لا يعرف الخلفيّةُ أنّ
+    `ninth` و`secondary` طابقٌ واحد، فيتعذّر السؤالُ «ما يرنّه الطابقُ الأوّلُ
+    الآن؟» إلّا بتسميةِ رموزٍ في الكود — وهي تسميةٌ تكذب في أوّل جرسٍ يُضاف.
+
+    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 وتاسع/2 أرضيّان، وتاسع 3·4 علويّان
+    (نُقل تاسع/2 إلى الأرضيّ بقرار الإدارة 2026-09-09).
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_bands")
     code = models.SlugField(max_length=20, verbose_name="الرمز")
     name = models.CharField(max_length=60, verbose_name="الاسم")
+    #: طابقُ الجرس — ولا يُشتقّ من الرمز. راجع صدرَ الصنف.
+    floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
     is_active = models.BooleanField(default=True)
 
@@ -162,7 +183,8 @@ class Wing(models.Model):
     السجلُّ `academic_year` وصار سجلَّ عامٍ لا سجلَّ مبنى.
     """
 
-    FLOORS = [("ground", "الطابق الأرضيّ"), ("first", "الطابق الأوّل")]
+    #: قائمةٌ واحدةٌ يقرؤها الجرسُ والجناح — راجع `FLOORS` في صدر الملفّ.
+    FLOORS = FLOORS
 
     #: من يصلح مشرفاً لجناح. والنائبُ الإداريُّ منهم لأنّه يرث المشرف
     #: (`core/permissions.py`) — فيصحّ أن يحمل جناحاً عند النقص.
@@ -238,18 +260,36 @@ class Wing(models.Model):
 
     @property
     def time_bands(self) -> list:
-        """أجراسُ الجناح — واحدٌ في الغالب، واثنان في جناحٍ يعبر طابقين."""
-        ids = set(
-            self.class_groups.filter(is_active=True, time_band__isnull=False).values_list(
-                "time_band_id", flat=True
-            )
-        )
-        return list(TimeBand.objects.filter(id__in=ids).order_by("order", "code"))
+        """أجراسُ الجناح — واحدٌ في الغالب، واثنان في جناحٍ يعبر طابقين.
+
+        باستعلامٍ واحد: كانت قراءةُ المعرّفات ثمّ قراءةُ الأجراس استعلامَين،
+        وخمسةُ أجنحةٍ تُعرض معاً تجعلهما عشرة.
+        """
+        bands = {
+            klass.time_band
+            for klass in self.class_groups.filter(is_active=True).select_related("time_band")
+            if klass.time_band_id
+        }
+        return sorted(bands, key=lambda band: (band.order, band.code))
 
     @property
     def is_split_band(self) -> bool:
         """جناحٌ بجرسين لا يُقال فيه «الحصّة الثالثة» — تُقال الساعة."""
         return len(self.time_bands) > 1
+
+    @property
+    def bells_off_floor(self) -> list:
+        """أجراسُ الجناح التي طابقُها ليس طابقَه — والصحيحُ أن تكون فارغة.
+
+        شعبةٌ في جناحٍ أرضيٍّ على جرسٍ علويٍّ تعني أنّ أحدَ الرقمين خطأ: إمّا
+        نسبةُ الشعبة إلى جناحها وإمّا نسبتُها إلى جرسها. وأثرُه لا يُرى في
+        شاشةِ أجنحة: يُرى معلّماً يدخل فصلاً بعد أن خرج طلابُه، وطالباً
+        يُرصد غائباً في حصّةٍ لم تبدأ عنده بعد.
+
+        ولا يُفرَض في القاعدة: القيدُ يعبر ثلاثةَ جداول (جناح ← شعبة ← جرس)
+        فلا يبلغه `CHECK`. فيُقاس ويُعرض — و`seed_wings` يقوله في تقريره.
+        """
+        return [band for band in self.time_bands if band.floor != self.floor]
 
     @property
     def levels(self) -> set:
