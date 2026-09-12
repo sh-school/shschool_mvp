@@ -19,6 +19,7 @@ from .academic import (  # noqa: F401
     Semester,
     StudentEnrollment,
     TimeBand,
+    Wing,
 )
 from .access import (  # noqa: F401
     ACADEMIC_ROLES,
@@ -72,6 +73,7 @@ __all__ = [
     "AcademicYear",
     "CalendarEvent",
     "Semester",
+    "Wing",
     "ClassGroup",
     "StudentEnrollment",
     "ParentStudentLink",
