@@ -124,7 +124,12 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
         .prefetch_related(
             Prefetch(
                 "class_groups",
-                queryset=ClassGroup.objects.filter(is_active=True).select_related("time_band"),
+                # والعامُ شرطٌ لا زينة: `class_groups` تُرجع كلَّ شعبةٍ أُسندت
+                # إلى هذا الجناح في أيّ عام، والجناحُ سجلُّ عامٍ لا سجلُّ مبنى.
+                # فشعبةٌ من عامٍ ماضٍ كانت تُعدّ في شُعبه وتُحسب في طلابه.
+                queryset=ClassGroup.objects.filter(
+                    is_active=True, academic_year=year
+                ).select_related("time_band"),
                 to_attr="live_sections",
             )
         )
