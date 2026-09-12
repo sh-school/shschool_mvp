@@ -131,15 +131,25 @@ def _add(decls: dict[str, str], text: str) -> None:
 # ── ٢) الرموز ──────────────────────────────────────────────────────
 
 
+def _declares(selector: str, wanted: str) -> bool:
+    """أفي قائمةِ المُحدِّدات جزءٌ هو `wanted` بعينه؟
+
+    الرموزُ تُكتب أحياناً `html.dark :root, html.dark { … }`. والمقارنةُ
+    بالمُحدِّد كلِّه تُفوّتها، فتُحسب قيمةُ النهار قيمةً لليل — وهو خطأٌ
+    صامتٌ يجعل الحارسَ يقيس ما ليس على الشاشة.
+    """
+    return any(part.strip() == wanted for part in selector.split(","))
+
+
 def token_table(css: str) -> tuple[dict[str, str], dict[str, str]]:
     """رموزُ النهار، ورموزُ الليل (النهارُ ثمّ ما يُبدّله `html.dark`)."""
     light: dict[str, str] = {}
     dark_over: dict[str, str] = {}
     for sel, decls, _ctx in iter_rules(css):
         target = None
-        if sel == ":root":
+        if _declares(sel, ":root"):
             target = light
-        elif sel == "html.dark":
+        if _declares(sel, "html.dark"):
             target = dark_over
         if target is None:
             continue
@@ -147,6 +157,19 @@ def token_table(css: str) -> tuple[dict[str, str], dict[str, str]]:
             if k.startswith("--"):
                 target[k] = v
     return light, {**light, **dark_over}
+
+
+def dark_overrides(css: str) -> dict[str, str]:
+    """ما يُبدّله `html.dark` وحدَه — لا مدموجاً بالنهار.
+
+    به وحدَه يُعرف الرمزُ الذي **لا ينقلب**؛ و`token_table` تُرجع الليلَ
+    مدموجاً فلا يُقرأ منه ذلك.
+    """
+    out: dict[str, str] = {}
+    for sel, decls, _ctx in iter_rules(css):
+        if _declares(sel, "html.dark"):
+            out.update({k: v for k, v in decls.items() if k.startswith("--")})
+    return out
 
 
 # ── ٣) حلُّ القيمة إلى لون ─────────────────────────────────────────
