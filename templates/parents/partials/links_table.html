@@ -1,3 +1,4 @@
+{% load privacy %}
 {# partial: جدول ارتباطات أولياء الأمور — يُحدَّث بـ HTMX #}
 {% load sorting %}
 
@@ -25,11 +26,11 @@
           </td>
           <td data-label="الطالب">
             <div class="font-medium text-gray-900">{{ lnk.student.full_name }}</div>
-            <div class="text-xs text-gray-400" dir="ltr">{{ lnk.student.national_id }}</div>
+            <div class="text-xs text-gray-400" dir="ltr">{{ lnk.student.national_id|mask_id }}</div>
           </td>
           <td data-label="ولي الأمر">
             <div class="font-medium text-maroon">{{ lnk.parent.full_name }}</div>
-            <div class="text-xs text-gray-400" dir="ltr">{{ lnk.parent.national_id }}</div>
+            <div class="text-xs text-gray-400" dir="ltr">{{ lnk.parent.national_id|mask_id }}</div>
           </td>
           <td data-label="صلة القرابة" class="text-center">
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>

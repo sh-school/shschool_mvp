@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}الطلاب الراسبون{% endblock %}
 
 {% block breadcrumbs %}
@@ -61,7 +62,7 @@
           </div>
           <div>
             <p class="font-bold text-gray-800">{{ item.student.full_name }}</p>
-            <p class="text-xs text-gray-500">{{ item.student.national_id }}</p>
+            <p class="text-xs text-gray-500">{{ item.student.national_id|mask_id }}</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
