@@ -85,6 +85,37 @@ class BellTable:
         ]
 
 
+@dataclass(frozen=True)
+class Outside:
+    """ما هو خارجَ الأجنحة — يُعدّ ويُعرض ولا يُطرح صامتاً.
+
+    شُعبُ التربية الخاصّة الثلاث خارجَ الأجنحة بقرار الإدارة، فمجموعُ طلاب
+    الأجنحة أقلُّ من سجلّ المدرسة. وشاشةٌ تقول «الطلاب 731» لمدرسةٍ سجلُّها
+    735 لا تكذب في الرقم بل في اسمه — والقارئُ يذهب يبحث عن أربعةٍ لم
+    يضيعوا. فيُسمّى المعدودُ بما هو، ويُذكر الباقي بعدده.
+    """
+
+    sections: list[ClassGroup]
+    student_count: int
+
+    @property
+    def section_count(self) -> int:
+        return len(self.sections)
+
+
+def outside_the_wings(school, year: str) -> Outside:
+    """الشُّعبُ النشطةُ بلا جناحٍ وطلابُها."""
+    sections = list(
+        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True, wing=None)
+    )
+    return Outside(
+        sections=sections,
+        student_count=StudentEnrollment.objects.filter(
+            class_group__in=sections, is_active=True
+        ).count(),
+    )
+
+
 def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
     """الطابقان بأجنحتهما — بأربعة استعلاماتٍ مهما كثرت الأجنحة."""
     wings = list(

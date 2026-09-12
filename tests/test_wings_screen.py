@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from core.academic_calendar import academic_year_for_school
 from core.management.commands.seed_wings import WINGS
-from core.models import TimeBand, Wing
+from core.models import ClassGroup, TimeBand, Wing
 from tests.conftest import (
     ClassGroupFactory,
     MembershipFactory,
@@ -22,7 +22,7 @@ from tests.conftest import (
     StudentEnrollmentFactory,
     UserFactory,
 )
-from wings.services import bell_tables, floors_overview
+from wings.services import bell_tables, floors_overview, outside_the_wings
 
 pytestmark = pytest.mark.django_db
 
@@ -211,3 +211,49 @@ class TestThePageRenders:
 
         with django_assert_max_num_queries(25):
             client.get(reverse("wings:floors"))
+
+
+class TestNoStudentGoesMissing:
+    """«الطلاب 731» لمدرسةٍ سجلُّها 735 لا تكذب في الرقم بل في اسمه.
+
+    شُعبُ التربية الخاصّة الثلاثُ خارجَ الأجنحة بقرار الإدارة، فمجموعُ طلاب
+    الأجنحة أقلُّ من السجلّ أبداً. والفرقُ يُسمّى ويُعدّ ويُعرض — وإلّا ذهب
+    القارئُ يبحث عن أربعةٍ لم يضيعوا.
+    """
+
+    def test_the_wings_and_the_outside_add_up_to_the_register(self, school, built, year):
+        panels = floors_overview(school, year, _at(SUNDAY, 9, 45))
+        outside = outside_the_wings(school, year)
+
+        in_wings = sum(panel.student_count for panel in panels)
+        assert in_wings == 25
+        assert outside.student_count == 3
+        assert in_wings + outside.student_count == 28
+
+    def test_the_outside_is_the_special_education_sections(self, school, built, year):
+        outside = outside_the_wings(school, year)
+
+        assert sorted(s.section for s in outside.sections) == ["ESE", "ESE", "ESE"]
+
+    def test_a_school_with_no_exclusions_reports_none(self, school, built, year):
+        ClassGroup.objects.filter(school=school, section="ESE").update(is_active=False)
+
+        assert outside_the_wings(school, year).section_count == 0
+
+    def test_the_page_names_the_wings_not_the_school(self, client_as, school, built, leader):
+        body = client_as(leader).get(reverse("wings:floors")).content.decode()
+
+        assert "طلابُ الأجنحة" in body
+        assert '<div class="kpi-mini-label">الطلاب</div>' not in body, "اسمٌ أوسعُ من معدوده"
+
+    def test_the_page_shows_the_register_total_as_well(self, client_as, school, built, leader):
+        body = client_as(leader).get(reverse("wings:floors")).content.decode()
+
+        assert "من 28 في السجلّ" in body
+
+    def test_the_page_names_every_excluded_section(self, client_as, school, built, leader):
+        body = client_as(leader).get(reverse("wings:floors")).content.decode()
+
+        assert "وخارجَ الأجنحة 3 شُعبِ تربيةٍ خاصّة" in body
+        for grade, _s in ESE_SECTIONS:
+            assert f"{grade.removeprefix('G')}.ESE" in body

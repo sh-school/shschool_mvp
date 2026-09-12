@@ -5590,8 +5590,13 @@ html.dark button[class*="outline"]:hover {
 }
 
 /* ── 35e. Cards — بطاقات بخلفية بيضاء ────────────────────────── */
+/* و`.card-bar` مستثناةٌ لأنّها **ليست** بطاقةً بخلفيّةٍ بيضاء: هي شريطُ
+   الهويّة العنّابيُّ الذي يعلو أقسامَ كلّ صفحةٍ في المنصّة. وكانت تقع في
+   هذه الكنسة فتصير رماديّةً ليلاً — والعنّابيُّ يغيب عن كلّ ترويسةِ قسمٍ في
+   الوضع الداكن. والقاعدةُ هنا خارجَ الطبقات، فتغلب `html.dark .card-bar`
+   مهما بلغت نوعيّتُها. */
 html.dark .card,
-html.dark [class*="card"]:not(.stat-card):not(.q-domain-card):not(.dash-card):not(.login-card) {
+html.dark [class*="card"]:not(.stat-card):not(.q-domain-card):not(.dash-card):not(.login-card):not(.card-bar) {
   background: var(--surface, var(--surface));
   border-color: var(--border, var(--border));
   color: var(--text-primary, #e2e8f0);
@@ -9113,3 +9118,168 @@ html.dark {
 .swap-sign.is-signed  { color: var(--status-success-fg); border-color: var(--status-success); }
 .swap-sign.is-waiting { color: var(--text-secondary); border-style: dashed; }
 .swap-sign em { font-style: normal; opacity: .75; }
+
+/* ══════════════════════════════════════════════════════════════
+   37. أجنحة المدرسة — templates/wings/floors.html
+   ══════════════════════════════════════════════════════════════
+   كانت الصفحةُ تحمل تخطيطَها في `style=` على عناصرها: بطاقةُ جناحٍ مبنيّةٌ
+   بيدها، وشبكةٌ مكتوبةٌ في سطرٍ واحد. والأسلوبُ المضمَّن يغلب الطبقاتِ كلَّها
+   مهما بلغت نوعيّتُها — فلا يبلغه حكمُ الوضع الداكن ولا تصحيحُ رمزٍ في
+   مكانٍ واحد. وهو ما عُولج في القسم 36 لعشرين صفحة، فلا يُستأنف هنا.
+
+   والترويسةُ `card-bar` العنّابيّة لا `card-header`: هي ترويسةُ الأقسام في
+   كلّ صفحات المنصّة، ونصُّها أبيضُ دائماً.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── بطاقةُ «اليوم» قيمتُها كلمةٌ لا رقم ──
+   `--text-2xl` مقاسُ عددٍ يُلمح، و«الأحد – الأربعاء» يلتفّ فيه سطرين
+   ويطاول جارتَه بلا أن يقول أكثر. */
+.kpi-mini-value.is-words { font-size: var(--text-base); line-height: 1.5; }
+
+/* ── سطرٌ ببطاقتين: الطابقان جنباً إلى جنب، وكذلك جدولا اليومين ──
+   والقسمةُ تنفكّ من نفسها في الشاشات الضيّقة: `auto-fit` مع حدٍّ أدنى
+   يعيدهما عموداً واحداً بلا استعلامِ وسَطٍ يُكتب ويُنسى. */
+.wing-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
+  gap: var(--sp-2);
+  /* `stretch` لا `start`: بطاقتان متجاورتان بارتفاعين مختلفين تقرآن
+     كخللٍ في التنسيق لا كفرقٍ في المحتوى. */
+  align-items: stretch;
+  min-inline-size: 0;
+}
+/* والبطاقةُ الممدودةُ تحتاج أن تُمدّ محتواها أيضاً، وإلّا بقي الفراغُ فوق
+   لا تحت. */
+.wing-pair > .card-qatar {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.wing-pair > .card-qatar > .wing-grid { flex: 1; align-content: start; }
+.wing-pair > .card-qatar > .table-wrap { flex: 1; }
+
+/* ── شبكةُ الأجنحة داخل الطابق ── */
+.wing-grid {
+  display: grid;
+  /* `auto-fit` لا `auto-fill`: الأخيرُ يُبقي أعمدةً فارغةً محجوزة، فطابقٌ
+     بجناحين في شبكةِ ثلاثةٍ يترك ثُلثَه بياضاً. و`auto-fit` يطويها،
+     فيتّسع الجناحان ويملآن السطر. */
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: var(--sp-2);
+}
+
+/* ── بطاقةُ جناح ── */
+.wing-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--maroon);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-inline-size: 0;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base);
+}
+.wing-box:hover { box-shadow: var(--shadow-sm); border-color: var(--maroon-border); }
+
+.wing-box__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+.wing-box__name {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.wing-box__who { font-size: var(--text-xs); color: var(--text-secondary); margin-top: 2px; }
+/* جناحٌ بلا مشرفٍ حالةٌ تُرى لا فراغٌ يُقرأ اسماً ناقصاً. */
+.wing-box__who.is-vacant { color: var(--status-warning-fg); font-weight: 600; }
+
+.wing-box__count { font-size: var(--text-xs); color: var(--text-muted); }
+.wing-box__count b { color: var(--text-primary); font-size: var(--text-sm); font-weight: 700; }
+
+/* ── رقاقاتُ الشُّعب ── */
+.wing-sections { display: flex; flex-wrap: wrap; gap: 3px; }
+.wing-chip {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--maroon-fg);
+  background: var(--maroon-bg);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+  line-height: 1.7;
+}
+
+/* ── موضعُ الجناح من الساعة ── */
+.wing-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  padding: 5px var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text-secondary);
+}
+.wing-now .icon { width: 14px; height: 14px; flex-shrink: 0; opacity: .75; }
+.wing-now.is-break { background: var(--status-warning-bg); color: var(--status-warning-fg); }
+.wing-now.is-over  { color: var(--text-muted); }
+/* رمزُ الجرس يظهر في الجناح ذي الجرسين وحدَه — وهو حيث يلزم التمييز. */
+.wing-now__bell {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  opacity: .8;
+}
+
+/* ── جرسٌ من طابقٍ آخر: خطأٌ في البيانات لا حالةٌ مشروعة ── */
+.wing-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 5px var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+}
+
+/* ── ترويسةُ الطابق: العددُ والجرسُ في ذيل الشريط العنّابيّ ── */
+.floor-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-inline-start: auto; }
+
+/* ── جدولا التوقيت ── */
+.bell-idx { width: 44px; text-align: center; color: var(--text-muted); font-size: var(--text-xs); }
+/* الاسمُ والوقتُ في سطرٍ واحد: عمودان في خليّةٍ يضاعفان ارتفاعَ الجدول
+   تسعَ مرّات بلا أن يزيدا شيئاً — والعينُ تقرأ «الحصّة 3 · 08:50–09:35»
+   سطراً كما تُقال. */
+.bell-slot { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.bell-slot__name { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.bell-slot__time {
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+/* ── الفسحةُ والصلاةُ بخلفيّةٍ خضراءَ مطفأة ──
+   والتمييزُ على **الخليّة** لا على السطر، وهو فرقٌ في المعنى لا في الشكل:
+   الفسحةُ تقع في الطابق الأرضيّ بعد الحصّة الثالثة وفي الأوّل بعد الرابعة،
+   فصفُّ الجدول الواحد فيه فسحةٌ في عمودٍ وحصّةٌ في آخر. وتلوينُ السطر كلِّه
+   كان سيصبغ حصّةً جاريةً بلونِ راحة.
+
+   واللونُ رمزٌ لا رقم: `#dcfce7` نهاراً و`#0d2a1a` ليلاً — فالخلفيّةُ الفاتحة
+   لا تُحمل إلى الوضع الداكن. */
+.bell-table td.is-break { background: var(--status-success-bg); }
+.bell-table td.is-break .bell-slot__name { color: var(--status-success-fg); font-weight: 700; }
+.bell-table td.is-break .bell-slot__time { color: var(--status-success-fg); opacity: .85; }
+.bell-none { text-align: center; color: var(--text-muted); }
+.bell-note {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: 1.8;
+  margin: var(--sp-3) 0 0;
+}

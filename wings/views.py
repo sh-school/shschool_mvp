@@ -8,7 +8,7 @@ from core.academic_calendar import academic_year_for_school
 from core.permissions import role_required
 from operations.bells import day_type_for
 
-from .services import bell_tables, floors_overview
+from .services import bell_tables, floors_overview, outside_the_wings
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
 
@@ -28,6 +28,8 @@ def floors(request):
     day_type = day_type_for(now.date())
 
     panels = floors_overview(school, year, now)
+    outside = outside_the_wings(school, year)
+    wing_students = sum(panel.student_count for panel in panels)
     return render(
         request,
         "wings/floors.html",
@@ -40,6 +42,9 @@ def floors(request):
             "is_school_day": bool(day_type),
             "wing_count": sum(len(panel.wings) for panel in panels),
             "section_count": sum(panel.section_count for panel in panels),
-            "student_count": sum(panel.student_count for panel in panels),
+            "student_count": wing_students,
+            "outside": outside,
+            # سجلُّ المدرسة كلُّه — والفرقُ بينه وبين طلاب الأجنحة معروضٌ لا مطروح.
+            "register_count": wing_students + outside.student_count,
         },
     )
