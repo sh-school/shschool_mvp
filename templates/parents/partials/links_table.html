@@ -11,6 +11,7 @@
       <thead>
         <tr>
           {% sort_th sort "student" "الطالب" "text-right" %}
+          <th scope="col" class="text-center">الرقم الشخصيّ</th>
           {% sort_th sort "klass" "الصف/الشعبة" "text-center" %}
           {% sort_th sort "parent" "ولي الأمر" "text-right" %}
           {% sort_th sort "relationship" "صلة القرابة" "text-center" %}
@@ -29,10 +30,20 @@
       <tbody>
         {% for lnk in page_obj %}
         <tr>
+          {% comment %}
+          قيمةٌ واحدةٌ لكلّ خليّة — كما في سجلّ الطلاب وسجلّ الكادر. كان
+          الاسمُ والرقمُ محشورَين في خليّةٍ واحدة، والرقمُ بـ`dir="ltr"`
+          يرتدّ إلى الحافة المقابلة فيظهر السطرُ مفكوكاً لا كأخواته.
+          {% endcomment %}
           <td data-label="الطالب">
-            <div class="font-medium">{{ lnk.student.full_name }}</div>
-            <div class="text-xs text-muted" dir="ltr">{{ lnk.student.national_id|mask_id }}</div>
+            <a href="{% url 'student_affairs:student_profile' lnk.student.id %}"
+               class="font-semibold text-maroon hover:underline"
+               style="text-decoration:none;color:var(--maroon-fg)">{{ lnk.student.full_name }}</a>
           </td>
+          {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
+          <td data-label="الرقم الشخصيّ" class="col-num text-center"
+              style="font-family:monospace;font-size:var(--text-xs)"
+              title="الرقم كاملاً في ملفّ الطالب">{{ lnk.student.national_id|mask_id|default:"—" }}</td>
           {# «07/2» كما تكتبه الوزارة — ومن غادر لا صفَّ له فيُقال ذلك #}
           <td data-label="الصف/الشعبة" class="text-center">
             {% if lnk.grade_code and lnk.section_code %}
@@ -41,10 +52,11 @@
               <span class="text-xs text-muted">غادر</span>
             {% endif %}
           </td>
-          <td data-label="ولي الأمر">
-            <div class="font-medium text-maroon">{{ lnk.parent.full_name }}</div>
-            <div class="text-xs text-gray-400" dir="ltr">{{ lnk.parent.national_id|mask_id }}</div>
-          </td>
+          {% comment %}
+          ورقمُ وليِّ الأمر سقط: الفعلُ المقصودُ هنا الاتّصالُ به، والجوّالُ
+          عمودٌ قائم. ورقمُه كاملاً في ملفّه — كما لا يعرضه سجلُّ الطلاب.
+          {% endcomment %}
+          <td data-label="ولي الأمر">{{ lnk.parent.full_name }}</td>
           <td data-label="صلة القرابة" class="text-center">
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>
           </td>

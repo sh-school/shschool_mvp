@@ -78,9 +78,7 @@ def _body(client_as, admin, query=""):
 
 def _students_in(body):
     """أسماءُ الطلاب في الصفوف وحدَها — لا في قوائم الاستمارة فوقها."""
-    return re.findall(
-        r'<td data-label="الطالب">\s*<div class="font-medium">\s*([^<]+?)\s*</div>', body
-    )
+    return re.findall(r'<td data-label="الطالب">.*?>\s*([^<>]+?)\s*</a>', body, re.S)
 
 
 class TestTheCountIsTheWorkLeft:
@@ -157,8 +155,28 @@ class TestTheColumnsAreTheOnesUsed:
 
         body = _body(client_as, admin)
 
+        assert "*******0538" in body
         assert "31473600538" not in body
         assert "28576002649" not in body
+
+    def test_each_cell_holds_one_value(self, client_as, school, admin, year):
+        """كان هذا الجدولُ وحدَه في المنصّة يحشر الاسمَ والرقمَ في خليّةٍ
+        واحدة، والرقمُ بـ`dir="ltr"` يرتدّ إلى الحافة المقابلة فيُرى السطرُ
+        مفكوكاً. وأخواتُه — سجلُّ الطلاب وسجلُّ الكادر — قيمةٌ لكلّ خليّة."""
+        student = _student(school, "الطالب", "31400000013", year=year)
+        _link(school, _parent(school, "الوليّ", "28400000013", phone="55500088"), student)
+
+        rows = re.findall(r"<tbody>(.*?)</tbody>", _body(client_as, admin), re.S)
+
+        assert rows, "لا صفوف"
+        assert 'dir="ltr"' not in rows[0], "رقمٌ منفلتُ الاتّجاه داخل خليّةِ اسم"
+
+    def test_the_student_name_opens_the_file(self, client_as, school, admin, year):
+        """كما في سجلّ الطلاب — الاسمُ بابُ ملفّه."""
+        student = _student(school, "الطالب", "31400000014", year=year)
+        _link(school, _parent(school, "الوليّ", "28400000014"), student)
+
+        assert f"/student-affairs/profile/{student.id}/" in _body(client_as, admin)
 
 
 class TestTheSearchReadsEveryColumn:
