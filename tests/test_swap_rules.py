@@ -730,8 +730,8 @@ class TestHappyPath:
         `ScheduleSlot` فتُبدَّل الحصّةُ كلَّ أسبوعٍ إلى الأبد. فالأثرُ على
         حصّة اليوم وحدَها، والقالبُ يبقى كما هو — وبه يعود الجدولُ من نفسه.
         """
-        from core.models.department import Department
         from core.models.access import Membership
+        from core.models.department import Department
         from operations.models import Session
 
         department = Department.objects.create(
