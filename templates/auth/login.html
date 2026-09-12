@@ -20,8 +20,8 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=16") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=199">
+  <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
 
   {# Login styles — defined in custom.css section 15 #}
 </head>
@@ -118,7 +118,7 @@
       <div class="site-footer-brand" aria-label="Azkia brand attribution" style="margin-top:1rem;justify-content:center">
         <span class="site-footer-brand-label">طُوِّر بواسطة</span>
         <img
-          src="{% static 'brand/azkia-logo.svg' %}?v=2026-04-10"
+          src="{% static 'brand/azkia-logo.svg' %}"
           alt="شعار أذكياء للبرمجيات"
           class="site-footer-brand-logo"
           width="20"

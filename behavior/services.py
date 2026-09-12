@@ -593,7 +593,24 @@ class BehaviorService:
                     "infraction": infraction,
                     "reporter": reporter,
                     "level": infraction.level,
+                    # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
+                    # فالسياقُ يعبر Celery مُسلسَلاً.
+                    "student_name": infraction.student.full_name,
+                    "infraction_date": (
+                        infraction.date.strftime("%Y/%m/%d") if infraction.date else ""
+                    ),
+                    "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
+                    "level_description": LEVEL_DESC.get(infraction.level, ""),
+                    "description": infraction.description or "",
+                    "action_taken": getattr(infraction, "action_taken", "") or "",
+                    "reported_by": reporter.full_name if reporter else "",
+                    "points_deducted": getattr(infraction, "points_deducted", 0) or 0,
                 },
+                # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
+                # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
+                # حساسيّةً. والقالبُ كان مكتوباً ولم يُوصَل بمُرسِل.
+                email_html_template="notifications/email/behavior_html.html",
+                email_text_template="notifications/email/behavior_text.txt",
                 related_object_id=infraction.pk,
                 related_url=f"/behavior/student/{infraction.student.pk}/",
                 sent_by=reporter,

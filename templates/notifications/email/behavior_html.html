@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+{% load brand_tags %}<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
 <style>
   body { font-family: Tahoma, Arial, sans-serif; direction: rtl; background:#f3f4f6; margin:0; padding:20px; }
   .card { max-width:560px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-  .header { background:#8A1538; color:#fff; padding:24px 28px; }
+  .header { background:{% brand_color "MAROON" %}; color:#fff; padding:24px 28px; }
   .header h1 { margin:0; font-size:18px; font-weight:700; }
   .header p  { margin:6px 0 0; font-size:12px; opacity:.8; }
   .body { padding:24px 28px; }
@@ -26,9 +26,9 @@
   .level-4 .level-sub { color:#9f1239; }
   .info-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f3f4f6; font-size:13px; }
   .info-row:last-child { border:none; }
-  .info-row span:first-child { color:#6b7280; }
+  .info-row span:first-child { color:{% brand_color "TEXT_MUTED" %}; }
   .info-row span:last-child { font-weight:700; color:#111827; }
-  .desc-box { background:#f9fafb; border-right:3px solid #8A1538; border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0; font-size:13px; color:#374151; line-height:1.7; }
+  .desc-box { background:#f9fafb; border-right:3px solid {% brand_color "MAROON" %}; border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0; font-size:13px; color:#374151; line-height:1.7; }
   .action-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:13px; color:#166534; }
   .warning-note { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:12px; color:#92400e; }
   .footer { background:#f9fafb; padding:14px 28px; font-size:11px; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; }
@@ -62,12 +62,12 @@
     </div>
 
     <!-- وصف المخالفة -->
-    <p style="font-size:12px;color:#6b7280;margin:14px 0 6px;font-weight:700">وصف المخالفة:</p>
+    <p style="font-size:12px;color:{% brand_color "TEXT_MUTED" %};margin:14px 0 6px;font-weight:700">وصف المخالفة:</p>
     <div class="desc-box">{{ description }}</div>
 
     <!-- الإجراء المتخذ -->
     {% if action_taken %}
-    <p style="font-size:12px;color:#6b7280;margin:14px 0 6px;font-weight:700">الإجراء المتخذ:</p>
+    <p style="font-size:12px;color:{% brand_color "TEXT_MUTED" %};margin:14px 0 6px;font-weight:700">الإجراء المتخذ:</p>
     <div class="action-box">{{ action_taken }}</div>
     {% endif %}
 

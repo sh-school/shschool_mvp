@@ -389,7 +389,7 @@ jobs:
       - name: المقارنة بالملتزَم
         run: |
           if ! git diff --quiet -- static/css/tailwind.min.css; then
-            echo "::error::static/css/tailwind.min.css متقادم — شغّل npm run tw:build والتزم الناتج وارفع ?v= في base.html وlogin.html"
+            echo "::error::static/css/tailwind.min.css متقادم — شغّل npm run tw:build والتزم الناتج"
             git diff --stat -- static/css/tailwind.min.css
             exit 1
           fi

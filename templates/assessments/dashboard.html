@@ -186,7 +186,8 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     type:'bar',
     data:{labels:d.grade_distribution.labels,datasets:[{
       label:'عدد الطلاب',data:d.grade_distribution.data,
-      backgroundColor:['#dc2626','#d97706','#D4A843','#0D7B6A','#16a34a','#16a34a'] /* danger,warning,chart-4,chart-2,success */
+      /* سلّمُ درجاتٍ يحمل معنى: الأحمرُ أدنى والأخضرُ أعلى — لا لوحةٌ فئويّة. */
+      backgroundColor:[chartColor('status-danger'),chartColor('status-warning'),chartColor('chart-4'),chartColor('chart-2'),chartColor('status-success'),chartColor('status-success')]
     }]},
     options:{...OPTS,plugins:{legend:{display:false}},
       scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}},x:{ticks:{font:{size:9}}}}}
