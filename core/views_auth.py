@@ -19,6 +19,7 @@ from django_ratelimit.decorators import ratelimit
 
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
 from core.models import CustomUser
+from core.models.access import TIER_5_BENEFICIARIES
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +49,6 @@ def _safe_redirect(url, request, fallback="dashboard"):
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 
-#: من ليس من الكادر لا يُدوَّر له — الطالبُ ووليُّ الأمر خارجَ سياسة التدوير.
-NON_STAFF_ROLES = {"student", "parent"}
-
 
 def password_expired(user) -> bool:
     """هل مضت مدّةُ التدوير على كلمة مرور هذا المنتسب؟
@@ -65,7 +63,9 @@ def password_expired(user) -> bool:
     if days <= 0:
         return False
     is_staff_member = (
-        user.memberships.filter(is_active=True).exclude(role__name__in=NON_STAFF_ROLES).exists()
+        user.memberships.filter(is_active=True)
+        .exclude(role__name__in=TIER_5_BENEFICIARIES)
+        .exists()
     )
     if not is_staff_member:
         return False

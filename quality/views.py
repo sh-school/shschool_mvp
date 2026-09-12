@@ -21,12 +21,9 @@ from core.academic_calendar import (
     default_academic_year,
 )
 from core.models import AuditLog
-from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
+from core.permissions import QUALITY_ACCESS, QUALITY_MANAGE, role_required
 from core.sorting import SortState
 from notifications.hub import NotificationHub
-
-# All roles that can access quality module (view + manage)
-_QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
 
 from .models import (
     ExecutorMapping,
@@ -268,7 +265,7 @@ def _list_context(request, school, year, page_obj, per_page, sort, direction):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def plan_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
@@ -358,7 +355,7 @@ def plan_dashboard(request):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def domain_detail(request, domain_id):
     school = request.user.get_school()
     domain = get_object_or_404(OperationalDomain, id=domain_id, school=school)
@@ -397,7 +394,7 @@ def domain_detail(request, domain_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def procedure_detail(request, proc_id):
     school = request.user.get_school()
     procedure = get_object_or_404(
@@ -435,7 +432,7 @@ def procedure_detail(request, proc_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 @require_POST
 def update_procedure_status(request, proc_id):
     school = request.user.get_school()
@@ -494,7 +491,7 @@ def update_procedure_status(request, proc_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 @require_POST
 def approve_procedure(request, proc_id):
     school = request.user.get_school()
@@ -554,7 +551,7 @@ def approve_procedure(request, proc_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 @require_POST
 def upload_evidence(request, proc_id):
     school = request.user.get_school()
@@ -596,7 +593,7 @@ def upload_evidence(request, proc_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def my_procedures(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
@@ -655,7 +652,7 @@ def execution_list(request):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def review_list(request):
     """قائمة المراجعة — لأعضاء لجنة المراجعة والمدير."""
     school = request.user.get_school()
@@ -719,7 +716,7 @@ def _process_task_update(request, procedure):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def task_update_modal(request, proc_id):
     """GET: عرض نموذج التحديث — POST: حفظ التغييرات."""
     school = request.user.get_school()
@@ -781,7 +778,7 @@ def _process_review_evaluate(request, procedure):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def review_evaluate_modal(request, proc_id):
     """GET: عرض نموذج تقييم المراجعة — POST: حفظ التقييم."""
     school = request.user.get_school()
@@ -834,7 +831,7 @@ def review_evaluate_modal(request, proc_id):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 @require_POST
 def toggle_evidence_request(request, proc_id):
     """تبديل حالة طلب الدليل بين مطلوب وغير مطلوب."""

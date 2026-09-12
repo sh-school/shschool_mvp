@@ -22,16 +22,6 @@ from .services import CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
 
-SCHEDULE_VIEW_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-}
-
 
 # ── قائمة طلبات التبديل ─────────────────────────────────────────
 

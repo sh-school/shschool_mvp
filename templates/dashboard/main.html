@@ -663,7 +663,7 @@
       <div class="action-card-icon">{% include "components/icon.html" with name="users" %}</div>
       <div class="action-card-body"><p class="action-title">قائمة الطلاب</p><p class="action-desc">مشاركة الطلاب في الأنشطة</p></div>
     </a>
-    <a href="{% url 'analytics:analytics_dashboard' %}" class="action-card">
+    <a href="{% url 'analytics_dashboard' %}" class="action-card">
       <div class="action-card-icon">{% include "components/icon.html" with name="bar-chart-2" %}</div>
       <div class="action-card-body"><p class="action-title">التقارير</p><p class="action-desc">إحصائيات وتقارير الأنشطة</p></div>
     </a>
@@ -755,9 +755,9 @@
 
   <div class="kpi-strip">
     <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">حافلات نشطة</div>
-      <div class="kpi-mini-value">{{ active_buses }}</div>
-      <div class="kpi-mini-sub">جاهزة للتشغيل</div>
+      <div class="kpi-mini-label">حافلات المدرسة</div>
+      <div class="kpi-mini-value">{{ buses_count }}</div>
+      <div class="kpi-mini-sub">حافلة مسجَّلة</div>
     </div>
     <div class="kpi-mini kpi-teal">
       <div class="kpi-mini-label">مسارات مُعرَّفة</div>

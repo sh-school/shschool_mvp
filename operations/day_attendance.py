@@ -53,6 +53,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.models import StudentEnrollment
+from core.permissions import WING_DAY_RECORD
 
 from .models import SectionDayConfirmation, Session, StudentAttendance
 
@@ -62,20 +63,13 @@ MORNING_STATES = ("present", "absent", "late")
 
 SOURCE = "supervisor"
 
-#: من يرصد حالةَ الحضور: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ
-#: المنصّة. **والمعلّمُ ليس منهم** — قرارُ المدير، واللوائحُ تُقرّه: الرصدُ
-#: لمشرف الجناح وحدَه.
-RECORDER_ROLES = (
-    "admin_supervisor",
-    "vice_admin",
-    "vice_academic",
-    "principal",
-    "platform_developer",
-)
+#: من يرصد حالةَ الحضور — `WING_DAY_RECORD` في مركز الصلاحيّات: مشرفُ الجناح
+#: والقيادةُ ومطوّرُ المنصّة. **والمعلّمُ ليس منهم** — قرارُ المدير، واللوائحُ
+#: تُقرّه.
 
 
 def is_recorder(user) -> bool:
-    return user.is_superuser or user.get_role() in RECORDER_ROLES
+    return user.is_superuser or user.get_role() in WING_DAY_RECORD
 
 
 def can_record(user, session) -> bool:

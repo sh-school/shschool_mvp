@@ -288,6 +288,10 @@ OBSERVATION_SEND = {
 }
 
 QUALITY_VIEW = {
+    # والمرشدُ الأكاديميُّ **مالكُ مؤشّرٍ** لا مطَّلعٌ عليه: المؤشّر 3.9 (المسارات)
+    # تسعةُ إجراءاتٍ كلُّها مسندةٌ إليه في الخطّة التشغيليّة. وكانت القائمةُ تعرض
+    # له «إجراءاتي» ويردُّه الحارسُ عنها — يملك العملَ ولا يبلغ شاشتَه.
+    "academic_advisor",
     "coordinator",
     "teacher",
     "specialist",
@@ -329,6 +333,15 @@ STUDENT_AFFAIRS_VIEW = frozenset(
         "platform_developer",
     }
 )
+#: الأنشطةُ الطلابيّة — ومنسّقُها أهلُها لا ضيفُها.
+#:
+#: كانت شاشاتُ الأنشطة الخمسُ على `STUDENT_AFFAIRS_MANAGE` (المديرُ والنائبان
+#: والمطوّر)، فمنسّقُ الأنشطة — وعملُه كلُّه الأنشطة — تعرض له القائمةُ «الأنشطة»
+#: ويردُّه الحارس. والنصُّ الوزاريُّ صريحٌ في أهليّته: «تكون صلاحيّةُ الدخول على
+#: النظام الإلكترونيّ للبرامج والأنشطة **محصورةً بالنائب الأكاديميّ وأخصائيّ
+#: الأنشطة** أو من ينوب عنه» (ضوابط البرامج والأنشطة، ص3).
+ACTIVITIES_MANAGE = STUDENT_AFFAIRS_MANAGE | frozenset({"activities_coordinator"})
+
 STUDENT_DEACTIVATE = frozenset(
     {
         "principal",
@@ -352,6 +365,64 @@ BEHAVIOR_SUMMON = frozenset(
         "psychologist",
         "platform_developer",
     }
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# مجموعاتٌ كانت محلّيّةً في ملفّات الواجهات — نُقلت بأعضائها حرفاً
+# ═══════════════════════════════════════════════════════════════
+#
+# مجموعةٌ معرَّفةٌ في ملفّ واجهاتها لا يراها من يقرأ هذا الملفّ، فتتغيّر
+# الصلاحيّةُ ولا يُعرف أين. وكان منها المكرَّر: `_REPORT_ROLES` بنصّه في الجدول
+# والحضور، و`_QUALITY_ALL` بنصّه في الجودة وتقاريرها.
+#
+# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء اليومَ ولم تُدمجا:
+# معناهما مختلف، وقد يفترقان. والنقلُ لم يغيّر عضواً — يحرسه
+# `tests/test_permission_groups_are_central.py`.
+
+#: تقاريرُ الجدول والحضور.
+OPERATIONS_REPORTS = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: إعدادُ الجدول الإداريّ.
+SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
+#: من يفتح «إعدادات الجدول والتفريغات» — والمطوّرُ معهم صراحةً (قرارُ المستخدم
+#: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
+#: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
+SCHEDULE_SETTINGS = frozenset({"principal", "vice_academic", "platform_developer"})
+#: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
+#: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
+SCHEDULE_BROWSE = frozenset(
+    {
+        "principal",
+        "vice_academic",
+        "vice_admin",
+        "coordinator",
+        #: مسؤولُ حصص التعليم الإلكترونيّ — قرارُ المدير 2026-09-06: له معاينةُ
+        #: الجدول كاملاً وجدولِ كلّ معلّمٍ وجداولِ الأقسام، شأنَ المنسّق.
+        "e_projects_coordinator",
+        "admin_supervisor",
+        "admin",
+    }
+)
+#: نظامُ الكنترول. (والمصدرُ الوزاريُّ يجعل الكنترولَ لجنةً بعضويّةٍ موقوتة لا
+#: قائمةَ أدوار — `docs/rbac_role_authority_study_2026-09.md` ملحق د؛ والنقلُ لا يحسم ذلك.)
+EXAM_CONTROL_ACCESS = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
+STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
+#: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
+PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic", "admin"})
+#: إدارةُ ربط أولياء الأمور.
+PARENT_PORTAL_ADMIN = frozenset({"principal", "admin"})
+#: وحدةُ الجودة كلُّها — عرضاً وإدارة.
+QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
+#: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.
+BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
+#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
+WING_DAY_RECORD = frozenset(
+    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}
 )
 
 
@@ -379,6 +450,11 @@ DASHBOARD_ROLES = (
         "ese_assistant",
         "speech_therapist",
         "occupational_therapist",
+        # لوحةٌ فقط: بطاقةُ وصفه تعطيه سجلَّ رعايةٍ بتوقيعٍ مزدوجٍ في الدواء
+        # («إلّا بوجود الممرّض وإذنٍ كتابيٍّ من وليّ الأمر موقَّعٍ من الإدارة»)
+        # ولا وحدةَ رعايةٍ في المنصّة بعد. فيدخل ولا يجد شاشةً فارغة، ولا يُمنح
+        # صلاحيّةً لا سندَ لها.
+        "support_companion",
         "receptionist",
         "transport_officer",
         "bus_supervisor",
@@ -400,6 +476,27 @@ def _get_user_role(request):
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return None
     return request.user.get_role()
+
+
+def log_denial(request, *, role, required=None, source="decorator"):
+    """يكتب سطراً لكلّ رفض — والرفضُ الصامتُ لا يُشخَّص ولا يُقاس.
+
+    كان الـ403 يخرج من الديكوريتور والميدلوير بلا أثر: لا يُعرف من حاول،
+    ولا أيُّ صفحةٍ ردّته، ولا ما الذي كانت تطلبه. فإذا ضُيّق نطاقٌ — الجناحُ
+    مثلاً — لم يُعرف من سيُحجَب إلّا حين يتّصل بك شاكياً.
+
+    ولا يُكتب هنا اسمٌ ولا رقمٌ شخصيّ (PDPPL): المفتاحُ رقمُ المستخدم في
+    القاعدة ودورُه ومسارُه — يكفي للعدّ والتشخيص، ولا يُعرّف شخصاً لمن
+    يقرأ السجلّ بلا صلاحيّةٍ على القاعدة نفسها.
+    """
+    logger.warning(
+        "access_denied source=%s path=%s role=%s user=%s required=%s",
+        source,
+        request.path,
+        role or "-",
+        getattr(getattr(request, "user", None), "pk", "-"),
+        ",".join(sorted(required)) if required else "-",
+    )
 
 
 def _forbidden_response(request, message):
@@ -436,6 +533,7 @@ def role_required(*roles):
                 return view_func(request, *args, **kwargs)
             user_role = request.user.get_role()
             if user_role not in expanded_roles:
+                log_denial(request, role=user_role, required=expanded_roles)
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
@@ -477,6 +575,7 @@ def department_scoped(*roles):
                 return view_func(request, *args, user_department=None, **kwargs)
 
             if user_role not in expanded:
+                log_denial(request, role=user_role, required=expanded, source="department_scoped")
                 return _forbidden_response(
                     request,
                     f"ليس لديك صلاحية الوصول — دورك: {user_role or 'غير محدد'}",
@@ -484,6 +583,7 @@ def department_scoped(*roles):
 
             dept = request.user.department
             if not dept:
+                log_denial(request, role=user_role, source="department_scoped:no_department")
                 return _forbidden_response(
                     request,
                     "لم يتم تحديد القسم/التخصص في عضويتك — تواصل مع الإدارة",
@@ -540,8 +640,15 @@ def librarian_required(view_func):
 
 
 def bus_supervisor_required(view_func):
-    """مشرف النقل + القيادة."""
-    return role_required("bus_supervisor", "principal", "vice_admin")(view_func)
+    """كادرُ النقل كلُّه + القيادة.
+
+    ومسؤولُ النقل (`transport_officer`) منهم: `TRANSPORT_FULL` تمنحه الوحدةَ
+    كاملةً، والوحدةُ المسجَّلةُ في `transport/apps.py` تسمح له بالمسار —
+    وهذا الحارسُ وحدَه كان لا يعرفه، فيمرّ من البوّابة ويُردّ عند الباب في
+    الواجهات السبع كلِّها. والاسمُ بقي على حاله لأنّ سبعةَ استدعاءاتٍ تقرؤه،
+    والمعنى صار «من يدخل وحدةَ النقل» لا «مشرفُ الحافلة وحدَه».
+    """
+    return role_required(TRANSPORT_FULL | TRANSPORT_MANAGE)(view_func)
 
 
 def coordinator_required(view_func):

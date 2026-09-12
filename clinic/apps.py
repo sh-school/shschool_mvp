@@ -15,6 +15,9 @@ class ClinicConfig(AppConfig):
             url_prefix="/clinic/",
             icon="bi-heart-pulse",
             allowed_roles={"principal", "vice_admin", "nurse"},
-            sidebar_roles={"principal", "vice_admin", "nurse", "parent"},
+            # ووليُّ الأمر والطالبُ ليسا هنا: بابُهما `/parents/`، وواجهاتُ هذه
+            # الوحدة كلُّها للكادر. ووعدٌ في القائمة تردُّه البوّابةُ رابطٌ يُفضي
+            # إلى ٤٠٣ (اختبار `test_module_gates_match_guards`).
+            sidebar_roles={"principal", "vice_admin", "nurse"},
             sort_order=50,
         )

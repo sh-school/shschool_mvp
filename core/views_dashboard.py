@@ -444,12 +444,18 @@ def _get_transport_ctx(user, school, today):
     سياق مسؤول النقل + مشرف الحافلة.
     يُركّز على: الحافلات النشطة + المسارات.
     """
-    active_buses = SchoolBus.objects.filter(school=school, is_active=True).count()
-    total_routes = BusRoute.objects.filter(school=school).count()
+    # `SchoolBus` لا حقلَ فيه اسمُه `is_active` — حقولُه رقمُ الحافلة والسائقُ
+    # والمشرفُ والسعةُ ورقمُ كروة والرابط. وكان الاستعلامُ يطلبه، فتسقط لوحةُ
+    # **كلّ** من دورُه نقلٌ بخطأ خادمٍ لا بصفحةٍ ناقصة. ولا يُخترع الحقلُ لإرضاء
+    # الاستعلام: الحافلةُ إمّا مسجَّلةٌ في المدرسة أو ليست فيها، ولا حالةَ ثالثة.
+    buses = SchoolBus.objects.filter(school=school).count()
+    # والمسارُ لا يحمل مدرستَه — يحملها بحافلته. وكان هذا السطرُ يسقط هو أيضاً،
+    # لكنّ الاستعلامَ قبله كان يسقط أوّلاً فيحجبه: عطبان متتاليان يُرى أوّلُهما وحدَه.
+    total_routes = BusRoute.objects.filter(bus__school=school).count()
 
     return {
         "view_type": "transport_mgmt",
-        "active_buses": active_buses,
+        "buses_count": buses,
         "total_routes": total_routes,
     }
 

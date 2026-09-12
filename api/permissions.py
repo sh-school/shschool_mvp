@@ -9,6 +9,7 @@ from rest_framework.permissions import BasePermission
 
 from core.models import ParentStudentLink
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
+from core.permissions import expand_roles
 
 
 class IsSchoolAdmin(BasePermission):
@@ -35,19 +36,28 @@ class IsLeadership(BasePermission):
         return request.user.is_superuser or request.user.get_role() in LEADERSHIP
 
 
+#: من يصل إلى نقاط المعلّم في الـAPI — بتوسيع الوراثة لا بسلسلةٍ مكتوبةٍ باليد.
+#:
+#: كانت السلسلةُ ثلاثةَ أسماءٍ حرفيّة، فمن يرث المعلّمَ في `ROLE_INHERITS`
+#: (مساعدُ المعلّم، مساعدُ معلّم التربية الخاصّة، منسّقُ المشاريع الإلكترونيّة،
+#: منسّقُ الأنشطة) محجوبٌ عن الـAPI وهو يراها في الويب. والنائبُ الأكاديميُّ
+#: كذلك: `is_admin()` مديرٌ أو superuser لا غير.
+#:
+#: والتوسيعُ بالوراثة وحدَها لا بالقيادة كلِّها: المديرُ والنائبُ الأكاديميُّ
+#: يدخلان لأنّهما يرثان المعلّمَ في `ROLE_INHERITS`، والنائبُ **الإداريُّ** لا
+#: يرثه ولا يدخل — «كلٌّ في تخصّصه»، وهذه نقاطُ عملٍ تدريسيّ.
+_TEACHER_API_ROLES = expand_roles({"teacher"})
+
+
 class IsTeacherOrAdmin(BasePermission):
-    """معلم أو مدير."""
+    """كادرُ التدريس ومن يرثه + القيادة."""
 
     message = "هذا الطلب للمعلمين والمديرين فقط."
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.is_admin() or request.user.get_role() in (
-            "teacher",
-            "coordinator",
-            "ese_teacher",
-        )
+        return request.user.is_admin() or request.user.get_role() in _TEACHER_API_ROLES
 
 
 class IsStaffMember(BasePermission):
@@ -137,5 +147,8 @@ class IsSameDepartment(BasePermission):
 
         dept = getattr(view, "department", None) or view.kwargs.get("department", "")
         if not dept:
-            return True  # لا يوجد قسم محدد = السماح والتحقق في الـ view
+            # ومن لا قسمَ في طلبه يُردّ لا يمرّ: «السماحُ والتحقّقُ في الـview»
+            # يعني أن يكون الصنفُ مفتوحاً على مصراعيه إن نسي الـview التحقّق —
+            # وهو خطأُ الفشل المفتوح بعينه، في صنفٍ اسمُه حارس.
+            return False
         return request.user.is_same_department(dept)
