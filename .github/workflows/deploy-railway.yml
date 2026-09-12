@@ -143,88 +143,25 @@ jobs:
         run: python manage.py makemigrations --check --noinput
 
   # ══════════════════════════════════════════════════════
-  #  2. Test suite (pytest + coverage gate)
-  # ══════════════════════════════════════════════════════
-  test:
-    name: pytest — Tests + Coverage
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB:       test_db
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      DJANGO_SETTINGS_MODULE: shschool.settings.testing
-      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
-      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
-      EXCEL_PROTECTION_PASSWORD: ci-testing-only
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install system libraries
-        run: |
-          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev libpango1.0-dev libgdk-pixbuf2.0-dev \
-            libffi-dev shared-mime-info pkg-config
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-django pytest-cov pytest-asyncio pytest-xdist factory-boy
-
-      - name: Apply migrations
-        run: python manage.py migrate --noinput
-
-      - name: Run tests
-        # قياس ٢٨ أغسطس ٢٠٢٦ على أربع عمليات ناجحة: 11:55 / 12:22 / 12:22 / 14:59
-        # مقابل ميزانية ١٥:٠٠ — أي أن أسوأ ما رُصد ترك ثانيةً واحدة. والفارق عن
-        # `ci.yml` (8:37 / 9:19 / 9:50) لم يكن في المحتوى بل في الاستدعاء: هناك
-        # `-n auto` وهنا تسلسلٌ محض. والمجموعة مُثبتةُ الصلاحية للتوازي — CI
-        # يُجريها هكذا في كل طلب دمج.
-        run: pytest -n auto --junit-xml=test-results.xml --tb=short
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: deploy-test-results
-          path: |
-            test-results.xml
-            coverage.xml
-
-  # ══════════════════════════════════════════════════════
-  #  3. Post-deploy canary — يُثبت أن الـcommit صار حيّاً
+  #  لا pytest هنا — بوّابةُ الجودة تُجريه على الـcommit نفسِه
   # ══════════════════════════════════════════════════════
   #
-  # لا `needs` على `preflight` ولا على `test`، وهذا مقصود.
+  # كانت هنا وظيفةُ `test` تُجري المجموعةَ كاملةً مرّةً ثانيةً على كلّ دفعٍ إلى
+  # `main` — و`quality-gate.yml` يُجريها على الدفع نفسِه، بالمجموعة نفسِها،
+  # ومعها التغطية. ولا وظيفةَ هنا تنتظر نتيجتَها (الكناري مفصولٌ عنها عمداً،
+  # انظر أدناه)، فلم تكن تمنع شيئاً ولا تُثبت شيئاً جديداً — تكرارٌ يُنفق ربعَ
+  # ساعةٍ في كلّ دمج.
+  #
+  # وحين نمت المجموعةُ تجاوزت مهلتَها (١٥ دقيقة) في كلّ نشرٍ منذ ٢٠٢٦-٠٩-١٢،
+  # فعرضها GitHub «ملغاةً» اثنتي عشرةَ مرّةً متتالية ولم يقرأها أحدٌ فشلاً.
+  # فالحذفُ لا يُسقط فحصاً: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها
+  # في بوّابة الجودة.
+
+  # ══════════════════════════════════════════════════════
+  #  2. Post-deploy canary — يُثبت أن الـcommit صار حيّاً
+  # ══════════════════════════════════════════════════════
+  #
+  # لا `needs` على `preflight`، وهذا مقصود.
   #
   # Railway ينشر من تكامل GitHub لحظةَ وصول الـcommit إلى `main` — قبل هذه
   # الوظيفة بثوانٍ، ومستقلاً عنها تماماً. فحين كانت مربوطة بـ`[preflight, test]`
@@ -441,7 +378,7 @@ jobs:
             });
 
   # ══════════════════════════════════════════════════════
-  #  4. Post-deploy smoke tests
+  #  3. Post-deploy smoke tests
   # ══════════════════════════════════════════════════════
   smoke-test:
     name: Post-Deploy Smoke Tests

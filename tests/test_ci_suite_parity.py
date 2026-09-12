@@ -13,12 +13,15 @@
 
 والحارس هنا يمنع الانفراج من العودة: وظيفةٌ جديدة تُجري المجموعة تسلسلياً
 ستقع في المهلة نفسها بعد أشهر، ولن يربط أحدٌ بين الفشل وسببه.
+
+**تحديث ٢٠٢٦-٠٩-١٣:** وقع ذلك رغم التوازي — نمت المجموعة فتجاوزت وظيفةُ `CD`
+مهلتَها في كلّ نشر. ولم تُرفع المهلة: حُذفت الوظيفة، لأنّ بوّابةَ الجودة تُجري
+المجموعةَ نفسَها على الدفع نفسِه ولا شيءَ ينتظر نتيجةَ `CD`.
 """
 
 import pathlib
 import re
 
-import pytest
 import yaml
 
 WORKFLOWS = pathlib.Path(".github/workflows")
@@ -92,17 +95,28 @@ def test_a_full_suite_job_that_declares_a_budget_runs_in_parallel():
     assert not broken, f"ميزانيةٌ معلنة بلا توازٍ في: {broken}"
 
 
-def test_the_deploy_job_is_the_one_that_declares_a_budget():
-    """لو أُعلنت ميزانيةٌ في وظيفةٍ أخرى لَما شملها الحارس أعلاه بلا قصد."""
-    budgeted = set()
-    for f in sorted(WORKFLOWS.glob("*.yml")):
-        doc = yaml.safe_load(f.read_text(encoding="utf-8"))
-        for name, job in (doc.get("jobs") or {}).items():
-            runs = _joined(job)
-            if runs_the_whole_suite(runs) and job.get("timeout-minutes") is not None:
-                budgeted.add(f"{f.name}:{name}")
+def test_the_deploy_pipeline_does_not_rerun_the_suite():
+    """خطُّ النشر لا يُعيد المجموعة — بوّابةُ الجودة تُجريها على الـcommit نفسِه.
 
-    assert budgeted == {"deploy-railway.yml:test"}, budgeted
+    كانت `deploy-railway.yml:test` تُجريها ثانيةً على كلّ دفعٍ إلى `main`، ولا
+    وظيفةَ تنتظرها. فلمّا نمت المجموعة تجاوزت مهلتَها في كلّ نشرٍ منذ
+    ٢٠٢٦-٠٩-١٢ وعُرضت «ملغاةً» اثنتي عشرةَ مرّة. والعلاجُ حذفُ التكرار لا رفعُ
+    السقف — وهذا الحارسُ يمنع عودتَه.
+    """
+    doc = yaml.safe_load((WORKFLOWS / "deploy-railway.yml").read_text(encoding="utf-8"))
+    rerunners = [name for name, job in doc["jobs"].items() if runs_the_whole_suite(_joined(job))]
+
+    assert not rerunners, rerunners
+
+
+def test_the_quality_gate_runs_the_suite_on_every_push_to_main():
+    """شرطُ الحذف أعلاه: من يسأل «هل نجحت اختباراتُ هذا الـcommit؟» يجدها هنا."""
+    doc = yaml.safe_load((WORKFLOWS / "quality-gate.yml").read_text(encoding="utf-8"))
+    triggers = doc.get("on") or doc.get(True)  # يقرأ YAML 1.1 المفتاحَ `on` قيمةً منطقيّة
+
+    assert "main" in triggers["push"]["branches"]
+    assert runs_the_whole_suite(_joined(doc["jobs"]["test-coverage"]))
+    assert "if" not in doc["jobs"]["test-coverage"], "شرطٌ على الوظيفة قد يستثني الدفعَ إلى main"
 
 
 def test_the_parallel_runner_is_installed_where_it_is_used():
@@ -118,11 +132,3 @@ def test_the_parallel_runner_is_installed_where_it_is_used():
                 missing.append(f"{f.name}:{job_name}")
 
     assert not missing, f"توازٍ بلا xdist في: {missing}"
-
-
-@pytest.mark.parametrize("workflow,job", [("deploy-railway.yml", "test")])
-def test_the_deploy_suite_keeps_its_budget(workflow, job):
-    """المهلة تبقى ١٥ دقيقة — الإصلاح في السبب لا في رفع السقف."""
-    doc = yaml.safe_load((WORKFLOWS / workflow).read_text(encoding="utf-8"))
-
-    assert doc["jobs"][job]["timeout-minutes"] == 15

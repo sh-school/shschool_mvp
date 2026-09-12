@@ -18,7 +18,7 @@ This is the strategy already implemented in `deploy-railway.yml`.
 ```
 push main
   -> CI preflight (10 checks)
-  -> pytest suite
+     (pytest suite: quality-gate.yml on the same push — not repeated here since 2026-09-13)
   -> Railway webhook deploy
   -> 60 s stabilization wait
   -> smoke tests (/health/, / HTML)
