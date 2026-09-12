@@ -1177,6 +1177,12 @@ tr.active {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  /* تنكسر أزرارُ الصفحة إلى سطرٍ ثانٍ ولا تدفع الصفحةَ — كانت في الجدولة
+     الذكيّة 54px خارج الشاشة. و`flex-wrap` وحدَه لم يكفِ: `flex-shrink: 0`
+     يُبقي الصفَّ بعرض أزراره في سطرٍ واحد، فلا يبلغ حدّاً ينكسر عنده.
+     فالسقفُ عرضُ الترويسة. */
+  flex-wrap: wrap;
+  max-width: 100%;
 }
 
 /* ── قسم صفحة موحد ── */
@@ -1459,7 +1465,12 @@ html.dark .stat-card-value { color: #e8b4c3; }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  /* `overflow: hidden` كان لقصّ الزوايا المستديرة، فقصّ معها كلَّ جدولٍ أعرضَ
+     من غلافه بلا تمرير — جدولا الأجراس في `/wings/` 254px لا تُرى أعمدتُهما في
+     الهاتف ولا يُوصل إليها. و`auto` تقصّ الزوايا كذلك، وتُمرِّر ما زاد.
+     والعموديُّ يبقى مقصوصاً كما كان. انظر `tests/test_mobile_layout.py`. */
+  overflow-x: auto;
+  overflow-y: hidden;
   box-shadow: var(--shadow-sm);
 }
 .table-wrap-scroll {
@@ -2532,8 +2543,10 @@ body { padding-bottom: 72px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  /* 24px أدنى هدفِ لمسٍ في WCAG 2.5.8 (AA) — وكان 22px في كلّ صفحة.
+     وفي الهاتف أوسع؛ انظر كتلةَ الجوّال في `@layer utilities`. */
+  width: 24px;
+  height: 24px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -6207,6 +6220,29 @@ html.dark .notif-time-input { border-color: var(--border); }
 }
 
 
+/* ══════════════════════════════════════════════════════════════
+   الهاتف — ما يُقاس لا ما يُرجى
+   ══════════════════════════════════════════════════════════════
+   مُسحت 68 صفحةً بعروض 360 و390 و414 يومَ 2026-09-13. وهذه الكتلةُ في
+   `utilities` لا في `components`: قواعدُ `modules` تُعلن خطَّ حقولها أصغرَ،
+   و`modules` تغلب `components` أيّاً كان وزنُ المُحدِّد.
+   انظر `tests/test_mobile_layout.py`. */
+@media (max-width: 640px) {
+  /* خطُّ الحقل دون 16px يجعل Safari يُكبّر الصفحةَ عند التركيز ولا يُرجعها،
+     فيبقى المستخدمُ في صفحةٍ مكبَّرةٍ يسحبها بإصبعه. وكان في 27 صفحة —
+     أكثرُها `.form-control-sm` بخطّ 12px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]),
+  select,
+  textarea { font-size: max(16px, 1em); }
+
+  /* أهدافُ اللمس — WCAG 2.5.8: ‏24px أدنى، والإصبعُ أعرضُ من المؤشّر.
+     زرُّ الرجوع وروابطُ الفتات في كلّ صفحة، وأزرارُ فرز الأعمدة في كلّ جدول. */
+  .bc-back { width: 32px; height: 32px; }
+  .breadcrumbs a { display: inline-block; padding-block: 4px; min-height: 24px; }
+  .th-sort { min-height: 24px; }
+}
+
+
 } /* end @layer utilities */
 
 @layer modules {
@@ -7918,33 +7954,49 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .btn-reject { background: var(--status-danger); color: #fff; }
 .empty-state { text-align: center; padding: 48px 16px; color: var(--text-muted); }
 
-/* ── templates/schedule/pages_view.html ── */
-  /* شريطُ الأدوات سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
-     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ. */
+/* ── templates/schedule/pages_view.html و print_view.html — شريطُ الأدوات ── */
+  /* على الحاسوب سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
+     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ.
+
+     وفي الهاتف لا يسع السطرُ الواحد: ثلاثُ قوائمَ أدناها 280px وبحثٌ 200px
+     وثلاثةُ أزرار — فكانت الصفحةُ تُسحب 353px جانباً، والقائمةُ مقصوصةً عند
+     الحافّة. فينكسر الشريطُ سطوراً، والقائمةُ والبحثُ بعرضه، وحجمُ الورق
+     واتّجاهُه يتقاسمان سطراً.
+
+     وكانت هذه الكتلةُ مكتوبةً مرّتين — لكلّ قالبٍ نسخة — فوُحّدت. */
   .schedule-head { justify-content: center; }
-  .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
-  .schedule-tools .form-select { width: auto; min-width: 280px; }
-  .schedule-tools form { display: inline; }
+  .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%; }
+  .schedule-tools > .form-select,
+  .schedule-tools .schedule-search { flex: 1 1 100%; min-width: 0; }
+  .schedule-tools form { display: flex; gap: 8px; flex: 1 1 100%; }
+  .schedule-tools form .form-select { flex: 1 1 0; min-width: 0; }
+  @media (min-width: 641px) {
+    .schedule-tools { flex-wrap: nowrap; }
+    .schedule-tools form { display: inline; flex: initial; }
+    .schedule-tools .form-select,
+    .schedule-tools > .form-select,
+    .schedule-tools form .form-select { width: auto; min-width: 280px; flex: initial; }
+    .schedule-tools .schedule-search { width: 200px; flex: initial; }
+  }
 
 /* ── templates/schedule/print_view.html ── */
   /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
      عموداً، وسقفُ المنصّة (max-w-7xl) يحشرها في 1280px على شاشةٍ عرضُها 2560. */
-  /* شريطُ الأدوات سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
-     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ. */
-  .schedule-head { justify-content: center; }
-  .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: nowrap; width: 100%; }
-  .schedule-tools .form-select { width: auto; min-width: 280px; }
-  .schedule-tools form { display: inline; }
-  .schedule-tools .schedule-search { width: 200px; }
 
   /* ── لوحُ المعلّم: الورقةُ تبقى ورقةً، والتحليلُ في المنصّة حولَها ──
      يظهر بالنقر على اسمٍ في الجدول العامّ، ويغيب بفكّ التثبيت. */
-  .schedule-stage { display: flex; gap: 10px; align-items: stretch; }
-  .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; }
+  /* وفي الهاتف يقع اللوحُ تحت الورقة لا بجوارها: كان بعرضٍ ثابتٍ 250px إلى
+     جانب إطارٍ في شاشةٍ عرضُها 390px، فيضيق الجدولُ إلى نحو 140px متى فُتح. */
+  .schedule-stage { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+  .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; min-height: 0; }
   .teacher-panel {
-    flex: 0 0 250px; border: 1px solid var(--border); border-radius: var(--radius-md);
+    flex: 0 0 auto; border: 1px solid var(--border); border-radius: var(--radius-md);
     background: var(--surface-alt); padding: 12px; overflow-y: auto;
     font-size: 13px; line-height: 1.9;
+  }
+  @media (min-width: 641px) {
+    .schedule-stage { flex-direction: row; }
+    .teacher-panel { flex: 0 0 250px; }
   }
   .teacher-panel[hidden] { display: none; }
   .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 2px; }
