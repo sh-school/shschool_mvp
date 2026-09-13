@@ -281,7 +281,6 @@ class ParentService:
         return children
 
 
-
 def _child_kpis(child: dict) -> list[dict]:
     """أرقامُ بطاقة الابن جاهزةً للوسم `{% kpi %}` — والحكمُ في اللون يُكتب هنا.
 
@@ -391,4 +390,12 @@ def _grade_tone(total) -> str:
     if total is None:
         return "muted"
     total = float(total)
-    return "success" if total >= 80 else "info" if total >= 65 else "warning" if total >= 50 else "danger"
+    return (
+        "success"
+        if total >= 80
+        else "info"
+        if total >= 65
+        else "warning"
+        if total >= 50
+        else "danger"
+    )

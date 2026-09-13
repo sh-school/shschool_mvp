@@ -116,7 +116,9 @@ def student_grades(request, student_id):
             ),
             # الرسوبُ في لون الرقم وتلميحه — لا شريطَ تنبيهٍ تحت الجدول يكرّره.
             "failed_tone": "red" if data.get("failed") else "green",
-            "failed_title": "يُرجى التواصل مع المدرسة لمتابعة المواد المتعثّرة" if data.get("failed") else "",
+            "failed_title": "يُرجى التواصل مع المدرسة لمتابعة المواد المتعثّرة"
+            if data.get("failed")
+            else "",
             **data,
         },
     )
@@ -452,6 +454,8 @@ def manage_parent_links(request):
         "student_count": student_count,
         "enrolled_count": enrolled_count,
         "unlinked_count": unlinked_count,
+        "enrolled_label": f"من {enrolled_count}",
+        "unlinked_tone": "red" if unlinked_count else "green",
         "status": status,
         "statuses": (
             ("enrolled", "طلابُ هذا العام"),

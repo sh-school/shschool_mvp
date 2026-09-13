@@ -165,7 +165,9 @@ def test_the_dashboard_draws_each_child_with_the_shared_components(
 
     assert "ui-section" in body and "ui-kpis" in body
     assert "kpi-mini" not in body and "alert-strip" not in body
-    assert 'style="display:none' not in body
+    assert (
+        '<div id="pwa-banner" class="pwa-banner" hidden>' in body
+    ), "الشريطُ يُخفى بالسمة لا بتنسيقٍ في الوسم"
 
 
 class TestAttendanceWeeks:

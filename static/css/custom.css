@@ -9991,6 +9991,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .att-cal__cell.is-late    { background: var(--status-warning-bg); color: var(--status-warning-fg); }
 .att-cal__cell.is-absent  { background: var(--status-danger-bg);  color: var(--status-danger-fg); box-shadow: inset 0 0 0 2px var(--status-danger); }
 .att-cal__cell.is-out     { background: transparent; }
+.att-cal__cell.is-none    { background: var(--surface-alt); color: var(--text-muted); }
 .att-cal__legend {
   list-style: none;
   margin: var(--sp-3) 0 0;
@@ -10003,6 +10004,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .att-cal__legend li { display: inline-flex; align-items: center; gap: 6px; }
 .att-cal__legend i { inline-size: 12px; block-size: 12px; border-radius: 3px; background: var(--surface-alt); }
+.att-cal__legend i.is-none    { background: var(--surface-alt); box-shadow: inset 0 0 0 1px var(--border); }
 .att-cal__legend i.is-present { background: var(--status-success-bg); }
 .att-cal__legend i.is-late    { background: var(--status-warning-bg); }
 .att-cal__legend i.is-absent  { background: var(--status-danger-bg); box-shadow: inset 0 0 0 2px var(--status-danger); }
