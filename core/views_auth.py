@@ -48,6 +48,8 @@ def _safe_redirect(url, request, fallback="dashboard"):
 
 
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
+#: خلفيّةُ التصديق الأصليّة — تُستعمل إن ضاعت من الجلسة (جلسةٌ سابقةٌ للنشر).
+PRIMARY_AUTH_BACKEND = "core.backends.HMACAuthBackend"
 
 
 def password_expired(user) -> bool:
@@ -128,6 +130,10 @@ def login_view(request):
             if user.totp_enabled and role in ROLES_REQUIRING_2FA:
                 request.session["pending_2fa_user"] = str(user.id)
                 request.session["pending_identifier_kind"] = kind
+                # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
+                # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
+                # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
+                request.session["pending_2fa_backend"] = getattr(user, "backend", "")
                 return redirect("verify_2fa")
 
             login(request, user)
@@ -204,7 +210,10 @@ def verify_2fa(request):
             request.login_identifier_kind = request.session.pop(
                 "pending_identifier_kind", "unknown"
             )
-            login(request, user)
+            # بلا هذا كان `login()` يرفع ValueError («خلفيّاتٌ متعدّدة») فتسقط الصفحةُ 500 —
+            # أي أنّ كلَّ من فعّل المصادقةَ الثنائيّة لم يعد يستطيع الدخول.
+            backend = request.session.pop("pending_2fa_backend", "") or PRIMARY_AUTH_BACKEND
+            login(request, user, backend=backend)
             _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
