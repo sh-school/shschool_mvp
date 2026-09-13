@@ -19,7 +19,7 @@
       <th class="col-no">#</th>
       <th class="col-name">الطالب</th>
       {% for column in register.columns %}
-      <th>ح{{ column.number }}<small>{{ column.start|time:"H:i" }}–{{ column.end|time:"H:i" }}</small><small>{{ column.subjects }}</small></th>
+      <th>ح{{ column.number }}<small>{{ column.start|time:"H:i" }}–{{ column.end|time:"H:i" }}</small><small class="subject">{{ column.subjects }}</small></th>
       {% endfor %}
       <th class="col-sum">حصص الغياب</th>
       <th class="col-sum">مرّات التأخّر</th>

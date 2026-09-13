@@ -34,6 +34,11 @@ def _format(request) -> str:
     return wanted if wanted in FORMATS else "html"
 
 
+def _orientation(request) -> str:
+    """أفقيٌّ افتراضاً، وعموديٌّ بالاختيار — صفحةٌ واحدةٌ لكلّ فصل (قرارُ 2026-09-13)."""
+    return "portrait" if request.GET.get("orient") == "portrait" else "landscape"
+
+
 def _slug(text: str) -> str:
     """جزءُ اسم الملفّ: «11.5» لا تُقرأ نقطتُها امتداداً."""
     return "".join(ch if ch.isalnum() else "-" for ch in text)
@@ -42,9 +47,10 @@ def _slug(text: str) -> str:
 def _respond(request, *, fmt, title, slug, context, workbook):
     ctx = get_export_context(request, title)
     ctx["school"] = request.user.get_school()
+    ctx["orient"] = _orientation(request)
     if fmt == "xlsx":
         return ExcelService.to_response(
-            workbook(ctx["school_name"], ctx["exported_by"]),
+            workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"]),
             generate_export_filename("wings", slug, "xlsx"),
         )
     ctx.update(context)
@@ -69,7 +75,9 @@ def section_register_export(request, class_id):
         title=register.title,
         slug=f"register_{_slug(klass.short_code)}",
         context={"section_register": register},
-        workbook=lambda school_name, by: section_workbook(register, school_name, by),
+        workbook=lambda school_name, by, orient: section_workbook(
+            register, school_name, by, orient
+        ),
     )
 
 
@@ -90,5 +98,5 @@ def wing_register_export(request, code):
         title=register.title,
         slug=f"wing_register_{_slug(wing.code)}",
         context={"wing_register": register},
-        workbook=lambda school_name, by: wing_workbook(register, school_name, by),
+        workbook=lambda school_name, by, orient: wing_workbook(register, school_name, by, orient),
     )
