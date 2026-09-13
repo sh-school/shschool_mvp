@@ -20,6 +20,7 @@ from core.export_utils import excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import teacher_can_access_student
+from core.privacy import mask_national_id
 from operations.models import Subject
 
 from .forms import CreateAssessmentForm
