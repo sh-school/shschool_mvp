@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}الطلاب الراسبون{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,93 +9,42 @@
 {% block content %}
 <div class="exec-dash">
 
-  <!-- Header -->
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title text-white">{% include "components/icon.html" with name="alert-triangle" %} الطلاب الراسبون</h1>
-      <p class="exec-date">{{ total }} طالب في مادة أو أكثر</p>
-    </div>
-    <div class="flex gap-2">
+  {% page_header "الطلاب الراسبون" subtitle=subtitle icon="alert-triangle" %}
+    <nav class="period-switch" aria-label="الفصل الدراسي">
       {% for val, label in SEMESTERS %}
-      <a href="?semester={{ val }}&year={{ year }}"
-         class="btn-secondary btn-sm
-           {% if semester == val %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
-        {{ label }}
-      </a>
+        <a href="?semester={{ val }}&year={{ year }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
-    </div>
-  </div>
+    </nav>
+  {% endpage_header %}
 
-  <!-- KPI Strip -->
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">إجمالي الراسبين</div>
-      <div class="kpi-mini-value">{{ total }}</div>
-    </div>
-  </div>
-
-  {# ── Filter bar ── #}
   <div class="filter-bar">
-    <div class="flex flex-wrap items-center gap-3">
-      <div class="flex-1 min-w-[200px]">
-        <input type="text" id="searchInput" class="form-control text-sm w-full"
-               placeholder="بحث باسم الطالب..." autocomplete="off">
-      </div>
-      <div class="min-w-[160px]">
-        <select id="gradeFilter" class="form-control text-sm">
-          <option value="">كل الصفوف</option>
-        </select>
-      </div>
-      <span id="filterCount" class="text-xs text-gray-500 hidden"></span>
-    </div>
+    <input type="text" id="searchInput" class="form-control"
+           placeholder="بحث باسم الطالب..." autocomplete="off" aria-label="بحث باسم الطالب">
+    <select id="gradeFilter" class="form-control" aria-label="الصف">
+      <option value="">كل الصفوف</option>
+    </select>
+    <span id="filterCount" class="text-muted hidden" aria-live="polite"></span>
   </div>
 
-  <div id="studentCards" class="space-y-3">
+  {% if by_student %}
+  <div id="studentCards" class="ui-entity-grid">
     {% for item in by_student %}
-    <div class="card-qatar overflow-hidden js-student-card"
-         data-name="{{ item.student.full_name }}"
-         data-grade="{% with first_subj=item.subjects.0 %}{{ first_subj.class_group.get_grade_display }}{% endwith %}">
-      <div class="flex items-center justify-between px-5 py-3 bg-red-50 border-b">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
-            {{ item.student.full_name|first }}
-          </div>
-          <div>
-            <p class="font-bold text-gray-800">{{ item.student.full_name }}</p>
-            <p class="text-xs text-gray-500">{{ item.student.national_id|mask_id }}</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="status-badge status-gray">
-            {% with first_subj=item.subjects.0 %}{{ first_subj.class_group.get_grade_display }}{% endwith %}
-          </span>
-          <span class="status-badge status-danger">
-            {{ item.subjects|length }} مادة راسب
-          </span>
-          <a href="{% url 'student_report' item.student.id %}?semester={{ semester }}"
-             class="px-3 py-1 bg-skyline text-white rounded text-xs hover:bg-maroon">كشف الدرجات</a>
-        </div>
-      </div>
-      <div class="px-5 py-3 flex flex-wrap gap-2">
-        {% for result in item.subjects %}
-        <span class="px-3 py-1 bg-red-50 border border-red-200 rounded-full text-xs text-red-700">
-          {{ result.subject.name_ar }} — {{ result.total|default:"—" }}
-        </span>
-        {% endfor %}
-      </div>
-    </div>
-    {% empty %}
-    <div class="card-qatar text-center text-gray-400 js-empty-state">
-      <p class="text-3xl mb-3">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</p>
-      <p>لا يوجد طلاب راسبون في هذا الفصل</p>
+    <div class="js-student-card" data-name="{{ item.student.full_name }}" data-grade="{{ item.grade }}">
+      {% entity_card item.student.full_name who=item.grade count=item.count_label href=item.report_url tone="red" %}
+        {% entity_chips %}{% for result in item.subjects %}<span class="chip">{{ result.subject.name_ar }} · {{ result.annual_total|default:"—" }}</span>{% endfor %}{% endentity_chips %}
+        {% entity_status title="الرقم الشخصي" %}{{ item.student.national_id|mask_id }}{% endentity_status %}
+      {% endentity_card %}
     </div>
     {% endfor %}
   </div>
-  <div id="noResults" class="card-qatar text-center text-gray-400 hidden">
-    <p class="text-3xl mb-3">{% include "components/icon.html" with name="search" size="icon-2xl" %}</p>
-    <p>لا توجد نتائج مطابقة للبحث</p>
+  {% else %}
+    {% empty_state "لا يوجد طلاب راسبون" sub="لا نتائجَ سنويّةً راسبةً في هذا العام" icon="check-circle" %}
+  {% endif %}
+  <div id="noResults" class="hidden">
+    {% empty_state "لا توجد نتائج مطابقة للبحث" icon="search" %}
   </div>
-</div><!-- /exec-dash -->
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
