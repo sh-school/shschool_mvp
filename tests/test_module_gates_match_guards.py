@@ -101,6 +101,7 @@ def test_no_module_opens_its_gate_to_beneficiaries_by_accident():
         "/operations/schedule/",  # الطالبُ يرى جدولَه ووليُّ الأمر جدولَ ابنه
         "/operations/",  # `ATTENDANCE_VIEW_CHILD` — والطالبُ يرى غيابَه هو
         "/library/",  # `LIBRARY_VIEW` تسمّي الطالبَ: يتصفّح الكتب
+        "/notifications/",  # صندوقُه وعدّادُه بياناتُه وحدَه؛ والإدارةُ خلف `notifications.broadcast`
     }
     for prefix, roles in MODULES.items():
         if prefix in intended:
