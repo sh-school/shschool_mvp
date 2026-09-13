@@ -27,6 +27,23 @@ def test_improvements_are_recorded_so_they_cannot_be_spent_again():
     )
 
 
+def test_the_baseline_is_zero_so_no_violation_can_be_recorded_back():
+    """الصفرُ بلغناه في 2026-09-13 — فالسجلُّ لا يحمل مخالفةً بعدها.
+
+    السقّاطةُ وحدها تمنع الزيادة، لكنّ `--update` يُثبّت أيَّ عددٍ يُكتب: قالبٌ جديدٌ
+    بـ`style=` ثمّ `--update` كان سيمرّ في طلب دمجٍ لا يُقرأ فيه ملفُّ السجلّ. فالسجلُّ
+    صفرٌ بالبناء، والمخالفةُ تُصلَح في القالب لا تُسجَّل.
+    """
+    baseline = _baseline()
+    recorded = {name: files for name, files in baseline["counts"].items() if files}
+    assert not recorded and not baseline["undefined_classes"], (
+        "سجلُّ الهويّة البصريّة لا يقبل مخالفة — أصلحها في القالب بدل تسجيلها:\n  "
+        + json.dumps(recorded, ensure_ascii=False)
+        + "\n  "
+        + ", ".join(baseline["undefined_classes"])
+    )
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — لا يمرّ صامتاً على ما وُضع له."""
 
