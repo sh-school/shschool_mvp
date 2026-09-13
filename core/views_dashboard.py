@@ -405,13 +405,37 @@ def _get_admin_ops_ctx(user, school, today, role):
         .order_by("-created_at")[:5]
     )
 
-    return {
+    ctx = {
         "view_type": "admin_ops",
         "admin_role": role,
         "absent_teachers_today": absent_teachers,
         "pending_swaps": pending_swaps,
         "pending_comp": pending_comp,
         "recent_alerts": recent_alerts,
+    }
+    if role == "admin_supervisor":
+        ctx.update(_supervisor_record_ctx(user, school, today))
+    return ctx
+
+
+def _supervisor_record_ctx(user, school, today):
+    """رصدُ الغياب في رأس لوحة مشرف الجناح — فهو عملُه الأوّل كلَّ صباح.
+
+    كان الرابطُ في القائمة وحدَها، ولوحتُه التي يفتحها أوّلَ الدخول لا تذكر
+    الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
+    """
+    from operations.bells import day_type_for
+    from operations.services import ScheduleService
+    from wings.services import record_panels
+
+    year = academic_year_for_school(school)
+    if day_type_for(today):
+        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
+        ScheduleService.ensure_sessions_for_date(school, today)
+    return {
+        "record_panels": record_panels(user, school, year, today),
+        "day": today,
+        "is_school_day": bool(day_type_for(today)),
     }
 
 
