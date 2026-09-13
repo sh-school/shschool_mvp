@@ -25,6 +25,7 @@ from operations.period_register import (
     confirm_period,
     focus_period,
     periods_of,
+    teacher_taps_of,
 )
 from operations.services import ScheduleService
 
@@ -232,6 +233,7 @@ def record_section(request, class_id):
     wanted = _time(request.GET.get("p"))
     focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
     cells = cells_of(klass, day)
+    taps = teacher_taps_of(klass, day)
     yesterday = absent_yesterday(klass, day)
     unexcused = unexcused_days_for_class(klass, school, day)
 
@@ -246,6 +248,8 @@ def record_section(request, class_id):
                 "student": enrollment.student,
                 "track": [(p, own.get(p.start)) for p in periods],
                 "cell": own.get(focus.start) if focus else None,
+                # نقرةُ المعلّم «دخل متأخّراً» قبل التثبيت: تُملأ الخانةُ «متأخّراً» بدقائقه.
+                "tap": taps.get(sid, {}).get(focus.start) if focus else None,
                 "absent_yesterday": sid in yesterday,
                 "days": days,
                 "gate": gate,

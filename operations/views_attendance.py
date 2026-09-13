@@ -208,14 +208,24 @@ def attendance_view(request, session_id):
         row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
     if not can_record(request.user, session):
-        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب.
+        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب —
+        # إلّا نقرةَ «دخل متأخّراً» لصاحب الحصّة (قرارُ 2026-09-13).
         return render(
             request,
             "teacher/attendance_readonly.html",
             {
                 "session": session,
+                "can_tap_late": request.user == session.teacher,
                 "students_data": [
-                    {**row, "status": row["status"] if row["attendance"] else "unmarked"}
+                    {
+                        **row,
+                        "status": row["status"] if row["attendance"] else "unmarked",
+                        "tap_minutes": (
+                            row["attendance"].late_minutes
+                            if row["attendance"] and row["attendance"].source == "teacher_late"
+                            else None
+                        ),
+                    }
                     for row in students_data
                 ],
                 "summary": summary,
@@ -290,6 +300,37 @@ def mark_single(request, session_id):
             "session": session,
             "summary": summary,
         },
+    )
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def mark_late_tap(request, session_id):
+    """HTMX: نقرةُ المعلّم «دخل متأخّراً» — النظامُ يسجّل الوقت (قرارُ 2026-09-13).
+
+    للمعلّم في شُعب الأجنحة حيث لا يرصد: المشرفُ يصل بعد بدء الحصّة فلا يرى من دخل
+    قبله متأخّراً، والمعلّمُ يراه. النقرةُ لا تكتب فوق رصد المشرف.
+    """
+    from core.models import CustomUser
+
+    from .period_register import tap_late
+
+    school = request.user.get_school()
+    session = get_object_or_404(Session, id=session_id, school=school)
+    if request.user != session.teacher and not request.user.is_leadership():
+        return HttpResponse("هذه الحصّة ليست لك.", status=403)
+    student = get_object_or_404(
+        CustomUser,
+        id=request.POST.get("student_id"),
+        enrollments__class_group=session.class_group,
+        enrollments__is_active=True,
+    )
+    minutes = tap_late(session, student, by=request.user)
+    return render(
+        request,
+        "teacher/partials/late_tap.html",
+        {"session": session, "student": student, "minutes": minutes, "tapped": True},
     )
 
 
