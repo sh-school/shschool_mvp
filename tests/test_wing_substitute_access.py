@@ -90,6 +90,17 @@ def test_the_grant_ends_with_the_cover(client_as, school, wing, principal):
     assert "لم تُفعَّل صلاحيّاتُك" in body
 
 
+def test_the_substitute_opens_no_other_wing_screen(client_as, school, wing, principal):
+    """البوّابةُ تُدخل أدوارَ البديل، وكلُّ شاشةٍ تقرّر بحارسها: الرصدُ بالتكليف، والبقيّةُ لا."""
+    substitute = _staff(school, "البديل", "services_worker", "29400000008")
+    _cover(wing, substitute, principal, timezone.localdate())
+    client = client_as(substitute)
+
+    assert client.get(reverse("wings:floors")).status_code in (302, 403)
+    assert client.get(reverse("wings:coverage")).status_code in (302, 403)
+    assert not can_open(substitute, "wings:floors")
+
+
 def test_an_uncovered_observer_is_still_refused(client_as, school, wing):
     observer = _staff(school, "ملاحظٌ بلا تكليف", "student_observer", "29400000006")
 

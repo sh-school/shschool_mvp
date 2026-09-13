@@ -62,17 +62,25 @@ def _guard_grant(view):
 
 @lru_cache(maxsize=1024)
 def _url_grant(url_name: str):
-    """منحُ الحارس لهذا الرابط — ما لا تقرؤه الأدوار (بديلُ الجناح بتكليفه)."""
+    """منحُ الحارس لهذا الرابط وأدوارُ بوّابة وحدته — ``(grant, gate)``.
+
+    المنحُ لا يقرؤه الدور (بديلُ الجناح بتكليفه)، والبوّابةُ تسبق الحارس: فمن لا تُدخله
+    بوّابةُ الوحدة بدوره لا يبلغه المنح، ولا يَعِده الرابط.
+    """
+    from core.middleware import EXEMPT
     from core.module_registry import get_protected_paths
 
     try:
         path = reverse(url_name)
     except NoReverseMatch:
-        return None
-    # الشاشةُ خلف بوّابة وحدةٍ بالدور لا يبلغها المنحُ — فلا يَعِد به الرابط.
-    if any(path.startswith(prefix) for prefix in get_protected_paths()):
-        return None
-    return _guard_grant(resolve(path).func)
+        return None, None
+    gate = None
+    if not any(path.startswith(e) for e in EXEMPT):
+        for prefix, allowed in get_protected_paths().items():
+            if path.startswith(prefix):
+                gate = frozenset(allowed)
+                break
+    return _guard_grant(resolve(path).func), gate
 
 
 def can_open(user, url_name: str) -> bool:
@@ -83,5 +91,7 @@ def can_open(user, url_name: str) -> bool:
         return True
     if _role_opens(user.get_role() or "", url_name):
         return True
-    grant = _url_grant(url_name)
-    return grant is not None and bool(grant(user))
+    grant, gate = _url_grant(url_name)
+    if grant is None or (gate is not None and user.get_role() not in gate):
+        return False
+    return bool(grant(user))
