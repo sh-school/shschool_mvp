@@ -169,6 +169,38 @@ def test_no_module_copies_a_colour_the_stylesheet_already_names():
     )
 
 
+def test_no_excel_writer_copies_a_brand_colour_without_its_hash():
+    """openpyxl يأخذ اللونَ بلا `#` — `"8A1538"` — فكان يفلت من الحارس السابق.
+
+    خمسُ نسخٍ في `student_affairs/views.py` وأخواتٌ في ثلاثة ملفّات كتبت
+    العنّابيَّ والعنّابيَّ الفاتحَ هكذا. تُقرأ الآن بـ`brand.excel(brand.MAROON)`.
+    والأبيضُ مستثنى: لونٌ عامٌّ يُكتب في كلّ ملفٍّ لا علامةٌ تُنسخ.
+    """
+    from core import brand
+
+    identity = {
+        getattr(brand, const).lstrip("#").lower() for const in brand.TOKEN_OF if const != "ON_FILL"
+    }
+    offenders = {}
+    for module in sorted(pathlib.Path(".").rglob("*.py")):
+        parts = module.parts
+        if (
+            parts[0] in SKIP_ROOTS
+            or "migrations" in parts
+            or module == pathlib.Path("core/brand.py")
+        ):
+            continue
+        text = module.read_text(encoding="utf-8")
+        found = sorted(
+            {m.lower() for m in re.findall(r"""["']([0-9a-fA-F]{6})["']""", text)} & identity
+        )
+        if found:
+            offenders[str(module)] = found
+    assert not offenders, "لونُ علامةٍ منسوخٌ بلا `#` — استعمل brand.excel(...):\n" + "\n".join(
+        f"  {path}: " + ", ".join(colours) for path, colours in sorted(offenders.items())
+    )
+
+
 #: كتلةٌ داخليّةٌ واحدة: محدِّدٌ بلا أقواسٍ ثمّ جسمٌ بلا أقواس.
 BLOCK_RE = re.compile(r"([^{}]*)\{([^{}]*)\}", re.S)
 COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)

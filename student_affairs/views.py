@@ -22,15 +22,18 @@ from django.views.decorators.http import require_POST
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
+from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
+    excel_table_styles,
     excel_to_response,
     generate_export_filename,
     get_export_context,
     get_pdf_footer_html,
     get_pdf_header_html,
+    xl_fill,
 )
 from core.labels import class_label
 from core.models.academic import (
@@ -364,7 +367,7 @@ def student_table_partial(request):
 def student_export_excel(request):
     """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     year = academic_year_for(request)
@@ -424,15 +427,9 @@ def student_export_excel(request):
     data_start = add_excel_header(ws, ctx, num_cols)
 
     # Header row
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -457,7 +454,7 @@ def student_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     # Auto-width
     for col_idx in range(1, num_cols + 1):
@@ -1061,7 +1058,7 @@ def attendance_overview(request):
 def attendance_export_excel(request):
     """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     today = timezone.localdate()
@@ -1089,15 +1086,9 @@ def attendance_export_excel(request):
     )
 
     # أنماط مشتركة
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     wb = openpyxl.Workbook()
 
@@ -1126,7 +1117,7 @@ def attendance_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     for col_idx in range(1, 5):  # 4 columns
         max_len = 0
@@ -1168,11 +1159,11 @@ def attendance_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if rec.status == "absent":
-                cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+                cell.fill = xl_fill(brand.STATUS_DANGER_BG)
             elif rec.status == "late":
-                cell.fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+                cell.fill = xl_fill(brand.STATUS_WARNING_BG)
             elif i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     for col_idx in range(1, 6):  # 5 columns
         max_len = 0
@@ -1713,7 +1704,7 @@ def tardiness_list(request):
 def behavior_export_excel(request):
     """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير السلوك الطلابي")
@@ -1735,15 +1726,9 @@ def behavior_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1765,7 +1750,7 @@ def behavior_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
@@ -1784,7 +1769,7 @@ def behavior_export_excel(request):
 def tardiness_export_excel(request):
     """تصدير قائمة المتأخرين ليوم محدد."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
 
@@ -1843,15 +1828,9 @@ def tardiness_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1883,7 +1862,7 @@ def tardiness_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
@@ -1907,7 +1886,7 @@ def tardiness_export_excel(request):
 def activities_export_excel(request):
     """تصدير قائمة الأنشطة والإنجازات."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير الأنشطة والإنجازات")
@@ -1928,15 +1907,9 @@ def activities_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1960,7 +1933,7 @@ def activities_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):

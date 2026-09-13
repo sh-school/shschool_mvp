@@ -95,3 +95,46 @@ def test_every_chart_colour_names_a_real_token():
                 missing.append(f"  {path.as_posix()}: --{name}")
     assert used >= 30, f"لم يُرَ إلّا {used} استدعاءً — المسحُ لم يبلغ الرسوم"
     assert not missing, "رموزُ رسمٍ غيرُ معرَّفة:\n" + "\n".join(sorted(set(missing)))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ملفّات Excel — هويّةٌ واحدةٌ من `core.export_utils`
+# ══════════════════════════════════════════════════════════════════
+#
+# كانت ستُّ نسخٍ من نمط الجدول بثلاثة خطوط (Tajawal وArial وخطِّ Excel
+# الافتراضيّ)، وشبكاتٍ بثلاثة ألوان، وترويستين بتصميمين، وترويسةٍ كحليّةٍ في
+# تصدير الدرجات. فصار كلُّ لونٍ وخطٍّ يمرّ بـ`xl_fill` و`xl_font`
+# و`excel_table_styles` و`add_excel_title_rows` — ولا مولّدَ يكتبهما بيده.
+
+EXCEL_SKIP = {"scripts", "tests", ".claude", ".venv", ".local", "AAdocs", "node_modules"}
+HEX_LITERAL = re.compile(r"""["'](?:FF)?[0-9A-Fa-f]{6}["']""")
+FONT_BY_HAND = re.compile(r"""Font\([^)]*\bname\s*=\s*["']""")
+
+
+def _excel_writers():
+    for module in sorted(pathlib.Path(".").rglob("*.py")):
+        if module.parts[0] in EXCEL_SKIP or "migrations" in module.parts:
+            continue
+        if module.as_posix() in {"core/brand.py", "core/export_utils.py"}:
+            continue
+        text = module.read_text(encoding="utf-8", errors="ignore")
+        if "openpyxl" in text or "core.export_utils import" in text:
+            yield module, text
+
+
+def test_no_excel_writer_paints_by_hand():
+    offenders = []
+    for module, text in _excel_writers():
+        for pattern, what in ((HEX_LITERAL, "لون"), (FONT_BY_HAND, "خط")):
+            for m in pattern.finditer(text):
+                line = text[: m.start()].count("\n") + 1
+                offenders.append(f"  {module.as_posix()}:{line}  {what}: {m.group(0)[:40]}")
+    assert not offenders, (
+        "مولّدُ Excel يكتب لوناً أو خطّاً بيده — استعمل xl_fill/xl_font/excel_table_styles "
+        "من core.export_utils:\n" + "\n".join(offenders)
+    )
+
+
+def test_the_excel_scan_reaches_the_writers():
+    names = {m.as_posix() for m, _ in _excel_writers()}
+    assert {"student_affairs/views.py", "reports/services.py", "core/views_students.py"} <= names
