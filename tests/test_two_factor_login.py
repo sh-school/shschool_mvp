@@ -8,7 +8,6 @@
 
 import pyotp
 import pytest
-from django.test import override_settings
 from django.urls import reverse
 
 from core.models import encrypt_field
@@ -98,9 +97,15 @@ def _staff(school, role="teacher"):
 
 
 @pytest.mark.django_db
-@override_settings(TWO_FACTOR_REQUIRED_FOR_STAFF=True)
 class TestEveryStaffMemberMustSetItUp:
-    """قرارُ 2026-09-14: الثنائيّةُ لكلّ الكادر — وسيطٌ يُلزم لا رايةٌ عند الدخول."""
+    """قرارُ 2026-09-14: الثنائيّةُ لكلّ الكادر — وسيطٌ يُلزم لا رايةٌ عند الدخول.
+
+    الإلزامُ مُطفأٌ في إعدادات الاختبار (كما axes) فيُشعَل هنا وحدَه.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enforced(self, settings):
+        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
 
     def test_a_teacher_without_totp_reaches_only_the_setup_page(self, client, school):
         user = _staff(school)
