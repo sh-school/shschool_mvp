@@ -1,0 +1,10 @@
+{% comment %}زرُّ «دخل الآن» للمعلّم، أو أثرُ نقرته — يستبدل نفسَه بعد النقر (HTMX).{% endcomment %}
+{% if tapped %}
+<span class="badge badge--warning" title="نقرةُ المعلّم — ينتظر تثبيتَ المشرف">دخل متأخّراً {{ minutes }} د</span>
+{% else %}
+<form hx-post="{% url 'mark_late_tap' session.id %}" hx-target="#late-tap-{{ student.id }}" hx-swap="innerHTML" class="asg-inline">
+  {% csrf_token %}
+  <input type="hidden" name="student_id" value="{{ student.id }}">
+  <button type="submit" class="btn-secondary btn-sm" title="الطالبُ دخل الآن — يُسجَّل الوقت">دخل الآن</button>
+</form>
+{% endif %}

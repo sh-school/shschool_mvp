@@ -606,6 +606,100 @@ class TestAbsenceAlerts:
 
 
 # ══════════════════════════════════════════════════════════════════
+# نقرةُ المعلّم «دخل متأخّراً»
+# ══════════════════════════════════════════════════════════════════
+
+
+class TestTheTeacherTapsLate:
+    """المعلّمُ لا يرصد الغياب، لكنّه ينقر «دخل الآن» لمن دخل متأخّراً — النظامُ يسجّل
+    الوقت، والمشرفُ يجدها في كشفه (قرارُ 2026-09-13)."""
+
+    def test_the_tap_records_the_moment_not_a_typed_number(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.period_register import tap_late
+
+        (period,) = _periods(school, klass, teacher, 1)
+
+        assert tap_late(period, kids[0], by=teacher, now=at(7, 22)) == 12
+
+        row = StudentAttendance.objects.get(session=period, student=kids[0])
+        assert (row.status, row.source, row.late_minutes) == ("late", "teacher_late", 12)
+
+    def test_a_second_tap_keeps_the_first_moment(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.period_register import tap_late
+
+        (period,) = _periods(school, klass, teacher, 1)
+        tap_late(period, kids[0], by=teacher, now=at(7, 18))
+
+        assert tap_late(period, kids[0], by=teacher, now=at(7, 40)) == 8
+
+    def test_the_tap_never_overwrites_the_supervisor(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.period_register import tap_late
+
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor)
+
+        tap_late(period, kids[0], by=teacher, now=at(7, 30))
+
+        row = StudentAttendance.objects.get(session=period, student=kids[0])
+        assert (row.status, row.source) == ("absent", "supervisor")
+
+    def test_the_supervisor_finds_the_tap_prefilled_and_confirms_its_minutes(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.period_register import tap_late
+
+        (period,) = _periods(school, klass, teacher, 1)
+        tap_late(period, kids[0], by=teacher, now=at(7, 22))
+
+        body = (
+            client_as(supervisor)
+            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={SUNDAY.isoformat()}")
+            .content.decode()
+        )
+        assert "12 د" in body, "خانةُ الطالب «متأخّر» بدقائق المعلّم"
+
+        # التثبيتُ بعد عشرين دقيقةً يأخذ لحظةَ الدخول عند المعلّم لا لحظةَ التثبيت.
+        _confirm(klass, period, {kids[0]: "late"}, supervisor, now=at(7, 42))
+        row = StudentAttendance.objects.get(session=period, student=kids[0])
+        assert (row.source, row.late_minutes) == ("supervisor", 12)
+        assert _auto(kids[0], "period_tardy").count() == 1
+
+    def test_the_teacher_sees_the_button_and_the_supervisor_page_does_not_count_the_tap_as_recorded(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        (period,) = _periods(school, klass, teacher, 1)
+
+        body = client_as(teacher).get(reverse("attendance", args=[period.id])).content.decode()
+        assert reverse("mark_late_tap", args=[period.id]) in body
+        assert reverse("mark_single", args=[period.id]) not in body, "لا يرصد"
+
+        response = client_as(teacher).post(
+            reverse("mark_late_tap", args=[period.id]), {"student_id": str(kids[1].id)}
+        )
+        assert response.status_code == 200
+        assert "دخل متأخّراً" in response.content.decode()
+        assert not PeriodConfirmation.objects.exists(), "النقرةُ ليست تثبيتاً"
+
+    def test_another_teacher_may_not_tap(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, other_teacher, supervisor
+    ):
+        (period,) = _periods(school, klass, teacher, 1)
+
+        response = client_as(other_teacher).post(
+            reverse("mark_late_tap", args=[period.id]), {"student_id": str(kids[0].id)}
+        )
+
+        assert response.status_code == 403
+        assert not StudentAttendance.objects.exists()
+
+
+# ══════════════════════════════════════════════════════════════════
 # المعلّم
 # ══════════════════════════════════════════════════════════════════
 

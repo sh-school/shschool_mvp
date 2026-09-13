@@ -46,6 +46,9 @@ from operations.tardiness import is_period_tardy, minutes_after_start
 STATES = ("present", "absent", "late")
 ATTENDED = ("present", "late")
 
+#: مصدرُ نقرة المعلّم «دخل متأخّراً» — قبل تثبيت المشرف.
+TEACHER_LATE = "teacher_late"
+
 #: «أين الطالب» التي يُعذر بها الغيابُ عن الفصل — فلا يُعدّ هروباً.
 #: و«خرج دون إذن» ليس منها: هو الهروبُ نفسُه.
 AWAY_WITH_LEAVE = ("clinic", "activity", "out_permit", "left_early")
@@ -154,6 +157,54 @@ def cells_of(class_group, day: dt.date) -> dict:
     return cells
 
 
+def teacher_taps_of(class_group, day: dt.date) -> dict:
+    """نقراتُ المعلّمين «دخل متأخّراً» التي لم يثبّتها المشرفُ بعد: `{student_id: {start: minutes}}`.
+
+    المعلّمُ يصل الحصّةَ قبل المشرف فيرى من دخل متأخّراً؛ ينقر، فيُسجَّل الوقتُ
+    لحظتَها (قرارُ 2026-09-13). وحين يفتح المشرفُ الكشفَ تُملأ خانةُ الطالب «متأخّراً»
+    بدقائق المعلّم، ويبقى له أن يبدّلها. ويُحفظ التثبيتُ بمصدر المشرف فتزول النقرة.
+    """
+    rows = StudentAttendance.objects.filter(
+        session__class_group=class_group, session__date=day, source=TEACHER_LATE
+    ).values_list("student_id", "session__start_time", "late_minutes")
+    taps: dict = {}
+    for student_id, start_time, minutes in rows:
+        taps.setdefault(student_id, {}).setdefault(start_time, minutes)
+    return taps
+
+
+@transaction.atomic
+def tap_late(session, student, by, now: dt.datetime | None = None) -> int:
+    """نقرةُ المعلّم: الطالبُ دخل الآن متأخّراً — يُسجَّل الوقتُ ولا يُدخله المعلّم.
+
+    لا تكتب فوق ما رصده المشرفُ (سجلُّه بمصدره يبقى)، وتُكرَّر بلا أثر (النقرةُ
+    الثانيةُ لا تزيد الدقائق: الأولى هي لحظةُ الدخول). وتُرجع الدقائق.
+    """
+    now = now or timezone.now()
+    existing = StudentAttendance.objects.filter(session=session, student=student).first()
+    if existing is not None and existing.source == SOURCE:
+        return existing.late_minutes or 0
+    if (
+        existing is not None
+        and existing.source == TEACHER_LATE
+        and existing.late_minutes is not None
+    ):
+        return existing.late_minutes
+    minutes = minutes_after_start(session, timezone.localtime(now))
+    StudentAttendance.objects.update_or_create(
+        session=session,
+        student=student,
+        defaults={
+            "school": session.school,
+            "status": "late",
+            "source": TEACHER_LATE,
+            "marked_by": by,
+            "late_minutes": minutes,
+        },
+    )
+    return minutes
+
+
 def absent_yesterday(class_group, day: dt.date) -> set:
     """من غاب بلا عذرٍ في آخر يومٍ دراسيٍّ قبل هذا — والغيابُ يتكرّر."""
     last = (
@@ -230,6 +281,7 @@ def confirm_period(
         raise ValueError("لا حصّةَ لهذه الشعبة في هذا الوقت")
     measured_now = period.in_window(day, now)
     earlier = cells_of(class_group, day)
+    taps = teacher_taps_of(class_group, day)
 
     tally = {"present": 0, "absent": 0, "late": 0}
     tardy = 0
@@ -256,6 +308,9 @@ def confirm_period(
                 # متأخّرٌ من تثبيتٍ سابقٍ لم يُنقر ثانيةً: دقائقُه باقية — التثبيتُ الثاني
                 # بعد عشر دقائق لا يزيده عشراً.
                 minutes = before.late_minutes
+            elif tapped is None and taps.get(student.id, {}).get(period.start) is not None:
+                # نقرةُ المعلّم قبل وصول المشرف: لحظةُ الدخول عندها لا عند التثبيت.
+                minutes = taps[student.id][period.start]
             else:
                 minutes = minutes_after_start(period.sessions[0], timezone.localtime(tapped or now))
         tally[status] += 1

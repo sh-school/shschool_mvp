@@ -7,6 +7,7 @@ urlpatterns = [
     path("attendance/<uuid:session_id>/", views.attendance_view, name="attendance"),
     path("attendance/<uuid:session_id>/mark-single/", views.mark_single, name="mark_single"),
     path("attendance/<uuid:session_id>/mark-all/", views.mark_all_present, name="mark_all_present"),
+    path("attendance/<uuid:session_id>/late-tap/", views.mark_late_tap, name="mark_late_tap"),
     path("attendance/<uuid:session_id>/complete/", views.complete_session, name="complete_session"),
     path("attendance/<uuid:session_id>/summary/", views.session_summary, name="session_summary"),
     path("reports/daily/", views.daily_report, name="daily_report"),

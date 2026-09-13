@@ -15,6 +15,7 @@ from .views_attendance import (
     complete_session,
     daily_report,
     mark_all_present,
+    mark_late_tap,
     mark_single,
     schedule,
     session_summary,
@@ -76,6 +77,7 @@ __all__ = [
     "complete_session",
     "session_summary",
     "daily_report",
+    "mark_late_tap",
     # schedule
     "weekly_schedule",
     "schedule_export_excel",
