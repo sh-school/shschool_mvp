@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تفاصيل الحافلة — {{ bus.bus_number }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,40 +7,28 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bus" %} حافلة {{ bus.bus_number }}</h1>
-      <p class="exec-date">{{ bus.driver_name }}</p>
-    </div>
+  {% page_header page_title subtitle=bus.driver_name icon="bus" %}
+    {% if bus.gps_link %}
+    <a href="{% url 'transport:tracking_map' bus.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="bus" %} تتبع الحافلة</a>
+    {% endif %}
+    <a href="{% url 'transport:create_route' bus.id %}" class="btn-secondary btn-sm">+ خط سير جديد</a>
     <a href="{% url 'transport:buses_list' %}" class="btn-secondary btn-sm">← رجوع</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ bus.capacity }}</span>
-      <span class="kpi-mini-label">الطاقة الاستيعابية</span>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <span class="kpi-mini-value">{{ students.count }}</span>
-      <span class="kpi-mini-label">طلاب مسجلون</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ occupancy_rate|floatformat:0 }}%</span>
-      <span class="kpi-mini-label">نسبة الإشغال</span>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الحافلة" %}
+    {% kpi "الطاقة الاستيعابية" bus.capacity tone="blue" %}
+    {% kpi "طلاب مسجلون" students.count tone="green" %}
+    {% kpi "نسبة الإشغال" occupancy_label %}
+  {% endkpi_strip %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-    {# ── العمود الأيسر — بيانات الحافلة ── #}
+    {# ── بيانات الحافلة ── #}
     <div>
-      <div class="form-card mb-4">
-        <div class="card-bar" style="margin:-24px -28px 20px">بيانات الحافلة</div>
-        <form method="post" hx-post="" hx-target="#bus-info">
+      {% section_card "بيانات الحافلة" icon="list-checks" %}
+        <form method="post" hx-post="" hx-target="#bus-info" hx-swap="outerHTML">
           {% csrf_token %}
           <div class="form-group">
             <label class="form-label">رقم الحافلة</label>
@@ -67,79 +56,40 @@
           </div>
           <button class="btn-primary w-full p-2">{% include "components/icon.html" with name="save" %} حفظ</button>
         </form>
-      </div>
-
-      <div class="card-qatar">
-        <div class="flex justify-between items-center mb-3">
-          <span class="text-sm font-bold text-primary">إجمالي الطلاب</span>
-          <span class="text-2xl font-extrabold text-maroon">{{ students.count }}</span>
-        </div>
-        <div class="progress-qatar">
-          <div class="progress-qatar-fill" style="--progress-w:{{ occupancy_rate }}%"></div>
-        </div>
-        <p class="text-xs text-muted mt-1">{{ occupancy_rate|floatformat:0 }}% إشغال</p>
-        {% if bus.gps_link %}
-        <a href="{% url 'transport:tracking_map' bus.id %}"
-           class="btn-primary block text-center mt-3 no-underline p-2">
-          {% include "components/icon.html" with name="bus" %} تتبع الحافلة
-        </a>
-        {% endif %}
-      </div>
+        {# هدفُ ردّ الحفظ — كان النموذجُ يشير إليه ولا عنصرَ بهذا المعرّف في الصفحة. #}
+        <div id="bus-info" aria-live="polite"></div>
+      {% endsection_card %}
     </div>
 
-    {# ── العمود الأيمن — خطوط السير والطلاب ── #}
+    {# ── خطوط السير والطلاب ── #}
     <div class="lg:col-span-2 space-y-4">
 
-      {# خطوط السير #}
-      <div class="card-qatar p-0 overflow-hidden">
-        <div class="card-bar m-0 rounded-t-xl flex justify-between items-center">
-          <span>خطوط السير</span>
-          <a href="{% url 'transport:create_route' bus.id %}"
-             class="text-xs font-semibold no-underline rounded-lg px-3 py-1 bg-white/20 text-white">+ خط جديد</a>
-        </div>
-        {% if routes %}
-        <div class="p-0">
+      {% section_card "خطوط السير" meta=routes|length icon="waypoints" empty="لا توجد خطوط سير" %}{% if routes %}
+        <ul class="plain-list">
           {% for route in routes %}
-          <div class="flex items-center justify-between px-4 py-3 border-b">
-            <div>
-              <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ route.area_name }}</p>
-              <p class="text-xs text-muted m-0">{{ route.students.count }} طالب</p>
-            </div>
-            <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon text-xs no-underline">تعديل</a>
-          </div>
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ route.area_name }}</b><span class="plain-list__sub">{{ route.students.count }} طالب</span></span>
+            <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon">تعديل</a>
+          </li>
           {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state p-8">
-          <p class="empty-sub">لا توجد خطوط سير</p>
-        </div>
-        {% endif %}
-      </div>
+        </ul>
+      {% endif %}{% endsection_card %}
 
-      {# الطلاب المسجلون #}
-      <div class="card-qatar p-0 overflow-hidden">
-        <div class="card-bar m-0 rounded-t-xl">الطلاب المسجلون ({{ students.count }})</div>
-        {% if students %}
-        <div class="filter-bar px-4 py-2 border-b">
+      {% section_card "الطلاب المسجلون" meta=students.count icon="users" empty="لا يوجد طلاب مسجلون" %}{% if students %}
+        <div class="transport-search">
           <input type="text"
                  id="student-search"
-                 class="form-control form-control-sm w-full"
+                 class="form-control"
                  placeholder="بحث عن طالب...">
         </div>
-        <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
+        <ul class="plain-list is-scroll" id="bus-students">
           {% for st in students %}
-          <div class="flex items-center justify-between px-4 py-2 text-sm border-b filterable-row"
-               data-text="{{ st.full_name|lower }}">
-            <span class="text-primary">{{ st.full_name }}</span>
-          </div>
+          <li class="plain-list__row" data-filter-item data-text="{{ st.full_name|lower }}">
+            <span class="plain-list__title">{{ st.full_name }}</span>
+          </li>
           {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state p-8">
-          <p class="empty-sub">لا يوجد طلاب مسجلون</p>
-        </div>
-        {% endif %}
-      </div>
+        </ul>
+      {% endif %}{% endsection_card %}
 
     </div>
   </div>
@@ -152,13 +102,13 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('student-search', '.table-wrap-scroll .filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('student-search', '#bus-students [data-filter-item]', { textAttr: 'data-text' });
   } else {
     var inp = document.getElementById('student-search');
     if (inp) {
       inp.addEventListener('input', function(){
         var q = this.value.toLowerCase();
-        document.querySelectorAll('.table-wrap-scroll .filterable-row').forEach(function(row){
+        document.querySelectorAll('#bus-students [data-filter-item]').forEach(function(row){
           var text = (row.getAttribute('data-text') || '').toLowerCase();
           var ok = !q || text.indexOf(q) !== -1;
           row.style.display = ok ? '' : 'none';

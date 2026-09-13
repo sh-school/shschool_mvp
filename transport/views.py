@@ -63,9 +63,13 @@ def buses_list(request):
     if search:
         buses = buses.filter(Q(bus_number__icontains=search) | Q(driver_name__icontains=search))
 
+    # نصوصُ البطاقة جاهزة — والتكرارُ يُبقي النتائجَ في ذاكرة الاستعلام فلا يُعاد.
+    for bus in buses:
+        bus.seats_label = f"{bus.capacity} مقعد"
     context = {
         "buses": buses,
         "search": search,
+        "buses_label": f"{len(buses)} حافلة مسجلة",
     }
     return render(request, "transport/buses_list.html", context)
 
@@ -97,11 +101,14 @@ def bus_detail(request, bus_id):
     routes = bus.routes.all()
     students = CustomUser.objects.filter(bus_routes__bus=bus).distinct()
 
+    occupancy_rate = (students.count() / bus.capacity * 100) if bus.capacity > 0 else 0
     context = {
         "bus": bus,
         "routes": routes,
         "students": students,
-        "occupancy_rate": (students.count() / bus.capacity * 100) if bus.capacity > 0 else 0,
+        "occupancy_rate": occupancy_rate,
+        "occupancy_label": f"{occupancy_rate:.0f}%",
+        "page_title": f"حافلة {bus.bus_number}",
     }
     return render(request, "transport/bus_detail.html", context)
 
@@ -146,6 +153,8 @@ def manage_route(request, bus_id, route_id=None):
         "bus": bus,
         "route": route,
         "available_students": available_students,
+        "page_title": "تعديل خط سير" if route else "إضافة خط سير",
+        "bus_label": f"حافلة {bus.bus_number}",
     }
     return render(request, "transport/manage_route.html", context)
 
@@ -199,4 +208,5 @@ def transport_statistics(request):
     school = request.user.get_school()
     # ✅ v5.4: TransportService.get_statistics — DB aggregate بدل Python sum loop
     context = TransportService.get_statistics(school)
+    context["utilization_label"] = f"{context['utilization_rate']:.0f}%"
     return render(request, "transport/statistics.html", context)

@@ -53,6 +53,10 @@ def book_list(request):
     paginator = Paginator(books, 25)
     page = request.GET.get("page", 1)
     page_obj = paginator.get_page(page)
+    # حالةُ التوفّر نصّاً ولوناً — كانت شرطاً في القالب (المتاحُ > 0 أخضر، وإلّا أحمر).
+    for book in page_obj:
+        book.stock_label = f"{book.available_qty}/{book.quantity} متوفر"
+        book.stock_tone = "success" if book.available_qty > 0 else "danger"
 
     context = {
         "books": page_obj,

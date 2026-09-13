@@ -87,5 +87,12 @@ class ClinicVisit(models.Model):
         ordering = ["-visit_date"]
         db_table = "core_clinicvisit"  # يبقي نفس الجدول الموجود
 
+    #: حرارةٌ تُعدّ حُمّى — كانت عتبةً مكتوبةً في قالب سجلّ الزيارات (≥ 38).
+    FEVER_THRESHOLD = 38
+
     def __str__(self):
         return f"Visit: {self.student.full_name} - {self.visit_date.date()}"
+
+    @property
+    def is_feverish(self) -> bool:
+        return self.temperature is not None and self.temperature >= self.FEVER_THRESHOLD

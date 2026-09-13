@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الحافلات المدرسية{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,44 +9,32 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bus" %} الحافلات المدرسية</h1>
-      <p class="exec-date">{{ buses|length }} حافلة مسجلة</p>
-    </div>
+  {% page_header "الحافلات المدرسية" subtitle=buses_label icon="bus" %}
     <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
+
+  {% if buses %}
+  <div class="filter-bar">
+    <input type="text" id="bus-search" class="form-control" placeholder="بحث برقم الحافلة أو اسم السائق..." autocomplete="off" value="{{ search|default:'' }}">
   </div>
 
-  {# ── Search ── #}
-  <div class="filter-bar mb-4">
-    <input type="text" id="bus-search" class="form-control" placeholder="بحث برقم الحافلة أو اسم السائق..." autocomplete="off" value="{{ search }}">
-  </div>
-
-  {# ── Bus cards grid ── #}
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="buses-grid">
+  {# كلُّ حافلةٍ بطاقةُ كيان: الرقمُ والسائقُ والمقاعد — ثمّ الجوّالُ ورقمُ كروة. #}
+  <div class="ui-entity-grid" id="buses-grid">
     {% for bus in buses %}
-    <a href="{% url 'transport:bus_detail' bus.id %}"
-       class="card-qatar hover:shadow-md transition hover:border-red-200 filterable-row"
-       data-filter-item data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }}">
-      <div class="flex justify-between items-start mb-3">
-        <div>
-          <p class="font-bold text-lg" style="color:var(--text-primary)">{% include "components/icon.html" with name="bus" %} {{ bus.bus_number }}</p>
-          <p class="text-sm mt-0.5" style="color:var(--text-secondary)">{{ bus.driver_name }}</p>
-        </div>
-        <span class="status-badge status-info text-xs">{{ bus.capacity }} مقعد</span>
-      </div>
-      <div class="text-xs space-y-1" style="color:var(--text-secondary)">
-        <p>{% include "components/icon.html" with name="phone" %} {{ bus.driver_phone }}</p>
-        {% if bus.karwa_id %}<p>{% include "components/icon.html" with name="file-text" %} {{ bus.karwa_id }}</p>{% endif %}
-      </div>
-    </a>
-    {% empty %}
-    <div class="col-span-3 card-qatar text-center" id="buses-empty">
-      <p class="text-4xl mb-2">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</p><p>لا توجد حافلات مسجلة</p>
+    {% url 'transport:bus_detail' bus.id as bus_url %}
+    <div data-filter-item data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }}">
+      {% entity_card bus.bus_number who=bus.driver_name count=bus.seats_label href=bus_url tone="blue" %}
+        {% entity_chips %}
+          <span class="chip">{% include "components/icon.html" with name="phone" %} <span dir="ltr">{{ bus.driver_phone|default:"—" }}</span></span>
+          {% if bus.karwa_id %}<span class="chip">{% include "components/icon.html" with name="file-text" %} {{ bus.karwa_id }}</span>{% endif %}
+        {% endentity_chips %}
+      {% endentity_card %}
     </div>
     {% endfor %}
   </div>
+  {% else %}
+  {% empty_state "لا توجد حافلات مسجلة" icon="bus" %}
+  {% endif %}
 
 </div>
 {% endblock %}
@@ -54,13 +43,13 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('bus-search', '#buses-grid .filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('bus-search', '#buses-grid [data-filter-item]', { textAttr: 'data-text' });
   } else {
     var inp = document.getElementById('bus-search');
     if (inp) {
       inp.addEventListener('input', function(){
         var q = this.value.toLowerCase();
-        document.querySelectorAll('#buses-grid .filterable-row').forEach(function(row){
+        document.querySelectorAll('#buses-grid [data-filter-item]').forEach(function(row){
           var text = (row.getAttribute('data-text') || '').toLowerCase();
           var ok = !q || text.indexOf(q) !== -1;
           row.style.display = ok ? '' : 'none';

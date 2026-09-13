@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}أجنحة المدرسة{% endblock %}
 
@@ -28,33 +29,13 @@
   </div>
 
   {% comment %}كلُّ بطاقةٍ سطرٌ واحد: الاسمُ فالعددُ فالتفصيل — والشُّعبُ المستثناة
-     بأسمائها في تلميح التفصيل، بعد أن كانت فقرةً بين البطاقات.{% endcomment %}
-  <div class="kpi-strip kpi-strip--line">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">الأجنحة</div>
-      <div class="kpi-mini-value">{{ wing_count }}</div>
-      <div class="kpi-mini-sub">طابقان</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">شُعبُ الأجنحة</div>
-      <div class="kpi-mini-value">{{ section_count }}</div>
-      <div class="kpi-mini-sub"{% if outside.sections %} title="خارجَ الأجنحة بقرار الإدارة: {% for section in outside.sections %}{{ section.short_code }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
-        {% if outside.section_count %}و{{ outside.section_count }} خارجَها (تربيةٌ خاصّة){% else %}كلُّ شُعب المدرسة{% endif %}
-      </div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">طلابُ الأجنحة</div>
-      <div class="kpi-mini-value">{{ student_count }}</div>
-      <div class="kpi-mini-sub">
-        من {{ register_count }} في السجلّ{% if outside.student_count %} · و{{ outside.student_count }} في التربية الخاصّة{% endif %}
-      </div>
-    </div>
-    <div class="kpi-mini {% if is_school_day %}kpi-green{% else %}kpi-amber{% endif %}">
-      <div class="kpi-mini-label">اليوم</div>
-      <div class="kpi-mini-value is-words">{{ day_label }}</div>
-      <div class="kpi-mini-sub">{% if is_school_day %}الساعة {{ now|date:"H:i" }}{% else %}لا جرسَ يرنّ{% endif %}</div>
-    </div>
-  </div>
+     بأسمائها في التلميح، بعد أن كانت فقرةً بين البطاقات. والتفصيلُ يُبنى في العرض.{% endcomment %}
+  {% kpi_strip label="أرقام الأجنحة" %}
+    {% kpi "الأجنحة" wing_count sub="طابقان" %}
+    {% kpi "شُعبُ الأجنحة" section_count sub=kpis.sections_sub title=kpis.sections_title tone="blue" %}
+    {% kpi "طلابُ الأجنحة" student_count sub=kpis.students_sub tone="teal" %}
+    {% kpi "اليوم" day_label sub=kpis.day_sub tone=kpis.day_tone %}
+  {% endkpi_strip %}
 
   {# ══ الطابقان — بطاقتان في سطر، تنفكّان عموداً في الشاشة الضيّقة ══ #}
   <div class="wing-pair wing-pair--floors">

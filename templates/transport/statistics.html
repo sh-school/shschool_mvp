@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إحصائيات النقل{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,71 +7,52 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bar-chart" %} إحصائيات النقل المدرسي</h1>
-    </div>
+  {% page_header "إحصائيات النقل المدرسي" icon="bar-chart" %}
     <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ total_buses }}</span>
-      <span class="kpi-mini-label">عدد الحافلات</span>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <span class="kpi-mini-value">{{ total_capacity }}</span>
-      <span class="kpi-mini-label">الطاقة الإجمالية</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ students_count }}</span>
-      <span class="kpi-mini-label">الطلاب المسجلون</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ utilization_rate|floatformat:0 }}%</span>
-      <span class="kpi-mini-label">نسبة الإشغال</span>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام النقل" %}
+    {% kpi "عدد الحافلات" total_buses tone="blue" %}
+    {% kpi "الطاقة الإجمالية" total_capacity tone="green" %}
+    {% kpi "الطلاب المسجلون" students_count %}
+    {% kpi "نسبة الإشغال" utilization_label tone="orange" %}
+  {% endkpi_strip %}
 
-  {# ── جدول الحافلات ── #}
-  <div class="table-wrap">
-    <div class="card-bar">تفاصيل الحافلات</div>
-    <div class="filter-bar px-4 py-3">
+  {% section_card "تفاصيل الحافلات" icon="bus" flush=True empty="لا توجد حافلات مسجلة" %}{% if buses %}
+    <div class="transport-search">
       <input type="text"
              id="bus-search"
-             class="form-control form-control-sm w-full md:w-1/2"
+             class="form-control"
              placeholder="بحث برقم الحافلة أو اسم السائق...">
     </div>
-    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
+    <div class="table-wrap transport-scroll">
       <table>
         <thead>
           <tr>
             <th scope="col">رقم الحافلة</th>
             <th scope="col">السائق</th>
-            <th scope="col">الطاقة</th>
+            <th scope="col" class="num">الطاقة</th>
             <th scope="col">كروة</th>
           </tr>
         </thead>
         <tbody id="bus-tbody">
           {% for bus in buses %}
-          <tr class="filterable-row"
+          <tr data-filter-item
               data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }} {{ bus.karwa_id|default:'—'|lower }}">
-            <td class="font-semibold">
-              <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon no-underline">{{ bus.bus_number }}</a>
+            <td>
+              <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon">{{ bus.bus_number }}</a>
             </td>
             <td>{{ bus.driver_name }}</td>
-            <td>{{ bus.capacity }} مقعد</td>
-            <td class="text-xs text-muted">{{ bus.karwa_id|default:"—" }}</td>
+            <td class="num">{{ bus.capacity }} مقعد</td>
+            <td class="text-muted">{{ bus.karwa_id|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}
@@ -79,13 +61,13 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('bus-search', '#bus-tbody .filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('bus-search', '#bus-tbody [data-filter-item]', { textAttr: 'data-text' });
   } else {
     var inp = document.getElementById('bus-search');
     if (inp) {
       inp.addEventListener('input', function(){
         var q = this.value.toLowerCase();
-        document.querySelectorAll('#bus-tbody .filterable-row').forEach(function(row){
+        document.querySelectorAll('#bus-tbody [data-filter-item]').forEach(function(row){
           var text = (row.getAttribute('data-text') || '').toLowerCase();
           var ok = !q || text.indexOf(q) !== -1;
           row.style.display = ok ? '' : 'none';

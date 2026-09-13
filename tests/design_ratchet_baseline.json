@@ -13,7 +13,6 @@
    "templates/behavior/dashboard.html": 1,
    "templates/behavior/statistics.html": 4,
    "templates/behavior/student_profile.html": 1,
-   "templates/clinic/statistics.html": 4,
    "templates/notifications/dashboard.html": 4,
    "templates/notifications/inbox.html": 2,
    "templates/quality/domain_detail.html": 3,
@@ -29,11 +28,7 @@
    "templates/student_affairs/student_profile.html": 5,
    "templates/student_affairs/tardiness_list.html": 4,
    "templates/teacher/partials/summary_widget.html": 6,
-   "templates/teacher/schedule.html": 3,
-   "templates/transport/bus_detail.html": 3,
-   "templates/transport/statistics.html": 4,
-   "templates/transport/student_assignments.html": 2,
-   "templates/wings/floors.html": 4
+   "templates/teacher/schedule.html": 3
   },
   "hex_colour": {
    "templates/assessments/student_report.html": 1,
@@ -45,7 +40,6 @@
    "templates/errors/_error_page.html": 1,
    "templates/parents/pwa/offline.html": 1,
    "templates/quality/progress_report.html": 5,
-   "templates/schedule/pages_view.html": 1,
    "templates/schedule/smart_schedule.html": 1,
    "templates/styleguide/icon_preview.html": 2
   },
@@ -68,9 +62,6 @@
    "templates/behavior/student_profile.html": 1,
    "templates/behavior/summon_parent.html": 2,
    "templates/breach/form.html": 4,
-   "templates/clinic/health_record.html": 11,
-   "templates/clinic/record_visit.html": 3,
-   "templates/clinic/visits_list.html": 5,
    "templates/components/_styleguide.html": 5,
    "templates/components/confirm_dialog.html": 1,
    "templates/components/file_upload.html": 1,
@@ -78,7 +69,6 @@
    "templates/components/sprite.html": 1,
    "templates/components/toast.html": 1,
    "templates/core/student_import_export.html": 1,
-   "templates/library/borrow_form.html": 1,
    "templates/notifications/inbox.html": 1,
    "templates/notifications/partials/log_panel.html": 2,
    "templates/notifications/partials/notif_item.html": 4,
@@ -103,7 +93,6 @@
    "templates/reports/report_viewer.html": 3,
    "templates/reports/student_result.html": 2,
    "templates/schedule/compensatory_list.html": 2,
-   "templates/schedule/pages_view.html": 3,
    "templates/schedule/partials/free_slots_grid.html": 1,
    "templates/schedule/partials/swap_card.html": 3,
    "templates/schedule/quality_lab.html": 8,
@@ -136,12 +125,7 @@
    "templates/teacher/attendance_grid.html": 1,
    "templates/teacher/partials/grid_container.html": 1,
    "templates/teacher/partials/student_row.html": 2,
-   "templates/teacher/schedule.html": 6,
-   "templates/transport/bus_detail.html": 2,
-   "templates/transport/buses_list.html": 3,
-   "templates/transport/manage_route.html": 2,
-   "templates/transport/statistics.html": 1,
-   "templates/transport/student_assignments.html": 2
+   "templates/teacher/schedule.html": 6
   },
   "legacy_header": {
    "templates/assessments/dashboard.html": 3,
@@ -149,7 +133,6 @@
    "templates/behavior/statistics.html": 2,
    "templates/behavior/student_profile.html": 1,
    "templates/behavior/summon_parent.html": 3,
-   "templates/clinic/health_record.html": 1,
    "templates/notifications/dashboard.html": 3,
    "templates/staff_affairs/dashboard.html": 3,
    "templates/staff_affairs/licensing.html": 3,
@@ -185,13 +168,10 @@
    "templates/behavior/report_form.html": 152,
    "templates/behavior/security_referral.html": 26,
    "templates/behavior/student_profile.html": 6,
-   "templates/clinic/partials/visit_rows.html": 9,
-   "templates/clinic/visit_card.html": 5,
    "templates/components/_styleguide.html": 34,
    "templates/core/partials/audit_log_table.html": 12,
    "templates/core/permission_audit_log.html": 14,
    "templates/core/student_import_export.html": 83,
-   "templates/library/partials/book_rows.html": 6,
    "templates/notifications/dashboard.html": 8,
    "templates/notifications/partials/log_panel.html": 3,
    "templates/quality/evaluation_dashboard.html": 33,
@@ -224,11 +204,7 @@
    "templates/teacher/partials/grid_cell.html": 31,
    "templates/teacher/partials/student_row.html": 21,
    "templates/teacher/partials/students_list.html": 1,
-   "templates/teacher/schedule.html": 25,
-   "templates/transport/bus_info.html": 3,
-   "templates/transport/buses_list.html": 1,
-   "templates/transport/route_card.html": 3,
-   "templates/transport/student_assignments.html": 3
+   "templates/teacher/schedule.html": 25
   }
  },
  "undefined_classes": [
@@ -352,7 +328,6 @@
   "v-item",
   "value",
   "violation-list",
-  "visit-row",
   "w-100"
  ]
 }
