@@ -267,6 +267,8 @@ class AttendanceService:
             "late": late,
             "excused": excused,
             "percentage": pct,
+            # نصُّ البطاقة جاهزاً — لا سلسلةَ مرشِّحاتٍ في القالب تلصق «%».
+            "percentage_label": f"{pct}%",
         }
 
 

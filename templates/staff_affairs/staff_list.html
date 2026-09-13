@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}سجل الموظفين{% endblock %}
 
@@ -12,15 +13,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} سجل الكادر</h1>
-      <p class="exec-subtitle">{{ total }} منتسباً — كادرُ المدرسة بكلّ فئاته. والطلابُ وأولياءُ الأمور في «شؤون الطلبة»</p>
-    </div>
-    <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="user" %} تعيين منتسب
-    </a>
-  </div>
+  {% comment %}العددُ في ذيل الجدول وحدَه: يتبدّل مع البحث، وكان يُقال في الترويسة أيضاً فيبقى قديماً بعد أوّل ترشيح.{% endcomment %}
+  {% page_header "سجل الكادر" subtitle="كادرُ المدرسة بكلّ فئاته — والطلابُ وأولياءُ الأمور في «شؤون الطلبة»" icon="list-checks" %}
+    <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="user" %} تعيين منتسب</a>
+  {% endpage_header %}
 
   <form method="get" class="filter-bar">
     <div class="filter-field filter-field--grow">

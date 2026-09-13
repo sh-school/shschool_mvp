@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 {% block title %}إعدادات الجدول والتفريغات — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,27 +9,21 @@
 
 {% block content %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول والتفريغات</h1>
-    <p class="page-subtitle">تفريغات المعلمين + الحصص المزدوجة + تفضيلات المعلمين — {{ year }}</p>
-  </div>
-  <div class="page-actions">
-    <a href="{% url 'smart_schedule' %}" class="btn-secondary">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
-  </div>
-</div>
+<div class="exec-dash">
+
+{% page_header "إعدادات الجدول والتفريغات" subtitle=year icon="settings-2" %}
+  <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
+{% endpage_header %}
 
 {# ══ القسم 1: تفريغات المعلمين ══ #}
-<div class="card-qatar mb-6">
-  <div class="card-bar">{% include "components/icon.html" with name="user-minus" %} تفريغات المعلمين والمنسقين</div>
-  <div class="p-5">
-    <p class="text-sm text-secondary mb-4">
+{% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="user-minus" %}
+    <p class="form-note settings-note">
       تفريغ معلم أو منسق من حصة محددة أو يوم كامل (لمهام خارجية أو إدارية).
       النظام يتجنب جدولة حصص للمعلم في الأوقات المفرّغة.
     </p>
 
     {# نموذج إضافة تفريغ #}
-    <form method="post" action="{% url 'add_exemption' %}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 p-4 bg-surface-alt rounded-lg border border-border">
+    <form method="post" action="{% url 'add_exemption' %}" class="exemption-form">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
 
@@ -100,7 +94,7 @@
     {% endcomment %}
     <div data-bulk>
       <form method="post" action="{% url 'remove_exemptions' %}" id="bulk-exemptions"
-            class="flex items-center gap-3 mb-2"
+            class="settings-bulk"
             data-bulk-confirm="إلغاء {n} تفريغاً محدَّداً؟">
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
@@ -109,7 +103,7 @@
           إلغاء المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>
-      <div class="overflow-x-auto">
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -159,11 +153,9 @@
       </div>
     </div>
     {% else %}
-    <p class="text-sm text-muted text-center py-3">لا توجد تفريغات حالياً</p>
+    {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="user-minus" %}
     {% endif %}
-
-  </div>
-</div>
+{% endsection_card %}
 
 {% comment %}
 «إعدادُ الحصص المزدوجة» انتقل إلى شاشة الإسناد (قرارُ المستخدم 2026-09-09).
@@ -181,13 +173,10 @@
 {% endcomment %}
 
 {# ══ القسم 3: تفضيلات المعلمين (للمراجعة) ══ #}
-<div class="card-qatar mb-6">
-  <div class="card-bar">{% include "components/icon.html" with name="users" %} تفضيلات المعلمين المسجلة</div>
-  <div class="p-5">
-    {% if teacher_prefs %}
+{% section_card "تفضيلات المعلمين المسجلة" meta=teacher_prefs|length icon="users" empty="لم يسجّل أيُّ معلّمٍ تفضيلاته بعد" %}{% if teacher_prefs %}
     <div data-bulk>
       <form method="post" action="{% url 'remove_preferences' %}" id="bulk-prefs"
-            class="flex items-center gap-3 mb-2"
+            class="settings-bulk"
             data-bulk-confirm="حذف {n} تفضيلاً محدَّداً؟ ولا يعيده إلّا صاحبُه.">
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
@@ -196,7 +185,7 @@
           حذف المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>
-      <div class="overflow-x-auto">
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -230,12 +219,9 @@
       </table>
       </div>
     </div>
-    {% else %}
-    <p class="text-sm text-muted text-center py-3">لم يسجل أي معلم تفضيلاته بعد</p>
-    {% endif %}
-  </div>
-</div>
+    {% endif %}{% endsection_card %}
 
+</div>
 {% endblock %}
 
 {% block extra_js %}

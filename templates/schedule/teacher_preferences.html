@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تفضيلاتي للجدولة — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,16 +8,13 @@
 
 {% block content %}
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة الذكية</h1>
-    <p class="page-subtitle">حدد تفضيلاتك ليأخذها النظام بعين الاعتبار عند توليد الجدول — {{ year }}</p>
-  </div>
-</div>
+<div class="exec-dash">
+{% page_header "تفضيلاتي للجدولة الذكية" subtitle=year icon="settings" %}{% endpage_header %}
 
-<div class="card-qatar max-w-2xl">
-  <div class="card-bar">{% include "components/icon.html" with name="sliders-horizontal" %} تفضيلات الجدول</div>
-  <form method="post" class="p-5 space-y-5">
+<div class="prefs-page">
+{% section_card "تفضيلات الجدول" icon="sliders-horizontal" %}
+  <p class="form-note prefs-note">حدّد تفضيلاتك ليأخذها النظام بعين الاعتبار عند توليد الجدول.</p>
+  <form method="post" class="prefs-form">
     {% csrf_token %}
 
     <div class="form-group">
@@ -87,11 +85,13 @@
       <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="مثال: أفضل الحصص الأولى في الأسبوع...">{{ pref.notes }}</textarea>
     </div>
 
-    <div class="flex gap-3">
-      <button type="submit" class="btn-primary">حفظ التفضيلات</button>
+    <div class="form-actions">
       <a href="/dashboard/" class="btn-secondary">رجوع</a>
+      <button type="submit" class="btn-primary">حفظ التفضيلات</button>
     </div>
   </form>
+{% endsection_card %}
+</div>
 </div>
 
 {% endblock %}

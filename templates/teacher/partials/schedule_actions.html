@@ -1,0 +1,9 @@
+{% comment %}أزرارُ ترويسة «جدول حصصي» — التاريخُ وأبوابُ التبديل والتعويض، للمعلّم والقيادة معاً.{% endcomment %}
+<form method="get" class="schedule-date">
+  <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="تاريخ الحصص">
+  <button type="submit" class="btn-primary btn-sm">عرض</button>
+</form>
+{% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
+<a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
+<a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
+{% endif %}
