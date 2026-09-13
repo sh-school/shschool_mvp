@@ -102,6 +102,8 @@ def executor_mapping(request):
             "total": len(executor_rows),
             "mapped_count": mapped_count,
             "unmapped_count": len(executor_rows) - mapped_count,
+            # كان «غير مربوط» أحمرَ ولو كان صفراً.
+            "unmapped_tone": "red" if len(executor_rows) - mapped_count else "green",
             "year": year,
         },
     )

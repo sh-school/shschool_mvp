@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إجراءاتي{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,84 +9,60 @@
 {% block content %}
 <div class="qmy">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} إجراءاتي في الخطة التشغيلية</h1>
-    </div>
+  {% page_header "إجراءاتي في الخطة التشغيلية" subtitle=year icon="clipboard-check" %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── Unmapped alert ── #}
-  {% if not mapping_exists %}
-  <div class="alert-strip" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border)">
-    <span class="qmy-alert__icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <div>
-      <p class="qmy-alert__title">حسابك غير مربوط بالخطة التشغيلية</p>
-      <p class="qmy-alert__text">
-        لم يتم ربط حسابك بأي مسمى وظيفي في الخطة التشغيلية بعد.
-        تواصل مع مدير المدرسة لإتمام الربط من صفحة
-        <strong>ربط المنفذين بالموظفين</strong>.
-      </p>
-    </div>
-  </div>
-  {% endif %}
+  {% kpi_strip label="أرقام إجراءاتي" %}
+    {% kpi "إجمالي" total %}
+    {% kpi "مكتمل" completed tone="green" %}
+    {% kpi "نسبة الإنجاز" pct_label tone=pct_tone %}
+  {% endkpi_strip %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ total }}</span>
-      <span class="kpi-mini-label">إجمالي</span>
+  <form method="get" class="filter-bar qmy-filters">
+    <div class="filter-field">
+      <label class="filter-label" for="qmy-status">الحالة</label>
+      <select name="status" id="qmy-status">
+        <option value="">— كل الحالات —</option>
+        {% for val, label in STATUS_CHOICES %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div class="kpi-mini kpi-green">
-      <span class="kpi-mini-value">{{ completed }}</span>
-      <span class="kpi-mini-label">مكتمل</span>
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label" for="qmy-search">بحث</label>
+      <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات...">
     </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ pct }}%</span>
-      <span class="kpi-mini-label">نسبة الإنجاز</span>
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">فلترة</button>
+      <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
     </div>
-  </div>
-
-  {# ── Filters ── #}
-  <form method="get" class="qmy-filters">
-    <select name="status" class="qmy-filters__select">
-      <option value="">— كل الحالات —</option>
-      {% for val, label in STATUS_CHOICES %}
-      <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات..." class="qmy-filters__select qmy-filters__search">
-    <button type="submit" class="btn-primary btn-sm">فلترة</button>
-    <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
   </form>
 
-  {# ── Procedure list ── #}
-  <div class="card-qatar qmy-list" id="qmy-list">
-    {% for proc in procedures %}
-    <a href="{% url 'procedure_detail' proc.id %}" class="qmy-item" data-text="{{ proc.text|lower }}">
-      <div class="qmy-item__body">
-        <p class="qmy-item__num">
-          <span dir="ltr">{{ proc.number }}</span> &middot; {{ proc.indicator.target.domain.name }}
-        </p>
-        <p class="qmy-item__text">{{ proc.text|truncatechars:100 }}</p>
-        <p class="qmy-item__meta">
-          {% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
-          {% if proc.deadline %}
-          &middot; <span class="{% if proc.status != 'Completed' %}qmy-item__deadline{% endif %}">
-            {% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}
+  {% section_card "الإجراءات" meta=procedures|length icon="list-checks" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
+    <p class="form-note is-warning">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      <span><b>حسابك غير مربوط بالخطة التشغيلية.</b> تواصل مع مدير المدرسة ليربطه بمسمّاك الوظيفيّ من صفحة «ربط المنفذين بالموظفين».</span>
+    </p>
+  {% elif procedures %}
+    <ul class="plain-list" id="qmy-list">
+      {% for proc in procedures %}
+      <li class="plain-list__row qmy-item" data-text="{{ proc.text|lower }}">
+        <a href="{% url 'procedure_detail' proc.id %}" class="plain-list__main qmy-item__link">
+          <span class="plain-list__sub"><span dir="ltr">{{ proc.number }}</span> · {{ proc.indicator.target.domain.name }}</span>
+          <span class="plain-list__title">{{ proc.text|truncatechars:100 }}</span>
+          <span class="plain-list__sub">
+            {% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
+            {% if proc.deadline %}
+            · <span class="{% if proc.deadline_overdue %}qmy-item__deadline{% endif %}"{% if proc.deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}</span>
+            {% endif %}
           </span>
-          {% endif %}
-        </p>
-      </div>
-      <span class="qdom-badge {% if proc.status == 'Completed' %}qdom-badge--success{% elif proc.status == 'In Progress' %}qdom-badge--warning{% elif proc.status == 'Pending Review' %}qdom-badge--blue{% else %}qdom-badge--gray{% endif %}">
-        {{ proc.get_status_display }}
-      </span>
-    </a>
-    {% empty %}
-    <div class="qmy-empty">لا توجد إجراءات مرتبطة بحسابك</div>
-    {% endfor %}
-  </div>
+        </a>
+        <span class="status-badge status-{{ proc.status_tone }}">{{ proc.get_status_display }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}
