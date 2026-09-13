@@ -218,3 +218,24 @@ def test_the_scan_actually_reaches_the_stylesheet():
     rules = _screen_rules(css)
     surfaces = sum(1 for _s, d, _c in rules if any(k in d for k in BG_PROPS))
     assert surfaces >= 300, f"لم يُفحَص إلّا {surfaces} سطحاً — المسحُ فارغ"
+
+
+def test_the_empty_department_picker_keeps_its_warning_at_night():
+    """الإطارُ الكهرمانيُّ هو التنبيهُ الوحيد بأنّ المعلّمَ بلا قسم.
+
+    `html.dark select` في `themes` تغلب قاعدةَ `modules` أيّاً كان الوزن،
+    فكانت تُعيد الإطارَ رماديّاً ليلاً فلا تُميَّز القائمةُ الفارغة. قِيس
+    في المتصفّح يومَ 2026-09-13: `#475569` بدل الكهرمانيّ.
+    """
+    for sel, decls, ctx in iter_rules(_css()):
+        parts = {" ".join(p.split()) for p in sel.split(",")}
+        if "html.dark .asg-dept-pick select.empty" not in parts:
+            continue
+        assert any(
+            c.startswith("@layer themes") for c in ctx
+        ), "النظيرةُ خارج `themes` — تغلبها القاعدةُ المركزيّة"
+        assert "--status-warning" in decls.get(
+            "border-color", ""
+        ), "النظيرةُ لا تُبقي الإطارَ كهرمانيّاً"
+        return
+    raise AssertionError("لا نظيرةَ ليليّةً لقائمة القسم الفارغة — يختفي تنبيهُها ليلاً")
