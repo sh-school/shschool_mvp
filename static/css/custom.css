@@ -9175,6 +9175,11 @@ html.dark .df-badge-priority-low    { background: #0d2a2e; color: #80deea; borde
 /* الشطرُ غيرُ المختار يختفي بحقوله — ولا يُترك حقلٌ مخفيٌّ مطلوباً. */
 form:has(#parent-mode-new:checked) .mode-pane--existing,
 form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
+/* «إضافة ربط جديد» مطويّةً: الشريطُ العنّابيُّ نفسُه ملخّصُ `<details>`.
+   ومطويّةً لا يبقى تحت الشريط حشوُ البطاقة — فيُسحب إليه ويستدير من أسفل. */
+.links-add__bar { cursor: pointer; list-style: none; user-select: none; }
+.links-add__bar::-webkit-details-marker { display: none; }
+.links-add:not([open]) > .links-add__bar { margin-block-end: -18px; border-radius: var(--radius-lg); }
 /* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
    التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
    تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
@@ -10574,6 +10579,20 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .asm-save-bar .form-note { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
 .ui-section.is-flush > .ui-section__body > .form-note { border-radius: 0; border-block-start: 1px solid var(--border); }
+
+/* ── مركز معلومات الطلبة — templates/student_info ──
+   عرضُ الأعمدة الثابتة، ونصُّ الملاحظة بأسطره كما كُتب، وعددُ كلّ شريحةٍ
+   بنغمة حالتها (`ACHIEVEMENT_BANDS` في student_info/services.py) — كانت
+   أرقاماً سداسيّةً في `style=` لا تنقلب ليلاً. */
+.sinfo-col-date   { inline-size: 110px; }
+.sinfo-col-title  { inline-size: 200px; }
+.sinfo-col-author { inline-size: 160px; }
+.sinfo-note-body  { white-space: pre-line; }
+.sinfo-band { font-weight: 600; }
+.sinfo-band.is-success { color: var(--status-success-fg); }
+.sinfo-band.is-info    { color: var(--status-info-fg); }
+.sinfo-band.is-warning { color: var(--status-warning-fg); }
+.sinfo-band.is-danger  { color: var(--status-danger-fg); }
 
 
 /* ── 4. ترويسةُ الصفحة ── */

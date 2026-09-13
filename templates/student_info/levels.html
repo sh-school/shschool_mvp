@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load dict_filters %}
+{% load ui %}
 
 {% block title %}المستويات التعليمية وتحصيل الطلبة{% endblock %}
 
@@ -9,13 +9,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية وتحصيل الطلبة</h1>
-      <p class="exec-subtitle">{{ data.total }} نتيجةً مرصودة — {{ year }}</p>
-    </div>
+  {% page_header "المستويات التعليمية وتحصيل الطلبة" subtitle=subtitle icon="bar-chart" %}
     <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
-  </div>
+  {% endpage_header %}
 
   {# المرشِّحات: الصفّ والمسار #}
   <form method="get" class="filter-bar">
@@ -43,36 +39,20 @@
   </form>
 
   {% if data.total %}
-  {# الإجمال #}
-  <div class="stat-row">
-    {% for key, label, floor, color in bands %}
-    <div class="stat-card">
-      <div class="stat-card-value" style="color:{{ color }}">{{ data.overall|dictkey:key }}</div>
-      <div class="stat-card-label">{{ label }}</div>
-      <div class="stat-card-trend">{{ floor }} فأعلى من 100</div>
-    </div>
-    {% endfor %}
-  </div>
+  {# الإجمال: لكلّ شريحةٍ عددُ نتائجها بلونها وحدِّها #}
+  {% kpi_strip label="توزيع النتائج على الشرائح" %}
+    {% for c in band_kpis %}{% kpi c.label c.value sub=c.sub tone=c.tone %}{% endfor %}
+  {% endkpi_strip %}
 
-  {# لكلّ صفّ #}
-  <div class="form-card" style="margin-bottom:var(--sp-4)">
-    <div class="card-header">
-      <div class="card-header-icon">{% include "components/icon.html" with name="list-checks" %}</div>
-      <h3 class="card-header-title">المستوى حسب الصفّ</h3>
-    </div>
+  {% section_card "المستوى حسب الصفّ" meta=data.by_grade|length icon="list-checks" flush=True empty="لا بيانات" %}
     {% include "student_info/_band_table.html" with rows=data.by_grade bands=bands head="الصفّ" %}
-  </div>
+  {% endsection_card %}
 
-  {# لكلّ مادّة #}
-  <div class="form-card">
-    <div class="card-header">
-      <div class="card-header-icon">{% include "components/icon.html" with name="book-open" %}</div>
-      <h3 class="card-header-title">المستوى حسب المادّة</h3>
-    </div>
+  {% section_card "المستوى حسب المادّة" meta=data.by_subject|length icon="book-open" flush=True empty="لا بيانات" %}
     {% include "student_info/_band_table.html" with rows=data.by_subject bands=bands head="المادّة" %}
-  </div>
+  {% endsection_card %}
   {% else %}
-  {% include "components/empty_state.html" with title="لا نتائج سنوية مرصودة بهذه المرشِّحات" %}
+  {% empty_state "لا نتائج سنوية مرصودة بهذه المرشِّحات" %}
   {% endif %}
 </div>
 {% endblock %}
