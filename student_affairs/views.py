@@ -25,6 +25,7 @@ from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
+from core.capabilities import capability_required
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -48,13 +49,6 @@ from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
-from core.permissions import (
-    ACTIVITIES_MANAGE,
-    STUDENT_AFFAIRS_MANAGE,
-    STUDENT_AFFAIRS_VIEW,
-    STUDENT_DEACTIVATE,
-    role_required,
-)
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
@@ -75,7 +69,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_dashboard(request):
     """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
@@ -191,7 +185,7 @@ STUDENT_SORTS = {
 # أصلاً في `core/permissions.py` بقرار MTG-2026-012: المنسّقُ والأخصائيّان
 # يرون الطلبة ولا يبتّون في قيدهم. وكانت القائمةُ تعرض الشاشةَ للمنسّق
 # ويردُّه حارسُها — إذنٌ مكتوبٌ في موضعٍ وممنوعٌ في آخر.
-@role_required(STUDENT_AFFAIRS_VIEW)
+@capability_required("student_affairs.view")
 def student_list(request):
     """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
     school = request.user.get_school()
@@ -405,7 +399,7 @@ def student_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_table_partial(request):
     """HTMX partial — يُعيد التوجيه لـ student_list مع نفس المعاملات."""
     return student_list(request)
@@ -417,7 +411,7 @@ def student_table_partial(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_export_excel(request):
     """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
     import openpyxl
@@ -533,7 +527,7 @@ def student_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_add(request):
     """
     إضافة طالب جديد — مُفوَّض لـ StudentService.create_student().
@@ -619,7 +613,7 @@ def student_add(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_edit(request, student_id):
     """تعديل بيانات طالب موجود."""
     school = request.user.get_school()
@@ -699,7 +693,7 @@ def student_edit(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_DEACTIVATE)
+@capability_required("student_affairs.deactivate")
 @require_POST
 def student_deactivate(request, student_id):
     """
@@ -732,7 +726,7 @@ def student_deactivate(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_profile(request, student_id):
     """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
     school = request.user.get_school()
@@ -895,7 +889,7 @@ def student_profile(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
     school = request.user.get_school()
@@ -926,7 +920,7 @@ def transfer_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
     school = request.user.get_school()
@@ -978,7 +972,7 @@ def transfer_create(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.user.get_school()
@@ -994,7 +988,7 @@ def transfer_detail(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def transfer_review(request, pk):
     """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
@@ -1039,7 +1033,7 @@ def transfer_review(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
     school = request.user.get_school()
@@ -1166,7 +1160,7 @@ def attendance_overview(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_export_excel(request):
     """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
     import openpyxl
@@ -1301,7 +1295,7 @@ def _behaviour_window(school, today):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
     school = request.user.get_school()
@@ -1424,7 +1418,7 @@ def behavior_overview(request):
 
 
 @login_required
-@role_required(ACTIVITIES_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
     school = request.user.get_school()
@@ -1457,7 +1451,7 @@ def activity_list(request):
 
 
 @login_required
-@role_required(ACTIVITIES_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_add(request):
     """تسجيل نشاط أو إنجاز جديد."""
     school = request.user.get_school()
@@ -1510,7 +1504,7 @@ def activity_add(request):
 
 
 @login_required
-@role_required(ACTIVITIES_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_edit(request, pk):
     """تعديل نشاط."""
     school = request.user.get_school()
@@ -1562,7 +1556,7 @@ def activity_edit(request, pk):
 
 
 @login_required
-@role_required(ACTIVITIES_MANAGE)
+@capability_required("student_affairs.activities")
 @require_POST
 def activity_delete(request, pk):
     """حذف نشاط."""
@@ -1580,7 +1574,7 @@ def activity_delete(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_profile_pdf(request, student_id):
     """ملف الطالب الشامل — PDF للطباعة (A4)."""
     school = request.user.get_school()
@@ -1681,7 +1675,7 @@ def student_profile_pdf(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
     # F-001-a: Path traversal sanitization
@@ -1712,7 +1706,7 @@ def protected_media(request, path):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_list(request):
     """قائمة الطلاب المتأخرين — مفلترة حسب التاريخ والصف."""
     school = request.user.get_school()
@@ -1856,7 +1850,7 @@ def tardiness_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_export_excel(request):
     """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
     import openpyxl
@@ -1921,7 +1915,7 @@ def behavior_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_export_excel(request):
     """تصدير قائمة المتأخرين ليوم محدد."""
     import openpyxl
@@ -2038,7 +2032,7 @@ def tardiness_export_excel(request):
 
 
 @login_required
-@role_required(ACTIVITIES_MANAGE)
+@capability_required("student_affairs.activities")
 def activities_export_excel(request):
     """تصدير قائمة الأنشطة والإنجازات."""
     import openpyxl
@@ -2109,7 +2103,7 @@ def activities_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_overview_pdf(request):
     """تصدير إحصائيات الحضور والغياب — PDF."""
     school = request.user.get_school()
@@ -2167,7 +2161,7 @@ def attendance_overview_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_overview_pdf(request):
     """تصدير ملخص السلوك — PDF."""
     school = request.user.get_school()
@@ -2239,7 +2233,7 @@ def behavior_overview_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_pdf(request):
     """تصدير قائمة المتأخرين — PDF."""
     school = request.user.get_school()
@@ -2333,7 +2327,7 @@ def tardiness_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_search_students(request):
     """HTMX — بحث عن طلاب بالاسم لتسجيل تأخير."""
     from django.http import JsonResponse
@@ -2379,7 +2373,7 @@ def tardiness_search_students(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def tardiness_record(request):
     """POST — تسجيل تأخير صباحي لطالب."""
@@ -2491,7 +2485,7 @@ def tardiness_record(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def tardiness_delete(request, pk):
     """حذف سجل تأخير (إعادته لحاضر)."""

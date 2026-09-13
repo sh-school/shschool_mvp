@@ -17,9 +17,9 @@ from assessments.models import Assessment
 from assessments.services import GradeService
 from core import brand
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.export_utils import excel_table_styles, xl_fill, xl_font
 from core.models import CustomUser, StudentEnrollment
-from core.permissions import role_required
 
 from .models import ImportLog
 
@@ -47,16 +47,7 @@ def _with_status_badges(logs) -> list:
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def import_grades_select(request):
     """اختيار التقييم المراد استيراد درجاته"""
     school = request.user.get_school()
@@ -121,16 +112,7 @@ def import_grades_select(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def download_grade_template(request, assessment_id):
     """تحميل ملف Excel فارغ لإدخال الدرجات — مُعبَّأ بأسماء الطلاب"""
     if not OPENPYXL_OK:
@@ -308,16 +290,7 @@ def _validate_upload_request(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
     school = request.user.get_school()
@@ -468,16 +441,7 @@ def _result_presentation(dry_run: bool, imported: int, errors: list) -> dict:
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def import_log_list(request):
     """سجل كل عمليات الاستيراد"""
     if not request.user.is_admin():

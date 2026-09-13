@@ -13,8 +13,8 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser, Membership
-from core.permissions import role_required
 
 from .models import (
     _EVALUABLE_ROLES,
@@ -113,7 +113,7 @@ def _get_evaluable_staff(school, year):
 
 
 @login_required
-@role_required({"principal", "vice_admin", "vice_academic"})
+@capability_required("quality.evaluations")
 def evaluation_dashboard(request):
     """لوحة تحكم تقييم الموظفين — مع قائمة الموظفين"""
     if not _require_evaluator(request):
@@ -197,7 +197,7 @@ def _save_evaluation(request, obj, axes):
 
 
 @login_required
-@role_required({"principal", "vice_admin", "vice_academic"})
+@capability_required("quality.evaluations")
 def create_evaluation(request, employee_id):
     """إنشاء أو تعديل تقييم موظف — مع ربط قالب الدور"""
     if not _require_evaluator(request):

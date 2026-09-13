@@ -21,11 +21,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
-    BEHAVIOR_RECORD,
     BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
     get_teacher_student_ids,
-    role_required,
     teacher_can_access_student,
 )
 
@@ -66,6 +64,7 @@ def _behavior_report_redirect(
 
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
+from core.capabilities import capability_required
 from core.models import BehaviorInfraction, CustomUser
 
 
@@ -164,7 +163,7 @@ def _behaviour_year_window(school):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+@capability_required("behavior.view")
 def behavior_dashboard(request):
     """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
@@ -263,7 +262,7 @@ def _dashboard_presentation(context: dict, today) -> dict:
 
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD)
+@capability_required("behavior.record")
 def report_infraction(request):
     """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر تلقائياً."""
     if not BehaviorPermissions.can_report(request.user):
@@ -401,7 +400,7 @@ def _degree_panels(violations_by_degree: dict) -> list[dict]:
 
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
 @login_required
-@role_required(BEHAVIOR_RECORD)
+@capability_required("behavior.record")
 def quick_log(request):
     """
     تسجيل مخالفة سريعة عبر HTMX Modal.
@@ -515,7 +514,7 @@ def _quick_log_context(user, school, preselected_student_id=""):
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+@capability_required("behavior.view")
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     school = request.user.get_school()
@@ -543,7 +542,7 @@ def student_behavior_profile(request, student_id):
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def committee_dashboard(request):
     """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -556,7 +555,7 @@ def committee_dashboard(request):
 
 
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def committee_decision(request, infraction_id):
     """تسجيل قرار لجنة الضبط السلوكي في مخالفة جسيمة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -594,7 +593,7 @@ def committee_decision(request, infraction_id):
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_RECORD | BEHAVIOR_MANAGE)
+@capability_required("behavior.record")
 def behavior_report(request, student_id):
     """التقرير السلوكي الدوري للطالب — مع إمكانية الإرسال لولي الأمر."""
     if not BehaviorPermissions.can_report(request.user) and not request.user.is_superuser:
@@ -674,7 +673,7 @@ _STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_T
 
 
 @login_required
-@role_required(_STATS_ALLOWED_ROLES)
+@capability_required("behavior.statistics")
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
     role = request.user.get_role()
@@ -728,7 +727,7 @@ def _statistics_presentation(stats: dict) -> dict:
 
 # ── تصعيد إجراء ──────────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def escalate_infraction(request, infraction_id):
     """تصعيد المخالفة إلى الخطوة التالية."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -752,7 +751,7 @@ def escalate_infraction(request, infraction_id):
 
 # ── تسجيل إحالة أمنية ────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def security_referral(request, infraction_id):
     """تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -803,7 +802,7 @@ def _render_behavior_pdf(template_name, context, filename):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+@capability_required("behavior.view")
 def behavior_policy_pdf(request):
     """PDF: لائحةُ السلوك والانضباط بترويسة المدرسة.
 
@@ -824,7 +823,7 @@ def behavior_policy_pdf(request):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.manage")
 def infraction_warning_pdf(request, infraction_id):
     """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -838,7 +837,7 @@ def infraction_warning_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.manage")
 def infraction_parent_pdf(request, infraction_id):
     """PDF: تعهد ولي الأمر المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -852,7 +851,7 @@ def infraction_parent_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.manage")
 def infraction_student_pdf(request, infraction_id):
     """PDF: تعهد الطالب المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -866,7 +865,7 @@ def infraction_student_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | {"psychologist"})
+@capability_required("behavior.summon_parent")
 def summon_parent(request, student_id=None):
     """استدعاء ولي أمر طالب — إرسال إشعار رسمي (إداري فقط)."""
     school = request.user.get_school()
@@ -1023,7 +1022,7 @@ def summon_parent(request, student_id=None):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_RECORD)
+@capability_required("behavior.view")
 def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
     school = request.user.get_school()

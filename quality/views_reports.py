@@ -9,8 +9,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.capabilities import capability_required
 from core.pdf_utils import render_pdf
-from core.permissions import QUALITY_ACCESS, role_required
 
 from .models import ExecutorMapping, OperationalProcedure, QualityCommitteeMember
 from .presentation import kpi_progress_tone, progress_tone
@@ -23,7 +23,7 @@ def _default_year(request=None):
 
 
 @login_required
-@role_required(QUALITY_ACCESS)
+@capability_required("quality.access")
 def progress_report(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
@@ -106,7 +106,7 @@ def progress_report(request):
 
 
 @login_required
-@role_required(QUALITY_ACCESS)
+@capability_required("quality.access")
 def progress_report_pdf(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)

@@ -15,6 +15,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import (
@@ -23,7 +24,6 @@ from core.permissions import (
     OBSERVATION_SELF_CREATE,
     OBSERVATION_SEND,
     OBSERVATION_VIEW_ALL,
-    role_required,
 )
 from core.sorting import apply_sort
 
@@ -289,7 +289,7 @@ def _groups_with_scores(obs):
 
 # ══════════════════════════ إنشاء / تعديل ════════════════════════════
 @login_required
-@role_required(OBSERVATION_CREATE)
+@capability_required("observation.create")
 def observation_create(request):
     school = request.user.get_school()
     if request.method == "POST":
@@ -328,7 +328,7 @@ def observation_create(request):
 
 
 @login_required
-@role_required(OBSERVATION_SELF_CREATE)
+@capability_required("observation.self")
 def observation_self_create(request):
     """تقييم ذاتي — المعلّم يقيّم نفسه (هو المعلّم والمُقيِّم معاً)."""
     school = request.user.get_school()
@@ -361,7 +361,7 @@ def observation_self_create(request):
 
 
 @login_required
-@role_required(OBSERVATION_PEER_CREATE)
+@capability_required("observation.peer")
 def observation_peer_create(request):
     """تبادل الزيارات — معلّمٌ يزور زميله.
 

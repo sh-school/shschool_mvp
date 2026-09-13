@@ -14,10 +14,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.permissions import STAFF_AFFAIRS_MANAGE, role_required
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
@@ -51,7 +51,7 @@ def role_label(name: str) -> str:
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_dashboard(request):
     """لوحة شؤون الموظفين — KPIs + روابط سريعة."""
     school = request.user.get_school()
@@ -164,7 +164,7 @@ STAFF_SORTS = {
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_list(request):
     """سجلُّ منتسبي المدرسة — بحثٌ وترشيحٌ بالفئة والدور والقسم.
 
@@ -355,7 +355,7 @@ def staff_list(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_appoint(request):
     """تعيينُ منتسبٍ جديد — حسابُه وعضويّتُه ومرجعُ قراره في نموذجٍ واحد.
 
@@ -407,7 +407,7 @@ def staff_appoint(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_depart(request, user_id):
     """يسجّل مغادرةَ منتسبٍ — تاريخاً وسبباً ومرجعاً، ولا يمحو تاريخَه."""
@@ -456,7 +456,7 @@ def staff_depart(request, user_id):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_reinstate(request, user_id):
     """يُلغي مغادرةً سُجّلت بالخطأ ويُعيد المنتسبَ إلى الكادر."""
@@ -497,7 +497,7 @@ def _as_errors(exc) -> dict:
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_profile(request, user_id):
     """ملف الموظف الشامل — بيانات + غياب + تقييم + إجازات + رخصة."""
     school = request.user.get_school()
@@ -575,7 +575,7 @@ def staff_profile(request, user_id):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_profile_save(request, user_id, section):
     """يحفظ قسماً من الملفّ — ويكتب في سجلّ المراجعة من غيّر وماذا ومتى."""
@@ -649,7 +649,7 @@ def _flash_errors(request, exc):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_list(request):
     """قائمة طلبات الإجازات مع فلتر."""
     school = request.user.get_school()
@@ -680,7 +680,7 @@ def leave_list(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_request_create(request):
     """تقديم طلب إجازة جديد."""
     school = request.user.get_school()
@@ -727,7 +727,7 @@ def leave_request_create(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_detail(request, pk):
     """تفاصيل طلب إجازة."""
     school = request.user.get_school()
@@ -736,7 +736,7 @@ def leave_detail(request, pk):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def leave_review(request, pk):
     """مراجعة طلب إجازة — موافقة أو رفض."""
@@ -771,7 +771,7 @@ def leave_review(request, pk):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def licensing_overview(request):
     """نظرة شاملة على الرخص المهنية — منتهية / تنتهي قريباً / سارية."""
     school = request.user.get_school()
