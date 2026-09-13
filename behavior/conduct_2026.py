@@ -1425,11 +1425,9 @@ CATALOG: tuple[Infraction, ...] = (
 
 BY_CODE: dict[str, Infraction] = {item.code: item for item in CATALOG}
 
-#: التأخّرُ عن الحصّة — قرارُ المدرسة (2026-09-13): دخولٌ بعد خمس دقائق من بدئها.
-#: والدليلُ يعرّفه بلا رقم: «تعمّد تأخّر الطالب عن حضور الحصّة ودخوله بعد المعلّم
-#: بدون عذرٍ مقبول» (ص5).
+#: التأخّرُ عن الحصّة. وعتبةُ دقائقه قرارُ مدرسةٍ في سياسة الحضور لا هنا:
+#: `operations.absence_policy.PERIOD_TARDY_AFTER_MINUTES`.
 PERIOD_TARDY_CODE = "1-01"
-PERIOD_TARDY_AFTER_MINUTES = 5
 
 #: الهروبُ من الحصّة (حصّةٌ كاملة) — يُعدّ تكرارُه لكلّ مادّةٍ على حدة (ص91).
 CLASS_ESCAPE_CODE = "2-02"
