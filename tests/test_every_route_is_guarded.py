@@ -65,6 +65,7 @@ OPEN_BY_DESIGN = {
     "status/": "حالةُ الخدمة (القاعدة والذاكرة المؤقّتة) — بلا بياناتِ أشخاص",
     "styleguide/": "مرجعُ التصميم — مكوّناتٌ بلا بيانات",
     "styleguide/icons/": "مرجعُ الأيقونات",
+    "styleguide/components/": "مرجعُ مكوّنات الواجهة — أمثلةٌ توضيحيّة بلا بيانات",
     "academic/evaluations/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/departments/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/test-analytics/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
