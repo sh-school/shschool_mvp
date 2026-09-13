@@ -1,3 +1,4 @@
+{% load brand_tags %}
 {% load static %}
 {% comment %}
 ورقةُ الصفحات — صفحةٌ لكلّ معلّمٍ (مرتّبةً بالأقسام) أو لكلّ شعبة (بترتيب المدرسة).
@@ -26,21 +27,21 @@
       content: "{{ school.name }} — {{ year }} — " counter(page) " / " counter(pages);
       font-family: "Tajawal", sans-serif;
       font-size: 8pt;
-      color: #999;
+      color: {% brand_color "TEXT_MUTED" %};
     }
   }
 
   body {
     font-family: "Tajawal", "Segoe UI", Tahoma, sans-serif;
     direction: rtl;
-    background: #f4f4f5;
+    background: {% brand_color "SURFACE_ALT" %};
     margin: 0;
-    color: #222;
+    color: {% brand_color "TEXT_PRIMARY" %};
   }
 
   /* الشاشةُ تحاكي الورقة: عرضُها عرضُ A4 بالاتّجاه المختار. */
   .sheet {
-    background: #fff;
+    background: {% brand_color "SURFACE" %};
     width: {% if paper == 'a3' %}{% if orient == 'landscape' %}400mm{% else %}277mm{% endif %}{% else %}{% if orient == 'landscape' %}277mm{% else %}190mm{% endif %}{% endif %};
     margin: 12px auto;
     padding: 8mm;
@@ -49,67 +50,67 @@
 
   .page-header { text-align: center; margin-bottom: 4mm; }
   .print-emblem { height: {% if orient == 'landscape' %}12mm{% else %}16mm{% endif %}; margin-bottom: 1mm; }
-  .ministry { font-size: 10px; color: #777; }
-  .school-name { font-size: 16px; font-weight: 700; color: #8A1538; margin: 1px 0; }
-  .doc-title { font-size: 13px; color: #444; }
-  .year { font-size: 10px; color: #888; }
+  .ministry { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; }
+  .school-name { font-size: 16px; font-weight: 700; color: {% brand_color "MAROON" %}; margin: 1px 0; }
+  .doc-title { font-size: 13px; color: {% brand_color "TEXT_SECONDARY" %}; }
+  .year { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; }
 
   .who {
     display: flex;
     justify-content: space-between;
     gap: 8px;
     flex-wrap: wrap;
-    border: 1px solid #e2c9d1;
-    background: #fdf2f5;
+    border: 1px solid {% brand_color "BORDER_STRONG" %};
+    background: {% brand_color "MAROON_BG" %};
     border-radius: 6px;
     padding: 5px 10px;
     margin-bottom: 3mm;
     font-size: 12px;
   }
-  .who b { color: #8A1538; }
-  .who .specialty { color: #6B1029; font-weight: 500; }
+  .who b { color: {% brand_color "MAROON" %}; }
+  .who .specialty { color: {% brand_color "MAROON_DARK" %}; font-weight: 500; }
 
   table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
   table.grid th, table.grid td {
-    border: 1px solid #d9d9d9;
+    border: 1px solid {% brand_color "BORDER_STRONG" %};
     text-align: center;
     vertical-align: middle;
     padding: 2px 3px;
   }
-  table.grid thead th { background: #8A1538; color: #fff; font-size: 12px; padding: 5px 3px; }
+  table.grid thead th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; font-size: 12px; padding: 5px 3px; }
   /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة. */
   table.grid td.period-cell {
-    background: #fdf2f5;
+    background: {% brand_color "MAROON_BG" %};
     font-weight: 700;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     width: 11%;
     font-size: 12px;
   }
   /* خمسةُ سطورٍ تملأ الورقة ولا تفيض عنها — وكانت سبعةً قبل قلبِ الجدول. */
   {# ارتفاعُ السطر من ارتفاع الورقة مقسوماً على خمسة: A4 عرضيّة 22mm وعموديّة 36mm، وA3 ضعفُها تقريباً. #}
   table.grid td { height: {% if paper == 'a3' %}{% if orient == 'landscape' %}36mm{% else %}56mm{% endif %}{% else %}{% if orient == 'landscape' %}22mm{% else %}36mm{% endif %}{% endif %}; }
-  .slot-subject { font-weight: 700; color: #8A1538; font-size: 11px; line-height: 1.25; }
-  .slot-meta { font-size: 10px; color: #666; margin-top: 1px; }
+  .slot-subject { font-weight: 700; color: {% brand_color "MAROON" %}; font-size: 11px; line-height: 1.25; }
+  .slot-meta { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; margin-top: 1px; }
   /* التوقيتُ من اليسار: أرقامٌ في سياقٍ عربيٍّ تنقلب — والعازلان في النصّ لأنّ مولّد PDF لا يقرأ direction. */
-  .slot-time { font-size: 9px; color: #999; margin-top: 1px; direction: ltr; unicode-bidi: embed; }
-  .slot-subject + .slot-subject { margin-top: 3px; padding-top: 3px; border-top: 1px dashed #e6c9d3; }
-  .slot-empty { color: #ccc; }
+  .slot-time { font-size: 9px; color: {% brand_color "TEXT_MUTED" %}; margin-top: 1px; direction: ltr; unicode-bidi: embed; }
+  .slot-subject + .slot-subject { margin-top: 3px; padding-top: 3px; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
+  .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
 
   /* ذيلُ كلّ صفحة: الوزارةُ والمدرسةُ وتاريخُ الطباعة ووقتُها، ورؤيةُ الوزارة (قرار 2026-09-06). */
   .page-footer {
     margin-top: 3mm;
     padding-top: 1.5mm;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid {% brand_color "BORDER" %};
     font-size: 8.5px;
-    color: #888;
+    color: {% brand_color "TEXT_MUTED" %};
     text-align: center;
     line-height: 1.5;
   }
   .page-footer .stamp { direction: ltr; unicode-bidi: embed; }
-  .empty-note { text-align: center; color: #888; padding: 20mm 0; font-size: 13px; }
+  .empty-note { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 20mm 0; font-size: 13px; }
 
   @media print {
-    body { background: #fff; }
+    body { background: {% brand_color "SURFACE" %}; }
     html, body { height: 100%; }
     /* الورقةُ عمودٌ مرنٌ يملأ ارتفاع الصفحة، والجدولُ يأخذ ما بقي بعد الرأس
        والترويسة — فلا يُقاس ارتفاعُ السطر بالملّيمتر ولا يفيض سابعُها إلى

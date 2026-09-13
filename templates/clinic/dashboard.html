@@ -189,8 +189,8 @@ async function fc(url,chartId){
   new Chart(document.getElementById('chartClinic'),{
     type:'line',
     data:{labels:d.labels,datasets:[
-      {label:'الزيارات',data:d.visits,borderColor:'#1A3A5C',backgroundColor:'rgba(26,58,92,0.1)',fill:true,tension:0.3,borderWidth:1.5,pointRadius:1.5}, /* chart-3 */
-      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:'#dc2626',backgroundColor:'transparent',tension:0.3,borderDash:[5,5],borderWidth:1.5,pointRadius:1} /* status-danger */
+      {label:'الزيارات',data:d.visits,borderColor:chartColor('chart-3'),backgroundColor:chartAlpha('chart-3', .1),fill:true,tension:0.3,borderWidth:1.5,pointRadius:1.5},
+      {label:'أُرسلوا للمنزل',data:d.sent_home,borderColor:chartColor('status-danger'),backgroundColor:'transparent',tension:0.3,borderDash:[5,5],borderWidth:1.5,pointRadius:1}
     ]},
     options:{...OPTS,
       scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}}},

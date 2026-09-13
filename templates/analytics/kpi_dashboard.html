@@ -43,7 +43,7 @@ const TL = { green:'ممتاز', yellow:'تحذير', red:'خطر', grey:'غير
 const TB = {
   green:  'background:var(--status-success-bg);color:var(--status-success-fg)',
   yellow: 'background:var(--status-warning-bg);color:var(--status-warning-fg)',
-  red:    'background:#fef2f2;color:#991b1b',
+  red:    'background:var(--status-danger-bg);color:var(--status-danger-fg)',
   grey:   'background:var(--surface-alt);color:var(--text-muted)'
 };
 const KPI_ICONS = {
@@ -189,7 +189,7 @@ function buildCharts(kpis) {
 
   const isDark = document.documentElement.classList.contains('dark');
   const gridColor = isDark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.08)';
-  const textColor = isDark ? '#cbd5e1' : '#4b5563';
+  const textColor = chartColor('text-secondary');
 
   const radarCtx = document.getElementById('radarChart');
   if (radarCtx) {
@@ -199,11 +199,11 @@ function buildCharts(kpis) {
         labels,
         datasets: [{
           data: values,
-          backgroundColor: 'rgba(138,21,56,.12)',
-          borderColor: '#8A1538',
+          backgroundColor: chartAlpha('chart-1', .12),
+          borderColor: chartColor('chart-1'),
           borderWidth: 2,
           pointBackgroundColor: colors,
-          pointBorderColor: '#fff',
+          pointBorderColor: chartColor('surface'),
           pointBorderWidth: 1,
           pointRadius: 4,
           fill: true

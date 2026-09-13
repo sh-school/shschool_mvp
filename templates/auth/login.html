@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+{% load brand_tags %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#8A1538" id="meta-theme-color">
+  <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
   <script nonce="{{ request.csp_nonce }}">
-    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
+    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   <title>تسجيل الدخول — {{ current_school.name|default:"المدرسة" }}</title>
   {% load static %}

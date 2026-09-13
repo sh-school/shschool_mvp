@@ -1,13 +1,14 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 
 {% block extra_styles %}
-.grade-a { color: #15803d; font-weight: 700; }
-.grade-b { color: #1d4ed8; font-weight: 700; }
-.grade-c { color: #d97706; font-weight: 700; }
-.grade-f { color: #dc2626; font-weight: 700; }
+.grade-a { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
+.grade-b { color: {% brand_color "STATUS_INFO_FG" %}; font-weight: 700; }
+.grade-c { color: {% brand_color "STATUS_WARNING" %}; font-weight: 700; }
+.grade-f { color: {% brand_color "STATUS_DANGER" %}; font-weight: 700; }
 .rank-badge {
   display: inline-block; width: 22px; height: 22px;
-  border-radius: 50%; background: #8A1538; color: #fff;
+  border-radius: 50%; background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %};
   font-size: 10px; font-weight: 700; line-height: 22px; text-align: center;
 }
 {% endblock %}
@@ -120,8 +121,8 @@
 </div>
 
 {% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
+  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
   <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
   <p style="margin:2px 0 0">{{ school.name }} — وثيقة رسمية — SchoolOS</p>
 </div>
