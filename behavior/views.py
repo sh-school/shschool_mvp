@@ -538,14 +538,12 @@ def committee_decision(request, infraction_id):
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
-    from .constants import ESCALATION_STEPS as ESC_STEPS
-
     return render(
         request,
         "behavior/committee_decision.html",
         {
             "infraction": infraction,
-            "escalation_steps": ESC_STEPS.get(infraction.level, []),
+            "escalation_steps": infraction.get_escalation_steps(),
         },
     )
 
