@@ -6,12 +6,13 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 
+from core.capabilities import capability_required
+
 from .models.permission_audit import PermissionAuditLog
-from .permissions import role_required
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic")
+@capability_required("audit.permissions_log")
 def permission_audit_log(request):
     """
     عرض سجل كامل لتغييرات الصلاحيات والأدوار في المدرسة.

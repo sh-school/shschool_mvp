@@ -14,8 +14,8 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.capabilities import capability_required
 from core.models import CustomUser, Membership
-from core.permissions import QUALITY_MANAGE, role_required
 
 from .models import ExecutorMapping, OperationalProcedure
 
@@ -41,7 +41,7 @@ def _executor_mapping_redirect(request, year):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 def executor_mapping(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -108,7 +108,7 @@ def executor_mapping(request):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 @require_POST
 def save_executor_mapping(request):
     if not request.user.is_admin():
@@ -146,7 +146,7 @@ def save_executor_mapping(request):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 @require_POST
 def apply_all_mappings(request):
     if not request.user.is_admin():

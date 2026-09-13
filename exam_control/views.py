@@ -8,7 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for
-from core.permissions import EXAM_CONTROL_ACCESS, role_required
+from core.capabilities import capability_required
+from core.permissions import EXAM_CONTROL_ACCESS
 
 from .models import (
     ExamGradeSheet,
@@ -27,7 +28,7 @@ def _can_access(user):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def dashboard(request):
     """لوحة القيادة — ملخص كل دورات الاختبار"""
     school = request.user.get_school()
@@ -37,7 +38,7 @@ def dashboard(request):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def session_create(request):
     """إنشاء دورة اختبار جديدة"""
     if request.method == "POST":
@@ -63,7 +64,7 @@ def session_create(request):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def session_detail(request, pk):
     """تفاصيل دورة الاختبار"""
     school = request.user.get_school()
@@ -84,7 +85,7 @@ def session_detail(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def supervisors(request, pk):
     """تشكيل الكنترول — المحور 1"""
     school = request.user.get_school()
@@ -116,7 +117,7 @@ def supervisors(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def schedule(request, pk):
     """جدول الاختبارات"""
     school = request.user.get_school()
@@ -145,7 +146,7 @@ def schedule(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def incidents(request, pk):
     """قائمة حوادث الاختبار"""
     school = request.user.get_school()
@@ -157,7 +158,7 @@ def incidents(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def incident_add(request, pk):
     """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)"""
     school = request.user.get_school()
@@ -204,7 +205,7 @@ def incident_add(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def incident_pdf(request, pk):
     """توليد PDF لمحضر الحادثة (الأقسام أ–ز)"""
     from django.template.loader import render_to_string
@@ -224,7 +225,7 @@ def incident_pdf(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def grade_sheets(request, pk):
     """إدارة أوراق الرصد والتصحيح"""
     school = request.user.get_school()
@@ -248,7 +249,7 @@ def grade_sheets(request, pk):
 
 
 @login_required
-@role_required(EXAM_CONTROL_ACCESS)
+@capability_required("exam_control.access")
 def session_report_pdf(request, pk):
     """تقرير PDF شامل للدورة (ملخص + حوادث + رصد)"""
     from django.template.loader import render_to_string
