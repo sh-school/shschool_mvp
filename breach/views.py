@@ -57,7 +57,17 @@ def dashboard(request):
         "overdue": sum(1 for r in reports if r.is_overdue),
         **db_stats,
     }
-    return render(request, "breach/dashboard.html", {"reports": reports, "stats": stats})
+    return render(
+        request,
+        "breach/dashboard.html",
+        {
+            "reports": reports,
+            "stats": stats,
+            # اللونُ يحمل التنبيه: مهلةٌ فائتةٌ حمراء، وخرقٌ نشطٌ كهرمانيّ، وصفرُهما أخضر.
+            "overdue_tone": "red" if stats["overdue"] else "green",
+            "active_tone": "amber" if stats["active"] else "green",
+        },
+    )
 
 
 @login_required

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إدارة خرق البيانات{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,43 +7,21 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="flag" %} تقارير خرق البيانات</h1>
-      <p class="page-subtitle">PDPPL م.11 — إشعار NCSA خلال 72 ساعة</p>
-    </div>
-    <div class="page-actions">
-      <a href="{% url 'breach:create' %}" class="btn-danger no-underline text-xs" aria-label="تسجيل خرق بيانات جديد">+ تسجيل خرق</a>
-    </div>
-  </div>
+  {% page_header "تقارير خرق البيانات" subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة" icon="flag" %}
+    <a href="{% url 'breach:create' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل خرق</a>
+  {% endpage_header %}
 
-  {# ── KPIs ── #}
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="kpi-card">
-      <div class="kpi-value text-status-danger">{{ stats.overdue }}</div>
-      <div class="kpi-label">تجاوز المهلة</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-warning">{{ stats.active }}</div>
-      <div class="kpi-label">نشط</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-success">{{ stats.notified }}</div>
-      <div class="kpi-label">تم الإشعار</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-value text-status-muted">{{ stats.resolved }}</div>
-      <div class="kpi-label">محلول</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الخروقات" %}
+    {% kpi "تجاوز المهلة" stats.overdue tone=overdue_tone title="تقاريرُ فاتتها مهلةُ إشعار NCSA (72 ساعة)" %}
+    {% kpi "نشط" stats.active sub="مكتشَف أو قيد التقييم" tone=active_tone %}
+    {% kpi "تم الإشعار" stats.notified tone="green" %}
+    {% kpi "محلول" stats.resolved tone="teal" %}
+  {% endkpi_strip %}
 
-  {# ── جدول التقارير ── #}
-  <div class="table-wrap">
-    <div class="card-bar">جدول التقارير</div>
-    <div class="overflow-x-auto">
+  {% section_card "سجلّ التقارير" icon="list-checks" flush=True empty="لا توجد تقارير خرق مسجلة" %}{% if reports %}
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -57,54 +36,34 @@
         </thead>
         <tbody>
           {% for b in reports %}
-          <tr>
-            <td class="font-semibold">{{ b.title }}</td>
+          <tr{% if b.is_overdue %} class="is-danger"{% endif %}>
+            <td>{{ b.title }}</td>
             <td>
-              <span class="status-badge
-                {% if b.severity == 'critical' %}status-danger
-                {% elif b.severity == 'high' %}status-danger
-                {% elif b.severity == 'medium' %}status-warning
-                {% else %}status-gray{% endif %}">
-                {{ b.get_severity_display }}
-              </span>
+              <span class="status-badge {% if b.severity == 'critical' or b.severity == 'high' %}status-danger{% elif b.severity == 'medium' %}status-warning{% else %}status-gray{% endif %}">{{ b.get_severity_display }}</span>
             </td>
-            <td class="text-xs">{{ b.get_data_type_affected_display }}</td>
-            <td class="text-xs">{{ b.discovered_at|date:"d/m H:i" }}</td>
-            <td>
+            <td>{{ b.get_data_type_affected_display }}</td>
+            <td class="num">{{ b.discovered_at|date:"d/m H:i" }}</td>
+            <td class="num">
               {% if b.hours_remaining != None %}
                 {% if b.is_overdue %}
-                  <span class="text-status-danger font-bold">تجاوز</span>
+                  <span class="status-badge status-danger">تجاوز</span>
                 {% elif b.hours_remaining <= 12 %}
-                  <span class="text-status-warning font-bold">{{ b.hours_remaining }}س</span>
+                  <span class="status-badge status-warning">{{ b.hours_remaining }}س</span>
                 {% else %}
-                  <span class="text-status-success">{{ b.hours_remaining }}س</span>
+                  <span class="status-badge status-success">{{ b.hours_remaining }}س</span>
                 {% endif %}
               {% else %}—{% endif %}
             </td>
             <td>
-              <span class="status-badge
-                {% if b.status == 'discovered' %}status-danger
-                {% elif b.status == 'assessing' %}status-warning
-                {% elif b.status == 'notified' %}status-success
-                {% else %}status-gray{% endif %}">
-                {{ b.get_status_display }}
-              </span>
+              <span class="status-badge {% if b.status == 'discovered' %}status-danger{% elif b.status == 'assessing' %}status-warning{% elif b.status == 'notified' %}status-success{% else %}status-gray{% endif %}">{{ b.get_status_display }}</span>
             </td>
-            <td>
-              <a href="{% url 'breach:detail' b.pk %}" class="btn-secondary btn-sm">تفاصيل</a>
-            </td>
+            <td><a href="{% url 'breach:detail' b.pk %}" class="btn-secondary btn-xs">تفاصيل</a></td>
           </tr>
-          {% empty %}
-          <tr><td colspan="7">
-            <div class="empty-state p-6">
-              <p class="empty-sub">لا توجد تقارير خرق مسجلة</p>
-            </div>
-          </td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

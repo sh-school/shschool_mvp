@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}الملف السلوكي — {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,115 +8,62 @@
 
 {% block content %}
 <div class="exec-dash">
- {# ── Profile Header ── #}
- <div class="profile-header">
-   <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
-   <div class="profile-info">
-     <div class="profile-name">{% include "components/icon.html" with name="scale" %} الملف السلوكي</div>
-     <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id|mask_id }}</span></div>
-   </div>
-   <div class="flex gap-2 flex-wrap">
-     {% if can_summon %}
-     <a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-primary btn-sm no-underline">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
-     {% endif %}
-     <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank"
-        class="btn-danger btn-sm no-underline flex items-center gap-1"
-        title="طباعة التقرير السلوكي الشامل للطالب A4">
-       {% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل
-     </a>
-     {% if can_report %}
-     <a href="{% url 'behavior:report_infraction' %}" class="btn-danger btn-sm no-underline">+ مخالفة جديدة</a>
-     {% endif %}
-     <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-   </div>
- </div>
 
- {# ── KPI Strip ── #}
- <div class="kpi-strip">
-   <div class="kpi-mini kpi-maroon">
-     <span class="kpi-mini-value">{{ infractions.count }}</span>
-     <span class="kpi-mini-label">إجمالي المخالفات</span>
-   </div>
- </div>
- {# ── Infractions ── #}
- <div class="dash-chart-card">
- <div class="dash-chart-title">{% include "components/icon.html" with name="file-text" %} سجل المخالفات</div>
- {% if infractions %}
- <div class="filter-bar px-4 py-2 border-b">
-   <input type="text" id="infractionsSearch" class="form-control form-control-sm"
-          placeholder="بحث في المخالفات..." autocomplete="off">
- </div>
- <div class="table-wrap-scroll divide-y" style="max-height:420px;overflow-y:auto">
- {% for inf in infractions %}
- <div class="px-5 py-4 hover:bg-gray-50 filterable-row"
-      data-text="{{ inf.description }} {{ inf.violation_category.name_ar|default:'' }} {{ inf.date }} {{ inf.level }}">
- <div class="flex justify-between items-start">
- <div class="flex-1">
- <div class="flex items-center gap-2 mb-1 flex-wrap">
- <span class="status-badge
- {% if inf.level == 1 %}status-success
- {% elif inf.level == 2 %}status-warning
- {% elif inf.level == 3 %}status-warning
- {% else %}status-danger{% endif %}">
- الدرجة {{ inf.level }}
- </span>
- {% if inf.violation_category %}
- <span class="status-badge status-gray" title="{{ inf.violation_category.name_ar }}">
- {{ inf.violation_category.code }}
- </span>
- {% endif %}
- {% if inf.escalation_step %}
- <span class="status-badge status-info">
- الخطوة {{ inf.escalation_step }}
- </span>
- {% endif %}
- {% if inf.is_resolved %}<span class="status-badge status-success">محلولة</span>{% endif %}
- {% if inf.parent_summoned %}<span class="status-badge status-warning">استدعاء ولي أمر</span>{% endif %}
- {% if inf.security_agency %}<span class="status-badge status-danger">إحالة أمنية</span>{% endif %}
- </div>
- {% if inf.violation_category %}
- <p class="text-sm font-medium text-gray-800 mb-0.5">{{ inf.violation_category.name_ar }}</p>
- {% endif %}
- <p class="text-sm text-gray-700">{{ inf.description }}</p>
- {% if inf.action_taken %}<p class="text-xs text-gray-500 mt-1">الإجراء: {{ inf.action_taken }}</p>{% endif %}
- <p class="text-xs text-gray-400 mt-1">{{ inf.date }} | {{ inf.reported_by.full_name|default:"—" }}</p>
- </div>
- <div class="flex flex-col gap-1 shrink-0 me-2">
- {% if is_committee and not inf.is_resolved %}
- <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" class="inline">
- {% csrf_token %}
- <button type="submit" class="btn-warning btn-sm w-full">
- {% include "components/icon.html" with name="activity" %} تصعيد
- </button>
- </form>
- {% endif %}
- {% if is_committee and inf.level == 4 and not inf.security_agency %}
- <a href="{% url 'behavior:security_referral' inf.id %}"
- class="btn-danger text-xs text-white px-3 py-1.5 rounded-lg text-center">
- {% include "components/icon.html" with name="lock" %} إحالة أمنية
- </a>
- {% endif %}
- <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank"
- class="btn-danger text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
- {% include "components/icon.html" with name="printer" %} إنذار
- </a>
- <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank"
- class="btn-warning btn-xs text-center" title="طباعة PDF">
- {% include "components/icon.html" with name="printer" %} تعهد ولي
- </a>
- <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank"
- class="btn-primary text-xs text-white px-2 py-1 rounded text-center" title="طباعة PDF">
- {% include "components/icon.html" with name="printer" %} تعهد طالب
- </a>
- </div>
- </div>
- </div>
- {% endfor %}
- </div>
- {% else %}
- <div class="p-12 text-center text-gray-400"><p class="text-3xl mb-2">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</p><p>لا توجد مخالفات مسجلة</p></div>
- {% endif %}
- </div>
+  {% page_header student.full_name subtitle=student.national_id|mask_id icon="scale" %}
+    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} مخالفة جديدة</a>{% endif %}
+    {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>{% endif %}
+    <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="طباعة التقرير السلوكي الشامل للطالب A4">{% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل</a>
+  {% endpage_header %}
+
+  {# نظامُ النقاط ملغى — الأرقامُ عددُ المخالفات. #}
+  {% kpi_strip label="مخالفات الطالب" %}
+    {% kpi "إجمالي المخالفات" infractions|length tone="maroon" %}
+    {% kpi "الدرجة الأولى" by_level.1 tone="blue" %}
+    {% kpi "الدرجة الثانية" by_level.2 tone="amber" %}
+    {% kpi "الدرجة الثالثة" by_level.3 tone="orange" %}
+    {% kpi "الدرجة الرابعة" by_level.4 tone="red" %}
+  {% endkpi_strip %}
+
+  {% section_card "سجل المخالفات" icon="file-text" empty="لا توجد مخالفات مسجلة" %}{% if infractions %}
+    <input type="search" id="infractionsSearch" class="form-control form-control-sm beh-search"
+           placeholder="بحث في المخالفات..." aria-label="بحث في المخالفات" autocomplete="off">
+    <ul class="plain-list">
+      {% for inf in infractions %}
+        <li class="plain-list__row beh-case filterable-row"
+            data-text="{{ inf.description }} {{ inf.violation_category.name_ar|default:'' }} {{ inf.date }} {{ inf.level }}">
+          <div class="plain-list__main beh-case__main">
+            <span class="beh-badges">
+              <span class="status-badge {% if inf.level == 1 %}status-success{% elif inf.level == 4 %}status-danger{% else %}status-warning{% endif %}">الدرجة {{ inf.level }}</span>
+              {% if inf.violation_category %}<span class="status-badge status-gray" title="{{ inf.violation_category.name_ar }}">{{ inf.violation_category.code }}</span>{% endif %}
+              {% if inf.escalation_step %}<span class="status-badge status-info">الخطوة {{ inf.escalation_step }}</span>{% endif %}
+              {% if inf.is_resolved %}<span class="status-badge status-success">محلولة</span>{% endif %}
+              {% if inf.parent_summoned %}<span class="status-badge status-warning">استدعاء ولي أمر</span>{% endif %}
+              {% if inf.security_agency %}<span class="status-badge status-danger">إحالة أمنية</span>{% endif %}
+            </span>
+            {% if inf.violation_category %}<b class="plain-list__title">{{ inf.violation_category.name_ar }}</b>{% endif %}
+            <span class="beh-case__text">{{ inf.description }}</span>
+            {% if inf.action_taken %}<span class="plain-list__sub" title="{{ inf.action_taken }}">الإجراء: {{ inf.action_taken }}</span>{% endif %}
+            <span class="plain-list__sub">{{ inf.date }} · {{ inf.reported_by.full_name|default:"—" }}</span>
+          </div>
+          <div class="beh-row-actions">
+            {% if is_committee and not inf.is_resolved %}
+            <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn-warning btn-xs">{% include "components/icon.html" with name="activity" %} تصعيد</button>
+            </form>
+            {% endif %}
+            {% if is_committee and inf.level == 4 and not inf.security_agency %}
+            <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% include "components/icon.html" with name="lock" %} إحالة أمنية</a>
+            {% endif %}
+            <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} إنذار</a>
+            <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} تعهد ولي</a>
+            <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} تعهد طالب</a>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+
 </div>
 {% endblock %}
 
