@@ -16,9 +16,9 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.export_utils import generate_export_filename, get_export_context
 from core.pdf_utils import render_pdf
-from core.permissions import WING_DAY_RECORD, role_required
 from reports.services import ExcelService
 
 from .register import section_register, wing_register
@@ -57,7 +57,7 @@ def _respond(request, *, fmt, title, slug, context, workbook):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def section_register_export(request, class_id):
     """كشفُ شعبةٍ لليوم — طباعةً أو PDF أو Excel."""
     _school, klass = _own_class(request, class_id)
@@ -74,7 +74,7 @@ def section_register_export(request, class_id):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def wing_register_export(request, code):
     """كشفُ الجناح كاملاً لليوم — ملخّصُ الشُّعب ثمّ كشفُ كلّ شعبة."""
     school = request.user.get_school()
