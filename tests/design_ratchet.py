@@ -109,6 +109,46 @@ STYLE_BLOCK_RE = re.compile(
 )
 
 
+#: خطّافُ سلوكٍ لا نمط: صنفٌ تقرؤه JS محدِّداً (`.js-filter-row`) — لا يُعرَّف في CSS
+#: عمداً، فتعريفُه يخلط ما يُرى بما يُفعل، وتغييرُ شكله يكسر سلوكاً لا يُرى.
+HOOK_PREFIX = "js-"
+
+#: قوالبُ لوحة إدارة Django ترث `admin/…` وتُرسم بأنماط Django نفسها (`admin/css/*.css`
+#: في الحزمة) لا بأنماط المنصّة — فهذه الأصنافُ معرَّفةٌ هناك، والحارسُ لا يقرأ حزمَ الطرف الثالث.
+ADMIN_EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']admin/""")
+ADMIN_CLASSES = frozenset(
+    {"aligned", "button", "cancel-link", "deletelink", "errornote", "module", "submit-row"}
+)
+EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
+
+
+def _template_file(name: str) -> pathlib.Path | None:
+    for root in list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates")):
+        if (root / name).is_file():
+            return root / name
+    return None
+
+
+def _local_classes(text: str, seen: frozenset[str] = frozenset()) -> set[str]:
+    """أصنافُ `<style>` القالب وآبائه في سلسلة `{% extends %}`.
+
+    الوثائقُ الرسميّة ترث `reports/base_qatar_report.html` الذي يعرّف `sig-block`
+    و`report-meta` مرّةً واحدة — فالصنفُ في الابن معرَّفٌ حقّاً، وعدُّه «بلا تعريف»
+    كان يدفع إلى نسخ التعريف في كلّ ابن.
+    """
+    names = {
+        re.sub(r"\\(.)", r"\1", m.group(1))
+        for blocks in STYLE_BLOCK_RE.findall(text)
+        for m in CSS_CLASS_RE.finditer("".join(blocks))
+    }
+    parent = EXTENDS_RE.search(text)
+    if parent and parent.group(1) not in seen:
+        path = _template_file(parent.group(1))
+        if path is not None:
+            names |= _local_classes(path.read_text(encoding="utf-8"), seen | {parent.group(1)})
+    return names
+
+
 def live_templates():
     roots = list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates"))
     for root in roots:
@@ -146,12 +186,10 @@ def undefined_classes() -> list[str]:
     missing = set()
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
-        # صنفٌ يعرّفه القالبُ في `<style>` نفسه معرَّف — قوالبُ التقارير تفعل ذلك.
-        local = {
-            re.sub(r"\\(.)", r"\1", m.group(1))
-            for blocks in STYLE_BLOCK_RE.findall(text)
-            for m in CSS_CLASS_RE.finditer("".join(blocks))
-        }
+        # صنفٌ يعرّفه القالبُ أو أحدُ آبائه في `<style>` معرَّف — قوالبُ التقارير تفعل ذلك.
+        local = _local_classes(text)
+        if ADMIN_EXTENDS_RE.search(text):
+            local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):
             raw = attr.group(1)
             # `kpi-{% if %}green{% endif %}` يلصق الوسمَ باسمٍ فالناتجُ لا يُعرف قبل التشغيل؛
@@ -160,6 +198,8 @@ def undefined_classes() -> list[str]:
             value = DYNAMIC_RE.sub("\0", LOGIC_RE.sub("\0" if glued else " ", raw))
             for token in value.split():
                 if "\0" in token or not CLASS_TOKEN_RE.fullmatch(token):
+                    continue
+                if token.startswith(HOOK_PREFIX):
                     continue
                 if token not in known and token not in local:
                     missing.add(token)

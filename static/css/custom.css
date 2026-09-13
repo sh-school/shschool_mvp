@@ -343,6 +343,11 @@ body {
   line-height: var(--lh-normal);
   background: var(--page-bg);
 }
+/* جسمُ صفحات المنصّة (`base.html`). كان `bg-gray-50`، ومرآتُه في طبقة
+   `utilities` تغلب `--page-bg` أعلاه نهاراً فتُرسم الأرضيّةُ `--surface-alt`؛
+   وليلاً يتساويان. فالصنفُ يحفظ ما يُرى — وتسويةُ الأرضيّة بـ`--page-bg`
+   قرارٌ بصريٌّ منفصل. */
+.app-body { background: var(--surface-alt); }
 
 
 } /* end @layer base */
@@ -906,11 +911,16 @@ footer {
   font-size: var(--text-xs);
 }
 
-/* ── الإشعارات / Messages ───────────────────────────────────── */
-.msg-success { background:var(--status-success-bg); border:1px solid #bbf7d0; color:var(--status-success-dark); }
-.msg-error   { background:var(--status-danger-bg); border:1px solid var(--status-danger-border); color:var(--status-danger-dark); }
+/* ── الإشعارات / Messages ───────────────────────────────────────
+   نبرةُ رسالة `msg-bar` وما جاورها من لوحات الحالة. كانت القوالبُ تكتبها
+   بثلاثة أصنافٍ من لوحة تايلويند (`bg-red-50 border-red-200 text-red-800`)،
+   وهذه الأصنافُ الأربعة بقيت بلا مستعمِلٍ بقيمٍ غيرِ ما تُرسم به الرسالة.
+   فصارت قيمُها ما كانت الرسالةُ تُحسب به فعلاً — نهاراً هنا، وليلاً في
+   «12. Flash Messages» — فالانتقالُ إليها لا يغيّر لوناً على الشاشة. */
+.msg-success { background:var(--status-success-bg); border:1px solid #bbf7d0; color:var(--status-success-fg); }
+.msg-error   { background:var(--status-danger-bg); border:1px solid var(--status-danger-border); color:var(--status-danger-fg); }
 .msg-warning { background:var(--status-warning-bg); border:1px solid #fde68a; color:var(--status-warning-fg); }
-.msg-info    { background:var(--role-executor-bg); border:1px solid #bfdbfe; color:var(--status-info-dark); }
+.msg-info    { background:var(--status-info-bg); border:1px solid #bfdbfe; color:var(--status-info-fg); }
 
 /* ── تمييز الصف المحدد في الجداول ──────────────────────────── */
 tr.selected,
@@ -4109,6 +4119,15 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 .login-btn:hover  { background: var(--maroon-dark); box-shadow: 0 4px 16px color-mix(in srgb, var(--maroon) 32%, transparent); }
 .login-btn:active { transform: translateY(1px); }
+/* أيقونةٌ بحجم سطرها في رسالة الخطأ ورقم الهاتف — وكانت `style=` على كلٍّ منهما. */
+.login-inline-icon { width: 1em; height: 1em; vertical-align: middle; }
+/* توقيعُ «أذكياء» في ذيل البطاقة: أبعدُ عن نصّ المساعدة منه في ذيل المنصّة. */
+.login-card .login-brand { margin-top: 1rem; justify-content: center; }
+/* شارةُ «المصادقة الثنائية مفعّلة» — دائرةٌ خضراءُ مصمتة تفتح ليلاً، وعلامتُها
+   بيضاء. كان القالبُ يمرّر `class="text-white"` إلى `icon.html` وهو لا يقبل
+   صنفاً، فكانت العلامةُ ترث لونَ ما حولها: سوداءَ على الأخضر الداكن نهاراً. */
+.tfa-status-badge { background-color: var(--status-success-dark); color: var(--on-fill); }
+html.dark .tfa-status-badge { background-color: var(--status-success); }
 .badge-role {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 10px; border-radius: 20px; font-size: var(--text-xs); font-weight: 700;
@@ -4331,6 +4350,20 @@ html.dark .next-session-badge {
 .report-student-dropdown { position: fixed; inset-inline: 8px; width: auto; top: auto; }
 @media (min-width: 641px) {
   .report-student-dropdown { position: absolute; inset-inline: auto; width: 340px; }
+}
+/* سطرُ الحال في نتائج البحث — يكتبه `searchStudent()` في templates/reports/index.html. */
+.report-search-status { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.report-search-status.is-error { color: var(--status-danger-fg); }
+
+/* ── templates/reports/report_viewer.html — الوثيقةُ في إطارٍ داخل الصفحة ── */
+.report-viewer { max-width: 1200px; margin-inline: auto; }
+.report-viewer__frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 78vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
 
 
@@ -5166,10 +5199,14 @@ html.dark .bg-red-50    { background: var(--status-danger-bg); border-color: var
 html.dark .bg-amber-50  { background: #351c05; border-color: var(--status-warning-border); color: var(--status-warning-fg); }
 html.dark .bg-blue-50   { background: var(--status-info-bg); border-color: var(--status-info-border); color: var(--status-info-fg); }
 
-html.dark .msg-success { background: var(--status-success-bg); border-color: var(--status-success-border); color: var(--status-success-fg); }
-html.dark .msg-error   { background: var(--status-danger-bg); border-color: var(--status-danger-dark); color: var(--status-danger-fg); }
-html.dark .msg-warning { background: #351c05; border-color: var(--status-warning-border); color: var(--status-warning-fg); }
-html.dark .msg-info    { background: var(--status-info-bg); border-color: var(--status-info-border); color: var(--status-info-fg); }
+/* قيمُ الرسالة ليلاً كما كانت تُحسب من أصناف تايلويند: الأرضيّةُ من «31» التي
+   تغلب ما فوقها، والحدُّ من «35i/35m» (`--border`). والأرقامُ الأربعة ليست
+   رموزاً — `#1a0a0a` و`#1c1305` و`#f59e0b` و`#60a5fa` — وردُّها إلى
+   `--status-*-bg/-fg` قرارٌ بصريٌّ يُتّخذ على حدة، لا أثرٌ جانبيٌّ لترحيل. */
+html.dark .msg-success { background: var(--status-success-bg); border-color: var(--border); color: var(--status-success-fg); }
+html.dark .msg-error   { background: #1a0a0a; border-color: var(--border); color: var(--status-danger-fg); }
+html.dark .msg-warning { background: #1c1305; border-color: var(--border); color: #f59e0b; }
+html.dark .msg-info    { background: var(--status-info-bg); border-color: var(--border); color: #60a5fa; }
 
 /* dark: grade colors */
 html.dark .grade-excellent { color: var(--status-success-fg); }
@@ -9981,7 +10018,6 @@ html.dark {
   .per-bar__actions { width: 100%; }
   .per-bar__actions > * { flex: 1; }
 }
-=======
 /* ══════════════════════════════════════════════════════════════
    39. مكوّناتُ الواجهة — core/templatetags/ui.py
    ══════════════════════════════════════════════════════════════

@@ -1,39 +1,40 @@
+{% load ui %}
 {# ── partial: جدول سجل الصلاحيات — يُعاد تحميله عبر HTMX ── #}
 {% if logs %}
-<div class="overflow-x-auto">
-  <table class="w-full text-sm" aria-label="سجل تغييرات الصلاحيات">
-    <thead class="bg-maroon text-white">
+<div class="table-wrap">
+  <table aria-label="سجل تغييرات الصلاحيات">
+    <thead>
       <tr>
-        <th scope="col" class="px-4 py-3 text-right">وقت التنفيذ</th>
-        <th scope="col" class="px-4 py-3 text-right">المنفّذ</th>
-        <th scope="col" class="px-4 py-3 text-right">المستهدف</th>
-        <th scope="col" class="px-4 py-3 text-right">الإجراء</th>
-        <th scope="col" class="px-4 py-3 text-right">التفاصيل</th>
-        <th scope="col" class="px-4 py-3 text-center">عنوان IP</th>
+        <th scope="col">وقت التنفيذ</th>
+        <th scope="col">المنفّذ</th>
+        <th scope="col">المستهدف</th>
+        <th scope="col">الإجراء</th>
+        <th scope="col">التفاصيل</th>
+        <th scope="col" class="num">عنوان IP</th>
       </tr>
     </thead>
-    <tbody class="divide-y divide-gray-100">
+    <tbody>
       {% for log in logs %}
-      <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+      <tr>
 
         {# ── وقت التنفيذ ── #}
-        <td class="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+        <td class="num">
           {{ log.created_at|date:"d/m/Y" }}<br>
-          <span class="text-gray-400">{{ log.created_at|date:"H:i" }}</span>
+          <span class="text-muted text-xs">{{ log.created_at|date:"H:i" }}</span>
         </td>
 
         {# ── المنفّذ ── #}
-        <td class="px-4 py-3 font-medium text-gray-800">
+        <td class="font-medium">
           {{ log.actor.full_name|default:"النظام" }}
         </td>
 
         {# ── المستهدف ── #}
-        <td class="px-4 py-3 text-gray-700">
+        <td>
           {{ log.target.full_name|default:"—" }}
         </td>
 
         {# ── الإجراء — لون مُرمَّز ── #}
-        <td class="px-4 py-3">
+        <td>
           <span class="status-badge
             {% if log.action == 'role_assigned' %}status-success
             {% elif log.action == 'role_removed' %}status-danger
@@ -50,21 +51,21 @@
         </td>
 
         {# ── التفاصيل ── #}
-        <td class="px-4 py-3 text-gray-600 text-xs max-w-xs">
+        <td class="text-xs text-secondary max-w-xs">
           {% if log.details %}
             {% for key, val in log.details.items %}
               <span class="inline-block">
-                <span class="text-gray-400">{{ key }}:</span>
+                <span class="text-muted">{{ key }}:</span>
                 <span class="font-medium">{{ val }}</span>
               </span>{% if not forloop.last %} &nbsp;·&nbsp; {% endif %}
             {% endfor %}
           {% else %}
-            <span class="text-gray-400">—</span>
+            <span class="text-muted">—</span>
           {% endif %}
         </td>
 
         {# ── IP ── #}
-        <td class="px-4 py-3 text-center text-xs font-mono text-gray-400">
+        <td class="num text-xs text-muted font-mono">
           {{ log.ip_address|default:"—" }}
         </td>
 
@@ -74,8 +75,5 @@
   </table>
 </div>
 {% else %}
-<div class="px-6 py-16 text-center text-gray-400">
-  <p class="text-4xl mb-3" aria-hidden="true">🔍</p>
-  <p class="text-sm">لا توجد سجلات تطابق معايير البحث</p>
-</div>
+{% empty_state "لا توجد سجلات تطابق معايير البحث" icon="search" %}
 {% endif %}
