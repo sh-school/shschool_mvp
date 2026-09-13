@@ -4,7 +4,7 @@
 
   {% page_header "لوحة تحكم المدير" subtitle=subtitle icon="home" %}
     <button type="button" class="btn-secondary btn-sm js-print-btn">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-text" %} تقرير الغياب</a>
+    <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-text" %} غياب اليوم</a>
   {% endpage_header %}
 
   {% kpi_strip label="الحضور اليوم" %}

@@ -1,0 +1,91 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+تقريرُ غياب اليوم — طالبٌ في سطر، لأيّ تاريخ (قرارُ 2026-09-13). يحلّ محلَّ
+«سجلّات الحضور والغياب» التي كانت تعدّ السجلّات لا الطلاب. ووسمُ الوزارة لمن غاب
+الأولى والثانية — يرفعه المشرفُ في نظام الوزارة خارجَ المنصّة.
+{% endcomment %}
+{% block title %}غياب اليوم{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="غياب اليوم" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "غياب اليوم" subtitle=subtitle icon="calendar" %}
+    <form method="get" class="rec-datebar">
+      <input type="date" name="date" value="{{ report.day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
+      <button type="submit" class="btn-secondary btn-sm">اعرض</button>
+    </form>
+  {% endpage_header %}
+
+  {% kpi_strip label="اليوم في رقم" %}
+    {% kpi "طلابٌ رُصدوا" report.students_recorded tone="teal" %}
+    {% kpi "غابوا حصّةً فأكثر" report.absent_students tone="red" %}
+    {% kpi "تأخّروا حصّةً فأكثر" report.late_students tone="amber" %}
+    {% kpi "للرفع الوزاريّ" report.ministry_rows|length sub="غابوا الأولى والثانية" tone="maroon" %}
+  {% endkpi_strip %}
+
+  {% if report.scoped_to_department %}
+  <p class="bell-note">النطاقُ قسمُك: حصصُ معلّميه وطلابُها.</p>
+  {% endif %}
+
+  {% if report.ministry_rows %}
+  {% section_card "للرفع في نظام الوزارة — غابوا الحصّتين الأولى والثانية" meta=report.ministry_rows|length icon="alert-triangle" %}
+    <p class="bell-note">يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.</p>
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحال</th></tr></thead>
+        <tbody>
+          {% for row in report.ministry_rows %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.class_group }}</td>
+            <td><span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">{{ row.ministry_label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
+
+  {% section_card "الغائبون والمتأخّرون — كلُّ طالبٍ في سطر" meta=report.rows|length icon="list-checks" %}
+    {% if report.rows %}
+    <div class="table-wrap">
+      <table class="dab" data-no-sort>
+        <thead>
+          <tr>
+            <th>الطالب</th>
+            <th>الشعبة</th>
+            {% for n in report.numbers %}<th class="num">ح{{ n }}</th>{% endfor %}
+            <th class="num">غياب</th>
+            <th class="num">تأخّر</th>
+            <th class="num">لم تُرصد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.rows %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.class_group }}</td>
+            {% for slot in row.slots %}<td class="num dab-{{ slot.status|default:'none' }}{% if slot.excused %} dab-excused{% endif %}">{{ slot.letter }}</td>{% endfor %}
+            {% for _ in row.padding %}<td></td>{% endfor %}
+            <td class="num">{{ row.absent_periods }}</td>
+            <td class="num">{{ row.late_periods }}</td>
+            <td class="num">{{ row.unrecorded_periods|default:"" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="bell-note">ح حاضر · غ غائب · ع غائب بعذر · م متأخّر · <b>·</b> لم تُرصد.</p>
+    {% else %}
+    {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ مرصوداً في هذا اليوم" %}
+    {% endif %}
+  {% endsection_card %}
+
+</div>
+{% endblock %}
