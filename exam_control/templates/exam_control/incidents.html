@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
+{% load ui %}
 {% block title %}حوادث الاختبار{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,32 +7,33 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold text-maroon">⚠️ حوادث الاختبار — {{ session.name }}</h5>
-    <a href="{% url 'exam_control:incident_add' session.pk %}" class="btn btn-danger btn-sm">+ تسجيل حادث</a>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-sm table-bordered table-hover">
-      <thead class="table-dark">
-        <tr><th scope="col">النوع</th><th scope="col">الطالب</th><th scope="col">القاعة</th><th scope="col">الخطورة</th><th scope="col">الحالة</th><th scope="col">التوقيت</th><th scope="col"></th></tr>
-      </thead>
-      <tbody>
-        {% for i in incidents %}
-        <tr>
-          <td><span class="badge bg-danger">{{ i.get_incident_type_display }}</span></td>
-          <td>{{ i.student.full_name|default:"—" }}</td>
-          <td>{{ i.room.name|default:"—" }}</td>
-          <td>{{ i.get_severity_display }}</td>
-          <td><span class="badge bg-{% if i.status == 'open' %}warning text-dark{% elif i.status == 'referred' %}info{% else %}success{% endif %}">{{ i.get_status_display }}</span></td>
-          <td>{{ i.incident_time|date:"m/d H:i" }}</td>
-          <td><a href="{% url 'exam_control:incident_pdf' i.pk %}" class="btn btn-outline-secondary btn-sm" target="_blank">PDF</a></td>
-        </tr>
-        {% empty %}<tr><td colspan="7" class="text-center text-muted py-3">✅ لا توجد حوادث مسجلة</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn btn-outline-secondary btn-sm">← رجوع</a>
+<div class="exec-dash">
+
+  {% page_header "حوادث الاختبار" subtitle=session.name icon="alert-triangle" %}
+    <a href="{% url 'exam_control:incident_add' session.pk %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل حادث</a>
+    <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
+  {% endpage_header %}
+
+  {% section_card "الحوادث" meta=incidents|length icon="alert-triangle" flush=True empty="لا حوادثَ مسجّلة" empty_sub="تظهر هنا محاضرُ الحوادث حين تُسجَّل" %}{% if incidents %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">النوع</th><th scope="col">الطالب</th><th scope="col">القاعة</th><th scope="col">الخطورة</th><th scope="col">الحالة</th><th scope="col">التوقيت</th><th scope="col"><span class="sr-only">المحضر</span></th></tr></thead>
+        <tbody>
+          {% for i in incidents %}
+            <tr>
+              <td><span class="status-badge status-danger">{{ i.get_incident_type_display }}</span></td>
+              <td>{{ i.student.full_name|default:"—" }}</td>
+              <td>{{ i.room.name|default:"—" }}</td>
+              <td>{{ i.get_severity_display }}</td>
+              <td><span class="status-badge {% if i.status == 'open' %}status-warning{% elif i.status == 'referred' %}status-info{% else %}status-success{% endif %}">{{ i.get_status_display }}</span></td>
+              <td class="num">{{ i.incident_time|date:"d/m H:i" }}</td>
+              <td><a href="{% url 'exam_control:incident_pdf' i.pk %}" class="btn-ghost btn-sm" target="_blank" rel="noopener">PDF</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
 </div>
 {% endblock %}

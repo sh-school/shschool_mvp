@@ -10116,6 +10116,21 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
 
+/* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
+   ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */
+.ui-split {
+  display: grid;
+  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(0, 2fr);
+  gap: var(--sp-2);
+  align-items: start;
+}
+@media (max-width: 900px) { .ui-split { grid-template-columns: 1fr; } }
+.form-stack { display: grid; gap: var(--sp-3); }
+.form-stack .form-group { margin-bottom: 0; }
+.form-page { max-width: 760px; margin-inline: auto; }
+.inline-form { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.inline-form .form-control { inline-size: auto; min-inline-size: 140px; }
+
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }
 .ui-page-header .exec-title { display: flex; align-items: center; gap: var(--sp-2); text-wrap: balance; }
