@@ -86,8 +86,10 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
         ),
     ),
     "legacy_header": (
-        "ترويسةٌ قديمة (card-header · dash-chart-title) بدل card-bar",
-        re.compile(r"(?<![\w-])(?:card-header|dash-chart-title)(?![\w-])"),
+        "بنيةٌ مكتوبةٌ باليد (exec-header · card-qatar · card-bar · card-header) بدل مكوّنات ui",
+        re.compile(
+            r"(?<![\w-])(?:card-header|dash-chart-title|exec-header|card-qatar|card-bar)(?![\w-])"
+        ),
     ),
     "hand_kpi": (
         "بطاقةُ رقمٍ مكتوبةٌ باليد (kpi-mini)",
@@ -192,12 +194,19 @@ def live_templates():
         yield from sorted(root.rglob("*.html"))
 
 
+#: المكوّناتُ نفسُها هي التي ترسم `exec-header` و`card-qatar` و`card-bar` — فالصفحةُ
+#: تكتب `{% page_header %}` و`{% section_card %}` ولا تكتب هذه الأصنافَ بيدها.
+COMPONENTS_DIR = pathlib.Path("templates/components")
+
+
 def measure() -> dict[str, dict[str, int]]:
     """لكلّ مخالفةٍ: القالبُ ← عددُها فيه (ما كان صفراً لا يُكتب)."""
     counts: dict[str, dict[str, int]] = {name: {} for name in METRICS}
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
         for name, (_label, pattern) in METRICS.items():
+            if name == "legacy_header" and path.is_relative_to(COMPONENTS_DIR):
+                continue
             found = len(pattern.findall(text))
             if found:
                 counts[name][path.as_posix()] = found

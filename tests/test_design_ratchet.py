@@ -1,6 +1,7 @@
 """[DESIGN] سقّاطةُ الهويّة البصريّة — راجع `tests/design_ratchet.py` للسبب والطريقة."""
 
 import json
+import pathlib
 
 from tests import design_ratchet as ratchet
 
@@ -126,3 +127,12 @@ class TestTheRatchetItself:
         names = {p.as_posix() for p in ratchet.live_templates()}
         assert "templates/reports/base_qatar_report.html" in names
         assert any("/email/" in n for n in names)
+
+    def test_hand_written_structure_counts_outside_the_component_library(self):
+        """الصفحةُ تكتب `{% page_header %}`؛ والمكوّنُ وحده يرسم `exec-header` و`card-qatar`."""
+        pattern = ratchet.METRICS["legacy_header"][1]
+        sample = '<div class="exec-header"><section class="card-qatar"><header class="card-bar">'
+        assert len(pattern.findall(sample)) == 3
+        component = pathlib.Path("templates/components/ui/page_header.html")
+        assert component.is_relative_to(ratchet.COMPONENTS_DIR)
+        assert "templates/components/ui/page_header.html" not in ratchet.measure()["legacy_header"]
