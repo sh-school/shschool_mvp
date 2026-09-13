@@ -4332,6 +4332,20 @@ html.dark .next-session-badge {
 @media (min-width: 641px) {
   .report-student-dropdown { position: absolute; inset-inline: auto; width: 340px; }
 }
+/* سطرُ الحال في نتائج البحث — يكتبه `searchStudent()` في templates/reports/index.html. */
+.report-search-status { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+.report-search-status.is-error { color: var(--status-danger-fg); }
+
+/* ── templates/reports/report_viewer.html — الوثيقةُ في إطارٍ داخل الصفحة ── */
+.report-viewer { max-width: 1200px; margin-inline: auto; }
+.report-viewer__frame {
+  display: block;
+  inline-size: 100%;
+  block-size: 78vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
 
 
 

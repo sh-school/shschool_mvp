@@ -371,6 +371,14 @@ def daily_report(request):
     stats = {s["status"]: s["count"] for s in summary}
     total = sum(stats.values())
     present_pct = round(stats.get("present", 0) / total * 100) if total else 0
+    # لونُ النسبة — عتباتُ القالب القديم: 85 فأكثر جيّدة، ودون 70 منخفضة.
+    present_tone, present_bar = (
+        ("green", "success")
+        if present_pct >= 85
+        else ("amber", "warning")
+        if present_pct >= 70
+        else ("red", "danger")
+    )
 
     return render(
         request,
@@ -382,5 +390,8 @@ def daily_report(request):
             "stats": stats,
             "total": total,
             "present_pct": present_pct,
+            "present_pct_label": f"{present_pct}%",
+            "present_tone": present_tone,
+            "present_bar": present_bar,
         },
     )

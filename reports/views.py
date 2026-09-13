@@ -17,7 +17,6 @@ from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
-from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
 from core.models import ClassGroup, CustomUser, StudentEnrollment
@@ -115,13 +114,109 @@ VIEWABLE_REPORTS = {
 
 
 def _set_final_status(ctx: dict) -> None:
-    """يضيف final_status و status_color إلى السياق"""
+    """يضيف `final_status` و`status_tone` إلى السياق.
+
+    كان يضع لوناً سداسيّاً (`status_color`) يُكتب في `style=` الشهادة — وأحدُها
+    أخضرُ لا رمزَ له في الهويّة. والنغمةُ اسمٌ تقرؤه الشهادةُ صنفاً
+    (`cert-status is-success`) يأخذ ألوانَه من `brand_color`.
+    """
     if ctx["failed"] == 0 and ctx["passed"] > 0:
-        ctx.update(final_status="ناجح", status_color="#15803d")
+        ctx.update(final_status="ناجح", status_tone="success")
     elif ctx["failed"] > 0:
-        ctx.update(final_status="راسب", status_color=brand.STATUS_DANGER)
+        ctx.update(final_status="راسب", status_tone="danger")
     else:
-        ctx.update(final_status="غير مكتمل", status_color=brand.STATUS_WARNING)
+        ctx.update(final_status="غير مكتمل", status_tone="warning")
+
+
+# ── عرضُ الوثائق المطبوعة: الألوانُ تُحسم هنا لا في القالب ─────────────
+# النغماتُ أسماءُ أصناف `c-*` في `reports/base_qatar_report.html`.
+
+#: حالةُ الطالب النصّيّة في كشف الفصل ← نغمتُها.
+_RESULT_TEXT_TONE = {"ناجح": "green", "راسب": "red"}
+
+#: حالةُ النتيجة السنويّة ← (الاسم، النغمة).
+_ANNUAL_STATUS = {
+    "pass": ("ناجح", "green"),
+    "fail": ("راسب", "red"),
+    "second_round": ("دور ثانٍ", "orange"),
+}
+
+
+def _grade_tone(total) -> str:
+    """لونُ المجموع السنويّ — عتباتُ القالب القديم: 90 ممتاز، 75 جيّد، 50 نجاح."""
+    if not total:
+        return "muted"
+    if total >= 90:
+        return "green"
+    if total >= 75:
+        return "blue"
+    if total >= 50:
+        return "orange"
+    return "red"
+
+
+def _class_results_presentation(ctx: dict) -> None:
+    """أرقامُ كشف الفصل ونغماتُ خاناته."""
+    total, passed = ctx["total_students"], ctx["total_passed"]
+    ctx["report_kpis"] = [
+        {"label": "إجمالي الطلاب", "value": total, "tone": "maroon"},
+        {"label": "ناجحون", "value": passed, "tone": "green"},
+        {"label": "راسبون", "value": ctx["total_failed"], "tone": "red"},
+        {
+            "label": "نسبة النجاح",
+            "value": f"{round(passed / total * 100)}%" if total else "—",
+            "tone": "maroon",
+        },
+    ]
+    for row in ctx["student_rows"]:
+        row["status_tone"] = _RESULT_TEXT_TONE.get(row["status"], "orange")
+        row["grade_cells"] = [
+            {
+                "value": ann.annual_total if ann and ann.annual_total else None,
+                "tone": _grade_tone(ann.annual_total if ann else None),
+            }
+            for ann in row["grades_list"]
+        ]
+
+
+def _student_result_presentation(ctx: dict) -> None:
+    """أرقامُ نتيجة الطالب ونغماتُ سطور موادّه."""
+    ctx["report_kpis"] = [
+        {"label": "المواد", "value": ctx["total"], "tone": "maroon"},
+        {"label": "ناجح", "value": ctx["passed"], "tone": "green"},
+        {"label": "راسب", "value": ctx["failed"], "tone": "red"},
+        {"label": "المتوسط / 100", "value": ctx["avg"] or "—", "tone": "maroon"},
+        {"label": "غياب", "value": ctx["absent_total"], "tone": "orange"},
+        {"label": "تأخر", "value": ctx["late_total"], "tone": "maroon"},
+    ]
+    _subject_rows_presentation(ctx["rows"])
+
+
+def _subject_rows_presentation(rows: list[dict]) -> None:
+    """نغمةُ مجموع كلّ مادّةٍ واسمُ حالتها — في نتيجة الطالب وشهادته."""
+    for row in rows:
+        annual = row["annual"]
+        row["total_tone"] = _grade_tone(annual.annual_total if annual else None)
+        row["status_label"], row["status_tone"] = _ANNUAL_STATUS.get(
+            annual.status if annual else "", ("غير مكتمل", "orange")
+        )
+
+
+def _attendance_presentation(ctx: dict) -> None:
+    """رقمُ تقرير الحضور ونغمةُ كلّ طالب — عتباتُ القالب القديم: 95 ممتاز، 80 مقبول،
+    وأكثرُ من عشرة غياباتٍ تُبرَز."""
+    ctx["report_kpis"] = [
+        {"label": "إجمالي الطلاب", "value": len(ctx["student_rows"]), "tone": "maroon"}
+    ]
+    for row in ctx["student_rows"]:
+        pct = row["attendance_pct"]
+        if pct >= 95:
+            row["attendance_label"], row["attendance_tone"] = "ممتاز", "green"
+        elif pct >= 80:
+            row["attendance_label"], row["attendance_tone"] = "مقبول", "orange"
+        else:
+            row["attendance_label"], row["attendance_tone"] = "منخفض", "red"
+        row["absent_tone"] = "red" if row["absent"] > 10 else ""
 
 
 def _get_paper_size(request) -> str:
@@ -174,6 +269,7 @@ def reports_index(request):
         "classes": classes,
         "year": year,
         "school": school,
+        "page_subtitle": f"تصدير تقارير PDF جاهزة للطباعة — العام {year}",
         "tab": tab,
         "grade_filter": grade_filter,
         "level_filter": level_filter,
@@ -215,6 +311,7 @@ def class_results_pdf(request, class_id):
         # وثيقة الطباعة صفحةٌ بلا قائمة ولا رجوع، فعرضُها كرسالة خطأ طريقٌ مسدود.
         messages.warning(request, "لا يوجد طلاب في هذا الفصل لتوليد التقرير.")
         return redirect("reports_index")
+    _class_results_presentation(ctx)
 
     if preview:
         return render(request, "reports/class_results.html", ctx)
@@ -290,6 +387,7 @@ def attendance_report_pdf(request, class_id):
 
     ctx = ReportDataService.get_attendance_report(class_grp, school, year)
     ctx["paper_size"] = paper
+    _attendance_presentation(ctx)
     if preview:
         return render(request, "reports/attendance_report.html", ctx)
 
@@ -329,6 +427,7 @@ def student_result_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     ctx["paper_size"] = paper
+    _student_result_presentation(ctx)
     if preview:
         return render(request, "reports/student_result.html", ctx)
 
@@ -399,6 +498,7 @@ def student_certificate_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     _set_final_status(ctx)
+    _subject_rows_presentation(ctx["rows"])
     ctx["paper_size"] = paper
 
     if preview:
