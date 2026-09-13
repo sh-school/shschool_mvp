@@ -1,0 +1,74 @@
+{% comment %}صفحةُ كشف شعبةٍ واحدة — `register`: SectionRegister.{% endcomment %}
+<div class="report-title-bar">{{ register.title }} — {{ register.day|date:"l d/m/Y" }}</div>
+<table class="report-meta">
+  <tr>
+    <td>الجناح: <strong>{% if register.wing %}{{ register.wing.name }}{% else %}خارج الأجنحة{% endif %}</strong></td>
+    <td>مشرف الجناح: <strong>{{ register.signatories.0.name|default:"—" }}</strong></td>
+    <td>عدد الطلاب: <strong>{{ register.rows|length }}</strong></td>
+    <td>{% if register.is_partial %}<span class="stamp-partial">كشفٌ جزئيٌّ حتى {{ register.as_of|time:"H:i" }}</span>{% else %}<span class="stamp-full">كشفٌ كامل — صدر {{ register.as_of|time:"H:i" }}</span>{% endif %}</td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role }}</td>
+  </tr>
+</table>
+
+{% if not register.columns %}
+  <p class="no-data">لا حصصَ لهذه الشعبة في هذا اليوم.</p>
+{% else %}
+<table class="grid">
+  <thead>
+    <tr>
+      <th class="col-no">#</th>
+      <th class="col-name">الطالب</th>
+      {% for column in register.columns %}
+      <th>ح{{ column.number }}<small>{{ column.start|time:"H:i" }}–{{ column.end|time:"H:i" }}</small><small>{{ column.subjects }}</small></th>
+      {% endfor %}
+      <th class="col-sum">حصص الغياب</th>
+      <th class="col-sum">مرّات التأخّر</th>
+      <th class="col-sum">دقائق التأخّر</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in register.rows %}
+    <tr>
+      <td>{{ row.number }}</td>
+      <td class="name">{{ row.name }}</td>
+      {% for mark in row.marks %}
+      <td class="mark-{{ mark.status|default:'none' }}">{{ mark.text }}</td>
+      {% endfor %}
+      <td class="sum">{{ row.absent_periods }}</td>
+      <td class="sum">{{ row.late_count }}</td>
+      <td class="sum">{{ row.late_minutes }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  {% comment %} ذيلُ الحصص جسمٌ ثانٍ لا `tfoot`: الـPDF يكرّر `tfoot` أسفلَ كلّ صفحة. {% endcomment %}
+  <tbody class="foot">
+    <tr>
+      <td></td><td class="foot-label">الحال</td>
+      {% for column in register.columns %}<td{% if column.status == "confirmed_late" %} class="is-late-confirm"{% endif %}>{{ column.label }}</td>{% endfor %}
+      <td colspan="3"></td>
+    </tr>
+    <tr>
+      <td></td><td class="foot-label">أوّل تثبيت</td>
+      {% for column in register.columns %}<td>{% if column.is_confirmed %}{{ column.first_confirmed_at|time:"H:i:s" }}{% else %}—{% endif %}</td>{% endfor %}
+      <td colspan="3"></td>
+    </tr>
+    <tr>
+      <td></td><td class="foot-label">ثبّتها</td>
+      {% for column in register.columns %}<td>{{ column.confirmed_by|default:"—" }}</td>{% endfor %}
+      <td colspan="3"></td>
+    </tr>
+    <tr>
+      <td></td><td class="foot-label">حاضر / غائب / متأخّر</td>
+      {% for column in register.columns %}<td>{% if column.is_confirmed %}{{ column.present }} / {{ column.absent }} / {{ column.late }}{% else %}—{% endif %}</td>{% endfor %}
+      <td colspan="3"></td>
+    </tr>
+  </tbody>
+</table>
+<p class="legend">
+  ح حاضر · غ غائب · م متأخّر (والرقمُ دقائقُه) · · لم تُرصد —
+  أين الطالب: ع عيادة · ن نشاط · إ خرج بإذن · خ خرج دون إذن · س استئذان مبكّر.
+  «ثُبّتت متأخّرة»: ثُبّتت بعد خمس دقائق من نهاية الحصّة.
+</p>
+{% endif %}
+
+{% include "wings/pdf/signatures.html" %}

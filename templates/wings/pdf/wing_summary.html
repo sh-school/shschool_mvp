@@ -1,0 +1,47 @@
+{% comment %}ملخّصُ الجناح — شُعبُه صفوفاً وحصصُ اليوم أعمدة. `register`: WingRegister.{% endcomment %}
+<div class="report-title-bar">{{ register.title }} — ملخّصُ رصد الحصص — {{ register.day|date:"l d/m/Y" }}</div>
+<table class="report-meta">
+  <tr>
+    <td>مشرف الجناح: <strong>{{ register.signatories.0.name|default:"—" }}</strong></td>
+    <td>عدد الشُّعب: <strong>{{ register.sections|length }}</strong></td>
+    <td>{% if register.is_partial %}<span class="stamp-partial">كشفٌ جزئيٌّ حتى {{ register.as_of|time:"H:i" }}</span>{% else %}<span class="stamp-full">كشفٌ كامل — صدر {{ register.as_of|time:"H:i" }}</span>{% endif %}</td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role }}</td>
+  </tr>
+</table>
+
+<table class="grid matrix">
+  <thead>
+    <tr>
+      <th class="col-sum">الشعبة</th>
+      {% for number in register.numbers %}<th>ح{{ number }}</th>{% endfor %}
+      <th class="col-sum">مثبّتة</th>
+      <th class="col-sum">ثُبّتت متأخّرة</th>
+      <th class="col-sum">لم تُرصد</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for section, cells in register.matrix %}
+    <tr>
+      <td class="code">{{ section.class_group.short_code }}</td>
+      {% for column in cells %}
+        {% if column is None %}
+        <td></td>
+        {% elif column.is_confirmed %}
+        <td class="cell-{{ column.status }}">{% if column.status == "confirmed_late" %}متأخّرة {% endif %}{{ column.first_confirmed_at|time:"H:i" }}<br>غ {{ column.absent }} · م {{ column.late }}</td>
+        {% else %}
+        <td class="cell-{{ column.status }}">{{ column.label }}</td>
+        {% endif %}
+      {% endfor %}
+      <td class="sum">{{ section.confirmed_count }}</td>
+      <td class="sum">{{ section.late_confirmations }}</td>
+      <td class="sum">{{ section.missed_count }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="legend">
+  في الخانة وقتُ أوّل تثبيتٍ وعددُ الغائبين (غ) والمتأخّرين (م). «متأخّرة»: ثُبّتت بعد خمس دقائق
+  من نهاية الحصّة. «لم تُرصد»: انقضت مهلتُها ولم تُثبَّت. وكشفُ كلّ شعبةٍ في الصفحات التالية.
+</p>
+
+{% include "wings/pdf/signatures.html" %}

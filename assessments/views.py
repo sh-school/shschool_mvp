@@ -10,6 +10,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from core import brand
@@ -19,6 +20,7 @@ from core.export_utils import excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import teacher_can_access_student
+from core.privacy import mask_national_id
 from operations.models import Subject
 
 from .forms import CreateAssessmentForm
@@ -31,6 +33,49 @@ from .models import (
     SubjectClassSetup,
 )
 from .services import GradeService
+
+# ── ألوانُ العرض — الحكمُ هنا مرّةً لا شرطاً في القالب ─────────
+
+
+def _grade_tone(total, out_of=100) -> str:
+    """لونُ درجةٍ بنسبتها من قصواها — العتباتُ التي كانت في القالب: 80 · 65 · 50.
+
+    كان مجموعُ الفصل (من 40 أو 60) يُلوَّن بعتبات المئة نفسها، فيظهر أحمرَ
+    ولو كان كاملاً. فالنسبةُ أوّلاً ثمّ العتبة.
+    """
+    if total is None or not out_of:
+        return "muted"
+    pct = float(total) / float(out_of) * 100
+    if pct >= 80:
+        return "success"
+    if pct >= 65:
+        return "info"
+    if pct >= 50:
+        return "warning"
+    return "danger"
+
+
+def _half_tone(score, out_of) -> str:
+    """نصفُ القصوى فأكثر أخضر، ودونه أحمر — عتبةُ الباقة والفصل في القالب القديم."""
+    if score is None:
+        return "muted"
+    return "success" if float(score) >= float(out_of) * 0.5 else "danger"
+
+
+#: شارةُ حالة التقييم — ما كان سلسلةَ `{% if %}` في القالب. وما لم يُذكر «مسودّة» تحذيراً.
+ASSESSMENT_STATUS_BADGE = {
+    "graded": "status-success",
+    "published": "status-info",
+    "closed": "status-gray",
+}
+
+#: شارةُ النتيجة السنويّة — والدورُ الثاني عنّابيّ، وما سواها تحذير.
+ANNUAL_STATUS_BADGE = {
+    "pass": "status-success",
+    "fail": "status-danger",
+    "second_round": "status-maroon",
+}
+
 
 # ── لوحة تحكم التقييمات ────────────────────────────────────
 
@@ -77,6 +122,11 @@ def assessments_dashboard(request):
         total_results = passed = failed = 0
         failing_list = []
 
+    # القالبُ كان يقرأ `pass_pct` ولا يمرّره أحد، فتظهر النسبةُ «0%» دائماً.
+    # وتُحسب من النتيجتين المعروضتين بجوارها — لا استعلامَ جديد.
+    decided = passed + failed
+    pass_pct = round(passed / decided * 100) if decided else None
+
     return render(
         request,
         "assessments/dashboard.html",
@@ -89,6 +139,10 @@ def assessments_dashboard(request):
             "failed": failed,
             "failing_list": failing_list,
             "SEMESTERS": AssessmentPackage.SEMESTER,
+            "subtitle": f"الباقات الأربع · {year}",
+            "pass_pct_label": "—" if pass_pct is None else f"{pass_pct}%",
+            # اللونُ يحمل التنبيه — كان شريطُ «N طالب راسب» يكرّر الرقم.
+            "failed_tone": "red" if failed else "green",
         },
     )
 
@@ -174,6 +228,9 @@ def setup_detail(request, setup_id):
             "summary": summary,
             "student_count": student_count,
             "SEMESTERS": AssessmentPackage.SEMESTER,
+            "subtitle": f"{setup.class_group} · {setup.teacher.full_name if setup.teacher else '—'}",
+            "status_tones": ASSESSMENT_STATUS_BADGE,
+            "failed_tone": "red" if summary.get("failed") else "green",
         },
     )
 
@@ -252,6 +309,7 @@ def grade_entry(request, assessment_id):
     ]
 
     stats = GradeService.get_assessment_stats(assessment)
+    package = assessment.package
 
     return render(
         request,
@@ -260,6 +318,13 @@ def grade_entry(request, assessment_id):
             "assessment": assessment,
             "students_data": students_data,
             "stats": stats,
+            "subtitle": (
+                f"{assessment.subject.name_ar} · {assessment.class_group} · "
+                f"{package.get_package_type_display()} · "
+                f"الدرجة القصوى {assessment.max_grade.normalize():f}"
+            ),
+            "entered_sub": f"من {len(students_data)} طالباً",
+            "absent_tone": "red" if stats.get("absent") else "green",
         },
     )
 
@@ -427,21 +492,41 @@ def class_gradebook(request, setup_id):
     else:
         batch_scores = {}
 
+    # الباقاتُ ذاتُ الوزن وحدَها أعمدة — كان القالبُ يرشّحها في حلقتين.
+    weighted_packages = [pkg for pkg in pkg_list if pkg.weight > 0]
+    semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
+
     rows = []
     for enr in enrollments:
         student = enr.student
         pkg_scores = {}
+        cells = []
 
         if not show_annual:
             for pkg in pkg_list:
                 pkg_scores[pkg.package_type] = batch_scores.get((student.id, pkg.package_type))
+            for pkg in weighted_packages:
+                score = pkg_scores.get(pkg.package_type)
+                # نصفُ درجة الباقة فأكثر أخضر — العتبةُ التي كانت في القالب.
+                cells.append({"score": score, "tone": _half_tone(score, pkg.effective_max_grade)})
 
+        semester_result = sem_results_map.get(student.id)
+        annual_result = annual_results_map.get(student.id)
+        sem_total = semester_result.total if semester_result else None
+        sem_out_of = semester_result.semester_max if semester_result else semester_max
         rows.append(
             {
                 "student": student,
                 "pkg_scores": pkg_scores,
-                "semester_result": sem_results_map.get(student.id),
-                "annual_result": annual_results_map.get(student.id),
+                "cells": cells,
+                "semester_result": semester_result,
+                "annual_result": annual_result,
+                "sem_tone": _grade_tone(sem_total, sem_out_of),
+                # الحالةُ في عرض الفصل بقاعدة التصدير نفسِها: النصفُ فأكثر ناجح.
+                "sem_passed": (
+                    None if sem_total is None else float(sem_total) >= float(sem_out_of) * 0.5
+                ),
+                "annual_tone": _grade_tone(annual_result.annual_total if annual_result else None),
             }
         )
 
@@ -458,6 +543,11 @@ def class_gradebook(request, setup_id):
             "semester": semester,
             "show_annual": show_annual,
             "SEMESTERS": AssessmentPackage.SEMESTER,
+            "weighted_packages": weighted_packages,
+            "semester_max": semester_max,
+            "subtitle": f"{setup.subject.name_ar} · {setup.class_group} · {setup.academic_year}",
+            "failed_tone": "red" if summary.get("failed") else "green",
+            "status_tones": ANNUAL_STATUS_BADGE,
         },
     )
 
@@ -658,17 +748,33 @@ def student_report(request, student_id):
     passed = stats["passed"]
     failed = stats["failed"]
 
+    # ألوانُ الصفّ — العتباتُ التي كانت في القالب: نصفُ الفصل (20 من 40، 30 من 60)
+    # أخضرُ وما دونه تحذير، والمجموعُ السنويّ بعتبات 80 · 65 · 50.
+    rows = [
+        {
+            "result": r,
+            "s1_tone": None if r.s1_total is None else "success" if r.s1_total >= 20 else "warning",
+            "s2_tone": None if r.s2_total is None else "success" if r.s2_total >= 30 else "warning",
+            "tone": _grade_tone(r.annual_total),
+        }
+        for r in results
+    ]
+
     return render(
         request,
         "assessments/student_report.html",
         {
             "student": student,
             "results": results,
+            "rows": rows,
             "year": year,
             "total_subjects": total_subjects,
             "passed": passed,
             "failed": failed,
             "SEMESTERS": AssessmentPackage.SEMESTER,
+            "subtitle": f"{student.full_name} · {mask_national_id(student.national_id)} · {year}",
+            "failed_tone": "red" if failed else "green",
+            "status_tones": ANNUAL_STATUS_BADGE,
         },
     )
 
@@ -691,8 +797,18 @@ def failing_students(request):
     for r in failing:
         sid = r.student.id
         if sid not in by_student:
-            by_student[sid] = {"student": r.student, "subjects": []}
+            by_student[sid] = {
+                "student": r.student,
+                "subjects": [],
+                # صفُّ الطالب من أوّل موادّه — كما كان القالبُ يقرؤه للترشيح.
+                "grade": r.setup.class_group.get_grade_display(),
+                # الكشفُ يقرأ `year` لا `semester` — فالرابطُ يحمل عامَ القائمة نفسَه.
+                "report_url": f"{reverse('student_report', args=[sid])}?year={year}",
+            }
         by_student[sid]["subjects"].append(r)
+
+    for item in by_student.values():
+        item["count_label"] = f"{len(item['subjects'])} مادة"
 
     student_list = list(by_student.values())
     paginator = Paginator(student_list, 25)
@@ -708,6 +824,7 @@ def failing_students(request):
             "year": year,
             "total": len(by_student),
             "SEMESTERS": AssessmentPackage.SEMESTER,
+            "subtitle": f"{len(by_student)} طالب في مادة أو أكثر · {year}",
         },
     )
 

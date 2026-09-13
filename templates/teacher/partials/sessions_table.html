@@ -1,0 +1,61 @@
+{% comment %}جدولُ حصص اليوم في «جدول حصصي» — `sessions` و`next_session` و`is_recorder` من العرض.{% endcomment %}
+<div class="table-wrap-scroll sessions-scroll">
+<table class="sessions-table">
+  <thead>
+    <tr>
+      <th scope="col">المادة</th>
+      {% if is_leadership %}<th scope="col">المعلم</th>{% endif %}
+      {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+      <th scope="col" data-sort="num" data-sort-first="asc">الفصل</th>
+      <th scope="col">الوقت</th>
+      <th scope="col">الحالة</th>
+      <th scope="col">إجراء</th>
+    </tr>
+  </thead>
+  <tbody id="sessions-tbody">
+    {% for session in sessions %}
+    {% comment %}
+    الحصّةُ المبدَّلةُ تُعرف بلونها: `original_teacher` لا يُكتب إلّا حين
+    يُسلَّم اليومُ لغير صاحبه، فوجودُه وحدَه هو العلامة. والقارئُ يحتاج أن
+    يعرف أنّها ليست حصّتَه المعتادة قبل أن يدخلها — واللونُ يقول ذلك من
+    بعيد، والسطرُ تحت المادّة يقول لمن كانت.
+    {% endcomment %}
+    <tr class="{% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}is-next{% endif %}"
+        data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group }}">
+      <td>
+        <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}</div>
+        {% if session.original_teacher_id %}
+        <div class="swap-note">
+          {% include "components/icon.html" with name="refresh" size="icon-sm" %}
+          مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}
+        </div>
+        {% endif %}
+      </td>
+      {% if is_leadership %}<td class="text-sm">{{ session.teacher.full_name }}</td>{% endif %}
+      <td class="text-sm" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group }}</td>
+      <td class="text-sm sessions-table__time" dir="ltr">
+        {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
+      </td>
+      <td>
+        <span class="status-badge
+          {% if session.status == 'completed' %}status-gray
+          {% elif session.status == 'in_progress' %}status-info
+          {% elif session.status == 'cancelled' %}status-danger
+          {% else %}status-warning{% endif %}">
+          {{ session.get_status_display }}
+        </span>
+      </td>
+      <td>
+        {% if session.status != 'completed' and session.status != 'cancelled' and is_recorder %}
+        <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
+        {% elif session.status != 'completed' and session.status != 'cancelled' and not session.class_group.wing_id %}
+        <a href="{% url 'attendance' session.id %}" class="btn-primary btn-sm">تسجيل حضور</a>
+        {% else %}
+        <a href="{% url 'attendance' session.id %}" class="btn-secondary btn-xs">عرض</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}{{ domain.name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,85 +9,54 @@
 {% block content %}
 <div class="qdom">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="layers" %} {{ domain.name }}</h1>
-      <p class="exec-date">{{ domain.completion_pct }}% إنجاز</p>
-    </div>
+  {% page_header domain.name icon="layers" %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ domain.total_procedures }}</span>
-      <span class="kpi-mini-label">إجراء</span>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <span class="kpi-mini-value">{{ domain.targets.count }}</span>
-      <span class="kpi-mini-label">هدف</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ domain.completion_pct }}%</span>
-      <span class="kpi-mini-label">إنجاز</span>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام المجال" %}
+    {% kpi "الإجراءات" total_procedures %}
+    {% kpi "الأهداف" targets|length tone="teal" %}
+    {% kpi "الإنجاز" pct_label tone=pct_tone title="نسبة الإجراءات المكتملة في المجال" %}
+  {% endkpi_strip %}
 
-  {# ── Progress bar ── #}
-  <div class="card-qatar qdom-header" style="overflow:hidden;padding:0">
-    <div class="qdom-progress">
-      <div class="qdom-progress__fill" style="--progress-w:{{ domain.completion_pct }}%"></div>
-    </div>
-  </div>
-
-  {# ── Filters ── #}
-  <form method="get" class="card-qatar qdom-filters">
-    <div class="qdom-filters__field">
-      <label class="qdom-filters__label">الحالة</label>
-      <select name="status" class="qdom-filters__select">
+  <form method="get" class="filter-bar qdom-filters">
+    <div class="filter-field">
+      <label class="filter-label" for="qdom-status">الحالة</label>
+      <select name="status" id="qdom-status">
         <option value="">— الكل —</option>
         {% for val, label in STATUS_CHOICES %}
         <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="qdom-filters__field">
-      <label class="qdom-filters__label">المنفذ</label>
-      <select name="executor" class="qdom-filters__select">
+    <div class="filter-field">
+      <label class="filter-label" for="qdom-executor">المنفذ</label>
+      <select name="executor" id="qdom-executor">
         <option value="">— الكل —</option>
         {% for ex in executors %}
-        <option value="{{ ex }}" {% if executor_filter == ex %}selected{% endif %}>{{ ex }}</option>
+        <option value="{{ ex.executor_norm }}" {% if executor_filter == ex.executor_norm %}selected{% endif %}>{{ ex.executor_norm }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="qdom-filters__field">
-      <label class="qdom-filters__label">بحث نص</label>
-      <input type="text" id="qdom-search" placeholder="ابحث في الإجراءات..."
-             class="qdom-filters__select">
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label" for="qdom-search">بحث نص</label>
+      <input type="text" id="qdom-search" placeholder="ابحث في الإجراءات...">
     </div>
-    <div class="qdom-filters__actions">
+    <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">فلترة</button>
       <a href="{% url 'domain_detail' domain.id %}" class="btn-secondary btn-sm">إعادة ضبط</a>
     </div>
   </form>
 
-  {# ── Targets > Indicators > Procedures ── #}
   {% for target in targets %}
-  <div class="card-qatar qdom-target">
-    <div class="qdom-target__head">
-      <span class="qdom-target__num" dir="ltr">{{ target.number }}</span>
-      <span class="qdom-target__text">{{ target.text|truncatechars:120 }}</span>
-    </div>
+  {% section_card target.text|truncatechars:120 meta=target.number icon="target" flush=True %}
     {% for indicator in target.indicators.all %}
     <div class="qdom-indicator">
       <div class="qdom-indicator__head">
         <span class="qdom-indicator__num" dir="ltr">{{ indicator.number }}</span>
         <span class="qdom-indicator__text">{{ indicator.text|truncatechars:100 }}</span>
       </div>
-      {% for proc in indicator.procedures.all %}
-      {% if not status_filter or proc.status == status_filter %}
-      {% if not executor_filter or executor_filter in proc.executor_norm %}
+      {% for proc in indicator.visible_procedures %}
       <div class="qdom-proc" data-text="{{ proc.text|lower }}">
         <div class="qdom-proc__body">
           <p class="qdom-proc__text">{{ proc.text|truncatechars:100 }}</p>
@@ -97,22 +67,16 @@
           </div>
         </div>
         <div class="qdom-proc__actions">
-          <span class="qdom-badge {% if proc.status == 'Completed' %}qdom-badge--success{% elif proc.status == 'In Progress' %}qdom-badge--warning{% elif proc.status == 'Pending Review' %}qdom-badge--blue{% else %}qdom-badge--gray{% endif %}">
-            {{ proc.get_status_display }}
-          </span>
+          <span class="status-badge status-{{ proc.status_tone }}">{{ proc.get_status_display }}</span>
           <a href="{% url 'procedure_detail' proc.id %}" class="qdom-proc__link">تفاصيل</a>
         </div>
       </div>
-      {% endif %}
-      {% endif %}
       {% endfor %}
     </div>
     {% endfor %}
-  </div>
+  {% endsection_card %}
   {% empty %}
-  <div class="card-qatar" style="padding:40px;text-align:center;">
-    <p style="color:var(--text-secondary);font-size:0.85rem;">لا توجد أهداف لهذا المجال</p>
-  </div>
+  {% empty_state "لا توجد أهداف لهذا المجال" icon="target" %}
   {% endfor %}
 
 </div>

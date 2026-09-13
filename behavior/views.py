@@ -235,11 +235,29 @@ def behavior_dashboard(request):
     )
 
     context["monthly_trend"] = monthly_trend
-    context["level_dist"] = level_dist
-    context["daily_trend"] = daily_trend
+    context["level_dist"] = list(level_dist)
+    context["daily_trend"] = list(daily_trend)
     context["top_violations"] = top_violations
+    context.update(_dashboard_presentation(context, today))
 
     return render(request, "behavior/dashboard.html", context)
+
+
+def _dashboard_presentation(context: dict, today) -> dict:
+    """أرقامُ رأس لوحة السلوك وألوانُها — الحكمُ هنا مرّةً لا شرطاً في القالب.
+
+    كان عددُ الجسيمة المعلّقة يُقال ثلاثاً: بطاقةٌ وشريطُ تنبيهٍ وعنوانُ قائمةٍ
+    مطويّة. فصار يُقال في البطاقة وحدَها، ولونُها يحمل التنبيه: أحمرُ متى وُجدت
+    جسيمةٌ بلا قرار لجنة (العتبةُ التي كانت في القالب: وجودُ واحدة).
+    """
+    critical = len(context.get("critical_unresolved") or [])
+    return {
+        "today_label": f"{today:%d/%m/%Y}",
+        "year_total": sum(row["count"] for row in context.get("level_dist", [])),
+        "week_total": sum(row["count"] for row in context.get("daily_trend", [])),
+        "critical_count": critical,
+        "critical_tone": "red" if critical else "green",
+    }
 
 
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
@@ -352,8 +370,32 @@ def report_infraction(request):
             "students": students,
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
+            "degree_panels": _degree_panels(violations_by_degree),
         },
     )
+
+
+#: لوحاتُ الدرجات الأربع — الاسمُ ولونُ الرمز. و`color` قيمةُ `data-color` القديمة تبقى للشيفرة.
+_DEGREE_PANELS = (
+    ("1", "الدرجة 1 — بسيطة", "green", "green"),
+    ("2", "الدرجة 2 — متوسطة", "amber", "yellow"),
+    ("3", "الدرجة 3 — خطيرة", "orange", "orange"),
+    ("4", "الدرجة 4 — جسيمة", "red", "red"),
+)
+
+
+def _degree_panels(violations_by_degree: dict) -> list[dict]:
+    """لوحةٌ لكلّ درجة بمخالفاتها — كانت أربعَ نسخٍ متطابقةً في القالب لا يفرّقها إلّا اللون."""
+    return [
+        {
+            "degree": degree,
+            "label": label,
+            "tone": tone,
+            "color": color,
+            "items": violations_by_degree.get(degree, []),
+        }
+        for degree, label, tone, color in _DEGREE_PANELS
+    ]
 
 
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
@@ -507,6 +549,8 @@ def committee_dashboard(request):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
     school = request.user.get_school()
     context = BehaviorService.get_committee_data(school)
+    # القضايا المفتوحة حمراءُ متى وُجدت واحدة، وخضراءُ حين تُحلّ كلُّها.
+    context["open_tone"] = "red" if context["stats"]["open_count"] else "green"
     return render(request, "behavior/committee.html", context)
 
 
@@ -618,6 +662,7 @@ def behavior_report(request, student_id):
             "period": period,
             "sent_to": sent_to,
             "period_choices": PERIOD_CHOICES,
+            "report_subtitle": f"{student.full_name} · {report['period_label']} · {year}",
             **report,
         },
     )
@@ -649,7 +694,35 @@ def behavior_statistics(request):
         stats["is_scoped"] = False
 
     stats["year"] = year
+    stats.update(_statistics_presentation(stats))
     return render(request, "behavior/statistics.html", stats)
+
+
+def _statistics_presentation(stats: dict) -> dict:
+    """ألوانُ صفحة الإحصاءات ونصوصُها المركّبة.
+
+    نسبةُ الحلّ خضراءُ من 80% وكهرمانيّةٌ من 50% وحمراءُ دونها — العتباتُ التي
+    كانت في القالب. وهي محسوبةٌ على **كلّ** مخالفات العام لا الجسيمة وحدها
+    (`resolved_pct` في الخدمة)، فالاسمُ يقول ذلك.
+
+    وشريطُ الشهر كان يُقاس على عشرين ثابتة فيفيض فوق 100% في شهرٍ مزدحم؛
+    فصار يُقاس على أكثر الشهور.
+    """
+    pct = stats.get("resolved_pct") or 0
+    by_level = stats.get("by_level") or {}
+    monthly = list(stats.get("monthly") or [])
+    peak = max((row["count"] for row in monthly), default=0)
+    # تنبيهُ «طلابك فقط» كان شريطاً بألوانٍ ثابتةٍ بين العنوان والأرقام — وهو وصفٌ للصفحة.
+    scope = " · طلابُك وحدَهم وفق جدولك الدراسي" if stats.get("is_scoped") else ""
+    return {
+        "subtitle": f"{stats.get('year')} · QNSA المعيار 2{scope}",
+        "severe_count": by_level.get(3, 0) + by_level.get(4, 0),
+        "resolved_label": f"{pct}%",
+        "resolved_tone": "green" if pct >= 80 else ("amber" if pct >= 50 else "red"),
+        "monthly_rows": [
+            {**row, "share": round(row["count"] * 100 / peak) if peak else 0} for row in monthly
+        ],
+    }
 
 
 # ── تصعيد إجراء ──────────────────────────────────────────────
@@ -913,10 +986,20 @@ def summon_parent(request, student_id=None):
                     "is_primary": link.is_primary,
                 }
             )
+        # «مؤشرُ السلوك» ليس نقاطاً مخصومة (النظامُ ملغى): يُحسب في
+        # `get_student_score` من عدد المخالفات ودرجاتها، فيبقى رقماً حقيقيّاً.
+        behavior_score = score_data.get("net_score", 100)
         student_context = {
-            "behavior_score": score_data.get("net_score", 100),
+            "behavior_score": behavior_score,
+            # العتباتُ التي كانت في القالب: 80 فأكثر أخضر، 50 فأكثر كهرمانيّ.
+            "behavior_score_tone": (
+                "green" if behavior_score >= 80 else ("amber" if behavior_score >= 50 else "red")
+            ),
             "active_infractions": active_infractions,
+            "active_infractions_tone": "red" if active_infractions else "green",
             "parents_info": parents_info,
+            # لا وليَّ أمرٍ مربوطاً = لا إشعار يصل؛ فالبطاقةُ حمراء.
+            "parents_tone": "maroon" if parents_info else "red",
         }
 
     return render(
@@ -930,6 +1013,9 @@ def summon_parent(request, student_id=None):
             "urgency_levels": URGENCY_LEVELS,
             "meeting_places": MEETING_PLACES,
             "sender": request.user,
+            "summon_subtitle": (
+                f"{selected_student.full_name} · {school.name}" if selected_student else school.name
+            ),
             **student_context,
         },
     )

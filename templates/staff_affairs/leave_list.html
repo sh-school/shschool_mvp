@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}طلبات الإجازات{% endblock %}
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="طلبات الإجازات" %}
@@ -6,10 +7,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div><h1 class="page-title">{% include "components/icon.html" with name="calendar" %} طلبات الإجازات</h1></div>
+  {% page_header "طلبات الإجازات" icon="calendar" %}
     <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب إجازة جديد</a>
-  </div>
+  {% endpage_header %}
 
   <form method="get" class="filter-bar">
     <div class="filter-field">
@@ -31,9 +31,8 @@
     </div>
   </form>
 
-  <div class="table-wrap">
-    {% if leaves %}
-    <div class="table-wrap-scroll">
+  {% section_card "الطلبات" icon="list-checks" flush=True empty="لا طلباتِ إجازاتٍ مطابقة" %}{% if leaves %}
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -41,7 +40,7 @@
             <th class="col-center">النوع</th>
             <th class="col-center">من</th>
             <th class="col-center">إلى</th>
-            <th class="col-center">الأيام</th>
+            <th class="num">الأيام</th>
             <th class="col-center">الحالة</th>
             <th class="col-actions">تفاصيل</th>
           </tr>
@@ -50,10 +49,10 @@
           {% for l in leaves %}
           <tr>
             <td><strong>{{ l.staff.full_name }}</strong></td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ l.get_leave_type_display }}</td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ l.start_date|date:"d/m" }}</td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ l.end_date|date:"d/m" }}</td>
-            <td class="col-center" style="font-weight:600">{{ l.days_count }}</td>
+            <td class="col-center text-xs">{{ l.get_leave_type_display }}</td>
+            <td class="col-center text-xs">{{ l.start_date|date:"d/m" }}</td>
+            <td class="col-center text-xs">{{ l.end_date|date:"d/m" }}</td>
+            <td class="num">{{ l.days_count }}</td>
             <td class="col-center">
               <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
             </td>
@@ -63,7 +62,6 @@
         </tbody>
       </table>
     </div>
-    {% else %}{% include "components/empty_state.html" with message="لا طلبات إجازات" %}{% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}

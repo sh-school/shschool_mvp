@@ -19,7 +19,7 @@ from django.utils import timezone
 from core.models import ClassGroup, CustomUser, Membership, StudentEnrollment, Wing, WingCoverage
 from core.models.academic import FLOORS, bands_of
 from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for, day_type_for
-from operations.day_attendance import confirmations_of, enrolled_of, slots_of
+from operations.day_attendance import enrolled_of
 
 
 @dataclass(frozen=True)
@@ -323,39 +323,47 @@ def bell_tables(school) -> list[BellTable]:
 
 @dataclass(frozen=True)
 class SectionToRecord:
-    """شعبةٌ في شاشة الرصد — ما يلزم لاختيارها والحكم عليها."""
+    """شعبةٌ في فهرس الرصد — أرقامُ آخر حصّةٍ مثبّتة، ونقطةٌ لكلّ حصّة."""
 
     class_group: ClassGroup
     students: int
-    periods: int
-    confirmation: object
+    periods: list
+    statuses: list
 
     @property
     def is_recorded(self) -> bool:
-        return self.confirmation is not None
+        """لا حصّةَ جاريةً ولا فائتةً تنتظر التثبيت."""
+        return bool(self.periods) and not any(s in ("current", "missed") for s in self.statuses)
 
     @property
-    def says(self) -> str:
-        if self.confirmation is None:
-            return "لم تُرصد"
-        c = self.confirmation
-        parts = [f"غياب {c.absent_count}"]
-        if c.late_count:
-            parts.append(f"تأخّر {c.late_count}")
-        return " · ".join(parts)
+    def shown(self):
+        """آخرُ حصّةٍ ثُبّتت — أرقامُها ما تعرضه البطاقة."""
+        confirmed = [p for p in self.periods if p.confirmation is not None]
+        return confirmed[-1] if confirmed else None
+
+    @property
+    def dots(self) -> list:
+        return list(zip(self.periods, self.statuses, strict=True))
+
+    @property
+    def missed(self) -> int:
+        return self.statuses.count("missed")
 
 
-def sections_to_record(wing, day) -> list[SectionToRecord]:
-    """شُعبُ الجناح وحالُ رصدِها اليوم — ومنه «شُعبي المتبقّية n/5»."""
-    done = confirmations_of(wing, day)
+def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
+    """شُعبُ الجناح وحالُ رصدِ حصصها — ومنه «المتبقّية n من 5» ونقاطُ الحصص."""
+    from operations.period_register import periods_of
+
+    now = now or timezone.now()
     rows = []
-    for klass in wing.class_groups.filter(is_active=True):
+    for klass in wing.class_groups.filter(is_active=True).order_by("grade", "section"):
+        periods = periods_of(klass, day)
         rows.append(
             SectionToRecord(
                 class_group=klass,
                 students=enrolled_of(klass).count(),
-                periods=slots_of(klass, day),
-                confirmation=done.get(klass.id),
+                periods=periods,
+                statuses=[p.status(day, now) for p in periods],
             )
         )
     return rows

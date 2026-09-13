@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 
 {% block title %}لجنة منفذي الخطة التشغيلية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -8,195 +8,142 @@
 {% endblock %}
 
 {% block content %}
-<div class="quality-page">
+<div class="qcom">
 
-  {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة التشغيلية</h1>
-      <p class="page-subtitle">{{ year }} — {{ total_all }} إجراء</p>
-    </div>
-    <div class="page-actions">
-      <a href="{% url 'quality_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المراجعة الذاتية</a>
-      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
-    </div>
+  {% page_header "لجنة منفذي الخطة التشغيلية" subtitle=year icon="settings" %}
+    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% include "components/icon.html" with name="plus" %} إضافة عضو</button>
+    <a href="{% url 'quality_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المراجعة الذاتية</a>
+    <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
+  {% endpage_header %}
+
+  {% kpi_strip label="أرقام الخطة" %}
+    {% kpi "التقدم الكلي" pct_label tone=pct_tone title="نسبة الإجراءات المكتملة من الإجمالي" %}
+    {% kpi "الإجمالي" total_all %}
+    {% kpi "مكتمل" completed_all tone="green" %}
+    {% kpi "قيد التنفيذ" in_progress_all tone="amber" %}
+    {% kpi "بانتظار المراجعة" pending_review_all tone="blue" %}
+  {% endkpi_strip %}
+
+  <div id="add-form" class="qcom-add">
+  {% section_card "إضافة عضو للجنة المنفذين" icon="user-plus" %}
+    <form method="post" action="{% url 'add_executor_member' %}">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="committee_type" value="executor">
+
+      <div class="q-add-form-grid">
+        <div class="q-add-form-field">
+          <label for="qcom-user">الموظف (اختياري)</label>
+          <select name="user_id" id="qcom-user">
+            <option value="">— اختر موظفاً —</option>
+            {% for u in all_users %}
+              <option value="{{ u.id }}">{{ u.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="q-add-form-field">
+          <label for="qcom-job">المسمى الوظيفي <span class="required-star">*</span></label>
+          <input type="text" name="job_title" id="qcom-job" required placeholder="مثال: منسق الرياضيات">
+        </div>
+        <div class="q-add-form-field">
+          <label for="qcom-resp">المسؤولية</label>
+          <select name="responsibility" id="qcom-resp">
+            <option value="عضو">عضو</option>
+            <option value="مقرر">مقرر</option>
+            <option value="نائب رئيس اللجنة">نائب رئيس اللجنة</option>
+            <option value="رئيس اللجنة">رئيس اللجنة</option>
+          </select>
+        </div>
+        <div class="q-add-form-field">
+          <label for="qcom-domain">المجال المسؤول (اختياري)</label>
+          <select name="domain_id" id="qcom-domain">
+            <option value="">— بدون مجال محدد —</option>
+            {% for d in domains %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions qcom-add__actions">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} إضافة للجنة</button>
+      </div>
+    </form>
+  {% endsection_card %}
   </div>
 
-  {# ══ Overall Progress ══════════════════════════════════════ #}
-  <div class="q-progress-bar">
-    <div class="progress-label">
-      <span>التقدم الكلي للخطة</span>
-      <span class="pct {% if pct_all >= 70 %}green{% elif pct_all >= 40 %}amber{% else %}red{% endif %}">
-        {{ pct_all }}%
-      </span>
-    </div>
-    <div class="progress-track">
-      <div class="progress-fill {% if pct_all >= 70 %}green{% elif pct_all >= 40 %}amber{% else %}red{% endif %}"
-           style="width: {{ pct_all }}%"></div>
-    </div>
-    <div class="progress-stats">
-      <div>
-        <div class="stat-value green">{{ completed_all }}</div>
-        <div class="stat-label">مكتمل</div>
-      </div>
-      <div>
-        <div class="stat-value amber">{{ total_all|add:"-"|add:completed_all }}</div>
-        <div class="stat-label">قيد التنفيذ</div>
-      </div>
-      <div>
-        <div class="stat-value muted">{{ total_all }}</div>
-        <div class="stat-label">الإجمالي</div>
-      </div>
-    </div>
-  </div>
-
-  {# ══ Unmapped Executors Alert ═══════════════════════════════ #}
   {% if unmapped_norms %}
-  <div class="q-alert q-alert-warn">
-    <span class="q-alert-icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <div>
-      <strong>{{ unmapped_norms|length }} منفذ لم يُربط بعد بمستخدم في النظام</strong>
-      <div class="q-alert-tags">
-        {% for norm in unmapped_norms %}
-          <span class="q-alert-tag">{{ norm }}</span>
-        {% endfor %}
-      </div>
+  {% section_card "منفذون لم يُربطوا بمستخدم" meta=unmapped_norms|length icon="alert-triangle" %}
+    <ul class="chip-row" aria-label="المسميات غير المربوطة">
+      {% for norm in unmapped_norms %}
+        <li class="chip-stat"><span class="chip-stat__value">{{ norm }}</span></li>
+      {% endfor %}
+    </ul>
+    <div class="form-actions qcom-add__actions">
+      <a href="{% url 'executor_mapping' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط المنفذين</a>
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
-  {# ══ Add Member Form ═══════════════════════════════════════ #}
-  <div class="q-add-form">
-    <button type="button" class="q-add-form-header" data-call="toggleForm">
-      <span>{% include "components/icon.html" with name="plus" %} إضافة عضو للجنة المنفذين</span>
-      <span id="form-toggle-icon" class="toggle-icon">＋</span>
-    </button>
-    <div id="add-form" class="q-add-form-body" style="display:none">
-      <form method="post" action="{% url 'add_executor_member' %}">
-        {% csrf_token %}
-        <input type="hidden" name="year" value="{{ year }}">
-        <input type="hidden" name="committee_type" value="executor">
-
-        <div class="q-add-form-grid">
-          <div class="q-add-form-field">
-            <label>الموظف (اختياري)</label>
-            <select name="user_id">
-              <option value="">— اختر موظفاً —</option>
-              {% for u in all_users %}
-                <option value="{{ u.id }}">{{ u.full_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="q-add-form-field">
-            <label>المسمى الوظيفي <span class="required-star">*</span></label>
-            <input type="text" name="job_title" required placeholder="مثال: منسق الرياضيات">
-          </div>
-          <div class="q-add-form-field">
-            <label>المسؤولية</label>
-            <select name="responsibility">
-              <option value="عضو">عضو</option>
-              <option value="مقرر">مقرر</option>
-              <option value="نائب رئيس اللجنة">نائب رئيس اللجنة</option>
-              <option value="رئيس اللجنة">رئيس اللجنة</option>
-            </select>
-          </div>
-          <div class="q-add-form-field">
-            <label>المجال المسؤول (اختياري)</label>
-            <select name="domain_id">
-              <option value="">— بدون مجال محدد —</option>
-              {% for d in domains %}
-                <option value="{{ d.id }}">{{ d.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="q-add-form-actions">
-          <button type="submit" class="q-btn q-btn-maroon">
-            {% include "components/icon.html" with name="plus" %} إضافة للجنة
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ══ Members Table ═════════════════════════════════════════ #}
-  <div class="quality-table-wrap">
-    <div class="quality-filters-header">
-      {% include "components/icon.html" with name="bar-chart" %} أعضاء اللجنة وتقارير الإنجاز ({{ member_stats|length }})
-    </div>
-
-    {% if member_stats %}
-    <div class="quality-table-scroll">
-      <table class="plans-table">
+  {% section_card "أعضاء اللجنة وتقارير الإنجاز" meta=member_stats|length icon="bar-chart" empty="لا يوجد أعضاء في اللجنة التنفيذية بعد" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_stats %}
+    <div class="table-wrap">
+      <table>
         <thead>
           <tr>
-            <th>العضو</th>
-            <th>المسؤولية</th>
-            <th>المجال</th>
-            <th>الكلي</th>
-            <th>مكتمل</th>
-            <th>جارٍ</th>
-            <th>التقدم</th>
-            <th>إجراءات</th>
+            <th scope="col">العضو</th>
+            <th scope="col" class="num">المسؤولية</th>
+            <th scope="col">المجال</th>
+            <th scope="col" class="num">الكلي</th>
+            <th scope="col" class="num">مكتمل</th>
+            <th scope="col" class="num">جارٍ</th>
+            <th scope="col">التقدم</th>
+            <th scope="col" class="num">إجراءات</th>
           </tr>
         </thead>
         <tbody>
           {% for stat in member_stats %}
           <tr {% if stat.unmapped %}class="row-unmapped"{% endif %}>
             <td>
-              <strong>{{ stat.member.display_name }}</strong>
+              <span class="qcom-member__name">{{ stat.member.display_name }}</span>
               {% if stat.unmapped %}
-                <br><span class="q-badge q-badge-warning">غير مربوط بمستخدم</span>
+                <span class="status-badge status-warning">غير مربوط بمستخدم</span>
               {% else %}
-                <br><span class="member-job">{{ stat.member.job_title }}</span>
+                <span class="qcom-member__job">{{ stat.member.job_title }}</span>
               {% endif %}
             </td>
-            <td class="cell-center">
-              <span class="q-badge {% if stat.member.responsibility == 'رئيس اللجنة' %}q-badge-danger{% elif stat.member.responsibility == 'نائب رئيس اللجنة' %}q-badge-warning{% elif stat.member.responsibility == 'مقرر' %}q-badge-info{% else %}q-badge-neutral{% endif %}">
-                {{ stat.member.responsibility }}
-              </span>
-            </td>
+            <td class="num"><span class="status-badge status-{{ stat.responsibility_tone }}">{{ stat.member.responsibility }}</span></td>
             <td class="cell-domain">{{ stat.member.domain.name|default:"—" }}</td>
-            <td class="cell-center cell-count">{{ stat.total }}</td>
-            <td class="cell-center cell-count-success">{{ stat.completed }}</td>
-            <td class="cell-center cell-count-amber">{{ stat.in_prog }}</td>
+            <td class="num">{{ stat.total }}</td>
+            <td class="num cell-count-success">{{ stat.completed }}</td>
+            <td class="num cell-count-amber">{{ stat.in_progress }}</td>
             <td class="cell-progress">
               <div class="mini-progress-wrap">
                 <div class="mini-progress-track">
-                  <div class="mini-progress-fill {% if stat.pct >= 70 %}green{% elif stat.pct >= 40 %}amber{% else %}red{% endif %}"
-                       style="--progress-w:{{ stat.pct }}%"></div>
+                  <div class="mini-progress-fill {{ stat.bar_tone }}" style="--progress-w:{{ stat.pct }}%"></div>
                 </div>
                 <span class="mini-progress-pct">{{ stat.pct }}%</span>
               </div>
             </td>
-            <td class="cell-center">
-              {% if not stat.unmapped %}
-              <a href="{% url 'executor_member_detail' stat.member.id %}?year={{ year }}" class="q-btn q-btn-outline">
-                التفاصيل
-              </a>
-              {% endif %}
-              {% if request.user.is_admin %}
-              <form class="form-inline" method="post" action="{% url 'remove_executor_member' stat.member.id %}"
-                    data-confirm="هل تريد إزالة هذا العضو من اللجنة؟">
-                {% csrf_token %}
-                <button type="submit" class="q-btn q-btn-outline q-btn-delete">حذف</button>
-              </form>
-              {% endif %}
+            <td class="num">
+              <div class="qcom-actions">
+                {% if not stat.unmapped %}
+                <a href="{% url 'executor_member_detail' stat.member.id %}?year={{ year }}" class="btn-secondary btn-sm">التفاصيل</a>
+                {% endif %}
+                {% if request.user.is_admin %}
+                <form class="form-inline" method="post" action="{% url 'remove_executor_member' stat.member.id %}"
+                      data-confirm="هل تريد إزالة هذا العضو من اللجنة؟">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-danger btn-sm">حذف</button>
+                </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}
-    <div class="quality-empty">
-      {% include "components/icon.html" with name="users" %}
-      <p>لا يوجد أعضاء في اللجنة التنفيذية بعد</p>
-      <p class="sub">ابدأ بإضافة الأعضاء من النموذج أعلاه</p>
-    </div>
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

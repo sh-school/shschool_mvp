@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}الانتقالات{% endblock %}
 
@@ -7,18 +8,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} سجل الانتقالات</h1>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} طلب انتقال جديد
-      </a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+<div class="exec-dash sa-page">
+  {% page_header "سجل الانتقالات" icon="refresh" %}
+    <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب انتقال جديد</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
   {# فلتر #}
   <form method="get" class="filter-bar">
@@ -92,7 +86,7 @@
       </table>
     </div>
     {% else %}
-    {% include "components/empty_state.html" with message="لا توجد انتقالات" %}
+    {% empty_state "لا توجد انتقالات" icon="refresh" %}
     {% endif %}
   </div>
 </div>

@@ -1,0 +1,18 @@
+{% comment %}جدولُ الاختبارات — مشتركٌ بين تفاصيل الدورة وصفحة الجدول.{% endcomment %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">التاريخ</th><th scope="col">المادة</th><th scope="col">الصف</th><th scope="col">القاعة</th><th scope="col">الوقت</th><th scope="col" class="num">الطلاب</th></tr></thead>
+    <tbody>
+      {% for s in schedules %}
+        <tr>
+          <td class="num">{{ s.exam_date|date:"d/m/Y" }}</td>
+          <td>{{ s.subject }}</td>
+          <td>{{ s.grade_level }}</td>
+          <td>{{ s.room.name }}</td>
+          <td class="num">{{ s.start_time|time:"H:i" }}{% if s.end_time %}–{{ s.end_time|time:"H:i" }}{% endif %}</td>
+          <td class="num">{{ s.students_count }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

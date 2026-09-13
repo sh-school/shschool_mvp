@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تفاصيل الإجراء{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,50 +9,22 @@
 {% block content %}
 <div class="qproc">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} تفاصيل الإجراء</h1>
-      <p class="exec-date" dir="ltr">{{ procedure.number }}</p>
-    </div>
+  {% page_header "تفاصيل الإجراء" subtitle=procedure.indicator.target.domain.name icon="clipboard-check" %}
     <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="btn-secondary btn-sm">← المجال</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ procedure.indicator.target.domain.name|truncatechars:15 }}</span>
-      <span class="kpi-mini-label">المجال</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ procedure.get_status_display }}</span>
-      <span class="kpi-mini-label">الحالة</span>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <span class="kpi-mini-value">{{ procedure.executor_norm|truncatechars:15 }}</span>
-      <span class="kpi-mini-label">المنفذ</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ evidences.count }}</span>
-      <span class="kpi-mini-label">أدلة</span>
-    </div>
-  </div>
+  {% section_card procedure_title meta=procedure.executor_norm icon="file-text" %}
+    <ul class="chip-row">
+      <li id="status-badge">{% include "quality/partials/procedure_status_badge.html" %}</li>
+      <li class="chip-stat"><span class="chip-stat__key">المؤشر</span><b class="chip-stat__value" dir="ltr">{{ procedure.indicator.number }}</b></li>
+      {% if procedure.executor_user %}
+      <li class="chip-stat"><span class="chip-stat__key">المسؤول</span><b class="chip-stat__value">{{ procedure.executor_user.full_name }}</b></li>
+      {% endif %}
+    </ul>
 
-  {# ── Procedure main card ── #}
-  <div class="card-qatar qproc-main">
-    <div class="card-bar">
-      <span class="qproc-num" dir="ltr">{{ procedure.number }}</span>
-    </div>
-    <div class="qproc-main__text">{{ procedure.text }}</div>
+    <p class="qproc-main__text">{{ procedure.text }}</p>
 
     <div class="qproc-grid">
-      <div class="qproc-field">
-        <span class="qproc-field__label">المنفذ</span>
-        <span class="qproc-field__val">{{ procedure.executor_norm }}</span>
-        {% if procedure.executor_user %}
-        <span class="qproc-field__sub">{{ procedure.executor_user.full_name }}</span>
-        {% endif %}
-      </div>
       <div class="qproc-field">
         <span class="qproc-field__label">الفترة الزمنية</span>
         <span class="qproc-field__val">{{ procedure.date_range|default:"—" }}</span>
@@ -59,35 +32,20 @@
       <div class="qproc-field">
         <span class="qproc-field__label">الموعد النهائي</span>
         {% if procedure.deadline %}
-          <span class="qproc-field__val {% if procedure.status != 'Completed' %}qproc-field__val--danger{% endif %}">
-            {{ procedure.deadline|date:"Y/m/d" }}
-          </span>
-        {% else %}
-          {% if can_edit %}
+          <span class="qproc-field__val{% if deadline_overdue %} qproc-field__val--danger{% endif %}"{% if deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{{ procedure.deadline|date:"Y/m/d" }}</span>
+        {% elif can_edit %}
           <form method="post" action="{% url 'update_proc_status' procedure.id %}" class="qproc-deadline-form">
             {% csrf_token %}
-            <input type="date" name="deadline" class="qproc-input">
+            <input type="date" name="deadline" class="qproc-input" aria-label="الموعد النهائي">
             <button type="submit" class="btn-primary btn-sm">حفظ</button>
           </form>
-          {% else %}
+        {% else %}
           <span class="qproc-field__val qproc-field__val--muted">غير محدد</span>
-          {% endif %}
         {% endif %}
       </div>
       <div class="qproc-field">
         <span class="qproc-field__label">نوع الدليل</span>
         <span class="qproc-field__val">{{ procedure.evidence_type|default:"—" }}</span>
-      </div>
-      <div class="qproc-field">
-        <span class="qproc-field__label">المجال</span>
-        <span class="qproc-field__val">{{ procedure.indicator.target.domain.name }}</span>
-      </div>
-      <div class="qproc-field">
-        <span class="qproc-field__label">المؤشر</span>
-        <span class="qproc-field__val qproc-num" dir="ltr">{{ procedure.indicator.number }}</span>
-      </div>
-      <div id="status-badge">
-        {% include "quality/partials/procedure_status_badge.html" %}
       </div>
       {% if procedure.follow_up %}
       <div class="qproc-field">
@@ -103,7 +61,6 @@
       {% endif %}
     </div>
 
-    {# ── Evaluation / comments strips ── #}
     {% if procedure.evaluation %}
     <div class="qproc-strip qproc-strip--info">
       <span class="qproc-strip__label">التقييم</span>
@@ -122,53 +79,47 @@
       <p class="qproc-strip__text">{{ procedure.comments }}</p>
     </div>
     {% endif %}
-  </div>
+  {% endsection_card %}
 
-  {# ── Update status form ── #}
   {% if can_edit %}
-  <div class="card-qatar qproc-update">
-    <div class="card-bar">تحديث الحالة</div>
+  <div class="qproc-noprint">
+  {% section_card "تحديث الحالة" icon="pencil" %}
     <form hx-post="{% url 'update_proc_status' procedure.id %}"
           hx-target="#status-badge" hx-swap="innerHTML"
           class="qproc-update__form">
       {% csrf_token %}
       <div class="qproc-update__field">
-        <label class="qproc-update__label">الحالة</label>
-        <select name="status" class="qproc-input qproc-input--full">
+        <label class="qproc-update__label" for="qproc-status">الحالة</label>
+        <select name="status" id="qproc-status" class="qproc-input qproc-input--full">
           {% for val, label in procedure.STATUS %}
           <option value="{{ val }}" {% if procedure.status == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="qproc-update__field qproc-update__field--grow">
-        <label class="qproc-update__label">التقييم</label>
-        <input type="text" name="evaluation" value="{{ procedure.evaluation }}"
+        <label class="qproc-update__label" for="qproc-evaluation">التقييم</label>
+        <input type="text" name="evaluation" id="qproc-evaluation" value="{{ procedure.evaluation }}"
                placeholder="أدخل ملاحظات التقييم..."
                class="qproc-input qproc-input--full">
       </div>
       <button type="submit" class="btn-primary btn-sm">حفظ</button>
     </form>
+  {% endsection_card %}
   </div>
   {% endif %}
 
-  {# ── Change log timeline ── #}
   {% if status_logs %}
-  <div class="card-qatar qproc-timeline">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="clock" %} سجل التغييرات
-    </div>
-    <div class="qproc-timeline__list">
+  {% section_card "سجل التغييرات" meta=status_logs|length icon="clock" %}
+    <ol class="qproc-timeline__list">
       {% for log in status_logs %}
-      <div class="qproc-tl-item">
-        <div class="qproc-tl-dot {% if log.new_status == 'Completed' %}qproc-tl-dot--success{% elif log.new_status == 'Pending Review' %}qproc-tl-dot--blue{% elif log.new_status == 'In Progress' %}qproc-tl-dot--warning{% elif log.new_status == 'Cancelled' %}qproc-tl-dot--gray{% else %}qproc-tl-dot--default{% endif %}"></div>
+      <li class="qproc-tl-item">
+        <span class="qproc-tl-dot is-{{ log.tone }}"></span>
         <div class="qproc-tl-content">
           <div class="qproc-tl-header">
             <div class="qproc-tl-badges">
-              <span class="qdom-badge {% if log.new_status == 'Completed' %}qdom-badge--success{% elif log.new_status == 'Pending Review' %}qdom-badge--blue{% elif log.new_status == 'In Progress' %}qdom-badge--warning{% else %}qdom-badge--gray{% endif %}">
-                {{ log.new_status }}
-              </span>
+              <span class="status-badge status-{{ log.tone }}">{{ log.new_label }}</span>
               <span class="qproc-tl-arrow">&larr;</span>
-              <span class="qproc-tl-old">{{ log.old_status }}</span>
+              <span class="qproc-tl-old">{{ log.old_label }}</span>
             </div>
             <span class="qproc-tl-time">{{ log.created_at|timesince }} مضت</span>
           </div>
@@ -180,59 +131,52 @@
           <p class="qproc-tl-note">{{ log.note }}</p>
           {% endif %}
         </div>
-      </div>
+      </li>
       {% endfor %}
-    </div>
+    </ol>
+  {% endsection_card %}
+  {% endif %}
+
+  {% section_card "الأدلة المرفوعة" meta=evidences|length icon="paperclip" empty="لا توجد أدلة مرفوعة بعد" %}{% if evidences %}
+    <ul class="plain-list">
+      {% for ev in evidences %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">{{ ev.title }}</b>
+          {% if ev.description %}<span class="plain-list__sub">{{ ev.description }}</span>{% endif %}
+          <span class="plain-list__sub">{{ ev.uploaded_by.full_name|default:"—" }} · {{ ev.created_at|date:"Y/m/d" }}</span>
+        </span>
+        {% if ev.file %}
+        <a href="{{ ev.file.url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">تحميل</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+
+  {% if can_edit %}
+  <div class="qproc-noprint">
+  {% section_card "رفع دليل جديد" icon="upload" %}
+    <form method="post" action="{% url 'upload_evidence' procedure.id %}" enctype="multipart/form-data"
+          class="qproc-update__form">
+      {% csrf_token %}
+      <div class="qproc-update__field qproc-update__field--grow">
+        <label class="qproc-update__label" for="qproc-ev-title">العنوان *</label>
+        <input type="text" name="title" id="qproc-ev-title" required class="qproc-input qproc-input--full">
+      </div>
+      <div class="qproc-update__field qproc-update__field--grow">
+        <label class="qproc-update__label" for="qproc-ev-desc">وصف</label>
+        <input type="text" name="description" id="qproc-ev-desc" class="qproc-input qproc-input--full">
+      </div>
+      <div class="qproc-update__field">
+        <label class="qproc-update__label" for="qproc-ev-file">ملف</label>
+        <input type="file" name="file" id="qproc-ev-file" class="qproc-input">
+      </div>
+      <button type="submit" class="btn-primary btn-sm">رفع</button>
+    </form>
+  {% endsection_card %}
   </div>
   {% endif %}
 
-  {# ── Evidence section ── #}
-  <div class="card-qatar qproc-evidence">
-    <div class="card-bar">الأدلة المرفوعة ({{ evidences.count }})</div>
-    {% if evidences %}
-    <div class="qproc-evidence__list">
-      {% for ev in evidences %}
-      <div class="qproc-ev-item">
-        <div class="qproc-ev-item__info">
-          <span class="qproc-ev-item__title">{{ ev.title }}</span>
-          {% if ev.description %}<span class="qproc-ev-item__desc">{{ ev.description }}</span>{% endif %}
-          <span class="qproc-ev-item__meta">{{ ev.uploaded_by.full_name|default:"—" }} &middot; {{ ev.created_at|date:"Y/m/d" }}</span>
-        </div>
-        {% if ev.file %}
-        <a href="{{ ev.file.url }}" target="_blank" class="btn-secondary btn-sm">تحميل</a>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="qproc-evidence__empty">لا توجد أدلة مرفوعة بعد</p>
-    {% endif %}
-
-    {# Upload form #}
-    {% if can_edit %}
-    <div class="qproc-evidence__upload">
-      <h3 class="qproc-evidence__upload-title">رفع دليل جديد</h3>
-      <form method="post" action="{% url 'upload_evidence' procedure.id %}" enctype="multipart/form-data"
-            class="qproc-update__form">
-        {% csrf_token %}
-        <div class="qproc-update__field qproc-update__field--grow">
-          <label class="qproc-update__label">العنوان *</label>
-          <input type="text" name="title" required class="qproc-input qproc-input--full">
-        </div>
-        <div class="qproc-update__field qproc-update__field--grow">
-          <label class="qproc-update__label">وصف</label>
-          <input type="text" name="description" class="qproc-input qproc-input--full">
-        </div>
-        <div class="qproc-update__field">
-          <label class="qproc-update__label">ملف</label>
-          <input type="file" name="file" class="qproc-input" style="font-size:0.8rem;">
-        </div>
-        <button type="submit" class="btn-primary btn-sm">رفع</button>
-      </form>
-    </div>
-    {% endif %}
-  </div>
-
 </div>
 {% endblock %}
-

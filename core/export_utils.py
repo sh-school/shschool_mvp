@@ -38,21 +38,13 @@ def get_export_context(request, title: str) -> dict:
     school = user.get_school()
     now = timezone.localtime()
 
-    ROLE_AR = {
-        "principal": "مدير المدرسة",
-        "vice_admin": "نائب المدير الإداري",
-        "vice_academic": "نائب المدير الأكاديمي",
-        "coordinator": "المنسق",
-        "teacher": "المعلم",
-        "social_worker": "الأخصائي الاجتماعي",
-        "psychologist": "الأخصائي النفسي",
-        "admin": "الإداري",
-        "platform_developer": "مطور المنصة",
-        "nurse": "الممرض",
-        "librarian": "أمين المكتبة",
-    }
+    from core.models import Role
 
-    role_en = user.get_role() or "—"
+    # أسماءُ الأدوار من `Role.ROLES` — مصدرُها الواحد. كانت هنا قائمةٌ من أحد عشر
+    # دوراً فيُطبع ما سواها برمزه الإنجليزيّ («admin_supervisor»)، و`exporter_role`
+    # نفسُه يُطبع رمزاً في ترويسة Excel وذيله وستّةِ قوالبِ PDF.
+    role_code = user.get_role() or ""
+    role_ar = dict(Role.ROLES).get(role_code, role_code) or "—"
     logo_path = str(Path(settings.BASE_DIR) / "static" / "brand" / "logoMaroon.png")
 
     return {
@@ -60,8 +52,9 @@ def get_export_context(request, title: str) -> dict:
         "school_logo_path": str(Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"),
         "logo_path": logo_path,
         "exported_by": user.full_name,
-        "exporter_role": role_en,
-        "exporter_role_ar": ROLE_AR.get(role_en, role_en),
+        "exporter_role": role_ar,
+        "exporter_role_code": role_code,
+        "exporter_role_ar": role_ar,
         "export_date": now.strftime("%d/%m/%Y"),
         "export_time": now.strftime("%H:%M"),
         "export_datetime": now.strftime("%d/%m/%Y %H:%M"),
@@ -279,5 +272,8 @@ def excel_to_response(wb, filename: str):
         output.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # ترويسةُ الـPDF نفسُها: ASCII دائماً، والاسمُ العربيّ في `filename*`.
+    from core.pdf_utils import _content_disposition
+
+    response["Content-Disposition"] = _content_disposition(filename, True)
     return response

@@ -212,6 +212,7 @@ def student_import_export(request):
     ctx = {
         "school": school,
         "year": year,
+        "subtitle": f"إدارة بيانات الطلاب عبر ملفات Excel — {year}",
         "total_students": total_students,
         "import_result": None,
     }
@@ -232,6 +233,11 @@ def student_import_export(request):
     try:
         result = _process_import(uploaded_file, school, year)
         ctx["import_result"] = result
+        # الأخطاءُ تُعرض عشرين، وما بقي يُقال عدداً؛ والكهرمانيُّ حين يوجد خطأ
+        # (العتبةُ التي كانت في القالب: أكبرُ من صفر).
+        error_count = result.get("error_count", len(result.get("errors", [])))
+        ctx["errors_more"] = max(0, error_count - len(result.get("errors", [])))
+        ctx["errors_tone"] = "amber" if error_count > 0 else "green"
     except (OSError, ValueError, KeyError, TypeError) as exc:
         logger.exception("فشل استيراد الطلاب")
         ctx["import_error"] = f"خطأ في قراءة الملف: {exc}"

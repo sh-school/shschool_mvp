@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 
 {% block title %}رصد {{ klass.short_code }}{% endblock %}
 
@@ -12,11 +13,16 @@
   <div class="exec-header">
     <div>
       <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} {{ klass.get_grade_display }} / {{ klass.section }}</h1>
-      <p class="exec-subtitle">
-        {{ day|date:"D، d M Y" }} · {{ students|length }} طالباً · {{ periods }} حصّة
-        {% if already %} · <b>رُصدت اليومَ — والحفظُ يستبدل</b>{% endif %}
-      </p>
+      <p class="exec-subtitle">{{ day|date:"D، d M Y" }} · {{ rows|length }} طالباً · {{ periods|length }} حصّة</p>
     </div>
+    {% if periods %}
+    <div class="exec-meta per-exports">
+      {% url 'wings:section_register' klass.id as register_url %}
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;print=1" class="btn-secondary btn-sm" target="_blank" rel="noopener">{% include "components/icon.html" with name="printer" %} طباعة</a>
+    </div>
+    {% endif %}
   </div>
 
   {% if not periods %}
@@ -26,53 +32,141 @@
     </div>
   {% else %}
 
-  <form method="post" class="rec-form">
+  <form method="post" action="{% url 'wings:record_period' klass.id %}" class="rec-form"
+        data-draft-key="{{ draft_key }}" data-now="{% now 'U' %}" data-offset="{% now 'O' %}">
     {% csrf_token %}
     <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+    <input type="hidden" name="start" value="{{ focus.key }}">
 
-    <p class="bell-note rec-hint">
-      الكلُّ حاضرٌ افتراضاً — المسْ من غاب أو تأخّر. والحالةُ تُكتب في
-      <b>{{ periods }}</b> حصّةً كلَّها.
-    </p>
+    {% comment %} رأسُ الحصّة المفتوحة: رقمُها ومادّتُها ووقتُها وحالُها، وزرّا الجملة. {% endcomment %}
+    <section class="per-head" aria-label="الحصّة المفتوحة للرصد">
+      <span class="per-head__badge" aria-hidden="true">ح{{ focus.number }}</span>
+      <div class="per-head__body">
+        <p class="per-head__title">
+          الحصّة {{ focus.number }} — {{ focus.subjects }}
+          <span class="per-state is-{{ focus_status }}">{% if focus_status == "confirmed" %}مثبّتة{% elif focus_status == "confirmed_late" %}ثُبّتت متأخّرة{% elif focus_status == "current" %}الآن{% elif focus_status == "missed" %}لم تُرصد{% else %}قادمة{% endif %}</span>
+        </p>
+        <p class="per-head__time">
+          <span>تبدأ <b>{{ focus.start|time:"H:i" }}</b></span>
+          <span>تنتهي <b>{{ focus.end|time:"H:i" }}</b></span>
+        </p>
+        {% if focus.confirmation %}<p class="per-head__note">ثُبّتت أوّلَ مرّةٍ {{ focus.confirmation.first_confirmed_at|time:"H:i:s" }} — والتثبيتُ ثانيةً يستبدل ما رُصد ولا يغيّر هذا الوقت.</p>{% endif %}
+        {% if not measured_now %}<p class="per-head__note">خارجَ وقت الحصّة: دقائقُ التأخّر تُكتب باليد.</p>{% endif %}
+      </div>
+      <div class="per-bulk">
+        <button type="button" class="btn-secondary btn-sm" data-bulk="present">الكلُّ حاضر</button>
+        <button type="button" class="btn-secondary btn-sm" data-bulk="absent">غيابُ الكلّ</button>
+      </div>
+    </section>
 
-    <ol class="rec-list">
-      {% for item in students %}
-      <li class="rec-row" data-state="{{ item.status }}">
-        <span class="rec-row__no">{{ forloop.counter }}</span>
-        <span class="rec-row__name">{{ item.student.full_name }}</span>
-        <span class="rec-row__pick">
-          <label class="rec-pick rec-pick--present">
-            <input type="radio" name="s-{{ item.student.id }}" value="present"
-                   {% if item.status == "present" %}checked{% endif %}>
-            <span>حاضر</span>
-          </label>
-          <label class="rec-pick rec-pick--absent">
-            <input type="radio" name="s-{{ item.student.id }}" value="absent"
-                   {% if item.status == "absent" %}checked{% endif %}>
-            <span>غائب</span>
-          </label>
-          <label class="rec-pick rec-pick--late">
-            <input type="radio" name="s-{{ item.student.id }}" value="late"
-                   {% if item.status == "late" %}checked{% endif %}>
-            <span>متأخّر</span>
-          </label>
-        </span>
-      </li>
-      {% endfor %}
-    </ol>
+    {% comment %}
+      كشفُ الشعبة: الطلابُ صفوفاً، وحصصُ اليوم كلُّها أعمدة. العمودُ المفتوحُ للرصد
+      فيه الأزرار، وبقيّةُ الأعمدة حالُ الطالب فيها. ورأسُ العمود يفتح حصّتَه.
+    {% endcomment %}
+    <div class="per-grid-wrap">
+      <table class="per-grid" data-no-sort>
+        <thead>
+          <tr data-plain-head>
+            <th scope="col" class="per-grid__no">#</th>
+            <th scope="col" class="per-grid__name">الطالب</th>
+            {% for period, status in periods %}
+              <th scope="col" class="per-col is-{{ status }}{% if period.start == focus.start %} is-focus{% endif %}">
+                <a href="?date={{ day|date:'Y-m-d' }}&amp;p={{ period.key }}" {% if period.start == focus.start %}aria-current="true"{% endif %}>
+                  <span class="per-col__no">ح{{ period.number }}</span>
+                  {% if period.confirmation %}
+                    {% comment %} وقتُ التثبيت محفوظٌ مع الحصّة — لا يتحرّك بعدها. {% endcomment %}
+                    <time class="per-col__clock is-fixed" datetime="{{ period.confirmation.first_confirmed_at|date:'c' }}"
+                          title="ثُبّتت {{ period.confirmation.first_confirmed_at|time:'H:i:s' }}">{{ period.confirmation.first_confirmed_at|time:"H:i:s" }}</time>
+                  {% else %}
+                    <time class="per-col__clock" data-clock aria-label="الساعةُ الآن">{% now "H:i:s" %}</time>
+                  {% endif %}
+                  <span class="per-state is-{{ status }}">{% if status == "confirmed" %}مثبّتة{% elif status == "confirmed_late" %}ثُبّتت متأخّرة{% elif status == "current" %}الآن{% elif status == "missed" %}لم تُرصد{% else %}قادمة{% endif %}</span>
+                </a>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% with sid=row.student.id %}
+          <tr class="rec-row" data-student="{{ sid }}">
+            <td class="per-grid__no">{{ forloop.counter }}</td>
+            <th scope="row" class="per-grid__name">
+              <span class="rec-row__name">{{ row.student.full_name }}</span>
+              {% if row.absent_yesterday or row.days %}
+              <span class="rec-row__flags">
+                {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}
+                {% if row.days %}<span class="badge badge--neutral">{{ row.days }} يوم بلا عذر{% if row.gate %} · الحرمانُ بعد {{ row.gate.max_days }}{% endif %}</span>{% endif %}
+              </span>
+              {% endif %}
+            </th>
+            {% for period, cell in row.track %}
+              {% if period.start == focus.start %}
+              <td class="per-cell is-focus">
+                <span class="rec-row__pick" role="radiogroup" aria-label="حال {{ row.student.full_name }}">
+                  <label class="rec-pick rec-pick--present">
+                    <input type="radio" name="s-{{ sid }}" value="present" {% if not cell or cell.status == "present" %}checked{% endif %}>
+                    <span>حاضر</span>
+                  </label>
+                  <label class="rec-pick rec-pick--absent">
+                    <input type="radio" name="s-{{ sid }}" value="absent" {% if cell.status == "absent" %}checked{% endif %}>
+                    <span>غائب</span>
+                  </label>
+                  <label class="rec-pick rec-pick--late">
+                    <input type="radio" name="s-{{ sid }}" value="late" {% if cell.status == "late" %}checked{% endif %} data-tap="t-{{ sid }}">
+                    <span>متأخّر</span>
+                  </label>
+                </span>
+                <input type="hidden" name="t-{{ sid }}" value="">
+                <span class="rec-row__more">
+                  <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب">
+                    <option value="">في فصله</option>
+                    {% for value, label in whereabouts %}
+                      <option value="{{ value }}" {% if cell.whereabouts == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  {% if not measured_now %}
+                    <input type="number" name="m-{{ sid }}" min="0" max="240" inputmode="numeric"
+                           class="form-control per-minutes" placeholder="دقائق"
+                           value="{{ cell.late_minutes|default_if_none:'' }}" aria-label="دقائق التأخّر">
+                  {% endif %}
+                </span>
+              </td>
+              {% else %}
+              <td class="per-cell is-{{ cell.status|default:'none' }}"
+                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}">
+                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>
+              </td>
+              {% endif %}
+            {% endfor %}
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
-    <div class="rec-foot">
-      <label class="wing-cover-field wing-cover-field--wide">
-        <span>ملاحظة (اختياريّة)</span>
-        <input type="text" name="note" class="form-control" maxlength="200">
-      </label>
-      <button type="submit" class="btn-primary">
-        {% include "components/icon.html" with name="check" %}
-        ثبّتِ الشعبة
-      </button>
+    {% comment %} شريطُ التثبيت لاصقٌ أسفلَ الشاشة: العدّادُ يتبدّل مع كلّ ضغطة، والزرُّ في متناول الإبهام. {% endcomment %}
+    <div class="per-bar">
+      <p class="per-bar__counts" aria-live="polite">
+        <span class="rec-count is-present">حاضر <b data-count="present">{{ rows|length }}</b></span>
+        <span class="rec-count is-absent">غائب <b data-count="absent">0</b></span>
+        <span class="rec-count is-late">متأخّر <b data-count="late">0</b></span>
+      </p>
+      <div class="per-bar__actions">
+        <button type="submit" class="btn-primary">
+          {% include "components/icon.html" with name="check" %}
+          ثبّتِ الحصّة {{ focus.number }}
+        </button>
+      </div>
     </div>
   </form>
 
+
   {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/period-register.js' %}" defer></script>
 {% endblock %}

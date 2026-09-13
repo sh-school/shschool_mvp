@@ -1,6 +1,8 @@
+{% load dict_filters %}
+{# `dictkey` مرشِّحٌ من `dict_filters` — كان يُستعمل بلا تحميل، فتسقط الجزئيّةُ بـ«Invalid filter» عند أوّل عرض. #}
 <div class="free-slots-card">
   <h3 class="free-slots-title">الحصص الحرة — {{ teacher.full_name }}</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+  <table class="free-slots-table">
     <thead>
       <tr>
         {% for d_num, d_name in days %}

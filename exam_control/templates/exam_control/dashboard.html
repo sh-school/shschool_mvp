@@ -1,71 +1,29 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}كنترول الاختبارات{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/dashboard/" parent_label="الرئيسية" current="كنترول الاختبارات" %}
+{% include "components/breadcrumbs.html" with current="كنترول الاختبارات" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="exec-dash">
 
-  {# ── Page Header ── #}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="clipboard-check" %} كنترول الاختبارات</h1>
-      <p class="page-subtitle">إدارة دورات الاختبار والمحاضر والكنترول</p>
-    </div>
-    <div class="page-actions">
-      <a href="{% url 'exam_control:session_create' %}" class="btn-primary btn-sm" aria-label="إنشاء دورة اختبار جديدة">+ دورة جديدة</a>
-    </div>
-  </div>
+  {% page_header "كنترول الاختبارات" subtitle="دوراتُ الاختبار والمحاضرُ والكنترول" icon="clipboard-check" %}
+    <a href="{% url 'exam_control:session_create' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} دورة جديدة</a>
+  {% endpage_header %}
 
-  {# ── قائمة دورات الاختبار ── #}
-  {% if sessions %}
-  <div class="space-y-4">
-    {% for s in sessions %}
-    <div class="card-qatar overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-4">
-        <div>
-          <h2 class="font-bold text-[var(--text-primary)] m-0">{{ s.name }}</h2>
-          <p class="text-xs text-[var(--text-muted)] mt-1">{{ s.start_date|date:"d/m/Y" }} ← {{ s.end_date|date:"d/m/Y" }} · {{ s.academic_year }}</p>
-        </div>
-        <span class="status-badge
-          {% if s.status == 'active' %}status-success
-          {% elif s.status == 'planned' %}status-warning
-          {% else %}status-gray{% endif %}">
-          {{ s.get_status_display }}
-        </span>
-      </div>
-
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-0 border-t border-[var(--border)]">
-        <div class="p-4 text-center border-l border-[var(--border)]">
-          <div class="text-xl font-bold text-status-danger">{{ s.incident_count }}</div>
-          <div class="text-xs text-[var(--text-muted)]">حوادث</div>
-        </div>
-        <div class="p-4 text-center border-l border-[var(--border)]">
-          <div class="text-xl font-bold text-status-warning">{{ s.pending_sheets }}</div>
-          <div class="text-xs text-[var(--text-muted)]">رصد معلق</div>
-        </div>
-        <div class="p-4 text-center border-l border-[var(--border)]">
-          <a href="{% url 'exam_control:session_detail' s.pk %}" class="btn-secondary btn-sm" aria-label="تفاصيل دورة {{ s.name }}">التفاصيل</a>
-        </div>
-        <div class="p-4 text-center">
-          <a href="{% url 'exam_control:session_report_pdf' s.pk %}" class="btn-primary btn-sm" aria-label="تقرير PDF لدورة {{ s.name }}">{% include "components/icon.html" with name="file-text" %} PDF</a>
-        </div>
-      </div>
+  {% section_card "دورات الاختبار" meta=sessions|length icon="clipboard-check" empty="لا دوراتِ اختبارٍ بعد" empty_sub="أنشئ أوّلَ دورةٍ لبدء إدارة الكنترول" %}{% if sessions %}
+    <div class="ui-entity-grid">
+      {% for s in sessions %}
+        {% url 'exam_control:session_detail' s.pk as u %}
+        {% entity_card s.name who=s.academic_year count=s.get_status_display href=u tone=s.status_tone %}
+          {% entity_chips %}<span class="chip">{{ s.start_date|date:"d/m" }} ← {{ s.end_date|date:"d/m/Y" }}</span><span class="chip">{{ s.incident_count }} حوادث</span><span class="chip">{{ s.pending_sheets }} رصد معلّق</span>{% endentity_chips %}
+          {% entity_status tone=s.attention_tone %}{{ s.attention_label }}{% endentity_status %}
+        {% endentity_card %}
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="card-qatar">
-    <div class="empty-state py-12">
-      <span class="empty-icon">{% include "components/icon.html" with name="clipboard-check" size="icon-2xl" %}</span>
-      <p class="empty-title">لا توجد دورات اختبار بعد</p>
-      <p class="empty-sub">أنشئ أول دورة لبدء إدارة الكنترول</p>
-      <a href="{% url 'exam_control:session_create' %}" class="btn-primary btn-sm mt-3 no-underline inline-block">+ إنشاء دورة</a>
-    </div>
-  </div>
-  {% endif %}
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

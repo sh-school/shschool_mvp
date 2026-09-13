@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}طلبات التبديل{% endblock %}
 
 {% block breadcrumbs %}
@@ -12,24 +13,14 @@
 وحالةُ فراغٍ مكتوبةٌ بيدٍ لا المكوّنَ الموحَّد. فبدت غريبةً عن أخواتها.
 {% endcomment %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</h1>
-      <p class="exec-subtitle">تبديلُ حصّةٍ بحصّة — يوافق عليه المعلّمُ الآخر ثمّ منسّقُ المادّة</p>
-    </div>
-    <div class="flex gap-2">
-      {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
-      <a href="{% url 'swap_request' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} طلب تبديل
-      </a>
-      {% endif %}
-      <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
-        <button type="submit" class="btn-secondary btn-sm">
-          {% include "components/icon.html" with name="refresh-cw" %} بناء سجل الحصص الحرة
-        </button>
-      </form>
-    </div>
-  </div>
+  {% page_header "طلبات التبديل" subtitle="تبديلُ حصّةٍ بحصّة — يوافق عليه المعلّمُ الآخر ثمّ منسّقُ المادّة" icon="refresh" %}
+    {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
+    <a href="{% url 'swap_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب تبديل</a>
+    {% endif %}
+    <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
+      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh-cw" %} بناء سجل الحصص الحرة</button>
+    </form>
+  {% endpage_header %}
 
   <form method="get" class="filter-bar">
     <div class="filter-field">
@@ -48,15 +39,13 @@
     </div>
   </form>
 
-  <div class="card-qatar" style="padding:0">
-    <div class="table-wrap-scroll" style="max-height:420px" id="swap-cards">
+  {% section_card "الطلبات" icon="refresh" flush=True empty="لا توجد طلبات تبديل" empty_sub="ستظهر هنا حين يطلب معلّمٌ تبديلَ حصّة" %}{% if swaps %}
+    <div class="table-wrap-scroll schedule-cards" id="swap-cards">
     {% for swap in swaps %}
     {% include "schedule/partials/swap_card.html" with swap=swap %}
-    {% empty %}
-    {% include "components/empty_state.html" with icon="refresh" title="لا توجد طلبات تبديل" subtitle="ستظهر هنا حين يطلب معلّمٌ تبديلَ حصّة" %}
     {% endfor %}
     </div>
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}
 

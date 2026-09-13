@@ -21,6 +21,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.labels import class_label
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, grade_order
 from core.models.access import Membership, Role
 from core.models.user import CustomUser, Profile
@@ -350,7 +351,10 @@ class StudentService:
                     {
                         "id": sid,
                         "full_name": r["student__full_name"],
-                        "class_group": f"{r['session__class_group__grade']}/{r['session__class_group__section']}",
+                        # بصيغة سجلّ القيد «07/2» لا الرمزِ الخامّ «G7/2».
+                        "class_group": class_label(
+                            r["session__class_group__grade"], r["session__class_group__section"]
+                        ),
                     }
                 )
                 if len(result) >= 100:
