@@ -239,3 +239,53 @@ def test_the_empty_department_picker_keeps_its_warning_at_night():
         ), "النظيرةُ لا تُبقي الإطارَ كهرمانيّاً"
         return
     raise AssertionError("لا نظيرةَ ليليّةً لقائمة القسم الفارغة — يختفي تنبيهُها ليلاً")
+
+
+#: الخاصّيّةُ وأختُها المختصرة — تعارضُ `border` مع `border-color` تعارض.
+_PROP_FAMILY = {
+    "background": "background",
+    "background-color": "background",
+    "border": "border-color",
+    "border-color": "border-color",
+    "color": "color",
+}
+
+
+def test_no_element_has_rival_night_rules_in_different_layers():
+    """نظيرتان ليليّتان لمُحدِّدٍ واحدٍ بقيمتين، كلٌّ في طبقة — فالطبقةُ تحكم لا الترتيب.
+
+    كانت `.df-card` تُعرَّف ليلاً مرّتين: أرضيّةً عنّابيّةً في `modules`، وسطحاً
+    رماديّاً بإطارٍ رماديٍّ في `themes`. ومن يقرأ الملفَّ يرى الثانيةَ متقدّمةً
+    فيظنّ الأولى هي الحاكمة — والطبقةُ الأعلى تغلب أيّاً كان الموضع. قِيس في
+    المتصفّح يومَ 2026-09-13: ضاع الإطارُ العنّابيّ، وصارت البطاقةُ البارزةُ كسائر
+    البطاقات.
+
+    والتعارضُ داخل الطبقة الواحدة أهونُ — تغلب المتأخّرةُ كما يُتوقَّع وتبقى
+    الأولى ميتة — فلا يمنعه هذا الحارس.
+    """
+    seen = {}
+    for sel, decls, ctx in iter_rules(_css()):
+        if any(c.startswith("@media") for c in ctx):
+            continue
+        layer = next((c for c in ctx if c.startswith("@layer")), "@layer —")
+        for part in sel.split(","):
+            flat = " ".join(part.split())
+            if not flat.startswith("html.dark "):
+                continue
+            for prop, value in decls.items():
+                family = _PROP_FAMILY.get(prop)
+                if family:
+                    seen.setdefault((flat, family), set()).add((layer, " ".join(value.split())))
+
+    rivals = []
+    for (selector, family), entries in sorted(seen.items()):
+        layers = {layer for layer, _v in entries}
+        values = {value for _l, value in entries}
+        if len(layers) > 1 and len(values) > 1:
+            rivals.append(
+                f"  {selector} [{family}]: "
+                + " | ".join(f"{layer.split()[-1]} {value}" for layer, value in sorted(entries))
+            )
+    assert not rivals, (
+        "نظيرتان ليليّتان متعارضتان في طبقتين — تحكم الطبقةُ لا ترتيبُ الملف:\n" + "\n".join(rivals)
+    )
